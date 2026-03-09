@@ -66,6 +66,9 @@ public class AttendanceResponse {
         private int presentCount;
         private int absentCount;
         private int onLeaveCount;
+        private int fullDayLeaveCount;
+        private int amHalfLeaveCount;
+        private int pmHalfLeaveCount;
         private int totalActiveMembers;
         private MyTodayRecord myRecord;
     }
@@ -125,6 +128,48 @@ public class AttendanceResponse {
                     .weekendDays(p.getWeekendDays())
                     .build();
         }
+    }
+
+    // ─── Today Members (per-member detail for attendance modal) ───
+
+    @Getter
+    @Builder
+    public static class TodayMembersResponse {
+        private List<PresentMemberInfo> presentMembers;
+        private List<AbsentMemberInfo> absentMembers;
+        private List<LeaveMemberInfo> leaveMembers;
+    }
+
+    @Getter
+    @Builder
+    public static class PresentMemberInfo {
+        private String memberId;
+        private String name;
+        private String profileImage;
+        private String departmentName;
+        private LocalDateTime clockIn;
+        private LocalDateTime clockOut;
+        private Integer elapsedMinutes;
+        private boolean late;
+    }
+
+    @Getter
+    @Builder
+    public static class AbsentMemberInfo {
+        private String memberId;
+        private String name;
+        private String profileImage;
+        private String departmentName;
+    }
+
+    @Getter
+    @Builder
+    public static class LeaveMemberInfo {
+        private String memberId;
+        private String name;
+        private String profileImage;
+        private String departmentName;
+        private String durationType;
     }
 
     @Getter

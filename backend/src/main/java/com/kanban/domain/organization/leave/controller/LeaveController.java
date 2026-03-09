@@ -86,6 +86,41 @@ public class LeaveController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/members/{memberId}/leave-balance/{balanceId}/adjust")
+    public ResponseEntity<LeaveDto.BalanceResponse> adjustMemberBalance(
+            @PathVariable String orgId,
+            @PathVariable String memberId,
+            @PathVariable String balanceId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody LeaveDto.AdjustBalance request) {
+        LeaveDto.BalanceResponse response = leaveService.adjustMemberBalance(
+                orgId, memberId, balanceId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
+    // ==================== Leave Adjustments (History) ====================
+
+    @GetMapping("/members/{memberId}/leave-adjustments")
+    public ResponseEntity<LeaveDto.AdjustmentPageResponse> getMemberAdjustments(
+            @PathVariable String orgId,
+            @PathVariable String memberId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        LeaveDto.AdjustmentPageResponse response = leaveService.getMemberAdjustments(
+                orgId, memberId, principal.getUserId(), pageable);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/leave-adjustments")
+    public ResponseEntity<LeaveDto.AdjustmentPageResponse> getOrgAdjustments(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        LeaveDto.AdjustmentPageResponse response = leaveService.getOrgAdjustments(
+                orgId, principal.getUserId(), pageable);
+        return ResponseEntity.ok(response);
+    }
+
     // ==================== On Leave Today ====================
 
     @GetMapping("/on-leave-today")

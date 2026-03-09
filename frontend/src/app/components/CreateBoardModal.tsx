@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MotionModal } from './ui/MotionModal';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
-import { User, Users, ArrowLeft, CalendarDays, BookHeart, Sparkles } from 'lucide-react';
 
 // 보드 색상 gradient 생성 (dashboard/CreateBoardModal과 동일)
 const BOARD_GRADIENTS = [
@@ -21,28 +20,17 @@ interface CreateBoardModalProps {
   open: boolean;
   onClose: () => void;
   onCreateBoard: (name: string, description?: string, backgroundGradient?: string) => void;
-  hasPersonalSpace?: boolean;
-  onActivatePersonalSpace?: () => void;
 }
 
 export function CreateBoardModal({
   open,
   onClose,
   onCreateBoard,
-  hasPersonalSpace = true,
-  onActivatePersonalSpace,
 }: CreateBoardModalProps) {
   const { t } = useTranslation();
   const [boardName, setBoardName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedGradient, setSelectedGradient] = useState(BOARD_GRADIENTS[0].value);
-  const [step, setStep] = useState<'select' | 'form'>('select');
-
-  useEffect(() => {
-    if (open) {
-      setStep(hasPersonalSpace ? 'form' : 'select');
-    }
-  }, [open, hasPersonalSpace]);
 
   const handleCreate = () => {
     if (boardName.trim()) {
@@ -57,93 +45,14 @@ export function CreateBoardModal({
     setBoardName('');
     setDescription('');
     setSelectedGradient(BOARD_GRADIENTS[0].value);
-    setStep(hasPersonalSpace ? 'form' : 'select');
     onClose();
-  };
-
-  const handleActivatePersonalSpace = () => {
-    handleClose();
-    onActivatePersonalSpace?.();
   };
 
   return (
     <MotionModal open={open} onClose={handleClose} className="sm:max-w-lg">
-        {step === 'select' ? (
           <div className="p-6">
             <div className="mb-4">
-              <h2 className="text-foreground font-semibold text-lg">{t('createBoard.selectType', '어떤 보드를 만들까요?')}</h2>
-              <p className="text-slate-400 text-sm">{t('createBoard.selectTypeDesc', '보드 유형을 선택하세요')}</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 py-4">
-              {/* 나만을 위한 보드 */}
-              <button
-                onClick={handleActivatePersonalSpace}
-                className="w-full group relative overflow-hidden rounded-2xl border border-foreground/10 hover:border-bridge-secondary/50 transition-all text-left"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-bridge-secondary/10 via-purple-500/5 to-bridge-accent/10 opacity-50 group-hover:opacity-100 transition-opacity" />
-                <div className="relative p-5 flex flex-col items-center text-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-bridge-secondary/20 border border-bridge-secondary/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <User size={20} className="text-bridge-secondary" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground mb-1 group-hover:text-bridge-secondary transition-colors">
-                      {t('createBoard.personalTitle', '나만을 위한 보드')}
-                    </h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      {t('createBoard.personalDesc', '개인 일정, 습관 트래커, AI 다이어리를 한곳에서 관리하세요')}
-                    </p>
-                    <div className="flex items-center justify-center gap-2 mt-2.5 flex-wrap">
-                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
-                        <CalendarDays size={11} /> {t('createBoard.personalFeature1', '일정')}
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
-                        <BookHeart size={11} /> {t('createBoard.personalFeature2', 'AI 다이어리')}
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
-                        <Sparkles size={11} /> {t('createBoard.personalFeature3', '습관')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </button>
-
-              {/* 팀과 협업하는 보드 */}
-              <button
-                onClick={() => setStep('form')}
-                className="w-full group relative overflow-hidden rounded-2xl border border-foreground/10 hover:border-bridge-accent/50 transition-all text-left"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-bridge-accent/10 via-indigo-500/5 to-purple-500/10 opacity-50 group-hover:opacity-100 transition-opacity" />
-                <div className="relative p-5 flex flex-col items-center text-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-bridge-accent/20 border border-bridge-accent/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Users size={20} className="text-bridge-accent" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground mb-1 group-hover:text-bridge-accent transition-colors">
-                      {t('createBoard.teamTitle', '팀과 협업하는 보드')}
-                    </h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      {t('createBoard.teamDesc', '팀원을 초대하고 칸반 보드로 프로젝트를 함께 관리하세요')}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="p-6">
-            <div className="mb-4">
-              <div className="flex items-center gap-2">
-                {!hasPersonalSpace && (
-                  <button
-                    onClick={() => setStep('select')}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-                  >
-                    <ArrowLeft size={18} />
-                  </button>
-                )}
-                <h2 className="text-foreground font-semibold text-lg">{t('createBoard.title')}</h2>
-              </div>
+              <h2 className="text-foreground font-semibold text-lg">{t('createBoard.title')}</h2>
               <p className="text-slate-400 text-sm">{t('createBoard.description')}</p>
             </div>
 
@@ -236,7 +145,6 @@ export function CreateBoardModal({
               </Button>
             </div>
           </div>
-        )}
     </MotionModal>
   );
 }

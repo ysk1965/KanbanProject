@@ -27,15 +27,26 @@ interface NoteBottomCommentsProps {
 
 // ========== Utilities ==========
 
+function cleanMarkdownArtifacts(text: string): string {
+  return text
+    .replace(/\\\n/g, '\n')
+    .replace(/\\$/gm, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/`([^`]+)`/g, '$1');
+}
+
 function renderContentWithMentions(content: string, members: MemberResponse[]) {
+  const cleaned = cleanMarkdownArtifacts(content);
   const memberNames = members.map(m => m.user.name);
-  if (memberNames.length === 0) return content;
+  if (memberNames.length === 0) return cleaned;
 
   const mentionPattern = new RegExp(
     `(@(?:${memberNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))(?=\\s|$)`,
     'g'
   );
-  const parts = content.split(mentionPattern);
+  const parts = cleaned.split(mentionPattern);
   return parts.map((part, i) => {
     if (part.startsWith('@')) {
       const name = part.slice(1);

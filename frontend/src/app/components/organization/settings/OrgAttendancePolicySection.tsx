@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Clock, CalendarDays, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { organizationService } from "../../../utils/services";
+import { TimePicker } from "../../ui/TimePicker";
 import type {
   AttendancePolicyResponse,
   AttendanceHolidayResponse,
@@ -26,12 +27,12 @@ export function OrgAttendancePolicySection({
   const [savingAttendancePolicy, setSavingAttendancePolicy] = useState(false);
   const [policyForm, setPolicyForm] = useState({
     standard_hours: 8,
-    core_time_start: "",
-    core_time_end: "",
-    late_threshold: "",
+    core_time_start: "11:00",
+    core_time_end: "17:00",
+    late_threshold: "11:00",
     auto_clock_out: false,
     auto_clock_out_time: "22:00",
-    weekend_days: "SATURDAY,SUNDAY",
+    weekend_days: "6,7",
   });
 
   const [holidays, setHolidays] = useState<AttendanceHolidayResponse[]>([]);
@@ -56,7 +57,7 @@ export function OrgAttendancePolicySection({
           late_threshold: policy.late_threshold || "",
           auto_clock_out: policy.auto_clock_out,
           auto_clock_out_time: policy.auto_clock_out_time || "22:00",
-          weekend_days: policy.weekend_days || "SATURDAY,SUNDAY",
+          weekend_days: policy.weekend_days || "6,7",
         });
       } catch {
         /* Optional feature */
@@ -153,13 +154,13 @@ export function OrgAttendancePolicySection({
   };
 
   const WEEKDAY_OPTIONS = [
-    { key: "MONDAY", label: t("organization.attendance.mon", "Mon") },
-    { key: "TUESDAY", label: t("organization.attendance.tue", "Tue") },
-    { key: "WEDNESDAY", label: t("organization.attendance.wed", "Wed") },
-    { key: "THURSDAY", label: t("organization.attendance.thu", "Thu") },
-    { key: "FRIDAY", label: t("organization.attendance.fri", "Fri") },
-    { key: "SATURDAY", label: t("organization.attendance.sat", "Sat") },
-    { key: "SUNDAY", label: t("organization.attendance.sun", "Sun") },
+    { key: "1", label: t("organization.attendance.mon", "Mon") },
+    { key: "2", label: t("organization.attendance.tue", "Tue") },
+    { key: "3", label: t("organization.attendance.wed", "Wed") },
+    { key: "4", label: t("organization.attendance.thu", "Thu") },
+    { key: "5", label: t("organization.attendance.fri", "Fri") },
+    { key: "6", label: t("organization.attendance.sat", "Sat") },
+    { key: "7", label: t("organization.attendance.sun", "Sun") },
   ];
 
   const toggleWeekendDay = (day: string) => {
@@ -216,33 +217,31 @@ export function OrgAttendancePolicySection({
                 {t("organization.attendance.coreTime", "Core Time")}
               </label>
               <div className="flex items-center gap-2">
-                <input
-                  type="time"
+                <TimePicker
                   value={policyForm.core_time_start}
-                  onChange={(e) =>
+                  onChange={(val) =>
                     setPolicyForm((prev) => ({
                       ...prev,
-                      core_time_start: e.target.value,
+                      core_time_start: val,
                     }))
                   }
-                  className={inputSmClass + " w-32"}
                   placeholder={t(
                     "organization.attendance.coreTimeStart",
                     "Start",
                   )}
+                  minuteStep={30}
                 />
                 <span className="text-muted-foreground text-xs">~</span>
-                <input
-                  type="time"
+                <TimePicker
                   value={policyForm.core_time_end}
-                  onChange={(e) =>
+                  onChange={(val) =>
                     setPolicyForm((prev) => ({
                       ...prev,
-                      core_time_end: e.target.value,
+                      core_time_end: val,
                     }))
                   }
-                  className={inputSmClass + " w-32"}
                   placeholder={t("organization.attendance.coreTimeEnd", "End")}
+                  minuteStep={30}
                 />
               </div>
             </div>
@@ -252,16 +251,16 @@ export function OrgAttendancePolicySection({
               <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                 {t("organization.attendance.lateThreshold", "Late Threshold")}
               </label>
-              <input
-                type="time"
+              <TimePicker
                 value={policyForm.late_threshold}
-                onChange={(e) =>
+                onChange={(val) =>
                   setPolicyForm((prev) => ({
                     ...prev,
-                    late_threshold: e.target.value,
+                    late_threshold: val,
                   }))
                 }
-                className={inputSmClass + " w-32"}
+                placeholder={t("organization.attendance.lateThreshold", "Late Threshold")}
+                minuteStep={30}
               />
             </div>
 
@@ -312,16 +311,16 @@ export function OrgAttendancePolicySection({
                     "Auto Clock Out Time",
                   )}
                 </label>
-                <input
-                  type="time"
+                <TimePicker
                   value={policyForm.auto_clock_out_time}
-                  onChange={(e) =>
+                  onChange={(val) =>
                     setPolicyForm((prev) => ({
                       ...prev,
-                      auto_clock_out_time: e.target.value,
+                      auto_clock_out_time: val,
                     }))
                   }
-                  className={inputSmClass + " w-32"}
+                  placeholder={t("organization.attendance.autoClockOutTime", "Auto Clock Out Time")}
+                  minuteStep={30}
                 />
               </div>
             )}

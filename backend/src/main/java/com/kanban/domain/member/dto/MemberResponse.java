@@ -2,6 +2,7 @@ package com.kanban.domain.member.dto;
 
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardRole;
+import com.kanban.domain.organization.OrganizationMember;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -131,6 +132,30 @@ public class MemberResponse {
                     .type("EMAIL_SENT")
                     .email(email)
                     .role(role)
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class OrgCandidate {
+        private String userId;
+        private String name;
+        private String email;
+        private String profileImage;
+        private String department;
+        private String position;
+
+        public static OrgCandidate of(OrganizationMember om) {
+            return OrgCandidate.builder()
+                    .userId(om.getUser().getId())
+                    .name(om.getUser().getName())
+                    .email(om.getUser().getEmail())
+                    .profileImage(om.getUser().getProfileImage())
+                    .department(om.getDepartment() != null ? om.getDepartment().getName() : null)
+                    .position(om.getPosition() != null ? om.getPosition().getName() : null)
                     .build();
         }
     }

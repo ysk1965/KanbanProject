@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, CalendarDays, BookHeart, ListTodo, List, Grid3X3, ChevronRight, X, Users, CheckCircle2, Flame, Clock, Sparkles, Circle, Flag } from 'lucide-react';
+import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, CalendarDays, BookHeart, ListTodo, List, Grid3X3, ChevronRight, X, Users, CheckCircle2, Flame, Clock, Sparkles, Circle, Flag, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { Board, PersonalDashboardToday } from '../../types';
-import { testDataAPI, personalDashboardAPI, personalSpaceAPI, resolveFileUrl } from '../../utils/api';
+import { testDataAPI, personalDashboardAPI, resolveFileUrl } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
 import { boardService } from '../../utils/services';
 import { getInitials } from '../../utils/assigneeColor';
@@ -106,6 +106,7 @@ export function Dashboard({
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [editTarget, setEditTarget] = useState<Board | null>(null);
   const [isCreatingTestBoard, setIsCreatingTestBoard] = useState(false);
+  const [isCreatingTestOrg, setIsCreatingTestOrg] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [boardFilter, setBoardFilter] = useState<BoardFilter>('all');
   const [showOnboarding, setShowOnboarding] = useState(
@@ -145,6 +146,20 @@ export function Dashboard({
       console.error('Failed to create/join test board:', error);
     } finally {
       setIsCreatingTestBoard(false);
+    }
+  };
+
+  // 테스트 조직 생성/참여 (개발용)
+  const handleCreateTestOrg = async () => {
+    if (isCreatingTestOrg) return;
+    setIsCreatingTestOrg(true);
+    try {
+      const response = await testDataAPI.createTestOrganization();
+      navigate(`/organizations/${response.organization_id}`);
+    } catch (error) {
+      console.error('Failed to create/join test organization:', error);
+    } finally {
+      setIsCreatingTestOrg(false);
     }
   };
 
@@ -211,16 +226,6 @@ export function Dashboard({
     : 0;
 
   const hasPersonalSpace = currentUser?.personal_space_enabled ?? false;
-
-  const handleActivatePersonalSpace = async () => {
-    try {
-      await personalSpaceAPI.activate();
-      updateCurrentUser({ personal_space_enabled: true });
-      navigate('/my-board');
-    } catch (error) {
-      console.error('Failed to activate personal space:', error);
-    }
-  };
 
   return (
     <div className="fixed inset-0 flex text-foreground overflow-hidden selection:bg-bridge-secondary/30 bg-bridge-dark" style={{ background: 'radial-gradient(ellipse at 20% 0%, var(--bridge-dark) 0%, var(--bridge-dark) 50%, var(--bridge-dark) 100%)' }}>
@@ -351,7 +356,7 @@ export function Dashboard({
         <main className={`flex-1 min-h-0 overflow-y-auto px-6 md:px-8 py-6 custom-scrollbar ${hasPersonalSpace ? 'pb-20 lg:pb-6' : ''}`}>
           <div className="max-w-7xl mx-auto space-y-6">
 
-            {/* My Space Card — Today's Agenda (Desktop only, 모바일은 하단 바) */}
+            {/* My Space Card — Dashboard Strip (Desktop only, 모바일은 하단 바) */}
             {!searchQuery && hasPersonalSpace && !window.location.hostname.includes('milkyway.pe.kr') && (
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
@@ -361,194 +366,224 @@ export function Dashboard({
               >
                 <button
                   onClick={() => navigate('/my-board')}
-                  className="w-full group relative overflow-hidden rounded-2xl border border-bridge-border hover:border-bridge-secondary/25 transition-all duration-500 text-left"
+                  className="w-full group overflow-hidden rounded-2xl border border-foreground/[0.08] hover:border-foreground/[0.12] bg-bridge-obsidian transition-all duration-300 text-left"
                 >
-                  {/* Ambient Background */}
-                  <div className="absolute inset-0">
-                    <div className="absolute inset-0 bg-gradient-to-br from-bridge-accent/[0.07] via-purple-500/[0.04] to-bridge-secondary/[0.07]" />
-                    <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full blur-[120px] bg-bridge-secondary/[0.06] group-hover:bg-bridge-secondary/[0.1] transition-all duration-700" />
-                    <div className="absolute -bottom-24 -left-24 w-56 h-56 rounded-full blur-[100px] bg-bridge-accent/[0.06] group-hover:bg-bridge-accent/[0.1] transition-all duration-700" />
-                  </div>
-
-                  <div className="relative px-6 py-5">
-                    {/* Header Row */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-bridge-secondary/20 to-bridge-accent/20 border border-bridge-border flex items-center justify-center group-hover:border-bridge-secondary/30 transition-all duration-300">
-                          <Sparkles size={20} className="text-bridge-secondary" />
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-bold text-foreground font-jakarta tracking-tight">{t('dashboard.mySpace')}</h3>
-                          <p className="text-[11px] text-slate-500">{t('dashboard.mySpaceDesc')}</p>
-                        </div>
+                  {/* Header */}
+                  <div className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-foreground/[0.08]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-bridge-secondary/15 flex items-center justify-center">
+                        <Sparkles size={17} className="text-bridge-secondary" />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-medium text-slate-600 group-hover:text-slate-400 transition-colors">Open</span>
-                        <ChevronRight size={16} className="text-slate-600 group-hover:text-bridge-secondary group-hover:translate-x-0.5 transition-all duration-300" />
+                      <div>
+                        <h3 className="text-sm font-bold text-foreground font-jakarta tracking-tight">{t('dashboard.mySpace')}</h3>
+                        <p className="text-[11px] text-slate-500">{t('dashboard.mySpaceDesc')}</p>
                       </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-medium text-slate-600 group-hover:text-slate-400 transition-colors">Open</span>
+                      <ChevronRight size={16} className="text-slate-600 group-hover:text-bridge-secondary group-hover:translate-x-0.5 transition-all duration-300" />
+                    </div>
+                  </div>
 
-                    {/* Today's Items Grid */}
-                    {todayData && (
-                      <div className="grid grid-cols-4 gap-3 mb-4">
-                        {/* Habits Column */}
-                        <div className="bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] p-3 group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all">
-                          <div className="flex items-center gap-1.5 mb-2.5">
-                            <Flame size={13} className="text-orange-400 shrink-0" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Habits</span>
-                            <span className="ml-auto text-[10px] font-bold text-orange-400">
-                              {todayData.habits_today?.filter(h => h.is_completed).length || 0}/{todayData.habits_today?.length || 0}
+                  {/* Body: 2-zone split */}
+                  {todayData && (
+                    <div className="flex">
+                      {/* Left Scoreboard */}
+                      <div className="w-48 shrink-0 border-r border-foreground/[0.08] p-4 flex flex-col items-center gap-3">
+                        {/* Ring Gauges */}
+                        <div className="flex items-center gap-5">
+                          {/* Task Ring */}
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="relative w-14 h-14">
+                              <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                                <circle cx="28" cy="28" r="23" fill="none" stroke="currentColor" strokeWidth="4" opacity="0.06" />
+                                <motion.circle
+                                  cx="28" cy="28" r="23" fill="none"
+                                  stroke="url(#msTaskGrad)"
+                                  strokeWidth="4"
+                                  strokeLinecap="round"
+                                  strokeDasharray={`${2 * Math.PI * 23}`}
+                                  initial={{ strokeDashoffset: 2 * Math.PI * 23 }}
+                                  animate={{ strokeDashoffset: 2 * Math.PI * 23 * (1 - (todayData.task_completion_rate || 0) / 100) }}
+                                  transition={{ duration: 1, ease: 'easeOut' }}
+                                />
+                                <defs>
+                                  <linearGradient id="msTaskGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stopColor="#6366F1" />
+                                    <stop offset="100%" stopColor="#2DD4BF" />
+                                  </linearGradient>
+                                </defs>
+                              </svg>
+                              <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-foreground/70">
+                                {Math.round(todayData.task_completion_rate || 0)}%
+                              </span>
+                            </div>
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Task</span>
+                          </div>
+
+                          {/* Habit Ring */}
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="relative w-14 h-14">
+                              <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                                <circle cx="28" cy="28" r="23" fill="none" stroke="currentColor" strokeWidth="4" opacity="0.06" />
+                                <motion.circle
+                                  cx="28" cy="28" r="23" fill="none"
+                                  stroke="url(#msHabitGrad)"
+                                  strokeWidth="4"
+                                  strokeLinecap="round"
+                                  strokeDasharray={`${2 * Math.PI * 23}`}
+                                  initial={{ strokeDashoffset: 2 * Math.PI * 23 }}
+                                  animate={{ strokeDashoffset: 2 * Math.PI * 23 * (1 - (todayData.habit_completion_rate || 0) / 100) }}
+                                  transition={{ duration: 1, ease: 'easeOut', delay: 0.15 }}
+                                />
+                                <defs>
+                                  <linearGradient id="msHabitGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stopColor="#FB923C" />
+                                    <stop offset="100%" stopColor="#FBBF24" />
+                                  </linearGradient>
+                                </defs>
+                              </svg>
+                              <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-foreground/70">
+                                {Math.round(todayData.habit_completion_rate || 0)}%
+                              </span>
+                            </div>
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Habit</span>
+                          </div>
+                        </div>
+
+                        {/* Diary Status Chip */}
+                        <div className="w-full rounded-lg bg-foreground/[0.04] p-2.5">
+                          {todayData.diary_today ? (
+                            todayData.diary_today.status === 'COMPLETED' ? (
+                              <div className="flex items-center gap-2">
+                                <CheckCircle2 size={13} className="text-bridge-secondary shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="text-[10px] font-bold text-bridge-secondary leading-tight">{t('dashboard.diaryCompleted', 'Done')}</p>
+                                  {todayData.diary_today.mood && (
+                                    <p className="text-[9px] text-slate-500 truncate">{todayData.diary_today.mood}</p>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <div className="w-3.5 h-3.5 rounded-full border-2 border-amber-400 border-t-transparent animate-spin shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="text-[10px] font-bold text-amber-500 leading-tight">{t('dashboard.diaryChatting', 'Chatting...')}</p>
+                                  <p className="text-[9px] text-slate-500">{t('dashboard.diaryChattingDesc', 'AI와 대화 중')}</p>
+                                </div>
+                              </div>
+                            )
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <BookHeart size={13} className="text-pink-400 shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-medium text-foreground/70 leading-tight">{t('dashboard.diaryNotStarted', '오늘의 기록')}</p>
+                                <p className="text-[9px] text-slate-500">{t('dashboard.diaryNotStartedDesc', 'AI와 하루를 정리해보세요')}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right Agenda */}
+                      <div className="flex-1 p-4 flex flex-col">
+                        <div className="grid grid-cols-3 gap-5 flex-1">
+                          {/* Habits Column */}
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <Flame size={13} className="text-orange-400 shrink-0" />
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Habits</span>
+                              <span className="ml-auto text-[10px] font-bold text-orange-400">
+                                {todayData.habits_today?.filter(h => h.is_completed).length || 0}/{todayData.habits_today?.length || 0}
+                              </span>
+                            </div>
+                            <div className="space-y-1">
+                              {todayData.habits_today?.slice(0, 4).map(h => (
+                                <div key={h.habit_id} className="flex items-center gap-1.5 py-0.5">
+                                  {h.is_completed
+                                    ? <CheckCircle2 size={11} className="text-bridge-secondary shrink-0" />
+                                    : <Circle size={11} className="text-foreground/25 shrink-0" />
+                                  }
+                                  <span className={`text-[11px] truncate leading-tight ${h.is_completed ? 'text-slate-500 line-through' : 'text-foreground/80'}`}>
+                                    {h.title}
+                                  </span>
+                                </div>
+                              ))}
+                              {(todayData.habits_today?.length || 0) > 4 && (
+                                <span className="text-[10px] text-slate-500 pl-4">+{todayData.habits_today!.length - 4} more</span>
+                              )}
+                              {(!todayData.habits_today || todayData.habits_today.length === 0) && (
+                                <p className="text-[10px] text-slate-500 italic py-1">No habits today</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Tasks Column */}
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <ListTodo size={13} className="text-bridge-accent shrink-0" />
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tasks</span>
+                              <span className="ml-auto text-[10px] font-bold text-bridge-accent">{todayTaskCount}</span>
+                            </div>
+                            <div className="space-y-1">
+                              {todayData.due_today_tasks?.slice(0, 4).map(task => (
+                                <div key={task.id} className="flex items-center gap-1.5 py-0.5">
+                                  {task.status === 'DONE'
+                                    ? <CheckCircle2 size={11} className="text-bridge-secondary shrink-0" />
+                                    : <Circle size={11} className="text-foreground/25 shrink-0" />
+                                  }
+                                  <span className={`text-[11px] truncate leading-tight ${task.status === 'DONE' ? 'text-slate-500 line-through' : 'text-foreground/80'}`}>
+                                    {task.title}
+                                  </span>
+                                  {task.priority === 'URGENT' && <Flag size={9} className="text-rose-400 shrink-0" />}
+                                </div>
+                              ))}
+                              {(todayData.due_today_tasks?.length || 0) > 4 && (
+                                <span className="text-[10px] text-slate-500 pl-4">+{todayData.due_today_tasks!.length - 4} more</span>
+                              )}
+                              {(!todayData.due_today_tasks || todayData.due_today_tasks.length === 0) && (
+                                <p className="text-[10px] text-slate-500 italic py-1">No tasks due</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Events Column */}
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <Clock size={13} className="text-purple-400 shrink-0" />
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Events</span>
+                              <span className="ml-auto text-[10px] font-bold text-purple-400">{todayData.personal_events?.length || 0}</span>
+                            </div>
+                            <div className="space-y-1">
+                              {todayData.personal_events?.slice(0, 4).map(event => (
+                                <div key={event.id} className="flex items-center gap-1.5 py-0.5">
+                                  <span className="text-[10px] font-mono text-slate-500 shrink-0 w-10">
+                                    {event.all_day ? 'All' : event.start_time?.slice(0, 5) || '—'}
+                                  </span>
+                                  <span className="text-[11px] text-foreground/80 truncate leading-tight">{event.title}</span>
+                                </div>
+                              ))}
+                              {(todayData.personal_events?.length || 0) > 4 && (
+                                <span className="text-[10px] text-slate-500 pl-4">+{todayData.personal_events!.length - 4} more</span>
+                              )}
+                              {(!todayData.personal_events || todayData.personal_events.length === 0) && (
+                                <p className="text-[10px] text-slate-500 italic py-1">No events</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Footer: in-progress count */}
+                        {(todayData.in_progress_tasks?.length || 0) > 0 && (
+                          <div className="mt-3 pt-2.5 border-t border-foreground/[0.06]">
+                            <span className="text-[10px] text-slate-500">
+                              {t('dashboard.inProgress', '진행 중')} {todayData.in_progress_tasks?.length || 0}{t('dashboard.countSuffix', '건')}
                             </span>
                           </div>
-                          <div className="space-y-1.5 min-h-[52px]">
-                            {todayData.habits_today?.slice(0, 3).map(h => (
-                              <div key={h.habit_id} className="flex items-center gap-1.5">
-                                {h.is_completed
-                                  ? <CheckCircle2 size={11} className="text-bridge-secondary shrink-0" />
-                                  : <Circle size={11} className="text-foreground/30 shrink-0" />
-                                }
-                                <span className={`text-[11px] truncate leading-tight ${h.is_completed ? 'text-muted-foreground line-through' : 'text-foreground/80'}`}>
-                                  {h.title}
-                                </span>
-                              </div>
-                            ))}
-                            {(todayData.habits_today?.length || 0) > 3 && (
-                              <span className="text-[10px] text-muted-foreground">+{todayData.habits_today!.length - 3} more</span>
-                            )}
-                            {(!todayData.habits_today || todayData.habits_today.length === 0) && (
-                              <p className="text-[10px] text-muted-foreground italic">No habits today</p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Tasks Column */}
-                        <div className="bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] p-3 group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all">
-                          <div className="flex items-center gap-1.5 mb-2.5">
-                            <ListTodo size={13} className="text-bridge-accent shrink-0" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tasks</span>
-                            <span className="ml-auto text-[10px] font-bold text-bridge-accent">{todayTaskCount}</span>
-                          </div>
-                          <div className="space-y-1.5 min-h-[52px]">
-                            {todayData.due_today_tasks?.slice(0, 3).map(task => (
-                              <div key={task.id} className="flex items-center gap-1.5">
-                                {task.status === 'DONE'
-                                  ? <CheckCircle2 size={11} className="text-bridge-secondary shrink-0" />
-                                  : <Circle size={11} className="text-foreground/30 shrink-0" />
-                                }
-                                <span className={`text-[11px] truncate leading-tight ${task.status === 'DONE' ? 'text-muted-foreground line-through' : 'text-foreground/80'}`}>
-                                  {task.title}
-                                </span>
-                                {task.priority === 'URGENT' && <Flag size={9} className="text-rose-400 shrink-0" />}
-                              </div>
-                            ))}
-                            {(todayData.due_today_tasks?.length || 0) > 3 && (
-                              <span className="text-[10px] text-muted-foreground">+{todayData.due_today_tasks!.length - 3} more</span>
-                            )}
-                            {(!todayData.due_today_tasks || todayData.due_today_tasks.length === 0) && (
-                              <p className="text-[10px] text-muted-foreground italic">No tasks due</p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Events Column */}
-                        <div className="bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] p-3 group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all">
-                          <div className="flex items-center gap-1.5 mb-2.5">
-                            <Clock size={13} className="text-purple-400 shrink-0" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Events</span>
-                            <span className="ml-auto text-[10px] font-bold text-purple-400">{todayData.personal_events?.length || 0}</span>
-                          </div>
-                          <div className="space-y-1.5 min-h-[52px]">
-                            {todayData.personal_events?.slice(0, 3).map(event => (
-                              <div key={event.id} className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-mono text-muted-foreground shrink-0 w-10">
-                                  {event.all_day ? 'All' : event.start_time?.slice(0, 5) || '—'}
-                                </span>
-                                <span className="text-[11px] text-foreground/80 truncate leading-tight">{event.title}</span>
-                              </div>
-                            ))}
-                            {(todayData.personal_events?.length || 0) > 3 && (
-                              <span className="text-[10px] text-muted-foreground">+{todayData.personal_events!.length - 3} more</span>
-                            )}
-                            {(!todayData.personal_events || todayData.personal_events.length === 0) && (
-                              <p className="text-[10px] text-muted-foreground italic">No events</p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Diary Column */}
-                        <div className="bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] p-3 group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all relative overflow-hidden">
-                          <div className="flex items-center gap-1.5 mb-2.5">
-                            <BookHeart size={13} className="text-pink-400 shrink-0" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">AI Diary</span>
-                          </div>
-                          <div className="min-h-[52px] flex flex-col justify-center">
-                            {todayData.diary_today ? (
-                              todayData.diary_today.status === 'COMPLETED' ? (
-                                <div className="space-y-1.5">
-                                  <div className="flex items-center gap-1.5">
-                                    <CheckCircle2 size={12} className="text-bridge-secondary shrink-0" />
-                                    <span className="text-[11px] text-bridge-secondary font-bold leading-tight">{t('dashboard.diaryCompleted', 'Done')}</span>
-                                  </div>
-                                  {todayData.diary_today.title && (
-                                    <p className="text-[11px] text-foreground/70 truncate leading-tight pl-[18px]">{todayData.diary_today.title}</p>
-                                  )}
-                                  {todayData.diary_today.mood && (
-                                    <p className="text-[10px] text-muted-foreground pl-[18px]">{todayData.diary_today.mood}</p>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="space-y-1.5">
-                                  <div className="flex items-center gap-1.5">
-                                    <div className="w-3 h-3 rounded-full border-2 border-amber-400 border-t-transparent animate-spin shrink-0" />
-                                    <span className="text-[11px] text-amber-500 font-bold leading-tight">{t('dashboard.diaryChatting', 'Chatting...')}</span>
-                                  </div>
-                                  <p className="text-[10px] text-muted-foreground pl-[18px]">{t('dashboard.diaryChattingDesc', 'AI와 대화 중')}</p>
-                                </div>
-                              )
-                            ) : (
-                              <div className="space-y-1.5">
-                                <div className="flex items-center gap-1.5">
-                                  <div className="w-3 h-3 rounded-full bg-pink-400/20 flex items-center justify-center shrink-0">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-pink-400" />
-                                  </div>
-                                  <span className="text-[11px] text-foreground/70 font-medium leading-tight">{t('dashboard.diaryNotStarted', '오늘의 기록')}</span>
-                                </div>
-                                <p className="text-[10px] text-muted-foreground pl-[18px]">{t('dashboard.diaryNotStartedDesc', 'AI와 하루를 정리해보세요')}</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                        )}
                       </div>
-                    )}
-
-                    {/* Dual Progress Bars */}
-                    {todayData && (
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1 flex items-center gap-2">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider w-8">Task</span>
-                          <div className="flex-1 h-1.5 bg-foreground/[0.06] rounded-full overflow-hidden">
-                            <motion.div
-                              className="h-full bg-gradient-to-r from-bridge-accent to-bridge-secondary rounded-full"
-                              initial={{ width: 0 }}
-                              animate={{ width: `${Math.round(todayData.task_completion_rate || 0)}%` }}
-                              transition={{ duration: 1, ease: 'easeOut' }}
-                            />
-                          </div>
-                        </div>
-                        <div className="flex-1 flex items-center gap-2">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider w-8">Habit</span>
-                          <div className="flex-1 h-1.5 bg-foreground/[0.06] rounded-full overflow-hidden">
-                            <motion.div
-                              className="h-full bg-gradient-to-r from-orange-400 to-amber-400 rounded-full"
-                              initial={{ width: 0 }}
-                              animate={{ width: `${Math.round(todayData.habit_completion_rate || 0)}%` }}
-                              transition={{ duration: 1, ease: 'easeOut', delay: 0.15 }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </button>
               </motion.div>
             )}
@@ -669,20 +704,20 @@ export function Dashboard({
               </section>
             )}
 
-            {/* Main Board Section */}
-            {filteredBoards.length > 0 && (
+            {/* Organization Board Section */}
+            {filteredBoards.filter(b => b.organization_id).length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-4">
-                  <LayoutGrid size={14} className="text-bridge-secondary" />
+                  <Building2 size={14} className="text-bridge-accent" />
                   <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">
-                    {t('dashboard.workspaceBoards')}
+                    {t('dashboard.orgBoards', 'Organization Boards')}
                   </h2>
-                  <span className="text-[10px] text-slate-600">{filteredBoards.length}</span>
+                  <span className="text-[10px] text-slate-600">{filteredBoards.filter(b => b.organization_id).length}</span>
                 </div>
 
                 {viewMode === 'grid' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {filteredBoards.map((board) => (
+                    {filteredBoards.filter(b => b.organization_id).map((board) => (
                       <BoardCard
                         key={board.id}
                         board={board}
@@ -692,11 +727,10 @@ export function Dashboard({
                         onEdit={handleEditClick}
                       />
                     ))}
-                    <CreateBoardCard onClick={() => setIsCreateModalOpen(true)} />
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {filteredBoards.map((board) => (
+                    {filteredBoards.filter(b => b.organization_id).map((board) => (
                       <BoardListItem
                         key={board.id}
                         board={board}
@@ -705,20 +739,68 @@ export function Dashboard({
                         onEdit={handleEditClick}
                       />
                     ))}
-                    {/* Create button in list mode */}
-                    <button
-                      onClick={() => setIsCreateModalOpen(true)}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-bridge-border hover:border-bridge-secondary/30 hover:bg-foreground/[0.02] transition-all group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-foreground/5 group-hover:bg-bridge-secondary/15 flex items-center justify-center transition-colors">
-                        <Plus size={16} className="text-muted-foreground group-hover:text-bridge-secondary transition-colors" />
-                      </div>
-                      <span className="text-xs font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider transition-colors">
-                        {t('dashboard.newBoard')}
-                      </span>
-                    </button>
                   </div>
                 )}
+              </section>
+            )}
+
+            {/* Workspace Board Section — always show when there are any boards (for Create card) */}
+            {filteredBoards.length > 0 && (
+              <section>
+                {(() => {
+                  const personalBoards = filteredBoards.filter(b => !b.organization_id);
+                  return (
+                    <>
+                      <div className="flex items-center gap-2 mb-4">
+                        <LayoutGrid size={14} className="text-bridge-secondary" />
+                        <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">
+                          {t('dashboard.workspaceBoards')}
+                        </h2>
+                        <span className="text-[10px] text-slate-600">{personalBoards.length}</span>
+                      </div>
+
+                      {viewMode === 'grid' ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                          {personalBoards.map((board) => (
+                            <BoardCard
+                              key={board.id}
+                              board={board}
+                              onToggleStar={onToggleStar}
+                              onClick={handleBoardClick}
+                              onDelete={onDeleteBoard ? handleDeleteClick : undefined}
+                              onEdit={handleEditClick}
+                            />
+                          ))}
+                          <CreateBoardCard onClick={() => setIsCreateModalOpen(true)} />
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {personalBoards.map((board) => (
+                            <BoardListItem
+                              key={board.id}
+                              board={board}
+                              onToggleStar={onToggleStar}
+                              onClick={handleBoardClick}
+                              onEdit={handleEditClick}
+                            />
+                          ))}
+                          {/* Create button in list mode */}
+                          <button
+                            onClick={() => setIsCreateModalOpen(true)}
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-bridge-border hover:border-bridge-secondary/30 hover:bg-foreground/[0.02] transition-all group"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-foreground/5 group-hover:bg-bridge-secondary/15 flex items-center justify-center transition-colors">
+                              <Plus size={16} className="text-muted-foreground group-hover:text-bridge-secondary transition-colors" />
+                            </div>
+                            <span className="text-xs font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider transition-colors">
+                              {t('dashboard.newBoard')}
+                            </span>
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </section>
             )}
 
@@ -731,8 +813,6 @@ export function Dashboard({
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={onCreateBoard}
-        hasPersonalSpace={hasPersonalSpace}
-        onActivatePersonalSpace={handleActivatePersonalSpace}
       />
 
       {/* Edit Board Modal */}
@@ -828,17 +908,28 @@ export function Dashboard({
         </div>
       )}
 
-      {/* Test Board Creation Button (Admin Only) */}
+      {/* Test Data Creation Buttons (Admin Only) */}
       {isAdmin && (
-        <button
-          onClick={handleCreateTestBoard}
-          disabled={isCreatingTestBoard}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 bg-amber-500/90 hover:bg-amber-500 text-black font-bold text-xs rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-          title={t('board.testBoardTitle')}
-        >
-          <FlaskConical size={16} className={isCreatingTestBoard ? 'animate-pulse' : ''} />
-          <span className="hidden sm:inline">{isCreatingTestBoard ? t('board.creating') : t('dashboard.testBoard')}</span>
-        </button>
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+          <button
+            onClick={handleCreateTestBoard}
+            disabled={isCreatingTestBoard}
+            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/90 hover:bg-amber-500 text-black font-bold text-xs rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={t('board.testBoardTitle')}
+          >
+            <FlaskConical size={16} className={isCreatingTestBoard ? 'animate-pulse' : ''} />
+            <span className="hidden sm:inline">{isCreatingTestBoard ? t('board.creating') : t('dashboard.testBoard')}</span>
+          </button>
+          <button
+            onClick={handleCreateTestOrg}
+            disabled={isCreatingTestOrg}
+            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/90 hover:bg-amber-500 text-black font-bold text-xs rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={t('dashboard.testOrgTitle', 'Create Test Organization')}
+          >
+            <Building2 size={16} className={isCreatingTestOrg ? 'animate-pulse' : ''} />
+            <span className="hidden sm:inline">{isCreatingTestOrg ? t('board.creating') : t('dashboard.testOrg', 'Test Org')}</span>
+          </button>
+        </div>
       )}
 
       {/* Onboarding Modal */}
@@ -875,6 +966,7 @@ function BoardListItem({ board, onToggleStar, onClick, onEdit }: {
 }) {
   const { t } = useTranslation();
   const isTrial = board.subscription?.status === 'TRIAL' && board.tier !== 'PREMIUM';
+  const isOrgBoard = !!board.organization_id;
   const taskCount = board.task_count ?? 0;
   const completedTasks = board.completed_tasks ?? 0;
   const progress = taskCount > 0 ? Math.round((completedTasks / taskCount) * 100) : 0;
@@ -884,7 +976,7 @@ function BoardListItem({ board, onToggleStar, onClick, onEdit }: {
     <motion.div
       whileHover={{ x: 2 }}
       onClick={() => onClick(board)}
-      className="flex items-center gap-4 px-4 py-3 rounded-xl bg-foreground/[0.02] border border-bridge-border hover:border-foreground/[0.12] hover:bg-foreground/[0.03] cursor-pointer transition-all group"
+      className={`flex items-center gap-4 px-4 py-3 rounded-xl bg-foreground/[0.02] border hover:bg-foreground/[0.03] cursor-pointer transition-all group ${isOrgBoard ? 'border-bridge-accent/20 hover:border-bridge-accent/40' : 'border-bridge-border hover:border-foreground/[0.12]'}`}
     >
       {/* Color indicator */}
       <div className="w-10 h-10 rounded-lg shrink-0 overflow-hidden"
@@ -897,6 +989,12 @@ function BoardListItem({ board, onToggleStar, onClick, onEdit }: {
           <h3 className="text-sm font-bold text-foreground truncate group-hover:text-bridge-secondary transition-colors">
             {board.name}
           </h3>
+          {isOrgBoard && board.organization_name && (
+            <span className="flex items-center gap-1 px-1.5 py-0.5 bg-bridge-accent/15 text-bridge-accent text-[9px] font-bold rounded-full shrink-0">
+              <Building2 size={9} />
+              {board.organization_name}
+            </span>
+          )}
           {isTrial && (
             <span className="px-1.5 py-0.5 bg-bridge-secondary/10 text-bridge-secondary text-[8px] font-bold uppercase tracking-wider rounded shrink-0">
               {t('dashboard.trialPlan')}

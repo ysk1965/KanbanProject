@@ -305,6 +305,35 @@ public class NotificationService {
         pushNotificationService.sendPushForNotification(notification);
     }
 
+    @Transactional
+    public void createPaymentFailedNotification(String recipientUserId, String boardId, String boardName) {
+        User recipient = userRepository.findById(recipientUserId).orElse(null);
+        if (recipient == null) {
+            log.warn("Payment failed notification: recipient not found: {}", recipientUserId);
+            return;
+        }
+
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("boardId", boardId);
+        metadata.put("boardName", boardName);
+
+        Notification notification = Notification.builder()
+                .recipient(recipient)
+                .board(null)
+                .type(NotificationType.PAYMENT_FAILED)
+                .title("Payment failed for board: " + boardName)
+                .message("Please update your payment method to avoid service interruption.")
+                .senderId(null)
+                .metadata(metadata)
+                .build();
+
+        notificationRepository.save(notification);
+        log.info("Payment failed notification created for user: {} board: {}", recipientUserId, boardId);
+
+        // Send push notification (async)
+        pushNotificationService.sendPushForNotification(notification);
+    }
+
     public boolean hasAnniversaryNotificationSent(String targetUserId, LocalDateTime since) {
         return notificationRepository.existsAnniversaryNotification(
                 NotificationType.ANNIVERSARY, targetUserId, since);

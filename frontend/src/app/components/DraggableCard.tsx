@@ -294,12 +294,12 @@ export function DraggableCard({
       data-task-id={task.id}
       data-task-index={index}
       draggable={!shouldDisablePointerEvents}
-      className={`group relative bg-bridge-surface-hover rounded-xl border px-3 py-2.5 hover:border-foreground/[0.12] transition-all cursor-pointer overflow-hidden select-none ${
+      className={`group relative bg-bridge-surface-hover rounded-xl border px-3 py-2.5 cursor-pointer overflow-hidden select-none ${
         isDragging || isThisCardDragging
-          ? "opacity-30 scale-95 border-2 border-dashed border-bridge-secondary"
+          ? "opacity-30 scale-95 border-2 border-dashed border-bridge-secondary transition-all"
           : justCompleted
-            ? "card-complete-burst border-green-500/60"
-            : "border-foreground/[0.08]"
+            ? "card-complete-burst border-green-500/60 shadow-card hover:shadow-card-hover hover:border-foreground/[0.12] hover:-translate-y-0.5 transition-all duration-200 ease-out"
+            : "border-foreground/[0.08] shadow-card hover:shadow-card-hover hover:border-foreground/[0.12] hover:-translate-y-0.5 transition-all duration-200 ease-out"
       } ${task.completed && !justCompleted ? "opacity-60" : ""} ${
         shouldDisablePointerEvents ? "pointer-events-none" : ""
       }`}
@@ -319,6 +319,11 @@ export function DraggableCard({
         e.preventDefault();
       }}
     >
+      {/* Hover accent gradient line */}
+      {!(isDragging || isThisCardDragging) && (
+        <div className="absolute top-0 inset-x-0 h-[1.5px] rounded-t-xl bg-gradient-to-r from-transparent via-bridge-accent/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      )}
+
       {/* 좌측 컬러 바 */}
       <div
         className="absolute top-0 left-0 bottom-0 w-1.5"

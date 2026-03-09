@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Users, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Users, X, ChevronLeft, ChevronRight, Mail, Link2, Copy, Check, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { organizationService } from '../../../utils/services';
@@ -9,13 +9,20 @@ import { MemberDetailModal } from '../MemberDetailModal';
 import type {
   OrgMemberSimple, OrgMemberPageResponse, OrgDepartment, OrgJobGroup,
   OrgPosition, OrgTitle, OrgGrade,
-  OrgRole, ContractType, WorkStatus, OrgMemberInviteResult,
+  OrgRole, ContractType, WorkStatus, OrgMemberInviteResult, OrgInviteLink,
+  OrgStructureSettings,
 } from '../../../types';
 
 interface OrgMembersTabProps {
   orgId: string;
   myRole: OrgRole;
   myUserId: string;
+  departments: OrgDepartment[];
+  jobGroups: OrgJobGroup[];
+  positions: OrgPosition[];
+  titles: OrgTitle[];
+  grades: OrgGrade[];
+  structureSettings: OrgStructureSettings;
 }
 
 const CONTRACT_BADGE: Record<ContractType, string> = {
@@ -44,21 +51,25 @@ const STATUS_LABEL_KEYS: Record<WorkStatus, string> = {
   RESIGNED: 'organization.members.statusResigned',
 };
 
-export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
+export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups, positions, titles, grades, structureSettings }: OrgMembersTabProps) {
   const { t } = useTranslation();
   const isAdmin = myRole === 'OWNER' || myRole === 'ADMIN';
   const [members, setMembers] = useState<OrgMemberSimple[]>([]);
   const [totalElements, setTotalElements] = useState(0);
-  const [departments, setDepartments] = useState<OrgDepartment[]>([]);
-  const [jobGroups, setJobGroups] = useState<OrgJobGroup[]>([]);
-  const [positions, setPositions] = useState<OrgPosition[]>([]);
-  const [titles, setTitles] = useState<OrgTitle[]>([]);
-  const [grades, setGrades] = useState<OrgGrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteTab, setInviteTab] = useState<'email' | 'link'>('email');
   const [inviteForm, setInviteForm] = useState({ email: '', role: 'MEMBER', department_id: '', job_title: '' });
   const [inviting, setInviting] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+
+  // Invite link states
+  const [inviteLinks, setInviteLinks] = useState<OrgInviteLink[]>([]);
+  const [linkRole, setLinkRole] = useState<'MEMBER' | 'ADMIN'>('MEMBER');
+  const [linkExpiry, setLinkExpiry] = useState('7');
+  const [linkMaxUses, setLinkMaxUses] = useState('');
+  const [creatingLink, setCreatingLink] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -93,27 +104,63 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
     fetchMembers();
   }, [fetchMembers]);
 
-  useEffect(() => {
-    const fetchFilters = async () => {
-      try {
-        const [depts, jgs, pos, tls, gds] = await Promise.all([
-          organizationService.getDepartments(orgId),
-          organizationService.getJobGroups(orgId),
-          organizationService.getPositions(orgId).catch(() => [] as OrgPosition[]),
-          organizationService.getTitles(orgId).catch(() => [] as OrgTitle[]),
-          organizationService.getGrades(orgId).catch(() => [] as OrgGrade[]),
-        ]);
-        setDepartments(depts);
-        setJobGroups(jgs);
-        setPositions(pos);
-        setTitles(tls);
-        setGrades(gds);
-      } catch {
-        // Filters are optional
-      }
-    };
-    fetchFilters();
+  const fetchInviteLinks = useCallback(async () => {
+    try {
+      const links = await organizationService.getInviteLinks(orgId).catch(() => []);
+      setInviteLinks(links);
+    } catch {
+      // ignore
+    }
   }, [orgId]);
+
+  useEffect(() => {
+    if (showInviteModal && inviteTab === 'link') {
+      fetchInviteLinks();
+    }
+  }, [showInviteModal, inviteTab, fetchInviteLinks]);
+
+  const handleCreateLink = async () => {
+    try {
+      setCreatingLink(true);
+      await organizationService.createInviteLink(orgId, {
+        role: linkRole,
+        max_uses: linkMaxUses ? Number(linkMaxUses) : null,
+        expires_in_days: linkExpiry ? Number(linkExpiry) : undefined,
+      });
+      setLinkRole('MEMBER');
+      setLinkExpiry('7');
+      setLinkMaxUses('');
+      fetchInviteLinks();
+      toast.success(t('organization.members.linkCreated', 'Invite link created'));
+    } catch {
+      toast.error(t('organization.members.linkCreateError', 'Failed to create invite link'));
+    } finally {
+      setCreatingLink(false);
+    }
+  };
+
+  const handleDeleteLink = async (linkId: string) => {
+    try {
+      await organizationService.deleteInviteLink(orgId, linkId);
+      fetchInviteLinks();
+    } catch {
+      toast.error(t('organization.members.linkDeleteError', 'Failed to delete invite link'));
+    }
+  };
+
+  const handleCopyLink = (code: string) => {
+    const url = `${window.location.origin}/org-invite/${code}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedCode(code);
+      toast.success(t('organization.members.linkCopied', 'Link copied to clipboard'));
+      setTimeout(() => setCopiedCode(null), 2000);
+    });
+  };
+
+  const formatExpiry = (expiresAt: string | null | undefined) => {
+    if (!expiresAt) return null;
+    return new Date(expiresAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
 
   const handleInvite = async () => {
     if (!inviteForm.email.trim()) return;
@@ -152,7 +199,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
           />
         </div>
 
-        {departments.length > 0 && (
+        {structureSettings.departments_enabled && departments.length > 0 && (
           <select
             value={departmentFilter}
             onChange={(e) => { setDepartmentFilter(e.target.value); setPage(0); }}
@@ -250,20 +297,20 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
                     <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${CONTRACT_BADGE[member.contract_type]}`}>
                       {t(CONTRACT_LABEL_KEYS[member.contract_type])}
                     </span>
-                    {member.position?.name && (
+                    {structureSettings.positions_enabled && member.position?.name && (
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-600 dark:text-sky-400">
                         {member.position.name}
                       </span>
                     )}
-                    {member.grade?.name && (
+                    {structureSettings.grades_enabled && member.grade?.name && (
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-600 dark:text-slate-300">
                         {member.grade.name}
                       </span>
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground truncate mt-0.5">
-                    {member.department?.name && <span>{member.department.name}</span>}
-                    {member.department?.name && member.job_title && <span> · </span>}
+                    {structureSettings.departments_enabled && member.department?.name && <span>{member.department.name}</span>}
+                    {structureSettings.departments_enabled && member.department?.name && member.job_title && <span> · </span>}
                     {member.job_title && <span>{member.job_title}</span>}
                   </div>
                 </div>
@@ -317,90 +364,249 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
         positions={positions}
         titles={titles}
         grades={grades}
+        structureSettings={structureSettings}
         onMemberUpdated={fetchMembers}
       />
 
       {/* Invite Modal */}
       <MotionModal open={showInviteModal} onClose={() => setShowInviteModal(false)}>
         <div className="h-1 bg-gradient-to-r from-bridge-accent to-bridge-secondary rounded-t-2xl" />
-        <div className="px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-          <h2 className="text-lg font-bold text-foreground">{t('organization.members.inviteTitle', 'Invite Member')}</h2>
-        </div>
-        <div className="px-5 pb-5 pt-4 space-y-4">
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
-              {t('organization.members.email', 'Email')}
-            </label>
-            <input
-              type="email"
-              value={inviteForm.email}
-              onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
-              placeholder="user@example.com"
-              className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-              autoFocus
-            />
-          </div>
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
-              {t('organization.members.role', 'Role')}
-            </label>
-            <select
-              value={inviteForm.role}
-              onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
-              className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+        <div className="px-5 pt-4 pb-0 border-b border-foreground/[0.08]">
+          <h2 className="text-lg font-bold text-foreground mb-3">{t('organization.members.inviteTitle', 'Invite Member')}</h2>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setInviteTab('email')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-t-lg transition-colors ${
+                inviteTab === 'email'
+                  ? 'text-bridge-accent border-b-2 border-bridge-accent'
+                  : 'text-slate-400 hover:text-foreground'
+              }`}
             >
-              <option value="MEMBER">{t('organization.members.roleMember', 'Member')}</option>
-              <option value="ADMIN">{t('organization.members.roleAdmin', 'Admin')}</option>
-            </select>
+              <Mail size={14} />
+              {t('organization.members.tabEmail', 'Email')}
+            </button>
+            <button
+              onClick={() => setInviteTab('link')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-t-lg transition-colors ${
+                inviteTab === 'link'
+                  ? 'text-bridge-accent border-b-2 border-bridge-accent'
+                  : 'text-slate-400 hover:text-foreground'
+              }`}
+            >
+              <Link2 size={14} />
+              {t('organization.members.tabLink', 'Invite Link')}
+            </button>
           </div>
-          {departments.length > 0 && (
-            <div>
-              <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
-                {t('organization.members.department', 'Department')}
-              </label>
-              <select
-                value={inviteForm.department_id}
-                onChange={(e) => setInviteForm({ ...inviteForm, department_id: e.target.value })}
-                className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-              >
-                <option value="">{t('common.none', 'None')}</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
+        </div>
+
+        {inviteTab === 'email' ? (
+          <>
+            <div className="px-5 pb-5 pt-4 space-y-4">
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                  {t('organization.members.email', 'Email')}
+                </label>
+                <input
+                  type="email"
+                  value={inviteForm.email}
+                  onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                  placeholder="user@example.com"
+                  className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                  {t('organization.members.role', 'Role')}
+                </label>
+                <select
+                  value={inviteForm.role}
+                  onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
+                  className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                >
+                  <option value="MEMBER">{t('organization.members.roleMember', 'Member')}</option>
+                  <option value="ADMIN">{t('organization.members.roleAdmin', 'Admin')}</option>
+                </select>
+              </div>
+              {structureSettings.departments_enabled && departments.length > 0 && (
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                    {t('organization.members.department', 'Department')}
+                  </label>
+                  <select
+                    value={inviteForm.department_id}
+                    onChange={(e) => setInviteForm({ ...inviteForm, department_id: e.target.value })}
+                    className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                  >
+                    <option value="">{t('common.none', 'None')}</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                  {t('organization.members.jobTitle', 'Job Title')}
+                </label>
+                <input
+                  type="text"
+                  value={inviteForm.job_title}
+                  onChange={(e) => setInviteForm({ ...inviteForm, job_title: e.target.value })}
+                  placeholder={t('organization.members.jobTitlePlaceholder', 'e.g. Frontend Developer')}
+                  className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                />
+              </div>
             </div>
-          )}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
-              {t('organization.members.jobTitle', 'Job Title')}
-            </label>
-            <input
-              type="text"
-              value={inviteForm.job_title}
-              onChange={(e) => setInviteForm({ ...inviteForm, job_title: e.target.value })}
-              placeholder={t('organization.members.jobTitlePlaceholder', 'e.g. Frontend Developer')}
-              className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-            />
-          </div>
-        </div>
-        <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground">ESC</span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowInviteModal(false)}
-              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
-            >
-              {t('common.cancel', 'Cancel')}
-            </button>
-            <button
-              onClick={handleInvite}
-              disabled={!inviteForm.email.trim() || inviting}
-              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
-            >
-              {inviting ? t('common.sending', 'Sending...') : t('organization.members.sendInvite', 'Send Invite')}
-            </button>
-          </div>
-        </div>
+            <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground">ESC</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowInviteModal(false)}
+                  className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
+                >
+                  {t('common.cancel', 'Cancel')}
+                </button>
+                <button
+                  onClick={handleInvite}
+                  disabled={!inviteForm.email.trim() || inviting}
+                  className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
+                >
+                  {inviting ? t('common.sending', 'Sending...') : t('organization.members.sendInvite', 'Send Invite')}
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="px-5 pb-5 pt-4 space-y-4">
+              {/* Create link form */}
+              <div className="p-3 bg-foreground/[0.03] rounded-xl border border-foreground/[0.08] space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">
+                      {t('organization.members.role', 'Role')}
+                    </label>
+                    <select
+                      value={linkRole}
+                      onChange={(e) => setLinkRole(e.target.value as 'MEMBER' | 'ADMIN')}
+                      className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg py-2 px-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                    >
+                      <option value="MEMBER">{t('organization.members.roleMember', 'Member')}</option>
+                      <option value="ADMIN">{t('organization.members.roleAdmin', 'Admin')}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">
+                      {t('organization.members.linkExpiry', 'Expires')}
+                    </label>
+                    <select
+                      value={linkExpiry}
+                      onChange={(e) => setLinkExpiry(e.target.value)}
+                      className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg py-2 px-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                    >
+                      <option value="">{t('organization.members.noExpiry', 'No expiry')}</option>
+                      <option value="1">{t('organization.members.expiry1Day', '1 day')}</option>
+                      <option value="7">{t('organization.members.expiry7Days', '7 days')}</option>
+                      <option value="30">{t('organization.members.expiry30Days', '30 days')}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">
+                      {t('organization.members.linkMaxUses', 'Max Uses')}
+                    </label>
+                    <select
+                      value={linkMaxUses}
+                      onChange={(e) => setLinkMaxUses(e.target.value)}
+                      className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg py-2 px-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                    >
+                      <option value="">{t('organization.members.unlimited', 'Unlimited')}</option>
+                      <option value="1">1</option>
+                      <option value="5">5</option>
+                      <option value="10">10</option>
+                      <option value="25">25</option>
+                      <option value="100">100</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleCreateLink}
+                    disabled={creatingLink}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-bridge-accent text-white rounded-lg text-xs font-bold hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
+                  >
+                    <Link2 size={12} />
+                    {creatingLink ? '...' : t('organization.members.generateLink', 'Generate Link')}
+                  </button>
+                </div>
+              </div>
+
+              {/* Existing links */}
+              {inviteLinks.length === 0 ? (
+                <p className="text-sm text-slate-500 text-center py-4">
+                  {t('organization.members.noLinks', 'No active invite links')}
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar">
+                  {inviteLinks.map((link) => (
+                    <div
+                      key={link.id}
+                      className="flex items-center justify-between p-3 bg-foreground/[0.03] rounded-xl"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Link2 size={14} className="text-slate-500 shrink-0" />
+                        <span className="text-xs text-foreground truncate font-mono">{link.code}</span>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+                          link.role === 'ADMIN'
+                            ? 'bg-bridge-accent/15 text-bridge-accent'
+                            : 'bg-slate-500/15 text-slate-600 dark:text-slate-400'
+                        }`}>
+                          {link.role}
+                        </span>
+                        <span className="text-[9px] text-slate-500 shrink-0">
+                          {link.used_count}{link.max_uses ? `/${link.max_uses}` : ''} {t('organization.members.used', 'used')}
+                        </span>
+                        {link.expires_at && (
+                          <span className="text-[9px] text-slate-500 flex items-center gap-0.5 shrink-0">
+                            <Clock size={8} />
+                            {formatExpiry(link.expires_at)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleCopyLink(link.code)}
+                          className="p-1.5 text-slate-500 hover:text-bridge-accent transition-colors"
+                        >
+                          {copiedCode === link.code ? (
+                            <Check size={14} className="text-emerald-400" />
+                          ) : (
+                            <Copy size={14} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteLink(link.id)}
+                          className="p-1.5 text-slate-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground">ESC</span>
+              <button
+                onClick={() => setShowInviteModal(false)}
+                className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
+              >
+                {t('common.close', 'Close')}
+              </button>
+            </div>
+          </>
+        )}
       </MotionModal>
     </div>
   );

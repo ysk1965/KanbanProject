@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -76,5 +77,14 @@ public class MemberController {
             @AuthenticationPrincipal UserPrincipal principal) {
         memberService.removeMember(boardId, memberId, principal.getUserId());
         return ResponseEntity.ok(Map.of("message", "멤버가 내보내졌습니다"));
+    }
+
+    @GetMapping("/org-candidates")
+    public ResponseEntity<List<MemberResponse.OrgCandidate>> getOrgCandidates(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) String search) {
+        List<MemberResponse.OrgCandidate> candidates = memberService.getOrgCandidates(boardId, principal.getUserId(), search);
+        return ResponseEntity.ok(candidates);
     }
 }

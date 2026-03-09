@@ -450,6 +450,8 @@ export interface BoardListItem {
   completed_tasks: number;
   members: MemberPreviewResponse[];
   subscription: BoardSubscription;
+  organization_id?: string | null;
+  organization_name?: string | null;
   created_at: string;
 }
 
@@ -1934,6 +1936,11 @@ export const memberAPI = {
       { member_ids: memberIds },
     );
   },
+
+  getOrgCandidates: async (boardId: string, search?: string): Promise<import("../types").OrgBoardCandidate[]> => {
+    const params = search ? `?search=${encodeURIComponent(search)}` : '';
+    return apiClient.get(`/boards/${boardId}/members/org-candidates${params}`);
+  },
 };
 
 // ========================================
@@ -2011,38 +2018,6 @@ export const subscriptionAPI = {
     );
   },
 
-  startSubscription: async (
-    boardId: string,
-    data: {
-      plan_id: string;
-      billing_cycle: "MONTHLY" | "YEARLY";
-      payment_method_id: string;
-    },
-  ) => {
-    return apiClient.post<SubscriptionResponse>(
-      `/boards/${boardId}/subscription/start`,
-      data,
-    );
-  },
-
-  // Seat 기반 구독 시작
-  startSeatSubscription: async (
-    boardId: string,
-    data: {
-      billing_cycle: "MONTHLY" | "YEARLY";
-      seat_count: number;
-      payment_method_id?: string;
-    },
-  ) => {
-    return apiClient.post<SubscriptionResponse>(
-      `/boards/${boardId}/subscription/start`,
-      {
-        ...data,
-        plan_id: "PREMIUM",
-      },
-    );
-  },
-
   // Seat 가격 조회
   getSeatPricing: async (boardId: string) => {
     return apiClient.get<SeatPricingResponse>(
@@ -2076,31 +2051,60 @@ export const subscriptionAPI = {
     );
   },
 
-  // Toss Payments 결제 승인 - 구독 시작
-  confirmSubscriptionPayment: async (data: {
-    payment_key: string;
-    order_id: string;
-    amount: number;
+  undoCancellation: async (boardId: string) => {
+    return apiClient.post<{ message: string }>(
+      `/boards/${boardId}/subscription/undo-cancel`,
+    );
+  },
+
+  getBillingPortalUrl: async (boardId: string) => {
+    return apiClient.get<{ url: string }>(
+      `/boards/${boardId}/subscription/billing-portal`,
+    );
+  },
+
+  // Polar Checkout - 보드 구독 시작
+  createBoardCheckout: async (data: {
     board_id: string;
     billing_cycle: "MONTHLY" | "YEARLY";
     seat_count: number;
   }) => {
-    return apiClient.post<SubscriptionResponse>(
-      "/payments/confirm/subscription",
+    return apiClient.post<{ checkout_url: string }>(
+      "/checkout/board-subscription",
       data,
     );
   },
 
-  // Toss Payments 결제 승인 - 시트 추가 구매
-  confirmSeatPurchasePayment: async (data: {
-    payment_key: string;
-    order_id: string;
-    amount: number;
+  // Polar Checkout - 조직 구독
+  createOrgCheckout: async (data: {
+    org_id: string;
+    billing_cycle: "MONTHLY" | "YEARLY";
+    seat_count: number;
+  }) => {
+    return apiClient.post<{ checkout_url: string }>(
+      "/checkout/org-subscription",
+      data,
+    );
+  },
+
+  // Polar Checkout - 시트 추가 구매
+  createSeatCheckout: async (data: {
     board_id: string;
     additional_seats: number;
   }) => {
-    return apiClient.post<SubscriptionResponse>(
-      "/payments/confirm/seats",
+    return apiClient.post<{ checkout_url: string }>(
+      "/checkout/seats",
+      data,
+    );
+  },
+
+  // Polar Checkout - AI 크레딧 구매
+  createCreditCheckout: async (data: {
+    board_id: string;
+    credit_amount: number;
+  }) => {
+    return apiClient.post<{ checkout_url: string }>(
+      "/checkout/ai-credits",
       data,
     );
   },
@@ -2289,11 +2293,14 @@ export interface ScheduleBlockInfo {
   block_type: string | null;
   title: string | null;
   color: string | null;
+  board_id?: string | null;
+  board_name?: string | null;
 }
 
 export interface ScheduleColumnInfo {
   user: ScheduleUserInfo;
   blocks: ScheduleBlockInfo[];
+  org_blocks?: ScheduleBlockInfo[] | null;
 }
 
 export interface DailyScheduleResponse {
@@ -2394,12 +2401,16 @@ export const scheduleAPI = {
     startDate: string,
     endDate: string,
     assigneeIds?: string[],
+    includeOrgSchedules?: boolean,
   ) => {
     const query = new URLSearchParams();
     query.set("startDate", startDate);
     query.set("endDate", endDate);
     if (assigneeIds && assigneeIds.length > 0) {
       assigneeIds.forEach((id) => query.append("assigneeIds", id));
+    }
+    if (includeOrgSchedules) {
+      query.set("includeOrgSchedules", "true");
     }
     return apiClient.get<WeeklyScheduleResponse>(
       `/boards/${boardId}/schedules/weekly?${query.toString()}`,
@@ -2414,11 +2425,15 @@ export const scheduleAPI = {
     boardId: string,
     date: string,
     assigneeIds?: string[],
+    includeOrgSchedules?: boolean,
   ) => {
     const query = new URLSearchParams();
     query.set("date", date);
     if (assigneeIds && assigneeIds.length > 0) {
       assigneeIds.forEach((id) => query.append("assigneeIds", id));
+    }
+    if (includeOrgSchedules) {
+      query.set("includeOrgSchedules", "true");
     }
     return apiClient.get<DailyFullResponse>(
       `/boards/${boardId}/schedules/daily-full?${query.toString()}`,
@@ -2895,9 +2910,26 @@ export interface TestDataResponse {
   message: string;
 }
 
+export interface TestOrgDataResponse {
+  organization_id: string;
+  organization_name: string;
+  member_count: number;
+  department_count: number;
+  leave_policy_count: number;
+  leave_request_count: number;
+  onboarding_template_count: number;
+  attendance_record_count: number;
+  announcement_count: number;
+  activity_count: number;
+  message: string;
+}
+
 export const testDataAPI = {
   createTestBoard: async () => {
     return apiClient.post<TestDataResponse>("/test/create-board");
+  },
+  createTestOrganization: async () => {
+    return apiClient.post<TestOrgDataResponse>("/test/create-organization");
   },
 };
 
@@ -3677,6 +3709,76 @@ export interface SubscriptionListResponse {
   size: number;
 }
 
+// ==================== Admin Organization Types ====================
+
+export interface AdminOrgSummary {
+  id: string;
+  name: string;
+  description?: string | null;
+  logo_url?: string | null;
+  owner: {
+    id: string;
+    name: string;
+    email: string;
+    profile_image?: string | null;
+  };
+  plan: "FREE" | "TEAM";
+  subscription_status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "SUSPENDED" | "CANCELED" | null;
+  member_count: number;
+  board_count: number;
+  seat_count: number;
+  trial_ends_at?: string | null;
+  created_at: string;
+  deleted_at?: string | null;
+}
+
+export interface AdminOrgDetail extends AdminOrgSummary {
+  billing_cycle?: "MONTHLY" | "YEARLY" | null;
+  active_member_count: number;
+  price_per_seat?: number | null;
+  total_price?: number | null;
+  current_period_end?: string | null;
+  trial_used?: boolean;
+  departments_enabled?: boolean;
+  job_groups_enabled?: boolean;
+  positions_enabled?: boolean;
+  titles_enabled?: boolean;
+  grades_enabled?: boolean;
+  members: {
+    id: string;
+    user_id: string;
+    name: string;
+    email: string;
+    profile_image?: string | null;
+    role: "OWNER" | "ADMIN" | "MEMBER";
+    department_name?: string | null;
+    position_name?: string | null;
+    title_name?: string | null;
+    contract_type?: string | null;
+    work_status?: string | null;
+    joined_at: string;
+  }[];
+  boards: AdminBoardSummary[];
+  updated_at?: string;
+}
+
+export interface OrgListResponse {
+  organizations: AdminOrgSummary[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export interface AdminOrgStatistics {
+  total_organizations: number;
+  active_organizations: number;
+  free_orgs: number;
+  team_orgs: number;
+  trial_orgs: number;
+  active_org_subscriptions: number;
+  total_org_members: number;
+}
+
 export const adminAPI = {
   // 사용자 목록 조회
   getUsers: async (params: {
@@ -3901,6 +4003,118 @@ export const adminAPI = {
     return apiClient.patch<AdminBoardDetail>(
       `/admin/boards/${boardId}/ai-credits`,
       data,
+    );
+  },
+
+  // ==================== Organizations ====================
+
+  // 조직 목록 조회
+  getOrganizations: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params.page !== undefined)
+      searchParams.append("page", params.page.toString());
+    if (params.size !== undefined)
+      searchParams.append("size", params.size.toString());
+    if (params.search) searchParams.append("search", params.search);
+    return apiClient.get<OrgListResponse>(
+      `/admin/organizations?${searchParams.toString()}`,
+    );
+  },
+
+  // 삭제된 조직 목록 조회
+  getDeletedOrganizations: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params.page !== undefined)
+      searchParams.append("page", params.page.toString());
+    if (params.size !== undefined)
+      searchParams.append("size", params.size.toString());
+    if (params.search) searchParams.append("search", params.search);
+    return apiClient.get<OrgListResponse>(
+      `/admin/organizations/deleted?${searchParams.toString()}`,
+    );
+  },
+
+  // 조직 상세 조회
+  getOrganization: async (orgId: string) => {
+    return apiClient.get<AdminOrgDetail>(`/admin/organizations/${orgId}`);
+  },
+
+  // 조직 정보 수정
+  updateOrganization: async (
+    orgId: string,
+    data: { name?: string; description?: string },
+  ) => {
+    return apiClient.patch<AdminOrgDetail>(
+      `/admin/organizations/${orgId}`,
+      data,
+    );
+  },
+
+  // 조직 삭제 (소프트)
+  deleteOrganization: async (orgId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/admin/organizations/${orgId}`,
+    );
+  },
+
+  // 조직 복구
+  restoreOrganization: async (orgId: string) => {
+    return apiClient.post<{ message: string }>(
+      `/admin/organizations/${orgId}/restore`,
+    );
+  },
+
+  // 조직 영구 삭제
+  permanentlyDeleteOrganization: async (orgId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/admin/organizations/${orgId}/permanent`,
+    );
+  },
+
+  // 소유권 이전
+  transferOrgOwnership: async (orgId: string, newOwnerMemberId: string) => {
+    return apiClient.post<AdminOrgDetail>(
+      `/admin/organizations/${orgId}/transfer-ownership`,
+      { new_owner_member_id: newOwnerMemberId },
+    );
+  },
+
+  // 구독 수정
+  updateOrgSubscription: async (
+    orgId: string,
+    data: {
+      plan?: string;
+      status?: string;
+      billing_cycle?: string;
+      seat_count?: number;
+    },
+  ) => {
+    return apiClient.patch<AdminOrgDetail>(
+      `/admin/organizations/${orgId}/subscription`,
+      data,
+    );
+  },
+
+  // Trial 연장
+  extendOrgTrial: async (orgId: string, extendDays: number) => {
+    return apiClient.patch<AdminOrgDetail>(
+      `/admin/organizations/${orgId}/extend-trial`,
+      { extend_days: extendDays },
+    );
+  },
+
+  // 조직 통계
+  getOrgStatistics: async () => {
+    return apiClient.get<AdminOrgStatistics>(
+      "/admin/organizations/statistics",
     );
   },
 
@@ -4725,6 +4939,7 @@ import type {
   AiCredits,
   AiCreditPurchaseRequest,
   AiCreditPurchaseResult,
+  DiaryWorkContextData,
 } from "../types";
 
 // ========================================
@@ -4918,6 +5133,11 @@ export const diaryAPI = {
     data: AiCreditPurchaseRequest,
   ): Promise<AiCreditPurchaseResult> => {
     return apiClient.post("/diary/credits/purchase", data);
+  },
+
+  getWorkContext: async (date?: string): Promise<DiaryWorkContextData> => {
+    const params = date ? `?date=${date}` : "";
+    return apiClient.get(`/personal/diary/work-context${params}`);
   },
 };
 
@@ -5179,7 +5399,7 @@ export const organizationAPI = {
   },
   update: async (
     orgId: string,
-    data: { name?: string; description?: string },
+    data: { name?: string; description?: string; hr_system_enabled?: boolean },
   ): Promise<import("../types").OrganizationDetail> => {
     return apiClient.put(`/organizations/${orgId}`, data);
   },
@@ -5212,6 +5432,13 @@ export const organizationAPI = {
     data: { member_id: string },
   ): Promise<import("../types").OrganizationDetail> => {
     return apiClient.put(`/organizations/${orgId}/transfer-ownership`, data);
+  },
+
+  // Structure Data (combined)
+  getStructureData: async (
+    orgId: string,
+  ): Promise<import("../types").OrgStructureData> => {
+    return apiClient.get(`/organizations/${orgId}/structure-data`);
   },
 
   // Departments
@@ -5878,6 +6105,11 @@ export const organizationAPI = {
   ): Promise<import("../types").AttendanceTodayStatus> => {
     return apiClient.get(`/organizations/${orgId}/attendance/today`);
   },
+  getAttendanceTodayMembers: async (
+    orgId: string,
+  ): Promise<import("../types").AttendanceTodayMembers> => {
+    return apiClient.get(`/organizations/${orgId}/attendance/today/members`);
+  },
   getAttendanceTeamSummary: async (
     orgId: string,
     params?: { year?: number; month?: number; department_id?: string },
@@ -5956,6 +6188,19 @@ export const organizationAPI = {
     if (!res.ok) throw new Error("Export failed");
     return res.blob();
   },
+
+  // Structure Settings
+  getStructureSettings: async (
+    orgId: string,
+  ): Promise<import("../types").OrgStructureSettings> => {
+    return apiClient.get(`/organizations/${orgId}/structure-settings`);
+  },
+  updateStructureSettings: async (
+    orgId: string,
+    data: Partial<import("../types").OrgStructureSettings>,
+  ): Promise<import("../types").OrgStructureSettings> => {
+    return apiClient.put(`/organizations/${orgId}/structure-settings`, data);
+  },
 };
 
 // ─── Organization Announcement API ───
@@ -5975,14 +6220,14 @@ export const orgAnnouncementAPI = {
   },
   create: async (
     orgId: string,
-    data: { title: string; content?: string; is_pinned?: boolean },
+    data: { title: string; content?: string; is_pinned?: boolean; file_keys?: string[] },
   ): Promise<import("../types").OrgAnnouncement> => {
     return apiClient.post(`/organizations/${orgId}/announcements`, data);
   },
   update: async (
     orgId: string,
     id: string,
-    data: { title: string; content?: string },
+    data: { title: string; content?: string; keep_attachment_ids?: string[]; new_file_keys?: string[] },
   ): Promise<import("../types").OrgAnnouncement> => {
     return apiClient.put(`/organizations/${orgId}/announcements/${id}`, data);
   },
@@ -5994,6 +6239,45 @@ export const orgAnnouncementAPI = {
     id: string,
   ): Promise<import("../types").OrgAnnouncement> => {
     return apiClient.put(`/organizations/${orgId}/announcements/${id}/pin`, {});
+  },
+  // Comments
+  getComments: async (
+    orgId: string,
+    announcementId: string,
+  ): Promise<import("../types").OrgAnnouncementCommentListResponse> => {
+    return apiClient.get(
+      `/organizations/${orgId}/announcements/${announcementId}/comments`,
+    );
+  },
+  addComment: async (
+    orgId: string,
+    announcementId: string,
+    data: { content: string },
+  ): Promise<import("../types").OrgAnnouncementComment> => {
+    return apiClient.post(
+      `/organizations/${orgId}/announcements/${announcementId}/comments`,
+      data,
+    );
+  },
+  updateComment: async (
+    orgId: string,
+    announcementId: string,
+    commentId: string,
+    data: { content: string },
+  ): Promise<import("../types").OrgAnnouncementComment> => {
+    return apiClient.put(
+      `/organizations/${orgId}/announcements/${announcementId}/comments/${commentId}`,
+      data,
+    );
+  },
+  deleteComment: async (
+    orgId: string,
+    announcementId: string,
+    commentId: string,
+  ): Promise<void> => {
+    return apiClient.delete(
+      `/organizations/${orgId}/announcements/${announcementId}/comments/${commentId}`,
+    );
   },
 };
 
@@ -6154,6 +6438,54 @@ export const leaveAPI = {
       {},
     );
   },
+
+  // Balance Adjustments
+  adjustBalance: async (
+    orgId: string,
+    memberId: string,
+    balanceId: string,
+    data: {
+      adjustment_type: string;
+      days: number;
+      reason: string;
+    },
+  ): Promise<import("../types").LeaveBalance> => {
+    return apiClient.post(
+      `/organizations/${orgId}/members/${memberId}/leave-balance/${balanceId}/adjust`,
+      data,
+    );
+  },
+  getMemberAdjustments: async (
+    orgId: string,
+    memberId: string,
+    params?: { page?: number; size?: number },
+  ): Promise<import("../types").LeaveAdjustmentPageResponse> => {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) query.set(k, String(v));
+      });
+    }
+    const qs = query.toString();
+    return apiClient.get(
+      `/organizations/${orgId}/members/${memberId}/leave-adjustments${qs ? `?${qs}` : ""}`,
+    );
+  },
+  getAdjustments: async (
+    orgId: string,
+    params?: { page?: number; size?: number },
+  ): Promise<import("../types").LeaveAdjustmentPageResponse> => {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) query.set(k, String(v));
+      });
+    }
+    const qs = query.toString();
+    return apiClient.get(
+      `/organizations/${orgId}/leave-adjustments${qs ? `?${qs}` : ""}`,
+    );
+  },
 };
 
 // ─── Anniversary & Celebrations API ───
@@ -6243,5 +6575,234 @@ export const personalDashboardAPI = {
   ): Promise<import("../types").PersonalOverviewData> => {
     const params = date ? `?date=${date}` : "";
     return apiClient.get(`/personal/dashboard/overview${params}`);
+  },
+  getBoardTasks: async (date?: string): Promise<import("../types").BoardTasksData> => {
+    const params = date ? `?date=${date}` : "";
+    return apiClient.get(`/personal/dashboard/board-tasks${params}`);
+  },
+  getCelebrations: async (date?: string): Promise<import("../types").CelebrationsData> => {
+    const params = date ? `?date=${date}` : "";
+    return apiClient.get(`/personal/dashboard/celebrations${params}`);
+  },
+};
+
+// ─── Personal Calendar API (v10.0) ───
+
+export const personalCalendarAPI = {
+  getUnifiedCalendar: async (startDate: string, endDate: string): Promise<import("../types").UnifiedCalendarData> => {
+    return apiClient.get(`/personal/calendar/unified?start_date=${startDate}&end_date=${endDate}`);
+  },
+};
+
+// ========================================
+// Org Subscription API
+// ========================================
+
+export const orgSubscriptionAPI = {
+  get: async (orgId: string): Promise<import("../types").OrgSubscription> => {
+    return apiClient.get(`/organizations/${orgId}/subscription`);
+  },
+
+  activate: async (
+    orgId: string,
+    data: { billing_cycle: string; seat_count: number },
+  ): Promise<import("../types").OrgSubscription> => {
+    return apiClient.post(`/organizations/${orgId}/subscription/activate`, data);
+  },
+
+  migratePreview: async (
+    orgId: string,
+    data: { billing_cycle: string; board_ids: string[] },
+  ): Promise<import("../types").MigrationPreview> => {
+    return apiClient.post(`/organizations/${orgId}/subscription/migrate/preview`, data);
+  },
+
+  migrate: async (
+    orgId: string,
+    data: { billing_cycle: string; board_ids: string[] },
+  ): Promise<import("../types").OrgSubscription> => {
+    return apiClient.post(`/organizations/${orgId}/subscription/migrate`, data);
+  },
+
+  downgrade: async (orgId: string): Promise<import("../types").OrgSubscription> => {
+    return apiClient.post(`/organizations/${orgId}/subscription/downgrade`);
+  },
+
+  cancel: async (orgId: string): Promise<{ message: string }> => {
+    return apiClient.delete(`/organizations/${orgId}/subscription`);
+  },
+
+  undoCancel: async (orgId: string): Promise<{ message: string }> => {
+    return apiClient.post(`/organizations/${orgId}/subscription/undo-cancel`);
+  },
+
+  getPayments: async (orgId: string) => {
+    return apiClient.get(`/organizations/${orgId}/subscription/payments`);
+  },
+
+  purchaseSeats: async (
+    orgId: string,
+    additionalSeats: number,
+  ): Promise<import("../types").OrgSubscription> => {
+    return apiClient.post(`/organizations/${orgId}/subscription/seats`, {
+      additional_seats: additionalSeats,
+    });
+  },
+};
+
+// ─── Org Photo Gallery API ───
+
+export const orgPhotoAPI = {
+  // Tab CRUD
+  getTabs: (orgId: string): Promise<import("../types").OrgPhotoTab[]> =>
+    apiClient.get(`/organizations/${orgId}/photos/tabs`),
+
+  createTab: (
+    orgId: string,
+    data: { name: string; description?: string },
+  ): Promise<import("../types").OrgPhotoTab> =>
+    apiClient.post(`/organizations/${orgId}/photos/tabs`, data),
+
+  updateTab: (
+    orgId: string,
+    tabId: string,
+    data: { name: string; description?: string; cover_photo_id?: string },
+  ): Promise<import("../types").OrgPhotoTab> =>
+    apiClient.put(`/organizations/${orgId}/photos/tabs/${tabId}`, data),
+
+  deleteTab: (orgId: string, tabId: string): Promise<void> =>
+    apiClient.delete(`/organizations/${orgId}/photos/tabs/${tabId}`),
+
+  reorderTabs: (orgId: string, tabIds: string[]): Promise<void> =>
+    apiClient.put(`/organizations/${orgId}/photos/tabs/reorder`, {
+      tab_ids: tabIds,
+    }),
+
+  // Sharing
+  enableShare: (
+    orgId: string,
+    tabId: string,
+  ): Promise<import("../types").OrgPhotoTab> =>
+    apiClient.post(`/organizations/${orgId}/photos/tabs/${tabId}/share`),
+
+  disableShare: (
+    orgId: string,
+    tabId: string,
+  ): Promise<import("../types").OrgPhotoTab> =>
+    apiClient.delete(`/organizations/${orgId}/photos/tabs/${tabId}/share`),
+
+  // Gallery-level sharing
+  enableGalleryShare: (
+    orgId: string,
+  ): Promise<{ share_token: string }> =>
+    apiClient.post(`/organizations/${orgId}/photos/gallery-share`),
+
+  disableGalleryShare: (
+    orgId: string,
+  ): Promise<void> =>
+    apiClient.delete(`/organizations/${orgId}/photos/gallery-share`),
+
+  getGalleryShareStatus: (
+    orgId: string,
+  ): Promise<{ enabled: boolean; share_token: string }> =>
+    apiClient.get(`/organizations/${orgId}/photos/gallery-share`),
+
+  // Photo CRUD
+  getPhotos: (
+    orgId: string,
+    params: { tab_id?: string; cursor?: string; size?: number },
+  ): Promise<import("../types").OrgPhotoPage> => {
+    const query = new URLSearchParams();
+    if (params.tab_id) query.set("tab_id", params.tab_id);
+    if (params.cursor) query.set("cursor", params.cursor);
+    if (params.size) query.set("size", String(params.size));
+    return apiClient.get(`/organizations/${orgId}/photos?${query.toString()}`);
+  },
+
+  uploadPhotos: async (
+    orgId: string,
+    tabId: string,
+    files: File[],
+  ): Promise<import("../types").OrgPhoto[]> => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append("files", f));
+    // NOTE: Do NOT set Content-Type — browser sets multipart boundary automatically
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/organizations/${orgId}/photos/upload?tabId=${tabId}`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: "Upload failed" }));
+      throw err;
+    }
+    return response.json();
+  },
+
+  updatePhoto: (
+    orgId: string,
+    photoId: string,
+    data: { caption: string },
+  ): Promise<import("../types").OrgPhoto> =>
+    apiClient.put(`/organizations/${orgId}/photos/${photoId}`, data),
+
+  deletePhotos: (orgId: string, photoIds: string[]): Promise<void> =>
+    apiClient.delete(`/organizations/${orgId}/photos/batch`, {
+      photo_ids: photoIds,
+    }),
+
+  // Download
+  downloadPhoto: (orgId: string, photoId: string) =>
+    apiClient.get(`/organizations/${orgId}/photos/${photoId}/download`),
+
+  downloadPhotos: (orgId: string, photoIds: string[]) =>
+    apiClient.post(`/organizations/${orgId}/photos/batch-download`, {
+      photo_ids: photoIds,
+    }),
+};
+
+// ─── Public Gallery API (no auth) ───
+
+export const publicGalleryAPI = {
+  getSharedGallery: (
+    shareToken: string,
+  ): Promise<import("../types").SharedGalleryInfo> =>
+    apiClient.get(`/public/gallery/${shareToken}`),
+
+  getSharedGalleryPhotos: (
+    shareToken: string,
+    albumId: string,
+    params?: { cursor?: string; size?: number },
+  ): Promise<import("../types").SharedPhotoPage> => {
+    const query = new URLSearchParams();
+    if (params?.cursor) query.set("cursor", params.cursor);
+    if (params?.size) query.set("size", String(params.size));
+    const qs = query.toString();
+    return apiClient.get(
+      `/public/gallery/${shareToken}/albums/${albumId}/photos${qs ? `?${qs}` : ""}`,
+    );
+  },
+};
+
+/** @deprecated kept for per-album share backward compat */
+export const publicAlbumAPI = {
+  getSharedAlbum: (
+    shareToken: string,
+  ): Promise<import("../types").SharedAlbumInfo> =>
+    apiClient.get(`/public/albums/${shareToken}`),
+
+  getSharedAlbumPhotos: (
+    shareToken: string,
+    params?: { cursor?: string; size?: number },
+  ): Promise<import("../types").SharedPhotoPage> => {
+    const query = new URLSearchParams();
+    if (params?.cursor) query.set("cursor", params.cursor);
+    if (params?.size) query.set("size", String(params.size));
+    const qs = query.toString();
+    return apiClient.get(
+      `/public/albums/${shareToken}/photos${qs ? `?${qs}` : ""}`,
+    );
   },
 };

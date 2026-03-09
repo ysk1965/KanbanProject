@@ -24,9 +24,9 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Stri
            "JOIN FETCH lr.policy " +
            "WHERE lr.organization.id = :orgId " +
            "AND (:status IS NULL OR lr.status = :status) " +
-           "AND (:requesterId IS NULL OR lr.requester.id = :requesterId) " +
-           "AND (:startDate IS NULL OR lr.endDate >= :startDate) " +
-           "AND (:endDate IS NULL OR lr.startDate <= :endDate) " +
+           "AND (:requesterId IS NULL OR req.id = :requesterId) " +
+           "AND (CAST(:startDate AS date) IS NULL OR lr.endDate >= :startDate) " +
+           "AND (CAST(:endDate AS date) IS NULL OR lr.startDate <= :endDate) " +
            "ORDER BY lr.createdAt DESC")
     Page<LeaveRequest> findByOrgIdWithFilters(
             @Param("orgId") String orgId,
@@ -81,4 +81,23 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Stri
            "AND lr.status = 'APPROVED' " +
            "AND lr.startDate <= :date AND lr.endDate >= :date")
     int countApprovedOnDate(@Param("orgId") String orgId, @Param("date") LocalDate date);
+
+    // ==================== Cross-Domain Integration Queries ====================
+
+    /**
+     * 다중 조직의 승인된 휴가를 날짜 범위로 조회
+     */
+    @Query("SELECT lr FROM LeaveRequest lr " +
+           "JOIN FETCH lr.requester req " +
+           "JOIN FETCH req.user " +
+           "LEFT JOIN FETCH req.department " +
+           "JOIN FETCH lr.policy " +
+           "WHERE lr.organization.id IN :orgIds " +
+           "AND lr.status = 'APPROVED' " +
+           "AND lr.startDate <= :endDate AND lr.endDate >= :startDate " +
+           "ORDER BY lr.startDate")
+    List<LeaveRequest> findApprovedByOrgIdInAndDateRange(
+            @Param("orgIds") List<String> orgIds,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 }

@@ -11,6 +11,7 @@ import { MemberBoardsTab } from "./member/MemberBoardsTab";
 import { MemberOneOnOneTab } from "./member/MemberOneOnOneTab";
 import { MemberSidebar } from "./member/MemberSidebar";
 import { organizationService } from "../../utils/services";
+import { useOrgData } from "../../contexts/OrgDataContext";
 import type {
   OrgMemberDetail,
   OrgMemberBoard,
@@ -20,6 +21,7 @@ import type {
   OrgPosition,
   OrgTitle,
   OrgGrade,
+  OrgStructureSettings,
   LeaveBalance,
 } from "../../types";
 
@@ -35,6 +37,7 @@ interface MemberDetailModalProps {
   positions: OrgPosition[];
   titles: OrgTitle[];
   grades: OrgGrade[];
+  structureSettings?: OrgStructureSettings;
   onMemberUpdated: () => void;
 }
 
@@ -75,10 +78,13 @@ export function MemberDetailModal({
   positions,
   titles,
   grades,
+  structureSettings,
   onMemberUpdated,
 }: MemberDetailModalProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { org } = useOrgData();
+  const hrSystemEnabled = org?.hr_system_enabled === true;
 
   const [member, setMember] = useState<OrgMemberDetail | null>(null);
   const [boards, setBoards] = useState<OrgMemberBoard[]>([]);
@@ -136,12 +142,12 @@ export function MemberDetailModal({
     }
   }, [open, memberId, loadData, loadBoards]);
 
-  // Load leave balances only after member is loaded (need isSelf check)
+  // Load leave balances only after member is loaded (need isSelf check), skip if HR system enabled
   useEffect(() => {
-    if (member && (isAdmin || isSelf)) {
+    if (member && (isAdmin || isSelf) && !hrSystemEnabled) {
       loadLeaveBalances();
     }
-  }, [member, isAdmin, isSelf, loadLeaveBalances]);
+  }, [member, isAdmin, isSelf, hrSystemEnabled, loadLeaveBalances]);
 
   const handleChangeRole = async (role: OrgRole) => {
     try {
@@ -255,14 +261,14 @@ export function MemberDetailModal({
             {/* Left: Tab Nav + Content */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
               {/* Tab Navigation */}
-              <div className="flex gap-1 border-b border-foreground/[0.08] px-6 shrink-0">
+              <div className="flex gap-1 border-b border-foreground/[0.08] px-4 sm:px-6 shrink-0 overflow-x-auto">
                 {TABS.map((tab) => {
                   const Icon = tab.icon;
                   return (
                     <button
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
-                      className={`relative px-4 py-2.5 text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                      className={`relative px-3 sm:px-4 py-2.5 text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap ${
                         activeTab === tab.key
                           ? "text-bridge-accent"
                           : "text-slate-400 hover:text-foreground"
@@ -299,7 +305,9 @@ export function MemberDetailModal({
                     positions={positions}
                     titles={titles}
                     grades={grades}
-                    leaveBalances={leaveBalances}
+                    structureSettings={structureSettings}
+                    leaveBalances={hrSystemEnabled ? [] : leaveBalances}
+                    hrSystemEnabled={hrSystemEnabled}
                     onUpdate={handleMemberUpdate}
                   />
                 )}
@@ -315,6 +323,7 @@ export function MemberDetailModal({
                     positions={positions}
                     titles={titles}
                     grades={grades}
+                    structureSettings={structureSettings}
                   />
                 )}
                 {activeTab === "boards" && (
@@ -338,13 +347,14 @@ export function MemberDetailModal({
             </div>
 
             {/* Right: Sidebar (desktop only) */}
-            <div className="hidden sm:block">
+            <div className="hidden md:block">
               <MemberSidebar
                 member={member}
                 boards={boards}
-                leaveBalances={leaveBalances}
+                leaveBalances={hrSystemEnabled ? [] : leaveBalances}
                 isAdmin={isAdmin}
                 isSelf={isSelf}
+                hrSystemEnabled={hrSystemEnabled}
               />
             </div>
           </div>

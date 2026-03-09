@@ -114,6 +114,7 @@ public class ScheduleResponse {
     public static class ColumnInfo {
         private UserInfo user;
         private List<BlockInfo> blocks;
+        private List<BlockInfo> orgBlocks;
     }
 
     @Getter
@@ -143,6 +144,8 @@ public class ScheduleResponse {
         private String color;
         private LocalTime startTime;
         private LocalTime endTime;
+        private String boardId;
+        private String boardName;
         private ChecklistItemInfo checklistItem;
         private TaskInfo task;
         private FeatureInfo feature;
@@ -153,6 +156,7 @@ public class ScheduleResponse {
             Task task = item != null ? item.getTask() : null;
             Feature feature = task != null ? task.getFeature() : null;
             Meeting meeting = block.getMeeting();
+            Board board = block.getBoard();
 
             return BlockInfo.builder()
                     .id(block.getId())
@@ -161,6 +165,8 @@ public class ScheduleResponse {
                     .color(block.getColor())
                     .startTime(block.getStartTime())
                     .endTime(block.getEndTime())
+                    .boardId(board != null ? board.getId() : null)
+                    .boardName(board != null ? board.getName() : null)
                     .checklistItem(item != null ? ChecklistItemInfo.of(item) : null)
                     .task(task != null ? TaskInfo.of(task) : null)
                     .feature(feature != null ? FeatureInfo.of(feature) : null)

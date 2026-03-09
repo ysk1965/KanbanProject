@@ -24,9 +24,6 @@ repositories {
 }
 
 dependencies {
-    // Sentry
-    implementation 'io.sentry:sentry-spring-boot-starter-jakarta:7.3.0'
-
     // Dotenv
     implementation 'me.paulschwarz:spring-dotenv:4.0.0'
 
@@ -73,6 +70,10 @@ dependencies {
     // Database
     runtimeOnly 'org.postgresql:postgresql'
     runtimeOnly 'com.h2database:h2'
+
+    // Flyway (Schema Migration)
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly 'org.flywaydb:flyway-database-postgresql'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok'

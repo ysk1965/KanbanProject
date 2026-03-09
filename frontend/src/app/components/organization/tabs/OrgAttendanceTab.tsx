@@ -14,7 +14,7 @@ import {
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { organizationService } from "../../../utils/services";
-import { formatDateTime } from "../../../utils/dateUtils";
+
 import type {
   OrgRole,
   OrgDepartment,
@@ -54,14 +54,6 @@ function formatMinutes(
 
 function extractTime(isoStr: string | null): string {
   if (!isoStr) return "-";
-  const formatted = formatDateTime(isoStr);
-  // Extract just the time portion (HH:mm or similar)
-  const parts = formatted.split(" ");
-  // formatDateTime returns locale-specific format; try to extract time
-  if (parts.length >= 2) {
-    return parts.slice(1).join(" ");
-  }
-  // Fallback: parse from ISO
   try {
     const d = new Date(isoStr);
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });

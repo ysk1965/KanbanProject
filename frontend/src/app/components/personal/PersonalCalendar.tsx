@@ -7,10 +7,10 @@ import { MotionModal } from '../ui/MotionModal';
 import { TimePicker } from '../ui/TimePicker';
 import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { personalTaskAPI } from '../../utils/api';
-import { personalEventService } from '../../utils/services';
+import { personalEventService, personalCalendarService } from '../../utils/services';
 import { formatDate } from '../../utils/dateUtils';
 import { useHolidays } from '../../hooks/useHolidays';
-import type { PersonalTask, PersonalEvent, PersonalTaskPriority } from '../../types';
+import type { PersonalTask, PersonalEvent, PersonalTaskPriority, UnifiedCalendarEvent } from '../../types';
 import type { TabSwipeHandle } from './PersonalSchedule';
 import { TaskDetailModal } from './PersonalTaskBoard';
 
@@ -94,6 +94,13 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
   const justDraggedRef = useRef(false);
   const calendarGridRef = useRef<HTMLDivElement>(null);
   const [createEndDate, setCreateEndDate] = useState('');
+
+  // Cross-domain calendar state (v10.0)
+  const [boardEvents, setBoardEvents] = useState<UnifiedCalendarEvent[]>([]);
+  const [orgEvents, setOrgEvents] = useState<UnifiedCalendarEvent[]>([]);
+  const [calendarFilters, setCalendarFilters] = useState({
+    personal: true, meetings: true, schedule: true, anniversary: true, leave: true,
+  });
 
   // ── slide animation (DOM ref manipulation) ──
   const animRef = useRef<HTMLDivElement>(null);
@@ -249,6 +256,22 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
   }, [gridStartDate, gridEndDate]);
 
   useEffect(() => { loadEvents(); }, [loadEvents]);
+
+  // Cross-domain calendar fetch (v10.0)
+  useEffect(() => {
+    const startDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+    const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const endDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${lastDay}`;
+    personalCalendarService.getUnifiedCalendar(startDate, endDate)
+      .then(data => {
+        setBoardEvents(data.board_events || []);
+        setOrgEvents(data.org_events || []);
+      })
+      .catch(() => {
+        setBoardEvents([]);
+        setOrgEvents([]);
+      });
+  }, [currentYear, currentMonth]);
 
   // ── open create modal helper ──
   const openCreateModal = useCallback((date: string, endDate?: string) => {
@@ -598,6 +621,30 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
         onEditEvent={(ev) => setEditEvent(ev)}
       />
 
+      {/* Cross-domain filter chips */}
+      <div className="flex gap-2 px-4 md:px-6 py-2 flex-wrap border-b border-foreground/5 shrink-0">
+        {([
+          { key: 'personal' as const, label: isKo ? '개인' : 'Personal', dotClass: 'bg-bridge-accent', activeClass: 'bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30' },
+          { key: 'meetings' as const, label: isKo ? '보드 미팅' : 'Meetings', dotClass: 'bg-purple-500', activeClass: 'bg-purple-500/15 text-purple-400 border-purple-500/30' },
+          { key: 'schedule' as const, label: isKo ? '보드 스케줄' : 'Schedule', dotClass: 'bg-indigo-500', activeClass: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30' },
+          { key: 'anniversary' as const, label: isKo ? '기념일' : 'Anniversary', dotClass: 'bg-pink-400', activeClass: 'bg-pink-400/15 text-pink-400 border-pink-400/30' },
+          { key: 'leave' as const, label: isKo ? '휴가' : 'Leave', dotClass: 'bg-emerald-400', activeClass: 'bg-emerald-400/15 text-emerald-400 border-emerald-400/30' },
+        ]).map(f => (
+          <button
+            key={f.key}
+            onClick={() => setCalendarFilters(prev => ({ ...prev, [f.key]: !prev[f.key] }))}
+            className={`text-[10px] font-bold px-2 py-1 rounded-full border transition-colors flex items-center gap-1 ${
+              calendarFilters[f.key]
+                ? f.activeClass
+                : 'bg-foreground/5 text-slate-500 border-foreground/10'
+            }`}
+          >
+            <span className={`inline-block w-1.5 h-1.5 rounded-full ${f.dotClass}`} />
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       {/* Day-of-week header */}
       <div className="grid grid-cols-7 border-b border-foreground/5 shrink-0">
         {dayLabels.map((label, i) => (
@@ -699,6 +746,40 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
                         <div className="text-[9px] text-zinc-600 text-center">+{hiddenCount}</div>
                       )}
                     </div>
+
+                    {/* Cross-domain event dots */}
+                    {(() => {
+                      const dots: { color: string; key: string }[] = [];
+                      if (calendarFilters.meetings) {
+                        boardEvents.filter(e => e.source === 'MEETING' && e.event_date === dateKey).forEach((_e, i) => {
+                          dots.push({ color: '#a855f7', key: `m-${i}` });
+                        });
+                      }
+                      if (calendarFilters.schedule) {
+                        boardEvents.filter(e => e.source === 'SCHEDULE_BLOCK' && e.event_date === dateKey).forEach((_e, i) => {
+                          dots.push({ color: '#6366f1', key: `s-${i}` });
+                        });
+                      }
+                      if (calendarFilters.anniversary) {
+                        orgEvents.filter(e => e.source === 'ANNIVERSARY' && e.event_date === dateKey).forEach((_e, i) => {
+                          dots.push({ color: '#f472b6', key: `a-${i}` });
+                        });
+                      }
+                      if (calendarFilters.leave) {
+                        orgEvents.filter(e => e.source === 'LEAVE' && e.event_date === dateKey).forEach((_e, i) => {
+                          dots.push({ color: '#34d399', key: `l-${i}` });
+                        });
+                      }
+                      if (dots.length === 0) return null;
+                      return (
+                        <div className="flex items-center justify-center gap-0.5 py-0.5 shrink-0">
+                          {dots.slice(0, 4).map(d => (
+                            <span key={d.key} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: d.color }} />
+                          ))}
+                          {dots.length > 4 && <span className="text-[8px] text-slate-500">+{dots.length - 4}</span>}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}

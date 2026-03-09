@@ -6,6 +6,12 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardTier;
 import com.kanban.domain.board.BoardRole;
+import com.kanban.domain.organization.Organization;
+import com.kanban.domain.organization.OrganizationMember;
+import com.kanban.domain.organization.OrgRole;
+import com.kanban.domain.subscription.BillingCycle;
+import com.kanban.domain.subscription.OrgPlan;
+import com.kanban.domain.subscription.OrgSubscription;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionStatus;
 import com.kanban.domain.user.SystemRole;
@@ -16,6 +22,7 @@ import lombok.Getter;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class AdminResponse {
 
@@ -369,6 +376,46 @@ public class AdminResponse {
         }
     }
 
+    // ==================== Diary Stats ====================
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class DiaryStats {
+        private long totalEntries;
+        private double completionRate;
+        private long activeUsers;
+        private List<DailyCount> trend;
+
+        @Getter
+        @Builder
+        @AllArgsConstructor
+        public static class DailyCount {
+            private String date;
+            private long count;
+        }
+    }
+
+    // ==================== Personal Conversion Stats ====================
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class PersonalConversionStats {
+        private long personalOnly;
+        private long both;
+        private double conversionRate;
+        private List<DailyCount> trend;
+
+        @Getter
+        @Builder
+        @AllArgsConstructor
+        public static class DailyCount {
+            private String date;
+            private long count;
+        }
+    }
+
     // ==================== Announcement ====================
 
     @Getter
@@ -402,6 +449,177 @@ public class AdminResponse {
                     .updatedAt(announcement.getUpdatedAt())
                     .build();
         }
+    }
+
+    // ==================== Organizations ====================
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class OrgList {
+        private List<OrgSummary> organizations;
+        private long total;
+        private int page;
+        private int size;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class OrgSummary {
+        private String id;
+        private String name;
+        private String description;
+        private String logoUrl;
+        private OwnerInfo owner;
+        private OrgPlan plan;
+        private SubscriptionStatus subscriptionStatus;
+        private int memberCount;
+        private int boardCount;
+        private int seatCount;
+        private LocalDateTime trialEndsAt;
+        private LocalDateTime createdAt;
+        private LocalDateTime deletedAt;
+
+        public static OrgSummary of(Organization org, int memberCount, int boardCount, OrgSubscription sub) {
+            return OrgSummary.builder()
+                    .id(org.getId())
+                    .name(org.getName())
+                    .description(org.getDescription())
+                    .logoUrl(org.getLogoUrl())
+                    .owner(org.getOwner() != null ? OwnerInfo.of(org.getOwner()) : null)
+                    .plan(sub != null ? sub.getPlan() : OrgPlan.FREE)
+                    .subscriptionStatus(sub != null ? sub.getStatus() : null)
+                    .memberCount(memberCount)
+                    .boardCount(boardCount)
+                    .seatCount(sub != null ? sub.getSeatCount() : 0)
+                    .trialEndsAt(sub != null ? sub.getTrialEndsAt() : null)
+                    .createdAt(org.getCreatedAt())
+                    .deletedAt(org.getDeletedAt())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class OrgDetail {
+        // 기본 정보
+        private String id;
+        private String name;
+        private String description;
+        private String logoUrl;
+        private OwnerInfo owner;
+        // 구독 정보
+        private OrgPlan plan;
+        private SubscriptionStatus subscriptionStatus;
+        private BillingCycle billingCycle;
+        private int seatCount;
+        private int activeMemberCount;
+        private Integer pricePerSeat;
+        private Integer totalPrice;
+        private LocalDateTime trialEndsAt;
+        private LocalDateTime currentPeriodEnd;
+        private Boolean trialUsed;
+        // 구조 토글
+        private Boolean departmentsEnabled;
+        private Boolean jobGroupsEnabled;
+        private Boolean positionsEnabled;
+        private Boolean titlesEnabled;
+        private Boolean gradesEnabled;
+        // 카운트
+        private int memberCount;
+        private int boardCount;
+        // 중첩 데이터
+        private List<OrgMemberInfo> members;
+        private List<BoardSummary> boards;
+        // 날짜
+        private LocalDateTime createdAt;
+        private LocalDateTime updatedAt;
+        private LocalDateTime deletedAt;
+
+        public static OrgDetail of(Organization org, OrgSubscription sub,
+                                   List<OrgMemberInfo> members, List<BoardSummary> boards,
+                                   int memberCount, int boardCount) {
+            return OrgDetail.builder()
+                    .id(org.getId())
+                    .name(org.getName())
+                    .description(org.getDescription())
+                    .logoUrl(org.getLogoUrl())
+                    .owner(org.getOwner() != null ? OwnerInfo.of(org.getOwner()) : null)
+                    .plan(sub != null ? sub.getPlan() : OrgPlan.FREE)
+                    .subscriptionStatus(sub != null ? sub.getStatus() : null)
+                    .billingCycle(sub != null ? sub.getBillingCycle() : null)
+                    .seatCount(sub != null ? sub.getSeatCount() : 0)
+                    .activeMemberCount(sub != null ? sub.getActiveMemberCount() : 0)
+                    .pricePerSeat(sub != null ? sub.getPricePerSeat() : null)
+                    .totalPrice(sub != null ? sub.getTotalPrice() : null)
+                    .trialEndsAt(sub != null ? sub.getTrialEndsAt() : null)
+                    .currentPeriodEnd(sub != null ? sub.getCurrentPeriodEnd() : null)
+                    .trialUsed(org.getTrialUsed())
+                    .departmentsEnabled(org.getDepartmentsEnabled())
+                    .jobGroupsEnabled(org.getJobGroupsEnabled())
+                    .positionsEnabled(org.getPositionsEnabled())
+                    .titlesEnabled(org.getTitlesEnabled())
+                    .gradesEnabled(org.getGradesEnabled())
+                    .memberCount(memberCount)
+                    .boardCount(boardCount)
+                    .members(members)
+                    .boards(boards)
+                    .createdAt(org.getCreatedAt())
+                    .updatedAt(org.getUpdatedAt())
+                    .deletedAt(org.getDeletedAt())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class OrgMemberInfo {
+        private String id;
+        private String userId;
+        private String name;
+        private String email;
+        private String profileImage;
+        private OrgRole role;
+        private String departmentName;
+        private String positionName;
+        private String titleName;
+        private String contractType;
+        private String workStatus;
+        private LocalDateTime joinedAt;
+
+        public static OrgMemberInfo of(OrganizationMember member) {
+            User user = member.getUser();
+            return OrgMemberInfo.builder()
+                    .id(member.getId())
+                    .userId(user.getId())
+                    .name(user.getName())
+                    .email(user.getEmail())
+                    .profileImage(user.getProfileImage())
+                    .role(member.getRole())
+                    .departmentName(member.getDepartment() != null ? member.getDepartment().getName() : null)
+                    .positionName(member.getPosition() != null ? member.getPosition().getName() : null)
+                    .titleName(member.getTitle() != null ? member.getTitle().getName() : null)
+                    .contractType(member.getContractType() != null ? member.getContractType().name() : null)
+                    .workStatus(member.getWorkStatus() != null ? member.getWorkStatus().name() : null)
+                    .joinedAt(member.getJoinedAt())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class OrgStatistics {
+        private long totalOrganizations;
+        private long activeOrganizations;
+        private long freeOrgs;
+        private long teamOrgs;
+        private long trialOrgs;
+        private long activeOrgSubscriptions;
+        private long totalOrgMembers;
     }
 
     // ==================== System ====================

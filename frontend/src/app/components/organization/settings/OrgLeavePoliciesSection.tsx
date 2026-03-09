@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Pencil, CalendarDays } from "lucide-react";
+import { Plus, Pencil, CalendarDays, Loader2 } from "lucide-react";
 import { leaveService } from "../../../utils/services";
 import type { LeavePolicy, LeaveCategory } from "../../../types";
 
@@ -54,6 +54,7 @@ export function OrgLeavePoliciesSection({
     description: "",
   });
   const [savingPolicy, setSavingPolicy] = useState(false);
+  const [togglingPolicyId, setTogglingPolicyId] = useState<string | null>(null);
 
   // ── Handlers ──
 
@@ -83,12 +84,15 @@ export function OrgLeavePoliciesSection({
 
   const handleTogglePolicyActive = async (p: LeavePolicy) => {
     try {
+      setTogglingPolicyId(p.id);
       await leaveService.updatePolicy(orgId, p.id, {
         is_active: !p.is_active,
       });
       onRefresh();
     } catch (error) {
       console.warn("Failed to toggle policy:", error);
+    } finally {
+      setTogglingPolicyId(null);
     }
   };
 
@@ -140,7 +144,12 @@ export function OrgLeavePoliciesSection({
 
       <div className="space-y-2">
         {leavePolicies.map((p) => (
-          <div key={p.id} className="p-3 bg-foreground/[0.03] rounded-xl">
+          <div
+            key={p.id}
+            className={`p-3 bg-foreground/[0.03] rounded-xl transition-opacity ${
+              !p.is_active && editingPolicyId !== p.id ? "opacity-50" : ""
+            }`}
+          >
             {editingPolicyId === p.id ? (
               /* ── Edit mode ── */
               <div className="space-y-3">
@@ -239,7 +248,7 @@ export function OrgLeavePoliciesSection({
               /* ── View mode ── */
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="text-sm text-foreground font-medium">
+                  <span className={`text-sm font-medium ${p.is_active ? "text-foreground" : "text-foreground/60 line-through"}`}>
                     {p.name}
                   </span>
                   <span
@@ -262,17 +271,33 @@ export function OrgLeavePoliciesSection({
                       {t("organization.settings.approval", "Approval")}
                     </span>
                   )}
+                  {/* ── Toggle switch ── */}
                   <button
                     onClick={() => handleTogglePolicyActive(p)}
-                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full transition-colors cursor-pointer ${
+                    disabled={togglingPolicyId === p.id}
+                    className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer shrink-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                    style={{
+                      backgroundColor: p.is_active
+                        ? "rgb(16 185 129 / 0.4)"
+                        : "rgb(100 116 139 / 0.3)",
+                    }}
+                    title={
                       p.is_active
-                        ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-red-500/20 hover:text-red-600 dark:hover:text-red-400"
-                        : "bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-emerald-500/20 hover:text-emerald-600 dark:hover:text-emerald-400"
-                    }`}
+                        ? t("organization.settings.clickToDeactivate", "Click to deactivate")
+                        : t("organization.settings.clickToActivate", "Click to activate")
+                    }
                   >
-                    {p.is_active
-                      ? t("organization.settings.active", "Active")
-                      : t("organization.settings.inactive", "Inactive")}
+                    {togglingPolicyId === p.id ? (
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        <Loader2 size={12} className="animate-spin text-foreground/60" />
+                      </span>
+                    ) : (
+                      <span
+                        className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
+                          p.is_active ? "translate-x-[18px]" : "translate-x-[3px]"
+                        }`}
+                      />
+                    )}
                   </button>
                   <button
                     onClick={() => startEditPolicy(p)}

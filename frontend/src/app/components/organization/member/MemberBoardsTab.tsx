@@ -56,7 +56,7 @@ export function MemberBoardsTab({ boards, loading, onBoardClick }: MemberBoardsT
           >
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm font-bold text-slate-900 dark:text-white">{board.name}</span>
-              <span className="text-[10px] text-slate-400">{board.member_count}명</span>
+              <span className="text-[10px] text-slate-400">{t('organization.boards.memberCount', { count: board.member_count })}</span>
             </div>
             {board.description && (
               <p className="text-xs text-slate-400 truncate">{board.description}</p>

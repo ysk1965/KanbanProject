@@ -307,6 +307,22 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getConversionStats(days));
     }
 
+    @GetMapping("/statistics/diary")
+    public ResponseEntity<AdminResponse.DiaryStats> getDiaryStats(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "30") @Min(1) @Max(365) int days) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.getDiaryStats(days));
+    }
+
+    @GetMapping("/statistics/personal-conversion")
+    public ResponseEntity<AdminResponse.PersonalConversionStats> getPersonalConversionStats(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "365") @Min(1) @Max(730) int days) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.getPersonalConversionStats(days));
+    }
+
     // ==================== Subscriptions ====================
 
     @GetMapping("/subscriptions")
@@ -316,6 +332,106 @@ public class AdminController {
             @RequestParam(defaultValue = "20") int size) {
         verifyAdminAccess(principal);
         return ResponseEntity.ok(adminService.getSubscriptions(page, size));
+    }
+
+    // ==================== Organizations ====================
+
+    @GetMapping("/organizations")
+    public ResponseEntity<AdminResponse.OrgList> getOrganizations(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.getOrganizations(page, size, search));
+    }
+
+    @GetMapping("/organizations/deleted")
+    public ResponseEntity<AdminResponse.OrgList> getDeletedOrganizations(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.getDeletedOrganizations(page, size, search));
+    }
+
+    @GetMapping("/organizations/{orgId}")
+    public ResponseEntity<AdminResponse.OrgDetail> getOrganization(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String orgId) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.getOrganization(orgId));
+    }
+
+    @PatchMapping("/organizations/{orgId}")
+    public ResponseEntity<AdminResponse.OrgDetail> updateOrganization(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String orgId,
+            @Valid @RequestBody AdminRequest.UpdateOrganization request) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.updateOrganization(orgId, request));
+    }
+
+    @DeleteMapping("/organizations/{orgId}")
+    public ResponseEntity<Map<String, String>> deleteOrganization(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String orgId) {
+        verifyAdminAccess(principal);
+        adminService.deleteOrganization(orgId);
+        return ResponseEntity.ok(Map.of("message", "조직이 삭제되었습니다. 복구 가능합니다."));
+    }
+
+    @PostMapping("/organizations/{orgId}/restore")
+    public ResponseEntity<Map<String, String>> restoreOrganization(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String orgId) {
+        verifyAdminAccess(principal);
+        adminService.restoreOrganization(orgId);
+        return ResponseEntity.ok(Map.of("message", "조직이 복구되었습니다"));
+    }
+
+    @DeleteMapping("/organizations/{orgId}/permanent")
+    public ResponseEntity<Map<String, String>> permanentlyDeleteOrganization(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String orgId) {
+        verifyAdminAccess(principal);
+        adminService.permanentlyDeleteOrganization(orgId);
+        return ResponseEntity.ok(Map.of("message", "조직이 영구 삭제되었습니다"));
+    }
+
+    @PostMapping("/organizations/{orgId}/transfer-ownership")
+    public ResponseEntity<AdminResponse.OrgDetail> transferOrgOwnership(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String orgId,
+            @Valid @RequestBody AdminRequest.TransferOrgOwnership request) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.transferOrgOwnership(orgId, request));
+    }
+
+    @PatchMapping("/organizations/{orgId}/subscription")
+    public ResponseEntity<AdminResponse.OrgDetail> updateOrgSubscription(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String orgId,
+            @Valid @RequestBody AdminRequest.UpdateOrgSubscription request) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.updateOrgSubscription(orgId, request));
+    }
+
+    @PatchMapping("/organizations/{orgId}/extend-trial")
+    public ResponseEntity<AdminResponse.OrgDetail> extendOrgTrial(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String orgId,
+            @Valid @RequestBody AdminRequest.ExtendOrgTrial request) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.extendOrgTrial(orgId, request));
+    }
+
+    @GetMapping("/organizations/statistics")
+    public ResponseEntity<AdminResponse.OrgStatistics> getOrgStatistics(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.getOrgStatistics());
     }
 
     // ==================== Announcements ====================

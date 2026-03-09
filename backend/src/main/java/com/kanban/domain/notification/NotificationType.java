@@ -6,5 +6,6 @@ public enum NotificationType {
     TASK_COMMENT,
     MEETING_MEMO_SHARED,
     NOTE_COMMENT_MENTION,
-    ANNIVERSARY
+    ANNIVERSARY,
+    PAYMENT_FAILED
 }

@@ -6,11 +6,14 @@ import com.kanban.domain.organization.leave.service.LeaveService;
 import com.kanban.domain.organization.*;
 import com.kanban.domain.organization.dto.*;
 import com.kanban.domain.organization.repository.*;
+import com.kanban.domain.subscription.OrgSubscription;
+import com.kanban.domain.subscription.OrgSubscriptionRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.service.FileUploadService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
@@ -39,6 +42,7 @@ public class OrganizationService {
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final FileUploadService fileUploadService;
+    private final OrgSubscriptionRepository orgSubscriptionRepository;
 
     @org.springframework.beans.factory.annotation.Autowired
     @Lazy
@@ -50,6 +54,12 @@ public class OrganizationService {
     public OrganizationResponse.Detail createOrganization(String userId, OrganizationRequest.Create request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        // 1인 1조직 정책: 이미 소속된 조직이 있는지 확인
+        List<OrganizationMember> existingMemberships = orgMemberRepository.findByUserIdWithOrganization(userId);
+        if (!existingMemberships.isEmpty()) {
+            throw new BusinessException(ErrorCode.ALREADY_IN_ORGANIZATION);
+        }
 
         Organization org = Organization.builder()
                 .name(request.getName())
@@ -69,7 +79,12 @@ public class OrganizationService {
         leaveService.createDefaultPolicies(org);
         leaveService.createBalancesForNewMember(org, ownerMember);
 
-        return OrganizationResponse.Detail.of(org, OrgRole.OWNER, 1, 0);
+        // Create Trial subscription for new org
+        OrgSubscription trial = OrgSubscription.createTrial(org);
+        orgSubscriptionRepository.save(trial);
+        org.markTrialUsed();
+
+        return OrganizationResponse.Detail.of(org, OrgRole.OWNER, ownerMember.getId(), 1, 0);
     }
 
     public List<OrganizationResponse.Simple> getMyOrganizations(String userId) {
@@ -96,9 +111,8 @@ public class OrganizationService {
     public OrganizationResponse.Detail getOrganization(String orgId, String userId) {
         Organization org = getActiveOrgOrThrow(orgId);
         OrganizationMember member = getOrgMemberOrThrow(orgId, userId);
-        int memberCount = orgMemberRepository.countByOrganizationId(orgId);
-        int boardCount = boardRepository.countByOrganizationId(orgId);
-        return OrganizationResponse.Detail.of(org, member.getRole(), memberCount, boardCount);
+        int[] counts = getOrgCounts(orgId);
+        return OrganizationResponse.Detail.of(org, member.getRole(), member.getId(), counts[0], counts[1]);
     }
 
     @Transactional
@@ -106,10 +120,10 @@ public class OrganizationService {
         Organization org = getActiveOrgOrThrow(orgId);
         checkAdminOrAbove(orgId, userId);
         org.updateInfo(request.getName(), request.getDescription());
-        int memberCount = orgMemberRepository.countByOrganizationId(orgId);
-        int boardCount = boardRepository.countByOrganizationId(orgId);
+        org.updateHrSystemEnabled(request.getHrSystemEnabled());
+        int[] counts = getOrgCounts(orgId);
         OrganizationMember member = getOrgMemberOrThrow(orgId, userId);
-        return OrganizationResponse.Detail.of(org, member.getRole(), memberCount, boardCount);
+        return OrganizationResponse.Detail.of(org, member.getRole(), member.getId(), counts[0], counts[1]);
     }
 
     @Transactional
@@ -119,10 +133,9 @@ public class OrganizationService {
         String key = "organizations/" + orgId + "/logo/" + UUID.randomUUID() + "_" + file.getOriginalFilename();
         String logoUrl = fileUploadService.uploadDirect(file, key);
         org.updateLogoUrl(logoUrl);
-        int memberCount = orgMemberRepository.countByOrganizationId(orgId);
-        int boardCount = boardRepository.countByOrganizationId(orgId);
+        int[] counts = getOrgCounts(orgId);
         OrganizationMember member = getOrgMemberOrThrow(orgId, userId);
-        return OrganizationResponse.Detail.of(org, member.getRole(), memberCount, boardCount);
+        return OrganizationResponse.Detail.of(org, member.getRole(), member.getId(), counts[0], counts[1]);
     }
 
     @Transactional
@@ -165,9 +178,8 @@ public class OrganizationService {
         newOwnerMember.updateRole(OrgRole.OWNER);
         org.transferOwnership(newOwnerMember.getUser());
 
-        int memberCount = orgMemberRepository.countByOrganizationId(orgId);
-        int boardCount = boardRepository.countByOrganizationId(orgId);
-        return OrganizationResponse.Detail.of(org, OrgRole.ADMIN, memberCount, boardCount);
+        int[] counts = getOrgCounts(orgId);
+        return OrganizationResponse.Detail.of(org, OrgRole.ADMIN, currentOwner.getId(), counts[0], counts[1]);
     }
 
     // ==================== Department CRUD ====================
@@ -539,6 +551,57 @@ public class OrganizationService {
         }
     }
 
+    // ==================== Structure Data (Combined) ====================
+
+    public OrganizationResponse.StructureData getStructureData(String orgId, String userId) {
+        getOrgMemberOrThrow(orgId, userId);
+        Organization org = getActiveOrgOrThrow(orgId);
+
+        List<OrgDepartmentResponse.Detail> departments = orgDepartmentRepository.findByOrganizationIdWithLeader(orgId).stream()
+                .map(OrgDepartmentResponse.Detail::of).collect(Collectors.toList());
+        List<OrgJobGroupResponse.Detail> jobGroups = orgJobGroupRepository.findByOrganizationId(orgId).stream()
+                .map(OrgJobGroupResponse.Detail::of).collect(Collectors.toList());
+        List<OrgPositionResponse.Detail> positions = orgPositionRepository.findByOrganizationId(orgId).stream()
+                .map(OrgPositionResponse.Detail::of).collect(Collectors.toList());
+        List<OrgTitleResponse.Detail> titles = orgTitleRepository.findByOrganizationId(orgId).stream()
+                .map(OrgTitleResponse.Detail::of).collect(Collectors.toList());
+        List<OrgGradeResponse.Detail> grades = orgGradeRepository.findByOrganizationId(orgId).stream()
+                .map(OrgGradeResponse.Detail::of).collect(Collectors.toList());
+
+        return OrganizationResponse.StructureData.builder()
+                .settings(OrganizationResponse.StructureSettings.of(org))
+                .departments(departments)
+                .jobGroups(jobGroups)
+                .positions(positions)
+                .titles(titles)
+                .grades(grades)
+                .build();
+    }
+
+    // ==================== Structure Settings ====================
+
+    public OrganizationResponse.StructureSettings getStructureSettings(String orgId, String userId) {
+        getOrgMemberOrThrow(orgId, userId);
+        Organization org = getActiveOrgOrThrow(orgId);
+        return OrganizationResponse.StructureSettings.of(org);
+    }
+
+    @Transactional
+    public OrganizationResponse.StructureSettings updateStructureSettings(
+            String orgId, String userId, OrganizationRequest.UpdateStructureSettings request) {
+        checkAdminOrAbove(orgId, userId);
+        Organization org = getActiveOrgOrThrow(orgId);
+        org.updateStructureSettings(
+                request.getDepartmentsEnabled(),
+                request.getJobGroupsEnabled(),
+                request.getPositionsEnabled(),
+                request.getTitlesEnabled(),
+                request.getGradesEnabled()
+        );
+        organizationRepository.save(org);
+        return OrganizationResponse.StructureSettings.of(org);
+    }
+
     // ==================== Helper Methods ====================
 
     public Organization getActiveOrgOrThrow(String orgId) {
@@ -563,5 +626,19 @@ public class OrganizationService {
         if (!member.isOwner()) {
             throw new BusinessException(ErrorCode.ORG_OWNER_REQUIRED);
         }
+    }
+
+    /**
+     * Fetch member count and board count in a single DB query.
+     * @return int[]{memberCount, boardCount}
+     */
+    private int[] getOrgCounts(String orgId) {
+        List<Object[]> results = organizationRepository.countMemberAndBoardByOrgId(orgId);
+        if (results == null || results.isEmpty()) return new int[]{0, 0};
+        Object[] row = results.get(0);
+        return new int[]{
+                ((Number) row[0]).intValue(),
+                ((Number) row[1]).intValue()
+        };
     }
 }

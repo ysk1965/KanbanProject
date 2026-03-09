@@ -8,7 +8,7 @@ import { UserMenu } from './UserMenu';
 import { Button } from './ui/button';
 import { MotionModal } from './ui/MotionModal';
 import type { Board } from '../types';
-import { testDataAPI, personalSpaceAPI } from '../utils/api';
+import { testDataAPI } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 
 declare const __FE_COMMIT_HASH__: string;
@@ -102,17 +102,6 @@ export function BoardListPage({
   };
 
   const starredBoards = boards.filter((b) => b.is_starred);
-  const hasPersonalSpace = currentUser?.personal_space_enabled ?? false;
-
-  const handleActivatePersonalSpace = async () => {
-    try {
-      await personalSpaceAPI.activate();
-      updateCurrentUser({ personal_space_enabled: true });
-      navigate('/my-board');
-    } catch (error) {
-      console.error('Failed to activate personal space:', error);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-bridge-dark text-foreground">
@@ -247,8 +236,6 @@ export function BoardListPage({
           onCreateBoard(name, description, backgroundGradient);
           setIsCreateModalOpen(false);
         }}
-        hasPersonalSpace={hasPersonalSpace}
-        onActivatePersonalSpace={handleActivatePersonalSpace}
       />
 
       {/* 보드 수정 모달 */}

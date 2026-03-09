@@ -26,6 +26,9 @@ import {
   orgActivityAPI,
   leaveAPI,
   anniversaryAPI,
+  personalCalendarAPI,
+  orgSubscriptionAPI,
+  orgPhotoAPI,
 } from "./api";
 import {
   mockBoards,
@@ -63,6 +66,11 @@ import type {
   StatisticsFilter,
   ManagementStatistics,
   MilestoneAllocation,
+  OkrCycle,
+  OkrObjective,
+  OkrKeyResult,
+  OkrCheckIn,
+  OkrTreeData,
 } from "../types";
 
 // API 호출 실패 시 목업 데이터 사용
@@ -1116,6 +1124,8 @@ export const memberService = {
     return memberAPI.reorderMembers(boardId, memberIds);
   },
 
+  getOrgCandidates: memberAPI.getOrgCandidates,
+
   removeMember: async (boardId: string, memberId: string): Promise<void> => {
     try {
       await memberAPI.removeMember(boardId, memberId);
@@ -1455,26 +1465,6 @@ export const subscriptionService = {
     }
   },
 
-  startSubscription: async (
-    boardId: string,
-    data: {
-      plan_id: string;
-      billing_cycle: "MONTHLY" | "YEARLY";
-      payment_method_id: string;
-    },
-  ): Promise<Subscription> => {
-    try {
-      const subscription = await subscriptionAPI.startSubscription(
-        boardId,
-        data,
-      );
-      return subscription;
-    } catch (error) {
-      console.warn("API failed for start subscription", error);
-      throw error;
-    }
-  },
-
   changePlan: async (
     boardId: string,
     billingCycle: "MONTHLY" | "YEARLY",
@@ -1497,6 +1487,20 @@ export const subscriptionService = {
       console.warn("API failed for cancel subscription", error);
       throw error;
     }
+  },
+
+  undoCancellation: async (boardId: string): Promise<void> => {
+    try {
+      await subscriptionAPI.undoCancellation(boardId);
+    } catch (error) {
+      console.warn("API failed for undo cancellation", error);
+      throw error;
+    }
+  },
+
+  getBillingPortalUrl: async (boardId: string): Promise<string> => {
+    const response = await subscriptionAPI.getBillingPortalUrl(boardId);
+    return response.url;
   },
 
   // Seat 기반 가격 조회
@@ -1523,75 +1527,47 @@ export const subscriptionService = {
     }
   },
 
-  // Seat 기반 구독 시작 (Toss Payments 결제창 호출)
+  // Seat 기반 구독 시작 (Polar Checkout 리다이렉트)
   startSeatSubscription: async (
     boardId: string,
     data: {
       billing_cycle: "MONTHLY" | "YEARLY";
       seat_count: number;
-      payment_method_id?: string;
     },
   ): Promise<void> => {
-    const { loadTossPayments, ANONYMOUS } =
-      await import("@tosspayments/tosspayments-sdk");
-    const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY;
-    const tossPayments = await loadTossPayments(clientKey);
-    const payment = tossPayments.payment({ customerKey: ANONYMOUS });
-
-    const pricePerSeat = data.billing_cycle === "YEARLY" ? 5000 : 500;
-    const amount = pricePerSeat * data.seat_count;
-    const timestamp = Date.now();
-    const orderId = `BRIDGE_${boardId}_${data.billing_cycle}_${data.seat_count}_${timestamp}`;
-
-    await payment.requestPayment({
-      method: "CARD",
-      amount: { value: amount, currency: "KRW" },
-      orderId,
-      orderName: `BRIDGE Premium - ${data.seat_count} seats (${data.billing_cycle})`,
-      successUrl: `${window.location.origin}/payment/success?type=subscription`,
-      failUrl: `${window.location.origin}/payment/fail`,
-      card: {
-        useEscrow: false,
-        flowMode: "DEFAULT",
-        useCardPoint: false,
-        useAppCardOnly: false,
-      },
+    const response = await subscriptionAPI.createBoardCheckout({
+      board_id: boardId,
+      billing_cycle: data.billing_cycle,
+      seat_count: data.seat_count,
     });
+    // Redirect to Polar checkout
+    window.location.href = response.data.checkout_url;
   },
 
-  // 추가 시트 구매 (Toss Payments 결제창 호출)
+  // 추가 시트 구매 (Polar Checkout 리다이렉트)
   purchaseSeats: async (
     boardId: string,
     additionalSeats: number,
-    billingCycle?: "MONTHLY" | "YEARLY",
-    pricePerSeat?: number,
   ): Promise<void> => {
-    const { loadTossPayments, ANONYMOUS } =
-      await import("@tosspayments/tosspayments-sdk");
-    const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY;
-    const tossPayments = await loadTossPayments(clientKey);
-    const payment = tossPayments.payment({ customerKey: ANONYMOUS });
-
-    const effectivePricePerSeat =
-      pricePerSeat || (billingCycle === "YEARLY" ? 5000 : 500);
-    const amount = additionalSeats * effectivePricePerSeat;
-    const timestamp = Date.now();
-    const orderId = `SEATS_${boardId}_${additionalSeats}_${timestamp}`;
-
-    await payment.requestPayment({
-      method: "CARD",
-      amount: { value: amount, currency: "KRW" },
-      orderId,
-      orderName: `BRIDGE Additional Seats - ${additionalSeats} seats`,
-      successUrl: `${window.location.origin}/payment/success?type=seats`,
-      failUrl: `${window.location.origin}/payment/fail`,
-      card: {
-        useEscrow: false,
-        flowMode: "DEFAULT",
-        useCardPoint: false,
-        useAppCardOnly: false,
-      },
+    const response = await subscriptionAPI.createSeatCheckout({
+      board_id: boardId,
+      additional_seats: additionalSeats,
     });
+    // Redirect to Polar checkout
+    window.location.href = response.data.checkout_url;
+  },
+
+  // AI 크레딧 구매 (Polar Checkout 리다이렉트)
+  purchaseCredits: async (
+    boardId: string,
+    creditAmount: number,
+  ): Promise<void> => {
+    const response = await subscriptionAPI.createCreditCheckout({
+      board_id: boardId,
+      credit_amount: creditAmount,
+    });
+    // Redirect to Polar checkout
+    window.location.href = response.data.checkout_url;
   },
 };
 
@@ -2216,6 +2192,10 @@ import {
   AdminBoardDetail,
   AdminStatistics,
   AdminSubscriptionSummary,
+  AdminOrgSummary,
+  AdminOrgDetail,
+  OrgListResponse,
+  AdminOrgStatistics,
   UserListResponse,
   BoardListResponse,
   SubscriptionListResponse,
@@ -2496,6 +2476,88 @@ export const adminService = {
     return await adminAPI.bulkCreatePersonalBoards();
   },
 
+  // ==================== Organizations ====================
+
+  // 조직 목록 조회
+  getOrganizations: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+  }): Promise<OrgListResponse> => {
+    return adminAPI.getOrganizations(params);
+  },
+
+  // 삭제된 조직 목록 조회
+  getDeletedOrganizations: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+  }): Promise<OrgListResponse> => {
+    return adminAPI.getDeletedOrganizations(params);
+  },
+
+  // 조직 상세 조회
+  getOrganization: async (orgId: string): Promise<AdminOrgDetail> => {
+    return adminAPI.getOrganization(orgId);
+  },
+
+  // 조직 정보 수정
+  updateOrganization: async (
+    orgId: string,
+    data: { name?: string; description?: string },
+  ): Promise<AdminOrgDetail> => {
+    return adminAPI.updateOrganization(orgId, data);
+  },
+
+  // 조직 삭제 (소프트)
+  deleteOrganization: async (orgId: string): Promise<void> => {
+    await adminAPI.deleteOrganization(orgId);
+  },
+
+  // 조직 복구
+  restoreOrganization: async (orgId: string): Promise<void> => {
+    await adminAPI.restoreOrganization(orgId);
+  },
+
+  // 조직 영구 삭제
+  permanentlyDeleteOrganization: async (orgId: string): Promise<void> => {
+    await adminAPI.permanentlyDeleteOrganization(orgId);
+  },
+
+  // 소유권 이전
+  transferOrgOwnership: async (
+    orgId: string,
+    newOwnerMemberId: string,
+  ): Promise<AdminOrgDetail> => {
+    return adminAPI.transferOrgOwnership(orgId, newOwnerMemberId);
+  },
+
+  // 구독 수정
+  updateOrgSubscription: async (
+    orgId: string,
+    data: {
+      plan?: string;
+      status?: string;
+      billing_cycle?: string;
+      seat_count?: number;
+    },
+  ): Promise<AdminOrgDetail> => {
+    return adminAPI.updateOrgSubscription(orgId, data);
+  },
+
+  // Trial 연장
+  extendOrgTrial: async (
+    orgId: string,
+    extendDays: number,
+  ): Promise<AdminOrgDetail> => {
+    return adminAPI.extendOrgTrial(orgId, extendDays);
+  },
+
+  // 조직 통계
+  getOrgStatistics: async (): Promise<AdminOrgStatistics> => {
+    return adminAPI.getOrgStatistics();
+  },
+
   // 점검 모드
   getMaintenanceStatus: async (): Promise<MaintenanceStatus> => {
     return await adminAPI.getMaintenanceStatus();
@@ -2762,6 +2824,7 @@ export const monitoringService = {
   updateAlertConfig: async (config: {
     slack_webhook_url: string;
     enabled: boolean;
+    alert_email_recipients?: string[];
   }) => {
     const response = await apiClient.put(
       "/admin/monitoring/alert-config",
@@ -3027,6 +3090,8 @@ export const diaryService = {
   ): Promise<AiCreditPurchaseResult> => {
     return diaryAPI.purchasePersonalCredits(data);
   },
+
+  getWorkContext: diaryAPI.getWorkContext,
 };
 
 // ─── Personal Task Service (v9.0) ───
@@ -3057,6 +3122,13 @@ export const personalHabitService = {
 
 export const personalDashboardService = {
   getToday: personalDashboardAPI.getToday,
+  getOverview: personalDashboardAPI.getOverview,
+  getBoardTasks: personalDashboardAPI.getBoardTasks,
+  getCelebrations: personalDashboardAPI.getCelebrations,
+};
+
+export const personalCalendarService = {
+  getUnifiedCalendar: personalCalendarAPI.getUnifiedCalendar,
 };
 
 // ─── Organization Service ───
@@ -3069,6 +3141,9 @@ export const organizationService = {
   uploadLogo: organizationAPI.uploadLogo,
   delete: organizationAPI.delete,
   transferOwnership: organizationAPI.transferOwnership,
+
+  // Structure Data (combined)
+  getStructureData: organizationAPI.getStructureData,
 
   // Departments
   getDepartments: organizationAPI.getDepartments,
@@ -3173,6 +3248,7 @@ export const organizationService = {
   cancelClockOut: organizationAPI.cancelClockOut,
   getMyAttendanceRecords: organizationAPI.getMyAttendanceRecords,
   getAttendanceToday: organizationAPI.getAttendanceToday,
+  getAttendanceTodayMembers: organizationAPI.getAttendanceTodayMembers,
   getAttendanceTeamSummary: organizationAPI.getAttendanceTeamSummary,
   adminModifyAttendance: organizationAPI.adminModifyAttendance,
   getAttendancePolicy: organizationAPI.getAttendancePolicy,
@@ -3181,6 +3257,10 @@ export const organizationService = {
   createAttendanceHoliday: organizationAPI.createAttendanceHoliday,
   deleteAttendanceHoliday: organizationAPI.deleteAttendanceHoliday,
   exportAttendanceCsv: organizationAPI.exportAttendanceCsv,
+
+  // Structure Settings
+  getStructureSettings: organizationAPI.getStructureSettings,
+  updateStructureSettings: organizationAPI.updateStructureSettings,
 };
 
 // ─── Organization Announcement Service ───
@@ -3191,6 +3271,10 @@ export const orgAnnouncementService = {
   update: orgAnnouncementAPI.update,
   delete: orgAnnouncementAPI.delete,
   togglePin: orgAnnouncementAPI.togglePin,
+  getComments: orgAnnouncementAPI.getComments,
+  addComment: orgAnnouncementAPI.addComment,
+  updateComment: orgAnnouncementAPI.updateComment,
+  deleteComment: orgAnnouncementAPI.deleteComment,
 };
 
 // ─── Organization Activity Service ───
@@ -3229,4 +3313,104 @@ export const anniversaryService = {
   deleteMessage: anniversaryAPI.deleteMessage,
   getSettings: anniversaryAPI.getSettings,
   updateSettings: anniversaryAPI.updateSettings,
+};
+
+// ─── OKR Service ───
+
+export const okrService = {
+  // Cycles
+  getCycles: (orgId: string) =>
+    apiClient.get<OkrCycle[]>(`/organizations/${orgId}/okr/cycles`),
+  createCycle: (orgId: string, data: { name: string; cycle_type: string; start_date: string; end_date: string }) =>
+    apiClient.post<OkrCycle>(`/organizations/${orgId}/okr/cycles`, data),
+  updateCycle: (orgId: string, cycleId: string, data: { name?: string; cycle_type?: string; start_date?: string; end_date?: string; status?: string }) =>
+    apiClient.put<OkrCycle>(`/organizations/${orgId}/okr/cycles/${cycleId}`, data),
+  deleteCycle: (orgId: string, cycleId: string) =>
+    apiClient.delete<void>(`/organizations/${orgId}/okr/cycles/${cycleId}`),
+
+  // Tree (full tree query)
+  getTree: (orgId: string, cycleId: string) =>
+    apiClient.get<OkrTreeData>(`/organizations/${orgId}/okr/cycles/${cycleId}/tree`),
+
+  // Objectives
+  createObjective: (orgId: string, cycleId: string, data: {
+    title: string; description?: string; level: string;
+    department_id?: string; owner_id?: string; parent_objective_id?: string;
+  }) =>
+    apiClient.post<OkrObjective>(`/organizations/${orgId}/okr/cycles/${cycleId}/objectives`, data),
+  updateObjective: (orgId: string, objectiveId: string, data: {
+    title?: string; description?: string; level?: string;
+    department_id?: string; owner_id?: string; parent_objective_id?: string;
+  }) =>
+    apiClient.put<OkrObjective>(`/organizations/${orgId}/okr/objectives/${objectiveId}`, data),
+  deleteObjective: (orgId: string, objectiveId: string) =>
+    apiClient.delete<void>(`/organizations/${orgId}/okr/objectives/${objectiveId}`),
+
+  // Key Results
+  createKeyResult: (orgId: string, objectiveId: string, data: {
+    title: string; description?: string; metric_type: string;
+    start_value: number; target_value: number; current_value?: number;
+    unit?: string; owner_id?: string; weight?: number; linked_board_id?: string;
+  }) =>
+    apiClient.post<OkrKeyResult>(`/organizations/${orgId}/okr/objectives/${objectiveId}/key-results`, data),
+  updateKeyResult: (orgId: string, krId: string, data: {
+    title?: string; description?: string; metric_type?: string;
+    start_value?: number; target_value?: number; unit?: string;
+    owner_id?: string; weight?: number; linked_board_id?: string;
+  }) =>
+    apiClient.put<OkrKeyResult>(`/organizations/${orgId}/okr/key-results/${krId}`, data),
+  deleteKeyResult: (orgId: string, krId: string) =>
+    apiClient.delete<void>(`/organizations/${orgId}/okr/key-results/${krId}`),
+
+  // Check-ins
+  getCheckIns: (orgId: string, krId: string) =>
+    apiClient.get<OkrCheckIn[]>(`/organizations/${orgId}/okr/key-results/${krId}/checkins`),
+  createCheckIn: (orgId: string, krId: string, data: {
+    new_value: number; confidence: string; note?: string;
+  }) =>
+    apiClient.post<OkrCheckIn>(`/organizations/${orgId}/okr/key-results/${krId}/checkins`, data),
+};
+
+// ─── Org Subscription Service ───
+
+export const orgSubscriptionService = {
+  get: orgSubscriptionAPI.get,
+  activate: orgSubscriptionAPI.activate,
+  migratePreview: orgSubscriptionAPI.migratePreview,
+  migrate: orgSubscriptionAPI.migrate,
+  downgrade: orgSubscriptionAPI.downgrade,
+  cancel: orgSubscriptionAPI.cancel,
+  undoCancel: orgSubscriptionAPI.undoCancel,
+  getPayments: orgSubscriptionAPI.getPayments,
+  purchaseSeats: orgSubscriptionAPI.purchaseSeats,
+};
+
+// ─── Org Photo Gallery Service ───
+
+export const orgPhotoService = {
+  // Tab CRUD
+  getTabs: orgPhotoAPI.getTabs,
+  createTab: orgPhotoAPI.createTab,
+  updateTab: orgPhotoAPI.updateTab,
+  deleteTab: orgPhotoAPI.deleteTab,
+  reorderTabs: orgPhotoAPI.reorderTabs,
+
+  // Per-album sharing
+  enableShare: orgPhotoAPI.enableShare,
+  disableShare: orgPhotoAPI.disableShare,
+
+  // Gallery-level sharing
+  enableGalleryShare: orgPhotoAPI.enableGalleryShare,
+  disableGalleryShare: orgPhotoAPI.disableGalleryShare,
+  getGalleryShareStatus: orgPhotoAPI.getGalleryShareStatus,
+
+  // Photo CRUD
+  getPhotos: orgPhotoAPI.getPhotos,
+  uploadPhotos: orgPhotoAPI.uploadPhotos,
+  updatePhoto: orgPhotoAPI.updatePhoto,
+  deletePhotos: orgPhotoAPI.deletePhotos,
+
+  // Download
+  downloadPhoto: orgPhotoAPI.downloadPhoto,
+  downloadPhotos: orgPhotoAPI.downloadPhotos,
 };

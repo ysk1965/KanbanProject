@@ -1,5 +1,7 @@
 package com.kanban.domain.personal.controller;
 
+import com.kanban.domain.personal.dto.BoardTasksResponse;
+import com.kanban.domain.personal.dto.CelebrationsResponse;
 import com.kanban.domain.personal.dto.PersonalDashboardResponse;
 import com.kanban.domain.personal.dto.PersonalOverviewResponse;
 import com.kanban.domain.personal.service.PersonalDashboardService;
@@ -34,5 +36,19 @@ public class PersonalDashboardController {
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ResponseEntity.ok(personalDashboardService.getOverview(principal.getUserId(), date));
+    }
+
+    @GetMapping("/board-tasks")
+    public ResponseEntity<BoardTasksResponse> getBoardTasks(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(personalDashboardService.getBoardTasks(principal.getUserId(), date));
+    }
+
+    @GetMapping("/celebrations")
+    public ResponseEntity<CelebrationsResponse> getCelebrations(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(personalDashboardService.getCelebrations(principal.getUserId(), date));
     }
 }

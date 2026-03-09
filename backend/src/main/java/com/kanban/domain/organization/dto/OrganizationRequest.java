@@ -24,6 +24,8 @@ public class OrganizationRequest {
         private String name;
 
         private String description;
+
+        private Boolean hrSystemEnabled;
     }
 
     @Getter
@@ -31,5 +33,15 @@ public class OrganizationRequest {
     public static class TransferOwnership {
         @NotBlank(message = "새 소유자 멤버 ID는 필수입니다")
         private String memberId;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    public static class UpdateStructureSettings {
+        private Boolean departmentsEnabled;
+        private Boolean jobGroupsEnabled;
+        private Boolean positionsEnabled;
+        private Boolean titlesEnabled;
+        private Boolean gradesEnabled;
     }
 }

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw, BookOpen, Pencil, RefreshCw, AlertTriangle, X, CalendarIcon, Mic, Volume2, Play, Pause, Square } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo, useCallback, forwardRef, useImperativeHandle, Fragment } from 'react';
+import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw, BookOpen, Pencil, RefreshCw, AlertTriangle, X, CalendarIcon, Mic, Volume2, Play, Pause, Square, ClipboardCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
 import { useTranslation } from 'react-i18next';
@@ -19,7 +19,7 @@ import { diaryService } from '../../utils/services';
 import { formatDate, getDiaryTodayDate, getDiaryTodayDateString } from '../../utils/dateUtils';
 import { useHolidays } from '../../hooks/useHolidays';
 import { PersonalCreditModal } from './PersonalCreditModal';
-import type { DiaryDetail, DiaryMessage, DiarySimple, AiCredits } from '../../types';
+import type { DiaryDetail, DiaryMessage, DiarySimple, AiCredits, DiaryWorkContextData } from '../../types';
 import type { TFunction } from 'i18next';
 import type { TabSwipeHandle } from './PersonalSchedule';
 
@@ -80,6 +80,9 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Work context state (v10.0 cross-domain)
+  const [workContext, setWorkContext] = useState<DiaryWorkContextData | null>(null);
 
   // ---- Slide animation (DOM ref manipulation) ----
   const animRef = useRef<HTMLDivElement>(null);
@@ -160,6 +163,13 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
     loadDiary();
     setSelectedMood(null);
     setDismissedAtCount(-1);
+  }, [currentDate]);
+
+  // Fetch work context for diary (v10.0 cross-domain)
+  useEffect(() => {
+    diaryService.getWorkContext(currentDate)
+      .then(setWorkContext)
+      .catch(() => setWorkContext(null));
   }, [currentDate]);
 
   useEffect(() => {
@@ -945,8 +955,44 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
             {/* Chat Messages */}
             <div className="flex-1 overflow-auto p-3 md:p-6 space-y-3 md:space-y-4 custom-scrollbar">
               <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
-                {diary.messages?.map((msg) => (
-                  <ChatBubble key={msg.id} message={msg} />
+                {diary.messages?.map((msg, msgIdx) => (
+                  <Fragment key={msg.id}>
+                    <ChatBubble message={msg} />
+                    {/* Work context card: render after the first AI message */}
+                    {msgIdx === 0 && msg.role === 'AI' && workContext && workContext.completed_today.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-2 ml-11 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08] p-3"
+                      >
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <ClipboardCheck className="w-3.5 h-3.5 text-bridge-accent" />
+                          <span className="text-[11px] font-bold text-foreground">오늘 완료한 작업</span>
+                        </div>
+                        <div className="space-y-1">
+                          {workContext.completed_today.map(board => (
+                            board.items.map(item => (
+                              <div key={item.title + item.completed_at} className="flex items-center gap-2 text-[11px]">
+                                <span className="text-slate-500">{board.board_emoji || '\u{1F4CB}'}</span>
+                                <span className="text-foreground">{item.title}</span>
+                                <Check className="w-3 h-3 text-emerald-400" />
+                              </div>
+                            ))
+                          ))}
+                        </div>
+                        {workContext.weekly_summary && (
+                          <div className="mt-2 pt-2 border-t border-foreground/[0.06] text-[10px] text-slate-500">
+                            이번 주 {workContext.weekly_summary.total_completed}건 완료
+                            {workContext.weekly_summary.change_percentage > 0 && (
+                              <span className="text-emerald-400 ml-1">
+                                (+{workContext.weekly_summary.change_percentage.toFixed(0)}%)
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </Fragment>
                 ))}
                 {isSending && (
                   <motion.div

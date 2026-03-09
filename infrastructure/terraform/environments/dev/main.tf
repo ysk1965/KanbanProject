@@ -133,6 +133,18 @@ module "elastic_beanstalk" {
 
   cloudfront_domain = aws_cloudfront_distribution.attachments.domain_name
 
+  # Polar.sh Payment
+  polar_api_key               = var.polar_api_key
+  polar_webhook_secret        = var.polar_webhook_secret
+  polar_org_id                = var.polar_org_id
+  polar_product_board_monthly = var.polar_product_board_monthly
+  polar_product_board_yearly  = var.polar_product_board_yearly
+  polar_product_org_monthly   = var.polar_product_org_monthly
+  polar_product_org_yearly    = var.polar_product_org_yearly
+  polar_product_credit_100    = var.polar_product_credit_100
+  polar_product_credit_500    = var.polar_product_credit_500
+  polar_product_credit_1000   = var.polar_product_credit_1000
+
   depends_on = [module.rds, module.elasticache, module.acm_certificate_alb]
 }
 
@@ -309,13 +321,13 @@ resource "aws_s3_bucket_lifecycle_configuration" "attachments" {
   }
 }
 
-# Intelligent-Tiering: Archive Instant Access까지만 (즉시 접근 보장)
+# Intelligent-Tiering: 90일 후 Archive Access (비용 절감, 복원 3-5시간)
 resource "aws_s3_bucket_intelligent_tiering_configuration" "attachments" {
   bucket = data.aws_s3_bucket.attachments.id
   name   = "attachments-tiering"
 
   tiering {
-    access_tier = "ARCHIVE_INSTANT_ACCESS"
+    access_tier = "ARCHIVE_ACCESS"
     days        = 90
   }
 }

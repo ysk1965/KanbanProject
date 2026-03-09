@@ -17,7 +17,7 @@ public interface BoardRepository extends JpaRepository<Board, String> {
     @Query("SELECT b FROM Board b WHERE b.owner.id = :userId AND b.deletedAt IS NULL")
     List<Board> findByOwnerId(@Param("userId") String userId);
 
-    @Query("SELECT b FROM Board b JOIN BoardMember bm ON b.id = bm.board.id WHERE bm.user.id = :userId AND b.deletedAt IS NULL")
+    @Query("SELECT b FROM Board b LEFT JOIN FETCH b.organization JOIN BoardMember bm ON b.id = bm.board.id WHERE bm.user.id = :userId AND b.deletedAt IS NULL")
     List<Board> findByMemberId(@Param("userId") String userId);
 
     @Query("SELECT b FROM Board b WHERE b.name = :name AND b.deletedAt IS NULL")
@@ -121,6 +121,28 @@ public interface BoardRepository extends JpaRepository<Board, String> {
      */
     @Query("SELECT COUNT(b) FROM Board b WHERE b.deletedAt IS NOT NULL")
     long countDeleted();
+
+    // Admin Analytics: Personal Conversion
+    @Query("SELECT COUNT(DISTINCT b.owner.id) FROM Board b " +
+           "WHERE b.boardType = :personalType AND b.deletedAt IS NULL " +
+           "AND b.owner.id NOT IN (SELECT DISTINCT bm.user.id FROM BoardMember bm " +
+           "WHERE bm.board.boardType = :teamType AND bm.board.deletedAt IS NULL)")
+    long countPersonalOnlyUsers(@Param("personalType") BoardType personalType, @Param("teamType") BoardType teamType);
+
+    @Query("SELECT COUNT(DISTINCT b.owner.id) FROM Board b " +
+           "WHERE b.boardType = :personalType AND b.deletedAt IS NULL " +
+           "AND b.owner.id IN (SELECT DISTINCT bm.user.id FROM BoardMember bm " +
+           "WHERE bm.board.boardType = :teamType AND bm.board.deletedAt IS NULL)")
+    long countPersonalAndTeamUsers(@Param("personalType") BoardType personalType, @Param("teamType") BoardType teamType);
+
+    @Query(value = "SELECT CAST(bm.joined_at AS DATE) as join_date, COUNT(DISTINCT bm.user_id) as cnt " +
+           "FROM board_members bm " +
+           "JOIN boards tb ON bm.board_id = tb.id AND tb.board_type = 'TEAM' AND tb.deleted_at IS NULL " +
+           "WHERE bm.user_id IN (SELECT DISTINCT pb.owner_id FROM boards pb WHERE pb.board_type = 'PERSONAL' AND pb.deleted_at IS NULL) " +
+           "AND bm.joined_at >= :startDate " +
+           "GROUP BY CAST(bm.joined_at AS DATE) ORDER BY join_date",
+           nativeQuery = true)
+    List<Object[]> getPersonalToTeamConversionTrend(@Param("startDate") LocalDateTime startDate);
 
     /**
      * 조직 소속 활성 보드 ID 목록 조회 (Insights Tab용)

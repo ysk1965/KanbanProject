@@ -57,7 +57,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
   return (
     <div className="space-y-6">
       {/* API Response Time Top 10 */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="h-5 w-5 text-bridge-accent" />
           <h3 className="text-foreground font-semibold">{t('admin.monitoring.apiResponseTop10')}</h3>
@@ -102,7 +102,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
       </div>
 
       {/* API Trend (Hourly) */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="h-5 w-5 text-bridge-secondary" />
           <h3 className="text-foreground font-semibold">{t('admin.monitoring.apiTrend')}</h3>
@@ -179,7 +179,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
       {openAIBilling && openAIBilling.connected && (openAIBilling.daily_costs.length > 0 || openAIBilling.model_usage.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Daily Cost Trend */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
             <div className="flex items-center gap-2 mb-4">
               <CreditCard className="h-5 w-5 text-emerald-400" />
               <h3 className="text-foreground font-semibold">{t('admin.monitoring.openAIDailyCost')}</h3>
@@ -213,7 +213,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
           </div>
 
           {/* Model Usage Distribution */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
             <div className="flex items-center gap-2 mb-4">
               <CreditCard className="h-5 w-5 text-emerald-400" />
               <h3 className="text-foreground font-semibold">{t('admin.monitoring.openAIModelUsage')}</h3>
@@ -277,7 +277,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* EC2 CPU */}
           {dashboard.cloud_watch.ec2 && (
-            <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+            <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Cloud className="h-5 w-5 text-bridge-accent" />
                 <h3 className="text-foreground font-semibold">{t('admin.monitoring.ec2Cpu')}</h3>
@@ -300,7 +300,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
 
           {/* RDS Metrics */}
           {dashboard.cloud_watch.rds && (
-            <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+            <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Cloud className="h-5 w-5 text-bridge-secondary" />
                 <h3 className="text-foreground font-semibold">{t('admin.monitoring.rdsCpu')}</h3>
@@ -330,7 +330,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
           )}
         </div>
       ) : (
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
           <div className="flex items-center gap-2 mb-3">
             <Cloud className="h-5 w-5 text-slate-500" />
             <h3 className="text-foreground font-semibold">{t('admin.monitoring.cloudWatch')}</h3>
@@ -346,7 +346,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
       {aiUsage && aiUsage.total_calls > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Board Top Usage */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
             <div className="flex items-center gap-2 mb-4">
               <Bot className="h-5 w-5 text-purple-400" />
               <h3 className="text-foreground font-semibold">{t('admin.monitoring.aiUsageByBoard')}</h3>
@@ -386,7 +386,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
           </div>
 
           {/* Feature Type Distribution */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
             <div className="flex items-center gap-2 mb-4">
               <Bot className="h-5 w-5 text-purple-400" />
               <h3 className="text-foreground font-semibold">{t('admin.monitoring.aiUsageByFeature')}</h3>

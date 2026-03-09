@@ -165,10 +165,10 @@ export function AdminInquiriesTab() {
       ) : (
         <>
           {/* Table */}
-          <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 overflow-x-auto">
+          <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] overflow-x-auto">
             <table className="w-full min-w-[640px]">
               <thead>
-                <tr className="border-b border-foreground/5">
+                <tr className="border-b border-foreground/[0.08]">
                   <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.subject')}</th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.author')}</th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.status')}</th>
@@ -183,7 +183,7 @@ export function AdminInquiriesTab() {
                     <tr
                       key={inquiry.id}
                       onClick={() => loadDetail(inquiry.id)}
-                      className="border-b border-foreground/5 last:border-0 hover:bg-foreground/5 cursor-pointer transition-colors"
+                      className="border-b border-foreground/[0.08] last:border-0 hover:bg-foreground/5 cursor-pointer transition-colors"
                     >
                       <td className="px-3 py-3 md:px-6 md:py-4">
                         <span className="text-foreground font-medium">{inquiry.title}</span>
@@ -295,7 +295,7 @@ function InquiryDetailPanel({
       </div>
 
       {/* Inquiry Info Card */}
-      <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-4 md:p-6 space-y-4">
+      <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-4 md:p-6 space-y-4">
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-foreground font-bold text-lg">{inquiry.title}</h3>
@@ -377,14 +377,14 @@ function InquiryDetailPanel({
       )}
 
       {/* Reply Form */}
-      <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-3 md:p-4 space-y-3">
+      <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-3 md:p-4 space-y-3">
         <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.writeReply')}</h4>
         <textarea
           value={replyContent}
           onChange={e => onReplyContentChange(e.target.value)}
           placeholder={t('admin.inquiries.replyPlaceholder')}
           rows={4}
-          className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+          className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
           maxLength={5000}
         />
         <div className="flex justify-end">

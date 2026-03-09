@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Feature, Task, Block, Tag, Milestone, Subscription, AiCredits, InviteLink, BoardWebSocketEvent } from '../types';
 import { BoardMember as ShareBoardMember, MemberRole } from './ShareBoardModal';
 import { UpgradeTrigger } from './UpgradeModal';
@@ -15,6 +17,8 @@ import { PremiumBenefitsModal } from './PremiumBenefitsModal';
 import { SeatPurchaseModal } from './SeatPurchaseModal';
 import { AlertModal } from './AlertModal';
 import { AiCreditPurchaseModal } from './AiCreditPurchaseModal';
+import { MotionModal } from './ui/MotionModal';
+import { Users, Loader2 } from 'lucide-react';
 
 interface BoardModalManagerProps {
   boardId: string;
@@ -53,6 +57,10 @@ interface BoardModalManagerProps {
   isAddBlockModalOpen: boolean;
   onCloseAddBlock: () => void;
   onAddBlock: (name: string, color: string) => void;
+  // EditBlock Modal
+  editingBlock: Block | null;
+  onCloseEditBlock: () => void;
+  onEditBlock: (name: string, color: string) => void;
   // AddFeature Modal
   isAddFeatureModalOpen: boolean;
   onCloseAddFeature: () => void;
@@ -77,6 +85,8 @@ interface BoardModalManagerProps {
   onOpenSeatManagement?: () => void;
   aiCredits: AiCredits | null;
   onOpenAiCreditPurchase?: () => void;
+  isOrgBoard?: boolean;
+  organizationName?: string | null;
   hideBillingForUser: boolean;
   // Subscription Modal
   isSubscriptionModalOpen: boolean;
@@ -86,6 +96,7 @@ interface BoardModalManagerProps {
   onChangeBillingCycle: (cycle: 'MONTHLY' | 'YEARLY') => void;
   onPurchaseSeats: (seats: number) => void;
   onCancelSubscription: () => void;
+  onUndoCancellation?: () => Promise<void>;
   // Inquiry Modal
   isInquiryModalOpen: boolean;
   onCloseInquiry: () => void;
@@ -115,6 +126,21 @@ interface BoardModalManagerProps {
   onCloseSeatPurchase: () => void;
   billingCycle: 'MONTHLY' | 'YEARLY';
   onPurchaseSeatsAndRetry: (seats: number) => void;
+  // Org Seat Limit Modal
+  orgSeatLimitModal: {
+    open: boolean;
+    orgId: string;
+    seatCount: number;
+    activeMemberCount: number;
+    monthlyPricePerSeat: number;
+    yearlyPricePerSeat: number;
+    isOrgAdmin: boolean;
+    pendingEmail: string;
+    pendingRole: MemberRole;
+    pendingMemberId?: string;
+  } | null;
+  onCloseOrgSeatLimit: () => void;
+  onOrgPurchaseSeatsAndRetry: (seats: number) => void;
   // Alert Modal
   alertModal: { open: boolean; type: 'premium' | 'permission' };
   onCloseAlert: () => void;
@@ -131,6 +157,129 @@ interface BoardModalManagerProps {
   isAdminOrOwner: boolean;
   currentUser: any;
   boardMembers: ShareBoardMember[];
+}
+
+function OrgSeatLimitModalInline({
+  modal,
+  onClose,
+  onPurchase,
+}: {
+  modal: NonNullable<BoardModalManagerProps['orgSeatLimitModal']>;
+  onClose: () => void;
+  onPurchase: (seats: number) => void;
+}) {
+  const { t } = useTranslation();
+  const [additionalSeats, setAdditionalSeats] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  const handlePurchase = async () => {
+    setLoading(true);
+    try {
+      await onPurchase(additionalSeats);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <MotionModal open={modal.open} onClose={onClose}>
+      <div className="w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-foreground/10 shadow-2xl">
+        <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
+        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+          <div className="w-8 h-8 rounded-lg bg-bridge-accent/15 flex items-center justify-center">
+            <Users className="w-4 h-4 text-bridge-accent" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-foreground">{t('orgSeatLimit.title')}</h3>
+            <p className="text-[11px] text-slate-500">{t('orgSeatLimit.subtitle')}</p>
+          </div>
+        </div>
+
+        <div className="px-5 pb-5 pt-4">
+          {modal.isOrgAdmin ? (
+            <>
+              <div className="flex items-center justify-between py-2 mb-3">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                  {t('orgSeatLimit.currentSeats')}
+                </span>
+                <span className="text-sm font-bold text-foreground">
+                  {modal.activeMemberCount} / {modal.seatCount}
+                </span>
+              </div>
+
+              {modal.pendingEmail && (
+                <p className="text-xs text-slate-400 mb-3">
+                  {t('orgSeatLimit.pendingInvite', { email: modal.pendingEmail })}
+                </p>
+              )}
+              {modal.pendingMemberId && (
+                <p className="text-xs text-slate-400 mb-3">
+                  {t('orgSeatLimit.pendingRoleChange')}
+                </p>
+              )}
+
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs text-foreground">{t('orgSeatLimit.additionalSeats')}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setAdditionalSeats(Math.max(1, additionalSeats - 1))}
+                    className="w-7 h-7 rounded-lg bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10 transition-colors text-sm font-bold"
+                  >
+                    −
+                  </button>
+                  <span className="w-8 text-center text-sm font-bold text-foreground">{additionalSeats}</span>
+                  <button
+                    onClick={() => setAdditionalSeats(additionalSeats + 1)}
+                    className="w-7 h-7 rounded-lg bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10 transition-colors text-sm font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="text-[10px] text-slate-500 mb-4">
+                ₩{modal.monthlyPricePerSeat.toLocaleString()}/{t('orgSeatLimit.month')} · ₩{modal.yearlyPricePerSeat.toLocaleString()}/{t('orgSeatLimit.year')}
+              </div>
+            </>
+          ) : (
+            <div className="py-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-bridge-accent/15 flex items-center justify-center mx-auto mb-3">
+                <Users className="w-6 h-6 text-bridge-accent" />
+              </div>
+              <p className="text-sm text-foreground mb-1">{t('orgSeatLimit.nonAdminTitle')}</p>
+              <p className="text-xs text-slate-400">{t('orgSeatLimit.nonAdminMessage')}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
+          <span className="text-[10px] text-slate-600">Esc {t('orgSeatLimit.close')}</span>
+          {modal.isOrgAdmin ? (
+            <button
+              onClick={handlePurchase}
+              disabled={loading}
+              className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : modal.pendingMemberId ? (
+                t('orgSeatLimit.purchaseAndPromote')
+              ) : (
+                t('orgSeatLimit.purchaseAndContinue')
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={onClose}
+              className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-all"
+            >
+              {t('orgSeatLimit.confirm')}
+            </button>
+          )}
+        </div>
+      </div>
+    </MotionModal>
+  );
 }
 
 export function BoardModalManager(props: BoardModalManagerProps) {
@@ -190,6 +339,15 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         onAdd={props.onAddBlock}
       />
 
+      <AddBlockModal
+        open={!!props.editingBlock}
+        onClose={props.onCloseEditBlock}
+        onAdd={props.onEditBlock}
+        isEdit={true}
+        initialName={props.editingBlock?.name || ''}
+        initialColor={props.editingBlock?.color || '#3B82F6'}
+      />
+
       <AddFeatureModal
         open={props.isAddFeatureModalOpen}
         onClose={props.onCloseAddFeature}
@@ -217,6 +375,8 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         onOpenSeatManagement={props.onOpenSeatManagement}
         aiCredits={!props.hideBillingForUser ? props.aiCredits : undefined}
         onOpenAiCreditPurchase={!props.hideBillingForUser ? props.onOpenAiCreditPurchase : undefined}
+        isOrgBoard={props.isOrgBoard}
+        organizationName={props.organizationName}
       />
 
       {!props.hideBillingForUser && (
@@ -225,9 +385,11 @@ export function BoardModalManager(props: BoardModalManagerProps) {
           onClose={props.onCloseSubscription}
           subscription={props.subscription}
           currentBillableMembers={props.currentBillableMembers}
+          boardId={props.boardId}
           onChangeBillingCycle={props.onChangeBillingCycle}
           onPurchaseSeats={props.onPurchaseSeats}
           onCancelSubscription={props.onCancelSubscription}
+          onUndoCancellation={props.onUndoCancellation}
         />
       )}
 
@@ -283,6 +445,14 @@ export function BoardModalManager(props: BoardModalManagerProps) {
           onPurchase={props.onPurchaseSeatsAndRetry}
           pendingInviteEmail={props.seatPurchaseModal.pendingEmail || undefined}
           isRoleChange={!!props.seatPurchaseModal.pendingMemberId}
+        />
+      )}
+
+      {props.orgSeatLimitModal && (
+        <OrgSeatLimitModalInline
+          modal={props.orgSeatLimitModal}
+          onClose={props.onCloseOrgSeatLimit}
+          onPurchase={props.onOrgPurchaseSeatsAndRetry}
         />
       )}
 

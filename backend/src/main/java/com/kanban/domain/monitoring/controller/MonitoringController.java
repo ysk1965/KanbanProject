@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -88,7 +89,9 @@ public class MonitoringController {
         verifyAdminAccess(principal);
         String webhookUrl = (String) request.get("slack_webhook_url");
         boolean enabled = Boolean.TRUE.equals(request.get("enabled"));
-        return ResponseEntity.ok(monitoringService.updateAlertConfig(webhookUrl, enabled));
+        @SuppressWarnings("unchecked")
+        List<String> emailRecipients = (List<String>) request.get("alert_email_recipients");
+        return ResponseEntity.ok(monitoringService.updateAlertConfig(webhookUrl, enabled, emailRecipients));
     }
 
     /**

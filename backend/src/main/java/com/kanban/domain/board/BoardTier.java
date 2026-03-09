@@ -7,7 +7,8 @@ package com.kanban.domain.board;
  * - PREMIUM: 유료 (무제한)
  */
 public enum BoardTier {
-    TRIAL,      // 7일 무료 체험
-    STANDARD,   // 무료 기본
-    PREMIUM     // 유료 구독
+    TRIAL,        // 7일 무료 체험
+    STANDARD,     // 무료 기본
+    PREMIUM,      // 유료 구독
+    ORG_MANAGED   // 조직 관리 보드
 }

@@ -1,5 +1,7 @@
 package com.kanban.domain.subscription.controller;
 
+import com.kanban.domain.subscription.dto.CheckoutResponse;
+import com.kanban.domain.subscription.dto.PolarCheckoutRequest;
 import com.kanban.domain.subscription.dto.SubscriptionRequest;
 import com.kanban.domain.subscription.dto.SubscriptionResponse;
 import com.kanban.domain.subscription.service.SubscriptionService;
@@ -62,24 +64,43 @@ public class SubscriptionController {
         return ResponseEntity.ok(response);
     }
 
-    // Toss Payments 결제 승인 - 구독 시작
-    @PostMapping("/api/v1/payments/confirm/subscription")
-    public ResponseEntity<SubscriptionResponse.Detail> confirmSubscriptionPayment(
+    // Polar Checkout - Board Subscription
+    @PostMapping("/api/v1/checkout/board-subscription")
+    public ResponseEntity<CheckoutResponse> checkoutBoardSubscription(
             @AuthenticationPrincipal UserPrincipal principal,
-            @Valid @RequestBody SubscriptionRequest.ConfirmSubscription request) {
-        SubscriptionResponse.Detail response = subscriptionService
-                .confirmAndStartSubscription(principal.getUserId(), request);
+            @Valid @RequestBody PolarCheckoutRequest.BoardSubscriptionCheckout request) {
+        CheckoutResponse response = subscriptionService.createBoardSubscriptionCheckout(
+                request.getBoardId(), request.getBillingCycle(), request.getSeatCount(), principal.getUserId());
         return ResponseEntity.ok(response);
     }
 
-    // Toss Payments 결제 승인 - 시트 추가 구매
-    @PostMapping("/api/v1/payments/confirm/seats")
-    public ResponseEntity<SubscriptionResponse.Detail> confirmSeatPurchasePayment(
+    // Polar Checkout - AI Credits
+    @PostMapping("/api/v1/checkout/ai-credits")
+    public ResponseEntity<CheckoutResponse> checkoutAiCredits(
             @AuthenticationPrincipal UserPrincipal principal,
-            @Valid @RequestBody SubscriptionRequest.ConfirmSeatPurchase request) {
-        SubscriptionResponse.Detail response = subscriptionService
-                .confirmAndPurchaseSeats(principal.getUserId(), request);
+            @Valid @RequestBody PolarCheckoutRequest.AiCreditCheckout request) {
+        CheckoutResponse response = subscriptionService.createAiCreditCheckout(
+                request.getBoardId(), request.getCreditAmount(), principal.getUserId());
         return ResponseEntity.ok(response);
+    }
+
+    // Polar Checkout - Additional Seats
+    @PostMapping("/api/v1/checkout/seats")
+    public ResponseEntity<CheckoutResponse> checkoutSeats(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody PolarCheckoutRequest.SeatCheckout request) {
+        CheckoutResponse response = subscriptionService.createSeatCheckout(
+                request.getBoardId(), request.getAdditionalSeats(), principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    // Billing Portal - Polar Customer Portal redirect
+    @GetMapping("/api/v1/boards/{boardId}/subscription/billing-portal")
+    public ResponseEntity<Map<String, String>> getBillingPortalUrl(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        String portalUrl = subscriptionService.getBillingPortalUrl(boardId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("url", portalUrl));
     }
 
     @DeleteMapping("/api/v1/boards/{boardId}/subscription")
@@ -88,5 +109,13 @@ public class SubscriptionController {
             @AuthenticationPrincipal UserPrincipal principal) {
         subscriptionService.cancelSubscription(boardId, principal.getUserId());
         return ResponseEntity.ok(Map.of("message", "구독이 취소되었습니다"));
+    }
+
+    @PostMapping("/api/v1/boards/{boardId}/subscription/undo-cancel")
+    public ResponseEntity<Map<String, String>> undoCancellation(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        subscriptionService.undoCancellation(boardId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("message", "구독 취소가 철회되었습니다"));
     }
 }

@@ -30,9 +30,10 @@ public class ScheduleController {
             @PathVariable String boardId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) List<String> assigneeIds,
+            @RequestParam(required = false, defaultValue = "false") boolean includeOrgSchedules,
             @AuthenticationPrincipal UserPrincipal principal) {
         ScheduleResponse.DailySchedule response = scheduleService.getDailySchedule(
-                boardId, date, assigneeIds, principal.getUserId());
+                boardId, date, assigneeIds, principal.getUserId(), includeOrgSchedules);
         return ResponseEntity.ok(response);
     }
 
@@ -46,9 +47,10 @@ public class ScheduleController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) List<String> assigneeIds,
+            @RequestParam(required = false, defaultValue = "false") boolean includeOrgSchedules,
             @AuthenticationPrincipal UserPrincipal principal) {
         ScheduleResponse.WeeklySchedule response = scheduleService.getWeeklySchedule(
-                boardId, startDate, endDate, assigneeIds, principal.getUserId());
+                boardId, startDate, endDate, assigneeIds, principal.getUserId(), includeOrgSchedules);
         return ResponseEntity.ok(response);
     }
 
@@ -61,9 +63,10 @@ public class ScheduleController {
             @PathVariable String boardId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) List<String> assigneeIds,
+            @RequestParam(required = false, defaultValue = "false") boolean includeOrgSchedules,
             @AuthenticationPrincipal UserPrincipal principal) {
         ScheduleResponse.DailyFull response = scheduleFacadeService.getDailyFull(
-                boardId, date, assigneeIds, principal.getUserId());
+                boardId, date, assigneeIds, principal.getUserId(), includeOrgSchedules);
         return ResponseEntity.ok(response);
     }
 

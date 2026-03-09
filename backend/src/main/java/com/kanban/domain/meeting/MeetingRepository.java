@@ -32,4 +32,12 @@ public interface MeetingRepository extends JpaRepository<Meeting, String> {
 
     @Query("SELECT m FROM Meeting m JOIN FETCH m.createdBy WHERE m.board.id = :boardId AND m.meetingDate = :date AND m.startTime IS NOT NULL ORDER BY m.startTime ASC")
     List<Meeting> findByBoardIdAndMeetingDateWithTime(@Param("boardId") String boardId, @Param("date") LocalDate date);
+
+    // ==================== Cross-Domain Integration Queries ====================
+
+    /**
+     * 다중 보드의 미팅을 날짜 범위로 조회
+     */
+    @Query("SELECT m FROM Meeting m JOIN FETCH m.board JOIN FETCH m.createdBy WHERE m.board.id IN :boardIds AND m.meetingDate BETWEEN :startDate AND :endDate ORDER BY m.meetingDate ASC, m.startTime ASC")
+    List<Meeting> findByBoardIdInAndMeetingDateBetween(@Param("boardIds") List<String> boardIds, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 }

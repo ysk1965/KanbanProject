@@ -128,7 +128,7 @@ export type BoardType = "TEAM" | "PERSONAL";
 // 구독 관련 타입
 // ========================================
 
-export type SubscriptionStatus = "TRIAL" | "ACTIVE" | "SUSPENDED" | "CANCELED";
+export type SubscriptionStatus = "TRIAL" | "ACTIVE" | "PAST_DUE" | "SUSPENDED" | "CANCELED";
 
 export interface Subscription {
   id?: string;
@@ -145,13 +145,26 @@ export interface Subscription {
   member_limit?: number;
   next_payment_at?: string | null;
   created_at?: string;
+  cancel_requested_at?: string | null;
+  past_due_since?: string | null;
+  days_past_due?: number | null;
+  days_until_suspension?: number | null;
 }
 
 // ========================================
 // 보드 관련 타입
 // ========================================
 
-export type BoardTier = "TRIAL" | "STANDARD" | "PREMIUM";
+export type BoardTier = "TRIAL" | "STANDARD" | "PREMIUM" | "ORG_MANAGED";
+
+export interface OrgBoardCandidate {
+  user_id: string;
+  name: string;
+  email: string;
+  profile_image: string | null;
+  department: string | null;
+  position: string | null;
+}
 
 export interface BoardOwner {
   id: string;
@@ -191,6 +204,8 @@ export interface Board {
   tier?: BoardTier;
   trial_ends_at?: string | null;
   selected_milestone_id?: string | null;
+  organization_id?: string | null;
+  organization_name?: string | null;
   created_at: string;
   updated_at?: string;
 }
@@ -1727,6 +1742,7 @@ export interface MonitoringAlertConfig {
   slack_webhook_url: string;
   enabled: boolean;
   thresholds: Record<string, number>;
+  alert_email_recipients: string[];
 }
 
 export interface MonitoringAiUsageByBoard {
@@ -1798,10 +1814,8 @@ export interface AiCredits {
 }
 
 export interface AiCreditPurchaseRequest {
-  credit_amount: number; // 100 단위
-  payment_key?: string;
-  order_id?: string;
-  amount: number; // 결제 금액 (원)
+  credit_amount: number;
+  amount: number;
 }
 
 export interface AiCreditPurchaseResult {
@@ -2067,10 +2081,17 @@ export interface OrganizationSimple {
   board_count: number;
   my_role: OrgRole;
   created_at: string;
+  current_plan?: string;          // "FREE" | "TEAM"
+  subscription_status?: string;   // "TRIAL" | "ACTIVE" | "PAST_DUE" | "SUSPENDED" | "CANCELED"
+  trial_ends_at?: string | null;  // ISO8601
+  can_create_org_board?: boolean;
+  can_access_hr_features?: boolean;
+  hr_system_enabled?: boolean;
 }
 
 export interface OrganizationDetail extends OrganizationSimple {
   updated_at?: string;
+  my_member_id?: string;
 }
 
 export interface OrgDepartment {
@@ -2111,6 +2132,23 @@ export interface OrgGrade {
   name: string;
   display_order: number;
   created_at: string;
+}
+
+export interface OrgStructureSettings {
+  departments_enabled: boolean;
+  job_groups_enabled: boolean;
+  positions_enabled: boolean;
+  titles_enabled: boolean;
+  grades_enabled: boolean;
+}
+
+export interface OrgStructureData {
+  settings: OrgStructureSettings;
+  departments: OrgDepartment[];
+  job_groups: OrgJobGroup[];
+  positions: OrgPosition[];
+  titles: OrgTitle[];
+  grades: OrgGrade[];
 }
 
 export interface OrgMemberUserInfo {
@@ -2274,17 +2312,45 @@ export interface OrgInvitePublicInfo {
 export interface OrgAnnouncement {
   id: string;
   author_name: string;
+  author_profile_image: string | null;
   title: string;
   content: string | null;
   is_pinned: boolean;
+  comment_count: number;
+  attachments?: OrgAnnouncementAttachment[];
   created_at: string;
   updated_at: string;
+}
+
+export interface OrgAnnouncementAttachment {
+  id: string;
+  file_name: string;
+  url: string;
+  thumbnail_url: string | null;
+  content_type: string;
+  file_size: number;
+  created_at: string;
 }
 
 export interface OrgAnnouncementListResponse {
   announcements: OrgAnnouncement[];
   has_more: boolean;
   next_cursor: string | null;
+}
+
+export interface OrgAnnouncementComment {
+  id: string;
+  announcement_id: string;
+  author_name: string;
+  author_profile_image: string | null;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrgAnnouncementCommentListResponse {
+  comments: OrgAnnouncementComment[];
+  total_count: number;
 }
 
 export type OrgActivityType =
@@ -2322,6 +2388,17 @@ export interface OrgBoardSimple {
   member_count: number;
   tier?: string;
   created_at: string;
+  total_minutes: number;
+  monthly_minutes: number;
+  members: Array<{
+    id: string;
+    name: string;
+    profile_image: string | null;
+  }>;
+  weekly_times: Array<{
+    week_start: string;
+    minutes: number;
+  }>;
 }
 
 export interface OrgBoardEligibilityCheck {
@@ -2362,6 +2439,7 @@ export interface LeaveBalance {
   total_days: number;
   used_days: number;
   remaining: number;
+  is_active: boolean;
 }
 
 export interface LeaveRequestRequester {
@@ -2400,6 +2478,33 @@ export interface LeaveRequestResponse {
 
 export interface LeaveRequestPageResponse {
   content: LeaveRequestResponse[];
+  total_elements: number;
+  total_pages: number;
+  page: number;
+  size: number;
+}
+
+// ─── Leave Balance Adjustments ───
+
+export type LeaveAdjustmentType = "GRANT" | "REVOKE" | "MANUAL_ADJUST" | "ANNUAL_INIT";
+
+export interface LeaveBalanceAdjustmentResponse {
+  id: string;
+  member_name: string | null;
+  member_email: string | null;
+  policy_name: string;
+  leave_category: LeaveCategory;
+  adjustment_type: LeaveAdjustmentType;
+  days: number;
+  previous_total: number;
+  new_total: number;
+  reason: string;
+  granted_by_name: string | null;
+  created_at: string;
+}
+
+export interface LeaveAdjustmentPageResponse {
+  content: LeaveBalanceAdjustmentResponse[];
   total_elements: number;
   total_pages: number;
   page: number;
@@ -2756,6 +2861,9 @@ export interface AttendanceTodayStatus {
   present_count: number;
   absent_count: number;
   on_leave_count: number;
+  full_day_leave_count: number;
+  am_half_leave_count: number;
+  pm_half_leave_count: number;
   total_active_members: number;
   my_record: AttendanceMyTodayRecord | null;
 }
@@ -2793,4 +2901,368 @@ export interface AttendanceHolidayResponse {
   holiday_date: string;
   name: string;
   is_recurring: boolean;
+}
+
+// ─── Today Members (attendance modal) ───
+
+export interface AttendancePresentMember {
+  member_id: string;
+  name: string;
+  profile_image: string | null;
+  department_name: string | null;
+  clock_in: string | null;
+  clock_out: string | null;
+  elapsed_minutes: number | null;
+  late: boolean;
+}
+
+export interface AttendanceAbsentMember {
+  member_id: string;
+  name: string;
+  profile_image: string | null;
+  department_name: string | null;
+}
+
+export interface AttendanceLeaveMember {
+  member_id: string;
+  name: string;
+  profile_image: string | null;
+  department_name: string | null;
+  duration_type: "FULL_DAY" | "AM_HALF" | "PM_HALF";
+}
+
+export interface AttendanceTodayMembers {
+  present_members: AttendancePresentMember[];
+  absent_members: AttendanceAbsentMember[];
+  leave_members: AttendanceLeaveMember[];
+}
+
+// ========================================
+// Cross-Domain Integration (v10.0)
+// ========================================
+
+// Feature #2: 통합 투데이 뷰
+export interface BoardTaskItem {
+  type: 'CHECKLIST' | 'DAILY_CHECKLIST' | 'MEETING';
+  checklist_item_id?: string;
+  daily_checklist_id?: string;
+  meeting_id?: string;
+  title: string;
+  task_title?: string;
+  feature_title?: string;
+  feature_color?: string;
+  due_date?: string | null;
+  is_completed?: boolean;
+  start_time?: string;
+  end_time?: string;
+}
+
+export interface BoardTaskGroup {
+  board_id: string;
+  board_name: string;
+  board_emoji?: string;
+  items: BoardTaskItem[];
+  pending_count: number;
+  completed_today_count: number;
+}
+
+export interface BoardTasksData {
+  boards: BoardTaskGroup[];
+  total_pending: number;
+  total_completed_today: number;
+}
+
+// Feature #3: 크로스 캘린더
+export interface UnifiedCalendarEvent {
+  source: 'MEETING' | 'SCHEDULE_BLOCK' | 'ANNIVERSARY' | 'LEAVE';
+  board_id?: string;
+  board_name?: string;
+  org_id?: string;
+  org_name?: string;
+  meeting_id?: string;
+  schedule_block_id?: string;
+  title: string;
+  task_title?: string;
+  event_date: string;
+  end_date?: string;
+  start_time?: string;
+  end_time?: string;
+  color: string;
+  anniversary_type?: string;
+  leave_type?: string;
+}
+
+export interface UnifiedCalendarData {
+  personal_events: PersonalEvent[];
+  board_events: UnifiedCalendarEvent[];
+  org_events: UnifiedCalendarEvent[];
+}
+
+// Feature #7: 오늘의 축하
+export interface CelebrationItem {
+  org_id: string;
+  org_name: string;
+  member_user_id: string;
+  member_name: string;
+  member_profile_image?: string | null;
+  type: 'BIRTHDAY' | 'HIRE_ANNIVERSARY';
+  message_template: string;
+  can_send_message: boolean;
+  already_sent: boolean;
+}
+
+export interface CelebrationsData {
+  celebrations: CelebrationItem[];
+}
+
+// Feature #9: AI 다이어리 업무 회고
+export interface BoardCompletedItem {
+  type: 'CHECKLIST_ITEM';
+  title: string;
+  task_title: string;
+  feature_title?: string;
+  completed_at: string;
+}
+
+export interface BoardCompletedGroup {
+  board_name: string;
+  board_emoji?: string;
+  items: BoardCompletedItem[];
+}
+
+export interface PersonalCompletedItem {
+  title: string;
+  type: 'HABIT' | 'TASK';
+  completed_at: string;
+}
+
+export interface DiaryWorkContextWeeklySummary {
+  total_completed: number;
+  previous_week_completed: number;
+  change_percentage: number;
+  most_active_board?: string;
+  habit_streak_highlights?: { habit_title: string; current_streak: number }[];
+}
+
+export interface DiaryWorkContextData {
+  date: string;
+  completed_today: BoardCompletedGroup[];
+  personal_completed_today: PersonalCompletedItem[];
+  weekly_summary: DiaryWorkContextWeeklySummary | null;
+}
+
+// ===== OKR Types =====
+
+export interface OkrCycle {
+  id: string;
+  organization_id: string;
+  name: string;
+  cycle_type: string; // QUARTERLY | HALF_YEARLY | YEARLY | CUSTOM
+  start_date: string;
+  end_date: string;
+  status: string; // PLANNING | ACTIVE | REVIEW | CLOSED
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OkrObjective {
+  id: string;
+  cycle_id: string;
+  organization_id: string;
+  title: string;
+  description: string | null;
+  level: string; // COMPANY | DEPARTMENT | INDIVIDUAL
+  department_id: string | null;
+  department_name: string | null;
+  owner: OkrMemberInfo | null;
+  parent_objective_id: string | null;
+  progress: number;
+  confidence: string; // ON_TRACK | AT_RISK | OFF_TRACK
+  sort_order: number;
+  key_results: OkrKeyResult[];
+  children: OkrObjective[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OkrKeyResult {
+  id: string;
+  objective_id: string;
+  title: string;
+  description: string | null;
+  metric_type: string; // PERCENTAGE | NUMBER | CURRENCY | BOOLEAN | MILESTONE
+  start_value: number;
+  target_value: number;
+  current_value: number;
+  unit: string | null;
+  owner: OkrMemberInfo | null;
+  weight: number;
+  linked_board_id: string | null;
+  sort_order: number;
+  last_checkin_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OkrCheckIn {
+  id: string;
+  key_result_id: string;
+  previous_value: number;
+  new_value: number;
+  confidence: string;
+  note: string | null;
+  author: OkrMemberInfo;
+  created_at: string;
+}
+
+export interface OkrMemberInfo {
+  id: string;
+  user_name: string;
+  profile_image_url: string | null;
+}
+
+export interface OkrTreeData {
+  cycle: OkrCycle;
+  overall_progress: number;
+  total_objectives: number;
+  total_key_results: number;
+  objectives: OkrObjective[];
+}
+
+// ===== Org Subscription Types =====
+
+export type OrgPlan = 'FREE' | 'TEAM';
+
+export interface OrgSubscription {
+  id: string;
+  organization_id: string;
+  plan: OrgPlan;
+  status: string;
+  billing_cycle: string | null;
+  seat_count: number;
+  active_member_count: number;
+  price_per_seat: number;
+  total_price: number;
+  currency: string;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  next_payment_at: string | null;
+  trial_ends_at: string | null;
+  board_limit: number;
+  board_count: number;
+  member_limit: number;
+  can_access_premium_board_features: boolean;
+  can_access_hr_features: boolean;
+  can_read_hr_data: boolean;
+  can_create_org_board: boolean;
+  trial_used: boolean;
+  cancel_requested_at?: string | null;
+  // AI Credit Pool
+  monthly_ai_credits?: number;
+  monthly_credits_used?: number;
+  total_available_credits?: number;
+  credits_reset_date?: string | null;
+  credit_warning_level?: 'LOW' | 'CRITICAL' | 'EXHAUSTED' | null;
+}
+
+export interface MigrationPreview {
+  current_total_monthly: number;
+  new_monthly: number;
+  credit_from_existing: number;
+  first_payment: number;
+  unique_members: number;
+}
+
+// ===== Photo Gallery (v14.0) =====
+export interface OrgPhotoTab {
+  id: string;
+  name: string;
+  description: string | null;
+  photo_count: number;
+  cover_photo_url: string | null;
+  sort_order: number;
+  is_shared: boolean;
+  share_token: string | null;
+  created_by: {
+    id: string;
+    name: string;
+    email: string;
+    profile_image_url: string | null;
+  };
+  created_at: string;
+}
+
+export interface OrgPhoto {
+  id: string;
+  tab_id: string;
+  s3_key: string;
+  thumbnail_key: string | null;
+  url: string;
+  thumbnail_url: string | null;
+  original_filename: string;
+  file_size: number;
+  content_type: string;
+  width: number | null;
+  height: number | null;
+  caption: string | null;
+  uploaded_by: {
+    id: string;
+    name: string;
+    email: string;
+    profile_image_url: string | null;
+  };
+  created_at: string;
+}
+
+export interface OrgPhotoPage {
+  photos: OrgPhoto[];
+  next_cursor: string | null;
+  has_next: boolean;
+  total_count: number;
+}
+
+export interface SharedGalleryInfo {
+  organization_name: string;
+  organization_logo_url: string | null;
+  albums: SharedAlbumSummary[];
+  total_photo_count: number;
+}
+
+export interface SharedAlbumSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  photo_count: number;
+  cover_photo_url: string | null;
+}
+
+/** @deprecated kept for per-album share backward compat */
+export interface SharedAlbumInfo {
+  album_name: string;
+  album_description: string | null;
+  photo_count: number;
+  cover_photo_url: string | null;
+  organization_name: string;
+  organization_logo_url: string | null;
+}
+
+export interface SharedPhotoItem {
+  id: string;
+  url: string;
+  thumbnail_url: string | null;
+  original_filename: string;
+  file_size: number;
+  content_type: string;
+  width: number | null;
+  height: number | null;
+  caption: string | null;
+  created_at: string;
+}
+
+export interface SharedPhotoPage {
+  photos: SharedPhotoItem[];
+  next_cursor: string | null;
+  has_next: boolean;
+  total_count: number;
 }

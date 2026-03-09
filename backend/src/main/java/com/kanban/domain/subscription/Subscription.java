@@ -89,6 +89,26 @@ public class Subscription {
     @Column(name = "credits_reset_date")
     private LocalDateTime creditsResetDate;
 
+    @Builder.Default
+    @Column(name = "migrated_to_org")
+    private Boolean migratedToOrg = false;
+
+    @Column(name = "migrated_to_org_id")
+    private String migratedToOrgId;
+
+    @Column(name = "migrated_at")
+    private LocalDateTime migratedAt;
+
+    @Builder.Default
+    @Column(name = "billing_paused_for_org")
+    private Boolean billingPausedForOrg = false;
+
+    @Column(name = "cancel_requested_at")
+    private LocalDateTime cancelRequestedAt;
+
+    @Column(name = "past_due_since")
+    private LocalDateTime pastDueSince;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -160,6 +180,7 @@ public class Subscription {
 
     public void activateSubscription(String plan, BillingCycle billingCycle, Integer price, String paymentMethodId) {
         this.status = SubscriptionStatus.ACTIVE;
+        this.pastDueSince = null;
         this.plan = plan;
         this.billingCycle = billingCycle;
         this.price = price;
@@ -176,6 +197,7 @@ public class Subscription {
      */
     public void activateSeatSubscription(BillingCycle billingCycle, int seatCount, String paymentMethodId) {
         this.status = SubscriptionStatus.ACTIVE;
+        this.pastDueSince = null;
         this.plan = "PREMIUM";
         this.billingCycle = billingCycle;
         this.seatCount = seatCount;
@@ -209,12 +231,37 @@ public class Subscription {
         this.price = calculateTotalPrice();
     }
 
+    public void markPastDue() {
+        this.status = SubscriptionStatus.PAST_DUE;
+        if (this.pastDueSince == null) {
+            this.pastDueSince = LocalDateTime.now(ZoneOffset.UTC);
+        }
+    }
+
+    public boolean isPastDue() {
+        return this.status == SubscriptionStatus.PAST_DUE;
+    }
+
     public void suspend() {
         this.status = SubscriptionStatus.SUSPENDED;
+        this.pastDueSince = null;
     }
 
     public void cancel() {
         this.status = SubscriptionStatus.CANCELED;
+        this.cancelRequestedAt = null;
+    }
+
+    public void requestCancellation() {
+        this.cancelRequestedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    public boolean isCancellationRequested() {
+        return this.cancelRequestedAt != null;
+    }
+
+    public void undoCancellation() {
+        this.cancelRequestedAt = null;
     }
 
     public void updateBillableMemberCount(int count) {
@@ -313,5 +360,24 @@ public class Subscription {
         if (available <= 3) return "CRITICAL";
         if (available <= 10) return "LOW";
         return null;
+    }
+
+    /**
+     * 조직 구독으로 마이그레이션 마킹
+     */
+    public void markMigratedToOrg(String orgId) {
+        this.migratedToOrg = true;
+        this.migratedToOrgId = orgId;
+        this.migratedAt = LocalDateTime.now(ZoneOffset.UTC);
+        this.billingPausedForOrg = true;
+    }
+
+    /**
+     * 조직 구독에서 복원
+     */
+    public void restoreFromOrg() {
+        this.migratedToOrg = false;
+        this.migratedToOrgId = null;
+        this.billingPausedForOrg = false;
     }
 }

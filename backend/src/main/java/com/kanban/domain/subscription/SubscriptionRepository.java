@@ -67,4 +67,10 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Stri
 
     @Query("SELECT s FROM Subscription s WHERE s.creditsResetDate IS NOT NULL AND s.creditsResetDate <= :now")
     List<Subscription> findDueForCreditReset(@Param("now") LocalDateTime now);
+
+    @Query("SELECT s FROM Subscription s JOIN FETCH s.board WHERE s.cancelRequestedAt IS NOT NULL AND s.currentPeriodEnd < :now AND s.status = 'ACTIVE'")
+    List<Subscription> findPendingCancellations(@Param("now") LocalDateTime now);
+
+    @Query("SELECT s FROM Subscription s JOIN FETCH s.board WHERE s.status = 'PAST_DUE' AND s.pastDueSince < :threshold")
+    List<Subscription> findByStatusPastDueAndPastDueSinceBefore(@Param("threshold") LocalDateTime threshold);
 }

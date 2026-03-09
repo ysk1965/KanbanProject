@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, AlertCircle, Sparkles, History } from 'lucide-react';
+import { X, AlertCircle, Sparkles, History, Loader2 } from 'lucide-react';
 import { AiCredits, AiCreditUsageHistory } from '../types';
-import { aiCreditService } from '../utils/services';
+import { aiCreditService, subscriptionService } from '../utils/services';
 import { formatRelativeTime } from '../utils/dateUtils';
 import { Button } from './ui/button';
 import { MotionModal } from './ui/MotionModal';
@@ -68,20 +68,14 @@ export function AiCreditPurchaseModal({
     setError(null);
 
     try {
-      const result = await aiCreditService.purchase(boardId, {
-        credit_amount: selectedAmount,
-        amount: totalPrice,
-      });
+      // Store board_id for post-payment polling
+      localStorage.setItem('pending_checkout_board_id', boardId);
 
-      // Show success toast
-      alert(t('ai_credits.purchase.success', { count: selectedAmount }));
-
-      if (onPurchaseComplete) {
-        onPurchaseComplete(result.updated_credits);
-      }
-
-      onClose();
+      // Create Polar checkout and redirect
+      await subscriptionService.purchaseCredits(boardId, selectedAmount);
+      // Polar checkout redirect occurs — code below won't execute
     } catch (err: any) {
+      localStorage.removeItem('pending_checkout_board_id');
       console.error('Purchase failed:', err);
       setError(err?.message || t('ai_credits.purchase.failed'));
     } finally {
@@ -250,7 +244,7 @@ export function AiCreditPurchaseModal({
                     >
                       {isLoading ? (
                         <span className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin" />
                           {t('common.loading')}
                         </span>
                       ) : (
@@ -271,7 +265,7 @@ export function AiCreditPurchaseModal({
                 <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                   {usageLoading ? (
                     <div className="flex justify-center py-8">
-                      <div className="w-6 h-6 border-2 border-white/30 border-t-bridge-accent rounded-full animate-spin" />
+                      <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
                     </div>
                   ) : usageHistory.length === 0 ? (
                     <div className="text-center py-8 text-slate-500 text-sm">

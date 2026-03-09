@@ -63,6 +63,13 @@ public class OrgAttendanceController {
         return ResponseEntity.ok(attendanceService.getTodayStatus(orgId, principal.getUserId()));
     }
 
+    @GetMapping("/today/members")
+    public ResponseEntity<AttendanceResponse.TodayMembersResponse> getTodayMembers(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(attendanceService.getTodayMembers(orgId, principal.getUserId()));
+    }
+
     @GetMapping("/team-summary")
     public ResponseEntity<AttendanceResponse.TeamSummaryResponse> getTeamSummary(
             @PathVariable String orgId,

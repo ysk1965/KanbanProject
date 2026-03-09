@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './utils';
+import { SPRING, FADE_SCALE } from '../../constants/motion';
 
 /* ── Global ESC stack: only the topmost modal closes on Escape ── */
 const escStack: (() => void)[] = [];
@@ -27,6 +28,8 @@ interface MotionModalProps {
   className?: string;
   /** Whether clicking the overlay closes the modal (default: true) */
   overlayClose?: boolean;
+  /** Optional accent color gradient line at the top of the modal */
+  accentColor?: boolean;
 }
 
 export function MotionModal({
@@ -35,6 +38,7 @@ export function MotionModal({
   children,
   className,
   overlayClose = true,
+  accentColor,
 }: MotionModalProps) {
   const [shouldRender, setShouldRender] = useState(open);
   const onCloseRef = useRef(onClose);
@@ -67,7 +71,7 @@ export function MotionModal({
         <motion.div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
           initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
-          animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+          animate={{ backgroundColor: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}
           exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
           transition={{ duration: 0.3 }}
           onMouseDown={() => { mouseDownInsideRef.current = false; }}
@@ -80,9 +84,10 @@ export function MotionModal({
         >
           <motion.div
             ref={contentRef}
-            initial={{ opacity: 0, y: 20, scale: 0.98 }}
+            initial={{ opacity: 0, y: 24, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.98 }}
+            exit={{ opacity: 0, y: 12, scale: 0.98 }}
+            transition={SPRING.modal}
             onAnimationComplete={() => {
               // Clear residual transform after enter animation.
               // Mobile browsers miscalculate input caret position when
@@ -92,13 +97,18 @@ export function MotionModal({
               }
             }}
             className={cn(
-              'w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-foreground/10 shadow-2xl max-h-[90dvh] overflow-y-auto custom-scrollbar',
+              'relative w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-foreground/10 shadow-2xl ring-1 ring-inset ring-white/[0.06] max-h-[90dvh] overflow-y-auto custom-scrollbar',
               className,
             )}
             style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
             onMouseDown={(e) => { e.stopPropagation(); mouseDownInsideRef.current = true; }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Top shimmer line */}
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent rounded-t-2xl pointer-events-none" />
+            {accentColor && (
+              <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
+            )}
             {children}
           </motion.div>
         </motion.div>

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { format, subDays } from 'date-fns';
 import { organizationService } from '../../../utils/services';
-import type { OrgInsightsSummary, OrgBoardResourceResponse, OrgRole, OrgDepartment, OrgJobGroup } from '../../../types';
+import type { OrgInsightsSummary, OrgBoardResourceResponse, OrgRole, OrgDepartment, OrgJobGroup, OrgStructureSettings } from '../../../types';
 import { InsightsPeriodFilter } from './insights/InsightsPeriodFilter';
 import { InsightsSummaryCards } from './insights/InsightsSummaryCards';
 import { MembersContributionView } from './insights/MembersContributionView';
@@ -16,6 +16,7 @@ interface OrgInsightsTabProps {
   myRole: OrgRole;
   departments: OrgDepartment[];
   jobGroups: OrgJobGroup[];
+  structureSettings?: OrgStructureSettings;
 }
 
 function getDefaultDates(): { start: string; end: string } {
@@ -28,7 +29,7 @@ function getDefaultDates(): { start: string; end: string } {
 
 type SubTab = 'members' | 'boards';
 
-export function OrgInsightsTab({ orgId, myRole, departments, jobGroups }: OrgInsightsTabProps) {
+export function OrgInsightsTab({ orgId, myRole, departments, jobGroups, structureSettings }: OrgInsightsTabProps) {
   const { t } = useTranslation();
   const isAdmin = myRole === 'OWNER' || myRole === 'ADMIN';
 
@@ -117,8 +118,8 @@ export function OrgInsightsTab({ orgId, myRole, departments, jobGroups }: OrgIns
             orgId={orgId}
             startDate={dates.start}
             endDate={dates.end}
-            departments={departments}
-            jobGroups={jobGroups}
+            departments={structureSettings?.departments_enabled !== false ? departments : []}
+            jobGroups={structureSettings?.job_groups_enabled !== false ? jobGroups : []}
             isAdmin={isAdmin}
             onMemberClick={handleMemberClick}
           />

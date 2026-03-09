@@ -116,6 +116,7 @@ import {
   memberService,
   inviteLinkService,
   subscriptionService,
+  orgSubscriptionService,
   activityService,
   milestoneService,
   checklistService,
@@ -299,6 +300,7 @@ export function KanbanBoardPage() {
   const [meetingRefreshKey, setMeetingRefreshKey] = useState(0);
   const [managementRefreshKey, setManagementRefreshKey] = useState(0);
   const [isAddBlockModalOpen, setIsAddBlockModalOpen] = useState(false);
+  const [editingBlock, setEditingBlock] = useState<Block | null>(null);
   const [isAddFeatureModalOpen, setIsAddFeatureModalOpen] = useState(false);
   const [isShareBoardModalOpen, setIsShareBoardModalOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
@@ -343,6 +345,18 @@ export function KanbanBoardPage() {
     open: boolean;
     seatCount: number;
     billableMemberCount: number;
+    pendingEmail: string;
+    pendingRole: MemberRole;
+    pendingMemberId?: string;
+  } | null>(null);
+  const [orgSeatLimitModal, setOrgSeatLimitModal] = useState<{
+    open: boolean;
+    orgId: string;
+    seatCount: number;
+    activeMemberCount: number;
+    monthlyPricePerSeat: number;
+    yearlyPricePerSeat: number;
+    isOrgAdmin: boolean;
     pendingEmail: string;
     pendingRole: MemberRole;
     pendingMemberId?: string;
@@ -785,9 +799,9 @@ export function KanbanBoardPage() {
 
   // 결제 완료 후 pending action 처리
   useEffect(() => {
-    const pendingSeatAction = localStorage.getItem("pending_seat_action");
+    const pendingSeatAction = localStorage.getItem("pending_payment_action");
     if (pendingSeatAction && boardId && !isLoading) {
-      localStorage.removeItem("pending_seat_action");
+      localStorage.removeItem("pending_payment_action");
       try {
         const action = JSON.parse(pendingSeatAction);
         if (action.type === "roleChange" && action.pendingMemberId) {
@@ -922,7 +936,7 @@ export function KanbanBoardPage() {
     setIsMilestoneModalOpen(true);
   };
 
-  // Seat 기반 업그레이드 핸들러 (Toss 결제창 리다이렉트)
+  // Seat 기반 업그레이드 핸들러 (Polar Checkout 리다이렉트)
   const handleSeatUpgrade = async (
     billingCycle: "MONTHLY" | "YEARLY",
     seatCount: number,
@@ -933,13 +947,8 @@ export function KanbanBoardPage() {
         billing_cycle: billingCycle,
         seat_count: seatCount,
       });
+      // Polar checkout 리다이렉트가 발생하므로 여기까지 도달하지 않음
     } catch (error: any) {
-      if (
-        error?.code === "PAY_PROCESS_CANCELED" ||
-        error?.code === "USER_CANCEL"
-      ) {
-        return;
-      }
       console.error("Failed to upgrade:", error);
       throw error;
     }
@@ -956,31 +965,39 @@ export function KanbanBoardPage() {
       pendingRole,
       pendingMemberId,
     });
+    localStorage.setItem("pending_checkout_board_id", boardId);
     localStorage.setItem("pending_payment_action", pendingAction);
     setSeatPurchaseModal(null);
 
-    const currentBillingCycle = subscription?.billing_cycle || "MONTHLY";
-    const pricePerSeat =
-      subscription?.price_per_seat ||
-      (currentBillingCycle === "YEARLY" ? 5000 : 500);
-
     try {
-      await subscriptionService.purchaseSeats(
-        boardId,
-        additionalSeats,
-        currentBillingCycle,
-        pricePerSeat,
-      );
+      await subscriptionService.purchaseSeats(boardId, additionalSeats);
+      // Polar checkout 리다이렉트가 발생하므로 여기까지 도달하지 않음
     } catch (error: any) {
-      if (
-        error?.code === "PAY_PROCESS_CANCELED" ||
-        error?.code === "USER_CANCEL"
-      ) {
-        localStorage.removeItem("pending_payment_action");
-        return;
-      }
+      localStorage.removeItem("pending_checkout_board_id");
       localStorage.removeItem("pending_payment_action");
       throw error;
+    }
+  };
+
+  // 조직 시트 구매 후 자동 재초대/역할변경 핸들러
+  const handleOrgPurchaseSeatsAndRetry = async (additionalSeats: number) => {
+    if (!orgSeatLimitModal) return;
+
+    const { orgId, pendingEmail, pendingRole, pendingMemberId } = orgSeatLimitModal;
+
+    try {
+      await orgSubscriptionService.purchaseSeats(orgId, additionalSeats);
+      setOrgSeatLimitModal(null);
+
+      // 시트 구매 성공 후 재시도
+      if (pendingMemberId) {
+        await handleUpdateMemberRole(pendingMemberId, pendingRole);
+      } else if (pendingEmail) {
+        await handleAddMember(pendingEmail, pendingRole);
+      }
+    } catch (error: any) {
+      console.error("Failed to purchase org seats:", error);
+      alert(error?.message || t("orgSeatLimit.purchaseFailed"));
     }
   };
 
@@ -1044,6 +1061,20 @@ export function KanbanBoardPage() {
       }
     } catch (error: any) {
       console.error("Failed to invite member:", error);
+      if (error?.code === "OS003" && error?.errors) {
+        setOrgSeatLimitModal({
+          open: true,
+          orgId: error.errors.org_id,
+          seatCount: parseInt(error.errors.seat_count),
+          activeMemberCount: parseInt(error.errors.active_member_count),
+          monthlyPricePerSeat: parseInt(error.errors.monthly_price_per_seat),
+          yearlyPricePerSeat: parseInt(error.errors.yearly_price_per_seat),
+          isOrgAdmin: error.errors.is_org_admin === "true",
+          pendingEmail: email,
+          pendingRole: role,
+        });
+        return;
+      }
       if (error?.code === "S005" && error?.errors) {
         setSeatPurchaseModal({
           open: true,
@@ -1077,6 +1108,21 @@ export function KanbanBoardPage() {
     } catch (error: any) {
       console.error("Failed to update member role:", error);
       setBoardMembersData(prevMembers);
+      if (error?.code === "OS003" && error?.errors) {
+        setOrgSeatLimitModal({
+          open: true,
+          orgId: error.errors.org_id,
+          seatCount: parseInt(error.errors.seat_count),
+          activeMemberCount: parseInt(error.errors.active_member_count),
+          monthlyPricePerSeat: parseInt(error.errors.monthly_price_per_seat),
+          yearlyPricePerSeat: parseInt(error.errors.yearly_price_per_seat),
+          isOrgAdmin: error.errors.is_org_admin === "true",
+          pendingEmail: "",
+          pendingRole: role,
+          pendingMemberId: memberId,
+        });
+        return;
+      }
       if (error?.code === "S005" && error?.errors) {
         setSeatPurchaseModal({
           open: true,
@@ -1197,24 +1243,12 @@ export function KanbanBoardPage() {
 
   const handleSubscriptionPurchaseSeats = async (additionalSeats: number) => {
     if (!boardId) return;
-    const currentBillingCycle = subscription?.billing_cycle || "MONTHLY";
-    const pricePerSeat =
-      subscription?.price_per_seat ||
-      (currentBillingCycle === "YEARLY" ? 5000 : 500);
+    localStorage.setItem("pending_checkout_board_id", boardId);
     try {
-      await subscriptionService.purchaseSeats(
-        boardId,
-        additionalSeats,
-        currentBillingCycle,
-        pricePerSeat,
-      );
+      await subscriptionService.purchaseSeats(boardId, additionalSeats);
+      // Polar checkout 리다이렉트가 발생하므로 여기까지 도달하지 않음
     } catch (error: any) {
-      if (
-        error?.code === "PAY_PROCESS_CANCELED" ||
-        error?.code === "USER_CANCEL"
-      ) {
-        return;
-      }
+      localStorage.removeItem("pending_checkout_board_id");
       throw error;
     }
   };
@@ -1222,6 +1256,13 @@ export function KanbanBoardPage() {
   const handleCancelSubscription = async () => {
     if (!boardId) return;
     await subscriptionService.cancelSubscription(boardId);
+    const subscriptionData = await subscriptionService.getSubscription(boardId);
+    setSubscription(subscriptionData);
+  };
+
+  const handleUndoCancellation = async () => {
+    if (!boardId) return;
+    await subscriptionService.undoCancellation(boardId);
     const subscriptionData = await subscriptionService.getSubscription(boardId);
     setSubscription(subscriptionData);
   };
@@ -1248,6 +1289,20 @@ export function KanbanBoardPage() {
       setBlocks(blocksData);
     } catch (error) {
       console.error("Failed to create block:", error);
+    }
+  };
+
+  const handleEditBlock = async (blockId: string, name: string, color: string) => {
+    if (!boardId) return;
+    const previousBlocks = blocks;
+    setBlocks((prev) =>
+      prev.map((b) => (b.id === blockId ? { ...b, name, color } : b)),
+    );
+    try {
+      await blockService.updateBlock(boardId, blockId, { name, color });
+    } catch (error) {
+      console.error("Failed to update block:", error);
+      setBlocks(previousBlocks);
     }
   };
 
@@ -2222,6 +2277,15 @@ export function KanbanBoardPage() {
           onOpenShareBoard={() => setIsShareBoardModalOpen(true)}
           onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
           onOpenPremiumBenefits={() => setIsPremiumBenefitsModalOpen(true)}
+          onUpdatePayment={async () => {
+            if (!boardId) return;
+            try {
+              const url = await subscriptionService.getBillingPortalUrl(boardId);
+              window.open(url, '_blank');
+            } catch (e) {
+              console.error('Failed to get billing portal URL', e);
+            }
+          }}
           currentUser={currentUser}
           memberColorMap={memberColorMap}
           onLogout={logout}
@@ -2634,7 +2698,9 @@ export function KanbanBoardPage() {
                                 onMoveTask={handleMoveTask}
                                 onReorderTask={handleReorderTask}
                                 onEditBlock={
-                                  block.type === "CUSTOM" ? () => {} : undefined
+                                  block.type === "CUSTOM"
+                                    ? () => setEditingBlock(block)
+                                    : undefined
                                 }
                                 onDeleteBlock={
                                   block.type === "CUSTOM"
@@ -2717,6 +2783,7 @@ export function KanbanBoardPage() {
             <DailyScheduleView
               boardId={boardId || ""}
               boardMembers={boardMembersData}
+              organizationId={board?.organization_id}
               memberColorMap={memberColorMap}
               onViewFeature={(featureId) => {
                 const feature = features.find((f) => f.id === featureId);
@@ -3048,6 +3115,15 @@ export function KanbanBoardPage() {
           isAddBlockModalOpen={isAddBlockModalOpen}
           onCloseAddBlock={() => setIsAddBlockModalOpen(false)}
           onAddBlock={handleAddBlock}
+          // EditBlock Modal
+          editingBlock={editingBlock}
+          onCloseEditBlock={() => setEditingBlock(null)}
+          onEditBlock={(name: string, color: string) => {
+            if (editingBlock) {
+              handleEditBlock(editingBlock.id, name, color);
+              setEditingBlock(null);
+            }
+          }}
           // AddFeature Modal
           isAddFeatureModalOpen={isAddFeatureModalOpen}
           onCloseAddFeature={() => setIsAddFeatureModalOpen(false)}
@@ -3096,6 +3172,8 @@ export function KanbanBoardPage() {
                 }
               : undefined
           }
+          isOrgBoard={!!board?.organization_id}
+          organizationName={board?.organization_name}
           hideBillingForUser={hideBillingForUser}
           // Subscription Modal
           isSubscriptionModalOpen={isSubscriptionModalOpen}
@@ -3105,6 +3183,7 @@ export function KanbanBoardPage() {
           onChangeBillingCycle={handleChangeBillingCycle}
           onPurchaseSeats={handleSubscriptionPurchaseSeats}
           onCancelSubscription={handleCancelSubscription}
+          onUndoCancellation={handleUndoCancellation}
           // Inquiry Modal
           isInquiryModalOpen={isInquiryModalOpen}
           onCloseInquiry={() => setIsInquiryModalOpen(false)}
@@ -3151,6 +3230,10 @@ export function KanbanBoardPage() {
           onCloseSeatPurchase={() => setSeatPurchaseModal(null)}
           billingCycle={subscription?.billing_cycle || "MONTHLY"}
           onPurchaseSeatsAndRetry={handlePurchaseSeatsAndRetry}
+          // Org Seat Limit Modal
+          orgSeatLimitModal={orgSeatLimitModal}
+          onCloseOrgSeatLimit={() => setOrgSeatLimitModal(null)}
+          onOrgPurchaseSeatsAndRetry={handleOrgPurchaseSeatsAndRetry}
           // Alert Modal
           alertModal={alertModal}
           onCloseAlert={() => setAlertModal({ ...alertModal, open: false })}

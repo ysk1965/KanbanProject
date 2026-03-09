@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 public class OrgAnnouncementRequest {
 
     @Getter
@@ -17,6 +19,7 @@ public class OrgAnnouncementRequest {
         private String title;
         private String content;
         private Boolean isPinned;
+        private List<String> fileKeys;
     }
 
     @Getter
@@ -27,5 +30,7 @@ public class OrgAnnouncementRequest {
         @Size(max = 200)
         private String title;
         private String content;
+        private List<String> keepAttachmentIds;
+        private List<String> newFileKeys;
     }
 }

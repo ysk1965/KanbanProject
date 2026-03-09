@@ -16,6 +16,7 @@ interface ScheduleBlockProps {
   onResize?: (blockId: string, startTime: string, endTime: string) => void;
   onMove?: (blockId: string, startTime: string, endTime: string) => void;
   onSplitResize?: (blockId: string, segments: Array<{ startTime: string; endTime: string }>) => void;
+  isOrgOverlay?: boolean;
 }
 
 // 시간 문자열을 분 단위로 변환
@@ -44,7 +45,7 @@ const SNAP_MINUTES = 10;
 
 const MIN_BLOCK_VIS = 28; // 블록 최소 가시 높이 (px)
 
-export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, otherBlocks = [], breakStartTime, breakEndTime, minutesToPx: minutesToPxProp, pxToMinutes: pxToMinutesProp, onClick, onResize, onMove, onSplitResize }: ScheduleBlockProps) {
+export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, otherBlocks = [], breakStartTime, breakEndTime, minutesToPx: minutesToPxProp, pxToMinutes: pxToMinutesProp, onClick, onResize, onMove, onSplitResize, isOrgOverlay }: ScheduleBlockProps) {
   // 가변 슬롯 높이 지원: prop이 있으면 사용, 없으면 선형 매핑 fallback
   const mToPx = minutesToPxProp || ((minutes: number) => ((minutes - workStartHour * 60) / 30) * slotHeight);
   const pxToM = pxToMinutesProp || ((px: number) => workStartHour * 60 + (px / slotHeight) * 30);
@@ -447,6 +448,34 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
     : isResizing === 'top'
       ? top + resizeOffset
       : top;
+
+  // Org overlay: read-only, dashed border, reduced opacity, no interactions
+  if (isOrgOverlay) {
+    return (
+      <div
+        className={`absolute left-1 right-1 rounded-md border-l-4 border-dashed px-2 py-1
+          overflow-hidden opacity-60 pointer-events-none cursor-default ${getBackgroundColor()}`}
+        style={{ top: `${displayTop}px`, height: `${Math.max(displayHeight, MIN_BLOCK_VIS)}px`, ...getInlineStyle() }}
+      >
+        <div className="flex flex-col h-full overflow-hidden">
+          {block.board_name && (
+            <span className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent truncate max-w-[80%] self-start mb-0.5">
+              {t('scheduleBlock.orgScheduleLabel', { boardName: block.board_name })}
+            </span>
+          )}
+          <span className={`text-xs font-medium truncate ${displayInfo.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+            {displayInfo.title}
+            {isOvernight && <span className="text-bridge-accent ml-1 text-[10px]">({t('scheduleBlock.nextDay')})</span>}
+          </span>
+          {displayHeight > 30 && displayInfo.taskTitle && (
+            <span className="text-[10px] text-muted-foreground truncate">
+              {displayInfo.taskTitle}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

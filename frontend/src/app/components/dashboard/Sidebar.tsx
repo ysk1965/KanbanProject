@@ -35,6 +35,9 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
 
   const menuItems = [
     { key: 'all', icon: <LayoutGrid size={18} />, label: t('dashboard.sidebar.allBoards'), path: '/boards' },
+    // TODO: SA-006 — Add org plan indicator badge next to Organizations menu item
+    // Requires fetching org subscription data, which would need org context not available in Sidebar.
+    // Consider lifting subscription state to Dashboard or using a lightweight summary endpoint.
     ...(!isMilkyway ? [{ key: 'organizations', icon: <Building2 size={18} />, label: t('dashboard.sidebar.organizations', 'Organizations'), path: '/organizations' }] : []),
     ...(hasPersonalSpace ? [{ key: 'myBoard', icon: <User size={18} />, label: t('dashboard.sidebar.myBoard'), path: '/my-board' }] : []),
     { key: 'settings', icon: <Settings size={18} />, label: t('dashboard.sidebar.settings'), path: '/settings' },
@@ -134,8 +137,8 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
                 isCollapsed ? 'justify-center' : ''
               } ${
                 activeItem === item.key
-                  ? 'bg-bridge-secondary/10 text-bridge-secondary'
-                  : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground'
+                  ? 'bg-bridge-secondary/10 text-bridge-secondary opacity-100'
+                  : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground opacity-60 hover:opacity-100 transition-opacity'
               }`}
               title={isCollapsed ? item.label : undefined}
             >

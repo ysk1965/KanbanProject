@@ -116,6 +116,7 @@ public class NotificationPreference {
             case MEETING_MEMO_SHARED -> meetingMemoSharedEnabled;
             case NOTE_COMMENT_MENTION -> noteCommentMentionEnabled;
             case ANNIVERSARY -> true; // Controlled by org-level anniversary settings
+            case PAYMENT_FAILED -> true; // Always enabled (critical billing notification)
         };
     }
 
@@ -127,6 +128,7 @@ public class NotificationPreference {
             case MEETING_MEMO_SHARED -> slackMeetingMemoSharedEnabled;
             case NOTE_COMMENT_MENTION -> slackNoteCommentMentionEnabled;
             case ANNIVERSARY -> false; // Not applicable for Slack
+            case PAYMENT_FAILED -> false; // Not applicable for Slack
         };
     }
 }
