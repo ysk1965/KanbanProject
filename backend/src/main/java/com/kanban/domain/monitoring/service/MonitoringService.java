@@ -7,6 +7,8 @@ import com.kanban.domain.monitoring.entity.AiUsageLog;
 import com.kanban.domain.monitoring.entity.ApiMetricSnapshot;
 import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
 import com.kanban.domain.monitoring.repository.ApiMetricSnapshotRepository;
+import com.kanban.domain.system.SystemConfig;
+import com.kanban.domain.system.SystemConfigRepository;
 import com.kanban.global.interceptor.ApiMetricsInterceptor;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -33,12 +35,17 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class MonitoringService {
 
+    private static final String CONFIG_KEY_SLACK_WEBHOOK = "monitoring.slack_webhook_url";
+    private static final String CONFIG_KEY_ENABLED = "monitoring.enabled";
+    private static final String CONFIG_KEY_EMAIL_RECIPIENTS = "monitoring.alert_email_recipients";
+
     private final ApiMetricsInterceptor apiMetricsInterceptor;
     private final MeterRegistry meterRegistry;
     private final ApiMetricSnapshotRepository snapshotRepository;
     private final AiUsageLogRepository aiUsageLogRepository;
     private final BoardRepository boardRepository;
     private final Optional<CloudWatchClient> cloudWatchClient;
+    private final SystemConfigRepository systemConfigRepository;
 
     @Value("${app.monitoring.data-retention-days:7}")
     private int dataRetentionDays;
@@ -73,8 +80,21 @@ public class MonitoringService {
     private String ec2InstanceId;
 
     @PostConstruct
-    void initAlertEmailRecipients() {
-        if (alertEmailRecipientsConfig != null && !alertEmailRecipientsConfig.isBlank()) {
+    void initFromDbOrEnv() {
+        // DB에 저장된 값이 있으면 우선 사용, 없으면 환경변수 기본값 유지
+        systemConfigRepository.findById(CONFIG_KEY_SLACK_WEBHOOK)
+                .ifPresent(c -> this.slackWebhookUrl = c.getValue());
+
+        systemConfigRepository.findById(CONFIG_KEY_ENABLED)
+                .ifPresent(c -> this.monitoringEnabled = Boolean.parseBoolean(c.getValue()));
+
+        Optional<SystemConfig> emailConfig = systemConfigRepository.findById(CONFIG_KEY_EMAIL_RECIPIENTS);
+        if (emailConfig.isPresent() && emailConfig.get().getValue() != null && !emailConfig.get().getValue().isBlank()) {
+            alertEmailRecipients = Arrays.stream(emailConfig.get().getValue().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
+        } else if (alertEmailRecipientsConfig != null && !alertEmailRecipientsConfig.isBlank()) {
             alertEmailRecipients = Arrays.stream(alertEmailRecipientsConfig.split(","))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
@@ -82,6 +102,11 @@ public class MonitoringService {
         } else {
             alertEmailRecipients = new ArrayList<>();
         }
+
+        log.info("Monitoring alert config loaded: enabled={}, webhook={}, emails={}",
+                monitoringEnabled,
+                slackWebhookUrl != null && !slackWebhookUrl.isEmpty() ? "configured" : "(empty)",
+                alertEmailRecipients.size());
     }
 
     @Value("${app.monitoring.rds-instance-id:#{null}}")
@@ -237,11 +262,25 @@ public class MonitoringService {
         if (emailRecipients != null) {
             this.alertEmailRecipients = new ArrayList<>(emailRecipients);
         }
-        log.info("Updated alert config: enabled={}, webhookUrl={}, emailRecipients={}",
+
+        // DB에 영속화 (서버 재시작 후에도 유지)
+        saveSystemConfig(CONFIG_KEY_SLACK_WEBHOOK, webhookUrl != null ? webhookUrl : "");
+        saveSystemConfig(CONFIG_KEY_ENABLED, String.valueOf(enabled));
+        saveSystemConfig(CONFIG_KEY_EMAIL_RECIPIENTS,
+                alertEmailRecipients != null ? String.join(",", alertEmailRecipients) : "");
+
+        log.info("Updated alert config (persisted to DB): enabled={}, webhookUrl={}, emailRecipients={}",
                 enabled,
                 webhookUrl != null && !webhookUrl.isEmpty() ? "***" : "(empty)",
                 alertEmailRecipients.size());
         return getAlertConfig();
+    }
+
+    private void saveSystemConfig(String key, String value) {
+        SystemConfig config = systemConfigRepository.findById(key)
+                .orElse(SystemConfig.builder().key(key).build());
+        config.updateValue(value);
+        systemConfigRepository.save(config);
     }
 
     // ==================== Private Helpers ====================
