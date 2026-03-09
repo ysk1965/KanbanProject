@@ -7,6 +7,7 @@ import { NotificationPreferences } from '../types';
 interface NotificationPreferencesPanelProps {
   boardId: string;
   hasSlack: boolean;
+  hasDiscord: boolean;
 }
 
 const NOTIFICATION_TYPES = [
@@ -17,7 +18,7 @@ const NOTIFICATION_TYPES = [
 
 type PrefKey = typeof NOTIFICATION_TYPES[number]['key'];
 
-export function NotificationPreferencesPanel({ boardId, hasSlack }: NotificationPreferencesPanelProps) {
+export function NotificationPreferencesPanel({ boardId, hasSlack, hasDiscord }: NotificationPreferencesPanelProps) {
   const { t } = useTranslation();
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -38,6 +39,11 @@ export function NotificationPreferencesPanel({ boardId, hasSlack }: Notification
         slack_comment_mention_enabled: true,
         slack_checklist_assigned_enabled: true,
         slack_task_comment_enabled: true,
+        discord_comment_mention_enabled: true,
+        discord_checklist_assigned_enabled: true,
+        discord_task_comment_enabled: true,
+        discord_meeting_memo_shared_enabled: true,
+        discord_note_comment_mention_enabled: true,
         created_at: null,
         updated_at: null,
       });
@@ -59,18 +65,25 @@ export function NotificationPreferencesPanel({ boardId, hasSlack }: Notification
         slackCommentMentionEnabled: updatedPrefs.slack_comment_mention_enabled,
         slackChecklistAssignedEnabled: updatedPrefs.slack_checklist_assigned_enabled,
         slackTaskCommentEnabled: updatedPrefs.slack_task_comment_enabled,
+        discordCommentMentionEnabled: updatedPrefs.discord_comment_mention_enabled,
+        discordChecklistAssignedEnabled: updatedPrefs.discord_checklist_assigned_enabled,
+        discordTaskCommentEnabled: updatedPrefs.discord_task_comment_enabled,
+        discordMeetingMemoSharedEnabled: updatedPrefs.discord_meeting_memo_shared_enabled,
+        discordNoteCommentMentionEnabled: updatedPrefs.discord_note_comment_mention_enabled,
       });
     } catch (err) {
       console.error('Failed to save notification preferences:', err);
     }
   }, [boardId]);
 
-  const handleToggle = (key: PrefKey, channel: 'inapp' | 'slack') => {
+  const handleToggle = (key: PrefKey, channel: 'inapp' | 'slack' | 'discord') => {
     if (!prefs) return;
 
     const fieldKey = channel === 'inapp'
       ? `${key}_enabled` as keyof NotificationPreferences
-      : `slack_${key}_enabled` as keyof NotificationPreferences;
+      : channel === 'slack'
+        ? `slack_${key}_enabled` as keyof NotificationPreferences
+        : `discord_${key}_enabled` as keyof NotificationPreferences;
 
     const updatedPrefs = {
       ...prefs,
@@ -117,6 +130,11 @@ export function NotificationPreferencesPanel({ boardId, hasSlack }: Notification
             <div className="w-10 text-center">
               <span className={`text-[9px] uppercase tracking-wider ${hasSlack ? 'text-slate-500' : 'text-slate-600'}`}>
                 Slack
+              </span>
+            </div>
+            <div className="w-10 text-center">
+              <span className={`text-[9px] uppercase tracking-wider ${hasDiscord ? 'text-slate-500' : 'text-slate-600'}`}>
+                Discord
               </span>
             </div>
           </div>
@@ -170,6 +188,28 @@ export function NotificationPreferencesPanel({ boardId, hasSlack }: Notification
                     />
                   </button>
                 </div>
+                {/* Discord toggle */}
+                <div className="w-10 flex justify-center">
+                  <button
+                    onClick={() => handleToggle(key, 'discord')}
+                    disabled={!hasDiscord}
+                    className={`w-7 h-4 rounded-full transition-colors relative ${
+                      !hasDiscord
+                        ? 'bg-foreground/5 cursor-not-allowed opacity-40'
+                        : prefs[`discord_${key}_enabled` as keyof NotificationPreferences]
+                          ? 'bg-bridge-accent'
+                          : 'bg-foreground/10'
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${
+                        prefs[`discord_${key}_enabled` as keyof NotificationPreferences]
+                          ? 'translate-x-3.5'
+                          : 'translate-x-0.5'
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -177,6 +217,11 @@ export function NotificationPreferencesPanel({ boardId, hasSlack }: Notification
           {!hasSlack && (
             <p className="text-[9px] text-slate-600 mt-2">
               {t('notificationPreferences.slackRequiresConnection')}
+            </p>
+          )}
+          {!hasDiscord && (
+            <p className="text-[9px] text-slate-600 mt-1">
+              {t('notificationPreferences.discordRequiresConnection')}
             </p>
           )}
         </div>

@@ -25,6 +25,11 @@ public class NotificationPreferenceResponse {
         private boolean slackMeetingMemoSharedEnabled;
         private boolean noteCommentMentionEnabled;
         private boolean slackNoteCommentMentionEnabled;
+        private boolean discordCommentMentionEnabled;
+        private boolean discordChecklistAssignedEnabled;
+        private boolean discordTaskCommentEnabled;
+        private boolean discordMeetingMemoSharedEnabled;
+        private boolean discordNoteCommentMentionEnabled;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
@@ -42,6 +47,11 @@ public class NotificationPreferenceResponse {
                     .slackMeetingMemoSharedEnabled(p.getSlackMeetingMemoSharedEnabled())
                     .noteCommentMentionEnabled(p.getNoteCommentMentionEnabled())
                     .slackNoteCommentMentionEnabled(p.getSlackNoteCommentMentionEnabled())
+                    .discordCommentMentionEnabled(p.getDiscordCommentMentionEnabled())
+                    .discordChecklistAssignedEnabled(p.getDiscordChecklistAssignedEnabled())
+                    .discordTaskCommentEnabled(p.getDiscordTaskCommentEnabled())
+                    .discordMeetingMemoSharedEnabled(p.getDiscordMeetingMemoSharedEnabled())
+                    .discordNoteCommentMentionEnabled(p.getDiscordNoteCommentMentionEnabled())
                     .createdAt(p.getCreatedAt())
                     .updatedAt(p.getUpdatedAt())
                     .build();
@@ -61,6 +71,11 @@ public class NotificationPreferenceResponse {
                     .slackMeetingMemoSharedEnabled(true)
                     .noteCommentMentionEnabled(true)
                     .slackNoteCommentMentionEnabled(true)
+                    .discordCommentMentionEnabled(true)
+                    .discordChecklistAssignedEnabled(true)
+                    .discordTaskCommentEnabled(true)
+                    .discordMeetingMemoSharedEnabled(true)
+                    .discordNoteCommentMentionEnabled(true)
                     .createdAt(null)
                     .updatedAt(null)
                     .build();

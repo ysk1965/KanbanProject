@@ -1,4 +1,4 @@
-package com.kanban.domain.integration.slack;
+package com.kanban.domain.integration;
 
 public class BrandResolver {
 

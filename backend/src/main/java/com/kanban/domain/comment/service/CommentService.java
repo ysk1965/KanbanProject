@@ -14,6 +14,7 @@ import com.kanban.domain.comment.CommentReactionRepository;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.comment.dto.CommentRequest;
 import com.kanban.domain.comment.dto.CommentResponse;
+import com.kanban.domain.integration.discord.service.DiscordNotificationService;
 import com.kanban.domain.integration.slack.service.SlackNotificationService;
 import com.kanban.domain.notification.service.NotificationService;
 import com.kanban.domain.task.Task;
@@ -50,6 +51,7 @@ public class CommentService {
     private final BoardService boardService;
     private final NotificationService notificationService;
     private final SlackNotificationService slackNotificationService;
+    private final DiscordNotificationService discordNotificationService;
     private final FileUploadService fileUploadService;
     private final ChecklistItemRepository checklistItemRepository;
     private final WebSocketEventService webSocketEventService;
@@ -162,6 +164,7 @@ public class CommentService {
         try {
             notificationService.createMentionNotifications(comment, user, board);
             slackNotificationService.sendMentionNotifications(comment, user, board, originUrl);
+            discordNotificationService.sendMentionNotifications(comment, user, board, originUrl);
 
             // TASK_COMMENT: 태스크 관련자에게 알림 (생성자 + 체크리스트 배정자, 멘션 수신자 제외)
             Set<String> mentionedUserIds = new HashSet<>();
@@ -183,6 +186,7 @@ public class CommentService {
             if (!taskRelatedUserIds.isEmpty()) {
                 notificationService.createTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds);
                 slackNotificationService.sendTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds, originUrl);
+                discordNotificationService.sendTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds, originUrl);
             }
         } catch (Exception e) {
             log.error("Failed to send comment notifications for comment: {} on task: {}: {}",

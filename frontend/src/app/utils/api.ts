@@ -4417,6 +4417,11 @@ export const notificationPreferenceAPI = {
       slack_comment_mention_enabled: boolean;
       slack_checklist_assigned_enabled: boolean;
       slack_task_comment_enabled: boolean;
+      discord_comment_mention_enabled: boolean;
+      discord_checklist_assigned_enabled: boolean;
+      discord_task_comment_enabled: boolean;
+      discord_meeting_memo_shared_enabled: boolean;
+      discord_note_comment_mention_enabled: boolean;
       created_at: string | null;
       updated_at: string | null;
     }>(`/boards/${boardId}/notification-preferences/me`);
@@ -4431,6 +4436,11 @@ export const notificationPreferenceAPI = {
       slackCommentMentionEnabled?: boolean;
       slackChecklistAssignedEnabled?: boolean;
       slackTaskCommentEnabled?: boolean;
+      discordCommentMentionEnabled?: boolean;
+      discordChecklistAssignedEnabled?: boolean;
+      discordTaskCommentEnabled?: boolean;
+      discordMeetingMemoSharedEnabled?: boolean;
+      discordNoteCommentMentionEnabled?: boolean;
     },
   ) => {
     return apiClient.put(`/boards/${boardId}/notification-preferences/me`, {
@@ -4440,6 +4450,11 @@ export const notificationPreferenceAPI = {
       slack_comment_mention_enabled: data.slackCommentMentionEnabled,
       slack_checklist_assigned_enabled: data.slackChecklistAssignedEnabled,
       slack_task_comment_enabled: data.slackTaskCommentEnabled,
+      discord_comment_mention_enabled: data.discordCommentMentionEnabled,
+      discord_checklist_assigned_enabled: data.discordChecklistAssignedEnabled,
+      discord_task_comment_enabled: data.discordTaskCommentEnabled,
+      discord_meeting_memo_shared_enabled: data.discordMeetingMemoSharedEnabled,
+      discord_note_comment_mention_enabled: data.discordNoteCommentMentionEnabled,
     });
   },
 };
@@ -4487,6 +4502,79 @@ export const slackWebhookAPI = {
       : "BRIDGE SPOTS";
     return apiClient.post<SlackTestResult>(
       `/boards/${boardId}/slack-webhook/me/test?brandName=${encodeURIComponent(brandName)}`,
+    );
+  },
+};
+
+// ========================================
+// Discord Webhook API
+// ========================================
+
+export interface DiscordWebhookConfig {
+  id: string;
+  board_id: string;
+  webhook_url_masked: string;
+  channel_name: string | null;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DiscordTestResult {
+  success: boolean;
+  message: string;
+}
+
+export interface DiscordWebhookMemberStatus {
+  user_id: string;
+  connected: boolean;
+  enabled: boolean;
+  channel_name: string | null;
+}
+
+export const discordWebhookAPI = {
+  getMemberStatuses: async (boardId: string) => {
+    return apiClient.get<DiscordWebhookMemberStatus[]>(
+      `/boards/${boardId}/discord-webhook/statuses`,
+    );
+  },
+
+  getMyConfig: async (boardId: string) => {
+    return apiClient.get<DiscordWebhookConfig>(
+      `/boards/${boardId}/discord-webhook/me`,
+    );
+  },
+
+  upsertMyConfig: async (
+    boardId: string,
+    data: {
+      webhookUrl?: string;
+      channelName?: string;
+      enabled?: boolean;
+    },
+  ) => {
+    return apiClient.put<DiscordWebhookConfig>(
+      `/boards/${boardId}/discord-webhook/me`,
+      {
+        webhook_url: data.webhookUrl || undefined,
+        channel_name: data.channelName,
+        enabled: data.enabled,
+      },
+    );
+  },
+
+  deleteMyConfig: async (boardId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/discord-webhook/me`,
+    );
+  },
+
+  testMyWebhook: async (boardId: string) => {
+    const brandName = window.location.hostname.includes("milkyway")
+      ? "Milkyway"
+      : "BRIDGE SPOTS";
+    return apiClient.post<DiscordTestResult>(
+      `/boards/${boardId}/discord-webhook/me/test?brandName=${encodeURIComponent(brandName)}`,
     );
   },
 };

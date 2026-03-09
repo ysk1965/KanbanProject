@@ -17,6 +17,7 @@ import com.kanban.domain.note.NoteType;
 import com.kanban.domain.note.dto.NoteResponse;
 import com.kanban.domain.notification.NotificationType;
 import com.kanban.domain.notification.service.NotificationService;
+import com.kanban.domain.integration.discord.service.DiscordNotificationService;
 import com.kanban.domain.integration.slack.service.SlackNotificationService;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.user.User;
@@ -56,6 +57,7 @@ public class MeetingService {
     private final BoardService boardService;
     private final NotificationService notificationService;
     private final SlackNotificationService slackNotificationService;
+    private final DiscordNotificationService discordNotificationService;
     private final WebSocketEventService webSocketEventService;
     private final ObjectMapper objectMapper;
 
@@ -465,6 +467,8 @@ public class MeetingService {
         notificationService.createMeetingMemoNotifications(meeting, sender, board, memberUserIds);
         // Slack notification (async)
         slackNotificationService.sendMeetingMemoNotifications(meeting, sender, board, memberUserIds, originUrl);
+        // Discord notification (async)
+        discordNotificationService.sendMeetingMemoNotifications(meeting, sender, board, memberUserIds, originUrl);
 
         log.info("Meeting memo notifications sent for meeting: {} to {} members", meetingId, memberUserIds.size());
     }
