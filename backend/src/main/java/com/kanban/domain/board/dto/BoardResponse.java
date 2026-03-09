@@ -255,6 +255,10 @@ public class BoardResponse {
         private String organizationId;
         private String organizationName;
 
+        // 조직 멤버 뷰어 (보드 멤버가 아닌 조직 구성원)
+        private boolean isOrgMemberViewer;
+        private boolean hasPendingJoinRequest;
+
         // 통합 데이터
         private List<BlockResponse.Detail> blocks;
         private List<FeatureResponse.Simple> features;

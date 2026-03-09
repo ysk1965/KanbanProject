@@ -18,6 +18,7 @@ import { AiCredits, OrgBoardCandidate } from '../types';
 import { FEATURE_COLORS } from '../constants';
 import { ASSIGNEE_COLOR_NAMES, getAssigneeClasses, getAssigneeHex, getInitials } from '../utils/assigneeColor';
 import { memberService } from '../utils/services';
+import JoinRequestsPanel from './JoinRequestsPanel';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -65,6 +66,10 @@ interface ShareBoardModalProps {
   // 조직 보드 관련
   isOrgBoard?: boolean;
   organizationName?: string | null;
+  // 참가 요청
+  pendingJoinRequestCount?: number;
+  isAdminOrOwner?: boolean;
+  onJoinRequestHandled?: () => void;
 }
 
 const ROLE_LABELS: Record<MemberRole, string> = {
@@ -271,6 +276,10 @@ export function ShareBoardModal({
   // 조직 보드
   isOrgBoard,
   organizationName,
+  // 참가 요청
+  pendingJoinRequestCount = 0,
+  isAdminOrOwner: isAdminOrOwnerProp = false,
+  onJoinRequestHandled,
 }: ShareBoardModalProps) {
   const { t } = useTranslation();
   const [inviteEmail, setInviteEmail] = useState('');
@@ -678,6 +687,22 @@ export function ShareBoardModal({
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* 참가 요청 (Admin/Owner only) */}
+          {isAdminOrOwnerProp && isOrgBoard && pendingJoinRequestCount > 0 && boardId && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-sm font-semibold text-muted-foreground">{t('share.joinRequests', '참가 요청')}</h3>
+                <span className="text-[11px] font-bold text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-full">
+                  {pendingJoinRequestCount}
+                </span>
+              </div>
+              <JoinRequestsPanel
+                boardId={boardId}
+                onMemberAdded={onJoinRequestHandled}
+              />
             </div>
           )}
 

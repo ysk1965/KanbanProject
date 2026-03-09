@@ -206,8 +206,31 @@ export interface Board {
   selected_milestone_id?: string | null;
   organization_id?: string | null;
   organization_name?: string | null;
+  is_org_member_viewer?: boolean;
+  has_pending_join_request?: boolean;
   created_at: string;
   updated_at?: string;
+}
+
+export type JoinRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface BoardJoinRequest {
+  id: string;
+  board_id: string;
+  requester: {
+    id: string;
+    name: string;
+    email: string;
+    profile_image: string | null;
+  };
+  status: JoinRequestStatus;
+  message: string | null;
+  reviewed_by: {
+    id: string;
+    name: string;
+  } | null;
+  reviewed_at: string | null;
+  created_at: string;
 }
 
 export interface BoardTierInfo {

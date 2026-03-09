@@ -123,7 +123,7 @@ import {
   aiCreditService,
   taskDependencyService,
 } from "../utils/services";
-import { notificationAPI, checklistAPI, scheduleAPI } from "../utils/api";
+import { notificationAPI, checklistAPI, scheduleAPI, boardJoinRequestAPI } from "../utils/api";
 
 import { useTranslation } from "react-i18next";
 import { getRandomFeatureColor } from "../constants";
@@ -137,6 +137,7 @@ import { useNotificationManager } from "../hooks/useNotificationManager";
 import { KanbanBoardHeader } from "../components/KanbanBoardHeader";
 import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
 import { BoardModalManager } from "../components/BoardModalManager";
+import JoinRequestBanner from "../components/JoinRequestBanner";
 
 declare const __FE_COMMIT_HASH__: string;
 
@@ -281,6 +282,7 @@ export function KanbanBoardPage() {
     isOwner,
     canEdit,
     hideBillingForUser,
+    isOrgMemberViewer,
   } = useBoardPermissions(
     tierInfo,
     boardMembersData,
@@ -290,6 +292,36 @@ export function KanbanBoardPage() {
     isSystemAdmin,
     isTester,
   );
+
+  // 참가 요청 (Admin/Owner만)
+  const [pendingJoinRequestCount, setPendingJoinRequestCount] = useState(0);
+
+  useEffect(() => {
+    if (isAdminOrOwner && board?.organization_id && boardId) {
+      boardJoinRequestAPI.list(boardId)
+        .then((data) => setPendingJoinRequestCount(data.requests.length))
+        .catch(() => {});
+    }
+  }, [isAdminOrOwner, board?.organization_id, boardId]);
+
+  const handleJoinRequestHandled = useCallback(() => {
+    if (boardId) {
+      boardJoinRequestAPI.list(boardId)
+        .then((data) => setPendingJoinRequestCount(data.requests.length))
+        .catch(() => {});
+      // Refresh member list
+      memberService.getMembers(boardId).then((membersResponse) => {
+        setBoardMembersData(membersResponse.members.map((m: any) => ({
+          id: m.id,
+          userId: m.user.id,
+          name: m.user.name,
+          email: m.user.email,
+          role: m.role.toLowerCase(),
+          assigneeColor: m.assignee_color || null,
+        })));
+      }).catch(() => {});
+    }
+  }, [boardId]);
 
   // 모달 상태
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
@@ -2303,6 +2335,15 @@ export function KanbanBoardPage() {
           }}
         />
 
+        {/* 조직 멤버 뷰어 배너 */}
+        {isOrgMemberViewer && boardId && (
+          <JoinRequestBanner
+            boardId={boardId}
+            hasPendingRequest={board?.has_pending_join_request ?? false}
+            onRequestSent={() => setBoard((prev) => prev ? { ...prev, has_pending_join_request: true } : prev)}
+          />
+        )}
+
         {/* 마일스톤 탭 바 (칸반 뷰에서만 표시) */}
         {viewMode === "kanban" &&
           milestones.length > 0 &&
@@ -3174,6 +3215,9 @@ export function KanbanBoardPage() {
           }
           isOrgBoard={!!board?.organization_id}
           organizationName={board?.organization_name}
+          pendingJoinRequestCount={pendingJoinRequestCount}
+          isAdminOrOwner={isAdminOrOwner}
+          onJoinRequestHandled={handleJoinRequestHandled}
           hideBillingForUser={hideBillingForUser}
           // Subscription Modal
           isSubscriptionModalOpen={isSubscriptionModalOpen}
