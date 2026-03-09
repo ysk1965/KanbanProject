@@ -156,6 +156,9 @@ public class SchemaMigrationInitializer implements InitializingBean {
         addColumnIfNotExists("inquiry_replies", "user_id", "VARCHAR(36)");
         addColumnIfNotExists("inquiry_replies", "reply_type", "VARCHAR(10) NOT NULL DEFAULT 'ADMIN'");
 
+        // Organizations 테이블 (V94)
+        addColumnIfNotExists("organizations", "hr_system_enabled", "BOOLEAN NOT NULL DEFAULT FALSE");
+
         // Notifications CHECK 제약조건
         fixNotificationTypeCheck();
 
