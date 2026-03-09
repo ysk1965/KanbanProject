@@ -6826,6 +6826,19 @@ export const orgPhotoAPI = {
   ): Promise<{ enabled: boolean; share_token: string }> =>
     apiClient.get(`/organizations/${orgId}/photos/gallery-share`),
 
+  // Upload link
+  enableUploadLink: (
+    orgId: string,
+    tabId: string,
+  ): Promise<import("../types").OrgPhotoTab> =>
+    apiClient.post(`/organizations/${orgId}/photos/tabs/${tabId}/upload-link`),
+
+  disableUploadLink: (
+    orgId: string,
+    tabId: string,
+  ): Promise<import("../types").OrgPhotoTab> =>
+    apiClient.delete(`/organizations/${orgId}/photos/tabs/${tabId}/upload-link`),
+
   // Photo CRUD
   getPhotos: (
     orgId: string,
@@ -6902,6 +6915,35 @@ export const publicGalleryAPI = {
     return apiClient.get(
       `/public/gallery/${shareToken}/albums/${albumId}/photos${qs ? `?${qs}` : ""}`,
     );
+  },
+};
+
+export const publicUploadAPI = {
+  getUploadAlbumInfo: (
+    uploadToken: string,
+  ): Promise<import("../types").UploadAlbumInfo> =>
+    apiClient.get(`/public/upload/${uploadToken}`),
+
+  uploadPhotos: async (
+    uploadToken: string,
+    files: File[],
+  ): Promise<import("../types").OrgPhoto[]> => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append("files", f));
+    const response = await fetch(
+      `${API_BASE_URL}/public/upload/${uploadToken}`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
+    if (!response.ok) {
+      const err = await response
+        .json()
+        .catch(() => ({ message: "Upload failed" }));
+      throw err;
+    }
+    return response.json();
   },
 };
 

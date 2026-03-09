@@ -7,6 +7,7 @@ import {
   Loader2,
   Copy,
   ExternalLink,
+  Upload,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { MotionModal } from '../../ui/MotionModal';
@@ -34,6 +35,8 @@ export function AlbumShareManagerModal({
   const [galleryToggling, setGalleryToggling] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [uploadTogglingId, setUploadTogglingId] = useState<string | null>(null);
+  const [copiedUploadLink, setCopiedUploadLink] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const shareUrl = galleryToken
@@ -105,6 +108,43 @@ export function AlbumShareManagerModal({
     },
     [togglingId, orgId, albums, onAlbumsUpdate, t],
   );
+
+  const handleUploadToggle = useCallback(
+    async (album: OrgPhotoTab) => {
+      if (uploadTogglingId) return;
+      try {
+        setUploadTogglingId(album.id);
+        const updated = album.is_upload_enabled
+          ? await orgPhotoService.disableUploadLink(orgId, album.id)
+          : await orgPhotoService.enableUploadLink(orgId, album.id);
+        onAlbumsUpdate(
+          albums.map((a) => (a.id === updated.id ? updated : a)),
+        );
+        toast.success(
+          updated.is_upload_enabled
+            ? t('photoGallery.uploadLinkEnabled', 'Upload link created')
+            : t('photoGallery.uploadLinkDisabled', 'Upload link removed'),
+        );
+      } catch {
+        toast.error(t('photoGallery.uploadLinkError', 'Failed to toggle upload link'));
+      } finally {
+        setUploadTogglingId(null);
+      }
+    },
+    [uploadTogglingId, orgId, albums, onAlbumsUpdate, t],
+  );
+
+  const handleCopyUploadLink = useCallback(async (token: string) => {
+    const url = `${window.location.origin}/shared/upload/${token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedUploadLink(token);
+      toast.success(t('photoGallery.shareCopied', 'Copied'));
+      setTimeout(() => setCopiedUploadLink(null), 2000);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  }, [t]);
 
   const handleCopyLink = useCallback(async () => {
     if (!shareUrl) return;
@@ -240,45 +280,89 @@ export function AlbumShareManagerModal({
               <div className="space-y-1.5">
                 {albums.map((album) => {
                   const isToggling = togglingId === album.id;
+                  const isUploadToggling = uploadTogglingId === album.id;
                   return (
                     <div
                       key={album.id}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-foreground/[0.08] hover:border-foreground/[0.12] transition-colors"
+                      className="rounded-xl border border-foreground/[0.08] hover:border-foreground/[0.12] transition-colors overflow-hidden"
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-foreground truncate">
-                            {album.name}
-                          </span>
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-foreground/10 text-slate-500 shrink-0">
-                            {album.photo_count}
-                          </span>
+                      <div className="flex items-center gap-3 px-3 py-2.5">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-foreground truncate">
+                              {album.name}
+                            </span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-foreground/10 text-slate-500 shrink-0">
+                              {album.photo_count}
+                            </span>
+                          </div>
                         </div>
+                        {/* Upload link toggle */}
+                        <button
+                          onClick={() => handleUploadToggle(album)}
+                          disabled={isUploadToggling}
+                          title={album.is_upload_enabled
+                            ? t('photoGallery.disableUploadLink', 'Disable upload link')
+                            : t('photoGallery.enableUploadLink', 'Enable upload link')}
+                          className={`p-1.5 rounded-lg transition-colors shrink-0 ${
+                            album.is_upload_enabled
+                              ? 'text-bridge-secondary bg-bridge-secondary/15'
+                              : 'text-slate-500 hover:text-foreground hover:bg-foreground/5'
+                          }`}
+                        >
+                          {isUploadToggling ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <Upload size={14} />
+                          )}
+                        </button>
+                        {/* Share toggle */}
+                        <button
+                          onClick={() => handleAlbumToggle(album)}
+                          disabled={isToggling}
+                          className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
+                            album.is_shared
+                              ? 'bg-bridge-accent'
+                              : 'bg-foreground/15'
+                          }`}
+                        >
+                          {isToggling ? (
+                            <Loader2
+                              size={10}
+                              className="absolute top-1.5 left-1/2 -translate-x-1/2 animate-spin text-white"
+                            />
+                          ) : (
+                            <span
+                              className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                                album.is_shared
+                                  ? 'translate-x-[14px]'
+                                  : 'translate-x-0'
+                              }`}
+                            />
+                          )}
+                        </button>
                       </div>
-                      <button
-                        onClick={() => handleAlbumToggle(album)}
-                        disabled={isToggling}
-                        className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
-                          album.is_shared
-                            ? 'bg-bridge-accent'
-                            : 'bg-foreground/15'
-                        }`}
-                      >
-                        {isToggling ? (
-                          <Loader2
-                            size={10}
-                            className="absolute top-1.5 left-1/2 -translate-x-1/2 animate-spin text-white"
-                          />
-                        ) : (
-                          <span
-                            className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                              album.is_shared
-                                ? 'translate-x-[14px]'
-                                : 'translate-x-0'
-                            }`}
-                          />
-                        )}
-                      </button>
+                      {/* Upload link display */}
+                      {album.is_upload_enabled && album.upload_token && (
+                        <div className="flex items-center gap-2 px-3 pb-2.5">
+                          <div className="flex-1 flex items-center gap-2 px-2.5 py-1.5 bg-foreground/[0.03] border border-foreground/10 rounded-lg min-w-0">
+                            <Upload size={10} className="text-bridge-secondary shrink-0" />
+                            <span className="text-[10px] text-slate-400 truncate">
+                              {window.location.origin}/shared/upload/{album.upload_token}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleCopyUploadLink(album.upload_token!)}
+                            className="px-2 py-1.5 rounded-lg text-[10px] font-bold bg-bridge-secondary/15 text-bridge-secondary hover:bg-bridge-secondary/25 transition-all shrink-0"
+                          >
+                            {copiedUploadLink === album.upload_token ? (
+                              <Check size={12} />
+                            ) : (
+                              t('photoGallery.shareCopy', 'Copy')
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

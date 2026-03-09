@@ -423,7 +423,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
                   )}
             </p>
             <p className="text-[11px] text-slate-500 mb-6">
-              {t('photoGallery.uploadFormats', 'JPG, PNG, WebP, GIF supported')}
+              {t('photoGallery.uploadFormats', 'JPG, PNG, WebP, GIF - max {{max}} files', { max: 1000 })}
             </p>
             {isAdmin && (
               <button

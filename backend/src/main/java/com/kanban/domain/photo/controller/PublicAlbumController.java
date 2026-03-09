@@ -3,8 +3,12 @@ package com.kanban.domain.photo.controller;
 import com.kanban.domain.photo.dto.OrgPhotoResponse;
 import com.kanban.domain.photo.service.OrgPhotoService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/public")
@@ -44,5 +48,21 @@ public class PublicAlbumController {
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "30") int size) {
         return ResponseEntity.ok(orgPhotoService.getSharedAlbumPhotos(shareToken, cursor, size));
+    }
+
+    // ==================== Public Upload ====================
+
+    @GetMapping("/upload/{uploadToken}")
+    public ResponseEntity<OrgPhotoResponse.UploadAlbumInfo> getUploadAlbumInfo(
+            @PathVariable String uploadToken) {
+        return ResponseEntity.ok(orgPhotoService.getUploadAlbumInfo(uploadToken));
+    }
+
+    @PostMapping("/upload/{uploadToken}")
+    public ResponseEntity<List<OrgPhotoResponse.PhotoDetail>> publicUpload(
+            @PathVariable String uploadToken,
+            @RequestParam("files") List<MultipartFile> files) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(orgPhotoService.publicUploadPhotos(uploadToken, files));
     }
 }

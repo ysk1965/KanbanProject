@@ -3404,6 +3404,10 @@ export const orgPhotoService = {
   disableGalleryShare: orgPhotoAPI.disableGalleryShare,
   getGalleryShareStatus: orgPhotoAPI.getGalleryShareStatus,
 
+  // Upload link
+  enableUploadLink: orgPhotoAPI.enableUploadLink,
+  disableUploadLink: orgPhotoAPI.disableUploadLink,
+
   // Photo CRUD
   getPhotos: orgPhotoAPI.getPhotos,
   uploadPhotos: orgPhotoAPI.uploadPhotos,
