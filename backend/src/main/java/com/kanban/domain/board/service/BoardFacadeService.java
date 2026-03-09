@@ -5,11 +5,14 @@ import com.kanban.domain.activity.service.ActivityService;
 import com.kanban.domain.block.dto.BlockResponse;
 import com.kanban.domain.block.service.BlockService;
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardJoinRequestRepository;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
+import com.kanban.domain.board.JoinRequestStatus;
 import com.kanban.domain.board.UserBoardStarRepository;
 import com.kanban.domain.board.dto.BoardResponse;
+import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.feature.dto.FeatureResponse;
 import com.kanban.domain.feature.service.FeatureService;
 import com.kanban.domain.invite.InviteLink;
@@ -59,6 +62,8 @@ public class BoardFacadeService {
     private final InviteLinkRepository inviteLinkRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final OrgMemberRepository orgMemberRepository;
+    private final BoardJoinRequestRepository boardJoinRequestRepository;
 
     private final BoardService boardService;
     private final BlockService blockService;
@@ -81,10 +86,11 @@ public class BoardFacadeService {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        // 멤버십 확인 (없으면 시스템 ADMIN인지 체크)
+        // 멤버십 확인 (없으면 시스템 ADMIN → 조직 멤버 순으로 체크)
         java.util.Optional<BoardMember> membershipOpt = boardMemberRepository.findByBoardIdAndUserId(boardId, userId);
         BoardRole myRole;
         boolean isSystemAdminView = false;
+        boolean isOrgMemberViewer = false;
 
         if (membershipOpt.isPresent()) {
             myRole = membershipOpt.get().getRole();
@@ -93,6 +99,11 @@ public class BoardFacadeService {
             if (user != null && user.getSystemRole() == SystemRole.ADMIN) {
                 myRole = BoardRole.VIEWER;
                 isSystemAdminView = true;
+            } else if (board.isOrganizationBoard() &&
+                       orgMemberRepository.existsByOrganizationIdAndUserId(
+                           board.getOrganization().getId(), userId)) {
+                myRole = BoardRole.VIEWER;
+                isOrgMemberViewer = true;
             } else {
                 throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
             }
@@ -104,7 +115,7 @@ public class BoardFacadeService {
         }
 
         // 3. 기본 보드 정보
-        boolean isStarred = !isSystemAdminView && userBoardStarRepository.existsByUserIdAndBoardId(userId, boardId);
+        boolean isStarred = !isSystemAdminView && !isOrgMemberViewer && userBoardStarRepository.existsByUserIdAndBoardId(userId, boardId);
         int memberCount = boardMemberRepository.countBillableMembers(boardId);
         Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
 
@@ -168,6 +179,9 @@ public class BoardFacadeService {
                 .selectedMilestoneId(board.getSelectedMilestoneId())
                 .organizationId(board.getOrganization() != null ? board.getOrganization().getId() : null)
                 .organizationName(board.getOrganization() != null ? board.getOrganization().getName() : null)
+                .isOrgMemberViewer(isOrgMemberViewer)
+                .hasPendingJoinRequest(isOrgMemberViewer && boardJoinRequestRepository
+                        .existsByBoardIdAndRequesterIdAndStatus(boardId, userId, JoinRequestStatus.PENDING))
                 .createdAt(board.getCreatedAt())
                 .updatedAt(board.getUpdatedAt())
                 .blocks(blocksResponse.getBlocks())

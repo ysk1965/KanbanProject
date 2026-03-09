@@ -37,6 +37,7 @@ import com.kanban.domain.subscription.SubscriptionRepository;
 import com.kanban.domain.tag.FeatureTagRepository;
 import com.kanban.domain.tag.TagRepository;
 import com.kanban.domain.tag.TaskTagRepository;
+import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.task.TaskDependencyRepository;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.SystemRole;
@@ -102,6 +103,8 @@ public class BoardService {
     private final NoteVersionRepository noteVersionRepository;
     private final BoardCustomEmojiRepository boardCustomEmojiRepository;
     private final TaskDependencyRepository taskDependencyRepository;
+    private final BoardJoinRequestRepository boardJoinRequestRepository;
+    private final OrgMemberRepository orgMemberRepository;
     private final FileUploadService fileUploadService;
 
     @Transactional
@@ -367,6 +370,7 @@ public class BoardService {
 
         dailyStandupConfigRepository.deleteByBoardId(boardId);
         memberSlackWebhookRepository.deleteByBoardId(boardId);
+        boardJoinRequestRepository.deleteByBoardId(boardId);
 
         paymentHistoryRepository.deleteByBoardId(boardId);
         userBoardStarRepository.deleteByBoardId(boardId);
@@ -451,6 +455,12 @@ public class BoardService {
         // System ADMIN can view any board without membership
         User user = userRepository.findById(userId).orElse(null);
         if (user != null && user.getSystemRole() == SystemRole.ADMIN) return;
+        // Org member can view org boards as viewer
+        Board board = boardRepository.findById(boardId).orElse(null);
+        if (board != null && board.isOrganizationBoard()) {
+            if (orgMemberRepository.existsByOrganizationIdAndUserId(
+                    board.getOrganization().getId(), userId)) return;
+        }
         throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
     }
 

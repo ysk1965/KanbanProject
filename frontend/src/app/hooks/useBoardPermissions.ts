@@ -36,6 +36,7 @@ export function useBoardPermissions(
   const isOwner = currentUserRole === 'owner';
   const canEdit = !isViewer;
   const hideBillingForUser = hideBilling || !isOwner;
+  const isOrgMemberViewer = board?.is_org_member_viewer ?? false;
 
   return {
     canAccessSchedule,
@@ -49,5 +50,6 @@ export function useBoardPermissions(
     isOwner,
     canEdit,
     hideBillingForUser,
+    isOrgMemberViewer,
   };
 }

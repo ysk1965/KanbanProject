@@ -145,6 +145,7 @@ public class NotificationPreference {
             case NOTE_COMMENT_MENTION -> noteCommentMentionEnabled;
             case ANNIVERSARY -> true; // Controlled by org-level anniversary settings
             case PAYMENT_FAILED -> true; // Always enabled (critical billing notification)
+            case BOARD_JOIN_REQUEST, BOARD_JOIN_APPROVED, BOARD_JOIN_REJECTED -> true; // Always enabled
         };
     }
 
@@ -157,6 +158,7 @@ public class NotificationPreference {
             case NOTE_COMMENT_MENTION -> slackNoteCommentMentionEnabled;
             case ANNIVERSARY -> false; // Not applicable for Slack
             case PAYMENT_FAILED -> false; // Not applicable for Slack
+            case BOARD_JOIN_REQUEST, BOARD_JOIN_APPROVED, BOARD_JOIN_REJECTED -> false;
         };
     }
 
@@ -169,6 +171,7 @@ public class NotificationPreference {
             case NOTE_COMMENT_MENTION -> discordNoteCommentMentionEnabled;
             case ANNIVERSARY -> false; // Not applicable for Discord
             case PAYMENT_FAILED -> false; // Not applicable for Discord
+            case BOARD_JOIN_REQUEST, BOARD_JOIN_APPROVED, BOARD_JOIN_REJECTED -> false;
         };
     }
 }

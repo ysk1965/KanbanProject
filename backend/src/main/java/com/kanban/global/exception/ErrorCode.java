@@ -61,6 +61,12 @@ public enum ErrorCode {
     BOARD_ALREADY_DELETED(HttpStatus.CONFLICT, "B008", "이미 삭제된 보드입니다"),
     BOARD_NOT_DELETED(HttpStatus.CONFLICT, "B009", "삭제되지 않은 보드입니다"),
 
+    // Board Join Request
+    JOIN_REQUEST_ALREADY_EXISTS(HttpStatus.CONFLICT, "B010", "이미 참가 요청이 존재합니다"),
+    JOIN_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "B011", "참가 요청을 찾을 수 없습니다"),
+    JOIN_REQUEST_NOT_ORG_MEMBER(HttpStatus.FORBIDDEN, "B012", "조직 구성원만 참가 요청을 할 수 있습니다"),
+    JOIN_REQUEST_ALREADY_MEMBER(HttpStatus.CONFLICT, "B013", "이미 보드 멤버입니다"),
+
     // Block
     BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "BL001", "블록을 찾을 수 없습니다"),
     BLOCK_CANNOT_DELETE_FIXED(HttpStatus.BAD_REQUEST, "BL002", "고정 블록은 삭제할 수 없습니다"),

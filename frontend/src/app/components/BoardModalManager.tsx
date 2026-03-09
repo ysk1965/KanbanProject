@@ -87,6 +87,9 @@ interface BoardModalManagerProps {
   onOpenAiCreditPurchase?: () => void;
   isOrgBoard?: boolean;
   organizationName?: string | null;
+  pendingJoinRequestCount?: number;
+  isAdminOrOwner?: boolean;
+  onJoinRequestHandled?: () => void;
   hideBillingForUser: boolean;
   // Subscription Modal
   isSubscriptionModalOpen: boolean;
@@ -377,6 +380,9 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         onOpenAiCreditPurchase={!props.hideBillingForUser ? props.onOpenAiCreditPurchase : undefined}
         isOrgBoard={props.isOrgBoard}
         organizationName={props.organizationName}
+        pendingJoinRequestCount={props.pendingJoinRequestCount}
+        isAdminOrOwner={props.isAdminOrOwner}
+        onJoinRequestHandled={props.onJoinRequestHandled}
       />
 
       {!props.hideBillingForUser && (

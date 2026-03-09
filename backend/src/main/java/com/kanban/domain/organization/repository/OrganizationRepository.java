@@ -49,24 +49,24 @@ public interface OrganizationRepository extends JpaRepository<Organization, Stri
     @Query(value = "SELECT o FROM Organization o " +
            "LEFT JOIN FETCH o.owner " +
            "LEFT JOIN FETCH o.subscription " +
-           "WHERE (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "OR LOWER(o.owner.email) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "WHERE (CAST(:search AS string) IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) " +
+           "OR LOWER(o.owner.email) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))) " +
            "AND o.deletedAt IS NULL",
            countQuery = "SELECT COUNT(o) FROM Organization o LEFT JOIN o.owner " +
-           "WHERE (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "OR LOWER(o.owner.email) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "WHERE (CAST(:search AS string) IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) " +
+           "OR LOWER(o.owner.email) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))) " +
            "AND o.deletedAt IS NULL")
     Page<Organization> findAllForAdmin(@Param("search") String search, Pageable pageable);
 
     @Query(value = "SELECT o FROM Organization o " +
            "LEFT JOIN FETCH o.owner " +
            "LEFT JOIN FETCH o.subscription " +
-           "WHERE (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "OR LOWER(o.owner.email) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "WHERE (CAST(:search AS string) IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) " +
+           "OR LOWER(o.owner.email) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))) " +
            "AND o.deletedAt IS NOT NULL",
            countQuery = "SELECT COUNT(o) FROM Organization o LEFT JOIN o.owner " +
-           "WHERE (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "OR LOWER(o.owner.email) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "WHERE (CAST(:search AS string) IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) " +
+           "OR LOWER(o.owner.email) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))) " +
            "AND o.deletedAt IS NOT NULL")
     Page<Organization> findDeletedForAdmin(@Param("search") String search, Pageable pageable);
 

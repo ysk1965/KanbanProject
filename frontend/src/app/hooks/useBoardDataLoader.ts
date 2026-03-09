@@ -79,6 +79,8 @@ export function useBoardDataLoader(boardId: string | undefined) {
           selected_milestone_id: fullData.selected_milestone_id,
           organization_id: fullData.organization_id || null,
           organization_name: fullData.organization_name || null,
+          is_org_member_viewer: fullData.is_org_member_viewer || false,
+          has_pending_join_request: fullData.has_pending_join_request || false,
           created_at: fullData.created_at,
           updated_at: fullData.updated_at,
         });
