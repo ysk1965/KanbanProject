@@ -3,7 +3,11 @@ import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { Target, ChevronRight, BarChart3, ClipboardCheck } from "lucide-react";
 import { okrService, organizationService } from "../../../utils/services";
-import type { OkrCycle, OkrTreeData, OnboardingInstanceSummary } from "../../../types";
+import type {
+  OkrCycle,
+  OkrTreeData,
+  OnboardingInstanceSummary,
+} from "../../../types";
 import { OkrProgressBar } from "./OkrProgressBar";
 import { OnboardingDetailModal } from "../OnboardingDetailModal";
 
@@ -11,12 +15,20 @@ interface OkrDashboardWidgetProps {
   orgId: string;
   onNavigateOkr: () => void;
   onNavigateOnboarding: () => void;
+  hrSystemEnabled?: boolean;
 }
 
-export function OkrDashboardWidget({ orgId, onNavigateOkr, onNavigateOnboarding }: OkrDashboardWidgetProps) {
+export function OkrDashboardWidget({
+  orgId,
+  onNavigateOkr,
+  onNavigateOnboarding,
+  hrSystemEnabled,
+}: OkrDashboardWidgetProps) {
   const { t } = useTranslation();
   const [treeData, setTreeData] = useState<OkrTreeData | null>(null);
-  const [onboardingInstances, setOnboardingInstances] = useState<OnboardingInstanceSummary[]>([]);
+  const [onboardingInstances, setOnboardingInstances] = useState<
+    OnboardingInstanceSummary[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
 
@@ -25,7 +37,9 @@ export function OkrDashboardWidget({ orgId, onNavigateOkr, onNavigateOnboarding 
       try {
         const [cycles, instances] = await Promise.all([
           okrService.getCycles(orgId).catch(() => [] as OkrCycle[]),
-          organizationService.getOnboardingInstances(orgId, { status: "IN_PROGRESS" }).catch(() => [] as OnboardingInstanceSummary[]),
+          organizationService
+            .getOnboardingInstances(orgId, { status: "IN_PROGRESS" })
+            .catch(() => [] as OnboardingInstanceSummary[]),
         ]);
 
         const active = cycles.find((c: OkrCycle) => c.status === "ACTIVE");
@@ -33,7 +47,9 @@ export function OkrDashboardWidget({ orgId, onNavigateOkr, onNavigateOnboarding 
           try {
             const tree = await okrService.getTree(orgId, active.id);
             setTreeData(tree);
-          } catch { /* optional */ }
+          } catch {
+            /* optional */
+          }
         }
         setOnboardingInstances(instances);
       } finally {
@@ -46,7 +62,7 @@ export function OkrDashboardWidget({ orgId, onNavigateOkr, onNavigateOnboarding 
   if (loading) return null;
 
   const hasOkr = !!treeData;
-  const hasOnboarding = onboardingInstances.length > 0;
+  const hasOnboarding = !hrSystemEnabled && onboardingInstances.length > 0;
 
   // Nothing to show
   if (!hasOkr && !hasOnboarding) return null;
@@ -55,9 +71,13 @@ export function OkrDashboardWidget({ orgId, onNavigateOkr, onNavigateOnboarding 
 
   // Onboarding: compute aggregate progress
   const onboardingTotal = onboardingInstances.length;
-  const onboardingAvgProgress = onboardingTotal > 0
-    ? Math.round(onboardingInstances.reduce((sum, i) => sum + i.progress_percent, 0) / onboardingTotal)
-    : 0;
+  const onboardingAvgProgress =
+    onboardingTotal > 0
+      ? Math.round(
+          onboardingInstances.reduce((sum, i) => sum + i.progress_percent, 0) /
+            onboardingTotal,
+        )
+      : 0;
 
   return (
     <motion.div
@@ -92,17 +112,25 @@ export function OkrDashboardWidget({ orgId, onNavigateOkr, onNavigateOnboarding 
                   {progress}%
                 </span>
               </div>
-              <OkrProgressBar progress={treeData.overall_progress} size="sm" animated />
+              <OkrProgressBar
+                progress={treeData.overall_progress}
+                size="sm"
+                animated
+              />
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
               <div className="flex items-center gap-1">
                 <Target size={11} className="text-slate-500" />
-                <span className="text-[10px] font-bold text-slate-400">{treeData.total_objectives}</span>
+                <span className="text-[10px] font-bold text-slate-400">
+                  {treeData.total_objectives}
+                </span>
               </div>
               <div className="flex items-center gap-1">
                 <BarChart3 size={11} className="text-slate-500" />
-                <span className="text-[10px] font-bold text-slate-400">{treeData.total_key_results}</span>
+                <span className="text-[10px] font-bold text-slate-400">
+                  {treeData.total_key_results}
+                </span>
               </div>
             </div>
 

@@ -126,7 +126,10 @@ export function MemberDetailModal({
   const loadLeaveBalances = useCallback(async () => {
     if (!memberId) return;
     try {
-      const data = await organizationService.getMemberLeaveBalances(orgId, memberId);
+      const data = await organizationService.getMemberLeaveBalances(
+        orgId,
+        memberId,
+      );
       setLeaveBalances(data);
     } catch {
       setLeaveBalances([]);
@@ -262,7 +265,9 @@ export function MemberDetailModal({
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
               {/* Tab Navigation */}
               <div className="flex gap-1 border-b border-foreground/[0.08] px-4 sm:px-6 shrink-0 overflow-x-auto">
-                {TABS.map((tab) => {
+                {TABS.filter(
+                  (tab) => !(tab.key === "history" && hrSystemEnabled),
+                ).map((tab) => {
                   const Icon = tab.icon;
                   return (
                     <button

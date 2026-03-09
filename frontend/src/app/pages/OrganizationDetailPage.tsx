@@ -186,17 +186,28 @@ function OrgDetailPageContent() {
     if (g.adminOnly && !isAdmin) return false;
     if (g.key === "leave" && hrSystemEnabled) return false;
     return true;
+  }).map((g) => {
+    // HR 시스템 활성화 시 설정 서브탭에서 근태 정책/온보딩 숨김
+    if (g.key === "settings" && hrSystemEnabled && g.subTabs) {
+      return {
+        ...g,
+        subTabs: g.subTabs.filter(
+          (s) => s.key !== "settings_attendance" && s.key !== "settings_onboarding",
+        ),
+      };
+    }
+    return g;
   });
 
   const activeGroup = useMemo(() => {
     return (
-      TAB_GROUPS.find(
+      visibleGroups.find(
         (g) =>
           g.defaultTab === activeTab ||
           g.subTabs?.some((s) => s.key === activeTab),
-      ) || TAB_GROUPS[0]
+      ) || visibleGroups[0]
     );
-  }, [activeTab]);
+  }, [activeTab, visibleGroups]);
 
   const aggregatedLeave = useMemo(() => {
     const active = myLeaveBalances.filter((b) => b.is_active !== false);
