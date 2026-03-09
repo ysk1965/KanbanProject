@@ -63,7 +63,7 @@ public class OrgPhoto extends BaseTimeEntity {
     private String caption;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "uploaded_by", nullable = false)
+    @JoinColumn(name = "uploaded_by")
     private User uploadedBy;
 
     @PrePersist

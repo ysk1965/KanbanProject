@@ -435,6 +435,119 @@ public class OrgPhotoService {
                 .build();
     }
 
+    // ==================== Upload Link Operations ====================
+
+    @Transactional
+    public OrgPhotoResponse.TabInfo enableUploadLink(String orgId, String userId, String tabId) {
+        organizationService.checkAdminOrAbove(orgId, userId);
+        OrgPhotoTab tab = getTabOrThrow(tabId, orgId);
+        tab.enableUpload();
+        log.info("Upload link enabled: tabId={}, orgId={}, userId={}", tabId, orgId, userId);
+        return OrgPhotoResponse.TabInfo.from(tab);
+    }
+
+    @Transactional
+    public OrgPhotoResponse.TabInfo disableUploadLink(String orgId, String userId, String tabId) {
+        organizationService.checkAdminOrAbove(orgId, userId);
+        OrgPhotoTab tab = getTabOrThrow(tabId, orgId);
+        tab.disableUpload();
+        log.info("Upload link disabled: tabId={}, orgId={}, userId={}", tabId, orgId, userId);
+        return OrgPhotoResponse.TabInfo.from(tab);
+    }
+
+    public OrgPhotoResponse.UploadAlbumInfo getUploadAlbumInfo(String uploadToken) {
+        OrgPhotoTab tab = orgPhotoTabRepository.findByUploadTokenAndIsUploadEnabledTrue(uploadToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
+        if (!tab.isUploadTokenValid()) {
+            throw new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND);
+        }
+        Organization org = tab.getOrganization();
+        return OrgPhotoResponse.UploadAlbumInfo.builder()
+                .albumName(tab.getName())
+                .albumDescription(tab.getDescription())
+                .organizationName(org.getName())
+                .organizationLogoUrl(org.getLogoUrl())
+                .expiresAt(tab.getUploadTokenExpiresAt())
+                .build();
+    }
+
+    @Transactional
+    public List<OrgPhotoResponse.PhotoDetail> publicUploadPhotos(String uploadToken, List<MultipartFile> files) {
+        OrgPhotoTab tab = orgPhotoTabRepository.findByUploadTokenAndIsUploadEnabledTrue(uploadToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
+        if (!tab.isUploadTokenValid()) {
+            throw new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND);
+        }
+
+        Organization org = tab.getOrganization();
+        String orgId = org.getId();
+        String tabId = tab.getId();
+
+        List<OrgPhotoResponse.PhotoDetail> results = new ArrayList<>();
+
+        for (MultipartFile file : files) {
+            try {
+                fileUploadService.validateFile(file);
+
+                byte[] fileBytes = file.getBytes();
+                String contentType = file.getContentType();
+                String originalFilename = file.getOriginalFilename();
+                String ext = MediaUtils.getExtension(originalFilename);
+                String uuid = UUID.randomUUID().toString();
+
+                String s3Key = String.format("photos/org/%s/%s/%s%s", orgId, tabId, uuid, ext);
+                String url = fileUploadService.uploadDirect(fileBytes, s3Key, contentType);
+
+                String thumbnailKey = String.format("photos/org/%s/%s/%s_thumb.jpg", orgId, tabId, uuid);
+                String thumbnailUrl = null;
+                try {
+                    byte[] thumbnailBytes = MediaUtils.generateThumbnail(fileBytes, THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_HEIGHT);
+                    thumbnailUrl = fileUploadService.uploadDirect(thumbnailBytes, thumbnailKey, "image/jpeg");
+                } catch (IOException e) {
+                    log.warn("Failed to generate thumbnail for {}: {}", originalFilename, e.getMessage());
+                    thumbnailKey = null;
+                }
+
+                Integer width = null;
+                Integer height = null;
+                try {
+                    BufferedImage bufferedImage = ImageIO.read(new ByteArrayInputStream(fileBytes));
+                    if (bufferedImage != null) {
+                        width = bufferedImage.getWidth();
+                        height = bufferedImage.getHeight();
+                    }
+                } catch (IOException e) {
+                    log.warn("Failed to read image dimensions for {}: {}", originalFilename, e.getMessage());
+                }
+
+                OrgPhoto photo = OrgPhoto.builder()
+                        .tab(tab)
+                        .organization(org)
+                        .s3Key(s3Key)
+                        .thumbnailKey(thumbnailKey)
+                        .url(url)
+                        .thumbnailUrl(thumbnailUrl)
+                        .originalFilename(originalFilename)
+                        .fileSize(file.getSize())
+                        .contentType(contentType)
+                        .width(width)
+                        .height(height)
+                        .build();
+                orgPhotoRepository.save(photo);
+
+                tab.incrementPhotoCount();
+
+                results.add(OrgPhotoResponse.PhotoDetail.from(photo));
+            } catch (IOException e) {
+                log.error("Failed to upload photo {}: {}", file.getOriginalFilename(), e.getMessage());
+                throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+            }
+        }
+
+        log.info("Public photos uploaded: orgId={}, tabId={}, count={}", orgId, tabId, files.size());
+        return results;
+    }
+
     // ==================== Gallery-Level Sharing ====================
 
     @Transactional

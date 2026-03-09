@@ -26,6 +26,7 @@ import { AnnouncementsPage } from './pages/AnnouncementsPage';
 import { SharedNotePage } from './pages/SharedNotePage';
 import { SharedAlbumPage } from './pages/SharedAlbumPage';
 import { SharedGalleryPage } from './pages/SharedGalleryPage';
+import { PublicUploadPage } from './pages/PublicUploadPage';
 import BibleTranscriptionPage from './pages/BibleTranscriptionPage';
 import RoulettePage from './pages/RoulettePage';
 import { CustomIconPage } from './pages/CustomIconPage';
@@ -458,6 +459,9 @@ function AppRoutes() {
       {/* 공유 갤러리 (공개 - 인증 불필요, 다중 앨범 탭) */}
       <Route path="/shared/gallery/:shareToken" element={<SharedGalleryPage />} />
 
+      {/* 공개 업로드 (인증 불필요) */}
+      <Route path="/shared/upload/:uploadToken" element={<PublicUploadPage />} />
+
       {/* 공지사항 */}
       <Route path="/announcements" element={<AnnouncementsPage />} />
 
@@ -587,6 +591,7 @@ const MAINTENANCE_ALLOWED_PATHS = [
   '/shared/note',
   '/shared/album',
   '/shared/gallery',
+  '/shared/upload',
 ];
 
 // 점검 모드 + 공지사항 래퍼

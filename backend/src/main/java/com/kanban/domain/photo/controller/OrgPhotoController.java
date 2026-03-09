@@ -120,6 +120,24 @@ public class OrgPhotoController {
         ));
     }
 
+    // ==================== Upload Link Endpoints ====================
+
+    @PostMapping("/tabs/{tabId}/upload-link")
+    public ResponseEntity<OrgPhotoResponse.TabInfo> enableUploadLink(
+            @PathVariable String orgId,
+            @PathVariable String tabId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(orgPhotoService.enableUploadLink(orgId, principal.getUserId(), tabId));
+    }
+
+    @DeleteMapping("/tabs/{tabId}/upload-link")
+    public ResponseEntity<OrgPhotoResponse.TabInfo> disableUploadLink(
+            @PathVariable String orgId,
+            @PathVariable String tabId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(orgPhotoService.disableUploadLink(orgId, principal.getUserId(), tabId));
+    }
+
     // ==================== Photo Endpoints ====================
 
     @GetMapping
