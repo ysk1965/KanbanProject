@@ -122,14 +122,21 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
             value: org?.board_count ?? 0,
             tab: "boards" as const,
           },
-          ...(!hrSystemEnabled ? [{
-            icon: CalendarOff,
-            bgClass: "bg-amber-500/15",
-            textClass: "text-amber-500",
-            label: t("organization.dashboard.todayLeaves", "Today's Leaves"),
-            value: todayLeaves.length,
-            tab: "leaves" as const,
-          }] : []),
+          ...(!hrSystemEnabled
+            ? [
+                {
+                  icon: CalendarOff,
+                  bgClass: "bg-amber-500/15",
+                  textClass: "text-amber-500",
+                  label: t(
+                    "organization.dashboard.todayLeaves",
+                    "Today's Leaves",
+                  ),
+                  value: todayLeaves.length,
+                  tab: "leaves" as const,
+                },
+              ]
+            : []),
         ].map((stat, index, arr) => (
           <div
             key={stat.label}
@@ -149,7 +156,10 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
             <span className="text-lg font-bold text-foreground ml-auto shrink-0">
               {stat.value}
             </span>
-            <ChevronRight size={12} className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 hidden md:block" />
+            <ChevronRight
+              size={12}
+              className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 hidden md:block"
+            />
           </div>
         ))}
         {subscription && (
@@ -165,13 +175,16 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
       </motion.div>
 
       {/* 2. Attendance Widget */}
-      <AttendanceWidget orgId={orgId} />
+      {!hrSystemEnabled && <AttendanceWidget orgId={orgId} />}
 
       {/* 3. OKR + Onboarding Widget */}
       <OkrDashboardWidget
         orgId={orgId}
         onNavigateOkr={() => setSearchParams({ tab: "okr" })}
-        onNavigateOnboarding={() => setSearchParams({ tab: "settings", subtab: "onboarding" })}
+        onNavigateOnboarding={() =>
+          setSearchParams({ tab: "settings", subtab: "onboarding" })
+        }
+        hrSystemEnabled={hrSystemEnabled}
       />
 
       {/* 4. Feed — Anniversaries + Announcements (Shorts-style swipe) */}
