@@ -1138,6 +1138,37 @@ export const boardAPI = {
 };
 
 // ========================================
+// Board Join Request API
+// ========================================
+
+export const boardJoinRequestAPI = {
+  create: async (boardId: string, data?: { message?: string }) => {
+    return apiClient.post<import("../types").BoardJoinRequest>(
+      `/boards/${boardId}/join-requests`,
+      data || {},
+    );
+  },
+
+  list: async (boardId: string) => {
+    return apiClient.get<{ requests: import("../types").BoardJoinRequest[] }>(
+      `/boards/${boardId}/join-requests`,
+    );
+  },
+
+  approve: async (boardId: string, requestId: string) => {
+    return apiClient.patch<import("../types").BoardJoinRequest>(
+      `/boards/${boardId}/join-requests/${requestId}/approve`,
+    );
+  },
+
+  reject: async (boardId: string, requestId: string) => {
+    return apiClient.patch<import("../types").BoardJoinRequest>(
+      `/boards/${boardId}/join-requests/${requestId}/reject`,
+    );
+  },
+};
+
+// ========================================
 // Block API
 // ========================================
 
