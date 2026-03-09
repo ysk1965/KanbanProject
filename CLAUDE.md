@@ -405,10 +405,59 @@ Controller → Service (비즈니스 로직) → Repository (JPA)
 
 #### Flyway 마이그레이션
 - 의존성: `flyway-core` + `flyway-database-postgresql` (Spring Boot BOM 관리)
-- 마이그레이션 위치: `backend/src/main/resources/db/migration/` (V5~V86)
+- 마이그레이션 위치: `backend/src/main/resources/db/migration/`
 - 기존 DB baseline: V86 (`baseline-on-migrate: true`)
-- 신규 마이그레이션: V87부터 추가 (`V87__description.sql`)
+- 기존 파일: V5~V94 (순차 번호, 레거시)
 - `SchemaMigrationInitializer`: 레거시 패치 (멱등, Flyway와 공존)
+
+#### ⚠️ 신규 마이그레이션 작성 규칙 (필수)
+
+**타임스탬프 기반 버전 네이밍** — 동시 작업 충돌 방지를 위해 순차 번호(V95, V96...) 사용 금지.
+
+```
+# 형식: V{YYYYMMDD_HHmmss}__{description}.sql
+# 예시:
+V20260309_143022__add_column_to_users.sql
+V20260309_150100__create_some_table.sql
+```
+
+**작성 절차:**
+1. 현재 시각(UTC 기준)으로 타임스탬프 생성: `date -u +%Y%m%d_%H%M%S`
+2. 파일명: `V{타임스탬프}__{설명}.sql` (언더스코어 2개로 버전과 설명 구분)
+3. SQL은 반드시 **멱등성** 확보 (IF NOT EXISTS, IF EXISTS 사용)
+4. 새 테이블 생성 시: `CREATE TABLE IF NOT EXISTS`
+5. 컬럼 추가 시: `DO $$ BEGIN ... EXCEPTION WHEN duplicate_column THEN NULL; END $$;`
+6. 제약조건 추가 시: `IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = '...')`
+
+**멱등성 SQL 템플릿:**
+```sql
+-- 컬럼 추가 (멱등)
+DO $$ BEGIN
+    ALTER TABLE {table} ADD COLUMN {column} {type};
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+-- 테이블 생성 (멱등)
+CREATE TABLE IF NOT EXISTS {table} (
+    id VARCHAR(36) PRIMARY KEY,
+    ...
+);
+
+-- 인덱스 생성 (멱등)
+CREATE INDEX IF NOT EXISTS idx_{table}_{column} ON {table}({column});
+
+-- CHECK 제약조건 추가 (멱등)
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = '{constraint_name}') THEN
+        ALTER TABLE {table} ADD CONSTRAINT {constraint_name} CHECK (...);
+    END IF;
+END $$;
+```
+
+**금지 사항:**
+- ❌ `V95__`, `V96__` 등 순차 번호 사용 금지
+- ❌ 멱등성 없는 DDL (예: `ALTER TABLE ... ADD COLUMN ...` 직접 사용)
+- ❌ 다른 세션의 마이그레이션 파일 버전 번호 수정
 
 ---
 
