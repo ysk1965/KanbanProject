@@ -165,16 +165,24 @@ export function MemberProfileTab({
     {
       title: t("organization.members.detail.orgPosition"),
       fields: [
-        ...(deptOn ? [{
-          key: "department",
-          label: t("organization.members.detail.department"),
-          value: member.department?.name,
-        }] : []),
-        ...(posOn ? [{
-          key: "position",
-          label: t("organization.members.detail.position"),
-          value: member.position?.name,
-        }] : []),
+        ...(deptOn
+          ? [
+              {
+                key: "department",
+                label: t("organization.members.detail.department"),
+                value: member.department?.name,
+              },
+            ]
+          : []),
+        ...(posOn
+          ? [
+              {
+                key: "position",
+                label: t("organization.members.detail.position"),
+                value: member.position?.name,
+              },
+            ]
+          : []),
       ],
     },
     {
@@ -185,73 +193,89 @@ export function MemberProfileTab({
           label: t("organization.members.detail.jobTitle"),
           value: member.job_title,
         },
-        ...(jgOn ? [{
-          key: "job_group",
-          label: t("organization.members.detail.jobGroup"),
-          value: member.job_group?.name,
-        }] : []),
+        ...(jgOn
+          ? [
+              {
+                key: "job_group",
+                label: t("organization.members.detail.jobGroup"),
+                value: member.job_group?.name,
+              },
+            ]
+          : []),
       ],
     },
     {
       title: t("organization.members.detail.rankInfo"),
       fields: [
-        ...(titleOn ? [{
-          key: "title",
-          label: t("organization.members.detail.title"),
-          value: member.title?.name,
-        }] : []),
-        ...(gradeOn ? [{
-          key: "grade",
-          label: t("organization.members.detail.grade"),
-          value: member.grade?.name,
-        }] : []),
+        ...(titleOn
+          ? [
+              {
+                key: "title",
+                label: t("organization.members.detail.title"),
+                value: member.title?.name,
+              },
+            ]
+          : []),
+        ...(gradeOn
+          ? [
+              {
+                key: "grade",
+                label: t("organization.members.detail.grade"),
+                value: member.grade?.name,
+              },
+            ]
+          : []),
       ],
     },
-    ...(!hrSystemEnabled ? [{
-      title: t("organization.members.detail.sectionPersonal"),
-      fields: [
-        {
-          key: "employee_id",
-          label: t("organization.members.detail.employeeId"),
-          value: member.employee_id,
-          adminOnly: true,
-        },
-        {
-          key: "contract_type",
-          label: t("organization.members.detail.contractType"),
-          value: t(
-            `organization.members.detail.${CONTRACT_LABELS[member.contract_type]}`,
-          ),
-          adminOnly: true,
-        },
-        {
-          key: "phone",
-          label: t("organization.members.detail.phone"),
-          value: member.phone,
-        },
-        {
-          key: "birth_date",
-          label: t("organization.members.detail.birthDate"),
-          value: formatDate(member.birth_date),
-          adminOnly: true,
-        },
-        {
-          key: "hire_date",
-          label: t("organization.members.detail.hireDate"),
-          value: formatDate(member.hire_date),
-          adminOnly: true,
-        },
-        {
-          key: "tenure",
-          label: t("organization.members.detail.tenure"),
-          value:
-            member.tenure_months != null
-              ? formatTenure(member.tenure_months, t)
-              : "—",
-          readOnly: true,
-        },
-      ],
-    }] : []),
+    ...(!hrSystemEnabled
+      ? [
+          {
+            title: t("organization.members.detail.sectionPersonal"),
+            fields: [
+              {
+                key: "employee_id",
+                label: t("organization.members.detail.employeeId"),
+                value: member.employee_id,
+                adminOnly: true,
+              },
+              {
+                key: "contract_type",
+                label: t("organization.members.detail.contractType"),
+                value: t(
+                  `organization.members.detail.${CONTRACT_LABELS[member.contract_type]}`,
+                ),
+                adminOnly: true,
+              },
+              {
+                key: "phone",
+                label: t("organization.members.detail.phone"),
+                value: member.phone,
+              },
+              {
+                key: "birth_date",
+                label: t("organization.members.detail.birthDate"),
+                value: formatDate(member.birth_date),
+                adminOnly: true,
+              },
+              {
+                key: "hire_date",
+                label: t("organization.members.detail.hireDate"),
+                value: formatDate(member.hire_date),
+                adminOnly: true,
+              },
+              {
+                key: "tenure",
+                label: t("organization.members.detail.tenure"),
+                value:
+                  member.tenure_months != null
+                    ? formatTenure(member.tenure_months, t)
+                    : "—",
+                readOnly: true,
+              },
+            ],
+          },
+        ]
+      : []),
   ];
 
   const concurrentDepts =
@@ -286,7 +310,7 @@ export function MemberProfileTab({
               className="space-y-0"
             >
               {/* Employee ID */}
-              {isAdmin && (
+              {isAdmin && !hrSystemEnabled && (
                 <EditRow label={t("organization.members.detail.employeeId")}>
                   <input
                     type="text"
@@ -299,7 +323,7 @@ export function MemberProfileTab({
                 </EditRow>
               )}
               {/* Contract Type */}
-              {isAdmin && (
+              {isAdmin && !hrSystemEnabled && (
                 <EditRow label={t("organization.members.detail.contractType")}>
                   <select
                     value={form.contract_type}
@@ -437,7 +461,7 @@ export function MemberProfileTab({
                 />
               </EditRow>
               {/* Birth Date */}
-              {isAdmin && (
+              {isAdmin && !hrSystemEnabled && (
                 <EditRow label={t("organization.members.detail.birthDate")}>
                   <input
                     type="date"
@@ -450,7 +474,7 @@ export function MemberProfileTab({
                 </EditRow>
               )}
               {/* Hire Date */}
-              {isAdmin && (
+              {isAdmin && !hrSystemEnabled && (
                 <EditRow label={t("organization.members.detail.hireDate")}>
                   <input
                     type="date"
@@ -488,48 +512,50 @@ export function MemberProfileTab({
               exit={{ opacity: 0 }}
               className="space-y-5"
             >
-              {infoSections.filter((s) => s.fields.length > 0).map((section) => (
-                <div key={section.title}>
-                  <h4 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
-                    {section.title}
-                  </h4>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-0">
-                    {section.fields.map((field) => (
-                      <div
-                        key={field.key}
-                        className="flex items-center py-2.5 border-b border-foreground/[0.08]"
-                      >
-                        <span className="w-20 text-xs text-slate-400 shrink-0">
-                          {field.label}
-                        </span>
-                        <span className="text-sm text-foreground truncate">
-                          {field.value || "—"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Concurrent depts display after 조직·직책 section */}
-                  {section.fields.some((f) => f.key === "department") &&
-                    concurrentDepts.length > 0 && (
-                      <div className="mt-2">
-                        <span className="text-xs text-slate-400">
-                          {t("organization.members.detail.concurrentDepts")}
-                        </span>
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          {concurrentDepts.map((cd) => (
-                            <span
-                              key={cd.id}
-                              className="inline-flex items-center text-xs text-slate-500 bg-foreground/[0.03] border border-foreground/[0.08] rounded-full px-2.5 py-0.5"
-                            >
-                              {cd.department.name}
-                              {cd.position ? ` · ${cd.position.name}` : ""}
-                            </span>
-                          ))}
+              {infoSections
+                .filter((s) => s.fields.length > 0)
+                .map((section) => (
+                  <div key={section.title}>
+                    <h4 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+                      {section.title}
+                    </h4>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-0">
+                      {section.fields.map((field) => (
+                        <div
+                          key={field.key}
+                          className="flex items-center py-2.5 border-b border-foreground/[0.08]"
+                        >
+                          <span className="w-20 text-xs text-slate-400 shrink-0">
+                            {field.label}
+                          </span>
+                          <span className="text-sm text-foreground truncate">
+                            {field.value || "—"}
+                          </span>
                         </div>
-                      </div>
-                    )}
-                </div>
-              ))}
+                      ))}
+                    </div>
+                    {/* Concurrent depts display after 조직·직책 section */}
+                    {section.fields.some((f) => f.key === "department") &&
+                      concurrentDepts.length > 0 && (
+                        <div className="mt-2">
+                          <span className="text-xs text-slate-400">
+                            {t("organization.members.detail.concurrentDepts")}
+                          </span>
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {concurrentDepts.map((cd) => (
+                              <span
+                                key={cd.id}
+                                className="inline-flex items-center text-xs text-slate-500 bg-foreground/[0.03] border border-foreground/[0.08] rounded-full px-2.5 py-0.5"
+                              >
+                                {cd.department.name}
+                                {cd.position ? ` · ${cd.position.name}` : ""}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                ))}
             </motion.div>
           )}
         </AnimatePresence>
