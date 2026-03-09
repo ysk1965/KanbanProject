@@ -631,7 +631,7 @@
     "changeBillingCycle": "Cambiar ciclo de facturación",
     "confirmCancel": "Sí, cancelar",
     "currentSeats": "Puestos actuales",
-    "purchaseSeats": "Comprar puestos",
+    "upgradePro": "Actualizar a PRO",
     "creditChangeLabel": "Cambio de créditos AI",
     "creditCurrentMonthly": "Créditos mensuales actuales",
     "creditAfterPurchase": "Después de la compra",
@@ -3167,7 +3167,18 @@
         "createButton": "Crear Tablero",
         "noAvailable": "No hay tableros disponibles para agregar",
         "nonOrgMembers": "Miembros no organizacionales",
-        "addButton": "Agregar tablero"
+        "addButton": "Agregar tablero",
+        "upgradeTitle": "Se requiere plan PRO",
+        "upgradeDesc": "Actualiza tu organización al plan PRO para crear tableros libremente y colaborar con los miembros.",
+        "upgradeLinkDesc": "Actualiza al plan PRO para vincular tableros existentes a tu organización y gestionarlos de forma centralizada.",
+        "upgradeBenefit1": "Creación ilimitada de tableros",
+        "upgradeBenefit1Desc": "Crea tantos tableros como tu equipo necesite",
+        "upgradeBenefit2": "Colaboración en equipo",
+        "upgradeBenefit2Desc": "Todos los miembros de la organización pueden acceder y colaborar",
+        "upgradeBenefit3": "Funciones premium incluidas",
+        "upgradeBenefit3Desc": "IA, análisis y todas las funciones premium",
+        "upgradePro": "Actualizar a PRO",
+        "trialBoardHint": "Puedes crear tableros regulares desde la lista de tableros. Los tableros gestionados por la organización requieren un plan PRO."
       },
       "leave": {
         "myBalance": "Mi saldo de licencia",
@@ -3721,7 +3732,18 @@
       "createButton": "Crear tablero",
       "noAvailable": "No hay tableros disponibles",
       "nonOrgMembers": "Miembros fuera de la organización",
-      "addButton": "Agregar tablero"
+      "addButton": "Agregar tablero",
+      "upgradeTitle": "Se requiere plan PRO",
+      "upgradeDesc": "Actualiza tu organización al plan PRO para crear tableros libremente y colaborar con los miembros.",
+      "upgradeLinkDesc": "Actualiza al plan PRO para vincular tableros existentes a tu organización y gestionarlos de forma centralizada.",
+      "upgradeBenefit1": "Creación ilimitada de tableros",
+      "upgradeBenefit1Desc": "Crea tantos tableros como tu equipo necesite",
+      "upgradeBenefit2": "Colaboración en equipo",
+      "upgradeBenefit2Desc": "Todos los miembros de la organización pueden acceder y colaborar",
+      "upgradeBenefit3": "Funciones premium incluidas",
+      "upgradeBenefit3Desc": "IA, análisis y todas las funciones premium",
+      "upgradePro": "Actualizar a PRO",
+      "trialBoardHint": "Puedes crear tableros regulares desde la lista de tableros. Los tableros gestionados por la organización requieren un plan PRO."
     },
     "leave": {
       "myBalance": "Mi saldo de permisos",

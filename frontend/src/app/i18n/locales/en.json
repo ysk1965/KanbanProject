@@ -3700,17 +3700,17 @@
       "noAvailable": "No available boards to add",
       "nonOrgMembers": "Non-org members",
       "addButton": "Add Board",
-      "upgradeTitle": "Seat purchase required",
-      "upgradeDesc": "Purchase seats for your organization to freely create boards and collaborate with your team members.",
-      "upgradeLinkDesc": "Purchase seats to link existing boards to your organization and manage them centrally.",
+      "upgradeTitle": "PRO plan required",
+      "upgradeDesc": "Upgrade your organization to the PRO plan to create and manage boards within the organization.",
+      "upgradeLinkDesc": "Upgrade to the PRO plan to link existing boards to your organization and manage them centrally.",
       "upgradeBenefit1": "Unlimited board creation",
       "upgradeBenefit1Desc": "Create as many boards as your team needs",
       "upgradeBenefit2": "Team collaboration",
       "upgradeBenefit2Desc": "All organization members can access and collaborate",
       "upgradeBenefit3": "Premium features included",
       "upgradeBenefit3Desc": "AI, analytics, and all premium features",
-      "purchaseSeats": "Purchase Seats",
-      "trialBoardHint": "You can still create regular boards from the board list. Organization-managed boards require a seat purchase."
+      "upgradePro": "Upgrade to PRO",
+      "trialBoardHint": "You can create regular boards from the board list. Organization-managed boards require a PRO plan."
     },
     "leave": {
       "myBalance": "My Leave Balance",

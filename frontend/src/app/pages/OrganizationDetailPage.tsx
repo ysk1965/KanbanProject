@@ -181,7 +181,12 @@ function OrgDetailPageContent() {
     setSearchParams({ tab });
   }, [setSearchParams]);
 
-  const visibleGroups = TAB_GROUPS.filter((g) => !g.adminOnly || isAdmin);
+  const hrSystemEnabled = org?.hr_system_enabled === true;
+  const visibleGroups = TAB_GROUPS.filter((g) => {
+    if (g.adminOnly && !isAdmin) return false;
+    if (g.key === "leave" && hrSystemEnabled) return false;
+    return true;
+  });
 
   const activeGroup = useMemo(() => {
     return (
@@ -381,7 +386,7 @@ function OrgDetailPageContent() {
 
           {/* Right: Leave + Profile */}
           <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
-            {aggregatedLeave && (
+            {aggregatedLeave && !hrSystemEnabled && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button onClick={() => setActiveTab("leaves")} className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full bg-foreground/[0.03] border border-foreground/[0.08] cursor-pointer hover:border-foreground/[0.15] transition-colors">
@@ -528,7 +533,7 @@ function OrgDetailPageContent() {
             true,
           )}
           {renderTab("settings_attendance",
-            <OrgSettingsAttendanceSubTab orgId={orgId} onLeaveBalanceChange={refreshLeaveBalances} />,
+            <OrgSettingsAttendanceSubTab orgId={orgId} onLeaveBalanceChange={refreshLeaveBalances} hrSystemEnabled={hrSystemEnabled} />,
             true,
           )}
           {renderTab("settings_onboarding",

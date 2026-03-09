@@ -29,6 +29,7 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
   const { t } = useTranslation();
   const [, setSearchParams] = useSearchParams();
   const { org, subscription, loadSubscription } = useOrgData();
+  const hrSystemEnabled = org?.hr_system_enabled === true;
   const [todayLeaves, setTodayLeaves] = useState<LeaveRequestResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -55,18 +56,20 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
         // Load subscription via shared context (no duplicate call)
         loadSubscription();
 
-        // Fetch today's approved leaves
-        const today = getTodayDateString();
-        try {
-          const leavesData = await leaveService.getRequests(orgId, {
-            status: "APPROVED",
-            start_date: today,
-            end_date: today,
-            size: 100,
-          });
-          setTodayLeaves(leavesData.content);
-        } catch {
-          // Leave data is optional
+        // Fetch today's approved leaves (skip if HR system is enabled)
+        if (!hrSystemEnabled) {
+          const today = getTodayDateString();
+          try {
+            const leavesData = await leaveService.getRequests(orgId, {
+              status: "APPROVED",
+              start_date: today,
+              end_date: today,
+              size: 100,
+            });
+            setTodayLeaves(leavesData.content);
+          } catch {
+            // Leave data is optional
+          }
         }
       } catch (error) {
         console.warn("Failed to fetch dashboard data:", error);
@@ -119,14 +122,14 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
             value: org?.board_count ?? 0,
             tab: "boards" as const,
           },
-          {
+          ...(!hrSystemEnabled ? [{
             icon: CalendarOff,
             bgClass: "bg-amber-500/15",
             textClass: "text-amber-500",
             label: t("organization.dashboard.todayLeaves", "Today's Leaves"),
             value: todayLeaves.length,
             tab: "leaves" as const,
-          },
+          }] : []),
         ].map((stat, index, arr) => (
           <div
             key={stat.label}

@@ -2086,6 +2086,7 @@ export interface OrganizationSimple {
   trial_ends_at?: string | null;  // ISO8601
   can_create_org_board?: boolean;
   can_access_hr_features?: boolean;
+  hr_system_enabled?: boolean;
 }
 
 export interface OrganizationDetail extends OrganizationSimple {

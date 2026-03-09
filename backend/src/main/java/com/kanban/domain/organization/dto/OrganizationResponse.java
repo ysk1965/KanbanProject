@@ -29,6 +29,7 @@ public class OrganizationResponse {
         private String trialEndsAt;
         private boolean canCreateOrgBoard;
         private boolean canAccessHrFeatures;
+        private boolean hrSystemEnabled;
 
         public static Simple of(Organization org, OrgRole myRole, int memberCount, int boardCount) {
             return Simple.builder()
@@ -46,6 +47,7 @@ public class OrganizationResponse {
                             ? org.getSubscription().getTrialEndsAt().toString() : null)
                     .canCreateOrgBoard(org.getSubscription() != null && org.getSubscription().canCreateOrgBoard())
                     .canAccessHrFeatures(org.getSubscription() != null && org.getSubscription().canAccessHrFeatures())
+                    .hrSystemEnabled(Boolean.TRUE.equals(org.getHrSystemEnabled()))
                     .build();
         }
     }
@@ -70,6 +72,7 @@ public class OrganizationResponse {
         private String trialEndsAt;
         private boolean canCreateOrgBoard;
         private boolean canAccessHrFeatures;
+        private boolean hrSystemEnabled;
 
         public static Detail of(Organization org, OrgRole myRole, String myMemberId, int memberCount, int boardCount) {
             return Detail.builder()
@@ -90,6 +93,7 @@ public class OrganizationResponse {
                             ? org.getSubscription().getTrialEndsAt().toString() : null)
                     .canCreateOrgBoard(org.getSubscription() != null && org.getSubscription().canCreateOrgBoard())
                     .canAccessHrFeatures(org.getSubscription() != null && org.getSubscription().canAccessHrFeatures())
+                    .hrSystemEnabled(Boolean.TRUE.equals(org.getHrSystemEnabled()))
                     .build();
         }
     }

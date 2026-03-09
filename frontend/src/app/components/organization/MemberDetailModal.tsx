@@ -11,6 +11,7 @@ import { MemberBoardsTab } from "./member/MemberBoardsTab";
 import { MemberOneOnOneTab } from "./member/MemberOneOnOneTab";
 import { MemberSidebar } from "./member/MemberSidebar";
 import { organizationService } from "../../utils/services";
+import { useOrgData } from "../../contexts/OrgDataContext";
 import type {
   OrgMemberDetail,
   OrgMemberBoard,
@@ -82,6 +83,8 @@ export function MemberDetailModal({
 }: MemberDetailModalProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { org } = useOrgData();
+  const hrSystemEnabled = org?.hr_system_enabled === true;
 
   const [member, setMember] = useState<OrgMemberDetail | null>(null);
   const [boards, setBoards] = useState<OrgMemberBoard[]>([]);
@@ -139,12 +142,12 @@ export function MemberDetailModal({
     }
   }, [open, memberId, loadData, loadBoards]);
 
-  // Load leave balances only after member is loaded (need isSelf check)
+  // Load leave balances only after member is loaded (need isSelf check), skip if HR system enabled
   useEffect(() => {
-    if (member && (isAdmin || isSelf)) {
+    if (member && (isAdmin || isSelf) && !hrSystemEnabled) {
       loadLeaveBalances();
     }
-  }, [member, isAdmin, isSelf, loadLeaveBalances]);
+  }, [member, isAdmin, isSelf, hrSystemEnabled, loadLeaveBalances]);
 
   const handleChangeRole = async (role: OrgRole) => {
     try {
@@ -303,7 +306,8 @@ export function MemberDetailModal({
                     titles={titles}
                     grades={grades}
                     structureSettings={structureSettings}
-                    leaveBalances={leaveBalances}
+                    leaveBalances={hrSystemEnabled ? [] : leaveBalances}
+                    hrSystemEnabled={hrSystemEnabled}
                     onUpdate={handleMemberUpdate}
                   />
                 )}
@@ -347,9 +351,10 @@ export function MemberDetailModal({
               <MemberSidebar
                 member={member}
                 boards={boards}
-                leaveBalances={leaveBalances}
+                leaveBalances={hrSystemEnabled ? [] : leaveBalances}
                 isAdmin={isAdmin}
                 isSelf={isSelf}
+                hrSystemEnabled={hrSystemEnabled}
               />
             </div>
           </div>
