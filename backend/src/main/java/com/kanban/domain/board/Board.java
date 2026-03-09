@@ -224,6 +224,13 @@ public class Board extends BaseTimeEntity {
     }
 
     /**
+     * Discord 연동 기능 접근 가능 여부
+     */
+    public boolean canAccessDiscord() {
+        return isEffectivelyPremium();
+    }
+
+    /**
      * Premium으로 업그레이드
      */
     public void upgradeToPremium() {

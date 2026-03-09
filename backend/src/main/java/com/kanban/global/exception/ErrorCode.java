@@ -168,6 +168,12 @@ public enum ErrorCode {
     SLACK_WEBHOOK_TEST_FAILED(HttpStatus.BAD_GATEWAY, "SK003", "Slack 테스트 메시지 전송에 실패했습니다"),
     SLACK_PREMIUM_REQUIRED(HttpStatus.FORBIDDEN, "SK004", "Slack 연동은 Premium에서만 사용 가능합니다"),
 
+    // Discord Integration
+    DISCORD_WEBHOOK_NOT_FOUND(HttpStatus.NOT_FOUND, "DK001", "Discord 웹훅 설정을 찾을 수 없습니다"),
+    DISCORD_WEBHOOK_INVALID_URL(HttpStatus.BAD_REQUEST, "DK002", "유효하지 않은 Discord 웹훅 URL입니다"),
+    DISCORD_WEBHOOK_TEST_FAILED(HttpStatus.BAD_GATEWAY, "DK003", "Discord 테스트 메시지 전송에 실패했습니다"),
+    DISCORD_PREMIUM_REQUIRED(HttpStatus.FORBIDDEN, "DK004", "Discord 연동은 Premium에서만 사용 가능합니다"),
+
     // System
     ANNOUNCEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SY001", "공지사항을 찾을 수 없습니다"),
     SYSTEM_UNDER_MAINTENANCE(HttpStatus.SERVICE_UNAVAILABLE, "SY002", "시스템 점검 중입니다"),

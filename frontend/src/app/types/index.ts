@@ -606,6 +606,11 @@ export interface NotificationPreferences {
   slack_comment_mention_enabled: boolean;
   slack_checklist_assigned_enabled: boolean;
   slack_task_comment_enabled: boolean;
+  discord_comment_mention_enabled: boolean;
+  discord_checklist_assigned_enabled: boolean;
+  discord_task_comment_enabled: boolean;
+  discord_meeting_memo_shared_enabled: boolean;
+  discord_note_comment_mention_enabled: boolean;
   created_at: string | null;
   updated_at: string | null;
 }

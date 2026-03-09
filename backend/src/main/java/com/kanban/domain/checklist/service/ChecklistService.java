@@ -11,6 +11,7 @@ import com.kanban.domain.checklist.dto.ChecklistBatchResponse;
 import com.kanban.domain.checklist.dto.ChecklistRequest;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
+import com.kanban.domain.integration.discord.service.DiscordNotificationService;
 import com.kanban.domain.integration.slack.service.SlackNotificationService;
 import com.kanban.domain.notification.service.NotificationService;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
@@ -27,8 +28,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -45,6 +49,7 @@ public class ChecklistService {
     private final ActivityService activityService;
     private final NotificationService notificationService;
     private final SlackNotificationService slackNotificationService;
+    private final DiscordNotificationService discordNotificationService;
     private final WebSocketEventService webSocketEventService;
 
     public ChecklistResponse.ListResponse getChecklist(String boardId, String taskId, String userId) {
@@ -82,12 +87,14 @@ public class ChecklistService {
         int newPosition = (maxPosition != null) ? maxPosition + 1 : 0;
 
         ChecklistItem item = ChecklistItem.builder()
+                .id(UUID.randomUUID().toString())
                 .task(task)
                 .title(request.getTitle())
                 .assignee(assignee)
                 .startDate(request.getStartDate())
                 .dueDate(request.getDueDate())
                 .position(newPosition)
+                .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .build();
 
         checklistItemRepository.save(item);
@@ -112,6 +119,7 @@ public class ChecklistService {
         if (assignee != null) {
             notificationService.createChecklistAssignedNotification(item, creator, task.getBoard());
             slackNotificationService.sendChecklistAssignedNotification(item, creator, task.getBoard(), originUrl);
+            discordNotificationService.sendChecklistAssignedNotification(item, creator, task.getBoard(), originUrl);
         }
 
         log.info("Checklist item created: {} in task: {} by user: {}", item.getId(), taskId, userId);
@@ -155,6 +163,7 @@ public class ChecklistService {
                         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
                 notificationService.createChecklistAssignedNotification(item, assigner, task.getBoard());
                 slackNotificationService.sendChecklistAssignedNotification(item, assigner, task.getBoard(), originUrl);
+                discordNotificationService.sendChecklistAssignedNotification(item, assigner, task.getBoard(), originUrl);
             }
         }
 

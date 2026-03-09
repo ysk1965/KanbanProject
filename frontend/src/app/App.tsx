@@ -34,7 +34,7 @@ import { OrganizationDetailPage } from './pages/OrganizationDetailPage';
 import { OrgInviteAcceptPage } from './pages/OrgInviteAcceptPage';
 import { AnnouncementDisplay } from './components/AnnouncementDisplay';
 import { MaintenancePage } from './components/MaintenancePage';
-import { boardService, inviteLinkService, systemService } from './utils/services';
+import { boardService, inviteLinkService, organizationService, systemService } from './utils/services';
 import { useState, useEffect, useCallback } from 'react';
 import { Board } from './types';
 import type { MaintenanceStatus } from './utils/api';
@@ -135,7 +135,29 @@ function LoginRoute() {
     const handlePostLogin = async () => {
       // 방금 로그인했거나 이미 인증된 상태인 경우
       if ((justLoggedIn || (isAuthenticated && !isLoading)) && !isProcessingInvite) {
-        // 대기 중인 초대가 있으면 자동으로 수락
+        // 대기 중인 조직 초대가 있으면 자동으로 수락 (보드 초대보다 우선)
+        const pendingOrgCode = localStorage.getItem('pending_org_invite_code');
+        if (pendingOrgCode && justLoggedIn) {
+          setIsProcessingInvite(true);
+          localStorage.removeItem('pending_org_invite_code');
+          try {
+            const result = await organizationService.acceptInvite(pendingOrgCode);
+            navigate(`/organizations/${result.organization_id}`);
+          } catch (error: any) {
+            console.error('Failed to accept org invite:', error);
+            if (error?.code === 'O016' || error?.code === 'ALREADY_IN_ORGANIZATION') {
+              alert(t('organization.invite.alreadyInOrg', '이미 소속된 조직이 있습니다. 기존 조직을 탈퇴한 후 다시 시도해주세요.'));
+            } else {
+              alert(error?.message || t('app.orgInviteAcceptFailed', '조직 초대 수락에 실패했습니다.'));
+            }
+            navigate('/boards');
+          } finally {
+            setIsProcessingInvite(false);
+          }
+          return;
+        }
+
+        // 대기 중인 보드 초대가 있으면 자동으로 수락
         const pendingCode = localStorage.getItem('pending_invite_code');
         if (pendingCode && justLoggedIn) {
           // 방금 로그인한 경우에만 초대 자동 수락
