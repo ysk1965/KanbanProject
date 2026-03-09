@@ -7,6 +7,7 @@ import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardTier;
 import com.kanban.domain.board.BoardType;
 import com.kanban.domain.board.BoardRole;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kanban.domain.feature.dto.FeatureResponse;
 import com.kanban.domain.invite.dto.InviteResponse;
 import com.kanban.domain.member.dto.MemberResponse;
@@ -256,7 +257,9 @@ public class BoardResponse {
         private String organizationName;
 
         // 조직 멤버 뷰어 (보드 멤버가 아닌 조직 구성원)
+        @JsonProperty("is_org_member_viewer")
         private boolean isOrgMemberViewer;
+        @JsonProperty("has_pending_join_request")
         private boolean hasPendingJoinRequest;
 
         // 통합 데이터

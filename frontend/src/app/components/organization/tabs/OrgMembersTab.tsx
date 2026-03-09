@@ -213,7 +213,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
           </select>
         )}
 
-        {hrSystemEnabled && (
+        {!hrSystemEnabled && (
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
@@ -297,7 +297,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-foreground font-medium text-sm truncate">{member.user.name}</span>
-                    {hrSystemEnabled && (
+                    {!hrSystemEnabled && (
                       <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${CONTRACT_BADGE[member.contract_type]}`}>
                         {t(CONTRACT_LABEL_KEYS[member.contract_type])}
                       </span>
@@ -319,7 +319,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
                     {member.job_title && <span>{member.job_title}</span>}
                   </div>
                 </div>
-                {hrSystemEnabled && (
+                {!hrSystemEnabled && (
                   <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_BADGE[member.work_status]}`}>
                     {t(STATUS_LABEL_KEYS[member.work_status])}
                   </span>
