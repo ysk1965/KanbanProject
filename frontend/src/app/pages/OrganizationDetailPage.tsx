@@ -487,6 +487,7 @@ function OrgDetailPageContent() {
               titles={titles}
               grades={grades}
               structureSettings={structureSettings}
+              hrSystemEnabled={hrSystemEnabled}
             />
           )}
           {renderTab("chart",
