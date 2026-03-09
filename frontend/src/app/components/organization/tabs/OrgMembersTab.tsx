@@ -23,6 +23,7 @@ interface OrgMembersTabProps {
   titles: OrgTitle[];
   grades: OrgGrade[];
   structureSettings: OrgStructureSettings;
+  hrSystemEnabled?: boolean;
 }
 
 const CONTRACT_BADGE: Record<ContractType, string> = {
@@ -51,7 +52,7 @@ const STATUS_LABEL_KEYS: Record<WorkStatus, string> = {
   RESIGNED: 'organization.members.statusResigned',
 };
 
-export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups, positions, titles, grades, structureSettings }: OrgMembersTabProps) {
+export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups, positions, titles, grades, structureSettings, hrSystemEnabled }: OrgMembersTabProps) {
   const { t } = useTranslation();
   const isAdmin = myRole === 'OWNER' || myRole === 'ADMIN';
   const [members, setMembers] = useState<OrgMemberSimple[]>([]);
@@ -212,16 +213,18 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
           </select>
         )}
 
-        <select
-          value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-          className="bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-        >
-          <option value="">{t('organization.members.allStatuses', 'All Statuses')}</option>
-          <option value="ACTIVE">{t('organization.members.active', 'Active')}</option>
-          <option value="ON_LEAVE">{t('organization.members.onLeave', 'On Leave')}</option>
-          <option value="RESIGNED">{t('organization.members.resigned', 'Resigned')}</option>
-        </select>
+        {hrSystemEnabled && (
+          <select
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+            className="bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+          >
+            <option value="">{t('organization.members.allStatuses', 'All Statuses')}</option>
+            <option value="ACTIVE">{t('organization.members.active', 'Active')}</option>
+            <option value="ON_LEAVE">{t('organization.members.onLeave', 'On Leave')}</option>
+            <option value="RESIGNED">{t('organization.members.resigned', 'Resigned')}</option>
+          </select>
+        )}
 
         {isAdmin && (
           <button
@@ -294,9 +297,11 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-foreground font-medium text-sm truncate">{member.user.name}</span>
-                    <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${CONTRACT_BADGE[member.contract_type]}`}>
-                      {t(CONTRACT_LABEL_KEYS[member.contract_type])}
-                    </span>
+                    {hrSystemEnabled && (
+                      <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${CONTRACT_BADGE[member.contract_type]}`}>
+                        {t(CONTRACT_LABEL_KEYS[member.contract_type])}
+                      </span>
+                    )}
                     {structureSettings.positions_enabled && member.position?.name && (
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-600 dark:text-sky-400">
                         {member.position.name}
@@ -314,9 +319,11 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
                     {member.job_title && <span>{member.job_title}</span>}
                   </div>
                 </div>
-                <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_BADGE[member.work_status]}`}>
-                  {t(STATUS_LABEL_KEYS[member.work_status])}
-                </span>
+                {hrSystemEnabled && (
+                  <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_BADGE[member.work_status]}`}>
+                    {t(STATUS_LABEL_KEYS[member.work_status])}
+                  </span>
+                )}
               </div>
             </motion.div>
           ))}
