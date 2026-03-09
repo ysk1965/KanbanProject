@@ -58,6 +58,9 @@ public class SchemaMigrationInitializer implements InitializingBean {
         addColumnIfNotExists("meetings", "speaker_mapping", "TEXT");
         addColumnIfNotExists("meetings", "ai_suggestions", "TEXT");
 
+        // Organizations 테이블 (V94)
+        addColumnIfNotExists("organizations", "hr_system_enabled", "BOOLEAN NOT NULL DEFAULT FALSE");
+
         // Notifications CHECK 제약조건
         fixNotificationTypeCheck();
 
