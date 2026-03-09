@@ -127,13 +127,6 @@ export function Dashboard({
     })();
   }, []);
 
-  // 보드가 하나도 없으면 자동으로 생성 모달 오픈
-  useEffect(() => {
-    if (boards.length === 0) {
-      setIsCreateModalOpen(true);
-    }
-  }, [boards]);
-
   // 테스트 보드 생성/참여 (개발용)
   const handleCreateTestBoard = async () => {
     if (isCreatingTestBoard) return;
