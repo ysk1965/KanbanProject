@@ -73,6 +73,26 @@ public class NotificationPreference {
     @Builder.Default
     private Boolean slackNoteCommentMentionEnabled = true;
 
+    @Column(name = "discord_comment_mention_enabled", nullable = false, columnDefinition = "boolean not null default true")
+    @Builder.Default
+    private Boolean discordCommentMentionEnabled = true;
+
+    @Column(name = "discord_checklist_assigned_enabled", nullable = false, columnDefinition = "boolean not null default true")
+    @Builder.Default
+    private Boolean discordChecklistAssignedEnabled = true;
+
+    @Column(name = "discord_task_comment_enabled", nullable = false, columnDefinition = "boolean not null default true")
+    @Builder.Default
+    private Boolean discordTaskCommentEnabled = true;
+
+    @Column(name = "discord_meeting_memo_shared_enabled", nullable = false, columnDefinition = "boolean not null default true")
+    @Builder.Default
+    private Boolean discordMeetingMemoSharedEnabled = true;
+
+    @Column(name = "discord_note_comment_mention_enabled", nullable = false, columnDefinition = "boolean not null default true")
+    @Builder.Default
+    private Boolean discordNoteCommentMentionEnabled = true;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -95,7 +115,10 @@ public class NotificationPreference {
     public void update(Boolean commentMentionEnabled, Boolean checklistAssignedEnabled, Boolean taskCommentEnabled,
                        Boolean slackCommentMentionEnabled, Boolean slackChecklistAssignedEnabled, Boolean slackTaskCommentEnabled,
                        Boolean meetingMemoSharedEnabled, Boolean slackMeetingMemoSharedEnabled,
-                       Boolean noteCommentMentionEnabled, Boolean slackNoteCommentMentionEnabled) {
+                       Boolean noteCommentMentionEnabled, Boolean slackNoteCommentMentionEnabled,
+                       Boolean discordCommentMentionEnabled, Boolean discordChecklistAssignedEnabled,
+                       Boolean discordTaskCommentEnabled, Boolean discordMeetingMemoSharedEnabled,
+                       Boolean discordNoteCommentMentionEnabled) {
         if (commentMentionEnabled != null) this.commentMentionEnabled = commentMentionEnabled;
         if (checklistAssignedEnabled != null) this.checklistAssignedEnabled = checklistAssignedEnabled;
         if (taskCommentEnabled != null) this.taskCommentEnabled = taskCommentEnabled;
@@ -106,6 +129,11 @@ public class NotificationPreference {
         if (slackMeetingMemoSharedEnabled != null) this.slackMeetingMemoSharedEnabled = slackMeetingMemoSharedEnabled;
         if (noteCommentMentionEnabled != null) this.noteCommentMentionEnabled = noteCommentMentionEnabled;
         if (slackNoteCommentMentionEnabled != null) this.slackNoteCommentMentionEnabled = slackNoteCommentMentionEnabled;
+        if (discordCommentMentionEnabled != null) this.discordCommentMentionEnabled = discordCommentMentionEnabled;
+        if (discordChecklistAssignedEnabled != null) this.discordChecklistAssignedEnabled = discordChecklistAssignedEnabled;
+        if (discordTaskCommentEnabled != null) this.discordTaskCommentEnabled = discordTaskCommentEnabled;
+        if (discordMeetingMemoSharedEnabled != null) this.discordMeetingMemoSharedEnabled = discordMeetingMemoSharedEnabled;
+        if (discordNoteCommentMentionEnabled != null) this.discordNoteCommentMentionEnabled = discordNoteCommentMentionEnabled;
     }
 
     public boolean isInAppEnabled(NotificationType type) {
@@ -129,6 +157,18 @@ public class NotificationPreference {
             case NOTE_COMMENT_MENTION -> slackNoteCommentMentionEnabled;
             case ANNIVERSARY -> false; // Not applicable for Slack
             case PAYMENT_FAILED -> false; // Not applicable for Slack
+        };
+    }
+
+    public boolean isDiscordEnabled(NotificationType type) {
+        return switch (type) {
+            case COMMENT_MENTION -> discordCommentMentionEnabled;
+            case CHECKLIST_ASSIGNED -> discordChecklistAssignedEnabled;
+            case TASK_COMMENT -> discordTaskCommentEnabled;
+            case MEETING_MEMO_SHARED -> discordMeetingMemoSharedEnabled;
+            case NOTE_COMMENT_MENTION -> discordNoteCommentMentionEnabled;
+            case ANNIVERSARY -> false; // Not applicable for Discord
+            case PAYMENT_FAILED -> false; // Not applicable for Discord
         };
     }
 }

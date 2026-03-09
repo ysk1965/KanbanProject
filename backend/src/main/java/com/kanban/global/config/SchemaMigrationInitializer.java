@@ -61,6 +61,13 @@ public class SchemaMigrationInitializer implements InitializingBean {
         // Organizations 테이블 (V94)
         addColumnIfNotExists("organizations", "hr_system_enabled", "BOOLEAN NOT NULL DEFAULT FALSE");
 
+        // Notification Preferences 테이블 - Discord 컬럼
+        addColumnIfNotExists("notification_preferences", "discord_comment_mention_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+        addColumnIfNotExists("notification_preferences", "discord_checklist_assigned_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+        addColumnIfNotExists("notification_preferences", "discord_task_comment_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+        addColumnIfNotExists("notification_preferences", "discord_meeting_memo_shared_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+        addColumnIfNotExists("notification_preferences", "discord_note_comment_mention_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+
         // Notifications CHECK 제약조건
         fixNotificationTypeCheck();
 

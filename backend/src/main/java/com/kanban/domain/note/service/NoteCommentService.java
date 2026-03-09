@@ -14,6 +14,7 @@ import com.kanban.domain.note.NoteRepository;
 import com.kanban.domain.note.dto.NoteCommentRequest;
 import com.kanban.domain.note.dto.NoteCommentResponse;
 import com.kanban.domain.notification.service.NotificationService;
+import com.kanban.domain.integration.discord.service.DiscordNotificationService;
 import com.kanban.domain.integration.slack.service.SlackNotificationService;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
@@ -44,6 +45,7 @@ public class NoteCommentService {
     private final BoardService boardService;
     private final NotificationService notificationService;
     private final SlackNotificationService slackNotificationService;
+    private final DiscordNotificationService discordNotificationService;
     private final WebSocketEventService webSocketEventService;
 
     public NoteCommentResponse.ListResponse getComments(String boardId, String noteId, String userId) {
@@ -110,6 +112,7 @@ public class NoteCommentService {
         // Send mention notifications
         notificationService.createNoteCommentMentionNotifications(comment, user, board);
         slackNotificationService.sendNoteCommentMentionNotifications(comment, user, board, originUrl);
+        discordNotificationService.sendNoteCommentMentionNotifications(comment, user, board, originUrl);
 
         NoteCommentResponse.Detail response = NoteCommentResponse.Detail.of(comment, List.of());
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.NOTE_COMMENT_CREATED,

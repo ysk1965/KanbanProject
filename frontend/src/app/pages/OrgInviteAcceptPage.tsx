@@ -120,7 +120,12 @@ export function OrgInviteAcceptPage() {
               </button>
             ) : (
               <button
-                onClick={() => navigate(`/login?redirect=/org-invite/${code}`)}
+                onClick={() => {
+                  if (code) {
+                    localStorage.setItem('pending_org_invite_code', code);
+                  }
+                  navigate('/login');
+                }}
                 className="w-full px-6 py-3 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 transition-all"
               >
                 {t('organization.invite.loginToJoin', 'Log in to Join')}

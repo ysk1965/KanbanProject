@@ -59,7 +59,12 @@ public class NotificationPreferenceService {
                     request.getMeetingMemoSharedEnabled(),
                     request.getSlackMeetingMemoSharedEnabled(),
                     request.getNoteCommentMentionEnabled(),
-                    request.getSlackNoteCommentMentionEnabled()
+                    request.getSlackNoteCommentMentionEnabled(),
+                    request.getDiscordCommentMentionEnabled(),
+                    request.getDiscordChecklistAssignedEnabled(),
+                    request.getDiscordTaskCommentEnabled(),
+                    request.getDiscordMeetingMemoSharedEnabled(),
+                    request.getDiscordNoteCommentMentionEnabled()
             );
         } else {
             Board board = boardRepository.findById(boardId)
@@ -80,6 +85,11 @@ public class NotificationPreferenceService {
                     .slackMeetingMemoSharedEnabled(request.getSlackMeetingMemoSharedEnabled() != null ? request.getSlackMeetingMemoSharedEnabled() : true)
                     .noteCommentMentionEnabled(request.getNoteCommentMentionEnabled() != null ? request.getNoteCommentMentionEnabled() : true)
                     .slackNoteCommentMentionEnabled(request.getSlackNoteCommentMentionEnabled() != null ? request.getSlackNoteCommentMentionEnabled() : true)
+                    .discordCommentMentionEnabled(request.getDiscordCommentMentionEnabled() != null ? request.getDiscordCommentMentionEnabled() : true)
+                    .discordChecklistAssignedEnabled(request.getDiscordChecklistAssignedEnabled() != null ? request.getDiscordChecklistAssignedEnabled() : true)
+                    .discordTaskCommentEnabled(request.getDiscordTaskCommentEnabled() != null ? request.getDiscordTaskCommentEnabled() : true)
+                    .discordMeetingMemoSharedEnabled(request.getDiscordMeetingMemoSharedEnabled() != null ? request.getDiscordMeetingMemoSharedEnabled() : true)
+                    .discordNoteCommentMentionEnabled(request.getDiscordNoteCommentMentionEnabled() != null ? request.getDiscordNoteCommentMentionEnabled() : true)
                     .build();
         }
 
