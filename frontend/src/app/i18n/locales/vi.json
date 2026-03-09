@@ -631,7 +631,7 @@
     "changeBillingCycle": "Đổi chu kỳ thanh toán",
     "confirmCancel": "Có, hủy",
     "currentSeats": "Chỗ hiện tại",
-    "purchaseSeats": "Mua chỗ",
+    "upgradePro": "Nâng cấp lên PRO",
     "creditChangeLabel": "Thay đổi tín dụng AI",
     "creditCurrentMonthly": "Tín dụng hàng tháng hiện tại",
     "creditAfterPurchase": "Sau khi mua",
@@ -3167,7 +3167,18 @@
         "createButton": "Tạo bảng",
         "noAvailable": "Không có bảng nào khả dụng để thêm",
         "nonOrgMembers": "Thành viên ngoài tổ chức",
-        "addButton": "Thêm bảng"
+        "addButton": "Thêm bảng",
+        "upgradeTitle": "Cần gói PRO",
+        "upgradeDesc": "Nâng cấp tổ chức lên gói PRO để tự do tạo bảng và cộng tác cùng thành viên.",
+        "upgradeLinkDesc": "Nâng cấp lên gói PRO để liên kết bảng hiện có với tổ chức và quản lý tập trung.",
+        "upgradeBenefit1": "Tạo bảng không giới hạn",
+        "upgradeBenefit1Desc": "Tự do tạo bảng theo nhu cầu của nhóm",
+        "upgradeBenefit2": "Cộng tác nhóm",
+        "upgradeBenefit2Desc": "Tất cả thành viên tổ chức đều có thể truy cập và cộng tác",
+        "upgradeBenefit3": "Bao gồm tính năng cao cấp",
+        "upgradeBenefit3Desc": "AI, phân tích và tất cả tính năng cao cấp",
+        "upgradePro": "Nâng cấp lên PRO",
+        "trialBoardHint": "Bạn có thể tự do tạo bảng thường từ danh sách bảng. Bảng quản lý tổ chức cần gói PRO."
       },
       "leave": {
         "myBalance": "Số ngày phép còn lại",
@@ -3721,7 +3732,18 @@
       "createButton": "Tạo bảng",
       "noAvailable": "Không có bảng khả dụng",
       "nonOrgMembers": "Thành viên ngoài tổ chức",
-      "addButton": "Thêm bảng"
+      "addButton": "Thêm bảng",
+      "upgradeTitle": "Cần gói PRO",
+      "upgradeDesc": "Nâng cấp tổ chức lên gói PRO để tự do tạo bảng và cộng tác cùng thành viên.",
+      "upgradeLinkDesc": "Nâng cấp lên gói PRO để liên kết bảng hiện có với tổ chức và quản lý tập trung.",
+      "upgradeBenefit1": "Tạo bảng không giới hạn",
+      "upgradeBenefit1Desc": "Tự do tạo bảng theo nhu cầu của nhóm",
+      "upgradeBenefit2": "Cộng tác nhóm",
+      "upgradeBenefit2Desc": "Tất cả thành viên tổ chức đều có thể truy cập và cộng tác",
+      "upgradeBenefit3": "Bao gồm tính năng cao cấp",
+      "upgradeBenefit3Desc": "AI, phân tích và tất cả tính năng cao cấp",
+      "upgradePro": "Nâng cấp lên PRO",
+      "trialBoardHint": "Bạn có thể tự do tạo bảng thường từ danh sách bảng. Bảng quản lý tổ chức cần gói PRO."
     },
     "leave": {
       "myBalance": "Số ngày phép của tôi",

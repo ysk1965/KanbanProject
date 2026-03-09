@@ -120,6 +120,7 @@ public class OrganizationService {
         Organization org = getActiveOrgOrThrow(orgId);
         checkAdminOrAbove(orgId, userId);
         org.updateInfo(request.getName(), request.getDescription());
+        org.updateHrSystemEnabled(request.getHrSystemEnabled());
         int[] counts = getOrgCounts(orgId);
         OrganizationMember member = getOrgMemberOrThrow(orgId, userId);
         return OrganizationResponse.Detail.of(org, member.getRole(), member.getId(), counts[0], counts[1]);

@@ -3702,17 +3702,17 @@
       "noAvailable": "추가 가능한 보드가 없습니다",
       "nonOrgMembers": "비조직원",
       "addButton": "보드 추가",
-      "upgradeTitle": "시트 구매가 필요합니다",
-      "upgradeDesc": "조직의 시트를 구매하면 자유롭게 보드를 생성하고 구성원들이 함께 사용할 수 있습니다.",
-      "upgradeLinkDesc": "시트를 구매하면 기존 보드를 조직에 연결하여 중앙에서 관리할 수 있습니다.",
+      "upgradeTitle": "PRO 플랜이 필요합니다",
+      "upgradeDesc": "조직을 PRO 플랜으로 업그레이드하면 자유롭게 보드를 생성하고 구성원들이 함께 사용할 수 있습니다.",
+      "upgradeLinkDesc": "PRO 플랜으로 업그레이드하면 기존 보드를 조직에 연결하여 중앙에서 관리할 수 있습니다.",
       "upgradeBenefit1": "보드 무제한 생성",
       "upgradeBenefit1Desc": "팀에 필요한 만큼 보드를 자유롭게 생성하세요",
       "upgradeBenefit2": "팀 협업",
       "upgradeBenefit2Desc": "조직 구성원 모두가 보드에 접근하고 협업할 수 있습니다",
       "upgradeBenefit3": "프리미엄 기능 포함",
       "upgradeBenefit3Desc": "AI, 분석, 모든 프리미엄 기능을 사용할 수 있습니다",
-      "purchaseSeats": "시트 구매하기",
-      "trialBoardHint": "보드 목록에서 일반 보드는 자유롭게 만들 수 있습니다. 조직 관리 보드만 시트 구매가 필요합니다."
+      "upgradePro": "PRO로 업그레이드",
+      "trialBoardHint": "보드 목록에서 일반 보드는 자유롭게 만들 수 있습니다. 조직 관리 보드는 PRO 플랜이 필요합니다."
     },
     "leave": {
       "myBalance": "내 휴가 잔여",

@@ -94,7 +94,7 @@ export function OrgInviteLinksSection({
   };
 
   const handleCopyCode = (code: string) => {
-    const url = `${window.location.origin}/invite/${code}`;
+    const url = `${window.location.origin}/org-invite/${code}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopiedCode(code);
       setTimeout(() => setCopiedCode(null), 2000);

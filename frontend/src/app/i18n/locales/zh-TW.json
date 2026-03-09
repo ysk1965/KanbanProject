@@ -624,7 +624,7 @@
     "changeBillingCycle": "變更帳單週期",
     "confirmCancel": "是的，取消",
     "currentSeats": "目前席位",
-    "purchaseSeats": "購買席位",
+    "upgradePro": "升級到PRO",
     "creditChangeLabel": "AI點數變化",
     "creditCurrentMonthly": "目前月點數",
     "creditAfterPurchase": "購買後月點數",
@@ -3129,7 +3129,18 @@
         "createButton": "建立看板",
         "noAvailable": "沒有可新增的看板",
         "nonOrgMembers": "非組織成員",
-        "addButton": "新增看板"
+        "addButton": "新增看板",
+        "upgradeTitle": "需要PRO方案",
+        "upgradeDesc": "將組織升級到PRO方案，即可自由建立看板並與成員協作。",
+        "upgradeLinkDesc": "升級到PRO方案，可將已有看板關聯到組織進行集中管理。",
+        "upgradeBenefit1": "無限建立看板",
+        "upgradeBenefit1Desc": "根據團隊需要自由建立看板",
+        "upgradeBenefit2": "團隊協作",
+        "upgradeBenefit2Desc": "組織所有成員均可存取看板並進行協作",
+        "upgradeBenefit3": "包含進階功能",
+        "upgradeBenefit3Desc": "AI、分析及所有進階功能",
+        "upgradePro": "升級到PRO",
+        "trialBoardHint": "您可以在看板列表中自由建立一般看板。組織管理看板需要PRO方案。"
       },
       "leave": {
         "myBalance": "我的假期餘額",

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Building2, Camera } from "lucide-react";
+import { Building2, Camera, MonitorSmartphone } from "lucide-react";
 import { toast } from "sonner";
 import { organizationService } from "../../../utils/services";
 import { OrgInviteLinksSection } from "./OrgInviteLinksSection";
@@ -165,6 +165,49 @@ export function OrgSettingsGeneralSubTab({
           onRefresh={fetchInviteLinks}
         />
       </div>
+
+      {/* HR System Integration */}
+      <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
+        <h3 className="text-sm font-bold text-foreground mb-1 flex items-center gap-2">
+          <MonitorSmartphone size={16} className="text-bridge-accent" />
+          {t("organization.settings.hrSystem", "HR System Integration")}
+        </h3>
+        <p className="text-[11px] text-slate-500 mb-4">
+          {t("organization.settings.hrSystemDesc", "If your organization uses an external HR system, enable this to hide leave/vacation features from BRIDGE.")}
+        </p>
+        <div className="flex items-center justify-between p-3 bg-foreground/[0.02] rounded-xl border border-foreground/[0.08]">
+          <div>
+            <span className="text-sm font-medium text-foreground">
+              {t("organization.settings.hrSystemEnabled", "External HR System")}
+            </span>
+            <p className="text-[10px] text-slate-500 mt-0.5">
+              {t("organization.settings.hrSystemHint", "Hides leave management, leave balance, and HR info from the organization.")}
+            </p>
+          </div>
+          <button
+            onClick={async () => {
+              try {
+                await organizationService.update(orgId, {
+                  hr_system_enabled: !org.hr_system_enabled,
+                });
+                onUpdate();
+                toast.success(t("organization.settings.saveSuccess", "Settings saved"));
+              } catch {
+                toast.error(t("organization.settings.saveError", "Failed to save settings"));
+              }
+            }}
+            className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
+              org.hr_system_enabled ? "bg-bridge-accent" : "bg-foreground/10"
+            }`}
+          >
+            <div
+              className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                org.hr_system_enabled ? "translate-x-[22px]" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+        </div>
+      </section>
 
       {/* Danger Zone (OWNER only) */}
       {isOwner && <OrgDangerZoneSection orgId={orgId} org={org} onUpdate={onUpdate} />}

@@ -9,6 +9,7 @@ interface MemberSidebarProps {
   leaveBalances: LeaveBalance[];
   isAdmin: boolean;
   isSelf: boolean;
+  hrSystemEnabled?: boolean;
 }
 
 const CONTRACT_LABELS: Record<ContractType, string> = {
@@ -38,7 +39,7 @@ function formatBirthday(dateStr?: string | null): string {
   return `${String(d.getMonth() + 1)}/${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export function MemberSidebar({ member, boards, leaveBalances, isAdmin, isSelf }: MemberSidebarProps) {
+export function MemberSidebar({ member, boards, leaveBalances, isAdmin, isSelf, hrSystemEnabled }: MemberSidebarProps) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const canViewPrivate = isAdmin || isSelf;
@@ -88,14 +89,20 @@ export function MemberSidebar({ member, boards, leaveBalances, isAdmin, isSelf }
 
         {/* Quick Stats */}
         <SidebarSection title={t('organization.members.detail.sidebarOverview')}>
-          <StatRow icon={Calendar} label={t('organization.members.detail.statsHireDate')} value={formatDate(member.hire_date)} />
-          <StatRow icon={Clock} label={t('organization.members.detail.statsTenure')} value={formatTenure(member.tenure_months, t)} />
+          {!hrSystemEnabled && (
+            <StatRow icon={Calendar} label={t('organization.members.detail.statsHireDate')} value={formatDate(member.hire_date)} />
+          )}
+          {!hrSystemEnabled && (
+            <StatRow icon={Clock} label={t('organization.members.detail.statsTenure')} value={formatTenure(member.tenure_months, t)} />
+          )}
           <StatRow icon={LayoutGrid} label={t('organization.members.detail.statsBoards')} value={`${boards.length}`} />
-          <StatRow
-            icon={FileText}
-            label={t('organization.members.detail.statsContract')}
-            value={t(`organization.members.detail.${CONTRACT_LABELS[member.contract_type]}`)}
-          />
+          {!hrSystemEnabled && (
+            <StatRow
+              icon={FileText}
+              label={t('organization.members.detail.statsContract')}
+              value={t(`organization.members.detail.${CONTRACT_LABELS[member.contract_type]}`)}
+            />
+          )}
           {member.position && (
             <StatRow icon={Briefcase} label={t('organization.members.detail.position')} value={member.position.name} />
           )}
@@ -108,7 +115,7 @@ export function MemberSidebar({ member, boards, leaveBalances, isAdmin, isSelf }
         </SidebarSection>
 
         {/* Leave Balance */}
-        {canViewPrivate && leaveBalances.length > 0 && (
+        {!hrSystemEnabled && canViewPrivate && leaveBalances.length > 0 && (
           <SidebarSection title={`${t('organization.members.detail.leaveBalance')} (${new Date().getFullYear()})`}>
             <div className="space-y-2.5">
               {leaveBalances.map((lb) => {

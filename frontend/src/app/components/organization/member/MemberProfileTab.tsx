@@ -29,6 +29,7 @@ interface MemberProfileTabProps {
   grades: OrgGrade[];
   structureSettings?: OrgStructureSettings;
   leaveBalances: LeaveBalance[];
+  hrSystemEnabled?: boolean;
   onUpdate: (updated: OrgMemberDetail) => void;
 }
 
@@ -78,6 +79,7 @@ export function MemberProfileTab({
   grades,
   structureSettings: ss,
   leaveBalances,
+  hrSystemEnabled,
   onUpdate,
 }: MemberProfileTabProps) {
   const deptOn = ss?.departments_enabled !== false;
@@ -205,7 +207,7 @@ export function MemberProfileTab({
         }] : []),
       ],
     },
-    {
+    ...(!hrSystemEnabled ? [{
       title: t("organization.members.detail.sectionPersonal"),
       fields: [
         {
@@ -249,7 +251,7 @@ export function MemberProfileTab({
           readOnly: true,
         },
       ],
-    },
+    }] : []),
   ];
 
   const concurrentDepts =

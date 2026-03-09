@@ -24,6 +24,8 @@ public class OrganizationRequest {
         private String name;
 
         private String description;
+
+        private Boolean hrSystemEnabled;
     }
 
     @Getter

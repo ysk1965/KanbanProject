@@ -631,7 +631,7 @@
     "changeBillingCycle": "請求サイクルの変更",
     "confirmCancel": "はい、解約します",
     "currentSeats": "現在のシート",
-    "purchaseSeats": "シートの購入",
+    "upgradePro": "PROにアップグレード",
     "creditChangeLabel": "AIクレジットの変化",
     "creditCurrentMonthly": "現在の月間クレジット",
     "creditAfterPurchase": "購入後の月間クレジット",
@@ -3251,7 +3251,18 @@
         "createButton": "ボード作成",
         "noAvailable": "追加可能なボードがありません",
         "nonOrgMembers": "非組織メンバー",
-        "addButton": "ボード追加"
+        "addButton": "ボード追加",
+        "upgradeTitle": "PROプランが必要です",
+        "upgradeDesc": "組織をPROプランにアップグレードすると、自由にボードを作成してメンバーと共に利用できます。",
+        "upgradeLinkDesc": "PROプランへのアップグレードで、既存のボードを組織に連携して一元管理できます。",
+        "upgradeBenefit1": "ボード無制限作成",
+        "upgradeBenefit1Desc": "チームに必要なだけボードを自由に作成できます",
+        "upgradeBenefit2": "チーム協業",
+        "upgradeBenefit2Desc": "組織メンバー全員がボードにアクセスして協業できます",
+        "upgradeBenefit3": "プレミアム機能付き",
+        "upgradeBenefit3Desc": "AI、分析、すべてのプレミアム機能を利用できます",
+        "upgradePro": "PROにアップグレード",
+        "trialBoardHint": "ボード一覧から通常ボードは自由に作成できます。組織管理ボードはPROプランが必要です。"
       },
       "leave": {
         "myBalance": "マイ休暇残高",

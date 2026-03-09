@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, LayoutGrid, X, AlertTriangle, Check, ChevronRight, Link, Clock, Shield, CreditCard, Users, Zap } from 'lucide-react';
+import { Plus, LayoutGrid, X, AlertTriangle, Check, ChevronRight, Link, Clock, Shield, Crown, Users, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { organizationService, boardService } from '../../../utils/services';
@@ -497,13 +497,13 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
               <div className="px-5 pb-5 pt-4">
                 <div className="flex flex-col items-center text-center py-4">
                   <div className="w-14 h-14 rounded-2xl bg-bridge-accent/15 flex items-center justify-center mb-4">
-                    <CreditCard size={28} className="text-bridge-accent" />
+                    <Crown size={28} className="text-bridge-accent" />
                   </div>
                   <h3 className="text-base font-bold text-foreground mb-2">
-                    {t('organization.boards.upgradeTitle', 'Seat purchase required')}
+                    {t('organization.boards.upgradeTitle', 'PRO plan required')}
                   </h3>
                   <p className="text-sm text-slate-400 mb-5 max-w-xs leading-relaxed">
-                    {t('organization.boards.upgradeDesc', 'Purchase seats for your organization to freely create boards and collaborate with your team members.')}
+                    {t('organization.boards.upgradeDesc', 'Upgrade your organization to the PRO plan to create and manage boards within the organization.')}
                   </p>
                   <div className="w-full space-y-2.5 mb-5">
                     <div className="flex items-center gap-3 p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08]">
@@ -549,7 +549,7 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.06]">
                     <AlertTriangle size={13} className="text-slate-400 shrink-0" />
                     <span className="text-[11px] text-slate-500 leading-relaxed">
-                      {t('organization.boards.trialBoardHint', 'You can still create regular boards from the board list. Organization-managed boards require a seat purchase.')}
+                      {t('organization.boards.trialBoardHint', 'You can create regular boards from the board list. Organization-managed boards require a PRO plan.')}
                     </span>
                   </div>
                 </div>
@@ -570,7 +570,7 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                     }}
                     className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all"
                   >
-                    {t('organization.boards.purchaseSeats', 'Purchase Seats')}
+                    {t('organization.boards.upgradePro', 'Upgrade to PRO')}
                   </button>
                 </div>
               </div>
@@ -628,18 +628,18 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
               <div className="px-5 pb-5 pt-4">
                 <div className="flex flex-col items-center text-center py-4">
                   <div className="w-14 h-14 rounded-2xl bg-bridge-accent/15 flex items-center justify-center mb-4">
-                    <CreditCard size={28} className="text-bridge-accent" />
+                    <Crown size={28} className="text-bridge-accent" />
                   </div>
                   <h3 className="text-base font-bold text-foreground mb-2">
-                    {t('organization.boards.upgradeTitle', 'Seat purchase required')}
+                    {t('organization.boards.upgradeTitle', 'PRO plan required')}
                   </h3>
                   <p className="text-sm text-slate-400 mb-5 max-w-xs leading-relaxed">
-                    {t('organization.boards.upgradeLinkDesc', 'Purchase seats to link existing boards to your organization and manage them centrally.')}
+                    {t('organization.boards.upgradeLinkDesc', 'Upgrade to the PRO plan to link existing boards to your organization and manage them centrally.')}
                   </p>
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.06] w-full">
                     <AlertTriangle size={13} className="text-slate-400 shrink-0" />
                     <span className="text-[11px] text-slate-500 leading-relaxed text-left">
-                      {t('organization.boards.trialBoardHint', 'You can still create regular boards from the board list. Organization-managed boards require a seat purchase.')}
+                      {t('organization.boards.trialBoardHint', 'You can create regular boards from the board list. Organization-managed boards require a PRO plan.')}
                     </span>
                   </div>
                 </div>
@@ -660,7 +660,7 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                     }}
                     className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all"
                   >
-                    {t('organization.boards.purchaseSeats', 'Purchase Seats')}
+                    {t('organization.boards.upgradePro', 'Upgrade to PRO')}
                   </button>
                 </div>
               </div>

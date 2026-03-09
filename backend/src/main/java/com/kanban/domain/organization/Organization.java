@@ -60,6 +60,10 @@ public class Organization {
     @Column(name = "grades_enabled", nullable = false)
     private Boolean gradesEnabled = true;
 
+    @Builder.Default
+    @Column(name = "hr_system_enabled", nullable = false)
+    private Boolean hrSystemEnabled = false;
+
     @OneToOne(mappedBy = "organization", fetch = FetchType.LAZY)
     private OrgSubscription subscription;
 
@@ -94,6 +98,12 @@ public class Organization {
         }
         if (description != null) {
             this.description = description;
+        }
+    }
+
+    public void updateHrSystemEnabled(Boolean hrSystemEnabled) {
+        if (hrSystemEnabled != null) {
+            this.hrSystemEnabled = hrSystemEnabled;
         }
     }
 

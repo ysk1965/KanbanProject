@@ -4,6 +4,7 @@ import { Clock, LogIn, LogOut, Undo2, Users, UserX, Palmtree } from "lucide-reac
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { organizationService } from "../../utils/services";
+import { useOrgData } from "../../contexts/OrgDataContext";
 import { AttendanceMembersModal } from "./AttendanceMembersModal";
 import type { AttendanceTodayStatus } from "../../types";
 
@@ -36,6 +37,8 @@ function extractTimeFromISO(isoStr: string | null): string {
 
 export function AttendanceWidget({ orgId }: AttendanceWidgetProps) {
   const { t } = useTranslation();
+  const { org } = useOrgData();
+  const hrSystemEnabled = org?.hr_system_enabled === true;
   const [data, setData] = useState<AttendanceTodayStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
@@ -164,13 +167,13 @@ export function AttendanceWidget({ orgId }: AttendanceWidgetProps) {
       value: data.absent_count,
       tabKey: "absent" as const,
     },
-    {
+    ...(!hrSystemEnabled ? [{
       icon: Palmtree,
       iconClass: "text-blue-400",
       label: t("organization.attendance.leave", "Leave"),
       value: totalLeaves,
       tabKey: "leave" as const,
-    },
+    }] : []),
   ];
 
   return (
