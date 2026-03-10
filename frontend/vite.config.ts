@@ -146,6 +146,9 @@ export default defineConfig({
       external: ['@ebarooni/capacitor-calendar'],
     },
   },
+  esbuild: {
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
