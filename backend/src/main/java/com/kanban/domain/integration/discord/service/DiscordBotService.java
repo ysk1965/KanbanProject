@@ -9,6 +9,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -37,6 +38,10 @@ public class DiscordBotService {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
         this.redirectUri = redirectUri;
+        log.info("DiscordBotService initialized: botToken={}, clientId={}, redirectUri={}",
+                botToken != null && !botToken.isBlank() ? "SET(" + botToken.length() + " chars)" : "EMPTY",
+                clientId != null && !clientId.isBlank() ? "SET" : "EMPTY",
+                redirectUri);
     }
 
     /**
@@ -69,8 +74,11 @@ public class DiscordBotService {
             log.debug("Discord DM sent to user {}", discordUserId);
         } catch (BusinessException e) {
             throw e;
+        } catch (HttpStatusCodeException e) {
+            log.error("Discord DM API error for user {}: status={}, body={}", discordUserId, e.getStatusCode(), e.getResponseBodyAsString());
+            throw new BusinessException(ErrorCode.DISCORD_API_ERROR);
         } catch (Exception e) {
-            log.warn("Failed to send Discord DM to user {}: {}", discordUserId, e.getMessage());
+            log.error("Failed to send Discord DM to user {}: {}", discordUserId, e.getMessage(), e);
             throw new BusinessException(ErrorCode.DISCORD_API_ERROR);
         }
     }
@@ -90,8 +98,11 @@ public class DiscordBotService {
             );
 
             log.debug("Discord message sent to channel {}", channelId);
+        } catch (HttpStatusCodeException e) {
+            log.error("Discord channel message API error for {}: status={}, body={}", channelId, e.getStatusCode(), e.getResponseBodyAsString());
+            throw new BusinessException(ErrorCode.DISCORD_API_ERROR);
         } catch (Exception e) {
-            log.warn("Failed to send Discord channel message to {}: {}", channelId, e.getMessage());
+            log.error("Failed to send Discord channel message to {}: {}", channelId, e.getMessage(), e);
             throw new BusinessException(ErrorCode.DISCORD_API_ERROR);
         }
     }

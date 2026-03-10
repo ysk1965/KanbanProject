@@ -323,10 +323,11 @@ public class DiscordService {
                     .message("테스트 메시지가 전송되었습니다")
                     .build();
         } catch (Exception e) {
-            log.warn("Discord test DM failed for user {} on board {}: {}", userId, boardId, e.getMessage());
+            log.error("Discord test DM failed for user {} on board {}: {}", userId, boardId, e.getMessage(), e);
+            String detail = e.getMessage() != null ? e.getMessage() : "알 수 없는 오류";
             return DiscordResponse.TestResult.builder()
                     .success(false)
-                    .message("Discord DM 전송에 실패했습니다. Discord 계정 연동을 확인해주세요.")
+                    .message("Discord DM 전송에 실패했습니다: " + detail)
                     .build();
         }
     }
