@@ -277,7 +277,7 @@ export default function BibleTranscriptionPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-8">
+    <div className="light min-h-screen bg-gray-50 pb-8">
       <div className="max-w-5xl mx-auto space-y-4 p-4">
         {/* 페이지 타이틀 */}
         <div className="text-center py-6">
@@ -342,7 +342,7 @@ export default function BibleTranscriptionPage() {
 
         {/* 장 선택 (좌우 스크롤) */}
         <div className="bg-white rounded-lg shadow-sm p-4">
-          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
             {currentBook?.chapters.map((chapter) => {
               const completed = isChapterComplete(selectedBook, chapter.chapter);
               const isSelected = selectedChapter === chapter.chapter;
@@ -455,7 +455,7 @@ export default function BibleTranscriptionPage() {
               className="fixed inset-0 bg-black/50 z-40"
               onClick={() => setShowReadingChart(false)}
             />
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-4xl max-h-[90dvh] overflow-y-auto mx-4">
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-4xl max-h-[90dvh] overflow-y-auto custom-scrollbar mx-4">
               <div className="bg-white rounded-xl shadow-2xl">
                 <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl">
                   <h2 className="text-2xl font-bold text-gray-800">성경 필사표</h2>
