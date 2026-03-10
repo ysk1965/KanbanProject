@@ -292,7 +292,7 @@ export function ChecklistCreateModal({
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5 min-h-[320px]">
           {/* Checklist Tab */}
           {activeTab === 'checklist' && (
             <>

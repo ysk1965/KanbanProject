@@ -29,6 +29,7 @@ import {
   AIApplyRequest,
   AIApplyResult,
   DiarizedTranscript,
+  DiarizedSegment,
 } from "../utils/api";
 import { getInitials, getAssigneeHex } from "../utils/assigneeColor";
 import {
@@ -104,6 +105,7 @@ export function MeetingDetailPanel({
   >(null);
   const [isEditingTranscriptManually, setIsEditingTranscriptManually] =
     useState(false);
+  const [editingSegments, setEditingSegments] = useState<DiarizedSegment[]>([]);
 
   // Close speaker dropdown on outside click
   useEffect(() => {
@@ -205,6 +207,35 @@ export function MeetingDetailPanel({
     }
   };
 
+  const handleDiarizedTranscriptSave = async () => {
+    if (editingSegments.length === 0) return;
+    try {
+      const newTranscript = editingSegments.map((s) => s.text).join("\n");
+      const newDiarized: DiarizedTranscript = {
+        segments: editingSegments,
+        speaker_mapping: speakerMapping,
+      };
+      await meetingAPI.updateTranscript(
+        boardId,
+        meetingId,
+        newTranscript,
+        newDiarized,
+      );
+      setDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              transcript: newTranscript,
+              diarized_transcript: newDiarized,
+            }
+          : prev,
+      );
+      setEditingTranscript(newTranscript);
+    } catch (error) {
+      console.error("Failed to save diarized transcript:", error);
+    }
+  };
+
   // Recording
   const handleStartRecording = async () => {
     try {
@@ -292,37 +323,37 @@ export function MeetingDetailPanel({
   const SPEAKER_COLORS = [
     {
       bg: "bg-indigo-500/10",
-      text: "text-indigo-300",
+      text: "text-indigo-600 dark:text-indigo-300",
       hoverBg: "hover:bg-indigo-500/20",
       dot: "#6366F1",
     },
     {
       bg: "bg-purple-500/10",
-      text: "text-purple-300",
+      text: "text-purple-600 dark:text-purple-300",
       hoverBg: "hover:bg-purple-500/20",
       dot: "#8B5CF6",
     },
     {
       bg: "bg-teal-500/10",
-      text: "text-teal-300",
+      text: "text-teal-600 dark:text-teal-300",
       hoverBg: "hover:bg-teal-500/20",
       dot: "#14B8A6",
     },
     {
       bg: "bg-rose-500/10",
-      text: "text-rose-300",
+      text: "text-rose-600 dark:text-rose-300",
       hoverBg: "hover:bg-rose-500/20",
       dot: "#F43F5E",
     },
     {
       bg: "bg-amber-500/10",
-      text: "text-amber-300",
+      text: "text-amber-600 dark:text-amber-300",
       hoverBg: "hover:bg-amber-500/20",
       dot: "#F59E0B",
     },
     {
       bg: "bg-emerald-500/10",
-      text: "text-emerald-300",
+      text: "text-emerald-600 dark:text-emerald-300",
       hoverBg: "hover:bg-emerald-500/20",
       dot: "#10B981",
     },
@@ -490,7 +521,12 @@ export function MeetingDetailPanel({
                   {detail.diarized_transcript &&
                     !isEditingTranscriptManually && (
                       <button
-                        onClick={() => setIsEditingTranscriptManually(true)}
+                        onClick={() => {
+                          if (detail.diarized_transcript) {
+                            setEditingSegments(detail.diarized_transcript.segments.map(s => ({ ...s })));
+                          }
+                          setIsEditingTranscriptManually(true);
+                        }}
                         className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300 transition-colors"
                       >
                         <Pencil className="h-3 w-3" />
@@ -500,7 +536,10 @@ export function MeetingDetailPanel({
                   {detail.diarized_transcript &&
                     isEditingTranscriptManually && (
                       <button
-                        onClick={() => setIsEditingTranscriptManually(false)}
+                        onClick={async () => {
+                          await handleDiarizedTranscriptSave();
+                          setIsEditingTranscriptManually(false);
+                        }}
                         className="flex items-center gap-1 text-[11px] text-bridge-accent hover:text-bridge-accent/80 transition-colors"
                       >
                         <Users className="h-3 w-3" />
@@ -611,9 +650,11 @@ export function MeetingDetailPanel({
                 )}
 
                 {/* Diarized Transcript - Conversational UI */}
-                {detail.diarized_transcript && !isEditingTranscriptManually ? (
-                  <div className="space-y-1.5 max-h-[400px] overflow-y-auto rounded-xl border border-foreground/10 bg-foreground/[0.02] p-3">
-                    {detail.diarized_transcript.segments.map((seg, idx) => {
+                {detail.diarized_transcript ? (
+                  <div className={`space-y-1.5 max-h-[400px] overflow-y-auto rounded-xl border border-foreground/10 p-3 ${
+                    isEditingTranscriptManually ? "bg-foreground/[0.04]" : "bg-foreground/[0.02]"
+                  }`}>
+                    {(isEditingTranscriptManually ? editingSegments : detail.diarized_transcript.segments).map((seg, idx) => {
                       const displayName = getSpeakerDisplayName(seg.speaker);
                       const color =
                         speakerColorMap[seg.speaker] || SPEAKER_COLORS[0];
@@ -650,8 +691,8 @@ export function MeetingDetailPanel({
                             {/* Speaker Mapping Dropdown */}
                             {activeSpeakerDropdown ===
                               `${seg.speaker}-${idx}` && (
-                              <div className="absolute top-full left-0 mt-1 z-50 min-w-[180px] bg-[#1a1f2e] border border-white/10 rounded-xl shadow-2xl py-1 overflow-hidden">
-                                <div className="px-3 py-2 border-b border-white/5">
+                              <div className="absolute top-full left-0 mt-1 z-50 min-w-[180px] bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1 overflow-hidden">
+                                <div className="px-3 py-2 border-b border-foreground/[0.08]">
                                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                                     {t("meeting.mapSpeaker", "화자 매핑")}
                                   </span>
@@ -668,7 +709,7 @@ export function MeetingDetailPanel({
                                     className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
                                       speakerMapping[seg.speaker] === p.id
                                         ? "bg-bridge-accent/10 text-bridge-accent"
-                                        : "text-slate-300 hover:bg-white/5"
+                                        : "text-foreground/70 hover:bg-foreground/5"
                                     }`}
                                   >
                                     {p.profile_image ? (
@@ -697,7 +738,7 @@ export function MeetingDetailPanel({
                                 ))}
                                 {speakerMapping[seg.speaker] && (
                                   <>
-                                    <div className="border-t border-white/5" />
+                                    <div className="border-t border-foreground/[0.08]" />
                                     <button
                                       onClick={() =>
                                         handleSpeakerMappingChange(
@@ -705,7 +746,7 @@ export function MeetingDetailPanel({
                                           null,
                                         )
                                       }
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-500 hover:bg-white/5 transition-colors"
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-500 hover:bg-foreground/5 transition-colors"
                                     >
                                       <X className="h-3.5 w-3.5" />
                                       <span>
@@ -718,16 +759,41 @@ export function MeetingDetailPanel({
                             )}
                           </div>
 
-                          {/* Speech content */}
-                          <p className="text-sm text-slate-300 leading-relaxed flex-1 py-0.5">
-                            {seg.text}
-                          </p>
+                          {/* Speech content - editable in manual edit mode */}
+                          {isEditingTranscriptManually ? (
+                            <textarea
+                              value={seg.text}
+                              onChange={(e) => {
+                                setEditingSegments((prev) =>
+                                  prev.map((s, i) =>
+                                    i === idx ? { ...s, text: e.target.value } : s,
+                                  ),
+                                );
+                              }}
+                              onInput={(e) => {
+                                const el = e.target as HTMLTextAreaElement;
+                                el.style.height = "auto";
+                                el.style.height = `${el.scrollHeight}px`;
+                              }}
+                              ref={(el) => {
+                                if (el) {
+                                  el.style.height = "auto";
+                                  el.style.height = `${el.scrollHeight}px`;
+                                }
+                              }}
+                              className="flex-1 text-sm text-foreground/80 leading-relaxed bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2.5 py-1 resize-none outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                            />
+                          ) : (
+                            <p className="text-sm text-foreground/80 leading-relaxed flex-1 py-0.5">
+                              {seg.text}
+                            </p>
+                          )}
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  /* Plain text textarea (legacy/manual edit mode) */
+                  /* Plain text textarea (no diarized data) */
                   <textarea
                     ref={transcriptRef}
                     value={editingTranscript}
