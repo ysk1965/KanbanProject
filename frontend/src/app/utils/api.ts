@@ -2721,10 +2721,15 @@ export const meetingAPI = {
     boardId: string,
     meetingId: string,
     transcript: string,
+    diarizedTranscript?: DiarizedTranscript | null,
   ): Promise<TranscriptResult> => {
+    const body: Record<string, string> = { transcript };
+    if (diarizedTranscript) {
+      body.diarized_transcript = JSON.stringify(diarizedTranscript);
+    }
     return apiClient.put<TranscriptResult>(
       `/boards/${boardId}/meetings/${meetingId}/transcript`,
-      { transcript },
+      body,
     );
   },
 
@@ -5040,7 +5045,7 @@ export const noteAPI = {
 
 export const publicNoteAPI = {
   getSharedNote: async (shareToken: string) => {
-    return apiClient.get<SharedNote>(`/public/notes/${shareToken}`);
+    return apiClient.get<SharedNote>(`/public/notes/${shareToken}`, true);
   },
 };
 
@@ -6901,7 +6906,7 @@ export const publicGalleryAPI = {
   getSharedGallery: (
     shareToken: string,
   ): Promise<import("../types").SharedGalleryInfo> =>
-    apiClient.get(`/public/gallery/${shareToken}`),
+    apiClient.get(`/public/gallery/${shareToken}`, true),
 
   getSharedGalleryPhotos: (
     shareToken: string,
@@ -6914,6 +6919,7 @@ export const publicGalleryAPI = {
     const qs = query.toString();
     return apiClient.get(
       `/public/gallery/${shareToken}/albums/${albumId}/photos${qs ? `?${qs}` : ""}`,
+      true,
     );
   },
 };
@@ -6922,7 +6928,7 @@ export const publicUploadAPI = {
   getUploadAlbumInfo: (
     uploadToken: string,
   ): Promise<import("../types").UploadAlbumInfo> =>
-    apiClient.get(`/public/upload/${uploadToken}`),
+    apiClient.get(`/public/upload/${uploadToken}`, true),
 
   uploadPhotos: async (
     uploadToken: string,
@@ -6952,7 +6958,7 @@ export const publicAlbumAPI = {
   getSharedAlbum: (
     shareToken: string,
   ): Promise<import("../types").SharedAlbumInfo> =>
-    apiClient.get(`/public/albums/${shareToken}`),
+    apiClient.get(`/public/albums/${shareToken}`, true),
 
   getSharedAlbumPhotos: (
     shareToken: string,
@@ -6964,6 +6970,7 @@ export const publicAlbumAPI = {
     const qs = query.toString();
     return apiClient.get(
       `/public/albums/${shareToken}/photos${qs ? `?${qs}` : ""}`,
+      true,
     );
   },
 };

@@ -414,7 +414,7 @@ public class MeetingService {
 
     @Transactional
     public MeetingResponse.TranscriptResult updateTranscript(
-            String boardId, String meetingId, String userId, String transcript) {
+            String boardId, String meetingId, String userId, String transcript, String diarizedTranscriptJson) {
         boardService.checkMemberOrAbove(boardId, userId);
 
         Meeting meeting = meetingRepository.findById(meetingId)
@@ -424,21 +424,33 @@ public class MeetingService {
         }
 
         meeting.updateTranscript(transcript);
-        // Clear diarized transcript when manually editing (must re-transcribe to diarize again)
-        meeting.updateDiarizedTranscript(null);
-        meeting.updateSpeakerMapping(null);
+
+        MeetingResponse.DiarizedTranscript diarizedTranscript = null;
+        if (diarizedTranscriptJson != null) {
+            // Preserve diarized transcript when editing in conversation mode
+            meeting.updateDiarizedTranscript(diarizedTranscriptJson);
+            try {
+                diarizedTranscript = objectMapper.readValue(diarizedTranscriptJson, MeetingResponse.DiarizedTranscript.class);
+            } catch (Exception e) {
+                log.warn("Failed to parse diarized transcript JSON: {}", e.getMessage());
+            }
+        } else {
+            // Clear diarized transcript when editing in plain text mode
+            meeting.updateDiarizedTranscript(null);
+            meeting.updateSpeakerMapping(null);
+        }
 
         User user = userRepository.findById(userId).orElse(null);
         List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(meetingId);
         MeetingResponse.Detail detailResponse = MeetingResponse.Detail.of(meeting, participants,
-                deserializeAiSuggestions(meeting), null);
+                deserializeAiSuggestions(meeting), diarizedTranscript);
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_UPDATED,
                 userId, user != null ? user.getName() : null, detailResponse);
 
         return MeetingResponse.TranscriptResult.builder()
                 .meetingId(meetingId)
                 .transcript(meeting.getTranscript())
-                .diarizedTranscript(null)
+                .diarizedTranscript(diarizedTranscript)
                 .build();
     }
 
