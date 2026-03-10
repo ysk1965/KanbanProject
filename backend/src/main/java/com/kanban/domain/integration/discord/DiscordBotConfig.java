@@ -10,36 +10,36 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
-@Table(name = "member_discord_webhooks", indexes = {
-    @Index(name = "idx_discord_webhook_board_enabled", columnList = "board_id, enabled")
-})
+@Table(name = "discord_bot_configs")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class MemberDiscordWebhook {
+public class DiscordBotConfig {
 
     @Id
     @Column(name = "id", length = 36)
     private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "board_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "board_id", nullable = false, unique = true)
     private Board board;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Column(name = "guild_id", nullable = false, length = 30)
+    private String guildId;
 
-    @Column(name = "webhook_url", nullable = false, length = 500)
-    private String webhookUrl;
+    @Column(name = "guild_name", length = 200)
+    private String guildName;
 
-    @Column(name = "channel_name", length = 100)
+    @Column(name = "channel_id", length = 30)
+    private String channelId;
+
+    @Column(name = "channel_name", length = 200)
     private String channelName;
 
-    @Column(name = "enabled", nullable = false)
-    @Builder.Default
-    private Boolean enabled = true;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "installed_by", nullable = false)
+    private User installedBy;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -60,9 +60,13 @@ public class MemberDiscordWebhook {
         this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
-    public void update(String webhookUrl, String channelName, Boolean enabled) {
-        if (webhookUrl != null) this.webhookUrl = webhookUrl;
-        if (channelName != null) this.channelName = channelName;
-        if (enabled != null) this.enabled = enabled;
+    public void updateChannel(String channelId, String channelName) {
+        this.channelId = channelId;
+        this.channelName = channelName;
+    }
+
+    public void updateGuildInfo(String guildId, String guildName) {
+        this.guildId = guildId;
+        this.guildName = guildName;
     }
 }

@@ -125,8 +125,12 @@ public class OrgPhotoService {
         tab.updateCoverPhoto(null);
         orgPhotoTabRepository.flush();
 
+        // JPQL bulk delete + clearAutomatically clears persistence context
         orgPhotoRepository.deleteByTabId(tabId);
-        orgPhotoTabRepository.delete(tab);
+
+        // Re-fetch tab (persistence context was cleared by @Modifying)
+        OrgPhotoTab tabToDelete = getTabOrThrow(tabId, orgId);
+        orgPhotoTabRepository.delete(tabToDelete);
 
         log.info("Photo tab deleted: tabId={}, orgId={}, userId={}, photosDeleted={}",
                 tabId, orgId, userId, photos.size());
@@ -756,8 +760,13 @@ public class OrgPhotoService {
         tab.updateCoverPhoto(null);
         orgPhotoTabRepository.flush();
 
+        // JPQL bulk delete + clearAutomatically clears persistence context
         orgPhotoRepository.deleteByTabId(albumId);
-        orgPhotoTabRepository.delete(tab);
+
+        // Re-fetch tab (persistence context was cleared by @Modifying)
+        OrgPhotoTab tabToDelete = orgPhotoTabRepository.findByIdAndOrganizationId(albumId, org.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
+        orgPhotoTabRepository.delete(tabToDelete);
 
         log.info("Public gallery tab deleted: tabId={}, orgId={}, photosDeleted={}",
                 albumId, org.getId(), photos.size());

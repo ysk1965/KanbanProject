@@ -4,16 +4,12 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-public class DiscordWebhookRequest {
+public class DiscordRequest {
 
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class Upsert {
-        private String webhookUrl;
-
-        private String channelName;
-
-        private Boolean enabled;
+    public static class UpdateChannel {
+        private String channelId;
     }
 }
