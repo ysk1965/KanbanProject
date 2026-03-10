@@ -3401,7 +3401,11 @@
         "selectMember": "选择成员...",
         "deleteOrg": "删除组织",
         "deleteWarning": "删除组织后无法恢复。所有看板将被解除关联。",
-        "typeOrgName": "输入组织名称以确认"
+        "typeOrgName": "输入组织名称以确认",
+        "autoBoardAccess": "自动看板访问",
+        "autoBoardAccessDesc": "启用后，组织成员无需申请加入即可以编辑权限访问所有组织看板。",
+        "autoBoardAccessEnabled": "允许自动看板访问",
+        "autoBoardAccessHint": "组织成员将自动获得MEMBER角色访问权限。不会被添加到看板成员列表中。"
       },
       "invite": {
         "invalidLink": "此邀请链接无效或已过期。",

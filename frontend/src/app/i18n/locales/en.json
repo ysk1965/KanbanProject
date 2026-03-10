@@ -3860,6 +3860,10 @@
       "deleteOrg": "Delete Organization",
       "deleteWarning": "Deleting this organization cannot be undone. All boards will be released.",
       "typeOrgName": "Type organization name to confirm",
+      "autoBoardAccess": "Auto Board Access",
+      "autoBoardAccessDesc": "When enabled, organization members can access all organization boards with edit permissions without requesting to join.",
+      "autoBoardAccessEnabled": "Enable Auto Board Access",
+      "autoBoardAccessHint": "Organization members will automatically get MEMBER role access. They won't be added to the board member list.",
       "subtabs": {
         "general": "General",
         "structure": "Structure",

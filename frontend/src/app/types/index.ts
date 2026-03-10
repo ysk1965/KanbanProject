@@ -2115,6 +2115,7 @@ export interface OrganizationSimple {
   can_create_org_board?: boolean;
   can_access_hr_features?: boolean;
   hr_system_enabled?: boolean;
+  auto_board_access_enabled?: boolean;
 }
 
 export interface OrganizationDetail extends OrganizationSimple {

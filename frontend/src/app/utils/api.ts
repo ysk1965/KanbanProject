@@ -5670,7 +5670,7 @@ export const organizationAPI = {
   },
   update: async (
     orgId: string,
-    data: { name?: string; description?: string; hr_system_enabled?: boolean },
+    data: { name?: string; description?: string; hr_system_enabled?: boolean; auto_board_access_enabled?: boolean },
   ): Promise<import("../types").OrganizationDetail> => {
     return apiClient.put(`/organizations/${orgId}`, data);
   },
