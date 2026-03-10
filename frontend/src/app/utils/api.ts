@@ -110,6 +110,8 @@ export interface ApiError {
 class ApiClient {
   private baseURL: string;
   private refreshPromise: Promise<boolean> | null = null;
+  // Rate limit 관리: 엔드포인트별 backoff 상태
+  private rateLimitBackoff: Map<string, { until: number; retries: number }> = new Map();
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
@@ -120,6 +122,13 @@ class ApiClient {
     options?: RequestInit,
     skipAuth: boolean = false,
   ): Promise<T> {
+    // Rate limit backoff 체크: 이전에 429를 받은 엔드포인트는 backoff 기간 동안 즉시 차단
+    const backoffKey = endpoint.split('?')[0]; // 쿼리 파라미터 제거
+    const backoffState = this.rateLimitBackoff.get(backoffKey);
+    if (backoffState && Date.now() < backoffState.until) {
+      console.warn(`⏳ [Rate Limit] ${endpoint} — backoff ${Math.ceil((backoffState.until - Date.now()) / 1000)}s 남음`);
+      throw { code: "R001", message: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", status: 429 } as ApiError;
+    }
     const url = `${this.baseURL}${endpoint}`;
 
     const headers: Record<string, string> = {
@@ -175,6 +184,26 @@ class ApiClient {
           status: response.status,
           error: errorData,
         });
+
+        // Rate Limit (429 Too Many Requests) — exponential backoff
+        if (response.status === 429) {
+          const currentBackoff = this.rateLimitBackoff.get(backoffKey);
+          const retries = (currentBackoff?.retries || 0) + 1;
+          // Exponential backoff: 2s, 4s, 8s, 16s, 30s max
+          const backoffMs = Math.min(2000 * Math.pow(2, retries - 1), 30000);
+          this.rateLimitBackoff.set(backoffKey, {
+            until: Date.now() + backoffMs,
+            retries,
+          });
+          console.warn(`🚫 [Rate Limit] ${endpoint} — ${backoffMs / 1000}s backoff (retry #${retries})`);
+          // 5회 이상 연속 429이면 backoff 맵 자동 클리어 타이머 설정 (60초 후)
+          if (retries >= 5) {
+            setTimeout(() => this.rateLimitBackoff.delete(backoffKey), 60000);
+          } else {
+            setTimeout(() => this.rateLimitBackoff.delete(backoffKey), backoffMs);
+          }
+          throw errorData;
+        }
 
         // 토큰 만료시 자동 갱신 시도
         if (response.status === 401 && errorData.code === "A004") {
