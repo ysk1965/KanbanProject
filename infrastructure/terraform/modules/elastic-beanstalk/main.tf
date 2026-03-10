@@ -480,6 +480,12 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.discord_bot_token
   }
 
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "DISCORD_REDIRECT_URI"
+    value     = var.discord_redirect_uri
+  }
+
   # Slack App Integration
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"

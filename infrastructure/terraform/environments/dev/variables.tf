@@ -172,6 +172,12 @@ variable "discord_bot_token" {
   default     = ""
 }
 
+variable "discord_redirect_uri" {
+  description = "Discord OAuth2 redirect URI"
+  type        = string
+  default     = ""
+}
+
 # Slack App Integration
 variable "slack_client_id" {
   description = "Slack App Client ID"

@@ -64,6 +64,10 @@ public class Organization {
     @Column(name = "hr_system_enabled", nullable = false)
     private Boolean hrSystemEnabled = false;
 
+    @Builder.Default
+    @Column(name = "auto_board_access_enabled", nullable = false)
+    private Boolean autoBoardAccessEnabled = false;
+
     @OneToOne(mappedBy = "organization", fetch = FetchType.LAZY)
     private OrgSubscription subscription;
 
@@ -110,6 +114,12 @@ public class Organization {
     public void updateHrSystemEnabled(Boolean hrSystemEnabled) {
         if (hrSystemEnabled != null) {
             this.hrSystemEnabled = hrSystemEnabled;
+        }
+    }
+
+    public void updateAutoBoardAccessEnabled(Boolean autoBoardAccessEnabled) {
+        if (autoBoardAccessEnabled != null) {
+            this.autoBoardAccessEnabled = autoBoardAccessEnabled;
         }
     }
 

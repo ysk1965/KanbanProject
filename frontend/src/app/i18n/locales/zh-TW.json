@@ -3279,7 +3279,11 @@
         "selectMember": "選擇成員...",
         "deleteOrg": "刪除組織",
         "deleteWarning": "刪除組織後無法復原。所有看板將被解除關聯。",
-        "typeOrgName": "輸入組織名稱以確認"
+        "typeOrgName": "輸入組織名稱以確認",
+        "autoBoardAccess": "自動看板存取",
+        "autoBoardAccessDesc": "啟用後，組織成員無需申請加入即可以編輯權限存取所有組織看板。",
+        "autoBoardAccessEnabled": "允許自動看板存取",
+        "autoBoardAccessHint": "組織成員將自動獲得MEMBER角色存取權限。不會被新增到看板成員列表中。"
       },
       "invite": {
         "invalidLink": "此邀請連結無效或已過期。",

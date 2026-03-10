@@ -3285,7 +3285,11 @@
         "selectMember": "Seleccionar miembro...",
         "deleteOrg": "Eliminar Organización",
         "deleteWarning": "Eliminar esta organización no se puede deshacer. Todos los tableros serán desvinculados.",
-        "typeOrgName": "Escriba el nombre de la organización para confirmar"
+        "typeOrgName": "Escriba el nombre de la organización para confirmar",
+        "autoBoardAccess": "Acceso automático al tablero",
+        "autoBoardAccessDesc": "Cuando está habilitado, los miembros de la organización pueden acceder a todos los tableros con permisos de edición sin solicitar unirse.",
+        "autoBoardAccessEnabled": "Habilitar acceso automático al tablero",
+        "autoBoardAccessHint": "Los miembros de la organización obtendrán automáticamente acceso con rol MEMBER. No se agregarán a la lista de miembros del tablero."
       },
       "invite": {
         "invalidLink": "Este enlace de invitación es inválido o ha expirado.",

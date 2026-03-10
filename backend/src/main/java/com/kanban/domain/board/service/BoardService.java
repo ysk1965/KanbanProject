@@ -465,10 +465,23 @@ public class BoardService {
     }
 
     public void checkMemberOrAbove(String boardId, String userId) {
-        BoardMember membership = getMembershipOrThrow(boardId, userId);
-        if (!membership.isMemberOrAbove()) {
-            throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
+        java.util.Optional<BoardMember> membershipOpt = boardMemberRepository.findByBoardIdAndUserId(boardId, userId);
+        if (membershipOpt.isPresent()) {
+            if (!membershipOpt.get().isMemberOrAbove()) {
+                throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
+            }
+            return;
         }
+        // Org auto-access fallback
+        Board board = boardRepository.findById(boardId).orElse(null);
+        if (board != null && board.isOrganizationBoard()) {
+            com.kanban.domain.organization.Organization org = board.getOrganization();
+            if (Boolean.TRUE.equals(org.getAutoBoardAccessEnabled())
+                    && orgMemberRepository.existsByOrganizationIdAndUserId(org.getId(), userId)) {
+                return; // Virtual MEMBER
+            }
+        }
+        throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
     }
 
     public void checkAdminOrAbove(String boardId, String userId) {

@@ -3285,7 +3285,11 @@
         "selectMember": "Chọn thành viên...",
         "deleteOrg": "Xóa tổ chức",
         "deleteWarning": "Xóa tổ chức này không thể hoàn tác. Tất cả các bảng sẽ bị gỡ liên kết.",
-        "typeOrgName": "Nhập tên tổ chức để xác nhận"
+        "typeOrgName": "Nhập tên tổ chức để xác nhận",
+        "autoBoardAccess": "Tự động truy cập bảng",
+        "autoBoardAccessDesc": "Khi bật, thành viên tổ chức có thể truy cập tất cả bảng tổ chức với quyền chỉnh sửa mà không cần yêu cầu tham gia.",
+        "autoBoardAccessEnabled": "Cho phép tự động truy cập bảng",
+        "autoBoardAccessHint": "Thành viên tổ chức sẽ tự động nhận quyền truy cập MEMBER. Họ sẽ không được thêm vào danh sách thành viên bảng."
       },
       "invite": {
         "invalidLink": "Liên kết mời này không hợp lệ hoặc đã hết hạn.",

@@ -149,6 +149,7 @@ module "elastic_beanstalk" {
   discord_client_id     = var.discord_client_id
   discord_client_secret = var.discord_client_secret
   discord_bot_token     = var.discord_bot_token
+  discord_redirect_uri  = var.discord_redirect_uri
 
   # Slack App Integration
   slack_client_id            = var.slack_client_id

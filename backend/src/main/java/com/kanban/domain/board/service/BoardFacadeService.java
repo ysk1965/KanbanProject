@@ -102,8 +102,13 @@ public class BoardFacadeService {
             } else if (board.isOrganizationBoard() &&
                        orgMemberRepository.existsByOrganizationIdAndUserId(
                            board.getOrganization().getId(), userId)) {
-                myRole = BoardRole.VIEWER;
-                isOrgMemberViewer = true;
+                if (Boolean.TRUE.equals(board.getOrganization().getAutoBoardAccessEnabled())) {
+                    myRole = BoardRole.MEMBER;
+                    isOrgMemberViewer = false;
+                } else {
+                    myRole = BoardRole.VIEWER;
+                    isOrgMemberViewer = true;
+                }
             } else {
                 throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
             }
