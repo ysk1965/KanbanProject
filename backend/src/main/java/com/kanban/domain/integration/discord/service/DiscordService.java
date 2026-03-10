@@ -10,6 +10,7 @@ import com.kanban.domain.integration.discord.DiscordBotConfigRepository;
 import com.kanban.domain.integration.discord.DiscordUserLink;
 import com.kanban.domain.integration.discord.DiscordUserLinkRepository;
 import com.kanban.domain.integration.discord.dto.DiscordResponse;
+import com.kanban.domain.integration.slack.service.SlackTokenEncryptor;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
@@ -43,6 +44,7 @@ public class DiscordService {
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
     private final UserRepository userRepository;
+    private final SlackTokenEncryptor tokenEncryptor;
 
     @Value("${discord.client-id:}")
     private String clientId;
@@ -128,10 +130,16 @@ public class DiscordService {
 
         // Exchange code for tokens
         Map<String, Object> tokenResponse = discordBotService.exchangeCodeForTokens(code);
+        if (tokenResponse == null) {
+            throw new BusinessException(ErrorCode.DISCORD_OAUTH_FAILED);
+        }
         String accessToken = (String) tokenResponse.get("access_token");
         String refreshToken = (String) tokenResponse.get("refresh_token");
         Object expiresInObj = tokenResponse.get("expires_in");
         long expiresIn = expiresInObj instanceof Number ? ((Number) expiresInObj).longValue() : 604800;
+        if (accessToken == null) {
+            throw new BusinessException(ErrorCode.DISCORD_OAUTH_FAILED);
+        }
 
         if ("bot_install".equals(type)) {
             return handleBotInstall(tokenResponse, boardId, userId);
@@ -364,6 +372,9 @@ public class DiscordService {
     private String handleUserLink(String accessToken, String refreshToken, long expiresIn, String userId, String boardId) {
         // Get Discord user info
         Map<String, Object> userInfo = discordBotService.getUserInfo(accessToken);
+        if (userInfo == null) {
+            throw new BusinessException(ErrorCode.DISCORD_OAUTH_FAILED);
+        }
         String discordUserId = (String) userInfo.get("id");
         String discordUsername = (String) userInfo.get("username");
 
@@ -376,7 +387,10 @@ public class DiscordService {
 
         if (existingLink.isPresent()) {
             DiscordUserLink link = existingLink.get();
-            link.updateTokens(accessToken, refreshToken, tokenExpiresAt);
+            link.updateTokens(
+                    tokenEncryptor.encrypt(accessToken),
+                    refreshToken != null ? tokenEncryptor.encrypt(refreshToken) : null,
+                    tokenExpiresAt);
             link.updateUsername(discordUsername);
             userLinkRepository.save(link);
         } else {
@@ -389,8 +403,8 @@ public class DiscordService {
                     .user(user)
                     .discordUserId(discordUserId)
                     .discordUsername(discordUsername)
-                    .accessToken(accessToken)
-                    .refreshToken(refreshToken)
+                    .accessToken(tokenEncryptor.encrypt(accessToken))
+                    .refreshToken(refreshToken != null ? tokenEncryptor.encrypt(refreshToken) : null)
                     .tokenExpiresAt(tokenExpiresAt)
                     .build();
             userLinkRepository.save(link);

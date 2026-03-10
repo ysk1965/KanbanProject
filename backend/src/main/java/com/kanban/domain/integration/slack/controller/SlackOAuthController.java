@@ -13,6 +13,7 @@ import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,6 +23,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/slack")
 @RequiredArgsConstructor
@@ -58,6 +60,7 @@ public class SlackOAuthController {
             SlackAppResponse.OAuthCallback result = slackOAuthService.handleCallback(code, state);
             response.sendRedirect(frontendUrl + result.getRedirectPath());
         } catch (Exception e) {
+            log.warn("Slack OAuth callback failed: {}", e.getMessage(), e);
             response.sendRedirect(frontendUrl + "/auth/slack/callback?error=failed");
         }
     }
@@ -147,6 +150,7 @@ public class SlackOAuthController {
             String redirectPath = slackOAuthService.handleUserLinkCallback(code, state);
             response.sendRedirect(frontendUrl + redirectPath);
         } catch (Exception e) {
+            log.warn("Slack OAuth user link callback failed: {}", e.getMessage(), e);
             response.sendRedirect(frontendUrl + "/auth/slack/callback?error=user_link_failed");
         }
     }

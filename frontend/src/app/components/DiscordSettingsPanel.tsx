@@ -52,6 +52,7 @@ export function DiscordSettingsPanel({
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Check URL params for OAuth callback result
   useEffect(() => {
@@ -114,33 +115,38 @@ export function DiscordSettingsPanel({
   }, [fetchData]);
 
   const handleInstallBot = async () => {
+    setErrorMessage(null);
     setIsRedirecting(true);
     try {
       const data = await discordAPI.getOAuthUrl(boardId, "bot_install");
       window.location.href = data.oauth_url;
     } catch {
       setIsRedirecting(false);
+      setErrorMessage(t('discordBot.installFailed', 'Failed to start bot installation'));
     }
   };
 
   const handleLinkAccount = async () => {
+    setErrorMessage(null);
     setIsRedirecting(true);
     try {
       const data = await discordAPI.getOAuthUrl(boardId, "user_link");
       window.location.href = data.oauth_url;
     } catch {
       setIsRedirecting(false);
+      setErrorMessage(t('discordBot.linkFailed', 'Failed to start account linking'));
     }
   };
 
   const handleUnlink = async () => {
+    setErrorMessage(null);
     setIsUnlinking(true);
     try {
       await discordAPI.unlinkMe(boardId);
       setUserLink({ linked: false, discord_user_id: null, discord_username: null });
       onDiscordStatusChange?.(false);
     } catch {
-      // silently fail
+      setErrorMessage(t('discordBot.unlinkFailed', 'Failed to unlink Discord account'));
     } finally {
       setIsUnlinking(false);
     }
@@ -148,6 +154,7 @@ export function DiscordSettingsPanel({
 
   const handleDisconnectBot = async () => {
     if (!window.confirm(t("discordBot.disconnectConfirm"))) return;
+    setErrorMessage(null);
     setIsDisconnecting(true);
     try {
       await discordAPI.deleteConfig(boardId);
@@ -156,26 +163,28 @@ export function DiscordSettingsPanel({
       setChannels([]);
       onDiscordStatusChange?.(false);
     } catch {
-      // silently fail
+      setErrorMessage(t('discordBot.disconnectFailed', 'Failed to disconnect bot'));
     } finally {
       setIsDisconnecting(false);
     }
   };
 
   const handleChannelSelect = async (channel: DiscordChannelInfo) => {
+    setErrorMessage(null);
     setIsChangingChannel(true);
     setShowChannelDropdown(false);
     try {
       const updated = await discordAPI.updateChannel(boardId, channel.id);
       setConfig(updated);
     } catch {
-      // silently fail
+      setErrorMessage(t('discordBot.channelUpdateFailed', 'Failed to update channel'));
     } finally {
       setIsChangingChannel(false);
     }
   };
 
   const handleTest = async () => {
+    setErrorMessage(null);
     setIsTesting(true);
     setTestResult(null);
     try {
@@ -239,11 +248,22 @@ export function DiscordSettingsPanel({
     </div>
   );
 
+  const errorBanner = errorMessage && (
+    <div
+      className="flex items-center gap-1.5 mb-2 px-2.5 py-1.5 rounded-lg text-[11px] bg-red-500/10 text-red-400 cursor-pointer"
+      onClick={() => setErrorMessage(null)}
+    >
+      <AlertCircle size={12} />
+      {errorMessage}
+    </div>
+  );
+
   // State 1: Bot Not Installed
   if (!config) {
     return (
       <div className="mx-3 mt-3 mb-2 p-3 bg-white/[0.03] rounded-xl border border-foreground/10">
         {oauthBanner}
+        {errorBanner}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
             <DiscordIcon size={14} className="text-slate-400" />
@@ -275,6 +295,7 @@ export function DiscordSettingsPanel({
   return (
     <div className="mx-3 mt-3 mb-2 p-3 bg-white/[0.03] rounded-xl border border-foreground/10">
       {oauthBanner}
+      {errorBanner}
 
       {/* Bot connection status */}
       <div className="flex items-center justify-between mb-2">
