@@ -5,6 +5,7 @@ import com.kanban.domain.organization.leave.LeaveStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -100,4 +101,12 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Stri
             @Param("orgIds") List<String> orgIds,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+
+    @Modifying
+    @Query("DELETE FROM LeaveRequest lr WHERE lr.requester.id = :memberId")
+    void deleteByRequesterId(@Param("memberId") String memberId);
+
+    @Modifying
+    @Query("UPDATE LeaveRequest lr SET lr.reviewer = null WHERE lr.reviewer.id = :memberId")
+    void nullifyReviewerByMemberId(@Param("memberId") String memberId);
 }

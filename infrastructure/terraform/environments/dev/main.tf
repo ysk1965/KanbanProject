@@ -521,3 +521,76 @@ resource "aws_route53_record" "backend_api" {
 
   depends_on = [module.elastic_beanstalk]
 }
+
+# ─── Secondary Domain (milkyway.pe.kr) ───
+# Shares the same backend ALB with additional ACM certificate
+
+# Look up existing Route53 hosted zone for secondary domain
+data "aws_route53_zone" "secondary" {
+  count = var.secondary_domain_name != "" ? 1 : 0
+  name  = var.secondary_domain_name
+}
+
+# ACM Certificate for secondary domain (ap-northeast-2 for ALB)
+module "acm_certificate_secondary_alb" {
+  count  = var.secondary_domain_name != "" ? 1 : 0
+  source = "../../modules/acm-certificate"
+
+  project_name              = var.project_name
+  environment               = "${var.environment}-secondary-alb"
+  domain_name               = var.secondary_domain_name
+  subject_alternative_names = ["*.${var.secondary_domain_name}"]
+}
+
+# ACM Certificate Validation Records for secondary domain
+resource "aws_route53_record" "cert_validation_secondary_alb" {
+  for_each = var.secondary_domain_name != "" ? {
+    for dvo in module.acm_certificate_secondary_alb[0].domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  } : {}
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = data.aws_route53_zone.secondary[0].zone_id
+}
+
+# Attach secondary domain certificate to ALB HTTPS listener
+data "aws_lb_listener" "https" {
+  count             = var.secondary_domain_name != "" ? 1 : 0
+  load_balancer_arn = one(module.elastic_beanstalk.load_balancers)
+  port              = 443
+
+  depends_on = [module.elastic_beanstalk]
+}
+
+resource "aws_lb_listener_certificate" "secondary" {
+  count           = var.secondary_domain_name != "" ? 1 : 0
+  listener_arn    = data.aws_lb_listener.https[0].arn
+  certificate_arn = module.acm_certificate_secondary_alb[0].validated_certificate_arn
+
+  depends_on = [module.elastic_beanstalk, module.acm_certificate_secondary_alb]
+}
+
+# Backend API Domain Record for secondary domain
+resource "aws_route53_record" "backend_api_secondary" {
+  count = var.secondary_domain_name != "" ? 1 : 0
+
+  zone_id = data.aws_route53_zone.secondary[0].zone_id
+  name    = "api.${var.secondary_domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = module.elastic_beanstalk.alb_dns_name
+    zone_id                = module.elastic_beanstalk.alb_zone_id
+    evaluate_target_health = true
+  }
+
+  depends_on = [module.elastic_beanstalk]
+}
+

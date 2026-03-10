@@ -2,6 +2,7 @@ package com.kanban.domain.organization.repository;
 
 import com.kanban.domain.organization.OrgOneOnOne;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -47,4 +48,8 @@ public interface OrgOneOnOneRepository extends JpaRepository<OrgOneOnOne, String
     Optional<OrgOneOnOne> findByOrgIdAndUserIds(@Param("orgId") String orgId,
                                                   @Param("userAId") String userAId,
                                                   @Param("userBId") String userBId);
+
+    @Modifying
+    @Query("DELETE FROM OrgOneOnOne o WHERE o.memberA.id = :memberId OR o.memberB.id = :memberId")
+    void deleteByMemberId(@Param("memberId") String memberId);
 }

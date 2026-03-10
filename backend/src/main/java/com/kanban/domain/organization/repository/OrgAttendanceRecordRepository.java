@@ -4,6 +4,7 @@ import com.kanban.domain.organization.OrgAttendanceRecord;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -60,4 +61,8 @@ public interface OrgAttendanceRecordRepository extends JpaRepository<OrgAttendan
            "AND r.organization.id IN :orgIds AND r.recordDate = :date")
     List<OrgAttendanceRecord> findUnclockedByOrgsAndDate(@Param("orgIds") List<String> orgIds,
                                                           @Param("date") LocalDate date);
+
+    @Modifying
+    @Query("DELETE FROM OrgAttendanceRecord r WHERE r.member.id = :memberId")
+    void deleteByMemberId(@Param("memberId") String memberId);
 }

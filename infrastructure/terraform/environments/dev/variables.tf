@@ -81,6 +81,12 @@ variable "domain_name" {
   default     = ""  # Set this to enable custom domain
 }
 
+variable "secondary_domain_name" {
+  description = "Secondary domain name (e.g., milkyway.pe.kr) - shares same backend ALB"
+  type        = string
+  default     = ""
+}
+
 # Polar.sh Payment
 variable "polar_api_key" {
   description = "Polar.sh API key"

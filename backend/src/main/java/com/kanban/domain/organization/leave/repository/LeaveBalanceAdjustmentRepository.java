@@ -4,6 +4,7 @@ import com.kanban.domain.organization.leave.LeaveBalanceAdjustment;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -34,4 +35,12 @@ public interface LeaveBalanceAdjustmentRepository extends JpaRepository<LeaveBal
            "WHERE a.balance.id = :balanceId " +
            "ORDER BY a.createdAt DESC")
     List<LeaveBalanceAdjustment> findByBalanceId(@Param("balanceId") String balanceId);
+
+    @Modifying
+    @Query("DELETE FROM LeaveBalanceAdjustment a WHERE a.member.id = :memberId")
+    void deleteByMemberId(@Param("memberId") String memberId);
+
+    @Modifying
+    @Query("UPDATE LeaveBalanceAdjustment a SET a.grantedBy = null WHERE a.grantedBy.id = :memberId")
+    void nullifyGrantedByMemberId(@Param("memberId") String memberId);
 }
