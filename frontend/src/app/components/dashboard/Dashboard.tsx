@@ -4,10 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, CalendarDays, BookHeart, ListTodo, List, Grid3X3, ChevronRight, X, Users, CheckCircle2, Flame, Clock, Sparkles, Circle, Flag, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
-import { Board, PersonalDashboardToday } from '../../types';
+import { Board, PersonalDashboardToday, OrganizationSimple } from '../../types';
 import { testDataAPI, personalDashboardAPI, resolveFileUrl } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
-import { boardService } from '../../utils/services';
+import { boardService, organizationService } from '../../utils/services';
 import { getInitials } from '../../utils/assigneeColor';
 import { Sidebar } from './Sidebar';
 import { BoardCard, CreateBoardCard, getGradient } from './BoardCard';
@@ -115,6 +115,8 @@ export function Dashboard({
 
   // Personal Board Today 데이터
   const [todayData, setTodayData] = useState<PersonalDashboardToday | null>(null);
+  // 내 조직 목록
+  const [myOrganizations, setMyOrganizations] = useState<OrganizationSimple[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -123,6 +125,14 @@ export function Dashboard({
         setTodayData(data);
       } catch {
         // Personal dashboard data may not be available
+      }
+    })();
+    (async () => {
+      try {
+        const orgs = await organizationService.list();
+        setMyOrganizations(orgs);
+      } catch {
+        // Organizations may not be available
       }
     })();
   }, []);
@@ -579,6 +589,66 @@ export function Dashboard({
                   )}
                 </button>
               </motion.div>
+            )}
+
+            {/* My Organizations Section */}
+            {myOrganizations.length > 0 && !searchQuery && (
+              <section>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Building2 size={14} className="text-bridge-accent" />
+                    <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">
+                      {t('dashboard.myOrganizations', 'My Organizations')}
+                    </h2>
+                    <span className="text-[10px] text-slate-600">{myOrganizations.length}</span>
+                  </div>
+                  <button
+                    onClick={() => navigate('/organizations')}
+                    className="text-[10px] font-bold text-slate-500 hover:text-foreground transition-colors"
+                  >
+                    {t('common.viewAll', 'View All')}
+                  </button>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-1 custom-scrollbar">
+                  {myOrganizations.map((org, index) => (
+                    <motion.button
+                      key={org.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.04 }}
+                      onClick={() => navigate(`/organizations/${org.id}`)}
+                      className="shrink-0 w-64 bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] hover:border-foreground/[0.12] p-4 transition-colors text-left flex items-center gap-3 group"
+                    >
+                      {org.logo_url ? (
+                        <img src={org.logo_url} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-xl bg-bridge-accent/10 flex items-center justify-center shrink-0">
+                          <Building2 size={18} className="text-bridge-accent" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-[13px] font-bold text-foreground truncate">{org.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2.5 text-[10px] text-slate-400">
+                          <span className="flex items-center gap-1">
+                            <Users size={10} />
+                            {org.member_count}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <LayoutGrid size={10} />
+                            {org.board_count}
+                          </span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+                            {org.my_role === 'OWNER' ? t('organization.role.owner', 'Owner') : org.my_role === 'ADMIN' ? t('organization.role.admin', 'Admin') : t('organization.role.member', 'Member')}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight size={14} className="text-slate-600 group-hover:text-foreground transition-colors shrink-0" />
+                    </motion.button>
+                  ))}
+                </div>
+              </section>
             )}
 
             {/* Project Section Header */}

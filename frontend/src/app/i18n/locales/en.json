@@ -366,6 +366,7 @@
     "starredBoards": "Starred Boards",
     "workspaceBoards": "Workspace Boards",
     "orgBoards": "Organization Boards",
+    "myOrganizations": "My Organizations",
     "testBoard": "Test Board",
     "testOrg": "Test Org",
     "testOrgTitle": "Create Test Organization (Admin Only)",
