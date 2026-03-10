@@ -7,7 +7,7 @@ import {
   Suspense,
 } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, GripVertical, Flag, Pencil } from "lucide-react";
+import { Plus, GripVertical, Flag, Pencil, Eye } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { isWhiteLabelDomain } from "../utils/domain";
 
@@ -2611,9 +2611,39 @@ export function KanbanBoardPage() {
         ) : viewMode === "kanban" ? (
           <main className="flex-1 flex flex-col overflow-hidden bg-bridge-dark">
             {features.length === 0 ? (
-              <EmptyBoardGuide
-                onCreateFeature={() => setIsAddFeatureModalOpen(true)}
-              />
+              isOrgMemberViewer ? (
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  <div className="flex flex-col items-center justify-center min-h-full px-6 py-12">
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5 }}
+                      className="flex flex-col items-center max-w-md text-center"
+                    >
+                      <div className="w-14 h-14 rounded-2xl bg-bridge-accent/10 border border-bridge-accent/20 flex items-center justify-center mb-6">
+                        <Eye className="h-7 w-7 text-bridge-accent" />
+                      </div>
+                      <h2 className="font-jakarta text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-3">
+                        {t('board.joinRequest.emptyBoardTitle', '아직 콘텐츠가 없는 보드입니다')}
+                      </h2>
+                      <p className="text-slate-400 font-light text-sm md:text-base leading-relaxed mb-8">
+                        {t('board.joinRequest.emptyBoardDesc', '이 보드에 참가하면 Feature를 만들고 편집할 수 있습니다. 상단 배너에서 참가 신청을 해보세요.')}
+                      </p>
+                      {boardId && (
+                        <JoinRequestBanner
+                          boardId={boardId}
+                          hasPendingRequest={board?.has_pending_join_request ?? false}
+                          onRequestSent={() => setBoard((prev) => prev ? { ...prev, has_pending_join_request: true } : prev)}
+                        />
+                      )}
+                    </motion.div>
+                  </div>
+                </div>
+              ) : (
+                <EmptyBoardGuide
+                  onCreateFeature={() => setIsAddFeatureModalOpen(true)}
+                />
+              )
             ) : (
               <>
                 {/* 검색 + 필터 툴바 */}

@@ -129,7 +129,7 @@ export function KanbanBoardHeader({
         {/* 좌측 영역 */}
         <div className="flex items-center gap-2 md:gap-6 min-w-0 shrink-0">
           <button
-            onClick={() => navigate('/boards')}
+            onClick={() => navigate(-1)}
             className="p-2 hover:bg-bridge-surface-hover rounded-lg transition-colors text-zinc-400 hover:text-foreground"
           >
             <ArrowLeft size={18} />

@@ -1184,7 +1184,14 @@
     "permanentDelete": "영구 삭제",
     "deleteBtn": "보드 삭제",
     "creating": "생성 중...",
-    "testBoardTitle": "테스트 보드 생성 (관리자 전용)"
+    "testBoardTitle": "테스트 보드 생성 (관리자 전용)",
+    "joinRequest": {
+      "viewerMessage": "조직 구성원으로 보드를 열람 중입니다. 멤버로 참가하면 편집할 수 있습니다.",
+      "pending": "승인 대기중",
+      "requestJoin": "참가 신청",
+      "emptyBoardTitle": "아직 콘텐츠가 없는 보드입니다",
+      "emptyBoardDesc": "이 보드에 참가하면 Feature를 만들고 편집할 수 있습니다. 아래에서 참가 신청을 해보세요."
+    }
   },
   "announcement": {
     "dismissToday": "오늘 하루 보지 않기"
