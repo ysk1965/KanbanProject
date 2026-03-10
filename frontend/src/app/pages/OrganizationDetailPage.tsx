@@ -196,6 +196,16 @@ function OrgDetailPageContent() {
         ),
       };
     }
+    // HR 시스템 비활성화 시 워크스페이스에서 인사이트/OKR 숨김
+    if (g.key === "workspace" && !hrSystemEnabled && g.subTabs) {
+      const filtered = g.subTabs.filter(
+        (s) => s.key !== "insights" && s.key !== "okr",
+      );
+      return {
+        ...g,
+        subTabs: filtered.length > 1 ? filtered : undefined,
+      };
+    }
     return g;
   });
 
