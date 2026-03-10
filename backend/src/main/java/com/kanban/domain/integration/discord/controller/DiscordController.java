@@ -46,8 +46,18 @@ public class DiscordController {
      */
     @GetMapping("/api/v1/discord/oauth/callback")
     public ResponseEntity<Void> handleOAuthCallback(
-            @RequestParam String code,
-            @RequestParam String state) {
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String error) {
+        // User denied OAuth or Discord returned an error
+        if (code == null || error != null) {
+            log.info("Discord OAuth cancelled or denied: error={}", error);
+            String errorRedirect = buildErrorRedirect(state, "denied");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setLocation(URI.create(errorRedirect));
+            return new ResponseEntity<>(headers, HttpStatus.FOUND);
+        }
+
         try {
             String redirectUrl = discordService.handleOAuthCallback(code, state);
             HttpHeaders headers = new HttpHeaders();
@@ -55,18 +65,23 @@ public class DiscordController {
             return new ResponseEntity<>(headers, HttpStatus.FOUND);
         } catch (Exception e) {
             log.warn("Discord OAuth callback failed: {}", e.getMessage(), e);
-            // Try to extract boardId from state for redirect to board settings
-            String errorRedirect = frontendUrl + "?discord=error";
-            try {
-                String[] parts = state.split(":");
-                if (parts.length >= 2) {
-                    errorRedirect = frontendUrl + "/boards/" + parts[1] + "?view=settings&tab=discord&discord=error";
-                }
-            } catch (Exception ignored) {}
+            String errorRedirect = buildErrorRedirect(state, "error");
             HttpHeaders headers = new HttpHeaders();
             headers.setLocation(URI.create(errorRedirect));
             return new ResponseEntity<>(headers, HttpStatus.FOUND);
         }
+    }
+
+    private String buildErrorRedirect(String state, String reason) {
+        try {
+            if (state != null) {
+                String[] parts = state.split(":");
+                if (parts.length >= 2) {
+                    return frontendUrl + "/boards/" + parts[1] + "?view=settings&tab=discord&discord=" + reason;
+                }
+            }
+        } catch (Exception ignored) {}
+        return frontendUrl + "?discord=" + reason;
     }
 
     /**
