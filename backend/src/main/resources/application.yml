@@ -239,6 +239,7 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 86
+    out-of-order: true
 
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/kanban_dev}
@@ -283,6 +284,7 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 86
+    out-of-order: true
 
   datasource:
     url: ${DATABASE_URL}
