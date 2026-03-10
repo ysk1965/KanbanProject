@@ -1183,7 +1183,14 @@
     "permanentDelete": "Permanently Delete",
     "deleteBtn": "Delete Board",
     "creating": "Creating...",
-    "testBoardTitle": "Create Test Board (Admin Only)"
+    "testBoardTitle": "Create Test Board (Admin Only)",
+    "joinRequest": {
+      "viewerMessage": "You are viewing this board as an organization member. Join to edit.",
+      "pending": "Pending",
+      "requestJoin": "Request to Join",
+      "emptyBoardTitle": "This board has no content yet",
+      "emptyBoardDesc": "Join this board to create Features and edit content. Request to join below."
+    }
   },
   "announcement": {
     "dismissToday": "Don't show today"

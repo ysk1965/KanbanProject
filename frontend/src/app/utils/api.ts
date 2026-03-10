@@ -4712,8 +4712,7 @@ export const discordAPI = {
     type: "bot_install" | "user_link",
   ) => {
     return apiClient.get<{ oauth_url: string }>(
-      `/boards/${boardId}/discord/oauth-url`,
-      { params: { type } },
+      `/boards/${boardId}/discord/oauth-url?type=${type}`,
     );
   },
 
