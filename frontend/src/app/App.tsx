@@ -34,6 +34,7 @@ import { CustomIconPage } from './pages/CustomIconPage';
 import { OrganizationPage } from './pages/OrganizationPage';
 import { OrganizationDetailPage } from './pages/OrganizationDetailPage';
 import { OrgInviteAcceptPage } from './pages/OrgInviteAcceptPage';
+import { SlackOAuthCallback } from './components/slack/SlackOAuthCallback';
 import { AnnouncementDisplay } from './components/AnnouncementDisplay';
 import { MaintenancePage } from './components/MaintenancePage';
 import { boardService, inviteLinkService, organizationService, systemService } from './utils/services';
@@ -172,8 +173,13 @@ function LoginRoute() {
             setIsProcessingInvite(false);
           }
         } else if (isAuthenticated && !isLoading) {
-          // 보드 목록으로 이동 (TESTER 자동 리다이렉트는 BoardsRoute에서 처리)
-          navigate('/boards');
+          // pending invite가 있으면 justLoggedIn을 기다림 (race condition 방지)
+          const hasPendingOrgInvite = localStorage.getItem('pending_org_invite_code');
+          const hasPendingBoardInvite = localStorage.getItem('pending_invite_code');
+          if (!hasPendingOrgInvite && !hasPendingBoardInvite) {
+            // 보드 목록으로 이동 (TESTER 자동 리다이렉트는 BoardsRoute에서 처리)
+            navigate('/boards');
+          }
         }
       }
     };
@@ -477,6 +483,16 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <CustomIconPage />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Slack OAuth 콜백 */}
+      <Route
+        path="/auth/slack/callback"
+        element={
+          <PrivateRoute>
+            <SlackOAuthCallback />
           </PrivateRoute>
         }
       />

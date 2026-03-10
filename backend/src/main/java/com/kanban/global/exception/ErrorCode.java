@@ -173,12 +173,22 @@ public enum ErrorCode {
     SLACK_WEBHOOK_INVALID_URL(HttpStatus.BAD_REQUEST, "SK002", "유효하지 않은 Slack 웹훅 URL입니다"),
     SLACK_WEBHOOK_TEST_FAILED(HttpStatus.BAD_GATEWAY, "SK003", "Slack 테스트 메시지 전송에 실패했습니다"),
     SLACK_PREMIUM_REQUIRED(HttpStatus.FORBIDDEN, "SK004", "Slack 연동은 Premium에서만 사용 가능합니다"),
+    SLACK_APP_NOT_INSTALLED(HttpStatus.NOT_FOUND, "SK005", "Slack 앱이 설치되어 있지 않습니다"),
+    SLACK_OAUTH_STATE_INVALID(HttpStatus.BAD_REQUEST, "SK006", "유효하지 않은 OAuth 상태입니다"),
+    SLACK_OAUTH_FAILED(HttpStatus.BAD_GATEWAY, "SK007", "Slack OAuth 인증에 실패했습니다"),
+    SLACK_API_ERROR(HttpStatus.BAD_GATEWAY, "SK008", "Slack API 호출에 실패했습니다"),
+    SLACK_SIGNATURE_INVALID(HttpStatus.UNAUTHORIZED, "SK009", "유효하지 않은 Slack 서명입니다"),
+    SLACK_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "SK011", "Slack API 요청 제한에 도달했습니다"),
+    SLACK_TOKEN_DECRYPTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "SK012", "Slack 토큰 복호화에 실패했습니다"),
 
     // Discord Integration
-    DISCORD_WEBHOOK_NOT_FOUND(HttpStatus.NOT_FOUND, "DK001", "Discord 웹훅 설정을 찾을 수 없습니다"),
-    DISCORD_WEBHOOK_INVALID_URL(HttpStatus.BAD_REQUEST, "DK002", "유효하지 않은 Discord 웹훅 URL입니다"),
-    DISCORD_WEBHOOK_TEST_FAILED(HttpStatus.BAD_GATEWAY, "DK003", "Discord 테스트 메시지 전송에 실패했습니다"),
+    DISCORD_BOT_NOT_CONFIGURED(HttpStatus.NOT_FOUND, "DK001", "Discord Bot이 설정되지 않았습니다"),
+    DISCORD_OAUTH_FAILED(HttpStatus.BAD_GATEWAY, "DK002", "Discord OAuth 인증에 실패했습니다"),
+    DISCORD_API_ERROR(HttpStatus.BAD_GATEWAY, "DK003", "Discord API 호출에 실패했습니다"),
     DISCORD_PREMIUM_REQUIRED(HttpStatus.FORBIDDEN, "DK004", "Discord 연동은 Premium에서만 사용 가능합니다"),
+    DISCORD_USER_NOT_LINKED(HttpStatus.NOT_FOUND, "DK005", "Discord 계정이 연동되지 않았습니다"),
+    DISCORD_USER_ALREADY_LINKED(HttpStatus.CONFLICT, "DK006", "이미 Discord 계정이 연동되어 있습니다"),
+    DISCORD_OAUTH_STATE_INVALID(HttpStatus.BAD_REQUEST, "DK007", "유효하지 않은 OAuth 상태입니다"),
 
     // System
     ANNOUNCEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SY001", "공지사항을 찾을 수 없습니다"),

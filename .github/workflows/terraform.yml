@@ -90,6 +90,15 @@ jobs:
           TF_VAR_polar_product_credit_100: ${{ secrets.POLAR_PRODUCT_CREDIT_100 }}
           TF_VAR_polar_product_credit_500: ${{ secrets.POLAR_PRODUCT_CREDIT_500 }}
           TF_VAR_polar_product_credit_1000: ${{ secrets.POLAR_PRODUCT_CREDIT_1000 }}
+          TF_VAR_discord_client_id: ${{ secrets.DISCORD_CLIENT_ID }}
+          TF_VAR_discord_client_secret: ${{ secrets.DISCORD_CLIENT_SECRET }}
+          TF_VAR_discord_bot_token: ${{ secrets.DISCORD_BOT_TOKEN }}
+          TF_VAR_slack_client_id: ${{ secrets.SLACK_CLIENT_ID }}
+          TF_VAR_slack_client_secret: ${{ secrets.SLACK_CLIENT_SECRET }}
+          TF_VAR_slack_signing_secret: ${{ secrets.SLACK_SIGNING_SECRET }}
+          TF_VAR_slack_token_encryption_key: ${{ secrets.SLACK_TOKEN_ENCRYPTION_KEY }}
+          TF_VAR_slack_redirect_uri: ${{ secrets.SLACK_REDIRECT_URI }}
+          TF_VAR_slack_user_redirect_uri: ${{ secrets.SLACK_USER_REDIRECT_URI }}
 
   # Terraform Apply (Manual or on main branch)
   terraform-apply:
@@ -143,6 +152,15 @@ jobs:
           TF_VAR_polar_product_credit_100: ${{ secrets.POLAR_PRODUCT_CREDIT_100 }}
           TF_VAR_polar_product_credit_500: ${{ secrets.POLAR_PRODUCT_CREDIT_500 }}
           TF_VAR_polar_product_credit_1000: ${{ secrets.POLAR_PRODUCT_CREDIT_1000 }}
+          TF_VAR_discord_client_id: ${{ secrets.DISCORD_CLIENT_ID }}
+          TF_VAR_discord_client_secret: ${{ secrets.DISCORD_CLIENT_SECRET }}
+          TF_VAR_discord_bot_token: ${{ secrets.DISCORD_BOT_TOKEN }}
+          TF_VAR_slack_client_id: ${{ secrets.SLACK_CLIENT_ID }}
+          TF_VAR_slack_client_secret: ${{ secrets.SLACK_CLIENT_SECRET }}
+          TF_VAR_slack_signing_secret: ${{ secrets.SLACK_SIGNING_SECRET }}
+          TF_VAR_slack_token_encryption_key: ${{ secrets.SLACK_TOKEN_ENCRYPTION_KEY }}
+          TF_VAR_slack_redirect_uri: ${{ secrets.SLACK_REDIRECT_URI }}
+          TF_VAR_slack_user_redirect_uri: ${{ secrets.SLACK_USER_REDIRECT_URI }}
 
       - name: Output Terraform Values
         working-directory: infrastructure/terraform/environments/${{ github.event.inputs.environment || 'dev' }}

@@ -3,8 +3,10 @@ package com.kanban.domain.integration.discord.service;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.comment.Comment;
-import com.kanban.domain.integration.discord.MemberDiscordWebhook;
-import com.kanban.domain.integration.discord.MemberDiscordWebhookRepository;
+import com.kanban.domain.integration.discord.DiscordBotConfig;
+import com.kanban.domain.integration.discord.DiscordBotConfigRepository;
+import com.kanban.domain.integration.discord.DiscordUserLink;
+import com.kanban.domain.integration.discord.DiscordUserLinkRepository;
 import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.note.NoteComment;
 import com.kanban.domain.notification.NotificationPreference;
@@ -14,13 +16,9 @@ import com.kanban.domain.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
 import java.util.*;
@@ -31,9 +29,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DiscordNotificationService {
 
-    private final MemberDiscordWebhookRepository webhookRepository;
+    private final DiscordBotService discordBotService;
+    private final DiscordBotConfigRepository botConfigRepository;
+    private final DiscordUserLinkRepository userLinkRepository;
     private final NotificationPreferenceRepository preferenceRepository;
-    private final RestTemplate restTemplate;
 
     // Bridge Accent #6366F1
     private static final int DISCORD_EMBED_COLOR = 0x6366F1;
@@ -74,16 +73,10 @@ public class DiscordNotificationService {
             return;
         }
 
-        List<MemberDiscordWebhook> webhooks = webhookRepository
-                .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
-
-        if (webhooks.isEmpty()) {
-            return;
-        }
-
         String resolvedUrl = resolveFrontendUrl(originUrl);
-        Map<String, Object> payload = buildMentionPayload(comment, sender, board, resolvedUrl);
-        sendToWebhooks(webhooks, payload, board.getId());
+        String boardUrl = resolvedUrl + "/boards/" + board.getId();
+        Map<String, Object> payload = buildMentionPayload(comment, sender, board, boardUrl);
+        sendDmToUsers(filteredUserIds, payload, board.getId());
     }
 
     @Async
@@ -103,15 +96,10 @@ public class DiscordNotificationService {
             return;
         }
 
-        List<MemberDiscordWebhook> webhooks = webhookRepository
-                .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
-        if (webhooks.isEmpty()) {
-            return;
-        }
-
         String resolvedUrl = resolveFrontendUrl(originUrl);
-        Map<String, Object> payload = buildChecklistAssignedPayload(item, assigner, board, resolvedUrl);
-        sendToWebhooks(webhooks, payload, board.getId());
+        String boardUrl = resolvedUrl + "/boards/" + board.getId();
+        Map<String, Object> payload = buildChecklistAssignedPayload(item, assigner, board, boardUrl);
+        sendDmToUsers(filteredUserIds, payload, board.getId());
     }
 
     @Async
@@ -135,15 +123,10 @@ public class DiscordNotificationService {
             return;
         }
 
-        List<MemberDiscordWebhook> webhooks = webhookRepository
-                .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
-        if (webhooks.isEmpty()) {
-            return;
-        }
-
         String resolvedUrl = resolveFrontendUrl(originUrl);
-        Map<String, Object> payload = buildTaskCommentPayload(comment, sender, board, resolvedUrl);
-        sendToWebhooks(webhooks, payload, board.getId());
+        String boardUrl = resolvedUrl + "/boards/" + board.getId();
+        Map<String, Object> payload = buildTaskCommentPayload(comment, sender, board, boardUrl);
+        sendDmToUsers(filteredUserIds, payload, board.getId());
     }
 
     @Async
@@ -161,15 +144,10 @@ public class DiscordNotificationService {
             return;
         }
 
-        List<MemberDiscordWebhook> webhooks = webhookRepository
-                .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
-        if (webhooks.isEmpty()) {
-            return;
-        }
-
         String resolvedUrl = resolveFrontendUrl(originUrl);
-        Map<String, Object> payload = buildMeetingMemoPayload(meeting, sender, board, resolvedUrl);
-        sendToWebhooks(webhooks, payload, board.getId());
+        String boardUrl = resolvedUrl + "/boards/" + board.getId() + "?view=schedule&tab=meeting";
+        Map<String, Object> payload = buildMeetingMemoPayload(meeting, sender, board, boardUrl);
+        sendDmToUsers(filteredUserIds, payload, board.getId());
     }
 
     @Async
@@ -196,95 +174,84 @@ public class DiscordNotificationService {
             return;
         }
 
-        List<MemberDiscordWebhook> webhooks = webhookRepository
-                .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
-
-        if (webhooks.isEmpty()) {
-            return;
-        }
-
         String resolvedUrl = resolveFrontendUrl(originUrl);
-        Map<String, Object> payload = buildNoteCommentMentionPayload(noteComment, sender, board, resolvedUrl);
-        sendToWebhooks(webhooks, payload, board.getId());
+        String boardUrl = resolvedUrl + "/boards/" + board.getId() + "?view=notes";
+        Map<String, Object> payload = buildNoteCommentMentionPayload(noteComment, sender, board, boardUrl);
+        sendDmToUsers(filteredUserIds, payload, board.getId());
     }
 
     // --- Payload Builders ---
 
-    private Map<String, Object> buildMentionPayload(Comment comment, User sender, Board board, String resolvedUrl) {
+    private Map<String, Object> buildMentionPayload(Comment comment, User sender, Board board, String boardUrl) {
         String taskTitle = comment.getTask() != null ? comment.getTask().getTitle() : "Unknown Task";
         String commentContent = truncate(comment.getContent(), 200);
-        String boardUrl = resolvedUrl + "/boards/" + board.getId();
 
         String description = (commentContent != null && !commentContent.isBlank())
-                ? "> " + commentContent + "\n\n[보드에서 보기](" + boardUrl + ")"
-                : "[보드에서 보기](" + boardUrl + ")";
+                ? "> " + commentContent
+                : "";
 
-        return buildEmbedPayload("\uD83D\uDCAC @멘션 알림", description, board.getName(), taskTitle, sender.getName());
+        return buildEmbedPayload("\uD83D\uDCAC @\uBA58\uC158 \uC54C\uB9BC", description, board.getName(), taskTitle, sender.getName(), boardUrl);
     }
 
-    private Map<String, Object> buildChecklistAssignedPayload(ChecklistItem item, User assigner, Board board, String resolvedUrl) {
+    private Map<String, Object> buildChecklistAssignedPayload(ChecklistItem item, User assigner, Board board, String boardUrl) {
         String taskTitle = item.getTask() != null ? item.getTask().getTitle() : "Unknown Task";
-        String boardUrl = resolvedUrl + "/boards/" + board.getId();
-        String description = "**체크리스트:** " + item.getTitle() + "\n\n[보드에서 보기](" + boardUrl + ")";
+        String description = "**\uCCB4\uD06C\uB9AC\uC2A4\uD2B8:** " + item.getTitle();
 
         List<Map<String, Object>> fields = new ArrayList<>();
         fields.add(Map.of("name", "Board", "value", board.getName(), "inline", true));
         fields.add(Map.of("name", "Task", "value", taskTitle, "inline", true));
-        fields.add(Map.of("name", "배정자", "value", assigner.getName(), "inline", true));
+        fields.add(Map.of("name", "\uBC30\uC815\uC790", "value", assigner.getName(), "inline", true));
 
-        return buildEmbedPayloadWithFields("\uD83D\uDCCB 체크리스트 배정 알림", description, fields);
+        return buildEmbedPayloadWithFields("\uD83D\uDCCB \uCCB4\uD06C\uB9AC\uC2A4\uD2B8 \uBC30\uC815 \uC54C\uB9BC", description, fields, boardUrl);
     }
 
-    private Map<String, Object> buildTaskCommentPayload(Comment comment, User sender, Board board, String resolvedUrl) {
+    private Map<String, Object> buildTaskCommentPayload(Comment comment, User sender, Board board, String boardUrl) {
         String taskTitle = comment.getTask() != null ? comment.getTask().getTitle() : "Unknown Task";
         String commentContent = truncate(comment.getContent(), 200);
-        String boardUrl = resolvedUrl + "/boards/" + board.getId();
 
         String description = (commentContent != null && !commentContent.isBlank())
-                ? "> " + commentContent + "\n\n[보드에서 보기](" + boardUrl + ")"
-                : "[보드에서 보기](" + boardUrl + ")";
+                ? "> " + commentContent
+                : "";
 
-        return buildEmbedPayload("\uD83D\uDCAC 새 댓글 알림", description, board.getName(), taskTitle, sender.getName());
+        return buildEmbedPayload("\uD83D\uDCAC \uC0C8 \uB313\uAE00 \uC54C\uB9BC", description, board.getName(), taskTitle, sender.getName(), boardUrl);
     }
 
-    private Map<String, Object> buildMeetingMemoPayload(Meeting meeting, User sender, Board board, String resolvedUrl) {
-        String boardUrl = resolvedUrl + "/boards/" + board.getId() + "?view=schedule&tab=meeting";
+    private Map<String, Object> buildMeetingMemoPayload(Meeting meeting, User sender, Board board, String boardUrl) {
         String memoPreview = truncate(meeting.getMemo(), 200);
 
         String description = (memoPreview != null && !memoPreview.isBlank())
-                ? "> " + memoPreview + "\n\n[보드에서 보기](" + boardUrl + ")"
-                : "[보드에서 보기](" + boardUrl + ")";
+                ? "> " + memoPreview
+                : "";
 
-        return buildEmbedPayload("\uD83D\uDCCB 회의록 공유", description, board.getName(), meeting.getTitle(), sender.getName());
+        return buildEmbedPayload("\uD83D\uDCCB \uD68C\uC758\uB85D \uACF5\uC720", description, board.getName(), meeting.getTitle(), sender.getName(), boardUrl);
     }
 
-    private Map<String, Object> buildNoteCommentMentionPayload(NoteComment noteComment, User sender, Board board, String resolvedUrl) {
+    private Map<String, Object> buildNoteCommentMentionPayload(NoteComment noteComment, User sender, Board board, String boardUrl) {
         String noteTitle = noteComment.getNote().getTitle();
         String commentContent = truncate(noteComment.getContent(), 200);
-        String boardUrl = resolvedUrl + "/boards/" + board.getId() + "?view=notes";
 
         String description = (commentContent != null && !commentContent.isBlank())
-                ? "> " + commentContent + "\n\n[보드에서 보기](" + boardUrl + ")"
-                : "[보드에서 보기](" + boardUrl + ")";
+                ? "> " + commentContent
+                : "";
 
-        return buildEmbedPayload("\uD83D\uDCDD 노트 댓글 멘션", description, board.getName(), noteTitle, sender.getName());
+        return buildEmbedPayload("\uD83D\uDCDD \uB178\uD2B8 \uB313\uAE00 \uBA58\uC158", description, board.getName(), noteTitle, sender.getName(), boardUrl);
     }
 
     /**
-     * Standard 3-field embed: Board / Task(Note/Meeting) / Author
+     * Standard 3-field embed: Board / Task(Note/Meeting) / Author, with action button.
      */
     private Map<String, Object> buildEmbedPayload(String title, String description,
-                                                    String boardName, String itemTitle, String authorName) {
+                                                    String boardName, String itemTitle, String authorName, String boardUrl) {
         List<Map<String, Object>> fields = new ArrayList<>();
         fields.add(Map.of("name", "Board", "value", boardName, "inline", true));
         fields.add(Map.of("name", "Task", "value", itemTitle, "inline", true));
         fields.add(Map.of("name", "Author", "value", authorName, "inline", true));
 
-        return buildEmbedPayloadWithFields(title, description, fields);
+        return buildEmbedPayloadWithFields(title, description, fields, boardUrl);
     }
 
     private Map<String, Object> buildEmbedPayloadWithFields(String title, String description,
-                                                              List<Map<String, Object>> fields) {
+                                                              List<Map<String, Object>> fields, String boardUrl) {
         Map<String, Object> embed = new LinkedHashMap<>();
         embed.put("title", title);
         embed.put("description", description);
@@ -293,24 +260,50 @@ public class DiscordNotificationService {
         embed.put("footer", Map.of("text", "BRIDGE SPOTS"));
         embed.put("timestamp", Instant.now().toString());
 
-        return Map.of("embeds", List.of(embed));
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("embeds", List.of(embed));
+        // Message Components: "보드에서 보기" action button
+        payload.put("components", List.of(Map.of(
+                "type", 1,
+                "components", List.of(Map.of(
+                        "type", 2,
+                        "style", 5,
+                        "label", "\uBCF4\uB4DC\uC5D0\uC11C \uBCF4\uAE30",
+                        "url", boardUrl
+                ))
+        )));
+
+        return payload;
     }
 
     // --- Helpers ---
 
-    private void sendToWebhooks(List<MemberDiscordWebhook> webhooks, Map<String, Object> payload, String boardId) {
-        for (MemberDiscordWebhook webhook : webhooks) {
-            try {
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+    /**
+     * Send DM to each linked Discord user via the Bot.
+     */
+    private void sendDmToUsers(List<String> userIds, Map<String, Object> payload, String boardId) {
+        // Check if bot is configured for this board
+        Optional<DiscordBotConfig> botConfig = botConfigRepository.findByBoardId(boardId);
+        if (botConfig.isEmpty()) {
+            log.debug("No Discord bot configured for board {}, skipping DM notifications", boardId);
+            return;
+        }
 
-                restTemplate.postForEntity(webhook.getWebhookUrl(), entity, String.class);
-                log.info("Discord notification sent to user {} on board {}",
-                        webhook.getUser().getId(), boardId);
+        // Find Discord links for all target users
+        List<DiscordUserLink> userLinks = userLinkRepository.findByUserIdIn(userIds);
+        if (userLinks.isEmpty()) {
+            log.debug("No Discord-linked users found for board {} notification", boardId);
+            return;
+        }
+
+        for (DiscordUserLink link : userLinks) {
+            try {
+                discordBotService.sendDirectMessage(link.getDiscordUserId(), payload);
+                log.info("Discord DM notification sent to user {} (discord: {}) on board {}",
+                        link.getUser().getId(), link.getDiscordUserId(), boardId);
             } catch (Exception e) {
-                log.warn("Failed to send Discord notification to user {} on board {}: {}",
-                        webhook.getUser().getId(), boardId, e.getMessage());
+                log.warn("Failed to send Discord DM to user {} (discord: {}) on board {}: {}",
+                        link.getUser().getId(), link.getDiscordUserId(), boardId, e.getMessage());
             }
         }
     }

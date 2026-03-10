@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { notificationAPI } from "../utils/api";
-import { SlackSettingsPanel } from "./SlackSettingsPanel";
+import { SlackIntegrationPanel } from "./slack/SlackIntegrationPanel";
 import { DiscordSettingsPanel } from "./DiscordSettingsPanel";
 import { NotificationPreferencesPanel } from "./NotificationPreferencesPanel";
 import { StandupConfigPanel } from "./StandupConfigPanel";
@@ -437,7 +437,7 @@ export function NotificationDropdown({
           {activeTab === "notifications" ? (
             <>
               {/* Slack Integration Banner */}
-              <SlackSettingsPanel
+              <SlackIntegrationPanel
                 boardId={boardId}
                 onSlackStatusChange={setSlackConnected}
                 canAccessSlack={canAccessSlack}

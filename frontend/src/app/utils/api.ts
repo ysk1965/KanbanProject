@@ -4543,17 +4543,133 @@ export const slackWebhookAPI = {
 };
 
 // ========================================
-// Discord Webhook API
+// Slack App (OAuth) API
 // ========================================
 
-export interface DiscordWebhookConfig {
+export interface SlackAppInstallation {
   id: string;
-  board_id: string;
-  webhook_url_masked: string;
-  channel_name: string | null;
-  enabled: boolean;
+  scope: 'BOARD' | 'ORGANIZATION';
+  slack_team_id: string;
+  slack_team_name: string;
+  bot_user_id: string | null;
+  active: boolean;
+  installed_by_name: string | null;
+  default_channel_id: string | null;
+  default_channel_name: string | null;
+  scopes: string | null;
   created_at: string;
-  updated_at: string;
+}
+
+export interface SlackChannel {
+  id: string;
+  name: string;
+  is_private: boolean;
+  is_archived: boolean;
+  member_count: number;
+}
+
+export interface SlackChannelList {
+  channels: SlackChannel[];
+  next_cursor: string | null;
+}
+
+export interface SlackUserLinkStatus {
+  linked: boolean;
+  slack_user_id: string | null;
+  slack_username: string | null;
+  slack_team_id: string | null;
+}
+
+export interface SlackMemberStatus {
+  user_id: string;
+  linked: boolean;
+  slack_username: string | null;
+}
+
+export const slackAppAPI = {
+  getInstallUrl: async (scope: 'BOARD' | 'ORGANIZATION', entityId: string) => {
+    return apiClient.get<{ url: string }>(`/slack/oauth/install?scope=${scope}&entity_id=${entityId}`);
+  },
+
+  getStatus: async (boardId: string) => {
+    return apiClient.get<SlackAppInstallation | null>(`/slack/app/status?board_id=${boardId}`);
+  },
+
+  getOrgStatus: async (orgId: string) => {
+    return apiClient.get<SlackAppInstallation | null>(`/slack/app/status?organization_id=${orgId}`);
+  },
+
+  listChannels: async (boardId: string, cursor?: string) => {
+    const params = cursor ? `&cursor=${cursor}` : '';
+    return apiClient.get<SlackChannelList>(`/slack/app/channels?board_id=${boardId}${params}`);
+  },
+
+  listOrgChannels: async (orgId: string, cursor?: string) => {
+    const params = cursor ? `&cursor=${cursor}` : '';
+    return apiClient.get<SlackChannelList>(`/slack/app/channels?organization_id=${orgId}${params}`);
+  },
+
+  setDefaultChannel: async (installationId: string, channelId: string, channelName: string) => {
+    return apiClient.put(`/slack/app/channel?installation_id=${installationId}`, {
+      channelId: channelId,
+      channelName: channelName,
+    });
+  },
+
+  uninstall: async (installationId: string) => {
+    return apiClient.delete(`/slack/app/${installationId}`);
+  },
+
+  // User link (per-user Slack account linking for DM notifications)
+  getUserLinkUrl: async (boardId: string) => {
+    return apiClient.get<{ url: string }>(`/slack/oauth/user-link?board_id=${boardId}`);
+  },
+
+  getUserLinkStatus: async () => {
+    return apiClient.get<SlackUserLinkStatus>(`/slack/user/me`);
+  },
+
+  unlinkUser: async () => {
+    return apiClient.delete(`/slack/user/me`);
+  },
+
+  getMemberStatuses: async (boardId: string) => {
+    return apiClient.get<SlackMemberStatus[]>(`/slack/user/statuses?board_id=${boardId}`);
+  },
+};
+
+// ========================================
+// Discord Bot API
+// ========================================
+
+export interface DiscordBotConfig {
+  board_id: string;
+  guild_id: string;
+  guild_name: string;
+  channel_id: string | null;
+  channel_name: string | null;
+  bot_connected: boolean;
+  installed_by: string;
+  created_at: string;
+}
+
+export interface DiscordUserLinkStatus {
+  linked: boolean;
+  discord_user_id: string | null;
+  discord_username: string | null;
+}
+
+export interface DiscordChannelInfo {
+  id: string;
+  name: string;
+  type: number;
+}
+
+export interface DiscordMemberStatus {
+  user_id: string;
+  linked: boolean;
+  discord_username: string | null;
+  enabled: boolean;
 }
 
 export interface DiscordTestResult {
@@ -4561,56 +4677,59 @@ export interface DiscordTestResult {
   message: string;
 }
 
-export interface DiscordWebhookMemberStatus {
-  user_id: string;
-  connected: boolean;
-  enabled: boolean;
-  channel_name: string | null;
-}
-
-export const discordWebhookAPI = {
-  getMemberStatuses: async (boardId: string) => {
-    return apiClient.get<DiscordWebhookMemberStatus[]>(
-      `/boards/${boardId}/discord-webhook/statuses`,
-    );
-  },
-
-  getMyConfig: async (boardId: string) => {
-    return apiClient.get<DiscordWebhookConfig>(
-      `/boards/${boardId}/discord-webhook/me`,
-    );
-  },
-
-  upsertMyConfig: async (
+export const discordAPI = {
+  getOAuthUrl: async (
     boardId: string,
-    data: {
-      webhookUrl?: string;
-      channelName?: string;
-      enabled?: boolean;
-    },
+    type: "bot_install" | "user_link",
   ) => {
-    return apiClient.put<DiscordWebhookConfig>(
-      `/boards/${boardId}/discord-webhook/me`,
-      {
-        webhook_url: data.webhookUrl || undefined,
-        channel_name: data.channelName,
-        enabled: data.enabled,
-      },
+    return apiClient.get<{ oauth_url: string }>(
+      `/boards/${boardId}/discord/oauth-url`,
+      { params: { type } },
     );
   },
 
-  deleteMyConfig: async (boardId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/discord-webhook/me`,
+  getConfig: async (boardId: string) => {
+    return apiClient.get<DiscordBotConfig | null>(
+      `/boards/${boardId}/discord/config`,
     );
   },
 
-  testMyWebhook: async (boardId: string) => {
-    const brandName = window.location.hostname.includes("milkyway")
-      ? "Milkyway"
-      : "BRIDGE SPOTS";
+  deleteConfig: async (boardId: string) => {
+    return apiClient.delete(`/boards/${boardId}/discord/config`);
+  },
+
+  getMyLink: async (boardId: string) => {
+    return apiClient.get<DiscordUserLinkStatus>(
+      `/boards/${boardId}/discord/me`,
+    );
+  },
+
+  unlinkMe: async (boardId: string) => {
+    return apiClient.delete(`/boards/${boardId}/discord/me`);
+  },
+
+  getChannels: async (boardId: string) => {
+    return apiClient.get<{ channels: DiscordChannelInfo[] }>(
+      `/boards/${boardId}/discord/channels`,
+    );
+  },
+
+  updateChannel: async (boardId: string, channelId: string) => {
+    return apiClient.put<DiscordBotConfig>(
+      `/boards/${boardId}/discord/channel`,
+      { channel_id: channelId },
+    );
+  },
+
+  getMemberStatuses: async (boardId: string) => {
+    return apiClient.get<DiscordMemberStatus[]>(
+      `/boards/${boardId}/discord/statuses`,
+    );
+  },
+
+  testNotification: async (boardId: string) => {
     return apiClient.post<DiscordTestResult>(
-      `/boards/${boardId}/discord-webhook/me/test?brandName=${encodeURIComponent(brandName)}`,
+      `/boards/${boardId}/discord/test`,
     );
   },
 };

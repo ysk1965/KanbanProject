@@ -7,6 +7,7 @@ import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.note.NoteComment;
 import com.kanban.domain.integration.slack.MemberSlackWebhook;
 import com.kanban.domain.integration.slack.MemberSlackWebhookRepository;
+import com.kanban.domain.integration.slack.SlackInstallation;
 import com.kanban.domain.notification.NotificationPreference;
 import com.kanban.domain.notification.NotificationPreferenceRepository;
 import com.kanban.domain.notification.NotificationType;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -32,6 +34,8 @@ public class SlackNotificationService {
     private final MemberSlackWebhookRepository webhookRepository;
     private final NotificationPreferenceRepository preferenceRepository;
     private final RestTemplate restTemplate;
+    private final SlackOAuthService slackOAuthService;
+    private final SlackBotNotificationService botNotificationService;
 
     @Value("${app.frontend-url:https://bridgespots.com}")
     private String frontendUrl;
@@ -68,16 +72,27 @@ public class SlackNotificationService {
             return;
         }
 
-        List<MemberSlackWebhook> webhooks = webhookRepository
-                .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
+        // Try Bot API first (DM to linked users + channel fallback)
+        boolean sentViaBot = trySendViaBotWithDm(board, filteredUserIds,
+                installation -> botNotificationService.sendMentionNotification(comment, sender, board, installation, originUrl),
+                (userIds, installation) -> {
+                    String resolvedUrl = resolveFrontendUrl(originUrl);
+                    Map<String, Object> payload = buildMentionPayload(comment, sender, board, resolvedUrl);
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> blocks = (List<Map<String, Object>>) payload.get("blocks");
+                    return botNotificationService.sendDmToLinkedUsers(userIds, installation, blocks, "COMMENT_MENTION", board.getId());
+                });
 
-        if (webhooks.isEmpty()) {
-            return;
+        // Fallback to individual webhooks
+        if (!sentViaBot) {
+            List<MemberSlackWebhook> webhooks = webhookRepository
+                    .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
+            if (!webhooks.isEmpty()) {
+                String resolvedUrl = resolveFrontendUrl(originUrl);
+                Map<String, Object> payload = buildMentionPayload(comment, sender, board, resolvedUrl);
+                sendToWebhooks(webhooks, payload, board.getId());
+            }
         }
-
-        String resolvedUrl = resolveFrontendUrl(originUrl);
-        Map<String, Object> payload = buildMentionPayload(comment, sender, board, resolvedUrl);
-        sendToWebhooks(webhooks, payload, board.getId());
     }
 
     @Async
@@ -97,15 +112,27 @@ public class SlackNotificationService {
             return;
         }
 
-        List<MemberSlackWebhook> webhooks = webhookRepository
-                .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
-        if (webhooks.isEmpty()) {
-            return;
-        }
+        // Try Bot API first (DM + channel)
+        boolean sentViaBot = trySendViaBotWithDm(board, filteredUserIds,
+                installation -> botNotificationService.sendChecklistAssignedNotification(item, assigner, board, installation, originUrl),
+                (userIds, installation) -> {
+                    String resolvedUrl = resolveFrontendUrl(originUrl);
+                    Map<String, Object> payload = buildChecklistAssignedPayload(item, assigner, board, resolvedUrl);
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> blocks = (List<Map<String, Object>>) payload.get("blocks");
+                    return botNotificationService.sendDmToLinkedUsers(userIds, installation, blocks, "CHECKLIST_ASSIGNED", board.getId());
+                });
 
-        String resolvedUrl = resolveFrontendUrl(originUrl);
-        Map<String, Object> payload = buildChecklistAssignedPayload(item, assigner, board, resolvedUrl);
-        sendToWebhooks(webhooks, payload, board.getId());
+        // Fallback to individual webhooks
+        if (!sentViaBot) {
+            List<MemberSlackWebhook> webhooks = webhookRepository
+                    .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
+            if (!webhooks.isEmpty()) {
+                String resolvedUrl = resolveFrontendUrl(originUrl);
+                Map<String, Object> payload = buildChecklistAssignedPayload(item, assigner, board, resolvedUrl);
+                sendToWebhooks(webhooks, payload, board.getId());
+            }
+        }
     }
 
     @Async
@@ -129,15 +156,27 @@ public class SlackNotificationService {
             return;
         }
 
-        List<MemberSlackWebhook> webhooks = webhookRepository
-                .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
-        if (webhooks.isEmpty()) {
-            return;
-        }
+        // Try Bot API first (DM + channel)
+        boolean sentViaBot = trySendViaBotWithDm(board, filteredUserIds,
+                installation -> botNotificationService.sendTaskCommentNotification(comment, sender, board, installation, originUrl),
+                (userIds, installation) -> {
+                    String resolvedUrl = resolveFrontendUrl(originUrl);
+                    Map<String, Object> payload = buildTaskCommentPayload(comment, sender, board, resolvedUrl);
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> blocks = (List<Map<String, Object>>) payload.get("blocks");
+                    return botNotificationService.sendDmToLinkedUsers(userIds, installation, blocks, "TASK_COMMENT", board.getId());
+                });
 
-        String resolvedUrl = resolveFrontendUrl(originUrl);
-        Map<String, Object> payload = buildTaskCommentPayload(comment, sender, board, resolvedUrl);
-        sendToWebhooks(webhooks, payload, board.getId());
+        // Fallback to individual webhooks
+        if (!sentViaBot) {
+            List<MemberSlackWebhook> webhooks = webhookRepository
+                    .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
+            if (!webhooks.isEmpty()) {
+                String resolvedUrl = resolveFrontendUrl(originUrl);
+                Map<String, Object> payload = buildTaskCommentPayload(comment, sender, board, resolvedUrl);
+                sendToWebhooks(webhooks, payload, board.getId());
+            }
+        }
     }
 
     @Async
@@ -155,15 +194,27 @@ public class SlackNotificationService {
             return;
         }
 
-        List<MemberSlackWebhook> webhooks = webhookRepository
-                .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
-        if (webhooks.isEmpty()) {
-            return;
-        }
+        // Try Bot API first (DM + channel)
+        boolean sentViaBot = trySendViaBotWithDm(board, filteredUserIds,
+                installation -> botNotificationService.sendMeetingMemoNotification(meeting, sender, board, installation, originUrl),
+                (userIds, installation) -> {
+                    String resolvedUrl = resolveFrontendUrl(originUrl);
+                    Map<String, Object> payload = buildMeetingMemoPayload(meeting, sender, board, resolvedUrl);
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> blocks = (List<Map<String, Object>>) payload.get("blocks");
+                    return botNotificationService.sendDmToLinkedUsers(userIds, installation, blocks, "MEETING_MEMO_SHARED", board.getId());
+                });
 
-        String resolvedUrl = resolveFrontendUrl(originUrl);
-        Map<String, Object> payload = buildMeetingMemoPayload(meeting, sender, board, resolvedUrl);
-        sendToWebhooks(webhooks, payload, board.getId());
+        // Fallback to individual webhooks
+        if (!sentViaBot) {
+            List<MemberSlackWebhook> webhooks = webhookRepository
+                    .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
+            if (!webhooks.isEmpty()) {
+                String resolvedUrl = resolveFrontendUrl(originUrl);
+                Map<String, Object> payload = buildMeetingMemoPayload(meeting, sender, board, resolvedUrl);
+                sendToWebhooks(webhooks, payload, board.getId());
+            }
+        }
     }
 
     @Async
@@ -190,16 +241,27 @@ public class SlackNotificationService {
             return;
         }
 
-        List<MemberSlackWebhook> webhooks = webhookRepository
-                .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
+        // Try Bot API first (DM + channel)
+        boolean sentViaBot = trySendViaBotWithDm(board, filteredUserIds,
+                installation -> botNotificationService.sendNoteCommentMentionNotification(noteComment, sender, board, installation, originUrl),
+                (userIds, installation) -> {
+                    String resolvedUrl = resolveFrontendUrl(originUrl);
+                    Map<String, Object> payload = buildNoteCommentMentionPayload(noteComment, sender, board, resolvedUrl);
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> blocks = (List<Map<String, Object>>) payload.get("blocks");
+                    return botNotificationService.sendDmToLinkedUsers(userIds, installation, blocks, "NOTE_COMMENT_MENTION", board.getId());
+                });
 
-        if (webhooks.isEmpty()) {
-            return;
+        // Fallback to individual webhooks
+        if (!sentViaBot) {
+            List<MemberSlackWebhook> webhooks = webhookRepository
+                    .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
+            if (!webhooks.isEmpty()) {
+                String resolvedUrl = resolveFrontendUrl(originUrl);
+                Map<String, Object> payload = buildNoteCommentMentionPayload(noteComment, sender, board, resolvedUrl);
+                sendToWebhooks(webhooks, payload, board.getId());
+            }
         }
-
-        String resolvedUrl = resolveFrontendUrl(originUrl);
-        Map<String, Object> payload = buildNoteCommentMentionPayload(noteComment, sender, board, resolvedUrl);
-        sendToWebhooks(webhooks, payload, board.getId());
     }
 
     private Map<String, Object> buildNoteCommentMentionPayload(NoteComment noteComment, User sender, Board board, String resolvedUrl) {
@@ -236,6 +298,54 @@ public class SlackNotificationService {
                 )));
 
         return Map.of("blocks", blocks);
+    }
+
+    /**
+     * Try to send notification via Slack App Bot.
+     * 1) DM to individually linked users
+     * 2) Channel message for remaining users
+     * Returns true if Bot installation exists (even if no DMs sent).
+     */
+    private boolean trySendViaBotWithDm(Board board, List<String> targetUserIds,
+                                         java.util.function.Consumer<SlackInstallation> channelSender,
+                                         java.util.function.BiFunction<List<String>, SlackInstallation, Set<String>> dmSender) {
+        try {
+            Optional<SlackInstallation> installation = slackOAuthService.findActiveInstallation(board);
+            if (installation.isEmpty()) return false;
+
+            SlackInstallation inst = installation.get();
+
+            // 1) Send DMs to linked users
+            Set<String> dmSentUserIds = dmSender.apply(targetUserIds, inst);
+
+            // 2) Send channel message for remaining users (if channel configured)
+            if (inst.getDefaultChannelId() != null) {
+                channelSender.accept(inst);
+            }
+
+            return true;
+        } catch (Exception e) {
+            log.warn("Failed to send via Slack Bot for board {}, falling back to webhooks: {}",
+                    board.getId(), e.getMessage());
+        }
+        return false;
+    }
+
+    /**
+     * Try to send notification via Slack App Bot (channel only, no DM targeting).
+     */
+    private boolean trySendViaBot(Board board, java.util.function.Consumer<SlackInstallation> sender) {
+        try {
+            Optional<SlackInstallation> installation = slackOAuthService.findActiveInstallation(board);
+            if (installation.isPresent() && installation.get().getDefaultChannelId() != null) {
+                sender.accept(installation.get());
+                return true;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send via Slack Bot for board {}, falling back to webhooks: {}",
+                    board.getId(), e.getMessage());
+        }
+        return false;
     }
 
     private void sendToWebhooks(List<MemberSlackWebhook> webhooks, Map<String, Object> payload, String boardId) {
