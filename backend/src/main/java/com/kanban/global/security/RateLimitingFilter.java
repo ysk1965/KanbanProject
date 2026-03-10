@@ -43,6 +43,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     // 초대 링크 공개 엔드포인트용 버킷 (IP 기반, 브루트포스 방지)
     private final Map<String, Bucket> inviteBuckets = new ConcurrentHashMap<>();
 
+    // 연속 rate limit 위반 카운터 — 과도한 요청 시 Connection: close로 빠르게 차단
+    private final Map<String, Integer> violationCounts = new ConcurrentHashMap<>();
+    private static final int VIOLATION_THRESHOLD = 50; // 50회 연속 위반 시 강화 차단
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -54,10 +58,16 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         Bucket bucket = resolveBucket(bucketKey, requestUri);
 
         if (bucket.tryConsume(1)) {
+            // 성공 시 위반 카운터 리셋
+            violationCounts.remove(bucketKey);
             filterChain.doFilter(request, response);
         } else {
-            log.warn("Rate limit exceeded for key: {} on endpoint: {}", bucketKey, requestUri);
-            sendRateLimitExceededResponse(response, requestUri);
+            int violations = violationCounts.merge(bucketKey, 1, Integer::sum);
+            if (violations <= 3 || violations % 100 == 0) {
+                // 처음 3회 + 100회마다만 로깅 (로그 폭탄 방지)
+                log.warn("Rate limit exceeded for key: {} on endpoint: {} (violations: {})", bucketKey, requestUri, violations);
+            }
+            sendRateLimitExceededResponse(response, requestUri, violations);
         }
     }
 
@@ -173,11 +183,20 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     /**
      * Rate Limit 초과 응답 전송
+     * 연속 위반이 임계치를 초과하면 Connection: close + Retry-After 헤더 추가
      */
-    private void sendRateLimitExceededResponse(HttpServletResponse response, String requestUri) throws IOException {
+    private void sendRateLimitExceededResponse(HttpServletResponse response, String requestUri, int violations) throws IOException {
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
+
+        // 연속 위반 횟수에 따라 Retry-After 헤더 설정 (클라이언트에게 대기 시간 안내)
+        if (violations >= VIOLATION_THRESHOLD) {
+            response.setHeader("Retry-After", "60");
+            response.setHeader("Connection", "close");
+        } else if (violations >= 10) {
+            response.setHeader("Retry-After", "10");
+        }
 
         String message = getErrorMessage(requestUri);
         String jsonResponse = String.format(

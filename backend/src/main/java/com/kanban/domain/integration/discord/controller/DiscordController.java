@@ -55,8 +55,16 @@ public class DiscordController {
             return new ResponseEntity<>(headers, HttpStatus.FOUND);
         } catch (Exception e) {
             log.warn("Discord OAuth callback failed: {}", e.getMessage(), e);
+            // Try to extract boardId from state for redirect to board settings
+            String errorRedirect = frontendUrl + "?discord=error";
+            try {
+                String[] parts = state.split(":");
+                if (parts.length >= 2) {
+                    errorRedirect = frontendUrl + "/boards/" + parts[1] + "?view=settings&tab=discord&discord=error";
+                }
+            } catch (Exception ignored) {}
             HttpHeaders headers = new HttpHeaders();
-            headers.setLocation(URI.create(frontendUrl + "?discord=error"));
+            headers.setLocation(URI.create(errorRedirect));
             return new ResponseEntity<>(headers, HttpStatus.FOUND);
         }
     }
