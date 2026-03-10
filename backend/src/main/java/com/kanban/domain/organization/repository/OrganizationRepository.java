@@ -101,4 +101,7 @@ public interface OrganizationRepository extends JpaRepository<Organization, Stri
 
     @Query("SELECT o FROM Organization o WHERE o.photoShareToken = :token AND o.deletedAt IS NULL")
     Optional<Organization> findByPhotoShareToken(@Param("token") String token);
+
+    @Query("SELECT o FROM Organization o WHERE o.photoUploadToken = :token AND o.deletedAt IS NULL")
+    Optional<Organization> findByPhotoUploadToken(@Param("token") String token);
 }

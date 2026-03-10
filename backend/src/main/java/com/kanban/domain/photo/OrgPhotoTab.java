@@ -65,7 +65,7 @@ public class OrgPhotoTab extends BaseTimeEntity {
     private int sortOrder = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", nullable = false)
+    @JoinColumn(name = "created_by")
     private User createdBy;
 
     @PrePersist

@@ -1,15 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Plus, Building2, Loader2, ArrowLeft } from 'lucide-react';
+import { Plus, Building2, Loader2, ArrowLeft, Users, LayoutGrid, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { organizationService } from '../utils/services';
 import { MotionModal } from '../components/ui/MotionModal';
+import type { OrganizationSimple } from '../types';
 
 export function OrganizationPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
+  const [organizations, setOrganizations] = useState<OrganizationSimple[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState({ name: '', description: '' });
   const [creating, setCreating] = useState(false);
@@ -18,7 +20,9 @@ export function OrganizationPage() {
     try {
       setLoading(true);
       const data = await organizationService.list();
-      if (data.length > 0) {
+      setOrganizations(data);
+      // 조직이 1개뿐이면 바로 이동
+      if (data.length === 1) {
         navigate(`/organizations/${data[0].id}`, { replace: true });
         return;
       }
@@ -59,8 +63,13 @@ export function OrganizationPage() {
     );
   }
 
+  const roleLabel = (role: string) => {
+    const map: Record<string, string> = { OWNER: t('organization.role.owner', 'Owner'), ADMIN: t('organization.role.admin', 'Admin'), MEMBER: t('organization.role.member', 'Member') };
+    return map[role] || role;
+  };
+
   return (
-    <div className="min-h-screen bg-bridge-dark flex items-center justify-center p-6 relative">
+    <div className="min-h-screen bg-bridge-dark p-6 relative">
       {/* Back Button */}
       <button
         onClick={() => navigate('/dashboard')}
@@ -70,29 +79,91 @@ export function OrganizationPage() {
         {t('common.back', 'Back')}
       </button>
 
-      {/* Empty State */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center justify-center text-center max-w-sm w-full"
-      >
-        <div className="w-20 h-20 rounded-2xl bg-bridge-accent/10 flex items-center justify-center mb-6">
-          <Building2 size={36} className="text-bridge-accent" />
+      <div className="max-w-2xl mx-auto pt-16">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-lg font-bold text-foreground tracking-tight">
+            {t('organization.list.title', 'My Organizations')}
+          </h1>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-bridge-accent text-white text-xs font-bold rounded-xl hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all"
+          >
+            <Plus size={14} />
+            {t('organization.list.create', 'Create Organization')}
+          </button>
         </div>
-        <h3 className="text-lg font-bold text-foreground mb-2">
-          {t('organization.list.emptyTitle', 'No organizations yet')}
-        </h3>
-        <p className="text-sm text-slate-500 mb-8 leading-relaxed">
-          {t('organization.list.emptyDesc', 'Create your first organization to manage teams, boards, and leave requests in one place.')}
-        </p>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all"
-        >
-          <Plus size={16} />
-          {t('organization.list.create', 'Create Organization')}
-        </button>
-      </motion.div>
+
+        {organizations.length === 0 ? (
+          /* Empty State */
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center justify-center text-center py-20"
+          >
+            <div className="w-20 h-20 rounded-2xl bg-bridge-accent/10 flex items-center justify-center mb-6">
+              <Building2 size={36} className="text-bridge-accent" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground mb-2">
+              {t('organization.list.emptyTitle', 'No organizations yet')}
+            </h3>
+            <p className="text-sm text-slate-500 mb-8 leading-relaxed max-w-sm">
+              {t('organization.list.emptyDesc', 'Create your first organization to manage teams, boards, and leave requests in one place.')}
+            </p>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all"
+            >
+              <Plus size={16} />
+              {t('organization.list.create', 'Create Organization')}
+            </button>
+          </motion.div>
+        ) : (
+          /* Organization List */
+          <div className="space-y-3">
+            {organizations.map((org, index) => (
+              <motion.button
+                key={org.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.04 }}
+                onClick={() => navigate(`/organizations/${org.id}`)}
+                className="w-full bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] hover:border-foreground/[0.12] p-5 transition-colors text-left flex items-center gap-4 group"
+              >
+                {org.logo_url ? (
+                  <img src={org.logo_url} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-bridge-accent/10 flex items-center justify-center shrink-0">
+                    <Building2 size={22} className="text-bridge-accent" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-bold text-foreground truncate">{org.name}</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent shrink-0">
+                      {roleLabel(org.my_role)}
+                    </span>
+                  </div>
+                  {org.description && (
+                    <p className="text-[11px] text-slate-500 truncate mb-1.5">{org.description}</p>
+                  )}
+                  <div className="flex items-center gap-3 text-[11px] text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <Users size={11} />
+                      {org.member_count}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <LayoutGrid size={11} />
+                      {org.board_count}
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-slate-500 group-hover:text-foreground transition-colors shrink-0" />
+              </motion.button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Create Organization Modal */}
       <MotionModal open={showCreateModal} onClose={() => setShowCreateModal(false)}>

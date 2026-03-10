@@ -3672,6 +3672,16 @@
         "historyTab": "Lịch sử",
         "boardsTab": "Bảng",
         "oneOnOneTab": "Họp 1:1",
+        "settingsTab": "Cài đặt",
+        "settings": {
+          "dangerZone": "Vùng nguy hiểm",
+          "leaveOrg": "Rời tổ chức",
+          "leaveOrgDesc": "Khi rời tổ chức, bạn sẽ bị xóa khỏi tất cả các bảng liên quan. Hành động này không thể hoàn tác.",
+          "leaveButton": "Rời",
+          "ownerCannotLeave": "Chủ sở hữu tổ chức không thể rời. Vui lòng chuyển quyền sở hữu trước.",
+          "leaveConfirm": "Bạn có chắc muốn rời tổ chức này? Bạn sẽ bị xóa khỏi tất cả các bảng và cần lời mời mới để tham gia lại.",
+          "confirmLeave": "Xác nhận rời"
+        },
         "personalInfo": "Thông tin cá nhân",
         "bio": "Tiểu sử",
         "bioPlaceholder": "Viết về bản thân...",
@@ -4231,6 +4241,10 @@
     "noAlbumsToShare": "Không có album để chia sẻ",
     "sharePreview": "Xem trước",
     "shareGalleryDesc": "Chia sẻ các album đã chọn qua một liên kết",
-    "shareSelectAlbums": "Album bao gồm"
+    "shareSelectAlbums": "Album bao gồm",
+    "galleryUploadLink": "Liên kết tải lên thư viện",
+    "galleryUploadLinkDesc": "Bất kỳ ai có liên kết này đều có thể tải ảnh lên và quản lý album",
+    "galleryUploadLinkEnabled": "Đã tạo liên kết tải lên thư viện",
+    "galleryUploadLinkDisabled": "Đã xóa liên kết tải lên thư viện"
   }
 }

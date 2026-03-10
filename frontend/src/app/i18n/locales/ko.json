@@ -3639,6 +3639,16 @@
         "historyTab": "인사 이력",
         "boardsTab": "보드",
         "oneOnOneTab": "1:1 미팅",
+        "settingsTab": "설정",
+        "settings": {
+          "dangerZone": "위험 구역",
+          "leaveOrg": "조직 나가기",
+          "leaveOrgDesc": "조직에서 나가면 소속된 모든 보드에서도 함께 제거됩니다. 이 작업은 되돌릴 수 없습니다.",
+          "leaveButton": "나가기",
+          "ownerCannotLeave": "조직 소유자는 나갈 수 없습니다. 먼저 소유권을 이전해주세요.",
+          "leaveConfirm": "정말 이 조직에서 나가시겠습니까? 소속된 모든 보드에서 제거되며, 다시 참여하려면 새로 초대를 받아야 합니다.",
+          "confirmLeave": "나가기 확인"
+        },
         "personalInfo": "인적 정보",
         "bio": "자기 소개",
         "bioPlaceholder": "자기 소개를 작성해보세요",
@@ -4208,6 +4218,10 @@
     "noAlbumsToShare": "공유할 앨범이 없습니다",
     "sharePreview": "미리보기",
     "shareGalleryDesc": "선택한 앨범을 하나의 링크로 공유합니다",
-    "shareSelectAlbums": "포함할 앨범"
+    "shareSelectAlbums": "포함할 앨범",
+    "galleryUploadLink": "갤러리 업로드 링크",
+    "galleryUploadLinkDesc": "이 링크를 가진 누구나 앨범에 사진을 업로드하고 앨범을 관리할 수 있습니다",
+    "galleryUploadLinkEnabled": "갤러리 업로드 링크가 생성되었습니다",
+    "galleryUploadLinkDisabled": "갤러리 업로드 링크가 제거되었습니다"
   }
 }

@@ -3191,6 +3191,16 @@
           "historyTab": "人事履历",
           "boardsTab": "看板",
           "oneOnOneTab": "1:1会议",
+          "settingsTab": "设置",
+          "settings": {
+            "dangerZone": "危险区域",
+            "leaveOrg": "退出组织",
+            "leaveOrgDesc": "退出组织后，您将从所有关联的看板中移除。此操作不可撤销。",
+            "leaveButton": "退出",
+            "ownerCannotLeave": "组织所有者无法退出。请先转移所有权。",
+            "leaveConfirm": "确定要退出此组织吗？您将从所有看板中移除，需要重新邀请才能加入。",
+            "confirmLeave": "确认退出"
+          },
           "personalInfo": "个人信息",
           "bio": "自我介绍",
           "bioPlaceholder": "写一段自我介绍",
@@ -3741,6 +3751,10 @@
     "noAlbumsToShare": "没有可分享的相册",
     "sharePreview": "预览",
     "shareGalleryDesc": "通过一个链接分享选定的相册",
-    "shareSelectAlbums": "包含的相册"
+    "shareSelectAlbums": "包含的相册",
+    "galleryUploadLink": "相册上传链接",
+    "galleryUploadLinkDesc": "任何拥有此链接的人都可以上传照片和管理相册",
+    "galleryUploadLinkEnabled": "相册上传链接已创建",
+    "galleryUploadLinkDisabled": "相册上传链接已删除"
   }
 }

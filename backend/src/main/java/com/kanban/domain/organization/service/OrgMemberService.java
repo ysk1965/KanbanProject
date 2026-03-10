@@ -109,12 +109,6 @@ public class OrgMemberService {
         User targetUser = userRepository.findByEmail(request.getEmail()).orElse(null);
 
         if (targetUser != null) {
-            // 1인 1조직 정책: 대상 유저가 이미 다른 조직에 소속되어 있는지 확인
-            List<OrganizationMember> existingMemberships = orgMemberRepository.findByUserIdWithOrganization(targetUser.getId());
-            if (!existingMemberships.isEmpty()) {
-                throw new BusinessException(ErrorCode.ALREADY_IN_ORGANIZATION);
-            }
-
             // Check if already a member
             if (orgMemberRepository.existsByOrganizationIdAndUserId(orgId, targetUser.getId())) {
                 throw new BusinessException(ErrorCode.ORG_MEMBER_ALREADY_EXISTS);

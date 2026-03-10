@@ -3672,6 +3672,16 @@
         "historyTab": "Historial",
         "boardsTab": "Tableros",
         "oneOnOneTab": "Reunión 1:1",
+        "settingsTab": "Configuración",
+        "settings": {
+          "dangerZone": "Zona de peligro",
+          "leaveOrg": "Salir de la organización",
+          "leaveOrgDesc": "Al salir de la organización, serás eliminado de todos los tableros asociados. Esta acción no se puede deshacer.",
+          "leaveButton": "Salir",
+          "ownerCannotLeave": "El propietario de la organización no puede salir. Por favor, transfiera la propiedad primero.",
+          "leaveConfirm": "¿Estás seguro de que quieres salir de esta organización? Serás eliminado de todos los tableros y necesitarás una nueva invitación para volver a unirte.",
+          "confirmLeave": "Confirmar salida"
+        },
         "personalInfo": "Información personal",
         "bio": "Biografía",
         "bioPlaceholder": "Escribe sobre ti...",
@@ -4231,6 +4241,10 @@
     "noAlbumsToShare": "No hay álbumes para compartir",
     "sharePreview": "Vista previa",
     "shareGalleryDesc": "Comparte álbumes seleccionados con un solo enlace",
-    "shareSelectAlbums": "Álbumes a incluir"
+    "shareSelectAlbums": "Álbumes a incluir",
+    "galleryUploadLink": "Enlace de subida de galería",
+    "galleryUploadLinkDesc": "Cualquiera con este enlace puede subir fotos y gestionar álbumes",
+    "galleryUploadLinkEnabled": "Enlace de subida de galería creado",
+    "galleryUploadLinkDisabled": "Enlace de subida de galería eliminado"
   }
 }

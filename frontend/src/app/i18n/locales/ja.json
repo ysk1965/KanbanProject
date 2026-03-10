@@ -3191,6 +3191,16 @@
           "historyTab": "人事履歴",
           "boardsTab": "ボード",
           "oneOnOneTab": "1:1ミーティング",
+          "settingsTab": "設定",
+          "settings": {
+            "dangerZone": "危険ゾーン",
+            "leaveOrg": "組織を退出",
+            "leaveOrgDesc": "組織を退出すると、所属するすべてのボードからも削除されます。この操作は取り消せません。",
+            "leaveButton": "退出",
+            "ownerCannotLeave": "組織のオーナーは退出できません。先にオーナー権限を移譲してください。",
+            "leaveConfirm": "本当にこの組織を退出しますか？すべてのボードから削除され、再参加するには新しい招待が必要です。",
+            "confirmLeave": "退出を確認"
+          },
           "personalInfo": "個人情報",
           "bio": "自己紹介",
           "bioPlaceholder": "自己紹介を書いてみましょう",
@@ -3741,6 +3751,10 @@
     "noAlbumsToShare": "共有するアルバムがありません",
     "sharePreview": "プレビュー",
     "shareGalleryDesc": "選択したアルバムを1つのリンクで共有します",
-    "shareSelectAlbums": "含めるアルバム"
+    "shareSelectAlbums": "含めるアルバム",
+    "galleryUploadLink": "ギャラリーアップロードリンク",
+    "galleryUploadLinkDesc": "このリンクを持つ誰でも写真をアップロードしアルバムを管理できます",
+    "galleryUploadLinkEnabled": "ギャラリーアップロードリンクが作成されました",
+    "galleryUploadLinkDisabled": "ギャラリーアップロードリンクが削除されました"
   }
 }

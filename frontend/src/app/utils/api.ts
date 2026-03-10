@@ -6831,6 +6831,22 @@ export const orgPhotoAPI = {
   ): Promise<{ enabled: boolean; share_token: string }> =>
     apiClient.get(`/organizations/${orgId}/photos/gallery-share`),
 
+  // Gallery-level upload
+  enableGalleryUpload: (
+    orgId: string,
+  ): Promise<{ upload_token: string }> =>
+    apiClient.post(`/organizations/${orgId}/photos/gallery-upload`),
+
+  disableGalleryUpload: (
+    orgId: string,
+  ): Promise<void> =>
+    apiClient.delete(`/organizations/${orgId}/photos/gallery-upload`),
+
+  getGalleryUploadStatus: (
+    orgId: string,
+  ): Promise<{ enabled: boolean; upload_token: string; expires_at: string }> =>
+    apiClient.get(`/organizations/${orgId}/photos/gallery-upload`),
+
   // Upload link
   enableUploadLink: (
     orgId: string,
@@ -6951,6 +6967,72 @@ export const publicUploadAPI = {
     }
     return response.json();
   },
+};
+
+// ─── Public Gallery Upload API (no auth) ───
+
+export const publicGalleryUploadAPI = {
+  getGalleryUploadInfo: (
+    uploadToken: string,
+  ): Promise<import("../types").GalleryUploadInfo> =>
+    apiClient.get(`/public/gallery-upload/${uploadToken}`, true),
+
+  createAlbum: (
+    uploadToken: string,
+    data: { name: string; description?: string },
+  ): Promise<import("../types").SharedAlbumSummary> =>
+    apiClient.post(`/public/gallery-upload/${uploadToken}/albums`, data, true),
+
+  deleteAlbum: (
+    uploadToken: string,
+    albumId: string,
+  ): Promise<void> =>
+    apiClient.delete(`/public/gallery-upload/${uploadToken}/albums/${albumId}`, undefined, true),
+
+  getAlbumPhotos: (
+    uploadToken: string,
+    albumId: string,
+    params?: { cursor?: string; size?: number },
+  ): Promise<import("../types").SharedPhotoPage> => {
+    const query = new URLSearchParams();
+    if (params?.cursor) query.set("cursor", params.cursor);
+    if (params?.size) query.set("size", String(params.size));
+    const qs = query.toString();
+    return apiClient.get(
+      `/public/gallery-upload/${uploadToken}/albums/${albumId}/photos${qs ? `?${qs}` : ""}`,
+      true,
+    );
+  },
+
+  uploadPhotos: async (
+    uploadToken: string,
+    albumId: string,
+    files: File[],
+  ): Promise<import("../types").OrgPhoto[]> => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append("files", f));
+    const response = await fetch(
+      `${API_BASE_URL}/public/gallery-upload/${uploadToken}/albums/${albumId}/photos`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
+    if (!response.ok) {
+      const err = await response
+        .json()
+        .catch(() => ({ message: "Upload failed" }));
+      throw err;
+    }
+    return response.json();
+  },
+
+  deletePhoto: (
+    uploadToken: string,
+    albumId: string,
+    photoId: string,
+  ): Promise<void> =>
+    apiClient.delete(`/public/gallery-upload/${uploadToken}/albums/${albumId}/photos/${photoId}`, undefined, true),
 };
 
 /** @deprecated kept for per-album share backward compat */
