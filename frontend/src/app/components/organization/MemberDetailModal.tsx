@@ -208,8 +208,12 @@ export function MemberDetailModal({
       onClose();
       onMemberUpdated();
       navigate("/boards");
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn("Failed to leave organization:", error);
+      const errObj = error as { code?: string };
+      if (errObj?.code === "O015") {
+        alert(t("organization.members.detail.settings.boardOwnerCannotLeave", "조직 보드의 Owner인 경우 나갈 수 없습니다. 먼저 보드 Owner를 변경해주세요."));
+      }
       throw error;
     }
   };

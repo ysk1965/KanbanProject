@@ -4,6 +4,7 @@ import com.kanban.domain.organization.leave.LeaveBalance;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -42,4 +43,8 @@ public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Stri
             @Param("memberId") String memberId,
             @Param("policyId") String policyId,
             @Param("year") int year);
+
+    @Modifying
+    @Query("DELETE FROM LeaveBalance lb WHERE lb.member.id = :memberId")
+    void deleteByMemberId(@Param("memberId") String memberId);
 }

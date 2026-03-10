@@ -4,6 +4,7 @@ import com.kanban.domain.organization.AnniversaryType;
 import com.kanban.domain.organization.OrgCelebrationMessage;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -45,4 +46,8 @@ public interface OrgCelebrationMessageRepository extends JpaRepository<OrgCelebr
     List<OrgCelebrationMessage> findByOrgAndDateRange(@Param("orgId") String orgId,
                                                        @Param("startDate") LocalDate startDate,
                                                        @Param("endDate") LocalDate endDate);
+
+    @Modifying
+    @Query("DELETE FROM OrgCelebrationMessage m WHERE m.targetMember.id = :memberId")
+    void deleteByTargetMemberId(@Param("memberId") String memberId);
 }

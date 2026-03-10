@@ -273,7 +273,9 @@ export function KanbanBoardHeader({
               onNotificationClick={onNotificationClick}
               onUnreadCountChange={onUnreadCountChange}
               canAccessSlack={canAccessSlack}
+              canAccessDiscord={canAccessSlack}
               onSlackUpgrade={() => onOpenUpgradeModal('slack')}
+              onDiscordUpgrade={() => onOpenUpgradeModal('slack')}
               isAdmin={isAdminOrOwner}
               isTester={isTester}
             />
