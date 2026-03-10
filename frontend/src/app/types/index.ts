@@ -3276,6 +3276,13 @@ export interface UploadAlbumInfo {
   expires_at: string;
 }
 
+export interface GalleryUploadInfo {
+  organization_name: string;
+  organization_logo_url: string | null;
+  albums: SharedAlbumSummary[];
+  expires_at: string;
+}
+
 /** @deprecated kept for per-album share backward compat */
 export interface SharedAlbumInfo {
   album_name: string;

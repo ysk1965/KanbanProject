@@ -43,7 +43,7 @@ public class OrgPhotoResponse {
                     .isUploadEnabled(tab.getIsUploadEnabled())
                     .uploadToken(tab.getUploadToken())
                     .uploadTokenExpiresAt(tab.getUploadTokenExpiresAt())
-                    .createdBy(UserInfo.from(tab.getCreatedBy()))
+                    .createdBy(tab.getCreatedBy() != null ? UserInfo.from(tab.getCreatedBy()) : null)
                     .createdAt(tab.getCreatedAt())
                     .build();
         }
@@ -183,6 +183,16 @@ public class OrgPhotoResponse {
         private String albumDescription;
         private String organizationName;
         private String organizationLogoUrl;
+        private LocalDateTime expiresAt;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class GalleryUploadInfo {
+        private String organizationName;
+        private String organizationLogoUrl;
+        private List<SharedAlbumSummary> albums;
         private LocalDateTime expiresAt;
     }
 

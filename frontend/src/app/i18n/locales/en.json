@@ -3637,6 +3637,16 @@
         "historyTab": "History",
         "boardsTab": "Boards",
         "oneOnOneTab": "1:1 Meeting",
+        "settingsTab": "Settings",
+        "settings": {
+          "dangerZone": "Danger Zone",
+          "leaveOrg": "Leave Organization",
+          "leaveOrgDesc": "Leaving the organization will remove you from all associated boards. This action cannot be undone.",
+          "leaveButton": "Leave",
+          "ownerCannotLeave": "Organization owner cannot leave. Please transfer ownership first.",
+          "leaveConfirm": "Are you sure you want to leave this organization? You will be removed from all boards and will need a new invitation to rejoin.",
+          "confirmLeave": "Confirm Leave"
+        },
         "personalInfo": "Personal Info",
         "bio": "Bio",
         "bioPlaceholder": "Write about yourself...",
@@ -4206,6 +4216,10 @@
     "noAlbumsToShare": "No albums to share",
     "sharePreview": "Preview",
     "shareGalleryDesc": "Share selected albums via a single link",
-    "shareSelectAlbums": "Albums to include"
+    "shareSelectAlbums": "Albums to include",
+    "galleryUploadLink": "Gallery Upload Link",
+    "galleryUploadLinkDesc": "Anyone with this link can upload photos and manage albums",
+    "galleryUploadLinkEnabled": "Gallery upload link created",
+    "galleryUploadLinkDisabled": "Gallery upload link removed"
   }
 }

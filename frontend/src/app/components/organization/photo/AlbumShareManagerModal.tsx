@@ -39,19 +39,36 @@ export function AlbumShareManagerModal({
   const [copiedUploadLink, setCopiedUploadLink] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Gallery upload link state
+  const [galleryUploadEnabled, setGalleryUploadEnabled] = useState(false);
+  const [galleryUploadToken, setGalleryUploadToken] = useState('');
+  const [galleryUploadExpiresAt, setGalleryUploadExpiresAt] = useState('');
+  const [galleryUploadToggling, setGalleryUploadToggling] = useState(false);
+  const [copiedGalleryUploadLink, setCopiedGalleryUploadLink] = useState(false);
+
   const shareUrl = galleryToken
     ? `${window.location.origin}/shared/gallery/${galleryToken}`
     : '';
 
-  // Load gallery share status on open
+  const galleryUploadUrl = galleryUploadToken
+    ? `${window.location.origin}/shared/gallery-upload/${galleryUploadToken}`
+    : '';
+
+  // Load gallery share + upload status on open
   useEffect(() => {
     if (!open) return;
     const load = async () => {
       try {
         setLoading(true);
-        const status = await orgPhotoService.getGalleryShareStatus(orgId);
-        setGalleryEnabled(status.enabled);
-        setGalleryToken(status.share_token || '');
+        const [shareStatus, uploadStatus] = await Promise.all([
+          orgPhotoService.getGalleryShareStatus(orgId),
+          orgPhotoService.getGalleryUploadStatus(orgId),
+        ]);
+        setGalleryEnabled(shareStatus.enabled);
+        setGalleryToken(shareStatus.share_token || '');
+        setGalleryUploadEnabled(uploadStatus.enabled);
+        setGalleryUploadToken(uploadStatus.upload_token || '');
+        setGalleryUploadExpiresAt(uploadStatus.expires_at || '');
       } catch {
         console.warn('Failed to load gallery share status');
       } finally {
@@ -85,6 +102,45 @@ export function AlbumShareManagerModal({
       setGalleryToggling(false);
     }
   }, [galleryToggling, galleryEnabled, orgId, t]);
+
+  // Toggle gallery-level upload
+  const handleGalleryUploadToggle = useCallback(async () => {
+    if (galleryUploadToggling) return;
+    try {
+      setGalleryUploadToggling(true);
+      if (galleryUploadEnabled) {
+        await orgPhotoService.disableGalleryUpload(orgId);
+        setGalleryUploadEnabled(false);
+        setGalleryUploadToken('');
+        setGalleryUploadExpiresAt('');
+        toast.success(t('photoGallery.galleryUploadLinkDisabled', 'Gallery upload link removed'));
+      } else {
+        const result = await orgPhotoService.enableGalleryUpload(orgId);
+        setGalleryUploadEnabled(true);
+        setGalleryUploadToken(result.upload_token);
+        // Reload to get expires_at
+        const status = await orgPhotoService.getGalleryUploadStatus(orgId);
+        setGalleryUploadExpiresAt(status.expires_at || '');
+        toast.success(t('photoGallery.galleryUploadLinkEnabled', 'Gallery upload link created'));
+      }
+    } catch {
+      toast.error(t('photoGallery.shareToggleError', 'Failed to toggle'));
+    } finally {
+      setGalleryUploadToggling(false);
+    }
+  }, [galleryUploadToggling, galleryUploadEnabled, orgId, t]);
+
+  const handleCopyGalleryUploadLink = useCallback(async () => {
+    if (!galleryUploadUrl) return;
+    try {
+      await navigator.clipboard.writeText(galleryUploadUrl);
+      setCopiedGalleryUploadLink(true);
+      toast.success(t('photoGallery.shareCopied', 'Copied'));
+      setTimeout(() => setCopiedGalleryUploadLink(false), 2000);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  }, [galleryUploadUrl, t]);
 
   // Toggle per-album visibility
   const handleAlbumToggle = useCallback(
@@ -256,6 +312,87 @@ export function AlbumShareManagerModal({
                   <ExternalLink size={14} />
                 </a>
               </div>
+            )}
+          </div>
+
+          {/* Gallery upload link toggle */}
+          <div className="p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08] space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-foreground">
+                    {t('photoGallery.galleryUploadLink', 'Gallery Upload Link')}
+                  </p>
+                  <Upload size={14} className="text-bridge-secondary" />
+                </div>
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  {t(
+                    'photoGallery.galleryUploadLinkDesc',
+                    'Anyone with this link can upload photos and manage albums',
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={handleGalleryUploadToggle}
+                disabled={galleryUploadToggling}
+                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
+                  galleryUploadEnabled ? 'bg-bridge-secondary' : 'bg-foreground/15'
+                }`}
+              >
+                {galleryUploadToggling ? (
+                  <Loader2
+                    size={12}
+                    className="absolute top-1.5 left-1/2 -translate-x-1/2 animate-spin text-white"
+                  />
+                ) : (
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                      galleryUploadEnabled ? 'translate-x-[18px]' : 'translate-x-0'
+                    }`}
+                  />
+                )}
+              </button>
+            </div>
+
+            {galleryUploadEnabled && galleryUploadUrl && (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center gap-2 px-2.5 py-2 bg-foreground/[0.03] border border-foreground/10 rounded-xl min-w-0">
+                    <Upload size={12} className="text-bridge-secondary shrink-0" />
+                    <span className="text-[11px] text-foreground truncate">
+                      {galleryUploadUrl}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleCopyGalleryUploadLink}
+                    className="px-3 py-2 rounded-xl text-xs font-bold bg-bridge-secondary text-white hover:bg-bridge-secondary/90 transition-all shrink-0"
+                  >
+                    {copiedGalleryUploadLink ? (
+                      <Check size={14} />
+                    ) : (
+                      t('photoGallery.shareCopy', 'Copy')
+                    )}
+                  </button>
+                  <a
+                    href={galleryUploadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-xl text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0"
+                  >
+                    <ExternalLink size={14} />
+                  </a>
+                </div>
+                {galleryUploadExpiresAt && (() => {
+                  const exp = new Date(galleryUploadExpiresAt);
+                  const hrs = Math.max(0, Math.floor((exp.getTime() - Date.now()) / (1000 * 60 * 60)));
+                  const days = Math.floor(hrs / 24);
+                  return (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+                      {days > 0 ? `${days}d ${hrs % 24}h left` : `${hrs}h left`}
+                    </span>
+                  );
+                })()}
+              </>
             )}
           </div>
 

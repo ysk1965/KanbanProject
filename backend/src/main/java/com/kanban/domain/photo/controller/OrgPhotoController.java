@@ -120,6 +120,31 @@ public class OrgPhotoController {
         ));
     }
 
+    // ==================== Gallery-Level Upload ====================
+
+    @PostMapping("/gallery-upload")
+    public ResponseEntity<Map<String, Object>> enableGalleryUpload(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        String token = orgPhotoService.enableGalleryUpload(orgId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("upload_token", token));
+    }
+
+    @DeleteMapping("/gallery-upload")
+    public ResponseEntity<Void> disableGalleryUpload(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        orgPhotoService.disableGalleryUpload(orgId, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/gallery-upload")
+    public ResponseEntity<Map<String, Object>> getGalleryUploadStatus(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(orgPhotoService.getGalleryUploadStatus(orgId));
+    }
+
     // ==================== Upload Link Endpoints ====================
 
     @PostMapping("/tabs/{tabId}/upload-link")

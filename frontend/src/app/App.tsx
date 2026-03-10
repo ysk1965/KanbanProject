@@ -27,6 +27,7 @@ import { SharedNotePage } from './pages/SharedNotePage';
 import { SharedAlbumPage } from './pages/SharedAlbumPage';
 import { SharedGalleryPage } from './pages/SharedGalleryPage';
 import { PublicUploadPage } from './pages/PublicUploadPage';
+import { GalleryUploadPage } from './pages/GalleryUploadPage';
 import BibleTranscriptionPage from './pages/BibleTranscriptionPage';
 import RoulettePage from './pages/RoulettePage';
 import { CustomIconPage } from './pages/CustomIconPage';
@@ -146,11 +147,7 @@ function LoginRoute() {
             navigate(`/organizations/${result.organization_id}`);
           } catch (error: any) {
             console.error('Failed to accept org invite:', error);
-            if (error?.code === 'O016' || error?.code === 'ALREADY_IN_ORGANIZATION') {
-              alert(t('organization.invite.alreadyInOrg', '이미 소속된 조직이 있습니다. 기존 조직을 탈퇴한 후 다시 시도해주세요.'));
-            } else {
-              alert(error?.message || t('app.orgInviteAcceptFailed', '조직 초대 수락에 실패했습니다.'));
-            }
+            alert(error?.message || t('app.orgInviteAcceptFailed', '조직 초대 수락에 실패했습니다.'));
             navigate('/boards');
           } finally {
             setIsProcessingInvite(false);
@@ -462,6 +459,9 @@ function AppRoutes() {
       {/* 공개 업로드 (인증 불필요) */}
       <Route path="/shared/upload/:uploadToken" element={<PublicUploadPage />} />
 
+      {/* 갤러리 공개 업로드 (인증 불필요, 다중 앨범 업로드) */}
+      <Route path="/shared/gallery-upload/:uploadToken" element={<GalleryUploadPage />} />
+
       {/* 공지사항 */}
       <Route path="/announcements" element={<AnnouncementsPage />} />
 
@@ -592,6 +592,7 @@ const MAINTENANCE_ALLOWED_PATHS = [
   '/shared/album',
   '/shared/gallery',
   '/shared/upload',
+  '/shared/gallery-upload',
 ];
 
 // 점검 모드 + 공지사항 래퍼
