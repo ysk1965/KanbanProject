@@ -84,7 +84,7 @@ export function BibleReadingChart({ books, completedChapters }: BibleReadingChar
           </div>
         </div>
 
-        <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2">
+        <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
           {books.map((book) => {
             const bookCompletedCount = book.chapters.filter((ch) =>
               isChapterCompleted(book.name, ch.chapter)
