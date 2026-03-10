@@ -70,4 +70,18 @@ public class SlackTokenEncryptor {
             throw new RuntimeException("Failed to decrypt Slack token", e);
         }
     }
+
+    /**
+     * Safely decrypt - returns original text if decryption fails (for plaintext migration compatibility).
+     */
+    public String safeDecrypt(String text) {
+        if (text == null || text.isBlank()) return text;
+        try {
+            return decrypt(text);
+        } catch (Exception e) {
+            // Likely plaintext (pre-encryption migration data)
+            log.debug("Token appears to be plaintext, returning as-is");
+            return text;
+        }
+    }
 }

@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "slack_user_links", indexes = {
-    @Index(name = "idx_slack_user_link_discord_id", columnList = "slack_user_id")
+    @Index(name = "idx_slack_user_link_slack_id", columnList = "slack_user_id")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

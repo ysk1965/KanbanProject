@@ -74,6 +74,9 @@ public class SlackOAuthService {
         // Extract token and team info
         @SuppressWarnings("unchecked")
         Map<String, Object> team = (Map<String, Object>) oauthResponse.get("team");
+        if (team == null) {
+            throw new BusinessException(ErrorCode.SLACK_OAUTH_FAILED);
+        }
         String slackTeamId = String.valueOf(team.get("id"));
         String slackTeamName = String.valueOf(team.get("name"));
 
@@ -341,7 +344,7 @@ public class SlackOAuthService {
                     .slackUserId(slackUserId)
                     .slackUsername(slackUsername)
                     .slackTeamId(slackTeamId)
-                    .accessToken(accessToken)
+                    .accessToken(accessToken != null ? tokenEncryptor.encrypt(accessToken) : null)
                     .build();
             userLinkRepository.save(link);
         }

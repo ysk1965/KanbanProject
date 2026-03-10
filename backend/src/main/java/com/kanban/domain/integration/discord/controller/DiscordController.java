@@ -1,10 +1,13 @@
 package com.kanban.domain.integration.discord.controller;
 
+import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.integration.discord.dto.DiscordRequest;
 import com.kanban.domain.integration.discord.dto.DiscordResponse;
 import com.kanban.domain.integration.discord.service.DiscordService;
 import com.kanban.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,11 +18,16 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 public class DiscordController {
 
     private final DiscordService discordService;
+    private final BoardService boardService;
+
+    @Value("${app.frontend-url:https://bridgespots.com}")
+    private String frontendUrl;
 
     /**
      * Generate OAuth2 URL for bot installation or user linking.
@@ -40,10 +48,17 @@ public class DiscordController {
     public ResponseEntity<Void> handleOAuthCallback(
             @RequestParam String code,
             @RequestParam String state) {
-        String redirectUrl = discordService.handleOAuthCallback(code, state);
-        HttpHeaders headers = new HttpHeaders();
-        headers.setLocation(URI.create(redirectUrl));
-        return new ResponseEntity<>(headers, HttpStatus.FOUND);
+        try {
+            String redirectUrl = discordService.handleOAuthCallback(code, state);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setLocation(URI.create(redirectUrl));
+            return new ResponseEntity<>(headers, HttpStatus.FOUND);
+        } catch (Exception e) {
+            log.warn("Discord OAuth callback failed: {}", e.getMessage(), e);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setLocation(URI.create(frontendUrl + "?discord=error"));
+            return new ResponseEntity<>(headers, HttpStatus.FOUND);
+        }
     }
 
     /**
@@ -53,6 +68,7 @@ public class DiscordController {
     public ResponseEntity<DiscordResponse.BotConfig> getBotConfig(
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal) {
+        boardService.checkViewerOrAbove(boardId, principal.getUserId());
         DiscordResponse.BotConfig response = discordService.getBotConfig(boardId);
         return ResponseEntity.ok(response);
     }
@@ -97,6 +113,7 @@ public class DiscordController {
     public ResponseEntity<List<DiscordResponse.ChannelInfo>> getChannels(
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal) {
+        boardService.checkViewerOrAbove(boardId, principal.getUserId());
         List<DiscordResponse.ChannelInfo> channels = discordService.getChannels(boardId);
         return ResponseEntity.ok(channels);
     }
@@ -120,6 +137,7 @@ public class DiscordController {
     public ResponseEntity<List<DiscordResponse.MemberStatus>> getMemberStatuses(
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal) {
+        boardService.checkViewerOrAbove(boardId, principal.getUserId());
         List<DiscordResponse.MemberStatus> statuses = discordService.getMemberStatuses(boardId);
         return ResponseEntity.ok(statuses);
     }
