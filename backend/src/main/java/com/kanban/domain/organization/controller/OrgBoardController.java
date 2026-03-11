@@ -67,4 +67,13 @@ public class OrgBoardController {
         organizationFacadeService.removeBoardFromOrg(orgId, boardId, principal.getUserId());
         return ResponseEntity.noContent().build();
     }
+
+    @DeleteMapping("/{boardId}/delete")
+    public ResponseEntity<Void> deleteBoard(
+            @PathVariable String orgId,
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        organizationFacadeService.deleteBoardFromOrg(orgId, boardId, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
 }
