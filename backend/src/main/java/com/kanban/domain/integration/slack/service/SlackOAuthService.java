@@ -19,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.net.URI;
+
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -502,23 +502,18 @@ public class SlackOAuthService {
         }
     }
 
+    private static final String SLACK_OAUTH_CALLBACK_PATH = "/api/v1/slack/oauth/callback";
+    private static final String SLACK_USER_OAUTH_CALLBACK_PATH = "/api/v1/slack/oauth/user-callback";
+
     /**
      * Resolve redirect URI dynamically based on frontend origin.
-     * Replaces the host of the configured redirect URI with the API host matching the origin.
+     * Determines callback path from the configured URI, then constructs {apiBase}{path}.
      */
     private String resolveRedirectUri(String origin, String configuredRedirectUri) {
-        try {
-            URI configured = URI.create(configuredRedirectUri);
-            String apiBase = FrontendOriginResolver.resolveApiBase(origin, null);
-            if (apiBase == null) {
-                return configuredRedirectUri;
-            }
-            URI apiUri = URI.create(apiBase);
-            return new URI(apiUri.getScheme(), apiUri.getAuthority(), configured.getPath(),
-                    configured.getQuery(), configured.getFragment()).toString();
-        } catch (Exception e) {
-            return configuredRedirectUri;
-        }
+        String callbackPath = configuredRedirectUri != null && configuredRedirectUri.contains("user-callback")
+                ? SLACK_USER_OAUTH_CALLBACK_PATH
+                : SLACK_OAUTH_CALLBACK_PATH;
+        return FrontendOriginResolver.resolveOAuthRedirectUri(origin, callbackPath, configuredRedirectUri);
     }
 
     /**
