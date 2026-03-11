@@ -13,6 +13,7 @@ import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -46,9 +47,9 @@ public class SlackOAuthController {
             @RequestParam("scope") SlackInstallScope scope,
             @RequestParam("entity_id") String entityId,
             @RequestParam(value = "origin", required = false) String origin,
-            @AuthenticationPrincipal String userId) {
+            @AuthenticationPrincipal UserPrincipal principal) {
         String resolvedOrigin = FrontendOriginResolver.resolve(origin, frontendUrl);
-        return ResponseEntity.ok(slackOAuthService.generateInstallUrl(scope, entityId, userId, resolvedOrigin));
+        return ResponseEntity.ok(slackOAuthService.generateInstallUrl(scope, entityId, principal.getUserId(), resolvedOrigin));
     }
 
     /**
@@ -79,7 +80,7 @@ public class SlackOAuthController {
     public ResponseEntity<SlackAppResponse.Installation> getStatus(
             @RequestParam(value = "board_id", required = false) String boardId,
             @RequestParam(value = "organization_id", required = false) String orgId,
-            @AuthenticationPrincipal String userId) {
+            @AuthenticationPrincipal UserPrincipal principal) {
         SlackAppResponse.Installation installation;
         if (boardId != null) {
             installation = slackOAuthService.getInstallationStatus(boardId);
@@ -102,7 +103,7 @@ public class SlackOAuthController {
             @RequestParam(value = "board_id", required = false) String boardId,
             @RequestParam(value = "organization_id", required = false) String orgId,
             @RequestParam(value = "cursor", required = false) String cursor,
-            @AuthenticationPrincipal String userId) {
+            @AuthenticationPrincipal UserPrincipal principal) {
         SlackInstallation installation = resolveInstallation(boardId, orgId);
         if (installation == null) {
             throw new BusinessException(ErrorCode.SLACK_APP_NOT_INSTALLED);
@@ -117,7 +118,7 @@ public class SlackOAuthController {
     public ResponseEntity<Void> setDefaultChannel(
             @RequestParam("installation_id") String installationId,
             @RequestBody SlackAppRequest.SetChannel request,
-            @AuthenticationPrincipal String userId) {
+            @AuthenticationPrincipal UserPrincipal principal) {
         slackOAuthService.updateDefaultChannel(installationId, request.getChannelId(), request.getChannelName());
         return ResponseEntity.ok().build();
     }
@@ -128,8 +129,8 @@ public class SlackOAuthController {
     @DeleteMapping("/app/{installationId}")
     public ResponseEntity<Void> uninstall(
             @PathVariable String installationId,
-            @AuthenticationPrincipal String userId) {
-        slackOAuthService.revokeInstallation(installationId, userId);
+            @AuthenticationPrincipal UserPrincipal principal) {
+        slackOAuthService.revokeInstallation(installationId, principal.getUserId());
         return ResponseEntity.ok().build();
     }
 
@@ -142,9 +143,9 @@ public class SlackOAuthController {
     public ResponseEntity<SlackAppResponse.InstallUrl> getUserLinkUrl(
             @RequestParam("board_id") String boardId,
             @RequestParam(value = "origin", required = false) String origin,
-            @AuthenticationPrincipal String userId) {
+            @AuthenticationPrincipal UserPrincipal principal) {
         String resolvedOrigin = FrontendOriginResolver.resolve(origin, frontendUrl);
-        return ResponseEntity.ok(slackOAuthService.generateUserLinkUrl(boardId, userId, resolvedOrigin));
+        return ResponseEntity.ok(slackOAuthService.generateUserLinkUrl(boardId, principal.getUserId(), resolvedOrigin));
     }
 
     /**
@@ -172,16 +173,16 @@ public class SlackOAuthController {
      */
     @GetMapping("/user/me")
     public ResponseEntity<SlackAppResponse.UserLinkStatus> getUserLinkStatus(
-            @AuthenticationPrincipal String userId) {
-        return ResponseEntity.ok(slackOAuthService.getUserLinkStatus(userId));
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(slackOAuthService.getUserLinkStatus(principal.getUserId()));
     }
 
     /**
      * Unlink current user's Slack account
      */
     @DeleteMapping("/user/me")
-    public ResponseEntity<Void> unlinkUser(@AuthenticationPrincipal String userId) {
-        slackOAuthService.unlinkUser(userId);
+    public ResponseEntity<Void> unlinkUser(@AuthenticationPrincipal UserPrincipal principal) {
+        slackOAuthService.unlinkUser(principal.getUserId());
         return ResponseEntity.ok().build();
     }
 
@@ -191,7 +192,7 @@ public class SlackOAuthController {
     @GetMapping("/user/statuses")
     public ResponseEntity<List<SlackAppResponse.MemberSlackStatus>> getMemberStatuses(
             @RequestParam("board_id") String boardId,
-            @AuthenticationPrincipal String userId) {
+            @AuthenticationPrincipal UserPrincipal principal) {
         List<String> memberUserIds = boardMemberRepository.findByBoardId(boardId).stream()
                 .map(bm -> bm.getUser().getId())
                 .toList();
