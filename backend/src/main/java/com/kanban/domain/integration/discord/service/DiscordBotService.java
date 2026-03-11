@@ -55,6 +55,7 @@ public class DiscordBotService {
             Map<String, Object> dmChannelBody = Map.of("recipient_id", discordUserId);
             HttpEntity<Map<String, Object>> dmRequest = new HttpEntity<>(dmChannelBody, headers);
 
+            log.debug("Creating DM channel for Discord user {}", discordUserId);
             ResponseEntity<Map<String, Object>> dmResponse = restTemplate.exchange(
                     BASE_URL + "/users/@me/channels",
                     HttpMethod.POST,
@@ -63,10 +64,12 @@ public class DiscordBotService {
             );
 
             if (dmResponse.getBody() == null || !dmResponse.getBody().containsKey("id")) {
-                throw new BusinessException(ErrorCode.DISCORD_API_ERROR);
+                log.error("Discord DM channel response missing 'id': {}", dmResponse.getBody());
+                throw new BusinessException(ErrorCode.DISCORD_API_ERROR, "DM 채널 생성 실패: 응답에 채널 ID가 없습니다");
             }
 
             String channelId = (String) dmResponse.getBody().get("id");
+            log.debug("DM channel created/found: {}", channelId);
 
             // Step 2: Send message to the DM channel
             sendChannelMessage(channelId, payload);
@@ -76,10 +79,11 @@ public class DiscordBotService {
             throw e;
         } catch (HttpStatusCodeException e) {
             log.error("Discord DM API error for user {}: status={}, body={}", discordUserId, e.getStatusCode(), e.getResponseBodyAsString());
-            throw new BusinessException(ErrorCode.DISCORD_API_ERROR);
+            String detail = String.format("Discord API %s: %s", e.getStatusCode(), extractDiscordError(e.getResponseBodyAsString()));
+            throw new BusinessException(ErrorCode.DISCORD_API_ERROR, detail);
         } catch (Exception e) {
             log.error("Failed to send Discord DM to user {}: {}", discordUserId, e.getMessage(), e);
-            throw new BusinessException(ErrorCode.DISCORD_API_ERROR);
+            throw new BusinessException(ErrorCode.DISCORD_API_ERROR, "DM 전송 실패: " + e.getMessage());
         }
     }
 
@@ -91,19 +95,20 @@ public class DiscordBotService {
             HttpHeaders headers = botHeaders();
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
 
-            restTemplate.postForEntity(
+            ResponseEntity<String> response = restTemplate.postForEntity(
                     BASE_URL + "/channels/" + channelId + "/messages",
                     entity,
                     String.class
             );
 
-            log.debug("Discord message sent to channel {}", channelId);
+            log.debug("Discord message sent to channel {}, status={}", channelId, response.getStatusCode());
         } catch (HttpStatusCodeException e) {
             log.error("Discord channel message API error for {}: status={}, body={}", channelId, e.getStatusCode(), e.getResponseBodyAsString());
-            throw new BusinessException(ErrorCode.DISCORD_API_ERROR);
+            String detail = String.format("Discord API %s: %s", e.getStatusCode(), extractDiscordError(e.getResponseBodyAsString()));
+            throw new BusinessException(ErrorCode.DISCORD_API_ERROR, detail);
         } catch (Exception e) {
             log.error("Failed to send Discord channel message to {}: {}", channelId, e.getMessage(), e);
-            throw new BusinessException(ErrorCode.DISCORD_API_ERROR);
+            throw new BusinessException(ErrorCode.DISCORD_API_ERROR, "메시지 전송 실패: " + e.getMessage());
         }
     }
 
@@ -251,5 +256,30 @@ public class DiscordBotService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Authorization", "Bot " + botToken);
         return headers;
+    }
+
+    /**
+     * Extract human-readable error message from Discord API error response.
+     * Discord returns JSON like: {"message": "Cannot send messages to this user", "code": 50007}
+     */
+    private String extractDiscordError(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return "응답 없음";
+        }
+        try {
+            // Simple extraction without ObjectMapper dependency
+            // Discord error format: {"message":"...","code":...}
+            int msgStart = responseBody.indexOf("\"message\"");
+            if (msgStart >= 0) {
+                int valueStart = responseBody.indexOf("\"", msgStart + 10) + 1;
+                int valueEnd = responseBody.indexOf("\"", valueStart);
+                if (valueStart > 0 && valueEnd > valueStart) {
+                    return responseBody.substring(valueStart, valueEnd);
+                }
+            }
+        } catch (Exception ignored) {
+            // Fall through to return raw body
+        }
+        return responseBody.length() > 200 ? responseBody.substring(0, 200) : responseBody;
     }
 }
