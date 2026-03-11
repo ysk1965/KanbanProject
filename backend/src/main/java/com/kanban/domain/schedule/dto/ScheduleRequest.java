@@ -78,6 +78,12 @@ public class ScheduleRequest {
     public static class Update {
         private LocalTime startTime;
         private LocalTime endTime;
+
+        @Size(max = 100, message = "제목은 100자 이내여야 합니다")
+        private String title;
+
+        @Size(max = 7, message = "색상 코드는 7자 이내여야 합니다")
+        private String color;
     }
 
     @Getter

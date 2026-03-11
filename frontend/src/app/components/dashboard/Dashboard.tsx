@@ -197,13 +197,37 @@ export function Dashboard({
     return result;
   }, [boards, searchQuery, boardFilter]);
 
-  // 즐겨찾기 제외한 보드 (통합 그리드용)
+  // 조직 보드 vs 워크스페이스 보드 분리
+  const { orgBoardsMap, workspaceBoards } = useMemo(() => {
+    const orgMap = new Map<string, { org: OrganizationSimple; boards: Board[] }>();
+    const workspace: Board[] = [];
+
+    for (const board of filteredBoards) {
+      if (board.organization_id) {
+        const existing = orgMap.get(board.organization_id);
+        if (existing) {
+          existing.boards.push(board);
+        } else {
+          const org = myOrganizations.find(o => o.id === board.organization_id);
+          orgMap.set(board.organization_id, {
+            org: org || { id: board.organization_id, name: board.organization_name || 'Organization' } as OrganizationSimple,
+            boards: [board],
+          });
+        }
+      } else {
+        workspace.push(board);
+      }
+    }
+    return { orgBoardsMap: orgMap, workspaceBoards: workspace };
+  }, [filteredBoards, myOrganizations]);
+
+  // 즐겨찾기 제외한 워크스페이스 보드 (내 프로젝트 그리드용)
   const nonStarredBoards = useMemo(() => {
     if (starredBoards.length > 0 && !searchQuery && boardFilter === 'all') {
-      return filteredBoards.filter(b => !b.is_starred);
+      return workspaceBoards.filter(b => !b.is_starred);
     }
-    return filteredBoards;
-  }, [filteredBoards, starredBoards, boardFilter, searchQuery]);
+    return workspaceBoards;
+  }, [workspaceBoards, starredBoards, boardFilter, searchQuery]);
 
   const handleBoardClick = (board: Board) => {
     onSelectBoard(board.id);
@@ -374,12 +398,18 @@ export function Dashboard({
               <MySpaceSummaryStrip todayData={todayData} onClick={() => navigate('/my-board')} />
             )}
 
-            {/* Org Summary Strip */}
-            {myOrganizations.length > 0 && !searchQuery && (
+            {/* Org Summary Strip + Org Boards */}
+            {myOrganizations.length > 0 && (
               <OrgSummaryStrip
                 organizations={myOrganizations}
+                orgBoardsMap={orgBoardsMap}
                 onOrgClick={(orgId) => navigate(`/organizations/${orgId}`)}
                 onViewAll={() => navigate('/organizations')}
+                onSelectBoard={handleBoardClick}
+                onToggleStar={onToggleStar}
+                onDeleteBoard={onDeleteBoard ? handleDeleteClick : undefined}
+                onEditBoard={handleEditClick}
+                viewMode={viewMode}
               />
             )}
 
@@ -388,7 +418,7 @@ export function Dashboard({
               <div>
                 <h1 className="text-2xl font-bold font-jakarta mb-0.5">{t('dashboard.yourProjects')}</h1>
                 <p className="text-slate-500 text-xs">
-                  {t('dashboard.managingWorkspaces', { count: boards.length })}
+                  {t('dashboard.managingWorkspaces', { count: workspaceBoards.length })}
                 </p>
               </div>
 
@@ -499,7 +529,7 @@ export function Dashboard({
               </section>
             )}
 
-            {/* Unified Board Grid (조직 + 워크스페이스 통합) */}
+            {/* Workspace Board Grid (조직 미소속 보드만) */}
             {nonStarredBoards.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-4">
@@ -552,8 +582,8 @@ export function Dashboard({
               </section>
             )}
 
-            {/* Show Create card even when no boards exist but filtered has results */}
-            {nonStarredBoards.length === 0 && filteredBoards.length > 0 && !searchQuery && (
+            {/* Show Create card when no non-starred workspace boards (but org boards or starred exist) */}
+            {nonStarredBoards.length === 0 && boards.length > 0 && !searchQuery && (
               <section>
                 <div className="flex items-center gap-2 mb-4">
                   <LayoutGrid size={14} className="text-bridge-secondary" />

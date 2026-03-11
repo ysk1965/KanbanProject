@@ -2,16 +2,15 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Send,
-  Trash2,
   Loader2,
   Check,
   AlertCircle,
   Lock,
   Rocket,
   Hash,
-  ChevronDown,
-  LinkIcon,
-  Unlink,
+  ExternalLink,
+  Link2,
+  UserCheck,
 } from "lucide-react";
 import {
   discordAPI,
@@ -87,16 +86,16 @@ export function DiscordSettingsPanel({
       ]);
       setConfig(configData);
       setUserLink(linkData);
-      onDiscordStatusChange?.(!!configData?.bot_connected && !!linkData?.linked);
+      onDiscordStatusChange?.(
+        !!configData?.bot_connected && !!linkData?.linked,
+      );
 
       // Fetch channels if bot is connected
       if (configData?.bot_connected) {
         try {
           const channelData = await discordAPI.getChannels(boardId);
           // Filter to text channels only (type 0)
-          setChannels(
-            channelData.channels.filter((ch) => ch.type === 0),
-          );
+          setChannels(channelData.channels.filter((ch) => ch.type === 0));
         } catch {
           setChannels([]);
         }
@@ -122,7 +121,9 @@ export function DiscordSettingsPanel({
       window.location.href = data.oauth_url;
     } catch {
       setIsRedirecting(false);
-      setErrorMessage(t('discordBot.installFailed', 'Failed to start bot installation'));
+      setErrorMessage(
+        t("discordBot.installFailed", "Failed to start bot installation"),
+      );
     }
   };
 
@@ -134,7 +135,9 @@ export function DiscordSettingsPanel({
       window.location.href = data.oauth_url;
     } catch {
       setIsRedirecting(false);
-      setErrorMessage(t('discordBot.linkFailed', 'Failed to start account linking'));
+      setErrorMessage(
+        t("discordBot.linkFailed", "Failed to start account linking"),
+      );
     }
   };
 
@@ -143,10 +146,16 @@ export function DiscordSettingsPanel({
     setIsUnlinking(true);
     try {
       await discordAPI.unlinkMe(boardId);
-      setUserLink({ linked: false, discord_user_id: null, discord_username: null });
+      setUserLink({
+        linked: false,
+        discord_user_id: null,
+        discord_username: null,
+      });
       onDiscordStatusChange?.(false);
     } catch {
-      setErrorMessage(t('discordBot.unlinkFailed', 'Failed to unlink Discord account'));
+      setErrorMessage(
+        t("discordBot.unlinkFailed", "Failed to unlink Discord account"),
+      );
     } finally {
       setIsUnlinking(false);
     }
@@ -163,7 +172,9 @@ export function DiscordSettingsPanel({
       setChannels([]);
       onDiscordStatusChange?.(false);
     } catch {
-      setErrorMessage(t('discordBot.disconnectFailed', 'Failed to disconnect bot'));
+      setErrorMessage(
+        t("discordBot.disconnectFailed", "Failed to disconnect bot"),
+      );
     } finally {
       setIsDisconnecting(false);
     }
@@ -177,7 +188,9 @@ export function DiscordSettingsPanel({
       const updated = await discordAPI.updateChannel(boardId, channel.id);
       setConfig(updated);
     } catch {
-      setErrorMessage(t('discordBot.channelUpdateFailed', 'Failed to update channel'));
+      setErrorMessage(
+        t("discordBot.channelUpdateFailed", "Failed to update channel"),
+      );
     } finally {
       setIsChangingChannel(false);
     }
@@ -205,7 +218,7 @@ export function DiscordSettingsPanel({
   // State 4: Premium Locked
   if (!canAccessDiscord) {
     return (
-      <div className="mx-3 mt-3 mb-2 p-3 bg-bridge-accent/5 rounded-xl border border-bridge-accent/20">
+      <div className="p-3 bg-bridge-accent/5 rounded-xl border border-bridge-accent/20">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
             <Lock size={12} className="text-bridge-accent" />
@@ -258,49 +271,43 @@ export function DiscordSettingsPanel({
     </div>
   );
 
-  // State 1: Bot Not Installed
-  if (!config) {
+  // State 1: Bot Not Installed (or not connected)
+  if (!config || !config.bot_connected) {
     return (
-      <div className="mx-3 mt-3 mb-2 p-3 bg-white/[0.03] rounded-xl border border-foreground/10">
+      <div className="p-3 bg-white/[0.03] rounded-xl border border-foreground/10">
         {oauthBanner}
         {errorBanner}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5">
-            <DiscordIcon size={14} className="text-slate-400" />
-            <span className="text-[11px] font-medium text-foreground">
-              {t("discordBot.title")}
-            </span>
-          </div>
+        <div className="text-center py-2">
+          <p className="text-[11px] text-slate-400 mb-3">
+            {t("discordBot.installDesc")}
+          </p>
+          <button
+            onClick={handleInstallBot}
+            disabled={isRedirecting}
+            className="flex items-center gap-2 mx-auto px-4 py-2 text-[11px] font-bold text-white bg-bridge-accent rounded-xl hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
+          >
+            {isRedirecting ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <ExternalLink size={13} />
+            )}
+            {t("discordBot.installButton")}
+          </button>
         </div>
-        <p className="text-[10px] text-slate-400 leading-relaxed mb-3">
-          {t("discordBot.installDesc")}
-        </p>
-        <button
-          onClick={handleInstallBot}
-          disabled={isRedirecting}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
-        >
-          {isRedirecting ? (
-            <Loader2 size={12} className="animate-spin" />
-          ) : (
-            <LinkIcon size={12} />
-          )}
-          {t("discordBot.installButton")}
-        </button>
       </div>
     );
   }
 
   // State 2 & 3: Bot Installed
   return (
-    <div className="mx-3 mt-3 mb-2 p-3 bg-white/[0.03] rounded-xl border border-foreground/10">
+    <div className="p-3 bg-white/[0.03] rounded-xl border border-foreground/10">
       {oauthBanner}
       {errorBanner}
 
       {/* Bot connection status */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1.5">
-          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-green-400" />
+          <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
           <span className="text-[11px] font-medium text-green-400">
             {t("discordBot.guildConnected")}
           </span>
@@ -308,107 +315,128 @@ export function DiscordSettingsPanel({
         <button
           onClick={handleDisconnectBot}
           disabled={isDisconnecting}
-          className="text-slate-500 hover:text-red-400 transition-colors flex-shrink-0"
-          title={t("discordBot.disconnectBot")}
+          className="text-[10px] text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
         >
           {isDisconnecting ? (
-            <Loader2 size={13} className="animate-spin" />
+            <Loader2 size={11} className="animate-spin" />
           ) : (
-            <Trash2 size={13} />
+            t("discordBot.disconnectButton", "Disconnect")
           )}
         </button>
       </div>
 
       {/* Guild info */}
-      <div className="text-[10px] text-slate-400 mb-3">
-        {config.guild_name}
+      <div className="space-y-1.5 mb-3">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-500">
+            {t("discordBot.serverLabel", "Server")}:
+          </span>
+          <span className="text-[11px] text-foreground font-medium">
+            {config.guild_name}
+          </span>
+        </div>
       </div>
 
-      {/* Channel selector */}
-      <div className="mb-3">
-        <label className="text-[10px] text-slate-400 uppercase tracking-wider font-medium mb-1 block">
-          {t("discordBot.channelLabel")}
-        </label>
-        <div className="relative">
-          <button
-            onClick={() => setShowChannelDropdown(!showChannelDropdown)}
-            disabled={isChangingChannel}
-            className="w-full flex items-center justify-between bg-foreground/[0.03] border border-foreground/10 rounded-lg py-2 px-3 text-xs text-foreground hover:bg-foreground/5 transition-all"
-          >
-            <span className="flex items-center gap-1.5">
-              <Hash size={12} className="text-slate-500" />
-              {isChangingChannel ? (
-                <Loader2 size={12} className="animate-spin text-bridge-accent" />
-              ) : config.channel_name ? (
-                config.channel_name
-              ) : (
-                <span className="text-slate-500">
-                  {t("discordBot.channelSelect")}
+      {/* Channel selection — only show when user is linked */}
+      {userLink?.linked && (
+        <div className="border-t border-foreground/[0.08] pt-3">
+          <label className="text-[10px] text-slate-400 uppercase tracking-wider font-medium mb-1.5 block">
+            {t("discordBot.channelLabel")}
+          </label>
+          {config.channel_name ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Hash size={12} className="text-slate-500" />
+                <span className="text-[11px] text-foreground">
+                  {config.channel_name}
                 </span>
+              </div>
+              <button
+                onClick={() => setShowChannelDropdown(!showChannelDropdown)}
+                disabled={isChangingChannel}
+                className="text-[10px] text-bridge-accent hover:text-bridge-accent/80 transition-colors"
+              >
+                {isChangingChannel ? (
+                  <Loader2 size={11} className="animate-spin" />
+                ) : (
+                  t("common.change", "Change")
+                )}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowChannelDropdown(!showChannelDropdown)}
+              disabled={isChangingChannel}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all"
+            >
+              {isChangingChannel ? (
+                <Loader2 size={11} className="animate-spin" />
+              ) : (
+                <Hash size={11} />
               )}
-            </span>
-            <ChevronDown size={12} className="text-slate-500" />
-          </button>
+              {t("discordBot.channelSelect")}
+            </button>
+          )}
 
+          {/* Channel picker dropdown */}
           {showChannelDropdown && channels.length > 0 && (
-            <div className="absolute z-50 mt-1 w-full bg-bridge-obsidian border border-foreground/10 rounded-lg shadow-xl max-h-48 overflow-y-auto custom-scrollbar">
+            <div className="mt-2 max-h-40 overflow-y-auto custom-scrollbar bg-bridge-dark rounded-lg border border-foreground/10">
               {channels.map((ch) => (
                 <button
                   key={ch.id}
                   onClick={() => handleChannelSelect(ch)}
-                  className={`w-full flex items-center gap-1.5 px-3 py-2 text-xs text-left hover:bg-foreground/5 transition-colors ${
+                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-left hover:bg-foreground/5 transition-colors ${
                     config.channel_id === ch.id
                       ? "text-bridge-accent"
                       : "text-foreground"
                   }`}
                 >
                   <Hash size={11} className="text-slate-500 flex-shrink-0" />
-                  {ch.name}
+                  <span className="truncate">{ch.name}</span>
                   {config.channel_id === ch.id && (
-                    <Check size={11} className="ml-auto text-bridge-accent flex-shrink-0" />
+                    <Check
+                      size={11}
+                      className="ml-auto text-bridge-accent flex-shrink-0"
+                    />
                   )}
                 </button>
               ))}
             </div>
           )}
         </div>
-        {!config.channel_id && (
-          <p className="text-[10px] text-amber-400/70 mt-1">
-            {t("discordBot.channelNone")}
-          </p>
-        )}
-      </div>
+      )}
 
       {/* User link section */}
-      <div className="border-t border-foreground/[0.08] pt-3">
+      <div className="border-t border-foreground/[0.08] pt-3 mt-3">
+        <label className="text-[10px] text-slate-400 uppercase tracking-wider font-medium mb-1.5 block">
+          {t("discordBot.personalLink", "My Discord Account")}
+        </label>
         {userLink?.linked ? (
-          // State 3: User linked
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-bridge-accent" />
+                <UserCheck size={12} className="text-green-400" />
                 <span className="text-[11px] text-foreground">
                   {userLink.discord_username}
                 </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
-                  {t("discordBot.linked")}
+                <span className="text-[9px] text-slate-500">
+                  ({t("discordBot.dmEnabled", "DM enabled")})
                 </span>
               </div>
               <button
                 onClick={handleUnlink}
                 disabled={isUnlinking}
-                className="flex items-center gap-1 px-2 py-1 text-[10px] text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all disabled:opacity-50"
+                className="text-[10px] text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
               >
                 {isUnlinking ? (
-                  <Loader2 size={10} className="animate-spin" />
+                  <Loader2 size={11} className="animate-spin" />
                 ) : (
-                  <Unlink size={10} />
+                  t("discordBot.unlinkButton")
                 )}
-                {t("discordBot.unlinkButton")}
               </button>
             </div>
 
-            {/* Test + actions */}
+            {/* Test notification */}
             <div className="flex items-center gap-2">
               <button
                 onClick={handleTest}
@@ -442,20 +470,19 @@ export function DiscordSettingsPanel({
             )}
           </div>
         ) : (
-          // State 2: User not linked
-          <div>
-            <p className="text-[10px] text-slate-400 leading-relaxed mb-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-slate-500">
               {t("discordBot.linkDesc")}
-            </p>
+            </span>
             <button
               onClick={handleLinkAccount}
               disabled={isRedirecting}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
+              className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all disabled:opacity-50"
             >
               {isRedirecting ? (
-                <Loader2 size={12} className="animate-spin" />
+                <Loader2 size={10} className="animate-spin" />
               ) : (
-                <LinkIcon size={12} />
+                <Link2 size={10} />
               )}
               {t("discordBot.linkButton")}
             </button>

@@ -2001,6 +2001,12 @@ export const memberAPI = {
     const params = search ? `?search=${encodeURIComponent(search)}` : '';
     return apiClient.get(`/boards/${boardId}/members/org-candidates${params}`);
   },
+
+  transferOwnership: async (boardId: string, newOwnerUserId: string) => {
+    return apiClient.post(`/boards/${boardId}/members/transfer-ownership`, {
+      new_owner_user_id: newOwnerUserId,
+    });
+  },
 };
 
 // ========================================
@@ -2547,6 +2553,8 @@ export const scheduleAPI = {
     data: {
       start_time?: string;
       end_time?: string;
+      title?: string;
+      color?: string;
     },
   ) => {
     return apiClient.put<ScheduleBlockDetailResponse>(

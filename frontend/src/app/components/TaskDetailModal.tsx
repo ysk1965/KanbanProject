@@ -75,6 +75,7 @@ interface TaskDetailModalProps {
   wsCommentEvent?: BoardWebSocketEvent | null;
   wsChecklistEvent?: BoardWebSocketEvent | null;
   onOpenFeature?: (featureId: string) => void;
+  onChecklistSync?: (taskId: string, items: ChecklistItem[]) => void;
 }
 
 export function TaskDetailModal({
@@ -103,6 +104,7 @@ export function TaskDetailModal({
   wsCommentEvent,
   wsChecklistEvent,
   onOpenFeature,
+  onChecklistSync,
 }: TaskDetailModalProps) {
   const { t } = useTranslation();
 
@@ -346,6 +348,7 @@ export function TaskDetailModal({
       const newTotal = newItems.length;
       const newCompleted = newItems.filter(item => item.completed).length;
       onUpdate({ checklist_total: newTotal, checklist_completed: newCompleted, checklist_version: Date.now() });
+      onChecklistSync?.(task.id, newItems);
     } catch (error) {
       console.error('Failed to add checklist item:', error);
     }
@@ -378,6 +381,7 @@ export function TaskDetailModal({
       // API 성공 후 부모 상태 업데이트 (카드 + 스케줄 뷰 반영)
       const completedCount = newItems.filter(item => item.completed).length;
       onUpdate({ checklist_total: newItems.length, checklist_completed: completedCount, checklist_version: Date.now() });
+      onChecklistSync?.(task.id, newItems);
     } catch (error) {
       console.error('Failed to toggle checklist item:', error);
       // 롤백
@@ -395,6 +399,10 @@ export function TaskDetailModal({
       )
     );
 
+    const updatedItems = checklistItems.map((item) =>
+      item.id === itemId ? { ...item, ...updates } : item
+    );
+
     try {
       await checklistAPI.updateItem(boardId, task.id, itemId, {
         title: updates.title,
@@ -404,6 +412,7 @@ export function TaskDetailModal({
       });
       // 체크리스트 버전 업데이트하여 카드에 변경 알림
       onUpdate({ checklist_version: Date.now() });
+      onChecklistSync?.(task.id, updatedItems);
     } catch (error) {
       console.error('Failed to update checklist item:', error);
     }
@@ -420,6 +429,7 @@ export function TaskDetailModal({
     // 부모 task 상태 업데이트
     const newCompleted = newItems.filter(item => item.completed).length;
     onUpdate({ checklist_total: newItems.length, checklist_completed: newCompleted, checklist_version: Date.now() });
+    onChecklistSync?.(task.id, newItems);
 
     try {
       await checklistAPI.deleteItem(boardId, task.id, itemId);
@@ -429,6 +439,7 @@ export function TaskDetailModal({
       setChecklistItems(originalItems);
       const rolledBackCompleted = originalItems.filter(item => item.completed).length;
       onUpdate({ checklist_total: originalItems.length, checklist_completed: rolledBackCompleted, checklist_version: Date.now() });
+      onChecklistSync?.(task.id, originalItems);
     }
   };
 
@@ -447,6 +458,7 @@ export function TaskDetailModal({
 
     // 낙관적 업데이트
     setChecklistItems(updatedItems);
+    onChecklistSync?.(task.id, updatedItems);
 
     try {
       await checklistAPI.reorderItems(boardId, task.id, {
@@ -456,6 +468,7 @@ export function TaskDetailModal({
       console.error('Failed to reorder checklist items:', error);
       // 롤백
       setChecklistItems(checklistItems);
+      onChecklistSync?.(task.id, checklistItems);
     }
   };
 
