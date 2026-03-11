@@ -78,8 +78,8 @@ public class DiscordController {
     private String buildErrorRedirect(String state, String reason) {
         try {
             if (state != null) {
-                String[] parts = state.split(":");
-                // state format: type:boardId:userId:origin:timestamp:hmac
+                String[] parts = state.split("\\|");
+                // state format: type|boardId|userId|origin|timestamp|hmac
                 if (parts.length >= 4) {
                     String origin = FrontendOriginResolver.resolve(parts[3], frontendUrl);
                     return origin + "/boards/" + parts[1] + "?view=settings&tab=discord&discord=" + reason;

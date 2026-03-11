@@ -2,6 +2,7 @@ package com.kanban.domain.integration.slack.service;
 
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
+import com.kanban.domain.integration.FrontendOriginResolver;
 import com.kanban.domain.integration.slack.*;
 import com.kanban.domain.integration.slack.config.SlackAppConfig;
 import com.kanban.domain.integration.slack.dto.SlackAppResponse;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -45,10 +47,11 @@ public class SlackOAuthService {
      */
     public SlackAppResponse.InstallUrl generateInstallUrl(SlackInstallScope scope, String entityId, String userId, String origin) {
         String state = buildState(scope, entityId, userId, origin);
+        String redirectUri = resolveRedirectUri(origin, config.getRedirectUri());
         String url = "https://slack.com/oauth/v2/authorize"
                 + "?client_id=" + URLEncoder.encode(config.getClientId(), StandardCharsets.UTF_8)
                 + "&scope=" + URLEncoder.encode(config.getBotScopes(), StandardCharsets.UTF_8)
-                + "&redirect_uri=" + URLEncoder.encode(config.getRedirectUri(), StandardCharsets.UTF_8)
+                + "&redirect_uri=" + URLEncoder.encode(redirectUri, StandardCharsets.UTF_8)
                 + "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8);
 
         return SlackAppResponse.InstallUrl.builder().url(url).build();
@@ -70,8 +73,9 @@ public class SlackOAuthService {
         SlackInstallScope scope = SlackInstallScope.valueOf(scopeStr);
 
         // Exchange code for token
+        String redirectUri = resolveRedirectUri(origin, config.getRedirectUri());
         Map<String, Object> oauthResponse = slackApiClient.exchangeCode(
-                config.getClientId(), config.getClientSecret(), code, config.getRedirectUri());
+                config.getClientId(), config.getClientSecret(), code, redirectUri);
 
         // Extract token and team info
         @SuppressWarnings("unchecked")
@@ -274,10 +278,11 @@ public class SlackOAuthService {
      */
     public SlackAppResponse.InstallUrl generateUserLinkUrl(String boardId, String userId, String origin) {
         String state = buildUserLinkState(boardId, userId, origin);
+        String userRedirectUri = resolveRedirectUri(origin, config.getUserRedirectUri());
         String url = "https://slack.com/oauth/v2/authorize"
                 + "?client_id=" + URLEncoder.encode(config.getClientId(), StandardCharsets.UTF_8)
                 + "&user_scope=" + URLEncoder.encode(config.getUserScopes(), StandardCharsets.UTF_8)
-                + "&redirect_uri=" + URLEncoder.encode(config.getUserRedirectUri(), StandardCharsets.UTF_8)
+                + "&redirect_uri=" + URLEncoder.encode(userRedirectUri, StandardCharsets.UTF_8)
                 + "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8);
 
         return SlackAppResponse.InstallUrl.builder().url(url).build();
@@ -294,8 +299,9 @@ public class SlackOAuthService {
         String origin = stateData.get("origin");
 
         // Exchange code for user token
+        String userRedirectUri = resolveRedirectUri(origin, config.getUserRedirectUri());
         Map<String, Object> tokenResponse = slackApiClient.exchangeCodeForUserToken(
-                config.getClientId(), config.getClientSecret(), code, config.getUserRedirectUri());
+                config.getClientId(), config.getClientSecret(), code, userRedirectUri);
 
         // Extract user info from authed_user
         @SuppressWarnings("unchecked")
@@ -493,6 +499,41 @@ public class SlackOAuthService {
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.SLACK_OAUTH_STATE_INVALID);
         }
+    }
+
+    /**
+     * Resolve redirect URI dynamically based on frontend origin.
+     * Replaces the host of the configured redirect URI with the API host matching the origin.
+     */
+    private String resolveRedirectUri(String origin, String configuredRedirectUri) {
+        try {
+            URI configured = URI.create(configuredRedirectUri);
+            String apiBase = FrontendOriginResolver.resolveApiBase(origin, null);
+            if (apiBase == null) {
+                return configuredRedirectUri;
+            }
+            URI apiUri = URI.create(apiBase);
+            return new URI(apiUri.getScheme(), apiUri.getAuthority(), configured.getPath(),
+                    configured.getQuery(), configured.getFragment()).toString();
+        } catch (Exception e) {
+            return configuredRedirectUri;
+        }
+    }
+
+    /**
+     * Safely extract origin from state without full verification.
+     * Used for error redirects when OAuth fails but we still need the correct frontend domain.
+     */
+    public String safeExtractOriginFromState(String state) {
+        try {
+            String decoded = new String(Base64.getUrlDecoder().decode(state), StandardCharsets.UTF_8);
+            String[] parts = decoded.split("\\|");
+            if (parts.length >= 4) {
+                return parts[3];
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     private String hmacSign(String data) {
