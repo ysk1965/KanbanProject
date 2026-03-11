@@ -347,6 +347,8 @@
     "logout": "लॉग आउट",
     "mySpace": "मेरा स्पेस",
     "mySpaceDesc": "व्यक्तिगत शेड्यूल & AI डायरी",
+    "mySpaceSetup": "अपना निजी स्पेस बनाएं",
+    "mySpaceCreate": "बनाएं",
     "yourProjects": "मेरे प्रोजेक्ट",
     "managingWorkspaces": "{{count}} सक्रिय वर्कस्पेस का प्रबंधन",
     "createNewBoard": "नया बोर्ड बनाएं",

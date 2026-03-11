@@ -346,6 +346,8 @@
     "logout": "登出",
     "mySpace": "我的空間",
     "mySpaceDesc": "個人行程 & AI日記",
+    "mySpaceSetup": "建立你的個人空間",
+    "mySpaceCreate": "建立",
     "yourProjects": "我的專案",
     "managingWorkspaces": "正在管理 {{count}} 個活躍工作區",
     "createNewBoard": "建立新看板",

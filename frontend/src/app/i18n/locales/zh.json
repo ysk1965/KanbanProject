@@ -347,6 +347,8 @@
     "logout": "退出登录",
     "mySpace": "我的空间",
     "mySpaceDesc": "个人日程 & AI日记",
+    "mySpaceSetup": "创建你的个人空间",
+    "mySpaceCreate": "创建",
     "yourProjects": "我的项目",
     "managingWorkspaces": "正在管理 {{count}} 个活跃工作区",
     "createNewBoard": "创建新看板",

@@ -347,6 +347,8 @@
     "logout": "ログアウト",
     "mySpace": "マイスペース",
     "mySpaceDesc": "個人スケジュール & AIダイアリー",
+    "mySpaceSetup": "自分だけのスペースを作りましょう",
+    "mySpaceCreate": "作成",
     "yourProjects": "マイプロジェクト",
     "managingWorkspaces": "{{count}}件のアクティブワークスペースを管理中",
     "createNewBoard": "新しいボードを作成",

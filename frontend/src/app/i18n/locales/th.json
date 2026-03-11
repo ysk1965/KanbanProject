@@ -347,6 +347,8 @@
     "logout": "ออกจากระบบ",
     "mySpace": "พื้นที่ของฉัน",
     "mySpaceDesc": "ตารางส่วนตัว & ไดอารี่ AI",
+    "mySpaceSetup": "สร้างพื้นที่ส่วนตัวของคุณ",
+    "mySpaceCreate": "สร้าง",
     "yourProjects": "โปรเจกต์ของคุณ",
     "managingWorkspaces": "กำลังจัดการ {{count}} พื้นที่ทำงาน",
     "createNewBoard": "สร้างบอร์ดใหม่",

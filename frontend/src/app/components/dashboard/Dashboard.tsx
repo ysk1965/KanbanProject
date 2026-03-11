@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, List, Grid3X3, ChevronRight, X, Users, Sparkles, Building2 } from 'lucide-react';
+import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, List, Grid3X3, ChevronRight, X, Users, Sparkles, Building2, ListTodo, Flame, Clock, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { Board, PersonalDashboardToday, OrganizationSimple } from '../../types';
-import { testDataAPI, personalDashboardAPI, resolveFileUrl } from '../../utils/api';
+import { testDataAPI, personalDashboardAPI, personalSpaceAPI, resolveFileUrl } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
 import { boardService, organizationService } from '../../utils/services';
 import { getInitials } from '../../utils/assigneeColor';
@@ -263,6 +263,21 @@ export function Dashboard({
     : 0;
 
   const hasPersonalSpace = currentUser?.personal_space_enabled ?? false;
+  const isMilkyway = window.location.hostname.includes('milkyway.pe.kr');
+
+  const [activatingSpace, setActivatingSpace] = useState(false);
+  const handleActivatePersonalSpace = async () => {
+    setActivatingSpace(true);
+    try {
+      await personalSpaceAPI.activate();
+      updateCurrentUser({ personal_space_enabled: true });
+      navigate('/my-board');
+    } catch {
+      // silently fail
+    } finally {
+      setActivatingSpace(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 flex text-foreground overflow-hidden selection:bg-bridge-secondary/30 bg-bridge-dark" style={{ background: 'radial-gradient(ellipse at 20% 0%, var(--bridge-dark) 0%, var(--bridge-dark) 50%, var(--bridge-dark) 100%)' }}>
@@ -394,8 +409,61 @@ export function Dashboard({
           <div className="max-w-7xl mx-auto space-y-6">
 
             {/* My Space Summary Strip (Desktop only, 모바일은 하단 바) */}
-            {!searchQuery && hasPersonalSpace && !window.location.hostname.includes('milkyway.pe.kr') && (
-              <MySpaceSummaryStrip todayData={todayData} onClick={() => navigate('/my-board')} />
+            {!searchQuery && !isMilkyway && (
+              hasPersonalSpace ? (
+                <MySpaceSummaryStrip todayData={todayData} onClick={() => navigate('/my-board')} />
+              ) : (
+                <motion.button
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  onClick={handleActivatePersonalSpace}
+                  disabled={activatingSpace}
+                  className="hidden lg:flex group w-full items-center gap-4 px-4 py-2.5
+                    bg-bridge-obsidian rounded-2xl border border-dashed border-bridge-secondary/30
+                    hover:border-bridge-secondary/50 transition-all cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <div className="w-9 h-9 rounded-lg bg-bridge-secondary/10 flex items-center justify-center">
+                      <Sparkles size={17} className="text-bridge-secondary/70" />
+                    </div>
+                    <span className="text-sm font-bold text-foreground font-jakarta tracking-tight">
+                      {t('dashboard.mySpace')}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 flex-1 min-w-0 pl-4 border-l border-foreground/[0.08]">
+                    <div className="flex items-center gap-4 text-slate-500">
+                      <div className="flex items-center gap-1.5">
+                        <ListTodo size={13} />
+                        <span className="text-[10px]">Task</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Flame size={13} />
+                        <span className="text-[10px]">Habit</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock size={13} />
+                        <span className="text-[10px]">Events</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <BookOpen size={13} />
+                        <span className="text-[10px]">Diary</span>
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-slate-500">
+                      {t('dashboard.mySpaceSetup')}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 ml-auto">
+                    <span className="px-3 py-1 rounded-lg text-[11px] font-bold text-bridge-secondary bg-bridge-secondary/10
+                      group-hover:bg-bridge-secondary/20 transition-colors">
+                      {activatingSpace ? '...' : t('dashboard.mySpaceCreate')}
+                    </span>
+                  </div>
+                </motion.button>
+              )
             )}
 
             {/* Org Summary Strip + Org Boards */}
@@ -640,79 +708,104 @@ export function Dashboard({
       />
 
       {/* Mobile Bottom Bar - My Space Quick Access */}
-      {hasPersonalSpace && !window.location.hostname.includes('milkyway.pe.kr') && (
-        <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden safe-bottom bg-bridge-obsidian/95 backdrop-blur-xl">
-          <div className="border-t border-bridge-border">
-            <button
-              onClick={() => navigate('/my-board')}
-              className="w-full flex items-center justify-between px-4 py-2.5 active:bg-foreground/5 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                {/* Mini Progress Ring */}
-                {todayData && (todayData.habits_today?.length || 0) > 0 ? (
-                  <div className="relative w-9 h-9 flex items-center justify-center">
-                    <svg width={36} height={36} className="absolute inset-0" style={{ transform: 'rotate(-90deg)' }}>
-                      <circle cx={18} cy={18} r={15} fill="none" className="stroke-foreground/10" strokeWidth={2.5} />
-                      <circle
-                        cx={18} cy={18} r={15}
-                        fill="none"
-                        stroke={
-                          (todayData.habits_today?.filter(h => h.is_completed).length || 0) >= (todayData.habits_today?.length || 1)
-                            ? '#2DD4BF' : '#8B5CF6'
-                        }
-                        strokeWidth={2.5}
-                        strokeLinecap="round"
-                        strokeDasharray={2 * Math.PI * 15}
-                        strokeDashoffset={2 * Math.PI * 15 * (1 - (todayData.habits_today?.filter(h => h.is_completed).length || 0) / Math.max(todayData.habits_today?.length || 1, 1))}
-                        style={{ transition: 'stroke-dashoffset 0.6s ease-out' }}
-                      />
-                    </svg>
-                    <Sparkles size={14} className="text-bridge-secondary" />
+      {!isMilkyway && (
+        hasPersonalSpace ? (
+          <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden safe-bottom bg-bridge-obsidian/95 backdrop-blur-xl">
+            <div className="border-t border-bridge-border">
+              <button
+                onClick={() => navigate('/my-board')}
+                className="w-full flex items-center justify-between px-4 py-2.5 active:bg-foreground/5 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {/* Mini Progress Ring */}
+                  {todayData && (todayData.habits_today?.length || 0) > 0 ? (
+                    <div className="relative w-9 h-9 flex items-center justify-center">
+                      <svg width={36} height={36} className="absolute inset-0" style={{ transform: 'rotate(-90deg)' }}>
+                        <circle cx={18} cy={18} r={15} fill="none" className="stroke-foreground/10" strokeWidth={2.5} />
+                        <circle
+                          cx={18} cy={18} r={15}
+                          fill="none"
+                          stroke={
+                            (todayData.habits_today?.filter(h => h.is_completed).length || 0) >= (todayData.habits_today?.length || 1)
+                              ? '#2DD4BF' : '#8B5CF6'
+                          }
+                          strokeWidth={2.5}
+                          strokeLinecap="round"
+                          strokeDasharray={2 * Math.PI * 15}
+                          strokeDashoffset={2 * Math.PI * 15 * (1 - (todayData.habits_today?.filter(h => h.is_completed).length || 0) / Math.max(todayData.habits_today?.length || 1, 1))}
+                          style={{ transition: 'stroke-dashoffset 0.6s ease-out' }}
+                        />
+                      </svg>
+                      <Sparkles size={14} className="text-bridge-secondary" />
+                    </div>
+                  ) : (
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-bridge-secondary/20 to-bridge-accent/20 border border-bridge-border flex items-center justify-center">
+                      <Sparkles size={16} className="text-bridge-secondary" />
+                    </div>
+                  )}
+                  <div className="flex flex-col items-start">
+                    <span className="text-sm font-bold text-foreground">{t('dashboard.mySpace')}</span>
+                    {todayData && (() => {
+                      const nextEvent = todayData.personal_events
+                        ?.filter(e => e.start_time && !e.all_day)
+                        .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
+                        .find(e => {
+                          const now = new Date();
+                          const [h, m] = (e.start_time || '00:00').split(':').map(Number);
+                          return h * 60 + m > now.getHours() * 60 + now.getMinutes();
+                        });
+                      return nextEvent ? (
+                        <span className="text-[10px] text-slate-500 truncate max-w-[160px]">
+                          {nextEvent.start_time?.slice(0, 5)} {nextEvent.title}
+                        </span>
+                      ) : null;
+                    })()}
                   </div>
-                ) : (
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-bridge-secondary/20 to-bridge-accent/20 border border-bridge-border flex items-center justify-center">
-                    <Sparkles size={16} className="text-bridge-secondary" />
-                  </div>
-                )}
-                <div className="flex flex-col items-start">
-                  <span className="text-sm font-bold text-foreground">{t('dashboard.mySpace')}</span>
-                  {todayData && (() => {
-                    const nextEvent = todayData.personal_events
-                      ?.filter(e => e.start_time && !e.all_day)
-                      .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
-                      .find(e => {
-                        const now = new Date();
-                        const [h, m] = (e.start_time || '00:00').split(':').map(Number);
-                        return h * 60 + m > now.getHours() * 60 + now.getMinutes();
-                      });
-                    return nextEvent ? (
-                      <span className="text-[10px] text-slate-500 truncate max-w-[160px]">
-                        {nextEvent.start_time?.slice(0, 5)} {nextEvent.title}
-                      </span>
-                    ) : null;
-                  })()}
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {todayData && (
-                  <div className="flex items-center gap-1.5">
-                    {todayTaskCount > 0 && (
-                      <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded">
-                        {todayTaskCount}
-                      </span>
-                    )}
-                    {(todayData.habits_today?.length || 0) > 0 && (
-                      <span className="text-[10px] font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded">
-                        {todayData.habits_today?.filter(h => h.is_completed).length || 0}/{todayData.habits_today?.length || 0}
-                      </span>
-                    )}
-                  </div>
-                )}
-                <ChevronRight size={16} className="text-slate-500" />
-              </div>
-            </button>
+                <div className="flex items-center gap-2">
+                  {todayData && (
+                    <div className="flex items-center gap-1.5">
+                      {todayTaskCount > 0 && (
+                        <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded">
+                          {todayTaskCount}
+                        </span>
+                      )}
+                      {(todayData.habits_today?.length || 0) > 0 && (
+                        <span className="text-[10px] font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded">
+                          {todayData.habits_today?.filter(h => h.is_completed).length || 0}/{todayData.habits_today?.length || 0}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <ChevronRight size={16} className="text-slate-500" />
+                </div>
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden safe-bottom bg-bridge-obsidian/95 backdrop-blur-xl">
+            <div className="border-t border-dashed border-bridge-secondary/30">
+              <button
+                onClick={handleActivatePersonalSpace}
+                disabled={activatingSpace}
+                className="w-full flex items-center justify-between px-4 py-2.5 active:bg-foreground/5 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-bridge-secondary/10 border border-bridge-secondary/20 flex items-center justify-center">
+                    <Sparkles size={16} className="text-bridge-secondary/70" />
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <span className="text-sm font-bold text-foreground">{t('dashboard.mySpace')}</span>
+                    <span className="text-[10px] text-slate-500">{t('dashboard.mySpaceSetup')}</span>
+                  </div>
+                </div>
+                <span className="px-3 py-1 rounded-lg text-[11px] font-bold text-bridge-secondary bg-bridge-secondary/10">
+                  {activatingSpace ? '...' : t('dashboard.mySpaceCreate')}
+                </span>
+              </button>
+            </div>
+          </div>
+        )
       )}
 
       {/* Test Data Creation Buttons (Admin Only) */}

@@ -347,6 +347,8 @@
     "logout": "Cerrar sesión",
     "mySpace": "Mi espacio",
     "mySpaceDesc": "Agenda personal y diario con IA",
+    "mySpaceSetup": "Crea tu espacio personal",
+    "mySpaceCreate": "Crear",
     "yourProjects": "Mis proyectos",
     "managingWorkspaces": "Gestionando {{count}} espacios de trabajo activos",
     "createNewBoard": "Crear nuevo tablero",

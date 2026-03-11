@@ -347,6 +347,8 @@
     "logout": "Sair",
     "mySpace": "Meu espaço",
     "mySpaceDesc": "Agenda pessoal & Diário com IA",
+    "mySpaceSetup": "Crie seu espaço pessoal",
+    "mySpaceCreate": "Criar",
     "yourProjects": "Meus projetos",
     "managingWorkspaces": "Gerenciando {{count}} espaços de trabalho ativos",
     "createNewBoard": "Criar novo board",
