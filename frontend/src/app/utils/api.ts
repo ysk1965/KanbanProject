@@ -4675,6 +4675,10 @@ export const slackAppAPI = {
   getMemberStatuses: async (boardId: string) => {
     return apiClient.get<SlackMemberStatus[]>(`/slack/user/statuses?board_id=${boardId}`);
   },
+
+  testNotification: async (boardId: string) => {
+    return apiClient.post<{ success: boolean; message: string }>(`/slack/app/test?board_id=${boardId}`, {});
+  },
 };
 
 // ========================================

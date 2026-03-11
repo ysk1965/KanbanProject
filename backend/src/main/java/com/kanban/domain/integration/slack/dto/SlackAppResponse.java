@@ -96,4 +96,11 @@ public class SlackAppResponse {
         private boolean linked;
         private String slackUsername;
     }
+
+    @Getter
+    @Builder
+    public static class TestResult {
+        private boolean success;
+        private String message;
+    }
 }
