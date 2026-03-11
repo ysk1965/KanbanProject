@@ -21,8 +21,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.kanban.domain.integration.FrontendOriginResolver;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -72,6 +75,7 @@ public class DiscordService {
         validateDiscordAccess(boardId);
 
         String state = generateState(type, boardId, userId, origin);
+        String dynamicRedirectUri = resolveRedirectUri(origin);
 
         String url;
         if ("bot_install".equals(type)) {
@@ -81,7 +85,7 @@ public class DiscordService {
                     + "&permissions=" + botPermissions
                     + "&scope=" + URLEncoder.encode("bot", StandardCharsets.UTF_8)
                     + "&response_type=code"
-                    + "&redirect_uri=" + URLEncoder.encode(redirectUri, StandardCharsets.UTF_8)
+                    + "&redirect_uri=" + URLEncoder.encode(dynamicRedirectUri, StandardCharsets.UTF_8)
                     + "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8);
         } else {
             // User link OAuth2 URL with identify scope
@@ -89,7 +93,7 @@ public class DiscordService {
                     + "?client_id=" + clientId
                     + "&scope=" + URLEncoder.encode("identify", StandardCharsets.UTF_8)
                     + "&response_type=code"
-                    + "&redirect_uri=" + URLEncoder.encode(redirectUri, StandardCharsets.UTF_8)
+                    + "&redirect_uri=" + URLEncoder.encode(dynamicRedirectUri, StandardCharsets.UTF_8)
                     + "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8);
         }
 
@@ -103,8 +107,8 @@ public class DiscordService {
      */
     @Transactional
     public String handleOAuthCallback(String code, String state) {
-        // Parse and validate state
-        String[] parts = state.split(":");
+        // Parse and validate state (delimiter: | to avoid conflicts with URL colons)
+        String[] parts = state.split("\\|");
         if (parts.length != 6) {
             throw new BusinessException(ErrorCode.DISCORD_OAUTH_STATE_INVALID);
         }
@@ -117,7 +121,7 @@ public class DiscordService {
         String hmac = parts[5];
 
         // Verify HMAC
-        String dataToSign = type + ":" + boardId + ":" + userId + ":" + origin + ":" + timestamp;
+        String dataToSign = type + "|" + boardId + "|" + userId + "|" + origin + "|" + timestamp;
         String expectedHmac = computeHmac(dataToSign);
         if (!expectedHmac.equals(hmac)) {
             throw new BusinessException(ErrorCode.DISCORD_OAUTH_STATE_INVALID);
@@ -130,10 +134,11 @@ public class DiscordService {
         }
 
         // Resolve origin
-        String resolvedOrigin = com.kanban.domain.integration.FrontendOriginResolver.resolve(origin, frontendUrl);
+        String resolvedOrigin = FrontendOriginResolver.resolve(origin, frontendUrl);
 
-        // Exchange code for tokens
-        Map<String, Object> tokenResponse = discordBotService.exchangeCodeForTokens(code);
+        // Exchange code for tokens (use dynamic redirect URI matching the one used in OAuth URL)
+        String dynamicRedirectUri = resolveRedirectUri(origin);
+        Map<String, Object> tokenResponse = discordBotService.exchangeCodeForTokens(code, dynamicRedirectUri);
         if (tokenResponse == null) {
             throw new BusinessException(ErrorCode.DISCORD_OAUTH_FAILED);
         }
@@ -431,9 +436,24 @@ public class DiscordService {
 
     private String generateState(String type, String boardId, String userId, String origin) {
         String timestamp = String.valueOf(Instant.now().getEpochSecond());
-        String data = type + ":" + boardId + ":" + userId + ":" + origin + ":" + timestamp;
+        String data = type + "|" + boardId + "|" + userId + "|" + origin + "|" + timestamp;
         String hmac = computeHmac(data);
-        return data + ":" + hmac;
+        return data + "|" + hmac;
+    }
+
+    private String resolveRedirectUri(String origin) {
+        try {
+            URI configured = URI.create(redirectUri);
+            String apiBase = FrontendOriginResolver.resolveApiBase(origin, null);
+            if (apiBase == null) {
+                return redirectUri;
+            }
+            URI apiUri = URI.create(apiBase);
+            return new URI(apiUri.getScheme(), apiUri.getAuthority(), configured.getPath(),
+                    configured.getQuery(), configured.getFragment()).toString();
+        } catch (Exception e) {
+            return redirectUri;
+        }
     }
 
     private String computeHmac(String data) {

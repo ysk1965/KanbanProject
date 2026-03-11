@@ -107,7 +107,7 @@ jobs:
     if: |
       (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply') ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    environment: ${{ github.event.inputs.environment || 'dev' }}
+    environment: ${{ (github.event.inputs.environment == 'prod' && 'production') || github.event.inputs.environment || 'dev' }}
 
     steps:
       - name: Checkout

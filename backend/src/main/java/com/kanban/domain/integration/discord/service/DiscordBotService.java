@@ -193,7 +193,7 @@ public class DiscordBotService {
     /**
      * Exchange OAuth2 authorization code for tokens.
      */
-    public Map<String, Object> exchangeCodeForTokens(String code) {
+    public Map<String, Object> exchangeCodeForTokens(String code, String dynamicRedirectUri) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -203,7 +203,7 @@ public class DiscordBotService {
             params.add("client_secret", clientSecret);
             params.add("grant_type", "authorization_code");
             params.add("code", code);
-            params.add("redirect_uri", redirectUri);
+            params.add("redirect_uri", dynamicRedirectUri != null ? dynamicRedirectUri : redirectUri);
 
             HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(params, headers);
 
