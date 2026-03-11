@@ -25,7 +25,6 @@ import com.kanban.domain.integration.FrontendOriginResolver;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -441,19 +440,10 @@ public class DiscordService {
         return data + "|" + hmac;
     }
 
+    private static final String DISCORD_OAUTH_CALLBACK_PATH = "/api/v1/discord/oauth/callback";
+
     private String resolveRedirectUri(String origin) {
-        try {
-            URI configured = URI.create(redirectUri);
-            String apiBase = FrontendOriginResolver.resolveApiBase(origin, null);
-            if (apiBase == null) {
-                return redirectUri;
-            }
-            URI apiUri = URI.create(apiBase);
-            return new URI(apiUri.getScheme(), apiUri.getAuthority(), configured.getPath(),
-                    configured.getQuery(), configured.getFragment()).toString();
-        } catch (Exception e) {
-            return redirectUri;
-        }
+        return FrontendOriginResolver.resolveOAuthRedirectUri(origin, DISCORD_OAUTH_CALLBACK_PATH, redirectUri);
     }
 
     private String computeHmac(String data) {

@@ -46,4 +46,17 @@ public class FrontendOriginResolver {
         }
         return fallback;
     }
+
+    /**
+     * Resolve OAuth redirect URI dynamically based on frontend origin.
+     * Constructs: {apiBase}{callbackPath} (e.g., https://api.milkyway.pe.kr/api/v1/slack/oauth/callback)
+     * Falls back to configuredRedirectUri if origin cannot be resolved.
+     */
+    public static String resolveOAuthRedirectUri(String origin, String callbackPath, String configuredRedirectUri) {
+        String apiBase = resolveApiBase(origin, null);
+        if (apiBase == null) {
+            return configuredRedirectUri;
+        }
+        return apiBase + callbackPath;
+    }
 }
