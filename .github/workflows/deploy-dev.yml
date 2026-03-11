@@ -1,5 +1,5 @@
-# Deploy to All Environments (Dev + Prod)
-# Single deployment from develop branch to both domains
+# Deploy to All Environments (Dev + Testprod)
+# Dev = bridgespots.com, Testprod = milkyway.pe.kr
 name: Deploy
 
 on:
@@ -14,7 +14,7 @@ env:
   EB_APPLICATION_NAME: kanban-dev
   EB_ENVIRONMENT_NAME: kanban-dev-env
   S3_BUCKET_DEV: kanban-dev-frontend
-  S3_BUCKET_PROD: kanban-testprod-frontend
+  S3_BUCKET_TESTPROD: kanban-testprod-frontend
   JAVA_VERSION: '21'
   NODE_VERSION: '20'
 
@@ -117,7 +117,7 @@ jobs:
           wait_for_environment_recovery: 120
           use_existing_version_if_available: true
 
-  # Deploy Frontend to S3 (Dev + Prod)
+  # Deploy Frontend to S3 (Dev + Testprod)
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest
@@ -156,7 +156,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy to S3 (Dev - milkyway.pe.kr)
+      - name: Deploy to S3 (Dev - bridgespots.com)
         run: |
           # 해시된 에셋: --delete 없이 업로드 (구버전 chunk 유지로 기존 세션 보호)
           aws s3 sync frontend/dist/assets s3://${{ env.S3_BUCKET_DEV }}/assets \
@@ -168,26 +168,26 @@ jobs:
             --exclude "assets/*" \
             --cache-control "no-cache,no-store,must-revalidate"
 
-      - name: Deploy to S3 (Prod - bridgespots.com)
+      - name: Deploy to S3 (Testprod - milkyway.pe.kr)
         run: |
           # 해시된 에셋: --delete 없이 업로드 (구버전 chunk 유지로 기존 세션 보호)
-          aws s3 sync frontend/dist/assets s3://${{ env.S3_BUCKET_PROD }}/assets \
+          aws s3 sync frontend/dist/assets s3://${{ env.S3_BUCKET_TESTPROD }}/assets \
             --cache-control "max-age=31536000,public"
 
           # 나머지 (HTML, SW, manifest 등) no-cache
-          aws s3 sync frontend/dist s3://${{ env.S3_BUCKET_PROD }} \
+          aws s3 sync frontend/dist s3://${{ env.S3_BUCKET_TESTPROD }} \
             --delete \
             --exclude "assets/*" \
             --cache-control "no-cache,no-store,must-revalidate"
 
-      - name: Invalidate CloudFront (Dev - milkyway.pe.kr)
+      - name: Invalidate CloudFront (Dev - bridgespots.com)
         if: vars.DEV_CLOUDFRONT_DISTRIBUTION_ID != ''
         run: |
           aws cloudfront create-invalidation \
             --distribution-id ${{ vars.DEV_CLOUDFRONT_DISTRIBUTION_ID }} \
             --paths "/*"
 
-      - name: Invalidate CloudFront (Prod - bridgespots.com)
+      - name: Invalidate CloudFront (Testprod - milkyway.pe.kr)
         if: vars.TESTPROD_CLOUDFRONT_DISTRIBUTION_ID != ''
         run: |
           aws cloudfront create-invalidation \
@@ -219,4 +219,4 @@ jobs:
           [ "$BE_RESULT" == "skipped" ] && echo "  Backend: skipped (no changes)" || true
           [ "$BE_RESULT" == "success" ] && echo "  Backend: deployed to EB" || true
           [ "$FE_RESULT" == "skipped" ] && echo "  Frontend: skipped (no changes)" || true
-          [ "$FE_RESULT" == "success" ] && echo "  Frontend: deployed to milkyway.pe.kr + bridgespots.com" || true
+          [ "$FE_RESULT" == "success" ] && echo "  Frontend: deployed to bridgespots.com + milkyway.pe.kr" || true
