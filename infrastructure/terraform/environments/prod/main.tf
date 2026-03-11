@@ -160,6 +160,20 @@ module "elastic_beanstalk" {
   polar_product_credit_500    = var.polar_product_credit_500
   polar_product_credit_1000   = var.polar_product_credit_1000
 
+  # Discord Integration
+  discord_client_id     = var.discord_client_id
+  discord_client_secret = var.discord_client_secret
+  discord_bot_token     = var.discord_bot_token
+  discord_redirect_uri  = var.discord_redirect_uri
+
+  # Slack App Integration
+  slack_client_id            = var.slack_client_id
+  slack_client_secret        = var.slack_client_secret
+  slack_signing_secret       = var.slack_signing_secret
+  slack_token_encryption_key = var.slack_token_encryption_key
+  slack_redirect_uri         = var.slack_redirect_uri
+  slack_user_redirect_uri    = var.slack_user_redirect_uri
+
   depends_on = [module.rds, module.elasticache, module.acm_certificate_alb]
 }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Building2, Users, Folder, Calendar, Crown, Shield, User as UserIcon, Trash2, ArrowRightLeft, CalendarPlus, AlertTriangle, Pencil, Loader2 } from 'lucide-react';
+import { X, Building2, Users, Folder, Calendar, Crown, Shield, User as UserIcon, Trash2, ArrowRightLeft, CalendarPlus, AlertTriangle, Pencil, Loader2, Settings, Check } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { AdminOrgDetail } from '../../utils/api';
 import { formatDateTime, formatDate } from '../../utils/dateUtils';
@@ -24,6 +24,10 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
   const [selectAction, setSelectAction] = useState<{ title: string; message: string; options: { id: string; label: string; description?: string }[]; onConfirm: (id: string) => void } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'members' | 'boards'>('info');
+  const [isEditingSubscription, setIsEditingSubscription] = useState(false);
+  const [subEditForm, setSubEditForm] = useState<{ plan: string; status: string; billing_cycle: string; seat_count: number }>({
+    plan: '', status: '', billing_cycle: '', seat_count: 0,
+  });
 
   useEffect(() => {
     loadOrgDetail();
@@ -179,35 +183,41 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
     });
   };
 
-  const handleUpdateSubscription = () => {
+  const handleToggleSubscriptionEdit = () => {
     if (!org) return;
-    setPromptAction({
-      title: t('admin.organizations.actions.updateSubscription'),
-      message: t('admin.organizations.updateSeatMessage', 'Enter new seat count'),
-      defaultValue: String(org.seat_count ?? 0),
-      inputType: 'number',
-      required: true,
-      onConfirm: async (value: string) => {
-        setPromptAction(null);
-        const seats = parseInt(value, 10);
-        if (isNaN(seats) || seats < 0) {
-          setToast({ message: t('admin.organizations.invalidSeats', 'Enter a valid number'), type: 'error' });
-          return;
-        }
-        try {
-          setIsUpdating(true);
-          const updated = await adminService.updateOrgSubscription(orgId, { seat_count: seats });
-          setOrg(updated);
-          onUpdate();
-          setToast({ message: t('admin.organizations.subscriptionUpdated', 'Subscription updated'), type: 'success' });
-        } catch (err) {
-          console.error('Failed to update subscription:', err);
-          setToast({ message: t('admin.organizations.subscriptionUpdateFailed', 'Failed to update'), type: 'error' });
-        } finally {
-          setIsUpdating(false);
-        }
-      },
-    });
+    if (isEditingSubscription) {
+      setIsEditingSubscription(false);
+    } else {
+      setSubEditForm({
+        plan: org.plan || 'FREE',
+        status: org.subscription_status || 'ACTIVE',
+        billing_cycle: org.billing_cycle || 'MONTHLY',
+        seat_count: org.seat_count ?? 0,
+      });
+      setIsEditingSubscription(true);
+    }
+  };
+
+  const handleSaveSubscription = async () => {
+    if (!org) return;
+    try {
+      setIsUpdating(true);
+      const updated = await adminService.updateOrgSubscription(orgId, {
+        plan: subEditForm.plan,
+        status: subEditForm.status,
+        billing_cycle: subEditForm.billing_cycle,
+        seat_count: subEditForm.seat_count,
+      });
+      setOrg(updated);
+      setIsEditingSubscription(false);
+      onUpdate();
+      setToast({ message: t('admin.organizations.subscriptionUpdated', 'Subscription updated'), type: 'success' });
+    } catch (err) {
+      console.error('Failed to update subscription:', err);
+      setToast({ message: t('admin.organizations.subscriptionUpdateFailed', 'Failed to update'), type: 'error' });
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const getRoleIcon = (role: string) => {
@@ -323,61 +333,138 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
 
                   {/* Subscription Info */}
                   <div className="bg-foreground/[0.03] rounded-xl p-4 border border-foreground/[0.08]">
-                    <h3 className="text-sm font-bold text-foreground mb-3">{t('admin.organizations.detail.subscription')}</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      <div>
-                        <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.plan')}</p>
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${getPlanStyle(org.plan)}`}>
-                          {org.plan}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.status')}</p>
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${getStatusStyle(org.subscription_status)}`}>
-                          {org.subscription_status || '-'}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.seatCount')}</p>
-                        <p className="text-sm font-bold text-foreground">{org.seat_count}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.activeMembers')}</p>
-                        <p className="text-sm font-bold text-foreground">{org.active_member_count}</p>
-                      </div>
-                      {org.billing_cycle && (
-                        <div>
-                          <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.billingCycle')}</p>
-                          <p className="text-sm text-foreground">
-                            {org.billing_cycle === 'MONTHLY' ? t('admin.organizations.detail.monthly') : t('admin.organizations.detail.yearly')}
-                          </p>
-                        </div>
-                      )}
-                      {org.trial_ends_at && (
-                        <div>
-                          <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.trialEndsAt')}</p>
-                          <p className="text-sm text-foreground">{formatDate(org.trial_ends_at)}</p>
-                        </div>
-                      )}
-                      {org.current_period_end && (
-                        <div>
-                          <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.currentPeriodEnd')}</p>
-                          <p className="text-sm text-foreground">{formatDate(org.current_period_end)}</p>
-                        </div>
-                      )}
-                      {org.price_per_seat != null && org.price_per_seat > 0 && (
-                        <div>
-                          <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.pricePerSeat')}</p>
-                          <p className="text-sm text-foreground">${(org.price_per_seat / 100).toLocaleString()}</p>
-                        </div>
-                      )}
-                      {org.total_price != null && org.total_price > 0 && (
-                        <div>
-                          <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.totalPrice')}</p>
-                          <p className="text-sm font-bold text-foreground">${(org.total_price / 100).toLocaleString()}</p>
-                        </div>
-                      )}
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-bold text-foreground">{t('admin.organizations.detail.subscription')}</h3>
+                      <button
+                        onClick={isEditingSubscription ? handleSaveSubscription : handleToggleSubscriptionEdit}
+                        disabled={isUpdating}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all disabled:opacity-50 ${
+                          isEditingSubscription
+                            ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20'
+                            : 'text-bridge-accent bg-bridge-accent/10 border border-bridge-accent/20 hover:bg-bridge-accent/20'
+                        }`}
+                      >
+                        {isEditingSubscription ? (
+                          <>{isUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} {t('common.save', '저장')}</>
+                        ) : (
+                          <><Settings className="h-3 w-3" /> {t('common.edit', '수정')}</>
+                        )}
+                      </button>
                     </div>
+
+                    {isEditingSubscription ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <div>
+                            <p className="text-[10px] text-slate-400 mb-1">{t('admin.organizations.detail.plan')}</p>
+                            <select
+                              value={subEditForm.plan}
+                              onChange={(e) => setSubEditForm(prev => ({ ...prev, plan: e.target.value }))}
+                              className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1.5 px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                            >
+                              <option value="FREE">FREE</option>
+                              <option value="TEAM">TEAM</option>
+                            </select>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-400 mb-1">{t('admin.organizations.detail.status')}</p>
+                            <select
+                              value={subEditForm.status}
+                              onChange={(e) => setSubEditForm(prev => ({ ...prev, status: e.target.value }))}
+                              className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1.5 px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                            >
+                              <option value="ACTIVE">ACTIVE</option>
+                              <option value="TRIAL">TRIAL</option>
+                              <option value="SUSPENDED">SUSPENDED</option>
+                              <option value="CANCELED">CANCELED</option>
+                              <option value="PAST_DUE">PAST_DUE</option>
+                            </select>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-400 mb-1">{t('admin.organizations.detail.billingCycle')}</p>
+                            <select
+                              value={subEditForm.billing_cycle}
+                              onChange={(e) => setSubEditForm(prev => ({ ...prev, billing_cycle: e.target.value }))}
+                              className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1.5 px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                            >
+                              <option value="MONTHLY">{t('admin.organizations.detail.monthly', 'Monthly')}</option>
+                              <option value="YEARLY">{t('admin.organizations.detail.yearly', 'Yearly')}</option>
+                            </select>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-400 mb-1">{t('admin.organizations.detail.seatCount')}</p>
+                            <input
+                              type="number"
+                              min={0}
+                              value={subEditForm.seat_count}
+                              onChange={(e) => setSubEditForm(prev => ({ ...prev, seat_count: parseInt(e.target.value, 10) || 0 }))}
+                              className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1.5 px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                            />
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setIsEditingSubscription(false)}
+                          className="text-[10px] text-slate-400 hover:text-foreground transition-colors"
+                        >
+                          {t('common.cancel', '취소')}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div>
+                          <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.plan')}</p>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${getPlanStyle(org.plan)}`}>
+                            {org.plan}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.status')}</p>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${getStatusStyle(org.subscription_status)}`}>
+                            {org.subscription_status || '-'}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.seatCount')}</p>
+                          <p className="text-sm font-bold text-foreground">{org.seat_count}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.activeMembers')}</p>
+                          <p className="text-sm font-bold text-foreground">{org.active_member_count}</p>
+                        </div>
+                        {org.billing_cycle && (
+                          <div>
+                            <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.billingCycle')}</p>
+                            <p className="text-sm text-foreground">
+                              {org.billing_cycle === 'MONTHLY' ? t('admin.organizations.detail.monthly') : t('admin.organizations.detail.yearly')}
+                            </p>
+                          </div>
+                        )}
+                        {org.trial_ends_at && (
+                          <div>
+                            <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.trialEndsAt')}</p>
+                            <p className="text-sm text-foreground">{formatDate(org.trial_ends_at)}</p>
+                          </div>
+                        )}
+                        {org.current_period_end && (
+                          <div>
+                            <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.currentPeriodEnd')}</p>
+                            <p className="text-sm text-foreground">{formatDate(org.current_period_end)}</p>
+                          </div>
+                        )}
+                        {org.price_per_seat != null && org.price_per_seat > 0 && (
+                          <div>
+                            <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.pricePerSeat')}</p>
+                            <p className="text-sm text-foreground">${(org.price_per_seat / 100).toLocaleString()}</p>
+                          </div>
+                        )}
+                        {org.total_price != null && org.total_price > 0 && (
+                          <div>
+                            <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.totalPrice')}</p>
+                            <p className="text-sm font-bold text-foreground">${(org.total_price / 100).toLocaleString()}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions */}
@@ -389,10 +476,6 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
                     <button onClick={handleTransferOwnership} disabled={isUpdating}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-foreground bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-all disabled:opacity-50">
                       <ArrowRightLeft className="h-3.5 w-3.5" /> {t('admin.organizations.actions.transferOwnership')}
-                    </button>
-                    <button onClick={handleUpdateSubscription} disabled={isUpdating}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-bridge-accent bg-bridge-accent/10 border border-bridge-accent/20 rounded-lg hover:bg-bridge-accent/20 transition-all disabled:opacity-50">
-                      <Users className="h-3.5 w-3.5" /> {t('admin.organizations.actions.updateSubscription')}
                     </button>
                     <button onClick={handleExtendTrial} disabled={isUpdating}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg hover:bg-amber-500/20 transition-all disabled:opacity-50">

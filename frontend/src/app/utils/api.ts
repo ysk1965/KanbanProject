@@ -110,6 +110,8 @@ export interface ApiError {
 class ApiClient {
   private baseURL: string;
   private refreshPromise: Promise<boolean> | null = null;
+  // Rate limit 관리: 엔드포인트별 backoff 상태
+  private rateLimitBackoff: Map<string, { until: number; retries: number }> = new Map();
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
@@ -120,6 +122,13 @@ class ApiClient {
     options?: RequestInit,
     skipAuth: boolean = false,
   ): Promise<T> {
+    // Rate limit backoff 체크: 이전에 429를 받은 엔드포인트는 backoff 기간 동안 즉시 차단
+    const backoffKey = endpoint.split('?')[0]; // 쿼리 파라미터 제거
+    const backoffState = this.rateLimitBackoff.get(backoffKey);
+    if (backoffState && Date.now() < backoffState.until) {
+      console.warn(`⏳ [Rate Limit] ${endpoint} — backoff ${Math.ceil((backoffState.until - Date.now()) / 1000)}s 남음`);
+      throw { code: "R001", message: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", status: 429 } as ApiError;
+    }
     const url = `${this.baseURL}${endpoint}`;
 
     const headers: Record<string, string> = {
@@ -175,6 +184,26 @@ class ApiClient {
           status: response.status,
           error: errorData,
         });
+
+        // Rate Limit (429 Too Many Requests) — exponential backoff
+        if (response.status === 429) {
+          const currentBackoff = this.rateLimitBackoff.get(backoffKey);
+          const retries = (currentBackoff?.retries || 0) + 1;
+          // Exponential backoff: 2s, 4s, 8s, 16s, 30s max
+          const backoffMs = Math.min(2000 * Math.pow(2, retries - 1), 30000);
+          this.rateLimitBackoff.set(backoffKey, {
+            until: Date.now() + backoffMs,
+            retries,
+          });
+          console.warn(`🚫 [Rate Limit] ${endpoint} — ${backoffMs / 1000}s backoff (retry #${retries})`);
+          // 5회 이상 연속 429이면 backoff 맵 자동 클리어 타이머 설정 (60초 후)
+          if (retries >= 5) {
+            setTimeout(() => this.rateLimitBackoff.delete(backoffKey), 60000);
+          } else {
+            setTimeout(() => this.rateLimitBackoff.delete(backoffKey), backoffMs);
+          }
+          throw errorData;
+        }
 
         // 토큰 만료시 자동 갱신 시도
         if (response.status === 401 && errorData.code === "A004") {
@@ -1972,6 +2001,12 @@ export const memberAPI = {
     const params = search ? `?search=${encodeURIComponent(search)}` : '';
     return apiClient.get(`/boards/${boardId}/members/org-candidates${params}`);
   },
+
+  transferOwnership: async (boardId: string, newOwnerUserId: string) => {
+    return apiClient.post(`/boards/${boardId}/members/transfer-ownership`, {
+      new_owner_user_id: newOwnerUserId,
+    });
+  },
 };
 
 // ========================================
@@ -2518,6 +2553,8 @@ export const scheduleAPI = {
     data: {
       start_time?: string;
       end_time?: string;
+      title?: string;
+      color?: string;
     },
   ) => {
     return apiClient.put<ScheduleBlockDetailResponse>(
@@ -2721,10 +2758,15 @@ export const meetingAPI = {
     boardId: string,
     meetingId: string,
     transcript: string,
+    diarizedTranscript?: DiarizedTranscript | null,
   ): Promise<TranscriptResult> => {
+    const body: Record<string, string> = { transcript };
+    if (diarizedTranscript) {
+      body.diarized_transcript = JSON.stringify(diarizedTranscript);
+    }
     return apiClient.put<TranscriptResult>(
       `/boards/${boardId}/meetings/${meetingId}/transcript`,
-      { transcript },
+      body,
     );
   },
 
@@ -4538,17 +4580,133 @@ export const slackWebhookAPI = {
 };
 
 // ========================================
-// Discord Webhook API
+// Slack App (OAuth) API
 // ========================================
 
-export interface DiscordWebhookConfig {
+export interface SlackAppInstallation {
   id: string;
-  board_id: string;
-  webhook_url_masked: string;
-  channel_name: string | null;
-  enabled: boolean;
+  scope: 'BOARD' | 'ORGANIZATION';
+  slack_team_id: string;
+  slack_team_name: string;
+  bot_user_id: string | null;
+  active: boolean;
+  installed_by_name: string | null;
+  default_channel_id: string | null;
+  default_channel_name: string | null;
+  scopes: string | null;
   created_at: string;
-  updated_at: string;
+}
+
+export interface SlackChannel {
+  id: string;
+  name: string;
+  is_private: boolean;
+  is_archived: boolean;
+  member_count: number;
+}
+
+export interface SlackChannelList {
+  channels: SlackChannel[];
+  next_cursor: string | null;
+}
+
+export interface SlackUserLinkStatus {
+  linked: boolean;
+  slack_user_id: string | null;
+  slack_username: string | null;
+  slack_team_id: string | null;
+}
+
+export interface SlackMemberStatus {
+  user_id: string;
+  linked: boolean;
+  slack_username: string | null;
+}
+
+export const slackAppAPI = {
+  getInstallUrl: async (scope: 'BOARD' | 'ORGANIZATION', entityId: string) => {
+    return apiClient.get<{ url: string }>(`/slack/oauth/install?scope=${scope}&entity_id=${entityId}`);
+  },
+
+  getStatus: async (boardId: string) => {
+    return apiClient.get<SlackAppInstallation | null>(`/slack/app/status?board_id=${boardId}`);
+  },
+
+  getOrgStatus: async (orgId: string) => {
+    return apiClient.get<SlackAppInstallation | null>(`/slack/app/status?organization_id=${orgId}`);
+  },
+
+  listChannels: async (boardId: string, cursor?: string) => {
+    const params = cursor ? `&cursor=${cursor}` : '';
+    return apiClient.get<SlackChannelList>(`/slack/app/channels?board_id=${boardId}${params}`);
+  },
+
+  listOrgChannels: async (orgId: string, cursor?: string) => {
+    const params = cursor ? `&cursor=${cursor}` : '';
+    return apiClient.get<SlackChannelList>(`/slack/app/channels?organization_id=${orgId}${params}`);
+  },
+
+  setDefaultChannel: async (installationId: string, channelId: string, channelName: string) => {
+    return apiClient.put(`/slack/app/channel?installation_id=${installationId}`, {
+      channelId: channelId,
+      channelName: channelName,
+    });
+  },
+
+  uninstall: async (installationId: string) => {
+    return apiClient.delete(`/slack/app/${installationId}`);
+  },
+
+  // User link (per-user Slack account linking for DM notifications)
+  getUserLinkUrl: async (boardId: string) => {
+    return apiClient.get<{ url: string }>(`/slack/oauth/user-link?board_id=${boardId}`);
+  },
+
+  getUserLinkStatus: async () => {
+    return apiClient.get<SlackUserLinkStatus>(`/slack/user/me`);
+  },
+
+  unlinkUser: async () => {
+    return apiClient.delete(`/slack/user/me`);
+  },
+
+  getMemberStatuses: async (boardId: string) => {
+    return apiClient.get<SlackMemberStatus[]>(`/slack/user/statuses?board_id=${boardId}`);
+  },
+};
+
+// ========================================
+// Discord Bot API
+// ========================================
+
+export interface DiscordBotConfig {
+  board_id: string;
+  guild_id: string;
+  guild_name: string;
+  channel_id: string | null;
+  channel_name: string | null;
+  bot_connected: boolean;
+  installed_by: string;
+  created_at: string;
+}
+
+export interface DiscordUserLinkStatus {
+  linked: boolean;
+  discord_user_id: string | null;
+  discord_username: string | null;
+}
+
+export interface DiscordChannelInfo {
+  id: string;
+  name: string;
+  type: number;
+}
+
+export interface DiscordMemberStatus {
+  user_id: string;
+  linked: boolean;
+  discord_username: string | null;
+  enabled: boolean;
 }
 
 export interface DiscordTestResult {
@@ -4556,56 +4714,58 @@ export interface DiscordTestResult {
   message: string;
 }
 
-export interface DiscordWebhookMemberStatus {
-  user_id: string;
-  connected: boolean;
-  enabled: boolean;
-  channel_name: string | null;
-}
-
-export const discordWebhookAPI = {
-  getMemberStatuses: async (boardId: string) => {
-    return apiClient.get<DiscordWebhookMemberStatus[]>(
-      `/boards/${boardId}/discord-webhook/statuses`,
-    );
-  },
-
-  getMyConfig: async (boardId: string) => {
-    return apiClient.get<DiscordWebhookConfig>(
-      `/boards/${boardId}/discord-webhook/me`,
-    );
-  },
-
-  upsertMyConfig: async (
+export const discordAPI = {
+  getOAuthUrl: async (
     boardId: string,
-    data: {
-      webhookUrl?: string;
-      channelName?: string;
-      enabled?: boolean;
-    },
+    type: "bot_install" | "user_link",
   ) => {
-    return apiClient.put<DiscordWebhookConfig>(
-      `/boards/${boardId}/discord-webhook/me`,
-      {
-        webhook_url: data.webhookUrl || undefined,
-        channel_name: data.channelName,
-        enabled: data.enabled,
-      },
+    return apiClient.get<{ oauth_url: string }>(
+      `/boards/${boardId}/discord/oauth-url?type=${type}`,
     );
   },
 
-  deleteMyConfig: async (boardId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/discord-webhook/me`,
+  getConfig: async (boardId: string) => {
+    return apiClient.get<DiscordBotConfig | null>(
+      `/boards/${boardId}/discord/config`,
     );
   },
 
-  testMyWebhook: async (boardId: string) => {
-    const brandName = window.location.hostname.includes("milkyway")
-      ? "Milkyway"
-      : "BRIDGE SPOTS";
+  deleteConfig: async (boardId: string) => {
+    return apiClient.delete(`/boards/${boardId}/discord/config`);
+  },
+
+  getMyLink: async (boardId: string) => {
+    return apiClient.get<DiscordUserLinkStatus>(
+      `/boards/${boardId}/discord/me`,
+    );
+  },
+
+  unlinkMe: async (boardId: string) => {
+    return apiClient.delete(`/boards/${boardId}/discord/me`);
+  },
+
+  getChannels: async (boardId: string) => {
+    return apiClient.get<{ channels: DiscordChannelInfo[] }>(
+      `/boards/${boardId}/discord/channels`,
+    );
+  },
+
+  updateChannel: async (boardId: string, channelId: string) => {
+    return apiClient.put<DiscordBotConfig>(
+      `/boards/${boardId}/discord/channel`,
+      { channel_id: channelId },
+    );
+  },
+
+  getMemberStatuses: async (boardId: string) => {
+    return apiClient.get<DiscordMemberStatus[]>(
+      `/boards/${boardId}/discord/statuses`,
+    );
+  },
+
+  testNotification: async (boardId: string) => {
     return apiClient.post<DiscordTestResult>(
-      `/boards/${boardId}/discord-webhook/me/test?brandName=${encodeURIComponent(brandName)}`,
+      `/boards/${boardId}/discord/test`,
     );
   },
 };
@@ -5040,7 +5200,7 @@ export const noteAPI = {
 
 export const publicNoteAPI = {
   getSharedNote: async (shareToken: string) => {
-    return apiClient.get<SharedNote>(`/public/notes/${shareToken}`);
+    return apiClient.get<SharedNote>(`/public/notes/${shareToken}`, true);
   },
 };
 
@@ -5518,7 +5678,7 @@ export const organizationAPI = {
   },
   update: async (
     orgId: string,
-    data: { name?: string; description?: string; hr_system_enabled?: boolean },
+    data: { name?: string; description?: string; hr_system_enabled?: boolean; auto_board_access_enabled?: boolean },
   ): Promise<import("../types").OrganizationDetail> => {
     return apiClient.put(`/organizations/${orgId}`, data);
   },
@@ -6826,6 +6986,35 @@ export const orgPhotoAPI = {
   ): Promise<{ enabled: boolean; share_token: string }> =>
     apiClient.get(`/organizations/${orgId}/photos/gallery-share`),
 
+  // Gallery-level upload
+  enableGalleryUpload: (
+    orgId: string,
+  ): Promise<{ upload_token: string }> =>
+    apiClient.post(`/organizations/${orgId}/photos/gallery-upload`),
+
+  disableGalleryUpload: (
+    orgId: string,
+  ): Promise<void> =>
+    apiClient.delete(`/organizations/${orgId}/photos/gallery-upload`),
+
+  getGalleryUploadStatus: (
+    orgId: string,
+  ): Promise<{ enabled: boolean; upload_token: string; expires_at: string }> =>
+    apiClient.get(`/organizations/${orgId}/photos/gallery-upload`),
+
+  // Upload link
+  enableUploadLink: (
+    orgId: string,
+    tabId: string,
+  ): Promise<import("../types").OrgPhotoTab> =>
+    apiClient.post(`/organizations/${orgId}/photos/tabs/${tabId}/upload-link`),
+
+  disableUploadLink: (
+    orgId: string,
+    tabId: string,
+  ): Promise<import("../types").OrgPhotoTab> =>
+    apiClient.delete(`/organizations/${orgId}/photos/tabs/${tabId}/upload-link`),
+
   // Photo CRUD
   getPhotos: (
     orgId: string,
@@ -6888,7 +7077,7 @@ export const publicGalleryAPI = {
   getSharedGallery: (
     shareToken: string,
   ): Promise<import("../types").SharedGalleryInfo> =>
-    apiClient.get(`/public/gallery/${shareToken}`),
+    apiClient.get(`/public/gallery/${shareToken}`, true),
 
   getSharedGalleryPhotos: (
     shareToken: string,
@@ -6901,8 +7090,104 @@ export const publicGalleryAPI = {
     const qs = query.toString();
     return apiClient.get(
       `/public/gallery/${shareToken}/albums/${albumId}/photos${qs ? `?${qs}` : ""}`,
+      true,
     );
   },
+};
+
+export const publicUploadAPI = {
+  getUploadAlbumInfo: (
+    uploadToken: string,
+  ): Promise<import("../types").UploadAlbumInfo> =>
+    apiClient.get(`/public/upload/${uploadToken}`, true),
+
+  uploadPhotos: async (
+    uploadToken: string,
+    files: File[],
+  ): Promise<import("../types").OrgPhoto[]> => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append("files", f));
+    const response = await fetch(
+      `${API_BASE_URL}/public/upload/${uploadToken}`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
+    if (!response.ok) {
+      const err = await response
+        .json()
+        .catch(() => ({ message: "Upload failed" }));
+      throw err;
+    }
+    return response.json();
+  },
+};
+
+// ─── Public Gallery Upload API (no auth) ───
+
+export const publicGalleryUploadAPI = {
+  getGalleryUploadInfo: (
+    uploadToken: string,
+  ): Promise<import("../types").GalleryUploadInfo> =>
+    apiClient.get(`/public/gallery-upload/${uploadToken}`, true),
+
+  createAlbum: (
+    uploadToken: string,
+    data: { name: string; description?: string },
+  ): Promise<import("../types").SharedAlbumSummary> =>
+    apiClient.post(`/public/gallery-upload/${uploadToken}/albums`, data, true),
+
+  deleteAlbum: (
+    uploadToken: string,
+    albumId: string,
+  ): Promise<void> =>
+    apiClient.delete(`/public/gallery-upload/${uploadToken}/albums/${albumId}`, undefined, true),
+
+  getAlbumPhotos: (
+    uploadToken: string,
+    albumId: string,
+    params?: { cursor?: string; size?: number },
+  ): Promise<import("../types").SharedPhotoPage> => {
+    const query = new URLSearchParams();
+    if (params?.cursor) query.set("cursor", params.cursor);
+    if (params?.size) query.set("size", String(params.size));
+    const qs = query.toString();
+    return apiClient.get(
+      `/public/gallery-upload/${uploadToken}/albums/${albumId}/photos${qs ? `?${qs}` : ""}`,
+      true,
+    );
+  },
+
+  uploadPhotos: async (
+    uploadToken: string,
+    albumId: string,
+    files: File[],
+  ): Promise<import("../types").OrgPhoto[]> => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append("files", f));
+    const response = await fetch(
+      `${API_BASE_URL}/public/gallery-upload/${uploadToken}/albums/${albumId}/photos`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
+    if (!response.ok) {
+      const err = await response
+        .json()
+        .catch(() => ({ message: "Upload failed" }));
+      throw err;
+    }
+    return response.json();
+  },
+
+  deletePhoto: (
+    uploadToken: string,
+    albumId: string,
+    photoId: string,
+  ): Promise<void> =>
+    apiClient.delete(`/public/gallery-upload/${uploadToken}/albums/${albumId}/photos/${photoId}`, undefined, true),
 };
 
 /** @deprecated kept for per-album share backward compat */
@@ -6910,7 +7195,7 @@ export const publicAlbumAPI = {
   getSharedAlbum: (
     shareToken: string,
   ): Promise<import("../types").SharedAlbumInfo> =>
-    apiClient.get(`/public/albums/${shareToken}`),
+    apiClient.get(`/public/albums/${shareToken}`, true),
 
   getSharedAlbumPhotos: (
     shareToken: string,
@@ -6922,6 +7207,7 @@ export const publicAlbumAPI = {
     const qs = query.toString();
     return apiClient.get(
       `/public/albums/${shareToken}/photos${qs ? `?${qs}` : ""}`,
+      true,
     );
   },
 };

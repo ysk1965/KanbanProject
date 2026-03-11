@@ -21,4 +21,9 @@ public interface OrgPhotoTabRepository extends JpaRepository<OrgPhotoTab, String
     Optional<OrgPhotoTab> findByShareTokenAndIsSharedTrue(@Param("shareToken") String shareToken);
 
     List<OrgPhotoTab> findByOrganizationIdAndIsSharedTrueOrderBySortOrderAsc(String orgId);
+
+    @Query("SELECT t FROM OrgPhotoTab t " +
+           "JOIN FETCH t.organization " +
+           "WHERE t.uploadToken = :uploadToken AND t.isUploadEnabled = true")
+    Optional<OrgPhotoTab> findByUploadTokenAndIsUploadEnabledTrue(@Param("uploadToken") String uploadToken);
 }

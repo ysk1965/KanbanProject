@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Feature, Task, Block, Tag, Milestone, Subscription, AiCredits, InviteLink, BoardWebSocketEvent } from '../types';
+import { Feature, Task, Block, Tag, Milestone, Subscription, AiCredits, InviteLink, BoardWebSocketEvent, ChecklistItem } from '../types';
 import { BoardMember as ShareBoardMember, MemberRole } from './ShareBoardModal';
 import { UpgradeTrigger } from './UpgradeModal';
 import { FeatureDetailModal } from './FeatureDetailModal';
@@ -48,6 +48,7 @@ interface BoardModalManagerProps {
   wsCommentEvent: BoardWebSocketEvent | null;
   wsChecklistEvent: BoardWebSocketEvent | null;
   onOpenFeature?: (featureId: string) => void;
+  onChecklistSync?: (taskId: string, items: ChecklistItem[]) => void;
   // Tag
   tags: Tag[];
   onCreateTag: (name: string, color: string) => Promise<string | undefined>;
@@ -90,6 +91,8 @@ interface BoardModalManagerProps {
   pendingJoinRequestCount?: number;
   isAdminOrOwner?: boolean;
   onJoinRequestHandled?: () => void;
+  boardName?: string;
+  onTransferOwnership?: (newOwnerUserId: string) => Promise<void>;
   hideBillingForUser: boolean;
   // Subscription Modal
   isSubscriptionModalOpen: boolean;
@@ -334,6 +337,7 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         wsCommentEvent={props.wsCommentEvent}
         wsChecklistEvent={props.wsChecklistEvent}
         onOpenFeature={props.onOpenFeature}
+        onChecklistSync={props.onChecklistSync}
       />
 
       <AddBlockModal
@@ -383,6 +387,8 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         pendingJoinRequestCount={props.pendingJoinRequestCount}
         isAdminOrOwner={props.isAdminOrOwner}
         onJoinRequestHandled={props.onJoinRequestHandled}
+        boardName={props.boardName}
+        onTransferOwnership={props.onTransferOwnership}
       />
 
       {!props.hideBillingForUser && (

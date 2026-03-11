@@ -26,6 +26,8 @@ public class OrganizationRequest {
         private String description;
 
         private Boolean hrSystemEnabled;
+
+        private Boolean autoBoardAccessEnabled;
     }
 
     @Getter

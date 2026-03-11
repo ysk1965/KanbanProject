@@ -55,12 +55,6 @@ public class OrganizationService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        // 1인 1조직 정책: 이미 소속된 조직이 있는지 확인
-        List<OrganizationMember> existingMemberships = orgMemberRepository.findByUserIdWithOrganization(userId);
-        if (!existingMemberships.isEmpty()) {
-            throw new BusinessException(ErrorCode.ALREADY_IN_ORGANIZATION);
-        }
-
         Organization org = Organization.builder()
                 .name(request.getName())
                 .description(request.getDescription())
@@ -121,6 +115,7 @@ public class OrganizationService {
         checkAdminOrAbove(orgId, userId);
         org.updateInfo(request.getName(), request.getDescription());
         org.updateHrSystemEnabled(request.getHrSystemEnabled());
+        org.updateAutoBoardAccessEnabled(request.getAutoBoardAccessEnabled());
         int[] counts = getOrgCounts(orgId);
         OrganizationMember member = getOrgMemberOrThrow(orgId, userId);
         return OrganizationResponse.Detail.of(org, member.getRole(), member.getId(), counts[0], counts[1]);

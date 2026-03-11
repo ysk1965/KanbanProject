@@ -39,7 +39,7 @@ public interface OrgPhotoRepository extends JpaRepository<OrgPhoto, String> {
 
     long countByOrganizationId(String orgId);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("DELETE FROM OrgPhoto p WHERE p.tab.id = :tabId")
     void deleteByTabId(@Param("tabId") String tabId);
 

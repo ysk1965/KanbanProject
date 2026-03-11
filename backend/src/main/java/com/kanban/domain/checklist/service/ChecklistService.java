@@ -3,6 +3,7 @@ package com.kanban.domain.checklist.service;
 import com.kanban.domain.activity.ActivityAction;
 import com.kanban.domain.activity.TargetType;
 import com.kanban.domain.activity.service.ActivityService;
+import com.kanban.domain.board.Board;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
@@ -27,6 +28,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -115,18 +118,31 @@ public class ChecklistService {
                 )
         );
 
-        // 배정자가 있으면 알림 발송
-        if (assignee != null) {
-            notificationService.createChecklistAssignedNotification(item, creator, task.getBoard());
-            slackNotificationService.sendChecklistAssignedNotification(item, creator, task.getBoard(), originUrl);
-            discordNotificationService.sendChecklistAssignedNotification(item, creator, task.getBoard(), originUrl);
-        }
-
         log.info("Checklist item created: {} in task: {} by user: {}", item.getId(), taskId, userId);
 
         ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_CREATED, userId, creator.getName(),
                 Map.of("task_id", taskId, "item", response));
+
+        // 알림 발송: 트랜잭션 커밋 후 실행 (알림 실패가 체크리스트 생성을 롤백하지 않도록)
+        if (assignee != null) {
+            final ChecklistItem savedItem = item;
+            final User savedCreator = creator;
+            final Board savedBoard = task.getBoard();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        notificationService.createChecklistAssignedNotification(savedItem, savedCreator, savedBoard);
+                    } catch (Exception e) {
+                        log.warn("Failed to create checklist assigned notification for item: {}", savedItem.getId(), e);
+                    }
+                    slackNotificationService.sendChecklistAssignedNotification(savedItem, savedCreator, savedBoard, originUrl);
+                    discordNotificationService.sendChecklistAssignedNotification(savedItem, savedCreator, savedBoard, originUrl);
+                }
+            });
+        }
+
         return response;
     }
 
@@ -157,13 +173,25 @@ public class ChecklistService {
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
             item.updateAssignee(assignee);
 
-            // 배정자가 변경된 경우 알림 발송
+            // 배정자가 변경된 경우 알림 발송 (트랜잭션 커밋 후)
             if (!request.getAssigneeId().equals(oldAssigneeId)) {
                 User assigner = userRepository.findById(userId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-                notificationService.createChecklistAssignedNotification(item, assigner, task.getBoard());
-                slackNotificationService.sendChecklistAssignedNotification(item, assigner, task.getBoard(), originUrl);
-                discordNotificationService.sendChecklistAssignedNotification(item, assigner, task.getBoard(), originUrl);
+                final ChecklistItem savedItem = item;
+                final User savedAssigner = assigner;
+                final Board savedBoard = task.getBoard();
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        try {
+                            notificationService.createChecklistAssignedNotification(savedItem, savedAssigner, savedBoard);
+                        } catch (Exception e) {
+                            log.warn("Failed to create checklist assigned notification for item: {}", savedItem.getId(), e);
+                        }
+                        slackNotificationService.sendChecklistAssignedNotification(savedItem, savedAssigner, savedBoard, originUrl);
+                        discordNotificationService.sendChecklistAssignedNotification(savedItem, savedAssigner, savedBoard, originUrl);
+                    }
+                });
             }
         }
 

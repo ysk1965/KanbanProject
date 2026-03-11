@@ -461,6 +461,68 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.polar_product_credit_1000
   }
 
+  # Discord Integration
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "DISCORD_CLIENT_ID"
+    value     = var.discord_client_id
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "DISCORD_CLIENT_SECRET"
+    value     = var.discord_client_secret
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "DISCORD_BOT_TOKEN"
+    value     = var.discord_bot_token
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "DISCORD_REDIRECT_URI"
+    value     = var.discord_redirect_uri
+  }
+
+  # Slack App Integration
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "SLACK_CLIENT_ID"
+    value     = var.slack_client_id
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "SLACK_CLIENT_SECRET"
+    value     = var.slack_client_secret
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "SLACK_SIGNING_SECRET"
+    value     = var.slack_signing_secret
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "SLACK_TOKEN_ENCRYPTION_KEY"
+    value     = var.slack_token_encryption_key
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "SLACK_REDIRECT_URI"
+    value     = var.slack_redirect_uri
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "SLACK_USER_REDIRECT_URI"
+    value     = var.slack_user_redirect_uri
+  }
+
   tags = {
     Name        = "${var.project_name}-${var.environment}-env"
     Environment = var.environment

@@ -43,11 +43,7 @@ export function OrgInviteAcceptPage() {
         navigate(`/organizations/${result.organization_id}`);
       }, 1500);
     } catch (err: any) {
-      if (err?.code === 'O016' || err?.code === 'ALREADY_IN_ORGANIZATION') {
-        setError(t('organization.invite.alreadyInOrg', '이미 소속된 조직이 있습니다. 기존 조직을 탈퇴한 후 다시 시도해주세요.'));
-      } else {
-        setError(err?.message || t('organization.invite.acceptFailed', 'Failed to accept invite.'));
-      }
+      setError(err?.message || t('organization.invite.acceptFailed', 'Failed to accept invite.'));
     } finally {
       setAccepting(false);
     }

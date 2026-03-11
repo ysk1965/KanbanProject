@@ -347,4 +347,40 @@ public class MemberService {
                 .map(MemberResponse.OrgCandidate::of)
                 .collect(Collectors.toList());
     }
+
+    @Transactional
+    @CacheEvict(value = "members", key = "#boardId")
+    public MemberResponse.ListResponse transferOwnership(String boardId, String userId, MemberRequest.TransferOwnership request) {
+        boardService.checkOwner(boardId, userId);
+
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        User newOwner = userRepository.findById(request.getNewOwnerUserId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        User oldOwner = board.getOwner();
+
+        if (oldOwner.getId().equals(newOwner.getId())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        BoardMember targetMember = boardMemberRepository.findByBoardIdAndUserId(boardId, newOwner.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        targetMember.updateRole(BoardRole.OWNER);
+
+        boardMemberRepository.findByBoardIdAndUserId(boardId, oldOwner.getId())
+                .ifPresent(member -> member.updateRole(BoardRole.ADMIN));
+
+        board.updateOwner(newOwner);
+
+        log.info("Board ownership transferred: boardId={}, oldOwner={}, newOwner={}",
+                boardId, oldOwner.getId(), newOwner.getId());
+
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEMBER_UPDATED,
+                userId, oldOwner.getName(), null);
+
+        return MemberResponse.ListResponse.of(boardMemberRepository.findByBoardId(boardId));
+    }
 }

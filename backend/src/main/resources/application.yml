@@ -143,6 +143,26 @@ polar:
     credit-500: ${POLAR_PRODUCT_CREDIT_500:}
     credit-1000: ${POLAR_PRODUCT_CREDIT_1000:}
 
+# Discord Bot (OAuth2)
+discord:
+  client-id: ${DISCORD_CLIENT_ID:}
+  client-secret: ${DISCORD_CLIENT_SECRET:}
+  bot-token: ${DISCORD_BOT_TOKEN:}
+  redirect-uri: ${DISCORD_REDIRECT_URI:http://localhost:8080/api/v1/discord/oauth/callback}
+  bot-permissions: 2048  # Send Messages
+
+# Slack App (OAuth2)
+slack:
+  app:
+    client-id: ${SLACK_CLIENT_ID:}
+    client-secret: ${SLACK_CLIENT_SECRET:}
+    signing-secret: ${SLACK_SIGNING_SECRET:}
+    token-encryption-key: ${SLACK_TOKEN_ENCRYPTION_KEY:}
+    bot-scopes: "chat:write,channels:read,groups:read,commands,reactions:read,im:write"
+    user-scopes: "identity.basic,identity.email"
+    redirect-uri: ${SLACK_REDIRECT_URI:http://localhost:8080/api/v1/slack/oauth/callback}
+    user-redirect-uri: ${SLACK_USER_REDIRECT_URI:http://localhost:8080/api/v1/slack/oauth/user-callback}
+
 # Firebase (FCM Push Notifications)
 firebase:
   credentials-json: ${FIREBASE_CREDENTIALS_JSON:}
@@ -239,6 +259,7 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 86
+    out-of-order: true
 
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/kanban_dev}
@@ -283,6 +304,7 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 86
+    out-of-order: true
 
   datasource:
     url: ${DATABASE_URL}

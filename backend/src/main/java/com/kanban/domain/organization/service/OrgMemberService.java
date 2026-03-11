@@ -7,6 +7,7 @@ import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.organization.leave.LeaveRequest;
 import com.kanban.domain.organization.leave.LeaveStatus;
 import com.kanban.domain.organization.leave.dto.LeaveDto;
+import com.kanban.domain.organization.leave.repository.LeaveBalanceAdjustmentRepository;
 import com.kanban.domain.organization.leave.repository.LeaveBalanceRepository;
 import com.kanban.domain.organization.leave.repository.LeaveRequestRepository;
 import com.kanban.domain.organization.leave.service.LeaveService;
@@ -57,8 +58,14 @@ public class OrgMemberService {
     private final LeaveService leaveService;
     private final LeaveRequestRepository leaveRequestRepository;
     private final LeaveBalanceRepository leaveBalanceRepository;
+    private final LeaveBalanceAdjustmentRepository leaveBalanceAdjustmentRepository;
     private final OrgOnboardingService onboardingService;
     private final OrgMemberHistoryService orgMemberHistoryService;
+    private final OrgAttendanceRecordRepository orgAttendanceRecordRepository;
+    private final OrgMemberHistoryRepository orgMemberHistoryRepository;
+    private final OrgOnboardingInstanceRepository orgOnboardingInstanceRepository;
+    private final OrgCelebrationMessageRepository orgCelebrationMessageRepository;
+    private final OrgOneOnOneRepository orgOneOnOneRepository;
 
     public OrgMemberResponse.PageResponse getMembers(String orgId, String userId,
             String departmentId, String jobGroupId, ContractType contractType,
@@ -109,12 +116,6 @@ public class OrgMemberService {
         User targetUser = userRepository.findByEmail(request.getEmail()).orElse(null);
 
         if (targetUser != null) {
-            // 1인 1조직 정책: 대상 유저가 이미 다른 조직에 소속되어 있는지 확인
-            List<OrganizationMember> existingMemberships = orgMemberRepository.findByUserIdWithOrganization(targetUser.getId());
-            if (!existingMemberships.isEmpty()) {
-                throw new BusinessException(ErrorCode.ALREADY_IN_ORGANIZATION);
-            }
-
             // Check if already a member
             if (orgMemberRepository.existsByOrganizationIdAndUserId(orgId, targetUser.getId())) {
                 throw new BusinessException(ErrorCode.ORG_MEMBER_ALREADY_EXISTS);
@@ -329,12 +330,17 @@ public class OrgMemberService {
         // Remove concurrent dept assignments
         orgMemberConcurrentDeptRepository.deleteByMemberId(target.getId());
 
-        // Cancel PENDING leave requests for the member being removed
-        List<LeaveRequest> pendingLeaves = leaveRequestRepository.findByRequesterIdAndStatus(
-                target.getId(), LeaveStatus.PENDING);
-        for (LeaveRequest lr : pendingLeaves) {
-            lr.cancel();
-        }
+        // Cleanup all FK references to prevent constraint violations
+        leaveRequestRepository.nullifyReviewerByMemberId(target.getId());
+        leaveRequestRepository.deleteByRequesterId(target.getId());
+        leaveBalanceAdjustmentRepository.nullifyGrantedByMemberId(target.getId());
+        leaveBalanceAdjustmentRepository.deleteByMemberId(target.getId());
+        leaveBalanceRepository.deleteByMemberId(target.getId());
+        orgAttendanceRecordRepository.deleteByMemberId(target.getId());
+        orgMemberHistoryRepository.deleteByMemberId(target.getId());
+        orgOnboardingInstanceRepository.deleteByMemberId(target.getId());
+        orgCelebrationMessageRepository.deleteByTargetMemberId(target.getId());
+        orgOneOnOneRepository.deleteByMemberId(target.getId());
 
         String memberName = target.getUser().getName();
         Organization org = organizationService.getActiveOrgOrThrow(orgId);
@@ -343,7 +349,7 @@ public class OrgMemberService {
         orgActivityService.log(org, requester.getUser().getName(),
                 OrgActivityType.MEMBER_LEFT, memberName, null);
 
-        // Delete the org member (leave_balances ON DELETE CASCADE)
+        // Delete the org member
         orgMemberRepository.delete(target);
 
         log.info("Organization member removed: orgId={}, memberId={}, removedFromBoards={}",

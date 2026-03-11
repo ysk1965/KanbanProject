@@ -64,6 +64,10 @@ public class Organization {
     @Column(name = "hr_system_enabled", nullable = false)
     private Boolean hrSystemEnabled = false;
 
+    @Builder.Default
+    @Column(name = "auto_board_access_enabled", nullable = false)
+    private Boolean autoBoardAccessEnabled = false;
+
     @OneToOne(mappedBy = "organization", fetch = FetchType.LAZY)
     private OrgSubscription subscription;
 
@@ -73,6 +77,12 @@ public class Organization {
 
     @Column(name = "photo_share_token", unique = true, length = 36)
     private String photoShareToken;
+
+    @Column(name = "photo_upload_token", unique = true, length = 36)
+    private String photoUploadToken;
+
+    @Column(name = "photo_upload_token_expires_at")
+    private LocalDateTime photoUploadTokenExpiresAt;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
@@ -104,6 +114,12 @@ public class Organization {
     public void updateHrSystemEnabled(Boolean hrSystemEnabled) {
         if (hrSystemEnabled != null) {
             this.hrSystemEnabled = hrSystemEnabled;
+        }
+    }
+
+    public void updateAutoBoardAccessEnabled(Boolean autoBoardAccessEnabled) {
+        if (autoBoardAccessEnabled != null) {
+            this.autoBoardAccessEnabled = autoBoardAccessEnabled;
         }
     }
 
@@ -164,5 +180,21 @@ public class Organization {
 
     public boolean isGalleryShared() {
         return this.photoShareToken != null;
+    }
+
+    public void enableGalleryUpload() {
+        this.photoUploadToken = UUID.randomUUID().toString();
+        this.photoUploadTokenExpiresAt = LocalDateTime.now(ZoneOffset.UTC).plusWeeks(1);
+    }
+
+    public void disableGalleryUpload() {
+        this.photoUploadToken = null;
+        this.photoUploadTokenExpiresAt = null;
+    }
+
+    public boolean isGalleryUploadEnabled() {
+        return this.photoUploadToken != null
+                && this.photoUploadTokenExpiresAt != null
+                && LocalDateTime.now(ZoneOffset.UTC).isBefore(this.photoUploadTokenExpiresAt);
     }
 }

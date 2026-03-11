@@ -222,3 +222,72 @@ variable "polar_product_credit_1000" {
   type        = string
   default     = ""
 }
+
+# Discord Integration
+variable "discord_client_id" {
+  description = "Discord OAuth2 client ID"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "discord_client_secret" {
+  description = "Discord OAuth2 client secret"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "discord_bot_token" {
+  description = "Discord bot token"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "discord_redirect_uri" {
+  description = "Discord OAuth2 redirect URI"
+  type        = string
+  default     = ""
+}
+
+# Slack App Integration
+variable "slack_client_id" {
+  description = "Slack App Client ID"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "slack_client_secret" {
+  description = "Slack App Client Secret"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "slack_signing_secret" {
+  description = "Slack App Signing Secret"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "slack_token_encryption_key" {
+  description = "AES-256-GCM encryption key for Slack bot tokens"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "slack_redirect_uri" {
+  description = "Slack OAuth redirect URI"
+  type        = string
+  default     = ""
+}
+
+variable "slack_user_redirect_uri" {
+  description = "Slack user OAuth redirect URI"
+  type        = string
+  default     = ""
+}

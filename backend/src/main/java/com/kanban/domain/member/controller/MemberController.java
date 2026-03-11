@@ -70,6 +70,16 @@ public class MemberController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/transfer-ownership")
+    public ResponseEntity<MemberResponse.ListResponse> transferOwnership(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody MemberRequest.TransferOwnership request) {
+        MemberResponse.ListResponse response = memberService.transferOwnership(
+                boardId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{memberId}")
     public ResponseEntity<Map<String, String>> removeMember(
             @PathVariable String boardId,

@@ -120,6 +120,49 @@ public class OrgPhotoController {
         ));
     }
 
+    // ==================== Gallery-Level Upload ====================
+
+    @PostMapping("/gallery-upload")
+    public ResponseEntity<Map<String, Object>> enableGalleryUpload(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        String token = orgPhotoService.enableGalleryUpload(orgId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("upload_token", token));
+    }
+
+    @DeleteMapping("/gallery-upload")
+    public ResponseEntity<Void> disableGalleryUpload(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        orgPhotoService.disableGalleryUpload(orgId, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/gallery-upload")
+    public ResponseEntity<Map<String, Object>> getGalleryUploadStatus(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(orgPhotoService.getGalleryUploadStatus(orgId));
+    }
+
+    // ==================== Upload Link Endpoints ====================
+
+    @PostMapping("/tabs/{tabId}/upload-link")
+    public ResponseEntity<OrgPhotoResponse.TabInfo> enableUploadLink(
+            @PathVariable String orgId,
+            @PathVariable String tabId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(orgPhotoService.enableUploadLink(orgId, principal.getUserId(), tabId));
+    }
+
+    @DeleteMapping("/tabs/{tabId}/upload-link")
+    public ResponseEntity<OrgPhotoResponse.TabInfo> disableUploadLink(
+            @PathVariable String orgId,
+            @PathVariable String tabId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(orgPhotoService.disableUploadLink(orgId, principal.getUserId(), tabId));
+    }
+
     // ==================== Photo Endpoints ====================
 
     @GetMapping

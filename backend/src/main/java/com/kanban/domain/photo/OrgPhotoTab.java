@@ -6,6 +6,8 @@ import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -44,6 +46,16 @@ public class OrgPhotoTab extends BaseTimeEntity {
     @Builder.Default
     private Boolean isShared = false;
 
+    @Column(name = "upload_token", length = 36, unique = true)
+    private String uploadToken;
+
+    @Column(name = "is_upload_enabled", nullable = false)
+    @Builder.Default
+    private Boolean isUploadEnabled = false;
+
+    @Column(name = "upload_token_expires_at")
+    private LocalDateTime uploadTokenExpiresAt;
+
     @Column(name = "photo_count", nullable = false)
     @Builder.Default
     private int photoCount = 0;
@@ -53,7 +65,7 @@ public class OrgPhotoTab extends BaseTimeEntity {
     private int sortOrder = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", nullable = false)
+    @JoinColumn(name = "created_by")
     private User createdBy;
 
     @PrePersist
@@ -97,5 +109,25 @@ public class OrgPhotoTab extends BaseTimeEntity {
     public void disableShare() {
         this.isShared = false;
         this.shareToken = null;
+    }
+
+    public String enableUpload() {
+        this.isUploadEnabled = true;
+        this.uploadToken = UUID.randomUUID().toString();
+        this.uploadTokenExpiresAt = LocalDateTime.now(ZoneOffset.UTC).plusWeeks(1);
+        return this.uploadToken;
+    }
+
+    public void disableUpload() {
+        this.isUploadEnabled = false;
+        this.uploadToken = null;
+        this.uploadTokenExpiresAt = null;
+    }
+
+    public boolean isUploadTokenValid() {
+        return Boolean.TRUE.equals(this.isUploadEnabled)
+                && this.uploadToken != null
+                && this.uploadTokenExpiresAt != null
+                && LocalDateTime.now(ZoneOffset.UTC).isBefore(this.uploadTokenExpiresAt);
     }
 }

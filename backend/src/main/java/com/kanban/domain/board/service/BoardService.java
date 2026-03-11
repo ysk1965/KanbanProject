@@ -54,7 +54,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -195,6 +197,7 @@ public class BoardService {
 
     public List<BoardResponse.Simple> getMyBoards(String userId) {
         List<BoardResponse.Simple> result = new ArrayList<>();
+        Set<String> addedBoardIds = new HashSet<>();
 
         // 내가 멤버인 모든 보드 조회
         List<Board> boards = boardRepository.findByMemberId(userId);
@@ -222,6 +225,38 @@ public class BoardService {
             result.add(BoardResponse.Simple.of(
                     board, membership.getRole(), isStarred, memberCount,
                     taskCount, completedTasks, memberPreviews, subscription));
+            addedBoardIds.add(board.getId());
+        }
+
+        // auto_board_access_enabled 조직의 보드 추가 (멤버가 아닌 보드만)
+        List<com.kanban.domain.organization.OrganizationMember> orgMemberships =
+                orgMemberRepository.findByUserIdWithOrganization(userId);
+
+        for (var orgMembership : orgMemberships) {
+            var org = orgMembership.getOrganization();
+            if (!Boolean.TRUE.equals(org.getAutoBoardAccessEnabled())) continue;
+
+            List<Board> orgBoards = boardRepository.findByOrganizationId(org.getId());
+            for (Board board : orgBoards) {
+                if (addedBoardIds.contains(board.getId())) continue;
+
+                boolean isStarred = userBoardStarRepository.existsByUserIdAndBoardId(userId, board.getId());
+                int memberCount = boardMemberRepository.countBillableMembers(board.getId());
+                Subscription subscription = subscriptionRepository.findByBoardId(board.getId()).orElse(null);
+                int taskCount = taskRepository.countByBoardId(board.getId());
+                int completedTasks = taskRepository.countByBoardIdAndIsCompletedTrue(board.getId());
+
+                List<BoardMember> previewMembers = boardMemberRepository.findTopMembersByBoardId(
+                        board.getId(), MEMBER_PREVIEW_LIMIT);
+                List<BoardResponse.MemberPreview> memberPreviews = previewMembers.stream()
+                        .map(BoardResponse.MemberPreview::of)
+                        .toList();
+
+                result.add(BoardResponse.Simple.of(
+                        board, BoardRole.MEMBER, isStarred, memberCount,
+                        taskCount, completedTasks, memberPreviews, subscription));
+                addedBoardIds.add(board.getId());
+            }
         }
 
         return result;
@@ -465,10 +500,23 @@ public class BoardService {
     }
 
     public void checkMemberOrAbove(String boardId, String userId) {
-        BoardMember membership = getMembershipOrThrow(boardId, userId);
-        if (!membership.isMemberOrAbove()) {
-            throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
+        java.util.Optional<BoardMember> membershipOpt = boardMemberRepository.findByBoardIdAndUserId(boardId, userId);
+        if (membershipOpt.isPresent()) {
+            if (!membershipOpt.get().isMemberOrAbove()) {
+                throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
+            }
+            return;
         }
+        // Org auto-access fallback
+        Board board = boardRepository.findById(boardId).orElse(null);
+        if (board != null && board.isOrganizationBoard()) {
+            com.kanban.domain.organization.Organization org = board.getOrganization();
+            if (Boolean.TRUE.equals(org.getAutoBoardAccessEnabled())
+                    && orgMemberRepository.existsByOrganizationIdAndUserId(org.getId(), userId)) {
+                return; // Virtual MEMBER
+            }
+        }
+        throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
     }
 
     public void checkAdminOrAbove(String boardId, String userId) {

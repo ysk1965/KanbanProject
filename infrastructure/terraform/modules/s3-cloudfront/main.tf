@@ -88,6 +88,36 @@ resource "aws_cloudfront_response_headers_policy" "security_headers" {
   }
 }
 
+# CloudFront Function: SPA Router + Multi-Domain Branding
+# Host 헤더 기반으로 milkyway.pe.kr → index.html, bridgespots.com → index-bridgespots.html 분기
+resource "aws_cloudfront_function" "spa_router" {
+  name    = "${var.project_name}-${var.environment}-spa-router"
+  runtime = "cloudfront-js-2.0"
+  comment = "SPA routing with multi-domain branding for ${var.environment}"
+  publish = true
+  code    = <<-EOF
+    function handler(event) {
+      var request = event.request;
+      var uri = request.uri;
+      var host = request.headers.host ? request.headers.host.value : '';
+
+      // 파일 확장자가 있는 요청은 그대로 통과 (JS, CSS, 이미지 등)
+      if (uri.match(/\.\w+$/)) {
+        return request;
+      }
+
+      // SPA fallback: 파일 확장자 없는 경로 → 도메인별 index.html
+      if (host.indexOf('bridgespots.com') !== -1) {
+        request.uri = '/index-bridgespots.html';
+      } else {
+        request.uri = '/index.html';
+      }
+
+      return request;
+    }
+  EOF
+}
+
 # CloudFront Distribution
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
@@ -109,6 +139,12 @@ resource "aws_cloudfront_distribution" "frontend" {
     viewer_protocol_policy       = "redirect-to-https"
     compress                     = true
     response_headers_policy_id   = aws_cloudfront_response_headers_policy.security_headers.id
+
+    # SPA Router: Host 헤더 기반 도메인별 index.html 분기 + SPA fallback
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.spa_router.arn
+    }
 
     forwarded_values {
       query_string = false
@@ -143,20 +179,8 @@ resource "aws_cloudfront_distribution" "frontend" {
     max_ttl     = 31536000
   }
 
-  # SPA routing - return index.html for 404
-  custom_error_response {
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 10
-  }
-
-  custom_error_response {
-    error_code            = 404
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 10
-  }
+  # SPA routing은 CloudFront Function(spa_router)이 처리
+  # custom_error_response 제거: 도메인별 index.html 분기를 위해 CF Function 사용
 
   restrictions {
     geo_restriction {

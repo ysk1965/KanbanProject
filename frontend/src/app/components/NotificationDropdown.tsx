@@ -9,10 +9,12 @@ import {
   AtSign,
   ClipboardList,
   MessageSquare,
+  Settings,
+  ChevronRight,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { notificationAPI } from "../utils/api";
-import { SlackSettingsPanel } from "./SlackSettingsPanel";
+import { SlackIntegrationPanel } from "./slack/SlackIntegrationPanel";
 import { DiscordSettingsPanel } from "./DiscordSettingsPanel";
 import { NotificationPreferencesPanel } from "./NotificationPreferencesPanel";
 import { StandupConfigPanel } from "./StandupConfigPanel";
@@ -288,11 +290,14 @@ export function NotificationDropdown({
   const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [activeTab, setActiveTab] = useState<"notifications" | "activity">(
-    "notifications",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "notifications" | "activity" | "settings"
+  >("notifications");
   const [isOpen, setIsOpen] = useState(false);
   const [isLoadingMoreActivities, setIsLoadingMoreActivities] = useState(false);
+  const [settingsSubTab, setSettingsSubTab] = useState<
+    "slack" | "discord" | "preferences" | "standup"
+  >("slack");
 
   const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
@@ -430,43 +435,60 @@ export function NotificationDropdown({
               <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-bridge-accent" />
             )}
           </button>
+          <button
+            onClick={() => setActiveTab("settings")}
+            className={`flex-1 px-4 py-3 text-xs font-medium transition-colors relative flex items-center justify-center gap-1 ${
+              activeTab === "settings"
+                ? "text-foreground"
+                : "text-slate-400 hover:text-slate-300"
+            }`}
+          >
+            <Settings size={12} />
+            {t("notification.settings")}
+            {activeTab === "settings" && (
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-bridge-accent" />
+            )}
+          </button>
         </div>
 
         {/* Tab Content */}
-        <div className="max-h-[440px] overflow-y-auto">
+        <div className="max-h-[440px] overflow-y-auto custom-scrollbar">
           {activeTab === "notifications" ? (
             <>
-              {/* Slack Integration Banner */}
-              <SlackSettingsPanel
-                boardId={boardId}
-                onSlackStatusChange={setSlackConnected}
-                canAccessSlack={canAccessSlack}
-                onUpgrade={onSlackUpgrade}
-              />
-
-              {/* Discord Integration Banner */}
-              <DiscordSettingsPanel
-                boardId={boardId}
-                onDiscordStatusChange={setDiscordConnected}
-                canAccessDiscord={canAccessDiscord}
-                onUpgrade={onDiscordUpgrade || onSlackUpgrade}
-              />
-
-              {/* Notification Preferences */}
-              <NotificationPreferencesPanel
-                boardId={boardId}
-                hasSlack={slackConnected}
-                hasDiscord={discordConnected}
-              />
-
-              {/* Daily Standup Config (Admin only, hidden for testers) */}
-              {!isTester && (
-                <StandupConfigPanel
-                  boardId={boardId}
-                  isAdmin={isAdmin}
-                  canAccessSlack={canAccessSlack}
-                  hasSlack={slackConnected}
-                />
+              {/* Integration Connection Status */}
+              {(canAccessSlack || canAccessDiscord) && (
+                <button
+                  onClick={() => setActiveTab("settings")}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 border-b border-foreground/[0.08] hover:bg-foreground/5 transition-colors"
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {canAccessSlack && (
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className={`w-1.5 h-1.5 rounded-full ${slackConnected ? "bg-emerald-400" : "bg-slate-500"}`}
+                        />
+                        <span
+                          className={`text-[11px] ${slackConnected ? "text-foreground" : "text-slate-500"}`}
+                        >
+                          Slack
+                        </span>
+                      </div>
+                    )}
+                    {canAccessDiscord && (
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className={`w-1.5 h-1.5 rounded-full ${discordConnected ? "bg-emerald-400" : "bg-slate-500"}`}
+                        />
+                        <span
+                          className={`text-[11px] ${discordConnected ? "text-foreground" : "text-slate-500"}`}
+                        >
+                          Discord
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <ChevronRight size={12} className="text-slate-500 shrink-0" />
+                </button>
               )}
 
               {/* Notifications Header with Mark All Read */}
@@ -564,7 +586,7 @@ export function NotificationDropdown({
                 </div>
               )}
             </>
-          ) : (
+          ) : activeTab === "activity" ? (
             /* Activity Log Tab */
             <>
               {activities.length === 0 ? (
@@ -632,6 +654,100 @@ export function NotificationDropdown({
                   )}
                 </div>
               )}
+            </>
+          ) : (
+            /* Settings Tab */
+            <>
+              {/* Sub-tab navigation */}
+              <div className="flex items-center gap-1 px-3 pt-3 pb-2">
+                <button
+                  onClick={() => setSettingsSubTab("slack")}
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+                    settingsSubTab === "slack"
+                      ? "bg-bridge-accent/15 text-bridge-accent"
+                      : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                  }`}
+                >
+                  <span className="flex items-center gap-1">
+                    Slack
+                    {slackConnected && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    )}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setSettingsSubTab("discord")}
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+                    settingsSubTab === "discord"
+                      ? "bg-bridge-accent/15 text-bridge-accent"
+                      : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                  }`}
+                >
+                  <span className="flex items-center gap-1">
+                    Discord
+                    {discordConnected && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    )}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setSettingsSubTab("preferences")}
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+                    settingsSubTab === "preferences"
+                      ? "bg-bridge-accent/15 text-bridge-accent"
+                      : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                  }`}
+                >
+                  {t("notification.settingsPreferences")}
+                </button>
+                {isAdmin && !isTester && (
+                  <button
+                    onClick={() => setSettingsSubTab("standup")}
+                    className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+                      settingsSubTab === "standup"
+                        ? "bg-bridge-accent/15 text-bridge-accent"
+                        : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                    }`}
+                  >
+                    {t("notification.settingsOther")}
+                  </button>
+                )}
+              </div>
+
+              {/* Sub-tab content */}
+              <div className="px-3 pb-3">
+                {settingsSubTab === "slack" && (
+                  <SlackIntegrationPanel
+                    boardId={boardId}
+                    onSlackStatusChange={setSlackConnected}
+                    canAccessSlack={canAccessSlack}
+                    onUpgrade={onSlackUpgrade}
+                  />
+                )}
+                {settingsSubTab === "discord" && (
+                  <DiscordSettingsPanel
+                    boardId={boardId}
+                    onDiscordStatusChange={setDiscordConnected}
+                    canAccessDiscord={canAccessDiscord}
+                    onUpgrade={onDiscordUpgrade || onSlackUpgrade}
+                  />
+                )}
+                {settingsSubTab === "preferences" && (
+                  <NotificationPreferencesPanel
+                    boardId={boardId}
+                    hasSlack={slackConnected}
+                    hasDiscord={discordConnected}
+                  />
+                )}
+                {settingsSubTab === "standup" && (
+                  <StandupConfigPanel
+                    boardId={boardId}
+                    isAdmin={isAdmin}
+                    canAccessSlack={canAccessSlack}
+                    hasSlack={slackConnected}
+                  />
+                )}
+              </div>
             </>
           )}
         </div>

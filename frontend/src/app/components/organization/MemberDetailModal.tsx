@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { User, Clock, LayoutGrid, MessageSquare, Loader2 } from "lucide-react";
+import { User, Clock, LayoutGrid, MessageSquare, Settings, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { MotionModal } from "../ui/MotionModal";
 import { MemberProfileHeader } from "./member/MemberProfileHeader";
@@ -9,6 +9,7 @@ import { MemberProfileTab } from "./member/MemberProfileTab";
 import { MemberHistoryTab } from "./member/MemberHistoryTab";
 import { MemberBoardsTab } from "./member/MemberBoardsTab";
 import { MemberOneOnOneTab } from "./member/MemberOneOnOneTab";
+import { MemberSettingsTab } from "./member/MemberSettingsTab";
 import { MemberSidebar } from "./member/MemberSidebar";
 import { organizationService } from "../../utils/services";
 import { useOrgData } from "../../contexts/OrgDataContext";
@@ -41,9 +42,9 @@ interface MemberDetailModalProps {
   onMemberUpdated: () => void;
 }
 
-type TabKey = "profile" | "history" | "boards" | "oneOnOne";
+type TabKey = "profile" | "history" | "boards" | "oneOnOne" | "settings";
 
-const TABS: { key: TabKey; labelKey: string; icon: typeof User }[] = [
+const TABS: { key: TabKey; labelKey: string; icon: typeof User; selfOnly?: boolean }[] = [
   {
     key: "profile",
     labelKey: "organization.members.detail.profileTab",
@@ -63,6 +64,12 @@ const TABS: { key: TabKey; labelKey: string; icon: typeof User }[] = [
     key: "oneOnOne",
     labelKey: "organization.members.detail.oneOnOneTab",
     icon: MessageSquare,
+  },
+  {
+    key: "settings",
+    labelKey: "organization.members.detail.settingsTab",
+    icon: Settings,
+    selfOnly: true,
   },
 ];
 
@@ -195,6 +202,22 @@ export function MemberDetailModal({
     }
   };
 
+  const handleLeaveOrg = async () => {
+    try {
+      await organizationService.removeMember(orgId, memberId);
+      onClose();
+      onMemberUpdated();
+      navigate("/boards");
+    } catch (error: unknown) {
+      console.warn("Failed to leave organization:", error);
+      const errObj = error as { code?: string };
+      if (errObj?.code === "O015") {
+        alert(t("organization.members.detail.settings.boardOwnerCannotLeave", "조직 보드의 Owner인 경우 나갈 수 없습니다. 먼저 보드 Owner를 변경해주세요."));
+      }
+      throw error;
+    }
+  };
+
   const handlePhotoDelete = async () => {
     try {
       const updated = await organizationService.deleteMemberProfileImage(
@@ -266,7 +289,9 @@ export function MemberDetailModal({
               {/* Tab Navigation */}
               <div className="flex gap-1 border-b border-foreground/[0.08] px-4 sm:px-6 shrink-0 overflow-x-auto">
                 {TABS.filter(
-                  (tab) => !(tab.key === "history" && hrSystemEnabled),
+                  (tab) =>
+                    !(tab.key === "history" && hrSystemEnabled) &&
+                    !(tab.selfOnly && !isSelf),
                 ).map((tab) => {
                   const Icon = tab.icon;
                   return (
@@ -346,6 +371,13 @@ export function MemberDetailModal({
                     orgId={orgId}
                     member={member}
                     myUserId={myUserId}
+                  />
+                )}
+                {activeTab === "settings" && isSelf && (
+                  <MemberSettingsTab
+                    member={member}
+                    isSelf={isSelf}
+                    onLeaveOrg={handleLeaveOrg}
                   />
                 )}
               </div>

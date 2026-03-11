@@ -22,7 +22,7 @@ export function ChapterView({ verses, currentVerseNumber, completedVerses }: Cha
   }, [currentVerseNumber]);
 
   return (
-    <div className="max-h-[400px] overflow-y-auto space-y-3 pr-2">
+    <div className="max-h-[400px] overflow-y-auto space-y-3 pr-2 custom-scrollbar">
       {verses.map((verse) => {
         const isCompleted = completedVerses.includes(verse.verse);
         const isCurrent = verse.verse === currentVerseNumber;

@@ -71,7 +71,8 @@ public class MeetingTranscriptionService {
     private static final long MAX_AUDIO_SIZE = 100 * 1024 * 1024; // 100MB
     private static final long WHISPER_CHUNK_SIZE = 24 * 1024 * 1024; // 24MB (Whisper API limit with margin)
     private static final int CHUNK_DURATION_SECONDS = 600; // 10분 단위로 분할
-    private static final int MAX_TOKENS_DIARIZE = 4096;
+    private static final int MAX_TOKENS_DIARIZE = 16384;
+    private static final int MAX_DIARIZE_INPUT_CHARS = 50000;
 
     private static final String DIARIZE_SYSTEM_PROMPT = """
             You are a meeting transcript analyzer. Given a raw meeting transcript, identify different speakers and format it as a structured dialogue.
@@ -184,11 +185,20 @@ public class MeetingTranscriptionService {
      * AI-based speaker diarization: identifies speakers in raw transcript text
      */
     private MeetingResponse.DiarizedTranscript identifySpeakers(String boardId, String userId, String transcriptText) {
-        String truncatedText = transcriptText.length() > 8000
-                ? transcriptText.substring(0, 8000) + "..."
-                : transcriptText;
+        String inputText;
+        if (transcriptText.length() > MAX_DIARIZE_INPUT_CHARS) {
+            // Truncate at last sentence boundary before limit to avoid cutting mid-sentence
+            String sub = transcriptText.substring(0, MAX_DIARIZE_INPUT_CHARS);
+            int lastPeriod = Math.max(sub.lastIndexOf('.'), Math.max(sub.lastIndexOf('。'), sub.lastIndexOf('\n')));
+            inputText = lastPeriod > MAX_DIARIZE_INPUT_CHARS / 2
+                    ? sub.substring(0, lastPeriod + 1)
+                    : sub;
+            log.info("Diarization input truncated: {} -> {} chars", transcriptText.length(), inputText.length());
+        } else {
+            inputText = transcriptText;
+        }
 
-        String userPrompt = "Meeting transcript:\n\n" + truncatedText;
+        String userPrompt = "Meeting transcript:\n\n" + inputText;
         String model = getMeetingModel();
 
         AIResponse aiResult = aiProvider.chatWithUsage(DIARIZE_SYSTEM_PROMPT, userPrompt, model, MAX_TOKENS_DIARIZE);

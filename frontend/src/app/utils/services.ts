@@ -1142,6 +1142,10 @@ export const memberService = {
       throw error;
     }
   },
+
+  transferOwnership: async (boardId: string, newOwnerUserId: string) => {
+    return memberAPI.transferOwnership(boardId, newOwnerUserId);
+  },
 };
 
 // ========================================
@@ -3403,6 +3407,15 @@ export const orgPhotoService = {
   enableGalleryShare: orgPhotoAPI.enableGalleryShare,
   disableGalleryShare: orgPhotoAPI.disableGalleryShare,
   getGalleryShareStatus: orgPhotoAPI.getGalleryShareStatus,
+
+  // Gallery-level upload
+  enableGalleryUpload: orgPhotoAPI.enableGalleryUpload,
+  disableGalleryUpload: orgPhotoAPI.disableGalleryUpload,
+  getGalleryUploadStatus: orgPhotoAPI.getGalleryUploadStatus,
+
+  // Upload link
+  enableUploadLink: orgPhotoAPI.enableUploadLink,
+  disableUploadLink: orgPhotoAPI.disableUploadLink,
 
   // Photo CRUD
   getPhotos: orgPhotoAPI.getPhotos,

@@ -61,12 +61,15 @@ public class SchemaMigrationInitializer implements InitializingBean {
         // Organizations 테이블 (V94)
         addColumnIfNotExists("organizations", "hr_system_enabled", "BOOLEAN NOT NULL DEFAULT FALSE");
 
-        // Notification Preferences 테이블 - Discord 컬럼
+        // Notification Preferences 테이블 - Discord 컬럼 (Bot 전환 후에도 동일)
         addColumnIfNotExists("notification_preferences", "discord_comment_mention_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
         addColumnIfNotExists("notification_preferences", "discord_checklist_assigned_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
         addColumnIfNotExists("notification_preferences", "discord_task_comment_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
         addColumnIfNotExists("notification_preferences", "discord_meeting_memo_shared_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
         addColumnIfNotExists("notification_preferences", "discord_note_comment_mention_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+
+        // Discord Bot 테이블 (H2에서는 ddl-auto가 처리하지만, 안전하게 추가)
+        // discord_bot_configs, discord_user_links는 JPA ddl-auto: update로 H2에서 자동 생성
 
         // Notifications CHECK 제약조건
         fixNotificationTypeCheck();

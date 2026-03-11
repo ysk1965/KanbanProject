@@ -358,6 +358,9 @@ public class ScheduleService {
         log.info("Schedule block update request: blockId={}, startTime={}, endTime={}", blockId, request.getStartTime(), request.getEndTime());
 
         block.updateTimes(request.getStartTime(), request.getEndTime());
+        if ("CUSTOM".equals(block.getBlockType()) && (request.getTitle() != null || request.getColor() != null)) {
+            block.updateCustomInfo(request.getTitle(), request.getColor());
+        }
         scheduleBlockRepository.save(block);
 
         log.info("Schedule block updated: {} by user: {}", blockId, userId);

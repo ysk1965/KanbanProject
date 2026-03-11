@@ -160,6 +160,13 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("UPDATE Task t SET t.block = :targetBlock WHERE t.block.id = :sourceBlockId")
     int moveTasksToBlock(@Param("sourceBlockId") String sourceBlockId, @Param("targetBlock") com.kanban.domain.block.Block targetBlock);
 
+    // ==================== Slack Integration Queries ====================
+
+    List<Task> findTop10ByBoardIdOrderByUpdatedAtDesc(String boardId);
+
+    @Query("SELECT t FROM Task t WHERE t.board.id = :boardId AND LOWER(t.title) LIKE LOWER(CONCAT('%', :title, '%'))")
+    List<Task> findByBoardIdAndTitleContainingIgnoreCase(@Param("boardId") String boardId, @Param("title") String title);
+
     // ==================== Organization Insights Queries ====================
 
     /**

@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { orgPhotoService } from '../../../utils/services';
-import { authenticatedFetch } from '../../../utils/api';
 import { isNative } from '../../../utils/platform';
 import { saveToDevice } from '../../../utils/nativeDownload';
 import { MotionModal } from '../../ui/MotionModal';
@@ -28,8 +27,6 @@ import { AlbumShareModal } from '../photo/AlbumShareButton';
 import { AlbumShareManagerModal } from '../photo/AlbumShareManagerModal';
 import type { OrgPhotoTab, OrgPhoto, OrgPhotoPage } from '../../../types';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 
 interface OrgPhotoGalleryTabProps {
   orgId: string;
@@ -159,9 +156,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
   const handleDownloadSingle = useCallback(
     async (photo: OrgPhoto) => {
       try {
-        const response = await authenticatedFetch(
-          `${API_BASE_URL}/organizations/${orgId}/photos/${photo.id}/download`,
-        );
+        const response = await fetch(photo.url);
         if (!response.ok) throw new Error('Download failed');
         const blob = await response.blob();
 
@@ -185,51 +180,50 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
         toast.error(t('photoGallery.downloadError', 'Failed to download'));
       }
     },
-    [orgId, t],
+    [t],
   );
 
-  // Batch download (ZIP)
+  // Batch download (individual files)
   const handleBatchDownload = useCallback(async () => {
     if (selectedIds.size === 0) return;
     try {
-      const photoIds = Array.from(selectedIds);
-      const response = await authenticatedFetch(
-        `${API_BASE_URL}/organizations/${orgId}/photos/batch-download`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ photo_ids: photoIds }),
-        },
-      );
-      if (!response.ok) throw new Error('Batch download failed');
-      const blob = await response.blob();
-      const filename = `photos_${new Date().toISOString().slice(0, 10)}.zip`;
+      const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
+      let downloadedCount = 0;
+      for (const photo of selectedPhotos) {
+        try {
+          const response = await fetch(photo.url);
+          if (!response.ok) continue;
+          const blob = await response.blob();
 
-      if (isNative()) {
-        const result = await saveToDevice(blob, filename);
-        if (result.success) {
-          toast.success(t('photoGallery.savedToDevice', 'Saved to BRIDGE Downloads'));
-        } else {
-          throw new Error(result.error || 'Save failed');
+          if (isNative()) {
+            await saveToDevice(blob, photo.original_filename);
+          } else {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = photo.original_filename;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+          downloadedCount++;
+        } catch {
+          console.warn('Failed to download photo:', photo.id);
         }
-      } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
       }
-      toast.success(
-        t('photoGallery.downloadSuccess', '{{count}} photos downloaded', {
-          count: photoIds.length,
-        }),
-      );
+      if (downloadedCount > 0) {
+        toast.success(
+          isNative()
+            ? t('photoGallery.savedToDevice', 'Saved to BRIDGE Downloads')
+            : t('photoGallery.downloadSuccess', '{{count}} photos downloaded', {
+                count: downloadedCount,
+              }),
+        );
+      }
     } catch (error) {
       console.warn('Batch download failed:', error);
       toast.error(t('photoGallery.downloadError', 'Failed to download'));
     }
-  }, [selectedIds, orgId, t]);
+  }, [selectedIds, photos, t]);
 
   // Delete selected photos
   const handleDeleteSelected = useCallback(async () => {
@@ -423,7 +417,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
                   )}
             </p>
             <p className="text-[11px] text-slate-500 mb-6">
-              {t('photoGallery.uploadFormats', 'JPG, PNG, WebP, GIF supported')}
+              {t('photoGallery.uploadFormats', 'JPG, PNG, WebP, GIF - max {{max}} files', { max: 1000 })}
             </p>
             {isAdmin && (
               <button

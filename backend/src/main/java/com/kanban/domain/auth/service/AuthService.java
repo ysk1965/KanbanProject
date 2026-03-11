@@ -23,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -41,6 +42,7 @@ public class AuthService {
     private final JwtProvider jwtProvider;
     private final GoogleAuthService googleAuthService;
     private final EmailService emailService;
+    private final EntityManager entityManager;
 
     private static final int EMAIL_VERIFICATION_EXPIRATION_HOURS = 24;
     private static final int PASSWORD_RESET_EXPIRATION_HOURS = 1;
@@ -120,8 +122,9 @@ public class AuthService {
         // 사용자 가져오기 (Lazy loading)
         User user = storedToken.getUser();
 
-        // 기존 토큰 삭제
-        refreshTokenRepository.delete(storedToken);
+        // 해당 사용자의 모든 리프레시 토큰 삭제 후 flush (동시 요청 시 row lock으로 직렬화)
+        refreshTokenRepository.deleteByUserId(user.getId());
+        entityManager.flush();
 
         return createTokenResponse(user);
     }

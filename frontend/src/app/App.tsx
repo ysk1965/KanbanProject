@@ -26,12 +26,15 @@ import { AnnouncementsPage } from './pages/AnnouncementsPage';
 import { SharedNotePage } from './pages/SharedNotePage';
 import { SharedAlbumPage } from './pages/SharedAlbumPage';
 import { SharedGalleryPage } from './pages/SharedGalleryPage';
+import { PublicUploadPage } from './pages/PublicUploadPage';
+import { GalleryUploadPage } from './pages/GalleryUploadPage';
 import BibleTranscriptionPage from './pages/BibleTranscriptionPage';
 import RoulettePage from './pages/RoulettePage';
 import { CustomIconPage } from './pages/CustomIconPage';
 import { OrganizationPage } from './pages/OrganizationPage';
 import { OrganizationDetailPage } from './pages/OrganizationDetailPage';
 import { OrgInviteAcceptPage } from './pages/OrgInviteAcceptPage';
+import { SlackOAuthCallback } from './components/slack/SlackOAuthCallback';
 import { AnnouncementDisplay } from './components/AnnouncementDisplay';
 import { MaintenancePage } from './components/MaintenancePage';
 import { boardService, inviteLinkService, organizationService, systemService } from './utils/services';
@@ -145,11 +148,7 @@ function LoginRoute() {
             navigate(`/organizations/${result.organization_id}`);
           } catch (error: any) {
             console.error('Failed to accept org invite:', error);
-            if (error?.code === 'O016' || error?.code === 'ALREADY_IN_ORGANIZATION') {
-              alert(t('organization.invite.alreadyInOrg', '이미 소속된 조직이 있습니다. 기존 조직을 탈퇴한 후 다시 시도해주세요.'));
-            } else {
-              alert(error?.message || t('app.orgInviteAcceptFailed', '조직 초대 수락에 실패했습니다.'));
-            }
+            alert(error?.message || t('app.orgInviteAcceptFailed', '조직 초대 수락에 실패했습니다.'));
             navigate('/boards');
           } finally {
             setIsProcessingInvite(false);
@@ -174,8 +173,13 @@ function LoginRoute() {
             setIsProcessingInvite(false);
           }
         } else if (isAuthenticated && !isLoading) {
-          // 보드 목록으로 이동 (TESTER 자동 리다이렉트는 BoardsRoute에서 처리)
-          navigate('/boards');
+          // pending invite가 있으면 justLoggedIn을 기다림 (race condition 방지)
+          const hasPendingOrgInvite = localStorage.getItem('pending_org_invite_code');
+          const hasPendingBoardInvite = localStorage.getItem('pending_invite_code');
+          if (!hasPendingOrgInvite && !hasPendingBoardInvite) {
+            // 보드 목록으로 이동 (TESTER 자동 리다이렉트는 BoardsRoute에서 처리)
+            navigate('/boards');
+          }
         }
       }
     };
@@ -458,6 +462,12 @@ function AppRoutes() {
       {/* 공유 갤러리 (공개 - 인증 불필요, 다중 앨범 탭) */}
       <Route path="/shared/gallery/:shareToken" element={<SharedGalleryPage />} />
 
+      {/* 공개 업로드 (인증 불필요) */}
+      <Route path="/shared/upload/:uploadToken" element={<PublicUploadPage />} />
+
+      {/* 갤러리 공개 업로드 (인증 불필요, 다중 앨범 업로드) */}
+      <Route path="/shared/gallery-upload/:uploadToken" element={<GalleryUploadPage />} />
+
       {/* 공지사항 */}
       <Route path="/announcements" element={<AnnouncementsPage />} />
 
@@ -473,6 +483,16 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <CustomIconPage />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Slack OAuth 콜백 */}
+      <Route
+        path="/auth/slack/callback"
+        element={
+          <PrivateRoute>
+            <SlackOAuthCallback />
           </PrivateRoute>
         }
       />
@@ -587,6 +607,8 @@ const MAINTENANCE_ALLOWED_PATHS = [
   '/shared/note',
   '/shared/album',
   '/shared/gallery',
+  '/shared/upload',
+  '/shared/gallery-upload',
 ];
 
 // 점검 모드 + 공지사항 래퍼

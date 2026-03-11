@@ -2115,6 +2115,7 @@ export interface OrganizationSimple {
   can_create_org_board?: boolean;
   can_access_hr_features?: boolean;
   hr_system_enabled?: boolean;
+  auto_board_access_enabled?: boolean;
 }
 
 export interface OrganizationDetail extends OrganizationSimple {
@@ -3212,6 +3213,9 @@ export interface OrgPhotoTab {
   sort_order: number;
   is_shared: boolean;
   share_token: string | null;
+  is_upload_enabled: boolean;
+  upload_token: string | null;
+  upload_token_expires_at: string | null;
   created_by: {
     id: string;
     name: string;
@@ -3263,6 +3267,21 @@ export interface SharedAlbumSummary {
   description: string | null;
   photo_count: number;
   cover_photo_url: string | null;
+}
+
+export interface UploadAlbumInfo {
+  album_name: string;
+  album_description: string | null;
+  organization_name: string;
+  organization_logo_url: string | null;
+  expires_at: string;
+}
+
+export interface GalleryUploadInfo {
+  organization_name: string;
+  organization_logo_url: string | null;
+  albums: SharedAlbumSummary[];
+  expires_at: string;
 }
 
 /** @deprecated kept for per-album share backward compat */

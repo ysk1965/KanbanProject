@@ -30,6 +30,7 @@ public class OrganizationResponse {
         private boolean canCreateOrgBoard;
         private boolean canAccessHrFeatures;
         private boolean hrSystemEnabled;
+        private boolean autoBoardAccessEnabled;
 
         public static Simple of(Organization org, OrgRole myRole, int memberCount, int boardCount) {
             return Simple.builder()
@@ -48,6 +49,7 @@ public class OrganizationResponse {
                     .canCreateOrgBoard(org.getSubscription() != null && org.getSubscription().canCreateOrgBoard())
                     .canAccessHrFeatures(org.getSubscription() != null && org.getSubscription().canAccessHrFeatures())
                     .hrSystemEnabled(Boolean.TRUE.equals(org.getHrSystemEnabled()))
+                    .autoBoardAccessEnabled(Boolean.TRUE.equals(org.getAutoBoardAccessEnabled()))
                     .build();
         }
     }
@@ -73,6 +75,7 @@ public class OrganizationResponse {
         private boolean canCreateOrgBoard;
         private boolean canAccessHrFeatures;
         private boolean hrSystemEnabled;
+        private boolean autoBoardAccessEnabled;
 
         public static Detail of(Organization org, OrgRole myRole, String myMemberId, int memberCount, int boardCount) {
             return Detail.builder()
@@ -94,6 +97,7 @@ public class OrganizationResponse {
                     .canCreateOrgBoard(org.getSubscription() != null && org.getSubscription().canCreateOrgBoard())
                     .canAccessHrFeatures(org.getSubscription() != null && org.getSubscription().canAccessHrFeatures())
                     .hrSystemEnabled(Boolean.TRUE.equals(org.getHrSystemEnabled()))
+                    .autoBoardAccessEnabled(Boolean.TRUE.equals(org.getAutoBoardAccessEnabled()))
                     .build();
         }
     }

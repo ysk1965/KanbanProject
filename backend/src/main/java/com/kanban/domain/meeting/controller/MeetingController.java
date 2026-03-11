@@ -128,7 +128,7 @@ public class MeetingController {
         MeetingResponse.TranscriptResult result =
                 meetingService.updateTranscript(
                         boardId, meetingId, principal.getUserId(),
-                        body.get("transcript"));
+                        body.get("transcript"), body.get("diarized_transcript"));
         return ResponseEntity.ok(result);
     }
 

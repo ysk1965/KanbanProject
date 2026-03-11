@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from './ui/select';
 import { Badge } from './ui/badge';
-import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Loader2, Pipette, Users, Settings, GripVertical, Sparkles, Building2, Search } from 'lucide-react';
+import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Loader2, Pipette, Users, Settings, GripVertical, Sparkles, Building2, Search, ArrowRightLeft } from 'lucide-react';
 import { ColorPickerPopover } from './ui/ColorPickerPopover';
 import { InviteLink, slackWebhookAPI, SlackWebhookMemberStatus } from '../utils/api';
 import { AiCredits, OrgBoardCandidate } from '../types';
@@ -70,6 +70,9 @@ interface ShareBoardModalProps {
   pendingJoinRequestCount?: number;
   isAdminOrOwner?: boolean;
   onJoinRequestHandled?: () => void;
+  // 소유권 이전
+  boardName?: string;
+  onTransferOwnership?: (newOwnerUserId: string) => Promise<void>;
 }
 
 const ROLE_LABELS: Record<MemberRole, string> = {
@@ -106,11 +109,13 @@ interface SortableMemberRowProps {
   onRemoveMember: (memberId: string) => void;
   onUpdateMemberColor?: (memberId: string, color: string | null) => void;
   t: (key: string, options?: Record<string, unknown>) => string;
+  isCurrentUserOwner?: boolean;
+  onTransferClick?: () => void;
 }
 
 function SortableMemberRow({
   member, canDrag, isCurrentMember, isOnline, canEdit, canChangeColor, webhookStatus,
-  onUpdateMemberRole, onRemoveMember, onUpdateMemberColor, t,
+  onUpdateMemberRole, onRemoveMember, onUpdateMemberColor, t, isCurrentUserOwner, onTransferClick,
 }: SortableMemberRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: member.id, disabled: !canDrag });
   const style = {
@@ -238,6 +243,15 @@ function SortableMemberRow({
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           </>
+        ) : member.role === 'owner' && isCurrentMember && isCurrentUserOwner && onTransferClick ? (
+          <button
+            onClick={onTransferClick}
+            className={`${ROLE_COLORS.owner} border text-xs font-medium px-3 py-1 rounded-lg cursor-pointer hover:bg-amber-500/25 hover:border-amber-400/50 transition-all group flex items-center gap-1`}
+            title={t('share.transferTooltip')}
+          >
+            {ROLE_LABELS.owner}
+            <ArrowRightLeft className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </button>
         ) : (
           <span
             className={`${
@@ -280,6 +294,9 @@ export function ShareBoardModal({
   pendingJoinRequestCount = 0,
   isAdminOrOwner: isAdminOrOwnerProp = false,
   onJoinRequestHandled,
+  // 소유권 이전
+  boardName,
+  onTransferOwnership,
 }: ShareBoardModalProps) {
   const { t } = useTranslation();
   const [inviteEmail, setInviteEmail] = useState('');
@@ -295,6 +312,12 @@ export function ShareBoardModal({
   const [orgCandidateRole, setOrgCandidateRole] = useState<MemberRole>('member');
   const [isLoadingCandidates, setIsLoadingCandidates] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // 소유권 이전 관련
+  const [transferTarget, setTransferTarget] = useState<string>('');
+  const [transferConfirmText, setTransferConfirmText] = useState('');
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [showTransferSection, setShowTransferSection] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -413,6 +436,26 @@ export function ShareBoardModal({
 
   const currentUser = members.find((m) => m.userId === currentUserId);
   const isCurrentUserAdmin = currentUser?.role === 'admin' || currentUser?.role === 'owner';
+  const isCurrentUserOwner = currentUser?.role === 'owner';
+
+  const eligibleMembers = members.filter(m =>
+    m.userId !== currentUserId && m.role !== 'viewer' && m.role !== 'owner'
+  );
+
+  const handleTransferOwnership = async () => {
+    if (!transferTarget || transferConfirmText !== boardName || !onTransferOwnership) return;
+    setIsTransferring(true);
+    try {
+      await onTransferOwnership(transferTarget);
+      setShowTransferSection(false);
+      setTransferTarget('');
+      setTransferConfirmText('');
+    } catch {
+      // error handled by caller
+    } finally {
+      setIsTransferring(false);
+    }
+  };
 
   return (
     <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl max-h-[85dvh] overflow-hidden flex flex-col">
@@ -744,6 +787,8 @@ export function ShareBoardModal({
                         onRemoveMember={onRemoveMember}
                         onUpdateMemberColor={onUpdateMemberColor}
                         t={t}
+                        isCurrentUserOwner={isCurrentUserOwner}
+                        onTransferClick={onTransferOwnership ? () => setShowTransferSection(true) : undefined}
                       />
                     );
                   })}
@@ -751,6 +796,67 @@ export function ShareBoardModal({
               </SortableContext>
             </DndContext>
           </div>
+
+          {/* 소유권 이전 섹션 */}
+          {showTransferSection && isCurrentUserOwner && onTransferOwnership && (
+            <div className="p-4 bg-amber-500/5 rounded-xl border border-amber-500/20">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <ArrowRightLeft size={14} className="text-amber-500" />
+                  <span className="text-sm font-bold text-foreground">{t('share.transferOwnership')}</span>
+                </div>
+                <button
+                  onClick={() => { setShowTransferSection(false); setTransferTarget(''); setTransferConfirmText(''); }}
+                  className="p-1 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <p className="text-xs text-slate-500 mb-3">{t('share.transferWarning')}</p>
+
+              {eligibleMembers.length === 0 ? (
+                <p className="text-xs text-slate-400">{t('share.noEligibleMembers')}</p>
+              ) : (
+                <div className="space-y-2">
+                  <select
+                    value={transferTarget}
+                    onChange={(e) => { setTransferTarget(e.target.value); setTransferConfirmText(''); }}
+                    className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                  >
+                    <option value="">{t('share.transferSelectMember')}</option>
+                    {eligibleMembers.map(m => (
+                      <option key={m.userId} value={m.userId}>
+                        {m.name} ({m.email}) — {ROLE_LABELS[m.role]}
+                      </option>
+                    ))}
+                  </select>
+
+                  {transferTarget && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={transferConfirmText}
+                        onChange={(e) => setTransferConfirmText(e.target.value)}
+                        placeholder={t('share.transferConfirmLabel')}
+                        className="flex-1 bg-foreground/[0.03] border border-amber-500/20 rounded-xl py-2 px-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all"
+                      />
+                      <button
+                        onClick={handleTransferOwnership}
+                        disabled={transferConfirmText !== boardName || isTransferring}
+                        className="px-4 py-2 bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-xl font-bold text-sm hover:bg-amber-500/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0"
+                      >
+                        {isTransferring ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <ArrowRightLeft size={14} />
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 권한 설명 */}
           <div className="p-4 bg-foreground/[0.04] rounded-xl border border-foreground/10">

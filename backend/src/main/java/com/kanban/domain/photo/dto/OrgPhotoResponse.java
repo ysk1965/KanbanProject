@@ -24,6 +24,9 @@ public class OrgPhotoResponse {
         private int sortOrder;
         private Boolean isShared;
         private String shareToken;
+        private Boolean isUploadEnabled;
+        private String uploadToken;
+        private LocalDateTime uploadTokenExpiresAt;
         private UserInfo createdBy;
         private LocalDateTime createdAt;
 
@@ -37,7 +40,10 @@ public class OrgPhotoResponse {
                     .sortOrder(tab.getSortOrder())
                     .isShared(tab.getIsShared())
                     .shareToken(tab.getShareToken())
-                    .createdBy(UserInfo.from(tab.getCreatedBy()))
+                    .isUploadEnabled(tab.getIsUploadEnabled())
+                    .uploadToken(tab.getUploadToken())
+                    .uploadTokenExpiresAt(tab.getUploadTokenExpiresAt())
+                    .createdBy(tab.getCreatedBy() != null ? UserInfo.from(tab.getCreatedBy()) : null)
                     .createdAt(tab.getCreatedAt())
                     .build();
         }
@@ -76,7 +82,7 @@ public class OrgPhotoResponse {
                     .width(photo.getWidth())
                     .height(photo.getHeight())
                     .caption(photo.getCaption())
-                    .uploadedBy(UserInfo.from(photo.getUploadedBy()))
+                    .uploadedBy(photo.getUploadedBy() != null ? UserInfo.from(photo.getUploadedBy()) : null)
                     .createdAt(photo.getCreatedAt())
                     .build();
         }
@@ -167,6 +173,27 @@ public class OrgPhotoResponse {
         private String nextCursor;
         private boolean hasNext;
         private long totalCount;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class UploadAlbumInfo {
+        private String albumName;
+        private String albumDescription;
+        private String organizationName;
+        private String organizationLogoUrl;
+        private LocalDateTime expiresAt;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class GalleryUploadInfo {
+        private String organizationName;
+        private String organizationLogoUrl;
+        private List<SharedAlbumSummary> albums;
+        private LocalDateTime expiresAt;
     }
 
     // ==================== Common DTOs ====================
