@@ -65,7 +65,9 @@ public class SlackOAuthController {
             response.sendRedirect(redirectBase + result.getRedirectPath());
         } catch (Exception e) {
             log.warn("Slack OAuth callback failed: {}", e.getMessage(), e);
-            response.sendRedirect(frontendUrl + "/auth/slack/callback?error=failed");
+            String origin = slackOAuthService.safeExtractOriginFromState(state);
+            String redirectBase = FrontendOriginResolver.resolve(origin, frontendUrl);
+            response.sendRedirect(redirectBase + "/auth/slack/callback?error=failed");
         }
     }
 
@@ -158,7 +160,9 @@ public class SlackOAuthController {
             response.sendRedirect(redirectBase + result.getRedirectPath());
         } catch (Exception e) {
             log.warn("Slack OAuth user link callback failed: {}", e.getMessage(), e);
-            response.sendRedirect(frontendUrl + "/auth/slack/callback?error=user_link_failed");
+            String origin = slackOAuthService.safeExtractOriginFromState(state);
+            String redirectBase = FrontendOriginResolver.resolve(origin, frontendUrl);
+            response.sendRedirect(redirectBase + "/auth/slack/callback?error=user_link_failed");
         }
     }
 

@@ -203,6 +203,7 @@ jobs:
 
     steps:
       - name: Deployment Status
+        id: status
         run: |
           BE_RESULT="${{ needs.deploy-backend.result }}"
           FE_RESULT="${{ needs.deploy-frontend.result }}"
@@ -211,12 +212,57 @@ jobs:
           echo "Frontend: ${FE_RESULT}"
 
           if [ "$BE_RESULT" == "failure" ] || [ "$FE_RESULT" == "failure" ]; then
+            echo "deploy_failed=true" >> $GITHUB_OUTPUT
             echo "❌ Deployment failed!"
-            exit 1
+          else
+            echo "deploy_failed=false" >> $GITHUB_OUTPUT
+            echo "✅ Deployment completed!"
           fi
 
-          echo "✅ Deployment completed!"
-          [ "$BE_RESULT" == "skipped" ] && echo "  Backend: skipped (no changes)" || true
-          [ "$BE_RESULT" == "success" ] && echo "  Backend: deployed to EB" || true
-          [ "$FE_RESULT" == "skipped" ] && echo "  Frontend: skipped (no changes)" || true
-          [ "$FE_RESULT" == "success" ] && echo "  Frontend: deployed to bridgespots.com + milkyway.pe.kr" || true
+          # Build summary for notification
+          BE_MSG="skipped"
+          [ "$BE_RESULT" == "success" ] && BE_MSG="✅ deployed to EB"
+          [ "$BE_RESULT" == "failure" ] && BE_MSG="❌ failed"
+          FE_MSG="skipped"
+          [ "$FE_RESULT" == "success" ] && FE_MSG="✅ deployed"
+          [ "$FE_RESULT" == "failure" ] && FE_MSG="❌ failed"
+
+          echo "be_msg=${BE_MSG}" >> $GITHUB_OUTPUT
+          echo "fe_msg=${FE_MSG}" >> $GITHUB_OUTPUT
+
+      - name: Send Discord Notification
+        if: vars.DEPLOY_DISCORD_WEBHOOK_URL != ''
+        run: |
+          if [ "${{ steps.status.outputs.deploy_failed }}" == "true" ]; then
+            COLOR=15548997  # Red
+            TITLE="❌ Deploy Failed"
+          else
+            COLOR=5763719   # Green
+            TITLE="✅ Deploy Succeeded"
+          fi
+
+          COMMIT_MSG=$(echo '${{ github.event.workflow_run.head_commit.message || github.event.head_commit.message }}' | head -1 | sed 's/"/\\"/g' | cut -c1-100)
+          SHA="${{ github.sha }}"
+          SHORT_SHA="${SHA:0:7}"
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          curl -s -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"${TITLE}\",
+                \"color\": ${COLOR},
+                \"fields\": [
+                  {\"name\": \"Backend\", \"value\": \"${{ steps.status.outputs.be_msg }}\", \"inline\": true},
+                  {\"name\": \"Frontend\", \"value\": \"${{ steps.status.outputs.fe_msg }}\", \"inline\": true},
+                  {\"name\": \"Commit\", \"value\": \"[\`${SHORT_SHA}\`](https://github.com/${{ github.repository }}/commit/${SHA}) ${COMMIT_MSG}\"}
+                ],
+                \"footer\": {\"text\": \"BRIDGE Deploy\"},
+                \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+                \"url\": \"${RUN_URL}\"
+              }]
+            }" \
+            "${{ vars.DEPLOY_DISCORD_WEBHOOK_URL }}"
+
+      - name: Fail if deployment failed
+        if: steps.status.outputs.deploy_failed == 'true'
+        run: exit 1
