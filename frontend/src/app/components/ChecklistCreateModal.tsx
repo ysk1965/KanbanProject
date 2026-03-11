@@ -602,12 +602,12 @@ export function ChecklistCreateModal({
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { label: t('dailySchedule.presetLunch'), emoji: '\uD83C\uDF7D\uFE0F', color: '#F59E0B' },
-                    { label: t('dailySchedule.presetDinner'), emoji: '\uD83C\uDF19', color: '#6366F1' },
-                    { label: t('dailySchedule.presetFocus'), emoji: '\uD83C\uDFAF', color: '#3B82F6' },
-                    { label: t('dailySchedule.presetPersonal'), emoji: '\uD83D\uDCCB', color: '#64748B' },
-                    { label: t('dailySchedule.presetOutside'), emoji: '\uD83D\uDE97', color: '#10B981' },
-                    { label: t('dailySchedule.presetRest'), emoji: '\uD83D\uDE0C', color: '#8B5CF6' },
+                    { label: t('dailySchedule.presetMeetingPrep'), emoji: '📝', color: '#3B82F6' },
+                    { label: t('dailySchedule.presetOutside'), emoji: '🚗', color: '#10B981' },
+                    { label: t('dailySchedule.presetRest'), emoji: '😌', color: '#8B5CF6' },
+                    { label: t('dailySchedule.preset1on1'), emoji: '🤝', color: '#6366F1' },
+                    { label: t('dailySchedule.presetPersonal'), emoji: '📋', color: '#64748B' },
+                    { label: t('dailySchedule.presetMeal'), emoji: '🍽️', color: '#F59E0B' },
                   ].map(preset => (
                     <button
                       key={preset.label}

@@ -4,47 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
 
-    <!-- Domain-based branding: bridgespots.com 접속 시 JS로 교체 (크롤러는 기본 Milkyway 메타태그 사용) -->
-    <script>
-      (function(){
-        var h = location.hostname;
-        if (h === 'bridgespots.com' || h.endsWith('.bridgespots.com')) {
-          var t = 'BRIDGE SPOTS - The Intelligent PM Orchestration';
-          var d = '칸반 보드, 간트 차트, 데일리 스케줄링을 하나로. 팀 협업의 흐름을 정밀하게 조율하는 프로젝트 관리 플랫폼.';
-          var u = 'https://bridgespots.com';
-          document.title = t;
-          var map = {
-            'meta[name="title"]': t,
-            'meta[name="description"]': d,
-            'meta[name="keywords"]': '프로젝트 관리, 칸반, 간트차트, 팀 협업, PM 도구, Kanban, Gantt, 일정 관리, BRIDGE SPOTS',
-            'meta[name="author"]': 'BRIDGE SPOTS',
-            'meta[property="og:url"]': u,
-            'meta[property="og:title"]': t,
-            'meta[property="og:description"]': d,
-            'meta[property="og:site_name"]': 'BRIDGE SPOTS',
-            'meta[property="og:image"]': u + '/og-image-bridgespots.png',
-            'meta[name="twitter:url"]': u,
-            'meta[name="twitter:title"]': t,
-            'meta[name="twitter:description"]': d,
-            'meta[name="twitter:image"]': u + '/og-image-bridgespots.png'
-          };
-          document.addEventListener('DOMContentLoaded', function(){
-            var iconLink = document.querySelector('link[rel="icon"]');
-            if (iconLink) iconLink.setAttribute('href', '/BridgeSpotsIcon.png');
-            var appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
-            if (appleIcon) appleIcon.setAttribute('href', '/BridgeSpotsIcon.png');
-            Object.keys(map).forEach(function(sel){
-              var el = document.querySelector(sel);
-              if (el) el.setAttribute('content', map[sel]);
-            });
-            var canon = document.querySelector('link[rel="canonical"]');
-            if (canon) canon.setAttribute('href', u);
-          });
-        }
-      })();
-    </script>
-
-    <!-- Primary Meta Tags (Default: Milkyway) -->
+    <!-- Primary Meta Tags (Milkyway) — BRIDGE SPOTS는 빌드 타임에 index-bridgespots.html로 분기 -->
     <title>Milkyway - Smart Project Management</title>
     <meta name="title" content="Milkyway - Smart Project Management" />
     <meta name="description" content="팀 프로젝트를 효율적으로 관리하는 스마트 협업 플랫폼" />

@@ -95,6 +95,15 @@ public class ScheduleBlock {
         }
     }
 
+    public void updateCustomInfo(String title, String color) {
+        if (title != null) {
+            this.title = title;
+        }
+        if (color != null) {
+            this.color = color;
+        }
+    }
+
     public void linkChecklistItem(ChecklistItem checklistItem) {
         this.checklistItem = checklistItem;
     }

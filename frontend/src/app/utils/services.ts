@@ -1142,6 +1142,10 @@ export const memberService = {
       throw error;
     }
   },
+
+  transferOwnership: async (boardId: string, newOwnerUserId: string) => {
+    return memberAPI.transferOwnership(boardId, newOwnerUserId);
+  },
 };
 
 // ========================================

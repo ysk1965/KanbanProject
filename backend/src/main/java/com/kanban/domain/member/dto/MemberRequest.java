@@ -45,4 +45,11 @@ public class MemberRequest {
         @NotEmpty(message = "멤버 ID 목록은 필수입니다")
         private List<String> memberIds;
     }
+
+    @Getter
+    @NoArgsConstructor
+    public static class TransferOwnership {
+        @NotBlank(message = "새 소유자의 사용자 ID는 필수입니다")
+        private String newOwnerUserId;
+    }
 }

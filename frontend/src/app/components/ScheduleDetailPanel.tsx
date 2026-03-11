@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { X, Clock, Calendar, User, Users, CheckSquare, FileText, Folder, Trash2, Check, Loader2, Layers, Star, Sparkles, Pencil } from 'lucide-react';
+import { X, Clock, Calendar, User, Users, CheckSquare, FileText, Folder, Trash2, Check, Loader2, Layers, Star, Sparkles, Pencil, Tag } from 'lucide-react';
 import { Button } from './ui/button';
 import { TimePicker } from './ui/TimePicker';
+import { ColorPickerPopover } from './ui/ColorPickerPopover';
 import { ScheduleBlockInfo, scheduleAPI, checklistAPI, ChecklistItemResponse, meetingAPI, MeetingDetail } from '../utils/api';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ScheduleDisplayMode } from './ScheduleSettingsModal';
 import { useTranslation } from 'react-i18next';
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
+import { FEATURE_COLORS } from '../constants';
 
 interface ScheduleDetailPanelProps {
   block: ScheduleBlockInfo;
@@ -71,6 +73,16 @@ const calculateBlockCount = (startTime: string, endTime: string): number => {
   return Math.floor(durationMinutes / 30);
 };
 
+// 커스텀 블록 프리셋 목록
+const CUSTOM_PRESETS = [
+  { emoji: '📝', color: '#3B82F6', labelKey: 'dailySchedule.presetMeetingPrep' },
+  { emoji: '🚗', color: '#10B981', labelKey: 'dailySchedule.presetOutside' },
+  { emoji: '😌', color: '#8B5CF6', labelKey: 'dailySchedule.presetRest' },
+  { emoji: '🤝', color: '#6366F1', labelKey: 'dailySchedule.preset1on1' },
+  { emoji: '📋', color: '#64748B', labelKey: 'dailySchedule.presetPersonal' },
+  { emoji: '🍽️', color: '#F59E0B', labelKey: 'dailySchedule.presetMeal' },
+];
+
 export function ScheduleDetailPanel({
   block,
   boardId,
@@ -89,6 +101,7 @@ export function ScheduleDetailPanel({
   const task = block.task;
   const feature = block.feature;
   const meeting = block.meeting;
+  const isCustom = block.block_type === 'CUSTOM';
 
   // 로컬 상태로 체크리스트 완료 여부 관리 (즉시 UI 반영용)
   const [isCompleted, setIsCompleted] = useState(checklist?.completed ?? false);
@@ -106,6 +119,12 @@ export function ScheduleDetailPanel({
   const [editStartTime, setEditStartTime] = useState(formatTime(block.start_time));
   const [editEndTime, setEditEndTime] = useState(formatTime(block.end_time));
   const [isSavingTime, setIsSavingTime] = useState(false);
+
+  // 커스텀 블록 편집 상태
+  const [isEditingCustom, setIsEditingCustom] = useState(false);
+  const [editTitle, setEditTitle] = useState(block.title || '');
+  const [editColor, setEditColor] = useState(block.color || '#F59E0B');
+  const [isSavingCustom, setIsSavingCustom] = useState(false);
 
   // block이 변경되면 로컬 상태도 동기화
   useEffect(() => {
@@ -161,6 +180,13 @@ export function ScheduleDetailPanel({
     setIsEditingTime(false);
   }, [block.id, block.start_time, block.end_time]);
 
+  // block이 변경되면 커스텀 편집 상태도 동기화
+  useEffect(() => {
+    setEditTitle(block.title || '');
+    setEditColor(block.color || '#F59E0B');
+    setIsEditingCustom(false);
+  }, [block.id, block.title, block.color]);
+
   const handleSaveTime = async () => {
     const newStartTime = `${editStartTime}:00`;
     const newEndTime = `${editEndTime}:00`;
@@ -194,6 +220,45 @@ export function ScheduleDetailPanel({
     setEditEndTime(formatTime(block.end_time));
     setIsEditingTime(false);
   };
+
+  const handleSaveCustom = async () => {
+    if (!editTitle.trim()) return;
+
+    const titleChanged = editTitle !== (block.title || '');
+    const colorChanged = editColor !== (block.color || '#F59E0B');
+
+    if (!titleChanged && !colorChanged) {
+      setIsEditingCustom(false);
+      return;
+    }
+
+    setIsSavingCustom(true);
+    try {
+      await scheduleAPI.updateBlock(boardId, block.id, {
+        title: editTitle.trim(),
+        color: editColor,
+      });
+      setIsEditingCustom(false);
+      onUpdate();
+    } catch (error) {
+      console.error('Failed to update custom block:', error);
+      setEditTitle(block.title || '');
+      setEditColor(block.color || '#F59E0B');
+    } finally {
+      setIsSavingCustom(false);
+    }
+  };
+
+  const handleCancelCustomEdit = () => {
+    setEditTitle(block.title || '');
+    setEditColor(block.color || '#F59E0B');
+    setIsEditingCustom(false);
+  };
+
+  // 프리셋 매칭
+  const matchedPreset = isCustom
+    ? CUSTOM_PRESETS.find(p => t(p.labelKey) === block.title)
+    : null;
 
   const handleToggleComplete = async () => {
     if (!checklist || !task) return;
@@ -527,8 +592,121 @@ export function ScheduleDetailPanel({
           </div>
         )}
 
-        {/* Feature 정보 - 회의 타임블록이 아닌 경우에만 표시 */}
-        {!meeting && (
+        {/* 커스텀 블록 정보 */}
+        {isCustom && (
+          <div className="bg-bridge-dark rounded-lg p-4">
+            {isEditingCustom ? (
+              /* 커스텀 블록 편집 모드 */
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Tag className="h-4 w-4 text-bridge-accent" />
+                  <span className="text-sm font-medium text-slate-400">{t('scheduleDetail.editCustom')}</span>
+                </div>
+
+                {/* 프리셋 빠른 선택 */}
+                <div className="grid grid-cols-3 gap-1.5">
+                  {CUSTOM_PRESETS.map(preset => (
+                    <button
+                      key={preset.labelKey}
+                      onClick={() => {
+                        setEditTitle(t(preset.labelKey));
+                        setEditColor(preset.color);
+                      }}
+                      className={`py-2 px-1.5 rounded-lg border text-xs font-medium transition-all text-center ${
+                        editTitle === t(preset.labelKey)
+                          ? 'border-bridge-accent bg-bridge-accent/20 text-bridge-accent'
+                          : 'border-foreground/10 text-slate-400 hover:border-bridge-accent/30 hover:text-foreground'
+                      }`}
+                    >
+                      <span className="text-sm">{preset.emoji}</span>
+                      <span className="block mt-0.5 truncate text-[10px]">{t(preset.labelKey)}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* 제목 입력 */}
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  maxLength={100}
+                  placeholder={t('scheduleDetail.titlePlaceholder')}
+                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3
+                    text-sm text-foreground placeholder-slate-500
+                    focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                />
+
+                {/* 색상 선택 */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400">{t('scheduleDetail.blockColor')}</span>
+                  <ColorPickerPopover
+                    colors={FEATURE_COLORS}
+                    selectedColor={editColor}
+                    onColorChange={setEditColor}
+                    triggerSize="sm"
+                    triggerShape="circle"
+                    showGlow={false}
+                  />
+                </div>
+
+                {/* 저장/취소 버튼 */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCancelCustomEdit}
+                    disabled={isSavingCustom}
+                    className="flex-1 border-white/10 text-slate-400 hover:bg-white/5"
+                  >
+                    {t('common.cancel')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveCustom}
+                    disabled={isSavingCustom || !editTitle.trim()}
+                    className="flex-1 bg-bridge-accent text-white hover:bg-bridge-accent/90"
+                  >
+                    {isSavingCustom ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                    {t('common.save')}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* 커스텀 블록 표시 모드 */
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-bridge-accent" />
+                    <span className="text-sm font-medium text-slate-400">{t('scheduleDetail.customBlock')}</span>
+                  </div>
+                  <button
+                    onClick={() => setIsEditingCustom(true)}
+                    className="text-slate-400 hover:text-foreground hover:bg-white/5 rounded-md p-1 transition-colors"
+                    title={t('scheduleDetail.editCustom')}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-4 h-4 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: block.color || '#F59E0B' }}
+                  />
+                  <div className="flex items-center gap-2">
+                    {matchedPreset && (
+                      <span className="text-base">{matchedPreset.emoji}</span>
+                    )}
+                    <p className="text-foreground font-medium">{block.title || t('scheduleDetail.customBlock')}</p>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Feature 정보 - 체크리스트 타임블록에서만 표시 */}
+        {!meeting && !isCustom && (
           <div
             className={`bg-bridge-dark rounded-lg p-4 ${
               feature && onViewFeature ? 'cursor-pointer hover:bg-foreground/5 transition-colors' : ''
@@ -563,8 +741,8 @@ export function ScheduleDetailPanel({
           </div>
         )}
 
-        {/* Task 정보 - 회의 타임블록이 아닌 경우에만 표시 */}
-        {!meeting && (
+        {/* Task 정보 - 체크리스트 타임블록에서만 표시 */}
+        {!meeting && !isCustom && (
           <div
             className={`bg-bridge-dark rounded-lg p-4 ${
               task && onViewTask ? 'cursor-pointer hover:bg-foreground/5 transition-colors' : ''

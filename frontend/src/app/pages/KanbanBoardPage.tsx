@@ -1209,6 +1209,12 @@ export function KanbanBoardPage() {
     }
   };
 
+  const handleTransferOwnership = async (newOwnerUserId: string) => {
+    if (!boardId) return;
+    await memberService.transferOwnership(boardId, newOwnerUserId);
+    await refreshMembers();
+  };
+
   const handleReorderMembers = async (memberIds: string[]) => {
     if (!boardId) return;
 
@@ -3177,6 +3183,9 @@ export function KanbanBoardPage() {
               setIsFeatureModalOpen(true);
             }
           }}
+          onChecklistSync={(taskId, items) => {
+            setChecklistDataMap((prev) => ({ ...prev, [taskId]: items }));
+          }}
           // Tag
           tags={tags}
           onCreateTag={handleCreateTag}
@@ -3248,6 +3257,8 @@ export function KanbanBoardPage() {
           pendingJoinRequestCount={pendingJoinRequestCount}
           isAdminOrOwner={isAdminOrOwner}
           onJoinRequestHandled={handleJoinRequestHandled}
+          boardName={board?.name}
+          onTransferOwnership={handleTransferOwnership}
           hideBillingForUser={hideBillingForUser}
           // Subscription Modal
           isSubscriptionModalOpen={isSubscriptionModalOpen}
