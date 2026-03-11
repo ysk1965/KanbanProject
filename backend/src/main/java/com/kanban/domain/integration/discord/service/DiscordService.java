@@ -67,11 +67,11 @@ public class DiscordService {
     /**
      * Generate OAuth2 URL for bot installation or user linking.
      */
-    public DiscordResponse.OAuthUrl getOAuthUrl(String boardId, String userId, String type) {
+    public DiscordResponse.OAuthUrl getOAuthUrl(String boardId, String userId, String type, String origin) {
         boardService.checkViewerOrAbove(boardId, userId);
         validateDiscordAccess(boardId);
 
-        String state = generateState(type, boardId, userId);
+        String state = generateState(type, boardId, userId, origin);
 
         String url;
         if ("bot_install".equals(type)) {
@@ -105,18 +105,19 @@ public class DiscordService {
     public String handleOAuthCallback(String code, String state) {
         // Parse and validate state
         String[] parts = state.split(":");
-        if (parts.length != 5) {
+        if (parts.length != 6) {
             throw new BusinessException(ErrorCode.DISCORD_OAUTH_STATE_INVALID);
         }
 
         String type = parts[0];
         String boardId = parts[1];
         String userId = parts[2];
-        String timestamp = parts[3];
-        String hmac = parts[4];
+        String origin = parts[3];
+        String timestamp = parts[4];
+        String hmac = parts[5];
 
         // Verify HMAC
-        String dataToSign = type + ":" + boardId + ":" + userId + ":" + timestamp;
+        String dataToSign = type + ":" + boardId + ":" + userId + ":" + origin + ":" + timestamp;
         String expectedHmac = computeHmac(dataToSign);
         if (!expectedHmac.equals(hmac)) {
             throw new BusinessException(ErrorCode.DISCORD_OAUTH_STATE_INVALID);
@@ -127,6 +128,9 @@ public class DiscordService {
         if (Instant.now().getEpochSecond() - stateTime > STATE_EXPIRY_SECONDS) {
             throw new BusinessException(ErrorCode.DISCORD_OAUTH_STATE_INVALID);
         }
+
+        // Resolve origin
+        String resolvedOrigin = com.kanban.domain.integration.FrontendOriginResolver.resolve(origin, frontendUrl);
 
         // Exchange code for tokens
         Map<String, Object> tokenResponse = discordBotService.exchangeCodeForTokens(code);
@@ -142,9 +146,9 @@ public class DiscordService {
         }
 
         if ("bot_install".equals(type)) {
-            return handleBotInstall(tokenResponse, boardId, userId);
+            return handleBotInstall(tokenResponse, boardId, userId, resolvedOrigin);
         } else {
-            return handleUserLink(accessToken, refreshToken, expiresIn, userId, boardId);
+            return handleUserLink(accessToken, refreshToken, expiresIn, userId, boardId, resolvedOrigin);
         }
     }
 
@@ -334,7 +338,7 @@ public class DiscordService {
 
     // --- Private helpers ---
 
-    private String handleBotInstall(Map<String, Object> tokenResponse, String boardId, String userId) {
+    private String handleBotInstall(Map<String, Object> tokenResponse, String boardId, String userId, String resolvedOrigin) {
         // Extract guild info from the token response
         @SuppressWarnings("unchecked")
         Map<String, Object> guild = (Map<String, Object>) tokenResponse.get("guild");
@@ -367,10 +371,10 @@ public class DiscordService {
         log.info("Discord bot installed for board {} by user {}, guild {}", boardId, userId, guildId);
 
         // Redirect to frontend settings page
-        return frontendUrl + "/boards/" + boardId + "?view=settings&tab=discord&status=bot_installed";
+        return resolvedOrigin + "/boards/" + boardId + "?view=settings&tab=discord&status=bot_installed";
     }
 
-    private String handleUserLink(String accessToken, String refreshToken, long expiresIn, String userId, String boardId) {
+    private String handleUserLink(String accessToken, String refreshToken, long expiresIn, String userId, String boardId, String resolvedOrigin) {
         // Get Discord user info
         Map<String, Object> userInfo = discordBotService.getUserInfo(accessToken);
         if (userInfo == null) {
@@ -414,7 +418,7 @@ public class DiscordService {
         log.info("Discord account linked for user {}, discordUser {}", userId, discordUserId);
 
         // Redirect to frontend settings page
-        return frontendUrl + "/boards/" + boardId + "?view=settings&tab=discord&status=user_linked";
+        return resolvedOrigin + "/boards/" + boardId + "?view=settings&tab=discord&status=user_linked";
     }
 
     private void validateDiscordAccess(String boardId) {
@@ -425,9 +429,9 @@ public class DiscordService {
         }
     }
 
-    private String generateState(String type, String boardId, String userId) {
+    private String generateState(String type, String boardId, String userId, String origin) {
         String timestamp = String.valueOf(Instant.now().getEpochSecond());
-        String data = type + ":" + boardId + ":" + userId + ":" + timestamp;
+        String data = type + ":" + boardId + ":" + userId + ":" + origin + ":" + timestamp;
         String hmac = computeHmac(data);
         return data + ":" + hmac;
     }

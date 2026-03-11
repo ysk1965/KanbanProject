@@ -2,6 +2,7 @@ package com.kanban.domain.integration.slack.controller;
 
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
+import com.kanban.domain.integration.FrontendOriginResolver;
 import com.kanban.domain.integration.slack.SlackInstallScope;
 import com.kanban.domain.integration.slack.SlackInstallation;
 import com.kanban.domain.integration.slack.SlackInstallationRepository;
@@ -44,8 +45,10 @@ public class SlackOAuthController {
     public ResponseEntity<SlackAppResponse.InstallUrl> getInstallUrl(
             @RequestParam("scope") SlackInstallScope scope,
             @RequestParam("entity_id") String entityId,
+            @RequestParam(value = "origin", required = false) String origin,
             @AuthenticationPrincipal String userId) {
-        return ResponseEntity.ok(slackOAuthService.generateInstallUrl(scope, entityId, userId));
+        String resolvedOrigin = FrontendOriginResolver.resolve(origin, frontendUrl);
+        return ResponseEntity.ok(slackOAuthService.generateInstallUrl(scope, entityId, userId, resolvedOrigin));
     }
 
     /**
@@ -58,7 +61,8 @@ public class SlackOAuthController {
             HttpServletResponse response) throws IOException {
         try {
             SlackAppResponse.OAuthCallback result = slackOAuthService.handleCallback(code, state);
-            response.sendRedirect(frontendUrl + result.getRedirectPath());
+            String redirectBase = FrontendOriginResolver.resolve(result.getOrigin(), frontendUrl);
+            response.sendRedirect(redirectBase + result.getRedirectPath());
         } catch (Exception e) {
             log.warn("Slack OAuth callback failed: {}", e.getMessage(), e);
             response.sendRedirect(frontendUrl + "/auth/slack/callback?error=failed");
@@ -134,8 +138,10 @@ public class SlackOAuthController {
     @GetMapping("/oauth/user-link")
     public ResponseEntity<SlackAppResponse.InstallUrl> getUserLinkUrl(
             @RequestParam("board_id") String boardId,
+            @RequestParam(value = "origin", required = false) String origin,
             @AuthenticationPrincipal String userId) {
-        return ResponseEntity.ok(slackOAuthService.generateUserLinkUrl(boardId, userId));
+        String resolvedOrigin = FrontendOriginResolver.resolve(origin, frontendUrl);
+        return ResponseEntity.ok(slackOAuthService.generateUserLinkUrl(boardId, userId, resolvedOrigin));
     }
 
     /**
@@ -147,8 +153,9 @@ public class SlackOAuthController {
             @RequestParam("state") String state,
             HttpServletResponse response) throws IOException {
         try {
-            String redirectPath = slackOAuthService.handleUserLinkCallback(code, state);
-            response.sendRedirect(frontendUrl + redirectPath);
+            SlackAppResponse.UserLinkCallback result = slackOAuthService.handleUserLinkCallback(code, state);
+            String redirectBase = FrontendOriginResolver.resolve(result.getOrigin(), frontendUrl);
+            response.sendRedirect(redirectBase + result.getRedirectPath());
         } catch (Exception e) {
             log.warn("Slack OAuth user link callback failed: {}", e.getMessage(), e);
             response.sendRedirect(frontendUrl + "/auth/slack/callback?error=user_link_failed");

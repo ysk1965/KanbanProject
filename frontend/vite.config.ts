@@ -74,7 +74,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: ['MilkyWay.png', 'BridgeSpotsIcon.png', 'banner.png'],
       manifest: {
         name: 'Milkyway - Smart Project Management',
@@ -107,7 +107,9 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024, // 8 MiB
-        navigateFallback: 'index.html',
+        navigateFallback: null,
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\/api\/v1\/.*/i,
