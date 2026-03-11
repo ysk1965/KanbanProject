@@ -14,6 +14,7 @@ import {
   UserX,
   Lock,
   Rocket,
+  Send,
 } from "lucide-react";
 import {
   slackAppAPI,
@@ -53,6 +54,11 @@ export function SlackIntegrationPanel({
     useState<SlackUserLinkStatus | null>(null);
   const [isLinking, setIsLinking] = useState(false);
   const [isUnlinking, setIsUnlinking] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
 
   const fetchInstallation = useCallback(async () => {
     try {
@@ -127,6 +133,10 @@ export function SlackIntegrationPanel({
 
   const handleLoadChannels = async () => {
     if (!installation) return;
+    if (showChannelPicker) {
+      setShowChannelPicker(false);
+      return;
+    }
     setIsLoadingChannels(true);
     try {
       const data = await slackAppAPI.listChannels(boardId);
@@ -188,6 +198,23 @@ export function SlackIntegrationPanel({
       setError(t("slackApp.unlinkFailed", "Failed to unlink"));
     } finally {
       setIsUnlinking(false);
+    }
+  };
+
+  const handleTestNotification = async () => {
+    setError(null);
+    setIsTesting(true);
+    setTestResult(null);
+    try {
+      const result = await slackAppAPI.testNotification(boardId);
+      setTestResult(result);
+    } catch {
+      setTestResult({
+        success: false,
+        message: t("slackApp.testFailed", "Failed to send test message"),
+      });
+    } finally {
+      setIsTesting(false);
     }
   };
 
@@ -372,28 +399,63 @@ export function SlackIntegrationPanel({
                   {t("slackApp.personalLink", "My Slack Account")}
                 </label>
                 {userLinkStatus?.linked ? (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <UserCheck size={12} className="text-green-400" />
-                      <span className="text-[11px] text-foreground">
-                        {userLinkStatus.slack_username ||
-                          userLinkStatus.slack_user_id}
-                      </span>
-                      <span className="text-[9px] text-slate-500">
-                        ({t("slackApp.dmEnabled", "DM enabled")})
-                      </span>
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <UserCheck size={12} className="text-green-400" />
+                        <span className="text-[11px] text-foreground">
+                          {userLinkStatus.slack_username ||
+                            userLinkStatus.slack_user_id}
+                        </span>
+                        <span className="text-[9px] text-slate-500">
+                          ({t("slackApp.dmEnabled", "DM enabled")})
+                        </span>
+                      </div>
+                      <button
+                        onClick={handleUnlinkUser}
+                        disabled={isUnlinking}
+                        className="text-[10px] text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                      >
+                        {isUnlinking ? (
+                          <Loader2 size={11} className="animate-spin" />
+                        ) : (
+                          t("slackApp.unlinkButton", "Unlink")
+                        )}
+                      </button>
                     </div>
-                    <button
-                      onClick={handleUnlinkUser}
-                      disabled={isUnlinking}
-                      className="text-[10px] text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
-                    >
-                      {isUnlinking ? (
-                        <Loader2 size={11} className="animate-spin" />
-                      ) : (
-                        t("slackApp.unlinkButton", "Unlink")
-                      )}
-                    </button>
+
+                    {/* Test notification */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleTestNotification}
+                        disabled={isTesting}
+                        className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-muted-foreground bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-all disabled:opacity-50"
+                      >
+                        {isTesting ? (
+                          <Loader2 size={11} className="animate-spin" />
+                        ) : (
+                          <Send size={11} />
+                        )}
+                        {t("slackApp.testButton", "Send Test")}
+                      </button>
+                    </div>
+
+                    {testResult && (
+                      <div
+                        className={`flex items-center gap-1.5 text-[11px] ${
+                          testResult.success ? "text-green-400" : "text-red-400"
+                        }`}
+                      >
+                        {testResult.success ? (
+                          <Check size={12} />
+                        ) : (
+                          <AlertCircle size={12} />
+                        )}
+                        {testResult.success
+                          ? t("slackApp.testSuccess", "Test message sent!")
+                          : testResult.message}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">

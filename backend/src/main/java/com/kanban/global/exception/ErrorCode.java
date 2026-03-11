@@ -180,6 +180,7 @@ public enum ErrorCode {
     SLACK_SIGNATURE_INVALID(HttpStatus.UNAUTHORIZED, "SK009", "유효하지 않은 Slack 서명입니다"),
     SLACK_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "SK011", "Slack API 요청 제한에 도달했습니다"),
     SLACK_TOKEN_DECRYPTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "SK012", "Slack 토큰 복호화에 실패했습니다"),
+    SLACK_USER_NOT_LINKED(HttpStatus.BAD_REQUEST, "SK013", "Slack 계정이 연결되지 않았습니다"),
 
     // Discord Integration
     DISCORD_BOT_NOT_CONFIGURED(HttpStatus.NOT_FOUND, "DK001", "Discord Bot이 설정되지 않았습니다"),

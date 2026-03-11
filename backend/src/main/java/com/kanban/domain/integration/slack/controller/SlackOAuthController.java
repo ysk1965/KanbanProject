@@ -8,6 +8,7 @@ import com.kanban.domain.integration.slack.SlackInstallation;
 import com.kanban.domain.integration.slack.SlackInstallationRepository;
 import com.kanban.domain.integration.slack.dto.SlackAppRequest;
 import com.kanban.domain.integration.slack.dto.SlackAppResponse;
+import com.kanban.domain.integration.slack.service.SlackBotNotificationService;
 import com.kanban.domain.integration.slack.service.SlackOAuthService;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
@@ -32,6 +33,7 @@ import java.util.List;
 public class SlackOAuthController {
 
     private final SlackOAuthService slackOAuthService;
+    private final SlackBotNotificationService slackBotNotificationService;
     private final SlackInstallationRepository installationRepository;
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
@@ -132,6 +134,17 @@ public class SlackOAuthController {
             @AuthenticationPrincipal UserPrincipal principal) {
         slackOAuthService.revokeInstallation(installationId, principal.getUserId());
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Send test DM notification to current user
+     */
+    @PostMapping("/app/test")
+    public ResponseEntity<SlackAppResponse.TestResult> testNotification(
+            @RequestParam("board_id") String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        SlackAppResponse.TestResult result = slackBotNotificationService.testNotification(boardId, principal.getUserId());
+        return ResponseEntity.ok(result);
     }
 
     // ---- User Link endpoints ----
