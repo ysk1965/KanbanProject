@@ -370,6 +370,8 @@ public class Subscription {
         this.migratedToOrgId = orgId;
         this.migratedAt = LocalDateTime.now(ZoneOffset.UTC);
         this.billingPausedForOrg = true;
+        this.status = SubscriptionStatus.ACTIVE;
+        this.trialEndsAt = null;
     }
 
     /**
