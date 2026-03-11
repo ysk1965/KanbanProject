@@ -74,6 +74,7 @@ public class SlackOAuthService {
 
         // Exchange code for token
         String redirectUri = resolveRedirectUri(origin, config.getRedirectUri());
+        log.info("Slack OAuth token exchange: origin={}, redirectUri={}, configuredUri={}", origin, redirectUri, config.getRedirectUri());
         Map<String, Object> oauthResponse = slackApiClient.exchangeCode(
                 config.getClientId(), config.getClientSecret(), code, redirectUri);
 

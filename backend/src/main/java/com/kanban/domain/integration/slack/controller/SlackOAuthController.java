@@ -67,7 +67,8 @@ public class SlackOAuthController {
             log.warn("Slack OAuth callback failed: {}", e.getMessage(), e);
             String origin = slackOAuthService.safeExtractOriginFromState(state);
             String redirectBase = FrontendOriginResolver.resolve(origin, frontendUrl);
-            response.sendRedirect(redirectBase + "/auth/slack/callback?error=failed");
+            String reason = e.getMessage() != null ? java.net.URLEncoder.encode(e.getMessage(), java.nio.charset.StandardCharsets.UTF_8) : "unknown";
+            response.sendRedirect(redirectBase + "/auth/slack/callback?error=failed&reason=" + reason);
         }
     }
 
