@@ -13,6 +13,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -68,6 +69,7 @@ public class JwtProvider {
         Date expiryDate = new Date(now.getTime() + expiration);
 
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(userId)
                 .claim("email", email)
                 .claim("systemRole", systemRole)

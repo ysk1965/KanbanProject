@@ -43,8 +43,8 @@ public class SlackOAuthService {
     /**
      * Generate Slack OAuth install URL with signed state
      */
-    public SlackAppResponse.InstallUrl generateInstallUrl(SlackInstallScope scope, String entityId, String userId) {
-        String state = buildState(scope, entityId, userId);
+    public SlackAppResponse.InstallUrl generateInstallUrl(SlackInstallScope scope, String entityId, String userId, String origin) {
+        String state = buildState(scope, entityId, userId, origin);
         String url = "https://slack.com/oauth/v2/authorize"
                 + "?client_id=" + URLEncoder.encode(config.getClientId(), StandardCharsets.UTF_8)
                 + "&scope=" + URLEncoder.encode(config.getBotScopes(), StandardCharsets.UTF_8)
@@ -64,6 +64,8 @@ public class SlackOAuthService {
         String scopeStr = stateData.get("scope");
         String entityId = stateData.get("entityId");
         String userId = stateData.get("userId");
+
+        String origin = stateData.get("origin");
 
         SlackInstallScope scope = SlackInstallScope.valueOf(scopeStr);
 
@@ -149,6 +151,7 @@ public class SlackOAuthService {
         return SlackAppResponse.OAuthCallback.builder()
                 .installation(SlackAppResponse.Installation.from(installation))
                 .redirectPath(redirectPath)
+                .origin(origin)
                 .build();
     }
 
@@ -269,8 +272,8 @@ public class SlackOAuthService {
     /**
      * Generate Slack OAuth URL for individual user linking (identity.basic scope)
      */
-    public SlackAppResponse.InstallUrl generateUserLinkUrl(String boardId, String userId) {
-        String state = buildUserLinkState(boardId, userId);
+    public SlackAppResponse.InstallUrl generateUserLinkUrl(String boardId, String userId, String origin) {
+        String state = buildUserLinkState(boardId, userId, origin);
         String url = "https://slack.com/oauth/v2/authorize"
                 + "?client_id=" + URLEncoder.encode(config.getClientId(), StandardCharsets.UTF_8)
                 + "&user_scope=" + URLEncoder.encode(config.getUserScopes(), StandardCharsets.UTF_8)
@@ -284,10 +287,11 @@ public class SlackOAuthService {
      * Handle user link OAuth callback - link Slack identity to BRIDGE user
      */
     @Transactional
-    public String handleUserLinkCallback(String code, String stateParam) {
+    public SlackAppResponse.UserLinkCallback handleUserLinkCallback(String code, String stateParam) {
         Map<String, String> stateData = parseAndVerifyUserLinkState(stateParam);
         String boardId = stateData.get("boardId");
         String userId = stateData.get("userId");
+        String origin = stateData.get("origin");
 
         // Exchange code for user token
         Map<String, Object> tokenResponse = slackApiClient.exchangeCodeForUserToken(
@@ -351,7 +355,10 @@ public class SlackOAuthService {
 
         log.info("Slack user linked: userId={} slackUserId={}", userId, slackUserId);
 
-        return "/boards/" + boardId + "?view=settings&tab=slack&status=user_linked";
+        return SlackAppResponse.UserLinkCallback.builder()
+                .redirectPath("/boards/" + boardId + "?view=settings&tab=slack&status=user_linked")
+                .origin(origin)
+                .build();
     }
 
     /**
@@ -405,9 +412,9 @@ public class SlackOAuthService {
 
     // ---- State management ----
 
-    private String buildState(SlackInstallScope scope, String entityId, String userId) {
+    private String buildState(SlackInstallScope scope, String entityId, String userId, String origin) {
         long expiry = Instant.now().getEpochSecond() + STATE_TTL_SECONDS;
-        String payload = scope.name() + "|" + entityId + "|" + userId + "|" + expiry;
+        String payload = scope.name() + "|" + entityId + "|" + userId + "|" + origin + "|" + expiry;
         String signature = hmacSign(payload);
         return Base64.getUrlEncoder().withoutPadding()
                 .encodeToString((payload + "|" + signature).getBytes(StandardCharsets.UTF_8));
@@ -417,12 +424,12 @@ public class SlackOAuthService {
         try {
             String decoded = new String(Base64.getUrlDecoder().decode(state), StandardCharsets.UTF_8);
             String[] parts = decoded.split("\\|");
-            if (parts.length != 5) {
+            if (parts.length != 6) {
                 throw new BusinessException(ErrorCode.SLACK_OAUTH_STATE_INVALID);
             }
 
-            String payload = parts[0] + "|" + parts[1] + "|" + parts[2] + "|" + parts[3];
-            String signature = parts[4];
+            String payload = parts[0] + "|" + parts[1] + "|" + parts[2] + "|" + parts[3] + "|" + parts[4];
+            String signature = parts[5];
 
             // Verify signature
             if (!hmacSign(payload).equals(signature)) {
@@ -430,7 +437,7 @@ public class SlackOAuthService {
             }
 
             // Check expiry
-            long expiry = Long.parseLong(parts[3]);
+            long expiry = Long.parseLong(parts[4]);
             if (Instant.now().getEpochSecond() > expiry) {
                 throw new BusinessException(ErrorCode.SLACK_OAUTH_STATE_INVALID);
             }
@@ -439,6 +446,7 @@ public class SlackOAuthService {
             result.put("scope", parts[0]);
             result.put("entityId", parts[1]);
             result.put("userId", parts[2]);
+            result.put("origin", parts[3]);
             return result;
         } catch (BusinessException e) {
             throw e;
@@ -447,9 +455,9 @@ public class SlackOAuthService {
         }
     }
 
-    private String buildUserLinkState(String boardId, String userId) {
+    private String buildUserLinkState(String boardId, String userId, String origin) {
         long expiry = Instant.now().getEpochSecond() + STATE_TTL_SECONDS;
-        String payload = "USER_LINK|" + boardId + "|" + userId + "|" + expiry;
+        String payload = "USER_LINK|" + boardId + "|" + userId + "|" + origin + "|" + expiry;
         String signature = hmacSign(payload);
         return Base64.getUrlEncoder().withoutPadding()
                 .encodeToString((payload + "|" + signature).getBytes(StandardCharsets.UTF_8));
@@ -459,18 +467,18 @@ public class SlackOAuthService {
         try {
             String decoded = new String(Base64.getUrlDecoder().decode(state), StandardCharsets.UTF_8);
             String[] parts = decoded.split("\\|");
-            if (parts.length != 5 || !"USER_LINK".equals(parts[0])) {
+            if (parts.length != 6 || !"USER_LINK".equals(parts[0])) {
                 throw new BusinessException(ErrorCode.SLACK_OAUTH_STATE_INVALID);
             }
 
-            String payload = parts[0] + "|" + parts[1] + "|" + parts[2] + "|" + parts[3];
-            String signature = parts[4];
+            String payload = parts[0] + "|" + parts[1] + "|" + parts[2] + "|" + parts[3] + "|" + parts[4];
+            String signature = parts[5];
 
             if (!hmacSign(payload).equals(signature)) {
                 throw new BusinessException(ErrorCode.SLACK_OAUTH_STATE_INVALID);
             }
 
-            long expiry = Long.parseLong(parts[3]);
+            long expiry = Long.parseLong(parts[4]);
             if (Instant.now().getEpochSecond() > expiry) {
                 throw new BusinessException(ErrorCode.SLACK_OAUTH_STATE_INVALID);
             }
@@ -478,6 +486,7 @@ public class SlackOAuthService {
             Map<String, String> result = new HashMap<>();
             result.put("boardId", parts[1]);
             result.put("userId", parts[2]);
+            result.put("origin", parts[3]);
             return result;
         } catch (BusinessException e) {
             throw e;
