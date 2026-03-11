@@ -99,6 +99,9 @@ public class AuthService {
         user.updateLastLoginAt();
         userRepository.save(user);
 
+        // 기존 리프레시 토큰 정리 (다중 세션 토큰 누적 방지)
+        refreshTokenRepository.deleteByUserId(user.getId());
+
         log.info("User logged in: {}", user.getEmail());
         return createTokenResponse(user);
     }
@@ -171,6 +174,8 @@ public class AuthService {
             // 기존 Google 사용자 - 로그인 처리
             user.updateLastLoginAt();
             userRepository.save(user);
+            // 기존 리프레시 토큰 정리
+            refreshTokenRepository.deleteByUserId(user.getId());
             log.info("Google user logged in: {}", user.getEmail());
             return createTokenResponse(user);
         }
@@ -188,6 +193,8 @@ public class AuthService {
                 }
                 user.updateLastLoginAt();
                 userRepository.save(user);
+                // 기존 리프레시 토큰 정리
+                refreshTokenRepository.deleteByUserId(user.getId());
                 log.info("Google account linked to existing user: {}", user.getEmail());
                 return createTokenResponse(user);
             } else {
@@ -229,7 +236,7 @@ public class AuthService {
                 .expiresAt(LocalDateTime.now(ZoneOffset.UTC).plusSeconds(jwtProvider.getRefreshExpiration() / 1000))
                 .build();
 
-        refreshTokenRepository.save(refreshTokenEntity);
+        refreshTokenRepository.saveAndFlush(refreshTokenEntity);
 
         // provider 값 변환: GOOGLE -> google, LOCAL/email -> email
         String provider = "GOOGLE".equals(user.getAuthProvider()) ? "google" : "email";
