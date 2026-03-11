@@ -88,12 +88,9 @@ public class SlackOAuthService {
         String slackTeamName = String.valueOf(team.get("name"));
 
         String botToken = String.valueOf(oauthResponse.get("access_token"));
-        String botUserId = null;
-        @SuppressWarnings("unchecked")
-        Map<String, Object> botUser = (Map<String, Object>) oauthResponse.get("bot_user_id");
-        if (oauthResponse.containsKey("bot_user_id")) {
-            botUserId = String.valueOf(oauthResponse.get("bot_user_id"));
-        }
+        String botUserId = oauthResponse.containsKey("bot_user_id")
+                ? String.valueOf(oauthResponse.get("bot_user_id"))
+                : null;
 
         String authedUserId = null;
         @SuppressWarnings("unchecked")

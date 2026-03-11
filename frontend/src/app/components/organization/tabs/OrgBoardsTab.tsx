@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, LayoutGrid, X, AlertTriangle, Check, ChevronRight, Link, Clock, Shield, Crown, Users, Zap } from 'lucide-react';
+import { Plus, LayoutGrid, X, AlertTriangle, Check, ChevronRight, Link, Clock, Shield, Crown, Users, Zap, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { organizationService, boardService } from '../../../utils/services';
@@ -162,6 +162,8 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
   const [adding, setAdding] = useState(false);
   const [selectedBoardId, setSelectedBoardId] = useState('');
   const [showReleaseConfirm, setShowReleaseConfirm] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
   const [newBoardDescription, setNewBoardDescription] = useState('');
   const [creating, setCreating] = useState(false);
@@ -265,6 +267,21 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
     }
   };
 
+  const handleDeleteBoard = async (boardId: string) => {
+    try {
+      setDeleting(true);
+      await organizationService.deleteBoard(orgId, boardId);
+      setShowDeleteConfirm(null);
+      fetchBoards();
+      toast.success(t('organization.boards.deleteSuccess', 'Board deleted. It can be recovered within 7 days.'));
+    } catch (error) {
+      console.warn('Failed to delete board:', error);
+      toast.error(t('organization.boards.deleteError', 'Failed to delete board'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -358,15 +375,24 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                       <span className="text-xs text-muted-foreground">{board.owner.name}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-0.5 shrink-0">
                     {isAdmin && (
-                      <button
-                        onClick={() => setShowReleaseConfirm(board.id)}
-                        className="p-2 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
-                        title={t('organization.boards.release', 'Release from organization')}
-                      >
-                        <X size={16} />
-                      </button>
+                      <>
+                        <button
+                          onClick={() => setShowReleaseConfirm(board.id)}
+                          className="p-2 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-400/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          title={t('organization.boards.release', 'Release from organization')}
+                        >
+                          <X size={16} />
+                        </button>
+                        <button
+                          onClick={() => setShowDeleteConfirm(board.id)}
+                          className="p-2 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          title={t('organization.boards.delete', 'Delete board')}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </>
                     )}
                     <ChevronRight size={16} className="text-muted-foreground group-hover:text-bridge-accent group-hover:translate-x-0.5 transition-all" />
                   </div>
@@ -451,6 +477,58 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
               className="px-4 py-1.5 rounded-lg text-xs font-bold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors"
             >
               {t('organization.boards.releaseButton', 'Release')}
+            </button>
+          </div>
+        </div>
+      </MotionModal>
+
+      {/* Delete Confirmation Modal */}
+      <MotionModal open={!!showDeleteConfirm} onClose={() => !deleting && setShowDeleteConfirm(null)} className="sm:max-w-sm">
+        <div className="h-[2px] bg-gradient-to-r from-red-500 to-red-700 rounded-t-2xl" />
+        <div className="px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-red-500/15 flex items-center justify-center">
+              <Trash2 size={18} className="text-red-600 dark:text-red-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">
+                {t('organization.boards.deleteConfirm', 'Delete Board?')}
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                {boards.find(b => b.id === showDeleteConfirm)?.name}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="px-5 pb-5 pt-4 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {t('organization.boards.deleteWarning', 'This board and all its data will be deleted. It can be recovered within 7 days.')}
+          </p>
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+            <AlertTriangle size={14} className="text-red-600 dark:text-red-400 shrink-0" />
+            <span className="text-[11px] text-red-600 dark:text-red-400 leading-relaxed">
+              {t('organization.boards.deleteIrreversible', 'All features, tasks, comments, and files will be affected. The board will also be unlinked from the organization.')}
+            </span>
+          </div>
+        </div>
+        <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
+          <span className="text-[10px] text-muted-foreground">ESC</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowDeleteConfirm(null)}
+              disabled={deleting}
+              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors disabled:opacity-50"
+            >
+              {t('common.cancel', 'Cancel')}
+            </button>
+            <button
+              onClick={() => showDeleteConfirm && handleDeleteBoard(showDeleteConfirm)}
+              disabled={deleting}
+              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+            >
+              {deleting
+                ? t('common.deleting', 'Deleting...')
+                : t('organization.boards.deleteButton', 'Delete Board')}
             </button>
           </div>
         </div>
