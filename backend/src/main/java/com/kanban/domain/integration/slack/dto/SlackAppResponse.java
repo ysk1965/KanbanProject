@@ -70,6 +70,14 @@ public class SlackAppResponse {
     public static class OAuthCallback {
         private Installation installation;
         private String redirectPath;
+        private String origin;
+    }
+
+    @Getter
+    @Builder
+    public static class UserLinkCallback {
+        private String redirectPath;
+        private String origin;
     }
 
     @Getter

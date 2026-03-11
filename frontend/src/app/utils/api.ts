@@ -4625,7 +4625,8 @@ export interface SlackMemberStatus {
 
 export const slackAppAPI = {
   getInstallUrl: async (scope: 'BOARD' | 'ORGANIZATION', entityId: string) => {
-    return apiClient.get<{ url: string }>(`/slack/oauth/install?scope=${scope}&entity_id=${entityId}`);
+    const origin = encodeURIComponent(window.location.origin);
+    return apiClient.get<{ url: string }>(`/slack/oauth/install?scope=${scope}&entity_id=${entityId}&origin=${origin}`);
   },
 
   getStatus: async (boardId: string) => {
@@ -4659,7 +4660,8 @@ export const slackAppAPI = {
 
   // User link (per-user Slack account linking for DM notifications)
   getUserLinkUrl: async (boardId: string) => {
-    return apiClient.get<{ url: string }>(`/slack/oauth/user-link?board_id=${boardId}`);
+    const origin = encodeURIComponent(window.location.origin);
+    return apiClient.get<{ url: string }>(`/slack/oauth/user-link?board_id=${boardId}&origin=${origin}`);
   },
 
   getUserLinkStatus: async () => {
@@ -4719,8 +4721,9 @@ export const discordAPI = {
     boardId: string,
     type: "bot_install" | "user_link",
   ) => {
+    const origin = encodeURIComponent(window.location.origin);
     return apiClient.get<{ oauth_url: string }>(
-      `/boards/${boardId}/discord/oauth-url?type=${type}`,
+      `/boards/${boardId}/discord/oauth-url?type=${type}&origin=${origin}`,
     );
   },
 

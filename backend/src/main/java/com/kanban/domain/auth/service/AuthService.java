@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.EntityManager;
+import org.springframework.dao.DataIntegrityViolationException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -109,8 +110,8 @@ public class AuthService {
             throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
 
-        // DB에서 리프레시 토큰 조회
-        RefreshToken storedToken = refreshTokenRepository.findByToken(refreshToken)
+        // DB에서 리프레시 토큰 조회 (PESSIMISTIC_WRITE lock으로 동시 요청 직렬화)
+        RefreshToken storedToken = refreshTokenRepository.findByTokenForUpdate(refreshToken)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_TOKEN));
 
         // 만료 여부 확인
@@ -122,11 +123,17 @@ public class AuthService {
         // 사용자 가져오기 (Lazy loading)
         User user = storedToken.getUser();
 
-        // 해당 사용자의 모든 리프레시 토큰 삭제 후 flush (동시 요청 시 row lock으로 직렬화)
+        // 해당 사용자의 모든 리프레시 토큰 삭제 후 flush
         refreshTokenRepository.deleteByUserId(user.getId());
         entityManager.flush();
 
-        return createTokenResponse(user);
+        try {
+            return createTokenResponse(user);
+        } catch (DataIntegrityViolationException e) {
+            // 동시 refresh 요청으로 인한 토큰 중복 — 이전 요청이 이미 처리됨
+            log.warn("Concurrent refresh token collision for user: {}", user.getEmail());
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
+        }
     }
 
     @Transactional

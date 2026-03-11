@@ -1,6 +1,7 @@
 package com.kanban.domain.integration.discord.controller;
 
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.integration.FrontendOriginResolver;
 import com.kanban.domain.integration.discord.dto.DiscordRequest;
 import com.kanban.domain.integration.discord.dto.DiscordResponse;
 import com.kanban.domain.integration.discord.service.DiscordService;
@@ -36,8 +37,10 @@ public class DiscordController {
     public ResponseEntity<DiscordResponse.OAuthUrl> getOAuthUrl(
             @PathVariable String boardId,
             @RequestParam String type,
+            @RequestParam(value = "origin", required = false) String origin,
             @AuthenticationPrincipal UserPrincipal principal) {
-        DiscordResponse.OAuthUrl response = discordService.getOAuthUrl(boardId, principal.getUserId(), type);
+        String resolvedOrigin = FrontendOriginResolver.resolve(origin, frontendUrl);
+        DiscordResponse.OAuthUrl response = discordService.getOAuthUrl(boardId, principal.getUserId(), type, resolvedOrigin);
         return ResponseEntity.ok(response);
     }
 
@@ -76,7 +79,11 @@ public class DiscordController {
         try {
             if (state != null) {
                 String[] parts = state.split(":");
-                if (parts.length >= 2) {
+                // state format: type:boardId:userId:origin:timestamp:hmac
+                if (parts.length >= 4) {
+                    String origin = FrontendOriginResolver.resolve(parts[3], frontendUrl);
+                    return origin + "/boards/" + parts[1] + "?view=settings&tab=discord&discord=" + reason;
+                } else if (parts.length >= 2) {
                     return frontendUrl + "/boards/" + parts[1] + "?view=settings&tab=discord&discord=" + reason;
                 }
             }
