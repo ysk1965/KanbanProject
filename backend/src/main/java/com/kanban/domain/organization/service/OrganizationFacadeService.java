@@ -16,6 +16,7 @@ import com.kanban.domain.organization.dto.OrgBoardResponse;
 import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.organization.repository.OrganizationRepository;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
+import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
 import com.kanban.domain.subscription.service.OrgSubscriptionService;
 import com.kanban.global.exception.BusinessException;
@@ -209,6 +210,11 @@ public class OrganizationFacadeService {
 
         board.setOrganization(org);
         board.updateTier(BoardTier.ORG_MANAGED);
+
+        // Mark subscription as managed by org (pause individual billing)
+        subscriptionRepository.findByBoardId(board.getId())
+                .ifPresent(sub -> sub.markMigratedToOrg(orgId));
+
         int memberCount = boardMembers.size();
         List<OrgBoardResponse.MemberPreview> members = boardMembers.stream()
                 .limit(5)
@@ -248,6 +254,11 @@ public class OrganizationFacadeService {
 
         board.updateTier(BoardTier.STANDARD);
         board.removeOrganization();
+
+        // Restore subscription from org management
+        subscriptionRepository.findByBoardId(board.getId())
+                .ifPresent(Subscription::restoreFromOrg);
+
         log.info("Board removed from organization: boardId={}, orgId={}", boardId, orgId);
     }
 

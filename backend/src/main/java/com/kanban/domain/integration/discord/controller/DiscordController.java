@@ -68,7 +68,8 @@ public class DiscordController {
             return new ResponseEntity<>(headers, HttpStatus.FOUND);
         } catch (Exception e) {
             log.warn("Discord OAuth callback failed: {}", e.getMessage(), e);
-            String errorRedirect = buildErrorRedirect(state, "error");
+            String detail = e.getMessage() != null ? java.net.URLEncoder.encode(e.getMessage(), java.nio.charset.StandardCharsets.UTF_8) : "unknown";
+            String errorRedirect = buildErrorRedirect(state, "error") + "&reason=" + detail;
             HttpHeaders headers = new HttpHeaders();
             headers.setLocation(URI.create(errorRedirect));
             return new ResponseEntity<>(headers, HttpStatus.FOUND);
