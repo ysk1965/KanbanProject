@@ -105,8 +105,12 @@ public class SlackOAuthService {
         String encryptedToken = tokenEncryptor.encrypt(botToken);
 
         // Find user and entity
+        log.info("Slack OAuth callback: looking up userId={}, scope={}, entityId={}, origin={}", userId, scopeStr, entityId, origin);
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.error("Slack OAuth callback: USER_NOT_FOUND for userId={}", userId);
+                    return new BusinessException(ErrorCode.USER_NOT_FOUND);
+                });
 
         Board board = null;
         Organization organization = null;

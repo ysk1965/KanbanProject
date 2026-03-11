@@ -4698,12 +4698,6 @@ export interface DiscordUserLinkStatus {
   discord_username: string | null;
 }
 
-export interface DiscordChannelInfo {
-  id: string;
-  name: string;
-  type: number;
-}
-
 export interface DiscordMemberStatus {
   user_id: string;
   linked: boolean;
@@ -4745,19 +4739,6 @@ export const discordAPI = {
 
   unlinkMe: async (boardId: string) => {
     return apiClient.delete(`/boards/${boardId}/discord/me`);
-  },
-
-  getChannels: async (boardId: string) => {
-    return apiClient.get<{ channels: DiscordChannelInfo[] }>(
-      `/boards/${boardId}/discord/channels`,
-    );
-  },
-
-  updateChannel: async (boardId: string, channelId: string) => {
-    return apiClient.put<DiscordBotConfig>(
-      `/boards/${boardId}/discord/channel`,
-      { channel_id: channelId },
-    );
   },
 
   getMemberStatuses: async (boardId: string) => {
