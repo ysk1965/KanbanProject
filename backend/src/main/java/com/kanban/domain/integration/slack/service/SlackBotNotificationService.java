@@ -1,19 +1,24 @@
 package com.kanban.domain.integration.slack.service;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.comment.Comment;
 import com.kanban.domain.integration.slack.SlackInstallation;
 import com.kanban.domain.integration.slack.SlackUserLink;
 import com.kanban.domain.integration.slack.SlackUserLinkRepository;
+import com.kanban.domain.integration.slack.dto.SlackAppResponse;
 import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.note.NoteComment;
 import com.kanban.domain.user.User;
+import com.kanban.global.exception.BusinessException;
+import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.*;
 
 @Slf4j
@@ -24,6 +29,7 @@ public class SlackBotNotificationService {
     private final SlackApiClient slackApiClient;
     private final SlackOAuthService slackOAuthService;
     private final SlackUserLinkRepository userLinkRepository;
+    private final BoardRepository boardRepository;
 
     @Value("${app.frontend-url:https://bridgespots.com}")
     private String frontendUrl;
@@ -157,6 +163,49 @@ public class SlackBotNotificationService {
         blocks.add(actions(boardUrl, "bridge_view_board"));
 
         sendMessage(installation, channelId, blocks, "NOTE_COMMENT_MENTION", noteComment.getId(), board.getId());
+    }
+
+    /**
+     * Send test DM notification to the current user
+     */
+    public SlackAppResponse.TestResult testNotification(String boardId, String userId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        SlackInstallation installation = slackOAuthService.findActiveInstallation(board)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SLACK_APP_NOT_INSTALLED));
+
+        SlackUserLink userLink = userLinkRepository.findByUserId(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SLACK_USER_NOT_LINKED));
+
+        try {
+            String botToken = slackOAuthService.decryptBotToken(installation);
+
+            List<Map<String, Object>> blocks = new ArrayList<>();
+            blocks.add(header("\uD83D\uDD14 Test Notification"));
+            blocks.add(section("BRIDGE Slack Bot 연동 테스트 메시지입니다."));
+            blocks.add(fields(
+                    "*Board:*\n" + board.getName(),
+                    "*Time:*\n" + Instant.now().toString()
+            ));
+            String boardUrl = frontendUrl + "/boards/" + boardId;
+            blocks.add(actions(boardUrl, "bridge_test"));
+
+            String dmChannelId = slackApiClient.conversationsOpen(botToken, userLink.getSlackUserId());
+            slackApiClient.postMessage(botToken, dmChannelId, blocks);
+
+            return SlackAppResponse.TestResult.builder()
+                    .success(true)
+                    .message("테스트 메시지가 전송되었습니다")
+                    .build();
+        } catch (Exception e) {
+            log.warn("Slack test DM failed for user {}: {}", userId, e.getMessage());
+            String detail = e.getMessage() != null ? e.getMessage() : "Unknown error";
+            return SlackAppResponse.TestResult.builder()
+                    .success(false)
+                    .message("Slack DM 전송에 실패했습니다: " + detail)
+                    .build();
+        }
     }
 
     /**
