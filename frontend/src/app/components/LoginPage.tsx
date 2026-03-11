@@ -221,8 +221,8 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onGoogleLoginWithI
         {/* Icon */}
         <div className="mb-8 sm:mb-10 flex justify-center">
           <img
-            src="/BridgeSpotsIcon.png"
-            alt="BRIDGE SPOTS"
+            src={isWhiteLabelDomain ? '/MilkyWay.png' : '/BridgeSpotsIcon.png'}
+            alt={isWhiteLabelDomain ? 'Milkyway' : 'BRIDGE SPOTS'}
             className="h-16 sm:h-20 object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.1)]"
           />
         </div>

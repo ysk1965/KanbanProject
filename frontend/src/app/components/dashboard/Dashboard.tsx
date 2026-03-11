@@ -60,7 +60,7 @@ function DeleteConfirmModal({
           </div>
 
           <p className="text-slate-400 mb-6">
-            <span className="font-bold text-foreground">"{boardName}"</span> {t('board.deleteConfirm')}
+            {t('board.deleteConfirm', { name: boardName })}
             <br />
             <span className="text-rose-400 text-sm">{t('board.deleteIrreversible')}</span>
           </p>
