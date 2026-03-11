@@ -3204,6 +3204,7 @@ export const organizationService = {
   addBoard: organizationAPI.addBoard,
   createBoard: organizationAPI.createBoard,
   removeBoard: organizationAPI.removeBoard,
+  deleteBoard: organizationAPI.deleteBoard,
 
   // Invite Links
   getInviteLinks: organizationAPI.getInviteLinks,

@@ -263,6 +263,35 @@ public class OrganizationFacadeService {
     }
 
     @Transactional
+    public void deleteBoardFromOrg(String orgId, String boardId, String userId) {
+        Organization org = organizationService.getActiveOrgOrThrow(orgId);
+        organizationService.checkAdminOrAbove(orgId, userId);
+
+        Board board = boardRepository.findActiveById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        if (board.getOrganization() == null || !board.getOrganization().getId().equals(orgId)) {
+            throw new BusinessException(ErrorCode.BOARD_NOT_IN_ORG);
+        }
+
+        // Log activity before deleting
+        OrganizationMember actor = organizationService.getOrgMemberOrThrow(orgId, userId);
+        orgActivityService.log(org, actor.getUser().getName(),
+                OrgActivityType.BOARD_DELETED, board.getName(), null);
+
+        // Unlink from org and restore subscription
+        board.updateTier(BoardTier.STANDARD);
+        board.removeOrganization();
+        subscriptionRepository.findByBoardId(board.getId())
+                .ifPresent(Subscription::restoreFromOrg);
+
+        // Soft-delete the board
+        board.softDelete();
+
+        log.info("Board deleted from organization: boardId={}, orgId={}, by userId={}", boardId, orgId, userId);
+    }
+
+    @Transactional
     public OrgBoardResponse.Simple createBoardForOrg(String orgId, OrgBoardRequest.CreateBoard request, String userId) {
         Organization org = organizationRepository.findActiveByIdWithLock(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORG_NOT_FOUND));

@@ -6048,6 +6048,9 @@ export const organizationAPI = {
   removeBoard: async (orgId: string, boardId: string): Promise<void> => {
     return apiClient.delete(`/organizations/${orgId}/boards/${boardId}`);
   },
+  deleteBoard: async (orgId: string, boardId: string): Promise<void> => {
+    return apiClient.delete(`/organizations/${orgId}/boards/${boardId}/delete`);
+  },
 
   // Invite Links
   getInviteLinks: async (
