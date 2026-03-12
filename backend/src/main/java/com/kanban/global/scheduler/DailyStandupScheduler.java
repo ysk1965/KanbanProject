@@ -94,7 +94,7 @@ public class DailyStandupScheduler {
         Map<String, Object> payload;
         if (dataJson == null) {
             log.info("No activity yesterday for board {} - sending empty notice", board.getId());
-            boolean isKo = !"en".equals(config.getLanguage());
+            boolean isKo = config.getLanguage() == null || config.getLanguage().startsWith("ko");
             String noActivityMsg = isKo
                     ? "어제는 기록된 활동이 없습니다."
                     : "No activity was recorded yesterday.";
@@ -129,7 +129,7 @@ public class DailyStandupScheduler {
                                                     LocalDate date, String language) {
         String boardUrl = frontendUrl + "/boards/" + board.getId();
         String dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE);
-        boolean isKo = !"en".equals(language);
+        boolean isKo = language == null || language.startsWith("ko");
 
         List<Map<String, Object>> blocks = new ArrayList<>();
 

@@ -227,7 +227,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
 
   const handleStartDiary = async () => {
     try {
-      const data = await diaryService.create(currentDate);
+      const data = await diaryService.create(currentDate, i18n.language);
       setDiary(data);
     } catch (error) {
       console.error('Failed to create diary:', error);
@@ -252,7 +252,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
     setDiary((prev) => prev ? { ...prev, messages: [...(prev.messages || []), tempUserMsg] } : prev);
 
     try {
-      const reply = await diaryService.sendMessage(diary.id, content);
+      const reply = await diaryService.sendMessage(diary.id, content, i18n.language);
       // Replace temp message with actual and add AI reply
       setDiary((prev) => {
         if (!prev) return prev;
@@ -394,7 +394,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
     setDiary((prev) => prev ? { ...prev, messages: [...(prev.messages || []), tempUserMsg] } : prev);
 
     try {
-      const reply = await diaryService.sendVoiceMessage(diary.id, audioBlob);
+      const reply = await diaryService.sendVoiceMessage(diary.id, audioBlob, i18n.language);
 
       // Replace temp message with actual messages
       setDiary((prev) => {
@@ -481,7 +481,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
     if (!diary || isCompleting) return;
     setIsCompleting(true);
     try {
-      const data = await diaryService.complete(diary.id, { mood });
+      const data = await diaryService.complete(diary.id, { mood }, i18n.language);
       setDiary(data);
       loadDiaryList();
     } catch (error) {
@@ -506,7 +506,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
   const handleReset = async () => {
     if (!diary) return;
     try {
-      const data = await diaryService.reset(diary.id);
+      const data = await diaryService.reset(diary.id, i18n.language);
       setDiary(data);
       setShowResetConfirm(false);
       loadDiaryList();
