@@ -3649,5 +3649,9 @@
     "galleryUploadLinkDesc": "任何擁有此連結的人都可以上傳照片和管理相簿",
     "galleryUploadLinkEnabled": "相簿上傳連結已建立",
     "galleryUploadLinkDisabled": "相簿上傳連結已移除"
+  },
+  "notes": {
+    "newBoard": "新畫板",
+    "addBoard": "新增畫板"
   }
 }

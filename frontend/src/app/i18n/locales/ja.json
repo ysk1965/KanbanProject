@@ -2684,6 +2684,8 @@
     "newDocumentInFolder": "ドキュメントを追加",
     "newFolder": "新規フォルダ",
     "newSubfolder": "サブフォルダを追加",
+    "newBoard": "新しいボード",
+    "addBoard": "ボード追加",
     "noVersions": "保存されたバージョンがありません",
     "rename": "名前を変更",
     "restore": "復元",

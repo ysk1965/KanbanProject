@@ -2662,7 +2662,7 @@ export const noteService = {
     boardId: string,
     data: {
       title: string;
-      type: "FOLDER" | "DOCUMENT";
+      type: "FOLDER" | "DOCUMENT" | "BOARD";
       parentId?: string | null;
       content?: string;
       tagIds?: string[];

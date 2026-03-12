@@ -97,6 +97,7 @@ public class NoteResponse {
     public static class SharedNote {
         private String title;
         private String content;
+        private String type;
         private List<TagInfo> tags;
         private String authorName;
         private LocalDateTime updatedAt;
@@ -105,6 +106,7 @@ public class NoteResponse {
             return SharedNote.builder()
                     .title(note.getTitle())
                     .content(note.getContent())
+                    .type(note.getType().name())
                     .tags(tags)
                     .authorName(note.getUpdatedBy().getName())
                     .updatedAt(note.getUpdatedAt())

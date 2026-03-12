@@ -28,8 +28,8 @@ public interface NoteRepository extends JpaRepository<Note, String> {
     @Query("SELECT COALESCE(MAX(n.position), -1) + 1 FROM Note n WHERE n.parent.id = :parentId AND n.isDeleted = false")
     int findNextChildPosition(@Param("parentId") String parentId);
 
-    @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy WHERE n.board.id = :boardId AND n.type = 'DOCUMENT' AND n.isDeleted = false ORDER BY n.updatedAt DESC")
-    List<Note> findAllDocumentsByBoardId(@Param("boardId") String boardId);
+    @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy WHERE n.board.id = :boardId AND n.type IN ('DOCUMENT', 'BOARD') AND n.isDeleted = false ORDER BY n.updatedAt DESC")
+    List<Note> findAllDocumentsAndBoardsByBoardId(@Param("boardId") String boardId);
 
     @Query("SELECT COUNT(n) FROM Note n WHERE n.parent.id = :parentId AND n.isDeleted = false")
     int countChildrenByParentId(@Param("parentId") String parentId);

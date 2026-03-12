@@ -2684,6 +2684,8 @@
     "newDocumentInFolder": "添加文档",
     "newFolder": "新建文件夹",
     "newSubfolder": "添加子文件夹",
+    "newBoard": "新画板",
+    "addBoard": "添加画板",
     "noVersions": "没有已保存的版本",
     "rename": "重命名",
     "restore": "恢复",

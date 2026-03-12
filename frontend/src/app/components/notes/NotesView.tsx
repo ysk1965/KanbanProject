@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileText, FolderPlus, FilePlus, Search, List, FolderTree, Loader2, Menu } from 'lucide-react';
+import { FileText, FolderPlus, FilePlus, PenTool, Search, List, FolderTree, Loader2, Menu } from 'lucide-react';
 import { NoteTreeSidebar } from './NoteTreeSidebar';
 import { NoteEditor } from './NoteEditor';
 import { NoteListView } from './NoteListView';
@@ -41,7 +41,7 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
     noteId: selectedNoteId || '',
     userName,
     userColor,
-    enabled: !!selectedNoteId && selectedNote?.type === 'DOCUMENT',
+    enabled: !!selectedNoteId && (selectedNote?.type === 'DOCUMENT' || selectedNote?.type === 'BOARD'),
   });
 
   const loadTree = useCallback(async () => {
@@ -124,6 +124,23 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
       handleSelectNote(created.id);
     } catch (err) {
       console.error('Failed to create document:', err);
+    }
+  }, [boardId, canEdit, loadTree, handleSelectNote, t]);
+
+  const handleCreateBoard = useCallback(async (parentId?: string | null) => {
+    if (!canEdit) return;
+    try {
+      const title = t('notes.newBoard', '새 보드');
+      const created = await noteService.create(boardId, {
+        title,
+        type: 'BOARD',
+        parentId: parentId || null,
+      });
+      await loadTree();
+      hasUnsavedChangesRef.current = false;
+      handleSelectNote(created.id);
+    } catch (err) {
+      console.error('Failed to create board:', err);
     }
   }, [boardId, canEdit, loadTree, handleSelectNote, t]);
 
@@ -232,6 +249,13 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
               {t('notes.newDocument', '새 문서')}
             </button>
             <button
+              onClick={() => handleCreateBoard(null)}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+            >
+              <PenTool size={15} />
+              {t('notes.newBoard', '새 보드')}
+            </button>
+            <button
               onClick={() => handleCreateFolder(null)}
               className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
             >
@@ -252,6 +276,7 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
             onSelect={handleSelectNote}
             onCreateFolder={handleCreateFolder}
             onCreateDocument={handleCreateDocument}
+            onCreateBoard={handleCreateBoard}
             onDelete={handleDeleteNote}
             onRename={handleRenameNote}
             onMove={handleMoveNote}

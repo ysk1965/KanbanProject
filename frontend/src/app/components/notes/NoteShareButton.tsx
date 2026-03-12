@@ -74,7 +74,7 @@ export function NoteShareButton({ boardId, note, canEdit, onNoteUpdate }: NoteSh
     }
   };
 
-  if (note.type !== 'DOCUMENT') return null;
+  if (note.type !== 'DOCUMENT' && note.type !== 'BOARD') return null;
 
   return (
     <div className="relative" ref={popoverRef}>
