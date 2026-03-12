@@ -1,6 +1,7 @@
 package com.kanban.domain.integration.slack.service;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.integration.BrandResolver;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.comment.Comment;
@@ -181,9 +182,10 @@ public class SlackBotNotificationService {
         try {
             String botToken = slackOAuthService.decryptBotToken(installation);
 
+            String brand = BrandResolver.resolve(frontendUrl);
             List<Map<String, Object>> blocks = new ArrayList<>();
             blocks.add(header("\uD83D\uDD14 Test Notification"));
-            blocks.add(section("BRIDGE Slack Bot 연동 테스트 메시지입니다."));
+            blocks.add(section(brand + " Slack Bot 연동 테스트 메시지입니다."));
             blocks.add(fields(
                     "*Board:*\n" + board.getName(),
                     "*Time:*\n" + Instant.now().toString()

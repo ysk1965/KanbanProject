@@ -367,6 +367,8 @@
     "workspaceBoards": "Workspace Boards",
     "orgBoards": "Organization Boards",
     "myOrganizations": "My Organizations",
+    "orgSetup": "Manage your team and boards in one place",
+    "orgCreate": "Create",
     "testBoard": "Test Board",
     "testOrg": "Test Org",
     "testOrgTitle": "Create Test Organization (Admin Only)",
