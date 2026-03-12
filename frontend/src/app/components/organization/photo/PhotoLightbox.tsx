@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -48,6 +48,35 @@ export function PhotoLightbox({
       onNavigate(photos[currentIndex + 1]);
     }
   }, [currentIndex, photos, onNavigate]);
+
+  // Touch swipe navigation
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+  }, []);
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (!touchStartRef.current) return;
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - touchStartRef.current.x;
+      const dy = touch.clientY - touchStartRef.current.y;
+      const dt = Date.now() - touchStartRef.current.time;
+      touchStartRef.current = null;
+
+      // Require: horizontal > 50px, more horizontal than vertical, within 300ms
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && dt < 300) {
+        if (dx < 0) {
+          goNext();
+        } else {
+          goPrev();
+        }
+      }
+    },
+    [goPrev, goNext],
+  );
 
   // Keyboard navigation
   useEffect(() => {
@@ -117,13 +146,18 @@ export function PhotoLightbox({
             </div>
           </div>
 
-          {/* Image area */}
-          <div className="flex-1 flex items-center justify-center px-12 py-4">
+          {/* Image area — swipeable */}
+          <div
+            className="flex-1 flex items-center justify-center px-4 sm:px-12 py-4"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
             <motion.img
               key={photo.id}
               src={resolveFileUrl(photo.url)}
               alt={photo.caption || photo.original_filename}
-              className="max-w-full max-h-full object-contain rounded-lg"
+              className="max-w-full max-h-full object-contain rounded-lg select-none"
+              draggable={false}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.2 }}
