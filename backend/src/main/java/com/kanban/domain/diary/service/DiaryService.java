@@ -21,7 +21,7 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class DiaryService {
 
-    private static final String[] OPENING_QUESTIONS = {
+    private static final String[] OPENING_QUESTIONS_KO = {
             "오늘 하루 어땠어? 한마디로 표현해본다면?",
             "오늘 가장 기억에 남는 순간이 있었어?",
             "오늘 하루를 색으로 표현한다면 어떤 색일까?",
@@ -35,6 +35,27 @@ public class DiaryService {
             "오늘 하루, 예상과 다르게 흘러간 부분이 있었어?",
             "오늘 하루 중 나를 가장 설레게 한 건 뭐야?"
     };
+
+    private static final String[] OPENING_QUESTIONS_EN = {
+            "How was your day today? If you could sum it up in one word?",
+            "What was the most memorable moment of your day?",
+            "If you could describe today as a color, what would it be?",
+            "Was there anything you felt grateful for today?",
+            "What kind of mood did you carry throughout the day?",
+            "What made you smile the most today?",
+            "Was there someone you felt thankful for today?",
+            "Is there something you'd like to pat yourself on the back for today?",
+            "When were you most in the zone today?",
+            "If you could express today with one emoji, what would it be? I'm curious why!",
+            "Did anything go differently than expected today?",
+            "What excited you the most today?"
+    };
+
+    private String[] getOpeningQuestions(String language) {
+        if (language != null && language.startsWith("ko")) return OPENING_QUESTIONS_KO;
+        if (language == null) return OPENING_QUESTIONS_KO; // default Korean
+        return OPENING_QUESTIONS_EN;
+    }
 
     private final DiaryEntryRepository diaryEntryRepository;
     private final DiaryMessageRepository diaryMessageRepository;
@@ -68,7 +89,7 @@ public class DiaryService {
     }
 
     @Transactional
-    public DiaryResponse.Detail createDiary(String userId, DiaryRequest.Create request) {
+    public DiaryResponse.Detail createDiary(String userId, DiaryRequest.Create request, String language) {
         if (diaryEntryRepository.existsByUserIdAndDiaryDate(userId, request.getDiaryDate())) {
             throw new BusinessException(ErrorCode.DIARY_ALREADY_EXISTS);
         }
@@ -84,7 +105,8 @@ public class DiaryService {
         diaryEntryRepository.save(entry);
 
         // AI 첫 질문 메시지 추가
-        String openingQuestion = OPENING_QUESTIONS[(int) (Math.random() * OPENING_QUESTIONS.length)];
+        String[] questions = getOpeningQuestions(language);
+        String openingQuestion = questions[(int) (Math.random() * questions.length)];
         DiaryMessage aiMessage = DiaryMessage.builder()
                 .diary(entry)
                 .role("AI")
@@ -99,7 +121,7 @@ public class DiaryService {
     }
 
     @Transactional
-    public DiaryResponse.AiReply sendMessage(String userId, String diaryId, DiaryRequest.SendMessage request) {
+    public DiaryResponse.AiReply sendMessage(String userId, String diaryId, DiaryRequest.SendMessage request, String language) {
         DiaryEntry entry = diaryEntryRepository.findById(diaryId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DIARY_NOT_FOUND));
 
@@ -119,7 +141,7 @@ public class DiaryService {
         diaryMessageRepository.save(userMessage);
 
         // AI 응답 생성 (LLM 기반)
-        String aiReplyContent = diaryAIService.generateChatReply(entry, request.getContent());
+        String aiReplyContent = diaryAIService.generateChatReply(entry, request.getContent(), language);
         DiaryMessage aiMessage = DiaryMessage.builder()
                 .diary(entry)
                 .role("AI")
@@ -138,7 +160,7 @@ public class DiaryService {
     }
 
     @Transactional
-    public DiaryResponse.Detail completeDiary(String userId, String diaryId, DiaryRequest.Complete request) {
+    public DiaryResponse.Detail completeDiary(String userId, String diaryId, DiaryRequest.Complete request, String language) {
         DiaryEntry entry = diaryEntryRepository.findById(diaryId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DIARY_NOT_FOUND));
 
@@ -151,7 +173,7 @@ public class DiaryService {
         String title = request.getTitle();
 
         if ((finalContent == null || finalContent.isBlank()) || (title == null || title.isBlank())) {
-            DiaryAIService.DiaryContent aiContent = diaryAIService.generateDiaryContent(entry);
+            DiaryAIService.DiaryContent aiContent = diaryAIService.generateDiaryContent(entry, language);
             if (finalContent == null || finalContent.isBlank()) {
                 finalContent = aiContent.content();
             }
@@ -182,7 +204,7 @@ public class DiaryService {
     }
 
     @Transactional
-    public DiaryResponse.Detail resetDiary(String userId, String diaryId) {
+    public DiaryResponse.Detail resetDiary(String userId, String diaryId, String language) {
         DiaryEntry entry = diaryEntryRepository.findById(diaryId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DIARY_NOT_FOUND));
 
@@ -194,7 +216,8 @@ public class DiaryService {
         diaryEntryRepository.flush();
 
         // 새 첫 질문 추가
-        String openingQuestion = OPENING_QUESTIONS[(int) (Math.random() * OPENING_QUESTIONS.length)];
+        String[] questions = getOpeningQuestions(language);
+        String openingQuestion = questions[(int) (Math.random() * questions.length)];
         DiaryMessage aiMessage = DiaryMessage.builder()
                 .diary(entry)
                 .role("AI")

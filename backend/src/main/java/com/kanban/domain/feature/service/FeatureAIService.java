@@ -212,13 +212,21 @@ public class FeatureAIService {
 
     private String buildSystemPrompt(String language) {
         String langName = language != null ? LANGUAGE_NAMES.getOrDefault(language, "English") : null;
-        String langInstruction = langName != null
-                ? "- IMPORTANT: Write ALL output text (task titles, descriptions, checklist titles) in " + langName + "."
-                : "- Match the language of the feature title and description.";
+        String langInstruction;
+        String langReminder;
+        if (langName != null) {
+            langInstruction = "CRITICAL LANGUAGE RULE: You MUST write ALL output text (task titles, descriptions, checklist titles) in " + langName + ". Do NOT use English for any content values.";
+            langReminder = "REMINDER: All text content in the JSON output MUST be in " + langName + ".";
+        } else {
+            langInstruction = "CRITICAL LANGUAGE RULE: Match the language of the feature title and description for all output text.";
+            langReminder = "REMINDER: Match the output language to the feature's language.";
+        }
 
         return String.format("""
                 You are a project management assistant for the BRIDGE kanban tool.
                 You receive a feature title and description, and you decompose it into actionable tasks with optional checklists.
+
+                %s
 
                 <rules>
                 - Each task should be a concrete, actionable work item
@@ -229,23 +237,24 @@ public class FeatureAIService {
                 - Descriptions should provide implementation context
                 - Do NOT duplicate tasks that already exist (see existing tasks below)
                 - Respond ONLY with valid JSON (no markdown code fences, no explanation text)
-                %s
                 </rules>
 
                 <output_format>
                 {
                   "tasks": [
                     {
-                      "title": "Task title",
-                      "description": "Brief description of what needs to be done",
+                      "title": "(task title in user language)",
+                      "description": "(description in user language)",
                       "checklists": [
-                        { "title": "Specific step or criterion" }
+                        { "title": "(checklist step in user language)" }
                       ]
                     }
                   ]
                 }
                 </output_format>
-                """, langInstruction);
+
+                %s
+                """, langInstruction, langReminder);
     }
 
     private String buildUserPrompt(String featureTitle, String featureDescription, String existingTasksContext) {

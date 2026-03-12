@@ -3022,15 +3022,16 @@ export const diaryService = {
     return diaryAPI.getList(year, month);
   },
 
-  create: async (diaryDate: string): Promise<DiaryDetail> => {
-    return diaryAPI.create(diaryDate);
+  create: async (diaryDate: string, language?: string): Promise<DiaryDetail> => {
+    return diaryAPI.create(diaryDate, language);
   },
 
   sendMessage: async (
     diaryId: string,
     content: string,
+    language?: string,
   ): Promise<DiaryAiReply> => {
-    return diaryAPI.sendMessage(diaryId, content);
+    return diaryAPI.sendMessage(diaryId, content, language);
   },
 
   complete: async (
@@ -3040,16 +3041,17 @@ export const diaryService = {
       content?: string;
       mood?: string;
     },
+    language?: string,
   ): Promise<DiaryDetail> => {
-    return diaryAPI.complete(diaryId, data);
+    return diaryAPI.complete(diaryId, data, language);
   },
 
   reopen: async (diaryId: string): Promise<DiaryDetail> => {
     return diaryAPI.reopen(diaryId);
   },
 
-  reset: async (diaryId: string): Promise<DiaryDetail> => {
-    return diaryAPI.reset(diaryId);
+  reset: async (diaryId: string, language?: string): Promise<DiaryDetail> => {
+    return diaryAPI.reset(diaryId, language);
   },
 
   update: async (
@@ -3070,8 +3072,9 @@ export const diaryService = {
   sendVoiceMessage: async (
     diaryId: string,
     audioBlob: Blob,
+    language?: string,
   ): Promise<DiaryVoiceReply> => {
-    return diaryAPI.sendVoiceMessage(diaryId, audioBlob);
+    return diaryAPI.sendVoiceMessage(diaryId, audioBlob, language);
   },
 
   getVoiceSettings: async (): Promise<DiaryVoiceSettings> => {
