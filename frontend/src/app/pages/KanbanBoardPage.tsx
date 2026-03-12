@@ -154,9 +154,11 @@ export function KanbanBoardPage() {
     isAdmin: isSystemAdmin,
   } = useAuth();
 
-  // URL 쿼리 파라미터에서 뷰/탭 정보 읽기 (Slack 등 외부 링크용)
+  // URL 쿼리 파라미터에서 뷰/탭/태스크 정보 읽기 (Slack/Discord 등 외부 링크용)
   const urlView = searchParams.get("view") as ViewMode | null;
   const urlTab = searchParams.get("tab");
+  const urlTaskId = searchParams.get("task");
+  const pendingDeepLinkTaskId = useRef<string | null>(urlTaskId);
 
   // 버전 정보
   const [beCommit, setBeCommit] = useState<string>("");
@@ -217,9 +219,10 @@ export function KanbanBoardPage() {
 
   // URL 쿼리 파라미터 소비 후 제거 (뒤로가기 시 다시 트리거 방지)
   useEffect(() => {
-    if (urlView || urlTab) {
+    if (urlView || urlTab || urlTaskId) {
       searchParams.delete("view");
       searchParams.delete("tab");
+      searchParams.delete("task");
       setSearchParams(searchParams, { replace: true });
     }
   }, []);
@@ -268,6 +271,25 @@ export function KanbanBoardPage() {
     reloadFeaturesAndTasks,
     refreshMembers,
   } = useBoardDataLoader(boardId);
+
+  // URL ?task= 딥링크: 데이터 로딩 완료 후 TaskDetailModal 자동 오픈
+  useEffect(() => {
+    if (isLoading || !pendingDeepLinkTaskId.current || !boardId) return;
+    const deepLinkTaskId = pendingDeepLinkTaskId.current;
+    pendingDeepLinkTaskId.current = null;
+
+    const task = tasks.find((t) => t.id === deepLinkTaskId);
+    if (task) {
+      setSelectedTask(task);
+      setIsTaskModalOpen(true);
+      return;
+    }
+    // 마일스톤 필터로 안 보이는 경우 API 직접 조회
+    taskService.getTask(boardId, deepLinkTaskId).then((t) => {
+      setSelectedTask(t);
+      setIsTaskModalOpen(true);
+    }).catch(() => {});
+  }, [isLoading, boardId]);
 
   // ======== 커스텀 Hook: 권한 ========
   const {
