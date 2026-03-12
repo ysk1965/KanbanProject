@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, MoreHorizontal, Pencil, Trash2, FolderPlus, FilePlus, GripVertical } from 'lucide-react';
+import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, MoreHorizontal, Pencil, Trash2, FolderPlus, FilePlus, GripVertical, PenTool } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -23,6 +23,7 @@ interface NoteTreeSidebarProps {
   onSelect: (noteId: string) => void;
   onCreateFolder: (parentId?: string | null) => void;
   onCreateDocument: (parentId?: string | null) => void;
+  onCreateBoard: (parentId?: string | null) => void;
   onDelete: (noteId: string) => void;
   onRename: (noteId: string, newTitle: string) => void;
   onMove: (noteId: string, parentId: string | null, position: number) => void;
@@ -50,6 +51,7 @@ export function NoteTreeSidebar({
   onSelect,
   onCreateFolder,
   onCreateDocument,
+  onCreateBoard,
   onDelete,
   onRename,
   onMove,
@@ -240,6 +242,7 @@ export function NoteTreeSidebar({
             onSelect={onSelect}
             onCreateFolder={onCreateFolder}
             onCreateDocument={onCreateDocument}
+            onCreateBoard={onCreateBoard}
             onDelete={onDelete}
             onRename={onRename}
             canEdit={canEdit}
@@ -255,6 +258,8 @@ export function NoteTreeSidebar({
           <div className="flex items-center gap-2.5 px-3 py-2 bg-bridge-obsidian border border-bridge-accent/50 rounded-lg shadow-lg text-[15px] text-foreground opacity-90">
             {activeItem.type === 'FOLDER' ? (
               <Folder size={18} className="text-bridge-accent" />
+            ) : activeItem.type === 'BOARD' ? (
+              <PenTool size={18} className="text-bridge-secondary" />
             ) : (
               <FileText size={18} className="text-slate-400" />
             )}
@@ -267,7 +272,7 @@ export function NoteTreeSidebar({
 }
 
 function SiblingGroup({
-  items, parentId, selectedNoteId, onSelect, onCreateFolder, onCreateDocument,
+  items, parentId, selectedNoteId, onSelect, onCreateFolder, onCreateDocument, onCreateBoard,
   onDelete, onRename, canEdit, depth, activeId, dropTarget,
 }: {
   items: NoteTreeItem[];
@@ -276,6 +281,7 @@ function SiblingGroup({
   onSelect: (noteId: string) => void;
   onCreateFolder: (parentId?: string | null) => void;
   onCreateDocument: (parentId?: string | null) => void;
+  onCreateBoard: (parentId?: string | null) => void;
   onDelete: (noteId: string) => void;
   onRename: (noteId: string, newTitle: string) => void;
   canEdit: boolean;
@@ -293,6 +299,7 @@ function SiblingGroup({
           onSelect={onSelect}
           onCreateFolder={onCreateFolder}
           onCreateDocument={onCreateDocument}
+          onCreateBoard={onCreateBoard}
           onDelete={onDelete}
           onRename={onRename}
           canEdit={canEdit}
@@ -323,6 +330,7 @@ interface TreeItemComponentProps {
   onSelect: (noteId: string) => void;
   onCreateFolder: (parentId?: string | null) => void;
   onCreateDocument: (parentId?: string | null) => void;
+  onCreateBoard: (parentId?: string | null) => void;
   onDelete: (noteId: string) => void;
   onRename: (noteId: string, newTitle: string) => void;
   canEdit: boolean;
@@ -337,6 +345,7 @@ function TreeItemComponent({
   onSelect,
   onCreateFolder,
   onCreateDocument,
+  onCreateBoard,
   onDelete,
   onRename,
   canEdit,
@@ -451,6 +460,8 @@ function TreeItemComponent({
         {/* Icon */}
         {isFolder ? (
           expanded ? <FolderOpen size={18} className="flex-shrink-0 text-bridge-accent" /> : <Folder size={18} className="flex-shrink-0 text-bridge-accent" />
+        ) : item.type === 'BOARD' ? (
+          <PenTool size={18} className="flex-shrink-0 text-bridge-secondary" />
         ) : (
           <FileText size={18} className="flex-shrink-0 text-slate-400" />
         )}
@@ -501,6 +512,12 @@ function TreeItemComponent({
                         <FilePlus size={14} /> {t('notes.newDocumentInFolder', '문서 추가')}
                       </button>
                       <button
+                        onClick={(e) => { e.stopPropagation(); onCreateBoard(item.id); setMenuOpen(false); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                      >
+                        <PenTool size={14} /> {t('notes.addBoard', '보드 추가')}
+                      </button>
+                      <button
                         onClick={(e) => { e.stopPropagation(); onCreateFolder(item.id); setMenuOpen(false); }}
                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                       >
@@ -546,6 +563,7 @@ function TreeItemComponent({
             onSelect={onSelect}
             onCreateFolder={onCreateFolder}
             onCreateDocument={onCreateDocument}
+            onCreateBoard={onCreateBoard}
             onDelete={onDelete}
             onRename={onRename}
             canEdit={canEdit}

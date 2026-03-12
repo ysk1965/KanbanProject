@@ -2867,6 +2867,8 @@
     "newDocument": "New Document",
     "newDocumentInFolder": "Add Document",
     "newSubfolder": "Add Subfolder",
+    "newBoard": "New Board",
+    "addBoard": "Add Board",
     "rename": "Rename",
     "confirmDelete": "Are you sure? All sub-items will also be deleted.",
     "selectOrCreate": "Select a document or create a new one",

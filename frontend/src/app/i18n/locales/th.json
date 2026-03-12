@@ -2684,6 +2684,8 @@
     "newDocumentInFolder": "เพิ่มเอกสาร",
     "newFolder": "โฟลเดอร์ใหม่",
     "newSubfolder": "เพิ่มโฟลเดอร์ย่อย",
+    "newBoard": "บอร์ดใหม่",
+    "addBoard": "เพิ่มบอร์ด",
     "noVersions": "ไม่มีเวอร์ชันที่บันทึก",
     "rename": "เปลี่ยนชื่อ",
     "restore": "กู้คืน",
