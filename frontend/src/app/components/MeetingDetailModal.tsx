@@ -39,6 +39,8 @@ import {
   MAX_RECORDING_SIZE,
 } from "../hooks/useAudioRecorder";
 import { MotionModal } from "./ui/MotionModal";
+import { TranscriptionProgress } from "./ui/TranscriptionProgress";
+import { wsManager } from "../utils/websocket";
 
 // ============================
 // MeetingDetailPanel (Inline expandable)
@@ -78,6 +80,12 @@ export function MeetingDetailPanel({
     clearRecording,
   } = useAudioRecorder();
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcriptionProgress, setTranscriptionProgress] = useState<{
+    stage: string;
+    percent: number;
+    current?: number;
+    total?: number;
+  } | null>(null);
   const hasMicSupport =
     typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
   const isPublicDomain =
@@ -132,6 +140,37 @@ export function MeetingDetailPanel({
 
   useEffect(() => autoResize(memoRef.current), [editingMemo, autoResize, loading]);
   useEffect(() => autoResize(transcriptRef.current), [editingTranscript, autoResize, loading]);
+
+  // Subscribe to transcription progress events via WebSocket
+  useEffect(() => {
+    if (!isTranscribing) return;
+
+    const sub = wsManager.subscribe(
+      `/topic/board/${boardId}`,
+      (message) => {
+        try {
+          const event = JSON.parse(message.body);
+          if (
+            event.type === "TRANSCRIPTION_PROGRESS" &&
+            event.data?.meeting_id === meetingId
+          ) {
+            setTranscriptionProgress({
+              stage: event.data.stage,
+              percent: event.data.percent,
+              current: event.data.current,
+              total: event.data.total,
+            });
+          }
+        } catch {
+          // ignore parse errors
+        }
+      },
+    );
+
+    return () => {
+      sub.unsubscribe();
+    };
+  }, [isTranscribing, boardId, meetingId]);
 
   // Delete scope modal
   const [deleteScopeModal, setDeleteScopeModal] = useState(false);
@@ -248,6 +287,7 @@ export function MeetingDetailPanel({
   const handleTranscribe = async () => {
     if (!audioBlob) return;
     setIsTranscribing(true);
+    setTranscriptionProgress({ stage: "UPLOADING", percent: 2 });
     try {
       const result = await meetingAPI.transcribeAudio(
         boardId,
@@ -271,9 +311,11 @@ export function MeetingDetailPanel({
       clearRecording();
     } catch (error) {
       console.error("Transcription failed:", error);
+      setTranscriptionProgress({ stage: "ERROR", percent: 0 });
       alert(t("meeting.transcriptionError"));
     } finally {
       setIsTranscribing(false);
+      setTimeout(() => setTranscriptionProgress(null), 1200);
     }
   };
 
@@ -593,9 +635,15 @@ export function MeetingDetailPanel({
                     )}
 
                     {isTranscribing && (
-                      <div className="flex items-center gap-1.5 px-3 py-2 text-xs text-slate-400">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        {t("meeting.transcribing")}
+                      <div className="flex items-center px-3 py-1.5">
+                        <TranscriptionProgress
+                          stage={transcriptionProgress?.stage ?? "UPLOADING"}
+                          percent={transcriptionProgress?.percent ?? 0}
+                          current={transcriptionProgress?.current}
+                          total={transcriptionProgress?.total}
+                          size={40}
+                          strokeWidth={3}
+                        />
                       </div>
                     )}
                   </div>

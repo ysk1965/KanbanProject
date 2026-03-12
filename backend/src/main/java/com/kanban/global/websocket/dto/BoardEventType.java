@@ -51,6 +51,7 @@ public enum BoardEventType {
     MEETING_CREATED,
     MEETING_UPDATED,
     MEETING_DELETED,
+    TRANSCRIPTION_PROGRESS,
 
     // Presence events
     PRESENCE_JOINED,
