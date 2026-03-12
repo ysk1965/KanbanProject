@@ -117,13 +117,21 @@ public class CommentAIService {
 
     private String buildSystemPrompt(String language) {
         String langName = language != null ? LANGUAGE_NAMES.getOrDefault(language, "English") : null;
-        String langInstruction = langName != null
-                ? "- IMPORTANT: Write ALL output text in " + langName + "."
-                : "- Match the language of the comments.";
+        String langInstruction;
+        String langReminder;
+        if (langName != null) {
+            langInstruction = "CRITICAL LANGUAGE RULE: You MUST write ALL output text (summary, decisions, open_questions, action_items) in " + langName + ". Do NOT use English for any content values.";
+            langReminder = "REMINDER: All text content in the JSON output MUST be in " + langName + ".";
+        } else {
+            langInstruction = "CRITICAL LANGUAGE RULE: Match the language of the comments for all output text.";
+            langReminder = "REMINDER: Match the output language to the comments' language.";
+        }
 
         return String.format("""
                 You are a discussion analyzer for the BRIDGE project management tool.
                 You receive a thread of comments on a task and extract key information.
+
+                %s
 
                 <rules>
                 - Identify concrete decisions that were made or agreed upon
@@ -134,20 +142,21 @@ public class CommentAIService {
                 - Focus on text content only (ignore file attachments and reactions)
                 - If no decisions/questions/actions exist for a category, return an empty array
                 - Respond ONLY with valid JSON (no markdown code fences, no explanation text)
-                %s
                 </rules>
 
                 <output_format>
                 {
-                  "summary": "Overall discussion summary in 1-2 sentences",
-                  "decisions": ["Decision or agreement 1", "Decision 2"],
-                  "open_questions": ["Unresolved question 1"],
+                  "summary": "(discussion summary in user language)",
+                  "decisions": ["(decision in user language)"],
+                  "open_questions": ["(unresolved question in user language)"],
                   "action_items": [
-                    { "title": "What needs to be done", "assignee_hint": "Person name or null" }
+                    { "title": "(action item in user language)", "assignee_hint": "Person name or null" }
                   ]
                 }
                 </output_format>
-                """, langInstruction);
+
+                %s
+                """, langInstruction, langReminder);
     }
 
     private String buildUserPrompt(String taskTitle, String commentsText) {

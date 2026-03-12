@@ -279,13 +279,26 @@ public class MeetingAIService {
 
     private String buildSystemPrompt(String language) {
         String langName = getLanguageName(language);
-        String langInstruction = langName != null
-                ? "- IMPORTANT: Write ALL output text (key_points, summary, feature/task/checklist titles and descriptions) in " + langName + "."
-                : "- Match the language of the meeting memo (Korean memo → Korean output, English → English)";
+        String langInstruction;
+        String langReminder;
+        if (langName != null) {
+            langInstruction = "CRITICAL LANGUAGE RULE: You MUST write ALL output text in " + langName + ". " +
+                    "Every value in key_points, summary (topic, decisions, discussions, action_items), " +
+                    "and features (title, description), tasks (title, description), checklists (title) MUST be in " + langName + ". " +
+                    "Do NOT use English for any content values.";
+            langReminder = "REMINDER: All text content in the JSON output MUST be in " + langName + ". This is mandatory.";
+        } else {
+            langInstruction = "CRITICAL LANGUAGE RULE: You MUST match the language of the meeting memo/transcript. " +
+                    "If the transcript is in Korean, write ALL output in Korean. If in English, write in English. " +
+                    "Detect the language from the transcript and use that same language for all output values.";
+            langReminder = "REMINDER: Match the output language to the transcript language.";
+        }
 
         return String.format("""
                 You are a project management assistant for the BRIDGE kanban tool.
                 You receive a meeting memo/transcript and a list of existing features/tasks on the board.
+
+                %s
 
                 Your job is to:
                 1. Create a well-organized meeting summary grouped by work topics, clearly separating decisions, discussions, and action items
@@ -319,35 +332,34 @@ public class MeetingAIService {
                 - Keep titles concise (under 100 characters)
                 - Descriptions should provide context from the meeting discussion
                 - Respond ONLY with valid JSON (no markdown code fences, no explanation text)
-                %s
                 - If there are no actionable items, still provide the summary and key_points
                 </rules>
 
                 <output_format>
                 {
-                  "key_points": ["Important decision or conclusion 1", "Important decision 2"],
+                  "key_points": ["(content in transcript language)", "(content in transcript language)"],
                   "summary": [
                     {
-                      "topic": "Work area / Discussion topic name",
+                      "topic": "(topic name in transcript language)",
                       "important": true,
-                      "decisions": ["What was decided or confirmed"],
-                      "discussions": ["What was discussed but not yet resolved"],
-                      "action_items": ["Who needs to do what"]
+                      "decisions": ["(decision in transcript language)"],
+                      "discussions": ["(discussion in transcript language)"],
+                      "action_items": ["(action item in transcript language)"]
                     }
                   ],
                   "features": [
                     {
                       "type": "NEW" or "EXISTING",
                       "feature_id": "uuid (EXISTING only, null for NEW)",
-                      "title": "Feature title",
-                      "description": "Brief feature description",
+                      "title": "(feature title in transcript language)",
+                      "description": "(description in transcript language)",
                       "color": "#hex (NEW only, pick from: #6366F1, #EC4899, #F59E0B, #10B981, #3B82F6, #EF4444, #8B5CF6, #14B8A6)",
                       "tasks": [
                         {
-                          "title": "Task title",
-                          "description": "What needs to be done",
+                          "title": "(task title in transcript language)",
+                          "description": "(description in transcript language)",
                           "checklists": [
-                            { "title": "Specific step or criterion" }
+                            { "title": "(checklist item in transcript language)" }
                           ]
                         }
                       ]
@@ -363,7 +375,9 @@ public class MeetingAIService {
                 CORRECT: {"type":"EXISTING", "feature_id":"abc-123", ...} — GitHub social login belongs under the existing "User Authentication" feature.
                 WRONG: {"type":"NEW", "title":"GitHub Login Feature", ...} — This would create an unnecessary duplicate.
                 </example>
-                """, langInstruction);
+
+                %s
+                """, langInstruction, langReminder);
     }
 
     private String buildUserPrompt(String meetingTitle, String memo, String boardContext) {

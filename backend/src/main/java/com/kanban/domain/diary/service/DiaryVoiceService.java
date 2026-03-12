@@ -53,7 +53,7 @@ public class DiaryVoiceService {
      */
     @Transactional
     public DiaryResponse.VoiceReply processVoiceMessage(
-            String userId, String diaryId, MultipartFile audioFile) {
+            String userId, String diaryId, MultipartFile audioFile, String language) {
 
         // Validate
         DiaryEntry entry = diaryEntryRepository.findById(diaryId)
@@ -73,7 +73,7 @@ public class DiaryVoiceService {
 
         // 1. STT: 음성 → 텍스트
         aiCreditService.consumeUserCredit(userId, "DIARY_VOICE_STT", 1);
-        String userText = transcribeAudio(audioFile);
+        String userText = transcribeAudio(audioFile, language);
         log.info("Diary voice STT completed: diary={}, text_length={}", diaryId, userText.length());
 
         // 2. 텍스트 메시지로 저장 + AI 응답 생성
@@ -88,7 +88,7 @@ public class DiaryVoiceService {
         diaryMessageRepository.save(userMessage);
 
         // AI 응답 생성 (기존 DiaryAIService 재사용)
-        String aiText = diaryAIService.generateChatReply(entry, userText);
+        String aiText = diaryAIService.generateChatReply(entry, userText, language);
 
         // 3. TTS: AI 응답 → 음성
         aiCreditService.consumeUserCredit(userId, "DIARY_VOICE_TTS", 1);
@@ -125,7 +125,7 @@ public class DiaryVoiceService {
     /**
      * OpenAI Whisper API로 음성 변환
      */
-    private String transcribeAudio(MultipartFile audioFile) {
+    private String transcribeAudio(MultipartFile audioFile, String language) {
         try {
             byte[] audioBytes = audioFile.getBytes();
             String filename = audioFile.getOriginalFilename() != null
@@ -143,7 +143,9 @@ public class DiaryVoiceService {
                 }
             });
             body.add("model", WHISPER_MODEL);
-            body.add("language", "ko");
+            // Map i18n language code to Whisper ISO-639-1 code
+            String whisperLang = language != null ? language.split("-")[0] : "ko";
+            body.add("language", whisperLang);
 
             HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
 

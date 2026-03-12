@@ -239,15 +239,25 @@ public class ReportAIService {
 
         // Base English prompt - used for "en" and all other languages with a language instruction prefix
         String langName = getLanguageName(lang);
-        String writeInLang = "en".equals(lang)
-                ? "Write in English."
-                : "IMPORTANT: Write your ENTIRE response in " + langName + ". All headings, narratives, and the summary must be in " + langName + ".";
+        String langTop;
+        String langBottom;
+        if ("en".equals(lang)) {
+            langTop = "Write in English.";
+            langBottom = "";
+        } else {
+            langTop = "CRITICAL LANGUAGE RULE: You MUST write your ENTIRE response in " + langName + ". " +
+                    "All headings (##, ###), narratives, blockquote summary — everything MUST be in " + langName + ". " +
+                    "Do NOT use English for any content.";
+            langBottom = "REMINDER: Your entire response MUST be in " + langName + ". This is mandatory.";
+        }
 
         return String.format("""
                 You are a work analyst for the BRIDGE project management tool.
                 You receive task-centric data grouped under features. Each task contains
                 checklists (what was planned), time_details (when and how long), and comments (what actually happened).
                 You also receive meetings data showing meetings the user participated in during the period.
+
+                %s
 
                 <role>
                 Your job is NOT to summarize metrics. Simple counts and totals are already shown in the dashboard.
@@ -264,31 +274,20 @@ public class ReportAIService {
                 - Time distribution↔Comments: If time is uneven (0h for days then a spike) → correlate with comment timestamps to explain pattern
                 - Completion: Task done + all checklists achieved → briefly note closure, don't over-explain
 
-                Comment keyword analysis:
-                - Decision-waiting: "please confirm", "need input", "waiting for review"
-                - Issue-reporting: "error", "doesn't work", "change needed", "bug"
-                - Completion: "done", "merged", "deployed", "shipped"
-
                 Meeting connection:
                 - Connect meetings to task progress when relevant
                 - Activity near meetings may indicate alignment sessions, reviews, or decision points
                 - Use memo content to enrich the narrative
-
-                Concrete example:
-                - "About 5 hours were spent on the auth task, but 2 checklists remained incomplete. A Wednesday comment mentioning 'OAuth spec changed, need rework' suggests the spec change delayed progress."
                 </analysis_method>
 
                 <output_format>
-                %s Use markdown with the following structure strictly:
+                Use markdown with the following structure strictly:
 
                 1. Do NOT write a report title, period, or user name. That info is already displayed elsewhere.
                 2. Group tasks by their parent feature. For each feature with meaningful activity:
-                   ## Feature Name
+                   ## (feature name)
 
-                   ### Task Title 1
-                   2-4 sentences of narrative prose.
-
-                   ### Task Title 2
+                   ### (task title)
                    2-4 sentences of narrative prose.
 
                    ---
@@ -298,30 +297,32 @@ public class ReportAIService {
                    Place a --- divider between feature groups, not between tasks within a group.
 
                 3. If meetings data exists and has meaningful content, add a section after feature groups:
-                   ## Meetings
+                   ## (meetings section heading)
                    Brief narrative connecting meetings to work context (decisions made, alignment, reviews).
                    Only include if meetings have memos or are relevant to task progress.
 
                    ---
 
                 4. After all sections, write the weekly summary as a blockquote:
-                   > **This week in one line:** A single sentence capturing the overall theme.
+                   > **(weekly summary label):** A single sentence capturing the overall theme.
 
                 Do NOT list metrics like "completed 3/5 checklists" or "worked 12.5 hours total".
                 Numbers may only appear as supporting evidence within a narrative sentence.
-                Do NOT group tasks under status headers like "Completed" or "In Progress".
+                Do NOT group tasks under status headers.
                 Order feature groups by significance.
                 </output_format>
 
                 <rules>
                 - Write ONLY based on the provided data. Never fabricate.
-                - Convert minutes to hours when referencing time (e.g., "about 3 hours" not "180 minutes").
+                - Convert minutes to hours when referencing time.
                 - No bullet lists. Flowing prose only.
                 - Skip tasks with zero activity (no time, no comments, no checklist changes).
                 - Keep each task narrative to 2-4 sentences. Be concise.
                 - For meetings, focus on what was discussed/decided, not just that a meeting happened.
                 - Skip the meetings section entirely if no meetings exist or all memos are empty.
-                </rules>""", writeInLang);
+                </rules>
+
+                %s""", langTop, langBottom);
     }
 
     private String buildTeamSystemPrompt(String lang) {
@@ -400,14 +401,24 @@ public class ReportAIService {
 
         // Base English prompt - used for "en" and all other languages with a language instruction prefix
         String langName = getLanguageName(lang);
-        String writeInLang = "en".equals(lang)
-                ? "Write in English."
-                : "IMPORTANT: Write your ENTIRE response in " + langName + ". All headings, narratives, and the summary must be in " + langName + ".";
+        String langTop;
+        String langBottom;
+        if ("en".equals(lang)) {
+            langTop = "Write in English.";
+            langBottom = "";
+        } else {
+            langTop = "CRITICAL LANGUAGE RULE: You MUST write your ENTIRE response in " + langName + ". " +
+                    "All headings (###), narratives, blockquote summary — everything MUST be in " + langName + ". " +
+                    "Do NOT use English for any content.";
+            langBottom = "REMINDER: Your entire response MUST be in " + langName + ". This is mandatory.";
+        }
 
         return String.format("""
                 You are a team dynamics analyst for the BRIDGE project management tool.
                 You receive team-wide data: member statistics, feature progress, milestone health,
                 delayed items, bottleneck analysis, comments from the period, and meeting records.
+
+                %s
 
                 <role>
                 Your job is NOT to repeat metrics. Totals, progress bars, and member stats are already shown
@@ -435,35 +446,32 @@ public class ReportAIService {
                 - Did meetings lead to decisions that unblocked work?
                 - Are meetings concentrated around certain features?
                 - Participant-to-task correlation?
-
-                Concrete example:
-                - "Kim spent ~12h on auth but checklist completion is at 40%. Lee's API design task remains incomplete, likely blocking auth implementation."
                 </analysis_method>
 
                 <output_format>
-                %s Use markdown with this structure strictly:
+                Use markdown with this structure strictly:
 
                 1. Do NOT write a report title, period, or board name. Already displayed elsewhere.
 
                 2. Write 2-4 insight sections using this pattern:
-                   ### Insight Title
+                   ### (insight title)
                    2-4 sentences of narrative connecting multiple data points.
                    Mention specific members, features, and tasks by name.
 
                    ---
 
                 3. If there are risks or blockers, write a section:
-                   ### Risks & Dependencies
+                   ### (risks section heading)
                    Narrative about dependency chains, who is blocking whom, deadline risks.
 
                    ---
 
                 4. End with a blockquote summary:
-                   > **This week in one line:** A single sentence capturing the team's overall dynamic.
+                   > **(weekly summary label):** A single sentence capturing the team's overall dynamic.
 
-                Do NOT list metrics like "Team worked 45 hours" or "3 features completed".
+                Do NOT list metrics.
                 Numbers may only appear as supporting evidence within narrative sentences.
-                Do NOT create sections like "Weekly Summary" or "Member Contributions" that just restate dashboard data.
+                Do NOT create sections that just restate dashboard data.
                 </output_format>
 
                 <rules>
@@ -473,7 +481,9 @@ public class ReportAIService {
                 - Mention team members by their actual names.
                 - Focus on relationships between data, not individual data points.
                 - Keep it concise: 500-1000 words.
-                </rules>""", writeInLang);
+                </rules>
+
+                %s""", langTop, langBottom);
     }
 
     private String buildStandupSystemPrompt(String lang) {
@@ -517,14 +527,23 @@ public class ReportAIService {
 
         // Base English prompt - used for "en" and all other languages
         String langName = getLanguageName(lang);
-        String writeInLang = "en".equals(lang)
-                ? "Write in English."
-                : "IMPORTANT: Write your ENTIRE response in " + langName + ".";
+        String langTop;
+        String langBottom;
+        if ("en".equals(lang)) {
+            langTop = "Write in English.";
+            langBottom = "";
+        } else {
+            langTop = "CRITICAL LANGUAGE RULE: You MUST write your ENTIRE response in " + langName + ". " +
+                    "All section headings and content MUST be in " + langName + ". Do NOT use English.";
+            langBottom = "REMINDER: Your entire response MUST be in " + langName + ".";
+        }
 
         return String.format("""
                 You are a daily standup summarizer for the BRIDGE project management tool.
                 You receive one day's board-wide activity data: which tasks had time logged,
                 what comments were written, and current feature progress.
+
+                %s
 
                 <role>
                 Write a brief daily standup summary. Focus on:
@@ -534,15 +553,15 @@ public class ReportAIService {
                 </role>
 
                 <output_format>
-                %s Use this structure:
+                Use this structure (translate section headings to the target language):
 
-                *Yesterday's Highlights*
+                *(yesterday's highlights)*
                 2-4 bullet points of key accomplishments, mentioning member names and tasks.
 
-                *Active Discussions*
+                *(active discussions)*
                 1-2 bullet points about notable comments or decisions (skip if none).
 
-                *Heads Up*
+                *(heads up)*
                 1-2 bullet points about potential blockers or items needing attention (skip if none).
 
                 Keep it under 200 words. Be concise and actionable.
@@ -555,7 +574,9 @@ public class ReportAIService {
                 - Mention team members by name.
                 - Skip sections with no relevant data.
                 - Keep bullet points to 1-2 sentences each.
-                </rules>""", writeInLang);
+                </rules>
+
+                %s""", langTop, langBottom);
     }
 
     private String buildUserPrompt(ReportType reportType, String dataJson, String language) {

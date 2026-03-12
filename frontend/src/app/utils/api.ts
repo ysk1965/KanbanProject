@@ -5310,15 +5310,18 @@ export const diaryAPI = {
     return apiClient.get(`/diary/list?year=${year}&month=${month}`);
   },
 
-  create: async (diaryDate: string): Promise<DiaryDetail> => {
-    return apiClient.post("/diary", { diary_date: diaryDate });
+  create: async (diaryDate: string, language?: string): Promise<DiaryDetail> => {
+    const params = language ? `?language=${encodeURIComponent(language)}` : "";
+    return apiClient.post(`/diary${params}`, { diary_date: diaryDate });
   },
 
   sendMessage: async (
     diaryId: string,
     content: string,
+    language?: string,
   ): Promise<DiaryAiReply> => {
-    return apiClient.post(`/diary/${diaryId}/messages`, { content });
+    const params = language ? `?language=${encodeURIComponent(language)}` : "";
+    return apiClient.post(`/diary/${diaryId}/messages${params}`, { content });
   },
 
   complete: async (
@@ -5328,16 +5331,19 @@ export const diaryAPI = {
       content?: string;
       mood?: string;
     },
+    language?: string,
   ): Promise<DiaryDetail> => {
-    return apiClient.put(`/diary/${diaryId}/complete`, data);
+    const params = language ? `?language=${encodeURIComponent(language)}` : "";
+    return apiClient.put(`/diary/${diaryId}/complete${params}`, data);
   },
 
   reopen: async (diaryId: string): Promise<DiaryDetail> => {
     return apiClient.put(`/diary/${diaryId}/reopen`, {});
   },
 
-  reset: async (diaryId: string): Promise<DiaryDetail> => {
-    return apiClient.put(`/diary/${diaryId}/reset`, {});
+  reset: async (diaryId: string, language?: string): Promise<DiaryDetail> => {
+    const params = language ? `?language=${encodeURIComponent(language)}` : "";
+    return apiClient.put(`/diary/${diaryId}/reset${params}`, {});
   },
 
   update: async (
@@ -5359,12 +5365,14 @@ export const diaryAPI = {
   sendVoiceMessage: async (
     diaryId: string,
     audioBlob: Blob,
+    language?: string,
   ): Promise<DiaryVoiceReply> => {
     const formData = new FormData();
     formData.append("file", audioBlob, "recording.webm");
 
+    const params = language ? `?language=${encodeURIComponent(language)}` : "";
     const response = await authenticatedFetch(
-      `${API_BASE_URL}/diary/${diaryId}/voice-message`,
+      `${API_BASE_URL}/diary/${diaryId}/voice-message${params}`,
       {
         method: "POST",
         body: formData,

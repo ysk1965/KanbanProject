@@ -60,15 +60,32 @@ public class DiaryAIService {
     @Value("${ai.openai.model.diary:gpt-4o-mini}")
     private String openaiModel;
 
+    private static final Map<String, String> LANGUAGE_NAMES = Map.ofEntries(
+            Map.entry("ko", "Korean"),
+            Map.entry("en", "English"),
+            Map.entry("ja", "Japanese"),
+            Map.entry("zh", "Chinese (Simplified)"),
+            Map.entry("zh-TW", "Chinese (Traditional)"),
+            Map.entry("vi", "Vietnamese"),
+            Map.entry("th", "Thai"),
+            Map.entry("hi", "Hindi"),
+            Map.entry("es", "Spanish"),
+            Map.entry("pt-BR", "Portuguese (Brazil)")
+    );
+
     private String getModel() {
         return "openai".equals(provider) ? openaiModel : claudeModel;
+    }
+
+    private boolean isKorean(String language) {
+        return language == null || language.startsWith("ko");
     }
 
     // ============================
     // 대화형 AI 응답 생성
     // ============================
 
-    private static final String CHAT_SYSTEM_PROMPT = """
+    private static final String CHAT_SYSTEM_PROMPT_KO = """
             당신은 사용자의 하루를 기록해주는 따뜻하고 공감적인 AI 다이어리 파트너입니다.
             친한 친구처럼 편안하게 대화하며, 사용자의 하루를 자연스럽게 끌어내 주세요.
 
@@ -96,7 +113,7 @@ public class DiaryAIService {
             </사용자 컨텍스트 활용>
 
             <규칙>
-            - 한국어로 대화하세요 (사용자가 다른 언어를 쓰면 그 언어에 맞춰주세요)
+            - 한국어로 대화하세요
             - 절대 AI라는 것을 강조하지 마세요
             - 이모지는 가끔만 자연스럽게 사용하세요
             - "~하셨군요" 같은 딱딱한 존칭보다 "~했구나", "~인 거야?" 같은 편안한 반말도 OK (사용자 톤에 맞춰주세요)
@@ -105,49 +122,112 @@ public class DiaryAIService {
             </규칙>
             """;
 
+    private String buildChatSystemPrompt(String language) {
+        if (isKorean(language)) {
+            return CHAT_SYSTEM_PROMPT_KO;
+        }
+
+        String langName = LANGUAGE_NAMES.getOrDefault(language, "English");
+        return String.format("""
+                You are a warm and empathetic AI diary partner who helps users record their day.
+                Chat naturally like a close friend, gently drawing out their daily stories.
+
+                CRITICAL LANGUAGE RULE: You MUST respond in %s. All your messages must be in %s.
+
+                <role>
+                - Genuinely empathize with the user's stories, and use follow-up questions to draw out deeper narratives
+                - Explore the day from various angles: events, emotions, people, thoughts, things to be grateful for, tomorrow's plans
+                - Ask different questions each time. Never repeat the same question
+                - Keep responses to 2-3 sentences, natural and warm
+                </role>
+
+                <conversation_flow_guide>
+                - Early (1-2 turns): Open questions to understand the day's main events or mood
+                - Middle (3-4 turns): Dive deeper into specific episodes, emotions, relationships
+                - Later (5+ turns): Expand to reflection, lessons learned, gratitude, thoughts about tomorrow
+                - If the user wants to keep talking, naturally transition to new topics
+                - NEVER mention "completing the diary" or "wrapping up". The user decides when to finish via the UI
+                </conversation_flow_guide>
+
+                <user_context_usage>
+                - The user's schedule/tasks/events for the day may be provided
+                - Use this naturally in conversation (e.g., "I see you had a meeting today, how did it go?")
+                - Don't list the data directly. Use it only as natural conversation material
+                - Don't ask about every schedule item. Bring them up one at a time naturally
+                - Prioritize topics the user brings up first; use context as backup when conversation runs low
+                </user_context_usage>
+
+                <rules>
+                - ALWAYS respond in %s
+                - Never emphasize that you are an AI
+                - Use emojis only occasionally and naturally
+                - Match the user's tone — casual or formal
+                - First acknowledge the user's emotions, then ask a question
+                - Include one follow-up question in each response
+                </rules>
+
+                REMINDER: You MUST respond in %s. This is mandatory.
+                """, langName, langName, langName, langName);
+    }
+
     /**
      * 대화 맥락을 기반으로 AI 응답 생성
      */
-    public String generateChatReply(DiaryEntry entry, String userMessage) {
+    public String generateChatReply(DiaryEntry entry, String userMessage, String language) {
         // Consume user-level AI credit before processing
         aiCreditService.consumeUserCredit(entry.getUser().getId(), "DIARY_CHAT", 1);
 
         List<DiaryMessage> messages = diaryMessageRepository.findByDiaryIdOrderByMessageOrder(entry.getId());
+        boolean ko = isKorean(language);
 
         StringBuilder conversationContext = new StringBuilder();
-        conversationContext.append("날짜: ").append(entry.getDiaryDate().format(DateTimeFormatter.ofPattern("yyyy년 M월 d일"))).append("\n\n");
+        if (ko) {
+            conversationContext.append("날짜: ").append(entry.getDiaryDate().format(DateTimeFormatter.ofPattern("yyyy년 M월 d일"))).append("\n\n");
+        } else {
+            conversationContext.append("Date: ").append(entry.getDiaryDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))).append("\n\n");
+        }
 
         // 첫 대화 시 사용자의 하루 컨텍스트 포함
         int userMessageCount = (int) messages.stream().filter(m -> "USER".equals(m.getRole())).count() + 1;
         if (userMessageCount <= 3) {
-            String dayContext = buildUserDayContext(entry.getUser().getId(), entry.getDiaryDate());
+            String dayContext = buildUserDayContext(entry.getUser().getId(), entry.getDiaryDate(), ko);
             if (!dayContext.isEmpty()) {
-                conversationContext.append("=== 사용자의 오늘 일정/활동 (참고용, 자연스럽게 활용) ===\n");
+                if (ko) {
+                    conversationContext.append("=== 사용자의 오늘 일정/활동 (참고용, 자연스럽게 활용) ===\n");
+                } else {
+                    conversationContext.append("=== User's today schedule/activities (reference only, use naturally) ===\n");
+                }
                 conversationContext.append(dayContext).append("\n\n");
             }
         }
 
-        conversationContext.append("=== 대화 기록 ===\n");
+        if (ko) {
+            conversationContext.append("=== 대화 기록 ===\n");
+        } else {
+            conversationContext.append("=== Conversation History ===\n");
+        }
         for (DiaryMessage msg : messages) {
-            String role = "AI".equals(msg.getRole()) ? "AI" : "사용자";
+            String role = "AI".equals(msg.getRole()) ? "AI" : (ko ? "사용자" : "User");
             conversationContext.append(role).append(": ").append(msg.getContent()).append("\n");
         }
 
         // 현재 사용자 메시지 추가
-        conversationContext.append("사용자: ").append(userMessage).append("\n\n");
-        conversationContext.append("(현재 사용자 메시지 수: ").append(userMessageCount).append("회차)\n");
-        conversationContext.append("위 대화에 이어서 자연스럽게 공감하고, 새로운 후속 질문을 해주세요.");
+        conversationContext.append(ko ? "사용자: " : "User: ").append(userMessage).append("\n\n");
+        conversationContext.append(ko
+                ? "(현재 사용자 메시지 수: " + userMessageCount + "회차)\n위 대화에 이어서 자연스럽게 공감하고, 새로운 후속 질문을 해주세요."
+                : "(Current user message count: turn " + userMessageCount + ")\nContinue the conversation naturally with empathy and a new follow-up question.");
 
         try {
             String model = getModel();
-            AIResponse result = aiProvider.chatWithUsage(CHAT_SYSTEM_PROMPT, conversationContext.toString(), model, 500);
+            String systemPrompt = buildChatSystemPrompt(language);
+            AIResponse result = aiProvider.chatWithUsage(systemPrompt, conversationContext.toString(), model, 500);
             log.debug("Diary chat AI response generated for diary: {}, tokens: in={}, out={}",
                     entry.getId(), result.inputTokens(), result.outputTokens());
             logAiUsage("DIARY_CHAT", model, null, entry.getUser().getId(), result);
             return result.content();
         } catch (Exception e) {
             log.warn("AI chat reply failed for diary: {}, falling back to rule-based", entry.getId(), e);
-            return generateFallbackReply(messages.size());
+            return generateFallbackReply(messages.size(), language);
         }
     }
 
@@ -155,25 +235,11 @@ public class DiaryAIService {
     // 사용자 하루 컨텍스트 수집
     // ============================
 
-    /**
-     * 사용자의 해당 날짜 개인 활동 + 보드 활동 정보를 수집하여 문자열로 반환
-     */
-    private String buildUserDayContext(String userId, LocalDate date) {
+    private String buildUserDayContext(String userId, LocalDate date, boolean ko) {
         try {
             StringBuilder context = new StringBuilder();
-
-            // ========================================
-            // 1. 개인 데이터 (메인)
-            // ========================================
-
-            buildPersonalContext(context, userId, date);
-
-            // ========================================
-            // 2. 보드 데이터 (보조 - 연결된 보드가 있을 때)
-            // ========================================
-
-            buildBoardContext(context, userId, date);
-
+            buildPersonalContext(context, userId, date, ko);
+            buildBoardContext(context, userId, date, ko);
             return context.toString().trim();
         } catch (Exception e) {
             log.warn("Failed to build user day context for diary, continuing without context", e);
@@ -181,21 +247,21 @@ public class DiaryAIService {
         }
     }
 
-    private void buildPersonalContext(StringBuilder context, String userId, LocalDate date) {
+    private void buildPersonalContext(StringBuilder context, String userId, LocalDate date, boolean ko) {
         // 1-1. 개인 할 일 (오늘 마감 + 진행중)
         List<PersonalTask> dueTasks = personalTaskRepository.findByUserIdAndDueDate(userId, date);
         List<PersonalTask> inProgressTasks = personalTaskRepository.findInProgressByUserId(userId);
 
-        // 진행중 태스크 중 오늘 마감 아닌 것만 추가 (중복 제거)
         Set<String> dueTaskIds = dueTasks.stream().map(PersonalTask::getId).collect(Collectors.toSet());
         List<PersonalTask> extraInProgress = inProgressTasks.stream()
                 .filter(t -> !dueTaskIds.contains(t.getId()))
                 .toList();
 
         if (!dueTasks.isEmpty() || !extraInProgress.isEmpty()) {
-            context.append("[개인 할 일]\n");
+            context.append(ko ? "[개인 할 일]\n" : "[Personal Tasks]\n");
             for (PersonalTask t : dueTasks) {
-                String status = t.getStatus() == PersonalTaskStatus.DONE ? "완료" : "미완료";
+                String status = t.getStatus() == PersonalTaskStatus.DONE
+                        ? (ko ? "완료" : "Done") : (ko ? "미완료" : "Pending");
                 context.append("- [").append(status).append("] ").append(t.getTitle());
                 if (t.getCategory() != null) {
                     context.append(" (").append(t.getCategory()).append(")");
@@ -203,16 +269,16 @@ public class DiaryAIService {
                 context.append("\n");
             }
             for (PersonalTask t : extraInProgress) {
-                context.append("- [진행중] ").append(t.getTitle());
+                context.append("- [").append(ko ? "진행중" : "In Progress").append("] ").append(t.getTitle());
                 if (t.getDueDate() != null) {
-                    context.append(" (마감: ").append(t.getDueDate().format(DateTimeFormatter.ofPattern("M/d"))).append(")");
+                    context.append(ko ? " (마감: " : " (Due: ").append(t.getDueDate().format(DateTimeFormatter.ofPattern("M/d"))).append(")");
                 }
                 context.append("\n");
             }
             context.append("\n");
         }
 
-        // 1-2. 오늘 습관 (해당 요일 + 체크 여부)
+        // 1-2. 오늘 습관
         List<PersonalHabit> activeHabits = personalHabitRepository.findActiveByUserId(userId);
         List<PersonalHabit> todayHabits = activeHabits.stream()
                 .filter(h -> isHabitScheduledForDate(h, date))
@@ -224,11 +290,11 @@ public class DiaryAIService {
             Map<String, PersonalHabitLog> logMap = todayLogs.stream()
                     .collect(Collectors.toMap(l -> l.getHabit().getId(), l -> l));
 
-            context.append("[오늘 습관]\n");
+            context.append(ko ? "[오늘 습관]\n" : "[Today's Habits]\n");
             for (PersonalHabit h : todayHabits) {
                 PersonalHabitLog log = logMap.get(h.getId());
                 boolean completed = log != null && Boolean.TRUE.equals(log.getIsCompleted());
-                context.append(completed ? "- [완료] " : "- [미완료] ");
+                context.append(completed ? (ko ? "- [완료] " : "- [Done] ") : (ko ? "- [미완료] " : "- [Pending] "));
                 context.append(h.getTitle());
                 if (h.getTargetCount() > 1 && log != null) {
                     context.append(" (").append(log.getCompletedCount()).append("/").append(h.getTargetCount());
@@ -243,11 +309,11 @@ public class DiaryAIService {
         // 1-3. 오늘 캘린더 일정
         List<PersonalEvent> events = personalEventRepository.findByUserIdAndDate(userId, date);
         if (!events.isEmpty()) {
-            context.append("[오늘 일정]\n");
+            context.append(ko ? "[오늘 일정]\n" : "[Today's Events]\n");
             for (PersonalEvent e : events) {
                 context.append("- ");
                 if (Boolean.TRUE.equals(e.getAllDay())) {
-                    context.append("[종일] ");
+                    context.append(ko ? "[종일] " : "[All Day] ");
                 } else if (e.getStartTime() != null) {
                     context.append(e.getStartTime().format(DateTimeFormatter.ofPattern("HH:mm")));
                     if (e.getEndTime() != null) {
@@ -261,7 +327,7 @@ public class DiaryAIService {
         }
     }
 
-    private void buildBoardContext(StringBuilder context, String userId, LocalDate date) {
+    private void buildBoardContext(StringBuilder context, String userId, LocalDate date, boolean ko) {
         List<Board> boards = boardRepository.findByMemberId(userId);
         if (boards.isEmpty()) return;
 
@@ -270,7 +336,7 @@ public class DiaryAIService {
         // 2-1. 보드 마감 태스크
         List<Task> dateTasks = taskRepository.findWeekTasksByBoardIds(boardIds, date, date);
         if (!dateTasks.isEmpty()) {
-            context.append("[협업 보드 - 오늘 마감 태스크]\n");
+            context.append(ko ? "[협업 보드 - 오늘 마감 태스크]\n" : "[Board - Today's Due Tasks]\n");
             for (Task t : dateTasks) {
                 context.append("- ").append(t.getTitle());
                 if (t.getFeature() != null) {
@@ -287,7 +353,7 @@ public class DiaryAIService {
             allMeetings.addAll(meetingRepository.findByBoardIdAndMeetingDateOrderByStartTimeAsc(board.getId(), date));
         }
         if (!allMeetings.isEmpty()) {
-            context.append("[협업 보드 - 오늘 미팅]\n");
+            context.append(ko ? "[협업 보드 - 오늘 미팅]\n" : "[Board - Today's Meetings]\n");
             for (Meeting m : allMeetings) {
                 context.append("- ").append(m.getTitle());
                 if (m.getStartTime() != null) {
@@ -309,7 +375,7 @@ public class DiaryAIService {
                     .findByBoardIdAndScheduledDateAndAssigneeIdOrderByStartTimeAsc(board.getId(), date, userId));
         }
         if (!allSchedules.isEmpty()) {
-            context.append("[협업 보드 - 오늘 스케줄]\n");
+            context.append(ko ? "[협업 보드 - 오늘 스케줄]\n" : "[Board - Today's Schedule]\n");
             for (ScheduleBlock sb : allSchedules) {
                 context.append("- ");
                 if (sb.getStartTime() != null) {
@@ -325,7 +391,7 @@ public class DiaryAIService {
                         context.append(" [").append(sb.getChecklistItem().getTask().getTitle()).append("]");
                     }
                 } else if (sb.getMeeting() != null) {
-                    context.append("미팅: ").append(sb.getMeeting().getTitle());
+                    context.append(ko ? "미팅: " : "Meeting: ").append(sb.getMeeting().getTitle());
                 }
                 context.append("\n");
             }
@@ -339,10 +405,10 @@ public class DiaryAIService {
                     .findByBoardIdAndAssignedDateAndAssigneeIdWithDetailsOrderByPositionAsc(board.getId(), date, userId));
         }
         if (!allChecklists.isEmpty()) {
-            context.append("[협업 보드 - 오늘 체크리스트]\n");
+            context.append(ko ? "[협업 보드 - 오늘 체크리스트]\n" : "[Board - Today's Checklist]\n");
             for (DailyChecklist dc : allChecklists) {
                 boolean completed = dc.getChecklistItem() != null && Boolean.TRUE.equals(dc.getChecklistItem().getIsCompleted());
-                context.append(completed ? "- [완료] " : "- [미완료] ");
+                context.append(completed ? (ko ? "- [완료] " : "- [Done] ") : (ko ? "- [미완료] " : "- [Pending] "));
                 context.append(dc.getTitle());
                 if (dc.getChecklistItem() != null && dc.getChecklistItem().getTask() != null) {
                     context.append(" (").append(dc.getChecklistItem().getTask().getTitle()).append(")");
@@ -353,13 +419,8 @@ public class DiaryAIService {
         }
     }
 
-    /**
-     * 습관이 해당 날짜에 예정되어 있는지 확인
-     * frequencyDays: "0,1,2,3,4,5,6" (0=일, 1=월, ..., 6=토) - JS convention
-     */
     private boolean isHabitScheduledForDate(PersonalHabit habit, LocalDate date) {
         DayOfWeek dow = date.getDayOfWeek();
-        // Java DayOfWeek → JS day number 변환 (MON=1→1, TUE=2→2, ..., SAT=6→6, SUN=7→0)
         int jsDay = dow == DayOfWeek.SUNDAY ? 0 : dow.getValue();
 
         return switch (habit.getFrequencyType()) {
@@ -381,7 +442,7 @@ public class DiaryAIService {
     // 일기 컨텐츠 AI 생성
     // ============================
 
-    private static final String DIARY_SYSTEM_PROMPT = """
+    private static final String DIARY_SYSTEM_PROMPT_KO = """
             당신은 대화 내용을 바탕으로 자연스러운 일기를 작성해주는 AI입니다.
 
             <규칙>
@@ -403,42 +464,84 @@ public class DiaryAIService {
             </출력 형식>
             """;
 
+    private String buildDiarySystemPrompt(String language) {
+        if (isKorean(language)) {
+            return DIARY_SYSTEM_PROMPT_KO;
+        }
+
+        String langName = LANGUAGE_NAMES.getOrDefault(language, "English");
+        return String.format("""
+                You are an AI that writes natural diary entries based on conversation content.
+
+                CRITICAL LANGUAGE RULE: You MUST write the entire diary in %s.
+
+                <rules>
+                - Analyze the conversation between user and AI, and organize the day's story into diary format
+                - Write in first person (I/me)
+                - Write in natural chronological flow
+                - Preserve the emotions and experiences the user expressed
+                - Keep a honest, natural tone — not literary
+                - Never fabricate content not mentioned in the conversation
+                - Keep the length around 100-300 words
+                - Write in plain text without markdown or special formatting
+                - Generate a title too (one line, under 10 words)
+                </rules>
+
+                <output_format>
+                Title: (diary title in %s)
+
+                (diary body in %s)
+                </output_format>
+
+                REMINDER: The entire diary (title and body) MUST be in %s. This is mandatory.
+                """, langName, langName, langName, langName);
+    }
+
     /**
      * 대화 내용을 기반으로 AI 일기 컨텐츠 생성
      */
-    public DiaryContent generateDiaryContent(DiaryEntry entry) {
+    public DiaryContent generateDiaryContent(DiaryEntry entry, String language) {
         // Consume user-level AI credit before processing
         aiCreditService.consumeUserCredit(entry.getUser().getId(), "DIARY_GENERATE", 1);
 
         List<DiaryMessage> messages = diaryMessageRepository.findByDiaryIdOrderByMessageOrder(entry.getId());
+        boolean ko = isKorean(language);
 
         if (messages.isEmpty()) {
             return new DiaryContent(
-                    entry.getDiaryDate().format(DateTimeFormatter.ofPattern("M월 d일")) + "의 일기",
+                    ko ? entry.getDiaryDate().format(DateTimeFormatter.ofPattern("M월 d일")) + "의 일기"
+                       : "Diary — " + entry.getDiaryDate().format(DateTimeFormatter.ofPattern("MMM d")),
                     ""
             );
         }
 
         StringBuilder conversationContext = new StringBuilder();
-        conversationContext.append("날짜: ").append(entry.getDiaryDate().format(DateTimeFormatter.ofPattern("yyyy년 M월 d일"))).append("\n\n");
+        if (ko) {
+            conversationContext.append("날짜: ").append(entry.getDiaryDate().format(DateTimeFormatter.ofPattern("yyyy년 M월 d일"))).append("\n\n");
+        } else {
+            conversationContext.append("Date: ").append(entry.getDiaryDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))).append("\n\n");
+        }
 
         for (DiaryMessage msg : messages) {
-            String role = "AI".equals(msg.getRole()) ? "AI" : "사용자";
+            String role = "AI".equals(msg.getRole()) ? "AI" : (ko ? "사용자" : "User");
             conversationContext.append(role).append(": ").append(msg.getContent()).append("\n");
         }
 
-        conversationContext.append("\n위 대화를 바탕으로 이 날의 일기를 작성해주세요.");
+        conversationContext.append(ko
+                ? "\n위 대화를 바탕으로 이 날의 일기를 작성해주세요."
+                : "\nBased on the conversation above, write a diary entry for this day.");
 
         try {
             String model = getModel();
-            AIResponse result = aiProvider.chatWithUsage(DIARY_SYSTEM_PROMPT, conversationContext.toString(), model, 1024);
+            String systemPrompt = buildDiarySystemPrompt(language);
+            AIResponse result = aiProvider.chatWithUsage(systemPrompt, conversationContext.toString(), model, 1024);
             log.info("Diary content generated for diary: {}, tokens: in={}, out={}",
                     entry.getId(), result.inputTokens(), result.outputTokens());
             logAiUsage("DIARY_GENERATE", model, null, entry.getUser().getId(), result);
-            return parseDiaryContent(result.content(), entry);
+            return parseDiaryContent(result.content(), entry, ko);
         } catch (Exception e) {
             log.warn("AI diary content generation failed for diary: {}, falling back to compilation", entry.getId(), e);
-            return fallbackCompile(entry, messages);
+            return fallbackCompile(entry, messages, ko);
         }
     }
 
@@ -461,13 +564,11 @@ public class DiaryAIService {
         }
     }
 
-    /**
-     * AI 응답에서 제목과 본문을 파싱
-     */
-    private DiaryContent parseDiaryContent(String aiResponse, DiaryEntry entry) {
+    private DiaryContent parseDiaryContent(String aiResponse, DiaryEntry entry, boolean ko) {
         if (aiResponse == null || aiResponse.isBlank()) {
             return new DiaryContent(
-                    entry.getDiaryDate().format(DateTimeFormatter.ofPattern("M월 d일")) + "의 일기",
+                    ko ? entry.getDiaryDate().format(DateTimeFormatter.ofPattern("M월 d일")) + "의 일기"
+                       : "Diary — " + entry.getDiaryDate().format(DateTimeFormatter.ofPattern("MMM d")),
                     ""
             );
         }
@@ -476,8 +577,14 @@ public class DiaryAIService {
         String title = null;
         String content = trimmed;
 
-        // "제목: xxx" 패턴 파싱
+        // "제목: xxx" or "Title: xxx" 패턴 파싱
         if (trimmed.startsWith("제목:") || trimmed.startsWith("제목 :")) {
+            int titleEnd = trimmed.indexOf('\n');
+            if (titleEnd > 0) {
+                title = trimmed.substring(trimmed.indexOf(':') + 1, titleEnd).trim();
+                content = trimmed.substring(titleEnd).trim();
+            }
+        } else if (trimmed.startsWith("Title:") || trimmed.startsWith("Title :")) {
             int titleEnd = trimmed.indexOf('\n');
             if (titleEnd > 0) {
                 title = trimmed.substring(trimmed.indexOf(':') + 1, titleEnd).trim();
@@ -486,16 +593,14 @@ public class DiaryAIService {
         }
 
         if (title == null || title.isBlank()) {
-            title = entry.getDiaryDate().format(DateTimeFormatter.ofPattern("M월 d일")) + "의 일기";
+            title = ko ? entry.getDiaryDate().format(DateTimeFormatter.ofPattern("M월 d일")) + "의 일기"
+                       : "Diary — " + entry.getDiaryDate().format(DateTimeFormatter.ofPattern("MMM d"));
         }
 
         return new DiaryContent(title, content);
     }
 
-    /**
-     * AI 실패 시 폴백: 사용자 메시지를 이어붙임
-     */
-    private DiaryContent fallbackCompile(DiaryEntry entry, List<DiaryMessage> messages) {
+    private DiaryContent fallbackCompile(DiaryEntry entry, List<DiaryMessage> messages, boolean ko) {
         StringBuilder sb = new StringBuilder();
         for (DiaryMessage msg : messages) {
             if ("USER".equals(msg.getRole())) {
@@ -503,12 +608,13 @@ public class DiaryAIService {
             }
         }
         return new DiaryContent(
-                entry.getDiaryDate().format(DateTimeFormatter.ofPattern("M월 d일")) + "의 일기",
+                ko ? entry.getDiaryDate().format(DateTimeFormatter.ofPattern("M월 d일")) + "의 일기"
+                   : "Diary — " + entry.getDiaryDate().format(DateTimeFormatter.ofPattern("MMM d")),
                 sb.toString().trim()
         );
     }
 
-    private static final String[] FALLBACK_REPLIES = {
+    private static final String[] FALLBACK_REPLIES_KO = {
             "그렇구나! 조금 더 자세히 이야기해줄 수 있어? 어떤 상황이었어?",
             "그때 어떤 기분이 들었어? 감정을 표현해본다면?",
             "그 일이 있기 전에는 어떤 하루를 보내고 있었어?",
@@ -521,12 +627,23 @@ public class DiaryAIService {
             "그 순간에 다시 돌아갈 수 있다면, 뭔가 다르게 하고 싶은 게 있어?",
     };
 
-    /**
-     * AI 실패 시 폴백 응답 (다양한 질문을 순환)
-     */
-    private String generateFallbackReply(int messageCount) {
-        int index = Math.min(messageCount / 2, FALLBACK_REPLIES.length - 1);
-        return FALLBACK_REPLIES[index];
+    private static final String[] FALLBACK_REPLIES_EN = {
+            "I see! Can you tell me more about that? What was the situation like?",
+            "How did that make you feel? Can you put your emotions into words?",
+            "Before that happened, how was the rest of your day going?",
+            "Was there anyone you met today who left a lasting impression?",
+            "If you could say something to yourself about today, what would it be?",
+            "Was there anything you felt grateful for today? Even something small!",
+            "What kind of day do you hope tomorrow will be?",
+            "What's been on your mind the most lately?",
+            "If you could describe today in one word, what would it be?",
+            "If you could go back to that moment, would you do anything differently?",
+    };
+
+    private String generateFallbackReply(int messageCount, String language) {
+        String[] replies = isKorean(language) ? FALLBACK_REPLIES_KO : FALLBACK_REPLIES_EN;
+        int index = Math.min(messageCount / 2, replies.length - 1);
+        return replies[index];
     }
 
     /**

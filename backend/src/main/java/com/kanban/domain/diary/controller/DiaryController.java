@@ -78,8 +78,9 @@ public class DiaryController {
     @PostMapping
     public ResponseEntity<DiaryResponse.Detail> createDiary(
             @AuthenticationPrincipal UserPrincipal principal,
-            @Valid @RequestBody DiaryRequest.Create request) {
-        DiaryResponse.Detail response = diaryService.createDiary(principal.getUserId(), request);
+            @Valid @RequestBody DiaryRequest.Create request,
+            @RequestParam(required = false) String language) {
+        DiaryResponse.Detail response = diaryService.createDiary(principal.getUserId(), request, language);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -87,8 +88,9 @@ public class DiaryController {
     public ResponseEntity<DiaryResponse.AiReply> sendMessage(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable String diaryId,
-            @Valid @RequestBody DiaryRequest.SendMessage request) {
-        DiaryResponse.AiReply response = diaryService.sendMessage(principal.getUserId(), diaryId, request);
+            @Valid @RequestBody DiaryRequest.SendMessage request,
+            @RequestParam(required = false) String language) {
+        DiaryResponse.AiReply response = diaryService.sendMessage(principal.getUserId(), diaryId, request, language);
         return ResponseEntity.ok(response);
     }
 
@@ -96,8 +98,9 @@ public class DiaryController {
     public ResponseEntity<DiaryResponse.Detail> completeDiary(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable String diaryId,
-            @Valid @RequestBody DiaryRequest.Complete request) {
-        DiaryResponse.Detail response = diaryService.completeDiary(principal.getUserId(), diaryId, request);
+            @Valid @RequestBody DiaryRequest.Complete request,
+            @RequestParam(required = false) String language) {
+        DiaryResponse.Detail response = diaryService.completeDiary(principal.getUserId(), diaryId, request, language);
         return ResponseEntity.ok(response);
     }
 
@@ -112,8 +115,9 @@ public class DiaryController {
     @PutMapping("/{diaryId}/reset")
     public ResponseEntity<DiaryResponse.Detail> resetDiary(
             @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable String diaryId) {
-        DiaryResponse.Detail response = diaryService.resetDiary(principal.getUserId(), diaryId);
+            @PathVariable String diaryId,
+            @RequestParam(required = false) String language) {
+        DiaryResponse.Detail response = diaryService.resetDiary(principal.getUserId(), diaryId, language);
         return ResponseEntity.ok(response);
     }
 
@@ -153,9 +157,10 @@ public class DiaryController {
     public ResponseEntity<DiaryResponse.VoiceReply> sendVoiceMessage(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable String diaryId,
-            @RequestParam("file") MultipartFile audioFile) {
+            @RequestParam("file") MultipartFile audioFile,
+            @RequestParam(required = false) String language) {
         DiaryResponse.VoiceReply response = diaryVoiceService.processVoiceMessage(
-                principal.getUserId(), diaryId, audioFile);
+                principal.getUserId(), diaryId, audioFile, language);
         return ResponseEntity.ok(response);
     }
 

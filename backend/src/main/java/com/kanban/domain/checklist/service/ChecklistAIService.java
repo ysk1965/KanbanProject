@@ -179,13 +179,21 @@ public class ChecklistAIService {
 
     private String buildSystemPrompt(String language) {
         String langName = language != null ? LANGUAGE_NAMES.getOrDefault(language, "English") : null;
-        String langInstruction = langName != null
-                ? "- IMPORTANT: Write ALL output text (checklist item titles) in " + langName + "."
-                : "- Match the language of the task title and description.";
+        String langInstruction;
+        String langReminder;
+        if (langName != null) {
+            langInstruction = "CRITICAL LANGUAGE RULE: You MUST write ALL output text (checklist item titles) in " + langName + ". Do NOT use English for any content values.";
+            langReminder = "REMINDER: All text content in the JSON output MUST be in " + langName + ".";
+        } else {
+            langInstruction = "CRITICAL LANGUAGE RULE: Match the language of the task title and description for all output text.";
+            langReminder = "REMINDER: Match the output language to the task's language.";
+        }
 
         return String.format("""
                 You are a project management assistant for the BRIDGE kanban tool.
                 You receive a feature context (title, description) and a task (title, description), and you generate checklist items for that task.
+
+                %s
 
                 <rules>
                 - Each checklist item should be a specific, actionable step to complete the task
@@ -195,17 +203,18 @@ public class ChecklistAIService {
                 - Items should be concrete and verifiable (can be checked off when done)
                 - Do NOT duplicate items that already exist (see existing checklist below)
                 - Respond ONLY with valid JSON (no markdown code fences, no explanation text)
-                %s
                 </rules>
 
                 <output_format>
                 {
                   "items": [
-                    { "title": "Specific actionable step" }
+                    { "title": "(checklist step in user language)" }
                   ]
                 }
                 </output_format>
-                """, langInstruction);
+
+                %s
+                """, langInstruction, langReminder);
     }
 
     private String buildUserPrompt(String featureTitle, String featureDescription,
