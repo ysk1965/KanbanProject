@@ -1,6 +1,7 @@
 package com.kanban.domain.integration.discord.service;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.integration.BrandResolver;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
@@ -299,14 +300,15 @@ public class DiscordService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.DISCORD_USER_NOT_LINKED));
 
         try {
+            String brand = BrandResolver.resolve(frontendUrl);
             Map<String, Object> embed = new LinkedHashMap<>();
             embed.put("title", "\uD83D\uDD14 Test Notification");
-            embed.put("description", "BRIDGE Discord Bot 연동 테스트 메시지입니다.");
+            embed.put("description", brand + " Discord Bot 연동 테스트 메시지입니다.");
             embed.put("color", 0x6366F1);
             embed.put("fields", List.of(
                     Map.of("name", "Board", "value", "Test", "inline", true)
             ));
-            embed.put("footer", Map.of("text", "BRIDGE SPOTS"));
+            embed.put("footer", Map.of("text", brand));
             embed.put("timestamp", Instant.now().toString());
 
             String boardUrl = frontendUrl + "/boards/" + boardId;

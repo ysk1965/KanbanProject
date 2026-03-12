@@ -163,12 +163,30 @@ export function TaskDetailModal({
             if (items.length > 0) {
               const itemIds = items.map((i) => i.id);
               scheduleAPI.getByChecklistItems(boardId!, itemIds)
-                .then(setChecklistTimeBlocksMap)
-                .catch(() => {});
+                .then((result) => {
+                  // 모든 아이템에 대해 키가 존재하도록 보장 (undefined 방지)
+                  const fullMap: Record<string, ScheduleBlockDetailResponse[]> = {};
+                  for (const id of itemIds) {
+                    fullMap[id] = result[id] || [];
+                  }
+                  setChecklistTimeBlocksMap(fullMap);
+                })
+                .catch(() => {
+                  // 실패 시에도 빈 배열로 초기화하여 스피너 해제
+                  const emptyMap: Record<string, ScheduleBlockDetailResponse[]> = {};
+                  for (const id of itemIds) {
+                    emptyMap[id] = [];
+                  }
+                  setChecklistTimeBlocksMap(emptyMap);
+                });
+            } else {
+              // 체크리스트 아이템이 없으면 빈 맵으로 로딩 완료 표시
+              setChecklistTimeBlocksMap({});
             }
           })
           .catch((error) => {
             console.error('Failed to load checklist:', error);
+            setChecklistTimeBlocksMap({});
           });
       }
     }
@@ -343,6 +361,9 @@ export function TaskDetailModal({
 
       const newItems = [...checklistItems, newItem];
       setChecklistItems(newItems);
+
+      // 새 아이템에 대한 타임블록 맵 초기화 (스피너 방지)
+      setChecklistTimeBlocksMap(prev => ({ ...prev, [newItem.id]: [] }));
 
       // 부모 상태 업데이트 (카드에 반영)
       const newTotal = newItems.length;
