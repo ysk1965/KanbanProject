@@ -142,8 +142,9 @@ public class SlackOAuthController {
     @PostMapping("/app/test")
     public ResponseEntity<SlackAppResponse.TestResult> testNotification(
             @RequestParam("board_id") String boardId,
+            @RequestHeader(value = "Origin", required = false) String origin,
             @AuthenticationPrincipal UserPrincipal principal) {
-        SlackAppResponse.TestResult result = slackBotNotificationService.testNotification(boardId, principal.getUserId());
+        SlackAppResponse.TestResult result = slackBotNotificationService.testNotification(boardId, principal.getUserId(), origin);
         return ResponseEntity.ok(result);
     }
 

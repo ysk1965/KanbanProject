@@ -179,8 +179,9 @@ public class DiscordController {
     @PostMapping("/api/v1/boards/{boardId}/discord/test")
     public ResponseEntity<DiscordResponse.TestResult> testNotification(
             @PathVariable String boardId,
+            @RequestHeader(value = "Origin", required = false) String origin,
             @AuthenticationPrincipal UserPrincipal principal) {
-        DiscordResponse.TestResult result = discordService.testNotification(boardId, principal.getUserId());
+        DiscordResponse.TestResult result = discordService.testNotification(boardId, principal.getUserId(), origin);
         return ResponseEntity.ok(result);
     }
 }

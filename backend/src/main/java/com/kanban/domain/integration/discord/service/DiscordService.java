@@ -292,7 +292,7 @@ public class DiscordService {
     /**
      * Send a test DM to the current user.
      */
-    public DiscordResponse.TestResult testNotification(String boardId, String userId) {
+    public DiscordResponse.TestResult testNotification(String boardId, String userId, String originUrl) {
         boardService.checkViewerOrAbove(boardId, userId);
         validateDiscordAccess(boardId);
 
@@ -300,7 +300,8 @@ public class DiscordService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.DISCORD_USER_NOT_LINKED));
 
         try {
-            String brand = BrandResolver.resolve(frontendUrl);
+            String resolved = (originUrl != null && !originUrl.isBlank()) ? originUrl.replaceAll("/+$", "") : frontendUrl;
+            String brand = BrandResolver.resolve(resolved);
             Map<String, Object> embed = new LinkedHashMap<>();
             embed.put("title", "\uD83D\uDD14 Test Notification");
             embed.put("description", brand + " Discord Bot 연동 테스트 메시지입니다.");
@@ -311,7 +312,7 @@ public class DiscordService {
             embed.put("footer", Map.of("text", brand));
             embed.put("timestamp", Instant.now().toString());
 
-            String boardUrl = frontendUrl + "/boards/" + boardId;
+            String boardUrl = resolved + "/boards/" + boardId;
             Map<String, Object> payload = Map.of(
                     "embeds", List.of(embed),
                     "components", List.of(Map.of(
