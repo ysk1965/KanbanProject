@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Save,
@@ -12,6 +12,8 @@ import {
   X,
   MessageSquare,
 } from "lucide-react";
+
+const ExcalidrawEditor = React.lazy(() => import("./ExcalidrawEditor"));
 import {
   BlockNoteSchema,
   defaultBlockSpecs,
@@ -146,6 +148,32 @@ export function NoteEditor({
           문서를 선택하여 편집하세요
         </p>
       </div>
+    );
+  }
+
+  if (note.type === "BOARD") {
+    return (
+      <Suspense
+        fallback={
+          <div className="flex-1 flex items-center justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+          </div>
+        }
+      >
+        <ExcalidrawEditor
+          boardId={boardId}
+          note={note}
+          tags={tags}
+          canEdit={canEdit}
+          onSave={onSave}
+          onTagsChange={onTagsChange}
+          onDirtyChange={onDirtyChange}
+          onNoteUpdate={onNoteUpdate}
+          collaboration={collaboration}
+          currentUserName={currentUserName}
+          currentUserColor={currentUserColor}
+        />
+      </Suspense>
     );
   }
 

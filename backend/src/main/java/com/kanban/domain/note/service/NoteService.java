@@ -68,7 +68,7 @@ public class NoteService {
     public List<NoteResponse.ListItem> getNoteList(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
 
-        List<Note> documents = noteRepository.findAllDocumentsByBoardId(boardId);
+        List<Note> documents = noteRepository.findAllDocumentsAndBoardsByBoardId(boardId);
         List<String> noteIds = documents.stream().map(Note::getId).toList();
 
         Map<String, List<NoteResponse.TagInfo>> tagMap = getTagMapForNotes(noteIds);
@@ -121,7 +121,7 @@ public class NoteService {
                 .parent(parent)
                 .type(type)
                 .title(request.getTitle())
-                .content(type == NoteType.DOCUMENT ? request.getContent() : null)
+                .content(type == NoteType.DOCUMENT || type == NoteType.BOARD ? request.getContent() : null)
                 .position(position)
                 .depth(depth)
                 .createdBy(user)
@@ -320,7 +320,7 @@ public class NoteService {
         boardService.checkMemberOrAbove(boardId, userId);
 
         Note note = getNoteOrThrow(boardId, noteId);
-        if (!note.isDocument()) {
+        if (note.isFolder()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "폴더는 공유할 수 없습니다");
         }
         note.enableShare();

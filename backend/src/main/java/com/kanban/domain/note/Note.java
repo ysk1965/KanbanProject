@@ -153,6 +153,10 @@ public class Note {
         return this.type == NoteType.DOCUMENT;
     }
 
+    public boolean isBoard() {
+        return this.type == NoteType.BOARD;
+    }
+
     public boolean canHaveChildren() {
         return this.depth < MAX_DEPTH;
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -7,7 +7,13 @@ import {
   Tag as TagIcon,
   AlertCircle,
   ArrowLeft,
+  Loader2,
 } from "lucide-react";
+
+const ExcalidrawLazy = React.lazy(async () => {
+  const mod = await import("@excalidraw/excalidraw");
+  return { default: mod.Excalidraw };
+});
 import {
   BlockNoteSchema,
   defaultBlockSpecs,
@@ -107,9 +113,10 @@ export function SharedNotePage() {
     loadNote();
   }, [shareToken, t]);
 
-  // Load content into editor when note arrives
+  // Load content into editor when note arrives (skip BOARD type - it uses Excalidraw, not BlockNote)
   useEffect(() => {
     if (!note?.content?.trim() || !editor) return;
+    if (note.type === "BOARD") return;
 
     const loadContent = async () => {
       try {
@@ -221,21 +228,45 @@ export function SharedNotePage() {
         {/* Divider */}
         <div className="border-t border-foreground/5 mb-6" />
 
-        {/* BlockNote viewer */}
-        <div
-          className="shared-note-viewer"
-          style={
-            {
-              "--bn-colors-editor-background": "transparent",
-            } as React.CSSProperties
-          }
-        >
-          <BlockNoteView
-            editor={editor}
-            theme={isDark ? "dark" : "light"}
-            editable={false}
-          />
-        </div>
+        {/* Content viewer */}
+        {note.type === "BOARD" ? (
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+              </div>
+            }
+          >
+            <div className="w-full min-h-[60vh] h-[70vh] rounded-2xl overflow-hidden">
+              <ExcalidrawLazy
+                initialData={(() => {
+                  try {
+                    return JSON.parse(note.content || "{}");
+                  } catch {
+                    return {};
+                  }
+                })()}
+                viewModeEnabled={true}
+                theme={isDark ? "dark" : "light"}
+              />
+            </div>
+          </Suspense>
+        ) : (
+          <div
+            className="shared-note-viewer"
+            style={
+              {
+                "--bn-colors-editor-background": "transparent",
+              } as React.CSSProperties
+            }
+          >
+            <BlockNoteView
+              editor={editor}
+              theme={isDark ? "dark" : "light"}
+              editable={false}
+            />
+          </div>
+        )}
       </main>
 
       {/* Footer */}

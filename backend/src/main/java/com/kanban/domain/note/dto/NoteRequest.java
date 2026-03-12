@@ -18,7 +18,7 @@ public class NoteRequest {
         private String title;
 
         @NotNull(message = "타입은 필수입니다")
-        private String type; // FOLDER or DOCUMENT
+        private String type; // FOLDER, DOCUMENT, or BOARD
 
         private String parentId;
         private String content;
