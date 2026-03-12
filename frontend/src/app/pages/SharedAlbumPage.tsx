@@ -106,13 +106,23 @@ export function SharedAlbumPage() {
   }, [hasNext, photosLoading, nextCursor, fetchPhotos]);
 
   // Download single photo
-  const handleDownload = useCallback((photo: OrgPhoto) => {
-    const url = resolveFileUrl(photo.url);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = photo.original_filename;
-    a.target = '_blank';
-    a.click();
+  const handleDownload = useCallback(async (photo: OrgPhoto) => {
+    try {
+      const url = resolveFileUrl(photo.url);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Download failed');
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = photo.original_filename;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.warn('Download failed:', error);
+      // Fallback: open in new tab
+      window.open(resolveFileUrl(photo.url), '_blank');
+    }
   }, []);
 
   // Loading
