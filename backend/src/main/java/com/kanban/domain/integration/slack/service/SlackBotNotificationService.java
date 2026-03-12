@@ -45,7 +45,8 @@ public class SlackBotNotificationService {
 
         String taskTitle = comment.getTask() != null ? comment.getTask().getTitle() : "Unknown Task";
         String commentContent = truncate(comment.getContent(), 200);
-        String boardUrl = resolveUrl(originUrl) + "/boards/" + board.getId();
+        String taskId = comment.getTask() != null ? comment.getTask().getId() : null;
+        String boardUrl = resolveUrl(originUrl) + "/boards/" + board.getId() + (taskId != null ? "?task=" + taskId : "");
 
         List<Map<String, Object>> blocks = new ArrayList<>();
         blocks.add(header("\uD83D\uDCAC @멘션 알림"));
@@ -71,7 +72,8 @@ public class SlackBotNotificationService {
         if (channelId == null) return;
 
         String taskTitle = item.getTask() != null ? item.getTask().getTitle() : "Unknown Task";
-        String boardUrl = resolveUrl(originUrl) + "/boards/" + board.getId();
+        String taskId = item.getTask() != null ? item.getTask().getId() : null;
+        String boardUrl = resolveUrl(originUrl) + "/boards/" + board.getId() + (taskId != null ? "?task=" + taskId : "");
 
         List<Map<String, Object>> blocks = new ArrayList<>();
         blocks.add(header("\uD83D\uDCCB 체크리스트 배정 알림"));
@@ -96,7 +98,8 @@ public class SlackBotNotificationService {
 
         String taskTitle = comment.getTask() != null ? comment.getTask().getTitle() : "Unknown Task";
         String commentContent = truncate(comment.getContent(), 200);
-        String boardUrl = resolveUrl(originUrl) + "/boards/" + board.getId();
+        String taskId = comment.getTask() != null ? comment.getTask().getId() : null;
+        String boardUrl = resolveUrl(originUrl) + "/boards/" + board.getId() + (taskId != null ? "?task=" + taskId : "");
 
         List<Map<String, Object>> blocks = new ArrayList<>();
         blocks.add(header("\uD83D\uDCAC 새 댓글 알림"));

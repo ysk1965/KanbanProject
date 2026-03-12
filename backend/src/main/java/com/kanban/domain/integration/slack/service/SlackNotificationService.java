@@ -385,7 +385,8 @@ public class SlackNotificationService {
             commentContent = commentContent.substring(0, 200) + "...";
         }
 
-        String boardUrl = resolvedUrl + "/boards/" + board.getId();
+        String taskId = comment.getTask() != null ? comment.getTask().getId() : null;
+        String boardUrl = resolvedUrl + "/boards/" + board.getId() + (taskId != null ? "?task=" + taskId : "");
 
         List<Map<String, Object>> blocks = new ArrayList<>();
 
@@ -420,7 +421,8 @@ public class SlackNotificationService {
 
     private Map<String, Object> buildChecklistAssignedPayload(ChecklistItem item, User assigner, Board board, String resolvedUrl) {
         String taskTitle = item.getTask() != null ? item.getTask().getTitle() : "Unknown Task";
-        String boardUrl = resolvedUrl + "/boards/" + board.getId();
+        String taskId = item.getTask() != null ? item.getTask().getId() : null;
+        String boardUrl = resolvedUrl + "/boards/" + board.getId() + (taskId != null ? "?task=" + taskId : "");
 
         List<Map<String, Object>> blocks = new ArrayList<>();
 
@@ -486,7 +488,8 @@ public class SlackNotificationService {
             commentContent = commentContent.substring(0, 200) + "...";
         }
 
-        String boardUrl = resolvedUrl + "/boards/" + board.getId();
+        String taskId = comment.getTask() != null ? comment.getTask().getId() : null;
+        String boardUrl = resolvedUrl + "/boards/" + board.getId() + (taskId != null ? "?task=" + taskId : "");
 
         List<Map<String, Object>> blocks = new ArrayList<>();
 

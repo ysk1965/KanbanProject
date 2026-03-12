@@ -75,7 +75,8 @@ public class DiscordNotificationService {
         }
 
         String resolvedUrl = resolveFrontendUrl(originUrl);
-        String boardUrl = resolvedUrl + "/boards/" + board.getId();
+        String taskId = comment.getTask() != null ? comment.getTask().getId() : null;
+        String boardUrl = resolvedUrl + "/boards/" + board.getId() + (taskId != null ? "?task=" + taskId : "");
         Map<String, Object> payload = buildMentionPayload(comment, sender, board, boardUrl);
         sendDmToUsers(filteredUserIds, payload, board.getId());
     }
@@ -98,7 +99,8 @@ public class DiscordNotificationService {
         }
 
         String resolvedUrl = resolveFrontendUrl(originUrl);
-        String boardUrl = resolvedUrl + "/boards/" + board.getId();
+        String taskId = item.getTask() != null ? item.getTask().getId() : null;
+        String boardUrl = resolvedUrl + "/boards/" + board.getId() + (taskId != null ? "?task=" + taskId : "");
         Map<String, Object> payload = buildChecklistAssignedPayload(item, assigner, board, boardUrl);
         sendDmToUsers(filteredUserIds, payload, board.getId());
     }
@@ -125,7 +127,8 @@ public class DiscordNotificationService {
         }
 
         String resolvedUrl = resolveFrontendUrl(originUrl);
-        String boardUrl = resolvedUrl + "/boards/" + board.getId();
+        String taskId = comment.getTask() != null ? comment.getTask().getId() : null;
+        String boardUrl = resolvedUrl + "/boards/" + board.getId() + (taskId != null ? "?task=" + taskId : "");
         Map<String, Object> payload = buildTaskCommentPayload(comment, sender, board, boardUrl);
         sendDmToUsers(filteredUserIds, payload, board.getId());
     }
