@@ -169,7 +169,7 @@ public class SlackBotNotificationService {
     /**
      * Send test DM notification to the current user
      */
-    public SlackAppResponse.TestResult testNotification(String boardId, String userId) {
+    public SlackAppResponse.TestResult testNotification(String boardId, String userId, String originUrl) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
@@ -182,7 +182,8 @@ public class SlackBotNotificationService {
         try {
             String botToken = slackOAuthService.decryptBotToken(installation);
 
-            String brand = BrandResolver.resolve(frontendUrl);
+            String resolved = resolveUrl(originUrl);
+            String brand = BrandResolver.resolve(resolved);
             List<Map<String, Object>> blocks = new ArrayList<>();
             blocks.add(header("\uD83D\uDD14 Test Notification"));
             blocks.add(section(brand + " Slack Bot 연동 테스트 메시지입니다."));
@@ -190,7 +191,7 @@ public class SlackBotNotificationService {
                     "*Board:*\n" + board.getName(),
                     "*Time:*\n" + Instant.now().toString()
             ));
-            String boardUrl = frontendUrl + "/boards/" + boardId;
+            String boardUrl = resolved + "/boards/" + boardId;
             blocks.add(actions(boardUrl, "bridge_test"));
 
             String dmChannelId = slackApiClient.conversationsOpen(botToken, userLink.getSlackUserId());
