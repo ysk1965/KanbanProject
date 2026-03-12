@@ -368,6 +368,8 @@
     "workspaceBoards": "워크스페이스 보드",
     "orgBoards": "조직 보드",
     "myOrganizations": "내 조직",
+    "orgSetup": "팀과 보드를 한 곳에서 관리하세요",
+    "orgCreate": "만들기",
     "testBoard": "테스트 보드",
     "testOrg": "테스트 조직",
     "testOrgTitle": "테스트 조직 생성 (관리자 전용)",

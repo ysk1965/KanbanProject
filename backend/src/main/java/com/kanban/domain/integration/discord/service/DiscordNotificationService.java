@@ -1,6 +1,7 @@
 package com.kanban.domain.integration.discord.service;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.integration.BrandResolver;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.comment.Comment;
 import com.kanban.domain.integration.discord.DiscordBotConfig;
@@ -257,7 +258,7 @@ public class DiscordNotificationService {
         embed.put("description", description);
         embed.put("color", DISCORD_EMBED_COLOR);
         embed.put("fields", fields);
-        embed.put("footer", Map.of("text", "BRIDGE SPOTS"));
+        embed.put("footer", Map.of("text", BrandResolver.resolve(frontendUrl)));
         embed.put("timestamp", Instant.now().toString());
 
         Map<String, Object> payload = new LinkedHashMap<>();

@@ -1,6 +1,7 @@
 package com.kanban.domain.integration.slack.service;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.integration.BrandResolver;
 import com.kanban.domain.integration.slack.SlackInstallation;
 import com.kanban.domain.integration.slack.SlackInstallationRepository;
 import com.kanban.domain.task.Task;
@@ -20,6 +21,9 @@ public class SlackSlashCommandService {
     private final SlackInstallationRepository installationRepository;
     private final TaskRepository taskRepository;
 
+    @org.springframework.beans.factory.annotation.Value("${app.frontend-url:https://bridgespots.com}")
+    private String frontendUrl;
+
     /**
      * Handle incoming slash command
      */
@@ -29,7 +33,7 @@ public class SlackSlashCommandService {
         // Find installation by team
         List<SlackInstallation> installations = installationRepository.findActiveByTeamId(teamId);
         if (installations.isEmpty()) {
-            return ephemeralResponse("BRIDGE \uc571\uc774 \uc124\uce58\ub418\uc5b4 \uc788\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.");
+            return ephemeralResponse(BrandResolver.resolve(frontendUrl) + " \uc571\uc774 \uc124\uce58\ub418\uc5b4 \uc788\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.");
         }
 
         // Parse subcommand
