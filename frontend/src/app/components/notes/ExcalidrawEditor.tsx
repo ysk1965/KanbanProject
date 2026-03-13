@@ -12,6 +12,9 @@ import {
   Clock,
   Tag as TagIcon,
   Loader2,
+  MessageSquare,
+  ChevronDown,
+  Grid3X3,
 } from "lucide-react";
 import { NoteTagManager } from "./NoteTagManager";
 import { NoteVersionHistory } from "./NoteVersionHistory";
@@ -25,6 +28,9 @@ import type { NoteDetail, NoteTagInfo } from "../../utils/api";
 import type { CollaborationState } from "../../hooks/useCollaboration";
 import * as Y from "yjs";
 
+// Excalidraw CSS
+import "@excalidraw/excalidraw/index.css";
+
 let CaptureUpdateActionRef: any = null;
 
 const ExcalidrawLazy = lazy(async () => {
@@ -32,6 +38,19 @@ const ExcalidrawLazy = lazy(async () => {
   CaptureUpdateActionRef = mod.CaptureUpdateAction;
   return { default: mod.Excalidraw };
 });
+
+const LANG_MAP: Record<string, string> = {
+  ko: "ko-KR",
+  ja: "ja-JP",
+  zh: "zh-CN",
+  "zh-TW": "zh-TW",
+  vi: "vi-VN",
+  es: "es-ES",
+  "pt-BR": "pt-BR",
+  hi: "hi-IN",
+  th: "th-TH",
+  en: "en",
+};
 
 interface ExcalidrawEditorProps {
   boardId: string;
@@ -64,23 +83,34 @@ export default function ExcalidrawEditor({
   currentUserName,
   currentUserColor,
 }: ExcalidrawEditorProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { currentUser } = useAuth();
   const { isDark } = useTheme();
   const [title, setTitle] = useState(note.title);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [gridEnabled, setGridEnabled] = useState(false);
 
-  // Excalidraw API ref
   const excalidrawAPIRef = useRef<any>(null);
-
-  // Yjs sync refs
+  const containerRef = useRef<HTMLDivElement>(null);
   const yMapRef = useRef<Y.Map<any> | null>(null);
   const isRemoteUpdateRef = useRef(false);
   const isLocalUpdateRef = useRef(false);
   const initializedRef = useRef(false);
+  const isFixingResizeRef = useRef(false);
+  const dragRef = useRef<{
+    sx: number;
+    sy: number;
+    ex: number;
+    ey: number;
+    tool: string;
+    active: boolean;
+  }>({ sx: 0, sy: 0, ex: 0, ey: 0, tool: "", active: false });
 
-  // Parse initial data from note content
+  const bgColor = isDark ? "#1e1e1e" : "#ffffff";
+  const defaultStrokeColor = isDark ? "#e2e8f0" : "#1e1e1e";
+
   const initialDataRef = useRef<any>(null);
   if (!initialDataRef.current) {
     try {
@@ -89,35 +119,32 @@ export default function ExcalidrawEditor({
         initialDataRef.current = {
           elements: parsed.elements || [],
           appState: {
-            viewBackgroundColor:
-              parsed.appState?.viewBackgroundColor ||
-              (isDark ? "#151B28" : "#efe6d8"),
+            viewBackgroundColor: bgColor,
+            currentItemStrokeColor:
+              parsed.appState?.currentItemStrokeColor || defaultStrokeColor,
           },
           files: parsed.files || {},
         };
       }
     } catch {
-      // Invalid JSON, start with empty canvas
+      // empty
     }
   }
 
-  // Sync title when note changes
   useEffect(() => {
     setTitle(note.title);
     setHasChanges(false);
     initializedRef.current = false;
     initialDataRef.current = null;
-
-    // Re-parse content for new note
     try {
       if (note.content?.trim()) {
         const parsed = JSON.parse(note.content);
         initialDataRef.current = {
           elements: parsed.elements || [],
           appState: {
-            viewBackgroundColor:
-              parsed.appState?.viewBackgroundColor ||
-              (isDark ? "#151B28" : "#efe6d8"),
+            viewBackgroundColor: bgColor,
+            currentItemStrokeColor:
+              parsed.appState?.currentItemStrokeColor || defaultStrokeColor,
           },
           files: parsed.files || {},
         };
@@ -127,7 +154,20 @@ export default function ExcalidrawEditor({
     }
   }, [note.id]);
 
-  // Notify parent about dirty state
+  useEffect(() => {
+    const api = excalidrawAPIRef.current;
+    if (!api) return;
+    api.updateScene({
+      appState: {
+        viewBackgroundColor: bgColor,
+        currentItemStrokeColor: defaultStrokeColor,
+      },
+      ...(CaptureUpdateActionRef
+        ? { captureUpdate: CaptureUpdateActionRef.NEVER }
+        : {}),
+    });
+  }, [isDark]);
+
   useEffect(() => {
     onDirtyChange?.(hasChanges);
   }, [hasChanges, onDirtyChange]);
@@ -137,146 +177,214 @@ export default function ExcalidrawEditor({
     setHasChanges(true);
   };
 
-  // ---- Yjs collaboration setup ----
+  // ---- Yjs collaboration ----
   useEffect(() => {
     if (!collaboration) {
       yMapRef.current = null;
       return;
     }
-
     const yMap = collaboration.doc.getMap("excalidraw-elements");
     yMapRef.current = yMap;
 
     const observer = () => {
       if (isLocalUpdateRef.current) return;
       if (!excalidrawAPIRef.current) return;
-
       isRemoteUpdateRef.current = true;
-
-      // Reconstruct elements from Y.Map
       const elements: any[] = [];
       yMap.forEach((value, _key) => {
-        if (value) {
-          elements.push(value);
-        }
+        if (value) elements.push(value);
       });
-
-      // Sort elements by their order (if present)
-      elements.sort(
-        (a, b) => (a.index || "").localeCompare(b.index || ""),
-      );
-
-      // Update scene with remote elements (non-undoable)
+      elements.sort((a, b) => (a.index || "").localeCompare(b.index || ""));
       excalidrawAPIRef.current.updateScene({
         elements,
         ...(CaptureUpdateActionRef
           ? { captureUpdate: CaptureUpdateActionRef.NEVER }
           : {}),
       });
-
-      // Clear flag after a tick
       requestAnimationFrame(() => {
         isRemoteUpdateRef.current = false;
       });
     };
 
     yMap.observe(observer);
-
-    // If Y.Map already has data, apply it to Excalidraw
-    if (yMap.size > 0 && excalidrawAPIRef.current) {
-      observer();
-    }
-
+    if (yMap.size > 0 && excalidrawAPIRef.current) observer();
     return () => {
       yMap.unobserve(observer);
     };
   }, [collaboration, note.id]);
 
-  // ---- Excalidraw onChange → Yjs sync ----
   const handleExcalidrawChange = useCallback(
     (elements: readonly any[], _appState: any) => {
-      if (isRemoteUpdateRef.current) return;
-
-      // Mark as initialized after first onChange (to skip initial load)
+      if (isRemoteUpdateRef.current || isFixingResizeRef.current) return;
       if (!initializedRef.current) {
         initializedRef.current = true;
         return;
       }
 
       setHasChanges(true);
-
-      // Sync to Yjs if collaboration is active
       if (!collaboration || !yMapRef.current) return;
-
       isLocalUpdateRef.current = true;
       const yMap = yMapRef.current;
-
       collaboration.doc.transact(() => {
-        // Track which element IDs are present
         const currentIds = new Set<string>();
-
         for (const element of elements) {
           currentIds.add(element.id);
           const existing = yMap.get(element.id);
-
-          // Only update if version changed or element is new
           if (!existing || existing.version !== element.version) {
             yMap.set(element.id, { ...element });
           }
         }
-
-        // Remove deleted elements (not in current elements)
         const keysToDelete: string[] = [];
         yMap.forEach((_value, key) => {
-          if (!currentIds.has(key)) {
-            keysToDelete.push(key);
-          }
+          if (!currentIds.has(key)) keysToDelete.push(key);
         });
-        for (const key of keysToDelete) {
-          yMap.delete(key);
-        }
+        for (const key of keysToDelete) yMap.delete(key);
       });
-
       isLocalUpdateRef.current = false;
     },
     [collaboration],
   );
 
-  // ---- Pointer update for collaboration awareness ----
+  // Track pointer via Excalidraw's onPointerUpdate (canvas coords, not screen)
   const handlePointerUpdate = useCallback(
     (payload: any) => {
-      if (!collaboration) return;
-      collaboration.provider.awareness.setLocalStateField("pointer", {
-        x: payload.pointer.x,
-        y: payload.pointer.y,
-        tool: payload.pointer.tool,
-      });
+      if (collaboration) {
+        collaboration.provider.awareness.setLocalStateField("pointer", {
+          x: payload.pointer.x,
+          y: payload.pointer.y,
+          tool: payload.pointer.tool,
+        });
+      }
+      const drag = dragRef.current;
+      if (payload.button === "down") {
+        if (!drag.active) {
+          const api = excalidrawAPIRef.current;
+          drag.tool = api?.getAppState()?.activeTool?.type || "";
+          drag.sx = payload.pointer.x;
+          drag.sy = payload.pointer.y;
+          drag.active = true;
+        }
+        drag.ex = payload.pointer.x;
+        drag.ey = payload.pointer.y;
+      } else if (drag.active) {
+        drag.active = false;
+      }
     },
     [collaboration],
   );
 
-  // ---- Save handler ----
+  // Fix: prevent text-container shapes from auto-shrinking to 0×0 after creation
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onPointerUp = () => {
+      const drag = dragRef.current;
+      const SHAPES = ["rectangle", "ellipse", "diamond"];
+      if (!SHAPES.includes(drag.tool)) {
+        console.log("[ExFix] skip: tool=", drag.tool);
+        return;
+      }
+
+      const w = Math.abs(drag.ex - drag.sx);
+      const h = Math.abs(drag.ey - drag.sy);
+      console.log(
+        "[ExFix] pointerup tool:",
+        drag.tool,
+        "canvas size:",
+        Math.round(w),
+        "x",
+        Math.round(h),
+      );
+      if (w < 10 || h < 10) return;
+
+      const api = excalidrawAPIRef.current;
+      if (!api) return;
+
+      let attempts = 0;
+      const tryFix = () => {
+        if (++attempts > 30) return;
+        const els = api.getSceneElements();
+        let fixed = false;
+        const textIds = new Set<string>();
+
+        console.log(
+          "[ExFix] attempt",
+          attempts,
+          "elements:",
+          els
+            .map(
+              (e: any) =>
+                `${e.type}(${Math.round(e.width)}x${Math.round(e.height)})`,
+            )
+            .join(", "),
+        );
+
+        const patched = els.map((el: any) => {
+          if (SHAPES.includes(el.type) && el.width < 10 && el.height < 10) {
+            fixed = true;
+            console.log(
+              "[ExFix] FIXING",
+              el.id.slice(0, 8),
+              "→",
+              Math.round(w),
+              "x",
+              Math.round(h),
+            );
+            el.boundElements?.forEach((b: any) => {
+              if (b.type === "text") textIds.add(b.id);
+            });
+            return {
+              ...el,
+              width: w,
+              height: h,
+              boundElements: [],
+              autoResize: false,
+            };
+          }
+          return el;
+        });
+
+        if (fixed) {
+          const cleaned = patched.filter((el: any) => !textIds.has(el.id));
+          isFixingResizeRef.current = true;
+          api.updateScene({
+            elements: cleaned,
+            ...(CaptureUpdateActionRef
+              ? { captureUpdate: CaptureUpdateActionRef.NEVER }
+              : {}),
+          });
+          setTimeout(() => {
+            isFixingResizeRef.current = false;
+          }, 200);
+        } else {
+          setTimeout(tryFix, 50);
+        }
+      };
+      setTimeout(tryFix, 50);
+    };
+
+    container.addEventListener("pointerup", onPointerUp, true);
+    return () => container.removeEventListener("pointerup", onPointerUp, true);
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (!canEdit) return;
     setSaving(true);
     try {
       const api = excalidrawAPIRef.current;
       if (!api) return;
-
       const sceneElements = api.getSceneElements();
       const appState = api.getAppState();
-
+      const files = api.getFiles();
       const content = JSON.stringify({
         type: "excalidraw",
         version: 2,
         source: "bridge-notes",
         elements: sceneElements,
-        appState: {
-          viewBackgroundColor: appState.viewBackgroundColor,
-        },
-        files: {},
+        appState: { viewBackgroundColor: appState.viewBackgroundColor },
+        files: files || {},
       });
-
       await onSave(
         note.id,
         {
@@ -287,66 +395,139 @@ export default function ExcalidrawEditor({
         true,
       );
       setHasChanges(false);
-
-      // Persist Yjs state if collaboration is active
-      if (collaboration) {
-        collaboration.provider.sendFullState();
-      }
+      if (collaboration) collaboration.provider.sendFullState();
     } finally {
       setSaving(false);
     }
   }, [canEdit, onSave, note.id, note.title, note.tags, title, collaboration]);
 
-  // Keyboard shortcut: Ctrl/Cmd+S
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
         handleSave();
       }
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (
+        e.code === "KeyG" &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        tag !== "INPUT" &&
+        tag !== "TEXTAREA"
+      ) {
+        setGridEnabled((v) => !v);
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleSave]);
 
+  // Remap IME keys (e.g. Korean ㄱ→r) so Excalidraw built-in shortcuts work
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const CODE_TO_KEY: Record<string, string> = {
+      KeyA: "a",
+      KeyB: "b",
+      KeyC: "c",
+      KeyD: "d",
+      KeyE: "e",
+      KeyF: "f",
+      KeyG: "g",
+      KeyH: "h",
+      KeyI: "i",
+      KeyJ: "j",
+      KeyK: "k",
+      KeyL: "l",
+      KeyM: "m",
+      KeyN: "n",
+      KeyO: "o",
+      KeyP: "p",
+      KeyQ: "q",
+      KeyR: "r",
+      KeyS: "s",
+      KeyT: "t",
+      KeyU: "u",
+      KeyV: "v",
+      KeyW: "w",
+      KeyX: "x",
+      KeyY: "y",
+      KeyZ: "z",
+    };
+    const remap = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      )
+        return;
+      const expected = CODE_TO_KEY[e.code];
+      if (!expected) return;
+      if (e.key === expected || e.key === expected.toUpperCase()) return;
+      e.stopPropagation();
+      e.preventDefault();
+      target.dispatchEvent(
+        new KeyboardEvent(e.type, {
+          code: e.code,
+          key: e.shiftKey ? expected.toUpperCase() : expected,
+          keyCode: expected.toUpperCase().charCodeAt(0),
+          ctrlKey: e.ctrlKey,
+          metaKey: e.metaKey,
+          altKey: e.altKey,
+          shiftKey: e.shiftKey,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    };
+    el.addEventListener("keydown", remap, true);
+    el.addEventListener("keyup", remap, true);
+    return () => {
+      el.removeEventListener("keydown", remap, true);
+      el.removeEventListener("keyup", remap, true);
+    };
+  }, []);
+
+  const langCode = LANG_MAP[i18n.language] || "en";
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Editor Header - matches NoteEditor pattern */}
-      <div className="px-4 sm:px-6 py-3 border-b border-foreground/5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:justify-between">
-        <div className="flex-1 min-w-0">
+      {/* Header — normal flow, not absolute */}
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-foreground/[0.08] bg-bridge-obsidian flex-shrink-0 gap-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <input
             value={title}
             onChange={(e) => handleTitleChange(e.target.value)}
-            className="w-full bg-transparent text-lg font-bold text-foreground focus:outline-none placeholder-slate-600"
+            className="bg-transparent text-sm font-bold text-foreground focus:outline-none placeholder-slate-500 min-w-0 flex-1"
             placeholder={t("notes.titlePlaceholder", "제목을 입력하세요")}
             readOnly={!canEdit}
           />
-          <div className="flex items-center gap-3 mt-1">
-            <div className="flex items-center gap-1 flex-wrap">
-              {note.tags.map((tag) => (
+          {note.tags.length > 0 && (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {note.tags.slice(0, 2).map((tag) => (
                 <span
                   key={tag.id}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold"
                   style={{
                     backgroundColor: `${tag.color}20`,
                     color: tag.color,
                   }}
                 >
-                  <TagIcon size={8} />
+                  <TagIcon size={7} />
                   {tag.name}
                 </span>
               ))}
             </div>
-            <span className="text-[10px] text-slate-500 flex items-center gap-1 whitespace-nowrap">
-              <Clock size={10} />
-              {formatDateTime(note.updated_at)}
-              {note.updated_by && ` · ${note.updated_by.name}`}
-            </span>
-          </div>
+          )}
+          <span className="text-[10px] text-slate-500 flex items-center gap-1 whitespace-nowrap flex-shrink-0 hidden sm:flex">
+            <Clock size={9} />
+            {formatDateTime(note.updated_at)}
+          </span>
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0 flex-wrap justify-end">
-          {/* Collaboration presence */}
+        <div className="flex items-center gap-1 flex-shrink-0">
           {collaboration && (
             <CollabPresence
               status={collaboration.status}
@@ -355,16 +536,12 @@ export default function ExcalidrawEditor({
               currentUserColor={currentUserColor}
             />
           )}
-
           <NoteShareButton
             boardId={boardId}
             note={note}
             canEdit={canEdit}
             onNoteUpdate={onNoteUpdate}
           />
-
-          <div className="w-px h-5 bg-white/10 hidden sm:block" />
-
           <NoteTagManager
             boardId={boardId}
             noteId={note.id}
@@ -384,7 +561,6 @@ export default function ExcalidrawEditor({
               const updated = await noteService.getDetail(boardId, note.id);
               setTitle(updated.title);
               setHasChanges(false);
-              // Reload the Excalidraw scene from restored content
               if (updated.content?.trim() && excalidrawAPIRef.current) {
                 try {
                   const parsed = JSON.parse(updated.content);
@@ -395,16 +571,40 @@ export default function ExcalidrawEditor({
                       : {}),
                   });
                 } catch {
-                  // ignore parse errors
+                  // ignore
                 }
               }
             }}
           />
+          <button
+            onClick={() => setGridEnabled((v) => !v)}
+            className={`p-1.5 rounded-lg text-xs transition-colors ${
+              gridEnabled
+                ? "text-bridge-accent bg-bridge-accent/10"
+                : "text-slate-500 hover:text-foreground hover:bg-foreground/5"
+            }`}
+            title={t("notes.grid", "그리드")}
+          >
+            <Grid3X3 size={14} />
+          </button>
+          {currentUser && (
+            <button
+              onClick={() => setShowComments(!showComments)}
+              className={`p-1.5 rounded-lg text-xs transition-colors ${
+                showComments
+                  ? "text-bridge-accent bg-bridge-accent/10"
+                  : "text-slate-500 hover:text-foreground hover:bg-foreground/5"
+              }`}
+              title={t("notes.comments", "댓글")}
+            >
+              <MessageSquare size={14} />
+            </button>
+          )}
           {canEdit && (
             <button
               onClick={handleSave}
               disabled={!hasChanges || saving}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
                 hasChanges
                   ? "bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20"
                   : "bg-foreground/5 text-slate-500 cursor-not-allowed"
@@ -428,12 +628,16 @@ export default function ExcalidrawEditor({
         </div>
       </div>
 
-      {/* Excalidraw Canvas */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="min-h-[60vh] h-[calc(100vh-200px)] bg-bridge-obsidian rounded-2xl border border-foreground/5 overflow-hidden">
+      {/* Excalidraw Canvas — wrapper takes flex space, container fills it absolutely */}
+      <div style={{ flex: "1 1 0%", minHeight: 0, position: "relative" }}>
+        <div
+          ref={containerRef}
+          className="excalidraw-bridge-container"
+          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+        >
           <Suspense
             fallback={
-              <div className="flex-1 flex items-center justify-center h-full">
+              <div className="flex items-center justify-center h-full bg-bridge-obsidian">
                 <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
               </div>
             }
@@ -442,12 +646,23 @@ export default function ExcalidrawEditor({
               excalidrawAPI={(api: any) => {
                 excalidrawAPIRef.current = api;
               }}
-              initialData={initialDataRef.current || undefined}
+              initialData={
+                initialDataRef.current || {
+                  appState: {
+                    viewBackgroundColor: bgColor,
+                    currentItemStrokeColor: defaultStrokeColor,
+                  },
+                }
+              }
               onChange={handleExcalidrawChange}
-              onPointerUpdate={collaboration ? handlePointerUpdate : undefined}
+              onPointerUpdate={handlePointerUpdate}
               theme={isDark ? "dark" : "light"}
               viewModeEnabled={!canEdit}
               isCollaborating={!!collaboration}
+              langCode={langCode}
+              autoFocus
+              validateEmbeddable
+              gridModeEnabled={gridEnabled}
               UIOptions={{
                 canvasActions: {
                   loadScene: false,
@@ -457,17 +672,32 @@ export default function ExcalidrawEditor({
             />
           </Suspense>
         </div>
-
-        {/* Bottom Comments Panel */}
-        {currentUser && (
-          <NoteBottomComments
-            boardId={boardId}
-            noteId={note.id}
-            currentUserId={currentUser.id}
-            canEdit={canEdit}
-          />
-        )}
       </div>
+
+      {/* Comments Panel */}
+      {currentUser && showComments && (
+        <div className="border-t border-foreground/[0.08] bg-bridge-obsidian flex-shrink-0">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-foreground/[0.08]">
+            <span className="text-xs font-bold text-foreground">
+              {t("notes.comments", "댓글")}
+            </span>
+            <button
+              onClick={() => setShowComments(false)}
+              className="p-1 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            >
+              <ChevronDown size={14} />
+            </button>
+          </div>
+          <div className="max-h-48 overflow-y-auto custom-scrollbar">
+            <NoteBottomComments
+              boardId={boardId}
+              noteId={note.id}
+              currentUserId={currentUser.id}
+              canEdit={canEdit}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

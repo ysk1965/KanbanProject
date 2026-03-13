@@ -323,6 +323,42 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getPersonalConversionStats(days));
     }
 
+    // ==================== Churn Analysis ====================
+
+    @GetMapping("/statistics/churn/retention")
+    public ResponseEntity<AdminResponse.RetentionAnalysis> getRetentionAnalysis(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "8") @Min(4) @Max(24) int weeks) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.getRetentionAnalysis(weeks));
+    }
+
+    @GetMapping("/statistics/churn/inactive-users")
+    public ResponseEntity<AdminResponse.InactiveUserList> getInactiveUsers(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(name = "inactive_days", defaultValue = "14") @Min(1) @Max(365) int inactiveDays,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.getInactiveUsers(inactiveDays, page, size));
+    }
+
+    @GetMapping("/statistics/churn/trial-dropout")
+    public ResponseEntity<AdminResponse.TrialDropoutAnalysis> getTrialDropoutAnalysis(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "90") @Min(1) @Max(365) int days) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.getTrialDropoutAnalysis(days));
+    }
+
+    @GetMapping("/statistics/churn/activity-trends")
+    public ResponseEntity<AdminResponse.ActivityTrends> getActivityTrends(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "90") @Min(1) @Max(365) int days) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.getActivityTrends(days));
+    }
+
     // ==================== Subscriptions ====================
 
     @GetMapping("/subscriptions")

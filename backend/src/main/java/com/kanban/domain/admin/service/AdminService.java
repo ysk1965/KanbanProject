@@ -7,6 +7,8 @@ import com.kanban.domain.announcement.Announcement;
 import com.kanban.domain.announcement.AnnouncementRepository;
 import com.kanban.domain.announcement.AnnouncementType;
 import com.kanban.domain.auth.service.AuthService;
+import com.kanban.domain.activity.ActivityLog;
+import com.kanban.domain.activity.ActivityLogRepository;
 import com.kanban.domain.board.*;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.organization.Organization;
@@ -40,13 +42,14 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAdjusters;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -66,6 +69,7 @@ public class AdminService {
     private final AnnouncementRepository announcementRepository;
     private final SystemConfigRepository systemConfigRepository;
     private final DiaryEntryRepository diaryEntryRepository;
+    private final ActivityLogRepository activityLogRepository;
     private final ObjectMapper objectMapper;
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
     private final OrganizationRepository organizationRepository;
@@ -1171,5 +1175,259 @@ public class AdminService {
         public String message;
         public LocalDateTime estimatedEndAt;
         public LocalDateTime startedAt;
+    }
+
+    // ==================== Churn Analysis ====================
+
+    public AdminResponse.RetentionAnalysis getRetentionAnalysis(int weeks) {
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime startDate = now.minusWeeks(weeks);
+
+        List<User> users = userRepository.findActiveUsersCreatedAfter(startDate);
+
+        // Group users by cohort week (Monday-based)
+        Map<LocalDate, List<User>> cohortMap = new LinkedHashMap<>();
+        for (User user : users) {
+            LocalDate createdDate = user.getCreatedAt().toLocalDate();
+            LocalDate weekStart = createdDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            cohortMap.computeIfAbsent(weekStart, k -> new ArrayList<>()).add(user);
+        }
+
+        List<AdminResponse.RetentionAnalysis.CohortData> cohorts = new ArrayList<>();
+        int maxWeeks = weeks;
+
+        for (Map.Entry<LocalDate, List<User>> entry : cohortMap.entrySet()) {
+            LocalDate cohortWeek = entry.getKey();
+            List<User> cohortUsers = entry.getValue();
+            long signupCount = cohortUsers.size();
+
+            // Calculate retention for each subsequent week
+            int weeksAvailable = (int) ChronoUnit.WEEKS.between(cohortWeek, now.toLocalDate());
+            int retentionWeeks = Math.min(weeksAvailable, maxWeeks);
+
+            List<Double> retention = new ArrayList<>();
+            for (int w = 0; w <= retentionWeeks; w++) {
+                LocalDate weekTarget = cohortWeek.plusWeeks(w);
+                LocalDate weekEnd = weekTarget.plusWeeks(1);
+
+                long activeCount = cohortUsers.stream()
+                        .filter(u -> u.getLastActiveAt() != null &&
+                                !u.getLastActiveAt().toLocalDate().isBefore(weekTarget))
+                        .count();
+
+                double rate = signupCount > 0
+                        ? Math.round((double) activeCount / signupCount * 1000.0) / 10.0
+                        : 0.0;
+                retention.add(rate);
+            }
+
+            cohorts.add(AdminResponse.RetentionAnalysis.CohortData.builder()
+                    .cohortWeek(cohortWeek.toString())
+                    .signupCount(signupCount)
+                    .retention(retention)
+                    .build());
+        }
+
+        // Calculate average retention across all cohorts
+        int maxRetentionLen = cohorts.stream()
+                .mapToInt(c -> c.getRetention().size())
+                .max().orElse(0);
+        List<Double> averageRetention = new ArrayList<>();
+        for (int w = 0; w < maxRetentionLen; w++) {
+            final int week = w;
+            double avg = cohorts.stream()
+                    .filter(c -> c.getRetention().size() > week)
+                    .mapToDouble(c -> c.getRetention().get(week))
+                    .average().orElse(0.0);
+            averageRetention.add(Math.round(avg * 10.0) / 10.0);
+        }
+
+        return AdminResponse.RetentionAnalysis.builder()
+                .cohorts(cohorts)
+                .averageRetention(averageRetention)
+                .build();
+    }
+
+    public AdminResponse.InactiveUserList getInactiveUsers(int inactiveDays, int page, int size) {
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime threshold = now.minusDays(inactiveDays);
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<User> userPage = userRepository.findInactiveUsers(threshold, pageable);
+
+        // Batch load: board count per user
+        List<String> userIds = userPage.getContent().stream().map(User::getId).collect(Collectors.toList());
+        Map<String, Integer> boardCountMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            boardCountMap = boardRepository.countByUserInvolvementBatch(userIds).stream()
+                    .collect(Collectors.toMap(
+                            row -> (String) row[0],
+                            row -> ((Number) row[1]).intValue(),
+                            (a, b) -> a));
+        }
+
+        // Batch load: last action per user
+        Map<String, ActivityLog> lastActionMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            List<ActivityLog> lastActions = activityLogRepository.findLastActionByUserIds(userIds);
+            for (ActivityLog al : lastActions) {
+                lastActionMap.put(al.getUser().getId(), al);
+            }
+        }
+
+        List<AdminResponse.InactiveUserList.InactiveUser> inactiveUsers = new ArrayList<>();
+        for (User user : userPage.getContent()) {
+            long days = user.getLastActiveAt() != null
+                    ? ChronoUnit.DAYS.between(user.getLastActiveAt(), now)
+                    : ChronoUnit.DAYS.between(user.getCreatedAt(), now);
+
+            ActivityLog lastAction = lastActionMap.get(user.getId());
+            inactiveUsers.add(AdminResponse.InactiveUserList.InactiveUser.builder()
+                    .id(user.getId())
+                    .name(user.getName())
+                    .email(user.getEmail())
+                    .profileImage(user.getProfileImage())
+                    .createdAt(user.getCreatedAt())
+                    .lastActiveAt(user.getLastActiveAt())
+                    .inactiveDays(days)
+                    .boardCount(boardCountMap.getOrDefault(user.getId(), 0))
+                    .lastAction(lastAction != null ? lastAction.getAction().name() : null)
+                    .lastActionAt(lastAction != null ? lastAction.getCreatedAt() : null)
+                    .build());
+        }
+
+        // Summary counts
+        long inactive7d = userRepository.countInactiveUsers(now.minusDays(7));
+        long inactive14d = userRepository.countInactiveUsers(now.minusDays(14));
+        long inactive30d = userRepository.countInactiveUsers(now.minusDays(30));
+
+        return AdminResponse.InactiveUserList.builder()
+                .users(inactiveUsers)
+                .total(userPage.getTotalElements())
+                .page(page)
+                .size(size)
+                .summary(AdminResponse.InactiveUserList.InactiveSummary.builder()
+                        .inactive7d(inactive7d)
+                        .inactive14d(inactive14d)
+                        .inactive30d(inactive30d)
+                        .build())
+                .build();
+    }
+
+    public AdminResponse.TrialDropoutAnalysis getTrialDropoutAnalysis(int days) {
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime startDate = now.minusDays(days);
+
+        List<Subscription> expiredTrials = subscriptionRepository.findExpiredTrialsNotConverted(now, startDate);
+        long totalExpired = expiredTrials.size();
+
+        if (totalExpired == 0) {
+            return AdminResponse.TrialDropoutAnalysis.builder()
+                    .totalExpiredTrials(0)
+                    .dropoutByDay(Collections.emptyList())
+                    .actionsBeforeDropout(Collections.emptyList())
+                    .neverActedCount(0)
+                    .neverActedPercentage(0.0)
+                    .build();
+        }
+
+        // Calculate dropout day based on owner's last activity relative to subscription start
+        int[] dayBuckets = new int[7];
+        long neverActed = 0;
+        List<String> boardIds = new ArrayList<>();
+
+        for (Subscription sub : expiredTrials) {
+            Board board = sub.getBoard();
+            boardIds.add(board.getId());
+            User owner = board.getOwner();
+
+            if (owner.getLastActiveAt() == null || owner.getLastActiveAt().isBefore(sub.getCreatedAt())) {
+                neverActed++;
+                continue;
+            }
+
+            long trialDay = ChronoUnit.DAYS.between(sub.getCreatedAt(), owner.getLastActiveAt());
+            int dayIndex = (int) Math.min(Math.max(trialDay, 0), 6);
+            dayBuckets[dayIndex]++;
+        }
+
+        List<AdminResponse.TrialDropoutAnalysis.DayDropout> dropoutByDay = new ArrayList<>();
+        for (int i = 0; i < 7; i++) {
+            double pct = totalExpired > 0 ? Math.round((double) dayBuckets[i] / totalExpired * 1000.0) / 10.0 : 0.0;
+            dropoutByDay.add(AdminResponse.TrialDropoutAnalysis.DayDropout.builder()
+                    .trialDay(i)
+                    .count(dayBuckets[i])
+                    .percentage(pct)
+                    .build());
+        }
+
+        // Action distribution across expired trial boards
+        List<AdminResponse.TrialDropoutAnalysis.ActionStat> actionsBeforeDropout = new ArrayList<>();
+        if (!boardIds.isEmpty()) {
+            List<Object[]> actionRows = activityLogRepository.countActionsByBoards(boardIds);
+            for (Object[] row : actionRows) {
+                String action = row[0].toString();
+                long count = ((Number) row[1]).longValue();
+                double pct = Math.round((double) count / totalExpired * 1000.0) / 10.0;
+                actionsBeforeDropout.add(AdminResponse.TrialDropoutAnalysis.ActionStat.builder()
+                        .action(action)
+                        .count(count)
+                        .percentage(pct)
+                        .build());
+            }
+        }
+
+        double neverActedPct = Math.round((double) neverActed / totalExpired * 1000.0) / 10.0;
+
+        return AdminResponse.TrialDropoutAnalysis.builder()
+                .totalExpiredTrials(totalExpired)
+                .dropoutByDay(dropoutByDay)
+                .actionsBeforeDropout(actionsBeforeDropout)
+                .neverActedCount(neverActed)
+                .neverActedPercentage(neverActedPct)
+                .build();
+    }
+
+    public AdminResponse.ActivityTrends getActivityTrends(int days) {
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime startDate = now.minusDays(days);
+
+        // Weekly activity trend
+        List<Object[]> weeklyRows = activityLogRepository.getWeeklyActivityTrend(startDate);
+        List<AdminResponse.ActivityTrends.WeeklyActivity> weeklyActivity = new ArrayList<>();
+        for (Object[] row : weeklyRows) {
+            weeklyActivity.add(AdminResponse.ActivityTrends.WeeklyActivity.builder()
+                    .week(row[0].toString())
+                    .totalActions(((Number) row[1]).longValue())
+                    .activeUsers(((Number) row[2]).longValue())
+                    .build());
+        }
+
+        // Calculate week-over-week change rate
+        double changeRate = 0.0;
+        if (weeklyActivity.size() >= 2) {
+            long thisWeek = weeklyActivity.get(weeklyActivity.size() - 1).getTotalActions();
+            long lastWeek = weeklyActivity.get(weeklyActivity.size() - 2).getTotalActions();
+            if (lastWeek > 0) {
+                changeRate = Math.round((double) (thisWeek - lastWeek) / lastWeek * 1000.0) / 10.0;
+            }
+        }
+
+        // Feature usage stats
+        List<Object[]> usageRows = activityLogRepository.getFeatureUsageStats(startDate);
+        List<AdminResponse.ActivityTrends.FeatureUsage> featureUsage = new ArrayList<>();
+        for (Object[] row : usageRows) {
+            featureUsage.add(AdminResponse.ActivityTrends.FeatureUsage.builder()
+                    .action(row[0].toString())
+                    .count(((Number) row[1]).longValue())
+                    .uniqueUsers(((Number) row[2]).longValue())
+                    .build());
+        }
+
+        return AdminResponse.ActivityTrends.builder()
+                .weeklyActivity(weeklyActivity)
+                .activityChangeRate(changeRate)
+                .featureUsage(featureUsage)
+                .build();
     }
 }

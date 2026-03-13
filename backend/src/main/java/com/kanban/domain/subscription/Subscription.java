@@ -318,6 +318,13 @@ public class Subscription {
     }
 
     /**
+     * 크레딧 환불 (월간 크레딧으로 복원)
+     */
+    public void refundCredits(int amount) {
+        this.monthlyCreditsUsed = Math.max(0, this.monthlyCreditsUsed - amount);
+    }
+
+    /**
      * 크레딧 소비 소스 반환 (로깅용)
      */
     public String getCreditSource(int amount) {

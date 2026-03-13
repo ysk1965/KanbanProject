@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Folder, CreditCard, BarChart3, Megaphone, Shield, ArrowLeft, MessageSquare, Activity, Building2 } from 'lucide-react';
+import { LayoutDashboard, Users, Folder, CreditCard, BarChart3, Megaphone, Shield, ArrowLeft, MessageSquare, Activity, Building2, UserMinus } from 'lucide-react';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { useTranslation } from 'react-i18next';
 import { AdminDashboardTab } from '../components/admin/AdminDashboardTab';
@@ -12,10 +12,12 @@ import { AdminSystemTab } from '../components/admin/AdminSystemTab';
 import { AdminInquiriesTab } from '../components/admin/AdminInquiriesTab';
 import { AdminMonitoringTab } from '../components/admin/AdminMonitoringTab';
 import { AdminOrganizationsTab } from '../components/admin/AdminOrganizationsTab';
+import { AdminChurnTab } from '../components/admin/AdminChurnTab';
 
 const navItems = [
   { path: 'dashboard', labelKey: 'admin.dashboard.title', icon: LayoutDashboard },
   { path: 'analytics', labelKey: 'admin.analytics.title', icon: BarChart3 },
+  { path: 'churn', labelKey: 'admin.churn.title', icon: UserMinus },
   { path: 'users', labelKey: 'admin.users.title', icon: Users },
   { path: 'boards', labelKey: 'admin.boards.title', icon: Folder },
   { path: 'organizations', labelKey: 'admin.organizations.title', icon: Building2 },
@@ -78,6 +80,7 @@ export function AdminPage() {
                 <Route path="/" element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<AdminDashboardTab />} />
                 <Route path="analytics" element={<AdminAnalyticsTab />} />
+                <Route path="churn" element={<AdminChurnTab />} />
                 <Route path="users" element={<AdminUsersTab />} />
                 <Route path="boards" element={<AdminBoardsTab />} />
                 <Route path="organizations" element={<AdminOrganizationsTab />} />

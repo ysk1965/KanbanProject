@@ -27,7 +27,22 @@ export function useBoardFilters(
         const matchesNoAssignee = hasNoAssigneeFilter && !featureAssigneeName;
         const matchesMember = memberNames.length > 0 && memberNames.some(m => featureAssigneeName === m);
         if (!matchesNoAssignee && !matchesMember) {
-          return false;
+          // Feature 직접 assignee가 매칭되지 않아도, 하위 Task에 해당 담당자가 있으면 표시
+          const featureTasks = tasks.filter(t => t.feature_id === feature.id);
+          const hasMatchingTask = featureTasks.some(task => {
+            const taskAssigneeNames = new Set<string>();
+            if (task.assignees) {
+              task.assignees.forEach(a => taskAssigneeNames.add(a.name));
+            }
+            const taskChecklists = checklistDataMap[task.id] || [];
+            taskChecklists.filter(ci => ci.assignee?.name).forEach(ci => taskAssigneeNames.add(ci.assignee!.name));
+            const hasNoAssignee = taskAssigneeNames.size === 0;
+            return (hasNoAssigneeFilter && hasNoAssignee) ||
+              (memberNames.length > 0 && memberNames.some(m => taskAssigneeNames.has(m)));
+          });
+          if (!hasMatchingTask) {
+            return false;
+          }
         }
       }
       if (filterOptions.tags.length > 0 && !filterOptions.tags.some((tagId) => feature.tags?.some((t) => t.id === tagId))) {
@@ -35,7 +50,7 @@ export function useBoardFilters(
       }
       return true;
     });
-  }, [features, filterOptions]);
+  }, [features, filterOptions, tasks, checklistDataMap]);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {

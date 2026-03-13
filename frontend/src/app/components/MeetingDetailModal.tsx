@@ -141,25 +141,57 @@ export function MeetingDetailPanel({
   useEffect(() => autoResize(memoRef.current), [editingMemo, autoResize, loading]);
   useEffect(() => autoResize(transcriptRef.current), [editingTranscript, autoResize, loading]);
 
-  // Subscribe to transcription progress events via WebSocket
+  // Subscribe to transcription progress + result events via WebSocket
   useEffect(() => {
     if (!isTranscribing) return;
+
+    // Timeout fallback: if no COMPLETE/ERROR received within 5 minutes, auto-recover
+    const timeout = setTimeout(() => {
+      console.warn("Transcription timeout — no WebSocket result received in 5 minutes");
+      setTranscriptionProgress({ stage: "ERROR", percent: 0 });
+      alert(t("meeting.transcriptionError"));
+      setIsTranscribing(false);
+      setTimeout(() => setTranscriptionProgress(null), 1200);
+    }, 5 * 60 * 1000);
 
     const sub = wsManager.subscribe(
       `/topic/board/${boardId}`,
       (message) => {
         try {
           const event = JSON.parse(message.body);
-          if (
-            event.type === "TRANSCRIPTION_PROGRESS" &&
-            event.data?.meeting_id === meetingId
-          ) {
+          if (event.data?.meeting_id !== meetingId) return;
+
+          if (event.type === "TRANSCRIPTION_PROGRESS") {
             setTranscriptionProgress({
               stage: event.data.stage,
               percent: event.data.percent,
               current: event.data.current,
               total: event.data.total,
             });
+          } else if (event.type === "TRANSCRIPTION_COMPLETE") {
+            clearTimeout(timeout);
+            const transcript = event.data.transcript as string;
+            const diarized = event.data.diarized_transcript as DiarizedTranscript | null;
+            setDetail((prev) =>
+              prev
+                ? { ...prev, transcript, diarized_transcript: diarized }
+                : prev,
+            );
+            setEditingTranscript(transcript);
+            if (diarized) {
+              setSpeakerMapping(diarized.speaker_mapping || {});
+              setIsEditingTranscriptManually(false);
+            }
+            clearRecording();
+            setIsTranscribing(false);
+            setTimeout(() => setTranscriptionProgress(null), 1200);
+          } else if (event.type === "TRANSCRIPTION_ERROR") {
+            clearTimeout(timeout);
+            console.error("Transcription failed:", event.data.error);
+            setTranscriptionProgress({ stage: "ERROR", percent: 0 });
+            alert(t("meeting.transcriptionError"));
+            setIsTranscribing(false);
+            setTimeout(() => setTranscriptionProgress(null), 1200);
           }
         } catch {
           // ignore parse errors
@@ -168,6 +200,7 @@ export function MeetingDetailPanel({
     );
 
     return () => {
+      clearTimeout(timeout);
       sub.unsubscribe();
     };
   }, [isTranscribing, boardId, meetingId]);
@@ -289,31 +322,13 @@ export function MeetingDetailPanel({
     setIsTranscribing(true);
     setTranscriptionProgress({ stage: "UPLOADING", percent: 2 });
     try {
-      const result = await meetingAPI.transcribeAudio(
-        boardId,
-        meetingId,
-        audioBlob,
-      );
-      setDetail((prev) =>
-        prev
-          ? {
-              ...prev,
-              transcript: result.transcript,
-              diarized_transcript: result.diarized_transcript,
-            }
-          : prev,
-      );
-      setEditingTranscript(result.transcript);
-      if (result.diarized_transcript) {
-        setSpeakerMapping(result.diarized_transcript.speaker_mapping || {});
-        setIsEditingTranscriptManually(false);
-      }
-      clearRecording();
+      // 202 Accepted — result delivered via WebSocket (TRANSCRIPTION_COMPLETE/ERROR)
+      await meetingAPI.transcribeAudio(boardId, meetingId, audioBlob);
     } catch (error) {
-      console.error("Transcription failed:", error);
+      // Synchronous validation errors (402 credit exhausted, file too large, etc.)
+      console.error("Transcription request failed:", error);
       setTranscriptionProgress({ stage: "ERROR", percent: 0 });
       alert(t("meeting.transcriptionError"));
-    } finally {
       setIsTranscribing(false);
       setTimeout(() => setTranscriptionProgress(null), 1200);
     }

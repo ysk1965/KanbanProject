@@ -3,6 +3,7 @@ package com.kanban.domain.checklist.dto;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.task.Task;
+import com.kanban.domain.user.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -10,6 +11,9 @@ import lombok.Getter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class ChecklistResponse {
 
@@ -57,6 +61,18 @@ public class ChecklistResponse {
                     .id(item.getAssignee().getId())
                     .name(item.getAssignee().getName())
                     .profileImage(item.getAssignee().getProfileImage())
+                    .build();
+        }
+
+        /**
+         * User 엔티티로부터 직접 생성 (by-assignee 뷰용)
+         * Jackson SNAKE_CASE 전략에 의해 profileImage → profile_image 직렬화됨
+         */
+        public static AssigneeInfo of(User user) {
+            return AssigneeInfo.builder()
+                    .id(user.getId())
+                    .name(user.getName())
+                    .profileImage(user.getProfileImage())
                     .build();
         }
     }
@@ -154,6 +170,102 @@ public class ChecklistResponse {
             return BoardListResponse.builder()
                     .total(items.size())
                     .items(items.stream().map(BoardItem::of).toList())
+                    .build();
+        }
+    }
+
+    // ==================== by-assignee Response (캘린더/리소스 뷰용) ====================
+
+    /**
+     * UC-001: GET /boards/{boardId}/checklist-items/by-assignee 응답 최상위 DTO
+     * - assignees: 담당자별 그룹 목록
+     * - unassigned: 담당자 미배정 항목 목록
+     */
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class ByAssigneeResponse {
+        private List<AssigneeGroup> assignees;
+        private List<AssigneeItemResponse> unassigned;
+
+        public static ByAssigneeResponse of(List<ChecklistItem> items) {
+            // 담당자 있는 항목과 없는 항목 분리
+            List<ChecklistItem> assignedItems = items.stream()
+                    .filter(c -> c.getAssignee() != null)
+                    .toList();
+            List<ChecklistItem> unassignedItems = items.stream()
+                    .filter(c -> c.getAssignee() == null)
+                    .toList();
+
+            // 담당자별 그룹핑 (LinkedHashMap으로 삽입 순서 유지)
+            Map<String, List<ChecklistItem>> grouped = assignedItems.stream()
+                    .collect(Collectors.groupingBy(
+                            c -> c.getAssignee().getId(),
+                            LinkedHashMap::new,
+                            Collectors.toList()
+                    ));
+
+            List<AssigneeGroup> assigneeGroups = grouped.entrySet().stream()
+                    .map(entry -> {
+                        User assignee = entry.getValue().get(0).getAssignee();
+                        List<AssigneeItemResponse> groupItems = entry.getValue().stream()
+                                .map(AssigneeItemResponse::of)
+                                .toList();
+                        return AssigneeGroup.builder()
+                                .assignee(AssigneeInfo.of(assignee))
+                                .items(groupItems)
+                                .build();
+                    })
+                    .toList();
+
+            return ByAssigneeResponse.builder()
+                    .assignees(assigneeGroups)
+                    .unassigned(unassignedItems.stream().map(AssigneeItemResponse::of).toList())
+                    .build();
+        }
+    }
+
+    /**
+     * 담당자 + 해당 담당자의 ChecklistItem 목록
+     */
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class AssigneeGroup {
+        private AssigneeInfo assignee;
+        private List<AssigneeItemResponse> items;
+    }
+
+    /**
+     * 개별 ChecklistItem 응답 (캘린더/리소스 뷰용)
+     * - task: 상위 Task 요약 (id, title)
+     * - feature: 상위 Feature 요약 (id, title, color)
+     * Jackson SNAKE_CASE 전략에 의해 startDate → start_date, dueDate → due_date 직렬화됨
+     */
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class AssigneeItemResponse {
+        private String id;
+        private String title;
+        private boolean completed;
+        private LocalDate startDate;
+        private LocalDate dueDate;
+        private TaskInfo task;
+        private FeatureInfo feature;
+
+        public static AssigneeItemResponse of(ChecklistItem item) {
+            Task task = item.getTask();
+            Feature feature = task != null ? task.getFeature() : null;
+
+            return AssigneeItemResponse.builder()
+                    .id(item.getId())
+                    .title(item.getTitle())
+                    .completed(item.getIsCompleted())
+                    .startDate(item.getStartDate())
+                    .dueDate(item.getDueDate())
+                    .task(task != null ? TaskInfo.of(task) : null)
+                    .feature(feature != null ? FeatureInfo.of(feature) : null)
                     .build();
         }
     }

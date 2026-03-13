@@ -44,8 +44,8 @@ export function MotionModal({
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
-  // Track whether mousedown started inside the modal content
-  const mouseDownInsideRef = useRef(false);
+  // Track whether mousedown started on the overlay (not inside content, not from external drag)
+  const mouseDownOnOverlayRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -74,12 +74,13 @@ export function MotionModal({
           animate={{ backgroundColor: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}
           exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
           transition={{ duration: 0.3 }}
-          onMouseDown={() => { mouseDownInsideRef.current = false; }}
+          onMouseDown={() => { mouseDownOnOverlayRef.current = true; }}
           onClick={overlayClose ? () => {
-            // Only close if mousedown also started on the overlay (not dragged from inside)
-            if (!mouseDownInsideRef.current) {
+            // Only close if mousedown also started on the overlay (not from drag or inside content)
+            if (mouseDownOnOverlayRef.current) {
               onCloseRef.current();
             }
+            mouseDownOnOverlayRef.current = false;
           } : undefined}
         >
           <motion.div
@@ -101,7 +102,7 @@ export function MotionModal({
               className,
             )}
             style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-            onMouseDown={(e) => { e.stopPropagation(); mouseDownInsideRef.current = true; }}
+            onMouseDown={(e) => { e.stopPropagation(); mouseDownOnOverlayRef.current = false; }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Top shimmer line */}

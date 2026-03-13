@@ -1,19 +1,58 @@
-import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Users, ArrowLeft, LayoutGrid, Calendar, Flag, Pencil, Lock, BarChart3, MessageSquare, FileText, Building2 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { useTranslation } from 'react-i18next';
-import { isWhiteLabelDomain } from '../utils/domain';
-import { Board, Milestone, BoardTierInfo, Subscription, AiCredits } from '../types';
-import { BoardMember as ShareBoardMember, MemberRole } from './ShareBoardModal';
-import { UpgradeTrigger } from './UpgradeModal';
-import { TrialBanner } from './TrialBanner';
-import { NotificationDropdown } from './NotificationDropdown';
-import { UserMenu } from './UserMenu';
-import { AnnouncementDisplay } from './AnnouncementDisplay';
-import { boardService } from '../utils/services';
+import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Plus,
+  Users,
+  ArrowLeft,
+  LayoutGrid,
+  Calendar,
+  Flag,
+  Pencil,
+  Lock,
+  BarChart3,
+  MessageSquare,
+  FileText,
+  Building2,
+  Keyboard,
+} from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { useTranslation } from "react-i18next";
+import { isWhiteLabelDomain } from "../utils/domain";
+import {
+  Board,
+  Milestone,
+  BoardTierInfo,
+  Subscription,
+  AiCredits,
+} from "../types";
+import { BoardMember as ShareBoardMember, MemberRole } from "./ShareBoardModal";
+import { UpgradeTrigger } from "./UpgradeModal";
+import { TrialBanner } from "./TrialBanner";
+import { NotificationDropdown } from "./NotificationDropdown";
+import { UserMenu } from "./UserMenu";
+import { AnnouncementDisplay } from "./AnnouncementDisplay";
+import { boardService } from "../utils/services";
 
-type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'calendar' | 'milestone' | 'meeting' | 'notes' | 'statistics' | 'ai_report';
+type ViewMode =
+  | "kanban"
+  | "gantt"
+  | "schedule"
+  | "calendar"
+  | "milestone"
+  | "meeting"
+  | "notes"
+  | "statistics"
+  | "ai_report"
+  | "list";
+
+// 보드 서브뷰 그룹 (보드 탭에 속하는 ViewMode 집합)
+const BOARD_SUB_MODES: ViewMode[] = [
+  "kanban",
+  "gantt",
+  "calendar",
+  "list",
+  "milestone",
+];
 
 interface KanbanBoardHeaderProps {
   board: Board | null;
@@ -61,30 +100,74 @@ interface KanbanBoardHeaderProps {
   onOpenPremiumBenefits: () => void;
   onOpenUpgradeModal: (trigger: UpgradeTrigger) => void;
   onUpdatePayment?: () => void;
+  onOpenShortcutsHelp?: () => void;
   // User
-  currentUser: { id: string; name: string; email: string; role?: string } | null;
+  currentUser: {
+    id: string;
+    name: string;
+    email: string;
+    role?: string;
+  } | null;
   onLogout: () => void;
   isTester: boolean;
-  // Schedule sub mode helpers
-  getScheduleSubMode: () => 'schedule' | 'weekly' | 'calendar' | 'milestone';
-  getAISubMode: () => 'statistics' | 'ai_report';
+  // Sub mode helpers
+  getBoardSubMode: () => "kanban" | "gantt" | "calendar" | "list" | "milestone";
+  getScheduleSubMode: () => "schedule";
+  getAISubMode: () => "statistics" | "ai_report";
 }
 
 export function KanbanBoardHeader({
-  board, boardId, viewMode, onViewModeChange,
-  milestones, allFeatures, kanbanSelectedMilestoneId, onMilestoneSelect, onOpenMilestoneWithCheck, onOpenMilestoneOnboarding,
-  boardMembersData, memberColorMap, onlineUsers,
-  unreadNotificationCount, onUnreadCountChange, unreadInquiryCount, activities, hasMoreActivities, onLoadMoreActivities, onNotificationClick,
-  canEdit, canAccessSchedule, canAccessMilestone, canAccessStatistics, canAccessSlack, canViewStatistics, isAdminOrOwner, isViewer, hideBilling, hideBillingForUser,
-  subscription, tierInfo,
-  onSaveBoardName, onOpenShareBoard, onOpenSubscription, onOpenInquiry, onOpenPremiumBenefits, onOpenUpgradeModal, onUpdatePayment,
-  currentUser, onLogout, isTester,
-  getScheduleSubMode, getAISubMode,
+  board,
+  boardId,
+  viewMode,
+  onViewModeChange,
+  milestones,
+  allFeatures,
+  kanbanSelectedMilestoneId,
+  onMilestoneSelect,
+  onOpenMilestoneWithCheck,
+  onOpenMilestoneOnboarding,
+  boardMembersData,
+  memberColorMap,
+  onlineUsers,
+  unreadNotificationCount,
+  onUnreadCountChange,
+  unreadInquiryCount,
+  activities,
+  hasMoreActivities,
+  onLoadMoreActivities,
+  onNotificationClick,
+  canEdit,
+  canAccessSchedule,
+  canAccessMilestone,
+  canAccessStatistics,
+  canAccessSlack,
+  canViewStatistics,
+  isAdminOrOwner,
+  isViewer,
+  hideBilling,
+  hideBillingForUser,
+  subscription,
+  tierInfo,
+  onSaveBoardName,
+  onOpenShareBoard,
+  onOpenSubscription,
+  onOpenInquiry,
+  onOpenPremiumBenefits,
+  onOpenUpgradeModal,
+  onUpdatePayment,
+  onOpenShortcutsHelp,
+  currentUser,
+  onLogout,
+  isTester,
+  getBoardSubMode,
+  getScheduleSubMode,
+  getAISubMode,
 }: KanbanBoardHeaderProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [isEditingBoardName, setIsEditingBoardName] = useState(false);
-  const [editingBoardName, setEditingBoardName] = useState('');
+  const [editingBoardName, setEditingBoardName] = useState("");
   const boardNameInputRef = useRef<HTMLInputElement>(null);
 
   const handleStartEditBoardName = () => {
@@ -108,12 +191,12 @@ export function KanbanBoardHeader({
     <>
       <AnnouncementDisplay />
       <TrialBanner
-        status={subscription?.status || 'ACTIVE'}
+        status={subscription?.status || "ACTIVE"}
         tier={tierInfo?.tier}
         trialEndsAt={tierInfo?.trial_ends_at || subscription?.trial_ends_at}
         onOpenSubscription={onOpenSubscription}
         onOpenPremiumBenefits={onOpenPremiumBenefits}
-        onTrialEnding={() => onOpenUpgradeModal('trial_ending')}
+        onTrialEnding={() => onOpenUpgradeModal("trial_ending")}
         onUpdatePayment={onUpdatePayment}
         daysPastDue={subscription?.days_past_due}
         daysUntilSuspension={subscription?.days_until_suspension}
@@ -143,19 +226,19 @@ export function KanbanBoardHeader({
                 onChange={(e) => setEditingBoardName(e.target.value)}
                 onBlur={handleSaveBoardName}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveBoardName();
-                  if (e.key === 'Escape') setIsEditingBoardName(false);
+                  if (e.key === "Enter") handleSaveBoardName();
+                  if (e.key === "Escape") setIsEditingBoardName(false);
                 }}
                 className="text-sm md:text-lg font-bold tracking-tight text-foreground bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-0.5 outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent max-w-[160px] sm:max-w-[200px] md:max-w-[300px]"
                 autoFocus
               />
             ) : (
               <h1
-                className={`text-sm md:text-lg font-bold tracking-tight text-foreground truncate max-w-[100px] sm:max-w-[160px] md:max-w-none ${canEdit ? 'cursor-pointer hover:text-bridge-accent transition-colors' : ''}`}
+                className={`text-sm md:text-lg font-bold tracking-tight text-foreground truncate max-w-[100px] sm:max-w-[160px] md:max-w-none ${canEdit ? "cursor-pointer hover:text-bridge-accent transition-colors" : ""}`}
                 onClick={canEdit ? handleStartEditBoardName : undefined}
-                title={canEdit ? t('common.edit') : undefined}
+                title={canEdit ? t("common.edit") : undefined}
               >
-                {board?.name || t('kanban.defaultBoardName')}
+                {board?.name || t("kanban.defaultBoardName")}
               </h1>
             )}
 
@@ -171,99 +254,122 @@ export function KanbanBoardHeader({
 
         {/* 중앙 탭 영역 - 절대 중앙 정렬 */}
         <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-        <nav className="flex items-center gap-1 bg-bridge-surface p-1 rounded-xl border border-bridge-border overflow-x-auto shrink-0">
-          <button
-            onClick={() => onViewModeChange('kanban')}
-            className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              viewMode === 'kanban'
-                ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
-                : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
-            }`}
-          >
-            <LayoutGrid size={14} />
-            <span className="hidden md:inline">{t('kanban.viewKanban')}</span>
-          </button>
-
-          <button
-            onClick={() => {
-              const subMode = getScheduleSubMode();
-              if (subMode === 'weekly' && !canAccessSchedule) {
-                onViewModeChange('schedule');
-              } else {
-                onViewModeChange(subMode);
-              }
-            }}
-            className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              viewMode === 'schedule' || viewMode === 'weekly' || viewMode === 'calendar' || viewMode === 'milestone'
-                ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
-                : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
-            }`}
-          >
-            <Calendar size={14} />
-            <span className="hidden md:inline">{t('kanban.viewScheduleTab', '일정')}</span>
-          </button>
-
-          <button
-            onClick={() => onViewModeChange('meeting')}
-            className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              viewMode === 'meeting'
-                ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
-                : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
-            }`}
-          >
-            <Users size={14} />
-            <span className="hidden md:inline">{t('kanban.viewMeeting', '회의')}</span>
-          </button>
-
-          {!isWhiteLabelDomain && (
-            <button
-              onClick={() => onViewModeChange('notes')}
-              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                viewMode === 'notes'
-                  ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
-                  : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
-              }`}
-            >
-              <FileText size={14} />
-              <span className="hidden md:inline">{t('kanban.viewNotes', '노트')}</span>
-            </button>
-          )}
-
-          {!isWhiteLabelDomain && (isAdminOrOwner || (!isViewer && !isTester)) && (
+          <nav className="flex items-center gap-1 bg-bridge-surface p-1 rounded-xl border border-bridge-border overflow-x-auto shrink-0">
             <button
               onClick={() => {
-                if (!canAccessStatistics) {
-                  onOpenUpgradeModal('statistics');
-                  return;
-                }
-                const subMode = getAISubMode();
-                if (subMode === 'statistics' && !isAdminOrOwner) {
-                  onViewModeChange('ai_report');
-                } else if (subMode === 'ai_report' && (isViewer || isTester)) {
-                  onViewModeChange('statistics');
-                } else {
-                  onViewModeChange(subMode);
-                }
+                const subMode = getBoardSubMode();
+                onViewModeChange(subMode);
               }}
-              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative whitespace-nowrap ${
-                viewMode === 'statistics' || viewMode === 'ai_report'
-                  ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
-                  : !canAccessStatistics
-                    ? 'text-zinc-600 cursor-not-allowed opacity-50'
-                    : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
+              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                BOARD_SUB_MODES.includes(viewMode)
+                  ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
+                  : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
               }`}
             >
-              <BarChart3 size={14} />
-              <span className="hidden md:inline">{t('kanban.viewAIAnalysisTab', 'AI분석')}</span>
-              {!canAccessStatistics && <Lock size={10} className="ml-0.5 text-zinc-500" />}
+              <LayoutGrid size={14} />
+              <span className="hidden md:inline">
+                {t("kanban.viewBoard", "보드")}
+              </span>
             </button>
-          )}
-        </nav>
+
+            <button
+              onClick={() => {
+                onViewModeChange("schedule");
+              }}
+              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                viewMode === "schedule"
+                  ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
+                  : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+              }`}
+            >
+              <Calendar size={14} />
+              <span className="hidden md:inline">
+                {t("kanban.viewScheduleTab", "일정")}
+              </span>
+            </button>
+
+            <button
+              onClick={() => onViewModeChange("meeting")}
+              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                viewMode === "meeting"
+                  ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
+                  : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+              }`}
+            >
+              <Users size={14} />
+              <span className="hidden md:inline">
+                {t("kanban.viewMeeting", "회의")}
+              </span>
+            </button>
+
+            {!isWhiteLabelDomain && (
+              <button
+                onClick={() => onViewModeChange("notes")}
+                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                  viewMode === "notes"
+                    ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
+                    : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+                }`}
+              >
+                <FileText size={14} />
+                <span className="hidden md:inline">
+                  {t("kanban.viewNotes", "노트")}
+                </span>
+              </button>
+            )}
+
+            {!isWhiteLabelDomain &&
+              (isAdminOrOwner || (!isViewer && !isTester)) && (
+                <button
+                  onClick={() => {
+                    if (!canAccessStatistics) {
+                      onOpenUpgradeModal("statistics");
+                      return;
+                    }
+                    const subMode = getAISubMode();
+                    if (subMode === "statistics" && !isAdminOrOwner) {
+                      onViewModeChange("ai_report");
+                    } else if (
+                      subMode === "ai_report" &&
+                      (isViewer || isTester)
+                    ) {
+                      onViewModeChange("statistics");
+                    } else {
+                      onViewModeChange(subMode);
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative whitespace-nowrap ${
+                    viewMode === "statistics" || viewMode === "ai_report"
+                      ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
+                      : !canAccessStatistics
+                        ? "text-zinc-600 cursor-not-allowed opacity-50"
+                        : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+                  }`}
+                >
+                  <BarChart3 size={14} />
+                  <span className="hidden md:inline">
+                    {t("kanban.viewAIAnalysisTab", "AI분석")}
+                  </span>
+                  {!canAccessStatistics && (
+                    <Lock size={10} className="ml-0.5 text-zinc-500" />
+                  )}
+                </button>
+              )}
+          </nav>
         </div>
 
         {/* 우측 액션 영역 */}
         <div className="flex items-center gap-1 md:gap-2 shrink-0 ml-auto">
           <div className="flex items-center gap-0.5 md:gap-1 border-r border-bridge-border pr-2 md:pr-3 mr-0.5 md:mr-1">
+            {onOpenShortcutsHelp && (
+              <button
+                onClick={onOpenShortcutsHelp}
+                className="hidden md:flex items-center p-2 text-slate-500 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+                title={t("keyboardShortcuts.title", "키보드 단축키")}
+              >
+                <Keyboard size={16} />
+              </button>
+            )}
             <NotificationDropdown
               boardId={boardId}
               unreadCount={unreadNotificationCount}
@@ -274,8 +380,8 @@ export function KanbanBoardHeader({
               onUnreadCountChange={onUnreadCountChange}
               canAccessSlack={canAccessSlack}
               canAccessDiscord={canAccessSlack}
-              onSlackUpgrade={() => onOpenUpgradeModal('slack')}
-              onDiscordUpgrade={() => onOpenUpgradeModal('slack')}
+              onSlackUpgrade={() => onOpenUpgradeModal("slack")}
+              onDiscordUpgrade={() => onOpenUpgradeModal("slack")}
               isAdmin={isAdminOrOwner}
               isTester={isTester}
             />
@@ -283,12 +389,12 @@ export function KanbanBoardHeader({
               <button
                 onClick={onOpenInquiry}
                 className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-all"
-                title={t('kanban.inquiry')}
+                title={t("kanban.inquiry")}
               >
                 <MessageSquare size={18} />
                 {unreadInquiryCount > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                    {unreadInquiryCount > 99 ? '99+' : unreadInquiryCount}
+                    {unreadInquiryCount > 99 ? "99+" : unreadInquiryCount}
                   </span>
                 )}
               </button>
@@ -298,7 +404,9 @@ export function KanbanBoardHeader({
               className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-all"
             >
               <Users size={18} />
-              <span className="hidden md:inline text-xs font-semibold">{t('kanban.team')}</span>
+              <span className="hidden md:inline text-xs font-semibold">
+                {t("kanban.team")}
+              </span>
             </button>
           </div>
 

@@ -84,6 +84,30 @@ public class AiCreditService {
                 orgId, boardId, userId, featureType, creditCost, orgSub.getTotalAvailableCredits());
     }
 
+    // === Credit Refund (for async failure rollback) ===
+
+    @Transactional
+    public void refundCredit(String boardId, String userId, String featureType, int creditCost) {
+        Board board = boardRepository.findById(boardId).orElse(null);
+        if (board != null && board.getTier() == BoardTier.ORG_MANAGED && board.getOrganization() != null) {
+            OrgSubscription orgSub = orgSubscriptionRepository.findByOrganizationIdForUpdate(board.getOrganization().getId())
+                    .orElse(null);
+            if (orgSub != null) {
+                orgSub.refundCredits(creditCost);
+                log.info("Org AI credit refunded - org: {}, board: {}, user: {}, feature: {}, cost: {}",
+                        board.getOrganization().getId(), boardId, userId, featureType, creditCost);
+            }
+            return;
+        }
+
+        Subscription subscription = subscriptionRepository.findByBoardIdForUpdate(boardId).orElse(null);
+        if (subscription != null) {
+            subscription.refundCredits(creditCost);
+            log.info("AI credit refunded - board: {}, user: {}, feature: {}, cost: {}",
+                    boardId, userId, featureType, creditCost);
+        }
+    }
+
     // === User-Level Credit Consumption (Personal features like Diary) ===
 
     @Transactional
