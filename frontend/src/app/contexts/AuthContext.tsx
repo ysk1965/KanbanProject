@@ -1,7 +1,13 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authService } from '../utils/services';
-import { setSentryUser } from '../../lib/sentry';
-import { isDomainBillingHidden } from '../utils/domain';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { authService } from "../utils/services";
+import { setSentryUser } from "../../lib/sentry";
+import { isWhiteLabelDomain, isRestrictedEmail } from "../utils/domain";
 
 interface User {
   id: string;
@@ -9,9 +15,9 @@ interface User {
   name: string;
   profile_image?: string | null;
   email_verified?: boolean;
-  theme?: 'dark' | 'light';
-  provider?: 'email' | 'google';
-  system_role?: 'USER' | 'TESTER' | 'ADMIN';
+  theme?: "dark" | "light";
+  provider?: "email" | "google";
+  system_role?: "USER" | "TESTER" | "ADMIN";
 }
 
 interface AuthContextType {
@@ -20,6 +26,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isTester: boolean;
   hideBilling: boolean; // TESTER/ADMIN 사용자는 과금 UI 숨김
+  isRestricted: boolean; // milkyway 도메인 OR @cookapps.com 이메일 → 기능 제한
   currentUser: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -48,31 +55,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Firebase Analytics 사용자 설정 (동적 import로 광고 차단기 대응)
-    import('firebase/analytics')
+    import("firebase/analytics")
       .then(({ setUserId, setUserProperties }) => {
-        return import('../../lib/firebase').then(({ analytics }) => {
+        return import("../../lib/firebase").then(({ analytics }) => {
           if (!analytics) return;
           setUserId(analytics, user?.id || null);
           if (user) {
             setUserProperties(analytics, {
-              user_role: user.system_role?.toLowerCase() || 'user',
-              theme: user.theme || 'dark',
-              provider: user.provider || 'email',
+              user_role: user.system_role?.toLowerCase() || "user",
+              theme: user.theme || "dark",
+              provider: user.provider || "email",
             });
           }
         });
       })
       .catch(() => {
-        console.debug('[Analytics] Firebase Analytics unavailable');
+        console.debug("[Analytics] Firebase Analytics unavailable");
       });
   };
 
   // Initialize push notifications when user becomes authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      import('../utils/pushNotifications')
+      import("../utils/pushNotifications")
         .then(({ initPushNotifications }) => initPushNotifications())
-        .catch(() => console.debug('[Push] Push notifications unavailable'));
+        .catch(() => console.debug("[Push] Push notifications unavailable"));
     }
   }, [isAuthenticated]);
 
@@ -81,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkAuth = async () => {
       // 1. 토큰이 유효한 경우 - 바로 인증 상태로 설정
       if (authService.isAuthenticated()) {
-        console.log('✅ [Auth] 유효한 토큰 확인');
+        console.log("✅ [Auth] 유효한 토큰 확인");
         const user = authService.getCurrentUser();
         setIsAuthenticated(true);
         setCurrentUser(user);
@@ -92,17 +99,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // 2. 토큰이 존재하지만 만료된 경우 - 갱신 시도
       if (authService.isTokenExpiredButExists()) {
-        console.log('🔄 [Auth] 만료된 토큰 감지, 갱신 시도...');
+        console.log("🔄 [Auth] 만료된 토큰 감지, 갱신 시도...");
         const refreshed = await authService.tryRefreshToken();
 
         if (refreshed) {
-          console.log('✅ [Auth] 토큰 갱신 성공');
+          console.log("✅ [Auth] 토큰 갱신 성공");
           const user = authService.getCurrentUser();
           setIsAuthenticated(true);
           setCurrentUser(user);
           syncAnalyticsUser(user);
         } else {
-          console.log('❌ [Auth] 토큰 갱신 실패, 로그인 필요');
+          console.log("❌ [Auth] 토큰 갱신 실패, 로그인 필요");
           setIsAuthenticated(false);
           setCurrentUser(null);
           syncAnalyticsUser(null);
@@ -112,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // 3. 토큰이 없는 경우
-      console.log('🔒 [Auth] 토큰 없음, 미인증 상태');
+      console.log("🔒 [Auth] 토큰 없음, 미인증 상태");
       setIsAuthenticated(false);
       setCurrentUser(null);
       syncAnalyticsUser(null);
@@ -159,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resendVerificationEmail = async () => {
     if (!currentUser?.email) {
-      throw new Error('사용자 이메일을 찾을 수 없습니다');
+      throw new Error("사용자 이메일을 찾을 수 없습니다");
     }
     await authService.resendVerificationEmail(currentUser.email);
   };
@@ -168,15 +175,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCurrentUser((prev) => {
       if (!prev) return prev;
       const updated = { ...prev, ...updates };
-      localStorage.setItem('user', JSON.stringify(updated));
+      localStorage.setItem("user", JSON.stringify(updated));
       return updated;
     });
   };
 
   const isEmailVerified = currentUser?.email_verified ?? false;
-  const isAdmin = currentUser?.system_role === 'ADMIN';
-  const isTester = currentUser?.system_role === 'TESTER' || isDomainBillingHidden; // TESTER 또는 milkyway.pe.kr 도메인
-  const hideBilling = isTester || isAdmin || isDomainBillingHidden; // TESTER, ADMIN, 특정 도메인은 과금 UI 숨김
+  const isAdmin = currentUser?.system_role === "ADMIN";
+  const isRestricted =
+    isWhiteLabelDomain || isRestrictedEmail(currentUser?.email); // milkyway 도메인 OR @cookapps.com 이메일
+  const isTester = currentUser?.system_role === "TESTER" || isRestricted;
+  const hideBilling = isTester || isAdmin || isRestricted;
 
   return (
     <AuthContext.Provider
@@ -186,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin,
         isTester,
         hideBilling,
+        isRestricted,
         currentUser,
         isLoading,
         login,
@@ -205,7 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

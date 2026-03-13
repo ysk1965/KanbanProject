@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useTranslation } from "react-i18next";
-import { isWhiteLabelDomain } from "../utils/domain";
+import { useAuth } from "../contexts/AuthContext";
 import {
   Board,
   Milestone,
@@ -166,9 +166,102 @@ export function KanbanBoardHeader({
 }: KanbanBoardHeaderProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { isRestricted } = useAuth();
   const [isEditingBoardName, setIsEditingBoardName] = useState(false);
   const [editingBoardName, setEditingBoardName] = useState("");
   const boardNameInputRef = useRef<HTMLInputElement>(null);
+
+  // TAB 키로 최상위 탭 순환 이동
+  const getAvailableTabs = useCallback(() => {
+    const tabs: { key: string; action: () => void }[] = [
+      { key: "board", action: () => onViewModeChange(getBoardSubMode()) },
+      { key: "schedule", action: () => onViewModeChange("schedule") },
+      { key: "meeting", action: () => onViewModeChange("meeting") },
+    ];
+    if (!isRestricted) {
+      tabs.push({ key: "notes", action: () => onViewModeChange("notes") });
+    }
+    if (!isRestricted && (isAdminOrOwner || (!isViewer && !isTester))) {
+      tabs.push({
+        key: "ai",
+        action: () => {
+          if (!canAccessStatistics) return;
+          const subMode = getAISubMode();
+          if (subMode === "statistics" && !isAdminOrOwner) {
+            onViewModeChange("ai_report");
+          } else if (subMode === "ai_report" && (isViewer || isTester)) {
+            onViewModeChange("statistics");
+          } else {
+            onViewModeChange(subMode);
+          }
+        },
+      });
+    }
+    return tabs;
+  }, [
+    onViewModeChange,
+    getBoardSubMode,
+    getAISubMode,
+    isAdminOrOwner,
+    isViewer,
+    isTester,
+    canAccessStatistics,
+  ]);
+
+  const getCurrentTabIndex = useCallback(() => {
+    if (BOARD_SUB_MODES.includes(viewMode)) return 0;
+    if (viewMode === "schedule") return 1;
+    if (viewMode === "meeting") return 2;
+    if (viewMode === "notes") return 3;
+    if (viewMode === "statistics" || viewMode === "ai_report") {
+      const tabs = getAvailableTabs();
+      return tabs.findIndex((t) => t.key === "ai");
+    }
+    return 0;
+  }, [viewMode, getAvailableTabs]);
+
+  useEffect(() => {
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+
+      // 입력 필드에 포커스 중이면 기본 동작 유지
+      const active = document.activeElement;
+      if (
+        active instanceof HTMLInputElement ||
+        active instanceof HTMLTextAreaElement ||
+        active instanceof HTMLSelectElement ||
+        (active as HTMLElement)?.isContentEditable
+      ) {
+        return;
+      }
+
+      // 모달/드롭다운이 열려있으면 무시
+      if (
+        document.querySelector("[role='dialog']") ||
+        document.querySelector("[data-radix-popper-content-wrapper]")
+      ) {
+        return;
+      }
+
+      e.preventDefault();
+      const tabs = getAvailableTabs();
+      if (tabs.length === 0) return;
+
+      const currentIdx = getCurrentTabIndex();
+      let nextIdx: number;
+
+      if (e.shiftKey) {
+        nextIdx = currentIdx <= 0 ? tabs.length - 1 : currentIdx - 1;
+      } else {
+        nextIdx = currentIdx >= tabs.length - 1 ? 0 : currentIdx + 1;
+      }
+
+      tabs[nextIdx].action();
+    };
+
+    window.addEventListener("keydown", handleTabKey);
+    return () => window.removeEventListener("keydown", handleTabKey);
+  }, [getAvailableTabs, getCurrentTabIndex]);
 
   const handleStartEditBoardName = () => {
     if (!canEdit || !board) return;
@@ -302,7 +395,7 @@ export function KanbanBoardHeader({
               </span>
             </button>
 
-            {!isWhiteLabelDomain && (
+            {!isRestricted && (
               <button
                 onClick={() => onViewModeChange("notes")}
                 className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
@@ -318,43 +411,42 @@ export function KanbanBoardHeader({
               </button>
             )}
 
-            {!isWhiteLabelDomain &&
-              (isAdminOrOwner || (!isViewer && !isTester)) && (
-                <button
-                  onClick={() => {
-                    if (!canAccessStatistics) {
-                      onOpenUpgradeModal("statistics");
-                      return;
-                    }
-                    const subMode = getAISubMode();
-                    if (subMode === "statistics" && !isAdminOrOwner) {
-                      onViewModeChange("ai_report");
-                    } else if (
-                      subMode === "ai_report" &&
-                      (isViewer || isTester)
-                    ) {
-                      onViewModeChange("statistics");
-                    } else {
-                      onViewModeChange(subMode);
-                    }
-                  }}
-                  className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative whitespace-nowrap ${
-                    viewMode === "statistics" || viewMode === "ai_report"
-                      ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-                      : !canAccessStatistics
-                        ? "text-zinc-600 cursor-not-allowed opacity-50"
-                        : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
-                  }`}
-                >
-                  <BarChart3 size={14} />
-                  <span className="hidden md:inline">
-                    {t("kanban.viewAIAnalysisTab", "AI분석")}
-                  </span>
-                  {!canAccessStatistics && (
-                    <Lock size={10} className="ml-0.5 text-zinc-500" />
-                  )}
-                </button>
-              )}
+            {!isRestricted && (isAdminOrOwner || (!isViewer && !isTester)) && (
+              <button
+                onClick={() => {
+                  if (!canAccessStatistics) {
+                    onOpenUpgradeModal("statistics");
+                    return;
+                  }
+                  const subMode = getAISubMode();
+                  if (subMode === "statistics" && !isAdminOrOwner) {
+                    onViewModeChange("ai_report");
+                  } else if (
+                    subMode === "ai_report" &&
+                    (isViewer || isTester)
+                  ) {
+                    onViewModeChange("statistics");
+                  } else {
+                    onViewModeChange(subMode);
+                  }
+                }}
+                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative whitespace-nowrap ${
+                  viewMode === "statistics" || viewMode === "ai_report"
+                    ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
+                    : !canAccessStatistics
+                      ? "text-zinc-600 cursor-not-allowed opacity-50"
+                      : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+                }`}
+              >
+                <BarChart3 size={14} />
+                <span className="hidden md:inline">
+                  {t("kanban.viewAIAnalysisTab", "AI분석")}
+                </span>
+                {!canAccessStatistics && (
+                  <Lock size={10} className="ml-0.5 text-zinc-500" />
+                )}
+              </button>
+            )}
           </nav>
         </div>
 

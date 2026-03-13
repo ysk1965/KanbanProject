@@ -38,7 +38,7 @@ public class SlackWebhookService {
     private final UserRepository userRepository;
     private final RestTemplate restTemplate;
 
-    @Value("${app.frontend-url:https://bridgespots.com}")
+    @Value("${app.frontend-url}")
     private String frontendUrl;
 
     private static final Pattern SLACK_WEBHOOK_PATTERN =

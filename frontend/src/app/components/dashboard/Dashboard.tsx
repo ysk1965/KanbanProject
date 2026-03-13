@@ -138,7 +138,8 @@ export function Dashboard({
 }: DashboardProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { currentUser, logout, isAdmin, updateCurrentUser } = useAuth();
+  const { currentUser, logout, isAdmin, isRestricted, updateCurrentUser } =
+    useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -326,7 +327,7 @@ export function Dashboard({
     : 0;
 
   const hasPersonalSpace = currentUser?.personal_space_enabled ?? false;
-  const isMilkyway = window.location.hostname.includes("milkyway.pe.kr");
+  // Domain flags imported from utils/domain.ts
 
   const [activatingSpace, setActivatingSpace] = useState(false);
   const [showMySpaceIntro, setShowMySpaceIntro] = useState(false);
@@ -524,7 +525,7 @@ export function Dashboard({
           <div className="max-w-7xl mx-auto space-y-6">
             {/* My Space Summary Strip (Desktop only, 모바일은 하단 바) */}
             {!searchQuery &&
-              !isMilkyway &&
+              !isRestricted &&
               (hasPersonalSpace ? (
                 <MySpaceSummaryStrip
                   todayData={todayData}
@@ -603,7 +604,7 @@ export function Dashboard({
               />
             ) : (
               !searchQuery &&
-              !isMilkyway && (
+              !isRestricted && (
                 <motion.button
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -905,7 +906,7 @@ export function Dashboard({
       />
 
       {/* Mobile Bottom Bar - My Space Quick Access */}
-      {!isMilkyway &&
+      {!isRestricted &&
         (hasPersonalSpace ? (
           <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden safe-bottom bg-bridge-obsidian/95 backdrop-blur-xl">
             <div className="border-t border-bridge-border">
@@ -1123,10 +1124,30 @@ export function Dashboard({
 
           <div className="grid grid-cols-2 gap-2.5 mt-4">
             {[
-              { icon: ListTodo, titleKey: "mySpaceIntroTaskTitle", descKey: "mySpaceIntroTaskDesc", color: "text-bridge-accent" },
-              { icon: Flame, titleKey: "mySpaceIntroHabitTitle", descKey: "mySpaceIntroHabitDesc", color: "text-purple-400" },
-              { icon: Clock, titleKey: "mySpaceIntroEventTitle", descKey: "mySpaceIntroEventDesc", color: "text-bridge-secondary" },
-              { icon: BookOpen, titleKey: "mySpaceIntroDiaryTitle", descKey: "mySpaceIntroDiaryDesc", color: "text-rose-400" },
+              {
+                icon: ListTodo,
+                titleKey: "mySpaceIntroTaskTitle",
+                descKey: "mySpaceIntroTaskDesc",
+                color: "text-bridge-accent",
+              },
+              {
+                icon: Flame,
+                titleKey: "mySpaceIntroHabitTitle",
+                descKey: "mySpaceIntroHabitDesc",
+                color: "text-purple-400",
+              },
+              {
+                icon: Clock,
+                titleKey: "mySpaceIntroEventTitle",
+                descKey: "mySpaceIntroEventDesc",
+                color: "text-bridge-secondary",
+              },
+              {
+                icon: BookOpen,
+                titleKey: "mySpaceIntroDiaryTitle",
+                descKey: "mySpaceIntroDiaryDesc",
+                color: "text-rose-400",
+              },
             ].map((item, index) => (
               <motion.div
                 key={item.titleKey}
@@ -1135,7 +1156,10 @@ export function Dashboard({
                 transition={{ delay: index * 0.06 }}
                 className="flex items-start gap-2.5 p-3 bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl"
               >
-                <item.icon size={16} className={`${item.color} shrink-0 mt-0.5`} />
+                <item.icon
+                  size={16}
+                  className={`${item.color} shrink-0 mt-0.5`}
+                />
                 <div>
                   <p className="text-[12px] font-bold text-foreground">
                     {t(`dashboard.${item.titleKey}`)}

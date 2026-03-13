@@ -1,11 +1,20 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { LayoutGrid, User, Settings, ChevronRight, ChevronLeft, X, Clock, Building2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Board } from '../../types';
-import { getGradient } from './BoardCard';
-import { useAuth } from '../../contexts/AuthContext';
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import {
+  LayoutGrid,
+  User,
+  Settings,
+  ChevronRight,
+  ChevronLeft,
+  X,
+  Clock,
+  Building2,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Board } from "../../types";
+import { getGradient } from "./BoardCard";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -16,31 +25,67 @@ interface SidebarProps {
   onToggleCollapse?: () => void;
 }
 
-export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, isCollapsed = false, onToggleCollapse }: SidebarProps) {
+export function Sidebar({
+  isOpen = true,
+  onClose,
+  boards = [],
+  onSelectBoard,
+  isCollapsed = false,
+  onToggleCollapse,
+}: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const { currentUser } = useAuth();
-  const isMilkyway = window.location.hostname.includes('milkyway.pe.kr');
-  const hasPersonalSpace = !isMilkyway && (currentUser?.personal_space_enabled ?? false);
-  const [activeItem, setActiveItem] = useState('all');
+  const { currentUser, isRestricted } = useAuth();
+  const hasPersonalSpace =
+    !isRestricted && (currentUser?.personal_space_enabled ?? false);
+  const [activeItem, setActiveItem] = useState("all");
 
   // Determine active menu item from URL
   useEffect(() => {
-    if (location.pathname.includes('/organizations')) setActiveItem('organizations');
-    else if (location.pathname.includes('/my-board')) setActiveItem('myBoard');
-    else if (location.pathname.includes('/settings')) setActiveItem('settings');
-    else setActiveItem('all');
+    if (location.pathname.includes("/organizations"))
+      setActiveItem("organizations");
+    else if (location.pathname.includes("/my-board")) setActiveItem("myBoard");
+    else if (location.pathname.includes("/settings")) setActiveItem("settings");
+    else setActiveItem("all");
   }, [location]);
 
   const menuItems = [
-    { key: 'all', icon: <LayoutGrid size={18} />, label: t('dashboard.sidebar.allBoards'), path: '/boards' },
+    {
+      key: "all",
+      icon: <LayoutGrid size={18} />,
+      label: t("dashboard.sidebar.allBoards"),
+      path: "/boards",
+    },
     // TODO: SA-006 — Add org plan indicator badge next to Organizations menu item
     // Requires fetching org subscription data, which would need org context not available in Sidebar.
     // Consider lifting subscription state to Dashboard or using a lightweight summary endpoint.
-    ...(!isMilkyway ? [{ key: 'organizations', icon: <Building2 size={18} />, label: t('dashboard.sidebar.organizations', 'Organizations'), path: '/organizations' }] : []),
-    ...(hasPersonalSpace ? [{ key: 'myBoard', icon: <User size={18} />, label: t('dashboard.sidebar.myBoard'), path: '/my-board' }] : []),
-    { key: 'settings', icon: <Settings size={18} />, label: t('dashboard.sidebar.settings'), path: '/settings' },
+    ...(!isRestricted
+      ? [
+          {
+            key: "organizations",
+            icon: <Building2 size={18} />,
+            label: t("dashboard.sidebar.organizations", "Organizations"),
+            path: "/organizations",
+          },
+        ]
+      : []),
+    ...(hasPersonalSpace
+      ? [
+          {
+            key: "myBoard",
+            icon: <User size={18} />,
+            label: t("dashboard.sidebar.myBoard"),
+            path: "/my-board",
+          },
+        ]
+      : []),
+    {
+      key: "settings",
+      icon: <Settings size={18} />,
+      label: t("dashboard.sidebar.settings"),
+      path: "/settings",
+    },
   ];
 
   // Recent boards - sort by updated_at desc, take 5
@@ -86,13 +131,13 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      <div className={`p-4 ${isCollapsed ? 'px-3' : 'px-5'}`}>
+      <div className={`p-4 ${isCollapsed ? "px-3" : "px-5"}`}>
         {/* Logo */}
-        {!isMilkyway && (
+        {!isRestricted && (
           <div className="flex items-center justify-between mb-6">
             <div
-              className={`flex items-center gap-2 group cursor-pointer ${isCollapsed ? 'justify-center w-full' : ''}`}
-              onClick={() => handleNavigate('/')}
+              className={`flex items-center gap-2 group cursor-pointer ${isCollapsed ? "justify-center w-full" : ""}`}
+              onClick={() => handleNavigate("/")}
             >
               <img
                 src="/BridgeSpotsIcon.png"
@@ -102,8 +147,12 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
               {!isCollapsed && (
                 <>
                   <div className="flex flex-col leading-none">
-                    <span className="text-lg font-bold tracking-tighter font-jakarta">BRIDGE</span>
-                    <span className="text-[9px] font-bold text-bridge-secondary tracking-[0.25em] uppercase">SPOTS</span>
+                    <span className="text-lg font-bold tracking-tighter font-jakarta">
+                      BRIDGE
+                    </span>
+                    <span className="text-[9px] font-bold text-bridge-secondary tracking-[0.25em] uppercase">
+                      SPOTS
+                    </span>
                   </div>
                   <ChevronRight
                     size={14}
@@ -113,15 +162,21 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
               )}
             </div>
             {onClose && (
-              <button onClick={onClose} className="lg:hidden p-2 text-muted-foreground hover:text-foreground transition-colors">
+              <button
+                onClick={onClose}
+                className="lg:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
+              >
                 <X size={20} />
               </button>
             )}
           </div>
         )}
-        {isMilkyway && onClose && (
+        {isRestricted && onClose && (
           <div className="flex items-center justify-end mb-6">
-            <button onClick={onClose} className="lg:hidden p-2 text-muted-foreground hover:text-foreground transition-colors">
+            <button
+              onClick={onClose}
+              className="lg:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
               <X size={20} />
             </button>
           </div>
@@ -134,11 +189,11 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
               key={item.key}
               onClick={() => handleNavigate(item.path)}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
-                isCollapsed ? 'justify-center' : ''
+                isCollapsed ? "justify-center" : ""
               } ${
                 activeItem === item.key
-                  ? 'bg-bridge-secondary/10 text-bridge-secondary opacity-100'
-                  : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground opacity-60 hover:opacity-100 transition-opacity'
+                  ? "bg-bridge-secondary/10 text-bridge-secondary opacity-100"
+                  : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground opacity-60 hover:opacity-100 transition-opacity"
               }`}
               title={isCollapsed ? item.label : undefined}
             >
@@ -155,11 +210,11 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
           <div className="flex items-center gap-2 px-2.5 mb-2">
             <Clock size={11} className="text-slate-500" />
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-              {t('dashboard.sidebar.recent', 'Recent')}
+              {t("dashboard.sidebar.recent", "Recent")}
             </span>
           </div>
           <div className="space-y-0.5">
-            {recentBoards.map(board => (
+            {recentBoards.map((board) => (
               <BoardPill key={board.id} board={board} />
             ))}
           </div>
@@ -173,8 +228,16 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
             onClick={onToggleCollapse}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-muted-foreground hover:bg-foreground/5 hover:text-foreground transition-colors text-xs"
           >
-            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-            {!isCollapsed && <span className="font-medium">{t('dashboard.sidebar.collapse', 'Collapse')}</span>}
+            {isCollapsed ? (
+              <ChevronRight size={16} />
+            ) : (
+              <ChevronLeft size={16} />
+            )}
+            {!isCollapsed && (
+              <span className="font-medium">
+                {t("dashboard.sidebar.collapse", "Collapse")}
+              </span>
+            )}
           </button>
         </div>
       )}
@@ -184,7 +247,9 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className={`${isCollapsed ? 'w-16' : 'w-60'} h-full hidden lg:flex flex-col border-r border-bridge-border bg-bridge-dark/50 backdrop-blur-sm transition-all duration-300`}>
+      <aside
+        className={`${isCollapsed ? "w-16" : "w-60"} h-full hidden lg:flex flex-col border-r border-bridge-border bg-bridge-dark/50 backdrop-blur-sm transition-all duration-300`}
+      >
         {sidebarContent}
       </aside>
 
@@ -203,7 +268,7 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
               initial={{ x: -280 }}
               animate={{ x: 0 }}
               exit={{ x: -280 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed left-0 top-0 w-60 h-full bg-bridge-dark border-r border-bridge-border z-50 lg:hidden safe-left safe-top safe-bottom"
             >
               {sidebarContent}

@@ -18,7 +18,7 @@ import {
   X,
   Pencil,
 } from "lucide-react";
-import { isDomainAIHidden } from "../utils/domain";
+import { useAuth } from "../contexts/AuthContext";
 import {
   meetingAPI,
   featureAPI,
@@ -62,6 +62,7 @@ export function MeetingDetailPanel({
   refreshTrigger,
 }: MeetingDetailPanelProps) {
   const { t } = useTranslation();
+  const { isRestricted } = useAuth();
 
   // Detail state
   const [detail, setDetail] = useState<MeetingDetail | null>(null);
@@ -88,9 +89,7 @@ export function MeetingDetailPanel({
   } | null>(null);
   const hasMicSupport =
     typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
-  const isPublicDomain =
-    typeof window !== "undefined" &&
-    window.location.hostname.includes("milkyway.pe.kr");
+  // isRestricted from AuthContext (milkyway domain OR @cookapps.com email)
 
   // AI state
   const [aiData, setAiData] = useState<AISuggestionResponse | null>(null);
@@ -134,70 +133,79 @@ export function MeetingDetailPanel({
 
   const autoResize = useCallback((el: HTMLTextAreaElement | null) => {
     if (!el) return;
-    el.style.height = 'auto';
+    el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
   }, []);
 
-  useEffect(() => autoResize(memoRef.current), [editingMemo, autoResize, loading]);
-  useEffect(() => autoResize(transcriptRef.current), [editingTranscript, autoResize, loading]);
+  useEffect(
+    () => autoResize(memoRef.current),
+    [editingMemo, autoResize, loading],
+  );
+  useEffect(
+    () => autoResize(transcriptRef.current),
+    [editingTranscript, autoResize, loading],
+  );
 
   // Subscribe to transcription progress + result events via WebSocket
   useEffect(() => {
     if (!isTranscribing) return;
 
     // Timeout fallback: if no COMPLETE/ERROR received within 5 minutes, auto-recover
-    const timeout = setTimeout(() => {
-      console.warn("Transcription timeout — no WebSocket result received in 5 minutes");
-      setTranscriptionProgress({ stage: "ERROR", percent: 0 });
-      alert(t("meeting.transcriptionError"));
-      setIsTranscribing(false);
-      setTimeout(() => setTranscriptionProgress(null), 1200);
-    }, 5 * 60 * 1000);
-
-    const sub = wsManager.subscribe(
-      `/topic/board/${boardId}`,
-      (message) => {
-        try {
-          const event = JSON.parse(message.body);
-          if (event.data?.meeting_id !== meetingId) return;
-
-          if (event.type === "TRANSCRIPTION_PROGRESS") {
-            setTranscriptionProgress({
-              stage: event.data.stage,
-              percent: event.data.percent,
-              current: event.data.current,
-              total: event.data.total,
-            });
-          } else if (event.type === "TRANSCRIPTION_COMPLETE") {
-            clearTimeout(timeout);
-            const transcript = event.data.transcript as string;
-            const diarized = event.data.diarized_transcript as DiarizedTranscript | null;
-            setDetail((prev) =>
-              prev
-                ? { ...prev, transcript, diarized_transcript: diarized }
-                : prev,
-            );
-            setEditingTranscript(transcript);
-            if (diarized) {
-              setSpeakerMapping(diarized.speaker_mapping || {});
-              setIsEditingTranscriptManually(false);
-            }
-            clearRecording();
-            setIsTranscribing(false);
-            setTimeout(() => setTranscriptionProgress(null), 1200);
-          } else if (event.type === "TRANSCRIPTION_ERROR") {
-            clearTimeout(timeout);
-            console.error("Transcription failed:", event.data.error);
-            setTranscriptionProgress({ stage: "ERROR", percent: 0 });
-            alert(t("meeting.transcriptionError"));
-            setIsTranscribing(false);
-            setTimeout(() => setTranscriptionProgress(null), 1200);
-          }
-        } catch {
-          // ignore parse errors
-        }
+    const timeout = setTimeout(
+      () => {
+        console.warn(
+          "Transcription timeout — no WebSocket result received in 5 minutes",
+        );
+        setTranscriptionProgress({ stage: "ERROR", percent: 0 });
+        alert(t("meeting.transcriptionError"));
+        setIsTranscribing(false);
+        setTimeout(() => setTranscriptionProgress(null), 1200);
       },
+      5 * 60 * 1000,
     );
+
+    const sub = wsManager.subscribe(`/topic/board/${boardId}`, (message) => {
+      try {
+        const event = JSON.parse(message.body);
+        if (event.data?.meeting_id !== meetingId) return;
+
+        if (event.type === "TRANSCRIPTION_PROGRESS") {
+          setTranscriptionProgress({
+            stage: event.data.stage,
+            percent: event.data.percent,
+            current: event.data.current,
+            total: event.data.total,
+          });
+        } else if (event.type === "TRANSCRIPTION_COMPLETE") {
+          clearTimeout(timeout);
+          const transcript = event.data.transcript as string;
+          const diarized = event.data
+            .diarized_transcript as DiarizedTranscript | null;
+          setDetail((prev) =>
+            prev
+              ? { ...prev, transcript, diarized_transcript: diarized }
+              : prev,
+          );
+          setEditingTranscript(transcript);
+          if (diarized) {
+            setSpeakerMapping(diarized.speaker_mapping || {});
+            setIsEditingTranscriptManually(false);
+          }
+          clearRecording();
+          setIsTranscribing(false);
+          setTimeout(() => setTranscriptionProgress(null), 1200);
+        } else if (event.type === "TRANSCRIPTION_ERROR") {
+          clearTimeout(timeout);
+          console.error("Transcription failed:", event.data.error);
+          setTranscriptionProgress({ stage: "ERROR", percent: 0 });
+          alert(t("meeting.transcriptionError"));
+          setIsTranscribing(false);
+          setTimeout(() => setTranscriptionProgress(null), 1200);
+        }
+      } catch {
+        // ignore parse errors
+      }
+    });
 
     return () => {
       clearTimeout(timeout);
@@ -569,7 +577,7 @@ export function MeetingDetailPanel({
             </div>
 
             {/* Transcript */}
-            {!isPublicDomain && (
+            {!isRestricted && (
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest">
@@ -580,7 +588,11 @@ export function MeetingDetailPanel({
                       <button
                         onClick={() => {
                           if (detail.diarized_transcript) {
-                            setEditingSegments(detail.diarized_transcript.segments.map(s => ({ ...s })));
+                            setEditingSegments(
+                              detail.diarized_transcript.segments.map((s) => ({
+                                ...s,
+                              })),
+                            );
                           }
                           setIsEditingTranscriptManually(true);
                         }}
@@ -714,10 +726,17 @@ export function MeetingDetailPanel({
 
                 {/* Diarized Transcript - Conversational UI */}
                 {detail.diarized_transcript ? (
-                  <div className={`space-y-1.5 max-h-[400px] overflow-y-auto rounded-xl border border-foreground/10 p-3 ${
-                    isEditingTranscriptManually ? "bg-foreground/[0.04]" : "bg-foreground/[0.02]"
-                  }`}>
-                    {(isEditingTranscriptManually ? editingSegments : detail.diarized_transcript.segments).map((seg, idx) => {
+                  <div
+                    className={`space-y-1.5 max-h-[400px] overflow-y-auto rounded-xl border border-foreground/10 p-3 ${
+                      isEditingTranscriptManually
+                        ? "bg-foreground/[0.04]"
+                        : "bg-foreground/[0.02]"
+                    }`}
+                  >
+                    {(isEditingTranscriptManually
+                      ? editingSegments
+                      : detail.diarized_transcript.segments
+                    ).map((seg, idx) => {
                       const displayName = getSpeakerDisplayName(seg.speaker);
                       const color =
                         speakerColorMap[seg.speaker] || SPEAKER_COLORS[0];
@@ -829,7 +848,9 @@ export function MeetingDetailPanel({
                               onChange={(e) => {
                                 setEditingSegments((prev) =>
                                   prev.map((s, i) =>
-                                    i === idx ? { ...s, text: e.target.value } : s,
+                                    i === idx
+                                      ? { ...s, text: e.target.value }
+                                      : s,
                                   ),
                                 );
                               }}
@@ -872,7 +893,7 @@ export function MeetingDetailPanel({
 
             {/* Actions */}
             <div className="flex items-center gap-2 pt-1">
-              {!isDomainAIHidden &&
+              {!isRestricted &&
                 (editingMemo.trim() ||
                   detail.memo?.trim() ||
                   editingTranscript.trim() ||
@@ -922,7 +943,7 @@ export function MeetingDetailPanel({
             </div>
 
             {/* AI Inline Section */}
-            {!isDomainAIHidden &&
+            {!isRestricted &&
               aiVisible &&
               (aiCollapsed && !aiLoading ? (
                 <div className="mt-4 flex items-center justify-between bg-white/[0.02] rounded-xl border border-foreground/5 px-4 py-3">
@@ -1524,7 +1545,9 @@ function MeetingAIInlineSection({
                         key={j}
                         className="flex items-start gap-2 text-sm text-foreground/80"
                       >
-                        <span className="text-muted-foreground mt-1 text-xs">–</span>
+                        <span className="text-muted-foreground mt-1 text-xs">
+                          –
+                        </span>
                         <span>{point}</span>
                       </li>
                     ))}

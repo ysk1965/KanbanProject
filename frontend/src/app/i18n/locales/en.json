@@ -4354,6 +4354,8 @@
     "resetFilters": "Reset all filters",
     "nextFeature": "Next Feature",
     "prevFeature": "Previous Feature",
+    "nextTab": "Next tab",
+    "prevTab": "Previous tab",
     "showHelp": "Show shortcuts",
     "schedTimeblock": "Timeblock view",
     "schedCalendar": "Calendar view",

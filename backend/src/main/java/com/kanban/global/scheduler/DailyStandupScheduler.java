@@ -36,7 +36,7 @@ public class DailyStandupScheduler {
     private final BoardMemberRepository boardMemberRepository;
     private final RestTemplate restTemplate;
 
-    @Value("${app.frontend-url:https://bridgespots.com}")
+    @Value("${app.frontend-url}")
     private String frontendUrl;
 
     @Scheduled(cron = "0 * * * * *")

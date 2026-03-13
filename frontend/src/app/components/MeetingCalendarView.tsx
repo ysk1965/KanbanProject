@@ -32,9 +32,10 @@ interface MeetingCalendarViewProps {
   boardMembers: BoardMember[];
   onRefreshSchedule?: () => void;
   refreshTrigger?: number;
+  navigateToDate?: Date | null;
 }
 
-export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, refreshTrigger }: MeetingCalendarViewProps) {
+export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, refreshTrigger, navigateToDate }: MeetingCalendarViewProps) {
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
 
@@ -52,6 +53,14 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
 
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(initialDate));
   const [selectedDate, setSelectedDate] = useState(initialDate);
+
+  // 외부에서 navigateToDate가 전달되면 해당 날짜로 이동
+  useEffect(() => {
+    if (navigateToDate) {
+      setSelectedDate(navigateToDate);
+      setCurrentMonth(startOfMonth(navigateToDate));
+    }
+  }, [navigateToDate]);
   const [monthMeetings, setMonthMeetings] = useState<MeetingSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);

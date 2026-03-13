@@ -42,7 +42,7 @@ public class SubscriptionService {
     private final PolarConfig polarConfig;
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
 
-    @Value("${app.frontend-url:https://bridgespots.com}")
+    @Value("${app.frontend-url}")
     private String frontendUrl;
 
     public SubscriptionResponse.PricingListResponse getPricingPlans() {

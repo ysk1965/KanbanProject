@@ -32,7 +32,7 @@ public class SlackBotNotificationService {
     private final SlackUserLinkRepository userLinkRepository;
     private final BoardRepository boardRepository;
 
-    @Value("${app.frontend-url:https://bridgespots.com}")
+    @Value("${app.frontend-url}")
     private String frontendUrl;
 
     /**

@@ -165,6 +165,18 @@ export const GLOBAL_SHORTCUTS: ShortcutDefinition[] = [
     category: "navigation",
   },
   {
+    id: "nextTab",
+    keys: ["Tab"],
+    i18nKey: "keyboardShortcuts.nextTab",
+    category: "navigation",
+  },
+  {
+    id: "prevTab",
+    keys: ["Shift", "Tab"],
+    i18nKey: "keyboardShortcuts.prevTab",
+    category: "navigation",
+  },
+  {
     id: "showHelp",
     keys: ["?"],
     i18nKey: "keyboardShortcuts.showHelp",

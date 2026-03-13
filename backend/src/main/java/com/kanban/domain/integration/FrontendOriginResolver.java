@@ -59,4 +59,32 @@ public class FrontendOriginResolver {
         }
         return apiBase + callbackPath;
     }
+
+    // Reverse mapping: API host → Frontend URL
+    private static final Map<String, String> API_TO_FRONTEND = Map.of(
+            "api.bridgespots.com", "https://bridgespots.com",
+            "api.milkyway.pe.kr", "https://milkyway.pe.kr",
+            "localhost:8080", "http://localhost:5173",
+            "localhost", "http://localhost:5173"
+    );
+
+    /**
+     * Resolve frontend URL from Origin header, with API Host header as fallback.
+     * 1) Origin present → use it directly
+     * 2) Origin null → reverse-map from API Host (X-Forwarded-Host or Host)
+     * 3) Both null → return fallback (FRONTEND_URL)
+     */
+    public static String resolveFrontendUrl(String origin, String apiHost, String fallback) {
+        if (origin != null && !origin.isBlank()) {
+            return origin.replaceAll("/+$", "");
+        }
+        if (apiHost != null && !apiHost.isBlank()) {
+            String host = apiHost.split(",")[0].trim(); // X-Forwarded-Host can be comma-separated
+            String frontendUrl = API_TO_FRONTEND.get(host);
+            if (frontendUrl != null) {
+                return frontendUrl;
+            }
+        }
+        return fallback;
+    }
 }
