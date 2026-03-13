@@ -713,6 +713,7 @@
     "select": "選擇",
     "collapse": "收合",
     "createNew": "新建",
+    "createNewMeeting": "新建會議",
     "selectFeature": "選擇 Feature",
     "selectFeatureFirst": "請先選擇 Feature",
     "selectTask": "選擇 Task",
@@ -741,7 +742,7 @@
     "subTab": {
       "timeblock": "時間區塊",
       "calendar": "日曆",
-      "resource": "資源"
+      "resource": "工作負載"
     },
     "calendar": {
       "today": "今天",
@@ -760,7 +761,8 @@
       "title": "清單",
       "search": "搜尋...",
       "noUnscheduled": "所有項目均已排程",
-      "dragHint": "拖曳以放置到日曆/資源"
+      "dragHint": "拖曳以放置到日曆/資源",
+      "filterFeature": "依功能篩選"
     },
     "settingsTitle": "日程設定",
     "managementMethod": "管理方式",
@@ -2099,7 +2101,8 @@
     "customBlock": "自訂區塊",
     "blockColor": "顏色",
     "editCustom": "編輯區塊",
-    "titlePlaceholder": "請輸入行程名稱"
+    "titlePlaceholder": "請輸入行程名稱",
+    "viewMeeting": "查看會議詳情"
   },
   "emptyBoard": {
     "heading": "開始使用您的看板",

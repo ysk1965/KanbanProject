@@ -1969,12 +1969,21 @@ export function KanbanBoardPage() {
   }, []);
 
   const handleChecklistItemDetailClick = useCallback(
-    (item: { task: { id: string } | null }) => {
-      if (!item.task) return;
+    async (item: { task: { id: string } | null }) => {
+      if (!item.task || !boardId) return;
       const task = tasks.find((t) => t.id === item.task!.id);
-      if (task) handleTaskClick(task);
+      if (task) {
+        handleTaskClick(task);
+      } else {
+        try {
+          const fetched = await taskService.getTask(boardId, item.task.id);
+          handleTaskClick(fetched);
+        } catch (err) {
+          console.warn("Failed to fetch task for checklist detail", err);
+        }
+      }
     },
-    [tasks, handleTaskClick],
+    [tasks, boardId, handleTaskClick],
   );
 
   const handleNotificationClick = (notification: NotificationItem) => {
@@ -2765,20 +2774,6 @@ export function KanbanBoardPage() {
                 </span>
               </button>
               <button
-                onClick={() => handleScheduleSubTabChange("calendar")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all ${
-                  scheduleSubTab === "calendar"
-                    ? "font-medium bg-foreground/10 text-foreground"
-                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
-                }`}
-                aria-label={t("schedule.subTab.calendar", "Calendar")}
-              >
-                <Calendar size={14} />
-                <span className="hidden md:inline">
-                  {t("schedule.subTab.calendar", "Calendar")}
-                </span>
-              </button>
-              <button
                 onClick={() => handleScheduleSubTabChange("resource")}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all ${
                   scheduleSubTab === "resource"
@@ -2790,6 +2785,20 @@ export function KanbanBoardPage() {
                 <Users size={14} />
                 <span className="hidden md:inline">
                   {t("schedule.subTab.resource", "Resource")}
+                </span>
+              </button>
+              <button
+                onClick={() => handleScheduleSubTabChange("calendar")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all ${
+                  scheduleSubTab === "calendar"
+                    ? "font-medium bg-foreground/10 text-foreground"
+                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                }`}
+                aria-label={t("schedule.subTab.calendar", "Calendar")}
+              >
+                <Calendar size={14} />
+                <span className="hidden md:inline">
+                  {t("schedule.subTab.calendar", "Calendar")}
                 </span>
               </button>
             </div>
@@ -3202,9 +3211,27 @@ export function KanbanBoardPage() {
                   const feature = features.find((f) => f.id === featureId);
                   if (feature) handleFeatureClick(feature);
                 }}
-                onViewTask={(taskId) => {
+                onViewMeeting={() => {
+                  handleViewModeChange("meeting");
+                }}
+                onViewTask={async (taskId) => {
                   const task = tasks.find((t) => t.id === taskId);
-                  if (task) handleTaskClick(task);
+                  if (task) {
+                    handleTaskClick(task);
+                  } else if (boardId) {
+                    try {
+                      const fetched = await taskService.getTask(
+                        boardId,
+                        taskId,
+                      );
+                      handleTaskClick(fetched);
+                    } catch (err) {
+                      console.warn(
+                        "Failed to fetch task for timeblock view",
+                        err,
+                      );
+                    }
+                  }
                 }}
                 refreshTrigger={scheduleRefreshKey}
                 wsChecklistEvent={wsChecklistEvent}
@@ -3224,9 +3251,24 @@ export function KanbanBoardPage() {
                     boardId={boardId || ""}
                     boardMembers={boardMembersData}
                     memberColorMap={memberColorMap}
-                    onViewTask={(taskId) => {
+                    onViewTask={async (taskId) => {
                       const task = tasks.find((t) => t.id === taskId);
-                      if (task) handleTaskClick(task);
+                      if (task) {
+                        handleTaskClick(task);
+                      } else if (boardId) {
+                        try {
+                          const fetched = await taskService.getTask(
+                            boardId,
+                            taskId,
+                          );
+                          handleTaskClick(fetched);
+                        } catch (err) {
+                          console.warn(
+                            "Failed to fetch task for calendar view",
+                            err,
+                          );
+                        }
+                      }
                     }}
                     onDropChecklist={async (item, targetDate) => {
                       if (item.task?.id) {
@@ -3278,9 +3320,24 @@ export function KanbanBoardPage() {
                     boardMembers={boardMembersData}
                     milestones={milestones}
                     memberColorMap={memberColorMap}
-                    onViewTask={(taskId) => {
+                    onViewTask={async (taskId) => {
                       const task = tasks.find((t) => t.id === taskId);
-                      if (task) handleTaskClick(task);
+                      if (task) {
+                        handleTaskClick(task);
+                      } else if (boardId) {
+                        try {
+                          const fetched = await taskService.getTask(
+                            boardId,
+                            taskId,
+                          );
+                          handleTaskClick(fetched);
+                        } catch (err) {
+                          console.warn(
+                            "Failed to fetch task for resource view",
+                            err,
+                          );
+                        }
+                      }
                     }}
                     onDropChecklist={async (
                       item,

@@ -770,6 +770,7 @@
     "select": "Select",
     "collapse": "Collapse",
     "createNew": "Create new",
+    "createNewMeeting": "Create new meeting",
     "selectFeature": "Select a feature",
     "selectFeatureFirst": "Select a feature first",
     "selectTask": "Select a task",
@@ -798,7 +799,7 @@
     "subTab": {
       "timeblock": "Time Block",
       "calendar": "Calendar",
-      "resource": "Resource"
+      "resource": "Workload"
     },
     "calendar": {
       "today": "Today",
@@ -817,7 +818,8 @@
       "title": "Checklist",
       "search": "Search...",
       "noUnscheduled": "All items are scheduled",
-      "dragHint": "Drag to place on calendar/resource"
+      "dragHint": "Drag to place on calendar/resource",
+      "filterFeature": "Filter by feature"
     },
     "settingsTitle": "Schedule Settings",
     "managementMethod": "Management Method",
@@ -1746,7 +1748,8 @@
     "customBlock": "Custom Block",
     "blockColor": "Color",
     "editCustom": "Edit Block",
-    "titlePlaceholder": "Enter schedule name"
+    "titlePlaceholder": "Enter schedule name",
+    "viewMeeting": "View meeting"
   },
   "emptyBoard": {
     "heading": "Get started with your board",
@@ -4354,7 +4357,7 @@
     "showHelp": "Show shortcuts",
     "schedTimeblock": "Timeblock view",
     "schedCalendar": "Calendar view",
-    "schedResource": "Resource view",
+    "schedResource": "Workload view",
     "contextBoard": "Board tab",
     "contextSchedule": "Schedule tab",
     "statsOverview": "Overview",

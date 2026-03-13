@@ -148,20 +148,20 @@ export function ScheduleResourceView({
   const [dropHighlight, setDropHighlight] = useState<DropHighlight | null>(
     null,
   );
-
   // Refs for mouse event handlers (avoid stale closure)
   const dragStateRef = useRef<DragState | null>(null);
   // 드래그/리사이즈 후 click 이벤트 방지용 ref
   const wasDraggedRef = useRef(false);
 
-  // ─── Timeline range: 4 weeks before + 8 weeks after today ───
+  // ─── Timeline range: wide fixed range (12 weeks before + 40 weeks after today) ───
   const { timelineDays, todayIndex, rangeStart, rangeEnd } = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
     const start = new Date(today);
-    start.setDate(start.getDate() - 28); // 4 weeks before
+    start.setDate(start.getDate() - 84); // 12 weeks before
     const end = new Date(today);
-    end.setDate(end.getDate() + 56); // 8 weeks after
+    end.setDate(end.getDate() + 280); // 40 weeks after
 
     const days: Date[] = [];
     const cur = new Date(start);
@@ -182,33 +182,35 @@ export function ScheduleResourceView({
   }, []);
 
   // ─── Fetch data ───
-  const fetchData = useCallback(async () => {
-    if (!boardId) return;
-    try {
-      setLoading(true);
-      const result = await boardChecklistAPI.getItemsByAssignee(boardId, {
-        start_date: rangeStart,
-        end_date: rangeEnd,
-      });
-      setData(result);
-    } catch (err) {
-      console.warn("Failed to fetch checklist items by assignee", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [boardId, rangeStart, rangeEnd]);
+  const fetchData = useCallback(
+    async (silent = false) => {
+      if (!boardId) return;
+      try {
+        if (!silent) setLoading(true);
+        const result = await boardChecklistAPI.getItemsByAssignee(boardId, {
+          start_date: rangeStart,
+          end_date: rangeEnd,
+        });
+        setData(result);
+      } catch (err) {
+        console.warn("Failed to fetch checklist items by assignee", err);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [boardId, rangeStart, rangeEnd],
+  );
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Refresh when parent triggers (e.g. after external drop)
+  // Refresh when parent triggers (e.g. after external drop) — silent to avoid chart unmount
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
-      fetchData();
+      fetchData(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshTrigger]);
+  }, [refreshTrigger, fetchData]);
 
   // Scroll to today on mount
   useEffect(() => {
@@ -282,6 +284,63 @@ export function ScheduleResourceView({
       const drop = externalDropRef.current;
       if (drop && externalDragItem && onDropChecklist) {
         const targetDate = formatDateStr(timelineDays[drop.dayIndex]);
+
+        // Optimistic update: immediately add the bar to the chart
+        const optimisticItem: AssigneeItemResponse = {
+          ...externalDragItem,
+          start_date: targetDate,
+          due_date: targetDate,
+        };
+        setData((prevData) => {
+          if (!prevData)
+            return {
+              assignees: [
+                {
+                  assignee: {
+                    id: drop.rowId,
+                    name: "",
+                    email: "",
+                    avatar: null,
+                  },
+                  items: [optimisticItem],
+                },
+              ],
+              unassigned: [],
+            };
+
+          const targetGroupExists = prevData.assignees.some(
+            (g) => g.assignee.id === drop.rowId,
+          );
+
+          return {
+            assignees: targetGroupExists
+              ? prevData.assignees.map((group) =>
+                  group.assignee.id === drop.rowId
+                    ? {
+                        ...group,
+                        items: [...group.items, optimisticItem],
+                      }
+                    : group,
+                )
+              : [
+                  ...prevData.assignees,
+                  {
+                    assignee: {
+                      id: drop.rowId,
+                      name: "",
+                      email: "",
+                      avatar: null,
+                    },
+                    items: [optimisticItem],
+                  },
+                ],
+            // Remove from unassigned if it was there
+            unassigned: prevData.unassigned.filter(
+              (i) => i.id !== externalDragItem.id,
+            ),
+          };
+        });
+
         onDropChecklist(
           { id: externalDragItem.id, task_id: externalDragItem.task?.id || "" },
           targetDate,
@@ -612,6 +671,43 @@ export function ScheduleResourceView({
     [dragState, getBarPosition],
   );
 
+  // ─── Header drag-to-scroll ───
+  const headerDragRef = useRef<{
+    isDown: boolean;
+    startX: number;
+    scrollLeft: number;
+  } | null>(null);
+
+  const handleHeaderMouseDown = useCallback((e: React.MouseEvent) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    headerDragRef.current = {
+      isDown: true,
+      startX: e.clientX,
+      scrollLeft: container.scrollLeft,
+    };
+    document.body.style.cursor = "grabbing";
+    document.body.style.userSelect = "none";
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const state = headerDragRef.current;
+      if (!state?.isDown) return;
+      const dx = moveEvent.clientX - state.startX;
+      container.scrollLeft = state.scrollLeft - dx;
+    };
+
+    const handleMouseUp = () => {
+      headerDragRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  }, []);
+
   // ─── Loading state ───
   if (loading) {
     return (
@@ -630,7 +726,7 @@ export function ScheduleResourceView({
             <Users className="w-7 h-7 text-bridge-secondary" />
           </div>
           <h2 className="text-sm md:text-lg font-bold text-foreground tracking-tight">
-            {t("schedule.subTab.resource", "Resource")}
+            {t("schedule.subTab.resource", "Workload")}
           </h2>
           <p className="text-[11px] text-slate-500 leading-relaxed">
             {t("schedule.resource.noItems", "No items assigned")}
@@ -666,10 +762,11 @@ export function ScheduleResourceView({
               style={{ width: LEFT_COL_WIDTH, height: HEADER_HEIGHT }}
             />
 
-            {/* Day headers */}
+            {/* Day headers — drag to scroll */}
             <div
-              className="relative"
+              className="relative cursor-grab active:cursor-grabbing"
               style={{ width: totalTimelineWidth, height: HEADER_HEIGHT }}
+              onMouseDown={handleHeaderMouseDown}
             >
               {timelineDays.map((day, idx) => {
                 const weekend = isWeekend(day);

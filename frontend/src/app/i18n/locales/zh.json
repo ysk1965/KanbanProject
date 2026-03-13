@@ -722,6 +722,7 @@
     "select": "选择",
     "collapse": "收起",
     "createNew": "新建",
+    "createNewMeeting": "新建会议",
     "selectFeature": "选择 Feature",
     "selectFeatureFirst": "请先选择 Feature",
     "selectTask": "选择 Task",
@@ -750,7 +751,7 @@
     "subTab": {
       "timeblock": "时间块",
       "calendar": "日历",
-      "resource": "资源"
+      "resource": "工作负载"
     },
     "calendar": {
       "today": "今天",
@@ -769,7 +770,8 @@
       "title": "清单",
       "search": "搜索...",
       "noUnscheduled": "所有项目均已安排",
-      "dragHint": "拖拽以放置到日历/资源"
+      "dragHint": "拖拽以放置到日历/资源",
+      "filterFeature": "按功能筛选"
     },
     "settingsTitle": "日程设置",
     "managementMethod": "管理方式",
@@ -2141,7 +2143,8 @@
     "customBlock": "自定义块",
     "blockColor": "颜色",
     "editCustom": "编辑块",
-    "titlePlaceholder": "请输入日程名称"
+    "titlePlaceholder": "请输入日程名称",
+    "viewMeeting": "查看会议详情"
   },
   "emptyBoard": {
     "heading": "开始使用您的看板",

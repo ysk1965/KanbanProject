@@ -722,6 +722,7 @@
     "select": "เลือก",
     "collapse": "ย่อ",
     "createNew": "สร้างใหม่",
+    "createNewMeeting": "สร้างการประชุมใหม่",
     "selectFeature": "เลือก Feature",
     "selectFeatureFirst": "เลือก Feature ก่อน",
     "selectTask": "เลือก Task",
@@ -750,7 +751,7 @@
     "subTab": {
       "timeblock": "บล็อกเวลา",
       "calendar": "ปฏิทิน",
-      "resource": "ทรัพยากร"
+      "resource": "ภาระงาน"
     },
     "calendar": {
       "today": "วันนี้",
@@ -769,7 +770,8 @@
       "title": "รายการตรวจสอบ",
       "search": "ค้นหา...",
       "noUnscheduled": "รายการทั้งหมดถูกกำหนดไว้แล้ว",
-      "dragHint": "ลากเพื่อวางในปฏิทิน/ทรัพยากร"
+      "dragHint": "ลากเพื่อวางในปฏิทิน/ทรัพยากร",
+      "filterFeature": "กรองตามฟีเจอร์"
     },
     "settingsTitle": "การตั้งค่าตารางเวลา",
     "managementMethod": "วิธีการจัดการ",
@@ -2141,7 +2143,8 @@
     "customBlock": "บล็อกกำหนดเอง",
     "blockColor": "สี",
     "editCustom": "แก้ไขบล็อก",
-    "titlePlaceholder": "ป้อนชื่อตารางเวลา"
+    "titlePlaceholder": "ป้อนชื่อตารางเวลา",
+    "viewMeeting": "ดูรายละเอียดการประชุม"
   },
   "emptyBoard": {
     "heading": "เริ่มต้นกับบอร์ดของคุณ",
