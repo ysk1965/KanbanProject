@@ -5,7 +5,9 @@ import com.kanban.domain.comment.dto.CommentRequest;
 import com.kanban.domain.comment.dto.CommentResponse;
 import com.kanban.domain.comment.service.CommentAIService;
 import com.kanban.domain.comment.service.CommentService;
+import com.kanban.domain.integration.FrontendOriginResolver;
 import com.kanban.global.security.UserPrincipal;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -42,9 +44,12 @@ public class CommentController {
             @PathVariable String taskId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody CommentRequest.Create request,
-            @RequestHeader(value = "Origin", required = false) String origin) {
+            @RequestHeader(value = "Origin", required = false) String origin,
+            HttpServletRequest httpRequest) {
+        String resolvedOrigin = FrontendOriginResolver.resolveFrontendUrl(
+                origin, httpRequest.getHeader("X-Forwarded-Host"), null);
         CommentResponse.Detail response = commentService.createComment(
-                boardId, taskId, principal.getUserId(), request, origin);
+                boardId, taskId, principal.getUserId(), request, resolvedOrigin);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

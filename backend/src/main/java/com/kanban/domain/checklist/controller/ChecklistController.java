@@ -6,7 +6,9 @@ import com.kanban.domain.checklist.dto.ChecklistRequest;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
 import com.kanban.domain.checklist.service.ChecklistAIService;
 import com.kanban.domain.checklist.service.ChecklistService;
+import com.kanban.domain.integration.FrontendOriginResolver;
 import com.kanban.global.security.UserPrincipal;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -39,8 +41,11 @@ public class ChecklistController {
             @PathVariable String taskId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody ChecklistRequest.Create request,
-            @RequestHeader(value = "Origin", required = false) String origin) {
-        ChecklistResponse.Detail response = checklistService.createChecklistItem(boardId, taskId, principal.getUserId(), request, origin);
+            @RequestHeader(value = "Origin", required = false) String origin,
+            HttpServletRequest httpRequest) {
+        String resolvedOrigin = FrontendOriginResolver.resolveFrontendUrl(
+                origin, httpRequest.getHeader("X-Forwarded-Host"), null);
+        ChecklistResponse.Detail response = checklistService.createChecklistItem(boardId, taskId, principal.getUserId(), request, resolvedOrigin);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -51,8 +56,11 @@ public class ChecklistController {
             @PathVariable String itemId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody ChecklistRequest.Update request,
-            @RequestHeader(value = "Origin", required = false) String origin) {
-        ChecklistResponse.Detail response = checklistService.updateChecklistItem(boardId, taskId, itemId, principal.getUserId(), request, origin);
+            @RequestHeader(value = "Origin", required = false) String origin,
+            HttpServletRequest httpRequest) {
+        String resolvedOrigin = FrontendOriginResolver.resolveFrontendUrl(
+                origin, httpRequest.getHeader("X-Forwarded-Host"), null);
+        ChecklistResponse.Detail response = checklistService.updateChecklistItem(boardId, taskId, itemId, principal.getUserId(), request, resolvedOrigin);
         return ResponseEntity.ok(response);
     }
 

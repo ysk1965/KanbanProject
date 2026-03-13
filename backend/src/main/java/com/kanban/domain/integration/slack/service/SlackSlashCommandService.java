@@ -21,7 +21,7 @@ public class SlackSlashCommandService {
     private final SlackInstallationRepository installationRepository;
     private final TaskRepository taskRepository;
 
-    @org.springframework.beans.factory.annotation.Value("${app.frontend-url:https://bridgespots.com}")
+    @org.springframework.beans.factory.annotation.Value("${app.frontend-url}")
     private String frontendUrl;
 
     /**

@@ -27,7 +27,7 @@ public class DiscordController {
     private final DiscordService discordService;
     private final BoardService boardService;
 
-    @Value("${app.frontend-url:https://bridgespots.com}")
+    @Value("${app.frontend-url}")
     private String frontendUrl;
 
     /**

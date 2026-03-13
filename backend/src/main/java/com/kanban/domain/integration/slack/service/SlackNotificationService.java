@@ -37,7 +37,7 @@ public class SlackNotificationService {
     private final SlackOAuthService slackOAuthService;
     private final SlackBotNotificationService botNotificationService;
 
-    @Value("${app.frontend-url:https://bridgespots.com}")
+    @Value("${app.frontend-url}")
     private String frontendUrl;
 
     private String getButtonLabel() {

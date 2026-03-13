@@ -1,9 +1,11 @@
 package com.kanban.domain.note.controller;
 
+import com.kanban.domain.integration.FrontendOriginResolver;
 import com.kanban.domain.note.dto.NoteCommentRequest;
 import com.kanban.domain.note.dto.NoteCommentResponse;
 import com.kanban.domain.note.service.NoteCommentService;
 import com.kanban.global.security.UserPrincipal;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -36,9 +38,12 @@ public class NoteCommentController {
             @PathVariable String noteId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody NoteCommentRequest.Create request,
-            @RequestHeader(value = "Origin", required = false) String origin) {
+            @RequestHeader(value = "Origin", required = false) String origin,
+            HttpServletRequest httpRequest) {
+        String resolvedOrigin = FrontendOriginResolver.resolveFrontendUrl(
+                origin, httpRequest.getHeader("X-Forwarded-Host"), null);
         NoteCommentResponse.Detail response = noteCommentService.createComment(
-                boardId, noteId, principal.getUserId(), request, origin);
+                boardId, noteId, principal.getUserId(), request, resolvedOrigin);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

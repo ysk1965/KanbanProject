@@ -3764,6 +3764,8 @@
     "resetFilters": "重置所有篩選",
     "nextFeature": "下一個Feature",
     "prevFeature": "上一個Feature",
+    "nextTab": "切換到下一個標籤",
+    "prevTab": "切換到上一個標籤",
     "showHelp": "顯示快捷鍵",
     "statsOverview": "概覽檢視",
     "statsIndividual": "個人檢視",

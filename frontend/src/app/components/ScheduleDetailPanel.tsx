@@ -48,7 +48,7 @@ interface ScheduleDetailPanelProps {
   onChecklistToggle: () => void;
   onViewTask?: (taskId: string) => void;
   onViewFeature?: (featureId: string) => void;
-  onViewMeeting?: (meetingId: string) => void;
+  onViewMeeting?: (meetingId: string, date?: Date) => void;
 }
 
 // 시간 문자열에서 시:분 추출 (HH:mm:ss -> HH:mm)
@@ -497,7 +497,7 @@ export function ScheduleDetailPanel({
               </div>
               {onViewMeeting && (
                 <button
-                  onClick={() => onViewMeeting(meeting.id)}
+                  onClick={() => onViewMeeting(meeting.id, selectedDate)}
                   className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors"
                 >
                   {t("scheduleDetail.viewMeeting")}

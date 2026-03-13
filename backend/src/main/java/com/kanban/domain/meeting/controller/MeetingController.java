@@ -1,6 +1,7 @@
 package com.kanban.domain.meeting.controller;
 
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.integration.FrontendOriginResolver;
 import com.kanban.domain.meeting.dto.MeetingAIRequest;
 import com.kanban.domain.meeting.dto.MeetingAIResponse;
 import com.kanban.domain.meeting.dto.MeetingRequest;
@@ -10,6 +11,7 @@ import com.kanban.domain.meeting.service.MeetingService;
 import com.kanban.domain.meeting.service.MeetingTranscriptionService;
 import com.kanban.domain.note.dto.NoteResponse;
 import com.kanban.global.security.UserPrincipal;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
@@ -103,8 +105,11 @@ public class MeetingController {
             @PathVariable String boardId,
             @PathVariable String meetingId,
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestHeader(value = "Origin", required = false) String origin) {
-        meetingService.notifyParticipants(boardId, meetingId, principal.getUserId(), origin);
+            @RequestHeader(value = "Origin", required = false) String origin,
+            HttpServletRequest httpRequest) {
+        String resolvedOrigin = FrontendOriginResolver.resolveFrontendUrl(
+                origin, httpRequest.getHeader("X-Forwarded-Host"), null);
+        meetingService.notifyParticipants(boardId, meetingId, principal.getUserId(), resolvedOrigin);
         return ResponseEntity.ok(Map.of("message", "회의록 알림을 보냈습니다"));
     }
 

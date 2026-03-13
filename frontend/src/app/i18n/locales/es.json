@@ -4374,6 +4374,8 @@
     "resetFilters": "Restablecer filtros",
     "nextFeature": "Feature siguiente",
     "prevFeature": "Feature anterior",
+    "nextTab": "Siguiente pestaña",
+    "prevTab": "Pestaña anterior",
     "showHelp": "Mostrar atajos",
     "statsOverview": "Resumen",
     "statsIndividual": "Individual",

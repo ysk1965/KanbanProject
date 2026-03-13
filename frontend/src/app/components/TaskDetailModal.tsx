@@ -62,7 +62,7 @@ import { TaskAIChecklistModal } from "./TaskAIChecklistModal";
 import { CommentPanel } from "./CommentPanel";
 import { TagPickerPopover } from "./TagPickerPopover";
 import { getAssigneeClasses, getInitials } from "../utils/assigneeColor";
-import { isDomainAIHidden } from "../utils/domain";
+import { useAuth } from "../contexts/AuthContext";
 import { Progress } from "./ui/progress";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
@@ -155,6 +155,7 @@ export function TaskDetailModal({
   onChecklistSync,
 }: TaskDetailModalProps) {
   const { t } = useTranslation();
+  const { isRestricted } = useAuth();
 
   // 변경사항 추적
   const [initialTask, setInitialTask] = useState<Task | null>(null);
@@ -1062,7 +1063,7 @@ export function TaskDetailModal({
                   <Label className="text-base font-semibold text-foreground">
                     CheckList
                   </Label>
-                  {canEdit && boardId && !isDomainAIHidden && (
+                  {canEdit && boardId && !isRestricted && (
                     <button
                       onClick={() => setShowAIConfirm(true)}
                       className="ml-1 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-md hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"

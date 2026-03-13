@@ -35,7 +35,7 @@ public class OrgSubscriptionService {
     private final PolarApiClient polarApiClient;
     private final PolarConfig polarConfig;
 
-    @Value("${app.frontend-url:https://bridgespots.com}")
+    @Value("${app.frontend-url}")
     private String frontendUrl;
 
     // === Query ===

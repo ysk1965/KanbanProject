@@ -1,25 +1,39 @@
-import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Feature, Task, Tag } from '../types';
-import { FEATURE_COLORS } from '../constants';
-import { X, Trash2, ClipboardList, Lightbulb, ArrowRight, ArrowRightLeft, FileText, CalendarIcon, Tags, Sparkles, Pencil, AlertTriangle, ChevronDown } from 'lucide-react';
-import { MotionModal } from './ui/MotionModal';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Textarea } from './ui/textarea';
-import { Label } from './ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Calendar } from './ui/calendar';
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
-import type { DateRange } from 'react-day-picker';
-import { useTranslation } from 'react-i18next';
-import { ColorPickerPopover } from './ui/ColorPickerPopover';
-import { TagPickerPopover } from './TagPickerPopover';
-import { featureAPI, taskAPI } from '../utils/api';
-import { FeatureAIDecomposeModal } from './FeatureAIDecomposeModal';
-import { isDomainAIHidden } from '../utils/domain';
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Feature, Task, Tag } from "../types";
+import { FEATURE_COLORS } from "../constants";
+import {
+  X,
+  Trash2,
+  ClipboardList,
+  Lightbulb,
+  ArrowRight,
+  ArrowRightLeft,
+  FileText,
+  CalendarIcon,
+  Tags,
+  Sparkles,
+  Pencil,
+  AlertTriangle,
+  ChevronDown,
+} from "lucide-react";
+import { MotionModal } from "./ui/MotionModal";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
+import { Label } from "./ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Calendar } from "./ui/calendar";
+import { format } from "date-fns";
+import { ko } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
+import { useTranslation } from "react-i18next";
+import { ColorPickerPopover } from "./ui/ColorPickerPopover";
+import { TagPickerPopover } from "./TagPickerPopover";
+import { featureAPI, taskAPI } from "../utils/api";
+import { FeatureAIDecomposeModal } from "./FeatureAIDecomposeModal";
+import { useAuth } from "../contexts/AuthContext";
 
 interface FeatureDetailModalProps {
   feature: Feature | null;
@@ -30,11 +44,17 @@ interface FeatureDetailModalProps {
   onAddSubtask: (title: string) => void;
   onRenameSubtask?: (taskId: string, newTitle: string) => void;
   onUpdateFeature: (feature: Partial<Feature>) => void;
-  onDelete: (featureId: string, taskMigrations?: Array<{ task_id: string; target_feature_id: string }>) => void;
+  onDelete: (
+    featureId: string,
+    taskMigrations?: Array<{ task_id: string; target_feature_id: string }>,
+  ) => void;
   allFeatures: Feature[];
   availableTags: Tag[];
   onCreateTag: (name: string, color: string) => Promise<string | undefined>;
-  onUpdateTag: (tagId: string, data: { name?: string; color?: string }) => Promise<void>;
+  onUpdateTag: (
+    tagId: string,
+    data: { name?: string; color?: string },
+  ) => Promise<void>;
   onDeleteTag: (tagId: string) => Promise<void>;
   boardId: string;
   canEdit?: boolean;
@@ -62,24 +82,31 @@ export function FeatureDetailModal({
   isOnboarding = false,
   onTaskClick,
 }: FeatureDetailModalProps) {
-  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [initialFeature, setInitialFeature] = useState<Feature | null>(null);
   const [editedFeature, setEditedFeature] = useState<Feature | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [taskMigrationMap, setTaskMigrationMap] = useState<Record<string, string>>({});
-  const [bulkTargetFeatureId, setBulkTargetFeatureId] = useState<string>('');
-  const [flyingTask, setFlyingTask] = useState<{ title: string; x: number; y: number } | null>(null);
+  const [taskMigrationMap, setTaskMigrationMap] = useState<
+    Record<string, string>
+  >({});
+  const [bulkTargetFeatureId, setBulkTargetFeatureId] = useState<string>("");
+  const [flyingTask, setFlyingTask] = useState<{
+    title: string;
+    x: number;
+    y: number;
+  } | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [showAIConfirm, setShowAIConfirm] = useState(false);
   const [showAIDecompose, setShowAIDecompose] = useState(false);
   const [dateCalendarOpen, setDateCalendarOpen] = useState(false);
-  const [editingTaskTitle, setEditingTaskTitle] = useState('');
+  const [editingTaskTitle, setEditingTaskTitle] = useState("");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const addBtnRef = useRef<HTMLButtonElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation();
+  const { isRestricted } = useAuth();
 
   useEffect(() => {
     if (feature && open) {
@@ -92,7 +119,8 @@ export function FeatureDetailModal({
 
   useEffect(() => {
     if (initialFeature && editedFeature) {
-      const changed = JSON.stringify(initialFeature) !== JSON.stringify(editedFeature);
+      const changed =
+        JSON.stringify(initialFeature) !== JSON.stringify(editedFeature);
       setHasChanges(changed);
     }
   }, [initialFeature, editedFeature]);
@@ -155,7 +183,7 @@ export function FeatureDetailModal({
         await taskAPI.updateTask(boardId, editingTaskId, { title: newTitle });
         onRenameSubtask?.(editingTaskId, newTitle);
       } catch (error) {
-        console.error('Failed to rename subtask:', error);
+        console.error("Failed to rename subtask:", error);
       }
     }
     setEditingTaskId(null);
@@ -173,7 +201,7 @@ export function FeatureDetailModal({
         setTimeout(() => setFlyingTask(null), 800);
       }
       onAddSubtask(newSubtaskTitle.trim());
-      setNewSubtaskTitle('');
+      setNewSubtaskTitle("");
     }
   };
 
@@ -186,7 +214,7 @@ export function FeatureDetailModal({
       try {
         await featureAPI.addTag(boardId, feature.id, tagId);
       } catch (error) {
-        console.error('Failed to add tag:', error);
+        console.error("Failed to add tag:", error);
         updateEditedFeature({ tags: currentTags });
       }
     }
@@ -199,7 +227,7 @@ export function FeatureDetailModal({
     try {
       await featureAPI.removeTag(boardId, feature.id, tagId);
     } catch (error) {
-      console.error('Failed to remove tag:', error);
+      console.error("Failed to remove tag:", error);
       updateEditedFeature({ tags: currentTags });
     }
   };
@@ -219,486 +247,652 @@ export function FeatureDetailModal({
   };
 
   const featureTags = editedFeature.tags || [];
-  const selectedColor = editedFeature.color || '#8B5CF6';
+  const selectedColor = editedFeature.color || "#8B5CF6";
 
   return (
     <>
-      <MotionModal open={open} onClose={handleClose} overlayClose={!hasChanges} className="sm:max-w-xl max-h-[85dvh] flex flex-col overflow-hidden bg-bridge-surface p-0">
-          {/* Feature color accent line */}
-          <div className="h-[3px] w-full flex-shrink-0 rounded-t-lg" style={{ backgroundColor: selectedColor }} />
+      <MotionModal
+        open={open}
+        onClose={handleClose}
+        overlayClose={!hasChanges}
+        className="sm:max-w-xl max-h-[85dvh] flex flex-col overflow-hidden bg-bridge-surface p-0"
+      >
+        {/* Feature color accent line */}
+        <div
+          className="h-[3px] w-full flex-shrink-0 rounded-t-lg"
+          style={{ backgroundColor: selectedColor }}
+        />
 
-          {/* Top Control Bar */}
-          <div className="px-6 py-4 border-b border-bridge-border/30 flex-shrink-0">
-            <div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1 group">
-                  {/* Color Picker */}
-                  <ColorPickerPopover
-                    colors={FEATURE_COLORS}
-                    selectedColor={selectedColor}
-                    onColorChange={(color) => updateEditedFeature({ color })}
-                    disabled={!canEdit}
-                    customColorLabel={t('featureDetail.customColor')}
-                  />
-
-                  {/* Title - hover to edit */}
-                  {canEdit && isEditingTitle ? (
-                    <Input
-                      value={editedFeature.title}
-                      onChange={(e) => updateEditedFeature({ title: e.target.value })}
-                      onBlur={() => setIsEditingTitle(false)}
-                      onKeyDown={(e) => {
-                        if (e.nativeEvent.isComposing) return;
-                        if (e.key === 'Enter' || e.key === 'Escape') {
-                          setIsEditingTitle(false);
-                        }
-                      }}
-                      className="text-lg font-semibold border border-foreground/10 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-foreground/5 text-foreground"
-                      autoFocus
-                    />
-                  ) : (
-                    <div
-                      className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${canEdit ? 'cursor-pointer hover:bg-foreground/5' : ''}`}
-                      onClick={() => canEdit && setIsEditingTitle(true)}
-                    >
-                      <span className="text-lg font-semibold text-foreground">
-                        {editedFeature.title}
-                      </span>
-                      {canEdit && <Pencil className="h-4 w-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
-                    </div>
-                  )}
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex items-center gap-1">
-                  {canEdit && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowDeleteDialog(true)}
-                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <button
-                    onClick={handleClose}
-                    className="p-2 text-slate-400 hover:text-foreground transition-colors"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-6 pb-10 custom-scrollbar">
-            <div className="space-y-5">
-              {/* Description Section */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-slate-400" />
-                  <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{t('featureDetail.description')}</Label>
-                </div>
-                <Textarea
-                  placeholder={t('featureDetail.descriptionPlaceholder')}
-                  value={editedFeature.description || ''}
-                  onChange={(e) => canEdit && updateEditedFeature({ description: e.target.value })}
-                  readOnly={!canEdit}
-                  rows={5}
-                  className={`bg-bridge-dark/50 border-bridge-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? 'cursor-default' : ''}`}
+        {/* Top Control Bar */}
+        <div className="px-6 py-4 border-b border-bridge-border/30 flex-shrink-0">
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 flex-1 group">
+                {/* Color Picker */}
+                <ColorPickerPopover
+                  colors={FEATURE_COLORS}
+                  selectedColor={selectedColor}
+                  onColorChange={(color) => updateEditedFeature({ color })}
+                  disabled={!canEdit}
+                  customColorLabel={t("featureDetail.customColor")}
                 />
-              </div>
 
-              {/* Date Range Section */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4 text-slate-400" />
-                  <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{t('featureDetail.dateRange')}</Label>
-                </div>
-                {canEdit ? (
-                  <Popover open={dateCalendarOpen} onOpenChange={setDateCalendarOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full h-10 justify-start text-left font-normal bg-bridge-dark/50 border-bridge-border/30 text-foreground hover:bg-bridge-dark/70 hover:text-foreground"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
-                        {editedFeature.start_date || editedFeature.due_date ? (
-                          <span>
-                            {editedFeature.start_date
-                              ? format(new Date(editedFeature.start_date), 'yyyy. MM. dd.', { locale: ko })
-                              : '?'}
-                            {' ~ '}
-                            {editedFeature.due_date
-                              ? format(new Date(editedFeature.due_date), 'yyyy. MM. dd.', { locale: ko })
-                              : '?'}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">{t('featureDetail.selectDateRange')}</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-foreground/10" align="start">
-                      <Calendar
-                        mode="range"
-                        selected={
-                          editedFeature.start_date || editedFeature.due_date
-                            ? {
-                                from: editedFeature.start_date ? new Date(editedFeature.start_date) : undefined,
-                                to: editedFeature.due_date ? new Date(editedFeature.due_date) : undefined,
-                              }
-                            : undefined
-                        }
-                        onSelect={(range: DateRange | undefined) => {
-                          updateEditedFeature({
-                            start_date: range?.from ? format(range.from, 'yyyy-MM-dd') : null,
-                            due_date: range?.to ? format(range.to, 'yyyy-MM-dd') : null,
-                          });
-                        }}
-                        numberOfMonths={2}
-                        locale={ko}
-                        className="bg-bridge-obsidian text-foreground"
-                      />
-                      {(editedFeature.start_date || editedFeature.due_date) && (
-                        <div className="p-2 border-t border-foreground/10 flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="flex-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                            onClick={() => updateEditedFeature({ start_date: null, due_date: null })}
-                          >
-                            {t('featureDetail.removeDate')}
-                          </Button>
-                          {editedFeature.start_date && editedFeature.due_date && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="flex-1 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 font-bold"
-                              onClick={() => setDateCalendarOpen(false)}
-                            >
-                              {t('common.confirm', '확인')}
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </PopoverContent>
-                  </Popover>
+                {/* Title - hover to edit */}
+                {canEdit && isEditingTitle ? (
+                  <Input
+                    value={editedFeature.title}
+                    onChange={(e) =>
+                      updateEditedFeature({ title: e.target.value })
+                    }
+                    onBlur={() => setIsEditingTitle(false)}
+                    onKeyDown={(e) => {
+                      if (e.nativeEvent.isComposing) return;
+                      if (e.key === "Enter" || e.key === "Escape") {
+                        setIsEditingTitle(false);
+                      }
+                    }}
+                    className="text-lg font-semibold border border-foreground/10 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-foreground/5 text-foreground"
+                    autoFocus
+                  />
                 ) : (
-                  <div className="w-full h-10 flex items-center bg-bridge-dark/50 border border-bridge-border/30 rounded-md px-3 text-foreground opacity-70">
-                    <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
-                    {editedFeature.start_date || editedFeature.due_date ? (
-                      <span>
-                        {editedFeature.start_date
-                          ? format(new Date(editedFeature.start_date), 'yyyy. MM. dd.', { locale: ko })
-                          : '?'}
-                        {' ~ '}
-                        {editedFeature.due_date
-                          ? format(new Date(editedFeature.due_date), 'yyyy. MM. dd.', { locale: ko })
-                          : '?'}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">{t('featureDetail.noDate')}</span>
+                  <div
+                    className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${canEdit ? "cursor-pointer hover:bg-foreground/5" : ""}`}
+                    onClick={() => canEdit && setIsEditingTitle(true)}
+                  >
+                    <span className="text-lg font-semibold text-foreground">
+                      {editedFeature.title}
+                    </span>
+                    {canEdit && (
+                      <Pencil className="h-4 w-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                     )}
                   </div>
                 )}
               </div>
 
-              {/* Tags Section */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Tags className="h-4 w-4 text-slate-400" />
-                  <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{t('featureDetail.tags')}</Label>
-                </div>
-                <div className="flex flex-wrap gap-2 items-center">
-                  {featureTags.map((tag) => (
-                    <span
-                      key={tag.id}
-                      className="text-[10px] font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5"
-                      style={{
-                        backgroundColor: `${tag.color}15`,
-                        borderColor: `${tag.color}44`,
-                        color: tag.color,
-                      }}
+              {/* Action buttons */}
+              <div className="flex items-center gap-1">
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+                <button
+                  onClick={handleClose}
+                  className="p-2 text-slate-400 hover:text-foreground transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-6 pb-10 custom-scrollbar">
+          <div className="space-y-5">
+            {/* Description Section */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-slate-400" />
+                <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                  {t("featureDetail.description")}
+                </Label>
+              </div>
+              <Textarea
+                placeholder={t("featureDetail.descriptionPlaceholder")}
+                value={editedFeature.description || ""}
+                onChange={(e) =>
+                  canEdit &&
+                  updateEditedFeature({ description: e.target.value })
+                }
+                readOnly={!canEdit}
+                rows={5}
+                className={`bg-bridge-dark/50 border-bridge-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? "cursor-default" : ""}`}
+              />
+            </div>
+
+            {/* Date Range Section */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-slate-400" />
+                <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                  {t("featureDetail.dateRange")}
+                </Label>
+              </div>
+              {canEdit ? (
+                <Popover
+                  open={dateCalendarOpen}
+                  onOpenChange={setDateCalendarOpen}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full h-10 justify-start text-left font-normal bg-bridge-dark/50 border-bridge-border/30 text-foreground hover:bg-bridge-dark/70 hover:text-foreground"
                     >
-                      {tag.name}
-                      {canEdit && (
-                        <button
-                          onClick={() => handleRemoveTag(tag.id)}
-                          className="hover:opacity-80"
-                        >
-                          <X size={10} />
-                        </button>
+                      <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                      {editedFeature.start_date || editedFeature.due_date ? (
+                        <span>
+                          {editedFeature.start_date
+                            ? format(
+                                new Date(editedFeature.start_date),
+                                "yyyy. MM. dd.",
+                                { locale: ko },
+                              )
+                            : "?"}
+                          {" ~ "}
+                          {editedFeature.due_date
+                            ? format(
+                                new Date(editedFeature.due_date),
+                                "yyyy. MM. dd.",
+                                { locale: ko },
+                              )
+                            : "?"}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">
+                          {t("featureDetail.selectDateRange")}
+                        </span>
                       )}
-                    </span>
-                  ))}
-                  {canEdit && (
-                    <TagPickerPopover
-                      selectedTagIds={featureTags.map((t) => t.id)}
-                      availableTags={availableTags}
-                      onToggleTag={handleToggleTag}
-                      onCreateTag={onCreateTag}
-                      onUpdateTag={onUpdateTag}
-                      onDeleteTag={onDeleteTag}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-auto p-0 bg-bridge-obsidian border-foreground/10"
+                    align="start"
+                  >
+                    <Calendar
+                      mode="range"
+                      selected={
+                        editedFeature.start_date || editedFeature.due_date
+                          ? {
+                              from: editedFeature.start_date
+                                ? new Date(editedFeature.start_date)
+                                : undefined,
+                              to: editedFeature.due_date
+                                ? new Date(editedFeature.due_date)
+                                : undefined,
+                            }
+                          : undefined
+                      }
+                      onSelect={(range: DateRange | undefined) => {
+                        updateEditedFeature({
+                          start_date: range?.from
+                            ? format(range.from, "yyyy-MM-dd")
+                            : null,
+                          due_date: range?.to
+                            ? format(range.to, "yyyy-MM-dd")
+                            : null,
+                        });
+                      }}
+                      numberOfMonths={2}
+                      locale={ko}
+                      className="bg-bridge-obsidian text-foreground"
                     />
-                  )}
-                </div>
-              </div>
-
-              {/* Subtask Module */}
-              <div className={`mt-6 pt-6 border-t border-foreground/10 relative ${isOnboarding && tasks.length === 0 ? 'z-10' : ''}`}>
-                <div className="flex items-center justify-between mb-4 relative">
-                  <div className="flex items-center gap-2">
-                    <ClipboardList className="h-5 w-5" style={{ color: selectedColor }} />
-                    <Label className="text-base font-semibold text-foreground">{t('featureDetail.subtaskList')}</Label>
-                    {canEdit && !isDomainAIHidden && (
-                      <button
-                        onClick={() => setShowAIConfirm(true)}
-                        className="ml-1 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-lg hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
-                      >
-                        <Sparkles className="h-3 w-3" />
-                        AI
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-24 h-2 bg-foreground/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-300"
-                        style={{ width: `${progressPercent}%`, backgroundColor: selectedColor }}
-                      />
-                    </div>
-                    <span className="text-sm font-semibold" style={{ color: selectedColor }}>
-                      {Math.round(progressPercent)}%
-                    </span>
-                  </div>
-                </div>
-
-                <div className={`relative bg-bridge-dark/40 rounded-xl overflow-hidden transition-all duration-500 ${isOnboarding && tasks.length === 0 ? 'border-2 border-bridge-accent/50' : 'border border-bridge-border/30'}`}>
-                  {/* 온보딩 펄스 글로우 */}
-                  {isOnboarding && tasks.length === 0 && (
-                    <motion.div
-                      className="absolute inset-0 rounded-xl pointer-events-none z-0"
-                      animate={{ boxShadow: [
-                        '0 0 0 2px rgba(99,102,241,0.2), 0 0 15px rgba(99,102,241,0.08)',
-                        '0 0 0 3px rgba(99,102,241,0.5), 0 0 40px rgba(99,102,241,0.2), 0 0 80px rgba(99,102,241,0.08)',
-                        '0 0 0 2px rgba(99,102,241,0.2), 0 0 15px rgba(99,102,241,0.08)',
-                      ] }}
-                      transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                    />
-                  )}
-                  {/* Task Entries */}
-                  <div className="divide-y divide-white/5 relative z-[1]">
-                    {tasks.length === 0 && (
-                      <div className="relative">
-                        {isOnboarding ? (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.92, y: -10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            transition={{ delay: 0.3, type: 'spring', stiffness: 260, damping: 22 }}
-                            className="m-4 p-4 rounded-xl bg-gradient-to-r from-bridge-accent/15 via-purple-500/10 to-bridge-accent/15 border border-bridge-accent/30"
-                          >
-                            <div className="flex items-center gap-3 mb-3">
-                              <motion.div
-                                animate={{ scale: [1, 1.2, 1], boxShadow: [
-                                  '0 0 0 0 rgba(99,102,241,0)',
-                                  '0 0 0 8px rgba(99,102,241,0.2)',
-                                  '0 0 0 0 rgba(99,102,241,0)',
-                                ] }}
-                                transition={{ duration: 2, repeat: Infinity }}
-                                className="px-2.5 h-8 rounded-lg bg-gradient-to-br from-bridge-accent to-purple-500 flex items-center justify-center flex-shrink-0"
-                              >
-                                <span className="text-[10px] font-black text-white tracking-widest uppercase">Step 2</span>
-                              </motion.div>
-                              <div className="flex-1">
-                                <p className="text-sm font-bold text-white">
-                                  {t('featureDetail.onboardingStep2')}
-                                </p>
-                                <p className="text-[11px] text-slate-400 mt-0.5">
-                                  {t('featureDetail.subtaskDescription')}
-                                </p>
-                              </div>
-                            </div>
-                            {/* 포인팅 화살표 */}
-                            <motion.div
-                              animate={{ y: [0, 4, 0] }}
-                              transition={{ duration: 1, repeat: Infinity, ease: 'easeInOut' }}
-                              className="flex items-center justify-center gap-1.5 text-bridge-accent/70"
-                            >
-                              <ArrowRight className="h-3.5 w-3.5 rotate-90" />
-                              <span className="text-[10px] font-bold tracking-wider uppercase">{t('featureDetail.addSubtaskGuide')}</span>
-                              <ArrowRight className="h-3.5 w-3.5 rotate-90" />
-                            </motion.div>
-                          </motion.div>
-                        ) : (
-                          <>
-                            <div className="px-5 pt-5 pb-3 flex items-start gap-3">
-                              <div
-                                className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-                                style={{ backgroundColor: `${selectedColor}15` }}
-                              >
-                                <Lightbulb size={14} style={{ color: selectedColor }} />
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold text-foreground mb-1">
-                                  {t('featureDetail.addSubtaskGuide')}
-                                </p>
-                                <p className="text-[11px] text-slate-500 leading-relaxed">
-                                  {t('featureDetail.subtaskDescription')}
-                                </p>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                        {/* Example subtasks (visual guide) */}
-                        <div className="mx-4 mb-4 rounded-lg border border-dashed border-foreground/10 overflow-hidden opacity-40 pointer-events-none select-none">
-                          <div className="px-3 py-1.5 bg-white/[0.02]">
-                            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">예시</span>
-                          </div>
-                          <div className="divide-y divide-white/5">
-                            {['API 엔드포인트 설계', '화면 UI 구현', '테스트 코드 작성'].map((title, i) => (
-                              <div key={i} className="flex items-center justify-between px-4 py-3">
-                                <div className="flex items-center gap-3">
-                                  <div
-                                    className="w-2 h-2 rounded-full flex-shrink-0"
-                                    style={{ backgroundColor: selectedColor, boxShadow: `0 0 8px ${selectedColor}44` }}
-                                  />
-                                  <span className="text-xs font-semibold text-slate-400">{title}</span>
-                                </div>
-                                <span className="text-[10px] font-black tracking-widest text-slate-500">
-                                  → {i === 0 ? 'TASK' : i === 1 ? 'IN PROGRESS' : 'DONE ✓'}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {tasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors group ${onTaskClick ? 'cursor-pointer' : ''}`}
-                        onClick={() => {
-                          if (onTaskClick && editingTaskId !== task.id) {
-                            onTaskClick(task);
+                    {(editedFeature.start_date || editedFeature.due_date) && (
+                      <div className="p-2 border-t border-foreground/10 flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          onClick={() =>
+                            updateEditedFeature({
+                              start_date: null,
+                              due_date: null,
+                            })
                           }
-                        }}
-                      >
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{
-                              backgroundColor: selectedColor,
-                              boxShadow: `0 0 8px ${selectedColor}44`,
-                            }}
-                          />
-                          {editingTaskId === task.id ? (
-                            <input
-                              ref={editInputRef}
-                              type="text"
-                              value={editingTaskTitle}
-                              onChange={(e) => setEditingTaskTitle(e.target.value)}
-                              onBlur={handleSaveTaskTitle}
-                              onClick={(e) => e.stopPropagation()}
-                              onKeyDown={(e) => {
-                                if (e.nativeEvent.isComposing) return;
-                                if (e.key === 'Enter') handleSaveTaskTitle();
-                                if (e.key === 'Escape') setEditingTaskId(null);
-                              }}
-                              className="flex-1 text-xs font-semibold bg-foreground/5 border border-bridge-accent/50 rounded-md px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
-                            />
-                          ) : (
-                            <span
-                              className={`text-xs font-semibold text-foreground/80 group-hover:text-foreground transition-colors truncate ${canEdit ? 'cursor-text hover:bg-foreground/5 rounded px-1 -mx-1' : ''}`}
-                              onClick={(e) => { if (canEdit) { e.stopPropagation(); handleStartEditTask(task); } }}
-                            >
-                              {task.title}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 flex-shrink-0 ml-2">
-                          <span className="tracking-widest transition-colors" style={{ color: undefined }}>
-                            → {getBlockName(task.block_id).toUpperCase()}
-                          </span>
-                        </div>
+                        >
+                          {t("featureDetail.removeDate")}
+                        </Button>
+                        {editedFeature.start_date && editedFeature.due_date && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="flex-1 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 font-bold"
+                            onClick={() => setDateCalendarOpen(false)}
+                          >
+                            {t("common.confirm", "확인")}
+                          </Button>
+                        )}
                       </div>
-                    ))}
-                  </div>
-
-                  {/* Quick Add Dock */}
-                  {canEdit && (
-                    <motion.div
-                      className={`relative z-[1] p-2 flex gap-2 border-t transition-all ${isOnboarding && tasks.length === 0 ? 'bg-bridge-accent/5 border-bridge-accent/20' : 'bg-bridge-dark/30 border-bridge-border/20'}`}
-                      animate={isOnboarding && tasks.length === 0 ? { backgroundColor: ['rgba(99,102,241,0.03)', 'rgba(99,102,241,0.08)', 'rgba(99,102,241,0.03)'] } : {}}
-                      transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                    >
-                      <input
-                        type="text"
-                        placeholder={t('featureDetail.newSubtaskPlaceholder')}
-                        value={newSubtaskTitle}
-                        onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.nativeEvent.isComposing) return;
-                          if (e.key === 'Enter') handleAddSubtask();
-                        }}
-                        className={`flex-1 rounded-lg px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent text-foreground transition-all ${isOnboarding && tasks.length === 0 ? 'bg-bridge-dark/70 border-2 border-bridge-accent/40 placeholder-slate-500 shadow-[0_0_12px_rgba(99,102,241,0.15)]' : 'bg-bridge-dark/50 border border-bridge-border/30 placeholder-slate-500'}`}
-                        autoFocus={isOnboarding && tasks.length === 0}
-                      />
-                      <motion.button
-                        ref={addBtnRef}
-                        onClick={handleAddSubtask}
-                        className="px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg border transition-all active:scale-95"
-                        style={{
-                          backgroundColor: isOnboarding && tasks.length === 0 ? `${selectedColor}25` : `${selectedColor}15`,
-                          color: selectedColor,
-                          borderColor: `${selectedColor}33`,
-                        }}
-                        animate={isOnboarding && tasks.length === 0 ? { scale: [1, 1.05, 1] } : {}}
-                        transition={{ duration: 1.5, repeat: Infinity }}
-                      >
-                        ADD
-                      </motion.button>
-                    </motion.div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <div className="w-full h-10 flex items-center bg-bridge-dark/50 border border-bridge-border/30 rounded-md px-3 text-foreground opacity-70">
+                  <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                  {editedFeature.start_date || editedFeature.due_date ? (
+                    <span>
+                      {editedFeature.start_date
+                        ? format(
+                            new Date(editedFeature.start_date),
+                            "yyyy. MM. dd.",
+                            { locale: ko },
+                          )
+                        : "?"}
+                      {" ~ "}
+                      {editedFeature.due_date
+                        ? format(
+                            new Date(editedFeature.due_date),
+                            "yyyy. MM. dd.",
+                            { locale: ko },
+                          )
+                        : "?"}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400">
+                      {t("featureDetail.noDate")}
+                    </span>
                   )}
-                </div>
-              </div>
-
-              {/* Save/Cancel - shown only with changes */}
-              {canEdit && hasChanges && (
-                <div className="flex justify-end gap-2 pt-4 border-t border-foreground/10">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setEditedFeature(JSON.parse(JSON.stringify(initialFeature)));
-                      setHasChanges(false);
-                    }}
-                    className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
-                  >
-                    {t('common.cancel')}
-                  </Button>
-                  <Button
-                    onClick={handleSave}
-                    className="bg-bridge-accent hover:bg-bridge-accent/90"
-                  >
-                    {t('common.save')}
-                  </Button>
                 </div>
               )}
             </div>
+
+            {/* Tags Section */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Tags className="h-4 w-4 text-slate-400" />
+                <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                  {t("featureDetail.tags")}
+                </Label>
+              </div>
+              <div className="flex flex-wrap gap-2 items-center">
+                {featureTags.map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="text-[10px] font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5"
+                    style={{
+                      backgroundColor: `${tag.color}15`,
+                      borderColor: `${tag.color}44`,
+                      color: tag.color,
+                    }}
+                  >
+                    {tag.name}
+                    {canEdit && (
+                      <button
+                        onClick={() => handleRemoveTag(tag.id)}
+                        className="hover:opacity-80"
+                      >
+                        <X size={10} />
+                      </button>
+                    )}
+                  </span>
+                ))}
+                {canEdit && (
+                  <TagPickerPopover
+                    selectedTagIds={featureTags.map((t) => t.id)}
+                    availableTags={availableTags}
+                    onToggleTag={handleToggleTag}
+                    onCreateTag={onCreateTag}
+                    onUpdateTag={onUpdateTag}
+                    onDeleteTag={onDeleteTag}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Subtask Module */}
+            <div
+              className={`mt-6 pt-6 border-t border-foreground/10 relative ${isOnboarding && tasks.length === 0 ? "z-10" : ""}`}
+            >
+              <div className="flex items-center justify-between mb-4 relative">
+                <div className="flex items-center gap-2">
+                  <ClipboardList
+                    className="h-5 w-5"
+                    style={{ color: selectedColor }}
+                  />
+                  <Label className="text-base font-semibold text-foreground">
+                    {t("featureDetail.subtaskList")}
+                  </Label>
+                  {canEdit && !isRestricted && (
+                    <button
+                      onClick={() => setShowAIConfirm(true)}
+                      className="ml-1 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-lg hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      AI
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-24 h-2 bg-foreground/10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-300"
+                      style={{
+                        width: `${progressPercent}%`,
+                        backgroundColor: selectedColor,
+                      }}
+                    />
+                  </div>
+                  <span
+                    className="text-sm font-semibold"
+                    style={{ color: selectedColor }}
+                  >
+                    {Math.round(progressPercent)}%
+                  </span>
+                </div>
+              </div>
+
+              <div
+                className={`relative bg-bridge-dark/40 rounded-xl overflow-hidden transition-all duration-500 ${isOnboarding && tasks.length === 0 ? "border-2 border-bridge-accent/50" : "border border-bridge-border/30"}`}
+              >
+                {/* 온보딩 펄스 글로우 */}
+                {isOnboarding && tasks.length === 0 && (
+                  <motion.div
+                    className="absolute inset-0 rounded-xl pointer-events-none z-0"
+                    animate={{
+                      boxShadow: [
+                        "0 0 0 2px rgba(99,102,241,0.2), 0 0 15px rgba(99,102,241,0.08)",
+                        "0 0 0 3px rgba(99,102,241,0.5), 0 0 40px rgba(99,102,241,0.2), 0 0 80px rgba(99,102,241,0.08)",
+                        "0 0 0 2px rgba(99,102,241,0.2), 0 0 15px rgba(99,102,241,0.08)",
+                      ],
+                    }}
+                    transition={{
+                      duration: 2.5,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  />
+                )}
+                {/* Task Entries */}
+                <div className="divide-y divide-white/5 relative z-[1]">
+                  {tasks.length === 0 && (
+                    <div className="relative">
+                      {isOnboarding ? (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.92, y: -10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          transition={{
+                            delay: 0.3,
+                            type: "spring",
+                            stiffness: 260,
+                            damping: 22,
+                          }}
+                          className="m-4 p-4 rounded-xl bg-gradient-to-r from-bridge-accent/15 via-purple-500/10 to-bridge-accent/15 border border-bridge-accent/30"
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            <motion.div
+                              animate={{
+                                scale: [1, 1.2, 1],
+                                boxShadow: [
+                                  "0 0 0 0 rgba(99,102,241,0)",
+                                  "0 0 0 8px rgba(99,102,241,0.2)",
+                                  "0 0 0 0 rgba(99,102,241,0)",
+                                ],
+                              }}
+                              transition={{ duration: 2, repeat: Infinity }}
+                              className="px-2.5 h-8 rounded-lg bg-gradient-to-br from-bridge-accent to-purple-500 flex items-center justify-center flex-shrink-0"
+                            >
+                              <span className="text-[10px] font-black text-white tracking-widest uppercase">
+                                Step 2
+                              </span>
+                            </motion.div>
+                            <div className="flex-1">
+                              <p className="text-sm font-bold text-white">
+                                {t("featureDetail.onboardingStep2")}
+                              </p>
+                              <p className="text-[11px] text-slate-400 mt-0.5">
+                                {t("featureDetail.subtaskDescription")}
+                              </p>
+                            </div>
+                          </div>
+                          {/* 포인팅 화살표 */}
+                          <motion.div
+                            animate={{ y: [0, 4, 0] }}
+                            transition={{
+                              duration: 1,
+                              repeat: Infinity,
+                              ease: "easeInOut",
+                            }}
+                            className="flex items-center justify-center gap-1.5 text-bridge-accent/70"
+                          >
+                            <ArrowRight className="h-3.5 w-3.5 rotate-90" />
+                            <span className="text-[10px] font-bold tracking-wider uppercase">
+                              {t("featureDetail.addSubtaskGuide")}
+                            </span>
+                            <ArrowRight className="h-3.5 w-3.5 rotate-90" />
+                          </motion.div>
+                        </motion.div>
+                      ) : (
+                        <>
+                          <div className="px-5 pt-5 pb-3 flex items-start gap-3">
+                            <div
+                              className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                              style={{ backgroundColor: `${selectedColor}15` }}
+                            >
+                              <Lightbulb
+                                size={14}
+                                style={{ color: selectedColor }}
+                              />
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-foreground mb-1">
+                                {t("featureDetail.addSubtaskGuide")}
+                              </p>
+                              <p className="text-[11px] text-slate-500 leading-relaxed">
+                                {t("featureDetail.subtaskDescription")}
+                              </p>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                      {/* Example subtasks (visual guide) */}
+                      <div className="mx-4 mb-4 rounded-lg border border-dashed border-foreground/10 overflow-hidden opacity-40 pointer-events-none select-none">
+                        <div className="px-3 py-1.5 bg-white/[0.02]">
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                            예시
+                          </span>
+                        </div>
+                        <div className="divide-y divide-white/5">
+                          {[
+                            "API 엔드포인트 설계",
+                            "화면 UI 구현",
+                            "테스트 코드 작성",
+                          ].map((title, i) => (
+                            <div
+                              key={i}
+                              className="flex items-center justify-between px-4 py-3"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className="w-2 h-2 rounded-full flex-shrink-0"
+                                  style={{
+                                    backgroundColor: selectedColor,
+                                    boxShadow: `0 0 8px ${selectedColor}44`,
+                                  }}
+                                />
+                                <span className="text-xs font-semibold text-slate-400">
+                                  {title}
+                                </span>
+                              </div>
+                              <span className="text-[10px] font-black tracking-widest text-slate-500">
+                                →{" "}
+                                {i === 0
+                                  ? "TASK"
+                                  : i === 1
+                                    ? "IN PROGRESS"
+                                    : "DONE ✓"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {tasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors group ${onTaskClick ? "cursor-pointer" : ""}`}
+                      onClick={() => {
+                        if (onTaskClick && editingTaskId !== task.id) {
+                          onTaskClick(task);
+                        }
+                      }}
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{
+                            backgroundColor: selectedColor,
+                            boxShadow: `0 0 8px ${selectedColor}44`,
+                          }}
+                        />
+                        {editingTaskId === task.id ? (
+                          <input
+                            ref={editInputRef}
+                            type="text"
+                            value={editingTaskTitle}
+                            onChange={(e) =>
+                              setEditingTaskTitle(e.target.value)
+                            }
+                            onBlur={handleSaveTaskTitle}
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => {
+                              if (e.nativeEvent.isComposing) return;
+                              if (e.key === "Enter") handleSaveTaskTitle();
+                              if (e.key === "Escape") setEditingTaskId(null);
+                            }}
+                            className="flex-1 text-xs font-semibold bg-foreground/5 border border-bridge-accent/50 rounded-md px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                          />
+                        ) : (
+                          <span
+                            className={`text-xs font-semibold text-foreground/80 group-hover:text-foreground transition-colors truncate ${canEdit ? "cursor-text hover:bg-foreground/5 rounded px-1 -mx-1" : ""}`}
+                            onClick={(e) => {
+                              if (canEdit) {
+                                e.stopPropagation();
+                                handleStartEditTask(task);
+                              }
+                            }}
+                          >
+                            {task.title}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 flex-shrink-0 ml-2">
+                        <span
+                          className="tracking-widest transition-colors"
+                          style={{ color: undefined }}
+                        >
+                          → {getBlockName(task.block_id).toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Quick Add Dock */}
+                {canEdit && (
+                  <motion.div
+                    className={`relative z-[1] p-2 flex gap-2 border-t transition-all ${isOnboarding && tasks.length === 0 ? "bg-bridge-accent/5 border-bridge-accent/20" : "bg-bridge-dark/30 border-bridge-border/20"}`}
+                    animate={
+                      isOnboarding && tasks.length === 0
+                        ? {
+                            backgroundColor: [
+                              "rgba(99,102,241,0.03)",
+                              "rgba(99,102,241,0.08)",
+                              "rgba(99,102,241,0.03)",
+                            ],
+                          }
+                        : {}
+                    }
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  >
+                    <input
+                      type="text"
+                      placeholder={t("featureDetail.newSubtaskPlaceholder")}
+                      value={newSubtaskTitle}
+                      onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing) return;
+                        if (e.key === "Enter") handleAddSubtask();
+                      }}
+                      className={`flex-1 rounded-lg px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent text-foreground transition-all ${isOnboarding && tasks.length === 0 ? "bg-bridge-dark/70 border-2 border-bridge-accent/40 placeholder-slate-500 shadow-[0_0_12px_rgba(99,102,241,0.15)]" : "bg-bridge-dark/50 border border-bridge-border/30 placeholder-slate-500"}`}
+                      autoFocus={isOnboarding && tasks.length === 0}
+                    />
+                    <motion.button
+                      ref={addBtnRef}
+                      onClick={handleAddSubtask}
+                      className="px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg border transition-all active:scale-95"
+                      style={{
+                        backgroundColor:
+                          isOnboarding && tasks.length === 0
+                            ? `${selectedColor}25`
+                            : `${selectedColor}15`,
+                        color: selectedColor,
+                        borderColor: `${selectedColor}33`,
+                      }}
+                      animate={
+                        isOnboarding && tasks.length === 0
+                          ? { scale: [1, 1.05, 1] }
+                          : {}
+                      }
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    >
+                      ADD
+                    </motion.button>
+                  </motion.div>
+                )}
+              </div>
+            </div>
+
+            {/* Save/Cancel - shown only with changes */}
+            {canEdit && hasChanges && (
+              <div className="flex justify-end gap-2 pt-4 border-t border-foreground/10">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditedFeature(
+                      JSON.parse(JSON.stringify(initialFeature)),
+                    );
+                    setHasChanges(false);
+                  }}
+                  className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
+                >
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  className="bg-bridge-accent hover:bg-bridge-accent/90"
+                >
+                  {t("common.save")}
+                </Button>
+              </div>
+            )}
           </div>
+        </div>
       </MotionModal>
 
       {/* Confirm Dialog */}
-      <MotionModal open={showConfirmDialog} onClose={() => setShowConfirmDialog(false)} className="sm:max-w-sm p-6">
-        <h3 className="text-lg font-semibold text-foreground">{t('featureDetail.saveChangesTitle')}</h3>
-        <p className="text-sm text-slate-400 mt-1">{t('featureDetail.saveChangesDesc')}</p>
+      <MotionModal
+        open={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
+        className="sm:max-w-sm p-6"
+      >
+        <h3 className="text-lg font-semibold text-foreground">
+          {t("featureDetail.saveChangesTitle")}
+        </h3>
+        <p className="text-sm text-slate-400 mt-1">
+          {t("featureDetail.saveChangesDesc")}
+        </p>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
-          <button onClick={handleDiscardAndClose} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10">
-            {t('featureDetail.discard')}
+          <button
+            onClick={handleDiscardAndClose}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10"
+          >
+            {t("featureDetail.discard")}
           </button>
-          <button onClick={handleSaveAndClose} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-bridge-accent text-white hover:bg-bridge-accent/90">
-            {t('common.save')}
+          <button
+            onClick={handleSaveAndClose}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-bridge-accent text-white hover:bg-bridge-accent/90"
+          >
+            {t("common.save")}
           </button>
         </div>
       </MotionModal>
@@ -709,9 +903,9 @@ export function FeatureDetailModal({
         onClose={() => {
           setShowDeleteDialog(false);
           setTaskMigrationMap({});
-          setBulkTargetFeatureId('');
+          setBulkTargetFeatureId("");
         }}
-        className={`${tasks.length > 0 ? 'sm:max-w-lg' : 'sm:max-w-sm'} p-0 max-h-[80dvh] flex flex-col overflow-hidden`}
+        className={`${tasks.length > 0 ? "sm:max-w-lg" : "sm:max-w-sm"} p-0 max-h-[80dvh] flex flex-col overflow-hidden`}
       >
         {tasks.length > 0 ? (
           <>
@@ -722,9 +916,13 @@ export function FeatureDetailModal({
                   <ArrowRightLeft className="h-4 w-4 text-amber-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-foreground">{t('featureDetail.deleteTitle')}</h3>
+                  <h3 className="text-base font-semibold text-foreground">
+                    {t("featureDetail.deleteTitle")}
+                  </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    {t('featureDetail.taskMigrationDesc', { count: tasks.length })}
+                    {t("featureDetail.taskMigrationDesc", {
+                      count: tasks.length,
+                    })}
                   </p>
                 </div>
               </div>
@@ -734,7 +932,7 @@ export function FeatureDetailModal({
             <div className="px-6 py-3 border-b border-foreground/5 bg-foreground/[0.02] flex-shrink-0">
               <div className="flex items-center gap-3">
                 <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 whitespace-nowrap">
-                  {t('featureDetail.bulkMigrate', '일괄 이관')}
+                  {t("featureDetail.bulkMigrate", "일괄 이관")}
                 </span>
                 <div className="relative flex-1">
                   <select
@@ -744,7 +942,9 @@ export function FeatureDetailModal({
                       setBulkTargetFeatureId(targetId);
                       if (targetId) {
                         const newMap: Record<string, string> = {};
-                        tasks.forEach(t => { newMap[t.id] = targetId; });
+                        tasks.forEach((t) => {
+                          newMap[t.id] = targetId;
+                        });
                         setTaskMigrationMap(newMap);
                       } else {
                         setTaskMigrationMap({});
@@ -752,13 +952,16 @@ export function FeatureDetailModal({
                     }}
                     className="w-full appearance-none bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2 pr-8 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                   >
-                    <option value="">{t('featureDetail.selectFeature', '이관할 피처 선택...')}</option>
+                    <option value="">
+                      {t("featureDetail.selectFeature", "이관할 피처 선택...")}
+                    </option>
                     {allFeatures
-                      .filter(f => f.id !== feature.id)
-                      .map(f => (
-                        <option key={f.id} value={f.id}>{f.title}</option>
-                      ))
-                    }
+                      .filter((f) => f.id !== feature.id)
+                      .map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.title}
+                        </option>
+                      ))}
                   </select>
                   <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
                 </div>
@@ -768,21 +971,30 @@ export function FeatureDetailModal({
             {/* Task list with individual migration selectors */}
             <div className="flex-1 overflow-y-auto px-6 py-3 custom-scrollbar">
               <div className="space-y-2">
-                {tasks.map(task => (
-                  <div key={task.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/5">
+                {tasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-3 p-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/5"
+                  >
                     <div
                       className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: feature.color, boxShadow: `0 0 6px ${feature.color}44` }}
+                      style={{
+                        backgroundColor: feature.color,
+                        boxShadow: `0 0 6px ${feature.color}44`,
+                      }}
                     />
-                    <span className="text-xs font-medium text-foreground truncate flex-1 min-w-0" title={task.title}>
+                    <span
+                      className="text-xs font-medium text-foreground truncate flex-1 min-w-0"
+                      title={task.title}
+                    >
                       {task.title}
                     </span>
                     <div className="relative flex-shrink-0">
                       <select
-                        value={taskMigrationMap[task.id] || ''}
+                        value={taskMigrationMap[task.id] || ""}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setTaskMigrationMap(prev => {
+                          setTaskMigrationMap((prev) => {
                             const next = { ...prev };
                             if (val) {
                               next[task.id] = val;
@@ -791,17 +1003,20 @@ export function FeatureDetailModal({
                             }
                             return next;
                           });
-                          setBulkTargetFeatureId('');
+                          setBulkTargetFeatureId("");
                         }}
                         className="appearance-none bg-foreground/5 border border-foreground/10 rounded-md px-2.5 py-1.5 pr-7 text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 max-w-[160px]"
                       >
-                        <option value="">{t('featureDetail.deleteWithFeature', '삭제')}</option>
+                        <option value="">
+                          {t("featureDetail.deleteWithFeature", "삭제")}
+                        </option>
                         {allFeatures
-                          .filter(f => f.id !== feature.id)
-                          .map(f => (
-                            <option key={f.id} value={f.id}>{f.title}</option>
-                          ))
-                        }
+                          .filter((f) => f.id !== feature.id)
+                          .map((f) => (
+                            <option key={f.id} value={f.id}>
+                              {f.title}
+                            </option>
+                          ))}
                       </select>
                       <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
                     </div>
@@ -814,15 +1029,19 @@ export function FeatureDetailModal({
             <div className="px-6 py-4 border-t border-foreground/10 flex-shrink-0">
               {/* Warning for tasks to be deleted */}
               {(() => {
-                const deleteCount = tasks.filter(t => !taskMigrationMap[t.id]).length;
-                const migrateCount = tasks.filter(t => !!taskMigrationMap[t.id]).length;
+                const deleteCount = tasks.filter(
+                  (t) => !taskMigrationMap[t.id],
+                ).length;
+                const migrateCount = tasks.filter(
+                  (t) => !!taskMigrationMap[t.id],
+                ).length;
                 return (
                   <>
                     {deleteCount > 0 && (
                       <div className="flex items-start gap-2 mb-3 p-2.5 rounded-lg bg-red-500/10 border border-red-500/20">
                         <AlertTriangle className="h-3.5 w-3.5 text-red-400 flex-shrink-0 mt-0.5" />
                         <p className="text-[11px] text-red-300">
-                          {t('featureDetail.deleteWarning', {
+                          {t("featureDetail.deleteWarning", {
                             deleteCount,
                             defaultValue: `${deleteCount}개 태스크가 피처와 함께 삭제됩니다.`,
                           })}
@@ -834,33 +1053,38 @@ export function FeatureDetailModal({
                         onClick={() => {
                           setShowDeleteDialog(false);
                           setTaskMigrationMap({});
-                          setBulkTargetFeatureId('');
+                          setBulkTargetFeatureId("");
                         }}
                         className="flex-1 inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 px-4 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10 transition-colors"
                       >
-                        {t('common.cancel')}
+                        {t("common.cancel")}
                       </button>
                       <button
                         onClick={() => {
                           const migrations = Object.entries(taskMigrationMap)
                             .filter(([, targetId]) => targetId)
-                            .map(([taskId, targetId]) => ({ task_id: taskId, target_feature_id: targetId }));
-                          onDelete(feature.id, migrations.length > 0 ? migrations : undefined);
+                            .map(([taskId, targetId]) => ({
+                              task_id: taskId,
+                              target_feature_id: targetId,
+                            }));
+                          onDelete(
+                            feature.id,
+                            migrations.length > 0 ? migrations : undefined,
+                          );
                           onClose();
                         }}
                         className={`flex-1 inline-flex items-center justify-center rounded-lg text-sm font-bold h-10 px-4 text-white transition-all ${
                           migrateCount > 0
-                            ? 'bg-bridge-accent hover:bg-bridge-accent/90'
-                            : 'bg-red-500 hover:bg-red-600'
+                            ? "bg-bridge-accent hover:bg-bridge-accent/90"
+                            : "bg-red-500 hover:bg-red-600"
                         }`}
                       >
                         {migrateCount > 0
-                          ? t('featureDetail.migrateAndDelete', {
+                          ? t("featureDetail.migrateAndDelete", {
                               migrateCount,
                               defaultValue: `${migrateCount}개 이관 후 삭제`,
                             })
-                          : t('featureDetail.deleteAll', '전체 삭제')
-                        }
+                          : t("featureDetail.deleteAll", "전체 삭제")}
                       </button>
                     </div>
                   </>
@@ -871,11 +1095,18 @@ export function FeatureDetailModal({
         ) : (
           /* 태스크 없을 때: 간단 확인 모달 */
           <div className="p-6">
-            <h3 className="text-lg font-semibold text-foreground">{t('featureDetail.deleteTitle')}</h3>
-            <p className="text-sm text-slate-400 mt-1">{t('featureDetail.deleteDesc')}</p>
+            <h3 className="text-lg font-semibold text-foreground">
+              {t("featureDetail.deleteTitle")}
+            </h3>
+            <p className="text-sm text-slate-400 mt-1">
+              {t("featureDetail.deleteDesc")}
+            </p>
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
-              <button onClick={() => setShowDeleteDialog(false)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10">
-                {t('common.cancel')}
+              <button
+                onClick={() => setShowDeleteDialog(false)}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10"
+              >
+                {t("common.cancel")}
               </button>
               <button
                 onClick={() => {
@@ -884,7 +1115,7 @@ export function FeatureDetailModal({
                 }}
                 className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white"
               >
-                {t('common.delete')}
+                {t("common.delete")}
               </button>
             </div>
           </div>
@@ -893,28 +1124,39 @@ export function FeatureDetailModal({
 
       {/* AI Confirm Modal */}
       {showAIConfirm && feature && (
-        <MotionModal open={true} onClose={() => setShowAIConfirm(false)} className="sm:max-w-md p-0 overflow-hidden">
+        <MotionModal
+          open={true}
+          onClose={() => setShowAIConfirm(false)}
+          className="sm:max-w-md p-0 overflow-hidden"
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-foreground/5">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-bridge-secondary to-bridge-accent flex items-center justify-center">
                 <Sparkles className="h-3.5 w-3.5 text-white" />
               </div>
-              <h3 className="text-sm font-bold text-foreground">{t('featureDetail.aiConfirmTitle')}</h3>
+              <h3 className="text-sm font-bold text-foreground">
+                {t("featureDetail.aiConfirmTitle")}
+              </h3>
             </div>
-            <button onClick={() => setShowAIConfirm(false)} className="text-slate-400 hover:text-foreground transition-colors">
+            <button
+              onClick={() => setShowAIConfirm(false)}
+              className="text-slate-400 hover:text-foreground transition-colors"
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
 
           {/* Content */}
           <div className="px-5 py-4 space-y-4">
-            <p className="text-xs text-slate-400">{t('featureDetail.aiConfirmDesc')}</p>
+            <p className="text-xs text-slate-400">
+              {t("featureDetail.aiConfirmDesc")}
+            </p>
 
             {/* Feature title */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                {t('featureDetail.aiConfirmFeatureTitle')}
+                {t("featureDetail.aiConfirmFeatureTitle")}
               </label>
               <input
                 type="text"
@@ -927,12 +1169,14 @@ export function FeatureDetailModal({
             {/* Feature description */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                {t('featureDetail.aiConfirmFeatureDesc')}
+                {t("featureDetail.aiConfirmFeatureDesc")}
               </label>
               <textarea
-                value={editedFeature.description || ''}
-                onChange={(e) => updateEditedFeature({ description: e.target.value })}
-                placeholder={t('featureDetail.aiConfirmNoDesc')}
+                value={editedFeature.description || ""}
+                onChange={(e) =>
+                  updateEditedFeature({ description: e.target.value })
+                }
+                placeholder={t("featureDetail.aiConfirmNoDesc")}
                 rows={3}
                 className="w-full px-3 py-2.5 bg-white/5 rounded-lg border border-foreground/5 text-sm text-slate-300 placeholder-amber-400/60 resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
               />
@@ -945,7 +1189,7 @@ export function FeatureDetailModal({
               onClick={() => setShowAIConfirm(false)}
               className="px-4 py-2 text-sm text-slate-400 hover:text-foreground transition-colors"
             >
-              {t('common.cancel')}
+              {t("common.cancel")}
             </button>
             <button
               onClick={() => {
@@ -960,7 +1204,7 @@ export function FeatureDetailModal({
               className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-lg hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all flex items-center gap-1.5"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              {t('featureDetail.aiConfirmStart')}
+              {t("featureDetail.aiConfirmStart")}
             </button>
           </div>
         </MotionModal>
@@ -972,7 +1216,7 @@ export function FeatureDetailModal({
           boardId={boardId}
           featureId={feature.id}
           featureTitle={editedFeature.title}
-          existingTaskTitles={tasks.map(t => t.title)}
+          existingTaskTitles={tasks.map((t) => t.title)}
           onClose={() => setShowAIDecompose(false)}
           onApplied={() => {
             setShowAIDecompose(false);
@@ -986,7 +1230,12 @@ export function FeatureDetailModal({
           <AnimatePresence>
             <motion.div
               key="flying-task"
-              initial={{ x: flyingTask.x, y: flyingTask.y, opacity: 1, scale: 1 }}
+              initial={{
+                x: flyingTask.x,
+                y: flyingTask.y,
+                opacity: 1,
+                scale: 1,
+              }}
               animate={{
                 x: window.innerWidth * 0.15,
                 y: flyingTask.y - 120,
@@ -1005,7 +1254,7 @@ export function FeatureDetailModal({
               </div>
             </motion.div>
           </AnimatePresence>,
-          document.body
+          document.body,
         )}
     </>
   );
