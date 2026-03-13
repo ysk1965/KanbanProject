@@ -11,6 +11,7 @@ import com.kanban.domain.meeting.service.MeetingTranscriptionService;
 import com.kanban.domain.note.dto.NoteResponse;
 import com.kanban.global.security.UserPrincipal;
 import jakarta.validation.Valid;
+import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -108,15 +109,14 @@ public class MeetingController {
     }
 
     @PostMapping("/{meetingId}/transcribe")
-    public ResponseEntity<MeetingResponse.TranscriptResult> transcribeAudio(
+    public ResponseEntity<Map<String, String>> transcribeAudio(
             @PathVariable String boardId,
             @PathVariable String meetingId,
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestPart("file") MultipartFile audioFile) {
-        MeetingResponse.TranscriptResult result =
-                meetingTranscriptionService.transcribeAudio(
-                        boardId, meetingId, principal.getUserId(), audioFile);
-        return ResponseEntity.ok(result);
+            @RequestPart("file") MultipartFile audioFile) throws IOException {
+        meetingTranscriptionService.startTranscription(
+                boardId, meetingId, principal.getUserId(), audioFile);
+        return ResponseEntity.accepted().body(Map.of("message", "Transcription started"));
     }
 
     @PutMapping("/{meetingId}/transcript")

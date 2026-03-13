@@ -2731,7 +2731,7 @@ export const meetingAPI = {
     boardId: string,
     meetingId: string,
     audioBlob: Blob,
-  ): Promise<TranscriptResult> => {
+  ): Promise<void> => {
     const formData = new FormData();
     formData.append("file", audioBlob, "recording.webm");
 
@@ -2751,7 +2751,7 @@ export const meetingAPI = {
       throw errData;
     }
 
-    return response.json();
+    // 202 Accepted — result delivered via WebSocket (TRANSCRIPTION_COMPLETE)
   },
 
   updateTranscript: async (

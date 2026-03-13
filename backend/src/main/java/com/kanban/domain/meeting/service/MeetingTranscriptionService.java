@@ -10,8 +10,6 @@ import com.kanban.domain.meeting.dto.MeetingResponse;
 import com.kanban.domain.monitoring.entity.AiUsageLog;
 import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
 import com.kanban.domain.subscription.service.AiCreditService;
-import com.kanban.domain.user.User;
-import com.kanban.domain.user.UserRepository;
 import com.kanban.global.config.AIProvider;
 import com.kanban.global.config.AIResponse;
 import com.kanban.global.exception.BusinessException;
@@ -22,10 +20,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
@@ -40,17 +38,35 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class MeetingTranscriptionService {
 
     private final MeetingRepository meetingRepository;
     private final BoardService boardService;
     private final AiCreditService aiCreditService;
     private final WebSocketEventService webSocketEventService;
-    private final UserRepository userRepository;
     private final AIProvider aiProvider;
     private final ObjectMapper objectMapper;
     private final AiUsageLogRepository aiUsageLogRepository;
+    private final MeetingTranscriptionAsyncService asyncService;
+
+    public MeetingTranscriptionService(
+            MeetingRepository meetingRepository,
+            BoardService boardService,
+            AiCreditService aiCreditService,
+            WebSocketEventService webSocketEventService,
+            AIProvider aiProvider,
+            ObjectMapper objectMapper,
+            AiUsageLogRepository aiUsageLogRepository,
+            @Lazy MeetingTranscriptionAsyncService asyncService) {
+        this.meetingRepository = meetingRepository;
+        this.boardService = boardService;
+        this.aiCreditService = aiCreditService;
+        this.webSocketEventService = webSocketEventService;
+        this.aiProvider = aiProvider;
+        this.objectMapper = objectMapper;
+        this.aiUsageLogRepository = aiUsageLogRepository;
+        this.asyncService = asyncService;
+    }
 
     @Value("${ai.openai.api-key:}")
     private String openaiApiKey;
@@ -77,7 +93,8 @@ public class MeetingTranscriptionService {
     private static final int WHISPER_MAX_RETRIES = 3;
     private static final long WHISPER_RETRY_DELAY_MS = 2000;
 
-    private record WhisperSegment(double start, double end, String text) {}
+    /** DTO for passing Whisper segments between services */
+    public record WhisperSegmentDto(double start, double end, String text) {}
 
     private static final String DIARIZE_SYSTEM_PROMPT = """
             You are a meeting transcript analyzer. Given a timestamped meeting transcript, identify different speakers and format it as a structured dialogue.
@@ -108,17 +125,18 @@ public class MeetingTranscriptionService {
         return "openai".equals(provider) ? openaiMeetingModel : claudeMeetingModel;
     }
 
-    @Transactional
-    public MeetingResponse.TranscriptResult transcribeAudio(
-            String boardId, String meetingId, String userId,
-            MultipartFile audioFile) {
-
+    /**
+     * Synchronous entry point: validates, consumes credit, copies file bytes, then kicks off async processing.
+     * Returns immediately so the HTTP response (202) is sent before the long-running transcription.
+     */
+    public void startTranscription(String boardId, String meetingId, String userId,
+                                   MultipartFile audioFile) throws IOException {
+        // --- Validation (synchronous, within HTTP request) ---
         boardService.checkMemberOrAbove(boardId, userId);
 
         if (openaiApiKey == null || openaiApiKey.isBlank()) {
             throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
         }
-
         if (audioFile.isEmpty()) {
             throw new BusinessException(ErrorCode.TRANSCRIPTION_FILE_EMPTY);
         }
@@ -132,86 +150,45 @@ public class MeetingTranscriptionService {
             throw new BusinessException(ErrorCode.MEETING_NOT_FOUND);
         }
 
-        // Consume 1 AI credit for Whisper transcription
+        // Consume 1 AI credit for Whisper transcription (synchronous — 402 returned immediately if exhausted)
         aiCreditService.consumeCredit(boardId, userId, "MEETING_TRANSCRIBE", 1);
 
-        User user = userRepository.findById(userId).orElse(null);
-        String userName = user != null ? user.getName() : null;
+        // Copy file bytes before HTTP request ends (MultipartFile is tied to the request lifecycle)
+        byte[] audioBytes = audioFile.getBytes();
+        String originalFilename = audioFile.getOriginalFilename();
 
-        // Progress: transcription starting
-        sendProgress(boardId, userId, userName, meetingId, "TRANSCRIBING", 0, 1, 5);
+        // Kick off async processing via separate bean (Spring AOP proxy requirement)
+        asyncService.processTranscriptionAsync(boardId, meetingId, userId, audioBytes, originalFilename);
+    }
 
-        List<WhisperSegment> whisperSegments;
-        if (audioFile.getSize() <= WHISPER_CHUNK_SIZE) {
-            whisperSegments = callWhisperAPI(audioFile);
+    // ==================== Methods called by MeetingTranscriptionAsyncService ====================
+
+    /**
+     * Run Whisper transcription. No transaction needed (external HTTP calls only).
+     */
+    public List<WhisperSegmentDto> transcribe(byte[] audioBytes, String originalFilename,
+                                              String boardId, String userId, String userName, String meetingId) {
+        List<WhisperSegmentDto> segments;
+        if (audioBytes.length <= WHISPER_CHUNK_SIZE) {
+            segments = callWhisperAPIWithBytes(audioBytes,
+                    originalFilename != null ? originalFilename : "recording.webm")
+                    .stream().map(s -> new WhisperSegmentDto(s.start(), s.end(), s.text())).toList();
             sendProgress(boardId, userId, userName, meetingId, "TRANSCRIBING", 1, 1, 65);
         } else {
-            whisperSegments = splitAndTranscribe(audioFile, boardId, userId, userName, meetingId);
+            segments = splitAndTranscribe(audioBytes, originalFilename, boardId, userId, userName, meetingId)
+                    .stream().map(s -> new WhisperSegmentDto(s.start(), s.end(), s.text())).toList();
         }
-
-        String transcriptText = whisperSegments.stream()
-                .map(WhisperSegment::text)
-                .reduce((a, b) -> a + " " + b)
-                .orElse("");
-
-        String existingTranscript = meeting.getTranscript();
-        String finalTranscript;
-        if (existingTranscript != null && !existingTranscript.isBlank()) {
-            finalTranscript = existingTranscript + "\n\n" + transcriptText;
-        } else {
-            finalTranscript = transcriptText;
-        }
-        meeting.updateTranscript(finalTranscript);
-
-        log.info("Transcription completed for meeting: {} ({} chars, {} segments)",
-                meetingId, transcriptText.length(), whisperSegments.size());
-
-        // AI speaker diarization post-processing (consume 1 additional credit)
-        MeetingResponse.DiarizedTranscript diarizedTranscript = null;
-        try {
-            aiCreditService.consumeCredit(boardId, userId, "MEETING_DIARIZE", 1);
-            sendProgress(boardId, userId, userName, meetingId, "DIARIZING", 0, 0, 70);
-            diarizedTranscript = identifySpeakers(boardId, userId, whisperSegments);
-
-            if (diarizedTranscript != null) {
-                String diarizedJson = objectMapper.writeValueAsString(diarizedTranscript);
-                meeting.updateDiarizedTranscript(diarizedJson);
-
-                // Initialize speaker_mapping as JSON
-                if (diarizedTranscript.getSpeakerMapping() != null) {
-                    String mappingJson = objectMapper.writeValueAsString(diarizedTranscript.getSpeakerMapping());
-                    meeting.updateSpeakerMapping(mappingJson);
-                }
-
-                log.info("Speaker diarization completed for meeting: {} ({} segments)",
-                        meetingId, diarizedTranscript.getSegments() != null ? diarizedTranscript.getSegments().size() : 0);
-            }
-        } catch (BusinessException e) {
-            // If credit exhausted for diarization, still return transcript without diarization
-            log.warn("Speaker diarization skipped for meeting: {} - {}", meetingId, e.getMessage());
-        } catch (Exception e) {
-            log.warn("Speaker diarization failed for meeting: {} - {}", meetingId, e.getMessage());
-        }
-
-        // Progress: complete
-        sendProgress(boardId, userId, userName, meetingId, "COMPLETE", 0, 0, 100);
-
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_UPDATED,
-                userId, userName,
-                Map.of("id", meetingId, "transcript", finalTranscript));
-
-        return MeetingResponse.TranscriptResult.builder()
-                .meetingId(meetingId)
-                .transcript(finalTranscript)
-                .diarizedTranscript(diarizedTranscript)
-                .build();
+        return segments;
     }
 
     /**
-     * AI-based speaker diarization: identifies speakers using timestamped segments with pause detection
+     * AI-based speaker diarization. No transaction needed (external API call).
      */
-    private MeetingResponse.DiarizedTranscript identifySpeakers(String boardId, String userId, List<WhisperSegment> segments) {
-        String inputText = formatSegmentsForDiarization(segments);
+    public MeetingResponse.DiarizedTranscript identifySpeakers(String boardId, String userId, List<WhisperSegmentDto> segments) {
+        List<WhisperSegment> internalSegments = segments.stream()
+                .map(s -> new WhisperSegment(s.start(), s.end(), s.text())).toList();
+
+        String inputText = formatSegmentsForDiarization(internalSegments);
         if (inputText.length() > MAX_DIARIZE_INPUT_CHARS) {
             String sub = inputText.substring(0, MAX_DIARIZE_INPUT_CHARS);
             int lastNewline = sub.lastIndexOf('\n');
@@ -244,8 +221,28 @@ public class MeetingTranscriptionService {
     }
 
     /**
-     * Parse AI response into DiarizedTranscript DTO
+     * Send transcription progress event to requesting user via WebSocket.
      */
+    public void sendProgress(String boardId, String userId, String userName,
+                              String meetingId, String stage, int current, int total, int percent) {
+        try {
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("meeting_id", meetingId);
+            data.put("stage", stage);
+            data.put("current", current);
+            data.put("total", total);
+            data.put("percent", percent);
+            webSocketEventService.sendBoardEvent(boardId, BoardEventType.TRANSCRIPTION_PROGRESS,
+                    userId, userName, data);
+        } catch (Exception e) {
+            log.debug("Failed to send transcription progress: {}", e.getMessage());
+        }
+    }
+
+    // ==================== Internal methods ====================
+
+    private record WhisperSegment(double start, double end, String text) {}
+
     private MeetingResponse.DiarizedTranscript parseDiarizedResponse(String aiResponse) {
         try {
             String json = extractJson(aiResponse);
@@ -293,7 +290,6 @@ public class MeetingTranscriptionService {
         if (response == null) return "{}";
         String trimmed = response.trim();
 
-        // Strip markdown code fences if present
         if (trimmed.startsWith("```")) {
             int firstNewline = trimmed.indexOf('\n');
             int lastFence = trimmed.lastIndexOf("```");
@@ -302,7 +298,6 @@ public class MeetingTranscriptionService {
             }
         }
 
-        // Find first { and last }
         int start = trimmed.indexOf('{');
         int end = trimmed.lastIndexOf('}');
         if (start >= 0 && end > start) {
@@ -312,19 +307,18 @@ public class MeetingTranscriptionService {
         return trimmed;
     }
 
-    private List<WhisperSegment> splitAndTranscribe(MultipartFile audioFile,
+    private List<WhisperSegment> splitAndTranscribe(byte[] audioBytes, String originalFilename,
                                       String boardId, String userId, String userName, String meetingId) {
-        // Try FFmpeg first, fallback to byte chunking
         if (isFFmpegAvailable()) {
             try {
-                return splitAndTranscribeWithFFmpeg(audioFile, boardId, userId, userName, meetingId);
+                return splitAndTranscribeWithFFmpeg(audioBytes, originalFilename, boardId, userId, userName, meetingId);
             } catch (Exception e) {
                 log.warn("FFmpeg split failed, falling back to byte chunking: {}", e.getMessage());
             }
         } else {
             log.warn("FFmpeg not available at '{}', using byte chunking fallback", ffmpegPath);
         }
-        return splitAndTranscribeByBytes(audioFile, boardId, userId, userName, meetingId);
+        return splitAndTranscribeByBytes(audioBytes, originalFilename, boardId, userId, userName, meetingId);
     }
 
     private boolean isFFmpegAvailable() {
@@ -343,20 +337,18 @@ public class MeetingTranscriptionService {
         }
     }
 
-    private List<WhisperSegment> splitAndTranscribeWithFFmpeg(MultipartFile audioFile,
+    private List<WhisperSegment> splitAndTranscribeWithFFmpeg(byte[] audioBytes, String originalFilename,
                                                 String boardId, String userId, String userName, String meetingId) {
         Path tempDir = null;
         try {
             tempDir = Files.createTempDirectory("audio_split_");
             String extension = ".webm";
-            String originalName = audioFile.getOriginalFilename();
-            if (originalName != null && originalName.contains(".")) {
-                extension = originalName.substring(originalName.lastIndexOf("."));
+            if (originalFilename != null && originalFilename.contains(".")) {
+                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
             }
             Path tempInput = tempDir.resolve("input" + extension);
-            audioFile.transferTo(tempInput.toFile());
+            Files.write(tempInput, audioBytes);
 
-            // FFmpeg로 청크 분할
             String chunkPattern = tempDir.resolve("chunk_%03d" + extension).toString();
             ProcessBuilder pb = new ProcessBuilder(
                     ffmpegPath, "-i", tempInput.toString(),
@@ -380,7 +372,6 @@ public class MeetingTranscriptionService {
                 throw new RuntimeException("FFmpeg exit code: " + exitCode);
             }
 
-            // 청크 파일 수집 및 순차 전사
             List<Path> chunks = new ArrayList<>();
             for (int i = 0; ; i++) {
                 Path chunk = tempDir.resolve(String.format("chunk_%03d%s", i, extension));
@@ -402,40 +393,32 @@ public class MeetingTranscriptionService {
         }
     }
 
-    /**
-     * FFmpeg 없이 바이트 단위로 분할하여 전사 (fallback)
-     * Whisper API는 불완전한 오디오 컨테이너도 처리 가능
-     */
-    private List<WhisperSegment> splitAndTranscribeByBytes(MultipartFile audioFile,
+    private List<WhisperSegment> splitAndTranscribeByBytes(byte[] audioBytes, String originalFilename,
                                              String boardId, String userId, String userName, String meetingId) {
         try {
-            byte[] allBytes = audioFile.getBytes();
             String extension = ".webm";
-            String originalName = audioFile.getOriginalFilename();
-            if (originalName != null && originalName.contains(".")) {
-                extension = originalName.substring(originalName.lastIndexOf("."));
+            if (originalFilename != null && originalFilename.contains(".")) {
+                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
             }
 
             int chunkSize = (int) WHISPER_CHUNK_SIZE;
-            int totalChunks = (int) Math.ceil((double) allBytes.length / chunkSize);
-            log.info("Splitting audio into {} byte chunks ({} bytes total)", totalChunks, allBytes.length);
+            int totalChunks = (int) Math.ceil((double) audioBytes.length / chunkSize);
+            log.info("Splitting audio into {} byte chunks ({} bytes total)", totalChunks, audioBytes.length);
 
             List<WhisperSegment> allSegments = new ArrayList<>();
             double timeOffset = 0.0;
             for (int i = 0; i < totalChunks; i++) {
                 int offset = i * chunkSize;
-                int length = Math.min(chunkSize, allBytes.length - offset);
-                byte[] chunkBytes = Arrays.copyOfRange(allBytes, offset, offset + length);
+                int length = Math.min(chunkSize, audioBytes.length - offset);
+                byte[] chunkBytes = Arrays.copyOfRange(audioBytes, offset, offset + length);
 
                 List<WhisperSegment> chunkSegments = callWhisperAPIWithBytes(chunkBytes, "chunk_" + i + extension);
 
-                // Offset timestamps for absolute positioning
                 double finalTimeOffset = timeOffset;
                 chunkSegments.stream()
                         .map(s -> new WhisperSegment(s.start() + finalTimeOffset, s.end() + finalTimeOffset, s.text()))
                         .forEach(allSegments::add);
 
-                // Next chunk offset = last segment end of this chunk
                 if (!chunkSegments.isEmpty()) {
                     timeOffset += chunkSegments.getLast().end();
                 }
@@ -465,7 +448,6 @@ public class MeetingTranscriptionService {
             byte[] chunkBytes = Files.readAllBytes(chunk);
             List<WhisperSegment> chunkSegments = callWhisperAPIWithBytes(chunkBytes, "chunk_" + i + extension);
 
-            // FFmpeg chunks: offset by chunk index * chunk duration
             double timeOffset = (double) i * CHUNK_DURATION_SECONDS;
             chunkSegments.stream()
                     .map(s -> new WhisperSegment(s.start() + timeOffset, s.end() + timeOffset, s.text()))
@@ -489,18 +471,6 @@ public class MeetingTranscriptionService {
                     });
         } catch (IOException e) {
             log.warn("Failed to cleanup temp files: {}", e.getMessage());
-        }
-    }
-
-    private List<WhisperSegment> callWhisperAPI(MultipartFile audioFile) {
-        try {
-            return callWhisperAPIWithBytes(audioFile.getBytes(),
-                    audioFile.getOriginalFilename() != null ? audioFile.getOriginalFilename() : "recording.webm");
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Whisper API call failed: {}", e.getMessage(), e);
-            throw new BusinessException(ErrorCode.TRANSCRIPTION_FAILED);
         }
     }
 
@@ -538,7 +508,6 @@ public class MeetingTranscriptionService {
                 if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                     Map<String, Object> responseBody = response.getBody();
 
-                    // Parse segments from verbose_json response
                     Object segmentsObj = responseBody.get("segments");
                     if (segmentsObj instanceof List<?> segmentsList && !segmentsList.isEmpty()) {
                         List<WhisperSegment> result = new ArrayList<>();
@@ -557,7 +526,6 @@ public class MeetingTranscriptionService {
                         }
                     }
 
-                    // Fallback: no segments, use full text as single segment
                     Object text = responseBody.get("text");
                     if (text != null && !text.toString().isBlank()) {
                         return List.of(new WhisperSegment(0.0, 0.0, text.toString().trim()));
@@ -567,7 +535,7 @@ public class MeetingTranscriptionService {
                 throw new BusinessException(ErrorCode.TRANSCRIPTION_FAILED);
 
             } catch (BusinessException e) {
-                throw e; // Don't retry business errors
+                throw e;
             } catch (Exception e) {
                 lastException = e;
                 log.warn("Whisper API attempt {}/{} failed: {}", attempt, WHISPER_MAX_RETRIES, e.getMessage());
@@ -594,15 +562,6 @@ public class MeetingTranscriptionService {
         return 0.0;
     }
 
-    /**
-     * Format Whisper segments into timestamped text with pause markers for diarization.
-     * Example output:
-     *   [00:00.0 - 00:05.2] 오늘 회의 시작하겠습니다
-     *     ⏸ 0.6s
-     *   [00:05.8 - 00:12.1] 네 준비됐습니다
-     *     ⏸ 1.4s
-     *   [00:13.5 - 00:20.3] 첫 번째 안건은...
-     */
     private String formatSegmentsForDiarization(List<WhisperSegment> segments) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < segments.size(); i++) {
@@ -611,7 +570,6 @@ public class MeetingTranscriptionService {
                     formatTimestamp(seg.start()), formatTimestamp(seg.end()), seg.text()));
             sb.append('\n');
 
-            // Add pause marker between segments
             if (i < segments.size() - 1) {
                 double pause = segments.get(i + 1).start() - seg.end();
                 if (pause > 0.1) {
@@ -626,24 +584,5 @@ public class MeetingTranscriptionService {
         int mins = (int) (seconds / 60);
         double secs = seconds % 60;
         return String.format("%02d:%04.1f", mins, secs);
-    }
-
-    /**
-     * Send transcription progress event to requesting user via WebSocket.
-     */
-    private void sendProgress(String boardId, String userId, String userName,
-                               String meetingId, String stage, int current, int total, int percent) {
-        try {
-            Map<String, Object> data = new LinkedHashMap<>();
-            data.put("meeting_id", meetingId);
-            data.put("stage", stage);
-            data.put("current", current);
-            data.put("total", total);
-            data.put("percent", percent);
-            webSocketEventService.sendBoardEvent(boardId, BoardEventType.TRANSCRIPTION_PROGRESS,
-                    userId, userName, data);
-        } catch (Exception e) {
-            log.debug("Failed to send transcription progress: {}", e.getMessage());
-        }
     }
 }
