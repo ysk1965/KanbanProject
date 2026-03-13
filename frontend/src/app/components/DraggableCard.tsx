@@ -114,6 +114,9 @@ export function DraggableCard({
   const handleDragEnd = () => {
     setIsDragging(false);
     endTaskDrag();
+    // 드래그 후 발생하는 click 이벤트에서 모달이 열리지 않도록 방지
+    wasDraggedRef.current = true;
+    mouseStartRef.current = null;
   };
 
   // 클릭 처리 - 드래그가 아닌 경우에만

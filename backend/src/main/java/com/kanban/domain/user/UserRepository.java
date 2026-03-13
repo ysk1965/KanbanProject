@@ -51,6 +51,18 @@ public interface UserRepository extends JpaRepository<User, String> {
     @Query("UPDATE User u SET u.lastActiveAt = :now WHERE u.id = :userId")
     void updateLastActiveAt(@Param("userId") String userId, @Param("now") LocalDateTime now);
 
+    // Churn Analysis: 코호트 리텐션용 유저 목록
+    @Query("SELECT u FROM User u WHERE u.isActive = true AND u.createdAt >= :startDate")
+    List<User> findActiveUsersCreatedAfter(@Param("startDate") LocalDateTime startDate);
+
+    // Churn Analysis: 비활성 유저 (페이지네이션)
+    @Query("SELECT u FROM User u WHERE u.isActive = true AND u.lastActiveAt < :threshold ORDER BY u.lastActiveAt ASC")
+    Page<User> findInactiveUsers(@Param("threshold") LocalDateTime threshold, Pageable pageable);
+
+    // Churn Analysis: 비활성 유저 카운트
+    @Query("SELECT COUNT(u) FROM User u WHERE u.isActive = true AND u.lastActiveAt < :threshold")
+    long countInactiveUsers(@Param("threshold") LocalDateTime threshold);
+
     // Analytics: DAU 추이
     @Query(value = "SELECT CAST(last_active_at AS DATE) as active_date, COUNT(DISTINCT id) as cnt " +
             "FROM users WHERE last_active_at >= :startDate " +

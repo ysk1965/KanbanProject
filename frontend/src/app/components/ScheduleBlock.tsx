@@ -62,6 +62,9 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
   const dragStartY = useRef<number>(0);
   const blockRef = useRef<HTMLDivElement>(null);
 
+  // 드래그/리사이즈 후 click 이벤트 방지용 ref (React state보다 먼저 동기적으로 체크)
+  const wasDraggedOrResizedRef = useRef(false);
+
   // Ref로 최신 offset/overlap 값 추적 (state updater 내 사이드이펙트 방지)
   const resizeOffsetRef = useRef(0);
   const dragOffsetRef = useRef(0);
@@ -231,6 +234,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
     e.stopPropagation();
     e.preventDefault();
 
+    wasDraggedOrResizedRef.current = true;
     setIsResizing(handle);
     setResizeOffset(0);
     resizeOffsetRef.current = 0;
@@ -330,6 +334,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
 
     // 0.15초 후 드래그 모드 활성화
     longPressTimer.current = setTimeout(() => {
+      wasDraggedOrResizedRef.current = true;
       setIsDragging(true);
       setDragOffset(0);
       setOverlapType('none');
@@ -485,7 +490,13 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
         ${(isDragging || isResizing) && overlapType === 'block' ? 'cursor-not-allowed shadow-2xl ring-2 ring-red-500 bg-red-500/30' : (isDragging || isResizing) && overlapType === 'split' ? 'cursor-grab shadow-2xl ring-2 ring-amber-400 bg-amber-500/20' : isDragging ? 'cursor-grabbing shadow-2xl ring-2 ring-white/50' : isResizing ? 'cursor-ns-resize shadow-lg' : 'cursor-pointer hover:shadow-lg'}
         ${isDragging || isResizing ? '' : 'transition-shadow'}`}
       style={{ top: `${displayTop}px`, height: `${Math.max(displayHeight, MIN_BLOCK_VIS)}px`, ...getInlineStyle() }}
-      onClick={() => !isResizing && !isDragging && onClick?.(block)}
+      onClick={() => {
+        if (isResizing || isDragging || wasDraggedOrResizedRef.current) {
+          wasDraggedOrResizedRef.current = false;
+          return;
+        }
+        onClick?.(block);
+      }}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}

@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -388,6 +389,22 @@ public class ChecklistService {
         }
 
         return ChecklistResponse.BoardListResponse.of(items);
+    }
+
+    /**
+     * 담당자별 체크리스트 조회 (캘린더/리소스 뷰용)
+     * - boardId 기준 권한 검증 (Viewer 이상)
+     * - startDate, endDate 범위로 필터링 (null이면 전체 조회)
+     * - 결과를 담당자별 그룹으로 묶어 반환 (미배정 항목은 unassigned로 분리)
+     */
+    public ChecklistResponse.ByAssigneeResponse getChecklistItemsByAssignee(
+            String boardId, String userId, LocalDate startDate, LocalDate endDate) {
+        boardService.checkViewerOrAbove(boardId, userId);
+
+        List<ChecklistItem> items = checklistItemRepository.findByBoardIdAndDateRange(
+                boardId, startDate, endDate);
+
+        return ChecklistResponse.ByAssigneeResponse.of(items);
     }
 
     /**

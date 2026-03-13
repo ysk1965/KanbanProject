@@ -622,6 +622,117 @@ public class AdminResponse {
         private long totalOrgMembers;
     }
 
+    // ==================== Churn Analysis ====================
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class RetentionAnalysis {
+        private List<CohortData> cohorts;
+        private List<Double> averageRetention;
+
+        @Getter
+        @Builder
+        @AllArgsConstructor
+        public static class CohortData {
+            private String cohortWeek;
+            private long signupCount;
+            private List<Double> retention;
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class InactiveUserList {
+        private List<InactiveUser> users;
+        private long total;
+        private int page;
+        private int size;
+        private InactiveSummary summary;
+
+        @Getter
+        @Builder
+        @AllArgsConstructor
+        public static class InactiveUser {
+            private String id;
+            private String name;
+            private String email;
+            private String profileImage;
+            private LocalDateTime createdAt;
+            private LocalDateTime lastActiveAt;
+            private long inactiveDays;
+            private int boardCount;
+            private String lastAction;
+            private LocalDateTime lastActionAt;
+        }
+
+        @Getter
+        @Builder
+        @AllArgsConstructor
+        public static class InactiveSummary {
+            private long inactive7d;
+            private long inactive14d;
+            private long inactive30d;
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class TrialDropoutAnalysis {
+        private long totalExpiredTrials;
+        private List<DayDropout> dropoutByDay;
+        private List<ActionStat> actionsBeforeDropout;
+        private long neverActedCount;
+        private double neverActedPercentage;
+
+        @Getter
+        @Builder
+        @AllArgsConstructor
+        public static class DayDropout {
+            private int trialDay;
+            private long count;
+            private double percentage;
+        }
+
+        @Getter
+        @Builder
+        @AllArgsConstructor
+        public static class ActionStat {
+            private String action;
+            private long count;
+            private double percentage;
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class ActivityTrends {
+        private List<WeeklyActivity> weeklyActivity;
+        private double activityChangeRate;
+        private List<FeatureUsage> featureUsage;
+
+        @Getter
+        @Builder
+        @AllArgsConstructor
+        public static class WeeklyActivity {
+            private String week;
+            private long totalActions;
+            private long activeUsers;
+        }
+
+        @Getter
+        @Builder
+        @AllArgsConstructor
+        public static class FeatureUsage {
+            private String action;
+            private long count;
+            private long uniqueUsers;
+        }
+    }
+
     // ==================== System ====================
 
     @Getter

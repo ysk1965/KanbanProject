@@ -7,9 +7,12 @@ import com.kanban.domain.checklist.service.ChecklistService;
 import jakarta.validation.Valid;
 import com.kanban.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/boards/{boardId}/checklist-items")
@@ -26,6 +29,23 @@ public class BoardChecklistController {
             @AuthenticationPrincipal UserPrincipal principal) {
         ChecklistResponse.BoardListResponse response = checklistService.getBoardChecklistItems(
                 boardId, principal.getUserId(), assigneeId, isScheduled);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * UC-001: 담당자별 체크리스트 조회 (캘린더/리소스 뷰용)
+     * - 권한: Board.Viewer+
+     * - startDate, endDate 날짜 범위 필터 (선택, ISO-8601 yyyy-MM-dd)
+     * - 응답: assignees(담당자별 그룹) + unassigned(미배정 항목)
+     */
+    @GetMapping("/by-assignee")
+    public ResponseEntity<ChecklistResponse.ByAssigneeResponse> getChecklistItemsByAssignee(
+            @PathVariable String boardId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        ChecklistResponse.ByAssigneeResponse response = checklistService.getChecklistItemsByAssignee(
+                boardId, principal.getUserId(), startDate, endDate);
         return ResponseEntity.ok(response);
     }
 

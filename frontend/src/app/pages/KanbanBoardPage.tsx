@@ -7,21 +7,44 @@ import {
   Suspense,
 } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, GripVertical, Flag, Pencil, Eye } from "lucide-react";
+import {
+  Plus,
+  GripVertical,
+  Flag,
+  Pencil,
+  Eye,
+  Clock,
+  Calendar,
+  Users,
+  LayoutGrid,
+  FileText,
+  BarChart3,
+  Lock,
+} from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { isWhiteLabelDomain } from "../utils/domain";
 
 // 뷰 모드 타입
 type ViewMode =
   | "kanban"
-  | "weekly"
+  | "gantt"
   | "schedule"
   | "calendar"
   | "milestone"
   | "meeting"
   | "notes"
   | "statistics"
-  | "ai_report";
+  | "ai_report"
+  | "list";
+
+// 보드 서브뷰 그룹 (보드 탭에 속하는 ViewMode 집합)
+const BOARD_SUB_MODES: ViewMode[] = [
+  "kanban",
+  "gantt",
+  "calendar",
+  "list",
+  "milestone",
+];
 import { DragProvider } from "../contexts/DragContext";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -42,6 +65,7 @@ import {
   TaskComment,
   AiCredits,
   TaskDependency,
+  StatisticsViewType,
 } from "../types";
 import {
   DndContext,
@@ -105,6 +129,28 @@ const MilestoneView = lazyWithRetry(
     })),
   "MilestoneView",
 );
+const ScheduleCalendarView = lazyWithRetry(
+  () =>
+    import("../components/schedule/ScheduleCalendarView").then((m) => ({
+      default: m.ScheduleCalendarView,
+    })),
+  "ScheduleCalendarView",
+);
+const ScheduleResourceView = lazyWithRetry(
+  () =>
+    import("../components/schedule/ScheduleResourceView").then((m) => ({
+      default: m.ScheduleResourceView,
+    })),
+  "ScheduleResourceView",
+);
+const ChecklistItemPanel = lazyWithRetry(
+  () =>
+    import("../components/schedule/ChecklistItemPanel").then((m) => ({
+      default: m.ChecklistItemPanel,
+    })),
+  "ChecklistItemPanel",
+);
+import type { PanelDragState } from "../components/schedule/ChecklistItemPanel";
 import { EmptyBoardGuide } from "../components/EmptyBoardGuide";
 import { QuickAddTaskModal } from "../components/QuickAddTaskModal";
 import {
@@ -123,7 +169,12 @@ import {
   aiCreditService,
   taskDependencyService,
 } from "../utils/services";
-import { notificationAPI, checklistAPI, scheduleAPI, boardJoinRequestAPI } from "../utils/api";
+import {
+  notificationAPI,
+  checklistAPI,
+  scheduleAPI,
+  boardJoinRequestAPI,
+} from "../utils/api";
 
 import { useTranslation } from "react-i18next";
 import { getRandomFeatureColor } from "../constants";
@@ -132,11 +183,15 @@ import { useBoardWebSocket } from "../hooks/useBoardWebSocket";
 // 추출된 Hook 및 컴포넌트
 import { useBoardDataLoader } from "../hooks/useBoardDataLoader";
 import { useBoardFilters } from "../hooks/useBoardFilters";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import { KeyboardShortcutsModal } from "../components/KeyboardShortcutsModal";
 import { useBoardPermissions } from "../hooks/useBoardPermissions";
 import { useNotificationManager } from "../hooks/useNotificationManager";
 import { KanbanBoardHeader } from "../components/KanbanBoardHeader";
 import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
 import { BoardModalManager } from "../components/BoardModalManager";
+import { BoardViewSwitcher } from "../components/BoardViewSwitcher";
+import { BoardListView } from "../components/BoardListView";
 import JoinRequestBanner from "../components/JoinRequestBanner";
 
 declare const __FE_COMMIT_HASH__: string;
@@ -178,40 +233,103 @@ export function KanbanBoardPage() {
       .catch(() => {});
   }, []);
 
+  // localStorage 마이그레이션 (기존 사용자 호환: weekly→gantt, scheduleSubMode→boardSubMode)
+  useEffect(() => {
+    if (!boardId) return;
+    // viewMode_${boardId}: weekly → gantt
+    const savedViewMode = localStorage.getItem(`viewMode_${boardId}`);
+    if (savedViewMode === "weekly") {
+      localStorage.setItem(`viewMode_${boardId}`, "gantt");
+    }
+    // scheduleSubMode → boardSubMode 마이그레이션
+    const oldScheduleSub = localStorage.getItem(`scheduleSubMode_${boardId}`);
+    if (oldScheduleSub) {
+      const newBoardSub = localStorage.getItem(`boardSubMode_${boardId}`);
+      if (!newBoardSub) {
+        // weekly→gantt, calendar/milestone 그대로, schedule은 보드 서브뷰가 아니므로 무시
+        if (oldScheduleSub === "weekly") {
+          localStorage.setItem(`boardSubMode_${boardId}`, "gantt");
+        } else if (
+          oldScheduleSub === "calendar" ||
+          oldScheduleSub === "milestone"
+        ) {
+          localStorage.setItem(`boardSubMode_${boardId}`, oldScheduleSub);
+        }
+      }
+    }
+  }, [boardId]);
+
   // 뷰 모드 상태 (URL 파라미터 우선, 없으면 localStorage)
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (
-      urlView &&
-      [
-        "kanban",
-        "weekly",
-        "schedule",
-        "calendar",
-        "milestone",
-        "meeting",
-        "notes",
-        "statistics",
-        "ai_report",
-      ].includes(urlView)
-    ) {
-      return urlView;
+    if (urlView) {
+      // URL ?view=weekly → gantt 하위호환 매핑
+      const mappedView = urlView === "weekly" ? "gantt" : urlView;
+      if (
+        [
+          "kanban",
+          "gantt",
+          "schedule",
+          "calendar",
+          "milestone",
+          "meeting",
+          "notes",
+          "statistics",
+          "ai_report",
+          "list",
+        ].includes(mappedView)
+      ) {
+        return mappedView as ViewMode;
+      }
     }
     const saved = localStorage.getItem(`viewMode_${boardId}`);
+    // 기존 weekly 값도 gantt로 변환
+    if (saved === "weekly") return "gantt";
     return (saved as ViewMode) || "kanban";
   });
 
-  // 병합 탭 서브모드 기억 헬퍼
-  const getScheduleSubMode = ():
-    | "schedule"
-    | "weekly"
+  // 보드 서브뷰 모드 기억 헬퍼 (칸반/간트/캘린더/리스트/마일스톤)
+  const getBoardSubMode = ():
+    | "kanban"
+    | "gantt"
     | "calendar"
+    | "list"
     | "milestone" => {
-    const saved = localStorage.getItem(`scheduleSubMode_${boardId}`);
-    if (saved === "weekly") return "weekly";
+    const saved = localStorage.getItem(`boardSubMode_${boardId}`);
+    if (saved === "gantt") return "gantt";
     if (saved === "calendar") return "calendar";
+    if (saved === "list") return "list";
     if (saved === "milestone") return "milestone";
-    return "schedule";
+    return "kanban";
   };
+  // 일정 탭 서브모드 (타임블록 / 캘린더 / 리소스)
+  type ScheduleSubTab = "timeblock" | "calendar" | "resource";
+  const getScheduleSubTab = (): ScheduleSubTab => {
+    const saved = localStorage.getItem(`scheduleSubTab_${boardId}`);
+    if (saved === "calendar" || saved === "resource") return saved;
+    return "timeblock";
+  };
+
+  // 일정 탭 서브탭 상태 (localStorage 영속화)
+  const [scheduleSubTab, setScheduleSubTab] = useState<ScheduleSubTab>(() =>
+    getScheduleSubTab(),
+  );
+
+  const handleScheduleSubTabChange = useCallback(
+    (tab: ScheduleSubTab) => {
+      setScheduleSubTab(tab);
+      if (boardId) {
+        localStorage.setItem(`scheduleSubTab_${boardId}`, tab);
+      }
+    },
+    [boardId],
+  );
+
+  // ChecklistItemPanel drag state (calendar/resource DnD integration)
+  const [panelDragState, setPanelDragState] = useState<PanelDragState | null>(
+    null,
+  );
+  const [scheduleRefreshPanel, setScheduleRefreshPanel] = useState(0);
+
   const getAISubMode = (): "statistics" | "ai_report" => {
     const saved = localStorage.getItem(`aiSubMode_${boardId}`);
     return saved === "ai_report" ? "ai_report" : "statistics";
@@ -285,10 +403,13 @@ export function KanbanBoardPage() {
       return;
     }
     // 마일스톤 필터로 안 보이는 경우 API 직접 조회
-    taskService.getTask(boardId, deepLinkTaskId).then((t) => {
-      setSelectedTask(t);
-      setIsTaskModalOpen(true);
-    }).catch(() => {});
+    taskService
+      .getTask(boardId, deepLinkTaskId)
+      .then((t) => {
+        setSelectedTask(t);
+        setIsTaskModalOpen(true);
+      })
+      .catch(() => {});
   }, [isLoading, boardId]);
 
   // ======== 커스텀 Hook: 권한 ========
@@ -320,7 +441,8 @@ export function KanbanBoardPage() {
 
   useEffect(() => {
     if (isAdminOrOwner && board?.organization_id && boardId) {
-      boardJoinRequestAPI.list(boardId)
+      boardJoinRequestAPI
+        .list(boardId)
         .then((data) => setPendingJoinRequestCount(data.requests.length))
         .catch(() => {});
     }
@@ -328,20 +450,26 @@ export function KanbanBoardPage() {
 
   const handleJoinRequestHandled = useCallback(() => {
     if (boardId) {
-      boardJoinRequestAPI.list(boardId)
+      boardJoinRequestAPI
+        .list(boardId)
         .then((data) => setPendingJoinRequestCount(data.requests.length))
         .catch(() => {});
       // Refresh member list
-      memberService.getMembers(boardId).then((membersResponse) => {
-        setBoardMembersData(membersResponse.members.map((m: any) => ({
-          id: m.id,
-          userId: m.user.id,
-          name: m.user.name,
-          email: m.user.email,
-          role: m.role.toLowerCase(),
-          assigneeColor: m.assignee_color || null,
-        })));
-      }).catch(() => {});
+      memberService
+        .getMembers(boardId)
+        .then((membersResponse) => {
+          setBoardMembersData(
+            membersResponse.members.map((m: any) => ({
+              id: m.id,
+              userId: m.user.id,
+              name: m.user.name,
+              email: m.user.email,
+              role: m.role.toLowerCase(),
+              assigneeColor: m.assignee_color || null,
+            })),
+          );
+        })
+        .catch(() => {});
     }
   }, [boardId]);
 
@@ -439,15 +567,42 @@ export function KanbanBoardPage() {
     Set<string>
   >(new Set());
 
-  // 데이터 로드 완료 시 기본 펼치기
+  // 데이터 로드 완료 시 localStorage에서 펼치기 상태 복원 (기본: 접힘)
   const initialExpandDone = useRef(false);
   useEffect(() => {
     if (!isLoading && tasks.length > 0 && !initialExpandDone.current) {
       initialExpandDone.current = true;
-      setExpandedChecklistTaskIds(new Set(tasks.map((t) => t.id)));
-      setExpandedFeatureIds(new Set(features.map((f) => f.id)));
+      try {
+        const savedChecklist = localStorage.getItem(
+          `expandedChecklist_${boardId}`,
+        );
+        const savedFeatures = localStorage.getItem(
+          `expandedFeatures_${boardId}`,
+        );
+        if (savedChecklist) {
+          const ids = JSON.parse(savedChecklist) as string[];
+          setExpandedChecklistTaskIds(
+            new Set(ids.filter((id) => tasks.some((t) => t.id === id))),
+          );
+        }
+        if (savedFeatures) {
+          const ids = JSON.parse(savedFeatures) as string[];
+          setExpandedFeatureIds(
+            new Set(ids.filter((id) => features.some((f) => f.id === id))),
+          );
+        }
+      } catch {
+        // localStorage 파싱 실패 시 기본값(접힘) 유지
+      }
     }
-  }, [isLoading, tasks, features]);
+  }, [isLoading, tasks, features, boardId]);
+
+  // 키보드 단축키 도움말 모달
+  const [isShortcutsHelpOpen, setIsShortcutsHelpOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  // AI분석 > 마일스톤 서브탭 (statistics 내부 6개 탭)
+  const [statisticsActiveView, setStatisticsActiveView] =
+    useState<StatisticsViewType>("overview");
 
   // Alert Modal 상태
   const [alertModal, setAlertModal] = useState<{
@@ -496,9 +651,78 @@ export function KanbanBoardPage() {
       scheduledTaskIds,
     );
 
+  // ======== 키보드 단축키 ========
+  const isAnyModalOpen =
+    isFeatureModalOpen ||
+    isTaskModalOpen ||
+    isAddBlockModalOpen ||
+    isAddFeatureModalOpen ||
+    isShareBoardModalOpen ||
+    isSubscriptionModalOpen ||
+    isPremiumBenefitsModalOpen ||
+    isInquiryModalOpen ||
+    isActivityLogModalOpen ||
+    isMilestoneModalOpen ||
+    isUpgradeModalOpen ||
+    isMilestoneOnboardingOpen ||
+    showCreditModal ||
+    !!quickAddBlockId ||
+    !!seatPurchaseModal ||
+    !!orgSeatLimitModal ||
+    alertModal.open ||
+    isShortcutsHelpOpen;
+
+  const handleToggleExpandCollapse = useCallback(() => {
+    setExpandedChecklistTaskIds((prev) => {
+      const isExpanded = prev.size > 0;
+      if (isExpanded) {
+        localStorage.setItem(
+          `expandedChecklist_${boardId}`,
+          JSON.stringify([]),
+        );
+        localStorage.setItem(`expandedFeatures_${boardId}`, JSON.stringify([]));
+        setExpandedFeatureIds(new Set());
+        return new Set();
+      } else {
+        const allTaskIds = tasks.map((t) => t.id);
+        const allFeatureIds = features.map((f) => f.id);
+        localStorage.setItem(
+          `expandedChecklist_${boardId}`,
+          JSON.stringify(allTaskIds),
+        );
+        localStorage.setItem(
+          `expandedFeatures_${boardId}`,
+          JSON.stringify(allFeatureIds),
+        );
+        setExpandedFeatureIds(new Set(allFeatureIds));
+        return new Set(allTaskIds);
+      }
+    });
+  }, [boardId, tasks, features]);
+
+  const handleResetFilters = useCallback(() => {
+    setFilterOptions({
+      keyword: "",
+      members: [],
+      features: [],
+      tags: [],
+      cardStatus: [],
+      dueDate: [],
+    });
+  }, []);
+
+  const handleToggleMyFilter = useCallback(() => {
+    if (!currentUser) return;
+    setFilterOptions((prev) => {
+      const isMyOnly =
+        prev.members.length === 1 && prev.members[0] === currentUser.name;
+      return { ...prev, members: isMyOnly ? [] : [currentUser.name] };
+    });
+  }, [currentUser]);
+
   // ======== 태스크 의존성 로드 ========
   useEffect(() => {
-    if (boardId && viewMode === "weekly") {
+    if (boardId && viewMode === "gantt") {
       taskDependencyService
         .getByBoard(boardId)
         .then(setTaskDependencies)
@@ -908,7 +1132,7 @@ export function KanbanBoardPage() {
 
   // 뷰 모드 변경 핸들러 (Premium 기능 체크)
   const handleViewModeChange = (mode: ViewMode) => {
-    if (mode === "weekly" && !canAccessSchedule) {
+    if (mode === "gantt" && !canAccessSchedule) {
       openUpgradeModal("weekly_schedule");
       return;
     }
@@ -952,13 +1176,12 @@ export function KanbanBoardPage() {
       openUpgradeModal("milestone");
       return;
     }
-    // 병합 탭 서브모드 기억
-    if (
-      mode === "schedule" ||
-      mode === "weekly" ||
-      mode === "calendar" ||
-      mode === "milestone"
-    ) {
+    // 보드 서브뷰 서브모드 기억 (kanban/gantt/calendar/list/milestone)
+    if (BOARD_SUB_MODES.includes(mode)) {
+      localStorage.setItem(`boardSubMode_${boardId}`, mode);
+    }
+    // 일정 탭 서브모드 기억 (현재 schedule만)
+    if (mode === "schedule") {
       localStorage.setItem(`scheduleSubMode_${boardId}`, mode);
     }
     if (mode === "statistics" || mode === "ai_report") {
@@ -967,6 +1190,28 @@ export function KanbanBoardPage() {
     setViewMode(mode);
     localStorage.setItem(`viewMode_${boardId}`, mode);
   };
+
+  // ======== 키보드 단축키 훅 ========
+  useKeyboardShortcuts({
+    viewMode,
+    onViewModeChange: handleViewModeChange,
+    onScheduleSubTabChange: handleScheduleSubTabChange as (tab: string) => void,
+    onStatisticsSubTabChange: (tab: string) =>
+      setStatisticsActiveView(tab as StatisticsViewType),
+    onFocusSearch: () => searchInputRef.current?.focus(),
+    onOpenAddFeature: () => setIsAddFeatureModalOpen(true),
+    onOpenAddBlock: () => setIsAddBlockModalOpen(true),
+    onOpenShortcutsHelp: () => setIsShortcutsHelpOpen(true),
+    onResetFilters: handleResetFilters,
+    onToggleMyFilter: handleToggleMyFilter,
+    filteredFeatures,
+    selectedFeatureIds,
+    onSelectFeatureIds: setSelectedFeatureIds,
+    onToggleExpandCollapse: handleToggleExpandCollapse,
+    canEdit,
+    isAdminOrOwner,
+    isAnyModalOpen,
+  });
 
   // 마일스톤 열기 핸들러 (Premium 기능 체크)
   const handleOpenMilestoneWithCheck = async (milestone?: Milestone) => {
@@ -1037,7 +1282,8 @@ export function KanbanBoardPage() {
   const handleOrgPurchaseSeatsAndRetry = async (additionalSeats: number) => {
     if (!orgSeatLimitModal) return;
 
-    const { orgId, pendingEmail, pendingRole, pendingMemberId } = orgSeatLimitModal;
+    const { orgId, pendingEmail, pendingRole, pendingMemberId } =
+      orgSeatLimitModal;
 
     try {
       await orgSubscriptionService.purchaseSeats(orgId, additionalSeats);
@@ -1352,7 +1598,11 @@ export function KanbanBoardPage() {
     }
   };
 
-  const handleEditBlock = async (blockId: string, name: string, color: string) => {
+  const handleEditBlock = async (
+    blockId: string,
+    name: string,
+    color: string,
+  ) => {
     if (!boardId) return;
     const previousBlocks = blocks;
     setBlocks((prev) =>
@@ -2180,6 +2430,10 @@ export function KanbanBoardPage() {
       const newSet = new Set(prev);
       if (newSet.has(taskId)) newSet.delete(taskId);
       else newSet.add(taskId);
+      localStorage.setItem(
+        `expandedChecklist_${boardId}`,
+        JSON.stringify([...newSet]),
+      );
       return newSet;
     });
   };
@@ -2340,16 +2594,19 @@ export function KanbanBoardPage() {
           onUpdatePayment={async () => {
             if (!boardId) return;
             try {
-              const url = await subscriptionService.getBillingPortalUrl(boardId);
-              window.open(url, '_blank');
+              const url =
+                await subscriptionService.getBillingPortalUrl(boardId);
+              window.open(url, "_blank");
             } catch (e) {
-              console.error('Failed to get billing portal URL', e);
+              console.error("Failed to get billing portal URL", e);
             }
           }}
+          onOpenShortcutsHelp={() => setIsShortcutsHelpOpen(true)}
           currentUser={currentUser}
           memberColorMap={memberColorMap}
           onLogout={logout}
-          getScheduleSubMode={getScheduleSubMode}
+          getBoardSubMode={getBoardSubMode}
+          getScheduleSubMode={() => "schedule" as const}
           getAISubMode={getAISubMode}
           onOpenUpgradeModal={openUpgradeModal}
           onSaveBoardName={async (name: string) => {
@@ -2368,12 +2625,27 @@ export function KanbanBoardPage() {
           <JoinRequestBanner
             boardId={boardId}
             hasPendingRequest={board?.has_pending_join_request ?? false}
-            onRequestSent={() => setBoard((prev) => prev ? { ...prev, has_pending_join_request: true } : prev)}
+            onRequestSent={() =>
+              setBoard((prev) =>
+                prev ? { ...prev, has_pending_join_request: true } : prev,
+              )
+            }
           />
         )}
 
-        {/* 마일스톤 탭 바 (칸반 뷰에서만 표시) */}
-        {viewMode === "kanban" &&
+        {/* 보드 서브뷰 전환 바 */}
+        {BOARD_SUB_MODES.includes(viewMode) && (
+          <BoardViewSwitcher
+            viewMode={viewMode}
+            onViewModeChange={(mode) => handleViewModeChange(mode)}
+            canAccessGantt={canAccessSchedule}
+            canAccessMilestone={canAccessMilestone}
+          />
+        )}
+
+        {/* 마일스톤 탭 바 (보드 서브뷰에서 표시, milestone 뷰 제외) */}
+        {BOARD_SUB_MODES.includes(viewMode) &&
+          viewMode !== "milestone" &&
           milestones.length > 0 &&
           (() => {
             const allMilestoneFeatureIds = new Set(
@@ -2465,62 +2737,51 @@ export function KanbanBoardPage() {
             );
           })()}
 
-        {/* 병합 탭 서브토글 바 */}
-        {(viewMode === "schedule" ||
-          viewMode === "weekly" ||
-          viewMode === "calendar" ||
-          viewMode === "milestone") && (
+        {/* 일정 탭 서브탭 바 (타임블록 / 캘린더 / 리소스) */}
+        {viewMode === "schedule" && (
           <div className="flex items-center justify-center py-1.5 bg-kanban-header/50 border-b border-foreground/5">
             <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-0.5">
               <button
-                onClick={() => handleViewModeChange("schedule")}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                  viewMode === "schedule"
-                    ? "bg-foreground/10 text-foreground"
-                    : "text-zinc-400 hover:text-foreground"
+                onClick={() => handleScheduleSubTabChange("timeblock")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all ${
+                  scheduleSubTab === "timeblock"
+                    ? "font-medium bg-foreground/10 text-foreground"
+                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
                 }`}
+                aria-label={t("schedule.subTab.timeblock", "Time Block")}
               >
-                {t("kanban.viewSchedule")}
+                <Clock size={14} />
+                <span className="hidden md:inline">
+                  {t("schedule.subTab.timeblock", "Time Block")}
+                </span>
               </button>
               <button
-                onClick={() => handleViewModeChange("weekly")}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                  viewMode === "weekly"
-                    ? "bg-foreground/10 text-foreground"
-                    : !canAccessSchedule
-                      ? "text-zinc-600 cursor-not-allowed"
-                      : "text-zinc-400 hover:text-foreground"
+                onClick={() => handleScheduleSubTabChange("calendar")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all ${
+                  scheduleSubTab === "calendar"
+                    ? "font-medium bg-foreground/10 text-foreground"
+                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
                 }`}
+                aria-label={t("schedule.subTab.calendar", "Calendar")}
               >
-                {t("kanban.viewGantt")}
-                {!canAccessSchedule && (
-                  <Lock size={10} className="inline ml-1 text-zinc-500" />
-                )}
+                <Calendar size={14} />
+                <span className="hidden md:inline">
+                  {t("schedule.subTab.calendar", "Calendar")}
+                </span>
               </button>
               <button
-                onClick={() => handleViewModeChange("calendar")}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                  viewMode === "calendar"
-                    ? "bg-foreground/10 text-foreground"
-                    : "text-zinc-400 hover:text-foreground"
+                onClick={() => handleScheduleSubTabChange("resource")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all ${
+                  scheduleSubTab === "resource"
+                    ? "font-medium bg-foreground/10 text-foreground"
+                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
                 }`}
+                aria-label={t("schedule.subTab.resource", "Resource")}
               >
-                {t("kanban.viewCalendar", "캘린더")}
-              </button>
-              <button
-                onClick={() => handleViewModeChange("milestone")}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                  viewMode === "milestone"
-                    ? "bg-foreground/10 text-foreground"
-                    : !canAccessMilestone
-                      ? "text-zinc-600 cursor-not-allowed"
-                      : "text-zinc-400 hover:text-foreground"
-                }`}
-              >
-                {t("kanban.viewMilestone", "마일스톤")}
-                {!canAccessMilestone && (
-                  <Lock size={10} className="inline ml-1 text-zinc-500" />
-                )}
+                <Users size={14} />
+                <span className="hidden md:inline">
+                  {t("schedule.subTab.resource", "Resource")}
+                </span>
               </button>
             </div>
           </div>
@@ -2556,12 +2817,24 @@ export function KanbanBoardPage() {
           )}
 
         {/* 뷰 모드에 따른 컨텐츠 렌더링 */}
-        {viewMode === "weekly" ? (
-          <main className="flex-1 overflow-hidden">
+        {viewMode === "gantt" ? (
+          <main className="flex-1 flex flex-col overflow-hidden">
+            <KanbanFilterToolbar
+              ref={searchInputRef}
+              filterOptions={filterOptions}
+              onFilterChange={setFilterOptions}
+              features={features}
+              tags={tags}
+              boardMembersData={boardMembersData}
+              tasks={tasks}
+              onExpandAll={() => {}}
+              onCollapseAll={() => {}}
+              hideExpandCollapse
+            />
             <WeeklyScheduleView
               boardId={boardId || ""}
-              features={features}
-              tasks={tasks}
+              features={filteredFeatures}
+              tasks={filteredTasks}
               milestones={milestones}
               onViewFeature={(featureId) => {
                 const feature = features.find((f) => f.id === featureId);
@@ -2652,16 +2925,30 @@ export function KanbanBoardPage() {
                         <Eye className="h-7 w-7 text-bridge-accent" />
                       </div>
                       <h2 className="font-jakarta text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-3">
-                        {t('board.joinRequest.emptyBoardTitle', '아직 콘텐츠가 없는 보드입니다')}
+                        {t(
+                          "board.joinRequest.emptyBoardTitle",
+                          "아직 콘텐츠가 없는 보드입니다",
+                        )}
                       </h2>
                       <p className="text-slate-400 font-light text-sm md:text-base leading-relaxed mb-8">
-                        {t('board.joinRequest.emptyBoardDesc', '이 보드에 참가하면 Feature를 만들고 편집할 수 있습니다. 상단 배너에서 참가 신청을 해보세요.')}
+                        {t(
+                          "board.joinRequest.emptyBoardDesc",
+                          "이 보드에 참가하면 Feature를 만들고 편집할 수 있습니다. 상단 배너에서 참가 신청을 해보세요.",
+                        )}
                       </p>
                       {boardId && (
                         <JoinRequestBanner
                           boardId={boardId}
-                          hasPendingRequest={board?.has_pending_join_request ?? false}
-                          onRequestSent={() => setBoard((prev) => prev ? { ...prev, has_pending_join_request: true } : prev)}
+                          hasPendingRequest={
+                            board?.has_pending_join_request ?? false
+                          }
+                          onRequestSent={() =>
+                            setBoard((prev) =>
+                              prev
+                                ? { ...prev, has_pending_join_request: true }
+                                : prev,
+                            )
+                          }
                         />
                       )}
                     </motion.div>
@@ -2676,6 +2963,7 @@ export function KanbanBoardPage() {
               <>
                 {/* 검색 + 필터 툴바 */}
                 <KanbanFilterToolbar
+                  ref={searchInputRef}
                   filterOptions={filterOptions}
                   onFilterChange={setFilterOptions}
                   features={features}
@@ -2684,13 +2972,29 @@ export function KanbanBoardPage() {
                   tasks={tasks}
                   onExpandAll={() => {
                     const allTaskIds = tasks.map((t) => t.id);
-                    setExpandedChecklistTaskIds(new Set(allTaskIds));
                     const allFeatureIds = features.map((f) => f.id);
+                    setExpandedChecklistTaskIds(new Set(allTaskIds));
                     setExpandedFeatureIds(new Set(allFeatureIds));
+                    localStorage.setItem(
+                      `expandedChecklist_${boardId}`,
+                      JSON.stringify(allTaskIds),
+                    );
+                    localStorage.setItem(
+                      `expandedFeatures_${boardId}`,
+                      JSON.stringify(allFeatureIds),
+                    );
                   }}
                   onCollapseAll={() => {
                     setExpandedChecklistTaskIds(new Set());
                     setExpandedFeatureIds(new Set());
+                    localStorage.setItem(
+                      `expandedChecklist_${boardId}`,
+                      JSON.stringify([]),
+                    );
+                    localStorage.setItem(
+                      `expandedFeatures_${boardId}`,
+                      JSON.stringify([]),
+                    );
                   }}
                 />
                 {/* Feature 칩 선택 영역 */}
@@ -2879,28 +3183,144 @@ export function KanbanBoardPage() {
           </main>
         ) : viewMode === "schedule" ? (
           <main className="flex-1 overflow-hidden">
-            <DailyScheduleView
-              boardId={boardId || ""}
-              boardMembers={boardMembersData}
-              organizationId={board?.organization_id}
-              memberColorMap={memberColorMap}
-              onViewFeature={(featureId) => {
-                const feature = features.find((f) => f.id === featureId);
-                if (feature) handleFeatureClick(feature);
-              }}
-              onViewTask={(taskId) => {
-                const task = tasks.find((t) => t.id === taskId);
-                if (task) handleTaskClick(task);
-              }}
-              refreshTrigger={scheduleRefreshKey}
-              wsChecklistEvent={wsChecklistEvent}
-              currentUserRole={currentUserRole}
-              initialSubTab={urlTab as "timeblock" | "meeting" | undefined}
-            />
+            {scheduleSubTab === "timeblock" ? (
+              <DailyScheduleView
+                boardId={boardId || ""}
+                boardMembers={boardMembersData}
+                organizationId={board?.organization_id}
+                memberColorMap={memberColorMap}
+                onViewFeature={(featureId) => {
+                  const feature = features.find((f) => f.id === featureId);
+                  if (feature) handleFeatureClick(feature);
+                }}
+                onViewTask={(taskId) => {
+                  const task = tasks.find((t) => t.id === taskId);
+                  if (task) handleTaskClick(task);
+                }}
+                refreshTrigger={scheduleRefreshKey}
+                wsChecklistEvent={wsChecklistEvent}
+                currentUserRole={currentUserRole}
+                initialSubTab={urlTab as "timeblock" | "meeting" | undefined}
+              />
+            ) : scheduleSubTab === "calendar" ? (
+              <div className="flex flex-1 h-full overflow-hidden">
+                <Suspense
+                  fallback={
+                    <div className="flex-1 flex items-center justify-center h-64">
+                      <div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  }
+                >
+                  <ScheduleCalendarView
+                    boardId={boardId || ""}
+                    boardMembers={boardMembersData}
+                    memberColorMap={memberColorMap}
+                    onViewTask={(taskId) => {
+                      const task = tasks.find((t) => t.id === taskId);
+                      if (task) handleTaskClick(task);
+                    }}
+                    onDropChecklist={async (item, targetDate) => {
+                      if (item.task?.id) {
+                        try {
+                          await checklistAPI.updateItem(
+                            boardId!,
+                            item.task.id,
+                            item.id,
+                            {
+                              start_date: targetDate,
+                              due_date: targetDate,
+                            },
+                          );
+                        } catch (err) {
+                          console.warn(
+                            "Failed to drop checklist item on calendar",
+                            err,
+                          );
+                        }
+                      }
+                      setScheduleRefreshPanel((k) => k + 1);
+                    }}
+                    externalDragItem={
+                      panelDragState?.isActive ? panelDragState.item : null
+                    }
+                    refreshTrigger={scheduleRefreshPanel}
+                  />
+                </Suspense>
+                <Suspense fallback={null}>
+                  <ChecklistItemPanel
+                    key={scheduleRefreshPanel}
+                    boardId={boardId || ""}
+                    onDragStateChange={setPanelDragState}
+                  />
+                </Suspense>
+              </div>
+            ) : scheduleSubTab === "resource" ? (
+              <div className="flex flex-1 overflow-hidden">
+                <Suspense
+                  fallback={
+                    <div className="flex-1 flex items-center justify-center h-64">
+                      <div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  }
+                >
+                  <ScheduleResourceView
+                    boardId={boardId || ""}
+                    boardMembers={boardMembersData}
+                    milestones={milestones}
+                    memberColorMap={memberColorMap}
+                    onViewTask={(taskId) => {
+                      const task = tasks.find((t) => t.id === taskId);
+                      if (task) handleTaskClick(task);
+                    }}
+                    onDropChecklist={async (
+                      item,
+                      targetDate,
+                      targetAssigneeId,
+                    ) => {
+                      if (item.task_id) {
+                        try {
+                          await checklistAPI.updateItem(
+                            boardId!,
+                            item.task_id,
+                            item.id,
+                            {
+                              start_date: targetDate,
+                              due_date: targetDate,
+                              assignee_id:
+                                targetAssigneeId === "__unassigned__"
+                                  ? null
+                                  : targetAssigneeId,
+                            },
+                          );
+                        } catch (err) {
+                          console.warn(
+                            "Failed to drop checklist item on resource",
+                            err,
+                          );
+                        }
+                      }
+                      setScheduleRefreshPanel((k) => k + 1);
+                    }}
+                    externalDragItem={
+                      panelDragState?.isActive ? panelDragState.item : null
+                    }
+                    refreshTrigger={scheduleRefreshPanel}
+                  />
+                </Suspense>
+                <Suspense fallback={null}>
+                  <ChecklistItemPanel
+                    key={scheduleRefreshPanel}
+                    boardId={boardId || ""}
+                    onDragStateChange={setPanelDragState}
+                  />
+                </Suspense>
+              </div>
+            ) : null}
           </main>
         ) : viewMode === "calendar" ? (
           <main className="flex-1 flex flex-col overflow-hidden">
             <KanbanFilterToolbar
+              ref={searchInputRef}
               filterOptions={filterOptions}
               onFilterChange={setFilterOptions}
               features={features}
@@ -2981,6 +3401,8 @@ export function KanbanBoardPage() {
                   if (task) handleTaskClick(task);
                 }}
                 managementRefreshTrigger={managementRefreshKey}
+                activeView={statisticsActiveView}
+                onActiveViewChange={setStatisticsActiveView}
               />
             </Suspense>
           </main>
@@ -3042,6 +3464,40 @@ export function KanbanBoardPage() {
               />
             </Suspense>
           </main>
+        ) : viewMode === "list" ? (
+          <main className="flex-1 flex flex-col overflow-hidden">
+            <KanbanFilterToolbar
+              ref={searchInputRef}
+              filterOptions={filterOptions}
+              onFilterChange={setFilterOptions}
+              features={features}
+              tags={tags}
+              boardMembersData={boardMembersData}
+              tasks={tasks}
+              onExpandAll={() => {}}
+              onCollapseAll={() => {}}
+              hideExpandCollapse
+            />
+            <BoardListView
+              boardId={boardId || ""}
+              features={filteredFeatures}
+              tasks={filteredTasks}
+              blocks={blocks}
+              checklistDataMap={checklistDataMap}
+              boardMembersData={boardMembersData}
+              memberColorMap={memberColorMap}
+              onViewFeature={(featureId) => {
+                const feature =
+                  features.find((f) => f.id === featureId) ||
+                  allFeatures.find((f) => f.id === featureId);
+                if (feature) handleFeatureClick(feature);
+              }}
+              onViewTask={(taskId) => {
+                const task = tasks.find((t) => t.id === taskId);
+                if (task) handleTaskClick(task);
+              }}
+            />
+          </main>
         ) : null}
 
         {/* 모바일 하단 여백 (탭바 + safe area 공간 확보) */}
@@ -3057,27 +3513,18 @@ export function KanbanBoardPage() {
         >
           <div className="flex items-center justify-around px-1 pt-2 pb-1.5">
             <MobileTabButton
-              active={viewMode === "kanban"}
-              onClick={() => handleViewModeChange("kanban")}
-              label={t("kanban.viewKanban")}
+              active={BOARD_SUB_MODES.includes(viewMode)}
+              onClick={() => {
+                const subMode = getBoardSubMode();
+                handleViewModeChange(subMode);
+              }}
+              label={t("kanban.viewBoard", "보드")}
               icon="kanban"
             />
             <MobileTabButton
-              active={
-                viewMode === "schedule" ||
-                viewMode === "weekly" ||
-                viewMode === "calendar" ||
-                viewMode === "milestone"
-              }
+              active={viewMode === "schedule"}
               onClick={() => {
-                const subMode = getScheduleSubMode();
-                if (subMode === "weekly" && !canAccessSchedule) {
-                  handleViewModeChange("schedule");
-                } else if (subMode === "milestone" && !canAccessMilestone) {
-                  handleViewModeChange("schedule");
-                } else {
-                  handleViewModeChange(subMode);
-                }
+                handleViewModeChange("schedule");
               }}
               label={t("kanban.viewScheduleTab", "일정")}
               icon="schedule"
@@ -3206,7 +3653,27 @@ export function KanbanBoardPage() {
             }
           }}
           onChecklistSync={(taskId, items) => {
-            setChecklistDataMap((prev) => ({ ...prev, [taskId]: items }));
+            setChecklistDataMap((prev) => {
+              const prevItems = prev[taskId] || [];
+              // 완료 상태 변경된 항목 → DailyScheduleView에 synthetic 이벤트 전달
+              for (const item of items) {
+                const prevItem = prevItems.find((p) => p.id === item.id);
+                if (prevItem && prevItem.completed !== item.completed) {
+                  queueMicrotask(() => {
+                    setWsChecklistEvent({
+                      type: "CHECKLIST_TOGGLED",
+                      board_id: boardId || "",
+                      user_id: currentUser?.id || "",
+                      user_name: currentUser?.name || "",
+                      timestamp: new Date().toISOString(),
+                      data: { item, task_id: taskId },
+                    });
+                  });
+                  break;
+                }
+              }
+              return { ...prev, [taskId]: items };
+            });
           }}
           // Tag
           tags={tags}
@@ -3352,9 +3819,14 @@ export function KanbanBoardPage() {
           currentCredits={aiCredits}
           // Permissions
           canEdit={canEdit}
-          isAdminOrOwner={isAdminOrOwner}
           currentUser={currentUser}
           boardMembers={boardMembersData}
+        />
+
+        {/* Keyboard Shortcuts Help */}
+        <KeyboardShortcutsModal
+          open={isShortcutsHelpOpen}
+          onClose={() => setIsShortcutsHelpOpen(false)}
         />
 
         {/* Version Info */}
@@ -3370,16 +3842,9 @@ export function KanbanBoardPage() {
   );
 }
 
-// 모바일 하단 탭 버튼 컴포넌트
-import {
-  LayoutGrid,
-  Calendar,
-  Users,
-  FileText,
-  BarChart3,
-  Lock,
-} from "lucide-react";
 import { motion } from "framer-motion";
+
+// 모바일 하단 탭 버튼 컴포넌트
 
 function MobileTabButton({
   active,
