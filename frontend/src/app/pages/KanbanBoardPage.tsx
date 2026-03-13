@@ -22,7 +22,6 @@ import {
   Lock,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import { isWhiteLabelDomain } from "../utils/domain";
 
 // 뷰 모드 타입
 type ViewMode =
@@ -207,6 +206,7 @@ export function KanbanBoardPage() {
     hideBilling,
     isTester,
     isAdmin: isSystemAdmin,
+    isRestricted,
   } = useAuth();
 
   // URL 쿼리 파라미터에서 뷰/탭/태스크 정보 읽기 (Slack/Discord 등 외부 링크용)
@@ -323,6 +323,25 @@ export function KanbanBoardPage() {
     },
     [boardId],
   );
+
+  // 일정 서브탭 키보드 단축키 (1=타임블록, 2=워크로드, 3=캘린더)
+  useEffect(() => {
+    if (viewMode !== "schedule") return;
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        (e.target as HTMLElement)?.isContentEditable
+      )
+        return;
+      if (e.key === "1") handleScheduleSubTabChange("timeblock");
+      else if (e.key === "2") handleScheduleSubTabChange("resource");
+      else if (e.key === "3") handleScheduleSubTabChange("calendar");
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [viewMode, handleScheduleSubTabChange]);
 
   // ChecklistItemPanel drag state (calendar/resource DnD integration)
   const [panelDragState, setPanelDragState] = useState<PanelDragState | null>(
@@ -480,6 +499,9 @@ export function KanbanBoardPage() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
   const [meetingRefreshKey, setMeetingRefreshKey] = useState(0);
+  const [meetingNavigateDate, setMeetingNavigateDate] = useState<Date | null>(
+    null,
+  );
   const [managementRefreshKey, setManagementRefreshKey] = useState(0);
   const [isAddBlockModalOpen, setIsAddBlockModalOpen] = useState(false);
   const [editingBlock, setEditingBlock] = useState<Block | null>(null);
@@ -673,32 +695,39 @@ export function KanbanBoardPage() {
     isShortcutsHelpOpen;
 
   const handleToggleExpandCollapse = useCallback(() => {
-    setExpandedChecklistTaskIds((prev) => {
-      const isExpanded = prev.size > 0;
-      if (isExpanded) {
-        localStorage.setItem(
-          `expandedChecklist_${boardId}`,
-          JSON.stringify([]),
-        );
-        localStorage.setItem(`expandedFeatures_${boardId}`, JSON.stringify([]));
-        setExpandedFeatureIds(new Set());
-        return new Set();
-      } else {
-        const allTaskIds = tasks.map((t) => t.id);
-        const allFeatureIds = features.map((f) => f.id);
-        localStorage.setItem(
-          `expandedChecklist_${boardId}`,
-          JSON.stringify(allTaskIds),
-        );
-        localStorage.setItem(
-          `expandedFeatures_${boardId}`,
-          JSON.stringify(allFeatureIds),
-        );
-        setExpandedFeatureIds(new Set(allFeatureIds));
-        return new Set(allTaskIds);
-      }
-    });
-  }, [boardId, tasks, features]);
+    if (viewMode === "kanban") {
+      setExpandedChecklistTaskIds((prev) => {
+        const isExpanded = prev.size > 0;
+        if (isExpanded) {
+          localStorage.setItem(
+            `expandedChecklist_${boardId}`,
+            JSON.stringify([]),
+          );
+          localStorage.setItem(
+            `expandedFeatures_${boardId}`,
+            JSON.stringify([]),
+          );
+          setExpandedFeatureIds(new Set());
+          return new Set();
+        } else {
+          const allTaskIds = tasks.map((t) => t.id);
+          const allFeatureIds = features.map((f) => f.id);
+          localStorage.setItem(
+            `expandedChecklist_${boardId}`,
+            JSON.stringify(allTaskIds),
+          );
+          localStorage.setItem(
+            `expandedFeatures_${boardId}`,
+            JSON.stringify(allFeatureIds),
+          );
+          setExpandedFeatureIds(new Set(allFeatureIds));
+          return new Set(allTaskIds);
+        }
+      });
+    } else {
+      window.dispatchEvent(new CustomEvent("bridge:toggleExpandCollapse"));
+    }
+  }, [boardId, tasks, features, viewMode]);
 
   const handleResetFilters = useCallback(() => {
     setFilterOptions({
@@ -3211,7 +3240,10 @@ export function KanbanBoardPage() {
                   const feature = features.find((f) => f.id === featureId);
                   if (feature) handleFeatureClick(feature);
                 }}
-                onViewMeeting={() => {
+                onViewMeeting={(_meetingId, date) => {
+                  if (date) {
+                    setMeetingNavigateDate(date);
+                  }
                   handleViewModeChange("meeting");
                 }}
                 onViewTask={async (taskId) => {
@@ -3423,6 +3455,7 @@ export function KanbanBoardPage() {
               boardMembers={boardMembersData}
               onRefreshSchedule={() => setScheduleRefreshKey((k) => k + 1)}
               refreshTrigger={meetingRefreshKey}
+              navigateToDate={meetingNavigateDate}
             />
           </main>
         ) : viewMode === "notes" ? (
@@ -3603,7 +3636,7 @@ export function KanbanBoardPage() {
               label={t("kanban.viewMeeting", "회의")}
               icon="meeting"
             />
-            {!isWhiteLabelDomain && (
+            {!isRestricted && (
               <MobileTabButton
                 active={viewMode === "notes"}
                 onClick={() => handleViewModeChange("notes")}
@@ -3611,32 +3644,31 @@ export function KanbanBoardPage() {
                 icon="notes"
               />
             )}
-            {!isWhiteLabelDomain &&
-              (isAdminOrOwner || (!isViewer && !isTester)) && (
-                <MobileTabButton
-                  active={viewMode === "statistics" || viewMode === "ai_report"}
-                  onClick={() => {
-                    if (!canAccessStatistics) {
-                      openUpgradeModal("statistics");
-                      return;
-                    }
-                    const subMode = getAISubMode();
-                    if (subMode === "statistics" && !isAdminOrOwner) {
-                      handleViewModeChange("ai_report");
-                    } else if (
-                      subMode === "ai_report" &&
-                      (isViewer || isTester)
-                    ) {
-                      handleViewModeChange("statistics");
-                    } else {
-                      handleViewModeChange(subMode);
-                    }
-                  }}
-                  label={t("kanban.viewAIAnalysisTab", "AI분석")}
-                  icon="ai"
-                  locked={!canAccessStatistics}
-                />
-              )}
+            {!isRestricted && (isAdminOrOwner || (!isViewer && !isTester)) && (
+              <MobileTabButton
+                active={viewMode === "statistics" || viewMode === "ai_report"}
+                onClick={() => {
+                  if (!canAccessStatistics) {
+                    openUpgradeModal("statistics");
+                    return;
+                  }
+                  const subMode = getAISubMode();
+                  if (subMode === "statistics" && !isAdminOrOwner) {
+                    handleViewModeChange("ai_report");
+                  } else if (
+                    subMode === "ai_report" &&
+                    (isViewer || isTester)
+                  ) {
+                    handleViewModeChange("statistics");
+                  } else {
+                    handleViewModeChange(subMode);
+                  }
+                }}
+                label={t("kanban.viewAIAnalysisTab", "AI분석")}
+                icon="ai"
+                locked={!canAccessStatistics}
+              />
+            )}
           </div>
         </nav>
 

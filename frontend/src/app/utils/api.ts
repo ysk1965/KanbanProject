@@ -1,4 +1,5 @@
 import { nowUTC } from "./dateUtils";
+import { domainBrandName } from "./domain";
 
 // API Base URL - BE 서버
 const API_BASE_URL =
@@ -4712,11 +4713,8 @@ export const slackWebhookAPI = {
   },
 
   testMyWebhook: async (boardId: string) => {
-    const brandName = window.location.hostname.includes("milkyway")
-      ? "Milkyway"
-      : "BRIDGE SPOTS";
     return apiClient.post<SlackTestResult>(
-      `/boards/${boardId}/slack-webhook/me/test?brandName=${encodeURIComponent(brandName)}`,
+      `/boards/${boardId}/slack-webhook/me/test?brandName=${encodeURIComponent(domainBrandName)}`,
     );
   },
 };

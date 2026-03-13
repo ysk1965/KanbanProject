@@ -61,7 +61,7 @@ public class DiscordService {
     @Value("${jwt.secret:your-super-secret-jwt-key-that-should-be-at-least-256-bits-long}")
     private String jwtSecret;
 
-    @Value("${app.frontend-url:https://bridgespots.com}")
+    @Value("${app.frontend-url}")
     private String frontendUrl;
 
     // State is valid for 10 minutes

@@ -3884,6 +3884,8 @@
     "resetFilters": "フィルターリセット",
     "nextFeature": "次のFeature",
     "prevFeature": "前のFeature",
+    "nextTab": "次のタブへ移動",
+    "prevTab": "前のタブへ移動",
     "showHelp": "ショートカット表示",
     "statsOverview": "概要ビュー",
     "statsIndividual": "個人ビュー",

@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight,
   CheckCircle2,
@@ -10,19 +10,19 @@ import {
   ArrowDown,
   Layers,
   ListFilter,
-} from 'lucide-react';
-import type { Feature, Task, Block, ChecklistItem } from '../types';
-import { BoardMember as ShareBoardMember } from './ShareBoardModal';
-import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
-import { formatDate, getDDay } from '../utils/dateUtils';
+} from "lucide-react";
+import type { Feature, Task, Block, ChecklistItem } from "../types";
+import { BoardMember as ShareBoardMember } from "./ShareBoardModal";
+import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
+import { formatDate, getDDay } from "../utils/dateUtils";
 
 // ========================================
 // Types
 // ========================================
 
-type GroupBy = 'feature' | 'block' | 'assignee' | 'status' | 'none';
-type SortBy = 'title' | 'due_date' | 'status' | 'created';
-type SortDir = 'asc' | 'desc';
+type GroupBy = "feature" | "block" | "assignee" | "status" | "none";
+type SortBy = "title" | "due_date" | "status" | "created";
+type SortDir = "asc" | "desc";
 
 interface BoardListViewProps {
   boardId: string;
@@ -49,18 +49,18 @@ interface TaskGroup {
 // ========================================
 
 const GROUP_OPTIONS: { value: GroupBy; labelKey: string }[] = [
-  { value: 'feature', labelKey: 'listViewGroupFeature' },
-  { value: 'block', labelKey: 'listViewGroupBlock' },
-  { value: 'assignee', labelKey: 'listViewGroupAssignee' },
-  { value: 'status', labelKey: 'listViewGroupStatus' },
-  { value: 'none', labelKey: 'listViewGroupNone' },
+  { value: "feature", labelKey: "listViewGroupFeature" },
+  { value: "block", labelKey: "listViewGroupBlock" },
+  { value: "assignee", labelKey: "listViewGroupAssignee" },
+  { value: "status", labelKey: "listViewGroupStatus" },
+  { value: "none", labelKey: "listViewGroupNone" },
 ];
 
 const SORT_OPTIONS: { value: SortBy; labelKey: string }[] = [
-  { value: 'title', labelKey: 'listViewSortTitle' },
-  { value: 'due_date', labelKey: 'listViewSortDueDate' },
-  { value: 'status', labelKey: 'listViewSortStatus' },
-  { value: 'created', labelKey: 'listViewSortCreated' },
+  { value: "title", labelKey: "listViewSortTitle" },
+  { value: "due_date", labelKey: "listViewSortDueDate" },
+  { value: "status", labelKey: "listViewSortStatus" },
+  { value: "created", labelKey: "listViewSortCreated" },
 ];
 
 // ========================================
@@ -68,7 +68,7 @@ const SORT_OPTIONS: { value: SortBy; labelKey: string }[] = [
 // ========================================
 
 function isDoneBlock(block: Block | undefined): boolean {
-  return block?.fixed_type === 'DONE';
+  return block?.fixed_type === "DONE";
 }
 
 function getChecklistProgress(
@@ -94,29 +94,29 @@ function getChecklistProgress(
 function sortTasks(tasks: Task[], sortBy: SortBy, sortDir: SortDir): Task[] {
   const sorted = [...tasks].sort((a, b) => {
     switch (sortBy) {
-      case 'title':
+      case "title":
         return a.title.localeCompare(b.title);
-      case 'due_date': {
+      case "due_date": {
         if (!a.due_date && !b.due_date) return 0;
         if (!a.due_date) return 1;
         if (!b.due_date) return -1;
         return a.due_date.localeCompare(b.due_date);
       }
-      case 'status': {
+      case "status": {
         const aCompleted = a.completed ? 1 : 0;
         const bCompleted = b.completed ? 1 : 0;
         return aCompleted - bCompleted;
       }
-      case 'created': {
-        const aDate = a.created_at ?? '';
-        const bDate = b.created_at ?? '';
+      case "created": {
+        const aDate = a.created_at ?? "";
+        const bDate = b.created_at ?? "";
         return aDate.localeCompare(bDate);
       }
       default:
         return 0;
     }
   });
-  return sortDir === 'desc' ? sorted.reverse() : sorted;
+  return sortDir === "desc" ? sorted.reverse() : sorted;
 }
 
 // ========================================
@@ -127,15 +127,20 @@ function DueDateBadge({ dueDate }: { dueDate: string | null }) {
   if (!dueDate) return <span className="text-xs text-slate-400">-</span>;
 
   const dday = getDDay(dueDate);
-  const formatted = formatDate(dueDate, 'MM/dd');
+  const formatted = formatDate(dueDate, "MM/dd");
 
-  let colorClass = 'text-slate-400';
-  if (dday.urgency === 'overdue') colorClass = 'text-red-400';
-  else if (dday.urgency === 'today' || dday.urgency === 'soon') colorClass = 'text-amber-400';
+  let colorClass = "text-slate-400";
+  if (dday.urgency === "overdue") colorClass = "text-red-400";
+  else if (dday.urgency === "today" || dday.urgency === "soon")
+    colorClass = "text-amber-400";
 
-  return <span className={`text-xs whitespace-nowrap ${colorClass}`}>{formatted}</span>;
+  return (
+    <span className={`text-xs whitespace-nowrap ${colorClass}`}>
+      {formatted}
+    </span>
+  );
 }
-DueDateBadge.displayName = 'DueDateBadge';
+DueDateBadge.displayName = "DueDateBadge";
 
 function AssigneeAvatars({
   assignees,
@@ -172,7 +177,7 @@ function AssigneeAvatars({
     </div>
   );
 }
-AssigneeAvatars.displayName = 'AssigneeAvatars';
+AssigneeAvatars.displayName = "AssigneeAvatars";
 
 // ========================================
 // Main Component
@@ -191,11 +196,14 @@ export function BoardListView({
   const { t } = useTranslation();
 
   // State
-  const [groupBy, setGroupBy] = useState<GroupBy>('feature');
-  const [sortBy, setSortBy] = useState<SortBy>('due_date');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [groupBy, setGroupBy] = useState<GroupBy>("feature");
+  const [sortBy, setSortBy] = useState<SortBy>("due_date");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    new Set(),
+  );
+  const needsCollapseRef = useRef(true);
   const [showGroupDropdown, setShowGroupDropdown] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
 
@@ -229,7 +237,7 @@ export function BoardListView({
     return tasks.filter((task) => {
       const titleMatch = task.title.toLowerCase().includes(q);
       const featureMatch = task.feature_title?.toLowerCase().includes(q);
-      const blockName = blockMap.get(task.block_id)?.name ?? '';
+      const blockName = blockMap.get(task.block_id)?.name ?? "";
       const blockMatch = blockName.toLowerCase().includes(q);
       const assigneeMatch = task.assignees?.some((a) =>
         a.name.toLowerCase().includes(q),
@@ -246,11 +254,11 @@ export function BoardListView({
 
   // Group tasks
   const groups = useMemo((): TaskGroup[] => {
-    if (groupBy === 'none') {
+    if (groupBy === "none") {
       return [
         {
-          key: '__all__',
-          label: '',
+          key: "__all__",
+          label: "",
           color: null,
           tasks: sortedTasks,
         },
@@ -266,26 +274,27 @@ export function BoardListView({
       let featureId: string | undefined;
 
       switch (groupBy) {
-        case 'feature': {
+        case "feature": {
           const feature = featureMap.get(task.feature_id);
           key = task.feature_id;
-          label = feature?.title ?? task.feature_title ?? t('listViewGroupNone');
+          label =
+            feature?.title ?? task.feature_title ?? t("listViewGroupNone");
           color = feature?.color ?? task.feature_color ?? null;
           featureId = task.feature_id;
           break;
         }
-        case 'block': {
+        case "block": {
           const block = blockMap.get(task.block_id);
           key = task.block_id;
-          label = block?.name ?? task.block_name ?? t('listViewGroupNone');
+          label = block?.name ?? task.block_name ?? t("listViewGroupNone");
           color = block?.color ?? null;
           break;
         }
-        case 'assignee': {
+        case "assignee": {
           const assignees = task.assignees ?? [];
           if (assignees.length === 0) {
-            key = '__unassigned__';
-            label = t('listViewGroupNone');
+            key = "__unassigned__";
+            label = t("listViewGroupNone");
             color = null;
           } else {
             // Group by first assignee
@@ -298,17 +307,19 @@ export function BoardListView({
           }
           break;
         }
-        case 'status': {
+        case "status": {
           const block = blockMap.get(task.block_id);
           const done = isDoneBlock(block);
-          key = done ? 'completed' : 'in_progress';
-          label = done ? t('listViewGroupStatus') + ' - ' + t('completed', 'Done') : t('listViewGroupStatus') + ' - ' + t('inProgress', 'In Progress');
-          color = done ? '#10B981' : '#6366F1';
+          key = done ? "completed" : "in_progress";
+          label = done
+            ? t("listViewGroupStatus") + " - " + t("completed", "Done")
+            : t("listViewGroupStatus") + " - " + t("inProgress", "In Progress");
+          color = done ? "#10B981" : "#6366F1";
           break;
         }
         default:
-          key = '__all__';
-          label = '';
+          key = "__all__";
+          label = "";
           color = null;
       }
 
@@ -322,15 +333,35 @@ export function BoardListView({
 
     // Sort groups: for feature grouping, maintain feature position order
     const result = Array.from(groupMap.values());
-    if (groupBy === 'feature') {
+    if (groupBy === "feature") {
       result.sort((a, b) => {
         const fa = featureMap.get(a.key);
         const fb = featureMap.get(b.key);
         return (fa?.position ?? 999) - (fb?.position ?? 999);
       });
     }
+
+    // Within each group, push completed tasks to the bottom
+    result.forEach((group) => {
+      group.tasks.sort((a, b) => {
+        const aBlock = blockMap.get(a.block_id);
+        const bBlock = blockMap.get(b.block_id);
+        const aDone = isDoneBlock(aBlock) || a.completed ? 1 : 0;
+        const bDone = isDoneBlock(bBlock) || b.completed ? 1 : 0;
+        return aDone - bDone;
+      });
+    });
+
     return result;
   }, [sortedTasks, groupBy, featureMap, blockMap, memberColorMap, t]);
+
+  // 기본값: 모든 그룹 닫힌 상태 (초기 + groupBy 변경 시)
+  useEffect(() => {
+    if (needsCollapseRef.current && groups.length > 0 && groupBy !== "none") {
+      needsCollapseRef.current = false;
+      setCollapsedGroups(new Set(groups.map((g) => g.key)));
+    }
+  }, [groups, groupBy]);
 
   // Toggle group collapse
   const handleToggleGroup = useCallback((groupKey: string) => {
@@ -345,9 +376,29 @@ export function BoardListView({
     });
   }, []);
 
+  // W 단축키: bridge:toggleExpandCollapse 이벤트 리스너
+  useEffect(() => {
+    const handler = () => {
+      if (groupBy === "none") return;
+      setCollapsedGroups((prev) => {
+        const allGroupKeys = groups.map((g) => g.key);
+        const allCollapsed =
+          allGroupKeys.length > 0 && allGroupKeys.every((k) => prev.has(k));
+        if (allCollapsed) {
+          return new Set<string>();
+        } else {
+          return new Set(allGroupKeys);
+        }
+      });
+    };
+    window.addEventListener("bridge:toggleExpandCollapse", handler);
+    return () =>
+      window.removeEventListener("bridge:toggleExpandCollapse", handler);
+  }, [groupBy, groups]);
+
   // Toggle sort direction
   const handleToggleSortDir = useCallback(() => {
-    setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
   }, []);
 
   // Handle search input
@@ -383,19 +434,21 @@ export function BoardListView({
             onBlur={() => handleDropdownBlur(setShowGroupDropdown)}
             aria-haspopup="listbox"
             aria-expanded={showGroupDropdown}
-            aria-label={t('listViewGroupBy')}
+            aria-label={t("listViewGroupBy")}
           >
             <Layers size={14} />
-            <span className="hidden md:inline">{t('listViewGroupBy')}</span>
+            <span className="hidden md:inline">{t("listViewGroupBy")}</span>
             <span className="text-foreground font-bold">
-              {t(GROUP_OPTIONS.find((o) => o.value === groupBy)?.labelKey ?? '')}
+              {t(
+                GROUP_OPTIONS.find((o) => o.value === groupBy)?.labelKey ?? "",
+              )}
             </span>
           </button>
           {showGroupDropdown && (
             <div
               className="absolute left-0 top-full mt-1 z-20 bg-bridge-obsidian border border-foreground/[0.08] rounded-lg shadow-xl py-1 min-w-[120px]"
               role="listbox"
-              aria-label={t('listViewGroupBy')}
+              aria-label={t("listViewGroupBy")}
             >
               {GROUP_OPTIONS.map((opt) => (
                 <button
@@ -404,13 +457,13 @@ export function BoardListView({
                   aria-selected={groupBy === opt.value}
                   className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
                     groupBy === opt.value
-                      ? 'text-bridge-accent font-bold bg-bridge-accent/10'
-                      : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
+                      ? "text-bridge-accent font-bold bg-bridge-accent/10"
+                      : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
                   }`}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     setGroupBy(opt.value);
-                    setCollapsedGroups(new Set());
+                    needsCollapseRef.current = true;
                     setShowGroupDropdown(false);
                   }}
                 >
@@ -429,19 +482,19 @@ export function BoardListView({
             onBlur={() => handleDropdownBlur(setShowSortDropdown)}
             aria-haspopup="listbox"
             aria-expanded={showSortDropdown}
-            aria-label={t('listViewSortBy')}
+            aria-label={t("listViewSortBy")}
           >
             <ListFilter size={14} />
-            <span className="hidden md:inline">{t('listViewSortBy')}</span>
+            <span className="hidden md:inline">{t("listViewSortBy")}</span>
             <span className="text-foreground font-bold">
-              {t(SORT_OPTIONS.find((o) => o.value === sortBy)?.labelKey ?? '')}
+              {t(SORT_OPTIONS.find((o) => o.value === sortBy)?.labelKey ?? "")}
             </span>
           </button>
           {showSortDropdown && (
             <div
               className="absolute left-0 top-full mt-1 z-20 bg-bridge-obsidian border border-foreground/[0.08] rounded-lg shadow-xl py-1 min-w-[120px]"
               role="listbox"
-              aria-label={t('listViewSortBy')}
+              aria-label={t("listViewSortBy")}
             >
               {SORT_OPTIONS.map((opt) => (
                 <button
@@ -450,8 +503,8 @@ export function BoardListView({
                   aria-selected={sortBy === opt.value}
                   className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
                     sortBy === opt.value
-                      ? 'text-bridge-accent font-bold bg-bridge-accent/10'
-                      : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
+                      ? "text-bridge-accent font-bold bg-bridge-accent/10"
+                      : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
                   }`}
                   onMouseDown={(e) => {
                     e.preventDefault();
@@ -470,9 +523,9 @@ export function BoardListView({
         <button
           className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
           onClick={handleToggleSortDir}
-          aria-label={sortDir === 'asc' ? 'Sort ascending' : 'Sort descending'}
+          aria-label={sortDir === "asc" ? "Sort ascending" : "Sort descending"}
         >
-          {sortDir === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+          {sortDir === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
         </button>
 
         {/* Spacer */}
@@ -488,9 +541,9 @@ export function BoardListView({
             type="text"
             value={searchQuery}
             onChange={handleSearchChange}
-            placeholder={t('search', 'Search...')}
+            placeholder={t("search", "Search...")}
             className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1.5 pl-8 pr-3 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-            aria-label={t('search', 'Search')}
+            aria-label={t("search", "Search")}
           />
         </div>
       </div>
@@ -505,13 +558,13 @@ export function BoardListView({
             animate={{ opacity: 1, y: 0 }}
           >
             <ArrowUpDown size={32} className="text-slate-500 mb-3" />
-            <p className="text-sm text-slate-400">{t('listViewNoTasks')}</p>
+            <p className="text-sm text-slate-400">{t("listViewNoTasks")}</p>
           </motion.div>
         ) : (
           <div>
             {groups.map((group, groupIdx) => {
               const isCollapsed = collapsedGroups.has(group.key);
-              const showHeader = groupBy !== 'none';
+              const showHeader = groupBy !== "none";
 
               return (
                 <motion.div
@@ -529,7 +582,7 @@ export function BoardListView({
                       tabIndex={0}
                       aria-expanded={!isCollapsed}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
+                        if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           handleToggleGroup(group.key);
                         }
@@ -538,7 +591,7 @@ export function BoardListView({
                       <ChevronRight
                         size={14}
                         className={`text-slate-400 transition-transform duration-200 shrink-0 ${
-                          !isCollapsed ? 'rotate-90' : ''
+                          !isCollapsed ? "rotate-90" : ""
                         }`}
                       />
                       {group.color && (
@@ -555,7 +608,7 @@ export function BoardListView({
                             onViewFeature(group.featureId!);
                           }}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
+                            if (e.key === "Enter") {
                               e.stopPropagation();
                               onViewFeature(group.featureId!);
                             }
@@ -571,7 +624,7 @@ export function BoardListView({
                         </span>
                       )}
                       <span className="text-[10px] text-slate-500 ml-auto shrink-0">
-                        {t('listViewTaskCount', { count: group.tasks.length })}
+                        {t("listViewTaskCount", { count: group.tasks.length })}
                       </span>
                     </div>
                   )}
@@ -581,10 +634,10 @@ export function BoardListView({
                     {!isCollapsed && (
                       <motion.div
                         initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
+                        animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        style={{ overflow: 'hidden' }}
+                        style={{ overflow: "hidden" }}
                       >
                         {group.tasks.map((task) => (
                           <TaskRow
@@ -609,7 +662,7 @@ export function BoardListView({
     </div>
   );
 }
-BoardListView.displayName = 'BoardListView';
+BoardListView.displayName = "BoardListView";
 
 // ========================================
 // TaskRow Component
@@ -631,7 +684,7 @@ function TaskRow({
 }) {
   const block = blockMap.get(task.block_id);
   const isCompleted = isDoneBlock(block) || task.completed;
-  const featureColor = task.feature_color || '#6366F1';
+  const featureColor = task.feature_color || "#6366F1";
   const checkProgress = getChecklistProgress(task, checklistDataMap);
   const assignees = task.assignees ?? [];
 
@@ -642,7 +695,7 @@ function TaskRow({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onViewTask(task.id);
         }
@@ -654,7 +707,7 @@ function TaskRow({
         {/* Completed check icon */}
         <CheckCircle2
           size={16}
-          className={`shrink-0 ${isCompleted ? 'text-emerald-500' : 'text-slate-400'}`}
+          className={`shrink-0 ${isCompleted ? "text-emerald-500" : "text-slate-400"}`}
           aria-hidden="true"
         />
 
@@ -668,7 +721,7 @@ function TaskRow({
         {/* Title */}
         <span
           className={`flex-1 text-sm truncate ${
-            isCompleted ? 'line-through text-slate-500' : 'text-foreground'
+            isCompleted ? "line-through text-slate-500" : "text-foreground"
           }`}
         >
           {task.title}
@@ -676,12 +729,15 @@ function TaskRow({
 
         {/* Block badge */}
         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-foreground/5 text-slate-400 shrink-0 w-[60px] text-center truncate">
-          {block?.name ?? task.block_name ?? '-'}
+          {block?.name ?? task.block_name ?? "-"}
         </span>
 
         {/* Assignees */}
         <div className="w-[80px] flex justify-center shrink-0">
-          <AssigneeAvatars assignees={assignees} memberColorMap={memberColorMap} />
+          <AssigneeAvatars
+            assignees={assignees}
+            memberColorMap={memberColorMap}
+          />
         </div>
 
         {/* Due date */}
@@ -706,7 +762,7 @@ function TaskRow({
         <div className="flex items-center gap-2">
           <CheckCircle2
             size={16}
-            className={`shrink-0 ${isCompleted ? 'text-emerald-500' : 'text-slate-400'}`}
+            className={`shrink-0 ${isCompleted ? "text-emerald-500" : "text-slate-400"}`}
             aria-hidden="true"
           />
           <div
@@ -716,7 +772,7 @@ function TaskRow({
           />
           <span
             className={`flex-1 text-sm truncate ${
-              isCompleted ? 'line-through text-slate-500' : 'text-foreground'
+              isCompleted ? "line-through text-slate-500" : "text-foreground"
             }`}
           >
             {task.title}
@@ -724,7 +780,7 @@ function TaskRow({
         </div>
         <div className="flex items-center gap-2 ml-7 text-[10px] text-slate-400">
           {assignees.length > 0 && (
-            <span>{assignees.map((a) => a.name).join(', ')}</span>
+            <span>{assignees.map((a) => a.name).join(", ")}</span>
           )}
           {task.due_date && (
             <>
@@ -745,4 +801,4 @@ function TaskRow({
     </div>
   );
 }
-TaskRow.displayName = 'TaskRow';
+TaskRow.displayName = "TaskRow";

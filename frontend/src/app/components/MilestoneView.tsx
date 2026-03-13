@@ -1,6 +1,6 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight,
   Target,
@@ -16,10 +16,10 @@ import {
   Trash2,
   ChevronsUpDown,
   ChevronsDownUp,
-} from 'lucide-react';
-import type { Feature, Task, Milestone, MilestoneFeatureInfo } from '../types';
-import { milestoneService } from '../utils/services';
-import { formatDateShort } from '../utils/dateUtils';
+} from "lucide-react";
+import type { Feature, Task, Milestone, MilestoneFeatureInfo } from "../types";
+import { milestoneService } from "../utils/services";
+import { formatDateShort } from "../utils/dateUtils";
 
 // ========================================
 // Types
@@ -50,8 +50,8 @@ interface MilestoneDetailCache {
 
 function ProgressBar({
   percentage,
-  height = 'h-2',
-  className = '',
+  height = "h-2",
+  className = "",
 }: {
   percentage: number;
   height?: string;
@@ -59,7 +59,9 @@ function ProgressBar({
 }) {
   const clampedPercentage = Math.min(100, Math.max(0, percentage));
   return (
-    <div className={`w-full bg-foreground/10 rounded-full ${height} ${className}`}>
+    <div
+      className={`w-full bg-foreground/10 rounded-full ${height} ${className}`}
+    >
       <div
         className={`bg-bridge-accent ${height} rounded-full transition-all duration-300`}
         style={{ width: `${clampedPercentage}%` }}
@@ -68,7 +70,15 @@ function ProgressBar({
   );
 }
 
-function MilestoneStatusBadge({ startDate, endDate, progress }: { startDate: string; endDate: string; progress: number }) {
+function MilestoneStatusBadge({
+  startDate,
+  endDate,
+  progress,
+}: {
+  startDate: string;
+  endDate: string;
+  progress: number;
+}) {
   const { t } = useTranslation();
   const now = new Date();
   const start = new Date(startDate);
@@ -78,21 +88,27 @@ function MilestoneStatusBadge({ startDate, endDate, progress }: { startDate: str
   let colorClasses: string;
 
   if (progress >= 100) {
-    label = t('milestone.statusCompleted');
-    colorClasses = 'bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30';
+    label = t("milestone.statusCompleted");
+    colorClasses =
+      "bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30";
   } else if (now < start) {
-    label = t('milestone.statusWaiting');
-    colorClasses = 'bg-slate-500/20 text-slate-600 dark:text-slate-400 border-slate-500/30';
+    label = t("milestone.statusWaiting");
+    colorClasses =
+      "bg-slate-500/20 text-slate-600 dark:text-slate-400 border-slate-500/30";
   } else if (now > end) {
-    label = t('schedule.overdue', { defaultValue: 'Overdue' });
-    colorClasses = 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30';
+    label = t("schedule.overdue", { defaultValue: "Overdue" });
+    colorClasses =
+      "bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30";
   } else {
-    label = t('milestone.statusInProgress');
-    colorClasses = 'bg-bridge-accent/20 text-bridge-accent border-bridge-accent/30';
+    label = t("milestone.statusInProgress");
+    colorClasses =
+      "bg-bridge-accent/20 text-bridge-accent border-bridge-accent/30";
   }
 
   return (
-    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${colorClasses}`}>
+    <span
+      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${colorClasses}`}
+    >
       {label}
     </span>
   );
@@ -112,7 +128,9 @@ function TaskRow({ task }: { task: Task }) {
 
       <span
         className={`text-xs flex-1 truncate ${
-          task.completed ? 'text-muted-foreground line-through' : 'text-foreground/70'
+          task.completed
+            ? "text-muted-foreground line-through"
+            : "text-foreground/70"
         }`}
       >
         {task.title}
@@ -130,7 +148,9 @@ function TaskRow({ task }: { task: Task }) {
             </span>
           ))}
           {task.assignees.length > 1 && (
-            <span className="text-[9px] text-muted-foreground">+{task.assignees.length - 1}</span>
+            <span className="text-[9px] text-muted-foreground">
+              +{task.assignees.length - 1}
+            </span>
           )}
         </div>
       )}
@@ -160,10 +180,11 @@ function FeatureCard({
   const { t } = useTranslation();
 
   const featureTasks = useMemo(
-    () => tasks
-      .filter((task) => task.feature_id === featureInfo.id)
-      .sort((a, b) => Number(a.completed) - Number(b.completed)),
-    [tasks, featureInfo.id]
+    () =>
+      tasks
+        .filter((task) => task.feature_id === featureInfo.id)
+        .sort((a, b) => Number(a.completed) - Number(b.completed)),
+    [tasks, featureInfo.id],
   );
 
   const progressPct = Math.round(featureInfo.progress_percentage);
@@ -171,7 +192,7 @@ function FeatureCard({
   return (
     <div
       onClick={onClick}
-      className={`flex-shrink-0 w-72 bg-foreground/[0.03] border border-foreground/5 rounded-xl overflow-hidden hover:border-foreground/10 transition-colors${onClick ? ' cursor-pointer' : ''}`}
+      className={`flex-shrink-0 w-72 bg-foreground/[0.03] border border-foreground/5 rounded-xl overflow-hidden hover:border-foreground/10 transition-colors${onClick ? " cursor-pointer" : ""}`}
     >
       {/* Color top bar */}
       <div className="h-1" style={{ backgroundColor: featureInfo.color }} />
@@ -191,7 +212,10 @@ function FeatureCard({
             {milestoneCount && milestoneCount >= 2 && (
               <span
                 className="flex-shrink-0 flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30"
-                title={t('milestone.sharedFeature', { count: milestoneCount, defaultValue: 'Shared across {{count}} milestones' })}
+                title={t("milestone.sharedFeature", {
+                  count: milestoneCount,
+                  defaultValue: "Shared across {{count}} milestones",
+                })}
               >
                 <Layers className="h-2.5 w-2.5" />
                 {milestoneCount}
@@ -201,13 +225,19 @@ function FeatureCard({
 
           {/* Progress */}
           <div className="flex items-center gap-2">
-            <ProgressBar percentage={featureInfo.progress_percentage} height="h-1.5" className="flex-1" />
+            <ProgressBar
+              percentage={featureInfo.progress_percentage}
+              height="h-1.5"
+              className="flex-1"
+            />
             <span className="text-[11px] font-medium text-muted-foreground flex-shrink-0 tabular-nums">
               {featureInfo.completed_tasks}/{featureInfo.total_tasks}
             </span>
-            <span className={`text-[11px] font-bold flex-shrink-0 tabular-nums ${
-              progressPct >= 100 ? 'text-green-500' : 'text-muted-foreground'
-            }`}>
+            <span
+              className={`text-[11px] font-bold flex-shrink-0 tabular-nums ${
+                progressPct >= 100 ? "text-green-500" : "text-muted-foreground"
+              }`}
+            >
               {progressPct}%
             </span>
           </div>
@@ -222,7 +252,8 @@ function FeatureCard({
             {featureTasks.length > 3 && (
               <div className="pt-1">
                 <span className="text-[11px] text-muted-foreground hover:text-foreground/70 transition-colors">
-                  +{featureTasks.length - 3} {t('common.more', { defaultValue: 'more' })}
+                  +{featureTasks.length - 3}{" "}
+                  {t("common.more", { defaultValue: "more" })}
                 </span>
               </div>
             )}
@@ -230,7 +261,8 @@ function FeatureCard({
         ) : (
           <div className="border-t border-foreground/5 pt-2">
             <span className="text-[11px] text-muted-foreground">
-              {featureInfo.total_tasks} {t('common.tasks', { defaultValue: 'tasks' })}
+              {featureInfo.total_tasks}{" "}
+              {t("common.tasks", { defaultValue: "tasks" })}
             </span>
           </div>
         )}
@@ -257,34 +289,9 @@ export function MilestoneView({
   const { t } = useTranslation();
 
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(
-    () => new Set(milestones.map((m) => m.id))
+    new Set(),
   );
   const [detailCache, setDetailCache] = useState<MilestoneDetailCache>({});
-
-  // Load details for all milestones on mount (since they default to expanded)
-  useEffect(() => {
-    milestones.forEach(async (milestone) => {
-      if (detailCache[milestone.id]) return;
-      setDetailCache((prev) => ({
-        ...prev,
-        [milestone.id]: { features: [], loading: true },
-      }));
-      try {
-        const detail = await milestoneService.getMilestone(boardId, milestone.id);
-        setDetailCache((prev) => ({
-          ...prev,
-          [milestone.id]: { features: detail.features || [], loading: false },
-        }));
-      } catch (error) {
-        console.warn('Failed to load milestone detail:', error);
-        setDetailCache((prev) => ({
-          ...prev,
-          [milestone.id]: { features: [], loading: false },
-        }));
-      }
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boardId, milestones.length]);
 
   const toggleMilestone = useCallback(
     async (milestoneId: string) => {
@@ -305,7 +312,10 @@ export function MilestoneView({
         }));
 
         try {
-          const detail = await milestoneService.getMilestone(boardId, milestoneId);
+          const detail = await milestoneService.getMilestone(
+            boardId,
+            milestoneId,
+          );
           setDetailCache((prev) => ({
             ...prev,
             [milestoneId]: {
@@ -314,7 +324,7 @@ export function MilestoneView({
             },
           }));
         } catch (error) {
-          console.warn('Failed to load milestone detail:', error);
+          console.warn("Failed to load milestone detail:", error);
           setDetailCache((prev) => ({
             ...prev,
             [milestoneId]: { features: [], loading: false },
@@ -322,7 +332,7 @@ export function MilestoneView({
         }
       }
     },
-    [boardId, detailCache, expandedMilestones]
+    [boardId, detailCache, expandedMilestones],
   );
 
   const handleExpandAll = useCallback(() => {
@@ -336,7 +346,10 @@ export function MilestoneView({
         [milestone.id]: { features: [], loading: true },
       }));
       try {
-        const detail = await milestoneService.getMilestone(boardId, milestone.id);
+        const detail = await milestoneService.getMilestone(
+          boardId,
+          milestone.id,
+        );
         setDetailCache((prev) => ({
           ...prev,
           [milestone.id]: { features: detail.features || [], loading: false },
@@ -354,7 +367,22 @@ export function MilestoneView({
     setExpandedMilestones(new Set());
   }, []);
 
-  const allExpanded = expandedMilestones.size === milestones.length && milestones.length > 0;
+  const allExpanded =
+    expandedMilestones.size === milestones.length && milestones.length > 0;
+
+  // W 단축키: bridge:toggleExpandCollapse 이벤트 리스너
+  useEffect(() => {
+    const handler = () => {
+      if (allExpanded) {
+        handleCollapseAll();
+      } else {
+        handleExpandAll();
+      }
+    };
+    window.addEventListener("bridge:toggleExpandCollapse", handler);
+    return () =>
+      window.removeEventListener("bridge:toggleExpandCollapse", handler);
+  }, [allExpanded, handleExpandAll, handleCollapseAll]);
 
   // 여러 마일스톤에 걸쳐 있는 피쳐 ID → 등장 횟수
   const multiMilestoneFeatureMap = useMemo(() => {
@@ -375,7 +403,9 @@ export function MilestoneView({
 
   const sortedMilestones = useMemo(() => {
     return [...milestones].sort((a, b) => {
-      return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+      return (
+        new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+      );
     });
   }, [milestones]);
 
@@ -390,11 +420,14 @@ export function MilestoneView({
           <Flag className="h-8 w-8 text-muted-foreground" />
         </div>
         <h3 className="text-lg font-bold text-foreground mb-2">
-          {t('milestone.onboardingTitle', { defaultValue: 'Manage your project with milestones' })}
+          {t("milestone.onboardingTitle", {
+            defaultValue: "Manage your project with milestones",
+          })}
         </h3>
         <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
-          {t('milestone.onboardingDesc', {
-            defaultValue: 'Group features into milestones to track schedules and progress at a glance.',
+          {t("milestone.onboardingDesc", {
+            defaultValue:
+              "Group features into milestones to track schedules and progress at a glance.",
           })}
         </p>
         {onCreateMilestone && (
@@ -403,7 +436,7 @@ export function MilestoneView({
             className="flex items-center gap-2 px-5 py-2.5 bg-bridge-accent text-white rounded-xl font-bold text-sm hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all"
           >
             <Plus className="h-4 w-4" />
-            {t('milestone.createFirst', { defaultValue: '마일스톤 만들기' })}
+            {t("milestone.createFirst", { defaultValue: "마일스톤 만들기" })}
           </button>
         )}
       </div>
@@ -416,7 +449,14 @@ export function MilestoneView({
 
   const handleDeleteClick = (e: React.MouseEvent, milestoneId: string) => {
     e.stopPropagation();
-    if (onDeleteMilestone && confirm(t('milestone.deleteConfirm', { defaultValue: '이 마일스톤을 삭제하시겠습니까?' }))) {
+    if (
+      onDeleteMilestone &&
+      confirm(
+        t("milestone.deleteConfirm", {
+          defaultValue: "이 마일스톤을 삭제하시겠습니까?",
+        }),
+      )
+    ) {
       onDeleteMilestone(milestoneId);
     }
   };
@@ -433,7 +473,10 @@ export function MilestoneView({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Flag className="h-4 w-4" />
-            <span>{milestones.length} {t('milestone.count', { defaultValue: '개 마일스톤' })}</span>
+            <span>
+              {milestones.length}{" "}
+              {t("milestone.count", { defaultValue: "개 마일스톤" })}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             {/* 모두 펼치기/닫기 */}
@@ -441,18 +484,22 @@ export function MilestoneView({
               <button
                 onClick={handleExpandAll}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
-                title={t('kanban.expandAll', { defaultValue: '모두 펼치기' })}
+                title={t("kanban.expandAll", { defaultValue: "모두 펼치기" })}
               >
                 <ChevronsUpDown className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{t('kanban.expand', { defaultValue: '펼치기' })}</span>
+                <span className="hidden sm:inline">
+                  {t("kanban.expand", { defaultValue: "펼치기" })}
+                </span>
               </button>
               <button
                 onClick={handleCollapseAll}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
-                title={t('kanban.collapseAll', { defaultValue: '모두 닫기' })}
+                title={t("kanban.collapseAll", { defaultValue: "모두 닫기" })}
               >
                 <ChevronsDownUp className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{t('kanban.collapse', { defaultValue: '닫기' })}</span>
+                <span className="hidden sm:inline">
+                  {t("kanban.collapse", { defaultValue: "닫기" })}
+                </span>
               </button>
             </div>
             <button
@@ -460,7 +507,7 @@ export function MilestoneView({
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.2)] transition-all"
             >
               <Plus className="h-3.5 w-3.5" />
-              {t('milestone.create', { defaultValue: '마일스톤 추가' })}
+              {t("milestone.create", { defaultValue: "마일스톤 추가" })}
             </button>
           </div>
         </div>
@@ -510,7 +557,8 @@ export function MilestoneView({
               <div className="hidden md:flex items-center gap-4 text-xs text-muted-foreground flex-shrink-0">
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5" />
-                  {formatDateShort(milestone.start_date)} ~ {formatDateShort(milestone.end_date)}
+                  {formatDateShort(milestone.start_date)} ~{" "}
+                  {formatDateShort(milestone.end_date)}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Layers className="h-3.5 w-3.5" />
@@ -521,7 +569,10 @@ export function MilestoneView({
               {/* Progress right */}
               <div className="flex items-center gap-3 flex-shrink-0">
                 <div className="w-24 hidden sm:block">
-                  <ProgressBar percentage={milestone.progress_percentage} height="h-1.5" />
+                  <ProgressBar
+                    percentage={milestone.progress_percentage}
+                    height="h-1.5"
+                  />
                 </div>
                 <span className="text-sm font-bold text-foreground tabular-nums w-10 text-right">
                   {Math.round(milestone.progress_percentage)}%
@@ -536,9 +587,15 @@ export function MilestoneView({
                       role="button"
                       tabIndex={0}
                       onClick={(e) => handleEditClick(e, milestone)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleEditClick(e as unknown as React.MouseEvent, milestone); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter")
+                          handleEditClick(
+                            e as unknown as React.MouseEvent,
+                            milestone,
+                          );
+                      }}
                       className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-colors"
-                      title={t('common.edit', { defaultValue: '수정' })}
+                      title={t("common.edit", { defaultValue: "수정" })}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </div>
@@ -548,9 +605,15 @@ export function MilestoneView({
                       role="button"
                       tabIndex={0}
                       onClick={(e) => handleDeleteClick(e, milestone.id)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleDeleteClick(e as unknown as React.MouseEvent, milestone.id); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter")
+                          handleDeleteClick(
+                            e as unknown as React.MouseEvent,
+                            milestone.id,
+                          );
+                      }}
                       className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                      title={t('common.delete', { defaultValue: '삭제' })}
+                      title={t("common.delete", { defaultValue: "삭제" })}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </div>
@@ -564,7 +627,7 @@ export function MilestoneView({
               {isExpanded && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
+                  animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
@@ -574,29 +637,45 @@ export function MilestoneView({
                       <div className="flex items-center justify-center py-8">
                         <div className="h-5 w-5 border-2 border-bridge-accent/30 border-t-bridge-accent rounded-full animate-spin" />
                         <span className="ml-3 text-sm text-muted-foreground">
-                          {t('common.loading', { defaultValue: 'Loading...' })}
+                          {t("common.loading", { defaultValue: "Loading..." })}
                         </span>
                       </div>
                     ) : milestoneFeatures.length > 0 ? (
                       <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                        {[...milestoneFeatures].sort((a, b) => (multiMilestoneFeatureMap.get(b.id) || 0) - (multiMilestoneFeatureMap.get(a.id) || 0)).map((featureInfo) => (
-                          <FeatureCard
-                            key={featureInfo.id}
-                            featureInfo={featureInfo}
-                            tasks={tasks}
-                            milestoneCount={multiMilestoneFeatureMap.get(featureInfo.id)}
-                            onClick={onFeatureClick ? () => {
-                              const feature = features.find(f => f.id === featureInfo.id);
-                              if (feature) onFeatureClick(feature);
-                            } : undefined}
-                          />
-                        ))}
+                        {[...milestoneFeatures]
+                          .sort(
+                            (a, b) =>
+                              (multiMilestoneFeatureMap.get(b.id) || 0) -
+                              (multiMilestoneFeatureMap.get(a.id) || 0),
+                          )
+                          .map((featureInfo) => (
+                            <FeatureCard
+                              key={featureInfo.id}
+                              featureInfo={featureInfo}
+                              tasks={tasks}
+                              milestoneCount={multiMilestoneFeatureMap.get(
+                                featureInfo.id,
+                              )}
+                              onClick={
+                                onFeatureClick
+                                  ? () => {
+                                      const feature = features.find(
+                                        (f) => f.id === featureInfo.id,
+                                      );
+                                      if (feature) onFeatureClick(feature);
+                                    }
+                                  : undefined
+                              }
+                            />
+                          ))}
                       </div>
                     ) : (
                       <div className="flex flex-col items-center py-8 text-muted-foreground">
                         <FileText className="h-6 w-6 mb-2" />
                         <span className="text-sm">
-                          {t('milestone.noFeatures', { defaultValue: 'No linked features' })}
+                          {t("milestone.noFeatures", {
+                            defaultValue: "No linked features",
+                          })}
                         </span>
                       </div>
                     )}

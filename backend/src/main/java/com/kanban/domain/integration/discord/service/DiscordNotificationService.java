@@ -38,7 +38,7 @@ public class DiscordNotificationService {
     // Bridge Accent #6366F1
     private static final int DISCORD_EMBED_COLOR = 0x6366F1;
 
-    @Value("${app.frontend-url:https://bridgespots.com}")
+    @Value("${app.frontend-url}")
     private String frontendUrl;
 
     private String resolveFrontendUrl(String originUrl) {

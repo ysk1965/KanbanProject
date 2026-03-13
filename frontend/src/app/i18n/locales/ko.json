@@ -4365,6 +4365,8 @@
     "resetFilters": "필터 초기화",
     "nextFeature": "다음 Feature",
     "prevFeature": "이전 Feature",
+    "nextTab": "다음 탭으로 이동",
+    "prevTab": "이전 탭으로 이동",
     "showHelp": "단축키 보기",
     "schedTimeblock": "타임블록 뷰",
     "schedCalendar": "캘린더 뷰",

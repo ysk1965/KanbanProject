@@ -4374,6 +4374,8 @@
     "resetFilters": "รีเซ็ตตัวกรอง",
     "nextFeature": "Feature ถัดไป",
     "prevFeature": "Feature ก่อนหน้า",
+    "nextTab": "ไปแท็บถัดไป",
+    "prevTab": "ไปแท็บก่อนหน้า",
     "showHelp": "แสดงแป้นพิมพ์ลัด",
     "statsOverview": "ภาพรวม",
     "statsIndividual": "รายบุคคล",

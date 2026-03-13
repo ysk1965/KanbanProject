@@ -56,7 +56,7 @@ interface DailyScheduleViewProps {
   memberColorMap?: Record<string, string | null>;
   onViewFeature?: (featureId: string) => void;
   onViewTask?: (taskId: string) => void;
-  onViewMeeting?: (meetingId: string) => void;
+  onViewMeeting?: (meetingId: string, date?: Date) => void;
   refreshTrigger?: number;
   wsChecklistEvent?: BoardWebSocketEvent | null;
   currentUserRole?: string;
@@ -127,6 +127,23 @@ export function DailyScheduleView({
   const [expandedChecklists, setExpandedChecklists] = useState<Set<string>>(
     new Set(),
   );
+
+  // W 단축키: bridge:toggleExpandCollapse 이벤트 리스너
+  useEffect(() => {
+    const handler = () => {
+      setExpandedChecklists((prev) => {
+        const allMemberIds = activeMembers.map((m) => m.userId);
+        const allExpanded = allMemberIds.length > 0 && allMemberIds.every((id) => prev.has(id));
+        if (allExpanded) {
+          return new Set<string>();
+        } else {
+          return new Set(allMemberIds);
+        }
+      });
+    };
+    window.addEventListener("bridge:toggleExpandCollapse", handler);
+    return () => window.removeEventListener("bridge:toggleExpandCollapse", handler);
+  }, [activeMembers]);
 
   const [viewMode, setViewMode] = useState<ScheduleViewMode>("day");
   const [selectedDate, setSelectedDate] = useState<Date>(

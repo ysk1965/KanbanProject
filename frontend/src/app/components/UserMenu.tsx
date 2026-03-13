@@ -1,9 +1,16 @@
-import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { CreditCard, LogOut, Settings as SettingsIcon, ChevronDown, User } from 'lucide-react';
-import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
-import { resolveFileUrl } from '../utils/api';
+import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import {
+  CreditCard,
+  LogOut,
+  Settings as SettingsIcon,
+  ChevronDown,
+  User,
+} from "lucide-react";
+import { getInitials, getAssigneeHex } from "../utils/assigneeColor";
+import { resolveFileUrl } from "../utils/api";
+import { useAuth } from "../contexts/AuthContext";
 
 interface UserMenuProps {
   user: {
@@ -19,11 +26,19 @@ interface UserMenuProps {
   hideMySpace?: boolean;
 }
 
-export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hideBilling, hideMySpace }: UserMenuProps) {
+export function UserMenu({
+  user,
+  assigneeColor,
+  onOpenSubscription,
+  onLogout,
+  hideBilling,
+  hideMySpace,
+}: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { isRestricted } = useAuth();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -33,11 +48,11 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hi
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
 
@@ -57,13 +72,19 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hi
         ) : (
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-white font-medium"
-            style={{ backgroundColor: getAssigneeHex(user.name, assigneeColor) }}
+            style={{
+              backgroundColor: getAssigneeHex(user.name, assigneeColor),
+            }}
           >
             {getInitials(user.name)}
           </div>
         )}
-        <span className="text-sm text-foreground/80 hidden md:block">{user.name}</span>
-        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="text-sm text-foreground/80 hidden md:block">
+          {user.name}
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
+        />
       </button>
 
       {/* 드롭다운 메뉴 */}
@@ -77,28 +98,28 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hi
 
           {/* 메뉴 아이템 */}
           <div className="py-2">
-            {!hideMySpace && !window.location.hostname.includes('milkyway.pe.kr') && (
+            {!hideMySpace && !isRestricted && (
               <button
                 onClick={() => {
-                  navigate('/my-board');
+                  navigate("/my-board");
                   setIsOpen(false);
                 }}
                 className="w-full px-4 py-2 flex items-center gap-3 hover:bg-foreground/5 transition-colors text-muted-foreground hover:text-foreground"
               >
                 <User className="h-4 w-4" />
-                <span>{t('dashboard.sidebar.myBoard', 'My Space')}</span>
+                <span>{t("dashboard.sidebar.myBoard", "My Space")}</span>
               </button>
             )}
 
             <button
               onClick={() => {
-                navigate('/settings');
+                navigate("/settings");
                 setIsOpen(false);
               }}
               className="w-full px-4 py-2 flex items-center gap-3 hover:bg-foreground/5 transition-colors text-muted-foreground hover:text-foreground"
             >
               <SettingsIcon className="h-4 w-4" />
-              <span>{t('user.settings')}</span>
+              <span>{t("user.settings")}</span>
             </button>
 
             {!hideBilling && (
@@ -110,7 +131,7 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hi
                 className="w-full px-4 py-2 flex items-center gap-3 hover:bg-foreground/5 transition-colors text-muted-foreground hover:text-foreground"
               >
                 <CreditCard className="h-4 w-4" />
-                <span>{t('user.subscription')}</span>
+                <span>{t("user.subscription")}</span>
               </button>
             )}
           </div>
@@ -125,7 +146,7 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hi
               className="w-full px-4 py-2 flex items-center gap-3 hover:bg-red-600/20 transition-colors text-red-400 hover:text-red-300"
             >
               <LogOut className="h-4 w-4" />
-              <span>{t('user.logout')}</span>
+              <span>{t("user.logout")}</span>
             </button>
           </div>
         </div>

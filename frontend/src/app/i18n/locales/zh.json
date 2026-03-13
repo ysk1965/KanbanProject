@@ -3884,6 +3884,8 @@
     "resetFilters": "重置所有筛选",
     "nextFeature": "下一个Feature",
     "prevFeature": "上一个Feature",
+    "nextTab": "切换到下一个标签",
+    "prevTab": "切换到上一个标签",
     "showHelp": "显示快捷键",
     "statsOverview": "概览视图",
     "statsIndividual": "个人视图",
