@@ -132,8 +132,8 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
            "JOIN FETCH t.feature f " +
            "LEFT JOIN FETCH c.assignee a " +
            "WHERE t.board.id = :boardId " +
-           "AND (:startDate IS NULL OR c.dueDate >= :startDate OR c.startDate >= :startDate) " +
-           "AND (:endDate IS NULL OR c.startDate <= :endDate OR c.dueDate <= :endDate) " +
+           "AND (CAST(:startDate AS date) IS NULL OR c.dueDate >= :startDate OR c.startDate >= :startDate) " +
+           "AND (CAST(:endDate AS date) IS NULL OR c.startDate <= :endDate OR c.dueDate <= :endDate) " +
            "ORDER BY a.id ASC NULLS LAST, t.id ASC, c.position ASC")
     List<ChecklistItem> findByBoardIdAndDateRange(
             @Param("boardId") String boardId,
