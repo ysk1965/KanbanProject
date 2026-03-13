@@ -1039,9 +1039,9 @@ export function DailyScheduleView({ boardId, boardMembers, organizationId, membe
         )}
       </div>
 
-      {/* 타임블록 스케줄 그리드 */}
-      <>
-      <div className="flex-1 overflow-auto custom-scrollbar">
+      {/* 타임블록 스케줄 그리드 + 상세 패널 */}
+      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 overflow-auto custom-scrollbar min-w-0">
         {viewMode === 'day' ? (
           /* 일 단위 뷰 */
           <div className="min-w-max">
@@ -1507,19 +1507,6 @@ export function DailyScheduleView({ boardId, boardMembers, organizationId, membe
         )}
       </div>
 
-      {/* 하단 안내 */}
-      <div className="px-3 md:px-6 py-2 md:py-3 bg-bridge-surface border-t border-bridge-border">
-        <p className="text-sm text-slate-400">
-          {isViewer
-            ? t('dailySchedule.viewerGuide')
-            : viewMode === 'day'
-            ? t('dailySchedule.dragGuide')
-            : t('dailySchedule.clickGuide')
-          }
-        </p>
-      </div>
-      </>
-
       {/* 블록 상세 패널 */}
       {selectedBlock && (
         <ScheduleDetailPanel
@@ -1536,6 +1523,19 @@ export function DailyScheduleView({ boardId, boardMembers, organizationId, membe
           onViewTask={onViewTask}
         />
       )}
+      </div>
+
+      {/* 하단 안내 */}
+      <div className="px-3 md:px-6 py-2 md:py-3 bg-bridge-surface border-t border-bridge-border">
+        <p className="text-sm text-slate-400">
+          {isViewer
+            ? t('dailySchedule.viewerGuide')
+            : viewMode === 'day'
+            ? t('dailySchedule.dragGuide')
+            : t('dailySchedule.clickGuide')
+          }
+        </p>
+      </div>
 
       {/* 체크리스트 모달 (타임블록 탭에서만, 선택 + 생성 통합) */}
       {pendingBlock && showChecklistModal && (

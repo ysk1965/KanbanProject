@@ -2208,6 +2208,10 @@ import {
   ConversionStats,
   DiaryStats,
   PersonalConversionStats,
+  RetentionAnalysis,
+  InactiveUserList,
+  TrialDropoutAnalysis,
+  ActivityTrends,
   AnnouncementDetail,
   MaintenanceStatus,
   BulkCreateResult,
@@ -2436,6 +2440,20 @@ export const adminService = {
     days: number = 365,
   ): Promise<PersonalConversionStats> => {
     return await adminAPI.getPersonalConversionStats(days);
+  },
+
+  // Churn Analysis
+  getRetentionAnalysis: async (weeks: number = 8): Promise<RetentionAnalysis> => {
+    return await adminAPI.getRetentionAnalysis(weeks);
+  },
+  getInactiveUsers: async (inactiveDays: number = 14, page: number = 0, size: number = 20): Promise<InactiveUserList> => {
+    return await adminAPI.getInactiveUsers(inactiveDays, page, size);
+  },
+  getTrialDropoutAnalysis: async (days: number = 90): Promise<TrialDropoutAnalysis> => {
+    return await adminAPI.getTrialDropoutAnalysis(days);
+  },
+  getActivityTrends: async (days: number = 90): Promise<ActivityTrends> => {
+    return await adminAPI.getActivityTrends(days);
   },
 
   // 공지사항 관리

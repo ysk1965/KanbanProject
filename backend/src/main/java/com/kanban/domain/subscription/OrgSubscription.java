@@ -292,6 +292,10 @@ public class OrgSubscription {
         this.monthlyCreditsUsed = safeCredits(this.monthlyCreditsUsed) + amount;
     }
 
+    public void refundCredits(int amount) {
+        this.monthlyCreditsUsed = Math.max(0, safeCredits(this.monthlyCreditsUsed) - amount);
+    }
+
     public void resetMonthlyCredits() {
         this.monthlyCreditsUsed = 0;
         this.creditsResetDate = LocalDateTime.now(ZoneOffset.UTC).plusMonths(1);

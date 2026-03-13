@@ -2438,6 +2438,38 @@ export interface BoardChecklistResponse {
   items: BoardChecklistItemResponse[];
 }
 
+// ChecklistItem by-assignee 조회 응답 타입 (UC-001)
+export interface AssigneeItemResponse {
+  id: string;
+  title: string;
+  completed: boolean;
+  start_date: string | null;
+  due_date: string | null;
+  task: {
+    id: string;
+    title: string;
+  } | null;
+  feature: {
+    id: string;
+    title: string;
+    color: string;
+  } | null;
+}
+
+export interface AssigneeGroupResponse {
+  assignee: {
+    id: string;
+    name: string;
+    profile_image: string | null;
+  };
+  items: AssigneeItemResponse[];
+}
+
+export interface ChecklistByAssigneeResponse {
+  assignees: AssigneeGroupResponse[];
+  unassigned: AssigneeItemResponse[];
+}
+
 // ========================================
 // Schedule API
 // ========================================
@@ -2731,7 +2763,7 @@ export const meetingAPI = {
     boardId: string,
     meetingId: string,
     audioBlob: Blob,
-  ): Promise<TranscriptResult> => {
+  ): Promise<void> => {
     const formData = new FormData();
     formData.append("file", audioBlob, "recording.webm");
 
@@ -2751,7 +2783,7 @@ export const meetingAPI = {
       throw errData;
     }
 
-    return response.json();
+    // 202 Accepted — result delivered via WebSocket (TRANSCRIPTION_COMPLETE)
   },
 
   updateTranscript: async (
@@ -2811,6 +2843,22 @@ export const boardChecklistAPI = {
     const queryString = query.toString();
     return apiClient.get<BoardChecklistResponse>(
       `/boards/${boardId}/checklist-items${queryString ? `?${queryString}` : ""}`,
+    );
+  },
+
+  getItemsByAssignee: async (
+    boardId: string,
+    params?: {
+      start_date?: string;
+      end_date?: string;
+    },
+  ) => {
+    const query = new URLSearchParams();
+    if (params?.start_date) query.set("startDate", params.start_date);
+    if (params?.end_date) query.set("endDate", params.end_date);
+    const queryString = query.toString();
+    return apiClient.get<ChecklistByAssigneeResponse>(
+      `/boards/${boardId}/checklist-items/by-assignee${queryString ? `?${queryString}` : ""}`,
     );
   },
 };
@@ -3720,6 +3768,84 @@ export interface PersonalConversionStats {
   trend: { date: string; count: number }[];
 }
 
+// ==================== Churn Analysis Types ====================
+
+export interface CohortData {
+  cohort_week: string;
+  signup_count: number;
+  retention: number[];
+}
+
+export interface RetentionAnalysis {
+  cohorts: CohortData[];
+  average_retention: number[];
+}
+
+export interface InactiveUser {
+  id: string;
+  name: string;
+  email: string;
+  profile_image: string | null;
+  created_at: string;
+  last_active_at: string | null;
+  inactive_days: number;
+  board_count: number;
+  last_action: string | null;
+  last_action_at: string | null;
+}
+
+export interface InactiveSummary {
+  inactive_7d: number;
+  inactive_14d: number;
+  inactive_30d: number;
+}
+
+export interface InactiveUserList {
+  users: InactiveUser[];
+  total: number;
+  page: number;
+  size: number;
+  summary: InactiveSummary;
+}
+
+export interface DayDropout {
+  trial_day: number;
+  count: number;
+  percentage: number;
+}
+
+export interface TrialActionStat {
+  action: string;
+  count: number;
+  percentage: number;
+}
+
+export interface TrialDropoutAnalysis {
+  total_expired_trials: number;
+  dropout_by_day: DayDropout[];
+  actions_before_dropout: TrialActionStat[];
+  never_acted_count: number;
+  never_acted_percentage: number;
+}
+
+export interface WeeklyActivity {
+  week: string;
+  total_actions: number;
+  active_users: number;
+}
+
+export interface FeatureUsageStat {
+  action: string;
+  count: number;
+  unique_users: number;
+}
+
+export interface ActivityTrends {
+  weekly_activity: WeeklyActivity[];
+  activity_change_rate: number;
+  feature_usage: FeatureUsageStat[];
+}
+
 // Announcement Types
 export interface AnnouncementDetail {
   id: string;
@@ -4225,6 +4351,22 @@ export const adminAPI = {
     return apiClient.get<PersonalConversionStats>(
       `/admin/statistics/personal-conversion?days=${days}`,
     );
+  },
+
+  // Churn Analysis
+  getRetentionAnalysis: async (weeks: number = 8) => {
+    return apiClient.get<RetentionAnalysis>(`/admin/statistics/churn/retention?weeks=${weeks}`);
+  },
+  getInactiveUsers: async (inactiveDays: number = 14, page: number = 0, size: number = 20) => {
+    return apiClient.get<InactiveUserList>(
+      `/admin/statistics/churn/inactive-users?inactive_days=${inactiveDays}&page=${page}&size=${size}`,
+    );
+  },
+  getTrialDropoutAnalysis: async (days: number = 90) => {
+    return apiClient.get<TrialDropoutAnalysis>(`/admin/statistics/churn/trial-dropout?days=${days}`);
+  },
+  getActivityTrends: async (days: number = 90) => {
+    return apiClient.get<ActivityTrends>(`/admin/statistics/churn/activity-trends?days=${days}`);
   },
 
   // 구독 목록 조회

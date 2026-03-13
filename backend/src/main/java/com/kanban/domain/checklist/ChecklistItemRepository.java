@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -116,6 +117,28 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     @Modifying
     @Query("DELETE FROM ChecklistItem ci WHERE ci.task.feature.id = :featureId")
     void deleteByFeatureId(@Param("featureId") String featureId);
+
+    // ==================== Schedule Calendar / Resource View Queries ====================
+
+    /**
+     * 보드 내 체크리스트를 담당자별로 조회 (캘린더/리소스 뷰용)
+     * - Task와 Feature를 JOIN FETCH하여 N+1 방지
+     * - startDate/endDate가 null이면 전체 조회
+     * - 날짜 조건: start_date 또는 due_date가 지정 범위 내에 있는 항목 포함
+     *   (날짜 없는 미배정 항목은 unassigned로 별도 처리하므로 제외하지 않음)
+     */
+    @Query("SELECT c FROM ChecklistItem c " +
+           "JOIN FETCH c.task t " +
+           "JOIN FETCH t.feature f " +
+           "LEFT JOIN FETCH c.assignee a " +
+           "WHERE t.board.id = :boardId " +
+           "AND (:startDate IS NULL OR c.dueDate >= :startDate OR c.startDate >= :startDate) " +
+           "AND (:endDate IS NULL OR c.startDate <= :endDate OR c.dueDate <= :endDate) " +
+           "ORDER BY a.id ASC NULLS LAST, t.id ASC, c.position ASC")
+    List<ChecklistItem> findByBoardIdAndDateRange(
+            @Param("boardId") String boardId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 
     // ==================== Organization Insights Queries ====================
 

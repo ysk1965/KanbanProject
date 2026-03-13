@@ -1,35 +1,73 @@
-import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Task, Tag, ChecklistItem, User, Block, Feature, BoardWebSocketEvent } from '../types';
-import { checklistAPI, taskAPI, scheduleAPI, ScheduleBlockDetailResponse } from '../utils/api';
-import { BoardMember } from './ShareBoardModal';
-import { MotionModal } from './ui/MotionModal';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Textarea } from './ui/textarea';
-import { Label } from './ui/label';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  Task,
+  Tag,
+  ChecklistItem,
+  User,
+  Block,
+  Feature,
+  BoardWebSocketEvent,
+} from "../types";
+import {
+  checklistAPI,
+  taskAPI,
+  scheduleAPI,
+  ScheduleBlockDetailResponse,
+} from "../utils/api";
+import { BoardMember } from "./ShareBoardModal";
+import { MotionModal } from "./ui/MotionModal";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
+import { Label } from "./ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './ui/select';
-import { Badge } from './ui/badge';
-import { Calendar } from './ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { X, Plus, Trash2, Clock, CheckSquare, CalendarIcon, FileText, Tags, Users, Layers, Pencil, CheckCircle2, Undo2, ChevronDown, ChevronRight, Loader2, MessageSquare, Lightbulb, ArrowRightLeft, GripVertical, ArrowRight, Copy, Sparkles, AlertCircle } from 'lucide-react';
-import { TaskMoveModal } from './TaskMoveModal';
-import { TaskAIChecklistModal } from './TaskAIChecklistModal';
-import { CommentPanel } from './CommentPanel';
-import { TagPickerPopover } from './TagPickerPopover';
-import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
-import { isDomainAIHidden } from '../utils/domain';
-import { Progress } from './ui/progress';
-import { DateRange } from 'react-day-picker';
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
-import { getTodayDateString } from '../utils/dateUtils';
+} from "./ui/select";
+import { Badge } from "./ui/badge";
+import { Calendar } from "./ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import {
+  X,
+  Plus,
+  Trash2,
+  Clock,
+  CheckSquare,
+  CalendarIcon,
+  FileText,
+  Tags,
+  Users,
+  Layers,
+  Pencil,
+  CheckCircle2,
+  Undo2,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  MessageSquare,
+  Lightbulb,
+  ArrowRightLeft,
+  GripVertical,
+  ArrowRight,
+  Copy,
+  Sparkles,
+  AlertCircle,
+} from "lucide-react";
+import { TaskMoveModal } from "./TaskMoveModal";
+import { TaskAIChecklistModal } from "./TaskAIChecklistModal";
+import { CommentPanel } from "./CommentPanel";
+import { TagPickerPopover } from "./TagPickerPopover";
+import { getAssigneeClasses, getInitials } from "../utils/assigneeColor";
+import { isDomainAIHidden } from "../utils/domain";
+import { Progress } from "./ui/progress";
+import { DateRange } from "react-day-picker";
+import { format } from "date-fns";
+import { ko } from "date-fns/locale";
+import { getTodayDateString } from "../utils/dateUtils";
 import {
   DndContext,
   closestCenter,
@@ -38,16 +76,19 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-} from '@dnd-kit/core';
-import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
+} from "@dnd-kit/core";
+import {
+  restrictToVerticalAxis,
+  restrictToParentElement,
+} from "@dnd-kit/modifiers";
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface TaskDetailModalProps {
   task: Task | null;
@@ -58,13 +99,20 @@ interface TaskDetailModalProps {
   onMoveToDone?: (taskId: string) => void;
   onMoveToBlock?: (taskId: string, blockId: string) => void;
   onMoveToFeature?: (taskId: string, featureId: string) => void;
-  onMoveChecklistToTask?: (checklistItemId: string, sourceTaskId: string, targetTaskId: string) => void;
+  onMoveChecklistToTask?: (
+    checklistItemId: string,
+    sourceTaskId: string,
+    targetTaskId: string,
+  ) => void;
   blocks?: Block[];
   features?: Feature[];
   allTasks?: Task[];
   availableTags: Tag[];
   onCreateTag: (name: string, color: string) => Promise<string | undefined>;
-  onUpdateTag: (tagId: string, data: { name?: string; color?: string }) => Promise<void>;
+  onUpdateTag: (
+    tagId: string,
+    data: { name?: string; color?: string },
+  ) => Promise<void>;
   onDeleteTag: (tagId: string) => Promise<void>;
   boardMembers: BoardMember[];
   currentUser: User | null;
@@ -111,40 +159,50 @@ export function TaskDetailModal({
   // 변경사항 추적
   const [initialTask, setInitialTask] = useState<Task | null>(null);
   const [editedTask, setEditedTask] = useState<Task | null>(null);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDoneDialog, setShowDoneDialog] = useState(false);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [showMoveFeatureDialog, setShowMoveFeatureDialog] = useState(false);
-  const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null);
+  const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(
+    null,
+  );
   const [showMoveChecklistDialog, setShowMoveChecklistDialog] = useState(false);
-  const [moveChecklistItemId, setMoveChecklistItemId] = useState<string | null>(null);
-  const [selectedTargetTaskId, setSelectedTargetTaskId] = useState<string | null>(null);
-  const [checklistMoveSearch, setChecklistMoveSearch] = useState('');
+  const [moveChecklistItemId, setMoveChecklistItemId] = useState<string | null>(
+    null,
+  );
+  const [selectedTargetTaskId, setSelectedTargetTaskId] = useState<
+    string | null
+  >(null);
+  const [checklistMoveSearch, setChecklistMoveSearch] = useState("");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [moveCopyMode, setMoveCopyMode] = useState<'move' | 'copy' | null>(null);
+  const [moveCopyMode, setMoveCopyMode] = useState<"move" | "copy" | null>(
+    null,
+  );
   const [showAIConfirm, setShowAIConfirm] = useState(false);
   const [showAIChecklist, setShowAIChecklist] = useState(false);
 
   // 체크리스트 상태
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
-  const [checklistItemToDelete, setChecklistItemToDelete] = useState<string | null>(null);
-  const [checklistTimeBlocksMap, setChecklistTimeBlocksMap] = useState<Record<string, ScheduleBlockDetailResponse[]>>({});
+  const [checklistItemToDelete, setChecklistItemToDelete] = useState<
+    string | null
+  >(null);
+  const [checklistTimeBlocksMap, setChecklistTimeBlocksMap] = useState<
+    Record<string, ScheduleBlockDetailResponse[]>
+  >({});
 
   useEffect(() => {
     if (task && open) {
       setInitialTask(JSON.parse(JSON.stringify(task)));
       setEditedTask(JSON.parse(JSON.stringify(task)));
-      setHasChanges(false);
       setIsEditingTitle(false);
       setChecklistItems([]); // 체크리스트 초기화
 
       // 체크리스트 API 로드
       if (boardId) {
         setChecklistTimeBlocksMap({});
-        checklistAPI.getChecklist(boardId, task.id)
+        checklistAPI
+          .getChecklist(boardId, task.id)
           .then((response) => {
             const rawItems = response.items || [];
             const items: ChecklistItem[] = rawItems.map((item) => ({
@@ -155,17 +213,25 @@ export function TaskDetailModal({
               start_date: item.start_date,
               due_date: item.due_date,
               done_date: item.done_date,
-              assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name, profile_image: item.assignee.profile_image } : null,
+              assignee: item.assignee
+                ? {
+                    id: item.assignee.id,
+                    name: item.assignee.name,
+                    profile_image: item.assignee.profile_image,
+                  }
+                : null,
             }));
             setChecklistItems(items);
 
             // 벌크로 스케줄 블록 로드 (N+1 → 1회 호출)
             if (items.length > 0) {
               const itemIds = items.map((i) => i.id);
-              scheduleAPI.getByChecklistItems(boardId!, itemIds)
+              scheduleAPI
+                .getByChecklistItems(boardId!, itemIds)
                 .then((result) => {
                   // 모든 아이템에 대해 키가 존재하도록 보장 (undefined 방지)
-                  const fullMap: Record<string, ScheduleBlockDetailResponse[]> = {};
+                  const fullMap: Record<string, ScheduleBlockDetailResponse[]> =
+                    {};
                   for (const id of itemIds) {
                     fullMap[id] = result[id] || [];
                   }
@@ -173,7 +239,10 @@ export function TaskDetailModal({
                 })
                 .catch(() => {
                   // 실패 시에도 빈 배열로 초기화하여 스피너 해제
-                  const emptyMap: Record<string, ScheduleBlockDetailResponse[]> = {};
+                  const emptyMap: Record<
+                    string,
+                    ScheduleBlockDetailResponse[]
+                  > = {};
                   for (const id of itemIds) {
                     emptyMap[id] = [];
                   }
@@ -185,19 +254,12 @@ export function TaskDetailModal({
             }
           })
           .catch((error) => {
-            console.error('Failed to load checklist:', error);
+            console.error("Failed to load checklist:", error);
             setChecklistTimeBlocksMap({});
           });
       }
     }
   }, [task, open, boardId]);
-
-  useEffect(() => {
-    if (initialTask && editedTask) {
-      const changed = JSON.stringify(initialTask) !== JSON.stringify(editedTask);
-      setHasChanges(changed);
-    }
-  }, [initialTask, editedTask]);
 
   // WebSocket 체크리스트 이벤트 처리
   useEffect(() => {
@@ -208,34 +270,48 @@ export function TaskDetailModal({
     if (taskId !== task.id) return;
 
     switch (type) {
-      case 'CHECKLIST_TOGGLED':
-      case 'CHECKLIST_UPDATED': {
+      case "CHECKLIST_TOGGLED":
+      case "CHECKLIST_UPDATED": {
         const item = payload.item as ChecklistItem;
-        setChecklistItems(prev => {
-          const newItems = prev.map(ci => ci.id === item.id ? { ...ci, ...item } : ci);
-          const completed = newItems.filter(ci => ci.completed).length;
-          onUpdate({ checklist_total: newItems.length, checklist_completed: completed, checklist_version: Date.now() });
+        setChecklistItems((prev) => {
+          const newItems = prev.map((ci) =>
+            ci.id === item.id ? { ...ci, ...item } : ci,
+          );
+          const completed = newItems.filter((ci) => ci.completed).length;
+          onUpdate({
+            checklist_total: newItems.length,
+            checklist_completed: completed,
+            checklist_version: Date.now(),
+          });
           return newItems;
         });
         break;
       }
-      case 'CHECKLIST_CREATED': {
+      case "CHECKLIST_CREATED": {
         const item = payload.item as ChecklistItem;
-        setChecklistItems(prev => {
-          if (prev.some(ci => ci.id === item.id)) return prev;
+        setChecklistItems((prev) => {
+          if (prev.some((ci) => ci.id === item.id)) return prev;
           const newItems = [...prev, item];
-          const completed = newItems.filter(ci => ci.completed).length;
-          onUpdate({ checklist_total: newItems.length, checklist_completed: completed, checklist_version: Date.now() });
+          const completed = newItems.filter((ci) => ci.completed).length;
+          onUpdate({
+            checklist_total: newItems.length,
+            checklist_completed: completed,
+            checklist_version: Date.now(),
+          });
           return newItems;
         });
         break;
       }
-      case 'CHECKLIST_DELETED': {
+      case "CHECKLIST_DELETED": {
         const deletedId = payload.id as string;
-        setChecklistItems(prev => {
-          const newItems = prev.filter(ci => ci.id !== deletedId);
-          const completed = newItems.filter(ci => ci.completed).length;
-          onUpdate({ checklist_total: newItems.length, checklist_completed: completed, checklist_version: Date.now() });
+        setChecklistItems((prev) => {
+          const newItems = prev.filter((ci) => ci.id !== deletedId);
+          const completed = newItems.filter((ci) => ci.completed).length;
+          onUpdate({
+            checklist_total: newItems.length,
+            checklist_completed: completed,
+            checklist_version: Date.now(),
+          });
           return newItems;
         });
         break;
@@ -243,40 +319,74 @@ export function TaskDetailModal({
     }
   }, [wsChecklistEvent, task, open, onUpdate]);
 
+  // Auto-save: 설명 debounce + 기간 즉시 저장
+  const descriptionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  const autoSaveFields = useCallback(
+    (updates: Partial<Task>) => {
+      onUpdate(updates);
+      setInitialTask((prev) => (prev ? { ...prev, ...updates } : null));
+    },
+    [onUpdate],
+  );
+
+  const handleDescriptionChange = useCallback(
+    (value: string) => {
+      setEditedTask((prev) => (prev ? { ...prev, description: value } : null));
+      if (descriptionTimerRef.current)
+        clearTimeout(descriptionTimerRef.current);
+      descriptionTimerRef.current = setTimeout(() => {
+        autoSaveFields({ description: value });
+      }, 800);
+    },
+    [autoSaveFields],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (descriptionTimerRef.current) {
+        clearTimeout(descriptionTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleDateRangeChange = useCallback(
+    (range: DateRange | undefined) => {
+      const updates = {
+        start_date: range?.from ? format(range.from, "yyyy-MM-dd") : null,
+        due_date: range?.to ? format(range.to, "yyyy-MM-dd") : null,
+      };
+      setEditedTask((prev) => (prev ? { ...prev, ...updates } : null));
+      autoSaveFields(updates);
+    },
+    [autoSaveFields],
+  );
+
+  const handleDateRangeClear = useCallback(() => {
+    const updates = { start_date: null, due_date: null };
+    setEditedTask((prev) => (prev ? { ...prev, ...updates } : null));
+    autoSaveFields(updates);
+  }, [autoSaveFields]);
+
   // 체크리스트 드래그 앤 드롭 (hooks must be before early return)
   const checklistSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
 
   if (!task || !editedTask) return null;
 
   const handleClose = () => {
-    if (hasChanges) {
-      setShowConfirmDialog(true);
-    } else {
-      onClose();
+    // pending description 저장 flush
+    if (descriptionTimerRef.current && editedTask) {
+      clearTimeout(descriptionTimerRef.current);
+      descriptionTimerRef.current = null;
+      autoSaveFields({ description: editedTask.description });
     }
-  };
-
-  const handleSave = () => {
-    if (hasChanges && editedTask) {
-      onUpdate(editedTask);
-      setHasChanges(false);
-    }
-    onClose();
-  };
-
-  const handleDiscardAndClose = () => {
-    setShowConfirmDialog(false);
-    onClose();
-  };
-
-  const handleSaveAndClose = () => {
-    if (editedTask) {
-      onUpdate(editedTask);
-    }
-    setShowConfirmDialog(false);
     onClose();
   };
 
@@ -297,7 +407,7 @@ export function TaskDetailModal({
         // API 호출: POST /boards/{boardId}/tasks/{taskId}/tags
         await taskAPI.addTag(boardId, task.id, tagId);
       } catch (error) {
-        console.error('Failed to add tag:', error);
+        console.error("Failed to add tag:", error);
         // 롤백
         updateEditedTask({ tags: currentTags });
       }
@@ -315,7 +425,7 @@ export function TaskDetailModal({
       // API 호출: DELETE /boards/{boardId}/tasks/{taskId}/tags/{tagId}
       await taskAPI.removeTag(boardId, task.id, tagId);
     } catch (error) {
-      console.error('Failed to remove tag:', error);
+      console.error("Failed to remove tag:", error);
       // 롤백
       updateEditedTask({ tags: currentTags });
     }
@@ -356,22 +466,32 @@ export function TaskDetailModal({
         start_date: response.start_date,
         due_date: response.due_date,
         done_date: response.done_date,
-        assignee: response.assignee ? { id: response.assignee.id, name: response.assignee.name, profile_image: response.assignee.profile_image } : null,
+        assignee: response.assignee
+          ? {
+              id: response.assignee.id,
+              name: response.assignee.name,
+              profile_image: response.assignee.profile_image,
+            }
+          : null,
       };
 
       const newItems = [...checklistItems, newItem];
       setChecklistItems(newItems);
 
       // 새 아이템에 대한 타임블록 맵 초기화 (스피너 방지)
-      setChecklistTimeBlocksMap(prev => ({ ...prev, [newItem.id]: [] }));
+      setChecklistTimeBlocksMap((prev) => ({ ...prev, [newItem.id]: [] }));
 
       // 부모 상태 업데이트 (카드에 반영)
       const newTotal = newItems.length;
-      const newCompleted = newItems.filter(item => item.completed).length;
-      onUpdate({ checklist_total: newTotal, checklist_completed: newCompleted, checklist_version: Date.now() });
+      const newCompleted = newItems.filter((item) => item.completed).length;
+      onUpdate({
+        checklist_total: newTotal,
+        checklist_completed: newCompleted,
+        checklist_version: Date.now(),
+      });
       onChecklistSync?.(task.id, newItems);
     } catch (error) {
-      console.error('Failed to add checklist item:', error);
+      console.error("Failed to add checklist item:", error);
     }
   };
 
@@ -393,35 +513,42 @@ export function TaskDetailModal({
             completed: newCompleted,
             done_date: newCompleted ? today : null, // 완료시 오늘 날짜, 미완료시 null
           }
-        : item
+        : item,
     );
     setChecklistItems(newItems);
 
     try {
       await checklistAPI.toggleItem(boardId, task.id, itemId);
       // API 성공 후 부모 상태 업데이트 (카드 + 스케줄 뷰 반영)
-      const completedCount = newItems.filter(item => item.completed).length;
-      onUpdate({ checklist_total: newItems.length, checklist_completed: completedCount, checklist_version: Date.now() });
+      const completedCount = newItems.filter((item) => item.completed).length;
+      onUpdate({
+        checklist_total: newItems.length,
+        checklist_completed: completedCount,
+        checklist_version: Date.now(),
+      });
       onChecklistSync?.(task.id, newItems);
     } catch (error) {
-      console.error('Failed to toggle checklist item:', error);
+      console.error("Failed to toggle checklist item:", error);
       // 롤백
       setChecklistItems(prevItems);
     }
   };
 
-  const handleUpdateChecklistItem = async (itemId: string, updates: Partial<ChecklistItem>) => {
+  const handleUpdateChecklistItem = async (
+    itemId: string,
+    updates: Partial<ChecklistItem>,
+  ) => {
     if (!boardId || !task) return;
 
     // 낙관적 업데이트
     setChecklistItems(
       checklistItems.map((item) =>
-        item.id === itemId ? { ...item, ...updates } : item
-      )
+        item.id === itemId ? { ...item, ...updates } : item,
+      ),
     );
 
     const updatedItems = checklistItems.map((item) =>
-      item.id === itemId ? { ...item, ...updates } : item
+      item.id === itemId ? { ...item, ...updates } : item,
     );
 
     try {
@@ -435,7 +562,7 @@ export function TaskDetailModal({
       onUpdate({ checklist_version: Date.now() });
       onChecklistSync?.(task.id, updatedItems);
     } catch (error) {
-      console.error('Failed to update checklist item:', error);
+      console.error("Failed to update checklist item:", error);
     }
   };
 
@@ -448,34 +575,53 @@ export function TaskDetailModal({
     setChecklistItems(newItems);
 
     // 부모 task 상태 업데이트
-    const newCompleted = newItems.filter(item => item.completed).length;
-    onUpdate({ checklist_total: newItems.length, checklist_completed: newCompleted, checklist_version: Date.now() });
+    const newCompleted = newItems.filter((item) => item.completed).length;
+    onUpdate({
+      checklist_total: newItems.length,
+      checklist_completed: newCompleted,
+      checklist_version: Date.now(),
+    });
     onChecklistSync?.(task.id, newItems);
 
     try {
       await checklistAPI.deleteItem(boardId, task.id, itemId);
     } catch (error) {
-      console.error('Failed to delete checklist item:', error);
+      console.error("Failed to delete checklist item:", error);
       // 롤백
       setChecklistItems(originalItems);
-      const rolledBackCompleted = originalItems.filter(item => item.completed).length;
-      onUpdate({ checklist_total: originalItems.length, checklist_completed: rolledBackCompleted, checklist_version: Date.now() });
+      const rolledBackCompleted = originalItems.filter(
+        (item) => item.completed,
+      ).length;
+      onUpdate({
+        checklist_total: originalItems.length,
+        checklist_completed: rolledBackCompleted,
+        checklist_version: Date.now(),
+      });
       onChecklistSync?.(task.id, originalItems);
     }
   };
 
-  const sortedChecklistItems = [...checklistItems].sort((a, b) => a.position - b.position);
+  const sortedChecklistItems = [...checklistItems].sort(
+    (a, b) => a.position - b.position,
+  );
 
   const handleChecklistDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !boardId || !task) return;
 
-    const oldIndex = sortedChecklistItems.findIndex((item) => item.id === active.id);
-    const newIndex = sortedChecklistItems.findIndex((item) => item.id === over.id);
+    const oldIndex = sortedChecklistItems.findIndex(
+      (item) => item.id === active.id,
+    );
+    const newIndex = sortedChecklistItems.findIndex(
+      (item) => item.id === over.id,
+    );
     if (oldIndex === -1 || newIndex === -1) return;
 
     const reordered = arrayMove(sortedChecklistItems, oldIndex, newIndex);
-    const updatedItems = reordered.map((item, idx) => ({ ...item, position: idx }));
+    const updatedItems = reordered.map((item, idx) => ({
+      ...item,
+      position: idx,
+    }));
 
     // 낙관적 업데이트
     setChecklistItems(updatedItems);
@@ -486,7 +632,7 @@ export function TaskDetailModal({
         item_ids: reordered.map((item) => item.id),
       });
     } catch (error) {
-      console.error('Failed to reorder checklist items:', error);
+      console.error("Failed to reorder checklist items:", error);
       // 롤백
       setChecklistItems(checklistItems);
       onChecklistSync?.(task.id, checklistItems);
@@ -494,417 +640,530 @@ export function TaskDetailModal({
   };
 
   // 체크리스트 진행률 계산
-  const completedChecklistCount = checklistItems.filter((item) => item.completed).length;
-  const checklistProgress = checklistItems.length > 0
-    ? Math.round((completedChecklistCount / checklistItems.length) * 100)
-    : 0;
+  const completedChecklistCount = checklistItems.filter(
+    (item) => item.completed,
+  ).length;
+  const checklistProgress =
+    checklistItems.length > 0
+      ? Math.round((completedChecklistCount / checklistItems.length) * 100)
+      : 0;
 
   const taskTags = editedTask.tags || [];
 
   return (
     <>
-      <MotionModal open={open} onClose={handleClose} overlayClose={true} className="sm:max-w-[1100px] max-h-[calc(var(--visual-viewport-height,100vh)*0.85)] flex flex-col overflow-hidden bg-bridge-surface p-0">
-          {/* Feature color accent line */}
-          <div className="h-[3px] w-full flex-shrink-0 rounded-t-lg" style={{ backgroundColor: task.feature_color }} />
-          <div className="flex flex-col md:flex-row flex-1 min-h-0">
+      <MotionModal
+        open={open}
+        onClose={handleClose}
+        overlayClose={true}
+        className="sm:max-w-[1100px] max-h-[calc(var(--visual-viewport-height,100vh)*0.85)] flex flex-col overflow-hidden bg-bridge-surface p-0"
+      >
+        {/* Feature color accent line */}
+        <div
+          className="h-[3px] w-full flex-shrink-0 rounded-t-lg"
+          style={{ backgroundColor: task.feature_color }}
+        />
+        <div className="flex flex-col md:flex-row flex-1 min-h-0">
           {/* 왼쪽: 기존 태스크 상세 */}
           <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-10 custom-scrollbar min-h-0 relative">
-          {/* 모바일 닫기 버튼 */}
-          <button
-            onClick={handleClose}
-            className="md:hidden absolute top-3 right-3 z-10 p-1 rounded-sm opacity-70 hover:opacity-100 transition-opacity text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          <div>
-            {/* 피처 & 블록 상태 표시 */}
-            <div className="flex items-center gap-2 mb-3 flex-wrap">
-              {/* 피처 뱃지 */}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => {
-                    if (onOpenFeature) {
-                      onClose();
-                      onOpenFeature(task.feature_id);
-                    }
-                  }}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${onOpenFeature ? 'cursor-pointer hover:brightness-110 hover:shadow-sm' : 'cursor-default'}`}
-                  style={{ backgroundColor: `${task.feature_color}20`, color: task.feature_color, border: `1px solid ${task.feature_color}40` }}
-                >
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: task.feature_color }} />
-                  {task.feature_title}
-                </button>
-                {canEdit && onMoveToFeature && features.length > 1 && (
-                  <button
-                    onClick={() => setShowMoveFeatureDialog(true)}
-                    className="p-1 rounded-full text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-colors"
-                    title={t('task.moveFeature')}
-                  >
-                    <ArrowRightLeft className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-              {/* 현재 블록 상태 */}
-              {task.block_name && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-foreground/10 text-muted-foreground border border-foreground/10">
-                  <Layers className="h-3 w-3" />
-                  {task.block_name}
-                </div>
-              )}
-            </div>
+            {/* 모바일 닫기 버튼 */}
+            <button
+              onClick={handleClose}
+              className="md:hidden absolute top-3 right-3 z-10 p-1 rounded-sm opacity-70 hover:opacity-100 transition-opacity text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
             <div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 flex-1 group">
-                  {canEdit && isEditingTitle ? (
-                    <Input
-                      value={editedTask.title}
-                      onChange={(e) => updateEditedTask({ title: e.target.value })}
-                      onBlur={() => setIsEditingTitle(false)}
-                      onKeyDown={(e) => {
-                        if (e.nativeEvent.isComposing) return;
-                        if (e.key === 'Enter' || e.key === 'Escape') {
-                          setIsEditingTitle(false);
-                        }
-                      }}
-                      className="text-lg font-semibold border border-foreground/10 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-foreground/5 text-foreground"
-                      autoFocus
-                    />
-                  ) : (
+              {/* 피처 & 블록 상태 표시 */}
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                {/* 피처 뱃지 */}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => {
+                      if (onOpenFeature) {
+                        onClose();
+                        onOpenFeature(task.feature_id);
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${onOpenFeature ? "cursor-pointer hover:brightness-110 hover:shadow-sm" : "cursor-default"}`}
+                    style={{
+                      backgroundColor: `${task.feature_color}20`,
+                      color: task.feature_color,
+                      border: `1px solid ${task.feature_color}40`,
+                    }}
+                  >
                     <div
-                      className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${canEdit ? 'cursor-pointer hover:bg-foreground/5' : ''}`}
-                      onClick={() => canEdit && setIsEditingTitle(true)}
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: task.feature_color }}
+                    />
+                    {task.feature_title}
+                  </button>
+                  {canEdit && onMoveToFeature && features.length > 1 && (
+                    <button
+                      onClick={() => setShowMoveFeatureDialog(true)}
+                      className="p-1 rounded-full text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-colors"
+                      title={t("task.moveFeature")}
                     >
-                      <span className="text-lg font-semibold text-foreground">
-                        {editedTask.title}
-                      </span>
-                      {canEdit && <Pencil className="h-4 w-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
-                    </div>
+                      <ArrowRightLeft className="h-3 w-3" />
+                    </button>
                   )}
                 </div>
-                {canEdit && (
-                  <div className="flex items-center gap-1">
-                    {onMoveToDone && task.block_name !== 'Done' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowDoneDialog(true)}
-                        className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
-                        title={t('task.markComplete')}
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {onMoveToBlock && task.block_name === 'Done' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowMoveDialog(true)}
-                        className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
-                        title={t('task.moveBlock')}
-                      >
-                        <Undo2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setMoveCopyMode('move')}
-                      className="text-slate-400 hover:text-foreground hover:bg-foreground/10"
-                      title={t('task.moveToBoard', '다른 보드로 이동')}
-                    >
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setMoveCopyMode('copy')}
-                      className="text-slate-400 hover:text-foreground hover:bg-foreground/10"
-                      title={t('task.copyToBoard', '다른 보드로 복사')}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowDeleteDialog(true)}
-                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                {/* 현재 블록 상태 */}
+                {task.block_name && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-foreground/10 text-muted-foreground border border-foreground/10">
+                    <Layers className="h-3 w-3" />
+                    {task.block_name}
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-
-          <div className="space-y-5">
-            {/* 설명 섹션 */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-slate-400" />
-                <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{t('task.description')}</Label>
-              </div>
-              <Textarea
-                value={editedTask.description || ''}
-                onChange={(e) => canEdit && updateEditedTask({ description: e.target.value })}
-                placeholder={t('task.noDescription')}
-                rows={5}
-                readOnly={!canEdit}
-                className={`bg-bridge-dark/50 border-bridge-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? 'cursor-default' : ''}`}
-              />
-            </div>
-
-            {/* 기간 섹션 */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4 text-slate-400" />
-                <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{t('task.period')}</Label>
-              </div>
-              {canEdit ? (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full h-10 justify-start text-left font-normal bg-bridge-dark/50 border-bridge-border/30 text-foreground hover:bg-bridge-dark/70 hover:text-foreground"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
-                      {editedTask.start_date || editedTask.due_date ? (
-                        <>
-                          {editedTask.start_date ? format(new Date(editedTask.start_date), 'yyyy. MM. dd.', { locale: ko }) : t('task.startDateTbd')}
-                          {' ~ '}
-                          {editedTask.due_date ? format(new Date(editedTask.due_date), 'yyyy. MM. dd.', { locale: ko }) : t('task.endDateTbd')}
-                        </>
-                      ) : (
-                        <span className="text-slate-400">{t('task.selectDate')}</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-foreground/10" align="start">
-                    <Calendar
-                      mode="range"
-                      selected={{
-                        from: editedTask.start_date ? new Date(editedTask.start_date) : undefined,
-                        to: editedTask.due_date ? new Date(editedTask.due_date) : undefined,
-                      }}
-                      onSelect={(range) => {
-                        updateEditedTask({
-                          start_date: range?.from ? format(range.from, 'yyyy-MM-dd') : null,
-                          due_date: range?.to ? format(range.to, 'yyyy-MM-dd') : null,
-                        });
-                      }}
-                      numberOfMonths={2}
-                      locale={ko}
-                      className="bg-bridge-obsidian text-foreground"
-                    />
-                    {(editedTask.start_date || editedTask.due_date) && (
-                      <div className="p-2 border-t border-foreground/10">
+              <div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 flex-1 group">
+                    {canEdit && isEditingTitle ? (
+                      <Input
+                        value={editedTask.title}
+                        onChange={(e) =>
+                          updateEditedTask({ title: e.target.value })
+                        }
+                        onBlur={() => setIsEditingTitle(false)}
+                        onKeyDown={(e) => {
+                          if (e.nativeEvent.isComposing) return;
+                          if (e.key === "Enter" || e.key === "Escape") {
+                            setIsEditingTitle(false);
+                          }
+                        }}
+                        className="text-lg font-semibold border border-foreground/10 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-foreground/5 text-foreground"
+                        autoFocus
+                      />
+                    ) : (
+                      <div
+                        className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${canEdit ? "cursor-pointer hover:bg-foreground/5" : ""}`}
+                        onClick={() => canEdit && setIsEditingTitle(true)}
+                      >
+                        <span className="text-lg font-semibold text-foreground">
+                          {editedTask.title}
+                        </span>
+                        {canEdit && (
+                          <Pencil className="h-4 w-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {canEdit && (
+                    <div className="flex items-center gap-1">
+                      {onMoveToDone && task.block_name !== "Done" && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                          onClick={() => updateEditedTask({ start_date: null, due_date: null })}
+                          onClick={() => setShowDoneDialog(true)}
+                          className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 gap-1"
+                          title={t("task.markComplete")}
                         >
-                          {t('task.deleteDate')}
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span className="text-xs font-bold">DONE</span>
                         </Button>
-                      </div>
-                    )}
-                  </PopoverContent>
-                </Popover>
-              ) : (
-                <div className="w-full h-10 flex items-center bg-bridge-dark/50 border border-bridge-border/30 rounded-md px-3 text-foreground opacity-70">
-                  <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
-                  {editedTask.start_date || editedTask.due_date ? (
-                    <>
-                      {editedTask.start_date ? format(new Date(editedTask.start_date), 'yyyy. MM. dd.', { locale: ko }) : t('task.startDateTbd')}
-                      {' ~ '}
-                      {editedTask.due_date ? format(new Date(editedTask.due_date), 'yyyy. MM. dd.', { locale: ko }) : t('task.endDateTbd')}
-                    </>
-                  ) : (
-                    <span className="text-slate-400">{t('task.noDate')}</span>
+                      )}
+                      {onMoveToBlock && task.block_name === "Done" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowMoveDialog(true)}
+                          className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
+                          title={t("task.moveBlock")}
+                        >
+                          <Undo2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setMoveCopyMode("move")}
+                        className="text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                        title={t("task.moveToBoard", "다른 보드로 이동")}
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setMoveCopyMode("copy")}
+                        className="text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                        title={t("task.copyToBoard", "다른 보드로 복사")}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowDeleteDialog(true)}
+                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   )}
                 </div>
-              )}
+              </div>
             </div>
 
-            {/* 담당자 섹션 (체크리스트 담당자들) — Personal Board에서는 숨김 */}
-            {!isPersonal && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-slate-400" />
-                <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{t('task.assignee')}</Label>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {(() => {
-                  // 체크리스트에서 중복 제거된 담당자 목록
-                  const uniqueAssignees = checklistItems
-                    .filter((item) => item.assignee)
-                    .reduce((acc, item) => {
-                      if (item.assignee && !acc.find((a) => a.id === item.assignee!.id)) {
-                        acc.push(item.assignee);
-                      }
-                      return acc;
-                    }, [] as Array<{ id: string; name: string; profile_image: string | null }>);
-
-                  if (uniqueAssignees.length === 0) {
-                    return <span className="text-sm text-slate-400">{t('task.addAssigneeToChecklist')}</span>;
+            <div className="space-y-5">
+              {/* 설명 섹션 */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-slate-400" />
+                  <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                    {t("task.description")}
+                  </Label>
+                </div>
+                <Textarea
+                  value={editedTask.description || ""}
+                  onChange={(e) =>
+                    canEdit && handleDescriptionChange(e.target.value)
                   }
+                  placeholder={t("task.noDescription")}
+                  rows={5}
+                  readOnly={!canEdit}
+                  className={`bg-bridge-dark/50 border-bridge-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? "cursor-default" : ""}`}
+                />
+              </div>
 
-                  return uniqueAssignees.map((assignee) => {
-                    const memberData = boardMembers.find((m) => m.userId === assignee.id);
-                    const color = getAssigneeClasses(assignee.name, memberData?.assigneeColor);
-                    return (
-                      <div key={assignee.id} className={`flex items-center gap-2 px-3 py-2 ${color.bgLight} border border-foreground/10 rounded-lg`}
-                        style={!color.bgLight ? { backgroundColor: color.hex + '20' } : undefined}
-                      >
-                        <div className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white whitespace-nowrap overflow-hidden`}
-                          style={!color.bg ? { backgroundColor: color.hex } : undefined}
-                        >
-                          {getInitials(assignee.name)}
-                        </div>
-                        <span className="text-sm text-foreground">{assignee.name}</span>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
-            )}
-
-            {/* 태그 섹션 */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Tags className="h-4 w-4 text-slate-400" />
-                <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{t('task.tags')}</Label>
-              </div>
-              <div className="flex flex-wrap gap-2 items-center">
-                {taskTags.map((tag) => (
-                  <span
-                    key={tag.id}
-                    className="text-[10px] font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5"
-                    style={{
-                      backgroundColor: `${tag.color}15`,
-                      borderColor: `${tag.color}44`,
-                      color: tag.color,
-                    }}
-                  >
-                    {tag.name}
-                    {canEdit && (
-                      <button
-                        onClick={() => handleRemoveTag(tag.id)}
-                        className="hover:opacity-80"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
-                  </span>
-                ))}
-                {canEdit && (
-                  <TagPickerPopover
-                    selectedTagIds={taskTags.map((t) => t.id)}
-                    availableTags={availableTags}
-                    onToggleTag={handleToggleTag}
-                    onCreateTag={onCreateTag}
-                    onUpdateTag={onUpdateTag}
-                    onDeleteTag={onDeleteTag}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 체크리스트 섹션 */}
-          <div className="mt-6 pt-6 border-t border-foreground/10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <CheckSquare className="h-5 w-5" style={{ color: task.feature_color || '#6366F1' }} />
-                <Label className="text-base font-semibold text-foreground">CheckList</Label>
-                {canEdit && boardId && !isDomainAIHidden && (
-                  <button
-                    onClick={() => setShowAIConfirm(true)}
-                    className="ml-1 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-md hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    AI
-                  </button>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-24 h-2 bg-foreground/10 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-300"
-                    style={{ width: `${checklistProgress}%`, backgroundColor: task.feature_color || '#6366F1' }}
-                  />
+              {/* 기간 섹션 */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 text-slate-400" />
+                  <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                    {t("task.period")}
+                  </Label>
                 </div>
-                <span className="text-sm font-semibold" style={{ color: task.feature_color || '#6366F1' }}>
-                  {checklistProgress}%
-                </span>
-              </div>
-            </div>
-
-            {/* 체크리스트 항목들 */}
-            <div className="space-y-2">
-              {checklistItems.length === 0 && (
-                <div className="flex items-start gap-3 px-1 py-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: `${task.feature_color || '#6366F1'}15` }}>
-                    <Lightbulb size={14} style={{ color: task.feature_color || '#6366F1' }} />
+                {canEdit ? (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full h-10 justify-start text-left font-normal bg-bridge-dark/50 border-bridge-border/30 text-foreground hover:bg-bridge-dark/70 hover:text-foreground"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                        {editedTask.start_date || editedTask.due_date ? (
+                          <>
+                            {editedTask.start_date
+                              ? format(
+                                  new Date(editedTask.start_date),
+                                  "yyyy. MM. dd.",
+                                  { locale: ko },
+                                )
+                              : t("task.startDateTbd")}
+                            {" ~ "}
+                            {editedTask.due_date
+                              ? format(
+                                  new Date(editedTask.due_date),
+                                  "yyyy. MM. dd.",
+                                  { locale: ko },
+                                )
+                              : t("task.endDateTbd")}
+                          </>
+                        ) : (
+                          <span className="text-slate-400">
+                            {t("task.selectDate")}
+                          </span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-auto p-0 bg-bridge-obsidian border-foreground/10"
+                      align="start"
+                    >
+                      <Calendar
+                        mode="range"
+                        selected={{
+                          from: editedTask.start_date
+                            ? new Date(editedTask.start_date)
+                            : undefined,
+                          to: editedTask.due_date
+                            ? new Date(editedTask.due_date)
+                            : undefined,
+                        }}
+                        onSelect={handleDateRangeChange}
+                        numberOfMonths={2}
+                        locale={ko}
+                        className="bg-bridge-obsidian text-foreground"
+                      />
+                      {(editedTask.start_date || editedTask.due_date) && (
+                        <div className="p-2 border-t border-foreground/10">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            onClick={handleDateRangeClear}
+                          >
+                            {t("task.deleteDate")}
+                          </Button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <div className="w-full h-10 flex items-center bg-bridge-dark/50 border border-bridge-border/30 rounded-md px-3 text-foreground opacity-70">
+                    <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                    {editedTask.start_date || editedTask.due_date ? (
+                      <>
+                        {editedTask.start_date
+                          ? format(
+                              new Date(editedTask.start_date),
+                              "yyyy. MM. dd.",
+                              { locale: ko },
+                            )
+                          : t("task.startDateTbd")}
+                        {" ~ "}
+                        {editedTask.due_date
+                          ? format(
+                              new Date(editedTask.due_date),
+                              "yyyy. MM. dd.",
+                              { locale: ko },
+                            )
+                          : t("task.endDateTbd")}
+                      </>
+                    ) : (
+                      <span className="text-slate-400">{t("task.noDate")}</span>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-xs font-semibold text-foreground/80 mb-1">
-                      {t('task.addChecklistHint')}
-                    </p>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      {t('task.addChecklistDesc')}
-                    </p>
+                )}
+              </div>
+
+              {/* 담당자 섹션 (체크리스트 담당자들) — Personal Board에서는 숨김 */}
+              {!isPersonal && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-slate-400" />
+                    <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                      {t("task.assignee")}
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(() => {
+                      // 체크리스트에서 중복 제거된 담당자 목록
+                      const uniqueAssignees = checklistItems
+                        .filter((item) => item.assignee)
+                        .reduce(
+                          (acc, item) => {
+                            if (
+                              item.assignee &&
+                              !acc.find((a) => a.id === item.assignee!.id)
+                            ) {
+                              acc.push(item.assignee);
+                            }
+                            return acc;
+                          },
+                          [] as Array<{
+                            id: string;
+                            name: string;
+                            profile_image: string | null;
+                          }>,
+                        );
+
+                      if (uniqueAssignees.length === 0) {
+                        return (
+                          <span className="text-sm text-slate-400">
+                            {t("task.addAssigneeToChecklist")}
+                          </span>
+                        );
+                      }
+
+                      return uniqueAssignees.map((assignee) => {
+                        const memberData = boardMembers.find(
+                          (m) => m.userId === assignee.id,
+                        );
+                        const color = getAssigneeClasses(
+                          assignee.name,
+                          memberData?.assigneeColor,
+                        );
+                        return (
+                          <div
+                            key={assignee.id}
+                            className={`flex items-center gap-2 px-3 py-2 ${color.bgLight} border border-foreground/10 rounded-lg`}
+                            style={
+                              !color.bgLight
+                                ? { backgroundColor: color.hex + "20" }
+                                : undefined
+                            }
+                          >
+                            <div
+                              className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white whitespace-nowrap overflow-hidden`}
+                              style={
+                                !color.bg
+                                  ? { backgroundColor: color.hex }
+                                  : undefined
+                              }
+                            >
+                              {getInitials(assignee.name)}
+                            </div>
+                            <span className="text-sm text-foreground">
+                              {assignee.name}
+                            </span>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               )}
-              <DndContext
-                sensors={checklistSensors}
-                collisionDetection={closestCenter}
-                modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-                onDragEnd={handleChecklistDragEnd}
-              >
-                <SortableContext
-                  items={sortedChecklistItems.map((item) => item.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {sortedChecklistItems.map((item) => (
-                    <SortableChecklistItemRow
-                      key={item.id}
-                      item={item}
-                      onToggle={() => handleToggleChecklistItem(item.id)}
-                      onUpdate={(updates) => handleUpdateChecklistItem(item.id, updates)}
-                      onDelete={() => setChecklistItemToDelete(item.id)}
-                      onMoveToTask={onMoveChecklistToTask && allTasks.length > 1 ? () => {
-                        setMoveChecklistItemId(item.id);
-                        setShowMoveChecklistDialog(true);
-                      } : undefined}
-                      boardMembers={boardMembers}
-                      boardId={boardId}
-                      canEdit={canEdit}
-                      isPersonal={isPersonal}
-                      preloadedTimeBlocks={checklistTimeBlocksMap[item.id]}
-                    />
+
+              {/* 태그 섹션 */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Tags className="h-4 w-4 text-slate-400" />
+                  <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                    {t("task.tags")}
+                  </Label>
+                </div>
+                <div className="flex flex-wrap gap-2 items-center">
+                  {taskTags.map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="text-[10px] font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5"
+                      style={{
+                        backgroundColor: `${tag.color}15`,
+                        borderColor: `${tag.color}44`,
+                        color: tag.color,
+                      }}
+                    >
+                      {tag.name}
+                      {canEdit && (
+                        <button
+                          onClick={() => handleRemoveTag(tag.id)}
+                          className="hover:opacity-80"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </span>
                   ))}
-                </SortableContext>
-              </DndContext>
-
-              {/* 새 항목 추가 - Viewer는 추가 불가 */}
-              {canEdit && <AddChecklistItemInput onAdd={handleAddChecklistItem} boardMembers={boardMembers} currentUser={currentUser} isPersonal={isPersonal} />}
+                  {canEdit && (
+                    <TagPickerPopover
+                      selectedTagIds={taskTags.map((t) => t.id)}
+                      availableTags={availableTags}
+                      onToggleTag={handleToggleTag}
+                      onCreateTag={onCreateTag}
+                      onUpdateTag={onUpdateTag}
+                      onDeleteTag={onDeleteTag}
+                    />
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* 저장 버튼 - 변경사항이 있을 때만 표시 (Viewer는 저장 불가) */}
-          {canEdit && hasChanges && (
-            <div className="flex justify-end gap-2 pt-4 border-t border-foreground/10">
-              <Button variant="outline" onClick={handleClose} className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10">
-                {t('common.cancel')}
-              </Button>
-              <Button onClick={handleSave} className="bg-bridge-accent hover:bg-bridge-accent/90">
-                {t('common.save')}
-              </Button>
+            {/* 체크리스트 섹션 */}
+            <div className="mt-6 pt-6 border-t border-foreground/10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <CheckSquare
+                    className="h-5 w-5"
+                    style={{ color: task.feature_color || "#6366F1" }}
+                  />
+                  <Label className="text-base font-semibold text-foreground">
+                    CheckList
+                  </Label>
+                  {canEdit && boardId && !isDomainAIHidden && (
+                    <button
+                      onClick={() => setShowAIConfirm(true)}
+                      className="ml-1 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-md hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      AI
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-24 h-2 bg-foreground/10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-300"
+                      style={{
+                        width: `${checklistProgress}%`,
+                        backgroundColor: task.feature_color || "#6366F1",
+                      }}
+                    />
+                  </div>
+                  <span
+                    className="text-sm font-semibold"
+                    style={{ color: task.feature_color || "#6366F1" }}
+                  >
+                    {checklistProgress}%
+                  </span>
+                </div>
+              </div>
+
+              {/* 체크리스트 항목들 */}
+              <div className="space-y-2">
+                {checklistItems.length === 0 && (
+                  <div className="flex items-start gap-3 px-1 py-3">
+                    <div
+                      className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                      style={{
+                        backgroundColor: `${task.feature_color || "#6366F1"}15`,
+                      }}
+                    >
+                      <Lightbulb
+                        size={14}
+                        style={{ color: task.feature_color || "#6366F1" }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground/80 mb-1">
+                        {t("task.addChecklistHint")}
+                      </p>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        {t("task.addChecklistDesc")}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <DndContext
+                  sensors={checklistSensors}
+                  collisionDetection={closestCenter}
+                  modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                  onDragEnd={handleChecklistDragEnd}
+                >
+                  <SortableContext
+                    items={sortedChecklistItems.map((item) => item.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {sortedChecklistItems.map((item) => (
+                      <SortableChecklistItemRow
+                        key={item.id}
+                        item={item}
+                        onToggle={() => handleToggleChecklistItem(item.id)}
+                        onUpdate={(updates) =>
+                          handleUpdateChecklistItem(item.id, updates)
+                        }
+                        onDelete={() => setChecklistItemToDelete(item.id)}
+                        onMoveToTask={
+                          onMoveChecklistToTask && allTasks.length > 1
+                            ? () => {
+                                setMoveChecklistItemId(item.id);
+                                setShowMoveChecklistDialog(true);
+                              }
+                            : undefined
+                        }
+                        boardMembers={boardMembers}
+                        boardId={boardId}
+                        canEdit={canEdit}
+                        isPersonal={isPersonal}
+                        preloadedTimeBlocks={checklistTimeBlocksMap[item.id]}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+
+                {/* 새 항목 추가 - Viewer는 추가 불가 */}
+                {canEdit && (
+                  <AddChecklistItemInput
+                    onAdd={handleAddChecklistItem}
+                    boardMembers={boardMembers}
+                    currentUser={currentUser}
+                    isPersonal={isPersonal}
+                  />
+                )}
+              </div>
             </div>
-          )}
           </div>
 
           {/* 오른쪽: 댓글 패널 + 닫기 버튼 */}
@@ -922,30 +1181,25 @@ export function TaskDetailModal({
               />
             </div>
           )}
-          </div>
-      </MotionModal>
-
-      {/* 확인 다이얼로그 */}
-      <MotionModal open={showConfirmDialog} onClose={() => setShowConfirmDialog(false)} className="sm:max-w-sm p-6">
-        <h3 className="text-lg font-semibold text-foreground">{t('task.saveChangesTitle')}</h3>
-        <p className="text-sm text-slate-400 mt-1">{t('task.saveChangesDesc')}</p>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
-          <button onClick={handleDiscardAndClose} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10">
-            {t('task.discard')}
-          </button>
-          <button onClick={handleSaveAndClose} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-bridge-accent text-white hover:bg-bridge-accent/90">
-            {t('common.save')}
-          </button>
         </div>
       </MotionModal>
 
       {/* 삭제 다이얼로그 */}
-      <MotionModal open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)} className="sm:max-w-sm p-6">
-        <h3 className="text-lg font-semibold text-foreground">{t('task.deleteTitle')}</h3>
-        <p className="text-sm text-slate-400 mt-1">{t('task.deleteDesc')}</p>
+      <MotionModal
+        open={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        className="sm:max-w-sm p-6"
+      >
+        <h3 className="text-lg font-semibold text-foreground">
+          {t("task.deleteTitle")}
+        </h3>
+        <p className="text-sm text-slate-400 mt-1">{t("task.deleteDesc")}</p>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
-          <button onClick={() => setShowDeleteDialog(false)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10">
-            {t('common.cancel')}
+          <button
+            onClick={() => setShowDeleteDialog(false)}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10"
+          >
+            {t("common.cancel")}
           </button>
           <button
             onClick={() => {
@@ -957,18 +1211,27 @@ export function TaskDetailModal({
             }}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white"
           >
-            {t('common.delete')}
+            {t("common.delete")}
           </button>
         </div>
       </MotionModal>
 
       {/* 완료 처리 다이얼로그 */}
-      <MotionModal open={showDoneDialog} onClose={() => setShowDoneDialog(false)} className="sm:max-w-sm p-6">
-        <h3 className="text-lg font-semibold text-foreground">{t('task.completeTitle')}</h3>
-        <p className="text-sm text-slate-400 mt-1">{t('task.completeDesc')}</p>
+      <MotionModal
+        open={showDoneDialog}
+        onClose={() => setShowDoneDialog(false)}
+        className="sm:max-w-sm p-6"
+      >
+        <h3 className="text-lg font-semibold text-foreground">
+          {t("task.completeTitle")}
+        </h3>
+        <p className="text-sm text-slate-400 mt-1">{t("task.completeDesc")}</p>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
-          <button onClick={() => setShowDoneDialog(false)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10">
-            {t('common.cancel')}
+          <button
+            onClick={() => setShowDoneDialog(false)}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10"
+          >
+            {t("common.cancel")}
           </button>
           <button
             onClick={() => {
@@ -980,26 +1243,37 @@ export function TaskDetailModal({
             }}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white"
           >
-            {t('task.markComplete')}
+            {t("task.markComplete")}
           </button>
         </div>
       </MotionModal>
 
       {/* 블록 이동 다이얼로그 */}
-      <MotionModal open={showMoveDialog} onClose={() => { setShowMoveDialog(false); setSelectedBlockId(null); }} className="sm:max-w-sm p-6">
-        <h3 className="text-lg font-semibold text-foreground">{t('task.moveBlockTitle')}</h3>
-        <p className="text-sm text-slate-400 mt-1">{t('task.moveBlockDesc')}</p>
+      <MotionModal
+        open={showMoveDialog}
+        onClose={() => {
+          setShowMoveDialog(false);
+          setSelectedBlockId(null);
+        }}
+        className="sm:max-w-sm p-6"
+      >
+        <h3 className="text-lg font-semibold text-foreground">
+          {t("task.moveBlockTitle")}
+        </h3>
+        <p className="text-sm text-slate-400 mt-1">{t("task.moveBlockDesc")}</p>
         <div className="space-y-2 py-4">
           {blocks
-            .filter((b) => b.fixed_type !== 'FEATURE' && b.fixed_type !== 'DONE')
+            .filter(
+              (b) => b.fixed_type !== "FEATURE" && b.fixed_type !== "DONE",
+            )
             .map((block) => (
               <button
                 key={block.id}
                 onClick={() => setSelectedBlockId(block.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
                   selectedBlockId === block.id
-                    ? 'border-bridge-accent bg-bridge-accent/10'
-                    : 'border-foreground/10 hover:border-foreground/10 hover:bg-foreground/5'
+                    ? "border-bridge-accent bg-bridge-accent/10"
+                    : "border-foreground/10 hover:border-foreground/10 hover:bg-foreground/5"
                 }`}
               >
                 <Layers className="h-4 w-4 text-slate-400" />
@@ -1016,7 +1290,7 @@ export function TaskDetailModal({
             }}
             className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
           >
-            {t('common.cancel')}
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={() => {
@@ -1030,15 +1304,26 @@ export function TaskDetailModal({
             disabled={!selectedBlockId}
             className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
           >
-            {t('task.move')}
+            {t("task.move")}
           </Button>
         </div>
       </MotionModal>
 
       {/* Feature 이동 다이얼로그 */}
-      <MotionModal open={showMoveFeatureDialog} onClose={() => { setShowMoveFeatureDialog(false); setSelectedFeatureId(null); }} className="sm:max-w-sm p-6">
-        <h3 className="text-lg font-semibold text-foreground">{t('task.moveFeatureTitle')}</h3>
-        <p className="text-sm text-slate-400 mt-1">{t('task.moveFeatureDesc')}</p>
+      <MotionModal
+        open={showMoveFeatureDialog}
+        onClose={() => {
+          setShowMoveFeatureDialog(false);
+          setSelectedFeatureId(null);
+        }}
+        className="sm:max-w-sm p-6"
+      >
+        <h3 className="text-lg font-semibold text-foreground">
+          {t("task.moveFeatureTitle")}
+        </h3>
+        <p className="text-sm text-slate-400 mt-1">
+          {t("task.moveFeatureDesc")}
+        </p>
         <div className="space-y-2 py-4 max-h-[300px] overflow-y-auto custom-scrollbar">
           {features
             .filter((f) => f.id !== task?.feature_id)
@@ -1048,12 +1333,17 @@ export function TaskDetailModal({
                 onClick={() => setSelectedFeatureId(feature.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
                   selectedFeatureId === feature.id
-                    ? 'border-bridge-accent bg-bridge-accent/10'
-                    : 'border-foreground/10 hover:border-foreground/10 hover:bg-foreground/5'
+                    ? "border-bridge-accent bg-bridge-accent/10"
+                    : "border-foreground/10 hover:border-foreground/10 hover:bg-foreground/5"
                 }`}
               >
-                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: feature.color }} />
-                <span className="text-foreground text-sm truncate">{feature.title}</span>
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: feature.color }}
+                />
+                <span className="text-foreground text-sm truncate">
+                  {feature.title}
+                </span>
               </button>
             ))}
         </div>
@@ -1066,7 +1356,7 @@ export function TaskDetailModal({
             }}
             className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
           >
-            {t('common.cancel')}
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={() => {
@@ -1080,44 +1370,68 @@ export function TaskDetailModal({
             disabled={!selectedFeatureId}
             className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
           >
-            {t('task.move')}
+            {t("task.move")}
           </Button>
         </div>
       </MotionModal>
 
       {/* 체크리스트 항목 Task 이동 다이얼로그 */}
-      <MotionModal open={showMoveChecklistDialog} onClose={() => {
-        setShowMoveChecklistDialog(false);
-        setMoveChecklistItemId(null);
-        setSelectedTargetTaskId(null);
-        setChecklistMoveSearch('');
-      }} className="sm:max-w-sm p-6">
-        <h3 className="text-lg font-semibold text-foreground">{t('task.moveChecklistToTaskTitle')}</h3>
-        <p className="text-sm text-slate-400 mt-1">{t('task.moveChecklistToTaskDesc')}</p>
+      <MotionModal
+        open={showMoveChecklistDialog}
+        onClose={() => {
+          setShowMoveChecklistDialog(false);
+          setMoveChecklistItemId(null);
+          setSelectedTargetTaskId(null);
+          setChecklistMoveSearch("");
+        }}
+        className="sm:max-w-sm p-6"
+      >
+        <h3 className="text-lg font-semibold text-foreground">
+          {t("task.moveChecklistToTaskTitle")}
+        </h3>
+        <p className="text-sm text-slate-400 mt-1">
+          {t("task.moveChecklistToTaskDesc")}
+        </p>
         <Input
           value={checklistMoveSearch}
           onChange={(e) => setChecklistMoveSearch(e.target.value)}
-          placeholder={t('common.search')}
+          placeholder={t("common.search")}
           className="bg-foreground/5 border-foreground/10 text-foreground placeholder:text-slate-500 text-sm mt-3"
         />
         <div className="space-y-1 py-2 max-h-[250px] overflow-y-auto custom-scrollbar">
           {allTasks
             .filter((t) => t.id !== task?.id)
-            .filter((t) => !checklistMoveSearch || t.title.toLowerCase().includes(checklistMoveSearch.toLowerCase()) || t.feature_title.toLowerCase().includes(checklistMoveSearch.toLowerCase()))
+            .filter(
+              (t) =>
+                !checklistMoveSearch ||
+                t.title
+                  .toLowerCase()
+                  .includes(checklistMoveSearch.toLowerCase()) ||
+                t.feature_title
+                  .toLowerCase()
+                  .includes(checklistMoveSearch.toLowerCase()),
+            )
             .map((t) => (
               <button
                 key={t.id}
                 onClick={() => setSelectedTargetTaskId(t.id)}
                 className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all text-left ${
                   selectedTargetTaskId === t.id
-                    ? 'border-bridge-accent bg-bridge-accent/10'
-                    : 'border-foreground/10 hover:bg-foreground/5'
+                    ? "border-bridge-accent bg-bridge-accent/10"
+                    : "border-foreground/10 hover:bg-foreground/5"
                 }`}
               >
-                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.feature_color }} />
+                <div
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: t.feature_color }}
+                />
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm text-foreground truncate">{t.title}</div>
-                  <div className="text-[11px] text-slate-400 truncate">{t.feature_title}</div>
+                  <div className="text-sm text-foreground truncate">
+                    {t.title}
+                  </div>
+                  <div className="text-[11px] text-slate-400 truncate">
+                    {t.feature_title}
+                  </div>
                 </div>
               </button>
             ))}
@@ -1129,20 +1443,35 @@ export function TaskDetailModal({
               setShowMoveChecklistDialog(false);
               setMoveChecklistItemId(null);
               setSelectedTargetTaskId(null);
-              setChecklistMoveSearch('');
+              setChecklistMoveSearch("");
             }}
             className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
           >
-            {t('common.cancel')}
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={() => {
-              if (task && onMoveChecklistToTask && moveChecklistItemId && selectedTargetTaskId) {
-                onMoveChecklistToTask(moveChecklistItemId, task.id, selectedTargetTaskId);
+              if (
+                task &&
+                onMoveChecklistToTask &&
+                moveChecklistItemId &&
+                selectedTargetTaskId
+              ) {
+                onMoveChecklistToTask(
+                  moveChecklistItemId,
+                  task.id,
+                  selectedTargetTaskId,
+                );
                 // UI에서 항목 제거
-                setChecklistItems((prev) => prev.filter((ci) => ci.id !== moveChecklistItemId));
-                const remaining = checklistItems.filter((ci) => ci.id !== moveChecklistItemId);
-                const completedCount = remaining.filter((ci) => ci.completed).length;
+                setChecklistItems((prev) =>
+                  prev.filter((ci) => ci.id !== moveChecklistItemId),
+                );
+                const remaining = checklistItems.filter(
+                  (ci) => ci.id !== moveChecklistItemId,
+                );
+                const completedCount = remaining.filter(
+                  (ci) => ci.completed,
+                ).length;
                 onUpdate({
                   checklist_total: remaining.length,
                   checklist_completed: completedCount,
@@ -1152,23 +1481,34 @@ export function TaskDetailModal({
               setShowMoveChecklistDialog(false);
               setMoveChecklistItemId(null);
               setSelectedTargetTaskId(null);
-              setChecklistMoveSearch('');
+              setChecklistMoveSearch("");
             }}
             disabled={!selectedTargetTaskId}
             className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
           >
-            {t('task.move')}
+            {t("task.move")}
           </Button>
         </div>
       </MotionModal>
 
       {/* 체크리스트 아이템 삭제 확인 다이얼로그 */}
-      <MotionModal open={!!checklistItemToDelete} onClose={() => setChecklistItemToDelete(null)} className="sm:max-w-sm p-6">
-        <h3 className="text-lg font-semibold text-foreground">{t('task.deleteChecklistTitle')}</h3>
-        <p className="text-sm text-slate-400 mt-1">{t('task.deleteChecklistDesc')}</p>
+      <MotionModal
+        open={!!checklistItemToDelete}
+        onClose={() => setChecklistItemToDelete(null)}
+        className="sm:max-w-sm p-6"
+      >
+        <h3 className="text-lg font-semibold text-foreground">
+          {t("task.deleteChecklistTitle")}
+        </h3>
+        <p className="text-sm text-slate-400 mt-1">
+          {t("task.deleteChecklistDesc")}
+        </p>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
-          <button onClick={() => setChecklistItemToDelete(null)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10">
-            {t('common.cancel')}
+          <button
+            onClick={() => setChecklistItemToDelete(null)}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10"
+          >
+            {t("common.cancel")}
           </button>
           <button
             onClick={() => {
@@ -1179,7 +1519,7 @@ export function TaskDetailModal({
             }}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white"
           >
-            {t('common.delete')}
+            {t("common.delete")}
           </button>
         </div>
       </MotionModal>
@@ -1195,7 +1535,7 @@ export function TaskDetailModal({
           mode={moveCopyMode}
           onSuccess={() => {
             setMoveCopyMode(null);
-            if (moveCopyMode === 'move') {
+            if (moveCopyMode === "move") {
               onClose();
             }
           }}
@@ -1203,102 +1543,126 @@ export function TaskDetailModal({
       )}
 
       {/* AI Checklist Confirm Modal */}
-      {showAIConfirm && task && editedTask && boardId && (() => {
-        const parentFeature = features.find(f => f.id === task.feature_id);
-        return (
-          <MotionModal open={true} onClose={() => setShowAIConfirm(false)} className="sm:max-w-md p-0 overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-foreground/5">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-bridge-secondary to-bridge-accent flex items-center justify-center">
-                  <Sparkles className="h-3.5 w-3.5 text-white" />
+      {showAIConfirm &&
+        task &&
+        editedTask &&
+        boardId &&
+        (() => {
+          const parentFeature = features.find((f) => f.id === task.feature_id);
+          return (
+            <MotionModal
+              open={true}
+              onClose={() => setShowAIConfirm(false)}
+              className="sm:max-w-md p-0 overflow-hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-foreground/5">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-bridge-secondary to-bridge-accent flex items-center justify-center">
+                    <Sparkles className="h-3.5 w-3.5 text-white" />
+                  </div>
+                  <h3 className="text-sm font-bold text-foreground">
+                    {t("task.aiChecklistTitle")}
+                  </h3>
                 </div>
-                <h3 className="text-sm font-bold text-foreground">{t('task.aiChecklistTitle')}</h3>
+                <button
+                  onClick={() => setShowAIConfirm(false)}
+                  className="text-slate-400 hover:text-foreground transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <button onClick={() => setShowAIConfirm(false)} className="text-slate-400 hover:text-foreground transition-colors">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
 
-            {/* Content */}
-            <div className="px-5 py-4 space-y-3 max-h-[60dvh] overflow-y-auto">
-              <p className="text-xs text-slate-400">{t('task.aiChecklistConfirmDesc')}</p>
+              {/* Content */}
+              <div className="px-5 py-4 space-y-3 max-h-[60dvh] overflow-y-auto">
+                <p className="text-xs text-slate-400">
+                  {t("task.aiChecklistConfirmDesc")}
+                </p>
 
-              {/* Feature group */}
-              <div className="rounded-xl border border-foreground/5 bg-white/[0.02] p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('task.aiChecklistConfirmFeatureLabel')}</span>
-                  {onOpenFeature && (
-                    <button
-                      onClick={() => {
-                        setShowAIConfirm(false);
-                        onClose();
-                        onOpenFeature(task.feature_id);
-                      }}
-                      className="flex items-center gap-1 text-[10px] text-bridge-accent hover:text-bridge-accent/80 transition-colors"
-                    >
-                      <ArrowRight className="h-3 w-3" />
-                      {t('task.aiChecklistGoToFeature')}
-                    </button>
+                {/* Feature group */}
+                <div className="rounded-xl border border-foreground/5 bg-white/[0.02] p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                      {t("task.aiChecklistConfirmFeatureLabel")}
+                    </span>
+                    {onOpenFeature && (
+                      <button
+                        onClick={() => {
+                          setShowAIConfirm(false);
+                          onClose();
+                          onOpenFeature(task.feature_id);
+                        }}
+                        className="flex items-center gap-1 text-[10px] text-bridge-accent hover:text-bridge-accent/80 transition-colors"
+                      >
+                        <ArrowRight className="h-3 w-3" />
+                        {t("task.aiChecklistGoToFeature")}
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-sm font-medium text-foreground">
+                    {parentFeature?.title || task.feature_title}
+                  </p>
+                  {parentFeature?.description ? (
+                    <p className="text-xs text-slate-400 whitespace-pre-wrap line-clamp-2">
+                      {parentFeature.description}
+                    </p>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <AlertCircle className="h-3 w-3 text-amber-400 flex-shrink-0" />
+                      <p className="text-[11px] text-amber-400/70">
+                        {t("task.aiChecklistConfirmNoDesc")}
+                      </p>
+                    </div>
                   )}
                 </div>
-                <p className="text-sm font-medium text-foreground">{parentFeature?.title || task.feature_title}</p>
-                {parentFeature?.description ? (
-                  <p className="text-xs text-slate-400 whitespace-pre-wrap line-clamp-2">{parentFeature.description}</p>
-                ) : (
-                  <div className="flex items-center gap-1.5">
-                    <AlertCircle className="h-3 w-3 text-amber-400 flex-shrink-0" />
-                    <p className="text-[11px] text-amber-400/70">{t('task.aiChecklistConfirmNoDesc')}</p>
-                  </div>
-                )}
+
+                {/* Task group */}
+                <div className="rounded-xl border border-foreground/5 bg-white/[0.02] p-3 space-y-2.5">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    {t("task.aiChecklistConfirmTaskLabel")}
+                  </span>
+                  <input
+                    type="text"
+                    value={editedTask.title}
+                    onChange={(e) =>
+                      updateEditedTask({ title: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-white/5 rounded-lg border border-foreground/5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                  />
+                  <textarea
+                    value={editedTask.description || ""}
+                    onChange={(e) =>
+                      updateEditedTask({ description: e.target.value })
+                    }
+                    placeholder={t("task.aiChecklistConfirmNoDesc")}
+                    rows={3}
+                    className="w-full px-3 py-2 bg-white/5 rounded-lg border border-foreground/5 text-sm text-slate-300 placeholder-amber-400/60 resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                  />
+                </div>
               </div>
 
-              {/* Task group */}
-              <div className="rounded-xl border border-foreground/5 bg-white/[0.02] p-3 space-y-2.5">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('task.aiChecklistConfirmTaskLabel')}</span>
-                <input
-                  type="text"
-                  value={editedTask.title}
-                  onChange={(e) => updateEditedTask({ title: e.target.value })}
-                  className="w-full px-3 py-2 bg-white/5 rounded-lg border border-foreground/5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-                />
-                <textarea
-                  value={editedTask.description || ''}
-                  onChange={(e) => updateEditedTask({ description: e.target.value })}
-                  placeholder={t('task.aiChecklistConfirmNoDesc')}
-                  rows={3}
-                  className="w-full px-3 py-2 bg-white/5 rounded-lg border border-foreground/5 text-sm text-slate-300 placeholder-amber-400/60 resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-                />
+              {/* Footer */}
+              <div className="px-5 py-4 border-t border-foreground/5 flex justify-end gap-2">
+                <button
+                  onClick={() => setShowAIConfirm(false)}
+                  className="px-4 py-2 text-sm text-slate-400 hover:text-foreground transition-colors"
+                >
+                  {t("common.cancel")}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAIConfirm(false);
+                    setShowAIChecklist(true);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-lg hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all flex items-center gap-1.5"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {t("task.aiChecklistConfirmStart")}
+                </button>
               </div>
-            </div>
-
-            {/* Footer */}
-            <div className="px-5 py-4 border-t border-foreground/5 flex justify-end gap-2">
-              <button
-                onClick={() => setShowAIConfirm(false)}
-                className="px-4 py-2 text-sm text-slate-400 hover:text-foreground transition-colors"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={() => {
-                  if (hasChanges && editedTask) {
-                    onUpdate(editedTask);
-                    setInitialTask(JSON.parse(JSON.stringify(editedTask)));
-                    setHasChanges(false);
-                  }
-                  setShowAIConfirm(false);
-                  setShowAIChecklist(true);
-                }}
-                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-lg hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all flex items-center gap-1.5"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                {t('task.aiChecklistConfirmStart')}
-              </button>
-            </div>
-          </MotionModal>
-        );
-      })()}
+            </MotionModal>
+          );
+        })()}
 
       {/* AI Checklist Decompose Modal */}
       {showAIChecklist && task && boardId && (
@@ -1306,13 +1670,14 @@ export function TaskDetailModal({
           boardId={boardId}
           taskId={task.id}
           taskTitle={editedTask?.title || task.title}
-          existingChecklistTitles={checklistItems.map(item => item.title)}
+          existingChecklistTitles={checklistItems.map((item) => item.title)}
           onClose={() => setShowAIChecklist(false)}
           onApplied={() => {
             setShowAIChecklist(false);
             // Reload checklist items
             if (boardId && task) {
-              checklistAPI.getChecklist(boardId, task.id)
+              checklistAPI
+                .getChecklist(boardId, task.id)
                 .then((response) => {
                   const rawItems = response.items || [];
                   const items: ChecklistItem[] = rawItems.map((item) => ({
@@ -1323,12 +1688,18 @@ export function TaskDetailModal({
                     start_date: item.start_date,
                     due_date: item.due_date,
                     done_date: item.done_date,
-                    assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name, profile_image: item.assignee.profile_image } : null,
+                    assignee: item.assignee
+                      ? {
+                          id: item.assignee.id,
+                          name: item.assignee.name,
+                          profile_image: item.assignee.profile_image,
+                        }
+                      : null,
                   }));
                   setChecklistItems(items);
                 })
                 .catch((error) => {
-                  console.error('Failed to reload checklist:', error);
+                  console.error("Failed to reload checklist:", error);
                 });
             }
           }}
@@ -1416,12 +1787,23 @@ function ChecklistItemRow({
   const timeBlocks = preloadedTimeBlocks || [];
 
   // 담당자 색상
-  const memberData = item.assignee ? boardMembers.find((m) => m.userId === item.assignee!.id) : null;
-  const assigneeColor = item.assignee ? getAssigneeClasses(item.assignee.name, memberData?.assigneeColor) : null;
+  const memberData = item.assignee
+    ? boardMembers.find((m) => m.userId === item.assignee!.id)
+    : null;
+  const assigneeColor = item.assignee
+    ? getAssigneeClasses(item.assignee.name, memberData?.assigneeColor)
+    : null;
 
   // 타임블록 총합 시간 (분)
   const totalTimeMinutes = timeBlocks.reduce((sum, block) => {
-    return sum + Math.round((new Date(`2000-01-01T${block.end_time}`).getTime() - new Date(`2000-01-01T${block.start_time}`).getTime()) / 60000);
+    return (
+      sum +
+      Math.round(
+        (new Date(`2000-01-01T${block.end_time}`).getTime() -
+          new Date(`2000-01-01T${block.start_time}`).getTime()) /
+          60000,
+      )
+    );
   }, 0);
 
   // 타임블록 토글
@@ -1438,9 +1820,9 @@ function ChecklistItemRow({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleSaveTitle();
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       setEditedTitle(item.title);
       setIsEditing(false);
     }
@@ -1456,327 +1838,444 @@ function ChecklistItemRow({
 
   return (
     <>
-    <div className="group flex items-center gap-2 p-2 rounded hover:bg-foreground/5 border border-transparent hover:border-foreground/10">
-      {/* 드래그 핸들 */}
-      {dragHandleProps && (
-        <span
-          {...dragHandleProps}
-          className="flex-shrink-0 cursor-grab active:cursor-grabbing text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"
+      <div className="group flex items-center gap-2 p-2 rounded hover:bg-foreground/5 border border-transparent hover:border-foreground/10">
+        {/* 드래그 핸들 */}
+        {dragHandleProps && (
+          <span
+            {...dragHandleProps}
+            className="flex-shrink-0 cursor-grab active:cursor-grabbing text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <GripVertical className="h-4 w-4" />
+          </span>
+        )}
+        {/* 체크박스 */}
+        <button
+          onClick={canEdit ? onToggle : undefined}
+          disabled={!canEdit}
+          className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+            item.completed
+              ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+              : "border-2 border-slate-500 hover:border-slate-300 bg-transparent"
+          } ${!canEdit ? "cursor-default" : ""}`}
         >
-          <GripVertical className="h-4 w-4" />
-        </span>
-      )}
-      {/* 체크박스 */}
-      <button
-        onClick={canEdit ? onToggle : undefined}
-        disabled={!canEdit}
-        className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
-          item.completed
-            ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
-            : 'border-2 border-slate-500 hover:border-slate-300 bg-transparent'
-        } ${!canEdit ? 'cursor-default' : ''}`}
-      >
-        {item.completed && (
-          <svg
-            className="w-3.5 h-3.5 text-white"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="3"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path d="M5 13l4 4L19 7"></path>
-          </svg>
-        )}
-      </button>
+          {item.completed && (
+            <svg
+              className="w-3.5 h-3.5 text-white"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="3"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path d="M5 13l4 4L19 7"></path>
+            </svg>
+          )}
+        </button>
 
-      {/* 제목 - 왼쪽 정렬 */}
-      <div className="flex-1 min-w-0">
-        {canEdit && isEditing ? (
-          <Input
-            value={editedTitle}
-            onChange={(e) => setEditedTitle(e.target.value)}
-            onBlur={handleSaveTitle}
-            onKeyDown={handleKeyDown}
-            className="text-xs h-6 bg-foreground/5 border-foreground/10 text-foreground"
-            autoFocus
-          />
-        ) : (
-          <div
-            className={`text-xs truncate ${
-              item.completed ? 'line-through text-slate-400' : 'text-foreground'
-            } ${canEdit ? 'cursor-pointer' : ''}`}
-            onClick={() => canEdit && setIsEditing(true)}
-          >
-            {item.title}
-          </div>
-        )}
-      </div>
+        {/* 제목 - 왼쪽 정렬 */}
+        <div className="flex-1 min-w-0">
+          {canEdit && isEditing ? (
+            <Input
+              value={editedTitle}
+              onChange={(e) => setEditedTitle(e.target.value)}
+              onBlur={handleSaveTitle}
+              onKeyDown={handleKeyDown}
+              className="text-xs h-6 bg-foreground/5 border-foreground/10 text-foreground"
+              autoFocus
+            />
+          ) : (
+            <div
+              className={`text-xs truncate ${
+                item.completed
+                  ? "line-through text-slate-400"
+                  : "text-foreground"
+              } ${canEdit ? "cursor-pointer" : ""}`}
+              onClick={() => canEdit && setIsEditing(true)}
+            >
+              {item.title}
+            </div>
+          )}
+        </div>
 
-      {/* 오른쪽 정렬: 기간 + 담당자 (클릭해서 수정) */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {/* 기간 - 클릭하면 수정 (Viewer는 읽기 전용) */}
-        {canEdit ? (
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded hover:bg-foreground/10 transition-colors ${
-                  isOverdue
-                    ? 'text-red-400'
-                    : isDueSoon
-                    ? 'text-orange-400'
-                    : 'text-slate-400'
-                }`}
-              >
-                <CalendarIcon className="h-3 w-3" />
-                {(() => {
-                  const endDate = item.completed && item.done_date ? item.done_date : item.due_date;
-                  if (item.start_date || endDate) {
-                    if (item.start_date && endDate) {
-                      return <>{format(new Date(item.start_date), 'M/d', { locale: ko })} - {format(new Date(endDate), 'M/d', { locale: ko })}</>;
-                    } else if (item.start_date) {
-                      return <>{format(new Date(item.start_date), 'M/d', { locale: ko })} ~</>;
-                    } else {
-                      return <>~ {format(new Date(endDate!), 'M/d', { locale: ko })}</>;
-                    }
-                  }
-                  return <span className="text-slate-400">{t('task.date')}</span>;
-                })()}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-foreground/10" align="end">
-              <Calendar
-                mode="range"
-                selected={{
-                  from: item.start_date ? new Date(item.start_date) : undefined,
-                  to: item.due_date ? new Date(item.due_date) : undefined,
-                }}
-                onSelect={(range) => {
-                  onUpdate({
-                    start_date: range?.from ? format(range.from, 'yyyy-MM-dd') : null,
-                    due_date: range?.to ? format(range.to, 'yyyy-MM-dd') : null,
-                  });
-                }}
-                numberOfMonths={1}
-                locale={ko}
-                className="bg-bridge-obsidian text-foreground"
-              />
-              {(item.start_date || item.due_date) && (
-                <div className="p-2 border-t border-foreground/10">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                    onClick={() => onUpdate({ start_date: null, due_date: null })}
-                  >
-                    {t('task.deleteDate')}
-                  </Button>
-                </div>
-              )}
-            </PopoverContent>
-          </Popover>
-        ) : (
-          <div
-            className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 ${
-              isOverdue ? 'text-red-400' : isDueSoon ? 'text-orange-400' : 'text-slate-400'
-            }`}
-          >
-            <CalendarIcon className="h-3 w-3" />
-            {(() => {
-              const endDate = item.completed && item.done_date ? item.done_date : item.due_date;
-              if (item.start_date || endDate) {
-                if (item.start_date && endDate) {
-                  return <>{format(new Date(item.start_date), 'M/d', { locale: ko })} - {format(new Date(endDate), 'M/d', { locale: ko })}</>;
-                } else if (item.start_date) {
-                  return <>{format(new Date(item.start_date), 'M/d', { locale: ko })} ~</>;
-                } else {
-                  return <>~ {format(new Date(endDate!), 'M/d', { locale: ko })}</>;
-                }
-              }
-              return <span className="text-slate-400">-</span>;
-            })()}
-          </div>
-        )}
-
-        {/* 담당자 - Personal Board에서는 숨김 */}
-        {!isPersonal && (canEdit ? (
-          <Popover>
-            <PopoverTrigger asChild>
-              {item.assignee && assigneeColor ? (
+        {/* 오른쪽 정렬: 기간 + 담당자 (클릭해서 수정) */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* 기간 - 클릭하면 수정 (Viewer는 읽기 전용) */}
+          {canEdit ? (
+            <Popover>
+              <PopoverTrigger asChild>
                 <button
-                  className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5 hover:opacity-80 transition-opacity`}
-                  style={!assigneeColor.bgLight ? { backgroundColor: assigneeColor.hex + '20' } : undefined}
-                >
-                  <div
-                    className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white whitespace-nowrap overflow-hidden`}
-                    style={!assigneeColor.bg ? { backgroundColor: assigneeColor.hex } : undefined}
-                  >
-                    {getInitials(item.assignee.name)}
-                  </div>
-                  <span
-                    className={`text-[10px] font-medium ${assigneeColor.text}`}
-                    style={!assigneeColor.text ? { color: assigneeColor.hex } : undefined}
-                  >
-                    {item.assignee.name}
-                  </span>
-                </button>
-              ) : (
-                <button className="flex items-center gap-1 text-[11px] text-slate-400 px-1.5 py-0.5 rounded hover:bg-foreground/10 transition-colors">
-                  <div className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[9px] text-slate-400">
-                    ?
-                  </div>
-                </button>
-              )}
-            </PopoverTrigger>
-            <PopoverContent className="w-40 p-1 bg-bridge-obsidian border-foreground/10" align="end">
-              <div className="space-y-0.5">
-                <button
-                  onClick={() => onUpdate({ assignee: null })}
-                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/10 transition-colors ${
-                    !item.assignee ? 'bg-foreground/10 text-foreground' : 'text-muted-foreground'
+                  className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded hover:bg-foreground/10 transition-colors ${
+                    isOverdue
+                      ? "text-red-400"
+                      : isDueSoon
+                        ? "text-orange-400"
+                        : "text-slate-400"
                   }`}
                 >
-                  {t('common.none')}
+                  <CalendarIcon className="h-3 w-3" />
+                  {(() => {
+                    const endDate =
+                      item.completed && item.done_date
+                        ? item.done_date
+                        : item.due_date;
+                    if (item.start_date || endDate) {
+                      if (item.start_date && endDate) {
+                        return (
+                          <>
+                            {format(new Date(item.start_date), "M/d", {
+                              locale: ko,
+                            })}{" "}
+                            - {format(new Date(endDate), "M/d", { locale: ko })}
+                          </>
+                        );
+                      } else if (item.start_date) {
+                        return (
+                          <>
+                            {format(new Date(item.start_date), "M/d", {
+                              locale: ko,
+                            })}{" "}
+                            ~
+                          </>
+                        );
+                      } else {
+                        return (
+                          <>
+                            ~{" "}
+                            {format(new Date(endDate!), "M/d", { locale: ko })}
+                          </>
+                        );
+                      }
+                    }
+                    return (
+                      <span className="text-slate-400">{t("task.date")}</span>
+                    );
+                  })()}
                 </button>
-                {boardMembers.map((member) => {
-                  const memberColor = getAssigneeClasses(member.name, member.assigneeColor);
-                  return (
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-auto p-0 bg-bridge-obsidian border-foreground/10"
+                align="end"
+              >
+                <Calendar
+                  mode="range"
+                  selected={{
+                    from: item.start_date
+                      ? new Date(item.start_date)
+                      : undefined,
+                    to: item.due_date ? new Date(item.due_date) : undefined,
+                  }}
+                  onSelect={(range) => {
+                    onUpdate({
+                      start_date: range?.from
+                        ? format(range.from, "yyyy-MM-dd")
+                        : null,
+                      due_date: range?.to
+                        ? format(range.to, "yyyy-MM-dd")
+                        : null,
+                    });
+                  }}
+                  numberOfMonths={1}
+                  locale={ko}
+                  className="bg-bridge-obsidian text-foreground"
+                />
+                {(item.start_date || item.due_date) && (
+                  <div className="p-2 border-t border-foreground/10">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      onClick={() =>
+                        onUpdate({ start_date: null, due_date: null })
+                      }
+                    >
+                      {t("task.deleteDate")}
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <div
+              className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 ${
+                isOverdue
+                  ? "text-red-400"
+                  : isDueSoon
+                    ? "text-orange-400"
+                    : "text-slate-400"
+              }`}
+            >
+              <CalendarIcon className="h-3 w-3" />
+              {(() => {
+                const endDate =
+                  item.completed && item.done_date
+                    ? item.done_date
+                    : item.due_date;
+                if (item.start_date || endDate) {
+                  if (item.start_date && endDate) {
+                    return (
+                      <>
+                        {format(new Date(item.start_date), "M/d", {
+                          locale: ko,
+                        })}{" "}
+                        - {format(new Date(endDate), "M/d", { locale: ko })}
+                      </>
+                    );
+                  } else if (item.start_date) {
+                    return (
+                      <>
+                        {format(new Date(item.start_date), "M/d", {
+                          locale: ko,
+                        })}{" "}
+                        ~
+                      </>
+                    );
+                  } else {
+                    return (
+                      <>~ {format(new Date(endDate!), "M/d", { locale: ko })}</>
+                    );
+                  }
+                }
+                return <span className="text-slate-400">-</span>;
+              })()}
+            </div>
+          )}
+
+          {/* 담당자 - Personal Board에서는 숨김 */}
+          {!isPersonal &&
+            (canEdit ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  {item.assignee && assigneeColor ? (
                     <button
-                      key={member.userId}
-                      onClick={() => onUpdate({ assignee: { id: member.userId, name: member.name, profile_image: member.avatar || null } })}
+                      className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5 hover:opacity-80 transition-opacity`}
+                      style={
+                        !assigneeColor.bgLight
+                          ? { backgroundColor: assigneeColor.hex + "20" }
+                          : undefined
+                      }
+                    >
+                      <div
+                        className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white whitespace-nowrap overflow-hidden`}
+                        style={
+                          !assigneeColor.bg
+                            ? { backgroundColor: assigneeColor.hex }
+                            : undefined
+                        }
+                      >
+                        {getInitials(item.assignee.name)}
+                      </div>
+                      <span
+                        className={`text-[10px] font-medium ${assigneeColor.text}`}
+                        style={
+                          !assigneeColor.text
+                            ? { color: assigneeColor.hex }
+                            : undefined
+                        }
+                      >
+                        {item.assignee.name}
+                      </span>
+                    </button>
+                  ) : (
+                    <button className="flex items-center gap-1 text-[11px] text-slate-400 px-1.5 py-0.5 rounded hover:bg-foreground/10 transition-colors">
+                      <div className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[9px] text-slate-400">
+                        ?
+                      </div>
+                    </button>
+                  )}
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-40 p-1 bg-bridge-obsidian border-foreground/10"
+                  align="end"
+                >
+                  <div className="space-y-0.5">
+                    <button
+                      onClick={() => onUpdate({ assignee: null })}
                       className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/10 transition-colors ${
-                        item.assignee?.id === member.userId ? 'bg-foreground/10 text-foreground' : 'text-muted-foreground'
+                        !item.assignee
+                          ? "bg-foreground/10 text-foreground"
+                          : "text-muted-foreground"
                       }`}
                     >
-                      <div className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-[9px] font-bold text-white whitespace-nowrap overflow-hidden`}
-                        style={!memberColor.bg ? { backgroundColor: memberColor.hex } : undefined}
-                      >
-                        {getInitials(member.name)}
-                      </div>
-                      {member.name}
+                      {t("common.none")}
                     </button>
-                  );
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
-        ) : (
-          // Viewer: 읽기 전용 담당자 표시
-          item.assignee && assigneeColor ? (
-            <div
-              className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5`}
-              style={!assigneeColor.bgLight ? { backgroundColor: assigneeColor.hex + '20' } : undefined}
-            >
+                    {boardMembers.map((member) => {
+                      const memberColor = getAssigneeClasses(
+                        member.name,
+                        member.assigneeColor,
+                      );
+                      return (
+                        <button
+                          key={member.userId}
+                          onClick={() =>
+                            onUpdate({
+                              assignee: {
+                                id: member.userId,
+                                name: member.name,
+                                profile_image: member.avatar || null,
+                              },
+                            })
+                          }
+                          className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/10 transition-colors ${
+                            item.assignee?.id === member.userId
+                              ? "bg-foreground/10 text-foreground"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          <div
+                            className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-[9px] font-bold text-white whitespace-nowrap overflow-hidden`}
+                            style={
+                              !memberColor.bg
+                                ? { backgroundColor: memberColor.hex }
+                                : undefined
+                            }
+                          >
+                            {getInitials(member.name)}
+                          </div>
+                          {member.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : // Viewer: 읽기 전용 담당자 표시
+            item.assignee && assigneeColor ? (
               <div
-                className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white whitespace-nowrap overflow-hidden`}
-                style={!assigneeColor.bg ? { backgroundColor: assigneeColor.hex } : undefined}
+                className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5`}
+                style={
+                  !assigneeColor.bgLight
+                    ? { backgroundColor: assigneeColor.hex + "20" }
+                    : undefined
+                }
               >
-                {getInitials(item.assignee.name)}
+                <div
+                  className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white whitespace-nowrap overflow-hidden`}
+                  style={
+                    !assigneeColor.bg
+                      ? { backgroundColor: assigneeColor.hex }
+                      : undefined
+                  }
+                >
+                  {getInitials(item.assignee.name)}
+                </div>
+                <span
+                  className={`text-[10px] font-medium ${assigneeColor.text}`}
+                  style={
+                    !assigneeColor.text
+                      ? { color: assigneeColor.hex }
+                      : undefined
+                  }
+                >
+                  {item.assignee.name}
+                </span>
               </div>
-              <span
-                className={`text-[10px] font-medium ${assigneeColor.text}`}
-                style={!assigneeColor.text ? { color: assigneeColor.hex } : undefined}
-              >
-                {item.assignee.name}
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1 text-[11px] text-slate-400 px-1.5 py-0.5">
-              <div className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[9px] text-slate-400">
-                ?
+            ) : (
+              <div className="flex items-center gap-1 text-[11px] text-slate-400 px-1.5 py-0.5">
+                <div className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[9px] text-slate-400">
+                  ?
+                </div>
               </div>
-            </div>
-          )
-        ))}
-      </div>
+            ))}
+        </div>
 
-      {/* 타임블록 총합 시간 + 토글 버튼 */}
-      {totalTimeMinutes > 0 && (
-        <span className="text-[11px] text-bridge-accent font-medium whitespace-nowrap">
-          {(() => {
-            const h = Math.floor(totalTimeMinutes / 60);
-            const m = totalTimeMinutes % 60;
-            return h > 0 ? `${h}h ${m > 0 ? `${m}m` : ''}` : `${totalTimeMinutes}m`;
-          })()}
-        </span>
-      )}
-      <button
-        onClick={handleToggleTimeBlocks}
-        className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
-          showTimeBlocks || timeBlocks.length > 0
-            ? 'text-bridge-accent bg-bridge-accent/10'
-            : 'text-slate-400 hover:text-slate-400 hover:bg-foreground/5'
-        }`}
-        title={t('task.viewTimeBlocks')}
-      >
-        {preloadedTimeBlocks === undefined ? (
-          <Loader2 className="h-3 w-3 animate-spin" />
-        ) : showTimeBlocks ? (
-          <ChevronDown className="h-3 w-3" />
-        ) : (
-          <Clock className="h-3 w-3" />
+        {/* 타임블록 총합 시간 + 토글 버튼 */}
+        {totalTimeMinutes > 0 && (
+          <span className="text-[11px] text-bridge-accent font-medium whitespace-nowrap">
+            {(() => {
+              const h = Math.floor(totalTimeMinutes / 60);
+              const m = totalTimeMinutes % 60;
+              return h > 0
+                ? `${h}h ${m > 0 ? `${m}m` : ""}`
+                : `${totalTimeMinutes}m`;
+            })()}
+          </span>
         )}
-      </button>
+        <button
+          onClick={handleToggleTimeBlocks}
+          className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
+            showTimeBlocks || timeBlocks.length > 0
+              ? "text-bridge-accent bg-bridge-accent/10"
+              : "text-slate-400 hover:text-slate-400 hover:bg-foreground/5"
+          }`}
+          title={t("task.viewTimeBlocks")}
+        >
+          {preloadedTimeBlocks === undefined ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : showTimeBlocks ? (
+            <ChevronDown className="h-3 w-3" />
+          ) : (
+            <Clock className="h-3 w-3" />
+          )}
+        </button>
 
-      {/* 이동/삭제 버튼 - Viewer는 불가 */}
-      {canEdit && (
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
-          {onMoveToTask && (
+        {/* 이동/삭제 버튼 - Viewer는 불가 */}
+        {canEdit && (
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+            {onMoveToTask && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                onClick={onMoveToTask}
+                title={t("task.moveChecklistToTask")}
+              >
+                <ArrowRightLeft className="h-3 w-3" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 text-slate-400 hover:text-foreground hover:bg-foreground/10"
-              onClick={onMoveToTask}
-              title={t('task.moveChecklistToTask')}
+              className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+              onClick={onDelete}
             >
-              <ArrowRightLeft className="h-3 w-3" />
+              <Trash2 className="h-3 w-3" />
             </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-            onClick={onDelete}
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        </div>
-      )}
-    </div>
-
-    {/* 타임블록 리스트 */}
-    {showTimeBlocks && (
-      <div className="ml-6 mt-1 mb-2 space-y-1">
-        {timeBlocks.length === 0 ? (
-          <div className="text-xs text-slate-400 py-1 px-2">
-            {t('task.noTimeBlocks')}
           </div>
-        ) : (
-          <>
-            {timeBlocks.map((block) => (
-              <div
-                key={block.id}
-                className="flex items-center gap-2 text-xs py-1 px-2 rounded bg-white/[0.02] border border-bridge-border"
-              >
-                <CalendarIcon className="h-3 w-3 text-slate-400" />
-                <span className="text-slate-400">
-                  {format(new Date(block.scheduled_date), 'M/d (E)', { locale: ko })}
-                </span>
-                <Clock className="h-3 w-3 text-slate-400" />
-                <span className="text-foreground font-medium">
-                  {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
-                </span>
-                <span className="text-slate-400">
-                  ({Math.round((new Date(`2000-01-01T${block.end_time}`).getTime() - new Date(`2000-01-01T${block.start_time}`).getTime()) / 60000)}분)
-                </span>
-              </div>
-            ))}
-          </>
         )}
       </div>
-    )}
-  </>
+
+      {/* 타임블록 리스트 */}
+      {showTimeBlocks && (
+        <div className="ml-6 mt-1 mb-2 space-y-1">
+          {timeBlocks.length === 0 ? (
+            <div className="text-xs text-slate-400 py-1 px-2">
+              {t("task.noTimeBlocks")}
+            </div>
+          ) : (
+            <>
+              {timeBlocks.map((block) => (
+                <div
+                  key={block.id}
+                  className="flex items-center gap-2 text-xs py-1 px-2 rounded bg-white/[0.02] border border-bridge-border"
+                >
+                  <CalendarIcon className="h-3 w-3 text-slate-400" />
+                  <span className="text-slate-400">
+                    {format(new Date(block.scheduled_date), "M/d (E)", {
+                      locale: ko,
+                    })}
+                  </span>
+                  <Clock className="h-3 w-3 text-slate-400" />
+                  <span className="text-foreground font-medium">
+                    {block.start_time.slice(0, 5)} -{" "}
+                    {block.end_time.slice(0, 5)}
+                  </span>
+                  <span className="text-slate-400">
+                    (
+                    {Math.round(
+                      (new Date(`2000-01-01T${block.end_time}`).getTime() -
+                        new Date(`2000-01-01T${block.start_time}`).getTime()) /
+                        60000,
+                    )}
+                    분)
+                  </span>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1787,15 +2286,20 @@ function AddChecklistItemInput({
   currentUser,
   isPersonal = false,
 }: {
-  onAdd: (data: { title: string; start_date?: string; due_date?: string; assignee_id?: string }) => void;
+  onAdd: (data: {
+    title: string;
+    start_date?: string;
+    due_date?: string;
+    assignee_id?: string;
+  }) => void;
   boardMembers: BoardMember[];
   currentUser: User | null;
   isPersonal?: boolean;
 }) {
   const { t } = useTranslation();
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [assigneeId, setAssigneeId] = useState('');
+  const [assigneeId, setAssigneeId] = useState("");
   const [isAdding, setIsAdding] = useState(false);
 
   // 기본값 설정: 현재 사용자를 담당자로, 오늘 날짜를 시작일로
@@ -1805,7 +2309,9 @@ function AddChecklistItemInput({
     setDateRange({ from: new Date(), to: undefined });
     // 현재 사용자가 보드 멤버인지 확인하고 기본값으로 설정
     if (currentUser) {
-      const currentMember = boardMembers.find(m => m.userId === currentUser.id);
+      const currentMember = boardMembers.find(
+        (m) => m.userId === currentUser.id,
+      );
       if (currentMember) {
         setAssigneeId(currentUser.id);
       }
@@ -1816,38 +2322,44 @@ function AddChecklistItemInput({
     if (value.trim()) {
       onAdd({
         title: value,
-        start_date: dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined,
-        due_date: dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : undefined,
+        start_date: dateRange?.from
+          ? format(dateRange.from, "yyyy-MM-dd")
+          : undefined,
+        due_date: dateRange?.to
+          ? format(dateRange.to, "yyyy-MM-dd")
+          : undefined,
         assignee_id: assigneeId || undefined,
       });
-      setValue('');
+      setValue("");
       setDateRange(undefined);
-      setAssigneeId('');
+      setAssigneeId("");
       setIsAdding(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleAdd();
-    } else if (e.key === 'Escape') {
-      setValue('');
+    } else if (e.key === "Escape") {
+      setValue("");
       setDateRange(undefined);
-      setAssigneeId('');
+      setAssigneeId("");
       setIsAdding(false);
     }
   };
 
   const handleCancel = () => {
-    setValue('');
+    setValue("");
     setDateRange(undefined);
-    setAssigneeId('');
+    setAssigneeId("");
     setIsAdding(false);
   };
 
   // 선택된 담당자 정보 가져오기
-  const selectedMember = assigneeId ? boardMembers.find(m => m.userId === assigneeId) : null;
+  const selectedMember = assigneeId
+    ? boardMembers.find((m) => m.userId === assigneeId)
+    : null;
 
   if (!isAdding) {
     return (
@@ -1858,7 +2370,7 @@ function AddChecklistItemInput({
         onClick={handleStartAdding}
       >
         <Plus className="h-4 w-4 mr-2" />
-        {t('task.addChecklistItem')}
+        {t("task.addChecklistItem")}
       </Button>
     );
   }
@@ -1872,94 +2384,130 @@ function AddChecklistItemInput({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={t('task.checklistItemPlaceholder')}
+            placeholder={t("task.checklistItemPlaceholder")}
             className="text-xs h-7 bg-foreground/5 border-foreground/10 text-foreground placeholder:text-slate-500"
             autoFocus
           />
 
           {/* 옵션 필드들 */}
           <div className="flex gap-2 pt-2 border-t border-foreground/10">
-              {/* 날짜 범위 선택 */}
-              <div className="flex-1">
-                <label className="text-xs text-slate-400 block mb-1">{t('task.period')}</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full h-7 text-xs justify-start text-left font-normal bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
-                    >
-                      <CalendarIcon className="mr-2 h-3 w-3" />
-                      {dateRange?.from ? (
-                        dateRange.to ? (
-                          <>
-                            {format(dateRange.from, 'MM/dd', { locale: ko })} -{' '}
-                            {format(dateRange.to, 'MM/dd', { locale: ko })}
-                          </>
-                        ) : (
-                          format(dateRange.from, 'MM/dd', { locale: ko })
-                        )
+            {/* 날짜 범위 선택 */}
+            <div className="flex-1">
+              <label className="text-xs text-slate-400 block mb-1">
+                {t("task.period")}
+              </label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full h-7 text-xs justify-start text-left font-normal bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
+                  >
+                    <CalendarIcon className="mr-2 h-3 w-3" />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, "MM/dd", { locale: ko })} -{" "}
+                          {format(dateRange.to, "MM/dd", { locale: ko })}
+                        </>
                       ) : (
-                        <span className="text-slate-400">{t('task.selectDate')}</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-foreground/10" align="start">
-                    <Calendar
-                      mode="range"
-                      selected={dateRange}
-                      onSelect={setDateRange}
-                      numberOfMonths={1}
-                      locale={ko}
-                      className="bg-bridge-obsidian text-foreground"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+                        format(dateRange.from, "MM/dd", { locale: ko })
+                      )
+                    ) : (
+                      <span className="text-slate-400">
+                        {t("task.selectDate")}
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-auto p-0 bg-bridge-obsidian border-foreground/10"
+                  align="start"
+                >
+                  <Calendar
+                    mode="range"
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    numberOfMonths={1}
+                    locale={ko}
+                    className="bg-bridge-obsidian text-foreground"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
 
-              {/* 담당자 — Personal Board에서는 숨김 */}
-              {!isPersonal && (
+            {/* 담당자 — Personal Board에서는 숨김 */}
+            {!isPersonal && (
               <div className="flex-1">
-                <label className="text-xs text-slate-400 block mb-1">{t('task.assignee')}</label>
+                <label className="text-xs text-slate-400 block mb-1">
+                  {t("task.assignee")}
+                </label>
                 <Select
-                  value={assigneeId || 'none'}
-                  onValueChange={(val) => setAssigneeId(val === 'none' ? '' : val)}
+                  value={assigneeId || "none"}
+                  onValueChange={(val) =>
+                    setAssigneeId(val === "none" ? "" : val)
+                  }
                 >
                   <SelectTrigger className="h-7 text-xs bg-foreground/5 border-foreground/10 text-foreground">
-                    {selectedMember ? (() => {
-                      const selColor = getAssigneeClasses(selectedMember.name, selectedMember.assigneeColor);
-                      return (
-                        <div className="flex items-center gap-1">
-                          <div
-                            className={`w-4 h-4 rounded-full ${selColor.bg} flex items-center justify-center text-[10px] text-white flex-shrink-0 whitespace-nowrap overflow-hidden`}
-                            style={!selColor.bg ? { backgroundColor: selColor.hex } : undefined}
-                          >
-                            {getInitials(selectedMember.name)}
+                    {selectedMember ? (
+                      (() => {
+                        const selColor = getAssigneeClasses(
+                          selectedMember.name,
+                          selectedMember.assigneeColor,
+                        );
+                        return (
+                          <div className="flex items-center gap-1">
+                            <div
+                              className={`w-4 h-4 rounded-full ${selColor.bg} flex items-center justify-center text-[10px] text-white flex-shrink-0 whitespace-nowrap overflow-hidden`}
+                              style={
+                                !selColor.bg
+                                  ? { backgroundColor: selColor.hex }
+                                  : undefined
+                              }
+                            >
+                              {getInitials(selectedMember.name)}
+                            </div>
+                            <span>{selectedMember.name}</span>
                           </div>
-                          <span>{selectedMember.name}</span>
-                        </div>
-                      );
-                    })() : (
-                      <SelectValue placeholder={t('common.none')} />
+                        );
+                      })()
+                    ) : (
+                      <SelectValue placeholder={t("common.none")} />
                     )}
                   </SelectTrigger>
                   <SelectContent className="bg-bridge-obsidian border-foreground/10">
-                    <SelectItem value="none" className="text-foreground hover:bg-foreground/10">
-                      <span className="text-xs">{t('common.none')}</span>
+                    <SelectItem
+                      value="none"
+                      className="text-foreground hover:bg-foreground/10"
+                    >
+                      <span className="text-xs">{t("common.none")}</span>
                     </SelectItem>
                     {boardMembers.map((member) => {
-                      const memberColor = getAssigneeClasses(member.name, member.assigneeColor);
+                      const memberColor = getAssigneeClasses(
+                        member.name,
+                        member.assigneeColor,
+                      );
                       return (
-                        <SelectItem key={member.userId} value={member.userId} className="text-foreground hover:bg-foreground/10">
+                        <SelectItem
+                          key={member.userId}
+                          value={member.userId}
+                          className="text-foreground hover:bg-foreground/10"
+                        >
                           <div className="flex items-center gap-2">
                             <div
                               className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-[10px] text-white flex-shrink-0 whitespace-nowrap overflow-hidden`}
-                              style={!memberColor.bg ? { backgroundColor: memberColor.hex } : undefined}
+                              style={
+                                !memberColor.bg
+                                  ? { backgroundColor: memberColor.hex }
+                                  : undefined
+                              }
                             >
                               {getInitials(member.name)}
                             </div>
                             <span className="text-xs">{member.name}</span>
                             {member.userId === currentUser?.id && (
-                              <span className="text-[10px] text-slate-400">(나)</span>
+                              <span className="text-[10px] text-slate-400">
+                                (나)
+                              </span>
                             )}
                           </div>
                         </SelectItem>
@@ -1968,15 +2516,19 @@ function AddChecklistItemInput({
                   </SelectContent>
                 </Select>
               </div>
-              )}
-            </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* 버튼 영역 */}
       <div className="flex justify-end gap-2 mt-2">
-        <Button size="sm" onClick={handleAdd} className="h-7 bg-bridge-accent hover:bg-bridge-accent/90">
-          {t('common.add')}
+        <Button
+          size="sm"
+          onClick={handleAdd}
+          className="h-7 bg-bridge-accent hover:bg-bridge-accent/90"
+        >
+          {t("common.add")}
         </Button>
         <Button
           size="sm"
@@ -1984,7 +2536,7 @@ function AddChecklistItemInput({
           onClick={handleCancel}
           className="h-7 text-slate-400 hover:text-foreground hover:bg-foreground/10"
         >
-          {t('common.cancel')}
+          {t("common.cancel")}
         </Button>
       </div>
     </div>

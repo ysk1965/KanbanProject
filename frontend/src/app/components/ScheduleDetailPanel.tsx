@@ -289,7 +289,7 @@ export function ScheduleDetailPanel({
   };
 
   return (
-    <div className="fixed right-0 top-0 h-full w-96 bg-bridge-obsidian border-l border-bridge-border shadow-xl z-50 flex flex-col">
+    <div className="w-96 flex-shrink-0 h-full bg-bridge-obsidian border-l border-bridge-border shadow-xl flex flex-col">
       {/* 헤더 */}
       <div className="flex items-center justify-between p-4 border-b border-bridge-border">
         <h2 className="text-lg font-semibold text-foreground">{t('scheduleDetail.title')}</h2>

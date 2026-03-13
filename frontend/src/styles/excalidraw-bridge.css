@@ -1,0 +1,104 @@
+/* ============================================
+   Excalidraw Bridge Theme Overrides
+   Maps Excalidraw CSS variables to Bridge design tokens
+   ============================================ */
+
+/* Full-canvas container — sized by position: absolute; inset: 0 from inline styles.
+   Do NOT set width/height here; percentage values can conflict with flex layout,
+   causing Excalidraw canvas to measure the wrong container dimensions. */
+.excalidraw-bridge-container {
+  overflow: hidden;
+}
+
+/* ============================================
+   Dark Mode
+   ============================================ */
+.excalidraw-bridge-container .excalidraw.theme--dark {
+  --default-bg-color: var(--bridge-obsidian, #151B28);
+  --island-bg-color: var(--bridge-surface, #1e2a42);
+
+  /* Primary — Bridge Accent (Indigo) */
+  --color-primary: var(--bridge-accent, #6366F1);
+  --color-primary-darker: #5753d0;
+  --color-primary-darkest: #4440bf;
+  --color-primary-light: rgba(99, 102, 241, 0.15);
+  --color-primary-hover: #7c7fff;
+
+  /* Surface */
+  --color-surface-high: var(--bridge-surface, #1e2a42);
+  --color-surface-mid: #1a2235;
+  --color-surface-low: var(--bridge-obsidian, #151B28);
+  --color-surface-lowest: var(--bridge-dark, #191f2d);
+  --color-on-surface: #e2e8f0;
+
+  /* Border */
+  --color-border-outline: var(--bridge-border, #384d6e);
+  --color-border-outline-variant: var(--border-default, rgba(255, 255, 255, 0.08));
+
+  /* Text */
+  --text-primary-color: #e2e8f0;
+  --popup-text-color: #e2e8f0;
+
+  /* Input */
+  --input-bg-color: var(--bridge-obsidian, #151B28);
+  --input-border-color: var(--bridge-border, #384d6e);
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.08);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.15);
+
+  /* Shadow */
+  --shadow-island: var(--shadow-card, 0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+/* ============================================
+   Light Mode
+   ============================================ */
+.excalidraw-bridge-container .excalidraw:not(.theme--dark) {
+  --default-bg-color: var(--bridge-dark, #fffcf8);
+  --island-bg-color: var(--bridge-obsidian, #efe6d8);
+
+  /* Primary — Bridge Accent */
+  --color-primary: var(--bridge-accent, #6366F1);
+  --color-primary-darker: #5753d0;
+  --color-primary-darkest: #4440bf;
+  --color-primary-hover: #5753d0;
+
+  /* Surface */
+  --color-surface-high: #f0e9e0;
+  --color-surface-mid: #f5f1ed;
+  --color-surface-low: var(--bridge-obsidian, #efe6d8);
+  --color-surface-lowest: var(--bridge-dark, #fffcf8);
+  --color-on-surface: #3D2E1F;
+
+  /* Text */
+  --text-primary-color: #3D2E1F;
+  --popup-text-color: #3D2E1F;
+
+  /* Border */
+  --color-border-outline: var(--bridge-border, #E4DFDA);
+  --color-border-outline-variant: var(--bridge-border, #E4DFDA);
+
+  /* Input */
+  --input-bg-color: var(--bridge-dark, #fffcf8);
+  --input-border-color: var(--bridge-border, #E4DFDA);
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(0, 0, 0, 0.1);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.18);
+
+  /* Shadow */
+  --shadow-island: var(--shadow-card, 0 1px 3px rgba(0, 0, 0, 0.06));
+}
+
+/* ============================================
+   Toolbar / Island refinements
+   ============================================ */
+.excalidraw-bridge-container .excalidraw .Island {
+  border-radius: 1rem;
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.08));
+}
+
+.excalidraw-bridge-container .excalidraw .footer-center {
+  border-radius: 1rem;
+}

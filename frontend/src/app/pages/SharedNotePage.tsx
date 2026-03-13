@@ -10,6 +10,8 @@ import {
   Loader2,
 } from "lucide-react";
 
+import "@excalidraw/excalidraw/index.css";
+
 const ExcalidrawLazy = React.lazy(async () => {
   const mod = await import("@excalidraw/excalidraw");
   return { default: mod.Excalidraw };
@@ -237,17 +239,32 @@ export function SharedNotePage() {
               </div>
             }
           >
-            <div className="w-full min-h-[60vh] h-[70vh] rounded-2xl overflow-hidden">
+            <div className="w-full min-h-[60vh] h-[75vh] excalidraw-bridge-container">
               <ExcalidrawLazy
                 initialData={(() => {
                   try {
-                    return JSON.parse(note.content || "{}");
+                    const parsed = JSON.parse(note.content || "{}");
+                    return {
+                      elements: parsed.elements || [],
+                      appState: {
+                        viewBackgroundColor:
+                          parsed.appState?.viewBackgroundColor ||
+                          (isDark ? "#151B28" : "#efe6d8"),
+                      },
+                      files: parsed.files || {},
+                    };
                   } catch {
                     return {};
                   }
                 })()}
                 viewModeEnabled={true}
                 theme={isDark ? "dark" : "light"}
+                UIOptions={{
+                  canvasActions: {
+                    loadScene: false,
+                    export: { saveFileToDisk: false },
+                  },
+                }}
               />
             </div>
           </Suspense>

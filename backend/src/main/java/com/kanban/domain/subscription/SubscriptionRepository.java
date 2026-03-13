@@ -59,6 +59,13 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Stri
             nativeQuery = true)
     List<Object[]> getMonthlyConverted(@Param("startDate") LocalDateTime startDate);
 
+    // Churn Analysis: 전환 안 된 만료 Trial 구독
+    @Query("SELECT s FROM Subscription s JOIN FETCH s.board b JOIN FETCH b.owner " +
+           "WHERE s.trialEndsAt < :now AND s.status != 'ACTIVE' " +
+           "AND s.currentPeriodStart IS NULL AND s.createdAt >= :startDate")
+    List<Subscription> findExpiredTrialsNotConverted(@Param("now") LocalDateTime now,
+                                                     @Param("startDate") LocalDateTime startDate);
+
     // AI Credits
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

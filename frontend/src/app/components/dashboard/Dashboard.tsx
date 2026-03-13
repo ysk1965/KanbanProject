@@ -42,6 +42,7 @@ import { EditBoardModal } from "./EditBoardModal";
 import { OnboardingModal } from "../OnboardingModal";
 import MySpaceSummaryStrip from "./MySpaceSummaryStrip";
 import OrgSummaryStrip from "./OrgSummaryStrip";
+import { MotionModal } from "../ui/MotionModal";
 
 interface DashboardProps {
   boards: Board[];
@@ -328,11 +329,13 @@ export function Dashboard({
   const isMilkyway = window.location.hostname.includes("milkyway.pe.kr");
 
   const [activatingSpace, setActivatingSpace] = useState(false);
+  const [showMySpaceIntro, setShowMySpaceIntro] = useState(false);
   const handleActivatePersonalSpace = async () => {
     setActivatingSpace(true);
     try {
       await personalSpaceAPI.activate();
       updateCurrentUser({ personal_space_enabled: true });
+      setShowMySpaceIntro(false);
       navigate("/my-board");
     } catch {
       // silently fail
@@ -532,7 +535,7 @@ export function Dashboard({
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, ease: "easeOut" }}
-                  onClick={handleActivatePersonalSpace}
+                  onClick={() => setShowMySpaceIntro(true)}
                   disabled={activatingSpace}
                   className="hidden lg:flex group w-full items-center gap-4 px-4 py-2.5
                     bg-bridge-obsidian rounded-2xl border border-dashed border-bridge-secondary/30
@@ -1027,7 +1030,7 @@ export function Dashboard({
           <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden safe-bottom bg-bridge-obsidian/95 backdrop-blur-xl">
             <div className="border-t border-dashed border-bridge-secondary/30">
               <button
-                onClick={handleActivatePersonalSpace}
+                onClick={() => setShowMySpaceIntro(true)}
                 disabled={activatingSpace}
                 className="w-full flex items-center justify-between px-4 py-2.5 active:bg-foreground/5 transition-colors"
               >
@@ -1095,6 +1098,73 @@ export function Dashboard({
         isOpen={showOnboarding}
         onClose={() => setShowOnboarding(false)}
       />
+
+      {/* My Space Intro Modal */}
+      <MotionModal
+        open={showMySpaceIntro}
+        onClose={() => setShowMySpaceIntro(false)}
+        className="sm:max-w-lg"
+        accentColor
+      >
+        <div className="px-5 pt-5 pb-4">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-bridge-secondary/10 flex items-center justify-center">
+              <Sparkles size={20} className="text-bridge-secondary" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-foreground tracking-tight">
+                {t("dashboard.mySpaceIntroTitle")}
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                {t("dashboard.mySpaceIntroDesc")}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5 mt-4">
+            {[
+              { icon: ListTodo, titleKey: "mySpaceIntroTaskTitle", descKey: "mySpaceIntroTaskDesc", color: "text-bridge-accent" },
+              { icon: Flame, titleKey: "mySpaceIntroHabitTitle", descKey: "mySpaceIntroHabitDesc", color: "text-purple-400" },
+              { icon: Clock, titleKey: "mySpaceIntroEventTitle", descKey: "mySpaceIntroEventDesc", color: "text-bridge-secondary" },
+              { icon: BookOpen, titleKey: "mySpaceIntroDiaryTitle", descKey: "mySpaceIntroDiaryDesc", color: "text-rose-400" },
+            ].map((item, index) => (
+              <motion.div
+                key={item.titleKey}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.06 }}
+                className="flex items-start gap-2.5 p-3 bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl"
+              >
+                <item.icon size={16} className={`${item.color} shrink-0 mt-0.5`} />
+                <div>
+                  <p className="text-[12px] font-bold text-foreground">
+                    {t(`dashboard.${item.titleKey}`)}
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                    {t(`dashboard.${item.descKey}`)}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
+          <span
+            className="text-[10px] text-slate-600 cursor-pointer hover:text-slate-400 transition-colors"
+            onClick={() => setShowMySpaceIntro(false)}
+          >
+            Esc {t("dashboard.mySpaceIntroClose")}
+          </span>
+          <button
+            onClick={handleActivatePersonalSpace}
+            disabled={activatingSpace}
+            className="px-5 py-1.5 rounded-xl text-xs font-bold text-white bg-bridge-secondary hover:bg-bridge-secondary/90 transition-all disabled:opacity-50"
+          >
+            {activatingSpace ? "..." : t("dashboard.mySpaceIntroStart")}
+          </button>
+        </div>
+      </MotionModal>
 
       {/* Custom Styles */}
       <style>{`
