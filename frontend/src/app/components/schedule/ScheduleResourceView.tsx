@@ -301,15 +301,14 @@ export function ScheduleResourceView({
   }, [externalDragItem, timelineDays, onDropChecklist]);
 
   // ─── Build row data ───
+  // Always show board members as rows, even when API data is not yet loaded
   const rows = useMemo(() => {
-    if (!data) return [];
-
     // Filter members to exclude viewers
     const activeMembers = boardMembers.filter((m) => m.role !== "viewer");
 
-    // Build member rows from API response
+    // Build member rows — always show all active members
     const memberRows = activeMembers.map((member) => {
-      const assigneeGroup = data.assignees.find(
+      const assigneeGroup = data?.assignees.find(
         (a) => a.assignee.id === member.userId,
       );
       return {
@@ -323,7 +322,7 @@ export function ScheduleResourceView({
     });
 
     // Add unassigned row if there are unassigned items
-    if (data.unassigned.length > 0) {
+    if (data && data.unassigned.length > 0) {
       memberRows.push({
         type: "member" as const,
         id: "__unassigned__",
@@ -622,8 +621,8 @@ export function ScheduleResourceView({
     );
   }
 
-  // ─── Empty state ───
-  if (!data || (rows.length === 0 && milestoneBarData.length === 0)) {
+  // ─── Empty state: only when no board members at all ───
+  if (rows.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center h-full bg-bridge-dark">
         <div className="flex flex-col items-center gap-4 text-center max-w-md px-6">
@@ -824,10 +823,10 @@ export function ScheduleResourceView({
               >
                 {/* Left label */}
                 <div
-                  className="shrink-0 sticky left-0 z-10 bg-bridge-obsidian border-r border-foreground/[0.08]"
+                  className="shrink-0 sticky left-0 z-10 bg-bridge-obsidian border-r border-foreground/[0.08]
+                    flex items-start gap-2 px-4 pt-3"
                   style={{ width: LEFT_COL_WIDTH, minHeight: dynamicRowHeight }}
                 >
-                  <div className="sticky top-[48px] flex items-center gap-2 px-4 py-3">
                   {row.avatar ? (
                     <img
                       src={row.avatar}
@@ -847,10 +846,9 @@ export function ScheduleResourceView({
                       {getInitials(row.name)}
                     </div>
                   )}
-                  <span className="text-sm font-medium text-foreground truncate">
+                  <span className="text-sm font-medium text-foreground truncate mt-1">
                     {row.name}
                   </span>
-                  </div>
                 </div>
 
                 {/* Timeline area */}
