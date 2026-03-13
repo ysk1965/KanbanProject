@@ -30,6 +30,8 @@ interface ChecklistItemPanelProps {
   onDragStateChange?: (state: PanelDragState | null) => void;
   /** Called when an item is dropped. Panel removes item from list. */
   onItemDropped?: (itemId: string) => void;
+  /** Called when user clicks detail button on an item (opens task detail). */
+  onItemDetailClick?: (item: AssigneeItemResponse) => void;
 }
 
 // ─── Status group types ───────────────────────────────────────────────────────
@@ -116,6 +118,7 @@ export function ChecklistItemPanel({
   boardId,
   onDragStateChange,
   onItemDropped,
+  onItemDetailClick,
 }: ChecklistItemPanelProps) {
   const { t } = useTranslation();
 
@@ -392,6 +395,7 @@ export function ChecklistItemPanel({
                       assignee={null}
                       isDragging={dragState?.item.id === item.id && dragState.isActive}
                       onMouseDown={handleItemMouseDown}
+                      onDetailClick={onItemDetailClick}
                     />
                   ))}
                 </StatusGroupSection>
@@ -412,6 +416,7 @@ export function ChecklistItemPanel({
                       assignee={null}
                       isDragging={dragState?.item.id === item.id && dragState.isActive}
                       onMouseDown={handleItemMouseDown}
+                      onDetailClick={onItemDetailClick}
                     />
                   ))}
                 </StatusGroupSection>
@@ -432,6 +437,7 @@ export function ChecklistItemPanel({
                       assignee={null}
                       isDragging={dragState?.item.id === item.id && dragState.isActive}
                       onMouseDown={handleItemMouseDown}
+                      onDetailClick={onItemDetailClick}
                     />
                   ))}
                 </StatusGroupSection>
