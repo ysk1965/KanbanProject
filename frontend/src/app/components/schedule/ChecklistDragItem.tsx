@@ -1,4 +1,4 @@
-import { GripVertical } from 'lucide-react';
+import { GripVertical, ExternalLink } from 'lucide-react';
 import { AssigneeItemResponse } from '../../utils/api';
 import { getInitials, getAssigneeHex } from '../../utils/assigneeColor';
 import { resolveFileUrl } from '../../utils/api';
@@ -12,6 +12,7 @@ interface ChecklistDragItemProps {
   } | null;
   isDragging?: boolean;
   onMouseDown: (e: React.MouseEvent, item: AssigneeItemResponse) => void;
+  onDetailClick?: (item: AssigneeItemResponse) => void;
 }
 
 /**
@@ -29,6 +30,7 @@ export function ChecklistDragItem({
   assignee,
   isDragging = false,
   onMouseDown,
+  onDetailClick,
 }: ChecklistDragItemProps) {
   const featureColor = item.feature?.color ?? '#6366F1';
 
@@ -107,27 +109,47 @@ export function ChecklistDragItem({
           )}
         </div>
 
-        {/* Assignee avatar (right side) */}
-        {assignee && (
-          <div className="shrink-0 self-start" title={assignee.name}>
-            {assignee.profile_image ? (
-              <img
-                src={resolveFileUrl(assignee.profile_image)}
-                alt={assignee.name}
-                className="w-5 h-5 rounded-full object-cover"
-              />
-            ) : (
-              <div
-                className="w-5 h-5 rounded-full flex items-center justify-center
-                  text-[9px] font-bold text-white shrink-0"
-                style={{ backgroundColor: getAssigneeHex(assignee.name) }}
-                aria-label={assignee.name}
-              >
-                {getInitials(assignee.name)}
-              </div>
-            )}
-          </div>
-        )}
+        {/* Right side: detail button + assignee avatar */}
+        <div className="shrink-0 flex items-center gap-1 self-start">
+          {/* Detail view button */}
+          {onDetailClick && item.task && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onDetailClick(item);
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="p-1 rounded-lg text-slate-500 hover:text-foreground
+                hover:bg-foreground/5 transition-colors opacity-0 group-hover:opacity-100"
+              title="Detail"
+            >
+              <ExternalLink size={12} />
+            </button>
+          )}
+
+          {/* Assignee avatar */}
+          {assignee && (
+            <div title={assignee.name}>
+              {assignee.profile_image ? (
+                <img
+                  src={resolveFileUrl(assignee.profile_image)}
+                  alt={assignee.name}
+                  className="w-5 h-5 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="w-5 h-5 rounded-full flex items-center justify-center
+                    text-[9px] font-bold text-white shrink-0"
+                  style={{ backgroundColor: getAssigneeHex(assignee.name) }}
+                  aria-label={assignee.name}
+                >
+                  {getInitials(assignee.name)}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

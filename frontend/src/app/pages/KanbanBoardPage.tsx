@@ -1968,6 +1968,15 @@ export function KanbanBoardPage() {
     setIsTaskModalOpen(true);
   }, []);
 
+  const handleChecklistItemDetailClick = useCallback(
+    (item: { task: { id: string } | null }) => {
+      if (!item.task) return;
+      const task = tasks.find((t) => t.id === item.task!.id);
+      if (task) handleTaskClick(task);
+    },
+    [tasks, handleTaskClick],
+  );
+
   const handleNotificationClick = (notification: NotificationItem) => {
     if (notification.task_id) {
       const task = tasks.find((t) => t.id === notification.task_id);
@@ -3182,7 +3191,7 @@ export function KanbanBoardPage() {
             )}
           </main>
         ) : viewMode === "schedule" ? (
-          <main className="flex-1 overflow-hidden">
+          <main className="flex-1 flex flex-col overflow-hidden">
             {scheduleSubTab === "timeblock" ? (
               <DailyScheduleView
                 boardId={boardId || ""}
@@ -3251,6 +3260,7 @@ export function KanbanBoardPage() {
                     key={scheduleRefreshPanel}
                     boardId={boardId || ""}
                     onDragStateChange={setPanelDragState}
+                    onItemDetailClick={handleChecklistItemDetailClick}
                   />
                 </Suspense>
               </div>
@@ -3312,6 +3322,7 @@ export function KanbanBoardPage() {
                     key={scheduleRefreshPanel}
                     boardId={boardId || ""}
                     onDragStateChange={setPanelDragState}
+                    onItemDetailClick={handleChecklistItemDetailClick}
                   />
                 </Suspense>
               </div>
