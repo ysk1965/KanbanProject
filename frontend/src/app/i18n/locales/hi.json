@@ -722,6 +722,7 @@
     "select": "चुनें",
     "collapse": "संक्षिप्त करें",
     "createNew": "नया बनाएं",
+    "createNewMeeting": "नई मीटिंग बनाएं",
     "selectFeature": "एक Feature चुनें",
     "selectFeatureFirst": "पहले एक Feature चुनें",
     "selectTask": "एक Task चुनें",
@@ -750,7 +751,7 @@
     "subTab": {
       "timeblock": "टाइम ब्लॉक",
       "calendar": "कैलेंडर",
-      "resource": "संसाधन"
+      "resource": "कार्यभार"
     },
     "calendar": {
       "today": "आज",
@@ -769,7 +770,8 @@
       "title": "चेकलिस्ट",
       "search": "खोजें...",
       "noUnscheduled": "सभी आइटम शेड्यूल किए गए हैं",
-      "dragHint": "कैलेंडर/संसाधन पर रखने के लिए खींचें"
+      "dragHint": "कैलेंडर/संसाधन पर रखने के लिए खींचें",
+      "filterFeature": "फ़ीचर से फ़िल्टर करें"
     },
     "settingsTitle": "शेड्यूल सेटिंग्स",
     "managementMethod": "प्रबंधन विधि",
@@ -2141,7 +2143,8 @@
     "customBlock": "कस्टम ब्लॉक",
     "blockColor": "रंग",
     "editCustom": "ब्लॉक संपादित करें",
-    "titlePlaceholder": "शेड्यूल नाम दर्ज करें"
+    "titlePlaceholder": "शेड्यूल नाम दर्ज करें",
+    "viewMeeting": "मीटिंग विवरण देखें"
   },
   "emptyBoard": {
     "heading": "अपने बोर्ड के साथ शुरू करें",

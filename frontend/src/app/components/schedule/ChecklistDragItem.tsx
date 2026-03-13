@@ -1,4 +1,4 @@
-import { GripVertical, ExternalLink } from 'lucide-react';
+import { GripVertical, ExternalLink, Calendar } from 'lucide-react';
 import { AssigneeItemResponse } from '../../utils/api';
 import { getInitials, getAssigneeHex } from '../../utils/assigneeColor';
 import { resolveFileUrl } from '../../utils/api';
@@ -103,8 +103,9 @@ export function ChecklistDragItem({
 
           {/* Date range */}
           {hasDate && dateLabel && (
-            <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">
-              📅 {dateLabel}
+            <p className="flex items-center gap-1 text-[10px] text-slate-500 mt-0.5 leading-snug">
+              <Calendar size={10} className="shrink-0" />
+              {dateLabel}
             </p>
           )}
         </div>

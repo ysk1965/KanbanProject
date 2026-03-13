@@ -722,6 +722,7 @@
     "select": "Chon",
     "collapse": "Thu gon",
     "createNew": "Tao moi",
+    "createNewMeeting": "Tao cuoc hop moi",
     "selectFeature": "Chon mot feature",
     "selectFeatureFirst": "Chon feature truoc",
     "selectTask": "Chon mot task",
@@ -750,7 +751,7 @@
     "subTab": {
       "timeblock": "Khối thời gian",
       "calendar": "Lịch",
-      "resource": "Tài nguyên"
+      "resource": "Khối lượng công việc"
     },
     "calendar": {
       "today": "Hôm nay",
@@ -769,7 +770,8 @@
       "title": "Danh sách kiểm tra",
       "search": "Tìm kiếm...",
       "noUnscheduled": "Tất cả các mục đã được lên lịch",
-      "dragHint": "Kéo để đặt vào lịch/tài nguyên"
+      "dragHint": "Kéo để đặt vào lịch/tài nguyên",
+      "filterFeature": "Lọc theo tính năng"
     },
     "settingsTitle": "Cai dat lich trinh",
     "managementMethod": "Phuong thuc quan ly",
@@ -2141,7 +2143,8 @@
     "customBlock": "Khối tùy chỉnh",
     "blockColor": "Màu sắc",
     "editCustom": "Chỉnh sửa khối",
-    "titlePlaceholder": "Nhập tên lịch trình"
+    "titlePlaceholder": "Nhập tên lịch trình",
+    "viewMeeting": "Xem chi tiết cuộc họp"
   },
   "emptyBoard": {
     "heading": "Bat dau voi bang cua ban",

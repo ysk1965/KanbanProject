@@ -771,6 +771,7 @@
     "select": "선택",
     "collapse": "접기",
     "createNew": "새로 생성",
+    "createNewMeeting": "새 회의 생성",
     "selectFeature": "Feature를 선택하세요",
     "selectFeatureFirst": "Feature를 먼저 선택하세요",
     "selectTask": "Task를 선택하세요",
@@ -799,7 +800,7 @@
     "subTab": {
       "timeblock": "타임블록",
       "calendar": "캘린더",
-      "resource": "리소스"
+      "resource": "워크로드"
     },
     "calendar": {
       "today": "오늘",
@@ -818,7 +819,8 @@
       "title": "체크리스트",
       "search": "검색...",
       "noUnscheduled": "모든 항목이 배정되었습니다",
-      "dragHint": "드래그하여 캘린더/리소스에 배치"
+      "dragHint": "드래그하여 캘린더/리소스에 배치",
+      "filterFeature": "피쳐별 필터"
     },
     "settingsTitle": "스케줄 설정",
     "managementMethod": "관리 방식",
@@ -1748,7 +1750,8 @@
     "customBlock": "커스텀 블록",
     "blockColor": "색상",
     "editCustom": "블록 편집",
-    "titlePlaceholder": "일정 이름을 입력하세요"
+    "titlePlaceholder": "일정 이름을 입력하세요",
+    "viewMeeting": "회의 상세보기"
   },
   "emptyBoard": {
     "heading": "보드를 시작해보세요",
@@ -4365,7 +4368,7 @@
     "showHelp": "단축키 보기",
     "schedTimeblock": "타임블록 뷰",
     "schedCalendar": "캘린더 뷰",
-    "schedResource": "리소스 뷰",
+    "schedResource": "워크로드 뷰",
     "contextBoard": "보드 탭",
     "contextSchedule": "일정 탭",
     "statsOverview": "요약 뷰",

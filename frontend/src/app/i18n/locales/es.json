@@ -722,6 +722,7 @@
     "select": "Seleccionar",
     "collapse": "Contraer",
     "createNew": "Crear nuevo",
+    "createNewMeeting": "Crear nueva reunión",
     "selectFeature": "Seleccionar un Feature",
     "selectFeatureFirst": "Selecciona un Feature primero",
     "selectTask": "Seleccionar un Task",
@@ -750,7 +751,7 @@
     "subTab": {
       "timeblock": "Bloque de tiempo",
       "calendar": "Calendario",
-      "resource": "Recurso"
+      "resource": "Carga de trabajo"
     },
     "calendar": {
       "today": "Hoy",
@@ -769,7 +770,8 @@
       "title": "Lista de verificación",
       "search": "Buscar...",
       "noUnscheduled": "Todos los elementos están programados",
-      "dragHint": "Arrastra para colocar en el calendario/recurso"
+      "dragHint": "Arrastra para colocar en el calendario/recurso",
+      "filterFeature": "Filtrar por función"
     },
     "settingsTitle": "Configuración de horario",
     "managementMethod": "Método de gestión",
@@ -2141,7 +2143,8 @@
     "customBlock": "Bloque personalizado",
     "blockColor": "Color",
     "editCustom": "Editar bloque",
-    "titlePlaceholder": "Ingrese el nombre del horario"
+    "titlePlaceholder": "Ingrese el nombre del horario",
+    "viewMeeting": "Ver detalle de reunión"
   },
   "emptyBoard": {
     "heading": "Comienza con tu tablero",

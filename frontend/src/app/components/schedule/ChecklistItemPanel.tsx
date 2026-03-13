@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PanelRightClose, Search, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { PanelRightClose, Search, ChevronDown, ChevronRight, Loader2, Filter, X } from 'lucide-react';
 import { AssigneeItemResponse, boardChecklistAPI } from '../../utils/api';
 import { ChecklistDragItem } from './ChecklistDragItem';
 
@@ -133,12 +133,20 @@ export function ChecklistItemPanel({
   // ── Search ──
   const [searchQuery, setSearchQuery] = useState('');
 
+  // ── Feature filter ──
+  const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null);
+  const [showFeatureDropdown, setShowFeatureDropdown] = useState(false);
+  const featureDropdownRef = useRef<HTMLDivElement>(null);
+
   // ── Status group collapse state (todo/in_progress open by default, done closed) ──
   const [openGroups, setOpenGroups] = useState<Record<StatusGroup, boolean>>({
     todo: true,
     in_progress: true,
     done: false,
   });
+
+  // ── Scroll container ref (to preserve scroll position on item removal) ──
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // ── Drag state ──
   const [dragState, setDragState] = useState<PanelDragState | null>(null);
@@ -184,6 +192,29 @@ export function ChecklistItemPanel({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // ── Extract unique features from items ──
+  const uniqueFeatures = useMemo(() => {
+    const featureMap = new Map<string, { id: string; title: string; color: string }>();
+    for (const item of items) {
+      if (item.feature) {
+        featureMap.set(item.feature.id, item.feature);
+      }
+    }
+    return Array.from(featureMap.values()).sort((a, b) => a.title.localeCompare(b.title));
+  }, [items]);
+
+  // ── Close feature dropdown on outside click ──
+  useEffect(() => {
+    if (!showFeatureDropdown) return;
+    const handleClick = (e: MouseEvent) => {
+      if (featureDropdownRef.current && !featureDropdownRef.current.contains(e.target as Node)) {
+        setShowFeatureDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showFeatureDropdown]);
 
   // ── Toggle a status group ──
   const toggleGroup = useCallback((group: StatusGroup) => {
@@ -256,8 +287,16 @@ export function ChecklistItemPanel({
           if (dropCell) {
             // Signal to parent; the parent handles API call and refresh
             onItemDropped?.(finalState.item.id);
+            // Save scroll position before removing item
+            const savedScrollTop = scrollContainerRef.current?.scrollTop ?? 0;
             // Optimistically remove from panel list
             setItems((prev) => prev.filter((i) => i.id !== finalState.item.id));
+            // Restore scroll position after React re-render
+            requestAnimationFrame(() => {
+              if (scrollContainerRef.current) {
+                scrollContainerRef.current.scrollTop = savedScrollTop;
+              }
+            });
           }
         }
       };
@@ -268,12 +307,18 @@ export function ChecklistItemPanel({
     [onItemDropped],
   );
 
-  // ── Filter items by search query ──
-  const filteredItems = searchQuery
-    ? items.filter((item) =>
-        item.title.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    : items;
+  // ── Filter items by search query + feature ──
+  const filteredItems = useMemo(() => {
+    let result = items;
+    if (selectedFeatureId) {
+      result = result.filter((item) => item.feature?.id === selectedFeatureId);
+    }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((item) => item.title.toLowerCase().includes(q));
+    }
+    return result;
+  }, [items, selectedFeatureId, searchQuery]);
 
   const grouped = groupItems(filteredItems);
 
@@ -350,8 +395,75 @@ export function ChecklistItemPanel({
           </div>
         </div>
 
+        {/* Feature filter */}
+        {uniqueFeatures.length > 1 && (
+          <div className="px-3 py-1.5 border-b border-foreground/[0.08]" ref={featureDropdownRef}>
+            {selectedFeatureId ? (
+              // Active filter chip
+              <button
+                onClick={() => setSelectedFeatureId(null)}
+                className="inline-flex items-center gap-1.5 max-w-full px-2 py-1 rounded-lg
+                  bg-bridge-accent/10 text-bridge-accent text-[11px] font-medium
+                  hover:bg-bridge-accent/15 transition-colors"
+              >
+                {(() => {
+                  const feat = uniqueFeatures.find((f) => f.id === selectedFeatureId);
+                  return feat ? (
+                    <>
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: feat.color }}
+                      />
+                      <span className="truncate">{feat.title}</span>
+                    </>
+                  ) : null;
+                })()}
+                <X size={12} className="shrink-0 ml-0.5" />
+              </button>
+            ) : (
+              // Filter toggle button
+              <div className="relative">
+                <button
+                  onClick={() => setShowFeatureDropdown((prev) => !prev)}
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg
+                    text-[11px] text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                >
+                  <Filter size={12} />
+                  <span>{t('schedule.panel.filterFeature', 'Filter by feature')}</span>
+                  <ChevronDown size={10} className={`transition-transform ${showFeatureDropdown ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown */}
+                {showFeatureDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-1 z-30
+                    bg-bridge-obsidian border border-foreground/[0.08] rounded-lg shadow-xl
+                    max-h-[200px] overflow-y-auto custom-scrollbar py-1">
+                    {uniqueFeatures.map((feature) => (
+                      <button
+                        key={feature.id}
+                        onClick={() => {
+                          setSelectedFeatureId(feature.id);
+                          setShowFeatureDropdown(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-[11px]
+                          text-foreground hover:bg-foreground/5 transition-colors"
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: feature.color }}
+                        />
+                        <span className="truncate">{feature.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Scrollable item list */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar px-3 py-2 space-y-3">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar px-3 py-2 space-y-3">
           {isLoading && (
             <div className="flex items-center justify-center py-8 text-slate-500">
               <Loader2 size={18} className="animate-spin mr-2 text-bridge-accent" aria-hidden="true" />

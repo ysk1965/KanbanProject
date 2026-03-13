@@ -278,7 +278,7 @@ export const KanbanBlock = memo(function KanbanBlock({
       )}
 
       {/* 블록 헤더 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-bridge-border group">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-bridge-border group">
         {/* 드래그 핸들 - TASK 제외 모든 블록 표시 */}
         {block.fixed_type !== "TASK" && (
           <div
@@ -358,7 +358,7 @@ export const KanbanBlock = memo(function KanbanBlock({
       {/* 카드 리스트 */}
       <div
         ref={taskContainerRef}
-        className="flex-1 p-3 space-y-3 overflow-y-auto min-h-0 custom-scrollbar"
+        className="flex-1 p-2 space-y-2 overflow-y-auto min-h-0 custom-scrollbar"
         onDragEnter={(e) => {
           if (e.dataTransfer.types.includes("application/task")) {
             e.preventDefault();
@@ -408,7 +408,7 @@ export const KanbanBlock = memo(function KanbanBlock({
             {taskPlaceholderInThisBlock &&
               placeholderIndex === index &&
               state.draggedTask?.id !== task.id && (
-                <div className="mb-3">{placeholderElement}</div>
+                <div className="mb-2">{placeholderElement}</div>
               )}
             <DraggableCard
               task={task}
@@ -437,10 +437,10 @@ export const KanbanBlock = memo(function KanbanBlock({
 
       {/* Quick Add Card Button - always visible at bottom */}
       {onQuickAddTask && (
-        <div className="px-3 py-2.5 border-t border-foreground/5">
+        <div className="px-2 py-1.5 border-t border-foreground/5">
           <button
             onClick={() => onQuickAddTask(block.id)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-all group"
+            className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-all group"
           >
             <Plus
               size={16}
