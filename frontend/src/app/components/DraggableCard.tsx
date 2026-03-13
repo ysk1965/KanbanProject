@@ -297,7 +297,7 @@ export function DraggableCard({
       data-task-id={task.id}
       data-task-index={index}
       draggable={!shouldDisablePointerEvents}
-      className={`group relative bg-bridge-surface-hover rounded-xl border px-3 py-2.5 cursor-pointer overflow-hidden select-none ${
+      className={`group relative bg-bridge-surface-hover rounded-xl border px-2.5 py-[7px] cursor-pointer overflow-hidden select-none ${
         isDragging || isThisCardDragging
           ? "opacity-30 scale-95 border-2 border-dashed border-bridge-secondary transition-all"
           : justCompleted
@@ -329,7 +329,7 @@ export function DraggableCard({
 
       {/* 좌측 컬러 바 */}
       <div
-        className="absolute top-0 left-0 bottom-0 w-1.5"
+        className="absolute top-0 left-0 bottom-0 w-1"
         style={{ backgroundColor: featureColor }}
       />
 
@@ -352,11 +352,11 @@ export function DraggableCard({
       )}
 
       {/* 제목 영역 */}
-      <div className="mb-2 pl-2.5">
+      <div className="mb-1 pl-2">
         {/* Feature 표시: showFeatureLabel이면 뱃지를 윗줄에, 아니면 dot + 제목 한 줄 */}
         {linkedFeature ? (
           showFeatureLabel || isChecklistExpanded ? (
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-0.5">
               <span
                 className="text-[9px] font-bold px-1.5 py-px rounded-full border self-start"
                 style={{
@@ -367,7 +367,7 @@ export function DraggableCard({
               >
                 {linkedFeature.title}
               </span>
-              <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-bridge-secondary transition-colors line-clamp-2">
+              <h4 className="font-bold text-foreground text-xs leading-snug group-hover:text-bridge-secondary transition-colors line-clamp-2">
                 {displayTitle}
               </h4>
             </div>
@@ -378,7 +378,7 @@ export function DraggableCard({
                 style={{ backgroundColor: featureColor }}
                 title={linkedFeature.title}
               />
-              <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-bridge-secondary transition-colors truncate">
+              <h4 className="font-bold text-foreground text-xs leading-snug group-hover:text-bridge-secondary transition-colors truncate">
                 {displayTitle}
               </h4>
             </div>
@@ -391,7 +391,7 @@ export function DraggableCard({
                 backgroundColor: task.completed ? "#22c55e" : featureColor,
               }}
             />
-            <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-bridge-secondary transition-colors truncate">
+            <h4 className="font-bold text-foreground text-xs leading-snug group-hover:text-bridge-secondary transition-colors truncate">
               {displayTitle}
             </h4>
           </div>
@@ -400,7 +400,7 @@ export function DraggableCard({
 
       {/* 태그 표시 (펼쳐졌을 때만) */}
       {isChecklistExpanded && taskTags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2 pl-2.5">
+        <div className="flex flex-wrap gap-1 mb-1 pl-2">
           {taskTags.map((tag) => (
             <span
               key={tag.id}
@@ -419,7 +419,7 @@ export function DraggableCard({
 
       {/* 마감일 표시 */}
       {task.due_date && (
-        <div className="flex items-center gap-1.5 mb-2 pl-2.5">
+        <div className="flex items-center gap-1.5 mb-1 pl-2">
           <Calendar
             size={12}
             className={`${
@@ -445,7 +445,7 @@ export function DraggableCard({
       )}
 
       {/* 체크리스트 & 담당자 */}
-      <div className="flex items-center justify-between border-t border-foreground/[0.08] pt-2 pl-2.5">
+      <div className="flex items-center justify-between border-t border-foreground/[0.08] pt-1.5 pl-2">
         <div className="flex items-center gap-3">
           {isScheduled && (
             <div
@@ -528,18 +528,13 @@ export function DraggableCard({
                 </div>
               )}
             </div>
-            {allAssignees.length === 1 && (
-              <span className="text-[10px] font-medium text-slate-400 ml-1.5">
-                {allAssignees[0].name}
-              </span>
-            )}
           </div>
         )}
       </div>
 
       {/* 체크리스트 펼침 */}
       {isChecklistExpanded && hasChecklist && boardId && (
-        <div className="mt-2 pt-2 border-t border-foreground/[0.08] space-y-1 pl-2.5">
+        <div className="mt-1.5 pt-1.5 border-t border-foreground/[0.08] space-y-0.5 pl-2">
           {isLoading ? (
             <div className="text-xs text-slate-400">{t("common.loading")}</div>
           ) : (
@@ -548,11 +543,11 @@ export function DraggableCard({
               .map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center gap-2 p-2 rounded-lg bg-bridge-surface-hover hover:bg-foreground/5 transition-colors"
+                  className="flex items-center gap-2 py-1 px-1.5 rounded-lg bg-bridge-surface-hover hover:bg-foreground/5 transition-colors"
                   onClick={(e) => handleToggleItem(e, item.id)}
                 >
                   <div
-                    className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
+                    className={`w-3.5 h-3.5 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
                       item.completed
                         ? "bg-green-500 border-green-500"
                         : "bg-transparent border-slate-500 hover:border-slate-400"

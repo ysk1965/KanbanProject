@@ -722,6 +722,7 @@
     "select": "選択",
     "collapse": "折りたたむ",
     "createNew": "新規作成",
+    "createNewMeeting": "新しいミーティングを作成",
     "selectFeature": "Feature を選択",
     "selectFeatureFirst": "まず Feature を選択してください",
     "selectTask": "Task を選択",
@@ -750,7 +751,7 @@
     "subTab": {
       "timeblock": "タイムブロック",
       "calendar": "カレンダー",
-      "resource": "リソース"
+      "resource": "ワークロード"
     },
     "calendar": {
       "today": "今日",
@@ -769,7 +770,8 @@
       "title": "チェックリスト",
       "search": "検索...",
       "noUnscheduled": "すべての項目がスケジュール済みです",
-      "dragHint": "カレンダー/リソースにドラッグして配置"
+      "dragHint": "カレンダー/リソースにドラッグして配置",
+      "filterFeature": "フィーチャーで絞り込み"
     },
     "settingsTitle": "スケジュール設定",
     "managementMethod": "管理方法",
@@ -2141,7 +2143,8 @@
     "customBlock": "カスタムブロック",
     "blockColor": "色",
     "editCustom": "ブロック編集",
-    "titlePlaceholder": "スケジュール名を入力してください"
+    "titlePlaceholder": "スケジュール名を入力してください",
+    "viewMeeting": "ミーティング詳細"
   },
   "emptyBoard": {
     "heading": "ボードを始めましょう",

@@ -722,6 +722,7 @@
     "select": "Selecionar",
     "collapse": "Recolher",
     "createNew": "Criar novo",
+    "createNewMeeting": "Criar nova reunião",
     "selectFeature": "Selecione uma feature",
     "selectFeatureFirst": "Selecione uma feature primeiro",
     "selectTask": "Selecione uma task",
@@ -750,7 +751,7 @@
     "subTab": {
       "timeblock": "Bloco de Tempo",
       "calendar": "Calendário",
-      "resource": "Recurso"
+      "resource": "Carga de trabalho"
     },
     "calendar": {
       "today": "Hoje",
@@ -769,7 +770,8 @@
       "title": "Lista de verificação",
       "search": "Pesquisar...",
       "noUnscheduled": "Todos os itens estão agendados",
-      "dragHint": "Arraste para colocar no calendário/recurso"
+      "dragHint": "Arraste para colocar no calendário/recurso",
+      "filterFeature": "Filtrar por recurso"
     },
     "settingsTitle": "Configurações de Agenda",
     "managementMethod": "Método de Gerenciamento",
@@ -2141,7 +2143,8 @@
     "customBlock": "Bloco personalizado",
     "blockColor": "Cor",
     "editCustom": "Editar bloco",
-    "titlePlaceholder": "Digite o nome da agenda"
+    "titlePlaceholder": "Digite o nome da agenda",
+    "viewMeeting": "Ver detalhes da reunião"
   },
   "emptyBoard": {
     "heading": "Comece com seu board",
