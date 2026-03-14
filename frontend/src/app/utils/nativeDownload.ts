@@ -324,6 +324,18 @@ export async function downloadPhoto(photoUrl: string, filename: string, photoId?
   }
 }
 
+export interface BatchDownloadProgress {
+  current: number;
+  total: number;
+  phase: 'downloading' | 'saving' | 'done' | 'cancelled';
+  failedCount: number;
+}
+
+export interface BatchDownloadOptions {
+  onProgress?: (progress: BatchDownloadProgress) => void;
+  signal?: AbortSignal;
+}
+
 /**
  * Batch download photos — optimized for Web Share API on mobile.
  * - Mobile web: fetches all files, shares via single OS share sheet
@@ -332,26 +344,42 @@ export async function downloadPhoto(photoUrl: string, filename: string, photoId?
  */
 export async function downloadPhotosBatch(
   photos: { url: string; filename: string; id: string }[],
+  options?: BatchDownloadOptions,
 ): Promise<string[]> {
+  const { onProgress, signal } = options || {};
   const downloadedIds: string[] = [];
+  let failedCount = 0;
+  const total = photos.length;
+
+  const report = (current: number, phase: BatchDownloadProgress['phase']) => {
+    onProgress?.({ current, total, phase, failedCount });
+  };
 
   // Mobile web → batch Web Share
   if (canWebShare() && photos.length > 0) {
     try {
       const files: File[] = [];
-      for (const photo of photos) {
+      for (let i = 0; i < photos.length; i++) {
+        if (signal?.aborted) {
+          report(i, 'cancelled');
+          break;
+        }
+        report(i + 1, 'downloading');
         try {
-          const file = await fetchAsFile(resolveFileUrl(photo.url), photo.filename);
+          const file = await fetchAsFile(resolveFileUrl(photos[i].url), photos[i].filename);
           files.push(file);
-          downloadedIds.push(photo.id);
+          downloadedIds.push(photos[i].id);
         } catch {
-          console.warn('[NativeDownload] Failed to fetch photo for share:', photo.id);
+          failedCount++;
+          console.warn('[NativeDownload] Failed to fetch photo for share:', photos[i].id);
         }
       }
-      if (files.length > 0) {
+      if (!signal?.aborted && files.length > 0) {
+        report(total, 'saving');
         const shared = await tryWebShare(files);
         if (shared) {
           markManyAsDownloaded(downloadedIds);
+          report(total, 'done');
           return downloadedIds;
         }
       }
@@ -360,16 +388,27 @@ export async function downloadPhotosBatch(
     }
     // Reset if share failed
     downloadedIds.length = 0;
+    failedCount = 0;
   }
 
   // Fallback: individual downloads (native, desktop, share failed)
-  for (const photo of photos) {
-    try {
-      await downloadPhoto(photo.url, photo.filename, photo.id);
-      downloadedIds.push(photo.id);
-    } catch {
-      console.warn('[NativeDownload] Failed to download photo:', photo.id);
+  for (let i = 0; i < photos.length; i++) {
+    if (signal?.aborted) {
+      report(i, 'cancelled');
+      break;
     }
+    report(i + 1, 'downloading');
+    try {
+      await downloadPhoto(photos[i].url, photos[i].filename, photos[i].id);
+      downloadedIds.push(photos[i].id);
+    } catch {
+      failedCount++;
+      console.warn('[NativeDownload] Failed to download photo:', photos[i].id);
+    }
+  }
+
+  if (!signal?.aborted) {
+    report(total, 'done');
   }
   return downloadedIds;
 }
