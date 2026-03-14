@@ -14,3 +14,9 @@ export const isInAppBrowser = (): boolean => {
 export const isKakaoTalk = (): boolean => {
   return /KAKAOTALK/i.test(navigator.userAgent || '');
 };
+
+/** Detect mobile web browser (not native app, not desktop) */
+export const isMobileWeb = (): boolean => {
+  if (isNative()) return false;
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
+};

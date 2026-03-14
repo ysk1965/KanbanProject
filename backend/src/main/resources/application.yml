@@ -93,6 +93,8 @@ management:
 spring.servlet.multipart:
   max-file-size: 110MB
   max-request-size: 220MB
+  file-size-threshold: 1MB
+  location: ${MULTIPART_LOCATION:/var/tmp/spring-multipart}
 
 # AI Provider ("claude" or "openai")
 ai:
@@ -310,8 +312,8 @@ spring:
     url: ${DATABASE_URL}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 3
+      maximum-pool-size: 20
+      minimum-idle: 5
       connection-timeout: 20000
       idle-timeout: 300000
       max-lifetime: 1200000

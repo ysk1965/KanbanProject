@@ -19,7 +19,7 @@ import {
 import { publicGalleryUploadAPI, resolveFileUrl, type ChunkedUploadProgress } from '../utils/api';
 import { PhotoLightbox } from '../components/organization/photo/PhotoLightbox';
 import { IconButton } from '../components/ui/IconButton';
-import { downloadPhoto, getDownloadedIds, markManyAsDownloaded } from '../utils/nativeDownload';
+import { downloadPhoto, downloadPhotosBatch, getDownloadedIds, markManyAsDownloaded } from '../utils/nativeDownload';
 import type {
   GalleryUploadInfo,
   SharedAlbumSummary,
@@ -137,23 +137,19 @@ export function GalleryUploadPage() {
     setShowDeleteConfirm(false);
   }, []);
 
-  // Batch download
+  // Batch download (Web Share on mobile, individual on desktop/native)
   const handleBatchDownload = useCallback(async () => {
     if (selectedIds.size === 0 || batchDownloading) return;
     setBatchDownloading(true);
-    const downloadedBatch: string[] = [];
     try {
       const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
-      for (const photo of selectedPhotos) {
-        try {
-          await downloadPhoto(photo.url, photo.original_filename, photo.id);
-          downloadedBatch.push(photo.id);
-        } catch {
-          console.warn('Failed to download photo:', photo.id);
-        }
-      }
+      const batchItems = selectedPhotos.map((p) => ({
+        url: p.url,
+        filename: p.original_filename,
+        id: p.id,
+      }));
+      const downloadedBatch = await downloadPhotosBatch(batchItems);
       if (downloadedBatch.length > 0) {
-        markManyAsDownloaded(downloadedBatch);
         setDownloadedIds((prev) => {
           const next = new Set(prev);
           downloadedBatch.forEach((id) => next.add(id));

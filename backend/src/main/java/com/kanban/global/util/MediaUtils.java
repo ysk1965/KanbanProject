@@ -114,7 +114,7 @@ public class MediaUtils {
             Thumbnails.of(is)
                     .size(maxWidth, maxHeight)
                     .outputFormat("jpg")
-                    .outputQuality(0.7)
+                    .outputQuality(0.8)
                     .toOutputStream(os);
             return os.toByteArray();
         }
