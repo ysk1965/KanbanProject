@@ -16,7 +16,7 @@ import {
 import { toast } from 'sonner';
 import { orgPhotoService } from '../../../utils/services';
 import { isNative } from '../../../utils/platform';
-import { saveToDevice } from '../../../utils/nativeDownload';
+import { saveToDevice, downloadPhoto, getDownloadedIds, markAsDownloaded, markManyAsDownloaded } from '../../../utils/nativeDownload';
 import { MotionModal } from '../../ui/MotionModal';
 import { PhotoAlbumBar } from '../photo/PhotoAlbumBar';
 import { PhotoGrid } from '../photo/PhotoGrid';
@@ -52,6 +52,14 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
   // Select mode
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Download history
+  const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (photos.length > 0) {
+      setDownloadedIds(getDownloadedIds(photos.map((p) => p.id)));
+    }
+  }, [photos]);
 
   // Lightbox
   const [lightboxPhoto, setLightboxPhoto] = useState<OrgPhoto | null>(null);
@@ -156,24 +164,10 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
   const handleDownloadSingle = useCallback(
     async (photo: OrgPhoto) => {
       try {
-        const response = await fetch(photo.url);
-        if (!response.ok) throw new Error('Download failed');
-        const blob = await response.blob();
-
+        await downloadPhoto(photo.url, photo.original_filename, photo.id);
+        setDownloadedIds((prev) => new Set(prev).add(photo.id));
         if (isNative()) {
-          const result = await saveToDevice(blob, photo.original_filename);
-          if (result.success) {
-            toast.success(t('photoGallery.savedToDevice', 'Saved to BRIDGE Downloads'));
-          } else {
-            throw new Error(result.error || 'Save failed');
-          }
-        } else {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = photo.original_filename;
-          a.click();
-          URL.revokeObjectURL(url);
+          toast.success(t('photoGallery.savedToDevice', 'Saved to BRIDGE Downloads'));
         }
       } catch (error) {
         console.warn('Download failed:', error);
@@ -189,28 +183,22 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
     try {
       const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
       let downloadedCount = 0;
+      const downloadedPhotoIds: string[] = [];
       for (const photo of selectedPhotos) {
         try {
-          const response = await fetch(photo.url);
-          if (!response.ok) continue;
-          const blob = await response.blob();
-
-          if (isNative()) {
-            await saveToDevice(blob, photo.original_filename);
-          } else {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = photo.original_filename;
-            a.click();
-            URL.revokeObjectURL(url);
-          }
+          await downloadPhoto(photo.url, photo.original_filename, photo.id);
           downloadedCount++;
+          downloadedPhotoIds.push(photo.id);
         } catch {
           console.warn('Failed to download photo:', photo.id);
         }
       }
       if (downloadedCount > 0) {
+        setDownloadedIds((prev) => {
+          const next = new Set(prev);
+          downloadedPhotoIds.forEach((id) => next.add(id));
+          return next;
+        });
         toast.success(
           isNative()
             ? t('photoGallery.savedToDevice', 'Saved to BRIDGE Downloads')
@@ -435,6 +423,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
           photos={photos}
           selectMode={selectMode}
           selectedIds={selectedIds}
+          downloadedIds={downloadedIds}
           onToggleSelect={handleToggleSelect}
           onOpenLightbox={setLightboxPhoto}
           onDownloadSingle={handleDownloadSingle}

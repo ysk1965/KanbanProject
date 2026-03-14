@@ -9,6 +9,7 @@ interface PhotoGridProps {
   photos: OrgPhoto[];
   selectMode: boolean;
   selectedIds: Set<string>;
+  downloadedIds: Set<string>;
   onToggleSelect: (id: string) => void;
   onOpenLightbox: (photo: OrgPhoto) => void;
   onDownloadSingle: (photo: OrgPhoto) => void;
@@ -21,6 +22,7 @@ export function PhotoGrid({
   photos,
   selectMode,
   selectedIds,
+  downloadedIds,
   onToggleSelect,
   onOpenLightbox,
   onDownloadSingle,
@@ -79,6 +81,16 @@ export function PhotoGrid({
               className="w-full h-full object-cover"
               loading="lazy"
             />
+
+            {/* Downloaded badge — always visible */}
+            {downloadedIds.has(photo.id) && (
+              <div className="absolute top-1.5 right-1.5 z-10">
+                <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/90 text-white">
+                  <Check size={10} strokeWidth={3} />
+                  <span className="text-[9px] font-bold">saved</span>
+                </div>
+              </div>
+            )}
 
             {/* Hover overlay */}
             {!selectMode && (
