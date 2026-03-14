@@ -82,9 +82,9 @@ export function PhotoGrid({
               loading="lazy"
             />
 
-            {/* Downloaded badge — always visible */}
+            {/* Downloaded badge — always visible (z-20: above select checkbox) */}
             {downloadedIds.has(photo.id) && (
-              <div className="absolute top-1.5 right-1.5 z-10">
+              <div className="absolute top-1.5 right-1.5 z-20">
                 <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/90 text-white">
                   <Check size={10} strokeWidth={3} />
                   <span className="text-xs font-bold">saved</span>
@@ -112,7 +112,7 @@ export function PhotoGrid({
 
             {/* Select mode checkbox */}
             {selectMode && (
-              <div className="absolute top-2 left-2">
+              <div className="absolute top-2 left-2 z-10">
                 <div
                   className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
                     selectedIds.has(photo.id)

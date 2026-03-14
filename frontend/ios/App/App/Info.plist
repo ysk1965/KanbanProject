@@ -62,6 +62,10 @@
 			<string>com.bridgespots.app</string>
 		</dict>
 	</array>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>BRIDGE needs access to save photos to your photo library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>BRIDGE needs access to save photos to your photo library.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

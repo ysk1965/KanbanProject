@@ -1,4 +1,4 @@
-import { isNative, isInAppBrowser, isKakaoTalk } from './platform';
+import { isNative, isIOS, isInAppBrowser, isKakaoTalk } from './platform';
 import { resolveFileUrl } from './api';
 
 /**
@@ -31,10 +31,92 @@ export interface NativeDownloadResult {
   error?: string;
 }
 
+const IMAGE_EXTENSIONS = /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i;
+
+function isImageFile(filename: string): boolean {
+  return IMAGE_EXTENSIONS.test(filename);
+}
+
 /**
- * Save a Blob to the device filesystem.
- * - iOS: Files app > BRIDGE SPOTS > BRIDGE Downloads
- * - Android: Documents/BRIDGE Downloads (visible in file managers)
+ * Save an image to the device photo gallery (Camera Roll / Photos).
+ * Uses @capacitor-community/media plugin.
+ */
+async function saveToGallery(
+  blob: Blob,
+  filename: string,
+): Promise<NativeDownloadResult> {
+  try {
+    const { Media } = await import('@capacitor-community/media');
+    const { Filesystem, Directory } = await import('@capacitor/filesystem');
+
+    const safeFilename = sanitizeFilename(filename);
+    const base64Data = await blobToBase64(blob);
+
+    // Write to a temp file first (Media plugin needs a file path)
+    const tempPath = `_bridge_temp_${Date.now()}_${safeFilename}`;
+    await Filesystem.writeFile({
+      path: tempPath,
+      data: base64Data,
+      directory: Directory.Cache,
+    });
+
+    const tempUri = await Filesystem.getUri({
+      path: tempPath,
+      directory: Directory.Cache,
+    });
+
+    // Ensure BRIDGE album exists
+    const albumName = 'BRIDGE';
+    let albums;
+    try {
+      albums = await Media.getAlbums();
+    } catch {
+      albums = { albums: [] };
+    }
+
+    const bridgeAlbum = albums.albums.find(
+      (a: { name: string }) => a.name === albumName,
+    );
+
+    if (!bridgeAlbum && isIOS()) {
+      try {
+        await Media.createAlbum({ name: albumName });
+      } catch {
+        // Album creation may fail if it already exists
+      }
+    }
+
+    // Save to gallery
+    await Media.savePhoto({
+      path: tempUri.uri,
+      albumIdentifier: bridgeAlbum?.identifier,
+    });
+
+    // Clean up temp file
+    try {
+      await Filesystem.deleteFile({
+        path: tempPath,
+        directory: Directory.Cache,
+      });
+    } catch {
+      // Non-critical cleanup
+    }
+
+    console.log('[NativeDownload] Photo saved to gallery:', safeFilename);
+    return { success: true, path: 'gallery' };
+  } catch (error) {
+    console.error('[NativeDownload] Failed to save to gallery:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Save a Blob to the device.
+ * - Images: saved to photo gallery (Camera Roll / Photos) via Media plugin
+ * - Other files: saved to Files app / Documents folder
  */
 export async function saveToDevice(
   blob: Blob,
@@ -44,6 +126,15 @@ export async function saveToDevice(
     return { success: false, error: 'Not a native platform' };
   }
 
+  // Images → photo gallery
+  if (isImageFile(filename)) {
+    const galleryResult = await saveToGallery(blob, filename);
+    if (galleryResult.success) return galleryResult;
+    // Fall through to filesystem if gallery save fails
+    console.warn('[NativeDownload] Gallery save failed, falling back to filesystem');
+  }
+
+  // Non-images or gallery fallback → filesystem
   try {
     const { Filesystem, Directory } = await import('@capacitor/filesystem');
 
