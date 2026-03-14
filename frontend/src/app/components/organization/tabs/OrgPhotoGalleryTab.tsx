@@ -168,7 +168,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
         await downloadPhoto(photo.url, photo.original_filename, photo.id);
         setDownloadedIds((prev) => new Set(prev).add(photo.id));
         if (isNative()) {
-          toast.success(t('photoGallery.savedToDevice', 'Saved to BRIDGE Downloads'));
+          toast.success(t('photoGallery.savedToGallery', 'Saved to Photos'));
         }
       } catch (error) {
         console.warn('Download failed:', error);
@@ -202,7 +202,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
         });
         toast.success(
           isNative()
-            ? t('photoGallery.savedToDevice', 'Saved to BRIDGE Downloads')
+            ? t('photoGallery.savedToGallery', 'Saved to Photos')
             : t('photoGallery.downloadSuccess', '{{count}} photos downloaded', {
                 count: downloadedCount,
               }),
