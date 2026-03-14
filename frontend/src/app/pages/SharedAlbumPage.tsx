@@ -5,6 +5,8 @@ import { motion } from 'framer-motion';
 import { Camera, AlertCircle, ArrowLeft, Download, Loader2 } from 'lucide-react';
 import { publicAlbumAPI, resolveFileUrl } from '../utils/api';
 import { PhotoLightbox } from '../components/organization/photo/PhotoLightbox';
+import { isNative } from '../utils/platform';
+import { saveToDevice } from '../utils/nativeDownload';
 import type { SharedAlbumInfo, SharedPhotoItem, OrgPhoto } from '../types';
 
 /** Map SharedPhotoItem → OrgPhoto shape so we can reuse PhotoLightbox */
@@ -112,15 +114,20 @@ export function SharedAlbumPage() {
       const response = await fetch(url);
       if (!response.ok) throw new Error('Download failed');
       const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = photo.original_filename;
-      a.click();
-      URL.revokeObjectURL(blobUrl);
+
+      if (isNative()) {
+        const result = await saveToDevice(blob, photo.original_filename);
+        if (!result.success) throw new Error(result.error || 'Save failed');
+      } else {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = photo.original_filename;
+        a.click();
+        URL.revokeObjectURL(blobUrl);
+      }
     } catch (error) {
       console.warn('Download failed:', error);
-      // Fallback: open in new tab
       window.open(resolveFileUrl(photo.url), '_blank');
     }
   }, []);

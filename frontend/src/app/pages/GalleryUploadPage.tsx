@@ -12,9 +12,14 @@ import {
   Plus,
   Trash2,
   Images,
+  Download,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 import { publicGalleryUploadAPI, resolveFileUrl, type ChunkedUploadProgress } from '../utils/api';
 import { PhotoLightbox } from '../components/organization/photo/PhotoLightbox';
+import { isNative } from '../utils/platform';
+import { saveToDevice } from '../utils/nativeDownload';
 import type {
   GalleryUploadInfo,
   SharedAlbumSummary,
@@ -77,9 +82,132 @@ export function GalleryUploadPage() {
   // Photo deletion
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
 
+  // Multi-select
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchDeleting, setBatchDeleting] = useState(false);
+  const [batchDownloading, setBatchDownloading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   // Lightbox
   const [lightboxPhoto, setLightboxPhoto] = useState<OrgPhoto | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Download single photo
+  const handleDownload = useCallback(async (photo: OrgPhoto) => {
+    try {
+      const url = resolveFileUrl(photo.url);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Download failed');
+      const blob = await response.blob();
+
+      if (isNative()) {
+        const result = await saveToDevice(blob, photo.original_filename);
+        if (!result.success) throw new Error(result.error || 'Save failed');
+      } else {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = photo.original_filename;
+        a.click();
+        URL.revokeObjectURL(blobUrl);
+      }
+    } catch (error) {
+      console.warn('Download failed:', error);
+      window.open(resolveFileUrl(photo.url), '_blank');
+    }
+  }, []);
+
+  // Toggle selection
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    if (selectedIds.size === photos.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(photos.map((p) => p.id)));
+    }
+  }, [photos, selectedIds.size]);
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setShowDeleteConfirm(false);
+  }, []);
+
+  // Batch download
+  const handleBatchDownload = useCallback(async () => {
+    if (selectedIds.size === 0 || batchDownloading) return;
+    setBatchDownloading(true);
+    try {
+      const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
+      for (const photo of selectedPhotos) {
+        try {
+          const url = resolveFileUrl(photo.url);
+          const response = await fetch(url);
+          if (!response.ok) continue;
+          const blob = await response.blob();
+
+          if (isNative()) {
+            await saveToDevice(blob, photo.original_filename);
+          } else {
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = photo.original_filename;
+            a.click();
+            URL.revokeObjectURL(blobUrl);
+          }
+        } catch {
+          console.warn('Failed to download photo:', photo.id);
+        }
+      }
+    } finally {
+      setBatchDownloading(false);
+    }
+  }, [selectedIds, photos, batchDownloading]);
+
+  // Batch delete
+  const handleBatchDelete = useCallback(async () => {
+    if (selectedIds.size === 0 || batchDeleting || !uploadToken || !activeAlbum) return;
+    setBatchDeleting(true);
+    try {
+      const ids = Array.from(selectedIds);
+      for (const photoId of ids) {
+        try {
+          await publicGalleryUploadAPI.deletePhoto(uploadToken, activeAlbum.id, photoId);
+        } catch {
+          console.warn('Failed to delete photo:', photoId);
+        }
+      }
+      const deletedCount = ids.length;
+      setPhotos((prev) => prev.filter((p) => !selectedIds.has(p.id)));
+      setGalleryInfo((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          albums: prev.albums.map((a) =>
+            a.id === activeAlbum.id
+              ? { ...a, photo_count: Math.max(0, a.photo_count - deletedCount) }
+              : a,
+          ),
+        };
+      });
+      setActiveAlbum((prev) =>
+        prev ? { ...prev, photo_count: Math.max(0, prev.photo_count - deletedCount) } : prev,
+      );
+      exitSelectMode();
+    } finally {
+      setBatchDeleting(false);
+    }
+  }, [selectedIds, batchDeleting, uploadToken, activeAlbum, exitSelectMode]);
 
   // Expiry info
   const expiresAt = galleryInfo?.expires_at ? new Date(galleryInfo.expires_at) : null;
@@ -145,6 +273,7 @@ export function GalleryUploadPage() {
       // Reset upload state when switching albums
       setUploaded(false);
       setUploadCount(0);
+      exitSelectMode();
     }
   }, [activeAlbum, fetchPhotos]);
 
@@ -517,44 +646,164 @@ export function GalleryUploadPage() {
                 <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
                   {activeAlbum.photo_count} {t('photoGallery.photosUnit', 'photos')}
                 </span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                {photos.map((photo, i) => (
-                  <motion.div
-                    key={photo.id}
-                    className="relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-bridge-obsidian border border-foreground/[0.08] hover:border-foreground/[0.12] transition-all group"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.02 }}
-                    onClick={() => setLightboxPhoto(photo)}
-                  >
-                    <img
-                      src={resolveFileUrl(photo.thumbnail_url || photo.url)}
-                      alt={photo.caption || photo.original_filename}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-2">
-                      <span className="text-[10px] text-white/90 truncate flex-1">
-                        {photo.original_filename}
-                      </span>
+                <div className="flex items-center gap-2">
+                  {selectMode ? (
+                    <>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeletePhoto(photo);
-                        }}
-                        disabled={deletingPhotoId === photo.id}
-                        className="p-1 rounded-md hover:bg-red-500/30 transition-colors shrink-0"
+                        onClick={handleSelectAll}
+                        className="text-[11px] text-slate-400 hover:text-foreground transition-colors"
                       >
-                        {deletingPhotoId === photo.id ? (
-                          <Loader2 size={14} className="text-white animate-spin" />
-                        ) : (
-                          <Trash2 size={14} className="text-white" />
-                        )}
+                        {selectedIds.size === photos.length
+                          ? t('photoGallery.deselectAll', 'Deselect all')
+                          : t('photoGallery.selectAll', 'Select all')}
                       </button>
-                    </div>
-                  </motion.div>
-                ))}
+                      <button
+                        onClick={handleBatchDownload}
+                        disabled={selectedIds.size === 0 || batchDownloading}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-bridge-accent/15 text-bridge-accent hover:bg-bridge-accent/25 transition-colors disabled:opacity-40"
+                      >
+                        {batchDownloading ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <Download size={12} />
+                        )}
+                        {selectedIds.size > 0 && selectedIds.size}
+                      </button>
+                      <button
+                        onClick={() => selectedIds.size > 0 && setShowDeleteConfirm(true)}
+                        disabled={selectedIds.size === 0 || batchDeleting}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors disabled:opacity-40"
+                      >
+                        {batchDeleting ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={12} />
+                        )}
+                        {selectedIds.size > 0 && selectedIds.size}
+                      </button>
+                      <button
+                        onClick={exitSelectMode}
+                        className="p-1 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setSelectMode(true)}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                    >
+                      <CheckSquare size={12} />
+                      {t('photoGallery.select', 'Select')}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Batch delete confirmation */}
+              {showDeleteConfirm && (
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 mb-3">
+                  <Trash2 size={16} className="text-red-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-foreground">
+                      {t('photoGallery.deletePhotosConfirm', 'Delete {{count}} photos?', { count: selectedIds.size })}
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      {t('photoGallery.deleteAlbumWarning', 'will be permanently deleted.')}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleBatchDelete}
+                    disabled={batchDeleting}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 shrink-0"
+                  >
+                    {batchDeleting ? <Loader2 size={12} className="animate-spin" /> : t('photoGallery.deleteButton', 'Delete')}
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="p-1 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                {photos.map((photo, i) => {
+                  const isSelected = selectedIds.has(photo.id);
+                  return (
+                    <motion.div
+                      key={photo.id}
+                      className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-bridge-obsidian border transition-all group ${
+                        isSelected
+                          ? 'border-bridge-accent ring-2 ring-bridge-accent/30'
+                          : 'border-foreground/[0.08] hover:border-foreground/[0.12]'
+                      }`}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.02 }}
+                      onClick={() => {
+                        if (selectMode) {
+                          handleToggleSelect(photo.id);
+                        } else {
+                          setLightboxPhoto(photo);
+                        }
+                      }}
+                    >
+                      <img
+                        src={resolveFileUrl(photo.thumbnail_url || photo.url)}
+                        alt={photo.caption || photo.original_filename}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      {/* Select checkbox */}
+                      {selectMode && (
+                        <div className="absolute top-1.5 left-1.5 z-10">
+                          {isSelected ? (
+                            <div className="w-5 h-5 rounded bg-bridge-accent flex items-center justify-center">
+                              <Check size={12} className="text-white" />
+                            </div>
+                          ) : (
+                            <div className="w-5 h-5 rounded border-2 border-white/70 bg-black/30" />
+                          )}
+                        </div>
+                      )}
+                      {/* Hover overlay (only in non-select mode) */}
+                      {!selectMode && (
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-2">
+                          <span className="text-[10px] text-white/90 truncate flex-1">
+                            {photo.original_filename}
+                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownload(photo);
+                              }}
+                              className="p-1 rounded-md hover:bg-white/20 transition-colors"
+                            >
+                              <Download size={14} className="text-white" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeletePhoto(photo);
+                              }}
+                              disabled={deletingPhotoId === photo.id}
+                              className="p-1 rounded-md hover:bg-red-500/30 transition-colors"
+                            >
+                              {deletingPhotoId === photo.id ? (
+                                <Loader2 size={14} className="text-white animate-spin" />
+                              ) : (
+                                <Trash2 size={14} className="text-white" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
               </div>
 
               {photosLoading && (
@@ -755,7 +1004,7 @@ export function GalleryUploadPage() {
         isAdmin={false}
         onClose={() => setLightboxPhoto(null)}
         onNavigate={setLightboxPhoto}
-        onDownload={() => {}}
+        onDownload={handleDownload}
         onDelete={() => {}}
       />
 

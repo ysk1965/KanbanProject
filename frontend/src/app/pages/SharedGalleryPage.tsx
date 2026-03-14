@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { publicGalleryAPI, resolveFileUrl } from '../utils/api';
 import { PhotoLightbox } from '../components/organization/photo/PhotoLightbox';
+import { isNative } from '../utils/platform';
+import { saveToDevice } from '../utils/nativeDownload';
 import type {
   SharedGalleryInfo,
   SharedAlbumSummary,
@@ -145,13 +147,28 @@ export function SharedGalleryPage() {
   }, [hasNext, photosLoading, nextCursor, fetchPhotos]);
 
   // Download single photo
-  const handleDownload = useCallback((photo: OrgPhoto) => {
-    const url = resolveFileUrl(photo.url);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = photo.original_filename;
-    a.target = '_blank';
-    a.click();
+  const handleDownload = useCallback(async (photo: OrgPhoto) => {
+    try {
+      const url = resolveFileUrl(photo.url);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Download failed');
+      const blob = await response.blob();
+
+      if (isNative()) {
+        const result = await saveToDevice(blob, photo.original_filename);
+        if (!result.success) throw new Error(result.error || 'Save failed');
+      } else {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = photo.original_filename;
+        a.click();
+        URL.revokeObjectURL(blobUrl);
+      }
+    } catch (error) {
+      console.warn('Download failed:', error);
+      window.open(resolveFileUrl(photo.url), '_blank');
+    }
   }, []);
 
   // Loading
