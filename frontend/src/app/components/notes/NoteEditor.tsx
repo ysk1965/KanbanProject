@@ -826,7 +826,7 @@ function CollabNoteEditor({
               {commentBlockIds.has(hoveredBlock.id) && (
                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-bridge-accent rounded-full border-2 border-bridge-dark" />
               )}
-            </button>
+            </IconButton>
           )}
         </div>
 
