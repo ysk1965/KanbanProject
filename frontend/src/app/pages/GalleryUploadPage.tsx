@@ -13,7 +13,7 @@ import {
   Trash2,
   Images,
 } from 'lucide-react';
-import { publicGalleryUploadAPI, resolveFileUrl } from '../utils/api';
+import { publicGalleryUploadAPI, resolveFileUrl, type ChunkedUploadProgress } from '../utils/api';
 import { PhotoLightbox } from '../components/organization/photo/PhotoLightbox';
 import type {
   GalleryUploadInfo,
@@ -63,6 +63,7 @@ export function GalleryUploadPage() {
   const [uploading, setUploading] = useState(false);
   const [uploaded, setUploaded] = useState(false);
   const [uploadCount, setUploadCount] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState<ChunkedUploadProgress | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -116,7 +117,7 @@ export function GalleryUploadPage() {
         const data = await publicGalleryUploadAPI.getAlbumPhotos(
           uploadToken,
           activeAlbum.id,
-          { cursor, size: 30 },
+          { cursor, size: 12 },
         );
         const mapped = data.photos.map(toOrgPhoto);
         if (cursor) {
@@ -194,9 +195,16 @@ export function GalleryUploadPage() {
     if (!uploadToken || !activeAlbum || files.length === 0 || uploading) return;
     try {
       setUploading(true);
-      await publicGalleryUploadAPI.uploadPhotos(uploadToken, activeAlbum.id, files);
+      setUploadProgress(null);
+      await publicGalleryUploadAPI.uploadPhotos(
+        uploadToken,
+        activeAlbum.id,
+        files,
+        (progress) => setUploadProgress(progress),
+      );
       setUploadCount(files.length);
       setUploaded(true);
+      setUploadProgress(null);
       setError(null);
       setFiles([]);
       setPreviews([]);
@@ -218,6 +226,7 @@ export function GalleryUploadPage() {
         prev ? { ...prev, photo_count: prev.photo_count + files.length } : prev,
       );
     } catch {
+      setUploadProgress(null);
       setError('Upload failed. Please try again.');
     } finally {
       setUploading(false);
@@ -696,6 +705,46 @@ export function GalleryUploadPage() {
             <Plus size={16} />
             {t('photoGallery.createAlbum', 'Add Album')}
           </button>
+        </div>
+      )}
+
+      {/* Upload Progress Modal */}
+      {uploading && uploadProgress && uploadProgress.totalBatches > 1 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-sm mx-4 bg-bridge-obsidian rounded-2xl border border-foreground/10 shadow-2xl overflow-hidden"
+          >
+            <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
+            <div className="px-5 pt-5 pb-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-bridge-secondary/15 flex items-center justify-center shrink-0">
+                  <Loader2 className="w-5 h-5 animate-spin text-bridge-secondary" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">
+                    {t('photoGallery.uploading', 'Uploading...')}
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    {uploadProgress.uploadedFiles} / {uploadProgress.totalFiles} {t('photoGallery.photosUnit', 'photos')}
+                  </p>
+                </div>
+              </div>
+              {/* Progress bar */}
+              <div className="w-full h-2 bg-foreground/[0.08] rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-bridge-secondary rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(uploadProgress.uploadedFiles / uploadProgress.totalFiles) * 100}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+              <p className="text-[10px] text-slate-600 text-center">
+                Batch {uploadProgress.currentBatch} / {uploadProgress.totalBatches}
+              </p>
+            </div>
+          </motion.div>
         </div>
       )}
 
