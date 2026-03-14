@@ -105,12 +105,23 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024, // 8 MiB
+        // Precache only the entry HTML and core CSS — lazy chunks load on demand
+        globPatterns: ['**/*.html', '**/*.css'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: null,
         skipWaiting: true,
         clientsClaim: true,
         runtimeCaching: [
+          {
+            // JS chunks — cache after first load, serve from cache next time
+            urlPattern: /\.js$/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'js-cache',
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
           {
             urlPattern: /^https:\/\/.*\/api\/v1\/.*/i,
             handler: 'NetworkFirst',
