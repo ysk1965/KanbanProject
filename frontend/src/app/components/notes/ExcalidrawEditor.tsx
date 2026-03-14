@@ -21,6 +21,7 @@ import { NoteVersionHistory } from "./NoteVersionHistory";
 import { NoteShareButton } from "./NoteShareButton";
 import { CollabPresence } from "./CollabPresence";
 import { NoteBottomComments } from "./NoteBottomComments";
+import { IconButton } from "../ui/IconButton";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { formatDateTime } from "../../utils/dateUtils";
@@ -509,7 +510,7 @@ export default function ExcalidrawEditor({
               {note.tags.slice(0, 2).map((tag) => (
                 <span
                   key={tag.id}
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold"
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-bold"
                   style={{
                     backgroundColor: `${tag.color}20`,
                     color: tag.color,
@@ -521,7 +522,7 @@ export default function ExcalidrawEditor({
               ))}
             </div>
           )}
-          <span className="text-[10px] text-slate-500 flex items-center gap-1 whitespace-nowrap flex-shrink-0 hidden sm:flex">
+          <span className="text-xs text-slate-500 flex items-center gap-1 whitespace-nowrap flex-shrink-0 hidden sm:flex">
             <Clock size={9} />
             {formatDateTime(note.updated_at)}
           </span>
@@ -604,7 +605,7 @@ export default function ExcalidrawEditor({
             <button
               onClick={handleSave}
               disabled={!hasChanges || saving}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                 hasChanges
                   ? "bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20"
                   : "bg-foreground/5 text-slate-500 cursor-not-allowed"
@@ -619,7 +620,7 @@ export default function ExcalidrawEditor({
                 {t("common.save", "저장")}
               </span>
               {hasChanges && (
-                <span className="text-[10px] opacity-70 hidden lg:inline">
+                <span className="text-xs opacity-70 hidden lg:inline">
                   ⌘S
                 </span>
               )}
@@ -681,12 +682,9 @@ export default function ExcalidrawEditor({
             <span className="text-xs font-bold text-foreground">
               {t("notes.comments", "댓글")}
             </span>
-            <button
-              onClick={() => setShowComments(false)}
-              className="p-1 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
-            >
-              <ChevronDown size={14} />
-            </button>
+            <IconButton onClick={() => setShowComments(false)} aria-label="댓글 닫기">
+              <ChevronDown />
+            </IconButton>
           </div>
           <div className="max-h-48 overflow-y-auto custom-scrollbar">
             <NoteBottomComments

@@ -227,7 +227,7 @@ export const KanbanBlock = memo(function KanbanBlock({
         handleTaskDrop(e);
       }}
     >
-      <span className="text-bridge-secondary text-xs font-semibold pointer-events-none">
+      <span className="text-bridge-secondary text-xs font-medium pointer-events-none">
         {t("kanbanBlock.dropHere")}
       </span>
     </div>
@@ -302,7 +302,7 @@ export const KanbanBlock = memo(function KanbanBlock({
           </h3>
           {isFixedBlock && (
             <span
-              className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+              className={`text-xs font-medium uppercase tracking-wider px-1.5 py-0.5 rounded ${
                 block.fixed_type === "TASK"
                   ? "bg-bridge-accent/15 text-bridge-accent"
                   : "bg-emerald-500/15 text-emerald-400"
@@ -311,7 +311,7 @@ export const KanbanBlock = memo(function KanbanBlock({
               Fixed
             </span>
           )}
-          <span className="text-xs font-semibold text-slate-400 bg-bridge-surface-hover px-2 py-0.5 rounded-md">
+          <span className="text-xs font-medium text-slate-400 bg-bridge-surface-hover px-2 py-0.5 rounded-md">
             {tasks.length}
           </span>
         </div>

@@ -43,7 +43,7 @@ export function TagPickerPopover({
         <PopoverTrigger asChild>
           <button
             disabled={disabled}
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-foreground/5 text-slate-400 text-[10px] font-bold rounded-lg border border-foreground/10 hover:bg-foreground/10 hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-foreground/5 text-slate-400 text-xs font-bold rounded-lg border border-foreground/10 hover:bg-foreground/10 hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Tags size={12} />
             {t('task.addTag')}

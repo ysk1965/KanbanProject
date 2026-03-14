@@ -310,7 +310,7 @@ export function StatisticsView({
                     // 기간 프리셋 선택 시 마일스톤 필터 해제 (옵션)
                     // setFilter((prev) => ({ ...prev, milestone_ids: [] }));
                   }}
-                  className={`px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-medium transition-all whitespace-nowrap ${
+                  className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-xs font-medium transition-all whitespace-nowrap ${
                     periodPreset === preset.value
                       ? "bg-foreground/10 text-foreground"
                       : "text-slate-400 hover:text-muted-foreground"
@@ -352,7 +352,7 @@ export function StatisticsView({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* 멤버 필터 */}
               <div>
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">
                   {t("statistics.memberFilter")}
                 </label>
                 <select
@@ -376,7 +376,7 @@ export function StatisticsView({
 
               {/* 태그 필터 */}
               <div>
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">
                   {t("statistics.tagFilter")}
                 </label>
                 <select
@@ -592,7 +592,7 @@ function OverviewDashboard({
         {/* 일별 작업 시간 트렌드 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-foreground font-semibold flex items-center gap-2">
+            <h3 className="text-foreground font-bold flex items-center gap-2">
               <Activity className="h-5 w-5 text-bridge-accent" />
               {t("statistics.dailyWorkTime")}
             </h3>
@@ -668,7 +668,7 @@ function OverviewDashboard({
         {/* Feature별 시간 분포 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-foreground font-semibold flex items-center gap-2">
+            <h3 className="text-foreground font-bold flex items-center gap-2">
               <PieChart className="h-5 w-5 text-bridge-secondary" />
               {t("statistics.featureTimeDistribution")}
             </h3>
@@ -735,7 +735,7 @@ function OverviewDashboard({
         {/* 멤버별 기여도 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-foreground font-semibold flex items-center gap-2">
+            <h3 className="text-foreground font-bold flex items-center gap-2">
               <Users className="h-5 w-5 text-amber-500" />
               {t("statistics.memberWorkTime")}
             </h3>
@@ -799,7 +799,7 @@ function OverviewDashboard({
         {/* 요약 통계 카드 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-foreground font-semibold flex items-center gap-2">
+            <h3 className="text-foreground font-bold flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-violet-500" />
               {t("statistics.detailedSummary")}
             </h3>
@@ -918,7 +918,7 @@ function KPICard({
           />
         )}
       </div>
-      <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">
+      <p className="text-xs sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">
         {label}
       </p>
       <p className="text-lg sm:text-2xl font-bold text-foreground truncate">
@@ -950,7 +950,7 @@ function SummaryItem({ label, value, subValue, highlight }: SummaryItemProps) {
       <span className="text-slate-400 text-sm">{label}</span>
       <div className="text-right">
         <span
-          className={`font-semibold ${highlight ? "text-amber-400" : "text-foreground"}`}
+          className={`font-bold ${highlight ? "text-amber-400" : "text-foreground"}`}
         >
           {value}
         </span>
@@ -1094,7 +1094,7 @@ function WorkAnalysisView({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Task 상태 분포 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
-          <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
+          <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
             <CheckCircle2 className="h-5 w-5 text-bridge-secondary" />
             {t("statistics.taskStatusDistribution")}
           </h3>
@@ -1146,7 +1146,7 @@ function WorkAnalysisView({
 
         {/* 시간 상태 분포 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
-          <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
+          <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
             <Clock className="h-5 w-5 text-amber-500" />
             {t("statistics.timeStatusDistribution")}
           </h3>
@@ -1199,7 +1199,7 @@ function WorkAnalysisView({
 
       {/* 차트 Row 2: 태그별 분석 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
-        <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
+        <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
           <PieChart className="h-5 w-5 text-violet-500" />
           {t("statistics.tagWorkTime")}
         </h3>
@@ -1267,7 +1267,7 @@ function WorkAnalysisView({
 
       {/* Feature별 상세 테이블 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
-        <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
+        <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
           <ListTodo className="h-5 w-5 text-bridge-accent" />
           {t("statistics.featureDetailAnalysis")}
         </h3>
@@ -1275,22 +1275,22 @@ function WorkAnalysisView({
           <table className="w-full">
             <thead>
               <tr className="border-b border-bridge-border">
-                <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="text-left py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.featureHeader")}
                 </th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.totalTimeHeader")}
                 </th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.completedTimeHeader")}
                 </th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.taskHeader")}
                 </th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.progressHeader")}
                 </th>
-                <th className="py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.statusHeader")}
                 </th>
               </tr>
@@ -1534,7 +1534,7 @@ function TeamProductivityView({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* 멤버별 작업 시간 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
-          <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
+          <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
             <Clock className="h-5 w-5 text-bridge-accent" />
             {t("statistics.memberWorkTimeChart")}
           </h3>
@@ -1606,7 +1606,7 @@ function TeamProductivityView({
 
         {/* 멤버별 Task 완료율 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
-          <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
+          <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
             <CheckCircle2 className="h-5 w-5 text-bridge-secondary" />
             {t("statistics.memberTaskCompletionRate")}
           </h3>
@@ -1674,7 +1674,7 @@ function TeamProductivityView({
 
       {/* Feature 참여 현황 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
-        <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
+        <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
           <Target className="h-5 w-5 text-violet-500" />
           {t("statistics.featureParticipation")}
         </h3>
@@ -1733,7 +1733,7 @@ function TeamProductivityView({
 
       {/* 멤버별 상세 테이블 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
-        <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
+        <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-bridge-accent" />
           {t("statistics.memberDetailAnalysis")}
         </h3>
@@ -1741,22 +1741,22 @@ function TeamProductivityView({
           <table className="w-full">
             <thead>
               <tr className="border-b border-bridge-border">
-                <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="text-left py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.memberHeader")}
                 </th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.totalTimeHeader")}
                 </th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.completedTimeHeader")}
                 </th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.taskCountHeader")}
                 </th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.completionRate")}
                 </th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.impactScoreHeader")}
                 </th>
               </tr>
@@ -1909,7 +1909,7 @@ function IndividualProductivityView({
     <div className="space-y-6">
       {/* 멤버 선택 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
-        <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
+        <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-bridge-accent" />
           {t("statistics.selectMember")}
         </h3>
@@ -2021,7 +2021,7 @@ function IndividualProductivityView({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Feature별 작업 시간 */}
             <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
-              <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
+              <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
                 <PieChart className="h-5 w-5 text-bridge-accent" />
                 {t("statistics.featureWorkTime")}
               </h3>
@@ -2090,7 +2090,7 @@ function IndividualProductivityView({
 
             {/* 일별 작업 트렌드 */}
             <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
-              <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
+              <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
                 <Activity className="h-5 w-5 text-bridge-secondary" />
                 {t("statistics.dailyWorkTrend")}
               </h3>
@@ -2153,7 +2153,7 @@ function IndividualProductivityView({
 
           {/* Feature 상세 테이블 */}
           <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
-            <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
+            <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
               <ListTodo className="h-5 w-5 text-violet-500" />
               {t("statistics.participatingFeatureDetail")}
             </h3>
@@ -2161,13 +2161,13 @@ function IndividualProductivityView({
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-bridge-border">
-                    <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {t("statistics.featureHeader")}
                     </th>
-                    <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {t("statistics.workTimeHeader")}
                     </th>
-                    <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {t("statistics.proportionHeader")}
                     </th>
                   </tr>
@@ -2397,7 +2397,7 @@ function ImpactAnalysisView({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* 멤버별 임팩트 점수 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
-          <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
+          <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
             <Zap className="h-5 w-5 text-bridge-accent" />
             {t("statistics.memberImpactScore")}
           </h3>
@@ -2468,7 +2468,7 @@ function ImpactAnalysisView({
 
         {/* 가중치 레벨별 분포 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
-          <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
+          <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
             <Target className="h-5 w-5 text-amber-500" />
             {t("statistics.weightLevelTimeDistribution")}
           </h3>
@@ -2531,7 +2531,7 @@ function ImpactAnalysisView({
       {/* 가중치 레벨 설명 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-foreground font-semibold flex items-center gap-2">
+          <h3 className="text-foreground font-bold flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-violet-500" />
             {t("statistics.weightLevelDetail")}
           </h3>
@@ -2604,7 +2604,7 @@ function ImpactAnalysisView({
 
       {/* 멤버별 상세 테이블 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
-        <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
+        <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-bridge-accent" />
           {t("statistics.memberImpactDetail")}
         </h3>
@@ -2612,19 +2612,19 @@ function ImpactAnalysisView({
           <table className="w-full">
             <thead>
               <tr className="border-b border-bridge-border">
-                <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="text-left py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.rankHeader")}
                 </th>
-                <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="text-left py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.memberHeader")}
                 </th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.impactScoreHeader")}
                 </th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.weightedTimeHeader")}
                 </th>
-                <th className="py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t("statistics.proportionHeader")}
                 </th>
               </tr>

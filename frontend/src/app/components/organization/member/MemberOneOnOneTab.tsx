@@ -19,6 +19,7 @@ import type {
   OneOnOneOpenActionItem,
   OneOnOneRecurrenceType,
 } from "../../../types";
+import { IconButton } from "../../ui/IconButton";
 import { OneOnOneMeetingModal } from "../OneOnOneMeetingModal";
 
 interface MemberOneOnOneTabProps {
@@ -270,7 +271,7 @@ export function MemberOneOnOneTab({
             {t("organization.oneOnOne.titleWith", "1:1 Meeting with {{name}}", { name: otherMember.name })}
           </h3>
           {oneOnOne.recurrence_type && oneOnOne.recurrence_type !== "NONE" && (
-            <p className="text-[11px] text-muted-foreground mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               {t(RECURRENCE_LABELS[oneOnOne.recurrence_type])} ·{" "}
               {getDayLabels(t)[oneOnOne.recurrence_day || 0]}
               {oneOnOne.next_meeting_date && (
@@ -284,12 +285,12 @@ export function MemberOneOnOneTab({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <IconButton
             onClick={() => setShowSettings(!showSettings)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            aria-label="설정"
           >
-            <Settings2 size={14} />
-          </button>
+            <Settings2 />
+          </IconButton>
           <button
             onClick={() => {
               setEditingMeeting(null);
@@ -315,7 +316,7 @@ export function MemberOneOnOneTab({
             <div className="bg-foreground/[0.03] rounded-xl border border-foreground/[0.06] p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                     {t("organization.oneOnOne.recurrence", "Recurrence")}
                   </label>
                   <select
@@ -339,7 +340,7 @@ export function MemberOneOnOneTab({
                 </div>
                 {recurrenceType !== "NONE" && (
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+                    <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                       {t("organization.oneOnOne.day", "Day")}
                     </label>
                     <select
@@ -375,10 +376,10 @@ export function MemberOneOnOneTab({
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Circle size={12} className="text-amber-500" />
-            <span className="text-[11px] font-bold text-foreground">
+            <span className="text-xs font-bold text-foreground">
               {t("organization.oneOnOne.openActions", "Open Action Items")}
             </span>
-            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded-full">
+            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded-full">
               {openActions.length}
             </span>
           </div>
@@ -400,11 +401,11 @@ export function MemberOneOnOneTab({
                   </span>
                   <div className="flex items-center gap-2 mt-0.5">
                     {action.assignee_name && (
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {action.assignee_name}
                       </span>
                     )}
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {formatDate(action.meeting_date)}
                     </span>
                   </div>
@@ -521,12 +522,12 @@ function MeetingCard({
               {formatDate(meeting.meeting_date)}
             </span>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {meeting.created_by_name}
               </span>
               {totalCount > 0 && (
                 <span
-                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
                     completedCount === totalCount
                       ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
                       : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
@@ -558,7 +559,7 @@ function MeetingCard({
               {/* Agenda */}
               {meeting.agenda && (
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                     {t("organization.oneOnOne.agenda", "Agenda")}
                   </span>
                   <div className="text-xs text-foreground/80 whitespace-pre-wrap bg-foreground/[0.02] rounded-lg p-2.5">
@@ -570,7 +571,7 @@ function MeetingCard({
               {/* Notes */}
               {meeting.notes && (
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                     {t("organization.oneOnOne.notes", "Notes")}
                   </span>
                   <div className="text-xs text-foreground/80 whitespace-pre-wrap bg-foreground/[0.02] rounded-lg p-2.5">
@@ -582,7 +583,7 @@ function MeetingCard({
               {/* Action Items */}
               {meeting.action_items.length > 0 && (
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                     {t("organization.oneOnOne.actionItems", "Action Items")}
                   </span>
                   <div className="space-y-1">
@@ -630,7 +631,7 @@ function MeetingCard({
               <div className="flex items-center gap-2 pt-1">
                 <button
                   onClick={onEdit}
-                  className="text-[10px] font-medium text-bridge-accent hover:text-bridge-accent/80 transition-colors"
+                  className="text-xs font-medium text-bridge-accent hover:text-bridge-accent/80 transition-colors"
                 >
                   {t("common.edit", "Edit")}
                 </button>
@@ -638,13 +639,13 @@ function MeetingCard({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={onDelete}
-                      className="text-[10px] font-medium text-red-500 hover:text-red-400 transition-colors"
+                      className="text-xs font-medium text-red-500 hover:text-red-400 transition-colors"
                     >
                       {t("common.confirm", "Confirm")}
                     </button>
                     <button
                       onClick={() => setConfirmDelete(false)}
-                      className="text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
                       {t("common.cancel", "Cancel")}
                     </button>
@@ -652,7 +653,7 @@ function MeetingCard({
                 ) : (
                   <button
                     onClick={() => setConfirmDelete(true)}
-                    className="text-[10px] font-medium text-red-500/60 hover:text-red-500 transition-colors"
+                    className="text-xs font-medium text-red-500/60 hover:text-red-500 transition-colors"
                   >
                     {t("common.delete", "Delete")}
                   </button>

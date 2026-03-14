@@ -76,7 +76,7 @@ export function MemberSettingsTab({ member, isSelf, onLeaveOrg }: MemberSettings
           </div>
 
           {isOwner && (
-            <p className="text-[10px] text-amber-400">
+            <p className="text-xs text-amber-400">
               {t('organization.members.detail.settings.ownerCannotLeave', '조직 소유자는 나갈 수 없습니다. 먼저 소유권을 이전해주세요.')}
             </p>
           )}

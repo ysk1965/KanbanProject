@@ -130,9 +130,9 @@ export function OrgInviteLinksSection({
       {/* Invite form */}
       {showInviteForm && (
         <div className="mb-4 p-3 bg-foreground/[0.03] rounded-xl border border-bridge-accent/20 space-y-3">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                 {t("organization.settings.inviteRole", "Role")}
               </label>
               <select
@@ -150,7 +150,7 @@ export function OrgInviteLinksSection({
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                 {t("organization.settings.expires", "Expires")}
               </label>
               <select
@@ -166,7 +166,7 @@ export function OrgInviteLinksSection({
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                 {t("organization.settings.maxUses", "Max Uses")}
               </label>
               <select
@@ -219,7 +219,7 @@ export function OrgInviteLinksSection({
                 </span>
                 {/* Role badge */}
                 <span
-                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
                     link.role === "ADMIN"
                       ? "bg-bridge-accent/20 text-bridge-accent"
                       : "bg-slate-500/20 text-slate-600 dark:text-slate-400"
@@ -229,13 +229,13 @@ export function OrgInviteLinksSection({
                 </span>
                 {/* Meta info */}
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[9px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {link.used_count}
                     {link.max_uses ? `/${link.max_uses}` : ""}{" "}
                     {t("organization.settings.used", "used")}
                   </span>
                   {link.expires_at && (
-                    <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                    <span className="text-xs text-muted-foreground flex items-center gap-0.5">
                       <Clock size={8} />
                       {formatExpiry(link.expires_at)}
                     </span>

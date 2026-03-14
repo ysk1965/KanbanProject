@@ -77,7 +77,7 @@ export function ForgotPasswordPage() {
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                   {t('forgotPassword.emailLabel')}
                 </label>
                 <input

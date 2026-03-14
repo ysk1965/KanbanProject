@@ -43,7 +43,7 @@ export function OkrSummaryCard({ treeData, daysRemaining }: OkrSummaryCardProps)
         {/* Overall progress */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
               {t("okr.overallProgress", "Overall Progress")}
             </span>
             <span className="text-sm font-bold text-foreground">
@@ -63,7 +63,7 @@ export function OkrSummaryCard({ treeData, daysRemaining }: OkrSummaryCardProps)
                 {stat.value !== null ? (
                   <span className="text-sm font-bold text-foreground">{stat.value}</span>
                 ) : null}
-                <span className="text-[11px] text-slate-500 hidden sm:inline">{stat.label}</span>
+                <span className="text-xs text-slate-500 hidden sm:inline">{stat.label}</span>
               </div>
             );
           })}

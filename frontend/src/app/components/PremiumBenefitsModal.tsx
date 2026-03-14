@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { IconButton } from './ui/IconButton';
 import {
   X,
   Check,
@@ -73,6 +74,7 @@ export function PremiumBenefitsModal({
         <button
           onClick={onClose}
           className="absolute right-4 top-4 z-10 p-1 text-white/60 hover:text-foreground transition-colors"
+          aria-label="닫기"
         >
           <X className="h-5 w-5" />
         </button>
@@ -111,7 +113,7 @@ export function PremiumBenefitsModal({
                   className="flex-1 bg-foreground/5 border border-foreground/10 rounded-xl px-4 py-3 text-center"
                 >
                   <p className="text-lg font-bold text-bridge-secondary">{stat.value}</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">{t(stat.labelKey)}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{t(stat.labelKey)}</p>
                 </div>
               ))}
             </div>
@@ -120,20 +122,20 @@ export function PremiumBenefitsModal({
 
         {/* Comparison Table */}
         <div className="px-5 sm:px-8 pb-6">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
             {t('premiumBenefits.comparisonTitle')}
           </p>
 
           <div className="rounded-xl border border-foreground/10 overflow-hidden">
             {/* Table Header */}
             <div className="grid grid-cols-[1fr_64px_64px] sm:grid-cols-[1fr_100px_100px] bg-foreground/5 border-b border-foreground/10">
-              <div className="px-3 sm:px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+              <div className="px-3 sm:px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">
                 {t('premiumBenefits.feature')}
               </div>
-              <div className="px-2 sm:px-4 py-3 text-center text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+              <div className="px-2 sm:px-4 py-3 text-center text-xs sm:text-xs font-bold text-slate-400 uppercase tracking-widest">
                 Standard
               </div>
-              <div className="px-2 sm:px-4 py-3 text-center text-[10px] sm:text-[11px] font-bold text-bridge-secondary uppercase tracking-widest">
+              <div className="px-2 sm:px-4 py-3 text-center text-xs sm:text-xs font-bold text-bridge-secondary uppercase tracking-widest">
                 Premium
               </div>
             </div>
@@ -171,7 +173,7 @@ export function PremiumBenefitsModal({
 
         {/* Seat Count Selector */}
         <div className="px-5 sm:px-8 pb-6">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
             {t('upgrade.seatSelection')}
           </p>
 
@@ -190,20 +192,22 @@ export function PremiumBenefitsModal({
               </div>
 
               <div className="flex items-center gap-3">
-                <button
+                <IconButton
+                  aria-label="좌석 수 감소"
                   onClick={() => setSeatCount(Math.max(minSeats, seatCount - 1))}
                   disabled={seatCount <= minSeats}
-                  className="p-1.5 rounded-lg border border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="border border-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  <Minus className="h-4 w-4" />
-                </button>
+                  <Minus />
+                </IconButton>
                 <span className="text-foreground text-xl font-bold w-10 text-center">{seatCount}</span>
-                <button
+                <IconButton
+                  aria-label="좌석 수 증가"
                   onClick={() => setSeatCount(seatCount + 1)}
-                  className="p-1.5 rounded-lg border border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-all"
+                  className="border border-foreground/10"
                 >
-                  <Plus className="h-4 w-4" />
-                </button>
+                  <Plus />
+                </IconButton>
               </div>
             </div>
           </div>
@@ -211,7 +215,7 @@ export function PremiumBenefitsModal({
 
         {/* Pricing Section */}
         <div className="px-5 sm:px-8 pb-6">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
             {t('premiumBenefits.pricingTitle')}
           </p>
 
@@ -247,7 +251,7 @@ export function PremiumBenefitsModal({
               }`}
             >
               <div className="absolute -top-2 -right-2">
-                <span className="px-2 py-0.5 bg-bridge-secondary text-bridge-dark text-[10px] font-bold rounded-full">
+                <span className="px-2 py-0.5 bg-bridge-secondary text-bridge-dark text-xs font-bold rounded-full">
                   {t('upgrade.discount', { percent: 17 })}
                 </span>
               </div>

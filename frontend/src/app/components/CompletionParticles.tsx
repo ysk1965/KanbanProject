@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 interface CompletionParticlesProps {
   active: boolean;
@@ -13,6 +14,7 @@ function rand(min: number, max: number) {
 }
 
 export function CompletionParticles({ active, count = 16, variant = 'bar' }: CompletionParticlesProps) {
+  const reduced = useReducedMotion();
   const particles = useMemo(() => {
     if (!active) return [];
 
@@ -37,7 +39,7 @@ export function CompletionParticles({ active, count = 16, variant = 'bar' }: Com
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, count, variant]);
 
-  if (!active || particles.length === 0) return null;
+  if (reduced || !active || particles.length === 0) return null;
 
   return (
     <div className="absolute inset-0 overflow-visible pointer-events-none z-10">

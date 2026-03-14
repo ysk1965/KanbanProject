@@ -516,7 +516,7 @@ export function MemberProfileTab({
                 .filter((s) => s.fields.length > 0)
                 .map((section) => (
                   <div key={section.title}>
-                    <h4 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
                       {section.title}
                     </h4>
                     <div className="grid grid-cols-2 gap-x-6 gap-y-0">
@@ -595,7 +595,7 @@ export function MemberProfileTab({
                 className="w-full bg-foreground/[0.03] border border-foreground/10 text-foreground rounded-xl p-3 text-sm placeholder-slate-500 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
               />
               <div className="flex items-center justify-between mt-2">
-                <span className="text-[10px] text-slate-400">
+                <span className="text-xs text-slate-400">
                   {bio.length}/500
                 </span>
                 <div className="flex gap-2">

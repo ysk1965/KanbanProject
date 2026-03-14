@@ -388,10 +388,10 @@ export function NotificationDropdown({
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <button className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-all">
+        <button className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-all" aria-label="알림">
           <Bell size={18} />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
@@ -414,7 +414,7 @@ export function NotificationDropdown({
           >
             {t("notification.notifications")}
             {unreadCount > 0 && (
-              <span className="ml-1.5 min-w-[16px] h-[16px] bg-red-500/20 text-red-400 text-[10px] font-bold rounded-full inline-flex items-center justify-center px-1">
+              <span className="ml-1.5 min-w-[16px] h-[16px] bg-red-500/20 text-red-400 text-xs font-bold rounded-full inline-flex items-center justify-center px-1">
                 {unreadCount}
               </span>
             )}
@@ -468,7 +468,7 @@ export function NotificationDropdown({
                           className={`w-1.5 h-1.5 rounded-full ${slackConnected ? "bg-emerald-400" : "bg-slate-500"}`}
                         />
                         <span
-                          className={`text-[11px] ${slackConnected ? "text-foreground" : "text-slate-500"}`}
+                          className={`text-xs ${slackConnected ? "text-foreground" : "text-slate-500"}`}
                         >
                           Slack
                         </span>
@@ -480,7 +480,7 @@ export function NotificationDropdown({
                           className={`w-1.5 h-1.5 rounded-full ${discordConnected ? "bg-emerald-400" : "bg-slate-500"}`}
                         />
                         <span
-                          className={`text-[11px] ${discordConnected ? "text-foreground" : "text-slate-500"}`}
+                          className={`text-xs ${discordConnected ? "text-foreground" : "text-slate-500"}`}
                         >
                           Discord
                         </span>
@@ -557,7 +557,7 @@ export function NotificationDropdown({
                           <p className="text-xs text-slate-400 truncate mt-0.5">
                             {notification.message}
                           </p>
-                          <p className="text-[10px] text-slate-400 mt-1">
+                          <p className="text-xs text-slate-400 mt-1">
                             {getTimeAgo(notification.created_at, t)}
                           </p>
                         </div>
@@ -626,7 +626,7 @@ export function NotificationDropdown({
                           <div className="text-xs leading-snug">
                             {getActionText(activity, t)}
                           </div>
-                          <p className="text-[10px] text-slate-400 mt-1">
+                          <p className="text-xs text-slate-400 mt-1">
                             {getTimeAgo(activity.created_at, t)}
                           </p>
                         </div>
@@ -662,7 +662,7 @@ export function NotificationDropdown({
               <div className="flex items-center gap-1 px-3 pt-3 pb-2">
                 <button
                   onClick={() => setSettingsSubTab("slack")}
-                  className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+                  className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
                     settingsSubTab === "slack"
                       ? "bg-bridge-accent/15 text-bridge-accent"
                       : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
@@ -677,7 +677,7 @@ export function NotificationDropdown({
                 </button>
                 <button
                   onClick={() => setSettingsSubTab("discord")}
-                  className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+                  className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
                     settingsSubTab === "discord"
                       ? "bg-bridge-accent/15 text-bridge-accent"
                       : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
@@ -692,7 +692,7 @@ export function NotificationDropdown({
                 </button>
                 <button
                   onClick={() => setSettingsSubTab("preferences")}
-                  className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+                  className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
                     settingsSubTab === "preferences"
                       ? "bg-bridge-accent/15 text-bridge-accent"
                       : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
@@ -703,7 +703,7 @@ export function NotificationDropdown({
                 {isAdmin && !isTester && (
                   <button
                     onClick={() => setSettingsSubTab("standup")}
-                    className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+                    className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
                       settingsSubTab === "standup"
                         ? "bg-bridge-accent/15 text-bridge-accent"
                         : "text-slate-400 hover:text-foreground hover:bg-foreground/5"

@@ -149,4 +149,10 @@ public interface BoardRepository extends JpaRepository<Board, String> {
      */
     @Query("SELECT b.id FROM Board b WHERE b.organization.id = :orgId AND b.deletedAt IS NULL")
     List<String> findBoardIdsByOrgId(@Param("orgId") String orgId);
+
+    /**
+     * 특정 티어 목록에 해당하는 활성 보드 조회 (Monetization Toggle용)
+     */
+    @Query("SELECT b FROM Board b WHERE b.tier IN :tiers AND b.deletedAt IS NULL")
+    List<Board> findByTierIn(@Param("tiers") List<BoardTier> tiers);
 }

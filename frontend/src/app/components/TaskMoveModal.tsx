@@ -121,10 +121,10 @@ export function TaskMoveModal({
               <h2 className="text-sm font-bold text-foreground">
                 {isMove ? t('task.moveToBoard', '다른 보드로 이동') : t('task.copyToBoard', '다른 보드로 복사')}
               </h2>
-              <p className="text-[10px] text-slate-400 truncate max-w-[200px]">{taskTitle}</p>
+              <p className="text-xs text-slate-400 truncate max-w-[200px]">{taskTitle}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-foreground transition-colors">
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-foreground transition-colors" aria-label="닫기">
             <X size={18} />
           </button>
         </div>
@@ -143,7 +143,7 @@ export function TaskMoveModal({
             <>
               {/* Board Selector */}
               <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+                <label className="text-xs uppercase tracking-widest text-slate-400 font-bold">
                   {t('task.targetBoard', '대상 보드')}
                 </label>
                 <select
@@ -161,7 +161,7 @@ export function TaskMoveModal({
 
               {/* Block Selector */}
               <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+                <label className="text-xs uppercase tracking-widest text-slate-400 font-bold">
                   {t('task.targetBlock', '대상 블록')}
                 </label>
                 {isLoadingBlocks ? (
@@ -192,7 +192,7 @@ export function TaskMoveModal({
           <div className="px-6 py-4 border-t border-foreground/10 bg-white/[0.03] flex justify-end items-center gap-3">
             <button
               onClick={onClose}
-              className="text-[11px] font-bold text-slate-400 hover:text-foreground transition-all tracking-wider"
+              className="text-xs font-bold text-slate-400 hover:text-foreground transition-all tracking-wider"
             >
               {t('common.cancel')}
             </button>

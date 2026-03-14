@@ -351,7 +351,7 @@ export default function BibleTranscriptionPage() {
                   key={chapter.chapter}
                   ref={(el) => { chapterButtonRefs.current[chapter.chapter] = el; }}
                   onClick={() => handleChapterChange(chapter.chapter)}
-                  className={`flex-shrink-0 px-6 py-3 rounded-lg font-semibold transition-all border-2 ${
+                  className={`flex-shrink-0 px-6 py-3 rounded-lg font-medium transition-all border-2 ${
                     isSelected
                       ? "bg-blue-500 text-white border-blue-600 shadow-md"
                       : completed

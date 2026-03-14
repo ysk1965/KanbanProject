@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCollaboration } from '../../hooks/useCollaboration';
 import { getAssigneeHex } from '../../utils/assigneeColor';
 import { Sheet, SheetContent, SheetTitle } from '../ui/sheet';
+import { IconButton } from '../ui/IconButton';
 import type { NoteTreeItem, NoteDetail, NoteListItem, NoteTagInfo } from '../../utils/api';
 
 interface NotesViewProps {
@@ -316,12 +317,9 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
           <>
             {/* Mobile top bar with sidebar toggle */}
             <div className="flex md:hidden items-center gap-2 px-3 py-2 border-b border-foreground/5">
-              <button
-                onClick={() => setMobileSidebarOpen(true)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-              >
-                <Menu size={18} />
-              </button>
+              <IconButton onClick={() => setMobileSidebarOpen(true)} aria-label="사이드바 열기">
+                <Menu />
+              </IconButton>
               <span className="text-sm text-foreground font-medium truncate">{selectedNote.title}</span>
             </div>
             <NoteEditor
@@ -353,7 +351,7 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
             {canEdit && (
               <button
                 onClick={() => handleCreateDocument(null)}
-                className="mt-4 px-4 py-2 bg-bridge-accent text-white rounded-xl text-xs font-semibold hover:bg-bridge-accent/90 transition-all"
+                className="mt-4 px-4 py-2 bg-bridge-accent text-white rounded-xl text-xs font-bold hover:bg-bridge-accent/90 transition-all"
               >
                 <FilePlus size={14} className="inline mr-1.5" />
                 {t('notes.createFirstDocument', '첫 문서 만들기')}

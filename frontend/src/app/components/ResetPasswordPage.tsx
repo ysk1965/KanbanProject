@@ -128,7 +128,7 @@ export function ResetPasswordPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* New Password */}
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                   {t('resetPassword.newPassword')}
                 </label>
                 <div className="relative">
@@ -151,7 +151,7 @@ export function ResetPasswordPage() {
 
               {/* Confirm Password */}
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                   {t('resetPassword.confirmPassword')}
                 </label>
                 <div className="relative">

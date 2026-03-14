@@ -196,7 +196,7 @@ export function InsightsPeriodFilter({ orgId, startDate, endDate, onChange }: In
             </button>
             <button
               onClick={() => handleDelete(sp.id)}
-              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-opacity hidden group-hover:flex"
+              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity hidden group-hover:flex"
             >
               <X size={8} />
             </button>
@@ -247,7 +247,7 @@ export function InsightsPeriodFilter({ orgId, startDate, endDate, onChange }: In
                     transition={{ duration: 0.12 }}
                     className="absolute top-full left-0 mt-2 z-50 bg-bridge-obsidian border border-black/10 dark:border-white/10 rounded-xl shadow-xl p-3 min-w-[240px]"
                   >
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('organization.insights.period.savePreset', 'Save as preset')}
                     </p>
                     <div className="flex items-center gap-1.5 mb-2">
@@ -275,7 +275,7 @@ export function InsightsPeriodFilter({ orgId, startDate, endDate, onChange }: In
                         {t('common.save', 'Save')}
                       </button>
                     </div>
-                    <p className="text-[10px] text-slate-500">
+                    <p className="text-xs text-slate-500">
                       {formatDisplayDate(startDate)} ~ {formatDisplayDate(endDate)}
                     </p>
                   </motion.div>

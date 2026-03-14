@@ -54,6 +54,7 @@ import type {
 } from "../../utils/api";
 import { NoteShareButton } from "./NoteShareButton";
 import { NoteBottomComments } from "./NoteBottomComments";
+import { IconButton } from "../ui/IconButton";
 import type { CollaborationState } from "../../hooks/useCollaboration";
 
 function cleanMarkdownForPlainText(md: string): string {
@@ -495,7 +496,7 @@ function CollabNoteEditor({
         icon: m.user.profile_image ? (
           <img
             src={m.user.profile_image}
-            alt=""
+            alt={m.user.name || '프로필'}
             className="bn-mention-avatar"
           />
         ) : (
@@ -657,7 +658,7 @@ function CollabNoteEditor({
               {note.tags.map((tag) => (
                 <span
                   key={tag.id}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium"
                   style={{
                     backgroundColor: `${tag.color}20`,
                     color: tag.color,
@@ -668,7 +669,7 @@ function CollabNoteEditor({
                 </span>
               ))}
             </div>
-            <span className="text-[10px] text-slate-500 flex items-center gap-1 whitespace-nowrap">
+            <span className="text-xs text-slate-500 flex items-center gap-1 whitespace-nowrap">
               <Clock size={10} />
               {formatDateTime(note.updated_at)}
               {note.updated_by && ` · ${note.updated_by.name}`}
@@ -753,7 +754,7 @@ function CollabNoteEditor({
             <button
               onClick={handleSave}
               disabled={!hasChanges || saving}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 hasChanges
                   ? "bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20"
                   : "bg-foreground/5 text-slate-500 cursor-not-allowed"
@@ -768,7 +769,7 @@ function CollabNoteEditor({
                 {t("common.save", "저장")}
               </span>
               {hasChanges && (
-                <span className="text-[10px] opacity-70 hidden lg:inline">
+                <span className="text-xs opacity-70 hidden lg:inline">
                   ⌘S
                 </span>
               )}
@@ -814,14 +815,14 @@ function CollabNoteEditor({
 
           {/* Floating block comment button */}
           {hoveredBlock && (
-            <button
-              className="absolute right-2 z-10 p-1.5 rounded-lg bg-bridge-dark border border-foreground/10 text-slate-500 hover:text-bridge-accent hover:border-bridge-accent/30 transition-all shadow-lg"
+            <IconButton
+              className="absolute right-2 z-10 bg-bridge-dark border border-foreground/10 hover:text-bridge-accent hover:border-bridge-accent/30 shadow-lg"
               style={{ top: hoveredBlock.top + 2 }}
               onClick={() => handleAddBlockComment(hoveredBlock.id)}
               onMouseDown={(e) => e.preventDefault()}
-              title={t("notes.comment.addToBlock", "이 블록에 댓글 달기")}
+              aria-label={t("notes.comment.addToBlock", "이 블록에 댓글 달기")}
             >
-              <MessageSquare size={14} />
+              <MessageSquare />
               {commentBlockIds.has(hoveredBlock.id) && (
                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-bridge-accent rounded-full border-2 border-bridge-dark" />
               )}
@@ -836,7 +837,7 @@ function CollabNoteEditor({
               <div className="mt-4 flex items-center justify-between bg-white/[0.02] rounded-xl border border-foreground/5 px-4 py-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-bridge-accent" />
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                     {t("notes.aiOrganizeTitle")}
                   </span>
                 </div>
@@ -975,7 +976,7 @@ function FallbackNoteEditor({
         icon: m.user.profile_image ? (
           <img
             src={m.user.profile_image}
-            alt=""
+            alt={m.user.name || '프로필'}
             className="bn-mention-avatar"
           />
         ) : (
@@ -1141,13 +1142,13 @@ function FallbackNoteEditor({
             readOnly={!canEdit}
           />
           <div className="flex items-center gap-3 mt-1">
-            <span className="text-[10px] text-slate-500 flex items-center gap-1 whitespace-nowrap">
+            <span className="text-xs text-slate-500 flex items-center gap-1 whitespace-nowrap">
               <Clock size={10} />
               {formatDateTime(note.updated_at)}
               {note.updated_by && ` · ${note.updated_by.name}`}
             </span>
             {autoSaved && (
-              <span className="text-[10px] text-emerald-500/70">
+              <span className="text-xs text-emerald-500/70">
                 {t("notes.autoSaved", "자동 저장됨")}
               </span>
             )}
@@ -1192,7 +1193,7 @@ function FallbackNoteEditor({
             <button
               onClick={handleSave}
               disabled={!hasChanges || saving}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ml-1 ${
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-all ml-1 ${
                 hasChanges
                   ? "bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20"
                   : "bg-foreground/5 text-slate-500 cursor-not-allowed"

@@ -31,4 +31,10 @@ public interface OrgSubscriptionRepository extends JpaRepository<OrgSubscription
 
     @Query("SELECT os FROM OrgSubscription os WHERE os.creditsResetDate IS NOT NULL AND os.creditsResetDate <= :now")
     List<OrgSubscription> findDueForCreditReset(@Param("now") LocalDateTime now);
+
+    /**
+     * FREE 플랜이거나 TRIAL 상태인 Org 구독 조회 (Monetization Toggle용)
+     */
+    @Query("SELECT os FROM OrgSubscription os WHERE os.plan = :plan OR os.status = :status")
+    List<OrgSubscription> findByPlanOrStatus(@Param("plan") OrgPlan plan, @Param("status") SubscriptionStatus status);
 }

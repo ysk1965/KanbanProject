@@ -51,7 +51,7 @@ export function OrgInviteAcceptPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
+      <div className="min-h-screen bg-bridge-dark flex items-center justify-center" role="status" aria-label="로딩 중">
         <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
       </div>
     );
@@ -89,7 +89,7 @@ export function OrgInviteAcceptPage() {
         ) : (
           <>
             {inviteInfo?.logo_url ? (
-              <img src={inviteInfo.logo_url} alt="" className="w-16 h-16 rounded-2xl mx-auto mb-4 object-cover" />
+              <img src={inviteInfo.logo_url} alt={inviteInfo.org_name || '조직 로고'} className="w-16 h-16 rounded-2xl mx-auto mb-4 object-cover" />
             ) : (
               <div className="w-16 h-16 rounded-2xl bg-bridge-accent/20 flex items-center justify-center mx-auto mb-4">
                 <Building2 size={28} className="text-bridge-accent" />
@@ -99,7 +99,7 @@ export function OrgInviteAcceptPage() {
             <div className="flex items-center justify-center gap-2 text-xs text-slate-400 mb-6">
               <Users size={12} />
               <span>{inviteInfo?.member_count} {t('organization.invite.members', 'members')}</span>
-              <span className="px-2 py-0.5 bg-bridge-accent/20 text-bridge-accent rounded-full text-[10px] font-bold uppercase">
+              <span className="px-2 py-0.5 bg-bridge-accent/20 text-bridge-accent rounded-full text-xs font-bold uppercase">
                 {inviteInfo?.role}
               </span>
             </div>

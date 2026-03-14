@@ -21,10 +21,11 @@ export function ActionChoiceModal({
     <MotionModal open={true} onClose={onClose} className="sm:max-w-[400px] p-0 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4">
-          <h2 className="text-xl font-semibold text-foreground">Action Choice</h2>
+          <h2 className="text-xl font-bold text-foreground">Action Choice</h2>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-foreground transition-colors"
+            aria-label="닫기"
           >
             <X className="h-5 w-5" />
           </button>
@@ -51,7 +52,7 @@ export function ActionChoiceModal({
               <Plus className="h-6 w-6 text-bridge-accent" />
             </div>
             <div className="text-left">
-              <div className="font-semibold text-foreground">Create New Checklist Item</div>
+              <div className="font-bold text-foreground">Create New Checklist Item</div>
               <div className="text-sm text-slate-400">Add a new task to this time slot</div>
             </div>
           </button>
@@ -65,7 +66,7 @@ export function ActionChoiceModal({
               <Layers className="h-6 w-6 text-slate-400 group-hover:text-bridge-accent" />
             </div>
             <div className="text-left">
-              <div className="font-semibold text-foreground">Connect Existing Item</div>
+              <div className="font-bold text-foreground">Connect Existing Item</div>
               <div className="text-sm text-slate-400">Link a task you already created</div>
             </div>
           </button>

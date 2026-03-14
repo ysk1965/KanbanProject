@@ -55,8 +55,8 @@ public class OrgPhotoService {
 
     private static final int MAX_UPLOAD_FILES = 20;
     private static final int MAX_BATCH_DOWNLOAD = 100;
-    private static final int THUMBNAIL_MAX_WIDTH = 200;
-    private static final int THUMBNAIL_MAX_HEIGHT = 200;
+    private static final int THUMBNAIL_MAX_WIDTH = 400;
+    private static final int THUMBNAIL_MAX_HEIGHT = 400;
 
     // ==================== Tab Operations ====================
 

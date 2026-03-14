@@ -116,7 +116,7 @@ export function AdminAnalyticsTab() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-64" role="status" aria-label="로딩 중">
         <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
       </div>
     );
@@ -577,7 +577,7 @@ function ConversionMetric({
 
   return (
     <div className="bg-foreground/5 rounded-xl p-4">
-      <p className="text-[11px] text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+      <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">{label}</p>
       <div className="flex items-center gap-1">
         <p className={`text-xl font-bold ${valueColor}`}>
           {typeof value === 'number' ? value.toLocaleString() : value}

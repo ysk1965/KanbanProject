@@ -40,7 +40,7 @@ export function ResultGallery({ jobId, spriteSheetUrl, icons }: ResultGalleryPro
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+        <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
           Generated Icons ({icons.length})
         </label>
         <button
@@ -56,7 +56,7 @@ export function ResultGallery({ jobId, spriteSheetUrl, icons }: ResultGalleryPro
       {/* Sprite Sheet Preview */}
       <div className="p-3 bg-white/5 rounded-xl border border-white/10">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] text-slate-500 uppercase tracking-wider">Sprite Sheet</span>
+          <span className="text-xs text-slate-500 uppercase tracking-wider">Sprite Sheet</span>
           <button
             onClick={() => handleDownload(spriteSheetUrl, 'sprite-sheet.png')}
             className="text-slate-500 hover:text-white transition-colors"
@@ -93,7 +93,7 @@ export function ResultGallery({ jobId, spriteSheetUrl, icons }: ResultGalleryPro
                 <Download className="w-5 h-5 text-white" />
               </button>
             </div>
-            <span className="text-[10px] text-slate-400 truncate w-full text-center">
+            <span className="text-xs text-slate-400 truncate w-full text-center">
               {icon.name}
             </span>
           </div>

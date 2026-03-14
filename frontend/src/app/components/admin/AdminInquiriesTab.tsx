@@ -143,7 +143,7 @@ export function AdminInquiriesTab() {
 
       {/* Content */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-20">
+        <div className="flex items-center justify-center py-20" role="status" aria-label="로딩 중">
           <Loader2 size={32} className="animate-spin text-bridge-accent" />
         </div>
       ) : error ? (
@@ -169,11 +169,11 @@ export function AdminInquiriesTab() {
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-foreground/[0.08]">
-                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.subject')}</th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.author')}</th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.status')}</th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.replies')}</th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.date')}</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.subject')}</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.author')}</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.status')}</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.replies')}</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.date')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -334,7 +334,7 @@ function InquiryDetailPanel({
 
         {inquiry.attachments.length > 0 && (
           <div className="space-y-2">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.attachments')}</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.attachments')}</p>
             <div className="flex flex-wrap gap-2">
               {inquiry.attachments.map(att => (
                 <a
@@ -356,7 +356,7 @@ function InquiryDetailPanel({
       {/* Replies */}
       {inquiry.replies.length > 0 && (
         <div className="space-y-3">
-          <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.replyHistory')}</h4>
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.replyHistory')}</h4>
           {inquiry.replies.map(reply => (
             <div key={reply.id} className="bg-bridge-accent/10 border border-bridge-accent/20 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -378,7 +378,7 @@ function InquiryDetailPanel({
 
       {/* Reply Form */}
       <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-3 md:p-4 space-y-3">
-        <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.writeReply')}</h4>
+        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.writeReply')}</h4>
         <textarea
           value={replyContent}
           onChange={e => onReplyContentChange(e.target.value)}

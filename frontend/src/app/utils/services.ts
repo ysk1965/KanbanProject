@@ -2580,6 +2580,15 @@ export const adminService = {
     return adminAPI.getOrgStatistics();
   },
 
+  // 수익화 토글
+  getMonetizationStatus: async (): Promise<{ monetization_enabled: boolean }> => {
+    return await adminAPI.getMonetizationStatus();
+  },
+
+  setMonetizationEnabled: async (enabled: boolean): Promise<{ monetization_enabled: boolean }> => {
+    return await adminAPI.setMonetizationEnabled(enabled);
+  },
+
   // 점검 모드
   getMaintenanceStatus: async (): Promise<MaintenanceStatus> => {
     return await adminAPI.getMaintenanceStatus();
@@ -2619,6 +2628,10 @@ export const adminService = {
 // System Service (공개 API)
 // ========================================
 
+export const getMonetizationStatus = async (): Promise<{ monetization_enabled: boolean }> => {
+  return await systemAPI.getMonetizationStatus();
+};
+
 // ========================================
 // Inquiry Service (유저용)
 // ========================================
@@ -2656,6 +2669,10 @@ export const systemService = {
 
   getActiveAnnouncements: async (): Promise<AnnouncementDetail[]> => {
     return await systemAPI.getActiveAnnouncements();
+  },
+
+  getMonetizationStatus: async (): Promise<{ monetization_enabled: boolean }> => {
+    return await systemAPI.getMonetizationStatus();
   },
 };
 

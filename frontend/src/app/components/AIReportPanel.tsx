@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
 import ReactMarkdown from 'react-markdown';
+import { IconButton } from './ui/IconButton';
 import {
   FileText,
   ChevronLeft,
@@ -81,7 +82,7 @@ const markdownComponents = {
   // h3: task title within a feature group
   h3: ({ children }: { children?: React.ReactNode }) => (
     <div className="mt-4 mb-1 first:mt-0">
-      <h3 className="text-[15px] font-semibold text-slate-200 flex items-center gap-2">
+      <h3 className="text-[15px] font-bold text-slate-200 flex items-center gap-2">
         <div className="w-1.5 h-1.5 rounded-full bg-bridge-secondary flex-shrink-0" />
         {children}
       </h3>
@@ -93,11 +94,11 @@ const markdownComponents = {
   ),
   // em: feature name subtitle
   em: ({ children }: { children?: React.ReactNode }) => (
-    <span className="text-[11px] font-medium text-bridge-accent/70 tracking-wide not-italic">{children}</span>
+    <span className="text-xs font-medium text-bridge-accent/70 tracking-wide not-italic">{children}</span>
   ),
   // strong: accent bold
   strong: ({ children }: { children?: React.ReactNode }) => (
-    <strong className="text-foreground font-semibold">{children}</strong>
+    <strong className="text-foreground font-bold">{children}</strong>
   ),
   // hr: feature group divider
   hr: () => (
@@ -263,7 +264,7 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
           >
             <Clock className="h-3.5 w-3.5" />
             {t('aiReport.history')}
-            <span className="text-[10px] bg-bridge-accent/20 text-bridge-accent px-1.5 py-0.5 rounded-full">{reportHistory.length}</span>
+            <span className="text-xs bg-bridge-accent/20 text-bridge-accent px-1.5 py-0.5 rounded-full">{reportHistory.length}</span>
           </button>
 
           {/* Mobile history overlay */}
@@ -296,7 +297,7 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
                           {item.period_start} ~ {item.period_end.slice(5)}
                         </span>
                       </div>
-                      <div className="text-[10px] text-slate-600">
+                      <div className="text-xs text-slate-600">
                         {item.generated_by_name} · {formatDateTime(item.created_at)}
                       </div>
                     </button>
@@ -328,7 +329,7 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
                       {item.period_start} ~ {item.period_end.slice(5)}
                     </span>
                   </div>
-                  <div className="text-[10px] text-slate-600">
+                  <div className="text-xs text-slate-600">
                     {item.generated_by_name} · {formatDateTime(item.created_at)}
                   </div>
                 </button>
@@ -345,28 +346,29 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             {/* Week navigation */}
             <div className="flex items-center gap-2 sm:gap-3">
-              <button
+              <IconButton
+                aria-label="이전 주"
                 onClick={() => setWeekOffset((p) => p - 1)}
-                className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
+                <ChevronLeft />
+              </IconButton>
               <div className="text-xs sm:text-sm font-medium text-foreground min-w-[140px] sm:min-w-[160px] text-center">
                 {formatDisplayDate(weekRange.start)} ~ {formatDisplayDate(weekRange.end)}
                 {weekOffset === -1 && (
-                  <span className="ml-1.5 sm:ml-2 text-[10px] sm:text-xs text-slate-500">({t('aiReport.lastWeek')})</span>
+                  <span className="ml-1.5 sm:ml-2 text-xs sm:text-xs text-slate-500">({t('aiReport.lastWeek')})</span>
                 )}
                 {weekOffset === 0 && (
-                  <span className="ml-1.5 sm:ml-2 text-[10px] sm:text-xs text-slate-500">({t('aiReport.thisWeek')})</span>
+                  <span className="ml-1.5 sm:ml-2 text-xs sm:text-xs text-slate-500">({t('aiReport.thisWeek')})</span>
                 )}
               </div>
-              <button
+              <IconButton
+                aria-label="다음 주"
                 onClick={() => setWeekOffset((p) => Math.min(p + 1, 0))}
                 disabled={weekOffset >= 0}
-                className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                <ChevronRight className="h-4 w-4" />
-              </button>
+                <ChevronRight />
+              </IconButton>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
@@ -458,7 +460,7 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
             <div>
               {/* Report metadata */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-4 md:mb-6">
-                <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs text-slate-500">
+                <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-xs text-slate-500">
                   <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   <span>{formatDateTime(report.created_at)}</span>
                   <span className="text-slate-700">|</span>
@@ -467,14 +469,14 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleRegenerate}
-                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs rounded-lg border border-foreground/10 transition-all text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 text-xs sm:text-xs rounded-lg border border-foreground/10 transition-all text-slate-400 hover:text-foreground hover:bg-foreground/5"
                   >
                     <RefreshCw className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     <span className="hidden sm:inline">{t('aiReport.regenerate')}</span>
                   </button>
                   <button
                     onClick={handleCopy}
-                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg border border-foreground/10 transition-all"
+                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 text-xs sm:text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg border border-foreground/10 transition-all"
                   >
                     {copied ? <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-400" /> : <Copy className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
                     <span className="hidden sm:inline">{copied ? t('aiReport.copied') : t('aiReport.copy')}</span>
@@ -577,7 +579,7 @@ function CircularProgress({ value, max, size = 52, strokeWidth = 4, color }: {
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[10px] font-bold text-foreground">
+        <span className="text-xs font-bold text-foreground">
           {max > 0 ? Math.round((value / max) * 100) : 0}%
         </span>
       </div>
@@ -619,7 +621,7 @@ function PersonalDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (ke
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
               <Timer className="h-4 w-4 text-bridge-accent" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.totalTime')}</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('aiReport.totalTime')}</span>
             </div>
             <div className="text-2xl font-bold text-foreground tracking-tight">
               {formatMinutesToHours(summary.total_minutes)}
@@ -633,7 +635,7 @@ function PersonalDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (ke
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
               <CheckSquare className="h-4 w-4 text-emerald-400" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.checklists')}</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('aiReport.checklists')}</span>
             </div>
             <div className="flex items-center gap-4">
               <CircularProgress
@@ -646,7 +648,7 @@ function PersonalDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (ke
                   {summary.completed_checklists}/{summary.total_checklists}
                 </div>
                 {summary.total_checklists > 0 && summary.completed_checklists === summary.total_checklists && (
-                  <div className="text-[10px] text-emerald-400 font-medium mt-0.5">{t('aiReport.allComplete')}</div>
+                  <div className="text-xs text-emerald-400 font-medium mt-0.5">{t('aiReport.allComplete')}</div>
                 )}
               </div>
             </div>
@@ -659,11 +661,11 @@ function PersonalDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (ke
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
               <Layers className="h-4 w-4 text-bridge-secondary" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.featuresLabel')}</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('aiReport.featuresLabel')}</span>
             </div>
             <div className="flex items-baseline gap-2 mb-2.5">
               <span className="text-2xl font-bold text-foreground tracking-tight">{features.length}</span>
-              <span className="text-[11px] text-slate-500">{totalTasks} {t('aiReport.taskCount')}</span>
+              <span className="text-xs text-slate-500">{totalTasks} {t('aiReport.taskCount')}</span>
             </div>
             {features.length > 0 && (
               <>
@@ -680,17 +682,17 @@ function PersonalDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (ke
                 </div>
                 <div className="flex items-center gap-3">
                   {doneCount > 0 && (
-                    <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+                    <span className="flex items-center gap-1 text-xs text-emerald-400">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />{doneCount} {t('aiReport.done')}
                     </span>
                   )}
                   {activeCount > 0 && (
-                    <span className="flex items-center gap-1 text-[10px] text-bridge-accent">
+                    <span className="flex items-center gap-1 text-xs text-bridge-accent">
                       <span className="w-1.5 h-1.5 rounded-full bg-bridge-accent" />{activeCount} {t('aiReport.active')}
                     </span>
                   )}
                   {notStartedCount > 0 && (
-                    <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                    <span className="flex items-center gap-1 text-xs text-slate-500">
                       <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />{notStartedCount} {t('aiReport.notStarted')}
                     </span>
                   )}
@@ -706,7 +708,7 @@ function PersonalDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (ke
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
               <MessageSquare className="h-4 w-4 text-amber-400" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.commentsLabel')}</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('aiReport.commentsLabel')}</span>
             </div>
             <div className="text-2xl font-bold text-foreground tracking-tight">{summary.total_comments}</div>
           </div>
@@ -763,12 +765,12 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
               <Timer className="h-4 w-4 text-bridge-accent" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.totalTime')}</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('aiReport.totalTime')}</span>
             </div>
             <div className="text-2xl font-bold text-foreground tracking-tight">
               {formatMinutesToHours(summary.total_work_minutes)}
             </div>
-            <div className="text-[10px] text-slate-600 mt-1">
+            <div className="text-xs text-slate-600 mt-1">
               {t('aiReport.focusRate')} {Math.round(summary.focus_rate * 100)}%
             </div>
           </div>
@@ -780,7 +782,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
               <Target className="h-4 w-4 text-emerald-400" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.tasksCompleted')}</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('aiReport.tasksCompleted')}</span>
             </div>
             <div className="flex items-center gap-4">
               <CircularProgress
@@ -805,7 +807,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
               <Activity className="h-4 w-4 text-bridge-secondary" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.healthScore')}</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('aiReport.healthScore')}</span>
             </div>
             <div className={`text-2xl font-bold tracking-tight ${
               healthScore >= 70 ? 'text-emerald-400' : healthScore >= 40 ? 'text-amber-400' : 'text-red-400'
@@ -831,7 +833,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
               <AlertTriangle className={`h-4 w-4 ${totalDelayed > 0 ? 'text-amber-400' : 'text-emerald-400'}`} />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.attentionItems')}</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('aiReport.attentionItems')}</span>
             </div>
             <div className={`text-2xl font-bold tracking-tight ${totalDelayed > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
               {totalDelayed}
@@ -839,10 +841,10 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
             {delayed && totalDelayed > 0 && (
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 {delayed.total_overdue_features > 0 && (
-                  <span className="text-[10px] text-red-400/80">{t('aiReport.overdueFeatures')} {delayed.total_overdue_features}</span>
+                  <span className="text-xs text-red-400/80">{t('aiReport.overdueFeatures')} {delayed.total_overdue_features}</span>
                 )}
                 {delayed.total_stagnant_tasks > 0 && (
-                  <span className="text-[10px] text-amber-400/80">{t('aiReport.stagnantTasks')} {delayed.total_stagnant_tasks}</span>
+                  <span className="text-xs text-amber-400/80">{t('aiReport.stagnantTasks')} {delayed.total_stagnant_tasks}</span>
                 )}
               </div>
             )}
@@ -855,7 +857,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
         <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-4 sm:p-5 mb-4">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="h-4 w-4 text-bridge-accent" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.featureProgress')}</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('aiReport.featureProgress')}</span>
           </div>
           <div className="space-y-3">
             {statistics.by_feature.map((f, i) => (
@@ -865,13 +867,13 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
                     {f.feature.color && (
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: f.feature.color }} />
                     )}
-                    <span className="text-[11px] sm:text-xs text-muted-foreground truncate">{f.feature.title}</span>
+                    <span className="text-xs sm:text-xs text-muted-foreground truncate">{f.feature.title}</span>
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                    <span className="text-[10px] text-slate-600 hidden sm:inline">
+                    <span className="text-xs text-slate-600 hidden sm:inline">
                       {f.completed_task_count}/{f.task_count} {t('aiReport.taskCount')}
                     </span>
-                    <span className="text-[10px] text-slate-500 font-medium w-8 text-right">
+                    <span className="text-xs text-slate-500 font-medium w-8 text-right">
                       {Math.round(f.progress_percentage)}%
                     </span>
                   </div>
@@ -893,7 +895,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
         <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-4 sm:p-5 mb-4">
           <div className="flex items-center gap-2 mb-4">
             <Users className="h-4 w-4 text-bridge-secondary" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.memberContributions')}</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('aiReport.memberContributions')}</span>
           </div>
           <div className="space-y-3">
             {statistics.by_member
@@ -911,10 +913,10 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
                           style={{ width: `${barWidth}%` }}
                         />
                       </div>
-                      <span className="text-[10px] text-slate-500 w-12 text-right flex-shrink-0">
+                      <span className="text-xs text-slate-500 w-12 text-right flex-shrink-0">
                         {formatMinutesToHours(m.total_minutes)}
                       </span>
-                      <span className="text-[10px] text-slate-600 w-16 text-right flex-shrink-0">
+                      <span className="text-xs text-slate-600 w-16 text-right flex-shrink-0">
                         {m.completed_task_count}/{m.task_count} {t('aiReport.taskCount')}
                       </span>
                     </div>
@@ -930,7 +932,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
         <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-4">
             <Target className="h-4 w-4 text-bridge-accent" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.milestoneHealth')}</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('aiReport.milestoneHealth')}</span>
           </div>
           <div className="space-y-2.5">
             {management.milestone_health.map((ms, i) => {
@@ -945,13 +947,13 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
                 <div key={i} className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
                     <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
-                    <span className="text-[11px] sm:text-xs text-muted-foreground truncate">{ms.milestone.title}</span>
+                    <span className="text-xs sm:text-xs text-muted-foreground truncate">{ms.milestone.title}</span>
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                    <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md ${s.text} ${s.bg}`}>
+                    <span className={`text-xs sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-md ${s.text} ${s.bg}`}>
                       {ms.status.replace('_', ' ')}
                     </span>
-                    <span className="text-[10px] text-slate-600 w-8 sm:w-10 text-right">
+                    <span className="text-xs text-slate-600 w-8 sm:w-10 text-right">
                       {Math.round(ms.progress_percentage)}%
                     </span>
                   </div>
@@ -977,23 +979,23 @@ function MeetingsSection({ meetings, t }: { meetings: ReportMeeting[]; t: (key: 
     <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-4 sm:p-5 mb-4">
       <div className="flex items-center gap-2 mb-4">
         <CalendarDays className="h-4 w-4 text-violet-400" />
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.meetingsLabel')}</span>
-        <span className="text-[10px] text-slate-600 ml-auto">{meetings.length}</span>
+        <span className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('aiReport.meetingsLabel')}</span>
+        <span className="text-xs text-slate-600 ml-auto">{meetings.length}</span>
       </div>
       <div className="space-y-2.5">
         {meetings.map((meeting, i) => (
           <div key={i} className="flex items-start gap-3 py-2 border-b border-white/[0.03] last:border-b-0">
             <div className="flex-shrink-0 w-12 text-center pt-0.5">
-              <div className="text-[10px] text-slate-500">{meeting.date.slice(5)}</div>
+              <div className="text-xs text-slate-500">{meeting.date.slice(5)}</div>
               {meeting.start_time && (
-                <div className="text-[9px] text-slate-600">{meeting.start_time.slice(0, 5)}</div>
+                <div className="text-xs text-slate-600">{meeting.start_time.slice(0, 5)}</div>
               )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-medium text-slate-200 truncate">{meeting.title}</span>
                 {meeting.has_transcript && (
-                  <span className="text-[9px] text-violet-400/70 bg-violet-400/10 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                  <span className="text-xs text-violet-400/70 bg-violet-400/10 px-1.5 py-0.5 rounded-full flex-shrink-0">
                     {t('aiReport.hasTranscript')}
                   </span>
                 )}
@@ -1001,13 +1003,13 @@ function MeetingsSection({ meetings, t }: { meetings: ReportMeeting[]; t: (key: 
               {meeting.participants.length > 0 && (
                 <div className="flex items-center gap-1 mb-1">
                   <Users className="h-3 w-3 text-slate-700 flex-shrink-0" />
-                  <span className="text-[10px] text-slate-500 truncate">
+                  <span className="text-xs text-slate-500 truncate">
                     {meeting.participants.join(', ')}
                   </span>
                 </div>
               )}
               {meeting.memo && (
-                <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2">{meeting.memo}</p>
+                <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">{meeting.memo}</p>
               )}
             </div>
           </div>
@@ -1042,7 +1044,7 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
         className="w-full flex items-center justify-between px-3 sm:px-5 py-3 sm:py-3.5 hover:bg-white/[0.02] transition-colors"
       >
         <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-          <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded-md flex-shrink-0 ${status.color} ${status.bg}`}>
+          <span className={`text-xs sm:text-xs font-bold uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded-md flex-shrink-0 ${status.color} ${status.bg}`}>
             {feature.status.replace('_', ' ')}
           </span>
           <span className="text-xs sm:text-sm font-medium text-foreground truncate">{feature.title}</span>
@@ -1058,7 +1060,7 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
               />
             </div>
           </div>
-          <span className="text-[10px] sm:text-xs text-slate-500 font-medium">{feature.progress}</span>
+          <span className="text-xs sm:text-xs text-slate-500 font-medium">{feature.progress}</span>
           {expanded ? (
             <ChevronUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-600" />
           ) : (
@@ -1086,10 +1088,10 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
                   <span className={`text-xs sm:text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
                     {task.title}
                   </span>
-                  <span className="text-[9px] sm:text-[10px] text-slate-600 bg-foreground/5 px-1.5 sm:px-2 py-0.5 rounded-full">{task.block}</span>
+                  <span className="text-xs sm:text-xs text-slate-600 bg-foreground/5 px-1.5 sm:px-2 py-0.5 rounded-full">{task.block}</span>
                 </div>
                 {task.time_minutes != null && task.time_minutes > 0 && (
-                  <span className="text-[10px] text-bridge-accent flex-shrink-0">
+                  <span className="text-xs text-bridge-accent flex-shrink-0">
                     {formatMinutesToHours(task.time_minutes)}
                   </span>
                 )}
@@ -1099,7 +1101,7 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
               {task.checklists && task.checklists.length > 0 && (
                 <div className="ml-5 sm:ml-5 flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1 mb-1.5">
                   {task.checklists.map((cl, ci) => (
-                    <div key={ci} className="flex items-center gap-1.5 text-[11px]">
+                    <div key={ci} className="flex items-center gap-1.5 text-xs">
                       {cl.completed ? (
                         <CheckSquare className="h-3 w-3 text-emerald-400/70" />
                       ) : (
@@ -1118,7 +1120,7 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
                   {task.time_details.map((td, tdi) => (
                     <span
                       key={tdi}
-                      className="text-[10px] text-slate-600 bg-white/[0.03] px-1.5 py-0.5 rounded"
+                      className="text-xs text-slate-600 bg-white/[0.03] px-1.5 py-0.5 rounded"
                     >
                       {td.date.slice(5)} {formatMinutesToHours(td.minutes)}
                     </span>
@@ -1130,7 +1132,7 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
               {task.comments && task.comments.length > 0 && (
                 <div className="ml-5 sm:ml-5 space-y-1">
                   {task.comments.map((cm, cmi) => (
-                    <div key={cmi} className="flex items-start gap-1.5 text-[11px]">
+                    <div key={cmi} className="flex items-start gap-1.5 text-xs">
                       <MessageSquare className="h-3 w-3 text-slate-700 mt-0.5 flex-shrink-0" />
                       <span className="text-slate-500 leading-relaxed">{cm.content}</span>
                     </div>

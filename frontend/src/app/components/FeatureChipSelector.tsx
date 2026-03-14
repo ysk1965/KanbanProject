@@ -108,7 +108,7 @@ function FeatureChip({
             />
             <CompletionParticles active={justCompleted} count={8} variant="chip" />
           </div>
-          <span className={`text-[10px] font-semibold flex items-center gap-0.5 ${
+          <span className={`text-xs font-medium flex items-center gap-0.5 ${
             isCompleted ? 'text-green-400' : isSelected ? 'text-foreground/80' : 'text-zinc-500'
           } ${justCompleted ? 'progress-text-bounce' : ''}`}>
             {feature.completed_tasks}/{feature.total_tasks}
@@ -155,14 +155,14 @@ export function FeatureChipSelector({
         {/* 전체 보기 칩 */}
         <button
           onClick={onSelectAll}
-          className={`flex flex-col items-center justify-center px-3 md:px-5 py-2 md:py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 min-w-[52px] md:min-w-[64px] ${
+          className={`flex flex-col items-center justify-center px-3 md:px-5 py-2 md:py-2.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 min-w-[52px] md:min-w-[64px] ${
             isAllSelected
               ? 'bg-indigo-500/20 text-indigo-300 border-2 border-indigo-500/60 shadow-[0_0_12px_rgba(99,102,241,0.15)]'
               : 'bg-bridge-surface-hover border border-bridge-border text-zinc-500 hover:text-foreground hover:border-zinc-600'
           }`}
         >
           <span className="text-sm font-bold">{t('common.all')}</span>
-          <span className={`text-[10px] mt-0.5 ${isAllSelected ? 'text-indigo-400' : 'text-zinc-600'}`}>
+          <span className={`text-xs mt-0.5 ${isAllSelected ? 'text-indigo-400' : 'text-zinc-600'}`}>
             {t('featureChip.count', { count: features.length })}
           </span>
         </button>

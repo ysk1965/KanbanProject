@@ -58,7 +58,7 @@ export default function MySpaceSummaryStrip({ todayData, onClick }: MySpaceSumma
           {/* Task */}
           <div className="flex items-center gap-2 pl-4 pr-4 border-l border-foreground/[0.08]">
             <ListTodo size={14} className="text-slate-400 shrink-0" />
-            <span className="text-[10px] text-slate-400">Task</span>
+            <span className="text-xs text-slate-400">Task</span>
             <span className="text-[13px] font-bold text-bridge-accent">
               {taskCompleted}/{taskTotal}
             </span>
@@ -67,7 +67,7 @@ export default function MySpaceSummaryStrip({ todayData, onClick }: MySpaceSumma
           {/* Habit */}
           <div className="flex items-center gap-2 pl-4 pr-4 border-l border-foreground/[0.08]">
             <Flame size={14} className="text-slate-400 shrink-0" />
-            <span className="text-[10px] text-slate-400">Habit</span>
+            <span className="text-xs text-slate-400">Habit</span>
             <span className="text-[13px] font-bold text-amber-400">
               {habitsCompleted}/{habitsTotal}
             </span>
@@ -76,14 +76,14 @@ export default function MySpaceSummaryStrip({ todayData, onClick }: MySpaceSumma
           {/* Events */}
           <div className="flex items-center gap-2 pl-4 pr-4 border-l border-foreground/[0.08]">
             <Clock size={14} className="text-slate-400 shrink-0" />
-            <span className="text-[10px] text-slate-400">Events</span>
+            <span className="text-xs text-slate-400">Events</span>
             <span className="text-[13px] font-bold text-purple-400">{eventsCount}</span>
           </div>
 
           {/* Diary */}
           <div className="flex items-center gap-2 pl-4 pr-4 border-l border-foreground/[0.08]">
             <BookOpen size={14} className="text-slate-400 shrink-0" />
-            <span className="text-[10px] text-slate-400">Diary</span>
+            <span className="text-xs text-slate-400">Diary</span>
             {diaryCompleted ? (
               <CheckCircle2 size={14} className="text-emerald-400" />
             ) : (
@@ -95,7 +95,7 @@ export default function MySpaceSummaryStrip({ todayData, onClick }: MySpaceSumma
 
       {/* Right: Open */}
       <div className="flex items-center gap-1 shrink-0 ml-auto">
-        <span className="text-[10px] font-medium text-slate-600 group-hover:text-slate-400 transition-colors duration-300">
+        <span className="text-xs font-medium text-slate-600 group-hover:text-slate-400 transition-colors duration-300">
           Open
         </span>
         <ChevronRight

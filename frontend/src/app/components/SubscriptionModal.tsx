@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, CreditCard, Users, Check, Minus, Plus, Crown, AlertTriangle, Sparkles, ArrowRight, Undo2, Calendar, BarChart3, MessageSquare, Clock } from 'lucide-react';
+import { IconButton } from './ui/IconButton';
 import { toast } from 'sonner';
 import { Subscription } from '../types';
 import { formatDate as dateUtilsFormatDate } from '../utils/dateUtils';
@@ -148,6 +149,7 @@ export function SubscriptionModal({
           <button
             onClick={onClose}
             className="p-1 text-slate-400 hover:text-foreground transition-colors"
+            aria-label="닫기"
           >
             <X className="h-5 w-5" />
           </button>
@@ -335,20 +337,22 @@ export function SubscriptionModal({
 
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <button
+                    <IconButton
+                      aria-label="좌석 수 감소"
                       onClick={() => setAdditionalSeats(Math.max(1, additionalSeats - 1))}
                       disabled={additionalSeats <= 1}
-                      className="p-1.5 rounded-lg border border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="border border-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed"
                     >
-                      <Minus className="h-4 w-4" />
-                    </button>
+                      <Minus />
+                    </IconButton>
                     <span className="text-foreground text-xl font-bold w-10 text-center">{additionalSeats}</span>
-                    <button
+                    <IconButton
+                      aria-label="좌석 수 증가"
                       onClick={() => setAdditionalSeats(additionalSeats + 1)}
-                      className="p-1.5 rounded-lg border border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-all"
+                      className="border border-foreground/10"
                     >
-                      <Plus className="h-4 w-4" />
-                    </button>
+                      <Plus />
+                    </IconButton>
                   </div>
                   <div className="text-right">
                     <p className="text-foreground font-bold">
@@ -371,20 +375,20 @@ export function SubscriptionModal({
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="text-center">
-                      <p className="text-slate-400 text-[10px] mb-0.5">{t('subscription.creditCurrentMonthly')}</p>
+                      <p className="text-slate-400 text-xs mb-0.5">{t('subscription.creditCurrentMonthly')}</p>
                       <p className="text-foreground text-sm font-bold">
                         {CREDITS_BASE + seatCount * CREDITS_PER_SEAT}
                       </p>
                     </div>
                     <ArrowRight className="h-4 w-4 text-slate-500 mx-2" />
                     <div className="text-center">
-                      <p className="text-slate-400 text-[10px] mb-0.5">{t('subscription.creditAfterPurchase')}</p>
+                      <p className="text-slate-400 text-xs mb-0.5">{t('subscription.creditAfterPurchase')}</p>
                       <p className="text-bridge-secondary text-sm font-bold">
                         {CREDITS_BASE + (seatCount + additionalSeats) * CREDITS_PER_SEAT}
                       </p>
                     </div>
                   </div>
-                  <p className="text-slate-500 text-[10px] text-center mt-1.5">
+                  <p className="text-slate-500 text-xs text-center mt-1.5">
                     {t('subscription.creditPerSeat', { count: CREDITS_PER_SEAT })}
                   </p>
                 </div>
@@ -405,7 +409,7 @@ export function SubscriptionModal({
             <div className="space-y-4">
               {/* Change Billing Cycle */}
               <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
                   {t('subscription.changeBillingCycle')}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -440,7 +444,7 @@ export function SubscriptionModal({
                     }`}
                   >
                     <div className="absolute -top-2 -right-2">
-                      <span className="px-2 py-0.5 bg-bridge-secondary text-bridge-dark text-[10px] font-bold rounded-full">
+                      <span className="px-2 py-0.5 bg-bridge-secondary text-bridge-dark text-xs font-bold rounded-full">
                         17% off
                       </span>
                     </div>
@@ -462,7 +466,7 @@ export function SubscriptionModal({
 
               {/* Update Payment Method */}
               <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
                   {t('subscription.paymentMethod')}
                 </p>
                 <button
@@ -529,7 +533,7 @@ export function SubscriptionModal({
                           <p className="text-foreground text-xs font-medium mb-1">
                             {t('subscription.cancelActiveUntil', { date: formatDate(subscription.current_period_end) })}
                           </p>
-                          <p className="text-slate-500 text-[10px]">
+                          <p className="text-slate-500 text-xs">
                             {t('subscription.cancelNextPaymentSkipped', { date: formatDate(subscription.next_payment_at) })}
                           </p>
                         </div>
@@ -537,7 +541,7 @@ export function SubscriptionModal({
 
                       {/* Features lost */}
                       <div className="mb-3">
-                        <p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest mb-2">
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">
                           {t('subscription.cancelFeaturesLost')}
                         </p>
                         <div className="space-y-1.5">

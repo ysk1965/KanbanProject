@@ -161,7 +161,7 @@ export function KanbanCard({
           {featureTitle ? (
             isExpanded ? (
               <span
-                className="text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0"
+                className="text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0"
                 style={{
                   backgroundColor: `${cardColor}15`,
                   borderColor: `${cardColor}44`,
@@ -195,7 +195,7 @@ export function KanbanCard({
           {taskTags.map((tag) => (
             <span
               key={tag.id}
-              className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+              className="text-xs font-bold px-2 py-0.5 rounded-full border"
               style={{
                 backgroundColor: `${tag.color}15`,
                 borderColor: `${tag.color}44`,
@@ -212,7 +212,7 @@ export function KanbanCard({
       {task.due_date && (
         <div className="flex items-center gap-1.5 mb-3 pl-4">
           <Calendar size={12} className="text-amber-400" />
-          <span className="text-[11px] font-bold text-amber-300">{task.due_date}</span>
+          <span className="text-xs font-bold text-amber-300">{task.due_date}</span>
         </div>
       )}
 
@@ -225,7 +225,7 @@ export function KanbanCard({
               className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
             >
               <CheckSquare size={12} />
-              <span className="text-[10px] font-semibold">
+              <span className="text-xs font-medium">
                 {t('kanban.checklist')} {hasLoaded ? `${completedCount}/${checklistItems.length}` : `${completedChecklistItems}/${task.checklist_total}`}
               </span>
               {isExpanded ? (
@@ -244,7 +244,7 @@ export function KanbanCard({
               {checklistAssignees.slice(0, 3).map((assignee) => (
                 <div
                   key={assignee.id}
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white border border-bridge-border whitespace-nowrap overflow-hidden"
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white border border-bridge-border whitespace-nowrap overflow-hidden"
                   style={{ backgroundColor: cardColor }}
                   title={assignee.name}
                 >
@@ -252,7 +252,7 @@ export function KanbanCard({
                 </div>
               ))}
               {checklistAssignees.length > 3 && (
-                <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-foreground/80 border border-bridge-border">
+                <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-xs font-bold text-foreground/80 border border-bridge-border">
                   +{checklistAssignees.length - 3}
                 </div>
               )}
@@ -305,7 +305,7 @@ export function KanbanCard({
                   </span>
                   {item.assignee && (
                     <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-bridge-border whitespace-nowrap overflow-hidden"
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 border border-bridge-border whitespace-nowrap overflow-hidden"
                       style={{ backgroundColor: cardColor }}
                       title={item.assignee.name}
                     >

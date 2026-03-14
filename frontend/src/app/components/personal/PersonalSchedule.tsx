@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search, Flame, ChevronDown, ChevronUp, Layers, LayoutDashboard, Users, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
+import { IconButton } from '../ui/IconButton';
 import { TimePicker } from '../ui/TimePicker';
 import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { personalEventService, personalTaskService, personalCalendarService } from '../../utils/services';
@@ -853,25 +854,27 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
 
           {/* Month Navigation */}
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-semibold text-foreground">
+            <span className="text-sm font-bold text-foreground">
               {t('personal.schedule.monthYear', { year: format(calendarMonth, 'yyyy'), month: format(calendarMonth, 'M') })}
             </span>
             <div className="flex items-center gap-1">
               <button
                 onClick={handlePrevMonth}
                 className="p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                aria-label="이전 달"
               >
                 <ChevronLeft size={16} />
               </button>
               <button
                 onClick={handleToday}
-                className="px-2 py-0.5 text-[10px] font-semibold rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                className="px-2 py-0.5 text-xs font-medium rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
                 {t('personal.schedule.today')}
               </button>
               <button
                 onClick={handleNextMonth}
                 className="p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                aria-label="다음 달"
               >
                 <ChevronRight size={16} />
               </button>
@@ -887,7 +890,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
               {miniCalWeekDays.map((day, i) => (
                 <div
                   key={`${day}-${i}`}
-                  className={`text-center text-[10px] font-bold uppercase tracking-widest py-1 ${
+                  className={`text-center text-xs font-bold uppercase tracking-widest py-1 ${
                     i === 0 ? 'text-red-400/60' : i === 6 ? 'text-blue-400/60' : 'text-slate-500'
                   }`}
                 >
@@ -925,7 +928,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                       className={`
                         text-xs font-medium leading-none
                         ${isTodayDate
-                          ? 'bg-bridge-accent text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px]'
+                          ? 'bg-bridge-accent text-white rounded-full w-5 h-5 flex items-center justify-center text-xs'
                           : isInCurrentWeek
                             ? isHoliday || dayOfWeek === 0 ? 'text-red-400' : 'text-foreground'
                             : isHoliday || dayOfWeek === 0
@@ -953,11 +956,11 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <RotateCw size={14} className="text-purple-400" />
-              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 {t('personal.schedule.recurring')}
               </span>
               {recurringEvents.length > 0 && (
-                <span className="text-[10px] font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded">
+                <span className="text-xs font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded">
                   {recurringEvents.length}
                 </span>
               )}
@@ -970,7 +973,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 setCreateInitialRecurrence('WEEKLY');
                 setIsCreateOpen(true);
               }}
-              className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-purple-400 bg-purple-400/15 rounded-lg hover:bg-purple-400/25 transition-colors"
+              className="flex items-center gap-1 px-2 py-1 text-xs font-bold text-purple-400 bg-purple-400/15 rounded-lg hover:bg-purple-400/25 transition-colors"
             >
               <Plus size={12} />
               {t('personal.schedule.add')}
@@ -980,7 +983,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
             <div className="text-center py-6">
               <RotateCw size={20} className="mx-auto text-slate-600 mb-2" />
               <p className="text-slate-500 text-xs">{t('personal.schedule.noRecurring')}</p>
-              <p className="text-slate-600 text-[10px] mt-1">{t('personal.schedule.noRecurringHint')}</p>
+              <p className="text-slate-600 text-xs mt-1">{t('personal.schedule.noRecurringHint')}</p>
             </div>
           ) : (
             <div className="space-y-1.5">
@@ -1000,11 +1003,11 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                         {e.title}
                       </span>
                       <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-[10px] font-semibold text-purple-400/80 bg-purple-400/15 px-1.5 py-0.5 rounded">
+                        <span className="text-xs font-medium text-purple-400/80 bg-purple-400/15 px-1.5 py-0.5 rounded">
                           {formatRecurrenceLabel(e)}
                         </span>
                         {e.start_time && (
-                          <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+                          <span className="text-xs text-slate-500 flex items-center gap-0.5">
                             <Clock size={8} />
                             {e.start_time.slice(0, 5)}
                             {e.end_time && <>{` - ${e.end_time.slice(0, 5)}`}{e.end_time < e.start_time && <span className="text-bridge-accent ml-0.5">({t('personal.schedule.nextDay')})</span>}</>}
@@ -1031,11 +1034,11 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
           >
             <div className="flex items-center gap-2">
               <LayoutDashboard size={14} className="text-bridge-accent" />
-              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-foreground transition-colors">
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400 group-hover:text-foreground transition-colors">
                 {t('personal.schedule.connectedBoards', '연결된 보드')}
               </span>
               {connectedBoards.length > 0 && (
-                <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded">
+                <span className="text-xs font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded">
                   {connectedBoards.length}
                 </span>
               )}
@@ -1062,10 +1065,10 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                   <div className="text-center py-4">
                     <LayoutDashboard size={20} className="mx-auto text-slate-600 mb-2" />
                     <p className="text-slate-500 text-xs">{t('personal.schedule.noBoards', '연결된 보드가 없습니다')}</p>
-                    <p className="text-slate-600 text-[10px] mt-1">{t('personal.schedule.noBoardsHint', '보드에 참여하면 협업 일정이 여기에 표시됩니다')}</p>
+                    <p className="text-slate-600 text-xs mt-1">{t('personal.schedule.noBoardsHint', '보드에 참여하면 협업 일정이 여기에 표시됩니다')}</p>
                     <button
                       onClick={() => navigate('/boards')}
-                      className="mt-2 flex items-center gap-1 mx-auto px-3 py-1.5 text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 rounded-lg hover:bg-bridge-accent/25 transition-colors"
+                      className="mt-2 flex items-center gap-1 mx-auto px-3 py-1.5 text-xs font-bold text-bridge-accent bg-bridge-accent/15 rounded-lg hover:bg-bridge-accent/25 transition-colors"
                     >
                       <Plus size={12} />
                       {t('personal.schedule.goToBoards', '보드 만들기')}
@@ -1098,12 +1101,12 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                               {board.name}
                             </span>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+                              <span className="text-xs text-slate-500 flex items-center gap-0.5">
                                 <Users size={8} />
                                 {board.member_count}
                               </span>
                               {board.organization_name && (
-                                <span className="text-[10px] font-semibold text-bridge-secondary/80 bg-bridge-secondary/15 px-1.5 py-0.5 rounded truncate max-w-[100px]">
+                                <span className="text-xs font-medium text-bridge-secondary/80 bg-bridge-secondary/15 px-1.5 py-0.5 rounded truncate max-w-[100px]">
                                   {board.organization_name}
                                 </span>
                               )}
@@ -1138,6 +1141,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
             <button
               onClick={handlePrev}
               className="p-1.5 md:p-2 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-xl transition-colors"
+              aria-label="이전"
             >
               <ChevronLeft size={16} className="md:w-[18px] md:h-[18px]" />
             </button>
@@ -1157,12 +1161,13 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
             <button
               onClick={handleNext}
               className="p-1.5 md:p-2 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-xl transition-colors"
+              aria-label="다음"
             >
               <ChevronRight size={16} className="md:w-[18px] md:h-[18px]" />
             </button>
             <button
               onClick={handleToday}
-              className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-bold rounded-lg transition-colors ${
+              className={`px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-xs font-bold rounded-lg transition-colors ${
                 isTodayInView
                   ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white'
                   : 'text-bridge-secondary border border-bridge-secondary/30 hover:bg-bridge-secondary/10'
@@ -1174,7 +1179,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
             <div className="flex items-center bg-foreground/5 rounded-lg p-0.5">
               <button
                 onClick={() => setViewMode('day')}
-                className={`px-2 md:px-2.5 py-0.5 md:py-1 text-[10px] md:text-xs font-bold rounded-md transition-all ${
+                className={`px-2 md:px-2.5 py-0.5 md:py-1 text-xs md:text-xs font-bold rounded-md transition-all ${
                   viewMode === 'day'
                     ? 'bg-bridge-accent text-white shadow-sm'
                     : 'text-slate-400 hover:text-foreground'
@@ -1184,7 +1189,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
               </button>
               <button
                 onClick={() => setViewMode('week')}
-                className={`px-2 md:px-2.5 py-0.5 md:py-1 text-[10px] md:text-xs font-bold rounded-md transition-all ${
+                className={`px-2 md:px-2.5 py-0.5 md:py-1 text-xs md:text-xs font-bold rounded-md transition-all ${
                   viewMode === 'week'
                     ? 'bg-bridge-accent text-white shadow-sm'
                     : 'text-slate-400 hover:text-foreground'
@@ -1240,7 +1245,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                   }`}
                 >
                   <div
-                    className={`text-[10px] font-bold uppercase tracking-widest ${
+                    className={`text-xs font-bold uppercase tracking-widest ${
                       isToday ? 'text-bridge-secondary' : isHoliday || day.getDay() === 0 ? 'text-red-400/60' : day.getDay() === 6 ? 'text-blue-400/60' : 'text-slate-500'
                     }`}
                   >
@@ -1266,7 +1271,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
           {hasAllDay && (
             <div className="flex border-b border-foreground/[0.08] bg-white/[0.02]">
               <div
-                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-slate-500 border-r border-foreground/[0.08] flex items-center justify-center font-bold tracking-wider`}
+                className={`${TIME_COL_W} flex-shrink-0 p-2 text-xs text-slate-500 border-r border-foreground/[0.08] flex items-center justify-center font-bold tracking-wider`}
               >
                 {t('personal.schedule.all')}
               </div>
@@ -1313,7 +1318,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
           {hasCalendarEvents && (
             <div className="flex border-b border-foreground/[0.08] bg-sky-500/[0.03]">
               <div
-                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-sky-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
+                className={`${TIME_COL_W} flex-shrink-0 p-2 text-xs text-sky-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
               >
                 <CalendarDays size={12} />
               </div>
@@ -1339,7 +1344,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                           <CalendarDays className="h-2.5 w-2.5 text-sky-400 flex-shrink-0" />
                           {ev.title}
                           {ev.start_time && (
-                            <span className="text-[10px] text-slate-400 ml-auto flex-shrink-0">
+                            <span className="text-xs text-slate-400 ml-auto flex-shrink-0">
                               {ev.start_time.slice(0, 5)}
                             </span>
                           )}
@@ -1356,7 +1361,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
           {hasTasksDue && (
             <div className="flex border-b border-foreground/[0.08] bg-amber-500/[0.03]">
               <div
-                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-amber-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
+                className={`${TIME_COL_W} flex-shrink-0 p-2 text-xs text-amber-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
               >
                 <ListTodo size={12} />
               </div>
@@ -1414,7 +1419,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
             {habitRows.length > 0 && (
               <div className="flex">
                 <div
-                  className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-purple-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
+                  className={`${TIME_COL_W} flex-shrink-0 p-2 text-xs text-purple-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
                 >
                   <CheckCircle2 size={12} />
                 </div>
@@ -1463,7 +1468,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
               <div className={`${TIME_COL_W} flex-shrink-0 border-r border-foreground/[0.08]`} />
               <button
                 onClick={() => setIsCreateHabitOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-purple-400/70 hover:text-purple-300 hover:bg-purple-400/5 transition-all rounded-md m-1"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-purple-400/70 hover:text-purple-300 hover:bg-purple-400/5 transition-all rounded-md m-1"
               >
                 <Plus size={12} />
                 {t('personal.schedule.addHabit')}
@@ -1523,7 +1528,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 style={{ top: `${currentTimeTop}px` }}
               >
                 <div className={`${TIME_COL_W} flex-shrink-0 flex justify-end pr-1`}>
-                  <span className="text-[10px] font-bold text-red-400 bg-red-500/15 px-1 rounded">
+                  <span className="text-xs font-bold text-red-400 bg-red-500/15 px-1 rounded">
                     {now.getHours().toString().padStart(2, '0')}:
                     {now.getMinutes().toString().padStart(2, '0')}
                   </span>
@@ -1591,7 +1596,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                             >
                               <div className="flex flex-col h-full overflow-hidden">
                                 {block.board_name && (
-                                  <span className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent truncate max-w-[80%] self-start mb-0.5">
+                                  <span className="text-xs font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent truncate max-w-[80%] self-start mb-0.5">
                                     {block.board_name}
                                   </span>
                                 )}
@@ -1599,12 +1604,12 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                                   {block.title}
                                 </span>
                                 {blockHeight > 30 && block.task_title && (
-                                  <span className="text-[10px] text-slate-500 truncate">
+                                  <span className="text-xs text-slate-500 truncate">
                                     {block.task_title}
                                   </span>
                                 )}
                                 {blockHeight > 45 && (
-                                  <span className="text-[10px] text-slate-500">
+                                  <span className="text-xs text-slate-500">
                                     {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
                                   </span>
                                 )}
@@ -1739,7 +1744,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                                 {ev.title}
                               </span>
                               {displayHeight > 30 && (
-                                <span className="text-[10px] text-slate-400">
+                                <span className="text-xs text-slate-400">
                                   {isContinuation
                                     ? <>00:00 - {displayEndTime} <span className="text-bridge-accent ml-0.5">({t('personal.schedule.prevDay')})</span></>
                                     : <>{displayStartTime}{displayEndTime && ` - ${displayEndTime}`}{ev.start_time && ev.end_time && ev.end_time < ev.start_time && <span className="text-bridge-accent ml-0.5">({t('personal.schedule.nextDay')})</span>}</>
@@ -1782,7 +1787,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
           <p className="hidden md:block text-xs text-slate-500">
             {t('personal.schedule.dragToCreateFull')}
           </p>
-          <p className="md:hidden text-[10px] text-slate-500 flex-1">
+          <p className="md:hidden text-xs text-slate-500 flex-1">
             {t('personal.schedule.tapToCreate')}
           </p>
           <div className="md:hidden flex items-center gap-2">
@@ -2125,9 +2130,9 @@ function CreateEventModal({
           />
           <span className="text-sm font-bold text-foreground">{t('personal.schedule.newEvent')}</span>
           <div className="flex-1" />
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
-            <X size={16} />
-          </button>
+          <IconButton onClick={onClose} aria-label="닫기">
+            <X />
+          </IconButton>
         </div>
 
         <div className="px-5 pb-5 space-y-4 pt-4">
@@ -2170,7 +2175,7 @@ function CreateEventModal({
                   <button
                     key={key}
                     onClick={() => setSubTab(key)}
-                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all truncate ${
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all truncate ${
                       subTab === key
                         ? 'bg-bridge-accent/15 text-bridge-accent border border-bridge-accent/20'
                         : 'text-slate-500 hover:text-foreground hover:bg-foreground/5 border border-transparent'
@@ -2232,8 +2237,8 @@ function CreateEventModal({
                               <span className="text-sm text-foreground truncate block">{task.title}</span>
                               {(task.category || task.due_date) && (
                                 <div className="flex items-center gap-2 mt-0.5">
-                                  {task.category && <span className="text-[10px] text-slate-500">{task.category}</span>}
-                                  {task.due_date && <span className="text-[10px] text-slate-500">{formatDate(task.due_date)}</span>}
+                                  {task.category && <span className="text-xs text-slate-500">{task.category}</span>}
+                                  {task.due_date && <span className="text-xs text-slate-500">{formatDate(task.due_date)}</span>}
                                 </div>
                               )}
                             </div>
@@ -2262,7 +2267,7 @@ function CreateEventModal({
                               <span className="text-sm text-foreground truncate block">{habit.title}</span>
                               <div className="flex items-center gap-2 mt-0.5">
                                 <Flame size={10} className="text-slate-500" />
-                                <span className="text-[10px] text-slate-500">{t('personal.schedule.streakDays', { count: habit.current_streak })}</span>
+                                <span className="text-xs text-slate-500">{t('personal.schedule.streakDays', { count: habit.current_streak })}</span>
                               </div>
                             </div>
                             <div
@@ -2289,7 +2294,7 @@ function CreateEventModal({
                             />
                             <span className="text-sm text-foreground truncate flex-1">{ev.title}</span>
                             {(ev.start_time || ev.end_time) && (
-                              <span className="text-[10px] text-slate-500 shrink-0">
+                              <span className="text-xs text-slate-500 shrink-0">
                                 {ev.start_time?.slice(0, 5)}{ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}
                               </span>
                             )}
@@ -2316,6 +2321,7 @@ function CreateEventModal({
                   <button
                     onClick={handleClearSelection}
                     className="p-0.5 text-bridge-accent/60 hover:text-bridge-accent transition-colors"
+                    aria-label="닫기"
                   >
                     <X size={12} />
                   </button>
@@ -2366,7 +2372,7 @@ function CreateEventModal({
                   />
                 </div>
                 {startTime && endTime && endTime < startTime && (
-                  <span className="text-[10px] font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
+                  <span className="text-xs font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
                 )}
               </div>
 
@@ -2384,17 +2390,17 @@ function CreateEventModal({
                 <div className="flex items-start gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/10 rounded-lg">
                   <AlertCircle size={13} className="text-amber-400 shrink-0 mt-0.5" />
                   <div className="min-w-0">
-                    <p className="text-[10px] font-semibold text-amber-400">
+                    <p className="text-xs font-medium text-amber-400">
                       {t('personal.schedule.overlapWarning', { count: overlapping.length })}
                     </p>
                     <div className="mt-0.5 space-y-0.5">
                       {overlapping.slice(0, 3).map((ev) => (
-                        <p key={ev.id} className="text-[10px] text-amber-400/70 truncate">
+                        <p key={ev.id} className="text-xs text-amber-400/70 truncate">
                           {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)} {ev.title}
                         </p>
                       ))}
                       {overlapping.length > 3 && (
-                        <p className="text-[10px] text-amber-400/50">
+                        <p className="text-xs text-amber-400/50">
                           +{overlapping.length - 3}
                         </p>
                       )}
@@ -2445,7 +2451,7 @@ function CreateEventModal({
                               isSelected ? prev.filter((d) => d !== dayValue) : [...prev, dayValue],
                             );
                           }}
-                          className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
+                          className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
                             isSelected
                               ? 'bg-bridge-accent text-white'
                               : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10'
@@ -2457,7 +2463,7 @@ function CreateEventModal({
                     })}
                   </div>
                   {recurrenceDaysOfWeek.length === 0 && (
-                    <p className="mt-1 text-[10px] text-amber-400">{t('personal.schedule.selectDay')}</p>
+                    <p className="mt-1 text-xs text-amber-400">{t('personal.schedule.selectDay')}</p>
                   )}
                 </div>
               )}
@@ -2472,7 +2478,7 @@ function CreateEventModal({
                     className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 px-3 text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
                   />
                   {!recurrenceEndDate && (
-                    <p className="mt-1 text-[10px] text-amber-400">{t('personal.schedule.endDateRequired')}</p>
+                    <p className="mt-1 text-xs text-amber-400">{t('personal.schedule.endDateRequired')}</p>
                   )}
                 </div>
               )}
@@ -2481,7 +2487,7 @@ function CreateEventModal({
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-            <span className="text-[10px] text-slate-600">
+            <span className="text-xs text-slate-600">
               Esc {t('common.close', '닫기')}
             </span>
             {showForm && (
@@ -2654,7 +2660,7 @@ export function EventDetailModal({
             placeholder={t('personal.schedule.eventTitle')}
             autoFocus
           />
-          <button
+          <IconButton
             onClick={() => {
               if (event.recurrence_group_id) {
                 setShowDeleteScope(true);
@@ -2662,17 +2668,14 @@ export function EventDetailModal({
                 onDelete(event.id);
               }
             }}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-foreground/5 transition-colors shrink-0"
-            title={t('personal.schedule.deleteEvent')}
+            aria-label={t('personal.schedule.deleteEvent')}
+            className="hover:text-rose-400"
           >
-            <Trash2 size={16} />
-          </button>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0"
-          >
-            <X size={16} />
-          </button>
+            <Trash2 />
+          </IconButton>
+          <IconButton onClick={onClose} aria-label="닫기">
+            <X />
+          </IconButton>
         </div>
 
         <div className="px-5 pb-5 space-y-4 pt-4">
@@ -2681,19 +2684,19 @@ export function EventDetailModal({
               <p className="text-xs text-muted-foreground font-medium">{t('personal.schedule.recurringEvent')}</p>
               <button
                 onClick={() => onDelete(event.id, 'THIS_ONLY')}
-                className="w-full px-3 py-2 text-xs font-semibold bg-foreground/5 border border-foreground/10 rounded-lg text-foreground hover:bg-foreground/10 transition-all"
+                className="w-full px-3 py-2 text-xs font-bold bg-foreground/5 border border-foreground/10 rounded-lg text-foreground hover:bg-foreground/10 transition-all"
               >
                 {t('personal.schedule.deleteThisOnly')}
               </button>
               <button
                 onClick={() => onDelete(event.id, 'THIS_AND_FUTURE')}
-                className="w-full px-3 py-2 text-xs font-semibold bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 hover:bg-red-500/20 transition-all"
+                className="w-full px-3 py-2 text-xs font-bold bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 hover:bg-red-500/20 transition-all"
               >
                 {t('personal.schedule.deleteThisAndFuture')}
               </button>
               <button
                 onClick={() => setShowDeleteScope(false)}
-                className="w-full px-3 py-1.5 text-[10px] text-slate-500 hover:text-muted-foreground transition-colors"
+                className="w-full px-3 py-1.5 text-xs text-slate-500 hover:text-muted-foreground transition-colors"
               >
                 {t('personal.schedule.cancel')}
               </button>
@@ -2733,7 +2736,7 @@ export function EventDetailModal({
               />
             </div>
             {startTime && endTime && endTime < startTime && (
-              <span className="text-[10px] font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
+              <span className="text-xs font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
             )}
           </div>
 
@@ -2788,7 +2791,7 @@ export function EventDetailModal({
                               isSelected ? prev.filter((d) => d !== dayValue) : [...prev, dayValue],
                             );
                           }}
-                          className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
+                          className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
                             isSelected
                               ? 'bg-bridge-accent text-white'
                               : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10'
@@ -2800,7 +2803,7 @@ export function EventDetailModal({
                     })}
                   </div>
                   {recurrenceDaysOfWeek.length === 0 && (
-                    <p className="mt-1 text-[10px] text-amber-400">{t('personal.schedule.selectDay')}</p>
+                    <p className="mt-1 text-xs text-amber-400">{t('personal.schedule.selectDay')}</p>
                   )}
                 </div>
               )}
@@ -2815,7 +2818,7 @@ export function EventDetailModal({
                     className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-1.5 px-3 text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
                   />
                   {!recurrenceEndDate && (
-                    <p className="mt-1 text-[10px] text-amber-400">{t('personal.schedule.endDateRequired')}</p>
+                    <p className="mt-1 text-xs text-amber-400">{t('personal.schedule.endDateRequired')}</p>
                   )}
                 </div>
               )}
@@ -2827,17 +2830,17 @@ export function EventDetailModal({
             <div className="flex items-start gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/10 rounded-lg">
               <AlertCircle size={13} className="text-amber-400 shrink-0 mt-0.5" />
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold text-amber-400">
+                <p className="text-xs font-medium text-amber-400">
                   {t('personal.schedule.overlapWarning', { count: overlapping.length })}
                 </p>
                 <div className="mt-0.5 space-y-0.5">
                   {overlapping.slice(0, 3).map((ev) => (
-                    <p key={ev.id} className="text-[10px] text-amber-400/70 truncate">
+                    <p key={ev.id} className="text-xs text-amber-400/70 truncate">
                       {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)} {ev.title}
                     </p>
                   ))}
                   {overlapping.length > 3 && (
-                    <p className="text-[10px] text-amber-400/50">
+                    <p className="text-xs text-amber-400/50">
                       +{overlapping.length - 3}
                     </p>
                   )}
@@ -2852,13 +2855,13 @@ export function EventDetailModal({
               <p className="text-xs text-muted-foreground font-medium">{t('personal.schedule.recurringUpdateScope')}</p>
               <button
                 onClick={() => handleSaveWithScope('THIS_AND_FUTURE')}
-                className="w-full px-3 py-2 text-xs font-semibold bg-bridge-accent/10 border border-bridge-accent/20 rounded-lg text-bridge-accent hover:bg-bridge-accent/20 transition-all"
+                className="w-full px-3 py-2 text-xs font-bold bg-bridge-accent/10 border border-bridge-accent/20 rounded-lg text-bridge-accent hover:bg-bridge-accent/20 transition-all"
               >
                 {t('personal.schedule.updateThisAndFuture')}
               </button>
               <button
                 onClick={() => setShowUpdateScope(false)}
-                className="w-full px-3 py-1.5 text-[10px] text-slate-500 hover:text-muted-foreground transition-colors"
+                className="w-full px-3 py-1.5 text-xs text-slate-500 hover:text-muted-foreground transition-colors"
               >
                 {t('personal.schedule.cancel')}
               </button>
@@ -2868,7 +2871,7 @@ export function EventDetailModal({
           {/* Footer */}
           {!showUpdateScope && (
             <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-              <span className="text-[10px] text-slate-600">
+              <span className="text-xs text-slate-600">
                 Esc {t('common.close', '닫기')}
               </span>
               <button
@@ -2925,15 +2928,15 @@ function ScheduleSettingsModal({
             <Settings size={15} className="text-bridge-accent" />
           </div>
           <h3 className="flex-1 text-sm font-bold text-foreground">{t('personal.schedule.settingsTitle')}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
-            <X size={16} />
-          </button>
+          <IconButton onClick={onClose} aria-label="닫기">
+            <X />
+          </IconButton>
         </div>
 
         <div className="px-5 pt-4 pb-5 space-y-3">
           <div className="flex items-center gap-3">
             <div className="flex-1">
-              <span className="text-[11px] text-slate-500 mb-1 block">{t('personal.schedule.settingsStartTime')}</span>
+              <span className="text-xs text-slate-500 mb-1 block">{t('personal.schedule.settingsStartTime')}</span>
               <select
                 value={sHour}
                 onChange={(e) => setSHour(Number(e.target.value))}
@@ -2948,7 +2951,7 @@ function ScheduleSettingsModal({
             </div>
             <span className="text-slate-500 mt-5">~</span>
             <div className="flex-1">
-              <span className="text-[11px] text-slate-500 mb-1 block">{t('personal.schedule.settingsEndTime')}</span>
+              <span className="text-xs text-slate-500 mb-1 block">{t('personal.schedule.settingsEndTime')}</span>
               <select
                 value={eHour}
                 onChange={(e) => setEHour(Number(e.target.value))}
@@ -2968,7 +2971,7 @@ function ScheduleSettingsModal({
           )}
 
           <div className="bg-foreground/[0.03] rounded-lg px-3 py-2.5 border border-foreground/10">
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider">{t('personal.schedule.settingsPreview')}</span>
+            <span className="text-xs text-slate-500 uppercase tracking-wider">{t('personal.schedule.settingsPreview')}</span>
             <p className="text-sm text-foreground mt-0.5">
               {fmtHour(sHour)} — {fmtHour(eHour)}{' '}
               <span className="text-slate-400">({eHour - sHour}h)</span>
@@ -2976,7 +2979,7 @@ function ScheduleSettingsModal({
           </div>
 
           <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-            <span className="text-[11px] text-slate-600 select-none">Esc 닫기</span>
+            <span className="text-xs text-slate-600 select-none">Esc 닫기</span>
             <button
               onClick={handleSave}
               disabled={!isValid}
@@ -3085,9 +3088,9 @@ function CreateHabitModal({
             className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground placeholder-slate-500 outline-none"
             autoFocus
           />
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
-            <X size={16} />
-          </button>
+          <IconButton onClick={onClose} aria-label="닫기">
+            <X />
+          </IconButton>
         </div>
 
         <div className="px-5 pt-4 pb-5 space-y-3">
@@ -3198,7 +3201,7 @@ function CreateHabitModal({
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-            <span className="text-[11px] text-slate-600 select-none">Esc 닫기</span>
+            <span className="text-xs text-slate-600 select-none">Esc 닫기</span>
             <button
               onClick={handleSubmit}
               disabled={!isValid}

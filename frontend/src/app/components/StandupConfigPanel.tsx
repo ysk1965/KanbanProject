@@ -203,11 +203,11 @@ export function StandupConfigPanel({
       >
         <div className="flex items-center gap-1.5">
           <Clock size={12} className="text-bridge-secondary" />
-          <span className="text-[11px] font-medium text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground">
             {t("standupConfig.title")}
           </span>
           {enabled && (
-            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-bridge-secondary/20 text-bridge-secondary text-[8px] font-bold uppercase">
+            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-bridge-secondary/20 text-bridge-secondary text-xs font-bold uppercase">
               ON
             </span>
           )}
@@ -227,13 +227,13 @@ export function StandupConfigPanel({
 
       {isOpen && (
         <div className="px-3 pb-3 border-t border-foreground/5 space-y-3">
-          <p className="text-[9px] text-slate-500 pt-2 leading-tight">
+          <p className="text-xs text-slate-500 pt-2 leading-tight">
             {t("standupConfig.description")}
           </p>
 
           {/* Enable toggle */}
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {t("standupConfig.enabled")}
             </span>
             <button
@@ -256,7 +256,7 @@ export function StandupConfigPanel({
           </div>
 
           {!hasSlack && (
-            <p className="text-[9px] text-amber-400/70">
+            <p className="text-xs text-amber-400/70">
               {t("standupConfig.requiresSlack")}
             </p>
           )}
@@ -266,14 +266,14 @@ export function StandupConfigPanel({
             <>
               {/* Send time */}
               <div>
-                <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-xs text-slate-500 uppercase tracking-wider block mb-1">
                   {t("standupConfig.sendTime")}
                 </label>
                 <div className="flex items-center gap-1.5">
                   <select
                     value={hour}
                     onChange={(e) => handleHourChange(Number(e.target.value))}
-                    className="bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1.5 text-[11px] text-foreground
+                    className="bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1.5 text-xs text-foreground
                       focus:outline-none focus:ring-1 focus:ring-bridge-secondary/50 appearance-none cursor-pointer"
                   >
                     {HOURS.map((h) => (
@@ -282,11 +282,11 @@ export function StandupConfigPanel({
                       </option>
                     ))}
                   </select>
-                  <span className="text-slate-400 text-[11px]">:</span>
+                  <span className="text-slate-400 text-xs">:</span>
                   <select
                     value={minute}
                     onChange={(e) => handleMinuteChange(Number(e.target.value))}
-                    className="bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1.5 text-[11px] text-foreground
+                    className="bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1.5 text-xs text-foreground
                       focus:outline-none focus:ring-1 focus:ring-bridge-secondary/50 appearance-none cursor-pointer"
                   >
                     {MINUTES.map((m) => (
@@ -300,13 +300,13 @@ export function StandupConfigPanel({
 
               {/* Timezone */}
               <div>
-                <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-xs text-slate-500 uppercase tracking-wider block mb-1">
                   {t("standupConfig.timezone")}
                 </label>
                 <select
                   value={timezone}
                   onChange={(e) => handleTimezoneChange(e.target.value)}
-                  className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1.5 text-[11px] text-foreground
+                  className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1.5 text-xs text-foreground
                     focus:outline-none focus:ring-1 focus:ring-bridge-secondary/50 appearance-none cursor-pointer"
                 >
                   {TIMEZONES.map((tz) => (
@@ -323,13 +323,13 @@ export function StandupConfigPanel({
 
               {/* Language */}
               <div>
-                <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-xs text-slate-500 uppercase tracking-wider block mb-1">
                   {t("standupConfig.language")}
                 </label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleLanguageChange("ko")}
-                    className={`px-3 py-1 rounded-lg text-[11px] transition-colors ${
+                    className={`px-3 py-1 rounded-lg text-xs transition-colors ${
                       language === "ko"
                         ? "bg-bridge-secondary/20 text-bridge-secondary border border-bridge-secondary/30"
                         : "bg-foreground/5 text-slate-400 border border-foreground/10 hover:bg-foreground/10"
@@ -339,7 +339,7 @@ export function StandupConfigPanel({
                   </button>
                   <button
                     onClick={() => handleLanguageChange("en")}
-                    className={`px-3 py-1 rounded-lg text-[11px] transition-colors ${
+                    className={`px-3 py-1 rounded-lg text-xs transition-colors ${
                       language === "en"
                         ? "bg-bridge-secondary/20 text-bridge-secondary border border-bridge-secondary/30"
                         : "bg-foreground/5 text-slate-400 border border-foreground/10 hover:bg-foreground/10"
@@ -352,7 +352,7 @@ export function StandupConfigPanel({
 
               {/* Last sent */}
               {config?.last_sent_at && (
-                <div className="text-[9px] text-slate-500">
+                <div className="text-xs text-slate-500">
                   {t("standupConfig.lastSent")}:{" "}
                   {formatRelativeTime(config.last_sent_at)}
                 </div>

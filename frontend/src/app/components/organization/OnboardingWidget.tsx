@@ -43,7 +43,7 @@ export function OnboardingWidget({ orgId }: OnboardingWidgetProps) {
             {t('organization.dashboard.onboarding', 'Onboarding Progress')}
           </h3>
           {instances.length > 0 && (
-            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-full">
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-full">
               {instances.length}
             </span>
           )}
@@ -78,7 +78,7 @@ export function OnboardingWidget({ orgId }: OnboardingWidgetProps) {
                   />
                 ) : (
                   <div className="w-7 h-7 rounded-full bg-bridge-accent/15 flex items-center justify-center shrink-0">
-                    <span className="text-[10px] font-bold text-bridge-accent">
+                    <span className="text-xs font-bold text-bridge-accent">
                       {inst.member_name?.charAt(0)?.toUpperCase() || '?'}
                     </span>
                   </div>
@@ -88,11 +88,11 @@ export function OnboardingWidget({ orgId }: OnboardingWidgetProps) {
                     <span className="text-xs font-medium text-foreground truncate">
                       {inst.member_name}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {inst.progress_percent}%
                     </span>
                   </div>
-                  <div className="text-[10px] text-muted-foreground truncate">
+                  <div className="text-xs text-muted-foreground truncate">
                     {inst.template_name} · {inst.completed_items}/{inst.total_items}
                   </div>
                 </div>
@@ -109,7 +109,7 @@ export function OnboardingWidget({ orgId }: OnboardingWidgetProps) {
               {inst.next_item && (
                 <div className="flex items-center gap-1 mt-1.5">
                   <ChevronRight size={10} className="text-muted-foreground" />
-                  <span className="text-[10px] text-muted-foreground truncate">
+                  <span className="text-xs text-muted-foreground truncate">
                     {inst.next_item.title}
                     {inst.next_item.due_date && ` (${inst.next_item.due_date})`}
                   </span>

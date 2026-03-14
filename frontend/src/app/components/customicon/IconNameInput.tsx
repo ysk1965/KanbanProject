@@ -42,7 +42,7 @@ export function IconNameInput({ names, onChange, layout, onLayoutChange }: IconN
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+        <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
           Icon Names ({names.length}/{maxIcons})
         </label>
         <div className="flex items-center gap-1">
@@ -52,7 +52,7 @@ export function IconNameInput({ names, onChange, layout, onLayoutChange }: IconN
               key={l}
               onClick={() => onLayoutChange(l)}
               className={`
-                px-2 py-0.5 text-[10px] rounded transition-all
+                px-2 py-0.5 text-xs rounded transition-all
                 ${layout === l
                   ? 'bg-bridge-accent text-white'
                   : 'bg-white/5 text-slate-500 hover:bg-white/10'}
@@ -95,7 +95,7 @@ export function IconNameInput({ names, onChange, layout, onLayoutChange }: IconN
               className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/5 border border-white/10
                 rounded-lg text-xs text-white"
             >
-              <span className="text-slate-500 text-[10px] mr-0.5">{i + 1}</span>
+              <span className="text-slate-500 text-xs mr-0.5">{i + 1}</span>
               {name}
               <button
                 onClick={() => removeName(i)}
@@ -108,7 +108,7 @@ export function IconNameInput({ names, onChange, layout, onLayoutChange }: IconN
         </div>
       )}
 
-      <p className="text-[10px] text-slate-600">
+      <p className="text-xs text-slate-600">
         Tip: Separate multiple names with commas
       </p>
     </div>

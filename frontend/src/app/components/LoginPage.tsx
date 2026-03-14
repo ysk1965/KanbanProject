@@ -93,7 +93,7 @@ function GoogleLoginButton({ onGoogleLogin, onGoogleLoginWithIdToken, mode, setE
       type="button"
       onClick={() => isNative() ? handleNativeGoogleLogin() : googleLogin()}
       disabled={isGoogleLoading}
-      className="flex items-center justify-center gap-3 bg-slate-100 border border-slate-200 text-slate-700 h-[44px] rounded-xl font-semibold w-full transition-all hover:bg-slate-200 hover:border-slate-300 cursor-pointer active:scale-[0.98]"
+      className="flex items-center justify-center gap-3 bg-slate-100 border border-slate-200 text-slate-700 h-[44px] rounded-xl font-bold w-full transition-all hover:bg-slate-200 hover:border-slate-300 cursor-pointer active:scale-[0.98]"
     >
       {isGoogleLoading ? (
         <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></div>
@@ -104,7 +104,7 @@ function GoogleLoginButton({ onGoogleLogin, onGoogleLoginWithIdToken, mode, setE
             className="w-5 h-5"
             alt="google"
           />
-          <span className="text-sm font-semibold">{t('auth.continueWithGoogle')}</span>
+          <span className="text-sm font-bold">{t('auth.continueWithGoogle')}</span>
         </>
       )}
     </button>
@@ -194,6 +194,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onGoogleLoginWithI
         <button
           onClick={handleBack}
           className="absolute top-4 left-4 md:top-8 md:left-8 flex items-center gap-2 text-slate-400 hover:text-slate-600 transition-colors text-sm font-medium z-10"
+          aria-label="뒤로"
         >
           <ArrowLeft size={18} />
           <span className="hidden sm:inline">{t('auth.backToHome')}</span>
@@ -236,7 +237,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onGoogleLoginWithI
               </div>
               <div>
                 <p className="text-sm text-bridge-accent">{t('auth.boardInvite')}</p>
-                <p className="text-slate-800 font-semibold">{inviteInfo.boardName}</p>
+                <p className="text-slate-800 font-bold">{inviteInfo.boardName}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm">
@@ -275,7 +276,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onGoogleLoginWithI
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-slate-200"></div>
           </div>
-          <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">
+          <div className="relative flex justify-center text-xs uppercase font-bold tracking-[0.2em] text-slate-400">
             <span className="bg-white/80 px-4 py-1 rounded-full border border-slate-200">
               {mode === 'login' ? t('auth.secureLogin') : t('auth.createAccount')}
             </span>
@@ -334,7 +335,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onGoogleLoginWithI
             {/* 비밀번호 요구사항 (회원가입 모드에서만 표시) */}
             {mode === 'signup' && (passwordFocused || password.length > 0) && (
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1.5 animate-fade-in">
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">{t('auth.passwordRequirements')}</p>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">{t('auth.passwordRequirements')}</p>
                 {[
                   { key: 'minLength', label: t('auth.pwMinLength'), valid: passwordValidation.minLength },
                   { key: 'hasUppercase', label: t('auth.pwUppercase'), valid: passwordValidation.hasUppercase },
@@ -411,7 +412,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onGoogleLoginWithI
           <button
             type="submit"
             disabled={isLoading || (mode === 'signup' && (!agreeToTerms || !isPasswordValid))}
-            className="w-full h-13 text-white rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-3 transform active:scale-[0.98] mt-6 group overflow-hidden relative disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-bridge-accent to-bridge-secondary hover:shadow-lg hover:shadow-bridge-accent/20"
+            className="w-full h-13 text-white rounded-xl font-bold transition-all duration-300 flex items-center justify-center space-x-3 transform active:scale-[0.98] mt-6 group overflow-hidden relative disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-bridge-accent to-bridge-secondary hover:shadow-lg hover:shadow-bridge-accent/20"
           >
             {isLoading ? (
               <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -440,7 +441,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onGoogleLoginWithI
             {mode === 'login' ? t('auth.noAccount') : t('auth.hasAccount')}
             <button
               onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-              className="ml-2 text-bridge-accent font-semibold hover:text-bridge-accent/80 transition-colors"
+              className="ml-2 text-bridge-accent font-medium hover:text-bridge-accent/80 transition-colors"
             >
               {mode === 'login' ? t('auth.signUp') : t('auth.signIn')}
             </button>
@@ -450,14 +451,14 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onGoogleLoginWithI
 
         {/* Footer Note */}
         {inviteInfo && (
-          <p className="text-center text-[11px] text-slate-400 tracking-wide mt-6">
+          <p className="text-center text-xs text-slate-400 tracking-wide mt-6">
             {t('auth.inviteFooter')}
           </p>
         )}
       </motion.div>
 
       {/* Version Info */}
-      <div className="absolute bottom-3 right-4 text-[10px] text-slate-400 select-none">
+      <div className="absolute bottom-3 right-4 text-xs text-slate-400 select-none">
         FE: {typeof __FE_COMMIT_HASH__ !== 'undefined' ? __FE_COMMIT_HASH__ : 'dev'}
         {beCommit && <> · BE: {beCommit}</>}
       </div>

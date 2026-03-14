@@ -29,6 +29,7 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
           <button
             onClick={onClose}
             className="absolute p-2 transition-colors right-4 top-4 text-white/40 hover:text-foreground"
+            aria-label="닫기"
           >
             <X size={20} />
           </button>
@@ -58,7 +59,7 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* Monthly */}
             <button className="flex flex-col items-center p-6 transition-all border group rounded-xl border-bridge-border hover:border-bridge-accent/50 bg-foreground/5">
-              <span className="mb-1 text-xs font-semibold tracking-widest text-slate-400 uppercase">
+              <span className="mb-1 text-xs font-medium tracking-widest text-slate-400 uppercase">
                 Monthly
               </span>
               <span className="text-2xl font-bold text-foreground">
@@ -72,17 +73,17 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
 
             {/* Yearly */}
             <button className="relative flex flex-col items-center p-6 transition-all border group rounded-xl border-bridge-accent/50 bg-bridge-accent/5">
-              <div className="absolute top-0 right-0 px-2 py-1 flex items-center gap-1 text-[10px] font-bold text-white uppercase bg-bridge-accent rounded-bl-lg -translate-y-px translate-x-px">
+              <div className="absolute top-0 right-0 px-2 py-1 flex items-center gap-1 text-xs font-bold text-white uppercase bg-bridge-accent rounded-bl-lg -translate-y-px translate-x-px">
                 <Star size={10} /> 추천
               </div>
-              <span className="mb-1 text-xs font-semibold tracking-widest text-bridge-accent uppercase">
+              <span className="mb-1 text-xs font-medium tracking-widest text-bridge-accent uppercase">
                 Yearly
               </span>
               <span className="text-2xl font-bold text-foreground">
                 ${yearlyPrice}
                 <span className="text-sm font-normal text-slate-400">/user/year</span>
               </span>
-              <span className="mt-1 text-[10px] text-bridge-secondary font-bold uppercase tracking-wider">
+              <span className="mt-1 text-xs text-bridge-secondary font-bold uppercase tracking-wider">
                 {discountPercent}% DISCOUNT
               </span>
               <div className="px-4 py-2 mt-4 text-sm font-medium transition-colors bg-bridge-accent rounded-lg text-white group-hover:bg-bridge-accent/80">

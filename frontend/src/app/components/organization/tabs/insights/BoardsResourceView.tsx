@@ -100,38 +100,38 @@ export function BoardsResourceView({ orgId, startDate, endDate, onDataLoaded }: 
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="text-sm font-medium text-slate-900 dark:text-white block truncate">{board.board.name}</span>
-                  <span className="text-[11px] text-slate-400">{board.board.owner_name}</span>
+                  <span className="text-xs text-slate-400">{board.board.owner_name}</span>
                 </div>
               </div>
 
               {/* Stats Row */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                 <div className="flex items-center gap-1.5">
                   <Clock size={12} className="text-slate-400" />
                   <div>
                     <span className="text-sm font-bold text-slate-900 dark:text-white">{formatMinutesToHours(board.total_work_minutes)}</span>
-                    <span className="text-[10px] text-slate-400 block">{t('organization.insights.boards.totalHours', 'Total Hours')}</span>
+                    <span className="text-xs text-slate-400 block">{t('organization.insights.boards.totalHours', 'Total Hours')}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Users size={12} className="text-slate-400" />
                   <div>
                     <span className="text-sm font-bold text-slate-900 dark:text-white">{board.contributor_count}</span>
-                    <span className="text-[10px] text-slate-400 block">{t('organization.insights.boards.contributors', 'Contributors')}</span>
+                    <span className="text-xs text-slate-400 block">{t('organization.insights.boards.contributors', 'Contributors')}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <CheckSquare size={12} className="text-slate-400" />
                   <div>
                     <span className="text-sm font-bold text-slate-900 dark:text-white">{board.completed_tasks}</span>
-                    <span className="text-[10px] text-slate-400 block">{t('organization.insights.boards.completedTasks', 'Completed')}</span>
+                    <span className="text-xs text-slate-400 block">{t('organization.insights.boards.completedTasks', 'Completed')}</span>
                   </div>
                 </div>
               </div>
 
               {/* Feature Progress */}
               <div className="mb-4">
-                <div className="flex items-center justify-between text-[11px] mb-1">
+                <div className="flex items-center justify-between text-xs mb-1">
                   <span className="text-slate-400">{t('organization.insights.boards.featureProgress', 'Feature Progress')}</span>
                   <span className="font-bold text-slate-900 dark:text-white">{board.feature_progress}%</span>
                 </div>
@@ -145,7 +145,7 @@ export function BoardsResourceView({ orgId, startDate, endDate, onDataLoaded }: 
 
               {/* Org Share */}
               <div className="mb-4">
-                <div className="flex items-center justify-between text-[11px] mb-1">
+                <div className="flex items-center justify-between text-xs mb-1">
                   <span className="text-slate-400">{t('organization.insights.boards.orgShare', 'Org Share')}</span>
                   <span className="font-bold text-slate-900 dark:text-white">{board.org_share_percentage.toFixed(1)}%</span>
                 </div>
@@ -160,7 +160,7 @@ export function BoardsResourceView({ orgId, startDate, endDate, onDataLoaded }: 
               {/* Top Contributors */}
               {board.top_contributors.length > 0 && (
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2 block">
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 block">
                     {t('organization.insights.boards.topContributors', 'Top Contributors')}
                   </span>
                   <div className="flex items-center gap-2">
@@ -170,11 +170,11 @@ export function BoardsResourceView({ orgId, startDate, endDate, onDataLoaded }: 
                           <img src={c.profile_image} alt={c.name} className="w-5 h-5 rounded-full object-cover" />
                         ) : (
                           <div className="w-5 h-5 rounded-full bg-bridge-accent/20 flex items-center justify-center">
-                            <span className="text-[8px] font-bold text-bridge-accent">{c.name.charAt(0).toUpperCase()}</span>
+                            <span className="text-xs font-bold text-bridge-accent">{c.name.charAt(0).toUpperCase()}</span>
                           </div>
                         )}
-                        <span className="text-[11px] text-slate-400">{c.name}</span>
-                        <span className="text-[10px] text-slate-500">{c.percentage.toFixed(0)}%</span>
+                        <span className="text-xs text-slate-400">{c.name}</span>
+                        <span className="text-xs text-slate-500">{c.percentage.toFixed(0)}%</span>
                       </div>
                     ))}
                   </div>

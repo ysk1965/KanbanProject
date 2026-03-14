@@ -123,19 +123,19 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
             <Lock size={12} className="text-bridge-accent" />
-            <span className="text-[11px] font-medium text-bridge-accent">{t('slackSettings.premiumLabel')}</span>
+            <span className="text-xs font-medium text-bridge-accent">{t('slackSettings.premiumLabel')}</span>
           </div>
           {onUpgrade && (
             <button
               onClick={onUpgrade}
-              className="flex items-center gap-1 px-2 py-1 text-[11px] text-white bg-bridge-accent hover:bg-bridge-accent/90 rounded-md transition-all"
+              className="flex items-center gap-1 px-2 py-1 text-xs text-white bg-bridge-accent hover:bg-bridge-accent/90 rounded-md transition-all"
             >
               <Rocket size={11} />
               {t('slackSettings.upgradeButton')}
             </button>
           )}
         </div>
-        <p className="text-[10px] text-slate-400 leading-relaxed">
+        <p className="text-xs text-slate-400 leading-relaxed">
           {t('slackSettings.premiumDesc')}
         </p>
       </div>
@@ -148,14 +148,14 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
       <div className="mx-3 mt-3 mb-2 p-3 bg-white/[0.03] rounded-xl border border-foreground/10">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-medium text-foreground">{t('slackSettings.settingsTitle')}</span>
-          <button onClick={handleCancel} className="text-slate-400 hover:text-foreground transition-colors">
+          <button onClick={handleCancel} className="text-slate-400 hover:text-foreground transition-colors" aria-label="닫기">
             <X size={14} />
           </button>
         </div>
 
         <div className="space-y-2.5">
           <div>
-            <label className="text-[10px] text-slate-400 uppercase tracking-wider font-medium mb-1 block">
+            <label className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-1 block">
               Webhook URL
             </label>
             <input
@@ -166,12 +166,12 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
               className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 px-3 text-xs text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
             />
             {isExistingConfig && (
-              <p className="text-[10px] text-slate-500 mt-0.5">{t('slackSettings.webhookUrlKeepHint', '변경하지 않으려면 비워두세요')}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{t('slackSettings.webhookUrlKeepHint', '변경하지 않으려면 비워두세요')}</p>
             )}
           </div>
 
           <div>
-            <label className="text-[10px] text-slate-400 uppercase tracking-wider font-medium mb-1 block">
+            <label className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-1 block">
               Channel Name <span className="normal-case tracking-normal text-slate-500">({t('slackSettings.channelNameLabel')})</span>
             </label>
             <input
@@ -195,14 +195,14 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
         </div>
 
         {error && (
-          <div className="flex items-center gap-1.5 mt-2 text-red-400 text-[11px]">
+          <div className="flex items-center gap-1.5 mt-2 text-red-400 text-xs">
             <AlertCircle size={12} />
             {error}
           </div>
         )}
 
         {testResult && (
-          <div className={`flex items-center gap-1.5 mt-2 text-[11px] ${testResult.success ? 'text-green-400' : 'text-red-400'}`}>
+          <div className={`flex items-center gap-1.5 mt-2 text-xs ${testResult.success ? 'text-green-400' : 'text-red-400'}`}>
             {testResult.success ? <Check size={12} /> : <AlertCircle size={12} />}
             {testResult.message}
           </div>
@@ -213,7 +213,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
             <button
               onClick={handleTest}
               disabled={isTesting}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-muted-foreground bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-all disabled:opacity-50"
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-muted-foreground bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-all disabled:opacity-50"
             >
               {isTesting ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
               {t('slackSettings.testButton')}
@@ -222,7 +222,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
+            className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
           >
             {isSaving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
             {t('common.save')}
@@ -231,7 +231,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
             <button
               onClick={handleDelete}
               disabled={isDeleting}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all disabled:opacity-50"
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all disabled:opacity-50"
             >
               {isDeleting ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
               {t('slackSettings.disconnectButton')}
@@ -241,7 +241,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
 
         <button
           onClick={() => setShowGuide(true)}
-          className="flex items-center gap-1 mt-3 text-[10px] text-slate-500 hover:text-bridge-accent transition-colors"
+          className="flex items-center gap-1 mt-3 text-xs text-slate-500 hover:text-bridge-accent transition-colors"
         >
           <HelpCircle size={11} />
           {t('slackSettings.webhookGuideLink')}
@@ -263,7 +263,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
             <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.enabled ? 'bg-green-400' : 'bg-amber-400'}`} />
-            <span className={`text-[11px] font-medium ${config.enabled ? 'text-green-400' : 'text-amber-400'}`}>
+            <span className={`text-xs font-medium ${config.enabled ? 'text-green-400' : 'text-amber-400'}`}>
               {config.enabled ? t('slackSettings.connectedStatus') : t('slackSettings.disabledStatus')}
             </span>
           </div>
@@ -271,6 +271,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
             onClick={handleStartEdit}
             className="text-slate-400 hover:text-foreground transition-colors flex-shrink-0"
             title={t('slackSettings.editSettings')}
+            aria-label="설정"
           >
             <Settings size={13} />
           </button>
@@ -278,18 +279,18 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
         <div className="space-y-1">
           <div className="flex items-center gap-1.5">
             <Link2 size={10} className="text-slate-500 flex-shrink-0" />
-            <span className="text-[10px] text-slate-400 truncate" title={config.webhook_url_masked}>
+            <span className="text-xs text-slate-400 truncate" title={config.webhook_url_masked}>
               {config.webhook_url_masked}
             </span>
           </div>
           {config.channel_name && (
-            <div className="text-[10px] text-slate-500 pl-[16px]">
+            <div className="text-xs text-slate-500 pl-[16px]">
               {config.channel_name}
             </div>
           )}
         </div>
         {!config.enabled && (
-          <p className="text-[10px] text-amber-400/70 mt-2">
+          <p className="text-xs text-amber-400/70 mt-2">
             {t('slackSettings.slackDisabledWarning')}
           </p>
         )}
@@ -303,11 +304,11 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-red-400" />
-          <span className="text-[11px] font-medium text-red-400">{t('slackSettings.needConnection')}</span>
+          <span className="text-xs font-medium text-red-400">{t('slackSettings.needConnection')}</span>
         </div>
         <button
           onClick={handleStartEdit}
-          className="flex items-center gap-1 px-2 py-1 text-[11px] text-bridge-accent hover:text-foreground bg-bridge-accent/10 hover:bg-bridge-accent/20 rounded-md transition-all"
+          className="flex items-center gap-1 px-2 py-1 text-xs text-bridge-accent hover:text-foreground bg-bridge-accent/10 hover:bg-bridge-accent/20 rounded-md transition-all"
         >
           <Link2 size={11} />
           {t('slackSettings.connectButton')}
@@ -315,14 +316,14 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
       </div>
       <div className="flex items-center gap-1.5 mb-1.5">
         <Link2 size={10} className="text-red-400/50 flex-shrink-0" />
-        <span className="text-[10px] text-red-400/60">{t('slackSettings.webhookUrlNeeded')}</span>
+        <span className="text-xs text-red-400/60">{t('slackSettings.webhookUrlNeeded')}</span>
       </div>
-      <p className="text-[10px] text-slate-500 leading-relaxed">
+      <p className="text-xs text-slate-500 leading-relaxed">
         {t('slackSettings.connectionDesc')}
       </p>
       <button
         onClick={() => setShowGuide(true)}
-        className="flex items-center gap-1 mt-2 text-[10px] text-slate-500 hover:text-bridge-accent transition-colors"
+        className="flex items-center gap-1 mt-2 text-xs text-slate-500 hover:text-bridge-accent transition-colors"
       >
         <HelpCircle size={11} />
         {t('slackSettings.guideLink')}

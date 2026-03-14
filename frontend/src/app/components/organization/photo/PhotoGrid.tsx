@@ -87,7 +87,7 @@ export function PhotoGrid({
               <div className="absolute top-1.5 right-1.5 z-10">
                 <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/90 text-white">
                   <Check size={10} strokeWidth={3} />
-                  <span className="text-[9px] font-bold">saved</span>
+                  <span className="text-xs font-bold">saved</span>
                 </div>
               </div>
             )}
@@ -95,7 +95,7 @@ export function PhotoGrid({
             {/* Hover overlay */}
             {!selectMode && (
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                <span className="text-[10px] text-white/90 truncate flex-1">
+                <span className="text-xs text-white/90 truncate flex-1">
                   {photo.original_filename}
                 </span>
                 <button

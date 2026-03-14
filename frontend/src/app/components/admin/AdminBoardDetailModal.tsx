@@ -6,6 +6,7 @@ import { AdminBoardDetail } from '../../utils/api';
 import { formatDateTime, formatDate } from '../../utils/dateUtils';
 import { ConfirmModal, PromptModal, SelectModal, Toast } from './AdminConfirmModal';
 import { MotionModal } from '../ui/MotionModal';
+import { IconButton } from '../ui/IconButton';
 
 interface AdminBoardDetailModalProps {
   boardId: string;
@@ -436,6 +437,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
             <button
               onClick={onClose}
               className="p-2 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+              aria-label="닫기"
             >
               <X className="h-5 w-5" />
             </button>
@@ -444,7 +446,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
           {/* Content */}
           <div className="p-6 overflow-y-auto flex-1">
             {isLoading && (
-              <div className="flex items-center justify-center h-64">
+              <div className="flex items-center justify-center h-64" role="status" aria-label="로딩 중">
                 <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
               </div>
             )}
@@ -524,7 +526,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                 {/* Info Grid */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-foreground/5 rounded-xl p-4">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.boardDetail.tier')}
                     </p>
                     <select
@@ -543,7 +545,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                   </div>
 
                   <div className="bg-foreground/5 rounded-xl p-4">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.boardDetail.owner')}
                     </p>
                     <div>
@@ -553,7 +555,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                   </div>
 
                   <div className="bg-foreground/5 rounded-xl p-4">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.boardDetail.memberCount')}
                     </p>
                     <p className="text-foreground flex items-center gap-2">
@@ -563,7 +565,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                   </div>
 
                   <div className="bg-foreground/5 rounded-xl p-4">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.boardDetail.taskCount')}
                     </p>
                     <p className="text-foreground flex items-center gap-2">
@@ -574,7 +576,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
 
                   {!isPersonal && (
                   <div className="bg-foreground/5 rounded-xl p-4">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.boardDetail.seatCount')}
                     </p>
                     <div className="flex items-center justify-between">
@@ -594,7 +596,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                   )}
 
                   <div className="bg-foreground/5 rounded-xl p-4">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.boardDetail.createdAt')}
                     </p>
                     <p className="text-foreground flex items-center gap-2">
@@ -604,7 +606,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                   </div>
 
                   <div className="bg-foreground/5 rounded-xl p-4">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.boardDetail.subscriptionStatus')}
                     </p>
                     {board.subscription ? (
@@ -634,7 +636,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                     </h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-foreground/5 rounded-xl p-4">
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                           {t('admin.boardDetail.taskCount')}
                         </p>
                         <p className="text-foreground text-xl font-bold flex items-center gap-2">
@@ -643,7 +645,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                         </p>
                       </div>
                       <div className="bg-foreground/5 rounded-xl p-4">
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                           {t('admin.boardDetail.diaryEntries', 'Diary Entries')}
                         </p>
                         <p className="text-foreground text-xl font-bold flex items-center gap-2">
@@ -657,7 +659,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                         )}
                       </div>
                       <div className="bg-foreground/5 rounded-xl p-4">
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                           {t('admin.boardDetail.events', 'Events')}
                         </p>
                         <p className="text-foreground text-xl font-bold flex items-center gap-2">
@@ -666,7 +668,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                         </p>
                       </div>
                       <div className="bg-foreground/5 rounded-xl p-4">
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                           {t('admin.boardDetail.lastActivity', 'Last Activity')}
                         </p>
                         <p className="text-foreground text-sm flex items-center gap-2">
@@ -718,14 +720,14 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                                   </select>
                                   <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 pointer-events-none opacity-60" />
                                 </div>
-                                <button
+                                <IconButton
                                   onClick={() => handleRemoveMember(member.id, member.name)}
                                   disabled={isUpdating}
-                                  className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
-                                  title={t('admin.boardDetail.removeMember')}
+                                  aria-label={t('admin.boardDetail.removeMember')}
+                                  className="hover:text-red-400 hover:bg-red-500/10 disabled:opacity-50"
                                 >
-                                  <UserMinus className="h-4 w-4" />
-                                </button>
+                                  <UserMinus />
+                                </IconButton>
                               </>
                             )}
                           </div>
@@ -744,7 +746,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                   <div className="grid grid-cols-2 gap-4">
                     {/* Monthly Credits */}
                     <div className="bg-foreground/5 rounded-xl p-4">
-                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                         {t('admin.boardDetail.monthlyCredits')}
                       </p>
                       <div className="space-y-2">
@@ -773,7 +775,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
 
                     {/* Purchased Credits */}
                     <div className="bg-foreground/5 rounded-xl p-4">
-                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                         {t('admin.boardDetail.purchasedCredits')}
                       </p>
                       <div className="flex items-center justify-between">
@@ -878,7 +880,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                             key={domain}
                             className="flex items-center gap-2 bg-foreground/5 rounded-lg p-3"
                           >
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest shrink-0 w-28">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest shrink-0 w-28">
                               {label}
                             </span>
                             <code className="flex-1 text-sm text-slate-300 truncate">

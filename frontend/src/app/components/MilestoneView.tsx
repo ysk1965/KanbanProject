@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 import {
   ChevronRight,
   Target,
@@ -107,7 +108,7 @@ function MilestoneStatusBadge({
 
   return (
     <span
-      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${colorClasses}`}
+      className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${colorClasses}`}
     >
       {label}
     </span>
@@ -142,13 +143,13 @@ function TaskRow({ task }: { task: Task }) {
           {task.assignees.slice(0, 1).map((a) => (
             <span
               key={a.id}
-              className="text-[9px] text-muted-foreground bg-foreground/5 px-1 py-0.5 rounded"
+              className="text-xs text-muted-foreground bg-foreground/5 px-1 py-0.5 rounded"
             >
               {a.name}
             </span>
           ))}
           {task.assignees.length > 1 && (
-            <span className="text-[9px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               +{task.assignees.length - 1}
             </span>
           )}
@@ -157,7 +158,7 @@ function TaskRow({ task }: { task: Task }) {
 
       {/* Block name */}
       {task.block_name && (
-        <span className="text-[9px] text-muted-foreground bg-foreground/5 px-1 py-0.5 rounded flex-shrink-0">
+        <span className="text-xs text-muted-foreground bg-foreground/5 px-1 py-0.5 rounded flex-shrink-0">
           {task.block_name}
         </span>
       )}
@@ -206,12 +207,12 @@ function FeatureCard({
               className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1"
               style={{ backgroundColor: featureInfo.color }}
             />
-            <h4 className="text-sm font-semibold text-foreground leading-snug line-clamp-2 flex-1">
+            <h4 className="text-sm font-medium text-foreground leading-snug line-clamp-2 flex-1">
               {featureInfo.title}
             </h4>
             {milestoneCount && milestoneCount >= 2 && (
               <span
-                className="flex-shrink-0 flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                className="flex-shrink-0 flex items-center gap-0.5 text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30"
                 title={t("milestone.sharedFeature", {
                   count: milestoneCount,
                   defaultValue: "Shared across {{count}} milestones",
@@ -230,11 +231,11 @@ function FeatureCard({
               height="h-1.5"
               className="flex-1"
             />
-            <span className="text-[11px] font-medium text-muted-foreground flex-shrink-0 tabular-nums">
+            <span className="text-xs font-medium text-muted-foreground flex-shrink-0 tabular-nums">
               {featureInfo.completed_tasks}/{featureInfo.total_tasks}
             </span>
             <span
-              className={`text-[11px] font-bold flex-shrink-0 tabular-nums ${
+              className={`text-xs font-bold flex-shrink-0 tabular-nums ${
                 progressPct >= 100 ? "text-green-500" : "text-muted-foreground"
               }`}
             >
@@ -251,7 +252,7 @@ function FeatureCard({
             ))}
             {featureTasks.length > 3 && (
               <div className="pt-1">
-                <span className="text-[11px] text-muted-foreground hover:text-foreground/70 transition-colors">
+                <span className="text-xs text-muted-foreground hover:text-foreground/70 transition-colors">
                   +{featureTasks.length - 3}{" "}
                   {t("common.more", { defaultValue: "more" })}
                 </span>
@@ -260,7 +261,7 @@ function FeatureCard({
           </div>
         ) : (
           <div className="border-t border-foreground/5 pt-2">
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {featureInfo.total_tasks}{" "}
               {t("common.tasks", { defaultValue: "tasks" })}
             </span>
@@ -287,6 +288,7 @@ export function MilestoneView({
   onDeleteMilestone,
 }: MilestoneViewProps) {
   const { t } = useTranslation();
+  const reduced = useReducedMotion();
 
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(
     new Set(),
@@ -534,7 +536,7 @@ export function MilestoneView({
               <div className="flex-shrink-0">
                 <motion.div
                   animate={{ rotate: isExpanded ? 90 : 0 }}
-                  transition={{ duration: 0.15 }}
+                  transition={reduced ? { duration: 0 } : { duration: 0.15 }}
                 >
                   <ChevronRight className="h-5 w-5 text-muted-foreground" />
                 </motion.div>
@@ -626,10 +628,10 @@ export function MilestoneView({
             <AnimatePresence>
               {isExpanded && (
                 <motion.div
-                  initial={{ height: 0, opacity: 0 }}
+                  initial={reduced ? false : { height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
+                  transition={reduced ? { duration: 0 } : { duration: 0.2 }}
                   className="overflow-hidden"
                 >
                   <div className="border-t border-foreground/5 px-5 pb-5 pt-4">

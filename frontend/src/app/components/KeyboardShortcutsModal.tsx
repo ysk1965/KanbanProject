@@ -24,7 +24,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 function KeyBadge({ label }: { label: string }) {
   const display = !isMac && label === "⌘" ? "Ctrl" : label;
   return (
-    <kbd className="text-[11px] font-mono font-bold px-2 py-1 rounded-lg bg-foreground/[0.06] text-foreground border border-foreground/[0.08] min-w-[28px] text-center inline-flex items-center justify-center">
+    <kbd className="text-xs font-mono font-bold px-2 py-1 rounded-lg bg-foreground/[0.06] text-foreground border border-foreground/[0.08] min-w-[28px] text-center inline-flex items-center justify-center">
       {display}
     </kbd>
   );
@@ -51,18 +51,18 @@ function ShortcutRow({
         {shortcut.id === "focusSearch" ? (
           <>
             <KeyBadge label="/" />
-            <span className="text-[10px] text-slate-500 mx-1">
+            <span className="text-xs text-slate-500 mx-1">
               {t("common.or", "or")}
             </span>
             <KeyBadge label="⌘" />
-            <span className="text-[10px] text-slate-500 mx-0.5">+</span>
+            <span className="text-xs text-slate-500 mx-0.5">+</span>
             <KeyBadge label="K" />
           </>
         ) : (
           shortcut.keys.map((k, i) => (
             <span key={i} className="flex items-center gap-0.5">
               {i > 0 && (
-                <span className="text-[10px] text-slate-500 mx-0.5">+</span>
+                <span className="text-xs text-slate-500 mx-0.5">+</span>
               )}
               <KeyBadge label={k} />
             </span>
@@ -132,7 +132,7 @@ export function KeyboardShortcutsModal({
           return (
             <div key={group.category}>
               <div className="flex items-center gap-1.5 mb-2.5">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                   {t(`keyboardShortcuts.${CATEGORY_LABELS[group.category]}`)}
                 </span>
               </div>
@@ -143,7 +143,7 @@ export function KeyboardShortcutsModal({
 
                 {boardItems.length > 0 && (
                   <>
-                    <div className="text-[10px] text-slate-500 px-2 pt-2 pb-0.5">
+                    <div className="text-xs text-slate-500 px-2 pt-2 pb-0.5">
                       {t("keyboardShortcuts.contextBoard", "보드 탭")}
                     </div>
                     {boardItems.map((s, i) => (
@@ -154,7 +154,7 @@ export function KeyboardShortcutsModal({
 
                 {scheduleItems.length > 0 && (
                   <>
-                    <div className="text-[10px] text-slate-500 px-2 pt-2 pb-0.5">
+                    <div className="text-xs text-slate-500 px-2 pt-2 pb-0.5">
                       {t("keyboardShortcuts.contextSchedule", "일정 탭")}
                     </div>
                     {scheduleItems.map((s, i) => (
@@ -165,7 +165,7 @@ export function KeyboardShortcutsModal({
 
                 {statisticsItems.length > 0 && (
                   <>
-                    <div className="text-[10px] text-slate-500 px-2 pt-2 pb-0.5">
+                    <div className="text-xs text-slate-500 px-2 pt-2 pb-0.5">
                       {t("keyboardShortcuts.contextStatistics", "AI분석 탭")}
                     </div>
                     {statisticsItems.map((s, i) => (
@@ -181,7 +181,7 @@ export function KeyboardShortcutsModal({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-[10px] text-slate-600">
+        <span className="text-xs text-slate-600">
           Esc {t("common.close", "닫기")}
         </span>
       </div>

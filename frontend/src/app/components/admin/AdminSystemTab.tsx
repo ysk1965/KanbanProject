@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Shield, AlertTriangle, Clock, RefreshCw, Play, StopCircle, Timer, Loader2 } from 'lucide-react';
+import { Shield, AlertTriangle, Clock, RefreshCw, Play, StopCircle, Timer, Loader2, CreditCard } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import type { MaintenanceStatus } from '../../utils/api';
 import { formatDateTime, toDateTimeLocalValue, fromDateTimeLocalValue } from '../../utils/dateUtils';
@@ -19,8 +19,14 @@ export function AdminSystemTab() {
   const [showStopConfirm, setShowStopConfirm] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  // Monetization state
+  const [monetizationEnabled, setMonetizationEnabled] = useState<boolean>(true);
+  const [isMonetizationLoading, setIsMonetizationLoading] = useState(true);
+  const [isMonetizationSaving, setIsMonetizationSaving] = useState(false);
+
   useEffect(() => {
     loadStatus();
+    loadMonetizationStatus();
   }, []);
 
   const loadStatus = async () => {
@@ -36,6 +42,30 @@ export function AdminSystemTab() {
       setError(t('admin.system.loadFailed'));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadMonetizationStatus = async () => {
+    try {
+      const data = await adminService.getMonetizationStatus();
+      setMonetizationEnabled(data.monetization_enabled);
+    } catch (err) {
+      console.error('Failed to load monetization status:', err);
+    } finally {
+      setIsMonetizationLoading(false);
+    }
+  };
+
+  const handleMonetizationToggle = async () => {
+    try {
+      setIsMonetizationSaving(true);
+      const data = await adminService.setMonetizationEnabled(!monetizationEnabled);
+      setMonetizationEnabled(data.monetization_enabled);
+      setToast({ message: data.monetization_enabled ? 'Monetization enabled' : 'Monetization disabled — all plans upgraded', type: 'success' });
+    } catch (err) {
+      setToast({ message: 'Failed to update monetization setting', type: 'error' });
+    } finally {
+      setIsMonetizationSaving(false);
     }
   };
 
@@ -134,7 +164,7 @@ export function AdminSystemTab() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-64" role="status" aria-label="로딩 중">
         <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
       </div>
     );
@@ -229,7 +259,7 @@ export function AdminSystemTab() {
           <div className="space-y-5">
             {/* Message */}
             <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">
                 {t('admin.system.maintenanceMessage')}
               </label>
               <textarea
@@ -243,7 +273,7 @@ export function AdminSystemTab() {
 
             {/* Estimated End Time */}
             <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">
                 <Clock className="h-3 w-3 inline mr-1" />
                 {t('admin.system.estimatedEndTime')}
               </label>
@@ -301,7 +331,7 @@ export function AdminSystemTab() {
 
             {/* Extend Time */}
             <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">
                 <Clock className="h-3 w-3 inline mr-1" />
                 {t('admin.system.changeEndTime')}
               </label>
@@ -315,7 +345,7 @@ export function AdminSystemTab() {
 
             {/* Message Update */}
             <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">
                 {t('admin.system.editMessage')}
               </label>
               <textarea
@@ -353,6 +383,65 @@ export function AdminSystemTab() {
           </div>
         </div>
       )}
+
+      {/* Monetization Settings */}
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 rounded-xl bg-bridge-accent/15">
+            <CreditCard className="w-5 h-5 text-bridge-accent" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-foreground">Monetization</h3>
+            <p className="text-xs text-slate-500">Control billing and subscription features</p>
+          </div>
+        </div>
+
+        {isMonetizationLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08]">
+              <div>
+                <p className="text-sm font-medium text-foreground">Monetization Mode</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {monetizationEnabled ? 'Billing and subscriptions are active' : 'All plans upgraded to premium — billing hidden'}
+                </p>
+              </div>
+              <button
+                onClick={handleMonetizationToggle}
+                disabled={isMonetizationSaving}
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  monetizationEnabled ? 'bg-bridge-accent' : 'bg-slate-600'
+                } ${isMonetizationSaving ? 'opacity-50' : ''}`}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                  monetizationEnabled ? 'left-[26px]' : 'left-0.5'
+                }`} />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08]">
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">When OFF</p>
+              <ul className="space-y-1.5 text-xs text-slate-500">
+                <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-bridge-accent" />All boards & orgs → top-tier plans</li>
+                <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-bridge-accent" />Existing TRIAL/STANDARD → auto-upgraded</li>
+                <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-bridge-accent" />Billing UI hidden globally</li>
+                <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-bridge-accent" />AI credits unlimited</li>
+              </ul>
+            </div>
+
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <p className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-2">When turned back ON</p>
+              <ul className="space-y-1.5 text-xs text-slate-500">
+                <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-amber-500" />Existing PREMIUM boards remain</li>
+                <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-amber-500" />Only new boards start as TRIAL</li>
+              </ul>
+            </div>
+          </div>
+        )}
+      </div>
 
       <ConfirmModal
         isOpen={showStopConfirm}

@@ -98,7 +98,7 @@ export function PublicUploadPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
+      <div className="min-h-screen bg-bridge-dark flex items-center justify-center" role="status" aria-label="로딩 중">
         <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
       </div>
     );
@@ -156,7 +156,7 @@ export function PublicUploadPage() {
           {albumInfo.organization_logo_url ? (
             <img
               src={albumInfo.organization_logo_url}
-              alt=""
+              alt={albumInfo.organization_name || '조직 로고'}
               className="w-8 h-8 rounded-lg object-cover"
             />
           ) : (
@@ -168,11 +168,11 @@ export function PublicUploadPage() {
             <h1 className="text-sm font-bold text-foreground truncate">
               {albumInfo.album_name}
             </h1>
-            <p className="text-[10px] text-slate-500">
+            <p className="text-xs text-slate-500">
               {albumInfo.organization_name}
             </p>
           </div>
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0">
+          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0">
             {daysLeft > 0 ? `${daysLeft}d left` : `${hoursLeft}h left`}
           </span>
         </div>
@@ -202,7 +202,7 @@ export function PublicUploadPage() {
             <p className="text-sm font-bold text-foreground mb-1">
               Drop photos here or click to browse
             </p>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-xs text-slate-500">
               Supports JPG, PNG, GIF, WebP
             </p>
           </div>
@@ -225,12 +225,12 @@ export function PublicUploadPage() {
           {files.length > 0 && (
             <div className="mt-6 space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                   {files.length} photo{files.length !== 1 ? 's' : ''} selected
                 </span>
                 <button
                   onClick={() => { setFiles([]); setPreviews([]); }}
-                  className="text-[10px] text-slate-500 hover:text-foreground transition-colors"
+                  className="text-xs text-slate-500 hover:text-foreground transition-colors"
                 >
                   Clear all
                 </button>
@@ -247,7 +247,7 @@ export function PublicUploadPage() {
                   >
                     <img
                       src={preview}
-                      alt=""
+                      alt="업로드 미리보기"
                       className="w-full h-full object-cover"
                     />
                     <button
@@ -301,7 +301,7 @@ export function PublicUploadPage() {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-foreground">Uploading...</p>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-xs text-slate-500">
                     {uploadProgress.uploadedFiles} / {uploadProgress.totalFiles} photos
                   </p>
                 </div>
@@ -315,7 +315,7 @@ export function PublicUploadPage() {
                   transition={{ duration: 0.3 }}
                 />
               </div>
-              <p className="text-[10px] text-slate-600 text-center">
+              <p className="text-xs text-slate-600 text-center">
                 Batch {uploadProgress.currentBatch} / {uploadProgress.totalBatches}
               </p>
             </div>

@@ -55,7 +55,7 @@ export function EmptyBoardGuide({ onCreateFeature }: EmptyBoardGuideProps) {
         <h2 className="font-jakarta text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-3">
           {t('emptyBoard.heading')}
         </h2>
-        <p className="text-slate-400 font-light text-sm md:text-base max-w-md text-center leading-relaxed">
+        <p className="text-slate-400 font-normal text-sm md:text-base max-w-md text-center leading-relaxed">
           {t('emptyBoard.subheading')}
         </p>
       </motion.div>
@@ -74,12 +74,12 @@ export function EmptyBoardGuide({ onCreateFeature }: EmptyBoardGuideProps) {
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${step.iconBg}`}>
                   <step.icon className={`h-5 w-5 ${step.iconColor}`} />
                 </div>
-                <span className="text-[10px] tracking-[0.3em] uppercase text-slate-500 font-bold">
+                <span className="text-xs tracking-[0.3em] uppercase text-slate-500 font-bold">
                   Step {step.number}
                 </span>
               </div>
               <h3 className="text-base font-bold text-foreground mb-2">{t(step.titleKey)}</h3>
-              <p className="text-xs text-slate-400 font-light leading-relaxed">{t(step.descriptionKey)}</p>
+              <p className="text-xs text-slate-400 font-normal leading-relaxed">{t(step.descriptionKey)}</p>
             </motion.div>
 
             {index < steps.length - 1 && (

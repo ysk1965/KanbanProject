@@ -39,6 +39,7 @@ export function AlertModal({ open, onClose, type, title, message }: AlertModalPr
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-1 text-slate-400 hover:text-foreground transition-colors z-10"
+          aria-label="닫기"
         >
           <X size={18} />
         </button>
@@ -65,7 +66,7 @@ export function AlertModal({ open, onClose, type, title, message }: AlertModalPr
         <div className="px-6 pb-6">
           <button
             onClick={onClose}
-            className="w-full py-3 bg-foreground/5 hover:bg-foreground/10 border border-foreground/10 rounded-xl text-sm font-semibold text-foreground transition-all"
+            className="w-full py-3 bg-foreground/5 hover:bg-foreground/10 border border-foreground/10 rounded-xl text-sm font-bold text-foreground transition-all"
           >
             {t('common.confirm')}
           </button>

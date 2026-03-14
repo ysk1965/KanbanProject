@@ -29,7 +29,7 @@ function BoardTaskItemRow({ item, index }: { item: BoardTaskItem; index: number 
         <Clock className="w-4 h-4 text-purple-400 shrink-0" />
         <span className="text-[12px] text-foreground truncate flex-1">{item.title}</span>
         {item.start_time && (
-          <span className="text-[10px] text-slate-400 shrink-0">{item.start_time}</span>
+          <span className="text-xs text-slate-400 shrink-0">{item.start_time}</span>
         )}
       </motion.div>
     );
@@ -73,7 +73,7 @@ function BoardTaskItemRow({ item, index }: { item: BoardTaskItem; index: number 
       {/* Feature pill */}
       {item.feature_title && (
         <span
-          className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-bold"
+          className="text-xs px-1.5 py-0.5 rounded-full shrink-0 font-bold"
           style={{
             backgroundColor: item.feature_color ? `${item.feature_color}25` : 'rgba(99,102,241,0.15)',
             color: item.feature_color || '#6366F1',
@@ -99,8 +99,8 @@ function BoardGroup({ group, groupIndex }: { group: BoardTaskGroup; groupIndex: 
       {/* Board header */}
       <div className="flex items-center gap-2 mb-1.5">
         {group.board_emoji && <span className="text-sm">{group.board_emoji}</span>}
-        <span className="text-[11px] font-bold text-foreground">{group.board_name}</span>
-        <span className="text-[10px] text-slate-500 ml-auto">
+        <span className="text-xs font-bold text-foreground">{group.board_name}</span>
+        <span className="text-xs text-slate-500 ml-auto">
           {group.pending_count}건 남음
         </span>
       </div>
@@ -150,7 +150,7 @@ export function BoardTasksWidget({ date }: BoardTasksWidgetProps) {
             <h3 className="text-[13px] md:text-sm font-bold text-foreground">보드 할 일</h3>
           </div>
           {data && data.total_pending > 0 && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
               {data.total_pending}
             </span>
           )}

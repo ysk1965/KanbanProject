@@ -67,7 +67,7 @@ export function TagManagementModal({
   return (
     <MotionModal open={open} onClose={onClose}>
         <div className="px-6 pt-6 pb-4">
-          <h2 className="text-foreground text-lg font-semibold">{t('tags.management')}</h2>
+          <h2 className="text-foreground text-lg font-bold">{t('tags.management')}</h2>
         </div>
 
         {/* Tag list */}
@@ -96,18 +96,20 @@ export function TagManagementModal({
                     <button
                       onClick={saveEdit}
                       className="w-8 h-8 rounded-lg bg-bridge-accent/20 text-bridge-accent hover:bg-bridge-accent/30 flex items-center justify-center transition-colors"
+                      aria-label="확인"
                     >
                       <Check size={14} />
                     </button>
                     <button
                       onClick={cancelEdit}
                       className="w-8 h-8 rounded-lg bg-foreground/5 text-slate-400 hover:bg-foreground/10 hover:text-foreground flex items-center justify-center transition-colors"
+                      aria-label="닫기"
                     >
                       <X size={14} />
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                       {t('tags.selectColor')}
                     </span>
                     <ColorPickerPopover
@@ -170,7 +172,7 @@ export function TagManagementModal({
 
         {/* Create new tag */}
         <div className="pt-3 border-t border-bridge-border/50 space-y-3">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
             {t('tags.createNew')}
           </span>
           <div className="flex items-center gap-2">

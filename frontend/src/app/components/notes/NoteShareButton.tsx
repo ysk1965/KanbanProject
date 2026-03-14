@@ -97,7 +97,7 @@ export function NoteShareButton({ boardId, note, canEdit, onNoteUpdate }: NoteSh
           <div className="px-4 py-3 border-b border-foreground/5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Share2 size={14} className="text-bridge-accent" />
-              <span className="text-sm font-semibold text-foreground">
+              <span className="text-sm font-bold text-foreground">
                 {t('notes.shareTitle', '문서 공유')}
               </span>
             </div>
@@ -117,7 +117,7 @@ export function NoteShareButton({ boardId, note, canEdit, onNoteUpdate }: NoteSh
                 <p className="text-sm text-foreground font-medium">
                   {t('notes.sharePublicLink', '공개 링크 공유')}
                 </p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   {t('notes.sharePublicLinkDesc', '링크가 있는 누구나 읽기 전용으로 볼 수 있습니다')}
                 </p>
               </div>
@@ -151,7 +151,7 @@ export function NoteShareButton({ boardId, note, canEdit, onNoteUpdate }: NoteSh
                   </div>
                   <button
                     onClick={handleCopyLink}
-                    className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                       copied
                         ? 'bg-emerald-500/20 text-emerald-400'
                         : 'bg-bridge-accent text-white hover:bg-bridge-accent/90'

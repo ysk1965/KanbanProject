@@ -186,7 +186,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                   {/* Progress */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] uppercase tracking-widest text-slate-400 font-bold">
+                      <span className="text-xs uppercase tracking-widest text-slate-400 font-bold">
                         {t('personal.progress', '진행률')}
                       </span>
                       <span className="text-sm font-bold text-bridge-secondary">
@@ -216,14 +216,14 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                           className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-foreground/5 transition-colors flex items-center justify-between gap-2"
                         >
                           <span className="text-[13px] text-foreground truncate">{task.title}</span>
-                          <span className="text-[11px] shrink-0 text-orange-400 font-bold">{task.dday.text}</span>
+                          <span className="text-xs shrink-0 text-orange-400 font-bold">{task.dday.text}</span>
                         </button>
                       ))}
                       {todayTasks.done.length > 0 && (
                         <div className="mt-1.5 pt-1.5 border-t border-foreground/[0.08]">
                           <div className="flex items-center justify-center gap-1 mb-1">
                             <CheckCircle2 size={10} className="text-bridge-secondary" />
-                            <span className="text-[11px] text-slate-500">{t('personal.completed', '완료됨')} {todayTasks.done.length}</span>
+                            <span className="text-xs text-slate-500">{t('personal.completed', '완료됨')} {todayTasks.done.length}</span>
                           </div>
                           {todayTasks.done.map((task) => (
                             <button
@@ -232,7 +232,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                               className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-foreground/5 transition-colors flex items-center justify-between gap-2"
                             >
                               <span className="text-[13px] text-slate-500 line-through truncate">{task.title}</span>
-                              <span className="text-[11px] shrink-0 text-bridge-secondary font-bold">{task.dday.text}</span>
+                              <span className="text-xs shrink-0 text-bridge-secondary font-bold">{task.dday.text}</span>
                             </button>
                           ))}
                         </div>
@@ -291,7 +291,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                         <div key={event.id} className="px-2 py-1.5 rounded-lg hover:bg-foreground/5 transition-colors">
                           <div className="text-[13px] text-foreground truncate">{event.title}</div>
                           {event.start_time && (
-                            <div className="text-[11px] text-slate-500 mt-0.5">
+                            <div className="text-xs text-slate-500 mt-0.5">
                               {event.start_time}{event.end_time ? ` - ${event.end_time}` : ''}
                             </div>
                           )}
@@ -372,12 +372,12 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                                 />
                               ))}
                               {item.target_count > 7 && (
-                                <span className="text-[8px] text-slate-500 ml-0.5">+{item.target_count - 7}</span>
+                                <span className="text-xs text-slate-500 ml-0.5">+{item.target_count - 7}</span>
                               )}
                             </div>
                           )}
                           {item.current_streak > 0 && (
-                            <span className="text-[11px] text-orange-400 font-bold shrink-0">{item.current_streak}w</span>
+                            <span className="text-xs text-orange-400 font-bold shrink-0">{item.current_streak}w</span>
                           )}
                           {/* Edit/Delete - always visible on mobile, hover on desktop */}
                           <div className="flex items-center gap-0.5 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
@@ -473,8 +473,8 @@ function Section({
     <div className="space-y-1.5">
       <div className="flex items-center gap-1.5">
         <span className={color}>{icon}</span>
-        <span className="text-[11px] uppercase tracking-widest text-slate-400 font-bold">{title}</span>
-        <span className={`text-[11px] font-bold ${color}`}>{count}</span>
+        <span className="text-xs uppercase tracking-widest text-slate-400 font-bold">{title}</span>
+        <span className={`text-xs font-bold ${color}`}>{count}</span>
       </div>
       <div className="space-y-0.5">{children}</div>
     </div>
@@ -501,7 +501,7 @@ function TaskItem({
         {title}
       </div>
       {subtitle && (
-        <div className="text-[11px] text-slate-500 truncate mt-0.5">{subtitle}</div>
+        <div className="text-xs text-slate-500 truncate mt-0.5">{subtitle}</div>
       )}
     </button>
   );

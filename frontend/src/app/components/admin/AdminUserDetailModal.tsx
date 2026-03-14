@@ -288,6 +288,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
             <button
               onClick={onClose}
               className="p-2 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+              aria-label="닫기"
             >
               <X className="h-5 w-5" />
             </button>
@@ -296,7 +297,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
           {/* Content */}
           <div className="p-6 overflow-y-auto flex-1">
             {isLoading && (
-              <div className="flex items-center justify-center h-64">
+              <div className="flex items-center justify-center h-64" role="status" aria-label="로딩 중">
                 <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
               </div>
             )}
@@ -352,7 +353,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                 {/* Info Grid */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-foreground/5 rounded-xl p-4">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.userDetail.role')}
                     </p>
                     <div className="flex items-center gap-2">
@@ -371,7 +372,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                   </div>
 
                   <div className="bg-foreground/5 rounded-xl p-4">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.userDetail.provider')}
                     </p>
                     <span
@@ -386,7 +387,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                   </div>
 
                   <div className="bg-foreground/5 rounded-xl p-4">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.userDetail.joinedAt')}
                     </p>
                     <p className="text-foreground flex items-center gap-2">
@@ -396,7 +397,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                   </div>
 
                   <div className="bg-foreground/5 rounded-xl p-4">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.userDetail.lastLogin')}
                     </p>
                     <p className="text-foreground flex items-center gap-2">
@@ -406,7 +407,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                   </div>
 
                   <div className="bg-foreground/5 rounded-xl p-4">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.userDetail.ownedBoards')}
                     </p>
                     <p className="text-foreground flex items-center gap-2">
@@ -416,7 +417,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                   </div>
 
                   <div className="bg-foreground/5 rounded-xl p-4">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.userDetail.memberBoards')}
                     </p>
                     <p className="text-foreground flex items-center gap-2">
@@ -435,7 +436,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                   {user.has_personal_board ? (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       <div className="bg-foreground/5 rounded-lg p-3">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
                           {t('admin.userDetail.pbTasks', 'Tasks')}
                         </p>
                         <p className="text-foreground text-sm flex items-center gap-2">
@@ -444,7 +445,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                         </p>
                       </div>
                       <div className="bg-foreground/5 rounded-lg p-3">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
                           {t('admin.userDetail.pbDiary', 'Diary')}
                         </p>
                         <p className="text-foreground text-sm flex items-center gap-2">
@@ -453,7 +454,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                         </p>
                       </div>
                       <div className="bg-foreground/5 rounded-lg p-3">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
                           {t('admin.userDetail.pbEvents', 'Events')}
                         </p>
                         <p className="text-foreground text-sm flex items-center gap-2">
@@ -462,7 +463,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                         </p>
                       </div>
                       <div className="bg-foreground/5 rounded-lg p-3">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
                           {t('admin.userDetail.pbCreatedAt', 'Created')}
                         </p>
                         <p className="text-foreground text-sm flex items-center gap-2">
@@ -502,7 +503,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                   </h4>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-foreground/5 rounded-lg p-3">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
                         {t('admin.userDetail.monthlyCredits')}
                       </p>
                       <div className="space-y-2">
@@ -529,7 +530,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                       </div>
                     </div>
                     <div className="bg-foreground/5 rounded-lg p-3">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
                         {t('admin.userDetail.bonusCreditsLabel')}
                       </p>
                       <div className="flex items-center justify-between">
@@ -568,7 +569,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="bg-foreground/5 rounded-lg p-3">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
                           Google ID
                         </p>
                         <p className="text-foreground text-sm font-mono flex items-center gap-2">
@@ -577,7 +578,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                         </p>
                       </div>
                       <div className="bg-foreground/5 rounded-lg p-3">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
                           {t('admin.userDetail.profileImageUrl')}
                         </p>
                         <p className="text-foreground text-sm flex items-center gap-2 truncate" title={user.profile_image || '-'}>
@@ -586,7 +587,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                         </p>
                       </div>
                       <div className="bg-foreground/5 rounded-lg p-3">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
                           {t('admin.userDetail.emailVerifiedAt')}
                         </p>
                         <p className="text-foreground text-sm flex items-center gap-2">

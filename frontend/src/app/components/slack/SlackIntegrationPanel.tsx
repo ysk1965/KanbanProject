@@ -226,7 +226,7 @@ export function SlackIntegrationPanel({
       <div className="flex items-center gap-1 mb-2">
         <button
           onClick={() => setActiveTab("app")}
-          className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+          className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
             activeTab === "app"
               ? "bg-bridge-accent/15 text-bridge-accent"
               : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
@@ -242,7 +242,7 @@ export function SlackIntegrationPanel({
         </button>
         <button
           onClick={() => setActiveTab("webhook")}
-          className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+          className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
             activeTab === "webhook"
               ? "bg-bridge-accent/15 text-bridge-accent"
               : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
@@ -251,7 +251,7 @@ export function SlackIntegrationPanel({
           <span className="flex items-center gap-1">
             <Link2 size={11} />
             Webhook
-            <span className="text-[9px] text-slate-500">(Legacy)</span>
+            <span className="text-xs text-slate-500">(Legacy)</span>
           </span>
         </button>
       </div>
@@ -265,21 +265,21 @@ export function SlackIntegrationPanel({
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5">
                   <Lock size={12} className="text-bridge-accent" />
-                  <span className="text-[11px] font-medium text-bridge-accent">
+                  <span className="text-xs font-medium text-bridge-accent">
                     Slack
                   </span>
                 </div>
                 {onUpgrade && (
                   <button
                     onClick={onUpgrade}
-                    className="flex items-center gap-1 px-2 py-1 text-[11px] text-white bg-bridge-accent hover:bg-bridge-accent/90 rounded-md transition-all"
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-white bg-bridge-accent hover:bg-bridge-accent/90 rounded-md transition-all"
                   >
                     <Rocket size={11} />
                     {t("slackSettings.upgradeButton", "Upgrade")}
                   </button>
                 )}
               </div>
-              <p className="text-[10px] text-slate-400 leading-relaxed">
+              <p className="text-xs text-slate-400 leading-relaxed">
                 {t("slackSettings.premiumDesc", "Premium feature")}
               </p>
             </div>
@@ -289,14 +289,14 @@ export function SlackIntegrationPanel({
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                  <span className="text-[11px] font-medium text-green-400">
+                  <span className="text-xs font-medium text-green-400">
                     {t("slackApp.installedStatus", "Connected")}
                   </span>
                 </div>
                 <button
                   onClick={handleDisconnect}
                   disabled={isDisconnecting}
-                  className="text-[10px] text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                  className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
                 >
                   {isDisconnecting ? (
                     <Loader2 size={11} className="animate-spin" />
@@ -309,19 +309,19 @@ export function SlackIntegrationPanel({
               {/* Workspace info */}
               <div className="space-y-1.5 mb-3">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-xs text-slate-500">
                     {t("slackApp.workspace", "Workspace")}:
                   </span>
-                  <span className="text-[11px] text-foreground font-medium">
+                  <span className="text-xs text-foreground font-medium">
                     {installation.slack_team_name}
                   </span>
                 </div>
                 {installation.installed_by_name && (
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-xs text-slate-500">
                       {t("slackApp.installedBy", "Installed by")}:
                     </span>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-xs text-slate-400">
                       {installation.installed_by_name}
                     </span>
                   </div>
@@ -330,21 +330,21 @@ export function SlackIntegrationPanel({
 
               {/* Channel selection */}
               <div className="border-t border-foreground/[0.08] pt-3">
-                <label className="text-[10px] text-slate-400 uppercase tracking-wider font-medium mb-1.5 block">
+                <label className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-1.5 block">
                   {t("slackApp.channelSelection", "Notification Channel")}
                 </label>
                 {installation.default_channel_name ? (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <Hash size={12} className="text-slate-500" />
-                      <span className="text-[11px] text-foreground">
+                      <span className="text-xs text-foreground">
                         {installation.default_channel_name}
                       </span>
                     </div>
                     <button
                       onClick={handleLoadChannels}
                       disabled={isLoadingChannels}
-                      className="text-[10px] text-bridge-accent hover:text-bridge-accent/80 transition-colors"
+                      className="text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors"
                     >
                       {isLoadingChannels ? (
                         <Loader2 size={11} className="animate-spin" />
@@ -357,7 +357,7 @@ export function SlackIntegrationPanel({
                   <button
                     onClick={handleLoadChannels}
                     disabled={isLoadingChannels}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all"
                   >
                     {isLoadingChannels ? (
                       <Loader2 size={11} className="animate-spin" />
@@ -376,7 +376,7 @@ export function SlackIntegrationPanel({
                     <button
                       key={ch.id}
                       onClick={() => handleSelectChannel(ch)}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-foreground hover:bg-foreground/5 transition-colors"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-foreground/5 transition-colors"
                     >
                       <Hash
                         size={11}
@@ -384,7 +384,7 @@ export function SlackIntegrationPanel({
                       />
                       <span className="truncate">{ch.name}</span>
                       {ch.is_private && (
-                        <span className="text-[9px] text-slate-500">
+                        <span className="text-xs text-slate-500">
                           &#x1f512;
                         </span>
                       )}
@@ -395,7 +395,7 @@ export function SlackIntegrationPanel({
 
               {/* Personal Slack Account Link (for DM notifications) */}
               <div className="border-t border-foreground/[0.08] pt-3 mt-3">
-                <label className="text-[10px] text-slate-400 uppercase tracking-wider font-medium mb-1.5 block">
+                <label className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-1.5 block">
                   {t("slackApp.personalLink", "My Slack Account")}
                 </label>
                 {userLinkStatus?.linked ? (
@@ -403,18 +403,18 @@ export function SlackIntegrationPanel({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
                         <UserCheck size={12} className="text-green-400" />
-                        <span className="text-[11px] text-foreground">
+                        <span className="text-xs text-foreground">
                           {userLinkStatus.slack_username ||
                             userLinkStatus.slack_user_id}
                         </span>
-                        <span className="text-[9px] text-slate-500">
+                        <span className="text-xs text-slate-500">
                           ({t("slackApp.dmEnabled", "DM enabled")})
                         </span>
                       </div>
                       <button
                         onClick={handleUnlinkUser}
                         disabled={isUnlinking}
-                        className="text-[10px] text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                        className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
                       >
                         {isUnlinking ? (
                           <Loader2 size={11} className="animate-spin" />
@@ -429,7 +429,7 @@ export function SlackIntegrationPanel({
                       <button
                         onClick={handleTestNotification}
                         disabled={isTesting}
-                        className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-muted-foreground bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-all disabled:opacity-50"
+                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-muted-foreground bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-all disabled:opacity-50"
                       >
                         {isTesting ? (
                           <Loader2 size={11} className="animate-spin" />
@@ -442,7 +442,7 @@ export function SlackIntegrationPanel({
 
                     {testResult && (
                       <div
-                        className={`flex items-center gap-1.5 text-[11px] ${
+                        className={`flex items-center gap-1.5 text-xs ${
                           testResult.success ? "text-green-400" : "text-red-400"
                         }`}
                       >
@@ -459,7 +459,7 @@ export function SlackIntegrationPanel({
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-xs text-slate-500">
                       {t(
                         "slackApp.linkDesc",
                         "Link to receive DM notifications",
@@ -468,7 +468,7 @@ export function SlackIntegrationPanel({
                     <button
                       onClick={handleLinkUser}
                       disabled={isLinking}
-                      className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all disabled:opacity-50"
+                      className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all disabled:opacity-50"
                     >
                       {isLinking ? (
                         <Loader2 size={10} className="animate-spin" />
@@ -485,7 +485,7 @@ export function SlackIntegrationPanel({
             // Not connected state
             <>
               <div className="text-center py-2">
-                <p className="text-[11px] text-slate-400 mb-3">
+                <p className="text-xs text-slate-400 mb-3">
                   {t(
                     "slackApp.installDesc",
                     "Connect BRIDGE directly to your Slack workspace with one click.",
@@ -494,7 +494,7 @@ export function SlackIntegrationPanel({
                 <button
                   onClick={handleInstall}
                   disabled={isInstalling}
-                  className="flex items-center gap-2 mx-auto px-4 py-2 text-[11px] font-bold text-white bg-bridge-accent rounded-xl hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
+                  className="flex items-center gap-2 mx-auto px-4 py-2 text-xs font-bold text-white bg-bridge-accent rounded-xl hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
                 >
                   {isInstalling ? (
                     <Loader2 size={13} className="animate-spin" />
@@ -508,7 +508,7 @@ export function SlackIntegrationPanel({
           )}
 
           {error && (
-            <div className="flex items-center gap-1.5 mt-2 text-red-400 text-[11px]">
+            <div className="flex items-center gap-1.5 mt-2 text-red-400 text-xs">
               <AlertCircle size={12} />
               {error}
             </div>

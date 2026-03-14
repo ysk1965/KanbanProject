@@ -728,7 +728,7 @@ export function ScheduleResourceView({
           <h2 className="text-sm md:text-lg font-bold text-foreground tracking-tight">
             {t("schedule.subTab.resource", "Workload")}
           </h2>
-          <p className="text-[11px] text-slate-500 leading-relaxed">
+          <p className="text-xs text-slate-500 leading-relaxed">
             {t("schedule.resource.noItems", "No items assigned")}
           </p>
         </div>
@@ -788,7 +788,7 @@ export function ScheduleResourceView({
                     }}
                   >
                     <span
-                      className={`text-[10px] ${weekend ? "text-slate-500" : "text-slate-400"}`}
+                      className={`text-xs ${weekend ? "text-slate-500" : "text-slate-400"}`}
                     >
                       {getDayLabel(day, locale)}
                     </span>
@@ -804,7 +804,7 @@ export function ScheduleResourceView({
                       {dayNum}
                     </span>
                     {showMonth && (
-                      <span className="text-[8px] text-slate-500 absolute top-0.5 left-1">
+                      <span className="text-xs text-slate-500 absolute top-0.5 left-1">
                         {day.toLocaleDateString(locale, { month: "short" })}
                       </span>
                     )}
@@ -855,7 +855,7 @@ export function ScheduleResourceView({
                     pos && (
                       <div
                         key={milestone.id}
-                        className="absolute h-7 rounded-lg flex items-center px-2 text-[11px] font-medium
+                        className="absolute h-7 rounded-lg flex items-center px-2 text-xs font-medium
                         text-white bg-bridge-accent/80 hover:bg-bridge-accent hover:shadow-lg transition-all cursor-default"
                         style={{
                           left: pos.left,
@@ -932,7 +932,7 @@ export function ScheduleResourceView({
                     />
                   ) : (
                     <div
-                      className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-white"
+                      className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-white"
                       style={{
                         backgroundColor:
                           row.id === "__unassigned__"
@@ -1017,7 +1017,7 @@ export function ScheduleResourceView({
                       return (
                         <div
                           key={item.id}
-                          className={`absolute rounded-lg flex items-center px-2 text-[11px] font-medium
+                          className={`absolute rounded-lg flex items-center px-2 text-xs font-medium
                           text-white cursor-pointer hover:brightness-110 hover:shadow-lg transition-all
                           ${item.completed ? "opacity-50" : ""}
                           ${isItemDragging ? "z-20 shadow-2xl ring-2 ring-white/30" : ""}`}
@@ -1115,18 +1115,18 @@ export function ScheduleResourceView({
             {tooltip.item.title}
           </p>
           {tooltip.featureName && (
-            <p className="text-[10px] text-slate-500 truncate mt-0.5">
+            <p className="text-xs text-slate-500 truncate mt-0.5">
               {tooltip.featureName}
               {tooltip.item.task && ` > ${tooltip.item.task.title}`}
             </p>
           )}
           {(tooltip.item.start_date || tooltip.item.due_date) && (
-            <p className="text-[10px] text-slate-400 mt-1">
+            <p className="text-xs text-slate-400 mt-1">
               {tooltip.item.start_date || "?"} ~ {tooltip.item.due_date || "?"}
             </p>
           )}
           {tooltip.item.completed && (
-            <span className="text-[10px] font-bold text-emerald-400 mt-0.5 block">
+            <span className="text-xs font-bold text-emerald-400 mt-0.5 block">
               {t("schedule.resource.completed", "Completed")}
             </span>
           )}

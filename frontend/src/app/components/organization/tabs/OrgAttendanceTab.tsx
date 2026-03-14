@@ -288,7 +288,7 @@ export function OrgAttendanceTab({
                 >
                   <card.icon size={14} className={card.textClass} />
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   {card.label}
                 </span>
               </div>
@@ -297,7 +297,7 @@ export function OrgAttendanceTab({
                   {card.value}
                 </span>
                 {card.sub && (
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {card.sub}
                   </span>
                 )}
@@ -333,20 +333,21 @@ export function OrgAttendanceTab({
         ) : (
           <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
             {/* Header */}
-            <div className="grid grid-cols-5 gap-2 px-4 py-2.5 border-b border-foreground/[0.08] bg-foreground/[0.02]">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            <div className="overflow-x-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 px-4 py-2.5 border-b border-foreground/[0.08] bg-foreground/[0.02] min-w-[500px]">
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 {t("organization.attendance.date", "Date")}
               </span>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 {t("organization.attendance.clockInTime", "Clock In")}
               </span>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 {t("organization.attendance.clockOutTime", "Clock Out")}
               </span>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 {t("organization.attendance.workHours", "Work Hours")}
               </span>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 {t("organization.attendance.status", "Status")}
               </span>
             </div>
@@ -358,7 +359,7 @@ export function OrgAttendanceTab({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: index * 0.02 }}
-                  className="grid grid-cols-5 gap-2 px-4 py-2.5 items-center hover:bg-foreground/[0.02] transition-colors"
+                  className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 px-4 py-2.5 items-center hover:bg-foreground/[0.02] transition-colors min-w-[500px]"
                 >
                   <span className="text-sm text-foreground font-medium">
                     {record.record_date}
@@ -371,7 +372,7 @@ export function OrgAttendanceTab({
                       <span className="flex items-center gap-1">
                         {extractTime(record.clock_out)}
                         <span
-                          className="text-[9px] text-amber-500"
+                          className="text-xs text-amber-500"
                           title={t(
                             "organization.attendance.autoClockOut",
                             "Auto",
@@ -389,24 +390,25 @@ export function OrgAttendanceTab({
                   </span>
                   <div className="flex items-center gap-1.5">
                     <span
-                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_BADGE[record.status]}`}
+                      className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${STATUS_BADGE[record.status]}`}
                     >
                       {t(getStatusLabelKey(record.status), record.status)}
                     </span>
                     {record.is_late && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
+                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
                         <AlertTriangle size={10} />
                         {t("organization.attendance.late", "Late")}
                       </span>
                     )}
                     {record.leave_info && (
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         ({record.leave_info.policy_name})
                       </span>
                     )}
                   </div>
                 </motion.div>
               ))}
+            </div>
             </div>
           </div>
         )}
@@ -463,27 +465,28 @@ export function OrgAttendanceTab({
             </div>
           ) : (
             <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
+              <div className="overflow-x-auto">
               {/* Header */}
-              <div className="grid grid-cols-7 gap-2 px-4 py-2.5 border-b border-foreground/[0.08] bg-foreground/[0.02]">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <div className="grid grid-cols-7 gap-2 px-4 py-2.5 border-b border-foreground/[0.08] bg-foreground/[0.02] min-w-[700px]">
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   {t("organization.attendance.name", "Name")}
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   {t("organization.attendance.department", "Dept")}
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   {t("organization.attendance.monthlyTotal", "This Month")}
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   {t("organization.attendance.average", "Average")}
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   {t("organization.attendance.late", "Late")}
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   {t("organization.attendance.overtime", "Overtime")}
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   {t("organization.attendance.present", "Present")} /{" "}
                   {t("organization.attendance.onLeave", "Leave")} /{" "}
                   {t("organization.attendance.absent", "Absent")}
@@ -497,7 +500,7 @@ export function OrgAttendanceTab({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.02 }}
-                    className="grid grid-cols-7 gap-2 px-4 py-2.5 items-center hover:bg-foreground/[0.02] transition-colors"
+                    className="grid grid-cols-7 gap-2 px-4 py-2.5 items-center hover:bg-foreground/[0.02] transition-colors min-w-[700px]"
                   >
                     <span className="text-sm text-foreground font-medium truncate">
                       {member.member_name}
@@ -538,6 +541,7 @@ export function OrgAttendanceTab({
                     </div>
                   </motion.div>
                 ))}
+              </div>
               </div>
             </div>
           )}

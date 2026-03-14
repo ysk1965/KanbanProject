@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Clock, CalendarDays, Plus, Trash2 } from "lucide-react";
+import { IconButton } from "../../ui/IconButton";
 import { toast } from "sonner";
 import { organizationService } from "../../../utils/services";
 import { TimePicker } from "../../ui/TimePicker";
@@ -190,7 +191,7 @@ export function OrgAttendancePolicySection({
           <div className="space-y-4">
             {/* Standard Hours */}
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                 {t(
                   "organization.attendance.standardHours",
                   "Standard Hours (hours/day)",
@@ -213,7 +214,7 @@ export function OrgAttendancePolicySection({
 
             {/* Core Time */}
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                 {t("organization.attendance.coreTime", "Core Time")}
               </label>
               <div className="flex items-center gap-2">
@@ -248,7 +249,7 @@ export function OrgAttendancePolicySection({
 
             {/* Late Threshold */}
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                 {t("organization.attendance.lateThreshold", "Late Threshold")}
               </label>
               <TimePicker
@@ -267,13 +268,13 @@ export function OrgAttendancePolicySection({
             {/* Auto Clock Out */}
             <div className="flex items-center justify-between">
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground block">
+                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground block">
                   {t(
                     "organization.attendance.autoClockOutSetting",
                     "Auto Clock Out",
                   )}
                 </label>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   {t(
                     "organization.attendance.autoClockOutDesc",
                     "Auto clock out when not recorded",
@@ -305,7 +306,7 @@ export function OrgAttendancePolicySection({
 
             {policyForm.auto_clock_out && (
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                   {t(
                     "organization.attendance.autoClockOutTime",
                     "Auto Clock Out Time",
@@ -327,7 +328,7 @@ export function OrgAttendancePolicySection({
 
             {/* Weekend Days */}
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
                 {t("organization.attendance.weekendDays", "Weekend Days")}
               </label>
               <div className="flex flex-wrap gap-2">
@@ -376,7 +377,7 @@ export function OrgAttendancePolicySection({
         {/* Add Holiday Form */}
         <div className="flex items-end gap-2 mb-4 p-3 bg-foreground/[0.03] rounded-xl border border-foreground/[0.06]">
           <div className="flex-1">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
               {t("organization.attendance.holidayDate", "Date")}
             </label>
             <input
@@ -392,7 +393,7 @@ export function OrgAttendancePolicySection({
             />
           </div>
           <div className="flex-1">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
               {t("organization.attendance.holidayName", "Holiday Name")}
             </label>
             <input
@@ -424,7 +425,7 @@ export function OrgAttendancePolicySection({
                 }
                 className="rounded border-foreground/20"
               />
-              <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
                 {t("organization.attendance.recurring", "Recurring Annually")}
               </span>
             </label>
@@ -468,17 +469,18 @@ export function OrgAttendancePolicySection({
                     {h.name}
                   </span>
                   {h.is_recurring && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/20 text-bridge-secondary">
+                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/20 text-bridge-secondary">
                       {t("organization.attendance.recurring", "Recurring")}
                     </span>
                   )}
                 </div>
-                <button
+                <IconButton
                   onClick={() => handleDeleteHoliday(h.id)}
-                  className="p-1.5 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                  aria-label="삭제"
+                  className="hover:text-red-500 hover:bg-red-500/10"
                 >
-                  <Trash2 size={14} />
-                </button>
+                  <Trash2 />
+                </IconButton>
               </div>
             ))}
           </div>

@@ -226,14 +226,14 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-foreground truncate">{tmpl.name}</span>
-                  <span className="text-[10px] text-muted-foreground">{tmpl.item_count} items</span>
+                  <span className="text-xs text-muted-foreground">{tmpl.item_count} items</span>
                   {tmpl.auto_assign && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                       Auto
                     </span>
                   )}
                   {tmpl.target_department && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
                       {tmpl.target_department.name}
                     </span>
                   )}
@@ -242,7 +242,7 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => openEditForm(tmpl.id)}
-                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors text-[11px]"
+                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors text-xs"
                 >
                   {t('common.edit', 'Edit')}
                 </button>
@@ -272,10 +272,10 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
                         <span className="text-muted-foreground w-5 text-right shrink-0">{i + 1}.</span>
                         <span className="text-foreground flex-1 truncate">{item.title}</span>
                         {item.due_day_offset != null && (
-                          <span className="text-[10px] text-muted-foreground shrink-0">D+{item.due_day_offset}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">D+{item.due_day_offset}</span>
                         )}
                         {item.assignee_role && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-500 shrink-0">
+                          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-500 shrink-0">
                             {item.assignee_role === 'MANAGER'
                               ? t('organization.onboarding.manager', 'Manager')
                               : t('organization.onboarding.self', 'Self')}
@@ -307,7 +307,7 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
                     ? t('organization.onboarding.editTemplate', 'Edit Template')
                     : t('organization.onboarding.newTemplate', 'New Template')}
                 </span>
-                <button onClick={resetForm} className="p-1 text-muted-foreground hover:text-foreground">
+                <button onClick={resetForm} className="p-1 text-muted-foreground hover:text-foreground" aria-label="닫기">
                   <X size={14} />
                 </button>
               </div>
@@ -366,12 +366,12 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
               {/* Items */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                     {t('organization.onboarding.items', 'Items')}
                   </span>
                   <button
                     onClick={addItem}
-                    className="flex items-center gap-1 text-[11px] text-bridge-accent hover:text-bridge-accent/80"
+                    className="flex items-center gap-1 text-xs text-bridge-accent hover:text-bridge-accent/80"
                   >
                     <Plus size={12} />
                     {t('organization.onboarding.addItem', 'Add')}
@@ -390,20 +390,20 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
                       />
                       <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1">
-                          <span className="text-[10px] text-muted-foreground">D+</span>
+                          <span className="text-xs text-muted-foreground">D+</span>
                           <input
                             type="number"
                             min={0}
                             value={item.due_day_offset ?? ''}
                             onChange={(e) => updateItem(i, 'due_day_offset', e.target.value === '' ? null : parseInt(e.target.value))}
-                            className="w-12 bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1 px-1.5 text-[11px] text-center text-foreground focus:outline-none"
+                            className="w-12 bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1 px-1.5 text-xs text-center text-foreground focus:outline-none"
                             placeholder="-"
                           />
                         </div>
                         <select
                           value={item.assignee_role || ''}
                           onChange={(e) => updateItem(i, 'assignee_role', e.target.value || null)}
-                          className="bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1 px-1.5 text-[11px] text-foreground"
+                          className="bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1 px-1.5 text-xs text-foreground"
                         >
                           <option value="">{t('organization.onboarding.noAssignee', 'No assignee')}</option>
                           <option value="SELF">{t('organization.onboarding.self', 'Self')}</option>

@@ -140,7 +140,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
         </h1>
 
         {/* Subtitle with gradient */}
-        <p className="text-lg text-transparent bg-clip-text bg-gradient-to-r from-slate-400 to-slate-500 font-light mb-8 max-w-md mx-auto">
+        <p className="text-lg text-transparent bg-clip-text bg-gradient-to-r from-slate-400 to-slate-500 font-normal mb-8 max-w-md mx-auto">
           {status.message || t('maintenance.defaultMessage')}
         </p>
 
@@ -159,7 +159,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
                     </div>
                     <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">{t('maintenance.hours')}</span>
                   </div>
-                  <span className="text-2xl text-slate-600 font-light mb-5">:</span>
+                  <span className="text-2xl text-slate-600 font-normal mb-5">:</span>
                 </>
               )}
               <div className="flex flex-col items-center">
@@ -170,7 +170,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
                 </div>
                 <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">{t('maintenance.minutes')}</span>
               </div>
-              <span className="text-2xl text-slate-600 font-light mb-5">:</span>
+              <span className="text-2xl text-slate-600 font-normal mb-5">:</span>
               <div className="flex flex-col items-center">
                 <div className="bg-gradient-to-b from-white/10 to-white/5 rounded-xl px-4 py-3 min-w-[72px] border border-foreground/10">
                   <span className="text-3xl font-bold text-bridge-accent font-mono">
@@ -219,7 +219,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-[10px] text-slate-600 mt-2 uppercase tracking-widest">
+          <p className="text-xs text-slate-600 mt-2 uppercase tracking-widest">
             {t('maintenance.progress', { percent: Math.round(progress) })}
           </p>
         </div>

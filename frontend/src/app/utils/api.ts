@@ -4430,6 +4430,15 @@ export const adminAPI = {
     );
   },
 
+  // 수익화 토글
+  getMonetizationStatus: async () => {
+    return apiClient.get<{ monetization_enabled: boolean }>("/admin/system/monetization");
+  },
+
+  setMonetizationEnabled: async (enabled: boolean) => {
+    return apiClient.put<{ monetization_enabled: boolean }>("/admin/system/monetization", { monetization_enabled: enabled });
+  },
+
   // 점검 모드
   getMaintenanceStatus: async () => {
     return apiClient.get<MaintenanceStatus>("/admin/system/maintenance");
@@ -4524,6 +4533,10 @@ export const systemAPI = {
 
   getActiveAnnouncements: async () => {
     return apiClient.get<AnnouncementDetail[]>("/system/announcements/active");
+  },
+
+  getMonetizationStatus: async () => {
+    return apiClient.get<{ monetization_enabled: boolean }>("/system/monetization");
   },
 };
 

@@ -252,7 +252,7 @@ export function Toast({ message, type = 'success', isVisible, onClose }: ToastPr
     <div className="fixed top-4 right-4 z-[70] animate-fade-in-up">
       <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border shadow-lg ${bgColor}`}>
         <span className="text-sm font-medium">{message}</span>
-        <button onClick={onClose} className="ml-2 opacity-60 hover:opacity-100 transition-opacity">
+        <button onClick={onClose} className="ml-2 opacity-60 hover:opacity-100 transition-opacity" aria-label="닫기">
           <X className="h-4 w-4" />
         </button>
       </div>

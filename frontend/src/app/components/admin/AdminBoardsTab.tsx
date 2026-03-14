@@ -237,7 +237,7 @@ export function AdminBoardsTab() {
 
       {/* Loading State */}
       {isLoading && !error && (
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-64" role="status" aria-label="로딩 중">
           <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
         </div>
       )}
@@ -256,30 +256,30 @@ export function AdminBoardsTab() {
               <table className="w-full min-w-[720px]">
                 <thead>
                   <tr className="border-b border-foreground/[0.08]">
-                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {t('admin.boards.board')}
                     </th>
-                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {t('admin.boards.type', 'Type')}
                     </th>
-                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {t('admin.boards.owner')}
                     </th>
                     {!showDeleted && (
-                      <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                      <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                         {t('admin.boards.tier')}
                       </th>
                     )}
-                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {t('admin.boards.members')}
                     </th>
-                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {t('admin.boards.tasks')}
                     </th>
-                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {showDeleted ? t('admin.boards.deletedAt', 'Deleted') : t('admin.boards.createdAt')}
                     </th>
-                    <th className="text-right px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-right px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                     </th>
                   </tr>
                 </thead>

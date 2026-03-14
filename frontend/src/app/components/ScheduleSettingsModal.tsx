@@ -202,10 +202,11 @@ export function ScheduleSettingsModal({
     <MotionModal open={true} onClose={onClose} className="sm:max-w-[480px] p-0 overflow-hidden max-h-[90dvh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
-          <h2 className="text-lg font-semibold text-foreground">{t('schedule.settingsTitle')}</h2>
+          <h2 className="text-lg font-bold text-foreground">{t('schedule.settingsTitle')}</h2>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-foreground transition-colors"
+            aria-label="닫기"
           >
             <X className="h-5 w-5" />
           </button>
@@ -519,7 +520,7 @@ export function ScheduleSettingsModal({
             ) : (
               <div className="text-sm">
                 <span className="text-slate-400">{t('schedule.totalBlockCount')}</span>
-                <span className="text-foreground ml-2 text-lg font-semibold">{t('schedule.blocksUnit', { count: blockCount })}</span>
+                <span className="text-foreground ml-2 text-lg font-bold">{t('schedule.blocksUnit', { count: blockCount })}</span>
               </div>
             )}
           </div>

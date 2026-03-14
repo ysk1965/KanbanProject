@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { IconButton } from '../ui/IconButton';
 import {
   startOfMonth,
   endOfMonth,
@@ -385,7 +386,7 @@ export function ScheduleCalendarView({
           role="button"
           tabIndex={0}
           aria-label={`${item.title}${item.completed ? " (completed)" : ""}`}
-          className={`h-6 rounded-md px-1.5 flex items-center gap-1 text-[10px] font-medium
+          className={`h-6 rounded-md px-1.5 flex items-center gap-1 text-xs font-medium
             text-white truncate cursor-pointer hover:brightness-110 transition-all ${completedClasses}`}
           style={{
             backgroundColor: item.featureColor,
@@ -427,7 +428,7 @@ export function ScheduleCalendarView({
           role="button"
           tabIndex={0}
           aria-label={`${item.title}${item.completed ? " (completed)" : ""}`}
-          className={`flex items-center gap-1 px-1 py-0.5 rounded text-[10px] truncate
+          className={`flex items-center gap-1 px-1 py-0.5 rounded text-xs truncate
             cursor-pointer hover:bg-foreground/5 transition-colors ${completedClasses}`}
           onClick={(e) => {
             e.stopPropagation();
@@ -473,26 +474,24 @@ export function ScheduleCalendarView({
       {/* ===== Top toolbar ===== */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-foreground/[0.08] bg-bridge-obsidian shrink-0">
         <div className="flex items-center gap-2">
-          <button
+          <IconButton
             aria-label={t("schedule.calendar.prevMonth", "Previous month")}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
             onClick={handlePrevMonth}
           >
-            <ChevronLeft size={16} />
-          </button>
+            <ChevronLeft />
+          </IconButton>
           <button
             className="px-3 py-1 rounded-lg text-xs font-medium text-bridge-accent hover:bg-bridge-accent/10 transition-colors"
             onClick={handleToday}
           >
             {t("schedule.calendar.today", "Today")}
           </button>
-          <button
+          <IconButton
             aria-label={t("schedule.calendar.nextMonth", "Next month")}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
             onClick={handleNextMonth}
           >
-            <ChevronRight size={16} />
-          </button>
+            <ChevronRight />
+          </IconButton>
           <span className="text-sm font-bold text-foreground tracking-tight ml-2">
             {format(currentMonth, "MMMM yyyy")}
           </span>
@@ -500,7 +499,7 @@ export function ScheduleCalendarView({
 
         <div className="flex items-center gap-2">
           {/* Completed toggle */}
-          <label className="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer select-none">
+          <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={showCompleted}
@@ -526,7 +525,7 @@ export function ScheduleCalendarView({
                 <th
                   key={idx}
                   scope="col"
-                  className="text-[11px] font-bold uppercase tracking-widest text-slate-400
+                  className="text-xs font-bold uppercase tracking-widest text-slate-400
                     py-2 text-center border-b border-foreground/[0.08]"
                 >
                   {label}
@@ -584,7 +583,7 @@ export function ScheduleCalendarView({
                         {/* Date number */}
                         <div className="flex items-center justify-end mb-1">
                           <span
-                            className={`text-[11px] font-medium leading-none
+                            className={`text-xs font-medium leading-none
                               ${
                                 today
                                   ? "bg-bridge-accent text-white w-6 h-6 rounded-full flex items-center justify-center font-bold"
@@ -651,7 +650,7 @@ export function ScheduleCalendarView({
 
                         {/* Overflow indicator – pinned to bottom */}
                         {overflowCount > 0 && (
-                          <div className="absolute bottom-1 right-1 text-[9px] text-slate-400">
+                          <div className="absolute bottom-1 right-1 text-xs text-slate-400">
                             +{overflowCount} more
                           </div>
                         )}

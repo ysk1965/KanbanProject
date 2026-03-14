@@ -58,7 +58,7 @@ export function OkrCycleSelector({
         </span>
         {selectedCycle && (
           <span
-            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+            className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
               STATUS_STYLES[selectedCycle.status] || STATUS_STYLES.PLANNING
             }`}
           >
@@ -92,12 +92,12 @@ export function OkrCycleSelector({
                   <div className="text-xs font-bold text-foreground truncate">
                     {cycle.name}
                   </div>
-                  <div className="text-[10px] text-slate-500">
+                  <div className="text-xs text-slate-500">
                     {cycle.start_date} ~ {cycle.end_date}
                   </div>
                 </div>
                 <span
-                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
                     STATUS_STYLES[cycle.status] || STATUS_STYLES.PLANNING
                   }`}
                 >

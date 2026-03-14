@@ -183,11 +183,11 @@ export function SharedNotePage() {
             className="flex items-center gap-2 text-slate-400 hover:text-foreground transition-colors"
           >
             <img src="/BridgeSpotsIcon.png" alt="BRIDGE" className="h-6 w-6" />
-            <span className="text-sm font-semibold text-foreground">
+            <span className="text-sm font-bold text-foreground">
               BRIDGE
             </span>
           </Link>
-          <div className="flex items-center gap-2 text-[10px] tracking-[0.3em] uppercase text-slate-500">
+          <div className="flex items-center gap-2 text-xs tracking-[0.3em] uppercase text-slate-500">
             <FileText size={12} />
             {t("notes.shareReadOnly", "READ ONLY")}
           </div>
@@ -208,7 +208,7 @@ export function SharedNotePage() {
               {note.tags.map((tag) => (
                 <span
                   key={tag.id}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
                   style={{
                     backgroundColor: `${tag.color}20`,
                     color: tag.color,
@@ -220,7 +220,7 @@ export function SharedNotePage() {
               ))}
             </div>
           )}
-          <span className="text-[11px] text-slate-500 flex items-center gap-1">
+          <span className="text-xs text-slate-500 flex items-center gap-1">
             <Clock size={10} />
             {formatDateTime(note.updated_at)}
             {note.author_name && ` · ${note.author_name}`}
@@ -234,7 +234,7 @@ export function SharedNotePage() {
         {note.type === "BOARD" ? (
           <Suspense
             fallback={
-              <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="flex items-center justify-center min-h-[60vh]" role="status" aria-label="로딩 중">
                 <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
               </div>
             }
@@ -289,7 +289,7 @@ export function SharedNotePage() {
       {/* Footer */}
       <footer className="border-t border-foreground/5 mt-16">
         <div className="max-w-4xl mx-auto px-6 py-6 flex items-center justify-between">
-          <span className="text-[10px] tracking-[0.3em] uppercase text-slate-600">
+          <span className="text-xs tracking-[0.3em] uppercase text-slate-600">
             Shared via BRIDGE
           </span>
           <a

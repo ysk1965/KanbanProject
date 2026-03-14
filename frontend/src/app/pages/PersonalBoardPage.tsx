@@ -171,7 +171,7 @@ export function PersonalBoardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-dvh bg-bridge-dark">
+      <div className="flex items-center justify-center h-dvh bg-bridge-dark" role="status" aria-label="로딩 중">
         <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
       </div>
     );
@@ -200,7 +200,7 @@ export function PersonalBoardPage() {
               <button
                 key={tab.key}
                 onClick={() => changeTab(tab.key)}
-                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                   activeTab === tab.key
                     ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
                     : 'text-slate-400 hover:text-foreground hover:bg-bridge-surface-hover'
@@ -271,7 +271,7 @@ export function PersonalBoardPage() {
       {/* Mobile bottom toolbar – Tasks tab */}
       {activeTab === 'tasks' && (
         <div className="md:hidden border-t border-foreground/[0.08] px-3 py-2 flex items-center justify-between shrink-0">
-          <p className="text-[10px] text-slate-500 flex-1">
+          <p className="text-xs text-slate-500 flex-1">
             {t('personal.tasks.tapToManage')}
           </p>
           <button
@@ -324,7 +324,7 @@ export function PersonalBoardPage() {
                   />
                 </motion.div>
                 <motion.span
-                  className={`text-[10px] font-medium transition-colors duration-200 ${isActive ? 'text-bridge-secondary' : 'text-slate-500'}`}
+                  className={`text-xs font-medium transition-colors duration-200 ${isActive ? 'text-bridge-secondary' : 'text-slate-500'}`}
                   animate={isActive
                     ? { opacity: 1, y: 0 }
                     : { opacity: 0.7, y: 0 }
@@ -584,13 +584,13 @@ function QuickCaptureModal({ onClose, onSubmitTask, onSubmitHabit }: {
             >
               {/* Repeat Days - compact inline */}
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-slate-500 flex-shrink-0">{t('personal.habit.repeatOn', '반복')}</span>
+                <span className="text-xs text-slate-500 flex-shrink-0">{t('personal.habit.repeatOn', '반복')}</span>
                 <div className="flex gap-1 flex-1">
                   {HABIT_DAY_CHIPS.map(({ value, label }) => (
                     <button
                       key={value}
                       onClick={() => toggleDay(value)}
-                      className={`flex-1 py-1 text-[10px] font-bold rounded-md transition-all ${
+                      className={`flex-1 py-1 text-xs font-bold rounded-md transition-all ${
                         selectedDays.includes(value)
                           ? 'bg-purple-500 text-white'
                           : 'bg-foreground/5 text-slate-500 hover:bg-foreground/10'
@@ -652,7 +652,7 @@ function QuickCaptureModal({ onClose, onSubmitTask, onSubmitHabit }: {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setShowMore(!showMore)}
-                    className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-muted-foreground transition-colors"
+                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-muted-foreground transition-colors"
                   >
                     {showMore ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                     {showMore ? t('personal.habit.lessOptions', '접기') : t('personal.habit.moreOptions', '더 보기')}

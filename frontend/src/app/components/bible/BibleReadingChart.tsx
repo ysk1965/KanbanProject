@@ -79,7 +79,7 @@ export function BibleReadingChart({ books, completedChapters }: BibleReadingChar
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="text-right text-sm font-semibold text-green-600">
+          <div className="text-right text-sm font-bold text-green-600">
             {Math.round(progress)}%
           </div>
         </div>
@@ -116,7 +116,7 @@ export function BibleReadingChart({ books, completedChapters }: BibleReadingChar
                     return (
                       <div
                         key={chapter.chapter}
-                        className={`relative aspect-square flex items-center justify-center rounded-md border-2 transition-all font-semibold ${
+                        className={`relative aspect-square flex items-center justify-center rounded-md border-2 transition-all font-medium ${
                           completed
                             ? "bg-green-500 border-green-600 text-white shadow-md"
                             : "bg-white border-gray-300 text-gray-600 hover:border-gray-400"

@@ -398,7 +398,7 @@ export function MemberDetailModal({
 
           {/* Footer */}
           <div className="flex items-center justify-between px-6 py-3 border-t border-foreground/[0.08] shrink-0">
-            <span className="text-[10px] text-slate-500">
+            <span className="text-xs text-slate-500">
               Esc {t("common.close", "닫기")}
             </span>
           </div>

@@ -129,7 +129,7 @@ export function DailyChecklistItem({
 
           {/* Task 정보 */}
           {item.task && (
-            <p className={`${compact ? 'text-[10px]' : 'text-xs'} text-slate-400 mt-0.5 truncate`}>
+            <p className={`${compact ? 'text-xs' : 'text-xs'} text-slate-400 mt-0.5 truncate`}>
               {item.task.title}
             </p>
           )}
@@ -154,6 +154,7 @@ export function DailyChecklistItem({
             onClick={handleRemove}
             disabled={isRemoving}
             className={`flex-shrink-0 ${compact ? 'p-0.5' : 'p-1.5'} rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors`}
+            aria-label="삭제"
           >
             <X className={compact ? 'h-3 w-3' : 'h-4 w-4'} />
           </button>

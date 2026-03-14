@@ -118,7 +118,7 @@ export function OkrObjectiveModal({
           <div className="text-sm font-bold text-foreground truncate">
             {objective.title}
           </div>
-          <div className="text-[11px] text-slate-400">
+          <div className="text-xs text-slate-400">
             {objective.department_name ||
               t(
                 `okr.level.${objective.level.toLowerCase()}`,
@@ -136,7 +136,7 @@ export function OkrObjectiveModal({
         {/* Progress */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
               {t("okr.progress", "Progress")}
             </span>
             <span className="text-sm font-bold text-foreground">
@@ -153,7 +153,7 @@ export function OkrObjectiveModal({
 
         {/* Key Results */}
         <div>
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
             {t("okr.keyResult", "Key Results")} (
             {objective.key_results?.length || 0})
           </div>
@@ -182,7 +182,7 @@ export function OkrObjectiveModal({
         {/* Child Objectives */}
         {objective.children && objective.children.length > 0 && (
           <div>
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
               {t("okr.childObjectives", "Child Objectives")} (
               {objective.children.length})
             </div>
@@ -201,14 +201,14 @@ export function OkrObjectiveModal({
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[11px] font-bold text-foreground truncate">
+                      <div className="text-xs font-bold text-foreground truncate">
                         {child.title}
                       </div>
-                      <div className="text-[10px] text-slate-400">
+                      <div className="text-xs text-slate-400">
                         {child.department_name || child.owner?.user_name}
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold text-foreground">
+                    <span className="text-xs font-bold text-foreground">
                       {Math.round(child.progress)}%
                     </span>
                     <OkrConfidenceBadge
@@ -225,7 +225,7 @@ export function OkrObjectiveModal({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-[10px] text-slate-500">
+        <span className="text-xs text-slate-500">
           Esc {t("okr.cancel", "Cancel")}
         </span>
         <div className="flex items-center gap-2">
@@ -316,7 +316,7 @@ function KrDetailCard({
             </span>
           </div>
           {kr.owner && (
-            <div className="text-[10px] text-slate-400 mt-0.5">
+            <div className="text-xs text-slate-400 mt-0.5">
               {t("okr.owner", "Owner")}: {kr.owner.user_name}
             </div>
           )}
@@ -324,7 +324,7 @@ function KrDetailCard({
         {isAdmin && (
           <button
             onClick={() => onCheckIn(kr.id)}
-            className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-bridge-accent
+            className="flex items-center gap-1 px-2 py-1 text-xs font-bold text-bridge-accent
               hover:bg-bridge-accent/10 rounded-lg transition-colors shrink-0"
           >
             <PlusCircle size={12} />
@@ -336,7 +336,7 @@ function KrDetailCard({
       {/* KR Progress */}
       <div className="flex items-center gap-3 mb-1">
         <OkrProgressBar progress={progress} size="md" animated />
-        <span className="text-[10px] font-bold text-bridge-accent shrink-0">
+        <span className="text-xs font-bold text-bridge-accent shrink-0">
           {kr.current_value}/{kr.target_value}
           {kr.unit ? ` ${kr.unit}` : ""}
         </span>
@@ -346,7 +346,7 @@ function KrDetailCard({
       <div className="flex items-center gap-1 mt-1">
         <button
           onClick={onLoadCheckIns}
-          className="text-[10px] text-slate-400 hover:text-foreground transition-colors"
+          className="text-xs text-slate-400 hover:text-foreground transition-colors"
         >
           {checkIns
             ? `${t("okr.checkinHistory", "Check-in History")} (${checkIns.length})`
@@ -361,7 +361,7 @@ function KrDetailCard({
       {checkIns && checkIns.length > 0 && (
         <div className="mt-2 space-y-1 border-t border-foreground/[0.06] pt-2">
           {checkIns.map((ci) => (
-            <div key={ci.id} className="flex items-center gap-2 text-[10px]">
+            <div key={ci.id} className="flex items-center gap-2 text-xs">
               <span className="text-slate-500 shrink-0">
                 {formatRelativeTime(ci.created_at)}
               </span>

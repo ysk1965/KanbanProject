@@ -335,7 +335,7 @@ export function ScheduleDetailPanel({
     <div className="w-96 flex-shrink-0 h-full bg-bridge-obsidian border-l border-bridge-border shadow-xl flex flex-col">
       {/* 헤더 */}
       <div className="flex items-center justify-between p-4 border-b border-bridge-border">
-        <h2 className="text-lg font-semibold text-foreground">
+        <h2 className="text-lg font-bold text-foreground">
           {t("scheduleDetail.title")}
         </h2>
         <Button
@@ -524,7 +524,7 @@ export function ScheduleDetailPanel({
                   {/* 참석자 */}
                   {meetingDetail.participants.length > 0 && (
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                         {t("meeting.participants")}
                       </label>
                       <div className="flex flex-wrap gap-1.5">
@@ -541,7 +541,7 @@ export function ScheduleDetailPanel({
                               />
                             ) : (
                               <div
-                                className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] text-white font-medium whitespace-nowrap overflow-hidden"
+                                className="w-4 h-4 rounded-full flex items-center justify-center text-xs text-white font-medium whitespace-nowrap overflow-hidden"
                                 style={{
                                   backgroundColor: getAssigneeHex(p.name),
                                 }}
@@ -561,7 +561,7 @@ export function ScheduleDetailPanel({
                   {/* 메모 */}
                   {meetingDetail.memo && (
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                         {t("meeting.memo")}
                       </label>
                       <div className="bg-foreground/5 rounded-lg p-3 text-sm text-muted-foreground whitespace-pre-wrap max-h-32 overflow-y-auto">
@@ -573,7 +573,7 @@ export function ScheduleDetailPanel({
                   {/* 음성 기록 */}
                   {meetingDetail.transcript && (
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                         {t("meeting.transcript")}
                       </label>
                       <div className="bg-foreground/5 rounded-lg p-3 text-sm text-muted-foreground whitespace-pre-wrap max-h-32 overflow-y-auto">
@@ -588,7 +588,7 @@ export function ScheduleDetailPanel({
                       <div className="bg-bridge-accent/5 rounded-lg border border-bridge-accent/20 p-3">
                         <div className="flex items-center gap-1.5 mb-2">
                           <Star className="h-3.5 w-3.5 text-bridge-accent" />
-                          <span className="text-[11px] font-bold text-bridge-accent uppercase tracking-widest">
+                          <span className="text-xs font-bold text-bridge-accent uppercase tracking-widest">
                             {t("meeting.aiKeyPoints")}
                           </span>
                         </div>
@@ -599,7 +599,7 @@ export function ScheduleDetailPanel({
                                 key={i}
                                 className="flex items-start gap-2 text-xs text-muted-foreground"
                               >
-                                <span className="text-bridge-accent mt-0.5 text-[10px]">
+                                <span className="text-bridge-accent mt-0.5 text-xs">
                                   ●
                                 </span>
                                 <span>{point}</span>
@@ -616,7 +616,7 @@ export function ScheduleDetailPanel({
                       <div>
                         <div className="flex items-center gap-1.5 mb-2">
                           <Sparkles className="h-3.5 w-3.5 text-slate-400" />
-                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                             {t("meeting.aiSummaryTitle")}
                           </span>
                         </div>
@@ -636,7 +636,7 @@ export function ScheduleDetailPanel({
                                     {topic.topic}
                                   </span>
                                   {topic.important && (
-                                    <span className="text-[9px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-1 py-0.5 rounded">
+                                    <span className="text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-1 py-0.5 rounded">
                                       {t("meeting.aiImportant")}
                                     </span>
                                   )}
@@ -649,7 +649,7 @@ export function ScheduleDetailPanel({
                                     {topic.decisions &&
                                       topic.decisions.length > 0 && (
                                         <div>
-                                          <span className="text-[9px] font-bold uppercase tracking-widest text-green-600 dark:text-green-400">
+                                          <span className="text-xs font-bold uppercase tracking-widest text-green-600 dark:text-green-400">
                                             {t(
                                               "meeting.aiDecisions",
                                               "Decisions",
@@ -661,7 +661,7 @@ export function ScheduleDetailPanel({
                                                 key={j}
                                                 className="flex items-start gap-1.5 text-xs text-foreground/80"
                                               >
-                                                <span className="text-green-600 dark:text-green-400 mt-0.5 text-[10px]">
+                                                <span className="text-green-600 dark:text-green-400 mt-0.5 text-xs">
                                                   ✓
                                                 </span>
                                                 <span>{d}</span>
@@ -673,7 +673,7 @@ export function ScheduleDetailPanel({
                                     {topic.discussions &&
                                       topic.discussions.length > 0 && (
                                         <div>
-                                          <span className="text-[9px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
+                                          <span className="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
                                             {t(
                                               "meeting.aiDiscussions",
                                               "Discussions",
@@ -685,7 +685,7 @@ export function ScheduleDetailPanel({
                                                 key={j}
                                                 className="flex items-start gap-1.5 text-xs text-foreground/80"
                                               >
-                                                <span className="text-blue-600 dark:text-blue-400 mt-0.5 text-[10px]">
+                                                <span className="text-blue-600 dark:text-blue-400 mt-0.5 text-xs">
                                                   –
                                                 </span>
                                                 <span>{d}</span>
@@ -697,7 +697,7 @@ export function ScheduleDetailPanel({
                                     {topic.action_items &&
                                       topic.action_items.length > 0 && (
                                         <div>
-                                          <span className="text-[9px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                                          <span className="text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
                                             {t(
                                               "meeting.aiActionItems",
                                               "Action Items",
@@ -709,7 +709,7 @@ export function ScheduleDetailPanel({
                                                 key={j}
                                                 className="flex items-start gap-1.5 text-xs text-foreground/80"
                                               >
-                                                <span className="text-amber-600 dark:text-amber-400 mt-0.5 text-[10px]">
+                                                <span className="text-amber-600 dark:text-amber-400 mt-0.5 text-xs">
                                                   →
                                                 </span>
                                                 <span>{a}</span>
@@ -727,7 +727,7 @@ export function ScheduleDetailPanel({
                                         key={j}
                                         className="flex items-start gap-1.5 text-xs text-foreground/80"
                                       >
-                                        <span className="text-muted-foreground mt-0.5 text-[10px]">
+                                        <span className="text-muted-foreground mt-0.5 text-xs">
                                           –
                                         </span>
                                         <span>{point}</span>
@@ -776,7 +776,7 @@ export function ScheduleDetailPanel({
                       }`}
                     >
                       <span className="text-sm">{preset.emoji}</span>
-                      <span className="block mt-0.5 truncate text-[10px]">
+                      <span className="block mt-0.5 truncate text-xs">
                         {t(preset.labelKey)}
                       </span>
                     </button>

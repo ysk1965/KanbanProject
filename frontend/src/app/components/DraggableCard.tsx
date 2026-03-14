@@ -358,7 +358,7 @@ export function DraggableCard({
           showFeatureLabel || isChecklistExpanded ? (
             <div className="flex flex-col gap-0.5">
               <span
-                className="text-[9px] font-bold px-1.5 py-px rounded-full border self-start"
+                className="text-xs font-bold px-1.5 py-px rounded-full border self-start"
                 style={{
                   backgroundColor: `${featureColor}15`,
                   borderColor: `${featureColor}44`,
@@ -404,7 +404,7 @@ export function DraggableCard({
           {taskTags.map((tag) => (
             <span
               key={tag.id}
-              className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+              className="text-xs font-bold px-2 py-0.5 rounded-full border"
               style={{
                 backgroundColor: `${tag.color}15`,
                 borderColor: `${tag.color}44`,
@@ -431,7 +431,7 @@ export function DraggableCard({
             }`}
           />
           <span
-            className={`text-[11px] font-bold ${
+            className={`text-xs font-bold ${
               isOverdue(task.due_date)
                 ? "text-red-300"
                 : isDueSoon(task.due_date)
@@ -480,7 +480,7 @@ export function DraggableCard({
                     }}
                   />
                 </div>
-                <span className="text-[10px] font-semibold text-foreground/80">
+                <span className="text-xs font-medium text-foreground/80">
                   {hasLoaded
                     ? `${completedCount}/${checklistItems.length}`
                     : `${task.checklist_completed ?? 0}/${task.checklist_total ?? 0}`}
@@ -502,7 +502,7 @@ export function DraggableCard({
               {allAssignees.slice(0, 3).map((assignee, index) => (
                 <div
                   key={assignee.id}
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-bridge-surface-hover whitespace-nowrap overflow-hidden"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white border-2 border-bridge-surface-hover whitespace-nowrap overflow-hidden"
                   style={{
                     backgroundColor: getAssigneeHex(
                       assignee.name,
@@ -517,7 +517,7 @@ export function DraggableCard({
               ))}
               {allAssignees.length > 3 && (
                 <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white bg-slate-500 border-2 border-bridge-surface-hover"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white bg-slate-500 border-2 border-bridge-surface-hover"
                   style={{ zIndex: 0 }}
                   title={allAssignees
                     .slice(3)
@@ -578,7 +578,7 @@ export function DraggableCard({
                   </span>
                   {item.assignee && (
                     <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-foreground/[0.08] whitespace-nowrap overflow-hidden"
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 border border-foreground/[0.08] whitespace-nowrap overflow-hidden"
                       style={{
                         backgroundColor: getAssigneeHex(
                           item.assignee.name,

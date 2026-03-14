@@ -337,7 +337,7 @@ export function PhotoLightbox({
               <p className="text-sm font-medium text-white/90 truncate">
                 {photo.caption || photo.original_filename}
               </p>
-              <p className="text-[10px] text-white/40">
+              <p className="text-xs text-white/40">
                 {photo.original_filename} &middot; {formatFileSize(photo.file_size)}
               </p>
             </div>
@@ -351,7 +351,7 @@ export function PhotoLightbox({
               >
                 <ZoomOut size={18} />
               </button>
-              <span className="text-[10px] text-white/50 font-mono w-10 text-center select-none">
+              <span className="text-xs text-white/50 font-mono w-10 text-center select-none">
                 {zoomPercent}%
               </span>
               <button
@@ -395,6 +395,7 @@ export function PhotoLightbox({
                 onClick={isZoomed ? resetZoom : onClose}
                 className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
                 title={isZoomed ? t('photoGallery.resetZoom', 'Reset zoom') : t('common.close', 'Close')}
+                aria-label="닫기"
               >
                 <X size={18} />
               </button>
@@ -443,6 +444,7 @@ export function PhotoLightbox({
             <button
               onClick={goPrev}
               className="absolute left-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 text-white/60 hover:text-white transition-all"
+              aria-label="이전"
             >
               <ChevronLeft size={20} />
             </button>
@@ -451,6 +453,7 @@ export function PhotoLightbox({
             <button
               onClick={goNext}
               className="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 text-white/60 hover:text-white transition-all"
+              aria-label="다음"
             >
               <ChevronRight size={20} />
             </button>
@@ -458,7 +461,7 @@ export function PhotoLightbox({
 
           {/* Bottom index indicator */}
           <div className="text-center py-3">
-            <span className="text-[11px] text-white/40 font-medium">
+            <span className="text-xs text-white/40 font-medium">
               {currentIndex + 1} / {photos.length}
             </span>
           </div>

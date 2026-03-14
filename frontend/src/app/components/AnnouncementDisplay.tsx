@@ -107,7 +107,7 @@ export function AnnouncementDisplay() {
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <Megaphone className="h-3.5 w-3.5 text-white/80" />
               {banners.length > 1 && (
-                <span className="text-[10px] text-white/50 font-medium tabular-nums">
+                <span className="text-xs text-white/50 font-medium tabular-nums">
                   {currentBannerIndex + 1}/{banners.length}
                 </span>
               )}

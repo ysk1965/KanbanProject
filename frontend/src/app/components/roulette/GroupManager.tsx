@@ -171,7 +171,7 @@ export function GroupManager({ currentParticipants, onLoadGroup, activeGroupId }
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-gray-800 dark:text-gray-100">{group.name}</h3>
+                    <h3 className="font-bold text-gray-800 dark:text-gray-100">{group.name}</h3>
                     {activeGroupId === group.id && (
                       <span className="text-xs bg-purple-500 text-white px-2 py-0.5 rounded-full">
                         {t('active')}
@@ -209,7 +209,7 @@ export function GroupManager({ currentParticipants, onLoadGroup, activeGroupId }
               {group.stats && Object.keys(group.stats).length > 0 && (
                 <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="font-semibold">{t('winRecord')}</p>
+                    <p className="font-medium">{t('winRecord')}</p>
                     <Button
                       onClick={() => resetGroupStats(group.id)}
                       variant="ghost"

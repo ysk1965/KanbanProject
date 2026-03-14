@@ -117,6 +117,7 @@ export function NoteCommentInput({
             <button
               onClick={onCancel}
               className="p-1.5 text-slate-500 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+              aria-label="닫기"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -124,6 +125,7 @@ export function NoteCommentInput({
           <button
             onClick={() => setShowMentions(!showMentions)}
             className="p-1.5 text-slate-500 hover:text-bridge-accent hover:bg-foreground/5 rounded-lg transition-colors"
+            aria-label="멘션"
           >
             <AtSign className="h-3.5 w-3.5" />
           </button>
@@ -132,6 +134,7 @@ export function NoteCommentInput({
             disabled={!content.trim() || submitting}
             className="p-1.5 text-bridge-accent hover:bg-bridge-accent/10 rounded-lg transition-colors
               disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="전송"
           >
             <Send className="h-3.5 w-3.5" />
           </button>
@@ -150,9 +153,9 @@ export function NoteCommentInput({
                 hover:bg-foreground/5 hover:text-foreground transition-colors"
             >
               {member.user.profile_image ? (
-                <img src={member.user.profile_image} alt="" className="h-5 w-5 rounded-full" />
+                <img src={member.user.profile_image} alt={member.user.name || '프로필'} className="h-5 w-5 rounded-full" />
               ) : (
-                <div className="h-5 w-5 rounded-full bg-bridge-accent/30 flex items-center justify-center text-[10px] font-bold text-bridge-accent">
+                <div className="h-5 w-5 rounded-full bg-bridge-accent/30 flex items-center justify-center text-xs font-bold text-bridge-accent">
                   {member.user.name.charAt(0)}
                 </div>
               )}

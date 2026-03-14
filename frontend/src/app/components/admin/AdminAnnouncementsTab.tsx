@@ -77,7 +77,7 @@ export function AdminAnnouncementsTab() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-64" role="status" aria-label="로딩 중">
         <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
       </div>
     );
@@ -137,27 +137,27 @@ export function AdminAnnouncementsTab() {
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className={`px-2 py-0.5 text-[11px] font-bold rounded-full ${typeBadge[ann.type] || typeBadge.NOTICE}`}>
+                    <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${typeBadge[ann.type] || typeBadge.NOTICE}`}>
                       {typeLabel[ann.type] || ann.type}
                     </span>
                     {ann.is_active ? (
-                      <span className="flex items-center gap-1 text-[11px] text-emerald-400">
+                      <span className="flex items-center gap-1 text-xs text-emerald-400">
                         <Eye className="h-3 w-3" /> {t('admin.announcements.active')}
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-[11px] text-slate-500">
+                      <span className="flex items-center gap-1 text-xs text-slate-500">
                         <EyeOff className="h-3 w-3" /> {t('admin.announcements.inactive')}
                       </span>
                     )}
                     {ann.priority > 0 && (
-                      <span className="text-[11px] text-amber-400">{t('admin.announcements.priority')}: {ann.priority}</span>
+                      <span className="text-xs text-amber-400">{t('admin.announcements.priority')}: {ann.priority}</span>
                     )}
                   </div>
                   <h3 className="text-foreground font-medium mb-1">{ann.title}</h3>
                   {ann.content && (
                     <p className="text-slate-400 text-sm line-clamp-2">{ann.content}</p>
                   )}
-                  <div className="flex gap-4 mt-2 text-[11px] text-slate-500">
+                  <div className="flex gap-4 mt-2 text-xs text-slate-500">
                     {ann.start_at && <span>{t('admin.announcements.start')}: {formatDateTime(ann.start_at)}</span>}
                     {ann.end_at && <span>{t('admin.announcements.end')}: {formatDateTime(ann.end_at)}</span>}
                     <span>{t('admin.announcements.created')}: {formatDate(ann.created_at)}</span>
@@ -268,14 +268,14 @@ function AnnouncementFormModal({
           <h3 className="text-lg font-bold text-foreground">
             {announcement ? t('admin.announcements.editAnnouncement') : t('admin.announcements.newAnnouncement')}
           </h3>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-foreground transition-colors">
+          <button onClick={onClose} className="p-1 text-slate-400 hover:text-foreground transition-colors" aria-label="닫기">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.titleLabel')} *</label>
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.titleLabel')} *</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -285,7 +285,7 @@ function AnnouncementFormModal({
           </div>
 
           <div>
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.contentLabel')}</label>
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.contentLabel')}</label>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -297,7 +297,7 @@ function AnnouncementFormModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.typeLabel')}</label>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.typeLabel')}</label>
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as 'POPUP' | 'BANNER' | 'NOTICE')}
@@ -309,7 +309,7 @@ function AnnouncementFormModal({
               </select>
             </div>
             <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.priority')}</label>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.priority')}</label>
               <input
                 type="number"
                 value={priority}
@@ -322,7 +322,7 @@ function AnnouncementFormModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.startDate')}</label>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.startDate')}</label>
               <input
                 type="datetime-local"
                 value={startAt}
@@ -331,7 +331,7 @@ function AnnouncementFormModal({
               />
             </div>
             <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.endDate')}</label>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.endDate')}</label>
               <input
                 type="datetime-local"
                 value={endAt}
