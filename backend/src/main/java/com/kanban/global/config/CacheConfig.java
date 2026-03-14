@@ -80,6 +80,12 @@ public class CacheConfig {
         // Feature 캐시: 5분
         cacheConfigurations.put("features", defaultConfig.entryTtl(Duration.ofMinutes(5)));
 
+        // Shared Gallery 캐시: 5분 (공유 링크 200명 동접 대응)
+        cacheConfigurations.put("sharedGallery", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+
+        // Shared Photos 캐시: 3분 (커서 기반 페이지별 캐싱)
+        cacheConfigurations.put("sharedPhotos", defaultConfig.entryTtl(Duration.ofMinutes(3)));
+
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)
                 .withInitialCacheConfigurations(cacheConfigurations)
