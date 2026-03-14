@@ -1,4 +1,4 @@
-import { isNative, isIOS, isInAppBrowser, isKakaoTalk } from './platform';
+import { isNative, isIOS, isInAppBrowser, isKakaoTalk, isMobileWeb } from './platform';
 import { resolveFileUrl } from './api';
 
 /**
@@ -223,12 +223,61 @@ export function getDownloadedIds(photoIds: string[]): Set<string> {
   return new Set(photoIds.filter((id) => all.has(id)));
 }
 
+// ─── Web Share API (Mobile PWA) ───
+
+function getMimeType(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  const mimeMap: Record<string, string> = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+    gif: 'image/gif', webp: 'image/webp', heic: 'image/heic',
+    heif: 'image/heif', bmp: 'image/bmp', tif: 'image/tiff', tiff: 'image/tiff',
+  };
+  return mimeMap[ext] || 'application/octet-stream';
+}
+
+function canWebShare(): boolean {
+  return isMobileWeb() && !!navigator.share && !!navigator.canShare;
+}
+
+async function fetchAsFile(url: string, filename: string): Promise<File> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Download failed');
+  const blob = await response.blob();
+  return new File([blob], filename, { type: getMimeType(filename) });
+}
+
+/**
+ * Try Web Share API with files. Returns true if shared successfully.
+ */
+async function tryWebShare(files: File[]): Promise<boolean> {
+  if (!canWebShare()) return false;
+  try {
+    const shareData = { files };
+    if (!navigator.canShare(shareData)) return false;
+    await navigator.share(shareData);
+    return true;
+  } catch (error) {
+    // User cancelled share → still counts as handled
+    if (error instanceof Error && error.name === 'AbortError') return true;
+    return false;
+  }
+}
+
+function anchorDownload(blob: Blob, filename: string): void {
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(blobUrl);
+}
+
 /**
  * Universal photo download — handles all platforms:
- * - Capacitor native: saveToDevice (BRIDGE Downloads folder)
+ * - Capacitor native: saveToDevice (photo gallery)
+ * - Mobile web (PWA): Web Share API → OS share sheet (save to photos)
  * - KakaoTalk in-app: open external browser via intent scheme
- * - Other in-app browsers (FB, Instagram, LINE): direct URL open
- * - Regular browsers: fetch → blob → anchor download
+ * - Desktop browsers: fetch → blob → anchor download
  */
 export async function downloadPhoto(photoUrl: string, filename: string, photoId?: string): Promise<void> {
   const url = resolveFileUrl(photoUrl);
@@ -244,20 +293,28 @@ export async function downloadPhoto(photoUrl: string, filename: string, photoId?
     return;
   }
 
-  // 2. KakaoTalk / in-app browsers / regular browsers → blob download with fallback
+  // 2. Mobile web → try Web Share API first
+  if (canWebShare()) {
+    try {
+      const file = await fetchAsFile(url, filename);
+      const shared = await tryWebShare([file]);
+      if (shared) {
+        if (photoId) markAsDownloaded(photoId);
+        return;
+      }
+    } catch {
+      // Fall through to blob download
+    }
+  }
+
+  // 3. Desktop / fallback → blob download
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error('Download failed');
     const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(blobUrl);
+    anchorDownload(blob, filename);
     if (photoId) markAsDownloaded(photoId);
   } catch {
-    // Fallback: KakaoTalk → external browser, others → new tab
     if (isKakaoTalk()) {
       window.open(`kakaotalk://web/openExternal?url=${encodeURIComponent(url)}`, '_self');
     } else {
@@ -265,4 +322,54 @@ export async function downloadPhoto(photoUrl: string, filename: string, photoId?
     }
     if (photoId) markAsDownloaded(photoId);
   }
+}
+
+/**
+ * Batch download photos — optimized for Web Share API on mobile.
+ * - Mobile web: fetches all files, shares via single OS share sheet
+ * - Other platforms: falls back to individual downloadPhoto() calls
+ * Returns array of successfully downloaded photo IDs.
+ */
+export async function downloadPhotosBatch(
+  photos: { url: string; filename: string; id: string }[],
+): Promise<string[]> {
+  const downloadedIds: string[] = [];
+
+  // Mobile web → batch Web Share
+  if (canWebShare() && photos.length > 0) {
+    try {
+      const files: File[] = [];
+      for (const photo of photos) {
+        try {
+          const file = await fetchAsFile(resolveFileUrl(photo.url), photo.filename);
+          files.push(file);
+          downloadedIds.push(photo.id);
+        } catch {
+          console.warn('[NativeDownload] Failed to fetch photo for share:', photo.id);
+        }
+      }
+      if (files.length > 0) {
+        const shared = await tryWebShare(files);
+        if (shared) {
+          markManyAsDownloaded(downloadedIds);
+          return downloadedIds;
+        }
+      }
+    } catch {
+      // Fall through to individual downloads
+    }
+    // Reset if share failed
+    downloadedIds.length = 0;
+  }
+
+  // Fallback: individual downloads (native, desktop, share failed)
+  for (const photo of photos) {
+    try {
+      await downloadPhoto(photo.url, photo.filename, photo.id);
+      downloadedIds.push(photo.id);
+    } catch {
+      console.warn('[NativeDownload] Failed to download photo:', photo.id);
+    }
+  }
+  return downloadedIds;
 }

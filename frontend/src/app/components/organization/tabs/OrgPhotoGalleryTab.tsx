@@ -16,7 +16,7 @@ import {
 import { toast } from 'sonner';
 import { orgPhotoService } from '../../../utils/services';
 import { isNative } from '../../../utils/platform';
-import { saveToDevice, downloadPhoto, getDownloadedIds, markAsDownloaded, markManyAsDownloaded } from '../../../utils/nativeDownload';
+import { saveToDevice, downloadPhoto, downloadPhotosBatch, getDownloadedIds, markAsDownloaded, markManyAsDownloaded } from '../../../utils/nativeDownload';
 import { MotionModal } from '../../ui/MotionModal';
 import { IconButton } from '../../ui/IconButton';
 import { PhotoAlbumBar } from '../photo/PhotoAlbumBar';
@@ -178,23 +178,18 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
     [t],
   );
 
-  // Batch download (individual files)
+  // Batch download (Web Share on mobile, individual on desktop/native)
   const handleBatchDownload = useCallback(async () => {
     if (selectedIds.size === 0) return;
     try {
       const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
-      let downloadedCount = 0;
-      const downloadedPhotoIds: string[] = [];
-      for (const photo of selectedPhotos) {
-        try {
-          await downloadPhoto(photo.url, photo.original_filename, photo.id);
-          downloadedCount++;
-          downloadedPhotoIds.push(photo.id);
-        } catch {
-          console.warn('Failed to download photo:', photo.id);
-        }
-      }
-      if (downloadedCount > 0) {
+      const batchItems = selectedPhotos.map((p) => ({
+        url: p.url,
+        filename: p.original_filename,
+        id: p.id,
+      }));
+      const downloadedPhotoIds = await downloadPhotosBatch(batchItems);
+      if (downloadedPhotoIds.length > 0) {
         setDownloadedIds((prev) => {
           const next = new Set(prev);
           downloadedPhotoIds.forEach((id) => next.add(id));
@@ -204,7 +199,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
           isNative()
             ? t('photoGallery.savedToGallery', 'Saved to Photos')
             : t('photoGallery.downloadSuccess', '{{count}} photos downloaded', {
-                count: downloadedCount,
+                count: downloadedPhotoIds.length,
               }),
         );
       }

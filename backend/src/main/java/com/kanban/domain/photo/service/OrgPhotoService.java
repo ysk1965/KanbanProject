@@ -174,12 +174,15 @@ public class OrgPhotoService {
             photos = cursorDateTime != null
                     ? orgPhotoRepository.findByTabIdAndCreatedAtBefore(tabId, cursorDateTime, pageable)
                     : orgPhotoRepository.findByTabIdOrderByCreatedAtDesc(tabId, pageable);
-            totalCount = orgPhotoRepository.countByTabId(tabId);
+            // Use tab's managed photoCount instead of COUNT query
+            OrgPhotoTab tab = getTabOrThrow(tabId, orgId);
+            totalCount = tab.getPhotoCount();
         } else {
             photos = cursorDateTime != null
                     ? orgPhotoRepository.findByOrgIdAndCreatedAtBefore(orgId, cursorDateTime, pageable)
                     : orgPhotoRepository.findByOrgIdOrderByCreatedAtDesc(orgId, pageable);
-            totalCount = orgPhotoRepository.countByOrganizationId(orgId);
+            // Sum from tab table (lightweight) instead of COUNT on photos table
+            totalCount = orgPhotoTabRepository.sumPhotoCountByOrganizationId(orgId);
         }
 
         boolean hasNext = photos.size() > size;
@@ -425,7 +428,7 @@ public class OrgPhotoService {
             nextCursor = lastPhoto.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         }
 
-        long totalCount = orgPhotoRepository.countByTabId(tab.getId());
+        long totalCount = tab.getPhotoCount();
 
         List<OrgPhotoResponse.SharedPhotoItem> items = photos.stream()
                 .map(OrgPhotoResponse.SharedPhotoItem::from)
@@ -636,7 +639,7 @@ public class OrgPhotoService {
                     .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         }
 
-        long totalCount = orgPhotoRepository.countByTabId(tab.getId());
+        long totalCount = tab.getPhotoCount();
 
         List<OrgPhotoResponse.SharedPhotoItem> items = photos.stream()
                 .map(OrgPhotoResponse.SharedPhotoItem::from)
@@ -804,7 +807,7 @@ public class OrgPhotoService {
                     .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         }
 
-        long totalCount = orgPhotoRepository.countByTabId(tab.getId());
+        long totalCount = tab.getPhotoCount();
 
         List<OrgPhotoResponse.SharedPhotoItem> items = photos.stream()
                 .map(OrgPhotoResponse.SharedPhotoItem::from)
