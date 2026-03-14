@@ -2,11 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Camera, AlertCircle, ArrowLeft, Download, Loader2 } from 'lucide-react';
+import { Camera, AlertCircle, ArrowLeft, Download, Check, Loader2 } from 'lucide-react';
 import { publicAlbumAPI, resolveFileUrl } from '../utils/api';
 import { PhotoLightbox } from '../components/organization/photo/PhotoLightbox';
-import { isNative } from '../utils/platform';
-import { saveToDevice } from '../utils/nativeDownload';
+import { downloadPhoto, getDownloadedIds } from '../utils/nativeDownload';
 import type { SharedAlbumInfo, SharedPhotoItem, OrgPhoto } from '../types';
 
 /** Map SharedPhotoItem → OrgPhoto shape so we can reuse PhotoLightbox */
@@ -41,6 +40,14 @@ export function SharedAlbumPage() {
   const [hasNext, setHasNext] = useState(false);
   const [lightboxPhoto, setLightboxPhoto] = useState<OrgPhoto | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Download history
+  const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (photos.length > 0) {
+      setDownloadedIds(getDownloadedIds(photos.map((p) => p.id)));
+    }
+  }, [photos]);
 
   // Fetch album info
   useEffect(() => {
@@ -110,25 +117,10 @@ export function SharedAlbumPage() {
   // Download single photo
   const handleDownload = useCallback(async (photo: OrgPhoto) => {
     try {
-      const url = resolveFileUrl(photo.url);
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Download failed');
-      const blob = await response.blob();
-
-      if (isNative()) {
-        const result = await saveToDevice(blob, photo.original_filename);
-        if (!result.success) throw new Error(result.error || 'Save failed');
-      } else {
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = photo.original_filename;
-        a.click();
-        URL.revokeObjectURL(blobUrl);
-      }
+      await downloadPhoto(photo.url, photo.original_filename, photo.id);
+      setDownloadedIds((prev) => new Set(prev).add(photo.id));
     } catch (error) {
       console.warn('Download failed:', error);
-      window.open(resolveFileUrl(photo.url), '_blank');
     }
   }, []);
 
@@ -245,6 +237,15 @@ export function SharedAlbumPage() {
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
+                {/* Downloaded badge */}
+                {downloadedIds.has(photo.id) && (
+                  <div className="absolute top-1.5 right-1.5 z-10">
+                    <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/90 text-white">
+                      <Check size={10} strokeWidth={3} />
+                      <span className="text-[9px] font-bold">saved</span>
+                    </div>
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
                   <span className="text-[10px] text-white/90 truncate flex-1">
                     {photo.original_filename}
