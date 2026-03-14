@@ -1155,6 +1155,7 @@ export function KanbanBoardPage() {
 
   // Upgrade Modal 열기 헬퍼
   const openUpgradeModal = (trigger: UpgradeTrigger) => {
+    if (hideBilling) return;
     setUpgradeTrigger(trigger);
     setIsUpgradeModalOpen(true);
   };
@@ -2636,8 +2637,8 @@ export function KanbanBoardPage() {
           unreadInquiryCount={unreadInquiryCount}
           onOpenInquiry={() => setIsInquiryModalOpen(true)}
           onOpenShareBoard={() => setIsShareBoardModalOpen(true)}
-          onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
-          onOpenPremiumBenefits={() => setIsPremiumBenefitsModalOpen(true)}
+          onOpenSubscription={() => { if (!hideBilling) setIsSubscriptionModalOpen(true); }}
+          onOpenPremiumBenefits={() => { if (!hideBilling) setIsPremiumBenefitsModalOpen(true); }}
           onUpdatePayment={async () => {
             if (!boardId) return;
             try {
@@ -2707,7 +2708,7 @@ export function KanbanBoardPage() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => handleKanbanMilestoneSelect("all")}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                       kanbanSelectedMilestoneId === "all"
                         ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
                         : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
@@ -2718,7 +2719,7 @@ export function KanbanBoardPage() {
                   {hasUnassignedFeatures && (
                     <button
                       onClick={() => handleKanbanMilestoneSelect("none")}
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                      className={`px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                         kanbanSelectedMilestoneId === "none"
                           ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
                           : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
@@ -2739,7 +2740,7 @@ export function KanbanBoardPage() {
                         onClick={() =>
                           handleKanbanMilestoneSelect(milestone.id)
                         }
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                           kanbanSelectedMilestoneId === milestone.id
                             ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
                             : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
@@ -2747,7 +2748,7 @@ export function KanbanBoardPage() {
                       >
                         <span>{milestone.title}</span>
                         <span
-                          className={`text-[10px] font-normal ${kanbanSelectedMilestoneId === milestone.id ? "text-white/70" : "text-zinc-500"}`}
+                          className={`text-xs font-normal ${kanbanSelectedMilestoneId === milestone.id ? "text-white/70" : "text-zinc-500"}`}
                         >
                           {startDate} ~ {endDate}
                         </span>
@@ -3216,7 +3217,7 @@ export function KanbanBoardPage() {
                             <h3 className="font-bold text-sm text-foreground">
                               {activeBlock.name}
                             </h3>
-                            <span className="text-xs font-semibold text-zinc-400 bg-bridge-surface-hover px-2 py-0.5 rounded-md">
+                            <span className="text-xs font-medium text-zinc-400 bg-bridge-surface-hover px-2 py-0.5 rounded-md">
                               {(blockTasksMap[activeBlock.id] || []).length}
                             </span>
                           </div>
@@ -3930,7 +3931,7 @@ export function KanbanBoardPage() {
         />
 
         {/* Version Info */}
-        <div className="fixed bottom-16 md:bottom-2 right-3 text-[10px] text-slate-600 select-none pointer-events-none z-10">
+        <div className="fixed bottom-16 md:bottom-2 right-3 text-xs text-slate-600 select-none pointer-events-none z-10">
           FE:{" "}
           {typeof __FE_COMMIT_HASH__ !== "undefined"
             ? __FE_COMMIT_HASH__
@@ -3986,7 +3987,7 @@ function MobileTabButton({
         />
       )}
       {iconMap[icon]}
-      <span className="text-[10px] font-medium">{label}</span>
+      <span className="text-xs font-medium">{label}</span>
       {locked && (
         <Lock size={8} className="absolute top-0.5 right-1 text-zinc-600" />
       )}

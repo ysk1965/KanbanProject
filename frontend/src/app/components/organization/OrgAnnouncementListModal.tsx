@@ -74,7 +74,7 @@ export function OrgAnnouncementListModal({ open, onClose, orgId, role, onEditCli
           <h3 className="text-base font-bold text-foreground">
             {t('organization.dashboard.announcements', 'Announcements')}
           </h3>
-          <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full">
+          <span className="text-xs font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full">
             {announcements.length}
           </span>
         </div>
@@ -96,7 +96,7 @@ export function OrgAnnouncementListModal({ open, onClose, orgId, role, onEditCli
                 {a.content && (
                   <p className="text-xs text-muted-foreground mb-1.5 whitespace-pre-wrap">{a.content}</p>
                 )}
-                <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
                   <span>{a.author_name}</span>
                   <span>&middot;</span>
                   <span>{formatRelativeTime(a.created_at)}</span>
@@ -132,7 +132,7 @@ export function OrgAnnouncementListModal({ open, onClose, orgId, role, onEditCli
         )}
 
         <div className="flex items-center justify-end px-5 pb-4 pt-3 border-t border-foreground/[0.08]">
-          <span className="text-[10px] text-slate-500">Esc {t('common.close', 'Close')}</span>
+          <span className="text-xs text-slate-500">Esc {t('common.close', 'Close')}</span>
         </div>
       </div>
     </MotionModal>

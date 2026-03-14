@@ -75,7 +75,7 @@ export function AlbumShareModal({
           <h3 className="text-base font-bold text-foreground">
             {t('photoGallery.shareTitle', 'Album Sharing')}
           </h3>
-          <p className="text-[10px] text-slate-500">{album.name}</p>
+          <p className="text-xs text-slate-500">{album.name}</p>
         </div>
       </div>
 
@@ -87,7 +87,7 @@ export function AlbumShareModal({
             <p className="text-sm font-bold text-foreground">
               {t('photoGallery.sharePublicLink', 'Public Link Sharing')}
             </p>
-            <p className="text-[10px] text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               {t('photoGallery.sharePublicLinkDesc', 'Anyone with the link can view this album (read-only)')}
             </p>
           </div>
@@ -113,7 +113,7 @@ export function AlbumShareModal({
         {/* Link display */}
         {album.is_shared && shareUrl && (
           <div className="space-y-2">
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
               {t('photoGallery.shareLink', 'Share Link')}
             </label>
             <div className="flex items-center gap-2">
@@ -134,7 +134,7 @@ export function AlbumShareModal({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-[10px] text-slate-600">
+        <span className="text-xs text-slate-600">
           Esc {t('common.close', 'Close')}
         </span>
         <button

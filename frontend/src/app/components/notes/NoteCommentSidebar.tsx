@@ -157,7 +157,7 @@ export function NoteCommentSidebar({
         >
           {collapsed ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           {t('notes.comment.title', '댓글')}
-          <span className="text-[10px] bg-bridge-accent/20 text-bridge-accent px-1.5 py-0.5 rounded-full font-bold">
+          <span className="text-xs bg-bridge-accent/20 text-bridge-accent px-1.5 py-0.5 rounded-full font-bold">
             {openCount}
           </span>
         </button>
@@ -175,7 +175,7 @@ export function NoteCommentSidebar({
                 <button
                   key={f.key}
                   onClick={() => setFilter(f.key)}
-                  className={`text-[10px] px-2 py-0.5 rounded-full transition-colors ${
+                  className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
                     filter === f.key
                       ? 'bg-bridge-accent/20 text-bridge-accent font-bold'
                       : 'text-slate-500 hover:text-slate-300 hover:bg-foreground/5'
@@ -190,6 +190,7 @@ export function NoteCommentSidebar({
           <button
             onClick={onClose}
             className="p-1 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+            aria-label="닫기"
           >
             <X className="h-4 w-4" />
           </button>
@@ -205,7 +206,7 @@ export function NoteCommentSidebar({
               {showNewComment ? (
                 <div>
                   {activeBlockId && (
-                    <div className="flex items-center gap-1.5 mb-2 text-[10px] text-slate-500">
+                    <div className="flex items-center gap-1.5 mb-2 text-xs text-slate-500">
                       <Hash className="h-3 w-3" />
                       <span>{t('notes.comment.blockComment', '블록 댓글')}: {activeBlockId.substring(0, 8)}</span>
                     </div>
@@ -253,7 +254,7 @@ export function NoteCommentSidebar({
                 {blockThreads.length > 0 && (
                   <div className="space-y-2">
                     {generalThreads.length > 0 && (
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1">
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1">
                         <Hash className="h-3 w-3" />
                         {t('notes.comment.blockComments', '블록 댓글')}
                       </p>
@@ -280,7 +281,7 @@ export function NoteCommentSidebar({
                 {generalThreads.length > 0 && (
                   <div className="space-y-2">
                     {blockThreads.length > 0 && (
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-2">
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-2">
                         {t('notes.comment.generalComments', '일반 댓글')}
                       </p>
                     )}

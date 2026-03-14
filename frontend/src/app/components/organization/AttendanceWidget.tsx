@@ -210,7 +210,7 @@ export function AttendanceWidget({ orgId }: AttendanceWidgetProps) {
                   <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
                     {t("organization.attendance.working", "Working")}
                   </span>
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5">
                     <span>
                       {extractTimeFromISO(myRecord!.clock_in)}{" "}
                       {t("organization.attendance.clockInTime", "Clock In")}
@@ -242,7 +242,7 @@ export function AttendanceWidget({ orgId }: AttendanceWidgetProps) {
                   <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
                     {t("organization.attendance.clockedOut", "Clocked Out")}
                   </span>
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex-wrap">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex-wrap">
                     <span>
                       {t("organization.attendance.clockInTime", "Clock In")}{" "}
                       {extractTimeFromISO(myRecord!.clock_in)}
@@ -253,7 +253,7 @@ export function AttendanceWidget({ orgId }: AttendanceWidgetProps) {
                       {extractTimeFromISO(myRecord!.clock_out)}
                     </span>
                     <span className="text-foreground/20">·</span>
-                    <span className="font-semibold text-foreground/70">
+                    <span className="font-medium text-foreground/70">
                       {t("organization.attendance.totalWork", "Total Work")}{" "}
                       {formatElapsed(myRecord!.work_minutes, t)}
                     </span>
@@ -304,7 +304,7 @@ export function AttendanceWidget({ orgId }: AttendanceWidgetProps) {
             className="flex-1 flex items-center justify-center gap-2 py-2.5 hover:bg-foreground/[0.03] transition-colors cursor-pointer"
           >
             <stat.icon size={13} className={stat.iconClass} />
-            <span className="text-[11px] text-slate-400">{stat.label}</span>
+            <span className="text-xs text-slate-400">{stat.label}</span>
             <span className="text-sm font-bold text-foreground">{stat.value}</span>
           </button>
         ))}

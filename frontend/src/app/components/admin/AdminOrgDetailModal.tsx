@@ -6,6 +6,7 @@ import { AdminOrgDetail } from '../../utils/api';
 import { formatDateTime, formatDate } from '../../utils/dateUtils';
 import { ConfirmModal, PromptModal, SelectModal, Toast } from './AdminConfirmModal';
 import { MotionModal } from '../ui/MotionModal';
+import { IconButton } from '../ui/IconButton';
 
 interface AdminOrgDetailModalProps {
   orgId: string;
@@ -266,12 +267,9 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
               )}
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <IconButton onClick={onClose} aria-label="닫기" size="md">
+            <X />
+          </IconButton>
         </div>
 
         {/* Content */}
@@ -311,21 +309,21 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
                   {/* Basic Info */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">ID</p>
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">ID</p>
                       <p className="text-sm text-foreground font-mono">{org.id}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">{t('admin.organizations.table.owner')}</p>
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">{t('admin.organizations.table.owner')}</p>
                       <p className="text-sm text-foreground">{org.owner.name}</p>
                       <p className="text-xs text-slate-400">{org.owner.email}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">{t('admin.organizations.table.created')}</p>
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">{t('admin.organizations.table.created')}</p>
                       <p className="text-sm text-foreground">{formatDateTime(org.created_at)}</p>
                     </div>
                     {org.description && (
                       <div className="col-span-2">
-                        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">Description</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Description</p>
                         <p className="text-sm text-foreground">{org.description}</p>
                       </div>
                     )}
@@ -338,7 +336,7 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
                       <button
                         onClick={isEditingSubscription ? handleSaveSubscription : handleToggleSubscriptionEdit}
                         disabled={isUpdating}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all disabled:opacity-50 ${
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-all disabled:opacity-50 ${
                           isEditingSubscription
                             ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20'
                             : 'text-bridge-accent bg-bridge-accent/10 border border-bridge-accent/20 hover:bg-bridge-accent/20'
@@ -356,7 +354,7 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                           <div>
-                            <p className="text-[10px] text-slate-400 mb-1">{t('admin.organizations.detail.plan')}</p>
+                            <p className="text-xs text-slate-400 mb-1">{t('admin.organizations.detail.plan')}</p>
                             <select
                               value={subEditForm.plan}
                               onChange={(e) => setSubEditForm(prev => ({ ...prev, plan: e.target.value }))}
@@ -367,7 +365,7 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
                             </select>
                           </div>
                           <div>
-                            <p className="text-[10px] text-slate-400 mb-1">{t('admin.organizations.detail.status')}</p>
+                            <p className="text-xs text-slate-400 mb-1">{t('admin.organizations.detail.status')}</p>
                             <select
                               value={subEditForm.status}
                               onChange={(e) => setSubEditForm(prev => ({ ...prev, status: e.target.value }))}
@@ -381,7 +379,7 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
                             </select>
                           </div>
                           <div>
-                            <p className="text-[10px] text-slate-400 mb-1">{t('admin.organizations.detail.billingCycle')}</p>
+                            <p className="text-xs text-slate-400 mb-1">{t('admin.organizations.detail.billingCycle')}</p>
                             <select
                               value={subEditForm.billing_cycle}
                               onChange={(e) => setSubEditForm(prev => ({ ...prev, billing_cycle: e.target.value }))}
@@ -392,7 +390,7 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
                             </select>
                           </div>
                           <div>
-                            <p className="text-[10px] text-slate-400 mb-1">{t('admin.organizations.detail.seatCount')}</p>
+                            <p className="text-xs text-slate-400 mb-1">{t('admin.organizations.detail.seatCount')}</p>
                             <input
                               type="number"
                               min={0}
@@ -404,7 +402,7 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
                         </div>
                         <button
                           onClick={() => setIsEditingSubscription(false)}
-                          className="text-[10px] text-slate-400 hover:text-foreground transition-colors"
+                          className="text-xs text-slate-400 hover:text-foreground transition-colors"
                         >
                           {t('common.cancel', '취소')}
                         </button>
@@ -412,28 +410,28 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
                     ) : (
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         <div>
-                          <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.plan')}</p>
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${getPlanStyle(org.plan)}`}>
+                          <p className="text-xs text-slate-400 mb-0.5">{t('admin.organizations.detail.plan')}</p>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${getPlanStyle(org.plan)}`}>
                             {org.plan}
                           </span>
                         </div>
                         <div>
-                          <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.status')}</p>
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${getStatusStyle(org.subscription_status)}`}>
+                          <p className="text-xs text-slate-400 mb-0.5">{t('admin.organizations.detail.status')}</p>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${getStatusStyle(org.subscription_status)}`}>
                             {org.subscription_status || '-'}
                           </span>
                         </div>
                         <div>
-                          <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.seatCount')}</p>
+                          <p className="text-xs text-slate-400 mb-0.5">{t('admin.organizations.detail.seatCount')}</p>
                           <p className="text-sm font-bold text-foreground">{org.seat_count}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.activeMembers')}</p>
+                          <p className="text-xs text-slate-400 mb-0.5">{t('admin.organizations.detail.activeMembers')}</p>
                           <p className="text-sm font-bold text-foreground">{org.active_member_count}</p>
                         </div>
                         {org.billing_cycle && (
                           <div>
-                            <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.billingCycle')}</p>
+                            <p className="text-xs text-slate-400 mb-0.5">{t('admin.organizations.detail.billingCycle')}</p>
                             <p className="text-sm text-foreground">
                               {org.billing_cycle === 'MONTHLY' ? t('admin.organizations.detail.monthly') : t('admin.organizations.detail.yearly')}
                             </p>
@@ -441,25 +439,25 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
                         )}
                         {org.trial_ends_at && (
                           <div>
-                            <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.trialEndsAt')}</p>
+                            <p className="text-xs text-slate-400 mb-0.5">{t('admin.organizations.detail.trialEndsAt')}</p>
                             <p className="text-sm text-foreground">{formatDate(org.trial_ends_at)}</p>
                           </div>
                         )}
                         {org.current_period_end && (
                           <div>
-                            <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.currentPeriodEnd')}</p>
+                            <p className="text-xs text-slate-400 mb-0.5">{t('admin.organizations.detail.currentPeriodEnd')}</p>
                             <p className="text-sm text-foreground">{formatDate(org.current_period_end)}</p>
                           </div>
                         )}
                         {org.price_per_seat != null && org.price_per_seat > 0 && (
                           <div>
-                            <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.pricePerSeat')}</p>
+                            <p className="text-xs text-slate-400 mb-0.5">{t('admin.organizations.detail.pricePerSeat')}</p>
                             <p className="text-sm text-foreground">${(org.price_per_seat / 100).toLocaleString()}</p>
                           </div>
                         )}
                         {org.total_price != null && org.total_price > 0 && (
                           <div>
-                            <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.totalPrice')}</p>
+                            <p className="text-xs text-slate-400 mb-0.5">{t('admin.organizations.detail.totalPrice')}</p>
                             <p className="text-sm font-bold text-foreground">${(org.total_price / 100).toLocaleString()}</p>
                           </div>
                         )}
@@ -507,7 +505,7 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
                       >
                         <div className="flex items-center gap-3">
                           {member.profile_image ? (
-                            <img src={member.profile_image} alt="" className="w-8 h-8 rounded-full object-cover" />
+                            <img src={member.profile_image} alt={member.name || '프로필'} className="w-8 h-8 rounded-full object-cover" />
                           ) : (
                             <div className="w-8 h-8 rounded-full bg-bridge-accent/20 flex items-center justify-center">
                               <UserIcon className="h-4 w-4 text-bridge-accent" />
@@ -517,7 +515,7 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
                             <div className="flex items-center gap-1.5">
                               <p className="text-sm font-medium text-foreground">{member.name}</p>
                               {getRoleIcon(member.role)}
-                              <span className="text-[10px] font-bold text-slate-400">{member.role}</span>
+                              <span className="text-xs font-bold text-slate-400">{member.role}</span>
                             </div>
                             <p className="text-xs text-slate-400">{member.email}</p>
                           </div>
@@ -574,7 +572,7 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
 
         {/* Footer */}
         <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-          <span className="text-[10px] text-slate-600">Esc {t('common.close', '닫기')}</span>
+          <span className="text-xs text-slate-600">Esc {t('common.close', '닫기')}</span>
         </div>
       </MotionModal>
 

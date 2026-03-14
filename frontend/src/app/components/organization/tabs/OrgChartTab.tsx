@@ -412,7 +412,7 @@ function DepartmentTreeView({
           <div className="text-sm font-bold text-foreground">
             {data.organization_name}
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
+          <div className="text-xs text-muted-foreground mt-0.5">
             <span className="flex items-center justify-center gap-1">
               <UsersIcon size={12} />
               {data.total_members}
@@ -448,7 +448,7 @@ function DepartmentTreeView({
                 <span className="text-xs font-bold text-foreground">
                   {t("organization.chart.unassigned", "Unassigned")}
                 </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-500">
+                <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-500">
                   {data.unassigned.length}
                 </span>
               </div>
@@ -564,7 +564,7 @@ function DepartmentTreeNode({
                       onMemberClick(dept.leader.member_id);
                   }}
                 >
-                  <span className="text-[10px] font-bold text-bridge-accent">
+                  <span className="text-xs font-bold text-bridge-accent">
                     {dept.leader.user_name?.charAt(0)?.toUpperCase() || "?"}
                   </span>
                 </div>
@@ -577,7 +577,7 @@ function DepartmentTreeNode({
                 <div className="text-xs font-bold text-foreground truncate">
                   {dept.name}
                 </div>
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <UsersIcon size={10} />
                   <span>{dept.total_member_count}</span>
                   {dept.leader && (
@@ -613,16 +613,16 @@ function DepartmentTreeNode({
                     />
                   ) : (
                     <div className="w-5 h-5 rounded-full bg-bridge-accent/15 flex items-center justify-center shrink-0">
-                      <span className="text-[8px] font-bold text-bridge-accent">
+                      <span className="text-xs font-bold text-bridge-accent">
                         {member.user_name?.charAt(0)?.toUpperCase() || "?"}
                       </span>
                     </div>
                   )}
-                  <span className="text-[10px] text-foreground truncate">
+                  <span className="text-xs text-foreground truncate">
                     {member.user_name}
                   </span>
                   {member.job_title && (
-                    <span className="text-[9px] text-muted-foreground truncate hidden md:inline">
+                    <span className="text-xs text-muted-foreground truncate hidden md:inline">
                       {member.job_title}
                     </span>
                   )}
@@ -635,7 +635,7 @@ function DepartmentTreeNode({
         {/* Child dept count badge */}
         {hasChildren && (
           <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-10">
-            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/90 text-white shadow-sm">
+            <span className="inline-flex items-center gap-0.5 text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/90 text-white shadow-sm">
               {dept.child_dept_count}
               <ChevronDown
                 size={10}
@@ -772,16 +772,16 @@ function ListView({
                 <span className="text-sm font-bold text-foreground">
                   {dept.name}
                 </span>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   ({dept.total_member_count})
                 </span>
                 {dept.leader && (
-                  <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                  <span className="text-xs text-muted-foreground hidden sm:inline">
                     · {dept.leader.user_name}
                   </span>
                 )}
                 {hasChildren && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                     {dept.child_dept_count}
                   </span>
                 )}
@@ -844,7 +844,7 @@ function ListView({
             <span className="text-sm font-bold text-foreground">
               {t("organization.chart.unassigned", "Unassigned")}
             </span>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               ({data.unassigned.length})
             </span>
           </button>
@@ -943,7 +943,7 @@ function MemberListNode({
         style={{ paddingLeft: `${12 + depth * 24}px` }}
       >
         {depth > 0 && (
-          <div className="text-muted-foreground text-[10px] select-none">
+          <div className="text-muted-foreground text-xs select-none">
             |--
           </div>
         )}
@@ -971,13 +971,13 @@ function MemberListNode({
                 {member.user_name}
               </span>
               {member.job_title && (
-                <span className="text-[11px] text-muted-foreground truncate hidden sm:inline">
+                <span className="text-xs text-muted-foreground truncate hidden sm:inline">
                   · {member.job_title}
                 </span>
               )}
               {member.contract_type && (
                 <span
-                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full hidden sm:inline ${CONTRACT_COLORS[member.contract_type] || "bg-slate-500/15 text-slate-500"}`}
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded-full hidden sm:inline ${CONTRACT_COLORS[member.contract_type] || "bg-slate-500/15 text-slate-500"}`}
                 >
                   {CONTRACT_LABELS[member.contract_type] ||
                     member.contract_type}
@@ -985,7 +985,7 @@ function MemberListNode({
               )}
             </div>
             {member.job_title && (
-              <span className="text-[10px] text-muted-foreground truncate sm:hidden block">
+              <span className="text-xs text-muted-foreground truncate sm:hidden block">
                 {member.job_title}
               </span>
             )}
@@ -998,7 +998,7 @@ function MemberListNode({
               <button
                 onClick={() => onUpdateManager(member.id, null)}
                 disabled={updatingManager}
-                className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
                 title={t("organization.chart.removeManager", "Remove Manager")}
               >
                 <UserMinus size={12} />
@@ -1009,7 +1009,7 @@ function MemberListNode({
                   onManagerEdit(member.id);
                   onManagerSearchChange("");
                 }}
-                className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-bridge-accent hover:bg-bridge-accent/10 rounded-lg transition-colors"
+                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-bridge-accent hover:bg-bridge-accent/10 rounded-lg transition-colors"
                 title={t("organization.chart.assignManager", "Assign Manager")}
               >
                 <UserPlus size={12} />
@@ -1051,7 +1051,7 @@ function MemberListNode({
                   />
                 ) : (
                   <div className="w-6 h-6 rounded-full bg-bridge-accent/15 flex items-center justify-center shrink-0">
-                    <span className="text-[9px] font-bold text-bridge-accent">
+                    <span className="text-xs font-bold text-bridge-accent">
                       {candidate.user_name?.charAt(0)?.toUpperCase() || "?"}
                     </span>
                   </div>
@@ -1061,7 +1061,7 @@ function MemberListNode({
                     {candidate.user_name}
                   </div>
                   {candidate.job_title && (
-                    <div className="text-[10px] text-muted-foreground truncate">
+                    <div className="text-xs text-muted-foreground truncate">
                       {candidate.job_title}
                     </div>
                   )}
@@ -1076,7 +1076,7 @@ function MemberListNode({
           </div>
           <button
             onClick={() => onManagerEdit(null)}
-            className="w-full mt-1 text-[10px] text-muted-foreground hover:text-foreground text-center py-1"
+            className="w-full mt-1 text-xs text-muted-foreground hover:text-foreground text-center py-1"
           >
             {t("common.cancel", "Cancel")}
           </button>

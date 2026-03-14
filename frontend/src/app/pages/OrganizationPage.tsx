@@ -57,7 +57,7 @@ export function OrganizationPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
+      <div className="min-h-screen bg-bridge-dark flex items-center justify-center" role="status" aria-label="로딩 중">
         <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
       </div>
     );
@@ -131,7 +131,7 @@ export function OrganizationPage() {
                 className="w-full bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] hover:border-foreground/[0.12] p-5 transition-colors text-left flex items-center gap-4 group"
               >
                 {org.logo_url ? (
-                  <img src={org.logo_url} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                  <img src={org.logo_url} alt={org.name || '조직 로고'} className="w-12 h-12 rounded-xl object-cover shrink-0" />
                 ) : (
                   <div className="w-12 h-12 rounded-xl bg-bridge-accent/10 flex items-center justify-center shrink-0">
                     <Building2 size={22} className="text-bridge-accent" />
@@ -140,14 +140,14 @@ export function OrganizationPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-bold text-foreground truncate">{org.name}</span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent shrink-0">
+                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent shrink-0">
                       {roleLabel(org.my_role)}
                     </span>
                   </div>
                   {org.description && (
-                    <p className="text-[11px] text-slate-500 truncate mb-1.5">{org.description}</p>
+                    <p className="text-xs text-slate-500 truncate mb-1.5">{org.description}</p>
                   )}
-                  <div className="flex items-center gap-3 text-[11px] text-slate-400">
+                  <div className="flex items-center gap-3 text-xs text-slate-400">
                     <span className="flex items-center gap-1">
                       <Users size={11} />
                       {org.member_count}
@@ -175,7 +175,7 @@ export function OrganizationPage() {
         </div>
         <div className="px-6 py-5 space-y-4">
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
               {t('organization.create.name', 'Organization Name')}
             </label>
             <input
@@ -188,7 +188,7 @@ export function OrganizationPage() {
             />
           </div>
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
               {t('organization.create.description', 'Description')}
             </label>
             <textarea
@@ -201,7 +201,7 @@ export function OrganizationPage() {
           </div>
         </div>
         <div className="px-6 py-4 border-t border-foreground/[0.08] flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground">ESC</span>
+          <span className="text-xs text-muted-foreground">ESC</span>
           <div className="flex gap-2">
             <button
               onClick={() => setShowCreateModal(false)}

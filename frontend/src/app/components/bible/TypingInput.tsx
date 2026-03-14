@@ -78,7 +78,7 @@ export function TypingInput({ targetText, verseNumber, onComplete }: TypingInput
       <div className="space-y-4">
         {/* 미리보기 영역 */}
         <div className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
-          <div className="text-sm font-semibold text-gray-600 mb-2">{verseNumber}절</div>
+          <div className="text-sm font-medium text-gray-600 mb-2">{verseNumber}절</div>
           <div className="text-lg leading-relaxed font-serif min-h-[60px]">
             {getDisplayText()}
           </div>

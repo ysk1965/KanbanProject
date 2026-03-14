@@ -57,7 +57,7 @@ export function NoteListView({ boardId, selectedNoteId, searchQuery, onSelect, t
         <div className="flex items-center gap-1 flex-wrap mb-2 px-1">
           <button
             onClick={() => setFilterTagId(null)}
-            className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+            className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
               !filterTagId ? 'bg-bridge-accent/20 text-bridge-accent' : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
             }`}
           >
@@ -67,7 +67,7 @@ export function NoteListView({ boardId, selectedNoteId, searchQuery, onSelect, t
             <button
               key={tag.id}
               onClick={() => setFilterTagId(filterTagId === tag.id ? null : tag.id)}
-              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+              className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
                 filterTagId === tag.id
                   ? 'text-white'
                   : 'text-slate-400 hover:text-foreground'
@@ -99,19 +99,19 @@ export function NoteListView({ boardId, selectedNoteId, searchQuery, onSelect, t
             <div className="flex items-center gap-2">
               <FileText size={12} className="flex-shrink-0 text-slate-400" />
               <span className="text-xs font-medium truncate flex-1">{item.title}</span>
-              <span className="text-[10px] text-slate-500 flex-shrink-0">
+              <span className="text-xs text-slate-500 flex-shrink-0">
                 {formatDate(item.updated_at)}
               </span>
             </div>
             {(item.parent_title || item.tags.length > 0) && (
               <div className="flex items-center gap-2 mt-1 ml-5">
                 {item.parent_title && (
-                  <span className="text-[10px] text-slate-500 truncate">{item.parent_title}</span>
+                  <span className="text-xs text-slate-500 truncate">{item.parent_title}</span>
                 )}
                 {item.tags.map(tag => (
                   <span
                     key={tag.id}
-                    className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[9px]"
+                    className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-xs"
                     style={{ backgroundColor: `${tag.color}15`, color: tag.color }}
                   >
                     <TagIcon size={7} />

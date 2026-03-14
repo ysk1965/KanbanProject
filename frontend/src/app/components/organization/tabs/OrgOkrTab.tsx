@@ -136,7 +136,7 @@ export function OrgOkrTab({ orgId, myRole }: OrgOkrTabProps) {
           <div className="flex items-center bg-foreground/5 rounded-lg p-0.5">
             <button
               onClick={() => setViewMode("list")}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
+              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
                 viewMode === "list" ? "bg-bridge-accent text-white" : "text-slate-400 hover:text-foreground"
               }`}
             >
@@ -145,7 +145,7 @@ export function OrgOkrTab({ orgId, myRole }: OrgOkrTabProps) {
             </button>
             <button
               onClick={() => setViewMode("tree")}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
+              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
                 viewMode === "tree" ? "bg-bridge-accent text-white" : "text-slate-400 hover:text-foreground"
               }`}
             >

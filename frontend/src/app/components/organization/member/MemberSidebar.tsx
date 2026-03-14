@@ -124,8 +124,8 @@ export function MemberSidebar({ member, boards, leaveBalances, isAdmin, isSelf, 
                 return (
                   <div key={lb.id}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] text-slate-500">{lb.policy_name}</span>
-                      <span className="text-[11px] font-bold text-foreground">
+                      <span className="text-xs text-slate-500">{lb.policy_name}</span>
+                      <span className="text-xs font-bold text-foreground">
                         {lb.used_days}/{lb.total_days}
                       </span>
                     </div>
@@ -155,7 +155,7 @@ export function MemberSidebar({ member, boards, leaveBalances, isAdmin, isSelf, 
 function SidebarSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="pb-4 border-b border-foreground/[0.08] last:border-0 last:pb-0">
-      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">{title}</h4>
+      <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">{title}</h4>
       <div className="space-y-2">{children}</div>
     </div>
   );
@@ -166,7 +166,7 @@ function StatRow({ icon: Icon, label, value }: { icon: typeof Calendar; label: s
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
         <Icon size={13} className="text-slate-400" />
-        <span className="text-[11px] text-slate-500">{label}</span>
+        <span className="text-xs text-slate-500">{label}</span>
       </div>
       <span className="text-xs font-medium text-foreground">{value}</span>
     </div>

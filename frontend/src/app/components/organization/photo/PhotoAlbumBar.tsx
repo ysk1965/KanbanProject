@@ -75,7 +75,7 @@ export function PhotoAlbumBar({
       >
         <Images size={14} />
         {t('photoGallery.allPhotos', 'All')}
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+        <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
           activeAlbumId === null
             ? 'bg-bridge-accent/20 text-bridge-accent'
             : 'bg-foreground/10 text-slate-500'
@@ -96,7 +96,7 @@ export function PhotoAlbumBar({
             }`}
           >
             {album.name}
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+            <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
               activeAlbumId === album.id
                 ? 'bg-bridge-accent/20 text-bridge-accent'
                 : 'bg-foreground/10 text-slate-500'
@@ -148,7 +148,7 @@ export function PhotoAlbumBar({
             <Share2 size={13} className={menuAlbum.is_shared ? 'text-bridge-accent' : 'text-slate-400'} />
             {t('photoGallery.shareAlbum', 'Share')}
             {menuAlbum.is_shared && (
-              <span className="ml-auto text-[9px] font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">ON</span>
+              <span className="ml-auto text-xs font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">ON</span>
             )}
           </button>
           <button

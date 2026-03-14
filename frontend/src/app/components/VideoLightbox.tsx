@@ -68,6 +68,7 @@ export function VideoLightbox({ url, onClose }: VideoLightboxProps) {
       <button
         onClick={onClose}
         className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
+        aria-label="닫기"
       >
         <X className="h-5 w-5" />
       </button>

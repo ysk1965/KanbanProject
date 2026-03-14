@@ -139,7 +139,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
               {selectedInquiry ? t('inquiry.detailTitle') : t('inquiry.title')}
             </h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors" aria-label="닫기">
             <X size={20} />
           </button>
         </div>
@@ -149,7 +149,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
           <div className="flex border-b border-foreground/10">
             <button
               onClick={() => setActiveTab('new')}
-              className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+              className={`flex-1 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'new'
                   ? 'text-bridge-accent border-b-2 border-bridge-accent'
                   : 'text-slate-400 hover:text-foreground'
@@ -159,7 +159,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
             </button>
             <button
               onClick={() => setActiveTab('history')}
-              className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+              className={`flex-1 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'history'
                   ? 'text-bridge-accent border-b-2 border-bridge-accent'
                   : 'text-slate-400 hover:text-foreground'
@@ -178,13 +178,13 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
             submitSuccess ? (
               <div className="flex flex-col items-center justify-center py-12 gap-3">
                 <CheckCircle2 size={48} className="text-green-400" />
-                <p className="text-foreground font-semibold">{t('inquiry.submitted')}</p>
+                <p className="text-foreground font-bold">{t('inquiry.submitted')}</p>
                 <p className="text-slate-400 text-sm">{t('inquiry.submittedDesc')}</p>
               </div>
             ) : (
               <div className="space-y-4">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">
                     {t('inquiry.titleLabel')}
                   </label>
                   <input
@@ -197,7 +197,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">
                     {t('inquiry.contentLabel')}
                   </label>
                   <textarea
@@ -212,7 +212,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
 
                 {/* File Upload */}
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">
                     {t('inquiry.attachments')} ({files.length}/5)
                   </label>
                   <input
@@ -394,7 +394,7 @@ function InquiryDetailView({
 
       {inquiry.attachments.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('inquiry.attachments')}</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('inquiry.attachments')}</p>
           {inquiry.attachments.map(att => (
             <a
               key={att.id}
@@ -412,7 +412,7 @@ function InquiryDetailView({
 
       {inquiry.replies.length > 0 && (
         <div className="space-y-3 mt-6">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('inquiry.conversationHistory')}</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('inquiry.conversationHistory')}</p>
           {inquiry.replies.map(reply => {
             const isAdmin = reply.reply_type === 'ADMIN';
             const replier = isAdmin ? reply.admin : reply.user;
@@ -436,7 +436,7 @@ function InquiryDetailView({
                   </div>
                   <span className="text-foreground text-sm font-medium">{name}</span>
                   {isAdmin && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-bridge-accent/20 text-bridge-accent font-medium">Admin</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-bridge-accent/20 text-bridge-accent font-medium">Admin</span>
                   )}
                   <span className="text-slate-500 text-xs">
                     {formatDate(reply.created_at, 'yyyy-MM-dd')}
@@ -452,7 +452,7 @@ function InquiryDetailView({
       {/* User Reply Input */}
       {!isClosed && (
         <div className="mt-6 space-y-3">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('inquiry.additionalInquiry')}</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('inquiry.additionalInquiry')}</p>
           <textarea
             value={replyContent}
             onChange={e => setReplyContent(e.target.value)}

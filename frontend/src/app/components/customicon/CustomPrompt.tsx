@@ -11,11 +11,11 @@ export function CustomPrompt({ value, onChange }: CustomPromptProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+        <label className="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
           <MessageSquare className="w-3 h-3" />
           Custom Prompt
         </label>
-        <span className="text-[10px] text-slate-600">Optional</span>
+        <span className="text-xs text-slate-600">Optional</span>
       </div>
 
       <div className="relative">
@@ -33,7 +33,7 @@ export function CustomPrompt({ value, onChange }: CustomPromptProps) {
             focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
             transition-all"
         />
-        <span className={`absolute bottom-2 right-3 text-[10px] ${
+        <span className={`absolute bottom-2 right-3 text-xs ${
           value.length > MAX_LENGTH * 0.9 ? 'text-amber-400' : 'text-slate-600'
         }`}>
           {value.length}/{MAX_LENGTH}
@@ -41,7 +41,7 @@ export function CustomPrompt({ value, onChange }: CustomPromptProps) {
       </div>
 
       {!value && (
-        <p className="flex items-start gap-1.5 text-[10px] text-slate-600">
+        <p className="flex items-start gap-1.5 text-xs text-slate-600">
           <Info className="w-3 h-3 mt-0.5 shrink-0" />
           Describe any specific style details, mood, or constraints you want applied to the generated icons.
         </p>

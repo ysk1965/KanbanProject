@@ -79,7 +79,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
           {milestone && (
             <div className="flex items-center gap-2 bg-bridge-surface px-2 py-0.5 rounded-md border border-bridge-border mt-2">
               <Flag size={10} className="text-indigo-400" />
-              <span className="text-[10px] text-indigo-400 font-bold">{milestone.title}</span>
+              <span className="text-xs text-indigo-400 font-bold">{milestone.title}</span>
             </div>
           )}
         </div>
@@ -91,7 +91,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
           {featureTags.map((tag) => (
             <span
               key={tag.id}
-              className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+              className="text-xs font-bold px-2 py-0.5 rounded-full border"
               style={{
                 backgroundColor: `${tag.color}15`,
                 borderColor: `${tag.color}44`,
@@ -106,7 +106,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
 
       {/* 진행률 */}
       <div className={`mb-4 pl-2 relative ${justCompleted ? 'feature-complete-pulse' : ''}`}>
-        <div className="flex justify-between text-[11px] mb-1.5">
+        <div className="flex justify-between text-xs mb-1.5">
           <span className="text-zinc-400 font-medium">
             {t('feature.completedCount', { completed: feature.completed_tasks, total: feature.total_tasks })}
           </span>
@@ -136,7 +136,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
           {feature.due_date && (
             <div className="flex items-center gap-1.5 text-zinc-400">
               <Calendar size={12} />
-              <span className="text-[10px] font-medium">{feature.due_date}</span>
+              <span className="text-xs font-medium">{feature.due_date}</span>
             </div>
           )}
         </div>
@@ -146,7 +146,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
             onClick={handleExpandClick}
             className="flex items-center gap-1 group/sub"
           >
-            <span className="text-[10px] font-bold text-muted-foreground group-hover/sub:text-foreground transition-colors">
+            <span className="text-xs font-bold text-muted-foreground group-hover/sub:text-foreground transition-colors">
               {t('feature.subtasks')}
             </span>
             {isExpanded ? (
@@ -192,7 +192,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
               >
                 {task.title}
               </span>
-              <span className="text-[10px] font-bold text-zinc-400 tracking-wider">
+              <span className="text-xs font-bold text-zinc-400 tracking-wider">
                 → {task.block_name || task.block_id}
               </span>
             </div>

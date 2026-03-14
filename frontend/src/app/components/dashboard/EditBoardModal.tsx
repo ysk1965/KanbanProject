@@ -105,6 +105,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
             <button
               onClick={handleClose}
               className="text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="닫기"
             >
               <X size={20} />
             </button>
@@ -113,7 +114,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
           <div className="space-y-4">
             {/* Board Name */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                 {t('dashboard.boardName')} <span className="text-rose-500">*</span>
               </label>
               <input
@@ -134,7 +135,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
 
             {/* Description */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                 {t('dashboard.description')}
               </label>
               <textarea
@@ -149,7 +150,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
             {/* Background Color */}
             <div className="space-y-1.5">
               <div className="flex items-center gap-3">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t('dashboard.backgroundColor')}
                 </label>
                 <GradientPickerPopover

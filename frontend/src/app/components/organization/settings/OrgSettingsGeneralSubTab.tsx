@@ -117,7 +117,7 @@ export function OrgSettingsGeneralSubTab({
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">{org.name}</p>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {t("organization.settings.logoHint", "Click camera to update logo")}
               </p>
             </div>
@@ -125,7 +125,7 @@ export function OrgSettingsGeneralSubTab({
 
           <div className="space-y-3">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                 {t("organization.settings.name", "Organization Name")}
               </label>
               <input
@@ -136,7 +136,7 @@ export function OrgSettingsGeneralSubTab({
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                 {t("organization.settings.description", "Description")}
               </label>
               <textarea
@@ -172,7 +172,7 @@ export function OrgSettingsGeneralSubTab({
           <MonitorSmartphone size={16} className="text-bridge-accent" />
           {t("organization.settings.hrSystem", "External HR System")}
         </h3>
-        <p className="text-[11px] text-slate-500 mb-4">
+        <p className="text-xs text-slate-500 mb-4">
           {t("organization.settings.hrSystemDesc", "If your organization manages leave/vacation in an external HR system, you can hide those features from BRIDGE.")}
         </p>
         <div className="flex items-center justify-between p-3 bg-foreground/[0.02] rounded-xl border border-foreground/[0.08]">
@@ -180,7 +180,7 @@ export function OrgSettingsGeneralSubTab({
             <span className="text-sm font-medium text-foreground">
               {t("organization.settings.hrSystemEnabled", "Hide BRIDGE leave/vacation features")}
             </span>
-            <p className="text-[10px] text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               {t("organization.settings.hrSystemHint", "Leave management, leave balance, and HR info will not be displayed.")}
             </p>
           </div>
@@ -215,7 +215,7 @@ export function OrgSettingsGeneralSubTab({
           <Users size={16} className="text-bridge-accent" />
           {t("organization.settings.autoBoardAccess", "자동 보드 접근")}
         </h3>
-        <p className="text-[11px] text-slate-500 mb-4">
+        <p className="text-xs text-slate-500 mb-4">
           {t("organization.settings.autoBoardAccessDesc", "활성화하면 조직 구성원이 참가 신청 없이 모든 조직 보드에 편집 권한으로 접근할 수 있습니다.")}
         </p>
         <div className="flex items-center justify-between p-3 bg-foreground/[0.02] rounded-xl border border-foreground/[0.08]">
@@ -223,7 +223,7 @@ export function OrgSettingsGeneralSubTab({
             <span className="text-sm font-medium text-foreground">
               {t("organization.settings.autoBoardAccessEnabled", "자동 보드 접근 허용")}
             </span>
-            <p className="text-[10px] text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               {t("organization.settings.autoBoardAccessHint", "조직 구성원이 MEMBER 역할로 자동 접근됩니다. 보드 멤버 목록에는 추가되지 않습니다.")}
             </p>
           </div>

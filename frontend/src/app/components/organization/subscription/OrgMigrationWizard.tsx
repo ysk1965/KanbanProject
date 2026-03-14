@@ -117,7 +117,7 @@ export function OrgMigrationWizard({
         {[1, 2, 3].map((s) => (
           <div key={s} className="flex items-center gap-2">
             <div
-              className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${
+              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                 s <= step
                   ? 'bg-bridge-accent text-white'
                   : 'bg-foreground/[0.06] text-slate-400'
@@ -126,7 +126,7 @@ export function OrgMigrationWizard({
               {s < step ? <Check size={12} /> : s}
             </div>
             <span
-              className={`text-[11px] font-bold ${
+              className={`text-xs font-bold ${
                 s === step ? 'text-foreground' : 'text-slate-500'
               }`}
             >
@@ -152,7 +152,7 @@ export function OrgMigrationWizard({
             >
               {/* Billing Cycle Toggle */}
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2 block">
                   {t('orgSubscription.migration.billingCycle', 'Billing Cycle')}
                 </label>
                 <div className="flex gap-2">
@@ -170,7 +170,7 @@ export function OrgMigrationWizard({
                         ? t('orgSubscription.migration.monthly', 'Monthly')
                         : t('orgSubscription.migration.yearly', 'Yearly')}
                       {cycle === 'YEARLY' && (
-                        <span className="ml-1.5 text-[10px] opacity-70">
+                        <span className="ml-1.5 text-xs opacity-70">
                           {t('orgSubscription.migration.yearlySave', '(Save 20%)')}
                         </span>
                       )}
@@ -181,7 +181,7 @@ export function OrgMigrationWizard({
 
               {/* Board Selection */}
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2 block">
                   {t('orgSubscription.migration.selectBoards', 'Select Boards to Migrate')}
                 </label>
                 {loadingBoards ? (
@@ -221,7 +221,7 @@ export function OrgMigrationWizard({
                               {board.name}
                             </span>
                           </div>
-                          <span className="text-[11px] text-slate-400 shrink-0">
+                          <span className="text-xs text-slate-400 shrink-0">
                             {t('orgSubscription.migration.members', '{{count}} members', {
                               count: board.member_count,
                             })}
@@ -361,7 +361,7 @@ export function OrgMigrationWizard({
                 </div>
               </div>
 
-              <p className="text-[11px] text-slate-500 leading-relaxed">
+              <p className="text-xs text-slate-500 leading-relaxed">
                 {t(
                   'orgSubscription.migration.confirmDesc',
                   'By proceeding, your selected boards will be migrated to the organization Team plan. Existing board subscriptions will be credited.',
@@ -374,7 +374,7 @@ export function OrgMigrationWizard({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-[10px] text-slate-600">
+        <span className="text-xs text-slate-600">
           {t('orgSubscription.migration.stepOf', 'Step {{current}} of {{total}}', {
             current: step,
             total: 3,

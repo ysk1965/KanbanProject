@@ -503,6 +503,7 @@ export function AddDailyChecklistModal({
           <button
             onClick={handleClose}
             className="text-slate-400 hover:text-foreground transition-colors p-2 hover:bg-foreground/5 rounded-lg"
+            aria-label="닫기"
           >
             <X className="h-5 w-5" />
           </button>
@@ -651,7 +652,7 @@ export function AddDailyChecklistModal({
                       return (
                         <button
                           onClick={() => toggleAllTasks(allTaskIds, !allCollapsed)}
-                          className="ml-auto flex items-center gap-1 text-[11px] text-slate-400 hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-foreground/5"
+                          className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-foreground/5"
                         >
                           <ChevronsUpDown className="h-3 w-3" />
                           {allCollapsed ? t('dailyChecklist.expandAll') : t('dailyChecklist.collapseAll')}
@@ -831,7 +832,7 @@ export function AddDailyChecklistModal({
                                       <span className={`text-sm flex-1 truncate ${isSelected ? 'text-white font-medium' : 'text-muted-foreground'}`}>
                                         {pendingItem.title}
                                       </span>
-                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-bridge-secondary/20 text-bridge-secondary">
+                                      <span className="text-xs px-1.5 py-0.5 rounded bg-bridge-secondary/20 text-bridge-secondary">
                                         {t('dailyChecklist.newItem')}
                                       </span>
                                     </button>
@@ -891,7 +892,7 @@ export function AddDailyChecklistModal({
                                       {/* 담당자 표시 - 내 것은 인디고, 다른 사람은 회색 */}
                                       {item.assignee && (
                                         <span
-                                          className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                          className={`text-xs px-1.5 py-0.5 rounded ${
                                             isMyItem
                                               ? 'bg-bridge-accent/20 text-bridge-accent'
                                               : 'bg-foreground/5 text-slate-400'
@@ -902,7 +903,7 @@ export function AddDailyChecklistModal({
                                       )}
                                       {/* 이미 추가됨 배지 */}
                                       {isAlreadyAdded && (
-                                        <span className="text-[10px] px-1.5 py-0.5 bg-slate-700 text-slate-400 rounded">
+                                        <span className="text-xs px-1.5 py-0.5 bg-slate-700 text-slate-400 rounded">
                                           {t('dailyChecklist.alreadyAdded')}
                                         </span>
                                       )}
@@ -936,7 +937,7 @@ export function AddDailyChecklistModal({
                       return (
                         <button
                           onClick={() => toggleAllTasks(allTaskIds, !allCollapsed)}
-                          className="ml-auto flex items-center gap-1 text-[11px] text-slate-400 hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-foreground/5"
+                          className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-foreground/5"
                         >
                           <ChevronsUpDown className="h-3 w-3" />
                           {allCollapsed ? t('dailyChecklist.expandAll') : t('dailyChecklist.collapseAll')}
@@ -1116,7 +1117,7 @@ export function AddDailyChecklistModal({
                                       <span className={`text-sm flex-1 truncate ${isSelected ? 'text-white font-medium' : 'text-muted-foreground'}`}>
                                         {pendingItem.title}
                                       </span>
-                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-bridge-secondary/20 text-bridge-secondary">
+                                      <span className="text-xs px-1.5 py-0.5 rounded bg-bridge-secondary/20 text-bridge-secondary">
                                         {t('dailyChecklist.newItem')}
                                       </span>
                                     </button>
@@ -1150,13 +1151,13 @@ export function AddDailyChecklistModal({
                                       </span>
                                       {/* 담당자 표시 */}
                                       {item.assignee && (
-                                        <span className="text-[10px] px-1.5 py-0.5 bg-foreground/5 text-slate-400 rounded">
+                                        <span className="text-xs px-1.5 py-0.5 bg-foreground/5 text-slate-400 rounded">
                                           {item.assignee.name}
                                         </span>
                                       )}
                                       {/* 이미 추가됨 배지 */}
                                       {isAlreadyAdded && (
-                                        <span className="text-[10px] px-1.5 py-0.5 bg-slate-700 text-slate-400 rounded">
+                                        <span className="text-xs px-1.5 py-0.5 bg-slate-700 text-slate-400 rounded">
                                           {t('dailyChecklist.alreadyAdded')}
                                         </span>
                                       )}

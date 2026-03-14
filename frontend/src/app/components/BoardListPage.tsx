@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Star, Plus, Users, FlaskConical, Loader2, LayoutGrid, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { IconButton } from './ui/IconButton';
 import { CreateBoardModal } from './CreateBoardModal';
 import { EditBoardModal } from './EditBoardModal';
 import { UserMenu } from './UserMenu';
@@ -120,7 +121,7 @@ export function BoardListPage({
                 <h1 className="text-xl font-jakarta font-bold tracking-tight group-hover:text-bridge-secondary transition-colors">BRIDGE</h1>
                 {!hideBilling && (
                   <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                    <span className="px-2 py-0.5 bg-bridge-accent/20 text-bridge-secondary rounded-full text-[10px] font-bold tracking-wider uppercase">
+                    <span className="px-2 py-0.5 bg-bridge-accent/20 text-bridge-secondary rounded-full text-xs font-bold tracking-wider uppercase">
                       Premium
                     </span>
                     <span className="text-slate-400">Workspace</span>
@@ -251,7 +252,7 @@ export function BoardListPage({
 
       {/* 보드 삭제 확인 다이얼로그 */}
       <MotionModal open={isDeleteDialogOpen} onClose={() => setIsDeleteDialogOpen(false)} className="sm:max-w-sm p-6">
-        <h3 className="text-lg font-semibold text-foreground font-jakarta">{t('board.deleteBoard', 'Delete Board')}</h3>
+        <h3 className="text-lg font-bold text-foreground font-jakarta">{t('board.deleteBoard', 'Delete Board')}</h3>
         <p className="text-sm text-slate-400 mt-1">
           {t('board.deleteConfirm', { name: selectedBoard?.name })}
         </p>
@@ -271,7 +272,7 @@ export function BoardListPage({
       </MotionModal>
 
       {/* Version Info */}
-      <div className="fixed bottom-2 left-3 text-[10px] text-slate-600 select-none pointer-events-none z-10">
+      <div className="fixed bottom-2 left-3 text-xs text-slate-600 select-none pointer-events-none z-10">
         FE: {typeof __FE_COMMIT_HASH__ !== 'undefined' ? __FE_COMMIT_HASH__ : 'dev'}
         {beCommit && <> · BE: {beCommit}</>}
       </div>
@@ -327,33 +328,35 @@ function BoardCard({ board, onClick, onToggleStar, onEdit, onDelete }: BoardCard
       {/* 상단 버튼 영역 */}
       <div className="absolute top-3 right-3 flex items-center gap-1 z-10">
         {/* 별표 버튼 */}
-        <button
+        <IconButton
+          aria-label="즐겨찾기"
           onClick={(e) => {
             e.stopPropagation();
             onToggleStar();
           }}
-          className="p-1.5 rounded-lg hover:bg-black/20 transition-colors"
+          className="hover:bg-black/20"
         >
           <Star
-            className={`h-4 w-4 ${
+            className={
               board.is_starred
                 ? 'fill-yellow-400 text-yellow-400'
                 : 'text-white/70 hover:text-white'
-            }`}
+            }
           />
-        </button>
+        </IconButton>
 
         {/* 더보기 버튼 */}
         <div ref={menuRef} className="relative">
-          <button
+          <IconButton
+            aria-label="더보기"
             onClick={(e) => {
               e.stopPropagation();
               setIsMenuOpen(!isMenuOpen);
             }}
-            className="p-1.5 rounded-lg hover:bg-black/20 transition-colors"
+            className="hover:bg-black/20"
           >
-            <MoreHorizontal className="h-4 w-4 text-white/70 hover:text-white" />
-          </button>
+            <MoreHorizontal className="text-white/70 hover:text-white" />
+          </IconButton>
 
           {/* 드롭다운 메뉴 */}
           {isMenuOpen && (
@@ -387,7 +390,7 @@ function BoardCard({ board, onClick, onToggleStar, onEdit, onDelete }: BoardCard
 
       {/* 보드 이름 */}
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/50 to-transparent">
-        <h3 className="font-semibold text-white text-sm mb-1 truncate">{board.name}</h3>
+        <h3 className="font-bold text-white text-sm mb-1 truncate">{board.name}</h3>
         {board.member_count > 0 && (
           <div className="flex items-center gap-1.5 text-xs text-white/70">
             <Users className="h-3 w-3" />

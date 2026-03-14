@@ -52,7 +52,7 @@ function OptionGroup({ label, options, value, onChange }: {
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+      <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
         {label}
       </label>
       <div className="flex flex-wrap gap-1.5">
@@ -83,11 +83,11 @@ export function StyleOptions({ options, onChange, analysisResult }: StyleOptions
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+        <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
           Style Options
         </label>
         {analysisResult && (
-          <span className="text-[10px] text-bridge-accent">
+          <span className="text-xs text-bridge-accent">
             Auto-detected from reference
           </span>
         )}
@@ -120,7 +120,7 @@ export function StyleOptions({ options, onChange, analysisResult }: StyleOptions
         />
 
         <div className="space-y-2">
-          <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+          <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
             Padding ({Math.round(options.padding_ratio * 100)}%)
           </label>
           <input

@@ -167,7 +167,7 @@ function SortableMemberRow({
           customColorLabel={t('share.customColor')}
         >
           <button
-            className={`relative w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold whitespace-nowrap group/avatar ${
+            className={`relative w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium whitespace-nowrap group/avatar ${
               getAssigneeClasses(member.name, member.assigneeColor).bg || ''
             }`}
             style={
@@ -199,7 +199,7 @@ function SortableMemberRow({
               {member.name}
             </span>
             {isCurrentMember && (
-              <span className="text-[10px] text-slate-400 tracking-wide shrink-0">{t('common.me')}</span>
+              <span className="text-xs text-slate-400 tracking-wide shrink-0">{t('common.me')}</span>
             )}
             <span
               className="shrink-0"
@@ -500,11 +500,11 @@ export function ShareBoardModal({
     <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl max-h-[85dvh] overflow-hidden flex flex-col">
         <div className="px-5 pt-4 pb-3">
           <div className="flex items-center gap-2.5">
-            <h2 className="text-lg font-semibold text-foreground">
+            <h2 className="text-lg font-bold text-foreground">
               {isOrgBoard ? t('share.orgBoardTitle') : t('share.title')}
             </h2>
             {isOrgBoard && organizationName && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+              <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
                 <Building2 className="h-3 w-3" />
                 {organizationName}
               </span>
@@ -594,7 +594,7 @@ export function ShareBoardModal({
           {isCurrentUserAdmin && isOrgBoard && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-muted-foreground">{t('share.addOrgMember')}</h3>
+                <h3 className="text-sm font-medium text-muted-foreground">{t('share.addOrgMember')}</h3>
                 <Select
                   value={orgCandidateRole}
                   onValueChange={(value) => setOrgCandidateRole(value as MemberRole)}
@@ -641,7 +641,7 @@ export function ShareBoardModal({
                         className="flex items-center justify-between py-2 px-3.5 hover:bg-foreground/[0.04] transition-all duration-150"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-7 h-7 rounded-full bg-bridge-accent/15 flex items-center justify-center text-bridge-accent text-xs font-semibold shrink-0">
+                          <div className="w-7 h-7 rounded-full bg-bridge-accent/15 flex items-center justify-center text-bridge-accent text-xs font-medium shrink-0">
                             {getInitials(candidate.name)}
                           </div>
                           <div className="min-w-0">
@@ -650,7 +650,7 @@ export function ShareBoardModal({
                               <span className="text-xs text-slate-500 truncate">{candidate.email}</span>
                             </div>
                             {(candidate.department || candidate.position) && (
-                              <p className="text-[11px] text-slate-500">
+                              <p className="text-xs text-slate-500">
                                 {[candidate.department, candidate.position].filter(Boolean).join(' · ')}
                               </p>
                             )}
@@ -776,8 +776,8 @@ export function ShareBoardModal({
           {isAdminOrOwnerProp && isOrgBoard && pendingJoinRequestCount > 0 && boardId && (
             <div className="space-y-2">
               <div className="flex items-center gap-2.5">
-                <h3 className="text-sm font-semibold text-muted-foreground">{t('share.joinRequests', '참가 요청')}</h3>
-                <span className="text-[11px] font-bold text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-full">
+                <h3 className="text-sm font-medium text-muted-foreground">{t('share.joinRequests', '참가 요청')}</h3>
+                <span className="text-xs font-bold text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-full">
                   {pendingJoinRequestCount}
                 </span>
               </div>
@@ -791,8 +791,8 @@ export function ShareBoardModal({
           {/* 멤버 목록 */}
           <div className="space-y-3">
             <div className="flex items-center gap-2.5">
-              <h3 className="text-sm font-semibold text-muted-foreground">{t('share.boardMembers')}</h3>
-              <span className="text-[11px] font-bold text-bridge-accent bg-bridge-accent/15 px-2 py-0.5 rounded-full">
+              <h3 className="text-sm font-medium text-muted-foreground">{t('share.boardMembers')}</h3>
+              <span className="text-xs font-bold text-bridge-accent bg-bridge-accent/15 px-2 py-0.5 rounded-full">
                 {members.length}
               </span>
             </div>
@@ -901,7 +901,7 @@ export function ShareBoardModal({
 
           {/* 권한 설명 */}
           <div className="p-4 bg-foreground/[0.04] rounded-xl border border-foreground/10">
-            <h4 className="text-sm font-semibold text-muted-foreground mb-3">{t('share.rolePermissions')}</h4>
+            <h4 className="text-sm font-medium text-muted-foreground mb-3">{t('share.rolePermissions')}</h4>
             <div className="space-y-2 text-sm">
               <div className="flex items-start gap-2">
                 <span className="font-medium text-purple-400 shrink-0">Admin</span>

@@ -73,7 +73,7 @@ export function InsightsSummaryCards({ data, loading }: InsightsSummaryCardsProp
             <div className={`w-8 h-8 rounded-lg ${card.bgClass} flex items-center justify-center`}>
               <card.icon size={16} className={card.textClass} />
             </div>
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
               {card.label}
             </span>
           </div>
@@ -82,7 +82,7 @@ export function InsightsSummaryCards({ data, loading }: InsightsSummaryCardsProp
               {card.value}
             </span>
             {card.change !== null && (
-              <div className={`flex items-center gap-1 text-[11px] font-bold ${
+              <div className={`flex items-center gap-1 text-xs font-bold ${
                 card.change >= 0
                   ? 'text-emerald-600 dark:text-emerald-400'
                   : 'text-rose-600 dark:text-rose-400'

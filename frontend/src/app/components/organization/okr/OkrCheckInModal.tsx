@@ -104,7 +104,7 @@ export function OkrCheckInModal({
   const inputClass =
     "w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all";
   const labelClass =
-    "text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block";
+    "text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block";
 
   return (
     <MotionModal open={open} onClose={onClose} accentColor className="sm:max-w-sm">
@@ -117,7 +117,7 @@ export function OkrCheckInModal({
           <h3 className="text-sm font-bold text-foreground truncate">
             {t("okr.addCheckin", "Check-in")}
           </h3>
-          <div className="text-[11px] text-slate-400 truncate">
+          <div className="text-xs text-slate-400 truncate">
             {kr.title}
           </div>
         </div>
@@ -128,10 +128,10 @@ export function OkrCheckInModal({
         {/* KR info summary */}
         <div className="bg-foreground/[0.03] rounded-xl border border-foreground/[0.08] p-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold text-foreground truncate">
+            <span className="text-xs font-bold text-foreground truncate">
               {kr.title}
             </span>
-            <span className="text-[10px] font-bold text-bridge-accent shrink-0">
+            <span className="text-xs font-bold text-bridge-accent shrink-0">
               {kr.current_value}/{kr.target_value}
               {kr.unit ? ` ${kr.unit}` : ""}
             </span>
@@ -177,7 +177,7 @@ export function OkrCheckInModal({
                 <button
                   key={opt.value}
                   onClick={() => setConfidence(opt.value)}
-                  className={`flex-1 py-2 px-2 rounded-xl text-[11px] font-bold border transition-all ${
+                  className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold border transition-all ${
                     isActive
                       ? CONFIDENCE_ACTIVE_STYLES[opt.value]
                       : "bg-foreground/5 border-foreground/10 text-slate-400 hover:bg-foreground/10"
@@ -209,7 +209,7 @@ export function OkrCheckInModal({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-[10px] text-slate-500">
+        <span className="text-xs text-slate-500">
           Esc {t("okr.cancel", "Cancel")}
         </span>
         <div className="flex items-center gap-2">

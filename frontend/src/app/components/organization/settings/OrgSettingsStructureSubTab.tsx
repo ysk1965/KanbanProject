@@ -113,7 +113,7 @@ function CrudSection({
         </div>
       )}
       {!enabled && (
-        <p className="px-6 pb-4 pt-2 text-[11px] text-slate-500">
+        <p className="px-6 pb-4 pt-2 text-xs text-slate-500">
           {title} is disabled. Toggle to enable.
         </p>
       )}

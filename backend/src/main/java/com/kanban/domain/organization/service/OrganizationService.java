@@ -8,6 +8,7 @@ import com.kanban.domain.organization.dto.*;
 import com.kanban.domain.organization.repository.*;
 import com.kanban.domain.subscription.OrgSubscription;
 import com.kanban.domain.subscription.OrgSubscriptionRepository;
+import com.kanban.domain.system.MonetizationService;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
@@ -43,6 +44,7 @@ public class OrganizationService {
     private final UserRepository userRepository;
     private final FileUploadService fileUploadService;
     private final OrgSubscriptionRepository orgSubscriptionRepository;
+    private final MonetizationService monetizationService;
 
     @org.springframework.beans.factory.annotation.Autowired
     @Lazy
@@ -73,10 +75,15 @@ public class OrganizationService {
         leaveService.createDefaultPolicies(org);
         leaveService.createBalancesForNewMember(org, ownerMember);
 
-        // Create Trial subscription for new org
-        OrgSubscription trial = OrgSubscription.createTrial(org);
-        orgSubscriptionRepository.save(trial);
-        org.markTrialUsed();
+        // Create subscription for new org
+        if (!monetizationService.isMonetizationEnabled()) {
+            OrgSubscription sub = OrgSubscription.createActive(org);
+            orgSubscriptionRepository.save(sub);
+        } else {
+            OrgSubscription trial = OrgSubscription.createTrial(org);
+            orgSubscriptionRepository.save(trial);
+            org.markTrialUsed();
+        }
 
         return OrganizationResponse.Detail.of(org, OrgRole.OWNER, ownerMember.getId(), 1, 0);
     }

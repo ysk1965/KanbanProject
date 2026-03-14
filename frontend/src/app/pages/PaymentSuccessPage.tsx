@@ -222,7 +222,7 @@ export function PaymentSuccessPage() {
 
               {/* Activated Features */}
               <div className="bg-foreground/[0.03] rounded-xl border border-foreground/[0.08] p-4 mb-4 text-left">
-                <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">
                   {t('payment.activatedFeatures')}
                 </h3>
                 <div className="space-y-2">
@@ -247,7 +247,7 @@ export function PaymentSuccessPage() {
               {/* Subscription Summary */}
               {subscription && (
                 <div className="bg-foreground/[0.03] rounded-xl border border-foreground/[0.08] p-4 mb-6 text-left">
-                  <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">
                     {t('payment.subscriptionSummary')}
                   </h3>
                   <div className="space-y-1.5 text-sm">
@@ -296,7 +296,7 @@ export function PaymentSuccessPage() {
               </button>
 
               <div className="space-y-1.5">
-                <p className="text-[11px] text-slate-500 text-center">
+                <p className="text-xs text-slate-500 text-center">
                   {t('payment.autoRedirect', { seconds: countdown })}
                 </p>
                 <div className="h-1 bg-foreground/10 rounded-full overflow-hidden">

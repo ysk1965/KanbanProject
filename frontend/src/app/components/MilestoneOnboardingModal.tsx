@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Flag, Target, BarChart3, Calendar, ArrowRight, X } from 'lucide-react';
+import { IconButton } from './ui/IconButton';
 import { MotionModal } from './ui/MotionModal';
 
 interface MilestoneOnboardingModalProps {
@@ -19,12 +20,13 @@ export function MilestoneOnboardingModal({
     <MotionModal open={isOpen} onClose={onClose} className="sm:max-w-xl bg-bridge-dark p-0 overflow-hidden">
         {/* 헤더 */}
         <div className="relative px-6 pt-6 pb-4">
-          <button
+          <IconButton
             onClick={onClose}
-            className="absolute top-4 right-4 p-1.5 text-slate-500 hover:text-foreground transition-colors rounded-lg hover:bg-white/5"
+            className="absolute top-4 right-4"
+            aria-label="닫기"
           >
-            <X size={18} />
-          </button>
+            <X />
+          </IconButton>
           <div className="flex items-center gap-2.5 mb-2">
             <div className="w-8 h-8 rounded-xl bg-indigo-500/15 flex items-center justify-center">
               <Flag size={16} className="text-indigo-400" />
@@ -39,7 +41,7 @@ export function MilestoneOnboardingModal({
         {/* 시각적 샘플 예시 */}
         <div className="mx-6 mb-5 rounded-xl border border-dashed border-foreground/10 overflow-hidden">
           <div className="px-3 py-1.5 bg-white/[0.02] border-b border-foreground/5">
-            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{t('milestone.preview')}</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('milestone.preview')}</span>
           </div>
           <div className="p-4 space-y-3 opacity-60 pointer-events-none select-none">
             {/* 샘플 마일스톤 카드 */}
@@ -49,13 +51,13 @@ export function MilestoneOnboardingModal({
                   <Flag size={12} className="text-indigo-400" />
                   <span className="text-xs font-bold text-foreground">{t('milestone.sampleRelease')}</span>
                 </div>
-                <span className="text-[10px] text-slate-500">2/1 ~ 2/28</span>
+                <span className="text-xs text-slate-500">2/1 ~ 2/28</span>
               </div>
               {/* 진행률 바 */}
               <div className="mb-2">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-slate-500">{t('milestone.progress')}</span>
-                  <span className="text-[10px] font-bold text-indigo-400">65%</span>
+                  <span className="text-xs text-slate-500">{t('milestone.progress')}</span>
+                  <span className="text-xs font-bold text-indigo-400">65%</span>
                 </div>
                 <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                   <div className="h-full bg-indigo-500 rounded-full" style={{ width: '65%' }} />
@@ -65,18 +67,18 @@ export function MilestoneOnboardingModal({
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-rose-400" />
-                  <span className="text-[11px] text-slate-400">{t('milestone.sampleLogin')}</span>
-                  <span className="ml-auto text-[9px] font-bold text-emerald-400">{t('milestone.statusCompleted')}</span>
+                  <span className="text-xs text-slate-400">{t('milestone.sampleLogin')}</span>
+                  <span className="ml-auto text-xs font-bold text-emerald-400">{t('milestone.statusCompleted')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-amber-400" />
-                  <span className="text-[11px] text-slate-400">{t('milestone.sampleDashboard')}</span>
-                  <span className="ml-auto text-[9px] font-bold text-indigo-400">{t('milestone.statusInProgress')}</span>
+                  <span className="text-xs text-slate-400">{t('milestone.sampleDashboard')}</span>
+                  <span className="ml-auto text-xs font-bold text-indigo-400">{t('milestone.statusInProgress')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-teal-400" />
-                  <span className="text-[11px] text-slate-400">{t('milestone.sampleApi')}</span>
-                  <span className="ml-auto text-[9px] font-bold text-slate-500">{t('milestone.statusWaiting')}</span>
+                  <span className="text-xs text-slate-400">{t('milestone.sampleApi')}</span>
+                  <span className="ml-auto text-xs font-bold text-slate-500">{t('milestone.statusWaiting')}</span>
                 </div>
               </div>
             </div>
@@ -90,8 +92,8 @@ export function MilestoneOnboardingModal({
               <Target size={12} className="text-indigo-400" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-foreground">{t('milestone.benefitGroupTitle')}</p>
-              <p className="text-[11px] text-slate-500">{t('milestone.benefitGroupDesc')}</p>
+              <p className="text-xs font-medium text-foreground">{t('milestone.benefitGroupTitle')}</p>
+              <p className="text-xs text-slate-500">{t('milestone.benefitGroupDesc')}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -99,8 +101,8 @@ export function MilestoneOnboardingModal({
               <Calendar size={12} className="text-indigo-400" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-foreground">{t('milestone.benefitTrackTitle')}</p>
-              <p className="text-[11px] text-slate-500">{t('milestone.benefitTrackDesc')}</p>
+              <p className="text-xs font-medium text-foreground">{t('milestone.benefitTrackTitle')}</p>
+              <p className="text-xs text-slate-500">{t('milestone.benefitTrackDesc')}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -108,8 +110,8 @@ export function MilestoneOnboardingModal({
               <BarChart3 size={12} className="text-indigo-400" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-foreground">{t('milestone.benefitChartTitle')}</p>
-              <p className="text-[11px] text-slate-500">{t('milestone.benefitChartDesc')}</p>
+              <p className="text-xs font-medium text-foreground">{t('milestone.benefitChartTitle')}</p>
+              <p className="text-xs text-slate-500">{t('milestone.benefitChartDesc')}</p>
             </div>
           </div>
         </div>

@@ -153,21 +153,7 @@ export async function downloadPhoto(photoUrl: string, filename: string, photoId?
     return;
   }
 
-  // 2. KakaoTalk in-app browser → open in external browser
-  if (isKakaoTalk()) {
-    if (photoId) markAsDownloaded(photoId);
-    window.location.href = `kakaotalk://web/openExternal?url=${encodeURIComponent(url)}`;
-    return;
-  }
-
-  // 3. Other in-app browsers → direct URL (user can long-press to save)
-  if (isInAppBrowser()) {
-    if (photoId) markAsDownloaded(photoId);
-    window.open(url, '_blank');
-    return;
-  }
-
-  // 4. Regular browser → blob download
+  // 2. KakaoTalk / in-app browsers / regular browsers → blob download with fallback
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error('Download failed');
@@ -180,7 +166,12 @@ export async function downloadPhoto(photoUrl: string, filename: string, photoId?
     URL.revokeObjectURL(blobUrl);
     if (photoId) markAsDownloaded(photoId);
   } catch {
-    // Fallback: open in new tab
-    window.open(url, '_blank');
+    // Fallback: KakaoTalk → external browser, others → new tab
+    if (isKakaoTalk()) {
+      window.open(`kakaotalk://web/openExternal?url=${encodeURIComponent(url)}`, '_self');
+    } else {
+      window.open(url, '_blank');
+    }
+    if (photoId) markAsDownloaded(photoId);
   }
 }

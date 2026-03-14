@@ -228,7 +228,7 @@ export function MemberHistoryTab({
 
               {/* Start Date */}
               <div className="flex items-center gap-3">
-                <label className="text-[11px] font-medium text-slate-500 w-16 shrink-0">
+                <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
                   {t('organization.members.detail.history.startDate', '시작일')}
                 </label>
                 <input
@@ -246,7 +246,7 @@ export function MemberHistoryTab({
               {/* Department */}
               {deptOn && (
               <div className="flex items-center gap-3">
-                <label className="text-[11px] font-medium text-slate-500 w-16 shrink-0">
+                <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
                   {t('organization.members.detail.history.department', '부서')}
                 </label>
                 <select
@@ -273,7 +273,7 @@ export function MemberHistoryTab({
               <div className="grid grid-cols-2 gap-3">
                 {posOn && (
                 <div className="flex items-center gap-2">
-                  <label className="text-[11px] font-medium text-slate-500 w-16 shrink-0">
+                  <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
                     {t('organization.members.detail.history.position', '직책')}
                   </label>
                   <select
@@ -296,7 +296,7 @@ export function MemberHistoryTab({
                 )}
                 {titleOn && (
                 <div className="flex items-center gap-2">
-                  <label className="text-[11px] font-medium text-slate-500 w-16 shrink-0">
+                  <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
                     {t('organization.members.detail.history.titleLabel', '직위')}
                   </label>
                   <select
@@ -325,7 +325,7 @@ export function MemberHistoryTab({
               <div className="grid grid-cols-2 gap-3">
                 {gradeOn && (
                 <div className="flex items-center gap-2">
-                  <label className="text-[11px] font-medium text-slate-500 w-16 shrink-0">
+                  <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
                     {t('organization.members.detail.history.grade', '직급')}
                   </label>
                   <select
@@ -348,7 +348,7 @@ export function MemberHistoryTab({
                 )}
                 {jgOn && (
                 <div className="flex items-center gap-2">
-                  <label className="text-[11px] font-medium text-slate-500 w-16 shrink-0">
+                  <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
                     {t('organization.members.detail.history.jobGroup', '직군')}
                   </label>
                   <select
@@ -374,7 +374,7 @@ export function MemberHistoryTab({
 
               {/* Job Title */}
               <div className="flex items-center gap-3">
-                <label className="text-[11px] font-medium text-slate-500 w-16 shrink-0">
+                <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
                   {t('organization.members.detail.history.jobTitle', '직무명')}
                 </label>
                 <input
@@ -396,7 +396,7 @@ export function MemberHistoryTab({
 
               {/* Description */}
               <div>
-                <label className="text-[11px] font-medium text-slate-500 mb-1 block">
+                <label className="text-xs font-medium text-slate-500 mb-1 block">
                   {t('organization.members.detail.history.descriptionLabel', '직무 경험')}
                 </label>
                 <textarea
@@ -512,17 +512,17 @@ export function MemberHistoryTab({
                       </span>
                     )}
                     {gradeOn && item.grade_name && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-bridge-accent/20 text-bridge-accent">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-bridge-accent/20 text-bridge-accent">
                         {item.grade_name}
                       </span>
                     )}
                     {!item.effective_end_date && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                         {t('organization.members.detail.history.current', '현재')}
                       </span>
                     )}
                     {item.source === 'MANUAL' && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
                         {t('organization.members.detail.history.sourceManual', '수동 입력')}
                       </span>
                     )}
@@ -536,7 +536,7 @@ export function MemberHistoryTab({
                   )}
 
                   {/* Date range + duration */}
-                  <p className="text-[11px] text-slate-500 mb-3">
+                  <p className="text-xs text-slate-500 mb-3">
                     {rangeLabel}
                     {durationLabel && (
                       <span className="ml-1.5 text-slate-400">
@@ -566,7 +566,7 @@ export function MemberHistoryTab({
                         <button
                           onClick={() => handleSaveDescription(item.id)}
                           disabled={savingDesc}
-                          className="flex items-center gap-1 px-3 py-1 text-[11px] font-bold text-white
+                          className="flex items-center gap-1 px-3 py-1 text-xs font-bold text-white
                             bg-bridge-accent rounded-lg hover:bg-bridge-accent/90
                             disabled:opacity-50 transition-all"
                         >
@@ -575,7 +575,7 @@ export function MemberHistoryTab({
                         </button>
                         <button
                           onClick={() => setEditingDescId(null)}
-                          className="flex items-center gap-1 px-3 py-1 text-[11px] text-slate-500
+                          className="flex items-center gap-1 px-3 py-1 text-xs text-slate-500
                             hover:text-slate-900 dark:hover:text-white transition-colors"
                         >
                           <X className="w-3 h-3" />
@@ -604,7 +604,7 @@ export function MemberHistoryTab({
                               setEditingDescId(item.id);
                               setEditingDescText(item.description || '');
                             }}
-                            className="flex items-center gap-1 text-[11px] text-bridge-accent
+                            className="flex items-center gap-1 text-xs text-bridge-accent
                               hover:text-bridge-accent/80 transition-colors"
                           >
                             <Pencil className="w-3 h-3" />
@@ -617,18 +617,18 @@ export function MemberHistoryTab({
                           <>
                             {deleteConfirmId === item.id ? (
                               <div className="flex items-center gap-1.5">
-                                <span className="text-[11px] text-red-500">
+                                <span className="text-xs text-red-500">
                                   {t('organization.members.detail.history.deleteConfirm', '삭제하시겠습니까?')}
                                 </span>
                                 <button
                                   onClick={() => handleDelete(item.id)}
-                                  className="text-[11px] font-bold text-red-500 hover:text-red-600 transition-colors"
+                                  className="text-xs font-bold text-red-500 hover:text-red-600 transition-colors"
                                 >
                                   {t('common.confirm', '확인')}
                                 </button>
                                 <button
                                   onClick={() => setDeleteConfirmId(null)}
-                                  className="text-[11px] text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                                  className="text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
                                 >
                                   {t('common.cancel', '취소')}
                                 </button>
@@ -636,7 +636,7 @@ export function MemberHistoryTab({
                             ) : (
                               <button
                                 onClick={() => setDeleteConfirmId(item.id)}
-                                className="flex items-center gap-1 text-[11px] text-slate-400
+                                className="flex items-center gap-1 text-xs text-slate-400
                                   hover:text-red-500 transition-colors"
                               >
                                 <Trash2 className="w-3 h-3" />

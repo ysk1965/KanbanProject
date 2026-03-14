@@ -34,12 +34,12 @@ export function OkrKeyResultRow({ kr, onCheckIn, compact }: OkrKeyResultRowProps
     >
       <MetricIcon size={compact ? 10 : 12} className="text-slate-400 shrink-0" />
       <span
-        className={`${compact ? "text-[9px]" : "text-[10px]"} text-foreground truncate flex-1`}
+        className={`${compact ? "text-xs" : "text-xs"} text-foreground truncate flex-1`}
       >
         {kr.title}
       </span>
       <span
-        className={`${compact ? "text-[9px]" : "text-[10px]"} font-bold text-bridge-accent shrink-0`}
+        className={`${compact ? "text-xs" : "text-xs"} font-bold text-bridge-accent shrink-0`}
       >
         {formatValue(kr.current_value)}/{formatValue(kr.target_value)}
         {kr.unit || ""}

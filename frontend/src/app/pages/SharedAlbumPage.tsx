@@ -175,9 +175,9 @@ export function SharedAlbumPage() {
             className="flex items-center gap-2 text-slate-400 hover:text-foreground transition-colors"
           >
             <img src="/BridgeSpotsIcon.png" alt="BRIDGE" className="h-6 w-6" />
-            <span className="text-sm font-semibold text-foreground">BRIDGE</span>
+            <span className="text-sm font-bold text-foreground">BRIDGE</span>
           </Link>
-          <div className="flex items-center gap-2 text-[10px] tracking-[0.3em] uppercase text-slate-500">
+          <div className="flex items-center gap-2 text-xs tracking-[0.3em] uppercase text-slate-500">
             <Camera size={12} />
             {t('photoGallery.shareReadOnly', 'READ ONLY')}
           </div>
@@ -194,7 +194,7 @@ export function SharedAlbumPage() {
               className="w-8 h-8 rounded-lg object-cover"
             />
           )}
-          <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
             {albumInfo.organization_name}
           </span>
         </div>
@@ -204,7 +204,7 @@ export function SharedAlbumPage() {
         {albumInfo.album_description && (
           <p className="text-sm text-slate-400 mb-3">{albumInfo.album_description}</p>
         )}
-        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
           {albumInfo.photo_count} {t('photoGallery.photosUnit', 'photos')}
         </span>
       </div>
@@ -242,12 +242,12 @@ export function SharedAlbumPage() {
                   <div className="absolute top-1.5 right-1.5 z-10">
                     <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/90 text-white">
                       <Check size={10} strokeWidth={3} />
-                      <span className="text-[9px] font-bold">saved</span>
+                      <span className="text-xs font-bold">saved</span>
                     </div>
                   </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                  <span className="text-[10px] text-white/90 truncate flex-1">
+                  <span className="text-xs text-white/90 truncate flex-1">
                     {photo.original_filename}
                   </span>
                   <button
@@ -292,7 +292,7 @@ export function SharedAlbumPage() {
       {/* Footer */}
       <footer className="border-t border-foreground/5 mt-8">
         <div className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
-          <span className="text-[10px] tracking-[0.3em] uppercase text-slate-600">
+          <span className="text-xs tracking-[0.3em] uppercase text-slate-600">
             Shared via BRIDGE
           </span>
           <a

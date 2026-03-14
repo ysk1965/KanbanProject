@@ -207,6 +207,16 @@ public class BoardResponse {
                     .canAccessSlack(board.canAccessSlack())
                     .build();
         }
+
+        public static TierInfo allFeaturesEnabled(Board board) {
+            return TierInfo.builder()
+                    .tier(board.getTier())
+                    .trialEndsAt(board.getTrialEndsAt())
+                    .canAccessSchedule(true)
+                    .canAccessMilestone(true)
+                    .canAccessSlack(true)
+                    .build();
+        }
     }
 
     @Getter

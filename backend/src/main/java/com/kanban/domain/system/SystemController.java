@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/system")
@@ -16,6 +17,7 @@ import java.util.List;
 public class SystemController {
 
     private final AdminService adminService;
+    private final MonetizationService monetizationService;
 
     @GetMapping("/status")
     public ResponseEntity<AdminResponse.MaintenanceStatus> getSystemStatus() {
@@ -25,5 +27,12 @@ public class SystemController {
     @GetMapping("/announcements/active")
     public ResponseEntity<List<AdminResponse.AnnouncementDetail>> getActiveAnnouncements() {
         return ResponseEntity.ok(adminService.getActiveAnnouncements());
+    }
+
+    @GetMapping("/monetization")
+    public ResponseEntity<Map<String, Boolean>> getMonetizationStatus() {
+        return ResponseEntity.ok(Map.of(
+            "monetization_enabled", monetizationService.isMonetizationEnabled()
+        ));
     }
 }

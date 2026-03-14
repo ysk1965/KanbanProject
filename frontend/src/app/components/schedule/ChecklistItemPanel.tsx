@@ -92,8 +92,8 @@ function StatusGroupSection({
         ) : (
           <ChevronRight size={12} className="shrink-0" aria-hidden="true" />
         )}
-        <span className="font-bold uppercase tracking-widest text-[10px]">{label}</span>
-        <span className="ml-auto text-[10px] font-bold text-slate-500">{count}</span>
+        <span className="font-bold uppercase tracking-widest text-xs">{label}</span>
+        <span className="ml-auto text-xs font-bold text-slate-500">{count}</span>
       </button>
 
       {/* Items */}
@@ -340,7 +340,7 @@ export function ChecklistItemPanel({
         >
           <Search size={14} aria-hidden="true" />
           <span
-            className="text-[10px] font-bold uppercase tracking-widest"
+            className="text-xs font-bold uppercase tracking-widest"
             style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
           >
             {t('schedule.panel.title', 'Checklist')}
@@ -403,7 +403,7 @@ export function ChecklistItemPanel({
               <button
                 onClick={() => setSelectedFeatureId(null)}
                 className="inline-flex items-center gap-1.5 max-w-full px-2 py-1 rounded-lg
-                  bg-bridge-accent/10 text-bridge-accent text-[11px] font-medium
+                  bg-bridge-accent/10 text-bridge-accent text-xs font-medium
                   hover:bg-bridge-accent/15 transition-colors"
               >
                 {(() => {
@@ -426,7 +426,7 @@ export function ChecklistItemPanel({
                 <button
                   onClick={() => setShowFeatureDropdown((prev) => !prev)}
                   className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg
-                    text-[11px] text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                    text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                 >
                   <Filter size={12} />
                   <span>{t('schedule.panel.filterFeature', 'Filter by feature')}</span>
@@ -445,7 +445,7 @@ export function ChecklistItemPanel({
                           setSelectedFeatureId(feature.id);
                           setShowFeatureDropdown(false);
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-[11px]
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs
                           text-foreground hover:bg-foreground/5 transition-colors"
                       >
                         <span
@@ -560,7 +560,7 @@ export function ChecklistItemPanel({
 
         {/* Drag hint footer */}
         <div className="px-4 py-3 border-t border-foreground/[0.08]">
-          <p className="text-[10px] text-slate-600 text-center leading-relaxed">
+          <p className="text-xs text-slate-600 text-center leading-relaxed">
             💡 {t('schedule.panel.dragHint', 'Drag to place on calendar/resource')}
           </p>
         </div>
@@ -589,7 +589,7 @@ export function ChecklistItemPanel({
             {dragState.item.title}
           </span>
           {(dragState.item.feature || dragState.item.task) && (
-            <span className="text-[10px] text-slate-500 truncate block pl-1 mt-0.5">
+            <span className="text-xs text-slate-500 truncate block pl-1 mt-0.5">
               {[dragState.item.feature?.title, dragState.item.task?.title]
                 .filter(Boolean)
                 .join(' > ')}

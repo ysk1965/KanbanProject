@@ -47,23 +47,23 @@ function CelebrationRow({ item, index }: { item: CelebrationItem; index: number 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="text-[12px] font-bold text-foreground truncate">{item.member_name}</span>
-          <span className="text-[10px] text-slate-500 truncate">{item.org_name}</span>
+          <span className="text-xs text-slate-500 truncate">{item.org_name}</span>
         </div>
         <div className="flex items-center gap-1 mt-0.5">
           <TypeIcon className={`w-3 h-3 ${typeColor}`} />
-          <span className={`text-[11px] ${typeColor}`}>{typeLabel}</span>
+          <span className={`text-xs ${typeColor}`}>{typeLabel}</span>
         </div>
       </div>
 
       {/* Action */}
       {sent ? (
-        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 shrink-0">
+        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 shrink-0">
           보냄
         </span>
       ) : item.can_send_message ? (
         <button
           onClick={handleSend}
-          className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-pink-500/15 text-pink-400 hover:bg-pink-500/25 transition-colors shrink-0"
+          className="text-xs font-bold px-2.5 py-1 rounded-full bg-pink-500/15 text-pink-400 hover:bg-pink-500/25 transition-colors shrink-0"
         >
           축하 보내기
         </button>
@@ -102,7 +102,7 @@ export function CelebrationsWidget({ date }: CelebrationsWidgetProps) {
         <div className="flex items-center gap-2">
           <PartyPopper className="w-4 h-4 text-pink-400" />
           <h3 className="text-[13px] md:text-sm font-bold text-foreground">오늘의 축하</h3>
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-pink-500/15 text-pink-400">
+          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-pink-500/15 text-pink-400">
             {data.celebrations.length}
           </span>
         </div>

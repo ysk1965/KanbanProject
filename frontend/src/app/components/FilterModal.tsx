@@ -222,7 +222,7 @@ export function FilterModal({
     <MotionModal open={open} onClose={onClose} className="sm:max-w-lg bg-bridge-dark p-0 gap-0">
         <div className="px-4 py-3 border-b border-bridge-border">
           <div className="flex items-center justify-between">
-            <h2 className="text-foreground text-lg font-semibold">{t('filter.title')}</h2>
+            <h2 className="text-foreground text-lg font-bold">{t('filter.title')}</h2>
             {isFilterActive && (
               <Badge className="bg-indigo-500/20 text-indigo-400 border-indigo-500/30">
                 {t('filter.activeCount', { count: getActiveFilterCount() })}
@@ -359,7 +359,7 @@ export function FilterModal({
                       : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30 hover:bg-indigo-500/30'
                   }`}
                 >
-                  <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-[10px] text-white font-bold">
+                  <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-xs text-white font-bold">
                     {t('filter.meShort')}
                   </div>
                   {t('filter.assignedToMe')}

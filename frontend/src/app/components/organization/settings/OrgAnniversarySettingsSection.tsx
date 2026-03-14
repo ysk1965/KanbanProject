@@ -109,7 +109,7 @@ export function OrgAnniversarySettingsSection({
 
           {/* Notify Timing */}
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
               {t(
                 "organization.anniversary.notifyTiming",
                 "Notification Timing",
@@ -169,7 +169,7 @@ export function OrgAnniversarySettingsSection({
 
           {/* Dashboard Range */}
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
               {t(
                 "organization.anniversary.dashboardRange",
                 "Dashboard Display Range",

@@ -107,7 +107,7 @@ export function OrgActivitySection({ orgId }: Props) {
                     <p className="text-xs text-foreground/80 leading-relaxed">
                       {getActivityMessage(a, t)}
                     </p>
-                    <span className="text-[10px] text-slate-500">{formatRelativeTime(a.created_at)}</span>
+                    <span className="text-xs text-slate-500">{formatRelativeTime(a.created_at)}</span>
                   </div>
                 </motion.div>
               );

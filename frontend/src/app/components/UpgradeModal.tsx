@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Check, Rocket, Calendar, BarChart3, Target, MessageSquare, Minus, Plus, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import { IconButton } from './ui/IconButton';
 import { MotionModal } from './ui/MotionModal';
 
 export type UpgradeTrigger =
@@ -68,6 +69,7 @@ export function UpgradeModal({
           <button
             onClick={onClose}
             className="absolute right-4 top-4 text-slate-400 hover:text-foreground transition-colors"
+            aria-label="닫기"
           >
             <X className="h-5 w-5" />
           </button>
@@ -88,7 +90,7 @@ export function UpgradeModal({
 
         {/* Features */}
         <div className="px-4 sm:px-6 pb-4">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
             {t('upgrade.premiumBenefits')}
           </p>
           <div className="space-y-2">
@@ -105,7 +107,7 @@ export function UpgradeModal({
 
         {/* Seat Count Selector */}
         <div className="px-4 sm:px-6 pb-4">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
             {t('upgrade.seatSelection')}
           </p>
 
@@ -124,20 +126,22 @@ export function UpgradeModal({
               </div>
 
               <div className="flex items-center gap-3">
-                <button
+                <IconButton
+                  aria-label="좌석 수 감소"
                   onClick={() => setSeatCount(Math.max(minSeats, seatCount - 1))}
                   disabled={seatCount <= minSeats}
-                  className="p-1.5 rounded-lg border border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="border border-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  <Minus className="h-4 w-4" />
-                </button>
+                  <Minus />
+                </IconButton>
                 <span className="text-foreground text-xl font-bold w-10 text-center">{seatCount}</span>
-                <button
+                <IconButton
+                  aria-label="좌석 수 증가"
                   onClick={() => setSeatCount(seatCount + 1)}
-                  className="p-1.5 rounded-lg border border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-all"
+                  className="border border-foreground/10"
                 >
-                  <Plus className="h-4 w-4" />
-                </button>
+                  <Plus />
+                </IconButton>
               </div>
             </div>
           </div>
@@ -145,7 +149,7 @@ export function UpgradeModal({
 
         {/* Pricing */}
         <div className="px-4 sm:px-6 pb-4">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
             {t('upgrade.selectPlan')}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -180,7 +184,7 @@ export function UpgradeModal({
               }`}
             >
               <div className="absolute -top-2 -right-2">
-                <span className="px-2 py-0.5 bg-bridge-secondary text-bridge-dark text-[10px] font-bold rounded-full">
+                <span className="px-2 py-0.5 bg-bridge-secondary text-bridge-dark text-xs font-bold rounded-full">
                   {t('upgrade.discount', { percent: 17 })}
                 </span>
               </div>

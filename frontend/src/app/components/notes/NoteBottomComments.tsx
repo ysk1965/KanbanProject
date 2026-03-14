@@ -411,15 +411,15 @@ export function NoteBottomComments({
             }`}
           >
             {member.user.profile_image ? (
-              <img src={member.user.profile_image} alt="" className="h-5 w-5 rounded-full" />
+              <img src={member.user.profile_image} alt={member.user.name || '프로필'} className="h-5 w-5 rounded-full" />
             ) : (
-              <div className="h-5 w-5 rounded-full bg-bridge-accent/20 flex items-center justify-center text-[10px] font-bold text-bridge-accent">
+              <div className="h-5 w-5 rounded-full bg-bridge-accent/20 flex items-center justify-center text-xs font-bold text-bridge-accent">
                 {member.user.name.charAt(0)}
               </div>
             )}
             <span>{member.user.name}</span>
             {member.user.id === currentUserId && (
-              <span className="text-[10px] text-slate-500">(me)</span>
+              <span className="text-xs text-slate-500">(me)</span>
             )}
           </button>
         ))}
@@ -482,9 +482,9 @@ export function NoteBottomComments({
               {reaction.is_custom && reaction.image_url ? (
                 <img src={reaction.image_url} alt={reaction.emoji} className="w-4 h-4 object-contain" />
               ) : (
-                <span className="text-[11px]">{reaction.emoji}</span>
+                <span className="text-xs">{reaction.emoji}</span>
               )}
-              <span className="text-[10px] font-medium">{reaction.count}</span>
+              <span className="text-xs font-medium">{reaction.count}</span>
             </button>
           );
         })}
@@ -501,7 +501,7 @@ export function NoteBottomComments({
         <MessageSquare className="h-4 w-4 text-slate-400" />
         <span className="text-sm font-bold text-foreground">댓글</span>
         {comments.length > 0 && (
-          <span className="text-[10px] bg-bridge-accent/20 text-bridge-accent px-1.5 py-0.5 rounded-full font-bold">
+          <span className="text-xs bg-bridge-accent/20 text-bridge-accent px-1.5 py-0.5 rounded-full font-bold">
             {comments.length}
           </span>
         )}
@@ -540,12 +540,12 @@ export function NoteBottomComments({
                     {comment.author.profile_image ? (
                       <img
                         src={comment.author.profile_image}
-                        alt=""
+                        alt={comment.author.name || '프로필'}
                         className="h-7 w-7 rounded-full flex-shrink-0 mt-0.5"
                       />
                     ) : (
                       <div className={`h-7 w-7 rounded-full ${authorColor.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
-                        <span className="text-[10px] font-bold text-white">
+                        <span className="text-xs font-bold text-white">
                           {getInitials(comment.author.name)}
                         </span>
                       </div>
@@ -555,7 +555,7 @@ export function NoteBottomComments({
                       {/* Author line */}
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-xs font-medium text-foreground">{comment.author.name}</span>
-                        <span className="text-[10px] text-slate-500">
+                        <span className="text-xs text-slate-500">
                           {formatRelativeTime(comment.created_at)}
                           {isEdited && ' (수정됨)'}
                         </span>
@@ -611,6 +611,7 @@ export function NoteBottomComments({
                             <button
                               onClick={cancelEditing}
                               className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground transition-colors"
+                              aria-label="닫기"
                             >
                               <X className="h-3.5 w-3.5" />
                             </button>
@@ -618,6 +619,7 @@ export function NoteBottomComments({
                               onClick={() => handleUpdate(comment.id)}
                               disabled={editSubmitting || !editContent.trim()}
                               className="p-1 rounded hover:bg-bridge-accent/20 text-bridge-accent disabled:opacity-50 transition-colors"
+                              aria-label="확인"
                             >
                               {editSubmitting ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />

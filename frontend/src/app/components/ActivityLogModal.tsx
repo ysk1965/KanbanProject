@@ -192,11 +192,12 @@ export function ActivityLogModal({
         <div className="flex items-center justify-between p-6 border-b border-bridge-border">
           <div className="flex items-center gap-2">
             <Activity className="h-5 w-5 text-indigo-400" />
-            <h2 className="text-xl font-semibold text-foreground">{t('activity.title')}</h2>
+            <h2 className="text-xl font-bold text-foreground">{t('activity.title')}</h2>
           </div>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-foreground transition-colors"
+            aria-label="닫기"
           >
             <X className="h-5 w-5" />
           </button>

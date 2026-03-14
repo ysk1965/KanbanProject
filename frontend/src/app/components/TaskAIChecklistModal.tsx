@@ -135,7 +135,7 @@ export function TaskAIChecklistModal({
             <Sparkles className="h-4 w-4 text-bridge-accent" />
             <h3 className="text-sm font-bold text-foreground">{t('task.aiChecklistDecomposeTitle')}</h3>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors" aria-label="닫기">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -199,17 +199,17 @@ export function TaskAIChecklistModal({
                 <>
                   {/* Select all / deselect all */}
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                       {t('task.aiChecklistSelectedCount', { count: getSelectedCount() })}
                     </span>
                     <div className="flex gap-2">
                       <button onClick={selectAll}
-                        className="text-[10px] text-bridge-accent hover:text-bridge-accent/80 transition-colors">
+                        className="text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors">
                         {t('task.aiChecklistSelectAll')}
                       </button>
                       <span className="text-slate-600">|</span>
                       <button onClick={deselectAll}
-                        className="text-[10px] text-slate-400 hover:text-foreground transition-colors">
+                        className="text-xs text-slate-400 hover:text-foreground transition-colors">
                         {t('task.aiChecklistDeselectAll')}
                       </button>
                     </div>
@@ -225,7 +225,7 @@ export function TaskAIChecklistModal({
                       </button>
                       <span className="text-sm text-foreground flex-1">{item.title}</span>
                       {lockedItems[idx] && (
-                        <span className="text-[10px] text-blue-400 whitespace-nowrap">{t('task.aiChecklistAlreadyExists')}</span>
+                        <span className="text-xs text-blue-400 whitespace-nowrap">{t('task.aiChecklistAlreadyExists')}</span>
                       )}
                     </div>
                   ))}

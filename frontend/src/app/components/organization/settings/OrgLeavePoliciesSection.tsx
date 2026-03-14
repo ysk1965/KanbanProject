@@ -153,7 +153,7 @@ export function OrgLeavePoliciesSection({
             {editingPolicyId === p.id ? (
               /* ── Edit mode ── */
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input
                     type="text"
                     value={editPolicy.name}
@@ -252,7 +252,7 @@ export function OrgLeavePoliciesSection({
                     {p.name}
                   </span>
                   <span
-                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${CATEGORY_COLORS[p.leave_category]}`}
+                    className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${CATEGORY_COLORS[p.leave_category]}`}
                   >
                     {t(CATEGORY_LABEL_KEYS[p.leave_category])}
                   </span>
@@ -262,12 +262,12 @@ export function OrgLeavePoliciesSection({
                     {p.default_days}d
                   </span>
                   {p.is_paid && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                       {t("organization.settings.paid", "Paid")}
                     </span>
                   )}
                   {p.requires_approval && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400">
+                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400">
                       {t("organization.settings.approval", "Approval")}
                     </span>
                   )}
@@ -314,7 +314,7 @@ export function OrgLeavePoliciesSection({
         {/* ── New policy form ── */}
         {showNewPolicy && (
           <div className="p-3 bg-foreground/[0.03] rounded-xl border border-bridge-accent/20 space-y-3">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <input
                 type="text"
                 value={newPolicy.name}

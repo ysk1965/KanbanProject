@@ -96,12 +96,12 @@ export function NoteTagManager({
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1 px-2 py-1 text-[10px] text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded transition-colors"
+        className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded transition-colors"
       >
         <TagIcon size={10} />
         <span className="hidden lg:inline">{t("notes.tags", "태그")}</span>
         {noteTags.length > 0 && (
-          <span className="text-bridge-accent font-semibold">
+          <span className="text-bridge-accent font-medium">
             {noteTags.length}
           </span>
         )}
@@ -118,7 +118,7 @@ export function NoteTagManager({
           />
           <div className="absolute right-0 top-full mt-1 z-50 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl w-56 overflow-hidden">
             <div className="p-2 border-b border-foreground/5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                 {t("notes.tags", "태그")}
               </span>
             </div>
@@ -126,7 +126,7 @@ export function NoteTagManager({
             {/* Tag list */}
             <div className="max-h-48 overflow-y-auto p-1">
               {allTags.length === 0 && !creating ? (
-                <p className="text-center text-[10px] text-slate-500 py-4">
+                <p className="text-center text-xs text-slate-500 py-4">
                   {t("notes.noTags", "태그가 없습니다")}
                 </p>
               ) : (
@@ -197,7 +197,7 @@ export function NoteTagManager({
                       <button
                         onClick={handleCreateTag}
                         disabled={!newTagName.trim()}
-                        className="flex-1 px-2 py-1 bg-bridge-accent text-white rounded text-[10px] font-semibold hover:bg-bridge-accent/90 disabled:opacity-50"
+                        className="flex-1 px-2 py-1 bg-bridge-accent text-white rounded text-xs font-medium hover:bg-bridge-accent/90 disabled:opacity-50"
                       >
                         {t("notes.createTag", "만들기")}
                       </button>
@@ -206,7 +206,7 @@ export function NoteTagManager({
                           setCreating(false);
                           setNewTagName("");
                         }}
-                        className="px-2 py-1 text-slate-400 hover:text-foreground text-[10px]"
+                        className="px-2 py-1 text-slate-400 hover:text-foreground text-xs"
                       >
                         {t("common.cancel", "취소")}
                       </button>

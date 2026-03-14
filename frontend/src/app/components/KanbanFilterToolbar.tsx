@@ -145,7 +145,7 @@ export const KanbanFilterToolbar = forwardRef<
                 }`}
               >
                 <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-bold whitespace-nowrap overflow-hidden"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-xs text-white font-bold whitespace-nowrap overflow-hidden"
                   style={{
                     backgroundColor: getAssigneeHex(
                       member.name,

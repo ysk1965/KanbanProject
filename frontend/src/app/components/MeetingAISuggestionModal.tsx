@@ -317,13 +317,13 @@ export default function MeetingAISuggestionModal({
   const renderFeatureLabel = (feature: AIFeatureSuggestion) => {
     if (feature.type === 'EXISTING') {
       return (
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-foreground/5 px-1.5 py-0.5 rounded">
+        <span className="text-xs font-bold uppercase tracking-widest text-slate-400 bg-foreground/5 px-1.5 py-0.5 rounded">
           {t('meeting.aiExistingFeature')}
         </span>
       );
     }
     return (
-      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
+      <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
         <Sparkles className="h-3 w-3" />
         {t('meeting.aiNewFeature')}
       </span>
@@ -341,6 +341,7 @@ export default function MeetingAISuggestionModal({
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg p-1.5 transition-colors"
+            aria-label="닫기"
           >
             <X className="h-4 w-4" />
           </button>
@@ -394,7 +395,7 @@ export default function MeetingAISuggestionModal({
             <div className="space-y-3">
               {/* Select All / Deselect All */}
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {t('meeting.aiOrganizeTitle')}
                 </span>
                 <button
@@ -471,7 +472,7 @@ export default function MeetingAISuggestionModal({
                               )}
                             </div>
                             {isTaskLocked(fi, ti) && (
-                              <span className="text-[10px] text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded flex-shrink-0">
+                              <span className="text-xs text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded flex-shrink-0">
                                 {t('meeting.aiAlreadyExists')}
                               </span>
                             )}

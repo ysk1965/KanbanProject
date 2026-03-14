@@ -52,7 +52,7 @@ export function CreateBoardModal({
     <MotionModal open={open} onClose={handleClose} className="sm:max-w-lg">
           <div className="p-6">
             <div className="mb-4">
-              <h2 className="text-foreground font-semibold text-lg">{t('createBoard.title')}</h2>
+              <h2 className="text-foreground font-bold text-lg">{t('createBoard.title')}</h2>
               <p className="text-slate-400 text-sm">{t('createBoard.description')}</p>
             </div>
 
@@ -64,7 +64,7 @@ export function CreateBoardModal({
                   className="h-28 rounded-lg flex items-center justify-center"
                   style={{ background: selectedGradient }}
                 >
-                  <span className="text-white font-semibold text-base px-4 py-2 bg-black/20 rounded">
+                  <span className="text-white font-bold text-base px-4 py-2 bg-black/20 rounded">
                     {boardName || 'Board name'}
                   </span>
                 </div>

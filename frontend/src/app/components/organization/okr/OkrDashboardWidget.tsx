@@ -98,17 +98,17 @@ export function OkrDashboardWidget({
               <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center shrink-0">
                 <Target size={14} className="text-violet-500" />
               </div>
-              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 OKR
               </span>
             </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[11px] font-bold text-foreground truncate">
+                <span className="text-xs font-bold text-foreground truncate">
                   {treeData.cycle.name}
                 </span>
-                <span className="text-[11px] font-bold text-bridge-accent">
+                <span className="text-xs font-bold text-bridge-accent">
                   {progress}%
                 </span>
               </div>
@@ -122,13 +122,13 @@ export function OkrDashboardWidget({
             <div className="flex items-center gap-3 shrink-0">
               <div className="flex items-center gap-1">
                 <Target size={11} className="text-slate-500" />
-                <span className="text-[10px] font-bold text-slate-400">
+                <span className="text-xs font-bold text-slate-400">
                   {treeData.total_objectives}
                 </span>
               </div>
               <div className="flex items-center gap-1">
                 <BarChart3 size={11} className="text-slate-500" />
-                <span className="text-[10px] font-bold text-slate-400">
+                <span className="text-xs font-bold text-slate-400">
                   {treeData.total_key_results}
                 </span>
               </div>
@@ -154,20 +154,20 @@ export function OkrDashboardWidget({
               <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
                 <ClipboardCheck size={14} className="text-emerald-500" />
               </div>
-              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 {t("organization.dashboard.onboarding", "Onboarding")}
               </span>
             </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[11px] font-bold text-foreground">
+                <span className="text-xs font-bold text-foreground">
                   {t("organization.dashboard.onboardingInProgress", {
                     count: onboardingTotal,
                     defaultValue: "{{count}} in progress",
                   })}
                 </span>
-                <span className="text-[11px] font-bold text-emerald-500">
+                <span className="text-xs font-bold text-emerald-500">
                   {onboardingAvgProgress}%
                 </span>
               </div>

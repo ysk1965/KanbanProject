@@ -17,7 +17,7 @@ export function CollabPresence({ status, connectedUsers, currentUserName, curren
       <div className="flex items-center -space-x-1.5">
         {/* Current user (always shown) */}
         <div
-          className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white ring-2 ring-bridge-obsidian"
+          className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-bridge-obsidian"
           style={{ backgroundColor: currentUserColor }}
           title={`${currentUserName} (나)`}
         >
@@ -28,7 +28,7 @@ export function CollabPresence({ status, connectedUsers, currentUserName, curren
         {connectedUsers.map((user) => (
           <div
             key={user.clientId}
-            className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white ring-2 ring-bridge-obsidian animate-in fade-in duration-300"
+            className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-bridge-obsidian animate-in fade-in duration-300"
             style={{ backgroundColor: user.color }}
             title={user.name}
           >

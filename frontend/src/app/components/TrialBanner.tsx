@@ -64,7 +64,7 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-2">
             <Sparkles className={`h-4 w-4 ${textClass}`} />
-            <span className={`text-sm font-semibold ${textClass}`}>
+            <span className={`text-sm font-bold ${textClass}`}>
               {t('trial.trialActive', { days: daysRemaining })}
             </span>
             <span className={`text-sm ${descClass} hidden sm:inline`}>
@@ -119,7 +119,7 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-2">
             <AlertTriangle className={`h-4 w-4 ${isUrgent ? 'text-red-400' : 'text-amber-400'}`} />
-            <span className={`text-sm font-semibold ${isUrgent ? 'text-red-200' : 'text-amber-200'}`}>
+            <span className={`text-sm font-bold ${isUrgent ? 'text-red-200' : 'text-amber-200'}`}>
               {isUrgent
                 ? t('subscription.pastDueUrgent', { days: remaining })
                 : t('subscription.pastDueWarning')}
@@ -146,7 +146,7 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
           <div className="flex items-center gap-2">
             <span className="text-2xl">🔒</span>
             <div>
-              <span className="font-semibold text-white">
+              <span className="font-bold text-white">
                 {t('trial.boardSuspended')}
               </span>
               <span className="text-red-200 ml-2">

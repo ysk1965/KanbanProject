@@ -45,7 +45,7 @@ export function PaymentFailPage() {
         <p className="text-slate-400 mb-1">
           {t(`payment.${errorMessageKey}`)}
         </p>
-        <p className="text-[11px] text-slate-600 mb-6">
+        <p className="text-xs text-slate-600 mb-6">
           {t('payment.errorCode')}: {errorCode}
         </p>
 

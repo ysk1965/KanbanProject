@@ -337,7 +337,7 @@ export function KanbanBoardHeader({
 
             {/* Org 보드 뱃지 */}
             {board?.organization_id && board.organization_name && (
-              <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary text-[10px] font-bold shrink-0">
+              <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary text-xs font-bold shrink-0">
                 <Building2 size={10} />
                 {board.organization_name}
               </span>
@@ -353,7 +353,7 @@ export function KanbanBoardHeader({
                 const subMode = getBoardSubMode();
                 onViewModeChange(subMode);
               }}
-              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                 BOARD_SUB_MODES.includes(viewMode)
                   ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
                   : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
@@ -369,7 +369,7 @@ export function KanbanBoardHeader({
               onClick={() => {
                 onViewModeChange("schedule");
               }}
-              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                 viewMode === "schedule"
                   ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
                   : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
@@ -383,7 +383,7 @@ export function KanbanBoardHeader({
 
             <button
               onClick={() => onViewModeChange("meeting")}
-              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                 viewMode === "meeting"
                   ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
                   : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
@@ -398,7 +398,7 @@ export function KanbanBoardHeader({
             {!isRestricted && (
               <button
                 onClick={() => onViewModeChange("notes")}
-                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                   viewMode === "notes"
                     ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
                     : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
@@ -430,7 +430,7 @@ export function KanbanBoardHeader({
                     onViewModeChange(subMode);
                   }
                 }}
-                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative whitespace-nowrap ${
+                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all relative whitespace-nowrap ${
                   viewMode === "statistics" || viewMode === "ai_report"
                     ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
                     : !canAccessStatistics
@@ -458,6 +458,7 @@ export function KanbanBoardHeader({
                 onClick={onOpenShortcutsHelp}
                 className="hidden md:flex items-center p-2 text-slate-500 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
                 title={t("keyboardShortcuts.title", "키보드 단축키")}
+                aria-label={t("keyboardShortcuts.title", "키보드 단축키")}
               >
                 <Keyboard size={16} />
               </button>
@@ -482,10 +483,11 @@ export function KanbanBoardHeader({
                 onClick={onOpenInquiry}
                 className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-all"
                 title={t("kanban.inquiry")}
+                aria-label={t("kanban.inquiry")}
               >
                 <MessageSquare size={18} />
                 {unreadInquiryCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1">
                     {unreadInquiryCount > 99 ? "99+" : unreadInquiryCount}
                   </span>
                 )}
@@ -496,7 +498,7 @@ export function KanbanBoardHeader({
               className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-all"
             >
               <Users size={18} />
-              <span className="hidden md:inline text-xs font-semibold">
+              <span className="hidden md:inline text-xs font-medium">
                 {t("kanban.team")}
               </span>
             </button>

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Building2, ChevronRight, LayoutGrid, Star, Users } from 'lucide-react';
+import { IconButton } from '../ui/IconButton';
 import { useTranslation } from 'react-i18next';
 
 import { Board, OrganizationSimple } from '../../types';
@@ -60,18 +61,18 @@ export default function OrgSummaryStrip({
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Building2 size={14} className="text-bridge-accent" />
-                <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">
+                <h2 className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">
                   {t('dashboard.myOrganizations', 'My Organizations')}
                 </h2>
                 {organizations.length > 1 && (
-                  <span className="text-[10px] text-slate-600">
+                  <span className="text-xs text-slate-600">
                     {orgIndex + 1}/{organizations.length}
                   </span>
                 )}
               </div>
               <button
                 onClick={onViewAll}
-                className="text-[10px] font-bold text-slate-500 hover:text-foreground transition-colors"
+                className="text-xs font-bold text-slate-500 hover:text-foreground transition-colors"
               >
                 {t('common.viewAll', 'View All')}
               </button>
@@ -104,17 +105,17 @@ export default function OrgSummaryStrip({
               </span>
 
               {/* Role Badge */}
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent shrink-0">
+              <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent shrink-0">
                 {getRoleLabel(org.my_role)}
               </span>
 
               {/* Stats */}
               <div className="hidden sm:flex items-center gap-2.5 shrink-0">
-                <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                <span className="flex items-center gap-1 text-xs text-slate-400">
                   <Users size={10} />
                   {org.member_count}
                 </span>
-                <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                <span className="flex items-center gap-1 text-xs text-slate-400">
                   <LayoutGrid size={10} />
                   {org.board_count}
                 </span>
@@ -188,28 +189,27 @@ function OrgBoardListItem({ board, onToggleStar, onClick, onEdit }: {
         <h3 className="text-sm font-bold text-foreground truncate group-hover:text-bridge-secondary transition-colors">
           {board.name}
         </h3>
-        <p className="text-[11px] text-slate-500 truncate">{board.description || t('dashboard.noDescription')}</p>
+        <p className="text-xs text-slate-500 truncate">{board.description || t('dashboard.noDescription')}</p>
       </div>
       <div className="hidden md:flex items-center gap-2 shrink-0 w-28">
         <div className="flex-1 h-1 bg-foreground/[0.06] rounded-full overflow-hidden">
           <div className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-full" style={{ width: `${progress}%` }} />
         </div>
-        <span className="text-[10px] font-bold text-muted-foreground w-8 text-right">{progress}%</span>
+        <span className="text-xs font-bold text-muted-foreground w-8 text-right">{progress}%</span>
       </div>
       <div className="hidden sm:flex items-center gap-1.5 text-slate-500 shrink-0">
         <Users size={12} />
-        <span className="text-[10px] font-medium">{board.member_count}</span>
+        <span className="text-xs font-medium">{board.member_count}</span>
       </div>
-      <button
+      <IconButton
+        aria-label="즐겨찾기"
         onClick={(e) => { e.stopPropagation(); onToggleStar(board.id); }}
-        className="p-1.5 hover:bg-foreground/5 rounded-lg transition-colors shrink-0"
       >
         <Star
-          size={14}
           fill={board.is_starred ? '#F59E0B' : 'transparent'}
           stroke={board.is_starred ? '#F59E0B' : 'rgba(255,255,255,0.3)'}
         />
-      </button>
+      </IconButton>
     </motion.div>
   );
 }

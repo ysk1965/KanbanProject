@@ -235,7 +235,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
         {/* 설정 패널 */}
         {showSettings && (
           <div className="p-3 sm:p-4 bg-bridge-obsidian rounded-xl border border-bridge-border">
-            <h3 className="text-sm font-semibold text-foreground mb-3">{t('management.delayCriteria')}</h3>
+            <h3 className="text-sm font-medium text-foreground mb-3">{t('management.delayCriteria')}</h3>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
               <div className="flex items-center gap-2 flex-wrap">
                 <label className="text-sm text-slate-400">{t('management.stagnantTask')}</label>
@@ -272,7 +272,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
           {/* 전체 건강 점수 */}
           <div className="p-3 sm:p-4 bg-bridge-obsidian rounded-xl border border-bridge-border">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('management.healthScore')}</span>
+              <span className="text-xs sm:text-xs font-medium text-slate-400 uppercase tracking-wider">{t('management.healthScore')}</span>
               <Activity className="w-4 h-4 text-slate-400" />
             </div>
             <div className={`text-2xl sm:text-3xl font-bold ${getHealthScoreColor(data.summary.overall_health_score)}`}>
@@ -284,7 +284,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
           {/* 마일스톤 진행 */}
           <div className="p-3 sm:p-4 bg-bridge-obsidian rounded-xl border border-bridge-border">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              <span className="text-xs sm:text-xs font-medium text-slate-400 uppercase tracking-wider">
                 {t('management.milestoneProgress')}
               </span>
               <Target className="w-4 h-4 text-slate-400" />
@@ -306,7 +306,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
           {/* 팀원 현황 */}
           <div className="p-3 sm:p-4 bg-bridge-obsidian rounded-xl border border-bridge-border">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('management.teamMembers')}</span>
+              <span className="text-xs sm:text-xs font-medium text-slate-400 uppercase tracking-wider">{t('management.teamMembers')}</span>
               <Users className="w-4 h-4 text-slate-400" />
             </div>
             <div className="flex items-baseline gap-2">
@@ -323,7 +323,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
           {/* 지연 항목 */}
           <div className="p-3 sm:p-4 bg-bridge-obsidian rounded-xl border border-bridge-border">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('management.delayedItems')}</span>
+              <span className="text-xs sm:text-xs font-medium text-slate-400 uppercase tracking-wider">{t('management.delayedItems')}</span>
               <AlertTriangle className="w-4 h-4 text-slate-400" />
             </div>
             <div className="text-2xl sm:text-3xl font-bold text-foreground">
@@ -526,7 +526,7 @@ function MilestoneHealthSection({
             <div className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
               <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                 <div className="min-w-0">
-                  <h3 className="font-semibold text-foreground truncate">{health.milestone.title}</h3>
+                  <h3 className="font-medium text-foreground truncate">{health.milestone.title}</h3>
                   <div className="flex items-center gap-2 sm:gap-3 mt-1 text-xs text-slate-400">
                     <span className="truncate">{health.milestone.start_date} ~ {health.milestone.end_date}</span>
                     <span className="flex-shrink-0">D{health.days_remaining >= 0 ? `-${health.days_remaining}` : `+${health.days_overdue}`}</span>
@@ -540,7 +540,7 @@ function MilestoneHealthSection({
                   <div className="text-xl sm:text-2xl font-bold text-foreground">
                     {health.progress_percentage.toFixed(0)}%
                   </div>
-                  <div className="text-[10px] sm:text-xs text-slate-400">
+                  <div className="text-xs sm:text-xs text-slate-400">
                     {health.velocity.tasks_completed}/{health.velocity.tasks_total} Task
                     {health.velocity.estimated_total_minutes ? (
                       <span className="ml-1 hidden sm:inline">
@@ -551,7 +551,7 @@ function MilestoneHealthSection({
                 </div>
 
                 {/* 상태 뱃지 */}
-                <div className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold ${statusConfig.bg} ${statusConfig.color} ${statusConfig.border} border whitespace-nowrap`}>
+                <div className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-xs font-medium ${statusConfig.bg} ${statusConfig.color} ${statusConfig.border} border whitespace-nowrap`}>
                   {t(statusConfig.labelKey)}
                 </div>
               </div>
@@ -596,12 +596,12 @@ function MilestoneHealthSection({
                               <div className={`text-2xl font-bold ${getEfficiencyColor(efficiency)}`}>
                                 {efficiency > 0 ? `${efficiency.toFixed(0)}%` : '-'}
                               </div>
-                              <div className="text-[10px] text-slate-400 mt-1">{t('management.estimationAccuracy')}</div>
+                              <div className="text-xs text-slate-400 mt-1">{t('management.estimationAccuracy')}</div>
                             </div>
 
                             {/* 시간 정보 */}
                             <div className="space-y-2">
-                              <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{t('management.timeLabel')}</h4>
+                              <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">{t('management.timeLabel')}</h4>
                               <div className="flex justify-between text-sm gap-4">
                                 <span className="text-slate-400">{t('management.estimated')}</span>
                                 <span className="text-foreground">{formatMinutes(estimated, t)}</span>
@@ -613,7 +613,7 @@ function MilestoneHealthSection({
                                     {formatMinutes(actual, t)}
                                   </span>
                                   {isOverBudget && overflowRate > 0 && (
-                                    <span className="text-[10px] px-1 py-0.5 bg-red-500/20 text-red-400 rounded">
+                                    <span className="text-xs px-1 py-0.5 bg-red-500/20 text-red-400 rounded">
                                       +{overflowRate.toFixed(0)}%
                                     </span>
                                   )}
@@ -623,7 +623,7 @@ function MilestoneHealthSection({
 
                             {/* 속도 정보 */}
                             <div className="space-y-2">
-                              <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{t('management.speedLabel')}</h4>
+                              <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">{t('management.speedLabel')}</h4>
                               <div className="flex justify-between text-sm gap-4">
                                 <span className="text-slate-400">{t('management.current')}</span>
                                 <span className="text-foreground">
@@ -643,7 +643,7 @@ function MilestoneHealthSection({
                     ) : (
                       /* Feature 기반 표시 (시간 데이터 없을 때) */
                       <div className="space-y-2">
-                        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Feature</h4>
+                        <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider">Feature</h4>
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-400">{t('management.totalFeature')}</span>
                           <span className="text-foreground">{t('management.countUnit', { count: health.feature_summary.total_features })}</span>
@@ -664,7 +664,7 @@ function MilestoneHealthSection({
 
                   {/* 번다운 차트 */}
                   <div className="space-y-3">
-                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('management.burndownChart')}</h4>
+                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider">{t('management.burndownChart')}</h4>
                     {health.burndown.length > 0 && health.burndown[0].ideal_remaining_minutes ? (
                       <div className="h-36">
                         <ResponsiveContainer width="100%" height="100%">
@@ -757,7 +757,7 @@ function MilestoneHealthSection({
                       {/* Task 테이블 */}
                       <div className="bg-white/[0.02] rounded-lg overflow-x-auto">
                         <div className="min-w-[600px]">
-                        <div className="grid grid-cols-[1.5fr_1fr_0.8fr_140px_90px] gap-2 px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-bridge-border">
+                        <div className="grid grid-cols-[1.5fr_1fr_0.8fr_140px_90px] gap-2 px-3 py-2 text-xs font-medium text-slate-400 uppercase tracking-wider border-b border-bridge-border">
                           <div>{t('management.taskHeader')}</div>
                           <div>{t('management.featureHeader')}</div>
                           <div>{t('management.assigneeHeader')}</div>
@@ -827,7 +827,7 @@ function MilestoneHealthSection({
                                       {/* +N 표시 */}
                                       {task.assignees.length > 3 && (
                                         <div
-                                          className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[10px] text-muted-foreground border border-bridge-obsidian flex-shrink-0"
+                                          className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-xs text-muted-foreground border border-bridge-obsidian flex-shrink-0"
                                           title={task.assignees.slice(3).map(a => a.name).join(', ')}
                                         >
                                           +{task.assignees.length - 3}
@@ -863,12 +863,14 @@ function MilestoneHealthSection({
                                       onClick={() => saveEstimatedMinutes(task.task_id)}
                                       disabled={isSaving}
                                       className="p-0.5 text-emerald-400 hover:bg-emerald-500/20 rounded"
+                                      aria-label="저장"
                                     >
                                       <Save className="w-3 h-3" />
                                     </button>
                                     <button
                                       onClick={cancelEditing}
                                       className="p-0.5 text-slate-400 hover:bg-foreground/10 rounded"
+                                      aria-label="닫기"
                                     >
                                       <X className="w-3 h-3" />
                                     </button>
@@ -1105,7 +1107,7 @@ function TeamAllocationSubSection({
     <div className="mt-3 space-y-3">
       {/* Header with add button */}
       <div className="flex items-center justify-between">
-        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('management.teamAllocation')}</h4>
+        <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider">{t('management.teamAllocation')}</h4>
         {!showAddForm && availableMembers.length > 0 && (
           <button
             onClick={() => setShowAddForm(true)}
@@ -1122,7 +1124,7 @@ function TeamAllocationSubSection({
         <div className="p-3 bg-bridge-accent/5 border border-bridge-accent/20 rounded-lg space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 block">{t('management.memberLabel')}</label>
+              <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">{t('management.memberLabel')}</label>
               <select
                 value={selectedMemberId}
                 onChange={(e) => setSelectedMemberId(e.target.value)}
@@ -1137,7 +1139,7 @@ function TeamAllocationSubSection({
               </select>
             </div>
             <div>
-              <label className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 block">{t('management.workingDays')}</label>
+              <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">{t('management.workingDays')}</label>
               <input
                 type="number"
                 value={workingDays}
@@ -1148,7 +1150,7 @@ function TeamAllocationSubSection({
               />
             </div>
             <div>
-              <label className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 block">{t('management.allocatedHours')}</label>
+              <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">{t('management.allocatedHours')}</label>
               <input
                 type="number"
                 value={allocatedHours}
@@ -1181,7 +1183,7 @@ function TeamAllocationSubSection({
       {allocations.length > 0 ? (
         <div className="bg-white/[0.02] rounded-lg overflow-x-auto">
           <div className="min-w-[600px]">
-          <div className="grid grid-cols-[1.5fr_0.8fr_0.8fr_0.8fr_0.8fr_0.6fr_60px] gap-2 px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-bridge-border">
+          <div className="grid grid-cols-[1.5fr_0.8fr_0.8fr_0.8fr_0.8fr_0.6fr_60px] gap-2 px-3 py-2 text-xs font-medium text-slate-400 uppercase tracking-wider border-b border-bridge-border">
             <div>{t('management.memberLabel')}</div>
             <div className="text-center">{t('management.workingDays')}</div>
             <div className="text-center">{t('management.allocatedHours')}</div>
@@ -1287,6 +1289,7 @@ function TeamAllocationSubSection({
                       <button
                         onClick={resetForm}
                         className="p-1 text-slate-400 hover:bg-foreground/10 rounded"
+                        aria-label="닫기"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -1407,7 +1410,7 @@ function TeamProductivitySection({
     <div className="bg-bridge-obsidian rounded-xl border border-bridge-border overflow-x-auto">
       <div className="min-w-[640px]">
       {/* 테이블 헤더 */}
-      <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_100px] gap-3 sm:gap-4 px-3 sm:px-4 py-3 border-b border-bridge-border text-xs font-semibold text-slate-400 uppercase tracking-wider">
+      <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_100px] gap-3 sm:gap-4 px-3 sm:px-4 py-3 border-b border-bridge-border text-xs font-medium text-slate-400 uppercase tracking-wider">
         <div>{t('management.teamMemberHeader')}</div>
         <div className="text-center">{t('management.assignedHeader')}</div>
         <div className="text-center">{t('management.completedHeader')}</div>
@@ -1477,7 +1480,7 @@ function TeamProductivitySection({
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 pt-3 sm:pt-4">
                   {/* 담당 Task (ChecklistItem 담당자 기준) */}
                   <div>
-                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
                       {t('management.assignedTasks', { count: member.assigned_task_details?.length || 0 })}
                     </h4>
                     <div className="space-y-2 max-h-40 overflow-auto">
@@ -1516,7 +1519,7 @@ function TeamProductivitySection({
 
                   {/* 전체 체크리스트 */}
                   <div>
-                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
                       {t('management.allChecklist', { count: member.all_checklist_details?.length || 0 })}
                     </h4>
                     <div className="space-y-2 max-h-40 overflow-auto">
@@ -1549,7 +1552,7 @@ function TeamProductivitySection({
 
                   {/* 진행 중 체크리스트 */}
                   <div>
-                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
                       {t('management.inProgressChecklist', { count: member.in_progress_checklist_details?.length || 0 })}
                     </h4>
                     <div className="space-y-2 max-h-40 overflow-auto">
@@ -1617,7 +1620,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {delayedItems.bottleneck_summary.most_delayed_member && (
             <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl">
-              <div className="flex items-center gap-2 text-orange-400 text-xs font-semibold uppercase tracking-wider mb-2">
+              <div className="flex items-center gap-2 text-orange-400 text-xs font-medium uppercase tracking-wider mb-2">
                 <User className="w-4 h-4" />
                 {t('management.mostDelayedMember')}
               </div>
@@ -1638,7 +1641,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
           )}
           {delayedItems.bottleneck_summary.most_problematic_block && (
             <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
-              <div className="flex items-center gap-2 text-red-400 text-xs font-semibold uppercase tracking-wider mb-2">
+              <div className="flex items-center gap-2 text-red-400 text-xs font-medium uppercase tracking-wider mb-2">
                 <AlertTriangle className="w-4 h-4" />
                 {t('management.bottleneckBlock')}
               </div>

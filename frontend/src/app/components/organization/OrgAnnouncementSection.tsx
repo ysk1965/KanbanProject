@@ -74,14 +74,14 @@ export function OrgAnnouncementSection({ orgId, role, onCreateClick, onEditClick
           <h3 className="text-sm font-bold text-foreground">
             {t('organization.dashboard.announcements', 'Announcements')}
           </h3>
-          <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full">
+          <span className="text-xs font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full">
             {announcements.length}
           </span>
         </div>
         <div className="flex items-center gap-2">
           {announcements.length > 0 && (
             <button onClick={onViewAllClick}
-              className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5 transition-colors">
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-0.5 transition-colors">
               {t('organization.dashboard.viewAll', 'View all')}
               <ChevronRight size={12} />
             </button>
@@ -128,22 +128,22 @@ export function OrgAnnouncementSection({ orgId, role, onCreateClick, onEditClick
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5">
                       {a.is_pinned && (
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full shrink-0">
+                        <span className="text-xs font-bold uppercase tracking-widest text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full shrink-0">
                           PIN
                         </span>
                       )}
-                      <span className="text-sm font-semibold text-foreground">{a.title}</span>
+                      <span className="text-sm font-bold text-foreground">{a.title}</span>
                     </div>
                     {a.content && (
                       <p className="text-[13px] text-muted-foreground leading-relaxed line-clamp-3 mb-2.5">{a.content}</p>
                     )}
                     <div className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded-full bg-bridge-accent/15 flex items-center justify-center">
-                        <span className="text-[9px] font-bold text-bridge-accent">{a.author_name?.charAt(0)}</span>
+                        <span className="text-xs font-bold text-bridge-accent">{a.author_name?.charAt(0)}</span>
                       </div>
-                      <span className="text-[11px] text-slate-500">{a.author_name}</span>
-                      <span className="text-[11px] text-slate-600">&middot;</span>
-                      <span className="text-[11px] text-slate-500">{formatRelativeTime(a.created_at)}</span>
+                      <span className="text-xs text-slate-500">{a.author_name}</span>
+                      <span className="text-xs text-slate-600">&middot;</span>
+                      <span className="text-xs text-slate-500">{formatRelativeTime(a.created_at)}</span>
                     </div>
                   </div>
                   {isAdmin && (

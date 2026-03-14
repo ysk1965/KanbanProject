@@ -671,6 +671,7 @@ export function TaskDetailModal({
             <button
               onClick={handleClose}
               className="md:hidden absolute top-3 right-3 z-10 p-1 rounded-sm opacity-70 hover:opacity-100 transition-opacity text-foreground"
+              aria-label="닫기"
             >
               <X className="h-4 w-4" />
             </button>
@@ -733,7 +734,7 @@ export function TaskDetailModal({
                             setIsEditingTitle(false);
                           }
                         }}
-                        className="text-lg font-semibold border border-foreground/10 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-foreground/5 text-foreground"
+                        className="text-lg font-bold border border-foreground/10 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-foreground/5 text-foreground"
                         autoFocus
                       />
                     ) : (
@@ -741,7 +742,7 @@ export function TaskDetailModal({
                         className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${canEdit ? "cursor-pointer hover:bg-foreground/5" : ""}`}
                         onClick={() => canEdit && setIsEditingTitle(true)}
                       >
-                        <span className="text-lg font-semibold text-foreground">
+                        <span className="text-lg font-bold text-foreground">
                           {editedTask.title}
                         </span>
                         {canEdit && (
@@ -812,7 +813,7 @@ export function TaskDetailModal({
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-slate-400" />
-                  <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                     {t("task.description")}
                   </Label>
                 </div>
@@ -832,7 +833,7 @@ export function TaskDetailModal({
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="h-4 w-4 text-slate-400" />
-                  <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                     {t("task.period")}
                   </Label>
                 </div>
@@ -935,7 +936,7 @@ export function TaskDetailModal({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-slate-400" />
-                    <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                    <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                       {t("task.assignee")}
                     </Label>
                   </div>
@@ -1012,7 +1013,7 @@ export function TaskDetailModal({
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Tags className="h-4 w-4 text-slate-400" />
-                  <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                     {t("task.tags")}
                   </Label>
                 </div>
@@ -1020,7 +1021,7 @@ export function TaskDetailModal({
                   {taskTags.map((tag) => (
                     <span
                       key={tag.id}
-                      className="text-[10px] font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5"
+                      className="text-xs font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5"
                       style={{
                         backgroundColor: `${tag.color}15`,
                         borderColor: `${tag.color}44`,
@@ -1060,13 +1061,13 @@ export function TaskDetailModal({
                     className="h-5 w-5"
                     style={{ color: task.feature_color || "#6366F1" }}
                   />
-                  <Label className="text-base font-semibold text-foreground">
+                  <Label className="text-base font-bold text-foreground">
                     CheckList
                   </Label>
                   {canEdit && boardId && !isRestricted && (
                     <button
                       onClick={() => setShowAIConfirm(true)}
-                      className="ml-1 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-md hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
+                      className="ml-1 flex items-center gap-1 px-2 py-0.5 text-xs font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-md hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
                     >
                       <Sparkles className="h-3 w-3" />
                       AI
@@ -1084,7 +1085,7 @@ export function TaskDetailModal({
                     />
                   </div>
                   <span
-                    className="text-sm font-semibold"
+                    className="text-sm font-medium"
                     style={{ color: task.feature_color || "#6366F1" }}
                   >
                     {checklistProgress}%
@@ -1108,10 +1109,10 @@ export function TaskDetailModal({
                       />
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-foreground/80 mb-1">
+                      <p className="text-xs font-medium text-foreground/80 mb-1">
                         {t("task.addChecklistHint")}
                       </p>
-                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                      <p className="text-xs text-slate-500 leading-relaxed">
                         {t("task.addChecklistDesc")}
                       </p>
                     </div>
@@ -1191,7 +1192,7 @@ export function TaskDetailModal({
         onClose={() => setShowDeleteDialog(false)}
         className="sm:max-w-sm p-6"
       >
-        <h3 className="text-lg font-semibold text-foreground">
+        <h3 className="text-lg font-bold text-foreground">
           {t("task.deleteTitle")}
         </h3>
         <p className="text-sm text-slate-400 mt-1">{t("task.deleteDesc")}</p>
@@ -1223,7 +1224,7 @@ export function TaskDetailModal({
         onClose={() => setShowDoneDialog(false)}
         className="sm:max-w-sm p-6"
       >
-        <h3 className="text-lg font-semibold text-foreground">
+        <h3 className="text-lg font-bold text-foreground">
           {t("task.completeTitle")}
         </h3>
         <p className="text-sm text-slate-400 mt-1">{t("task.completeDesc")}</p>
@@ -1258,7 +1259,7 @@ export function TaskDetailModal({
         }}
         className="sm:max-w-sm p-6"
       >
-        <h3 className="text-lg font-semibold text-foreground">
+        <h3 className="text-lg font-bold text-foreground">
           {t("task.moveBlockTitle")}
         </h3>
         <p className="text-sm text-slate-400 mt-1">{t("task.moveBlockDesc")}</p>
@@ -1319,7 +1320,7 @@ export function TaskDetailModal({
         }}
         className="sm:max-w-sm p-6"
       >
-        <h3 className="text-lg font-semibold text-foreground">
+        <h3 className="text-lg font-bold text-foreground">
           {t("task.moveFeatureTitle")}
         </h3>
         <p className="text-sm text-slate-400 mt-1">
@@ -1387,7 +1388,7 @@ export function TaskDetailModal({
         }}
         className="sm:max-w-sm p-6"
       >
-        <h3 className="text-lg font-semibold text-foreground">
+        <h3 className="text-lg font-bold text-foreground">
           {t("task.moveChecklistToTaskTitle")}
         </h3>
         <p className="text-sm text-slate-400 mt-1">
@@ -1430,7 +1431,7 @@ export function TaskDetailModal({
                   <div className="text-sm text-foreground truncate">
                     {t.title}
                   </div>
-                  <div className="text-[11px] text-slate-400 truncate">
+                  <div className="text-xs text-slate-400 truncate">
                     {t.feature_title}
                   </div>
                 </div>
@@ -1498,7 +1499,7 @@ export function TaskDetailModal({
         onClose={() => setChecklistItemToDelete(null)}
         className="sm:max-w-sm p-6"
       >
-        <h3 className="text-lg font-semibold text-foreground">
+        <h3 className="text-lg font-bold text-foreground">
           {t("task.deleteChecklistTitle")}
         </h3>
         <p className="text-sm text-slate-400 mt-1">
@@ -1583,7 +1584,7 @@ export function TaskDetailModal({
                 {/* Feature group */}
                 <div className="rounded-xl border border-foreground/5 bg-white/[0.02] p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
                       {t("task.aiChecklistConfirmFeatureLabel")}
                     </span>
                     {onOpenFeature && (
@@ -1593,7 +1594,7 @@ export function TaskDetailModal({
                           onClose();
                           onOpenFeature(task.feature_id);
                         }}
-                        className="flex items-center gap-1 text-[10px] text-bridge-accent hover:text-bridge-accent/80 transition-colors"
+                        className="flex items-center gap-1 text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors"
                       >
                         <ArrowRight className="h-3 w-3" />
                         {t("task.aiChecklistGoToFeature")}
@@ -1610,7 +1611,7 @@ export function TaskDetailModal({
                   ) : (
                     <div className="flex items-center gap-1.5">
                       <AlertCircle className="h-3 w-3 text-amber-400 flex-shrink-0" />
-                      <p className="text-[11px] text-amber-400/70">
+                      <p className="text-xs text-amber-400/70">
                         {t("task.aiChecklistConfirmNoDesc")}
                       </p>
                     </div>
@@ -1619,7 +1620,7 @@ export function TaskDetailModal({
 
                 {/* Task group */}
                 <div className="rounded-xl border border-foreground/5 bg-white/[0.02] p-3 space-y-2.5">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
                     {t("task.aiChecklistConfirmTaskLabel")}
                   </span>
                   <input
@@ -1906,7 +1907,7 @@ function ChecklistItemRow({
             <Popover>
               <PopoverTrigger asChild>
                 <button
-                  className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded hover:bg-foreground/10 transition-colors ${
+                  className={`flex items-center gap-1 text-xs px-1.5 py-0.5 rounded hover:bg-foreground/10 transition-colors ${
                     isOverdue
                       ? "text-red-400"
                       : isDueSoon
@@ -1998,7 +1999,7 @@ function ChecklistItemRow({
             </Popover>
           ) : (
             <div
-              className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 ${
+              className={`flex items-center gap-1 text-xs px-1.5 py-0.5 ${
                 isOverdue
                   ? "text-red-400"
                   : isDueSoon
@@ -2057,7 +2058,7 @@ function ChecklistItemRow({
                       }
                     >
                       <div
-                        className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white whitespace-nowrap overflow-hidden`}
+                        className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-xs font-bold text-white whitespace-nowrap overflow-hidden`}
                         style={
                           !assigneeColor.bg
                             ? { backgroundColor: assigneeColor.hex }
@@ -2067,7 +2068,7 @@ function ChecklistItemRow({
                         {getInitials(item.assignee.name)}
                       </div>
                       <span
-                        className={`text-[10px] font-medium ${assigneeColor.text}`}
+                        className={`text-xs font-medium ${assigneeColor.text}`}
                         style={
                           !assigneeColor.text
                             ? { color: assigneeColor.hex }
@@ -2078,8 +2079,8 @@ function ChecklistItemRow({
                       </span>
                     </button>
                   ) : (
-                    <button className="flex items-center gap-1 text-[11px] text-slate-400 px-1.5 py-0.5 rounded hover:bg-foreground/10 transition-colors">
-                      <div className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[9px] text-slate-400">
+                    <button className="flex items-center gap-1 text-xs text-slate-400 px-1.5 py-0.5 rounded hover:bg-foreground/10 transition-colors">
+                      <div className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-xs text-slate-400">
                         ?
                       </div>
                     </button>
@@ -2124,7 +2125,7 @@ function ChecklistItemRow({
                           }`}
                         >
                           <div
-                            className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-[9px] font-bold text-white whitespace-nowrap overflow-hidden`}
+                            className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-xs font-bold text-white whitespace-nowrap overflow-hidden`}
                             style={
                               !memberColor.bg
                                 ? { backgroundColor: memberColor.hex }
@@ -2151,7 +2152,7 @@ function ChecklistItemRow({
                 }
               >
                 <div
-                  className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white whitespace-nowrap overflow-hidden`}
+                  className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-xs font-bold text-white whitespace-nowrap overflow-hidden`}
                   style={
                     !assigneeColor.bg
                       ? { backgroundColor: assigneeColor.hex }
@@ -2161,7 +2162,7 @@ function ChecklistItemRow({
                   {getInitials(item.assignee.name)}
                 </div>
                 <span
-                  className={`text-[10px] font-medium ${assigneeColor.text}`}
+                  className={`text-xs font-medium ${assigneeColor.text}`}
                   style={
                     !assigneeColor.text
                       ? { color: assigneeColor.hex }
@@ -2172,8 +2173,8 @@ function ChecklistItemRow({
                 </span>
               </div>
             ) : (
-              <div className="flex items-center gap-1 text-[11px] text-slate-400 px-1.5 py-0.5">
-                <div className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[9px] text-slate-400">
+              <div className="flex items-center gap-1 text-xs text-slate-400 px-1.5 py-0.5">
+                <div className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-xs text-slate-400">
                   ?
                 </div>
               </div>
@@ -2182,7 +2183,7 @@ function ChecklistItemRow({
 
         {/* 타임블록 총합 시간 + 토글 버튼 */}
         {totalTimeMinutes > 0 && (
-          <span className="text-[11px] text-bridge-accent font-medium whitespace-nowrap">
+          <span className="text-xs text-bridge-accent font-medium whitespace-nowrap">
             {(() => {
               const h = Math.floor(totalTimeMinutes / 60);
               const m = totalTimeMinutes % 60;
@@ -2458,7 +2459,7 @@ function AddChecklistItemInput({
                         return (
                           <div className="flex items-center gap-1">
                             <div
-                              className={`w-4 h-4 rounded-full ${selColor.bg} flex items-center justify-center text-[10px] text-white flex-shrink-0 whitespace-nowrap overflow-hidden`}
+                              className={`w-4 h-4 rounded-full ${selColor.bg} flex items-center justify-center text-xs text-white flex-shrink-0 whitespace-nowrap overflow-hidden`}
                               style={
                                 !selColor.bg
                                   ? { backgroundColor: selColor.hex }
@@ -2495,7 +2496,7 @@ function AddChecklistItemInput({
                         >
                           <div className="flex items-center gap-2">
                             <div
-                              className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-[10px] text-white flex-shrink-0 whitespace-nowrap overflow-hidden`}
+                              className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-xs text-white flex-shrink-0 whitespace-nowrap overflow-hidden`}
                               style={
                                 !memberColor.bg
                                   ? { backgroundColor: memberColor.hex }
@@ -2506,7 +2507,7 @@ function AddChecklistItemInput({
                             </div>
                             <span className="text-xs">{member.name}</span>
                             {member.userId === currentUser?.id && (
-                              <span className="text-[10px] text-slate-400">
+                              <span className="text-xs text-slate-400">
                                 (나)
                               </span>
                             )}

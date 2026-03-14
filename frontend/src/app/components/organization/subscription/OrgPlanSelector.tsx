@@ -122,7 +122,7 @@ export function OrgPlanSelector({
             }`}
           >
             {isCurrent && (
-              <span className="absolute top-3 right-3 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+              <span className="absolute top-3 right-3 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
                 {t('orgSubscription.plan.current', 'Current')}
               </span>
             )}
@@ -135,7 +135,7 @@ export function OrgPlanSelector({
               </div>
               <div>
                 <h3 className="text-sm font-bold text-foreground">{plan.title}</h3>
-                <p className="text-[11px] text-slate-500">{plan.subtitle}</p>
+                <p className="text-xs text-slate-500">{plan.subtitle}</p>
               </div>
             </div>
 

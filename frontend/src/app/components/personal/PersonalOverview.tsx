@@ -7,7 +7,9 @@ import {
   Plus, X, ChevronDown, ChevronUp, ListTodo, Zap, Trophy,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { MotionModal } from '../ui/MotionModal';
+import { IconButton } from '../ui/IconButton';
 import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { personalEventService, diaryService } from '../../utils/services';
 import { personalTaskAPI, personalHabitAPI, personalDashboardAPI } from '../../utils/api';
@@ -43,11 +45,12 @@ function WidgetCard({
   children: React.ReactNode;
   delay?: number;
 }) {
+  const reduced = useReducedMotion();
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={reduced ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay }}
+      transition={reduced ? { duration: 0 } : { duration: 0.4, delay }}
       className="rounded-2xl border border-foreground/[0.08] flex flex-col min-h-[120px] md:min-h-[140px] lg:min-h-0 overflow-hidden"
     >
       <div className="px-3 md:px-5 py-2 md:py-3 bg-foreground/[0.06] border-b border-foreground/[0.08]">
@@ -70,7 +73,7 @@ function ViewAllButton({ onClick, label }: { onClick: () => void; label?: string
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-bridge-secondary transition-colors"
+      className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-secondary transition-colors"
     >
       <span>{label || t('personal.overview.viewAll', 'View all')}</span>
       <ArrowRight size={12} />
@@ -83,6 +86,7 @@ function ViewAllButton({ onClick, label }: { onClick: () => void; label?: string
 const PARTICLE_COLORS = ['#34d399', '#6ee7b7', '#a7f3d0', '#2dd4bf', '#5eead4', '#fbbf24', '#f9a8d4'];
 
 function CheckParticles({ trigger }: { trigger: boolean }) {
+  const reduced = useReducedMotion();
   const particles = useMemo(() => Array.from({ length: 8 }, (_, i) => {
     const angle = (i / 8) * 360;
     const rad = (angle * Math.PI) / 180;
@@ -97,6 +101,8 @@ function CheckParticles({ trigger }: { trigger: boolean }) {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [trigger]);
+
+  if (reduced) return null;
 
   return (
     <AnimatePresence>
@@ -131,6 +137,7 @@ const SPARKLE_COLORS = ['#2dd4bf', '#34d399', '#6366f1', '#fbbf24', '#f9a8d4', '
 
 /** Idle twinkle sparkles (always visible when complete) */
 function CompletionSparkles({ active }: { active: boolean }) {
+  const reduced = useReducedMotion();
   const sparkles = useMemo(() => Array.from({ length: 6 }, (_, i) => ({
     id: i,
     x: Math.random() * 100,
@@ -141,7 +148,7 @@ function CompletionSparkles({ active }: { active: boolean }) {
     color: SPARKLE_COLORS[i % SPARKLE_COLORS.length],
   })), []);
 
-  if (!active) return null;
+  if (reduced || !active) return null;
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-xl">
@@ -176,6 +183,7 @@ function CompletionSparkles({ active }: { active: boolean }) {
 
 /** One-shot burst confetti (fires each time triggerKey increments above 0) */
 function CompletionBurst({ triggerKey }: { triggerKey: number }) {
+  const reduced = useReducedMotion();
   const [show, setShow] = useState(false);
   const prevKey = useRef(0);
   const particles = useMemo(() => Array.from({ length: 12 }, (_, i) => {
@@ -200,6 +208,8 @@ function CompletionBurst({ triggerKey }: { triggerKey: number }) {
       return () => clearTimeout(timer);
     }
   }, [triggerKey]);
+
+  if (reduced) return null;
 
   return (
     <AnimatePresence>
@@ -344,7 +354,7 @@ function TodayScheduleWidget({
       title={t('personal.overview.todaySchedule', "Today's Schedule")}
       badge={
         (allTimedEvents.length + calendarEvents.length) > 0 ? (
-          <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/15 px-1.5 py-0.5 rounded-full">
+          <span className="text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 px-1.5 py-0.5 rounded-full">
             {timedEvents.length + calendarEvents.length}/{allTimedEvents.length + calendarEvents.length}
           </span>
         ) : null
@@ -362,7 +372,7 @@ function TodayScheduleWidget({
           <p className="text-xs md:text-sm text-slate-500">{t('personal.overview.noEvents', 'No events today')}</p>
           <button
             onClick={onViewAll}
-            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 text-[11px] md:text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 hover:bg-bridge-secondary/25 rounded-xl transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 hover:bg-bridge-secondary/25 rounded-xl transition-all"
           >
             <Plus size={14} />
             {t('personal.overview.addSchedule', 'Add a schedule')}
@@ -382,8 +392,8 @@ function TodayScheduleWidget({
                     className="w-full flex items-center gap-2 px-2 py-1 rounded-md hover:bg-foreground/5 transition-colors text-left"
                   >
                     <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                    <span className="text-[11px] text-foreground truncate flex-1">{ev.title}</span>
-                    <span className="text-[9px] text-slate-500 tabular-nums shrink-0">
+                    <span className="text-xs text-foreground truncate flex-1">{ev.title}</span>
+                    <span className="text-xs text-slate-500 tabular-nums shrink-0">
                       {ev.start_time ? `${ev.start_time.slice(0, 5)}${ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}` : t('personal.mobile.allDay', 'All day')}
                     </span>
                   </button>
@@ -408,7 +418,7 @@ function TodayScheduleWidget({
                   >
                     <div className="w-10 md:w-12 flex-shrink-0 pr-2 pt-0.5 text-right">
                       {time.endsWith(':00') && (
-                        <span className="text-[10px] md:text-[11px] text-slate-500 tabular-nums font-light">
+                        <span className="text-xs md:text-xs text-slate-500 tabular-nums font-normal">
                           {time}
                         </span>
                       )}
@@ -454,17 +464,17 @@ function TodayScheduleWidget({
                       onClick={onViewAll}
                     >
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <span className={`text-[11px] font-semibold truncate ${isCurrent ? 'text-foreground' : 'text-foreground/80'}`}>
+                        <span className={`text-xs font-medium truncate ${isCurrent ? 'text-foreground' : 'text-foreground/80'}`}>
                           {ev.title}
                         </span>
                         {isCurrent && (
-                          <span className="text-[8px] font-bold text-bridge-secondary bg-bridge-secondary/15 px-1 py-px rounded-full flex-shrink-0 animate-pulse">
+                          <span className="text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 px-1 py-px rounded-full flex-shrink-0 animate-pulse">
                             NOW
                           </span>
                         )}
                       </div>
                       {height >= TIMELINE_SLOT_H * 0.8 && (
-                        <div className="text-[10px] text-slate-400 mt-0.5">
+                        <div className="text-xs text-slate-400 mt-0.5">
                           {ev.start_time?.slice(0, 5)}{ev.end_time ? ` - ${ev.end_time.slice(0, 5)}` : ''}
                         </div>
                       )}
@@ -480,7 +490,7 @@ function TodayScheduleWidget({
                     style={{ top: `${nowTop}px` }}
                   >
                     <div className="w-10 md:w-12 flex-shrink-0 flex justify-end pr-1">
-                      <span className="text-[9px] font-bold text-red-400 bg-red-500/15 px-1 rounded tabular-nums">
+                      <span className="text-xs font-bold text-red-400 bg-red-500/15 px-1 rounded tabular-nums">
                         {fmtTime(currentMinutes)}
                       </span>
                     </div>
@@ -495,10 +505,10 @@ function TodayScheduleWidget({
                 {timedEvents.length === 0 && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center gap-1.5">
                     <Clock size={20} className="text-slate-600" />
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-xs text-slate-500">
                       {t('personal.overview.noNearbyEvents', 'No events in the next hour')}
                     </p>
-                    <p className="text-[10px] text-slate-600">
+                    <p className="text-xs text-slate-600">
                       {t('personal.overview.totalEventsToday', '{{count}} events today', { count: allTimedEvents.length })}
                     </p>
                   </div>
@@ -711,7 +721,7 @@ function UpcomingDeadlinesWidget({
       title={t('personal.overview.upcomingDeadlines', 'Upcoming Deadlines')}
       badge={
         items.length > 0 ? (
-          <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full">
+          <span className="text-xs font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full">
             {items.length}
           </span>
         ) : null
@@ -729,7 +739,7 @@ function UpcomingDeadlinesWidget({
           <p className="text-xs md:text-sm text-slate-500">{t('personal.overview.noDeadlines', 'No upcoming deadlines')}</p>
           <button
             onClick={onViewAll}
-            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 text-[11px] md:text-xs font-bold text-bridge-accent bg-bridge-accent/15 hover:bg-bridge-accent/25 rounded-xl transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-xs font-bold text-bridge-accent bg-bridge-accent/15 hover:bg-bridge-accent/25 rounded-xl transition-all"
           >
             <Plus size={14} />
             {t('personal.overview.addDeadline', 'Add a task')}
@@ -814,7 +824,7 @@ function UpcomingDeadlinesWidget({
                     className="flex-1 flex items-center gap-2.5 min-w-0 text-left"
                   >
                     <div className="w-[60px] flex-shrink-0">
-                      <span className={`text-[11px] ${dday === 0 && !isDone ? 'text-bridge-secondary font-medium' : 'text-slate-400'}`}>{formatDueDate(item.date)}</span>
+                      <span className={`text-xs ${dday === 0 && !isDone ? 'text-bridge-secondary font-medium' : 'text-slate-400'}`}>{formatDueDate(item.date)}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <motion.div
@@ -825,7 +835,7 @@ function UpcomingDeadlinesWidget({
                         {item.title}
                       </motion.div>
                       {item.category && (
-                        <div className="text-[10px] text-slate-500">{item.category}</div>
+                        <div className="text-xs text-slate-500">{item.category}</div>
                       )}
                     </div>
                     <AnimatePresence mode="wait">
@@ -836,7 +846,7 @@ function UpcomingDeadlinesWidget({
                           animate={{ scale: 1, opacity: 1 }}
                           exit={{ scale: 0.8, opacity: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 text-emerald-400 bg-emerald-400/15"
+                          className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 text-emerald-400 bg-emerald-400/15"
                         >
                           {t('personal.overview.done', 'Done')}
                         </motion.span>
@@ -847,7 +857,7 @@ function UpcomingDeadlinesWidget({
                           animate={{ scale: 1, opacity: 1 }}
                           exit={{ scale: 0.8, opacity: 0 }}
                           transition={{ duration: 0.2 }}
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                          className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
                           isOverdue
                             ? 'text-red-400 bg-red-400/15'
                             : dday === 0
@@ -872,7 +882,7 @@ function UpcomingDeadlinesWidget({
             );
           })}
           {remaining > 0 && (
-            <button onClick={onViewAll} className="w-full text-center py-1.5 text-[11px] text-slate-500 hover:text-bridge-secondary transition-colors">
+            <button onClick={onViewAll} className="w-full text-center py-1.5 text-xs text-slate-500 hover:text-bridge-secondary transition-colors">
               {t('personal.overview.moreItems', { count: remaining, defaultValue: '+{{count}} more' })}
             </button>
           )}
@@ -1105,7 +1115,7 @@ function HabitsTodayWidget({
       title={t('personal.overview.habitsToday', 'Habits Today')}
       badge={
         totalCount > 0 ? (
-          <span className="text-[10px] font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded-full">
+          <span className="text-xs font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded-full">
             {completedCount}/{totalCount}
           </span>
         ) : null
@@ -1134,7 +1144,7 @@ function HabitsTodayWidget({
           <p className="text-xs md:text-sm text-slate-500">{t('personal.overview.noHabits', 'No habits set up yet')}</p>
           <button
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 text-[11px] md:text-xs font-bold text-purple-400 bg-purple-400/15 hover:bg-purple-400/25 rounded-xl transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-xs font-bold text-purple-400 bg-purple-400/15 hover:bg-purple-400/25 rounded-xl transition-all"
           >
             <Plus size={14} />
             {t('personal.overview.addFirstHabit', 'Add Your First Habit')}
@@ -1217,7 +1227,7 @@ function HabitsTodayWidget({
                       </div>
                     </div>
                     {streak > 0 && (
-                      <span className="inline-flex items-center gap-px text-[9px] text-orange-400 font-bold shrink-0">
+                      <span className="inline-flex items-center gap-px text-xs text-orange-400 font-bold shrink-0">
                         <Flame size={9} className="shrink-0" />
                         {streak}
                       </span>
@@ -1232,15 +1242,15 @@ function HabitsTodayWidget({
                       const isDayCompleted = weeklyCompletionMap.get(habit.id)?.has(dayIdx) ?? false;
                       return (
                         <div key={dayIdx} className="flex flex-col items-center gap-1 flex-1">
-                          <span className={`text-[9px] leading-none ${
+                          <span className={`text-xs leading-none ${
                             dayIdx === 0
                               ? isTodayDay && isScheduled
-                                ? 'font-black text-red-400'
+                                ? 'font-bold text-red-400'
                                 : isTodayDay
                                 ? 'font-bold text-red-400/70'
                                 : 'font-medium text-red-400/60'
                               : isTodayDay && isScheduled
-                              ? 'font-black text-purple-300'
+                              ? 'font-bold text-purple-300'
                               : isTodayDay
                               ? 'font-bold text-slate-400'
                               : isScheduled
@@ -1457,11 +1467,11 @@ function DiaryWidget({
       title={t('personal.overview.aiDiary', 'AI Diary')}
       badge={
         diaryData && diaryData.status === 'COMPLETED' ? (
-          <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/15 px-1.5 py-0.5 rounded-full">
+          <span className="text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 px-1.5 py-0.5 rounded-full">
             {t('personal.overview.done', 'Done')}
           </span>
         ) : diaryData && diaryData.status === 'CHATTING' ? (
-          <span className="text-[10px] font-bold text-amber-400 bg-amber-400/15 px-1.5 py-0.5 rounded-full">
+          <span className="text-xs font-bold text-amber-400 bg-amber-400/15 px-1.5 py-0.5 rounded-full">
             {t('personal.overview.inProgress', 'In progress')}
           </span>
         ) : null
@@ -1478,7 +1488,7 @@ function DiaryWidget({
           {greeting.icon}
           <div>
             <p className="text-sm md:text-base font-bold text-foreground mb-0.5 md:mb-1">{greeting.text}</p>
-            <p className="text-[10px] md:text-[11px] text-slate-500 leading-relaxed hidden md:block">
+            <p className="text-xs md:text-xs text-slate-500 leading-relaxed hidden md:block">
               {t('personal.overview.diaryPrompt', 'Take a moment to reflect on your day')}
             </p>
           </div>
@@ -1498,7 +1508,7 @@ function DiaryWidget({
                 <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
                   {diaryData.messages[diaryData.messages.length - 1].content}
                 </p>
-                <span className="text-[10px] text-slate-600 mt-1 block">
+                <span className="text-xs text-slate-600 mt-1 block">
                   {diaryData.messages[diaryData.messages.length - 1].role === 'AI' ? t('personal.overview.roleAI', 'AI') : t('personal.overview.roleYou', 'You')}
                 </span>
               </div>
@@ -1531,7 +1541,7 @@ function DiaryWidget({
               </p>
             </div>
           )}
-          <div className="mt-3 text-[11px] text-bridge-secondary hover:text-bridge-secondary/80 transition-colors">
+          <div className="mt-3 text-xs text-bridge-secondary hover:text-bridge-secondary/80 transition-colors">
             {t('personal.overview.readFull', 'Read full diary →')}
           </div>
         </button>
@@ -1663,7 +1673,7 @@ function MobileGreetingHeader({
             <span className="text-[15px] font-bold text-foreground">{greetingText}</span>
             {userName && <span className="text-[13px] text-slate-400 truncate">{userName}</span>}
           </div>
-          <span className="text-[11px] text-slate-500">{dateStr}</span>
+          <span className="text-xs text-slate-500">{dateStr}</span>
         </div>
       </div>
 
@@ -1708,7 +1718,7 @@ function MobileGreetingHeader({
                       {stat.icon}
                     </motion.div>
                   ) : stat.icon}
-                  <span className={`text-[10px] font-bold uppercase tracking-wider transition-colors duration-500 ${
+                  <span className={`text-xs font-bold uppercase tracking-wider transition-colors duration-500 ${
                     isCelebrating ? 'text-bridge-secondary' : 'text-slate-500'
                   }`}>{stat.label}</span>
                   {isCelebrating && (
@@ -1716,7 +1726,7 @@ function MobileGreetingHeader({
                       initial={{ opacity: 0, scale: 0 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.1, type: 'spring', stiffness: 400, damping: 15 }}
-                      className="text-[8px]"
+                      className="text-xs"
                     >
                       ✨
                     </motion.span>
@@ -1726,7 +1736,7 @@ function MobileGreetingHeader({
                   <span className={`text-lg font-bold transition-colors duration-500 ${
                     isCelebrating ? 'text-bridge-secondary' : 'text-foreground'
                   }`}>{stat.value}</span>
-                  {stat.sub && <span className={`text-[10px] font-medium transition-colors duration-500 ${
+                  {stat.sub && <span className={`text-xs font-medium transition-colors duration-500 ${
                     isCelebrating ? 'text-bridge-secondary/70' : 'text-slate-400'
                   }`}>{stat.sub}</span>}
                 </div>
@@ -1831,7 +1841,7 @@ function MobileQuickHabits({
             </div>
             <button
               onClick={() => onNavigateTab('tasks')}
-              className="flex items-center gap-1 text-[11px] font-bold text-purple-400"
+              className="flex items-center gap-1 text-xs font-bold text-purple-400"
             >
               <Plus size={12} />
               {t('personal.mobile.addHabit', 'Add')}
@@ -1888,7 +1898,7 @@ function MobileQuickHabits({
             {totalCount > 0 && (
               <motion.span
                 layout
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
                   allDone
                     ? 'text-bridge-secondary bg-bridge-secondary/15'
                     : 'text-purple-400 bg-purple-400/15'
@@ -1961,11 +1971,11 @@ function MobileQuickHabits({
                 )}
                 {habit.current_streak > 0 && (
                   <div className="absolute -bottom-1 -right-1 min-w-[16px] h-[14px] bg-orange-500 rounded-full flex items-center justify-center px-0.5 shadow-sm">
-                    <span className="text-[8px] font-bold text-white leading-none">{habit.current_streak}</span>
+                    <span className="text-xs font-bold text-white leading-none">{habit.current_streak}</span>
                   </div>
                 )}
               </div>
-              <span className={`text-[10px] font-medium truncate w-full text-center px-1 ${
+              <span className={`text-xs font-medium truncate w-full text-center px-1 ${
                 isCompleted ? 'text-bridge-secondary' : 'text-foreground'
               }`}>
                 {habit.title}
@@ -2208,9 +2218,9 @@ function OverviewCreateHabitModal({
             className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground placeholder-slate-500 outline-none"
             autoFocus
           />
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
-            <X size={16} />
-          </button>
+          <IconButton onClick={onClose} aria-label="닫기">
+            <X />
+          </IconButton>
         </div>
 
         <div className="px-5 pt-4 pb-5 space-y-3">
@@ -2296,7 +2306,7 @@ function OverviewCreateHabitModal({
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-            <span className="text-[11px] text-slate-600 select-none">Esc 닫기</span>
+            <span className="text-xs text-slate-600 select-none">Esc 닫기</span>
             <button
               onClick={handleSubmit}
               disabled={!isValid}

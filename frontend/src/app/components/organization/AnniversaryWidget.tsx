@@ -115,25 +115,25 @@ export function AnniversaryWidget({
               {item.member_name}
             </span>
             {item.department_name && (
-              <span className="text-[10px] text-muted-foreground truncate">
+              <span className="text-xs text-muted-foreground truncate">
                 {item.department_name}
               </span>
             )}
           </div>
           <div className="flex items-center gap-2 mt-0.5">
             <span
-              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isBirthday ? "bg-pink-500/15 text-pink-600 dark:text-pink-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}
+              className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${isBirthday ? "bg-pink-500/15 text-pink-600 dark:text-pink-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}
             >
               {typeLabel}
             </span>
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {(() => {
                 const [, m, d] = item.date.split("-");
                 return `${parseInt(m)}/${parseInt(d)}`;
               })()}
             </span>
             {item.message_count > 0 && (
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {t(
                   "organization.anniversary.messageCount",
                   "{{count}} messages",
@@ -155,7 +155,7 @@ export function AnniversaryWidget({
                 item.date,
               )
             }
-            className="flex items-center gap-1 text-[11px] text-bridge-accent hover:text-bridge-accent/80 font-medium transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+            className="flex items-center gap-1 text-xs text-bridge-accent hover:text-bridge-accent/80 font-medium transition-colors shrink-0 opacity-0 group-hover:opacity-100"
           >
             {t("organization.anniversary.sendMessage", "Send Message")}
             <ChevronRight size={12} />
@@ -173,7 +173,7 @@ export function AnniversaryWidget({
     if (items.length === 0) return null;
     return (
       <div className="mt-4 first:mt-0">
-        <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+        <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
           {title}
         </div>
         <div className="divide-y divide-foreground/[0.08]">
@@ -198,7 +198,7 @@ export function AnniversaryWidget({
             {t("organization.anniversary.title", "Upcoming Anniversaries")}
           </h3>
           {hasAny && (
-            <span className="text-[10px] font-bold text-pink-600 dark:text-pink-400 bg-pink-500/15 px-1.5 py-0.5 rounded-full">
+            <span className="text-xs font-bold text-pink-600 dark:text-pink-400 bg-pink-500/15 px-1.5 py-0.5 rounded-full">
               {todayItems.length + weekItems.length + monthItems.length}
             </span>
           )}

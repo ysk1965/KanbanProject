@@ -264,13 +264,13 @@ export function NoteAIInlineSection({
   const renderFeatureLabel = (feature: AIFeatureSuggestion) => {
     if (feature.type === 'EXISTING') {
       return (
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-foreground/5 px-1.5 py-0.5 rounded">
+        <span className="text-xs font-bold uppercase tracking-widest text-slate-400 bg-foreground/5 px-1.5 py-0.5 rounded">
           {t('notes.aiExistingFeature')}
         </span>
       );
     }
     return (
-      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
+      <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
         <Sparkles className="h-3 w-3" />
         {t('notes.aiNewFeature')}
       </span>
@@ -325,7 +325,7 @@ export function NoteAIInlineSection({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-bridge-accent" />
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
             {t('notes.aiOrganizeTitle')}
           </span>
         </div>
@@ -360,7 +360,7 @@ export function NoteAIInlineSection({
       {/* Summary Topics */}
       {suggestions.summary && suggestions.summary.length > 0 && (
         <div className="space-y-2">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
             {t('notes.aiSummaryTitle')}
           </span>
           <div className="space-y-2">
@@ -376,7 +376,7 @@ export function NoteAIInlineSection({
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-sm font-medium text-foreground">{topic.topic}</span>
                   {topic.important && (
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                    <span className="text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
                       {t('notes.aiImportant')}
                     </span>
                   )}
@@ -386,12 +386,12 @@ export function NoteAIInlineSection({
                   <div className="space-y-2">
                     {topic.decisions && topic.decisions.length > 0 && (
                       <div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-green-400">{t('notes.aiDecisions', 'Decisions')}</span>
+                        <span className="text-xs font-bold uppercase tracking-widest text-green-400">{t('notes.aiDecisions', 'Decisions')}</span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.decisions.map((d, j) => (
                             <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
                               <span className="text-green-400 mt-1 text-xs">✓</span>
-                              <span className="font-light">{d}</span>
+                              <span className="font-normal">{d}</span>
                             </li>
                           ))}
                         </ul>
@@ -399,12 +399,12 @@ export function NoteAIInlineSection({
                     )}
                     {topic.discussions && topic.discussions.length > 0 && (
                       <div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">{t('notes.aiDiscussions', 'Discussions')}</span>
+                        <span className="text-xs font-bold uppercase tracking-widest text-blue-400">{t('notes.aiDiscussions', 'Discussions')}</span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.discussions.map((d, j) => (
                             <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
                               <span className="text-blue-400 mt-1 text-xs">–</span>
-                              <span className="font-light">{d}</span>
+                              <span className="font-normal">{d}</span>
                             </li>
                           ))}
                         </ul>
@@ -412,12 +412,12 @@ export function NoteAIInlineSection({
                     )}
                     {topic.action_items && topic.action_items.length > 0 && (
                       <div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">{t('notes.aiActionItems', 'Action Items')}</span>
+                        <span className="text-xs font-bold uppercase tracking-widest text-amber-400">{t('notes.aiActionItems', 'Action Items')}</span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.action_items.map((a, j) => (
                             <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
                               <span className="text-amber-400 mt-1 text-xs">→</span>
-                              <span className="font-light">{a}</span>
+                              <span className="font-normal">{a}</span>
                             </li>
                           ))}
                         </ul>
@@ -430,7 +430,7 @@ export function NoteAIInlineSection({
                     {topic.points.map((point, j) => (
                       <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
                         <span className="text-slate-500 mt-1 text-xs">–</span>
-                        <span className="font-light">{point}</span>
+                        <span className="font-normal">{point}</span>
                       </li>
                     ))}
                   </ul>
@@ -445,7 +445,7 @@ export function NoteAIInlineSection({
       {suggestions.features.length > 0 && !result && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
               {t('notes.aiRecommendedTasks')}
             </span>
             <button
@@ -511,7 +511,7 @@ export function NoteAIInlineSection({
                             )}
                           </div>
                           {isTaskLocked(fi, ti) && (
-                            <span className="text-[10px] text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded flex-shrink-0">
+                            <span className="text-xs text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded flex-shrink-0">
                               {t('notes.aiAlreadyExists')}
                             </span>
                           )}

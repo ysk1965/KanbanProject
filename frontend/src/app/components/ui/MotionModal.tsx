@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './utils';
 import { SPRING, FADE_SCALE } from '../../constants/motion';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 /* ── Global ESC stack: only the topmost modal closes on Escape ── */
 const escStack: (() => void)[] = [];
@@ -19,6 +20,10 @@ if (typeof document !== 'undefined') {
   });
 }
 
+/* ── Focus trap helper ── */
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 /* ── MotionModal ── */
 interface MotionModalProps {
   open: boolean;
@@ -30,6 +35,10 @@ interface MotionModalProps {
   overlayClose?: boolean;
   /** Optional accent color gradient line at the top of the modal */
   accentColor?: boolean;
+  /** Accessible label for the modal dialog */
+  'aria-label'?: string;
+  /** ID of an element that labels the modal */
+  'aria-labelledby'?: string;
 }
 
 export function MotionModal({
@@ -39,14 +48,18 @@ export function MotionModal({
   className,
   overlayClose = true,
   accentColor,
+  'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledBy,
 }: MotionModalProps) {
   const [shouldRender, setShouldRender] = useState(open);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const reduced = useReducedMotion();
 
   // Track whether mousedown started on the overlay (not inside content, not from external drag)
   const mouseDownOnOverlayRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (open) setShouldRender(true);
@@ -63,6 +76,67 @@ export function MotionModal({
     };
   }, [open]);
 
+  /* Focus trap: trap Tab key within modal */
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== 'Tab' || !contentRef.current) return;
+
+    const focusableEls = contentRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+    if (focusableEls.length === 0) return;
+
+    const firstEl = focusableEls[0];
+    const lastEl = focusableEls[focusableEls.length - 1];
+
+    if (e.shiftKey) {
+      if (document.activeElement === firstEl) {
+        e.preventDefault();
+        lastEl.focus();
+      }
+    } else {
+      if (document.activeElement === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    }
+  }, []);
+
+  /* Save and restore focus on open/close */
+  useEffect(() => {
+    if (open) {
+      previousActiveElementRef.current = document.activeElement as HTMLElement;
+      // Focus first focusable element after animation
+      const timer = setTimeout(() => {
+        if (contentRef.current) {
+          const firstFocusable = contentRef.current.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+          firstFocusable?.focus();
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      // Restore focus to trigger element
+      previousActiveElementRef.current?.focus();
+      previousActiveElementRef.current = null;
+    }
+  }, [open]);
+
+  // Motion values — static when reduced motion is preferred
+  const overlayMotion = reduced
+    ? { initial: {}, animate: {}, exit: {}, transition: { duration: 0 } }
+    : {
+        initial: { backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' },
+        animate: { backgroundColor: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' },
+        exit: { backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' },
+        transition: { duration: 0.3 },
+      };
+
+  const contentMotion = reduced
+    ? { initial: { opacity: 1 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0 } }
+    : {
+        initial: { opacity: 0, y: 24, scale: 0.97 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: 12, scale: 0.98 },
+        transition: SPRING.modal,
+      };
+
   if (!shouldRender) return null;
 
   return createPortal(
@@ -70,10 +144,10 @@ export function MotionModal({
       {open && (
         <motion.div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
-          initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
-          animate={{ backgroundColor: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}
-          exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
-          transition={{ duration: 0.3 }}
+          initial={overlayMotion.initial}
+          animate={overlayMotion.animate}
+          exit={overlayMotion.exit}
+          transition={overlayMotion.transition}
           onMouseDown={() => { mouseDownOnOverlayRef.current = true; }}
           onClick={overlayClose ? () => {
             // Only close if mousedown also started on the overlay (not from drag or inside content)
@@ -85,10 +159,15 @@ export function MotionModal({
         >
           <motion.div
             ref={contentRef}
-            initial={{ opacity: 0, y: 24, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.98 }}
-            transition={SPRING.modal}
+            role="dialog"
+            aria-modal="true"
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledBy}
+            initial={contentMotion.initial}
+            animate={contentMotion.animate}
+            exit={contentMotion.exit}
+            transition={contentMotion.transition}
+            onKeyDown={handleKeyDown}
             onAnimationComplete={() => {
               // Clear residual transform after enter animation.
               // Mobile browsers miscalculate input caret position when

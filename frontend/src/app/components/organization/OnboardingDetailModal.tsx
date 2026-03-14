@@ -134,7 +134,7 @@ export function OnboardingDetailModal({
           <h2 className="text-sm font-bold text-foreground">
             {t('organization.dashboard.onboarding', '온보딩 진행 현황')}
           </h2>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-xs text-slate-500">
             {t('organization.dashboard.onboardingInProgress', {
               count: instances.length,
               defaultValue: '{{count}}명 진행 중',
@@ -192,7 +192,7 @@ export function OnboardingDetailModal({
                   />
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-bridge-accent/15 flex items-center justify-center shrink-0">
-                    <span className="text-[11px] font-bold text-bridge-accent">
+                    <span className="text-xs font-bold text-bridge-accent">
                       {inst.member_name?.charAt(0)?.toUpperCase() || '?'}
                     </span>
                   </div>
@@ -202,15 +202,15 @@ export function OnboardingDetailModal({
                     <span className="text-xs font-bold text-foreground truncate">
                       {inst.member_name}
                     </span>
-                    <span className="text-[10px] font-bold text-emerald-500">
+                    <span className="text-xs font-bold text-emerald-500">
                       {progressPercent}%
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[10px] text-slate-500 truncate">
+                    <span className="text-xs text-slate-500 truncate">
                       {inst.template_name}
                     </span>
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-xs text-slate-500">
                       · {completedItems}/{totalItems}
                     </span>
                   </div>
@@ -283,13 +283,13 @@ export function OnboardingDetailModal({
                                 {/* Meta row */}
                                 <div className="flex items-center gap-2 mt-0.5">
                                   {item.due_date && (
-                                    <span className="flex items-center gap-0.5 text-[10px] text-slate-500">
+                                    <span className="flex items-center gap-0.5 text-xs text-slate-500">
                                       <Calendar size={9} />
                                       {formatDateShort(item.due_date)}
                                     </span>
                                   )}
                                   {item.assignee_name && (
-                                    <span className="flex items-center gap-0.5 text-[10px] text-slate-500">
+                                    <span className="flex items-center gap-0.5 text-xs text-slate-500">
                                       <User size={9} />
                                       {item.assignee_name}
                                     </span>
@@ -315,7 +315,7 @@ export function OnboardingDetailModal({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-[10px] text-slate-600">Esc {t('common.close', '닫기')}</span>
+        <span className="text-xs text-slate-600">Esc {t('common.close', '닫기')}</span>
       </div>
     </MotionModal>
   );

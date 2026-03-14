@@ -151,6 +151,19 @@ public class OrgSubscription {
                 .build();
     }
 
+    public static OrgSubscription createActive(Organization org) {
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        return OrgSubscription.builder()
+                .organization(org)
+                .plan(OrgPlan.TEAM)
+                .status(SubscriptionStatus.ACTIVE)
+                .boardLimit(Integer.MAX_VALUE)
+                .monthlyAiCredits(ORG_MONTHLY_CREDITS)
+                .monthlyCreditsUsed(0)
+                .creditsResetDate(now.plusMonths(1))
+                .build();
+    }
+
     // ── Business Methods ──
 
     public void activateTeam(BillingCycle cycle, int seats, String paymentMethodId) {

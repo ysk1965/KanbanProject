@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { publicGalleryUploadAPI, resolveFileUrl, type ChunkedUploadProgress } from '../utils/api';
 import { PhotoLightbox } from '../components/organization/photo/PhotoLightbox';
+import { IconButton } from '../components/ui/IconButton';
 import { downloadPhoto, getDownloadedIds, markManyAsDownloaded } from '../utils/nativeDownload';
 import type {
   GalleryUploadInfo,
@@ -427,7 +428,7 @@ export function GalleryUploadPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
+      <div className="min-h-screen bg-bridge-dark flex items-center justify-center" role="status" aria-label="로딩 중">
         <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
       </div>
     );
@@ -466,7 +467,7 @@ export function GalleryUploadPage() {
             {galleryInfo.organization_logo_url ? (
               <img
                 src={resolveFileUrl(galleryInfo.organization_logo_url)}
-                alt=""
+                alt={galleryInfo.organization_name || '조직 로고'}
                 className="w-8 h-8 rounded-lg object-cover shrink-0"
               />
             ) : (
@@ -478,16 +479,16 @@ export function GalleryUploadPage() {
               <h1 className="text-sm font-bold text-foreground truncate">
                 {galleryInfo.organization_name}
               </h1>
-              <p className="text-[10px] text-slate-500">
+              <p className="text-xs text-slate-500">
                 {t('photoGallery.title', 'Photos')}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
               {daysLeft > 0 ? `${daysLeft}d left` : `${hoursLeft}h left`}
             </span>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary uppercase tracking-wider">
+            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary uppercase tracking-wider">
               Upload
             </span>
           </div>
@@ -509,7 +510,7 @@ export function GalleryUploadPage() {
               >
                 {album.name}
                 <span
-                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
                     activeAlbum?.id === album.id
                       ? 'bg-bridge-secondary/20 text-bridge-secondary'
                       : 'bg-foreground/10 text-slate-500'
@@ -563,12 +564,12 @@ export function GalleryUploadPage() {
               >
                 {creating ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
               </button>
-              <button
+              <IconButton
                 onClick={() => { setShowCreateAlbum(false); setNewAlbumName(''); }}
-                className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                aria-label="취소"
               >
-                <X size={14} />
-              </button>
+                <X />
+              </IconButton>
             </div>
           ) : (
             <button
@@ -604,7 +605,7 @@ export function GalleryUploadPage() {
               <p className="text-sm font-bold text-foreground">
                 {t('photoGallery.deleteAlbumConfirm', 'Delete album?')}
               </p>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 "{confirmDeleteAlbum.name}" — {confirmDeleteAlbum.photo_count}{' '}
                 {t('photoGallery.photosUnit', 'photos')}{' '}
                 {t('photoGallery.deleteAlbumWarning', 'will be permanently deleted.')}
@@ -617,12 +618,9 @@ export function GalleryUploadPage() {
             >
               {deletingAlbumId ? <Loader2 size={12} className="animate-spin" /> : t('photoGallery.deleteButton', 'Delete')}
             </button>
-            <button
-              onClick={() => setConfirmDeleteAlbum(null)}
-              className="p-1 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0"
-            >
-              <X size={14} />
-            </button>
+            <IconButton onClick={() => setConfirmDeleteAlbum(null)} aria-label="닫기">
+              <X />
+            </IconButton>
           </div>
         </div>
       )}
@@ -633,7 +631,7 @@ export function GalleryUploadPage() {
           {photos.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                   {activeAlbum.photo_count} {t('photoGallery.photosUnit', 'photos')}
                 </span>
                 <div className="flex items-center gap-2">
@@ -641,7 +639,7 @@ export function GalleryUploadPage() {
                     <>
                       <button
                         onClick={handleSelectAll}
-                        className="text-[11px] text-slate-400 hover:text-foreground transition-colors"
+                        className="text-xs text-slate-400 hover:text-foreground transition-colors"
                       >
                         {selectedIds.size === photos.length
                           ? t('photoGallery.deselectAll', 'Deselect all')
@@ -650,7 +648,7 @@ export function GalleryUploadPage() {
                       <button
                         onClick={handleBatchDownload}
                         disabled={selectedIds.size === 0 || batchDownloading}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-bridge-accent/15 text-bridge-accent hover:bg-bridge-accent/25 transition-colors disabled:opacity-40"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-bridge-accent/15 text-bridge-accent hover:bg-bridge-accent/25 transition-colors disabled:opacity-40"
                       >
                         {batchDownloading ? (
                           <Loader2 size={12} className="animate-spin" />
@@ -662,7 +660,7 @@ export function GalleryUploadPage() {
                       <button
                         onClick={() => selectedIds.size > 0 && setShowDeleteConfirm(true)}
                         disabled={selectedIds.size === 0 || batchDeleting}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors disabled:opacity-40"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors disabled:opacity-40"
                       >
                         {batchDeleting ? (
                           <Loader2 size={12} className="animate-spin" />
@@ -671,17 +669,14 @@ export function GalleryUploadPage() {
                         )}
                         {selectedIds.size > 0 && selectedIds.size}
                       </button>
-                      <button
-                        onClick={exitSelectMode}
-                        className="p-1 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
-                      >
-                        <X size={14} />
-                      </button>
+                      <IconButton onClick={exitSelectMode} aria-label="선택 해제">
+                        <X />
+                      </IconButton>
                     </>
                   ) : (
                     <button
                       onClick={() => setSelectMode(true)}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                     >
                       <CheckSquare size={12} />
                       {t('photoGallery.select', 'Select')}
@@ -698,7 +693,7 @@ export function GalleryUploadPage() {
                     <p className="text-sm font-bold text-foreground">
                       {t('photoGallery.deletePhotosConfirm', 'Delete {{count}} photos?', { count: selectedIds.size })}
                     </p>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-xs text-slate-400">
                       {t('photoGallery.deleteAlbumWarning', 'will be permanently deleted.')}
                     </p>
                   </div>
@@ -709,12 +704,9 @@ export function GalleryUploadPage() {
                   >
                     {batchDeleting ? <Loader2 size={12} className="animate-spin" /> : t('photoGallery.deleteButton', 'Delete')}
                   </button>
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="p-1 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0"
-                  >
-                    <X size={14} />
-                  </button>
+                  <IconButton onClick={() => setShowDeleteConfirm(false)} aria-label="닫기">
+                    <X />
+                  </IconButton>
                 </div>
               )}
 
@@ -763,14 +755,14 @@ export function GalleryUploadPage() {
                         <div className="absolute top-1.5 right-1.5 z-10">
                           <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/90 text-white">
                             <Check size={10} strokeWidth={3} />
-                            <span className="text-[9px] font-bold">saved</span>
+                            <span className="text-xs font-bold">saved</span>
                           </div>
                         </div>
                       )}
                       {/* Hover overlay (only in non-select mode) */}
                       {!selectMode && (
                         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-2">
-                          <span className="text-[10px] text-white/90 truncate flex-1">
+                          <span className="text-xs text-white/90 truncate flex-1">
                             {photo.original_filename}
                           </span>
                           <div className="flex items-center gap-1 shrink-0">
@@ -865,7 +857,7 @@ export function GalleryUploadPage() {
               <p className="text-sm font-bold text-foreground mb-1">
                 {t('photoGallery.dragAndDrop', 'Drop photos here or click to browse')}
               </p>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs text-slate-500">
                 {t('photoGallery.uploadHint', 'Supports JPG, PNG, GIF, WebP')}
               </p>
             </div>
@@ -888,12 +880,12 @@ export function GalleryUploadPage() {
             {files.length > 0 && (
               <div className="mt-6 space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                     {files.length} {t('photoGallery.photosUnit', 'photos')} selected
                   </span>
                   <button
                     onClick={() => { setFiles([]); setPreviews([]); }}
-                    className="text-[10px] text-slate-500 hover:text-foreground transition-colors"
+                    className="text-xs text-slate-500 hover:text-foreground transition-colors"
                   >
                     Clear all
                   </button>
@@ -908,7 +900,7 @@ export function GalleryUploadPage() {
                       transition={{ delay: i * 0.04 }}
                       className="relative aspect-square rounded-xl overflow-hidden group"
                     >
-                      <img src={preview} alt="" className="w-full h-full object-cover" />
+                      <img src={preview} alt="업로드 미리보기" className="w-full h-full object-cover" />
                       <button
                         onClick={(e) => { e.stopPropagation(); removeFile(i); }}
                         className="absolute top-1 right-1 p-1 rounded-lg bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
@@ -974,7 +966,7 @@ export function GalleryUploadPage() {
                   <p className="text-sm font-bold text-foreground">
                     {t('photoGallery.uploading', 'Uploading...')}
                   </p>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-xs text-slate-500">
                     {uploadProgress.uploadedFiles} / {uploadProgress.totalFiles} {t('photoGallery.photosUnit', 'photos')}
                   </p>
                 </div>
@@ -988,7 +980,7 @@ export function GalleryUploadPage() {
                   transition={{ duration: 0.3 }}
                 />
               </div>
-              <p className="text-[10px] text-slate-600 text-center">
+              <p className="text-xs text-slate-600 text-center">
                 Batch {uploadProgress.currentBatch} / {uploadProgress.totalBatches}
               </p>
             </div>
@@ -1010,7 +1002,7 @@ export function GalleryUploadPage() {
       {/* Footer */}
       <footer className="border-t border-foreground/5 mt-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between">
-          <span className="text-[10px] tracking-[0.3em] uppercase text-slate-600">
+          <span className="text-xs tracking-[0.3em] uppercase text-slate-600">
             Shared via BRIDGE
           </span>
           <a

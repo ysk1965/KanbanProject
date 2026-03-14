@@ -16,7 +16,7 @@ export function OrgSubscriptionBadge({
 }: OrgSubscriptionBadgeProps) {
   const { t } = useTranslation();
 
-  const textSize = size === 'sm' ? 'text-[10px]' : 'text-xs';
+  const textSize = size === 'sm' ? 'text-xs' : 'text-xs';
 
   if (status === 'TRIAL' && trialEndsAt) {
     const now = new Date();

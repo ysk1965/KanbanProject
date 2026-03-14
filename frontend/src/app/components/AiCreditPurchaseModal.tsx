@@ -109,6 +109,7 @@ export function AiCreditPurchaseModal({
             <button
               onClick={onClose}
               className="text-slate-400 hover:text-foreground transition-colors p-1"
+              aria-label="닫기"
             >
               <X className="w-5 h-5" />
             </button>
@@ -279,7 +280,7 @@ export function AiCreditPurchaseModal({
                             <span className="text-sm font-medium text-foreground truncate">
                               {item.user_name}
                             </span>
-                            <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
+                            <span className={`text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
                               featureTypeStyle(item.feature_type)
                             }`}>
                               {t(`ai_credits.usage.feature.${item.feature_type}`, { defaultValue: item.feature_type })}
@@ -289,7 +290,7 @@ export function AiCreditPurchaseModal({
                             -{item.credits_used}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-1">
+                        <p className="text-xs text-slate-500 mt-1">
                           {formatRelativeTime(item.created_at)}
                         </p>
                       </div>

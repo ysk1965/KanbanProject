@@ -523,7 +523,7 @@ export function MeetingDetailPanel({
           <>
             {/* Participants */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                 {t("meeting.participants")}
               </label>
               {detail.participants.length === 0 ? (
@@ -545,7 +545,7 @@ export function MeetingDetailPanel({
                         />
                       ) : (
                         <div
-                          className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-medium whitespace-nowrap overflow-hidden"
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-xs text-white font-medium whitespace-nowrap overflow-hidden"
                           style={{ backgroundColor: getAssigneeHex(p.name) }}
                         >
                           {getInitials(p.name)}
@@ -562,7 +562,7 @@ export function MeetingDetailPanel({
 
             {/* Memo */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                 {t("meeting.memo")}
               </label>
               <textarea
@@ -580,7 +580,7 @@ export function MeetingDetailPanel({
             {!isRestricted && (
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest">
                     {t("meeting.transcript")}
                   </label>
                   {detail.diarized_transcript &&
@@ -596,7 +596,7 @@ export function MeetingDetailPanel({
                           }
                           setIsEditingTranscriptManually(true);
                         }}
-                        className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300 transition-colors"
+                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
                       >
                         <Pencil className="h-3 w-3" />
                         {t("meeting.editManually", "직접 편집")}
@@ -609,7 +609,7 @@ export function MeetingDetailPanel({
                           await handleDiarizedTranscriptSave();
                           setIsEditingTranscriptManually(false);
                         }}
-                        className="flex items-center gap-1 text-[11px] text-bridge-accent hover:text-bridge-accent/80 transition-colors"
+                        className="flex items-center gap-1 text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors"
                       >
                         <Users className="h-3 w-3" />
                         {t("meeting.viewConversation", "대화형 보기")}
@@ -636,7 +636,7 @@ export function MeetingDetailPanel({
                           <span className="text-xs text-red-400 font-mono">
                             {formatDuration(recordingDuration)}
                           </span>
-                          <span className="text-[10px] text-slate-500">
+                          <span className="text-xs text-slate-500">
                             {formatFileSize(recordingSize)} /{" "}
                             {formatFileSize(MAX_RECORDING_SIZE)}
                           </span>
@@ -679,13 +679,13 @@ export function MeetingDetailPanel({
                 {(isRecording || audioBlob) && (
                   <div className="mb-2">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] text-slate-500">
+                      <span className="text-xs text-slate-500">
                         {formatFileSize(
                           isRecording ? recordingSize : (audioBlob?.size ?? 0),
                         )}{" "}
                         / {formatFileSize(MAX_RECORDING_SIZE)}
                       </span>
-                      <span className="text-[10px] text-slate-500">
+                      <span className="text-xs text-slate-500">
                         {Math.min(
                           100,
                           Math.round(
@@ -761,7 +761,7 @@ export function MeetingDetailPanel({
                                     : `${seg.speaker}-${idx}`,
                                 )
                               }
-                              className={`min-w-[80px] max-w-[100px] px-2 py-1 text-[11px] font-bold tracking-wider rounded-lg transition-colors text-left truncate flex items-center gap-1 ${color.bg} ${color.text} ${color.hoverBg}`}
+                              className={`min-w-[80px] max-w-[100px] px-2 py-1 text-xs font-bold tracking-wider rounded-lg transition-colors text-left truncate flex items-center gap-1 ${color.bg} ${color.text} ${color.hoverBg}`}
                               title={displayName}
                             >
                               <span className="truncate">{displayName}</span>
@@ -775,7 +775,7 @@ export function MeetingDetailPanel({
                               `${seg.speaker}-${idx}` && (
                               <div className="absolute top-full left-0 mt-1 z-50 min-w-[180px] bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1 overflow-hidden">
                                 <div className="px-3 py-2 border-b border-foreground/[0.08]">
-                                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                                  <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
                                     {t("meeting.mapSpeaker", "화자 매핑")}
                                   </span>
                                 </div>
@@ -802,7 +802,7 @@ export function MeetingDetailPanel({
                                       />
                                     ) : (
                                       <div
-                                        className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-medium"
+                                        className="w-5 h-5 rounded-full flex items-center justify-center text-xs text-white font-medium"
                                         style={{
                                           backgroundColor: getAssigneeHex(
                                             p.name,
@@ -949,7 +949,7 @@ export function MeetingDetailPanel({
                 <div className="mt-4 flex items-center justify-between bg-white/[0.02] rounded-xl border border-foreground/5 px-4 py-3">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-bridge-accent" />
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {t("meeting.aiOrganizeTitle")}
                     </span>
                   </div>
@@ -1019,13 +1019,13 @@ export function MeetingDetailPanel({
           <div className="flex flex-col gap-3">
             <button
               onClick={() => doDelete("THIS_ONLY")}
-              className="w-full px-4 py-3 text-sm font-semibold bg-foreground/5 border border-foreground/10 rounded-xl text-foreground hover:bg-foreground/10 transition-all"
+              className="w-full px-4 py-3 text-sm font-bold bg-foreground/5 border border-foreground/10 rounded-xl text-foreground hover:bg-foreground/10 transition-all"
             >
               {t("meeting.deleteThisOnly", "이 회의만 삭제")}
             </button>
             <button
               onClick={() => doDelete("THIS_AND_FUTURE")}
-              className="w-full px-4 py-3 text-sm font-semibold bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/20 transition-all"
+              className="w-full px-4 py-3 text-sm font-bold bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/20 transition-all"
             >
               {t("meeting.deleteThisAndFuture", "이후 회의 모두 삭제")}
             </button>
@@ -1352,13 +1352,13 @@ function MeetingAIInlineSection({
   const renderFeatureLabel = (feature: AIFeatureSuggestion) => {
     if (feature.type === "EXISTING") {
       return (
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-foreground/5 px-1.5 py-0.5 rounded">
+        <span className="text-xs font-bold uppercase tracking-widest text-slate-400 bg-foreground/5 px-1.5 py-0.5 rounded">
           {t("meeting.aiExistingFeature")}
         </span>
       );
     }
     return (
-      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
+      <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
         <Sparkles className="h-3 w-3" />
         {t("meeting.aiNewFeature")}
       </span>
@@ -1410,7 +1410,7 @@ function MeetingAIInlineSection({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-bridge-accent" />
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
             {t("meeting.aiOrganizeTitle")}
           </span>
         </div>
@@ -1448,7 +1448,7 @@ function MeetingAIInlineSection({
       {/* Summary Topics */}
       {suggestions.summary && suggestions.summary.length > 0 && (
         <div className="space-y-2">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
             {t("meeting.aiSummaryTitle")}
           </span>
           <div className="space-y-2">
@@ -1466,7 +1466,7 @@ function MeetingAIInlineSection({
                     {topic.topic}
                   </span>
                   {topic.important && (
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                    <span className="text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
                       {t("meeting.aiImportant")}
                     </span>
                   )}
@@ -1478,7 +1478,7 @@ function MeetingAIInlineSection({
                   <div className="space-y-2">
                     {topic.decisions && topic.decisions.length > 0 && (
                       <div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-green-600 dark:text-green-400">
+                        <span className="text-xs font-bold uppercase tracking-widest text-green-600 dark:text-green-400">
                           {t("meeting.aiDecisions", "Decisions")}
                         </span>
                         <ul className="mt-1 space-y-0.5">
@@ -1498,7 +1498,7 @@ function MeetingAIInlineSection({
                     )}
                     {topic.discussions && topic.discussions.length > 0 && (
                       <div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
+                        <span className="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
                           {t("meeting.aiDiscussions", "Discussions")}
                         </span>
                         <ul className="mt-1 space-y-0.5">
@@ -1518,7 +1518,7 @@ function MeetingAIInlineSection({
                     )}
                     {topic.action_items && topic.action_items.length > 0 && (
                       <div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                        <span className="text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
                           {t("meeting.aiActionItems", "Action Items")}
                         </span>
                         <ul className="mt-1 space-y-0.5">
@@ -1563,7 +1563,7 @@ function MeetingAIInlineSection({
       {suggestions.features.length > 0 && !result && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
               {t("meeting.aiRecommendedTasks")}
             </span>
             <button
@@ -1651,7 +1651,7 @@ function MeetingAIInlineSection({
                             )}
                           </div>
                           {isTaskLocked(fi, ti) && (
-                            <span className="text-[10px] text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded flex-shrink-0">
+                            <span className="text-xs text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded flex-shrink-0">
                               {t("meeting.aiAlreadyExists")}
                             </span>
                           )}

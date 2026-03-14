@@ -150,7 +150,7 @@ export function Sidebar({
                     <span className="text-lg font-bold tracking-tighter font-jakarta">
                       BRIDGE
                     </span>
-                    <span className="text-[9px] font-bold text-bridge-secondary tracking-[0.25em] uppercase">
+                    <span className="text-xs font-bold text-bridge-secondary tracking-[0.25em] uppercase">
                       SPOTS
                     </span>
                   </div>
@@ -165,6 +165,7 @@ export function Sidebar({
               <button
                 onClick={onClose}
                 className="lg:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="닫기"
               >
                 <X size={20} />
               </button>
@@ -176,6 +177,7 @@ export function Sidebar({
             <button
               onClick={onClose}
               className="lg:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="닫기"
             >
               <X size={20} />
             </button>
@@ -209,7 +211,7 @@ export function Sidebar({
         <div className="px-5 mt-4">
           <div className="flex items-center gap-2 px-2.5 mb-2">
             <Clock size={11} className="text-slate-500" />
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
               {t("dashboard.sidebar.recent", "Recent")}
             </span>
           </div>

@@ -2,6 +2,7 @@ import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Folder, CreditCard, BarChart3, Megaphone, Shield, ArrowLeft, MessageSquare, Activity, Building2, UserMinus } from 'lucide-react';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
 import { AdminDashboardTab } from '../components/admin/AdminDashboardTab';
 import { AdminUsersTab } from '../components/admin/AdminUsersTab';
 import { AdminBoardsTab } from '../components/admin/AdminBoardsTab';
@@ -30,6 +31,13 @@ const navItems = [
 
 export function AdminPage() {
   const { t } = useTranslation();
+  const { monetizationEnabled } = useAuth();
+
+  const filteredNavItems = navItems.filter(item => {
+    if (item.path === 'subscriptions' && !monetizationEnabled) return false;
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-bridge-dark">
       {/* Header */}
@@ -54,7 +62,7 @@ export function AdminPage() {
           {/* Sidebar Navigation - horizontal on mobile, vertical on md+ */}
           <nav className="md:w-56 flex-shrink-0">
             <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-1.5 md:p-2 flex md:flex-col gap-1 overflow-x-auto md:overflow-visible">
-              {navItems.map((item) => (
+              {filteredNavItems.map((item) => (
                 <NavLink
                   key={item.path}
                   to={`/admin/${item.path}`}

@@ -9,6 +9,7 @@ import {
   RotateCw,
   Calendar,
 } from "lucide-react";
+import { IconButton } from './ui/IconButton';
 import { format, getDay, getDate, addDays } from "date-fns";
 import { ko } from "date-fns/locale";
 import i18n from "i18next";
@@ -94,14 +95,15 @@ export function MeetingView({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           {onOpenCalendar && (
-            <button
+            <IconButton
+              aria-label="캘린더 열기"
               onClick={onOpenCalendar}
-              className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+              className="md:hidden"
             >
-              <Calendar size={18} />
-            </button>
+              <Calendar />
+            </IconButton>
           )}
-          <h3 className="text-base font-semibold text-foreground">
+          <h3 className="text-base font-bold text-foreground">
             {format(selectedDate, "M월 d일 (E)", { locale: ko })}
           </h3>
         </div>
@@ -117,7 +119,7 @@ export function MeetingView({
 
       {/* Meeting List */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-12 text-slate-400">
+        <div className="flex items-center justify-center py-12 text-slate-400" role="status" aria-label="로딩 중">
           <Loader2 className="h-5 w-5 animate-spin mr-2" />
           {t("common.loading")}
         </div>
@@ -165,7 +167,7 @@ export function MeetingView({
                       </div>
                       <div className="flex items-center gap-2 mt-1">
                         {meeting.recurrence_group_id && (
-                          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">
                             <RotateCw className="h-2.5 w-2.5" />
                             {t("meeting.recurring", "반복")}
                           </span>
@@ -331,6 +333,7 @@ function MeetingCreateModal({
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-foreground transition-colors"
+            aria-label="닫기"
           >
             <X className="h-5 w-5" />
           </button>
@@ -340,7 +343,7 @@ function MeetingCreateModal({
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
           {/* Title */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
               {t("meeting.title")}
             </label>
             <input
@@ -355,7 +358,7 @@ function MeetingCreateModal({
 
           {/* Memo */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
               {t("meeting.memo")}
             </label>
             <textarea
@@ -369,7 +372,7 @@ function MeetingCreateModal({
 
           {/* Recurrence */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
               {t("meeting.recurrence", "반복")}
             </label>
             <select
@@ -516,7 +519,7 @@ function MeetingCreateModal({
 
           {recurrenceRule && (
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                 {t("meeting.recurrenceEndDate", "반복 종료일")}
               </label>
               <input

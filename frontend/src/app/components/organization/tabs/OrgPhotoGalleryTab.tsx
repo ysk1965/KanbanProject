@@ -18,6 +18,7 @@ import { orgPhotoService } from '../../../utils/services';
 import { isNative } from '../../../utils/platform';
 import { saveToDevice, downloadPhoto, getDownloadedIds, markAsDownloaded, markManyAsDownloaded } from '../../../utils/nativeDownload';
 import { MotionModal } from '../../ui/MotionModal';
+import { IconButton } from '../../ui/IconButton';
 import { PhotoAlbumBar } from '../photo/PhotoAlbumBar';
 import { PhotoGrid } from '../photo/PhotoGrid';
 import { PhotoLightbox } from '../photo/PhotoLightbox';
@@ -337,7 +338,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
           <h3 className="text-sm md:text-base font-bold text-foreground tracking-tight">
             {activeAlbum?.name || t('photoGallery.allPhotos', 'All Photos')}
           </h3>
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
             {displayCount}
           </span>
         </div>
@@ -404,7 +405,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
                     'Photos uploaded by admins will appear here.',
                   )}
             </p>
-            <p className="text-[11px] text-slate-500 mb-6">
+            <p className="text-xs text-slate-500 mb-6">
               {t('photoGallery.uploadFormats', 'JPG, PNG, WebP, GIF - max {{max}} files', { max: 1000 })}
             </p>
             {isAdmin && (
@@ -478,15 +479,15 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
               </button>
             )}
             {/* Clear selection */}
-            <button
+            <IconButton
               onClick={() => {
                 setSelectedIds(new Set());
                 setSelectMode(false);
               }}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+              aria-label="선택 해제"
             >
-              <X size={16} />
-            </button>
+              <X />
+            </IconButton>
           </motion.div>
         )}
       </AnimatePresence>
@@ -540,7 +541,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
               <span className="text-sm font-medium text-foreground">
                 {showDeleteAlbumConfirm.name}
               </span>
-              <span className="text-[10px] text-slate-500 ml-2">
+              <span className="text-xs text-slate-500 ml-2">
                 {showDeleteAlbumConfirm.photo_count}{' '}
                 {t('photoGallery.photosUnit', 'photos')}
               </span>
@@ -548,7 +549,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
           )}
         </div>
         <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground">ESC</span>
+          <span className="text-xs text-muted-foreground">ESC</span>
           <div className="flex gap-2">
             <button
               onClick={() => setShowDeleteAlbumConfirm(null)}
@@ -593,7 +594,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
           </p>
         </div>
         <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground">ESC</span>
+          <span className="text-xs text-muted-foreground">ESC</span>
           <div className="flex gap-2">
             <button
               onClick={() => setShowDeletePhotosConfirm(false)}

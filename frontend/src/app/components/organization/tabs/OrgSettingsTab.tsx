@@ -14,6 +14,7 @@ import { OrgSettingsAttendanceSubTab } from "../settings/OrgSettingsAttendanceSu
 import { OrgSettingsOnboardingSubTab } from "../settings/OrgSettingsOnboardingSubTab";
 import { OrgBillingSection } from "../subscription/OrgBillingSection";
 import { useOrgData } from "../../../contexts/OrgDataContext";
+import { useAuth } from "../../../contexts/AuthContext";
 import type { OrganizationDetail, OrgRole } from "../../../types";
 
 interface OrgSettingsTabProps {
@@ -32,6 +33,7 @@ export function OrgSettingsTab({
   onUpdate,
 }: OrgSettingsTabProps) {
   const { t } = useTranslation();
+  const { monetizationEnabled } = useAuth();
   const { subscription, loadSubscription, refreshSubscription } = useOrgData();
   const [activeSubTab, setActiveSubTab] = useState<SettingsSubTab>("general");
 
@@ -62,11 +64,11 @@ export function OrgSettingsTab({
       label: t("organization.settings.subtabs.onboarding", "Onboarding"),
       icon: <Rocket size={14} />,
     },
-    {
-      key: "subscription",
+    ...(monetizationEnabled ? [{
+      key: "subscription" as SettingsSubTab,
       label: t("organization.settings.subtabs.subscription", "Subscription"),
       icon: <CreditCard size={14} />,
-    },
+    }] : []),
   ];
 
   return (
@@ -113,7 +115,7 @@ export function OrgSettingsTab({
         {activeSubTab === "onboarding" && (
           <OrgSettingsOnboardingSubTab orgId={orgId} />
         )}
-        {activeSubTab === "subscription" && (
+        {monetizationEnabled && activeSubTab === "subscription" && (
           subscription ? (
             <OrgBillingSection
               orgId={orgId}

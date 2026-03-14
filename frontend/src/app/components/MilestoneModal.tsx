@@ -140,6 +140,7 @@ export function MilestoneModal({
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-foreground transition-colors"
+            aria-label="닫기"
           >
             <X className="h-5 w-5" />
           </button>
@@ -161,7 +162,7 @@ export function MilestoneModal({
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={`text-sm font-semibold truncate ${
+                    <span className={`text-sm font-medium truncate ${
                       milestone?.id === ms.id ? 'text-bridge-accent' : 'text-foreground'
                     }`}>
                       {ms.title}
@@ -171,10 +172,10 @@ export function MilestoneModal({
                     }`} />
                   </div>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] text-zinc-500">
+                    <span className="text-xs text-zinc-500">
                       {format(new Date(ms.start_date), 'M/d')} ~ {format(new Date(ms.end_date), 'M/d')}
                     </span>
-                    <span className="text-[10px] text-zinc-600">
+                    <span className="text-xs text-zinc-600">
                       {ms.feature_count || ms.features?.length || 0}{t('milestone.featureUnit', '개')}
                     </span>
                   </div>
@@ -191,7 +192,7 @@ export function MilestoneModal({
             <div className="p-2 border-t border-bridge-border">
               <button
                 onClick={() => onSelectMilestone(null)}
-                className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                   !milestone
                     ? 'bg-bridge-accent text-white'
                     : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
@@ -295,7 +296,7 @@ export function MilestoneModal({
                             {feature.title}
                           </span>
                           {milestoneCount > 0 && (
-                            <span className="text-[10px] text-slate-500 flex-shrink-0 tabular-nums">
+                            <span className="text-xs text-slate-500 flex-shrink-0 tabular-nums">
                               {t('milestone.linkedCount', { count: milestoneCount })}
                             </span>
                           )}
@@ -327,14 +328,14 @@ export function MilestoneModal({
               <div className="flex items-center gap-4">
                 <button
                   onClick={onClose}
-                  className="text-[11px] font-bold text-slate-400 hover:text-foreground transition-all tracking-wider"
+                  className="text-xs font-bold text-slate-400 hover:text-foreground transition-all tracking-wider"
                 >
                   {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={isSaving}
-                  className="px-6 py-2.5 bg-white text-black font-black text-[11px] rounded-lg tracking-widest hover:bg-zinc-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2.5 bg-white text-black font-bold text-xs rounded-lg tracking-widest hover:bg-zinc-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSaving ? t('milestone.saving') : isEditMode ? t('common.edit') : t('common.create')}
                 </button>

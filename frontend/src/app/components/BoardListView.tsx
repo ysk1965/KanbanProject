@@ -11,6 +11,7 @@ import {
   Layers,
   ListFilter,
 } from "lucide-react";
+import { IconButton } from './ui/IconButton';
 import type { Feature, Task, Block, ChecklistItem } from "../types";
 import { BoardMember as ShareBoardMember } from "./ShareBoardModal";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
@@ -163,7 +164,7 @@ function AssigneeAvatars({
         return (
           <div
             key={a.id}
-            className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white ring-1 ring-bridge-dark shrink-0"
+            className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white ring-1 ring-bridge-dark shrink-0"
             style={{ backgroundColor: hex }}
             title={a.name}
           >
@@ -172,7 +173,7 @@ function AssigneeAvatars({
         );
       })}
       {remaining > 0 && (
-        <span className="text-[9px] text-slate-400 ml-1.5">+{remaining}</span>
+        <span className="text-xs text-slate-400 ml-1.5">+{remaining}</span>
       )}
     </div>
   );
@@ -520,13 +521,12 @@ export function BoardListView({
         </div>
 
         {/* Sort direction toggle */}
-        <button
-          className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-          onClick={handleToggleSortDir}
+        <IconButton
           aria-label={sortDir === "asc" ? "Sort ascending" : "Sort descending"}
+          onClick={handleToggleSortDir}
         >
-          {sortDir === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
-        </button>
+          {sortDir === "asc" ? <ArrowUp /> : <ArrowDown />}
+        </IconButton>
 
         {/* Spacer */}
         <div className="flex-1" />
@@ -623,7 +623,7 @@ export function BoardListView({
                           {group.label}
                         </span>
                       )}
-                      <span className="text-[10px] text-slate-500 ml-auto shrink-0">
+                      <span className="text-xs text-slate-500 ml-auto shrink-0">
                         {t("listViewTaskCount", { count: group.tasks.length })}
                       </span>
                     </div>
@@ -728,7 +728,7 @@ function TaskRow({
         </span>
 
         {/* Block badge */}
-        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-foreground/5 text-slate-400 shrink-0 w-[60px] text-center truncate">
+        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/5 text-slate-400 shrink-0 w-[60px] text-center truncate">
           {block?.name ?? task.block_name ?? "-"}
         </span>
 
@@ -748,11 +748,11 @@ function TaskRow({
         {/* Checklist progress */}
         <div className="w-[40px] text-right shrink-0">
           {checkProgress ? (
-            <span className="text-[10px] text-slate-400">
+            <span className="text-xs text-slate-400">
               {checkProgress.checked}/{checkProgress.total}
             </span>
           ) : (
-            <span className="text-[10px] text-slate-400">-</span>
+            <span className="text-xs text-slate-400">-</span>
           )}
         </div>
       </div>
@@ -778,7 +778,7 @@ function TaskRow({
             {task.title}
           </span>
         </div>
-        <div className="flex items-center gap-2 ml-7 text-[10px] text-slate-400">
+        <div className="flex items-center gap-2 ml-7 text-xs text-slate-400">
           {assignees.length > 0 && (
             <span>{assignees.map((a) => a.name).join(", ")}</span>
           )}

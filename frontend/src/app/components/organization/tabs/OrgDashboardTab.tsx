@@ -5,6 +5,7 @@ import { Users, LayoutGrid, CalendarOff, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { leaveService } from "../../../utils/services";
 import { useOrgData } from "../../../contexts/OrgDataContext";
+import { useAuth } from "../../../contexts/AuthContext";
 import { getTodayDateString } from "../../../utils/dateUtils";
 import type {
   LeaveRequestResponse,
@@ -27,6 +28,7 @@ interface OrgDashboardTabProps {
 
 export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
   const { t } = useTranslation();
+  const { monetizationEnabled } = useAuth();
   const [, setSearchParams] = useSearchParams();
   const { org, subscription, loadSubscription } = useOrgData();
   const hrSystemEnabled = org?.hr_system_enabled === true;
@@ -150,7 +152,7 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
             >
               <stat.icon size={14} className={stat.textClass} />
             </div>
-            <span className="text-[11px] text-slate-400 truncate hidden md:inline">
+            <span className="text-xs text-slate-400 truncate hidden md:inline">
               {stat.label}
             </span>
             <span className="text-lg font-bold text-foreground ml-auto shrink-0">
@@ -162,7 +164,7 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
             />
           </div>
         ))}
-        {subscription && (
+        {monetizationEnabled && subscription && (
           <div className="flex items-center justify-center px-3 md:px-4 py-3 border-l border-foreground/[0.08] shrink-0">
             <OrgSubscriptionBadge
               plan={subscription.plan}

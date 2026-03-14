@@ -124,7 +124,7 @@ export function ResourceDistributionChart({ data }: ResourceDistributionChartPro
             {treemapData.map((b, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length] }} />
-                <span className="text-[11px] text-slate-400">{b.name}</span>
+                <span className="text-xs text-slate-400">{b.name}</span>
               </div>
             ))}
           </div>
@@ -170,7 +170,7 @@ export function ResourceDistributionChart({ data }: ResourceDistributionChartPro
             {boardNames.map((name, i) => (
               <div key={name} className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length] }} />
-                <span className="text-[11px] text-slate-400">{name}</span>
+                <span className="text-xs text-slate-400">{name}</span>
               </div>
             ))}
           </div>

@@ -84,6 +84,7 @@ export function PersonalCreditModal({
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-foreground transition-colors p-1"
+            aria-label="닫기"
           >
             <X className="w-5 h-5" />
           </button>
@@ -120,7 +121,7 @@ export function PersonalCreditModal({
               </div>
             </div>
             {currentCredits.reset_date && (
-              <p className="text-[11px] text-slate-500 text-center mt-3 pt-3 border-t border-foreground/[0.08]">
+              <p className="text-xs text-slate-500 text-center mt-3 pt-3 border-t border-foreground/[0.08]">
                 {t('personal_credits.reset_info', '월간 크레딧 리셋')}: {new Date(currentCredits.reset_date).toLocaleDateString('ko-KR')}
               </p>
             )}

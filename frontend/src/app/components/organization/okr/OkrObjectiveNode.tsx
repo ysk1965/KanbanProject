@@ -60,7 +60,7 @@ export function OkrObjectiveNode({
             <div className="text-xs font-bold text-foreground truncate">
               {objective.title}
             </div>
-            <div className="text-[10px] text-slate-400 truncate">
+            <div className="text-xs text-slate-400 truncate">
               {objective.department_name ||
                 objective.owner?.user_name ||
                 t(`okr.level.${objective.level.toLowerCase()}`, objective.level)}
@@ -71,7 +71,7 @@ export function OkrObjectiveNode({
         {/* Progress Bar */}
         <div className="mt-2.5">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-bold text-foreground">
+            <span className="text-xs font-bold text-foreground">
               {objective.progress}%
             </span>
             <OkrConfidenceBadge confidence={objective.confidence} size="sm" />
@@ -109,7 +109,7 @@ export function OkrObjectiveNode({
           }}
         >
           <span
-            className="inline-flex items-center gap-0.5 text-[10px] font-bold
+            className="inline-flex items-center gap-0.5 text-xs font-bold
               px-2 py-0.5 rounded-full bg-bridge-accent/90 text-white shadow-sm cursor-pointer
               hover:bg-bridge-accent transition-colors"
           >

@@ -43,10 +43,10 @@ export function NoteCommentThread({
       <div className="flex items-start gap-2 py-2">
         {/* Avatar */}
         {comment.author.profile_image ? (
-          <img src={comment.author.profile_image} alt="" className="h-6 w-6 rounded-full flex-shrink-0 mt-0.5" />
+          <img src={comment.author.profile_image} alt={comment.author.name || '프로필'} className="h-6 w-6 rounded-full flex-shrink-0 mt-0.5" />
         ) : (
           <div className="h-6 w-6 rounded-full bg-bridge-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <span className="text-[10px] font-bold text-bridge-accent">
+            <span className="text-xs font-bold text-bridge-accent">
               {comment.author.name.charAt(0)}
             </span>
           </div>
@@ -55,7 +55,7 @@ export function NoteCommentThread({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-foreground">{comment.author.name}</span>
-            <span className="text-[10px] text-slate-500">{formatRelativeTime(comment.created_at)}</span>
+            <span className="text-xs text-slate-500">{formatRelativeTime(comment.created_at)}</span>
 
             {/* Actions menu */}
             {canEdit && (
@@ -63,6 +63,7 @@ export function NoteCommentThread({
                 <button
                   onClick={() => setMenuOpen(menuOpen === comment.id ? null : comment.id)}
                   className="p-0.5 text-slate-500 hover:text-foreground rounded transition-colors"
+                  aria-label="더보기"
                 >
                   <MoreHorizontal className="h-3.5 w-3.5" />
                 </button>
@@ -135,13 +136,13 @@ export function NoteCommentThread({
         )}
 
         {thread.block_id && (
-          <span className="text-[10px] font-mono text-slate-600 truncate max-w-[100px]">
+          <span className="text-xs font-mono text-slate-600 truncate max-w-[100px]">
             #{thread.block_id.substring(0, 8)}
           </span>
         )}
 
         {thread.is_resolved && thread.resolved_by && (
-          <span className="text-[10px] text-green-400/70 ml-auto">
+          <span className="text-xs text-green-400/70 ml-auto">
             {thread.resolved_by.name}{t('notes.comment.resolvedBy', '님이 해결')}
           </span>
         )}
@@ -150,6 +151,7 @@ export function NoteCommentThread({
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="ml-auto p-0.5 text-slate-500 hover:text-foreground transition-colors"
+            aria-label={collapsed ? '펼치기' : '접기'}
           >
             {collapsed ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
           </button>
@@ -183,7 +185,7 @@ export function NoteCommentThread({
           ) : (
             <button
               onClick={() => setShowReply(true)}
-              className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-bridge-accent transition-colors py-1"
+              className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-accent transition-colors py-1"
             >
               <MessageSquare className="h-3 w-3" />
               {t('notes.comment.reply', '답글')}

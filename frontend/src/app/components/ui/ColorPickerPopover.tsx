@@ -116,7 +116,7 @@ export function ColorPickerPopover({
             <div className="border-t border-foreground/10 pt-3">
               <label className="flex items-center gap-2 cursor-pointer group">
                 <Pipette size={14} className="text-slate-400 group-hover:text-foreground transition-colors" />
-                <span className="text-[11px] text-slate-400 group-hover:text-foreground transition-colors">
+                <span className="text-xs text-slate-400 group-hover:text-foreground transition-colors">
                   {label}
                 </span>
                 <input

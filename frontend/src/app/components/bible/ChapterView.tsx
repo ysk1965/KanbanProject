@@ -44,7 +44,7 @@ export function ChapterView({ verses, currentVerseNumber, completedVerses }: Cha
                 <CheckCircle2 className="w-5 h-5 text-green-600" />
               ) : (
                 <span
-                  className={`text-sm font-semibold ${
+                  className={`text-sm font-medium ${
                     isCurrent ? "text-blue-600" : "text-gray-400"
                   }`}
                 >

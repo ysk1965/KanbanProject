@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, Loader2, UserPlus } from 'lucide-react';
+import { IconButton } from './ui/IconButton';
 import { boardJoinRequestAPI } from '../utils/api';
 import { BoardJoinRequest } from '../types';
 import { useTranslation } from 'react-i18next';
@@ -109,11 +110,11 @@ export default function JoinRequestsPanel({
               <div className="text-sm font-medium text-foreground truncate">
                 {request.requester.name}
               </div>
-              <div className="text-[11px] text-slate-500 truncate">
+              <div className="text-xs text-slate-500 truncate">
                 {request.requester.email}
                 {request.message && ` · "${request.message}"`}
               </div>
-              <div className="text-[10px] text-slate-600">
+              <div className="text-xs text-slate-600">
                 {formatRelativeTime(request.created_at)}
               </div>
             </div>
@@ -124,20 +125,22 @@ export default function JoinRequestsPanel({
                 <Loader2 className="w-4 h-4 animate-spin text-bridge-accent" />
               ) : (
                 <>
-                  <button
+                  <IconButton
+                    aria-label={t('board.joinRequest.approve', '승인')}
                     onClick={() => handleApprove(request.id)}
-                    className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-colors"
+                    className="text-emerald-500 hover:bg-emerald-500/10"
                     title={t('board.joinRequest.approve', '승인')}
                   >
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <button
+                    <Check />
+                  </IconButton>
+                  <IconButton
+                    aria-label={t('board.joinRequest.reject', '거절')}
                     onClick={() => handleReject(request.id)}
-                    className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+                    className="text-red-400 hover:bg-red-500/10"
                     title={t('board.joinRequest.reject', '거절')}
                   >
-                    <X className="w-4 h-4" />
-                  </button>
+                    <X />
+                  </IconButton>
                 </>
               )}
             </div>

@@ -323,7 +323,7 @@ export function OrgFeedSection({
           <h3 className="text-sm font-bold text-foreground">
             {t("organization.feed.title", "Feed")}
           </h3>
-          <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full">
+          <span className="text-xs font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full">
             {filtered.length}
           </span>
         </div>
@@ -350,7 +350,7 @@ export function OrgFeedSection({
           <button
             key={tab.key}
             onClick={() => setFilter(tab.key)}
-            className={`text-[11px] font-medium px-2.5 py-1 rounded-lg transition-all ${
+            className={`text-xs font-medium px-2.5 py-1 rounded-lg transition-all ${
               filter === tab.key
                 ? "bg-bridge-accent/15 text-bridge-accent"
                 : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
@@ -358,7 +358,7 @@ export function OrgFeedSection({
           >
             {tab.label}
             {tab.count > 0 && (
-              <span className="ml-1 text-[10px] opacity-60">{tab.count}</span>
+              <span className="ml-1 text-xs opacity-60">{tab.count}</span>
             )}
           </button>
         ))}
@@ -577,14 +577,14 @@ function AnniversaryCard({
                 {item.member_name}
               </h4>
               <span
-                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${ddayBg}`}
+                className={`text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 ${ddayBg}`}
               >
                 {ddayLabel}
               </span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <span
-                className={`text-[11px] font-semibold ${
+                className={`text-xs font-medium ${
                   isBirthday
                     ? "text-pink-600 dark:text-pink-400"
                     : "text-amber-600 dark:text-amber-400"
@@ -595,13 +595,13 @@ function AnniversaryCard({
               {item.department_name && (
                 <>
                   <span className="text-foreground/20">·</span>
-                  <span className="text-[10px] text-slate-500 truncate">
+                  <span className="text-xs text-slate-500 truncate">
                     {item.department_name}
                   </span>
                 </>
               )}
               <span className="text-foreground/20">·</span>
-              <span className="text-[10px] text-slate-500">{dateStr}</span>
+              <span className="text-xs text-slate-500">{dateStr}</span>
             </div>
           </div>
         </div>
@@ -639,7 +639,7 @@ function AnniversaryCard({
                 item.date,
               )
             }
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[11px] font-bold transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
               isBirthday
                 ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-[0_0_20px_rgba(236,72,153,0.3)]"
                 : "bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:shadow-[0_0_20px_rgba(245,158,11,0.3)]"
@@ -683,17 +683,17 @@ function AnniversaryCard({
                         />
                       ) : (
                         <div className="w-7 h-7 rounded-full bg-bridge-accent/15 flex items-center justify-center shrink-0 mt-0.5">
-                          <span className="text-[10px] font-bold text-bridge-accent">
+                          <span className="text-xs font-bold text-bridge-accent">
                             {msg.author_name?.charAt(0)}
                           </span>
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] font-bold text-foreground">
+                          <span className="text-xs font-bold text-foreground">
                             {msg.author_name}
                           </span>
-                          <span className="text-[10px] text-slate-500">
+                          <span className="text-xs text-slate-500">
                             {formatRelativeTime(msg.created_at)}
                           </span>
                         </div>
@@ -717,7 +717,7 @@ function AnniversaryCard({
                     />
                   ) : (
                     <div className="w-7 h-7 rounded-full bg-bridge-accent/15 flex items-center justify-center shrink-0">
-                      <span className="text-[10px] font-bold text-bridge-accent">
+                      <span className="text-xs font-bold text-bridge-accent">
                         {currentUser?.name?.charAt(0)}
                       </span>
                     </div>
@@ -755,7 +755,7 @@ function AnniversaryCard({
                   </button>
                 </div>
                 {sendError && (
-                  <p className="text-[10px] text-red-500 mt-1.5 ml-9">
+                  <p className="text-xs text-red-500 mt-1.5 ml-9">
                     {sendError}
                   </p>
                 )}
@@ -901,12 +901,12 @@ function AnnouncementCard({
                 {item.author_name}
               </span>
               {item.is_pinned && (
-                <span className="text-[9px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full">
+                <span className="text-xs font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full">
                   PIN
                 </span>
               )}
             </div>
-            <span className="text-[10px] text-slate-500">
+            <span className="text-xs text-slate-500">
               {formatRelativeTime(item.created_at)}
             </span>
           </div>
@@ -992,7 +992,7 @@ function AnnouncementCard({
         </button>
         <button
           onClick={onViewAll}
-          className="text-[11px] text-slate-500 hover:text-bridge-accent flex items-center gap-0.5 transition-colors"
+          className="text-xs text-slate-500 hover:text-bridge-accent flex items-center gap-0.5 transition-colors"
         >
           {t("organization.dashboard.viewAll", "전체 보기")}
           <ChevronRight size={12} />
@@ -1033,17 +1033,17 @@ function AnnouncementCard({
                         />
                       ) : (
                         <div className="w-7 h-7 rounded-full bg-bridge-accent/15 flex items-center justify-center shrink-0 mt-0.5">
-                          <span className="text-[10px] font-bold text-bridge-accent">
+                          <span className="text-xs font-bold text-bridge-accent">
                             {comment.author_name?.charAt(0)}
                           </span>
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] font-bold text-foreground">
+                          <span className="text-xs font-bold text-foreground">
                             {comment.author_name}
                           </span>
-                          <span className="text-[10px] text-slate-500">
+                          <span className="text-xs text-slate-500">
                             {formatRelativeTime(comment.created_at)}
                           </span>
                           {(currentUser?.name === comment.author_name ||
@@ -1078,7 +1078,7 @@ function AnnouncementCard({
                     />
                   ) : (
                     <div className="w-7 h-7 rounded-full bg-bridge-accent/15 flex items-center justify-center shrink-0">
-                      <span className="text-[10px] font-bold text-bridge-accent">
+                      <span className="text-xs font-bold text-bridge-accent">
                         {currentUser?.name?.charAt(0)}
                       </span>
                     </div>
