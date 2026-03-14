@@ -1,4 +1,5 @@
-import { isNative } from './platform';
+import { isNative, isInAppBrowser, isKakaoTalk } from './platform';
+import { resolveFileUrl } from './api';
 
 /**
  * Convert a Blob to a base64-encoded string (without the data URI prefix).
@@ -82,5 +83,104 @@ export async function saveToDevice(
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
+  }
+}
+
+// ─── Download History (localStorage) ───
+
+const DOWNLOAD_HISTORY_KEY = 'bridge_downloaded_photos';
+
+function getDownloadedSet(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DOWNLOAD_HISTORY_KEY);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw) as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDownloadedSet(ids: Set<string>): void {
+  try {
+    // Keep max 5000 entries to prevent localStorage bloat
+    const arr = Array.from(ids);
+    if (arr.length > 5000) arr.splice(0, arr.length - 5000);
+    localStorage.setItem(DOWNLOAD_HISTORY_KEY, JSON.stringify(arr));
+  } catch {
+    // localStorage might be full or unavailable
+  }
+}
+
+export function markAsDownloaded(photoId: string): void {
+  const ids = getDownloadedSet();
+  ids.add(photoId);
+  saveDownloadedSet(ids);
+}
+
+export function markManyAsDownloaded(photoIds: string[]): void {
+  const ids = getDownloadedSet();
+  photoIds.forEach((id) => ids.add(id));
+  saveDownloadedSet(ids);
+}
+
+export function isDownloaded(photoId: string): boolean {
+  return getDownloadedSet().has(photoId);
+}
+
+export function getDownloadedIds(photoIds: string[]): Set<string> {
+  const all = getDownloadedSet();
+  return new Set(photoIds.filter((id) => all.has(id)));
+}
+
+/**
+ * Universal photo download — handles all platforms:
+ * - Capacitor native: saveToDevice (BRIDGE Downloads folder)
+ * - KakaoTalk in-app: open external browser via intent scheme
+ * - Other in-app browsers (FB, Instagram, LINE): direct URL open
+ * - Regular browsers: fetch → blob → anchor download
+ */
+export async function downloadPhoto(photoUrl: string, filename: string, photoId?: string): Promise<void> {
+  const url = resolveFileUrl(photoUrl);
+
+  // 1. Capacitor native app
+  if (isNative()) {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Download failed');
+    const blob = await response.blob();
+    const result = await saveToDevice(blob, filename);
+    if (!result.success) throw new Error(result.error || 'Save failed');
+    if (photoId) markAsDownloaded(photoId);
+    return;
+  }
+
+  // 2. KakaoTalk in-app browser → open in external browser
+  if (isKakaoTalk()) {
+    if (photoId) markAsDownloaded(photoId);
+    window.location.href = `kakaotalk://web/openExternal?url=${encodeURIComponent(url)}`;
+    return;
+  }
+
+  // 3. Other in-app browsers → direct URL (user can long-press to save)
+  if (isInAppBrowser()) {
+    if (photoId) markAsDownloaded(photoId);
+    window.open(url, '_blank');
+    return;
+  }
+
+  // 4. Regular browser → blob download
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Download failed');
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(blobUrl);
+    if (photoId) markAsDownloaded(photoId);
+  } catch {
+    // Fallback: open in new tab
+    window.open(url, '_blank');
   }
 }

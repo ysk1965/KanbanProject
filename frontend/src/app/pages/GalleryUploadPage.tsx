@@ -18,8 +18,7 @@ import {
 } from 'lucide-react';
 import { publicGalleryUploadAPI, resolveFileUrl, type ChunkedUploadProgress } from '../utils/api';
 import { PhotoLightbox } from '../components/organization/photo/PhotoLightbox';
-import { isNative } from '../utils/platform';
-import { saveToDevice } from '../utils/nativeDownload';
+import { downloadPhoto, getDownloadedIds, markManyAsDownloaded } from '../utils/nativeDownload';
 import type {
   GalleryUploadInfo,
   SharedAlbumSummary,
@@ -93,28 +92,23 @@ export function GalleryUploadPage() {
   const [lightboxPhoto, setLightboxPhoto] = useState<OrgPhoto | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
+  // Download history
+  const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
+
+  // Sync download history when photos change
+  useEffect(() => {
+    if (photos.length > 0) {
+      setDownloadedIds(getDownloadedIds(photos.map((p) => p.id)));
+    }
+  }, [photos]);
+
   // Download single photo
   const handleDownload = useCallback(async (photo: OrgPhoto) => {
     try {
-      const url = resolveFileUrl(photo.url);
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Download failed');
-      const blob = await response.blob();
-
-      if (isNative()) {
-        const result = await saveToDevice(blob, photo.original_filename);
-        if (!result.success) throw new Error(result.error || 'Save failed');
-      } else {
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = photo.original_filename;
-        a.click();
-        URL.revokeObjectURL(blobUrl);
-      }
+      await downloadPhoto(photo.url, photo.original_filename, photo.id);
+      setDownloadedIds((prev) => new Set(prev).add(photo.id));
     } catch (error) {
       console.warn('Download failed:', error);
-      window.open(resolveFileUrl(photo.url), '_blank');
     }
   }, []);
 
@@ -146,28 +140,24 @@ export function GalleryUploadPage() {
   const handleBatchDownload = useCallback(async () => {
     if (selectedIds.size === 0 || batchDownloading) return;
     setBatchDownloading(true);
+    const downloadedBatch: string[] = [];
     try {
       const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
       for (const photo of selectedPhotos) {
         try {
-          const url = resolveFileUrl(photo.url);
-          const response = await fetch(url);
-          if (!response.ok) continue;
-          const blob = await response.blob();
-
-          if (isNative()) {
-            await saveToDevice(blob, photo.original_filename);
-          } else {
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = photo.original_filename;
-            a.click();
-            URL.revokeObjectURL(blobUrl);
-          }
+          await downloadPhoto(photo.url, photo.original_filename, photo.id);
+          downloadedBatch.push(photo.id);
         } catch {
           console.warn('Failed to download photo:', photo.id);
         }
+      }
+      if (downloadedBatch.length > 0) {
+        markManyAsDownloaded(downloadedBatch);
+        setDownloadedIds((prev) => {
+          const next = new Set(prev);
+          downloadedBatch.forEach((id) => next.add(id));
+          return next;
+        });
       }
     } finally {
       setBatchDownloading(false);
@@ -766,6 +756,15 @@ export function GalleryUploadPage() {
                           ) : (
                             <div className="w-5 h-5 rounded border-2 border-white/70 bg-black/30" />
                           )}
+                        </div>
+                      )}
+                      {/* Downloaded badge */}
+                      {!selectMode && downloadedIds.has(photo.id) && (
+                        <div className="absolute top-1.5 right-1.5 z-10">
+                          <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/90 text-white">
+                            <Check size={10} strokeWidth={3} />
+                            <span className="text-[9px] font-bold">saved</span>
+                          </div>
                         </div>
                       )}
                       {/* Hover overlay (only in non-select mode) */}

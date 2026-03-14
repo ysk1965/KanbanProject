@@ -40,12 +40,12 @@ export function PhotoLightbox({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const isPanningRef = useRef(false);
+  const hasPannedRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const imageContainerRef = useRef<HTMLDivElement>(null);
 
   // Pinch zoom refs
   const lastPinchDistRef = useRef<number | null>(null);
-  const lastTouchCenterRef = useRef<{ x: number; y: number } | null>(null);
 
   const isZoomed = zoom > 1;
 
@@ -105,7 +105,7 @@ export function PhotoLightbox({
     }
   }, [currentIndex, photos, onNavigate]);
 
-  // Touch swipe navigation (only when not zoomed)
+  // Touch handling
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
   const handleTouchStart = useCallback(
@@ -117,10 +117,6 @@ export function PhotoLightbox({
           e.touches[0].clientY - e.touches[1].clientY,
         );
         lastPinchDistRef.current = dist;
-        lastTouchCenterRef.current = {
-          x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-          y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
-        };
         touchStartRef.current = null;
         return;
       }
@@ -128,12 +124,11 @@ export function PhotoLightbox({
       if (e.touches.length === 1) {
         const touch = e.touches[0];
         if (isZoomed) {
-          // Start panning
           isPanningRef.current = true;
+          hasPannedRef.current = false;
           panStartRef.current = { x: touch.clientX, y: touch.clientY, panX: pan.x, panY: pan.y };
           touchStartRef.current = null;
         } else {
-          // Swipe navigation start
           touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
         }
       }
@@ -144,7 +139,6 @@ export function PhotoLightbox({
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
       if (e.touches.length === 2) {
-        // Pinch zoom
         e.preventDefault();
         const dist = Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
@@ -164,6 +158,7 @@ export function PhotoLightbox({
 
       if (e.touches.length === 1 && isPanningRef.current && isZoomed) {
         e.preventDefault();
+        hasPannedRef.current = true;
         const touch = e.touches[0];
         const dx = touch.clientX - panStartRef.current.x;
         const dy = touch.clientY - panStartRef.current.y;
@@ -176,10 +171,8 @@ export function PhotoLightbox({
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
-      // Reset pinch tracking
       if (e.touches.length < 2) {
         lastPinchDistRef.current = null;
-        lastTouchCenterRef.current = null;
       }
 
       if (isPanningRef.current) {
@@ -194,7 +187,6 @@ export function PhotoLightbox({
       const dt = Date.now() - touchStartRef.current.time;
       touchStartRef.current = null;
 
-      // Swipe navigation (only when not zoomed)
       if (!isZoomed && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && dt < 300) {
         if (dx < 0) goNext();
         else goPrev();
@@ -217,12 +209,13 @@ export function PhotoLightbox({
     [],
   );
 
-  // Mouse drag panning (desktop)
+  // Mouse drag panning
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (!isZoomed || e.button !== 0) return;
       e.preventDefault();
       isPanningRef.current = true;
+      hasPannedRef.current = false;
       panStartRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
     },
     [isZoomed, pan],
@@ -231,6 +224,7 @@ export function PhotoLightbox({
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
       if (!isPanningRef.current || !isZoomed) return;
+      hasPannedRef.current = true;
       const dx = e.clientX - panStartRef.current.x;
       const dy = e.clientY - panStartRef.current.y;
       const newPan = clampPan(panStartRef.current.panX + dx, panStartRef.current.panY + dy, zoom);
@@ -243,25 +237,30 @@ export function PhotoLightbox({
     isPanningRef.current = false;
   }, []);
 
-  // Double click/tap to toggle zoom
+  // Double click to toggle zoom
   const lastTapRef = useRef(0);
-  const handleDoubleAction = useCallback(
-    (e: React.MouseEvent | React.TouchEvent) => {
+  const handleDoubleTap = useCallback(
+    (e: React.TouchEvent) => {
       const now = Date.now();
-      // For touch: detect double tap
-      if ('touches' in e) {
-        if (now - lastTapRef.current < 300) {
-          e.preventDefault();
-          if (isZoomed) {
-            resetZoom();
-          } else {
-            setZoom(2.5);
-          }
+      if (now - lastTapRef.current < 300 && e.changedTouches.length === 1 && !hasPannedRef.current) {
+        e.preventDefault();
+        if (isZoomed) {
+          resetZoom();
+        } else {
+          setZoom(2.5);
         }
+        lastTapRef.current = 0;
+      } else {
         lastTapRef.current = now;
-        return;
       }
-      // For mouse: use native dblclick
+    },
+    [isZoomed, resetZoom],
+  );
+
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (hasPannedRef.current) return;
+      e.preventDefault();
       if (isZoomed) {
         resetZoom();
       } else {
@@ -271,7 +270,7 @@ export function PhotoLightbox({
     [isZoomed, resetZoom],
   );
 
-  // Keyboard navigation
+  // Keyboard
   useEffect(() => {
     if (!photo) return;
     const handler = (e: KeyboardEvent) => {
@@ -283,11 +282,8 @@ export function PhotoLightbox({
         if (!isZoomed) goNext();
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        if (isZoomed) {
-          resetZoom();
-        } else {
-          onClose();
-        }
+        if (isZoomed) resetZoom();
+        else onClose();
       } else if (e.key === '+' || e.key === '=') {
         e.preventDefault();
         zoomIn();
@@ -303,7 +299,7 @@ export function PhotoLightbox({
     return () => document.removeEventListener('keydown', handler);
   }, [photo, goPrev, goNext, onClose, isZoomed, resetZoom, zoomIn, zoomOut]);
 
-  // Prevent body scroll when lightbox is open
+  // Prevent body scroll
   useEffect(() => {
     if (photo) {
       document.body.style.overflow = 'hidden';
@@ -311,6 +307,17 @@ export function PhotoLightbox({
         document.body.style.overflow = '';
       };
     }
+  }, [photo]);
+
+  // Prevent native pinch-zoom on the container
+  useEffect(() => {
+    const el = imageContainerRef.current;
+    if (!el || !photo) return;
+    const prevent = (e: TouchEvent) => {
+      if (e.touches.length >= 2) e.preventDefault();
+    };
+    el.addEventListener('touchmove', prevent, { passive: false });
+    return () => el.removeEventListener('touchmove', prevent);
   }, [photo]);
 
   const zoomPercent = Math.round(zoom * 100);
@@ -397,46 +404,41 @@ export function PhotoLightbox({
           {/* Image area */}
           <div
             ref={imageContainerRef}
-            className="flex-1 flex items-center justify-center px-4 sm:px-12 py-4 overflow-hidden"
-            style={{ cursor: isZoomed ? 'grab' : 'default' }}
+            className="flex-1 flex items-center justify-center px-4 sm:px-12 py-4 overflow-hidden touch-none"
+            style={{ cursor: isZoomed ? (isPanningRef.current ? 'grabbing' : 'grab') : 'default' }}
             onWheel={handleWheel}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
+            onTouchEnd={(e) => {
+              handleTouchEnd(e);
+              handleDoubleTap(e);
+            }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            onDoubleClick={handleDoubleAction}
+            onDoubleClick={handleDoubleClick}
             onClick={(e) => {
-              // Click backdrop to close (only when not zoomed and not panning)
-              if (!isZoomed && e.target === e.currentTarget) {
+              if (!isZoomed && e.target === e.currentTarget && !hasPannedRef.current) {
                 onClose();
               }
             }}
           >
-            <motion.img
+            <img
               key={photo.id}
               src={resolveFileUrl(photo.url)}
               alt={photo.caption || photo.original_filename}
               className="max-w-full max-h-full object-contain rounded-lg select-none"
               draggable={false}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.2 }}
               style={{
                 transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
                 transformOrigin: 'center center',
-                transition: isPanningRef.current ? 'none' : 'transform 0.15s ease-out',
-              }}
-              onTouchEnd={(e) => {
-                // Double tap detection on image
-                handleDoubleAction(e);
+                transition: isPanningRef.current ? 'none' : 'transform 0.2s ease-out',
               }}
             />
           </div>
 
-          {/* Left/right navigation arrows (hidden when zoomed) */}
+          {/* Navigation arrows (hidden when zoomed) */}
           {!isZoomed && currentIndex > 0 && (
             <button
               onClick={goPrev}
