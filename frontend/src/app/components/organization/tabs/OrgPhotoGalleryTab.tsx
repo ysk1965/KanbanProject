@@ -85,7 +85,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
       try {
         setPhotosLoading(true);
         const params: { tab_id?: string; cursor?: string; size?: number } = {
-          size: 30,
+          size: 12,
         };
         if (activeAlbumId) params.tab_id = activeAlbumId;
         if (cursor) params.cursor = cursor;

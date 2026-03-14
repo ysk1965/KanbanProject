@@ -95,7 +95,7 @@ export function SharedGalleryPage() {
         const data = await publicGalleryAPI.getSharedGalleryPhotos(
           shareToken,
           activeAlbum.id,
-          { cursor, size: 30 },
+          { cursor, size: 12 },
         );
         const mapped = data.photos.map(toOrgPhoto);
         if (cursor) {

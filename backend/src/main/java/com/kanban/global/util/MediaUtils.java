@@ -106,7 +106,7 @@ public class MediaUtils {
     }
 
     /**
-     * 이미지 썸네일 생성 (최대 400x400, JPEG 80%)
+     * 이미지 썸네일 생성 (JPEG 70%)
      */
     public static byte[] generateThumbnail(byte[] originalBytes, int maxWidth, int maxHeight) throws IOException {
         try (InputStream is = new ByteArrayInputStream(originalBytes);
@@ -114,7 +114,7 @@ public class MediaUtils {
             Thumbnails.of(is)
                     .size(maxWidth, maxHeight)
                     .outputFormat("jpg")
-                    .outputQuality(0.8)
+                    .outputQuality(0.7)
                     .toOutputStream(os);
             return os.toByteArray();
         }

@@ -7235,6 +7235,64 @@ export const publicGalleryAPI = {
   },
 };
 
+// ─── Chunked Upload Helper ───
+
+const CHUNK_MAX_SIZE = 100 * 1024 * 1024; // 100MB per batch
+const CHUNK_MAX_FILES = 20; // max files per batch
+
+export interface ChunkedUploadProgress {
+  uploadedFiles: number;
+  totalFiles: number;
+  currentBatch: number;
+  totalBatches: number;
+}
+
+function splitFilesIntoChunks(files: File[]): File[][] {
+  const chunks: File[][] = [];
+  let currentChunk: File[] = [];
+  let currentSize = 0;
+
+  for (const file of files) {
+    // If adding this file exceeds limits, start a new chunk
+    if (
+      currentChunk.length > 0 &&
+      (currentSize + file.size > CHUNK_MAX_SIZE ||
+        currentChunk.length >= CHUNK_MAX_FILES)
+    ) {
+      chunks.push(currentChunk);
+      currentChunk = [];
+      currentSize = 0;
+    }
+    currentChunk.push(file);
+    currentSize += file.size;
+  }
+
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk);
+  }
+
+  return chunks;
+}
+
+async function uploadFormData(
+  url: string,
+  files: File[],
+): Promise<import("../types").OrgPhoto[]> {
+  const formData = new FormData();
+  files.forEach((f) => formData.append("files", f));
+  const response = await fetch(url, {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    const err = await response
+      .json()
+      .catch(() => ({ message: "Upload failed" }));
+    throw err;
+  }
+  return response.json();
+}
+
 export const publicUploadAPI = {
   getUploadAlbumInfo: (
     uploadToken: string,
@@ -7244,23 +7302,36 @@ export const publicUploadAPI = {
   uploadPhotos: async (
     uploadToken: string,
     files: File[],
+    onProgress?: (progress: ChunkedUploadProgress) => void,
   ): Promise<import("../types").OrgPhoto[]> => {
-    const formData = new FormData();
-    files.forEach((f) => formData.append("files", f));
-    const response = await fetch(
-      `${API_BASE_URL}/public/upload/${uploadToken}`,
-      {
-        method: "POST",
-        body: formData,
-      },
-    );
-    if (!response.ok) {
-      const err = await response
-        .json()
-        .catch(() => ({ message: "Upload failed" }));
-      throw err;
+    const chunks = splitFilesIntoChunks(files);
+    const allResults: import("../types").OrgPhoto[] = [];
+    let uploadedFiles = 0;
+
+    for (let i = 0; i < chunks.length; i++) {
+      onProgress?.({
+        uploadedFiles,
+        totalFiles: files.length,
+        currentBatch: i + 1,
+        totalBatches: chunks.length,
+      });
+
+      const results = await uploadFormData(
+        `${API_BASE_URL}/public/upload/${uploadToken}`,
+        chunks[i],
+      );
+      allResults.push(...results);
+      uploadedFiles += chunks[i].length;
     }
-    return response.json();
+
+    onProgress?.({
+      uploadedFiles: files.length,
+      totalFiles: files.length,
+      currentBatch: chunks.length,
+      totalBatches: chunks.length,
+    });
+
+    return allResults;
   },
 };
 
@@ -7303,23 +7374,36 @@ export const publicGalleryUploadAPI = {
     uploadToken: string,
     albumId: string,
     files: File[],
+    onProgress?: (progress: ChunkedUploadProgress) => void,
   ): Promise<import("../types").OrgPhoto[]> => {
-    const formData = new FormData();
-    files.forEach((f) => formData.append("files", f));
-    const response = await fetch(
-      `${API_BASE_URL}/public/gallery-upload/${uploadToken}/albums/${albumId}/photos`,
-      {
-        method: "POST",
-        body: formData,
-      },
-    );
-    if (!response.ok) {
-      const err = await response
-        .json()
-        .catch(() => ({ message: "Upload failed" }));
-      throw err;
+    const chunks = splitFilesIntoChunks(files);
+    const allResults: import("../types").OrgPhoto[] = [];
+    let uploadedFiles = 0;
+
+    for (let i = 0; i < chunks.length; i++) {
+      onProgress?.({
+        uploadedFiles,
+        totalFiles: files.length,
+        currentBatch: i + 1,
+        totalBatches: chunks.length,
+      });
+
+      const results = await uploadFormData(
+        `${API_BASE_URL}/public/gallery-upload/${uploadToken}/albums/${albumId}/photos`,
+        chunks[i],
+      );
+      allResults.push(...results);
+      uploadedFiles += chunks[i].length;
     }
-    return response.json();
+
+    onProgress?.({
+      uploadedFiles: files.length,
+      totalFiles: files.length,
+      currentBatch: chunks.length,
+      totalBatches: chunks.length,
+    });
+
+    return allResults;
   },
 
   deletePhoto: (

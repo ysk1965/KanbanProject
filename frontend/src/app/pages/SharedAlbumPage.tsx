@@ -66,7 +66,7 @@ export function SharedAlbumPage() {
         setPhotosLoading(true);
         const data = await publicAlbumAPI.getSharedAlbumPhotos(shareToken, {
           cursor,
-          size: 30,
+          size: 12,
         });
         const mapped = data.photos.map(toOrgPhoto);
         if (cursor) {
