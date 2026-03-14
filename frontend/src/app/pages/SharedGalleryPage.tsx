@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Camera,
   AlertCircle,
@@ -10,10 +10,15 @@ import {
   Check,
   Loader2,
   Images,
+  CheckSquare,
+  X,
 } from 'lucide-react';
 import { publicGalleryAPI, resolveFileUrl } from '../utils/api';
 import { PhotoLightbox } from '../components/organization/photo/PhotoLightbox';
-import { downloadPhoto, getDownloadedIds } from '../utils/nativeDownload';
+import { downloadPhoto, downloadPhotosBatch, getDownloadedIds } from '../utils/nativeDownload';
+import type { BatchDownloadProgress } from '../utils/nativeDownload';
+import { isNative } from '../utils/platform';
+import { IconButton } from '../components/ui/IconButton';
 import type {
   SharedGalleryInfo,
   SharedAlbumSummary,
@@ -64,6 +69,14 @@ export function SharedGalleryPage() {
   // Lightbox
   const [lightboxPhoto, setLightboxPhoto] = useState<OrgPhoto | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Select mode
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Batch download progress
+  const [batchProgress, setBatchProgress] = useState<BatchDownloadProgress | null>(null);
+  const batchAbortRef = useRef<AbortController | null>(null);
 
   // Download history
   const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
@@ -153,6 +166,64 @@ export function SharedGalleryPage() {
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [hasNext, photosLoading, nextCursor, fetchPhotos]);
+
+  // Reset selection when switching albums or exiting select mode
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [activeAlbum, selectMode]);
+
+  // Toggle select
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  // Cancel batch download
+  const handleCancelBatch = useCallback(() => {
+    batchAbortRef.current?.abort();
+    batchAbortRef.current = null;
+  }, []);
+
+  // Batch download
+  const handleBatchDownload = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    const abortController = new AbortController();
+    batchAbortRef.current = abortController;
+
+    try {
+      const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
+      const batchItems = selectedPhotos.map((p) => ({
+        url: p.url,
+        filename: p.original_filename,
+        id: p.id,
+      }));
+
+      const downloadedPhotoIds = await downloadPhotosBatch(batchItems, {
+        onProgress: setBatchProgress,
+        signal: abortController.signal,
+      });
+
+      if (downloadedPhotoIds.length > 0) {
+        setDownloadedIds((prev) => {
+          const next = new Set(prev);
+          downloadedPhotoIds.forEach((id) => next.add(id));
+          return next;
+        });
+      }
+    } catch (error) {
+      console.warn('Batch download failed:', error);
+    } finally {
+      setTimeout(() => setBatchProgress(null), 1500);
+      batchAbortRef.current = null;
+    }
+  }, [selectedIds, photos]);
 
   // Download single photo
   const handleDownload = useCallback(async (photo: OrgPhoto) => {
@@ -252,10 +323,25 @@ export function SharedGalleryPage() {
         <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1">
           {t('photoGallery.title', 'Photos')}
         </h1>
-        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
-          {galleryInfo.total_photo_count}{' '}
-          {t('photoGallery.photosUnit', 'photos')}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+            {galleryInfo.total_photo_count}{' '}
+            {t('photoGallery.photosUnit', 'photos')}
+          </span>
+          {photos.length > 0 && (
+            <button
+              onClick={() => setSelectMode((prev) => !prev)}
+              className={`p-2 rounded-lg transition-colors ${
+                selectMode
+                  ? 'text-bridge-accent bg-bridge-accent/15'
+                  : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
+              }`}
+              title={t('photoGallery.selectMode', 'Select')}
+            >
+              <CheckSquare size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Album tabs */}
@@ -304,11 +390,19 @@ export function SharedGalleryPage() {
             {photos.map((photo, i) => (
               <motion.div
                 key={photo.id}
-                className="relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-bridge-obsidian border border-foreground/[0.08] hover:border-foreground/[0.12] transition-all group"
+                className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-bridge-obsidian border transition-all group ${
+                  selectMode && selectedIds.has(photo.id)
+                    ? 'border-bridge-accent ring-2 ring-bridge-accent/50'
+                    : 'border-foreground/[0.08] hover:border-foreground/[0.12]'
+                }`}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.02 }}
-                onClick={() => setLightboxPhoto(photo)}
+                onClick={() =>
+                  selectMode
+                    ? handleToggleSelect(photo.id)
+                    : setLightboxPhoto(photo)
+                }
               >
                 <img
                   src={resolveFileUrl(photo.thumbnail_url || photo.url)}
@@ -316,8 +410,24 @@ export function SharedGalleryPage() {
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
+                {/* Select checkbox */}
+                {selectMode && (
+                  <div className="absolute top-1.5 left-1.5 z-10">
+                    <div
+                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                        selectedIds.has(photo.id)
+                          ? 'bg-bridge-accent border-bridge-accent'
+                          : 'border-white/70 bg-black/30'
+                      }`}
+                    >
+                      {selectedIds.has(photo.id) && (
+                        <Check size={14} className="text-white" strokeWidth={3} />
+                      )}
+                    </div>
+                  </div>
+                )}
                 {/* Downloaded badge */}
-                {downloadedIds.has(photo.id) && (
+                {downloadedIds.has(photo.id) && !selectMode && (
                   <div className="absolute top-1.5 right-1.5 z-10">
                     <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/90 text-white">
                       <Check size={10} strokeWidth={3} />
@@ -325,20 +435,22 @@ export function SharedGalleryPage() {
                     </div>
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                  <span className="text-xs text-white/90 truncate flex-1">
-                    {photo.original_filename}
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownload(photo);
-                    }}
-                    className="p-1 rounded-md hover:bg-white/20 transition-colors shrink-0"
-                  >
-                    <Download size={14} className="text-white" />
-                  </button>
-                </div>
+                {!selectMode && (
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                    <span className="text-xs text-white/90 truncate flex-1">
+                      {photo.original_filename}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload(photo);
+                      }}
+                      className="p-1 rounded-md hover:bg-white/20 transition-colors shrink-0"
+                    >
+                      <Download size={14} className="text-white" />
+                    </button>
+                  </div>
+                )}
               </motion.div>
             ))}
           </div>
@@ -370,6 +482,107 @@ export function SharedGalleryPage() {
         onDownload={handleDownload}
         onDelete={() => {}}
       />
+
+      {/* Batch download progress bar */}
+      <AnimatePresence>
+        {batchProgress && batchProgress.phase !== 'done' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 w-[min(320px,calc(100%-2rem))]"
+          >
+            <div className="bg-bridge-obsidian border border-foreground/[0.08] rounded-2xl shadow-2xl overflow-hidden">
+              <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
+              <div className="px-4 py-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {batchProgress.phase === 'cancelled' ? (
+                      <X size={14} className="text-slate-400" />
+                    ) : (
+                      <Loader2 size={14} className="animate-spin text-bridge-accent" />
+                    )}
+                    <span className="text-xs font-bold text-foreground">
+                      {batchProgress.phase === 'saving'
+                        ? t('photoGallery.progressSaving', 'Saving...')
+                        : batchProgress.phase === 'cancelled'
+                          ? t('photoGallery.progressCancelled', 'Cancelled')
+                          : t('photoGallery.progressDownloading', '{{current}} / {{total}}', {
+                              current: batchProgress.current,
+                              total: batchProgress.total,
+                            })}
+                    </span>
+                  </div>
+                  {batchProgress.phase === 'downloading' && (
+                    <button
+                      onClick={handleCancelBatch}
+                      className="text-xs font-bold text-slate-400 hover:text-foreground transition-colors"
+                    >
+                      {t('common.cancel', 'Cancel')}
+                    </button>
+                  )}
+                </div>
+                <div className="h-1.5 bg-foreground/[0.06] rounded-full overflow-hidden">
+                  <motion.div
+                    className={`h-full rounded-full ${
+                      batchProgress.phase === 'cancelled'
+                        ? 'bg-slate-400'
+                        : 'bg-bridge-accent'
+                    }`}
+                    initial={{ width: 0 }}
+                    animate={{
+                      width: `${Math.round((batchProgress.current / batchProgress.total) * 100)}%`,
+                    }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+                {batchProgress.failedCount > 0 && (
+                  <span className="text-xs text-amber-600 dark:text-amber-400">
+                    {t('photoGallery.progressFailed', '{{count}} failed', {
+                      count: batchProgress.failedCount,
+                    })}
+                  </span>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Selection floating action bar */}
+      <AnimatePresence>
+        {selectMode && selectedIds.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-bridge-obsidian border border-foreground/[0.08] shadow-2xl"
+          >
+            <span className="text-xs font-bold text-foreground">
+              {t('photoGallery.selectedCount', '{{count}} selected', {
+                count: selectedIds.size,
+              })}
+            </span>
+            <div className="w-px h-5 bg-foreground/10" />
+            <button
+              onClick={handleBatchDownload}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 transition-all"
+            >
+              <Download size={14} />
+              {t('photoGallery.download', 'Download')}
+            </button>
+            <IconButton
+              onClick={() => {
+                setSelectedIds(new Set());
+                setSelectMode(false);
+              }}
+              aria-label="선택 해제"
+            >
+              <X />
+            </IconButton>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Footer */}
       <footer className="border-t border-foreground/5 mt-8">

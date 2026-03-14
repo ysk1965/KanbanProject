@@ -8,6 +8,9 @@ import { resolveFileUrl } from '../../../utils/api';
 interface PhotoLightboxProps {
   photo: OrgPhoto | null;
   photos: OrgPhoto[];
+  totalCount?: number;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
   isAdmin: boolean;
   onClose: () => void;
   onNavigate: (photo: OrgPhoto) => void;
@@ -28,6 +31,9 @@ const ZOOM_STEP = 0.5;
 export function PhotoLightbox({
   photo,
   photos,
+  totalCount,
+  hasMore,
+  onLoadMore,
   isAdmin,
   onClose,
   onNavigate,
@@ -103,8 +109,12 @@ export function PhotoLightbox({
   const goNext = useCallback(() => {
     if (currentIndex < photos.length - 1) {
       onNavigate(photos[currentIndex + 1]);
+      // Pre-fetch more photos when near the end of loaded list
+      if (hasMore && onLoadMore && currentIndex >= photos.length - 4) {
+        onLoadMore();
+      }
     }
-  }, [currentIndex, photos, onNavigate]);
+  }, [currentIndex, photos, onNavigate, hasMore, onLoadMore]);
 
   // Touch handling
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
@@ -463,7 +473,7 @@ export function PhotoLightbox({
               <ChevronLeft size={20} />
             </button>
           )}
-          {!isZoomed && currentIndex < photos.length - 1 && (
+          {!isZoomed && (currentIndex < photos.length - 1 || hasMore) && (
             <button
               onClick={goNext}
               className="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 text-white/60 hover:text-white transition-all"
@@ -476,7 +486,7 @@ export function PhotoLightbox({
           {/* Bottom index indicator */}
           <div className="text-center py-3">
             <span className="text-xs text-white/40 font-medium">
-              {currentIndex + 1} / {photos.length}
+              {currentIndex + 1} / {totalCount || photos.length}
             </span>
           </div>
         </motion.div>

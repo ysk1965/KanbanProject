@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { orgPhotoService } from '../../../utils/services';
 import { isNative } from '../../../utils/platform';
 import { saveToDevice, downloadPhoto, downloadPhotosBatch, getDownloadedIds, markAsDownloaded, markManyAsDownloaded } from '../../../utils/nativeDownload';
+import type { BatchDownloadProgress } from '../../../utils/nativeDownload';
 import { MotionModal } from '../../ui/MotionModal';
 import { IconButton } from '../../ui/IconButton';
 import { PhotoAlbumBar } from '../photo/PhotoAlbumBar';
@@ -49,10 +50,15 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasNext, setHasNext] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  const [allTotalCount, setAllTotalCount] = useState(0);
 
   // Select mode
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Batch download progress
+  const [batchProgress, setBatchProgress] = useState<BatchDownloadProgress | null>(null);
+  const batchAbortRef = useRef<AbortController | null>(null);
 
   // Download history
   const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
@@ -94,7 +100,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
       try {
         setPhotosLoading(true);
         const params: { tab_id?: string; cursor?: string; size?: number } = {
-          size: 12,
+          size: 20,
         };
         if (activeAlbumId) params.tab_id = activeAlbumId;
         if (cursor) params.cursor = cursor;
@@ -111,6 +117,10 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
         setNextCursor(data.next_cursor);
         setHasNext(data.has_next);
         setTotalCount(data.total_count);
+        // Preserve the "All" total — only update when viewing all photos (no album filter)
+        if (!activeAlbumId) {
+          setAllTotalCount(data.total_count);
+        }
       } catch (error) {
         console.warn('Failed to fetch photos:', error);
       } finally {
@@ -142,8 +152,8 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
     setSelectedIds(new Set());
   }, [activeAlbumId, selectMode]);
 
-  // Compute totals for "All" tab
-  const allPhotosCount = totalCount;
+  // "All" tab count: use the preserved total from the unfiltered query
+  const allPhotosCount = allTotalCount;
 
   const activeAlbum = albums.find((a) => a.id === activeAlbumId) || null;
   const displayCount = activeAlbum ? activeAlbum.photo_count : allPhotosCount;
@@ -178,9 +188,18 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
     [t],
   );
 
+  // Cancel batch download
+  const handleCancelBatch = useCallback(() => {
+    batchAbortRef.current?.abort();
+    batchAbortRef.current = null;
+  }, []);
+
   // Batch download (Web Share on mobile, individual on desktop/native)
   const handleBatchDownload = useCallback(async () => {
     if (selectedIds.size === 0) return;
+    const abortController = new AbortController();
+    batchAbortRef.current = abortController;
+
     try {
       const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
       const batchItems = selectedPhotos.map((p) => ({
@@ -188,24 +207,44 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
         filename: p.original_filename,
         id: p.id,
       }));
-      const downloadedPhotoIds = await downloadPhotosBatch(batchItems);
+
+      const downloadedPhotoIds = await downloadPhotosBatch(batchItems, {
+        onProgress: setBatchProgress,
+        signal: abortController.signal,
+      });
+
       if (downloadedPhotoIds.length > 0) {
         setDownloadedIds((prev) => {
           const next = new Set(prev);
           downloadedPhotoIds.forEach((id) => next.add(id));
           return next;
         });
-        toast.success(
-          isNative()
-            ? t('photoGallery.savedToGallery', 'Saved to Photos')
-            : t('photoGallery.downloadSuccess', '{{count}} photos downloaded', {
-                count: downloadedPhotoIds.length,
-              }),
-        );
+
+        const wasCancelled = abortController.signal.aborted;
+        if (wasCancelled && downloadedPhotoIds.length < selectedIds.size) {
+          toast.success(
+            t('photoGallery.downloadPartial', '{{done}} / {{total}} photos saved', {
+              done: downloadedPhotoIds.length,
+              total: selectedIds.size,
+            }),
+          );
+        } else {
+          toast.success(
+            isNative()
+              ? t('photoGallery.savedToGallery', 'Saved to Photos')
+              : t('photoGallery.downloadSuccess', '{{count}} photos downloaded', {
+                  count: downloadedPhotoIds.length,
+                }),
+          );
+        }
       }
     } catch (error) {
       console.warn('Batch download failed:', error);
       toast.error(t('photoGallery.downloadError', 'Failed to download'));
+    } finally {
+      // Auto-dismiss progress after a short delay
+      setTimeout(() => setBatchProgress(null), 1500);
+      batchAbortRef.current = null;
     }
   }, [selectedIds, photos, t]);
 
@@ -433,12 +472,85 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
       <PhotoLightbox
         photo={lightboxPhoto}
         photos={photos}
+        totalCount={totalCount}
+        hasMore={hasNext}
+        onLoadMore={handleLoadMore}
         isAdmin={isAdmin}
         onClose={() => setLightboxPhoto(null)}
         onNavigate={setLightboxPhoto}
         onDownload={handleDownloadSingle}
         onDelete={handleDeleteFromLightbox}
       />
+
+      {/* Batch download progress bar */}
+      <AnimatePresence>
+        {batchProgress && batchProgress.phase !== 'done' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 w-[min(320px,calc(100%-2rem))]"
+          >
+            <div className="bg-bridge-obsidian border border-foreground/[0.08] rounded-2xl shadow-2xl overflow-hidden">
+              {/* Top accent */}
+              <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
+              <div className="px-4 py-3 space-y-2.5">
+                {/* Status text */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {batchProgress.phase === 'cancelled' ? (
+                      <X size={14} className="text-slate-400" />
+                    ) : (
+                      <Loader2 size={14} className="animate-spin text-bridge-accent" />
+                    )}
+                    <span className="text-xs font-bold text-foreground">
+                      {batchProgress.phase === 'saving'
+                        ? t('photoGallery.progressSaving', 'Saving...')
+                        : batchProgress.phase === 'cancelled'
+                          ? t('photoGallery.progressCancelled', 'Cancelled')
+                          : t('photoGallery.progressDownloading', '{{current}} / {{total}}', {
+                              current: batchProgress.current,
+                              total: batchProgress.total,
+                            })}
+                    </span>
+                  </div>
+                  {batchProgress.phase === 'downloading' && (
+                    <button
+                      onClick={handleCancelBatch}
+                      className="text-xs font-bold text-slate-400 hover:text-foreground transition-colors"
+                    >
+                      {t('common.cancel', 'Cancel')}
+                    </button>
+                  )}
+                </div>
+                {/* Progress bar */}
+                <div className="h-1.5 bg-foreground/[0.06] rounded-full overflow-hidden">
+                  <motion.div
+                    className={`h-full rounded-full ${
+                      batchProgress.phase === 'cancelled'
+                        ? 'bg-slate-400'
+                        : 'bg-bridge-accent'
+                    }`}
+                    initial={{ width: 0 }}
+                    animate={{
+                      width: `${Math.round((batchProgress.current / batchProgress.total) * 100)}%`,
+                    }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+                {/* Failed count */}
+                {batchProgress.failedCount > 0 && (
+                  <span className="text-xs text-amber-600 dark:text-amber-400">
+                    {t('photoGallery.progressFailed', '{{count}} failed', {
+                      count: batchProgress.failedCount,
+                    })}
+                  </span>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Selection floating action bar */}
       <AnimatePresence>
