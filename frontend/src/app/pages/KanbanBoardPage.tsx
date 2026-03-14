@@ -2592,7 +2592,7 @@ export function KanbanBoardPage() {
   if (isLoading) {
     return (
       <div className="min-h-dvh bg-bridge-dark flex items-center justify-center">
-        <div className="text-foreground text-lg font-light">
+        <div className="text-foreground text-lg font-normal">
           {t("common.loading")}
         </div>
       </div>
@@ -2978,7 +2978,7 @@ export function KanbanBoardPage() {
                           "아직 콘텐츠가 없는 보드입니다",
                         )}
                       </h2>
-                      <p className="text-slate-400 font-light text-sm md:text-base leading-relaxed mb-8">
+                      <p className="text-slate-400 font-normal text-sm md:text-base leading-relaxed mb-8">
                         {t(
                           "board.joinRequest.emptyBoardDesc",
                           "이 보드에 참가하면 Feature를 만들고 편집할 수 있습니다. 상단 배너에서 참가 신청을 해보세요.",

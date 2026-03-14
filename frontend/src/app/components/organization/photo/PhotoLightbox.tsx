@@ -46,6 +46,7 @@ export function PhotoLightbox({
 
   // Pinch zoom refs
   const lastPinchDistRef = useRef<number | null>(null);
+  const wasPinchingRef = useRef(false);
 
   const isZoomed = zoom > 1;
 
@@ -112,6 +113,7 @@ export function PhotoLightbox({
     (e: React.TouchEvent) => {
       if (e.touches.length === 2) {
         // Pinch start
+        wasPinchingRef.current = true;
         const dist = Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY,
@@ -173,6 +175,14 @@ export function PhotoLightbox({
     (e: React.TouchEvent) => {
       if (e.touches.length < 2) {
         lastPinchDistRef.current = null;
+      }
+
+      // After pinch gesture ends (all fingers lifted), skip further processing
+      if (wasPinchingRef.current) {
+        if (e.touches.length === 0) {
+          wasPinchingRef.current = false;
+        }
+        return;
       }
 
       if (isPanningRef.current) {
@@ -411,8 +421,12 @@ export function PhotoLightbox({
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={(e) => {
+              // Skip double-tap detection after pinch gesture
+              const wasPinching = wasPinchingRef.current;
               handleTouchEnd(e);
-              handleDoubleTap(e);
+              if (!wasPinching) {
+                handleDoubleTap(e);
+              }
             }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
