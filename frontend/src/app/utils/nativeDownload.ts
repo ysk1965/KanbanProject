@@ -1,4 +1,4 @@
-import { isNative, isIOS, isInAppBrowser, isKakaoTalk, isMobileWeb } from './platform';
+import { isNative, isIOS, isKakaoTalk, isMobileWeb, isChromeiOS } from './platform';
 import { resolveFileUrl } from './api';
 
 /**
@@ -268,8 +268,22 @@ function anchorDownload(blob: Blob, filename: string): void {
   const a = document.createElement('a');
   a.href = blobUrl;
   a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(blobUrl);
+  // Delay revocation — Chrome mobile needs time to start the download
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  }, 3000);
+}
+
+/**
+ * Open image URL in new tab for manual save (long-press → Save Image).
+ * Used on Chrome iOS where <a download> is not supported.
+ */
+function openForManualSave(url: string): void {
+  window.open(url, '_blank');
 }
 
 /**
@@ -279,6 +293,9 @@ function anchorDownload(blob: Blob, filename: string): void {
  * - KakaoTalk in-app: open external browser via intent scheme
  * - Desktop browsers: fetch → blob → anchor download
  */
+/** When true, downloadPhoto skips per-file Web Share (set during batch fallback) */
+let _batchBypassWebShare = false;
+
 export async function downloadPhoto(photoUrl: string, filename: string, photoId?: string): Promise<void> {
   const url = resolveFileUrl(photoUrl);
 
@@ -293,8 +310,8 @@ export async function downloadPhoto(photoUrl: string, filename: string, photoId?
     return;
   }
 
-  // 2. Mobile web → try Web Share API first
-  if (canWebShare()) {
+  // 2. Mobile web → try Web Share API first (skip if batchBypass flag)
+  if (canWebShare() && !_batchBypassWebShare) {
     try {
       const file = await fetchAsFile(url, filename);
       const shared = await tryWebShare([file]);
@@ -307,7 +324,14 @@ export async function downloadPhoto(photoUrl: string, filename: string, photoId?
     }
   }
 
-  // 3. Desktop / fallback → blob download
+  // 3. Chrome iOS — <a download> not supported; open in new tab for long-press save
+  if (isChromeiOS()) {
+    openForManualSave(url);
+    if (photoId) markAsDownloaded(photoId);
+    return;
+  }
+
+  // 4. Desktop / Android Chrome / fallback → blob download
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error('Download failed');
@@ -392,8 +416,10 @@ export async function downloadPhotosBatch(
   }
 
   // Fallback: individual downloads (native, desktop, share failed)
-  // Chrome throttles rapid anchor downloads — add delay between each
-  const needsDelay = !isNative() && !canWebShare();
+  // Skip per-file Web Share in fallback to avoid multiple share sheets
+  _batchBypassWebShare = true;
+  // Always delay between downloads on web to prevent Chrome from throttling
+  const needsDelay = !isNative();
   for (let i = 0; i < photos.length; i++) {
     if (signal?.aborted) {
       report(i, 'cancelled');
@@ -412,6 +438,7 @@ export async function downloadPhotosBatch(
       await new Promise((r) => setTimeout(r, 800));
     }
   }
+  _batchBypassWebShare = false;
 
   if (!signal?.aborted) {
     report(total, 'done');
