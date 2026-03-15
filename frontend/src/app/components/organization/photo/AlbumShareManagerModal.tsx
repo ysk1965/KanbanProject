@@ -32,6 +32,8 @@ export function AlbumShareManagerModal({
   const { t } = useTranslation();
   const [galleryEnabled, setGalleryEnabled] = useState(false);
   const [galleryToken, setGalleryToken] = useState('');
+  const [galleryTitle, setGalleryTitle] = useState('');
+  const [galleryTitleSaving, setGalleryTitleSaving] = useState(false);
   const [galleryToggling, setGalleryToggling] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -66,6 +68,7 @@ export function AlbumShareManagerModal({
         ]);
         setGalleryEnabled(shareStatus.enabled);
         setGalleryToken(shareStatus.share_token || '');
+        setGalleryTitle(shareStatus.title || '');
         setGalleryUploadEnabled(uploadStatus.enabled);
         setGalleryUploadToken(uploadStatus.upload_token || '');
         setGalleryUploadExpiresAt(uploadStatus.expires_at || '');
@@ -87,9 +90,10 @@ export function AlbumShareManagerModal({
         await orgPhotoService.disableGalleryShare(orgId);
         setGalleryEnabled(false);
         setGalleryToken('');
+        setGalleryTitle('');
         toast.success(t('photoGallery.shareDisabled', 'Sharing disabled'));
       } else {
-        const result = await orgPhotoService.enableGalleryShare(orgId);
+        const result = await orgPhotoService.enableGalleryShare(orgId, galleryTitle || undefined);
         setGalleryEnabled(true);
         setGalleryToken(result.share_token);
         toast.success(t('photoGallery.shareEnabled', 'Sharing enabled'));
@@ -101,7 +105,20 @@ export function AlbumShareManagerModal({
     } finally {
       setGalleryToggling(false);
     }
-  }, [galleryToggling, galleryEnabled, orgId, t]);
+  }, [galleryToggling, galleryEnabled, orgId, galleryTitle, t]);
+
+  // Save gallery title (debounced on blur)
+  const handleTitleSave = useCallback(async () => {
+    if (!galleryEnabled || galleryTitleSaving) return;
+    try {
+      setGalleryTitleSaving(true);
+      await orgPhotoService.updateGalleryShareTitle(orgId, galleryTitle);
+    } catch {
+      toast.error(t('photoGallery.shareToggleError', 'Failed to update'));
+    } finally {
+      setGalleryTitleSaving(false);
+    }
+  }, [galleryEnabled, galleryTitleSaving, orgId, galleryTitle, t]);
 
   // Toggle gallery-level upload
   const handleGalleryUploadToggle = useCallback(async () => {
@@ -283,6 +300,29 @@ export function AlbumShareManagerModal({
                 )}
               </button>
             </div>
+
+            {/* Gallery title input */}
+            {galleryEnabled && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400">
+                  {t('photoGallery.shareGalleryTitleLabel', 'Gallery Title')}
+                </label>
+                <input
+                  type="text"
+                  value={galleryTitle}
+                  onChange={(e) => setGalleryTitle(e.target.value)}
+                  onBlur={handleTitleSave}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  maxLength={100}
+                  placeholder={t('photoGallery.shareGalleryTitlePlaceholder', 'e.g. Family Photos, Trip 2026')}
+                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                />
+              </div>
+            )}
 
             {/* Link display */}
             {galleryEnabled && shareUrl && (

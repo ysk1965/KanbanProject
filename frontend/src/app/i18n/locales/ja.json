@@ -3847,6 +3847,8 @@
     "noAlbumsToShare": "共有するアルバムがありません",
     "sharePreview": "プレビュー",
     "shareGalleryDesc": "選択したアルバムを1つのリンクで共有します",
+    "shareGalleryTitleLabel": "ギャラリータイトル",
+    "shareGalleryTitlePlaceholder": "例: 家族写真、2026年旅行",
     "shareSelectAlbums": "含めるアルバム",
     "galleryUploadLink": "ギャラリーアップロードリンク",
     "galleryUploadLinkDesc": "このリンクを持つ誰でも写真をアップロードしアルバムを管理できます",

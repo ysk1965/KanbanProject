@@ -106,6 +106,7 @@ public class OrgPhotoResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class SharedGalleryInfo {
+        private String galleryTitle;
         private String organizationName;
         private String organizationLogoUrl;
         private List<SharedAlbumSummary> albums;

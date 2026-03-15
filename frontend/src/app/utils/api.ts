@@ -7126,17 +7126,24 @@ export const orgPhotoAPI = {
   // Gallery-level sharing
   enableGalleryShare: (
     orgId: string,
+    title?: string,
   ): Promise<{ share_token: string }> =>
-    apiClient.post(`/organizations/${orgId}/photos/gallery-share`),
+    apiClient.post(`/organizations/${orgId}/photos/gallery-share`, { title }),
 
   disableGalleryShare: (
     orgId: string,
   ): Promise<void> =>
     apiClient.delete(`/organizations/${orgId}/photos/gallery-share`),
 
+  updateGalleryShareTitle: (
+    orgId: string,
+    title: string,
+  ): Promise<void> =>
+    apiClient.patch(`/organizations/${orgId}/photos/gallery-share`, { title }),
+
   getGalleryShareStatus: (
     orgId: string,
-  ): Promise<{ enabled: boolean; share_token: string }> =>
+  ): Promise<{ enabled: boolean; share_token: string; title: string }> =>
     apiClient.get(`/organizations/${orgId}/photos/gallery-share`),
 
   // Gallery-level upload

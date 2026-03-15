@@ -3445,6 +3445,7 @@ export const orgPhotoService = {
   // Gallery-level sharing
   enableGalleryShare: orgPhotoAPI.enableGalleryShare,
   disableGalleryShare: orgPhotoAPI.disableGalleryShare,
+  updateGalleryShareTitle: orgPhotoAPI.updateGalleryShareTitle,
   getGalleryShareStatus: orgPhotoAPI.getGalleryShareStatus,
 
   // Gallery-level upload
