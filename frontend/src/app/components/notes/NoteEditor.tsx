@@ -45,7 +45,7 @@ import { ColumnLayout, Column } from "./blocks/ColumnLayout";
 import { Mention } from "./blocks/Mention";
 import { formatDateTime } from "../../utils/dateUtils";
 import { useTheme } from "../../contexts/ThemeContext";
-import { fileAPI, noteAPI, memberAPI } from "../../utils/api";
+import { fileAPI, noteAPI, memberAPI, orgNoteAPI } from "../../utils/api";
 import type {
   NoteDetail,
   NoteTagInfo,
@@ -95,7 +95,8 @@ const schema = BlockNoteSchema.create({
 });
 
 interface NoteEditorProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   note: NoteDetail;
   tags: NoteTagInfo[];
   loading: boolean;
@@ -115,6 +116,7 @@ interface NoteEditorProps {
 
 export function NoteEditor({
   boardId,
+  orgId,
   note,
   tags,
   loading,
@@ -163,6 +165,7 @@ export function NoteEditor({
       >
         <ExcalidrawEditor
           boardId={boardId}
+          orgId={orgId}
           note={note}
           tags={tags}
           canEdit={canEdit}
@@ -182,6 +185,7 @@ export function NoteEditor({
     return (
       <CollabNoteEditor
         boardId={boardId}
+        orgId={orgId}
         note={note}
         tags={tags}
         canEdit={canEdit}
@@ -200,6 +204,7 @@ export function NoteEditor({
   return (
     <FallbackNoteEditor
       boardId={boardId}
+      orgId={orgId}
       note={note}
       tags={tags}
       canEdit={canEdit}
@@ -215,7 +220,8 @@ export function NoteEditor({
  * ============================================================ */
 
 interface CollabEditorProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   note: NoteDetail;
   tags: NoteTagInfo[];
   canEdit: boolean;
@@ -234,6 +240,7 @@ interface CollabEditorProps {
 
 function CollabNoteEditor({
   boardId,
+  orgId,
   note,
   tags,
   canEdit,
@@ -471,14 +478,20 @@ function CollabNoteEditor({
     [editor],
   );
 
-  // @mention: lazy-fetch board members
+  // @mention: lazy-fetch board/org members
+  const scopeId = boardId || orgId || '';
   const membersCache = useRef<MemberResponse[] | null>(null);
   const getMentionItems = useCallback(
     async (query: string) => {
       if (!membersCache.current) {
         try {
-          const data = await memberAPI.getMembers(boardId);
-          membersCache.current = data.members;
+          if (boardId) {
+            const data = await memberAPI.getMembers(boardId);
+            membersCache.current = data.members;
+          } else {
+            // For org notes, members will be fetched differently if needed
+            membersCache.current = [];
+          }
         } catch {
           membersCache.current = [];
         }
@@ -631,6 +644,7 @@ function CollabNoteEditor({
     setAiCollapsed(false);
     try {
       const lang = navigator.language?.split("-")[0] || "ko";
+      if (!boardId) return; // AI organize is board-specific
       const data = await noteAPI.aiOrganize(boardId, note.id, lang);
       setAiData(data);
       setAiContentSnapshot(note.content || "");
@@ -688,6 +702,7 @@ function CollabNoteEditor({
 
           <NoteShareButton
             boardId={boardId}
+            orgId={orgId}
             note={note}
             canEdit={canEdit}
             onNoteUpdate={onNoteUpdate}
@@ -712,6 +727,7 @@ function CollabNoteEditor({
 
           <NoteTagManager
             boardId={boardId}
+            orgId={orgId}
             noteId={note.id}
             noteTags={note.tags}
             allTags={tags}
@@ -721,18 +737,26 @@ function CollabNoteEditor({
           />
           <NoteVersionHistory
             boardId={boardId}
+            orgId={orgId}
             noteId={note.id}
             versionCount={note.version_count}
             canEdit={canEdit}
             onRestore={async () => {
               // After restoring, refetch and let the provider sync
-              const { noteService } = await import("../../utils/services");
-              const updated = await noteService.getDetail(boardId, note.id);
-              setTitle(updated.title);
-              setHasChanges(false);
+              if (boardId) {
+                const { noteService } = await import("../../utils/services");
+                const updated = await noteService.getDetail(boardId, note.id);
+                setTitle(updated.title);
+                setHasChanges(false);
+              } else if (orgId) {
+                const { orgNoteService } = await import("../../utils/services");
+                const updated = await orgNoteService.getDetail(orgId, note.id);
+                setTitle(updated.title);
+                setHasChanges(false);
+              }
             }}
           />
-          {canEdit && note.content?.trim() && (
+          {canEdit && boardId && note.content?.trim() && (
             <button
               onClick={handleAIOrganize}
               disabled={aiLoading}
@@ -850,7 +874,7 @@ function CollabNoteEditor({
               </div>
             ) : (
               <NoteAIInlineSection
-                boardId={boardId}
+                boardId={boardId || ''}
                 noteId={note.id}
                 loading={aiLoading}
                 error={aiError}
@@ -867,6 +891,7 @@ function CollabNoteEditor({
           <div ref={commentsPanelRef}>
             <NoteCommentSidebar
               boardId={boardId}
+              orgId={orgId}
               noteId={note.id}
               currentUserId={currentUser.id}
               canEdit={canEdit}
@@ -884,6 +909,7 @@ function CollabNoteEditor({
         {currentUser && (
           <NoteBottomComments
             boardId={boardId}
+            orgId={orgId}
             noteId={note.id}
             currentUserId={currentUser.id}
             canEdit={canEdit}
@@ -899,7 +925,8 @@ function CollabNoteEditor({
  * ============================================================ */
 
 interface FallbackEditorProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   note: NoteDetail;
   tags: NoteTagInfo[];
   canEdit: boolean;
@@ -916,6 +943,7 @@ const AUTO_SAVE_DELAY = 30_000;
 
 function FallbackNoteEditor({
   boardId,
+  orgId,
   note,
   tags,
   canEdit,
@@ -1157,6 +1185,7 @@ function FallbackNoteEditor({
         <div className="flex items-center gap-1 flex-shrink-0">
           <NoteTagManager
             boardId={boardId}
+            orgId={orgId}
             noteId={note.id}
             noteTags={note.tags}
             allTags={tags}
@@ -1166,27 +1195,34 @@ function FallbackNoteEditor({
           />
           <NoteVersionHistory
             boardId={boardId}
+            orgId={orgId}
             noteId={note.id}
             versionCount={note.version_count}
             canEdit={canEdit}
             onRestore={async () => {
-              const { noteService } = await import("../../utils/services");
-              const updated = await noteService.getDetail(boardId, note.id);
-              if (updated.content?.trim()) {
-                try {
-                  const blocks = await editor.tryParseHTMLToBlocks(
-                    updated.content,
-                  );
-                  editor.replaceBlocks(editor.document, blocks);
-                } catch (err) {
-                  console.error("Failed to restore content:", err);
-                }
-              } else {
-                editor.replaceBlocks(editor.document, []);
+              let updated;
+              if (boardId) {
+                const { noteService } = await import("../../utils/services");
+                updated = await noteService.getDetail(boardId, note.id);
+              } else if (orgId) {
+                const { orgNoteService } = await import("../../utils/services");
+                updated = await orgNoteService.getDetail(orgId, note.id);
               }
-              setTitle(updated.title);
-              setHasChanges(false);
-              setAutoSaved(false);
+              if (updated) {
+                if (updated.content?.trim()) {
+                  try {
+                    const blocks = await editor.tryParseHTMLToBlocks(updated.content);
+                    editor.replaceBlocks(editor.document, blocks);
+                  } catch (err) {
+                    console.error("Failed to restore content:", err);
+                  }
+                } else {
+                  editor.replaceBlocks(editor.document, []);
+                }
+                setTitle(updated.title);
+                setHasChanges(false);
+                setAutoSaved(false);
+              }
             }}
           />
           {canEdit && (
@@ -1243,6 +1279,7 @@ function FallbackNoteEditor({
         {fallbackCurrentUser && (
           <NoteBottomComments
             boardId={boardId}
+            orgId={orgId}
             noteId={note.id}
             currentUserId={fallbackCurrentUser.id}
             canEdit={canEdit}

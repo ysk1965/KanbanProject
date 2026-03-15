@@ -41,6 +41,7 @@ interface OrgChartTabProps {
   titles: OrgTitle[];
   grades: OrgGrade[];
   structureSettings: OrgStructureSettings;
+  hrSystemEnabled?: boolean;
 }
 
 export function OrgChartTab({
@@ -53,6 +54,7 @@ export function OrgChartTab({
   titles,
   grades,
   structureSettings,
+  hrSystemEnabled,
 }: OrgChartTabProps) {
   const { t } = useTranslation();
   const isAdmin = myRole === "OWNER" || myRole === "ADMIN";
@@ -361,6 +363,7 @@ export function OrgChartTab({
           onManagerSearchChange={setManagerSearch}
           onUpdateManager={handleUpdateManager}
           updatingManager={updatingManager}
+          hrSystemEnabled={hrSystemEnabled}
         />
       )}
 
@@ -714,6 +717,7 @@ function ListView({
   onManagerSearchChange,
   onUpdateManager,
   updatingManager,
+  hrSystemEnabled,
 }: {
   data: OrgChartData;
   collapsedDepts: Set<string>;
@@ -727,6 +731,7 @@ function ListView({
   onManagerSearchChange: (s: string) => void;
   onUpdateManager: (memberId: string, managerId: string | null) => void;
   updatingManager: boolean;
+  hrSystemEnabled?: boolean;
 }) {
   const { t } = useTranslation();
   const flatDeptList = useMemo(
@@ -812,6 +817,7 @@ function ListView({
                           onManagerSearchChange={onManagerSearchChange}
                           onUpdateManager={onUpdateManager}
                           updatingManager={updatingManager}
+                          hrSystemEnabled={hrSystemEnabled}
                         />
                       ))}
                     </div>
@@ -897,6 +903,7 @@ function MemberListNode({
   onManagerSearchChange,
   onUpdateManager,
   updatingManager,
+  hrSystemEnabled,
 }: {
   member: OrgChartMemberNode;
   depth: number;
@@ -909,6 +916,7 @@ function MemberListNode({
   onManagerSearchChange: (s: string) => void;
   onUpdateManager: (memberId: string, managerId: string | null) => void;
   updatingManager: boolean;
+  hrSystemEnabled?: boolean;
 }) {
   const { t } = useTranslation();
   const isEditing = managerEditMemberId === member.id;
@@ -975,7 +983,7 @@ function MemberListNode({
                   · {member.job_title}
                 </span>
               )}
-              {member.contract_type && (
+              {!hrSystemEnabled && member.contract_type && (
                 <span
                   className={`text-xs font-bold px-1.5 py-0.5 rounded-full hidden sm:inline ${CONTRACT_COLORS[member.contract_type] || "bg-slate-500/15 text-slate-500"}`}
                 >
@@ -1097,6 +1105,7 @@ function MemberListNode({
           onManagerSearchChange={onManagerSearchChange}
           onUpdateManager={onUpdateManager}
           updatingManager={updatingManager}
+          hrSystemEnabled={hrSystemEnabled}
         />
       ))}
     </>

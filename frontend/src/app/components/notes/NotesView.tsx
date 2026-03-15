@@ -4,7 +4,7 @@ import { FileText, FolderPlus, FilePlus, PenTool, Search, List, FolderTree, Load
 import { NoteTreeSidebar } from './NoteTreeSidebar';
 import { NoteEditor } from './NoteEditor';
 import { NoteListView } from './NoteListView';
-import { noteService } from '../../utils/services';
+import { noteService, orgNoteService } from '../../utils/services';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCollaboration } from '../../hooks/useCollaboration';
 import { getAssigneeHex } from '../../utils/assigneeColor';
@@ -13,11 +13,12 @@ import { IconButton } from '../ui/IconButton';
 import type { NoteTreeItem, NoteDetail, NoteListItem, NoteTagInfo } from '../../utils/api';
 
 interface NotesViewProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   currentUserRole: string;
 }
 
-export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
+export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
   const { t } = useTranslation();
   const { currentUser } = useAuth();
   const [tree, setTree] = useState<NoteTreeItem[]>([]);
@@ -30,6 +31,11 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const hasUnsavedChangesRef = useRef(false);
+
+  // Determine scope
+  const scopeId = boardId || orgId || '';
+  const scopeType = orgId ? 'org' : 'board';
+  const svc = scopeType === 'org' ? orgNoteService : noteService;
 
   const isViewer = currentUserRole === 'viewer';
   const canEdit = !isViewer;
@@ -47,23 +53,23 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
 
   const loadTree = useCallback(async () => {
     try {
-      const data = await noteService.getTree(boardId);
+      const data = await svc.getTree(scopeId);
       setTree(data);
     } catch (err) {
       console.error('Failed to load note tree:', err);
     } finally {
       setLoading(false);
     }
-  }, [boardId]);
+  }, [scopeId, svc]);
 
   const loadTags = useCallback(async () => {
     try {
-      const data = await noteService.getTags(boardId);
+      const data = await svc.getTags(scopeId);
       setTags(data);
     } catch (err) {
       console.error('Failed to load note tags:', err);
     }
-  }, [boardId]);
+  }, [scopeId, svc]);
 
   useEffect(() => {
     loadTree();
@@ -87,20 +93,20 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
     setNoteLoading(true);
     setMobileSidebarOpen(false);
     try {
-      const detail = await noteService.getDetail(boardId, noteId);
+      const detail = await svc.getDetail(scopeId, noteId);
       setSelectedNote(detail);
     } catch (err) {
       console.error('Failed to load note detail:', err);
     } finally {
       setNoteLoading(false);
     }
-  }, [boardId, selectedNoteId, t]);
+  }, [scopeId, svc, selectedNoteId, t]);
 
   const handleCreateFolder = useCallback(async (parentId?: string | null) => {
     if (!canEdit) return;
     try {
       const title = t('notes.newFolder', '새 폴더');
-      await noteService.create(boardId, {
+      await svc.create(scopeId, {
         title,
         type: 'FOLDER',
         parentId: parentId || null,
@@ -109,13 +115,13 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
     } catch (err) {
       console.error('Failed to create folder:', err);
     }
-  }, [boardId, canEdit, loadTree, t]);
+  }, [scopeId, svc, canEdit, loadTree, t]);
 
   const handleCreateDocument = useCallback(async (parentId?: string | null) => {
     if (!canEdit) return;
     try {
       const title = t('notes.newDocument', '새 문서');
-      const created = await noteService.create(boardId, {
+      const created = await svc.create(scopeId, {
         title,
         type: 'DOCUMENT',
         parentId: parentId || null,
@@ -126,13 +132,13 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
     } catch (err) {
       console.error('Failed to create document:', err);
     }
-  }, [boardId, canEdit, loadTree, handleSelectNote, t]);
+  }, [scopeId, svc, canEdit, loadTree, handleSelectNote, t]);
 
   const handleCreateBoard = useCallback(async (parentId?: string | null) => {
     if (!canEdit) return;
     try {
       const title = t('notes.newBoard', '새 보드');
-      const created = await noteService.create(boardId, {
+      const created = await svc.create(scopeId, {
         title,
         type: 'BOARD',
         parentId: parentId || null,
@@ -143,11 +149,11 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
     } catch (err) {
       console.error('Failed to create board:', err);
     }
-  }, [boardId, canEdit, loadTree, handleSelectNote, t]);
+  }, [scopeId, svc, canEdit, loadTree, handleSelectNote, t]);
 
   const handleDeleteNote = useCallback(async (noteId: string) => {
     try {
-      await noteService.delete(boardId, noteId);
+      await svc.delete(scopeId, noteId);
       if (selectedNoteId === noteId) {
         setSelectedNoteId(null);
         setSelectedNote(null);
@@ -157,11 +163,11 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
     } catch (err) {
       console.error('Failed to delete note:', err);
     }
-  }, [boardId, selectedNoteId, loadTree]);
+  }, [scopeId, svc, selectedNoteId, loadTree]);
 
   const handleRenameNote = useCallback(async (noteId: string, newTitle: string) => {
     try {
-      await noteService.update(boardId, noteId, { title: newTitle }, false);
+      await svc.update(scopeId, noteId, { title: newTitle }, false);
       await loadTree();
       if (selectedNoteId === noteId && selectedNote) {
         setSelectedNote({ ...selectedNote, title: newTitle });
@@ -169,7 +175,7 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
     } catch (err) {
       console.error('Failed to rename note:', err);
     }
-  }, [boardId, selectedNoteId, selectedNote, loadTree]);
+  }, [scopeId, svc, selectedNoteId, selectedNote, loadTree]);
 
   const handleSaveNote = useCallback(async (
     noteId: string,
@@ -177,22 +183,22 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
     createVersion = true
   ) => {
     try {
-      const updated = await noteService.update(boardId, noteId, data, createVersion);
+      const updated = await svc.update(scopeId, noteId, data, createVersion);
       setSelectedNote(updated);
       await loadTree();
     } catch (err) {
       console.error('Failed to save note:', err);
     }
-  }, [boardId, loadTree]);
+  }, [scopeId, svc, loadTree]);
 
   const handleMoveNote = useCallback(async (noteId: string, parentId: string | null, position: number) => {
     try {
-      await noteService.move(boardId, noteId, { parentId, position });
+      await svc.move(scopeId, noteId, { parentId, position });
       await loadTree();
     } catch (err) {
       console.error('Failed to move note:', err);
     }
-  }, [boardId, loadTree]);
+  }, [scopeId, svc, loadTree]);
 
   if (loading) {
     return (
@@ -285,7 +291,7 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
           />
         ) : (
           <NoteListView
-            boardId={boardId}
+            boardId={scopeId}
             selectedNoteId={selectedNoteId}
             searchQuery={searchQuery}
             onSelect={handleSelectNote}
@@ -324,6 +330,7 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
             </div>
             <NoteEditor
               boardId={boardId}
+              orgId={orgId}
               note={selectedNote}
               tags={tags}
               loading={noteLoading}

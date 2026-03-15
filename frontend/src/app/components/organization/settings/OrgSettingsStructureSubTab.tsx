@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Plus,
   Trash2,
+  Pencil,
+  Check,
+  X,
   Users,
   Briefcase,
   Crown,
@@ -31,6 +34,7 @@ interface CrudSectionProps {
   onNewNameChange: (v: string) => void;
   onAdd: () => void;
   onDelete: (id: string) => void;
+  onEdit: (id: string, name: string) => void;
   placeholder: string;
   enabled: boolean;
   onToggle: () => void;
@@ -44,10 +48,34 @@ function CrudSection({
   onNewNameChange,
   onAdd,
   onDelete,
+  onEdit,
   placeholder,
   enabled,
   onToggle,
 }: CrudSectionProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = (item: { id: string; name: string }) => {
+    setEditingId(item.id);
+    setEditingName(item.name);
+    setTimeout(() => editInputRef.current?.focus(), 0);
+  };
+
+  const commitEdit = () => {
+    if (editingId && editingName.trim() && editingName.trim() !== items.find(i => i.id === editingId)?.name) {
+      onEdit(editingId, editingName.trim());
+    }
+    setEditingId(null);
+    setEditingName("");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingName("");
+  };
+
   return (
     <section
       className={`bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] transition-all ${
@@ -100,13 +128,59 @@ function CrudSection({
                 key={item.id}
                 className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-foreground/[0.03] group"
               >
-                <span className="text-sm text-foreground">{item.name}</span>
-                <button
-                  onClick={() => onDelete(item.id)}
-                  className="p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-red-600 dark:hover:text-red-400 transition-all"
-                >
-                  <Trash2 size={12} />
-                </button>
+                {editingId === item.id ? (
+                  <div className="flex items-center gap-1.5 flex-1 mr-1">
+                    <input
+                      ref={editInputRef}
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitEdit();
+                        if (e.key === "Escape") cancelEdit();
+                      }}
+                      onBlur={commitEdit}
+                      className={`flex-1 ${inputSmClass}`}
+                    />
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={commitEdit}
+                      className="p-1 text-emerald-500 hover:text-emerald-400 transition-colors"
+                    >
+                      <Check size={12} />
+                    </button>
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={cancelEdit}
+                      className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span
+                      className="text-sm text-foreground cursor-pointer hover:text-bridge-accent transition-colors"
+                      onClick={() => startEdit(item)}
+                    >
+                      {item.name}
+                    </span>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                      <button
+                        onClick={() => startEdit(item)}
+                        className="p-1 text-muted-foreground hover:text-bridge-accent transition-colors"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        onClick={() => onDelete(item.id)}
+                        className="p-1 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -193,6 +267,19 @@ export function OrgSettingsStructureSubTab({
     }
   };
 
+  const makeEditHandler = (
+    service: (orgId: string, id: string, data: { name: string }) => Promise<unknown>,
+    errorMsg: string,
+  ) => async (id: string, name: string) => {
+    try {
+      await service(orgId, id, { name });
+      refreshStructureData();
+    } catch (error) {
+      console.warn("Failed to update:", error);
+      toast.error(errorMsg);
+    }
+  };
+
   const sections: (CrudSectionProps & { key: string })[] = [
     {
       key: "departments",
@@ -210,6 +297,10 @@ export function OrgSettingsStructureSubTab({
         organizationService.deleteDepartment.bind(organizationService),
         t("organization.settings.deleteDeptConfirm", "Delete this department? Members in this department will be unassigned."),
         t("organization.settings.deleteDeptError", "Failed to delete department"),
+      ),
+      onEdit: makeEditHandler(
+        organizationService.updateDepartment.bind(organizationService),
+        t("organization.settings.editDeptError", "Failed to update department"),
       ),
       placeholder: t("organization.settings.newDeptPlaceholder", "New department name"),
       enabled: settings.departments_enabled,
@@ -232,6 +323,10 @@ export function OrgSettingsStructureSubTab({
         t("organization.settings.deleteJobGroupConfirm", "Delete this job group? Members in this group will be unassigned."),
         t("organization.settings.deleteJobGroupError", "Failed to delete job group"),
       ),
+      onEdit: makeEditHandler(
+        organizationService.updateJobGroup.bind(organizationService),
+        t("organization.settings.editJobGroupError", "Failed to update job group"),
+      ),
       placeholder: t("organization.settings.newJobGroupPlaceholder", "New job group name"),
       enabled: settings.job_groups_enabled,
       onToggle: () => handleToggle("job_groups_enabled"),
@@ -252,6 +347,10 @@ export function OrgSettingsStructureSubTab({
         organizationService.deletePosition.bind(organizationService),
         t("organization.settings.deletePositionConfirm", "Delete this position? Members with this position will be unassigned."),
         t("organization.settings.deletePositionError", "Failed to delete position"),
+      ),
+      onEdit: makeEditHandler(
+        organizationService.updatePosition.bind(organizationService),
+        t("organization.settings.editPositionError", "Failed to update position"),
       ),
       placeholder: t("organization.settings.newPositionPlaceholder", "New position name"),
       enabled: settings.positions_enabled,
@@ -275,6 +374,10 @@ export function OrgSettingsStructureSubTab({
         t("organization.settings.deleteTitleConfirm", "Delete this title? Members with this title will be unassigned."),
         t("organization.settings.deleteTitleError", "Failed to delete title"),
       ),
+      onEdit: makeEditHandler(
+        organizationService.updateTitle.bind(organizationService),
+        t("organization.settings.editTitleError", "Failed to update title"),
+      ),
       placeholder: t("organization.settings.newTitlePlaceholder", "New title name"),
       enabled: settings.titles_enabled,
       onToggle: () => handleToggle("titles_enabled"),
@@ -295,6 +398,10 @@ export function OrgSettingsStructureSubTab({
         organizationService.deleteGrade.bind(organizationService),
         t("organization.settings.deleteGradeConfirm", "Delete this grade? Members with this grade will be unassigned."),
         t("organization.settings.deleteGradeError", "Failed to delete grade"),
+      ),
+      onEdit: makeEditHandler(
+        organizationService.updateGrade.bind(organizationService),
+        t("organization.settings.editGradeError", "Failed to update grade"),
       ),
       placeholder: t("organization.settings.newGradePlaceholder", "New grade name"),
       enabled: settings.grades_enabled,

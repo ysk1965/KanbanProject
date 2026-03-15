@@ -1,6 +1,7 @@
 package com.kanban.domain.note;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.organization.Organization;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -34,8 +35,12 @@ public class NoteComment {
     private Note note;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "board_id", nullable = false)
+    @JoinColumn(name = "board_id")
     private Board board;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 
     @Column(name = "block_id", length = 100)
     private String blockId;

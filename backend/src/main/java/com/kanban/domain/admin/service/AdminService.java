@@ -725,6 +725,32 @@ public class AdminService {
         return getOrganization(orgId);
     }
 
+    @Transactional
+    public AdminResponse.OrgDetail adjustOrgAiCredits(String orgId, AdminRequest.AdjustOrgAiCredits request) {
+        organizationRepository.findByIdForAdmin(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
+
+        OrgSubscription sub = orgSubscriptionRepository.findByOrganizationId(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
+
+        if (request.getMonthlyAiCredits() != null) {
+            sub.initializeCredits(request.getMonthlyAiCredits());
+        }
+
+        if (Boolean.TRUE.equals(request.getResetUsedCredits())) {
+            sub.setMonthlyCreditsUsed(0);
+        }
+
+        if (request.getAddBonusCredits() != null && request.getAddBonusCredits() > 0) {
+            sub.setMonthlyAiCredits(sub.getMonthlyAiCredits() + request.getAddBonusCredits());
+        }
+
+        log.info("Organization AI credits adjusted by admin: orgId={}, monthlyAiCredits={}, resetUsed={}, addBonus={}",
+                orgId, request.getMonthlyAiCredits(), request.getResetUsedCredits(), request.getAddBonusCredits());
+
+        return getOrganization(orgId);
+    }
+
     public AdminResponse.OrgList getDeletedOrganizations(int page, int size, String search) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("deletedAt").descending());
         Page<Organization> orgPage = organizationRepository.findDeletedForAdmin(search, pageable);

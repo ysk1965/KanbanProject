@@ -114,6 +114,8 @@ export function FeatureDetailModal({
       setEditedFeature(JSON.parse(JSON.stringify(feature)));
       setHasChanges(false);
       setIsEditingTitle(false);
+      setShowDeleteDialog(false);
+      setShowConfirmDialog(false);
     }
   }, [feature, open]);
 

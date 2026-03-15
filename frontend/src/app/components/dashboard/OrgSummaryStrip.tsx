@@ -53,7 +53,9 @@ export default function OrgSummaryStrip({
     <div className="space-y-5">
       {organizations.map((org, orgIndex) => {
         const group = orgBoardsMap.get(org.id);
-        const orgBoards = group?.boards ?? [];
+        const orgBoards = [...(group?.boards ?? [])].sort((a, b) =>
+          (b.is_starred ? 1 : 0) - (a.is_starred ? 1 : 0)
+        );
 
         return (
           <div key={org.id}>

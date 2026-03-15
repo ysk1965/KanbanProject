@@ -75,7 +75,7 @@ public class S3FileUploadService implements FileUploadService {
         if (contentType == null || !allowedTypes.contains(contentType)) {
             throw new BusinessException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
         }
-        // 타입별 용량 제한
+        // 타입별 용량 제한: 영상 50MB, 그 외(이미지/문서) 30MB
         long sizeLimit = MediaUtils.isVideoType(contentType) ? videoMaxFileSize : maxFileSize;
         if (file.getSize() > sizeLimit) {
             throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
@@ -178,7 +178,7 @@ public class S3FileUploadService implements FileUploadService {
         if (!allowedTypes.contains(contentType)) {
             throw new BusinessException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
         }
-        long sizeLimit = MediaUtils.isVideoType(contentType) ? videoMaxFileSize : maxFileSize;
+        long sizeLimit = MediaUtils.isVideoType(contentType) ? videoMaxFileSize : maxFileSize; // 문서도 이미지와 동일 30MB
         if (fileSize > sizeLimit) {
             throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
         }
@@ -223,36 +223,39 @@ public class S3FileUploadService implements FileUploadService {
                     .destinationBucket(bucketName).destinationKey(permanentKey)
                     .build());
 
-            // 썸네일 생성 (이미지 vs 영상 분기)
-            String thumbnailKey = permanentKey.replaceAll("\\.[^.]+$", "_thumb.jpg");
+            // 썸네일 생성 (이미지 vs 영상 분기, 문서는 스킵)
+            String thumbnailKey = null;
             String thumbnailUrl = "";
-            try {
-                ResponseInputStream<GetObjectResponse> objStream = s3Client.getObject(
-                        GetObjectRequest.builder().bucket(bucketName).key(tempKey).build());
-                byte[] originalBytes = objStream.readAllBytes();
+            if (!MediaUtils.isDocumentType(contentType)) {
+                thumbnailKey = permanentKey.replaceAll("\\.[^.]+$", "_thumb.jpg");
+                try {
+                    ResponseInputStream<GetObjectResponse> objStream = s3Client.getObject(
+                            GetObjectRequest.builder().bucket(bucketName).key(tempKey).build());
+                    byte[] originalBytes = objStream.readAllBytes();
 
-                byte[] thumbnailBytes;
-                if (MediaUtils.isVideoType(contentType)) {
-                    thumbnailBytes = videoThumbnailService.extractThumbnail(originalBytes, extension, thumbnailMaxWidth, thumbnailMaxHeight);
-                } else {
-                    thumbnailBytes = MediaUtils.generateThumbnail(originalBytes, thumbnailMaxWidth, thumbnailMaxHeight);
-                }
+                    byte[] thumbnailBytes;
+                    if (MediaUtils.isVideoType(contentType)) {
+                        thumbnailBytes = videoThumbnailService.extractThumbnail(originalBytes, extension, thumbnailMaxWidth, thumbnailMaxHeight);
+                    } else {
+                        thumbnailBytes = MediaUtils.generateThumbnail(originalBytes, thumbnailMaxWidth, thumbnailMaxHeight);
+                    }
 
-                if (thumbnailBytes != null && thumbnailBytes.length > 0) {
-                    s3Client.putObject(PutObjectRequest.builder()
-                            .bucket(bucketName).key(thumbnailKey)
-                            .contentType("image/jpeg")
-                            .contentLength((long) thumbnailBytes.length)
-                            .build(), RequestBody.fromBytes(thumbnailBytes));
+                    if (thumbnailBytes != null && thumbnailBytes.length > 0) {
+                        s3Client.putObject(PutObjectRequest.builder()
+                                .bucket(bucketName).key(thumbnailKey)
+                                .contentType("image/jpeg")
+                                .contentLength((long) thumbnailBytes.length)
+                                .build(), RequestBody.fromBytes(thumbnailBytes));
 
-                    thumbnailUrl = buildUrl(thumbnailKey);
-                    log.info("Thumbnail generated: {}", thumbnailKey);
-                } else {
+                        thumbnailUrl = buildUrl(thumbnailKey);
+                        log.info("Thumbnail generated: {}", thumbnailKey);
+                    } else {
+                        thumbnailKey = null;
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to generate thumbnail for {}: {}", tempKey, e.getMessage());
                     thumbnailKey = null;
                 }
-            } catch (Exception e) {
-                log.warn("Failed to generate thumbnail for {}: {}", tempKey, e.getMessage());
-                thumbnailKey = null;
             }
 
             // temp 삭제

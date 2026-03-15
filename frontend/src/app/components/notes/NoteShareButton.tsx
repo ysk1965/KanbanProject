@@ -1,17 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Share2, Link2, Check, Globe, X } from 'lucide-react';
-import { noteAPI } from '../../utils/api';
+import { noteAPI, orgNoteAPI } from '../../utils/api';
 import type { NoteDetail } from '../../utils/api';
 
 interface NoteShareButtonProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   note: NoteDetail;
   canEdit: boolean;
   onNoteUpdate?: (note: NoteDetail) => void;
 }
 
-export function NoteShareButton({ boardId, note, canEdit, onNoteUpdate }: NoteShareButtonProps) {
+export function NoteShareButton({ boardId, orgId, note, canEdit, onNoteUpdate }: NoteShareButtonProps) {
+  const isOrg = !!orgId;
+  const scopeId = boardId || orgId || '';
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -42,10 +45,11 @@ export function NoteShareButton({ boardId, note, canEdit, onNoteUpdate }: NoteSh
     setLoading(true);
     try {
       let updated: NoteDetail;
+      const api = isOrg ? orgNoteAPI : noteAPI;
       if (isShared) {
-        updated = await noteAPI.disableShare(boardId, note.id);
+        updated = await api.disableShare(scopeId, note.id);
       } else {
-        updated = await noteAPI.enableShare(boardId, note.id);
+        updated = await api.enableShare(scopeId, note.id);
       }
       onNoteUpdate?.(updated);
     } catch (err) {

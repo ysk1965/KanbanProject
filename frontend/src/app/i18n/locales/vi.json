@@ -1304,7 +1304,7 @@
     "attachImage": "Dinh kem hinh anh (toi da 5)",
     "attachFile": "Đính kèm tệp (tối đa 5)",
     "imageHelp": "Hinh anh: dan, keo hoac su dung nut ghim",
-    "fileHelp": "Hình ảnh & video: dán, kéo thả hoặc dùng nút ghim",
+    "fileHelp": "Hình ảnh, video & tài liệu: dán, kéo thả hoặc dùng nút ghim",
     "viewerReadOnly": "Nguoi quan sat khong the viet binh luan",
     "attachedImage": "Hinh anh dinh kem",
     "attachedFile": "Tệp đính kèm",
@@ -1314,9 +1314,10 @@
     "addFile": "Thêm tệp",
     "failed": "That bai",
     "maxFilesError": "Bạn có thể đính kèm tối đa 5 tệp.",
-    "fileTypeError": "Định dạng hỗ trợ: jpg, png, gif, webp, mp4, webm, mov.",
+    "fileTypeError": "Định dạng hỗ trợ: hình ảnh, video, PDF, Word, Excel, PPT, TXT.",
     "fileSizeError": "Kích thước ảnh tối đa là 30MB.",
     "videoFileSizeError": "Kích thước video tối đa là 50MB.",
+    "docFileSizeError": "Kích thước tài liệu tối đa là 30MB.",
     "uploadInProgress": "Tep dang duoc tai len. Vui long cho.",
     "uploadFailedRetry": "Mot so tep tai len that bai. Vui long xoa va thu lai.",
     "reaction": {
@@ -1687,7 +1688,20 @@
         "trialUsed": "Đã dùng thử",
         "noSubscription": "Chưa đăng ký",
         "monthly": "Hàng tháng",
-        "yearly": "Hàng năm"
+        "yearly": "Hàng năm",
+        "aiCredits": "Tín dụng AI",
+        "monthlyLimit": "Giới hạn hàng tháng",
+        "creditsUsed": "Đã dùng",
+        "creditsRemaining": "Còn lại",
+        "creditsResetDate": "Ngày đặt lại",
+        "addBonusCredits": "Thêm tín dụng thưởng",
+        "resetUsedCredits": "Đặt lại",
+        "confirmResetCredits": "Đặt lại tín dụng đã sử dụng về 0? Điều này sẽ nạp lại toàn bộ tín dụng cho tổ chức.",
+        "creditsUpdated": "Đã cập nhật tín dụng AI",
+        "creditsUpdateFailed": "Cập nhật tín dụng AI thất bại",
+        "creditsReset": "Tín dụng đã sử dụng đã được đặt lại",
+        "exhausted": "Đã hết",
+        "low": "Sắp hết"
       },
       "actions": {
         "edit": "Chỉnh sửa thông tin",
@@ -2883,6 +2897,10 @@
       "buy_button": "Mua tín chỉ",
       "later_button": "Để sau"
     },
+    "org_managed": {
+      "description": "Bảng này được quản lý bởi tổ chức.\nChỉ quản trị viên tổ chức mới có thể quản lý tín dụng AI.\nVui lòng liên hệ quản trị viên tổ chức của bạn.",
+      "close": "Đồng ý"
+    },
     "admin": {
       "title": "Trạng thái tín chỉ AI",
       "monthly_allocation": "Phân bổ hàng tháng",
@@ -3026,7 +3044,8 @@
         "settings": "Cài đặt",
         "attendance": "Chấm công",
         "okr": "OKR",
-        "photos": "Ảnh"
+        "photos": "Ảnh",
+        "documents": "Tài liệu"
       },
       "chart": {
         "searchPlaceholder": "Tìm thành viên...",
@@ -3395,7 +3414,14 @@
         "autoBoardAccess": "Tự động truy cập bảng",
         "autoBoardAccessDesc": "Khi bật, thành viên tổ chức có thể truy cập tất cả bảng tổ chức với quyền chỉnh sửa mà không cần yêu cầu tham gia.",
         "autoBoardAccessEnabled": "Cho phép tự động truy cập bảng",
-        "autoBoardAccessHint": "Thành viên tổ chức sẽ tự động nhận quyền truy cập MEMBER. Họ sẽ không được thêm vào danh sách thành viên bảng."
+        "autoBoardAccessHint": "Thành viên tổ chức sẽ tự động nhận quyền truy cập MEMBER. Họ sẽ không được thêm vào danh sách thành viên bảng.",
+        "subtabs": {
+          "general": "Chung",
+          "billing": "Thanh toán",
+          "structure": "Cấu trúc",
+          "attendance": "Chính sách chấm công",
+          "onboarding": "Hội nhập"
+        }
       },
       "invite": {
         "invalidLink": "Liên kết mời này không hợp lệ hoặc đã hết hạn.",
@@ -3521,7 +3547,8 @@
       "insights": "Thông tin chi tiết",
       "settings": "Cài đặt",
       "attendance": "Chấm công",
-      "photos": "Ảnh"
+      "photos": "Ảnh",
+      "documents": "Tài liệu"
     },
     "chart": {
       "searchPlaceholder": "Tìm kiếm thành viên...",

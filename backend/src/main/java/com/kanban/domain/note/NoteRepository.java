@@ -43,4 +43,25 @@ public interface NoteRepository extends JpaRepository<Note, String> {
     @Modifying
     @Query("DELETE FROM Note n WHERE n.board.id = :boardId")
     void deleteAllByBoardId(@Param("boardId") String boardId);
+
+    // ===== Organization-scoped queries =====
+
+    @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy WHERE n.organization.id = :orgId AND n.isDeleted = false ORDER BY n.position ASC")
+    List<Note> findAllByOrganizationIdNotDeleted(@Param("orgId") String orgId);
+
+    @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy WHERE n.organization.id = :orgId AND n.parent IS NULL AND n.isDeleted = false ORDER BY n.position ASC")
+    List<Note> findRootsByOrganizationId(@Param("orgId") String orgId);
+
+    @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy WHERE n.id = :id AND n.organization.id = :orgId")
+    Optional<Note> findByIdAndOrganizationId(@Param("id") String id, @Param("orgId") String orgId);
+
+    @Query("SELECT COALESCE(MAX(n.position), -1) + 1 FROM Note n WHERE n.organization.id = :orgId AND n.parent IS NULL AND n.isDeleted = false")
+    int findNextRootPositionByOrganizationId(@Param("orgId") String orgId);
+
+    @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy WHERE n.organization.id = :orgId AND n.type IN ('DOCUMENT', 'BOARD') AND n.isDeleted = false ORDER BY n.updatedAt DESC")
+    List<Note> findAllDocumentsAndBoardsByOrganizationId(@Param("orgId") String orgId);
+
+    @Modifying
+    @Query("DELETE FROM Note n WHERE n.organization.id = :orgId")
+    void deleteAllByOrganizationId(@Param("orgId") String orgId);
 }

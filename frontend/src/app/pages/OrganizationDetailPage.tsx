@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -10,12 +10,13 @@ import {
   CalendarOff,
   BarChart3,
   Camera,
+  FileText,
   Loader2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
 import { OrgDataProvider, useOrgData } from "../contexts/OrgDataContext";
-import type { OrgRole } from "../types";
+import type { OrgRole, OrgSubscription } from "../types";
 import {
   Tooltip,
   TooltipTrigger,
@@ -29,11 +30,13 @@ import { OrgSettingsGeneralSubTab } from "../components/organization/settings/Or
 import { OrgSettingsStructureSubTab } from "../components/organization/settings/OrgSettingsStructureSubTab";
 import { OrgSettingsAttendanceSubTab } from "../components/organization/settings/OrgSettingsAttendanceSubTab";
 import { OrgSettingsOnboardingSubTab } from "../components/organization/settings/OrgSettingsOnboardingSubTab";
+import { OrgBillingSection } from "../components/organization/subscription/OrgBillingSection";
 import { OrgInsightsTab } from "../components/organization/tabs/OrgInsightsTab";
 import { OrgAttendanceTab } from "../components/organization/tabs/OrgAttendanceTab";
 import { OrgChartTab } from "../components/organization/tabs/OrgChartTab";
 import { OrgOkrTab } from "../components/organization/tabs/OrgOkrTab";
 import { OrgPhotoGalleryTab } from "../components/organization/tabs/OrgPhotoGalleryTab";
+import { OrgDocumentsTab } from "../components/organization/tabs/OrgDocumentsTab";
 import { MemberDetailModal } from "../components/organization/MemberDetailModal";
 
 // ─── Tab types ───
@@ -47,13 +50,15 @@ type TabKey =
   | "attendance"
   | "insights"
   | "okr"
+  | "documents"
   | "photos"
   | "settings"
   | "settings_structure"
   | "settings_attendance"
-  | "settings_onboarding";
+  | "settings_onboarding"
+  | "settings_billing";
 
-type GroupKey = "dashboard" | "people" | "leave" | "workspace" | "photos" | "settings";
+type GroupKey = "dashboard" | "people" | "leave" | "workspace" | "documents" | "photos" | "settings";
 
 interface TabGroup {
   key: GroupKey;
@@ -111,6 +116,12 @@ const TAB_GROUPS: TabGroup[] = [
     ],
   },
   {
+    key: "documents",
+    labelKey: "organization.tabs.documents",
+    icon: FileText,
+    defaultTab: "documents",
+  },
+  {
     key: "photos",
     labelKey: "organization.tabs.photos",
     icon: Camera,
@@ -124,6 +135,7 @@ const TAB_GROUPS: TabGroup[] = [
     adminOnly: true,
     subTabs: [
       { key: "settings", labelKey: "organization.settings.subtabs.general" },
+      { key: "settings_billing", labelKey: "organization.settings.subtabs.billing" },
       { key: "settings_structure", labelKey: "organization.settings.subtabs.structure" },
       { key: "settings_attendance", labelKey: "organization.settings.subtabs.attendance" },
       { key: "settings_onboarding", labelKey: "organization.settings.subtabs.onboarding" },
@@ -141,6 +153,25 @@ export function OrganizationDetailPage() {
       <OrgDetailPageContent />
     </OrgDataProvider>
   );
+}
+
+function OrgBillingSubTabWrapper({ orgId, subscription, loadSubscription, refreshSubscription }: {
+  orgId: string;
+  subscription: OrgSubscription | null;
+  loadSubscription: () => Promise<void>;
+  refreshSubscription: () => Promise<void>;
+}) {
+  useEffect(() => { loadSubscription(); }, [loadSubscription]);
+
+  if (!subscription) {
+    return (
+      <div className="flex items-center justify-center h-40">
+        <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+      </div>
+    );
+  }
+
+  return <OrgBillingSection orgId={orgId} subscription={subscription} onUpdate={refreshSubscription} />;
 }
 
 function OrgDetailPageContent() {
@@ -161,6 +192,9 @@ function OrgDetailPageContent() {
     titles,
     grades,
     structureSettings,
+    subscription,
+    loadSubscription,
+    refreshSubscription,
     myLeaveBalances,
     loading,
     refreshOrg,
@@ -511,6 +545,7 @@ function OrgDetailPageContent() {
               titles={titles}
               grades={grades}
               structureSettings={structureSettings}
+              hrSystemEnabled={hrSystemEnabled}
             />
           )}
           {renderTab("boards",
@@ -538,6 +573,9 @@ function OrgDetailPageContent() {
           {renderTab("okr",
             <OrgOkrTab orgId={orgId} myRole={myRole} />
           )}
+          {renderTab("documents",
+            <OrgDocumentsTab orgId={orgId} role={myRole} />
+          )}
           {renderTab("photos",
             <OrgPhotoGalleryTab orgId={orgId} myRole={myRole} />
           )}
@@ -548,6 +586,10 @@ function OrgDetailPageContent() {
               myRole={myRole}
               onUpdate={refreshOrg}
             />,
+            true,
+          )}
+          {renderTab("settings_billing",
+            <OrgBillingSubTabWrapper orgId={orgId} subscription={subscription} loadSubscription={loadSubscription} refreshSubscription={refreshSubscription} />,
             true,
           )}
           {renderTab("settings_structure",

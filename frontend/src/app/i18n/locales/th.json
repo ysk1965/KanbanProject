@@ -1304,7 +1304,7 @@
     "attachImage": "แนบรูปภาพ (สูงสุด 5 รูป)",
     "attachFile": "แนบไฟล์ (สูงสุด 5)",
     "imageHelp": "รูปภาพ: วาง ลาก หรือใช้ปุ่มคลิป",
-    "fileHelp": "รูปภาพและวิดีโอ: วาง ลาก หรือใช้ปุ่มคลิป",
+    "fileHelp": "รูปภาพ วิดีโอ และเอกสาร: วาง ลาก หรือใช้ปุ่มคลิป",
     "viewerReadOnly": "ผู้สังเกตการณ์ไม่สามารถเขียนความคิดเห็นได้",
     "attachedImage": "รูปภาพที่แนบ",
     "attachedFile": "ไฟล์แนบ",
@@ -1314,9 +1314,10 @@
     "addFile": "เพิ่มไฟล์",
     "failed": "ล้มเหลว",
     "maxFilesError": "แนบไฟล์ได้สูงสุด 5 ไฟล์",
-    "fileTypeError": "รองรับเฉพาะ jpg, png, gif, webp, mp4, webm, mov",
+    "fileTypeError": "รองรับเฉพาะรูปภาพ วิดีโอ PDF Word Excel PPT TXT",
     "fileSizeError": "ขนาดรูปภาพสูงสุด 30MB",
     "videoFileSizeError": "ขนาดวิดีโอสูงสุด 50MB",
+    "docFileSizeError": "ขนาดเอกสารสูงสุด 30MB",
     "uploadInProgress": "กำลังอัปโหลดไฟล์ กรุณารอสักครู่",
     "uploadFailedRetry": "บางไฟล์อัปโหลดไม่สำเร็จ กรุณาลบและลองใหม่อีกครั้ง",
     "reaction": {
@@ -1687,7 +1688,20 @@
         "trialUsed": "ใช้ทดลองแล้ว",
         "noSubscription": "ไม่มีการสมัครสมาชิก",
         "monthly": "รายเดือน",
-        "yearly": "รายปี"
+        "yearly": "รายปี",
+        "aiCredits": "เครดิต AI",
+        "monthlyLimit": "ขีดจำกัดรายเดือน",
+        "creditsUsed": "ใช้แล้ว",
+        "creditsRemaining": "คงเหลือ",
+        "creditsResetDate": "วันรีเซ็ต",
+        "addBonusCredits": "เพิ่มเครดิตโบนัส",
+        "resetUsedCredits": "รีเซ็ต",
+        "confirmResetCredits": "รีเซ็ตเครดิตที่ใช้เป็น 0? การดำเนินการนี้จะเติมเครดิตเต็มจำนวนให้องค์กร",
+        "creditsUpdated": "อัปเดตเครดิต AI แล้ว",
+        "creditsUpdateFailed": "ไม่สามารถอัปเดตเครดิต AI",
+        "creditsReset": "เครดิตที่ใช้ถูกรีเซ็ตแล้ว",
+        "exhausted": "หมดแล้ว",
+        "low": "เหลือน้อย"
       },
       "actions": {
         "edit": "แก้ไขข้อมูล",
@@ -2883,6 +2897,10 @@
       "buy_button": "ซื้อเครดิต",
       "later_button": "ภายหลัง"
     },
+    "org_managed": {
+      "description": "บอร์ดนี้จัดการโดยองค์กร\nเฉพาะผู้ดูแลองค์กรเท่านั้นที่สามารถจัดการเครดิต AI ได้\nกรุณาติดต่อผู้ดูแลองค์กรของคุณ",
+      "close": "ตกลง"
+    },
     "admin": {
       "title": "สถานะเครดิต AI",
       "monthly_allocation": "จัดสรรรายเดือน",
@@ -3026,7 +3044,8 @@
         "settings": "การตั้งค่า",
         "attendance": "การลงเวลา",
         "okr": "OKR",
-        "photos": "รูปถ่าย"
+        "photos": "รูปถ่าย",
+        "documents": "เอกสาร"
       },
       "chart": {
         "searchPlaceholder": "ค้นหาสมาชิก...",
@@ -3395,7 +3414,14 @@
         "autoBoardAccess": "เข้าถึงบอร์ดอัตโนมัติ",
         "autoBoardAccessDesc": "เมื่อเปิดใช้งาน สมาชิกองค์กรสามารถเข้าถึงบอร์ดทั้งหมดขององค์กรด้วยสิทธิ์แก้ไขโดยไม่ต้องขอเข้าร่วม",
         "autoBoardAccessEnabled": "อนุญาตเข้าถึงบอร์ดอัตโนมัติ",
-        "autoBoardAccessHint": "สมาชิกองค์กรจะได้รับสิทธิ์ MEMBER โดยอัตโนมัติ จะไม่ถูกเพิ่มในรายชื่อสมาชิกบอร์ด"
+        "autoBoardAccessHint": "สมาชิกองค์กรจะได้รับสิทธิ์ MEMBER โดยอัตโนมัติ จะไม่ถูกเพิ่มในรายชื่อสมาชิกบอร์ด",
+        "subtabs": {
+          "general": "ทั่วไป",
+          "billing": "การเรียกเก็บเงิน",
+          "structure": "โครงสร้าง",
+          "attendance": "นโยบายการเข้างาน",
+          "onboarding": "การปฐมนิเทศ"
+        }
       },
       "invite": {
         "invalidLink": "ลิงก์เชิญนี้ไม่ถูกต้องหรือหมดอายุแล้ว",
@@ -3521,7 +3547,8 @@
       "insights": "ข้อมูลเชิงลึก",
       "settings": "ตั้งค่า",
       "attendance": "การเข้างาน",
-      "photos": "รูปถ่าย"
+      "photos": "รูปถ่าย",
+      "documents": "เอกสาร"
     },
     "chart": {
       "searchPlaceholder": "ค้นหาสมาชิก...",

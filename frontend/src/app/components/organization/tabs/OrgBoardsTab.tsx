@@ -167,6 +167,7 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
   const [newBoardName, setNewBoardName] = useState('');
   const [newBoardDescription, setNewBoardDescription] = useState('');
   const [creating, setCreating] = useState(false);
+  const [adminNames, setAdminNames] = useState<string[]>([]);
 
   const fetchBoards = useCallback(async () => {
     try {
@@ -184,6 +185,16 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
   useEffect(() => {
     fetchBoards();
   }, [fetchBoards]);
+
+  useEffect(() => {
+    organizationService.getMembers(orgId, { size: 200 }).then((res) => {
+      const admins = res.content
+        .filter((m) => m.role === 'OWNER' || m.role === 'ADMIN')
+        .sort((a, b) => (a.role === 'OWNER' ? -1 : b.role === 'OWNER' ? 1 : 0))
+        .map((m) => m.user.name);
+      setAdminNames(admins);
+    }).catch(() => {});
+  }, [orgId]);
 
   const handleOpenAddModal = () => {
     setShowAddModal(true);
@@ -372,7 +383,7 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-muted-foreground">{board.owner.name}</span>
+                      <span className="text-xs text-muted-foreground truncate">{adminNames.length > 0 ? adminNames.join(', ') : board.owner.name}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-0.5 shrink-0">

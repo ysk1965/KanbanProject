@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Tag as TagIcon, Plus, X, Check } from "lucide-react";
-import { noteService } from "../../utils/services";
+import { noteService, orgNoteService } from "../../utils/services";
 import { ColorPickerPopover } from "../ui/ColorPickerPopover";
 import type { NoteTagInfo } from "../../utils/api";
 
@@ -19,7 +19,8 @@ const TAG_COLORS = [
 ];
 
 interface NoteTagManagerProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   noteId: string;
   noteTags: NoteTagInfo[];
   allTags: NoteTagInfo[];
@@ -30,6 +31,7 @@ interface NoteTagManagerProps {
 
 export function NoteTagManager({
   boardId,
+  orgId,
   noteId,
   noteTags,
   allTags,
@@ -38,6 +40,8 @@ export function NoteTagManager({
   onTagsChange,
 }: NoteTagManagerProps) {
   const { t } = useTranslation();
+  const svc = orgId ? orgNoteService : noteService;
+  const scopeId = boardId || orgId || '';
   const [isOpen, setIsOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newTagName, setNewTagName] = useState("");
@@ -61,7 +65,7 @@ export function NoteTagManager({
   const handleCreateTag = useCallback(async () => {
     if (!newTagName.trim()) return;
     try {
-      const created = await noteService.createTag(boardId, {
+      const created = await svc.createTag(scopeId, {
         name: newTagName.trim(),
         color: newTagColor,
       });
@@ -75,12 +79,12 @@ export function NoteTagManager({
     } catch (err) {
       console.error("Failed to create tag:", err);
     }
-  }, [boardId, newTagName, newTagColor, currentTagIds, onSave, onTagsChange]);
+  }, [scopeId, newTagName, newTagColor, currentTagIds, onSave, onTagsChange, svc]);
 
   const handleDeleteTag = useCallback(
     async (tagId: string) => {
       try {
-        await noteService.deleteTag(boardId, tagId);
+        await svc.deleteTag(scopeId, tagId);
         onTagsChange();
         const newIds = new Set(currentTagIds);
         newIds.delete(tagId);
@@ -89,7 +93,7 @@ export function NoteTagManager({
         console.error("Failed to delete tag:", err);
       }
     },
-    [boardId, currentTagIds, onSave, onTagsChange],
+    [scopeId, currentTagIds, onSave, onTagsChange, svc],
   );
 
   return (

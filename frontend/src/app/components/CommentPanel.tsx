@@ -18,12 +18,46 @@ const VideoLightbox = lazyWithRetry(() => import('./VideoLightbox').then(m => ({
 const MAX_FILES = 5;
 const MAX_FILE_SIZE_IMAGE = 30 * 1024 * 1024;     // 30MB
 const MAX_FILE_SIZE_VIDEO = 50 * 1024 * 1024;      // 50MB
+const MAX_FILE_SIZE_DOC = 30 * 1024 * 1024;        // 30MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
-const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES];
+const ALLOWED_DOC_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/markdown',
+];
+const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES, ...ALLOWED_DOC_TYPES];
 
 const isVideoType = (type: string) => type?.startsWith('video/');
 const isVideoAttachment = (att: CommentAttachment) => att.content_type?.startsWith('video/');
+const isDocType = (type: string) => ALLOWED_DOC_TYPES.includes(type);
+const isDocAttachment = (att: CommentAttachment) => isDocType(att.content_type || '');
+
+const DOC_ACCEPT = ALLOWED_DOC_TYPES.join(',');
+const FILE_ACCEPT = `image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime,${DOC_ACCEPT}`;
+
+const getDocIcon = (type: string): string => {
+  if (type === 'application/pdf') return 'PDF';
+  if (type.includes('word') || type === 'application/msword') return 'DOC';
+  if (type.includes('spreadsheet') || type === 'application/vnd.ms-excel') return 'XLS';
+  if (type.includes('presentation') || type === 'application/vnd.ms-powerpoint') return 'PPT';
+  if (type === 'text/plain' || type === 'text/markdown') return 'TXT';
+  return 'FILE';
+};
+
+const getDocColor = (type: string): string => {
+  if (type === 'application/pdf') return 'bg-red-500/15 text-red-400';
+  if (type.includes('word') || type === 'application/msword') return 'bg-blue-500/15 text-blue-400';
+  if (type.includes('spreadsheet') || type === 'application/vnd.ms-excel') return 'bg-emerald-500/15 text-emerald-400';
+  if (type.includes('presentation') || type === 'application/vnd.ms-powerpoint') return 'bg-orange-500/15 text-orange-400';
+  return 'bg-slate-500/15 text-slate-400';
+};
 
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
@@ -399,9 +433,9 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         setFileError('comment.fileTypeError');
         continue;
       }
-      const maxSize = isVideoType(file.type) ? MAX_FILE_SIZE_VIDEO : MAX_FILE_SIZE_IMAGE;
+      const maxSize = isVideoType(file.type) ? MAX_FILE_SIZE_VIDEO : isDocType(file.type) ? MAX_FILE_SIZE_DOC : MAX_FILE_SIZE_IMAGE;
       if (file.size > maxSize) {
-        setFileError(isVideoType(file.type) ? 'comment.videoFileSizeError' : 'comment.fileSizeError');
+        setFileError(isVideoType(file.type) ? 'comment.videoFileSizeError' : isDocType(file.type) ? 'comment.docFileSizeError' : 'comment.fileSizeError');
         continue;
       }
       newFiles.push({
@@ -456,7 +490,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     const mediaFiles: File[] = [];
     for (let i = 0; i < e.clipboardData.items.length; i++) {
       const item = e.clipboardData.items[i];
-      if (item.type.startsWith('image/') || item.type.startsWith('video/')) {
+      if (item.type.startsWith('image/') || item.type.startsWith('video/') || ALLOWED_DOC_TYPES.includes(item.type)) {
         const file = item.getAsFile();
         if (file) mediaFiles.push(file);
       }
@@ -692,20 +726,37 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     );
   };
 
-  /** 댓글 첨부 미디어 그리드 (이미지 썸네일 + 영상 썸네일) */
+  /** 댓글 첨부 그리드 (이미지 썸네일 + 영상 썸네일 + 문서 아이콘) */
   const AttachmentGrid = ({ attachments }: { attachments: CommentAttachment[] }) => {
     if (!attachments || attachments.length === 0) return null;
-    const mediaItems = attachments.map(att => ({
+    const mediaItems = attachments.filter(att => !isDocAttachment(att)).map(att => ({
       url: resolveFileUrl(att.url),
       type: (isVideoAttachment(att) ? 'video' : 'image') as 'image' | 'video'
     }));
+    let mediaIdx = -1;
     return (
       <div className="flex flex-wrap gap-1.5 mt-1.5">
-        {attachments.map((att, idx) => {
+        {attachments.map((att) => {
           const isVideo = isVideoAttachment(att);
+          const isDoc = isDocAttachment(att);
+
+          if (isDoc) {
+            return (
+              <a key={att.id} href={resolveFileUrl(att.url)} target="_blank" rel="noopener noreferrer" download={att.file_name}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-foreground/[0.08] hover:border-foreground/[0.12] bg-foreground/[0.03] transition-colors max-w-[220px]">
+                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${getDocColor(att.content_type || '')}`}>
+                  {getDocIcon(att.content_type || '')}
+                </span>
+                <span className="text-xs text-foreground truncate">{att.file_name}</span>
+              </a>
+            );
+          }
+
+          mediaIdx++;
+          const currentMediaIdx = mediaIdx;
           return (
             <button key={att.id}
-              onClick={() => setLightboxMedia({ items: mediaItems, index: idx })}
+              onClick={() => setLightboxMedia({ items: mediaItems, index: currentMediaIdx })}
               className="relative group/img rounded-md overflow-hidden border border-bridge-border hover:border-bridge-border transition-colors">
               {isVideo ? (
                 <VideoThumbnail
@@ -753,7 +804,14 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         {/* 기존 첨부파일 (수정 모드) */}
         {keptExisting.map(att => (
           <div key={att.id} className="relative group/preview">
-            {isVideoAttachment(att) ? (
+            {isDocAttachment(att) ? (
+              <div className="flex items-center gap-1.5 h-16 px-2.5 rounded-md border border-bridge-border bg-foreground/[0.03]">
+                <span className={`text-xs font-bold px-1 py-0.5 rounded ${getDocColor(att.content_type || '')}`}>
+                  {getDocIcon(att.content_type || '')}
+                </span>
+                <span className="text-xs text-foreground truncate max-w-[80px]">{att.file_name}</span>
+              </div>
+            ) : isVideoAttachment(att) ? (
               <div className="relative h-16 w-[90px]">
                 <VideoThumbnail
                   videoUrl={resolveFileUrl(att.url)}
@@ -778,7 +836,14 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         {/* 새 파일 */}
         {files.map(pf => (
           <div key={pf.id} className="relative group/preview">
-            {isVideoType(pf.file.type) ? (
+            {isDocType(pf.file.type) ? (
+              <div className={`flex items-center gap-1.5 h-16 px-2.5 rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'} bg-foreground/[0.03]`}>
+                <span className={`text-xs font-bold px-1 py-0.5 rounded ${getDocColor(pf.file.type)}`}>
+                  {getDocIcon(pf.file.type)}
+                </span>
+                <span className="text-xs text-foreground truncate max-w-[80px]">{pf.file.name}</span>
+              </div>
+            ) : isVideoType(pf.file.type) ? (
               <video src={pf.previewUrl} muted preload="metadata"
                 className={`h-16 w-[90px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'}`} />
             ) : (
@@ -1187,7 +1252,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                             rows={3} autoFocus />
                         </div>
                         <div className="flex items-center gap-1">
-                          <input ref={editFileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
+                          <input ref={editFileInputRef} type="file" accept={FILE_ACCEPT}
                             multiple className="hidden" onChange={e => handleFileSelect(e, true)} />
                           <button onClick={() => editFileInputRef.current?.click()}
                             disabled={editKeepAttachmentIds.length + editNewFiles.length >= MAX_FILES}
@@ -1245,7 +1310,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               className="w-full text-xs bg-foreground/5 border border-bridge-border rounded-lg pl-3 pr-20 py-2.5 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
               rows={2} />
             <div className="absolute right-2 bottom-2 flex items-center gap-1">
-              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
+              <input ref={fileInputRef} type="file" accept={FILE_ACCEPT}
                 multiple className="hidden" onChange={e => handleFileSelect(e, false)} />
               <button onClick={() => fileInputRef.current?.click()} disabled={pendingFiles.length >= MAX_FILES}
                 className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"

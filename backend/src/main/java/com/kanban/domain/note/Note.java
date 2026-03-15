@@ -1,6 +1,7 @@
 package com.kanban.domain.note;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.organization.Organization;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -24,8 +25,12 @@ public class Note {
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "board_id", nullable = false)
+    @JoinColumn(name = "board_id")
     private Board board;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
@@ -163,5 +168,9 @@ public class Note {
 
     public static int getMaxDepth() {
         return MAX_DEPTH;
+    }
+
+    public boolean isOrgNote() {
+        return this.organization != null;
     }
 }

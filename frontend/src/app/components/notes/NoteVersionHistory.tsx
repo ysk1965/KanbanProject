@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { History, RotateCcw, X, Loader2, Eye } from "lucide-react";
 import DOMPurify from "dompurify";
-import { noteService } from "../../utils/services";
+import { noteService, orgNoteService } from "../../utils/services";
 import { formatDateTime } from "../../utils/dateUtils";
 import type { NoteVersionInfo, NoteVersionDetail } from "../../utils/api";
 
 interface NoteVersionHistoryProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   noteId: string;
   versionCount: number;
   canEdit: boolean;
@@ -16,11 +17,14 @@ interface NoteVersionHistoryProps {
 
 export function NoteVersionHistory({
   boardId,
+  orgId,
   noteId,
   versionCount,
   canEdit,
   onRestore,
 }: NoteVersionHistoryProps) {
+  const svc = orgId ? orgNoteService : noteService;
+  const scopeId = boardId || orgId || '';
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [versions, setVersions] = useState<NoteVersionInfo[]>([]);
@@ -32,14 +36,14 @@ export function NoteVersionHistory({
   const loadVersions = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await noteService.getVersions(boardId, noteId);
+      const data = await svc.getVersions(scopeId, noteId);
       setVersions(data);
     } catch (err) {
       console.error("Failed to load versions:", err);
     } finally {
       setLoading(false);
     }
-  }, [boardId, noteId]);
+  }, [scopeId, noteId, svc]);
 
   useEffect(() => {
     if (isOpen) {
@@ -50,8 +54,8 @@ export function NoteVersionHistory({
   const handleViewVersion = useCallback(
     async (versionId: string) => {
       try {
-        const detail = await noteService.getVersionDetail(
-          boardId,
+        const detail = await svc.getVersionDetail(
+          scopeId,
           noteId,
           versionId,
         );
@@ -60,7 +64,7 @@ export function NoteVersionHistory({
         console.error("Failed to load version detail:", err);
       }
     },
-    [boardId, noteId],
+    [scopeId, noteId, svc],
   );
 
   const handleRestore = useCallback(
@@ -73,7 +77,7 @@ export function NoteVersionHistory({
         return;
       setRestoring(true);
       try {
-        await noteService.restoreVersion(boardId, noteId, versionId);
+        await svc.restoreVersion(scopeId, noteId, versionId);
         onRestore();
         setIsOpen(false);
         setSelectedVersion(null);
@@ -83,7 +87,7 @@ export function NoteVersionHistory({
         setRestoring(false);
       }
     },
-    [boardId, noteId, onRestore, t],
+    [scopeId, noteId, onRestore, t, svc],
   );
 
   return (
