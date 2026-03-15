@@ -194,7 +194,7 @@ app:
     s3-enabled: ${S3_ENABLED:false}
     max-size: 31457280
     max-count: 5
-    allowed-types: image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime
+    allowed-types: image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/markdown
     s3-bucket: ${S3_BUCKET:bridge-kanban-attachments}
     cloudfront-domain: ${CLOUDFRONT_DOMAIN:}
     upload-dir: comments

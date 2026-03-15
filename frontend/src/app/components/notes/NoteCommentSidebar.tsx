@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MessageSquarePlus, X, Loader2, Filter, ChevronDown, ChevronUp, Hash } from 'lucide-react';
-import { noteCommentService } from '../../utils/services';
+import { noteCommentService, orgNoteCommentService } from '../../utils/services';
 import { memberAPI } from '../../utils/api';
 import { wsManager } from '../../utils/websocket';
 import type { BoardWebSocketEvent } from '../../types';
@@ -10,7 +10,8 @@ import { NoteCommentInput } from './NoteCommentInput';
 import type { NoteCommentDetail, NoteCommentListResponse, MemberResponse } from '../../utils/api';
 
 interface NoteCommentSidebarProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   noteId: string;
   currentUserId: string;
   canEdit: boolean;
@@ -20,9 +21,12 @@ interface NoteCommentSidebarProps {
 }
 
 export function NoteCommentSidebar({
-  boardId, noteId, currentUserId, canEdit, onClose, activeBlockId,
+  boardId, orgId, noteId, currentUserId, canEdit, onClose, activeBlockId,
   onBlockIdsChange,
 }: NoteCommentSidebarProps) {
+  const svc = orgId ? orgNoteCommentService : noteCommentService;
+  const scopeId = boardId || orgId || '';
+  const wsTopic = orgId ? `/topic/org/${orgId}` : `/topic/board/${boardId}`;
   const { t } = useTranslation();
   const [threads, setThreads] = useState<NoteCommentDetail[]>([]);
   const [members, setMembers] = useState<MemberResponse[]>([]);
@@ -34,16 +38,17 @@ export function NoteCommentSidebar({
 
   const loadComments = useCallback(async () => {
     try {
-      const data: NoteCommentListResponse = await noteCommentService.getComments(boardId, noteId);
+      const data: NoteCommentListResponse = await svc.getComments(scopeId, noteId);
       setThreads(data.threads);
     } catch (err) {
       console.error('Failed to load note comments:', err);
     } finally {
       setLoading(false);
     }
-  }, [boardId, noteId]);
+  }, [scopeId, noteId, svc]);
 
   const loadMembers = useCallback(async () => {
+    if (!boardId) return; // org context: members not loaded via board API
     try {
       const data = await memberAPI.getMembers(boardId);
       setMembers(data.members || []);
@@ -62,7 +67,7 @@ export function NoteCommentSidebar({
   const NOTE_COMMENT_EVENTS = ['NOTE_COMMENT_CREATED', 'NOTE_COMMENT_UPDATED', 'NOTE_COMMENT_DELETED', 'NOTE_COMMENT_RESOLVED', 'NOTE_COMMENT_REACTION_TOGGLED'];
 
   useEffect(() => {
-    const sub = wsManager.subscribe(`/topic/board/${boardId}`, (message) => {
+    const sub = wsManager.subscribe(wsTopic, (message) => {
       try {
         const event: BoardWebSocketEvent = JSON.parse(message.body);
         if (!NOTE_COMMENT_EVENTS.includes(event.type)) return;
@@ -73,7 +78,7 @@ export function NoteCommentSidebar({
       } catch { /* ignore */ }
     });
     return () => sub.unsubscribe();
-  }, [boardId, noteId, currentUserId, loadComments]);
+  }, [wsTopic, noteId, currentUserId, loadComments]);
 
   // Emit block IDs with comments to parent
   useEffect(() => {
@@ -98,41 +103,41 @@ export function NoteCommentSidebar({
   }, [activeBlockId]);
 
   const handleCreateComment = useCallback(async (content: string, mentions: string[]) => {
-    await noteCommentService.createComment(boardId, noteId, {
+    await svc.createComment(scopeId, noteId, {
       content,
       block_id: activeBlockId || undefined,
       mentions: mentions.length > 0 ? mentions : undefined,
     });
     setShowNewComment(false);
     await loadComments();
-  }, [boardId, noteId, activeBlockId, loadComments]);
+  }, [scopeId, noteId, activeBlockId, loadComments, svc]);
 
   const handleReply = useCallback(async (parentId: string, content: string, mentions: string[]) => {
-    await noteCommentService.createComment(boardId, noteId, {
+    await svc.createComment(scopeId, noteId, {
       content,
       parent_id: parentId,
       mentions: mentions.length > 0 ? mentions : undefined,
     });
     await loadComments();
-  }, [boardId, noteId, loadComments]);
+  }, [scopeId, noteId, loadComments, svc]);
 
   const handleUpdate = useCallback(async (commentId: string, content: string, mentions: string[]) => {
-    await noteCommentService.updateComment(boardId, noteId, commentId, {
+    await svc.updateComment(scopeId, noteId, commentId, {
       content,
       mentions: mentions.length > 0 ? mentions : undefined,
     });
     await loadComments();
-  }, [boardId, noteId, loadComments]);
+  }, [scopeId, noteId, loadComments, svc]);
 
   const handleDelete = useCallback(async (commentId: string) => {
-    await noteCommentService.deleteComment(boardId, noteId, commentId);
+    await svc.deleteComment(scopeId, noteId, commentId);
     await loadComments();
-  }, [boardId, noteId, loadComments]);
+  }, [scopeId, noteId, loadComments, svc]);
 
   const handleToggleResolved = useCallback(async (commentId: string) => {
-    await noteCommentService.toggleResolved(boardId, noteId, commentId);
+    await svc.toggleResolved(scopeId, noteId, commentId);
     await loadComments();
-  }, [boardId, noteId, loadComments]);
+  }, [scopeId, noteId, loadComments, svc]);
 
   const filteredThreads = threads.filter(thread => {
     if (filter === 'open') return !thread.is_resolved;
@@ -212,7 +217,7 @@ export function NoteCommentSidebar({
                     </div>
                   )}
                   <NoteCommentInput
-                    boardId={boardId}
+                    boardId={scopeId}
                     members={members}
                     autoFocus
                     onSubmit={handleCreateComment}
@@ -263,7 +268,7 @@ export function NoteCommentSidebar({
                       <NoteCommentThread
                         key={thread.id}
                         thread={thread}
-                        boardId={boardId}
+                        boardId={scopeId}
                         noteId={noteId}
                         members={members}
                         currentUserId={currentUserId}
@@ -289,7 +294,7 @@ export function NoteCommentSidebar({
                       <NoteCommentThread
                         key={thread.id}
                         thread={thread}
-                        boardId={boardId}
+                        boardId={scopeId}
                         noteId={noteId}
                         members={members}
                         currentUserId={currentUserId}

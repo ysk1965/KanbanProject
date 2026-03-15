@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare, Send, Loader2, Pencil, Trash2, X, Check, SmilePlus,
 } from 'lucide-react';
-import { noteCommentService } from '../../utils/services';
+import { noteCommentService, orgNoteCommentService } from '../../utils/services';
 import { memberAPI } from '../../utils/api';
 import { wsManager } from '../../utils/websocket';
 import type { BoardWebSocketEvent } from '../../types';
@@ -19,7 +19,8 @@ const REACTION_EMOJIS = ['\uD83D\uDC4D', '\u2764\uFE0F', '\uD83D\uDE04', '\uD83C
 // ========== Types ==========
 
 interface NoteBottomCommentsProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   noteId: string;
   currentUserId: string;
   canEdit: boolean;
@@ -63,8 +64,11 @@ function renderContentWithMentions(content: string, members: MemberResponse[]) {
 // ========== Component ==========
 
 export function NoteBottomComments({
-  boardId, noteId, currentUserId, canEdit,
+  boardId, orgId, noteId, currentUserId, canEdit,
 }: NoteBottomCommentsProps) {
+  const svc = orgId ? orgNoteCommentService : noteCommentService;
+  const scopeId = boardId || orgId || '';
+  const wsTopic = orgId ? `/topic/org/${orgId}` : `/topic/board/${boardId}`;
   // State
   const [comments, setComments] = useState<NoteCommentDetail[]>([]);
   const [members, setMembers] = useState<MemberResponse[]>([]);
@@ -102,7 +106,7 @@ export function NoteBottomComments({
 
   const loadComments = useCallback(async () => {
     try {
-      const data: NoteCommentListResponse = await noteCommentService.getComments(boardId, noteId);
+      const data: NoteCommentListResponse = await svc.getComments(scopeId, noteId);
       // Flatten: only general (non-block) root comments, no replies (flat model)
       // For bottom panel, show all root comments (block_id === null, parent_id === null)
       const flat = data.threads.filter(t => !t.block_id && !t.parent_id);
@@ -112,9 +116,10 @@ export function NoteBottomComments({
     } finally {
       setLoading(false);
     }
-  }, [boardId, noteId]);
+  }, [scopeId, noteId, svc]);
 
   const loadMembers = useCallback(async () => {
+    if (!boardId) return; // org context: members not loaded via board API
     try {
       const data = await memberAPI.getMembers(boardId);
       setMembers(data.members || []);
@@ -135,7 +140,7 @@ export function NoteBottomComments({
   const NOTE_COMMENT_EVENTS = ['NOTE_COMMENT_CREATED', 'NOTE_COMMENT_UPDATED', 'NOTE_COMMENT_DELETED', 'NOTE_COMMENT_RESOLVED', 'NOTE_COMMENT_REACTION_TOGGLED'];
 
   useEffect(() => {
-    const sub = wsManager.subscribe(`/topic/board/${boardId}`, (message) => {
+    const sub = wsManager.subscribe(wsTopic, (message) => {
       try {
         const event: BoardWebSocketEvent = JSON.parse(message.body);
         if (!NOTE_COMMENT_EVENTS.includes(event.type)) return;
@@ -146,7 +151,7 @@ export function NoteBottomComments({
       } catch { /* ignore */ }
     });
     return () => sub.unsubscribe();
-  }, [boardId, noteId, currentUserId, loadComments]);
+  }, [wsTopic, noteId, currentUserId, loadComments]);
 
   // ========== Emoji picker outside click ==========
 
@@ -245,7 +250,7 @@ export function NoteBottomComments({
     if (!newContent.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await noteCommentService.createComment(boardId, noteId, {
+      await svc.createComment(scopeId, noteId, {
         content: newContent.trim(),
         block_id: null,
         parent_id: null,
@@ -259,7 +264,7 @@ export function NoteBottomComments({
     } finally {
       setSubmitting(false);
     }
-  }, [boardId, noteId, newContent, selectedMentions, submitting, loadComments]);
+  }, [scopeId, noteId, newContent, selectedMentions, submitting, loadComments, svc]);
 
   const startEditing = (comment: NoteCommentDetail) => {
     setEditingId(comment.id);
@@ -277,7 +282,7 @@ export function NoteBottomComments({
     if (!editContent.trim() || editSubmitting) return;
     setEditSubmitting(true);
     try {
-      await noteCommentService.updateComment(boardId, noteId, commentId, {
+      await svc.updateComment(scopeId, noteId, commentId, {
         content: editContent.trim(),
         mentions: editMentions.length > 0 ? editMentions : undefined,
       });
@@ -290,23 +295,23 @@ export function NoteBottomComments({
     } finally {
       setEditSubmitting(false);
     }
-  }, [boardId, noteId, editContent, editMentions, editSubmitting, loadComments]);
+  }, [scopeId, noteId, editContent, editMentions, editSubmitting, loadComments, svc]);
 
   const handleDelete = useCallback(async (commentId: string) => {
     try {
-      await noteCommentService.deleteComment(boardId, noteId, commentId);
+      await svc.deleteComment(scopeId, noteId, commentId);
       setDeleteTarget(null);
       await loadComments();
     } catch (err) {
       console.error('Failed to delete comment:', err);
     }
-  }, [boardId, noteId, loadComments]);
+  }, [scopeId, noteId, loadComments, svc]);
 
   // ========== Reactions ==========
 
   const handleToggleReaction = useCallback(async (commentId: string, emoji: string) => {
     try {
-      const response = await noteCommentService.toggleReaction(boardId, noteId, commentId, emoji);
+      const response = await svc.toggleReaction(scopeId, noteId, commentId, emoji);
       setComments(prev => prev.map(c =>
         c.id === commentId ? { ...c, reactions: response.reactions } : c
       ));
@@ -315,7 +320,7 @@ export function NoteBottomComments({
     }
     setEmojiPickerCommentId(null);
     setEmojiPickerPos(null);
-  }, [boardId, noteId]);
+  }, [scopeId, noteId, svc]);
 
   const openEmojiPicker = (commentId: string, buttonEl: HTMLButtonElement) => {
     if (emojiPickerCommentId === commentId) {

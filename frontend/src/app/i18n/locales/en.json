@@ -1379,7 +1379,7 @@
     "attachImage": "Attach images (max 5)",
     "attachFile": "Attach files (max 5)",
     "imageHelp": "Images: paste, drag, or use the clip button",
-    "fileHelp": "Images & videos: paste, drag, or use the clip button",
+    "fileHelp": "Images, videos & docs: paste, drag, or use the clip button",
     "viewerReadOnly": "Observers cannot write comments",
     "attachedImage": "Attached image",
     "attachedFile": "Attached file",
@@ -1389,9 +1389,10 @@
     "addFile": "Add file",
     "failed": "Failed",
     "maxFilesError": "You can attach up to 5 files.",
-    "fileTypeError": "Supported formats: jpg, png, gif, webp, mp4, webm, mov.",
+    "fileTypeError": "Supported formats: images, videos, PDF, Word, Excel, PPT, TXT.",
     "fileSizeError": "Maximum image size is 30MB.",
     "videoFileSizeError": "Maximum video size is 50MB.",
+    "docFileSizeError": "Maximum document size is 30MB.",
     "uploadInProgress": "Files are being uploaded. Please wait.",
     "uploadFailedRetry": "Some files failed to upload. Please remove and try again.",
     "reaction": {
@@ -2323,7 +2324,20 @@
         "trialUsed": "Trial Used",
         "noSubscription": "No subscription",
         "monthly": "Monthly",
-        "yearly": "Yearly"
+        "yearly": "Yearly",
+        "aiCredits": "AI Credits",
+        "monthlyLimit": "Monthly Limit",
+        "creditsUsed": "Used",
+        "creditsRemaining": "Remaining",
+        "creditsResetDate": "Reset Date",
+        "addBonusCredits": "Add Bonus Credits",
+        "resetUsedCredits": "Reset",
+        "confirmResetCredits": "Reset all used credits to 0? This gives the organization a full credit refill.",
+        "creditsUpdated": "AI credits updated",
+        "creditsUpdateFailed": "Failed to update AI credits",
+        "creditsReset": "Used credits have been reset",
+        "exhausted": "Exhausted",
+        "low": "Low"
       },
       "actions": {
         "edit": "Edit Info",
@@ -3033,6 +3047,10 @@
       "buy_button": "Purchase Credits",
       "later_button": "Later"
     },
+    "org_managed": {
+      "description": "This board is managed by an organization.\nOnly the organization admin can manage AI credits.\nPlease contact your organization admin.",
+      "close": "OK"
+    },
     "admin": {
       "title": "AI Credit Status",
       "monthly_allocation": "Monthly Allocation",
@@ -3462,7 +3480,8 @@
       "leave": "Leave",
       "workspace": "Workspace",
       "okr": "OKR",
-      "photos": "Photos"
+      "photos": "Photos",
+      "documents": "Documents"
     },
     "chart": {
       "searchPlaceholder": "Search members...",
@@ -3976,6 +3995,7 @@
       "autoBoardAccessHint": "Organization members will automatically get MEMBER role access. They won't be added to the board member list.",
       "subtabs": {
         "general": "General",
+        "billing": "Billing",
         "structure": "Structure",
         "attendance": "Attendance Policy",
         "onboarding": "Onboarding"

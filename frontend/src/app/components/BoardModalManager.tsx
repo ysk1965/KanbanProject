@@ -156,6 +156,7 @@ interface BoardModalManagerProps {
   creditModalMode: 'purchase' | 'exhausted';
   onCreditPurchaseComplete: (credits: AiCredits) => void;
   currentCredits: AiCredits | null;
+  isOrgBoard?: boolean;
   // Onboarding
   isOnboarding?: boolean;
   // Permissions
@@ -481,6 +482,7 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         mode={props.creditModalMode}
         onPurchaseComplete={props.onCreditPurchaseComplete}
         currentCredits={props.currentCredits}
+        isOrgBoard={props.isOrgBoard}
       />
     </>
   );

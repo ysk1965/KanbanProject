@@ -1304,7 +1304,7 @@
     "attachImage": "画像を添付（最大5枚）",
     "attachFile": "ファイル添付（最大5個）",
     "imageHelp": "画像：貼り付け、ドラッグ、またはクリップボタンで",
-    "fileHelp": "画像・動画：貼り付け、ドラッグ、またはクリップボタンで添付",
+    "fileHelp": "画像・動画・文書：貼り付け、ドラッグ、またはクリップボタンで添付",
     "viewerReadOnly": "閲覧者はコメントを書けません",
     "attachedImage": "添付画像",
     "attachedFile": "添付ファイル",
@@ -1314,9 +1314,10 @@
     "addFile": "ファイル追加",
     "failed": "失敗",
     "maxFilesError": "ファイルは最大5個まで添付できます。",
-    "fileTypeError": "jpg, png, gif, webp, mp4, webm, mov形式のみ対応しています。",
+    "fileTypeError": "画像、動画、PDF、Word、Excel、PPT、TXT形式のみ対応しています。",
     "fileSizeError": "画像ファイルは最大30MBです。",
     "videoFileSizeError": "動画ファイルは最大50MBです。",
+    "docFileSizeError": "文書ファイルは最大30MBです。",
     "uploadInProgress": "ファイルをアップロード中です。しばらくお待ちください。",
     "uploadFailedRetry": "一部のファイルのアップロードに失敗しました。削除して再試行してください。",
     "reaction": {
@@ -1687,7 +1688,20 @@
         "trialUsed": "トライアル使用済み",
         "noSubscription": "サブスクリプションなし",
         "monthly": "月額",
-        "yearly": "年額"
+        "yearly": "年額",
+        "aiCredits": "AIクレジット",
+        "monthlyLimit": "月間上限",
+        "creditsUsed": "使用量",
+        "creditsRemaining": "残り",
+        "creditsResetDate": "リセット日",
+        "addBonusCredits": "ボーナスクレジット追加",
+        "resetUsedCredits": "リセット",
+        "confirmResetCredits": "使用量を0にリセットしますか？組織に全クレジットが再付与されます。",
+        "creditsUpdated": "AIクレジットが更新されました",
+        "creditsUpdateFailed": "AIクレジットの更新に失敗しました",
+        "creditsReset": "使用クレジットがリセットされました",
+        "exhausted": "消費済み",
+        "low": "残りわずか"
       },
       "actions": {
         "edit": "情報編集",
@@ -2893,6 +2907,10 @@
       "buy_button": "クレジット購入",
       "later_button": "後で"
     },
+    "org_managed": {
+      "description": "このボードは組織が管理しています。\nAIクレジットは組織管理者のみが管理できます。\n組織管理者にお問い合わせください。",
+      "close": "確認"
+    },
     "admin": {
       "title": "AIクレジット状況",
       "monthly_allocation": "月間割当",
@@ -3036,7 +3054,8 @@
         "settings": "設定",
         "attendance": "勤怠",
         "okr": "OKR",
-        "photos": "写真"
+        "photos": "写真",
+        "documents": "ドキュメント"
       },
       "chart": {
         "searchPlaceholder": "メンバー検索...",
@@ -3518,7 +3537,14 @@
         "autoBoardAccess": "自動ボードアクセス",
         "autoBoardAccessDesc": "有効にすると、組織メンバーは参加申請なしで全ての組織ボードに編集権限でアクセスできます。",
         "autoBoardAccessEnabled": "自動ボードアクセスを許可",
-        "autoBoardAccessHint": "組織メンバーはMEMBERロールで自動アクセスされます。ボードメンバーリストには追加されません。"
+        "autoBoardAccessHint": "組織メンバーはMEMBERロールで自動アクセスされます。ボードメンバーリストには追加されません。",
+        "subtabs": {
+          "general": "一般",
+          "billing": "請求",
+          "structure": "構造",
+          "attendance": "勤怠ポリシー",
+          "onboarding": "オンボーディング"
+        }
       },
       "invite": {
         "invalidLink": "この招待リンクは無効または期限切れです。",

@@ -175,28 +175,31 @@ public class LocalFileUploadService implements FileUploadService {
             Files.createDirectories(permanentPath.getParent());
             Files.move(tempPath, permanentPath, StandardCopyOption.REPLACE_EXISTING);
 
-            // 썸네일 생성 (이미지 vs 영상 분기)
-            String thumbnailKey = permanentKey.replaceAll("\\.[^.]+$", "_thumb.jpg");
+            // 썸네일 생성 (이미지 vs 영상 분기, 문서는 스킵)
+            String thumbnailKey = null;
             String thumbnailUrl = "";
-            try {
-                byte[] thumbnailBytes;
-                if (MediaUtils.isVideoType(contentType)) {
-                    thumbnailBytes = videoThumbnailService.extractThumbnail(fileBytes, extension, thumbnailMaxWidth, thumbnailMaxHeight);
-                } else {
-                    thumbnailBytes = MediaUtils.generateThumbnail(fileBytes, thumbnailMaxWidth, thumbnailMaxHeight);
-                }
+            if (!MediaUtils.isDocumentType(contentType)) {
+                thumbnailKey = permanentKey.replaceAll("\\.[^.]+$", "_thumb.jpg");
+                try {
+                    byte[] thumbnailBytes;
+                    if (MediaUtils.isVideoType(contentType)) {
+                        thumbnailBytes = videoThumbnailService.extractThumbnail(fileBytes, extension, thumbnailMaxWidth, thumbnailMaxHeight);
+                    } else {
+                        thumbnailBytes = MediaUtils.generateThumbnail(fileBytes, thumbnailMaxWidth, thumbnailMaxHeight);
+                    }
 
-                if (thumbnailBytes != null && thumbnailBytes.length > 0) {
-                    Path thumbnailPath = Paths.get(localDir, thumbnailKey);
-                    Files.write(thumbnailPath, thumbnailBytes);
-                    thumbnailUrl = String.format("/uploads/%s", thumbnailKey);
-                    log.info("Thumbnail generated: {}", thumbnailPath);
-                } else {
+                    if (thumbnailBytes != null && thumbnailBytes.length > 0) {
+                        Path thumbnailPath = Paths.get(localDir, thumbnailKey);
+                        Files.write(thumbnailPath, thumbnailBytes);
+                        thumbnailUrl = String.format("/uploads/%s", thumbnailKey);
+                        log.info("Thumbnail generated: {}", thumbnailPath);
+                    } else {
+                        thumbnailKey = null;
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to generate thumbnail for {}: {}", tempKey, e.getMessage());
                     thumbnailKey = null;
                 }
-            } catch (Exception e) {
-                log.warn("Failed to generate thumbnail for {}: {}", tempKey, e.getMessage());
-                thumbnailKey = null;
             }
 
             String url = String.format("/uploads/%s", permanentKey);

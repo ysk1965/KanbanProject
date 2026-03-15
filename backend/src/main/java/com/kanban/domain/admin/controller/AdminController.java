@@ -456,6 +456,15 @@ public class AdminController {
         return ResponseEntity.ok(adminService.updateOrgSubscription(orgId, request));
     }
 
+    @PatchMapping("/organizations/{orgId}/ai-credits")
+    public ResponseEntity<AdminResponse.OrgDetail> adjustOrgAiCredits(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String orgId,
+            @Valid @RequestBody AdminRequest.AdjustOrgAiCredits request) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.adjustOrgAiCredits(orgId, request));
+    }
+
     @PatchMapping("/organizations/{orgId}/extend-trial")
     public ResponseEntity<AdminResponse.OrgDetail> extendOrgTrial(
             @AuthenticationPrincipal UserPrincipal principal,

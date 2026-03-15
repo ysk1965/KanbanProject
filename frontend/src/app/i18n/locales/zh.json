@@ -1304,7 +1304,7 @@
     "attachImage": "附加图片（最多 5 张）",
     "attachFile": "附加文件（最多5个）",
     "imageHelp": "图片：粘贴、拖拽或使用附件按钮",
-    "fileHelp": "图片和视频：粘贴、拖拽或使用夹子按钮",
+    "fileHelp": "图片、视频和文档：粘贴、拖拽或使用夹子按钮",
     "viewerReadOnly": "观察者无法撰写评论",
     "attachedImage": "已附加的图片",
     "attachedFile": "附件",
@@ -1314,9 +1314,10 @@
     "addFile": "添加文件",
     "failed": "失败",
     "maxFilesError": "最多可以附加5个文件。",
-    "fileTypeError": "仅支持jpg、png、gif、webp、mp4、webm、mov格式。",
+    "fileTypeError": "仅支持图片、视频、PDF、Word、Excel、PPT、TXT格式。",
     "fileSizeError": "图片文件最大30MB。",
     "videoFileSizeError": "视频文件最大50MB。",
+    "docFileSizeError": "文档文件最大30MB。",
     "uploadInProgress": "文件正在上传中，请稍候。",
     "uploadFailedRetry": "部分文件上传失败。请移除后重试。",
     "reaction": {
@@ -1687,7 +1688,20 @@
         "trialUsed": "试用已使用",
         "noSubscription": "无订阅",
         "monthly": "月付",
-        "yearly": "年付"
+        "yearly": "年付",
+        "aiCredits": "AI积分",
+        "monthlyLimit": "月度限额",
+        "creditsUsed": "已使用",
+        "creditsRemaining": "剩余",
+        "creditsResetDate": "重置日期",
+        "addBonusCredits": "添加奖励积分",
+        "resetUsedCredits": "重置",
+        "confirmResetCredits": "将使用量重置为0？这将为组织提供完整的积分补充。",
+        "creditsUpdated": "AI积分已更新",
+        "creditsUpdateFailed": "AI积分更新失败",
+        "creditsReset": "已使用积分已重置",
+        "exhausted": "已耗尽",
+        "low": "不足"
       },
       "actions": {
         "edit": "编辑信息",
@@ -2893,6 +2907,10 @@
       "buy_button": "购买积分",
       "later_button": "稍后"
     },
+    "org_managed": {
+      "description": "此看板由组织管理。\n只有组织管理员才能管理AI积分。\n请联系您的组织管理员。",
+      "close": "确认"
+    },
     "admin": {
       "title": "AI积分状态",
       "monthly_allocation": "月度分配",
@@ -3036,7 +3054,8 @@
         "settings": "设置",
         "attendance": "考勤",
         "okr": "OKR",
-        "photos": "照片"
+        "photos": "照片",
+        "documents": "文档"
       },
       "chart": {
         "searchPlaceholder": "搜索成员...",
@@ -3518,7 +3537,14 @@
         "autoBoardAccess": "自动看板访问",
         "autoBoardAccessDesc": "启用后，组织成员无需申请加入即可以编辑权限访问所有组织看板。",
         "autoBoardAccessEnabled": "允许自动看板访问",
-        "autoBoardAccessHint": "组织成员将自动获得MEMBER角色访问权限。不会被添加到看板成员列表中。"
+        "autoBoardAccessHint": "组织成员将自动获得MEMBER角色访问权限。不会被添加到看板成员列表中。",
+        "subtabs": {
+          "general": "常规",
+          "billing": "账单",
+          "structure": "结构",
+          "attendance": "考勤政策",
+          "onboarding": "入职引导"
+        }
       },
       "invite": {
         "invalidLink": "此邀请链接无效或已过期。",

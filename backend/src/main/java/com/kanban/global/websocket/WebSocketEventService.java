@@ -76,6 +76,24 @@ public class WebSocketEventService {
     }
 
     /**
+     * Broadcast an event to all subscribers of an organization.
+     * Destination: /topic/org/{orgId}
+     */
+    public void sendOrgEvent(String orgId, BoardEventType type, String userId, String userName, Object data) {
+        try {
+            WebSocketEvent event = WebSocketEvent.of(type, orgId, userId, userName, data);
+            String destination = "/topic/org/" + orgId;
+
+            messagingTemplate.convertAndSend(destination, event);
+            redisBridge.ifPresent(bridge -> bridge.publishBoardEvent(orgId, destination, event));
+
+            log.debug("WebSocket org event sent: type={}, org={}, user={}", type, orgId, userId);
+        } catch (Exception e) {
+            log.error("Failed to send WebSocket org event: type={}, org={}, error={}", type, orgId, e.getMessage(), e);
+        }
+    }
+
+    /**
      * Send a global event to a specific user (not board-scoped).
      * Destination: /topic/user/{userId}
      *

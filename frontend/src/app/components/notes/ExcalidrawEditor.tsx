@@ -54,7 +54,8 @@ const LANG_MAP: Record<string, string> = {
 };
 
 interface ExcalidrawEditorProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   note: NoteDetail;
   tags: NoteTagInfo[];
   canEdit: boolean;
@@ -73,6 +74,7 @@ interface ExcalidrawEditorProps {
 
 export default function ExcalidrawEditor({
   boardId,
+  orgId,
   note,
   tags,
   canEdit,
@@ -539,12 +541,14 @@ export default function ExcalidrawEditor({
           )}
           <NoteShareButton
             boardId={boardId}
+            orgId={orgId}
             note={note}
             canEdit={canEdit}
             onNoteUpdate={onNoteUpdate}
           />
           <NoteTagManager
             boardId={boardId}
+            orgId={orgId}
             noteId={note.id}
             noteTags={note.tags}
             allTags={tags}
@@ -554,12 +558,20 @@ export default function ExcalidrawEditor({
           />
           <NoteVersionHistory
             boardId={boardId}
+            orgId={orgId}
             noteId={note.id}
             versionCount={note.version_count}
             canEdit={canEdit}
             onRestore={async () => {
-              const { noteService } = await import("../../utils/services");
-              const updated = await noteService.getDetail(boardId, note.id);
+              let updated;
+              if (boardId) {
+                const { noteService } = await import("../../utils/services");
+                updated = await noteService.getDetail(boardId, note.id);
+              } else if (orgId) {
+                const { orgNoteService } = await import("../../utils/services");
+                updated = await orgNoteService.getDetail(orgId, note.id);
+              }
+              if (!updated) return;
               setTitle(updated.title);
               setHasChanges(false);
               if (updated.content?.trim() && excalidrawAPIRef.current) {
@@ -689,6 +701,7 @@ export default function ExcalidrawEditor({
           <div className="max-h-48 overflow-y-auto custom-scrollbar">
             <NoteBottomComments
               boardId={boardId}
+              orgId={orgId}
               noteId={note.id}
               currentUserId={currentUser.id}
               canEdit={canEdit}

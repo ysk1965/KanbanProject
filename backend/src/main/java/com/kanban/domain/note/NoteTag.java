@@ -1,6 +1,7 @@
 package com.kanban.domain.note;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.organization.Organization;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -21,8 +22,12 @@ public class NoteTag {
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "board_id", nullable = false)
+    @JoinColumn(name = "board_id")
     private Board board;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 
     @Column(name = "name", nullable = false, length = 50)
     private String name;

@@ -3918,6 +3918,7 @@ export function KanbanBoardPage() {
           creditModalMode={creditModalMode}
           onCreditPurchaseComplete={handleCreditPurchaseComplete}
           currentCredits={aiCredits}
+          isOrgBoard={!!board?.organization_id}
           // Permissions
           canEdit={canEdit}
           currentUser={currentUser}

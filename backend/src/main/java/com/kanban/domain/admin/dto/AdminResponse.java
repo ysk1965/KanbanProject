@@ -521,6 +521,11 @@ public class AdminResponse {
         private LocalDateTime trialEndsAt;
         private LocalDateTime currentPeriodEnd;
         private Boolean trialUsed;
+        // AI 크레딧
+        private Integer monthlyAiCredits;
+        private Integer monthlyCreditsUsed;
+        private Integer remainingAiCredits;
+        private LocalDateTime creditsResetDate;
         // 구조 토글
         private Boolean departmentsEnabled;
         private Boolean jobGroupsEnabled;
@@ -557,6 +562,10 @@ public class AdminResponse {
                     .trialEndsAt(sub != null ? sub.getTrialEndsAt() : null)
                     .currentPeriodEnd(sub != null ? sub.getCurrentPeriodEnd() : null)
                     .trialUsed(org.getTrialUsed())
+                    .monthlyAiCredits(sub != null ? sub.getMonthlyAiCredits() : null)
+                    .monthlyCreditsUsed(sub != null ? sub.getMonthlyCreditsUsed() : null)
+                    .remainingAiCredits(sub != null ? sub.getTotalAvailableCredits() : null)
+                    .creditsResetDate(sub != null ? sub.getCreditsResetDate() : null)
                     .departmentsEnabled(org.getDepartmentsEnabled())
                     .jobGroupsEnabled(org.getJobGroupsEnabled())
                     .positionsEnabled(org.getPositionsEnabled())

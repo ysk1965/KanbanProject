@@ -1304,7 +1304,7 @@
     "attachImage": "Adjuntar imágenes (máx. 5)",
     "attachFile": "Adjuntar archivos (máx. 5)",
     "imageHelp": "Imágenes: pegar, arrastrar o usar el botón de clip",
-    "fileHelp": "Imágenes y videos: pegar, arrastrar o usar el botón de clip",
+    "fileHelp": "Imágenes, videos y documentos: pegar, arrastrar o usar el botón de clip",
     "viewerReadOnly": "Los observadores no pueden escribir comentarios",
     "attachedImage": "Imagen adjunta",
     "attachedFile": "Archivo adjunto",
@@ -1314,9 +1314,10 @@
     "addFile": "Agregar archivo",
     "failed": "Fallido",
     "maxFilesError": "Puedes adjuntar hasta 5 archivos.",
-    "fileTypeError": "Formatos admitidos: jpg, png, gif, webp, mp4, webm, mov.",
+    "fileTypeError": "Formatos admitidos: imágenes, videos, PDF, Word, Excel, PPT, TXT.",
     "fileSizeError": "El tamaño máximo de imagen es 30MB.",
     "videoFileSizeError": "El tamaño máximo de video es 50MB.",
+    "docFileSizeError": "El tamaño máximo de documento es 30MB.",
     "uploadInProgress": "Los archivos se están subiendo. Por favor espera.",
     "uploadFailedRetry": "Algunos archivos no se pudieron subir. Por favor elimínalos e inténtalo de nuevo.",
     "reaction": {
@@ -1687,7 +1688,20 @@
         "trialUsed": "Prueba utilizada",
         "noSubscription": "Sin suscripción",
         "monthly": "Mensual",
-        "yearly": "Anual"
+        "yearly": "Anual",
+        "aiCredits": "Créditos de IA",
+        "monthlyLimit": "Límite mensual",
+        "creditsUsed": "Usados",
+        "creditsRemaining": "Restantes",
+        "creditsResetDate": "Fecha de reinicio",
+        "addBonusCredits": "Agregar créditos de bonificación",
+        "resetUsedCredits": "Reiniciar",
+        "confirmResetCredits": "¿Reiniciar los créditos usados a 0? Esto proporcionará una recarga completa de créditos a la organización.",
+        "creditsUpdated": "Créditos de IA actualizados",
+        "creditsUpdateFailed": "Error al actualizar los créditos de IA",
+        "creditsReset": "Los créditos usados se han reiniciado",
+        "exhausted": "Agotados",
+        "low": "Bajo"
       },
       "actions": {
         "edit": "Editar información",
@@ -2883,6 +2897,10 @@
       "buy_button": "Comprar créditos",
       "later_button": "Más tarde"
     },
+    "org_managed": {
+      "description": "Este tablero es gestionado por una organización.\nSolo el administrador de la organización puede gestionar los créditos de IA.\nPor favor, contacte al administrador de su organización.",
+      "close": "Aceptar"
+    },
     "admin": {
       "title": "Estado de créditos de IA",
       "monthly_allocation": "Asignación mensual",
@@ -3026,7 +3044,8 @@
         "settings": "Configuración",
         "attendance": "Asistencia",
         "okr": "OKR",
-        "photos": "Fotos"
+        "photos": "Fotos",
+        "documents": "Documentos"
       },
       "chart": {
         "searchPlaceholder": "Buscar miembros...",
@@ -3395,7 +3414,14 @@
         "autoBoardAccess": "Acceso automático al tablero",
         "autoBoardAccessDesc": "Cuando está habilitado, los miembros de la organización pueden acceder a todos los tableros con permisos de edición sin solicitar unirse.",
         "autoBoardAccessEnabled": "Habilitar acceso automático al tablero",
-        "autoBoardAccessHint": "Los miembros de la organización obtendrán automáticamente acceso con rol MEMBER. No se agregarán a la lista de miembros del tablero."
+        "autoBoardAccessHint": "Los miembros de la organización obtendrán automáticamente acceso con rol MEMBER. No se agregarán a la lista de miembros del tablero.",
+        "subtabs": {
+          "general": "General",
+          "billing": "Facturación",
+          "structure": "Estructura",
+          "attendance": "Política de asistencia",
+          "onboarding": "Incorporación"
+        }
       },
       "invite": {
         "invalidLink": "Este enlace de invitación es inválido o ha expirado.",
@@ -3521,7 +3547,8 @@
       "insights": "Estadísticas",
       "settings": "Configuración",
       "attendance": "Asistencia",
-      "photos": "Fotos"
+      "photos": "Fotos",
+      "documents": "Documentos"
     },
     "chart": {
       "searchPlaceholder": "Buscar miembros...",

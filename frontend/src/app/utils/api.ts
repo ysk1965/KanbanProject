@@ -3939,6 +3939,10 @@ export interface AdminOrgDetail extends AdminOrgSummary {
   total_price?: number | null;
   current_period_end?: string | null;
   trial_used?: boolean;
+  monthly_ai_credits?: number | null;
+  monthly_credits_used?: number | null;
+  remaining_ai_credits?: number | null;
+  credits_reset_date?: string | null;
   departments_enabled?: boolean;
   job_groups_enabled?: boolean;
   positions_enabled?: boolean;
@@ -4308,6 +4312,21 @@ export const adminAPI = {
     return apiClient.patch<AdminOrgDetail>(
       `/admin/organizations/${orgId}/extend-trial`,
       { extend_days: extendDays },
+    );
+  },
+
+  // 조직 AI 크레딧 조정
+  adjustOrgAiCredits: async (
+    orgId: string,
+    data: {
+      monthly_ai_credits?: number;
+      reset_used_credits?: boolean;
+      add_bonus_credits?: number;
+    },
+  ) => {
+    return apiClient.patch<AdminOrgDetail>(
+      `/admin/organizations/${orgId}/ai-credits`,
+      data,
     );
   },
 
@@ -5343,6 +5362,196 @@ export const noteAPI = {
 export const publicNoteAPI = {
   getSharedNote: async (shareToken: string) => {
     return apiClient.get<SharedNote>(`/public/notes/${shareToken}`, true);
+  },
+};
+
+// ========================================
+// Organization Note API
+// ========================================
+
+export const orgNoteAPI = {
+  getTree: async (orgId: string) => {
+    return apiClient.get<NoteTreeItem[]>(`/organizations/${orgId}/notes`);
+  },
+
+  getList: async (orgId: string) => {
+    return apiClient.get<NoteListItem[]>(`/organizations/${orgId}/notes/list`);
+  },
+
+  getDetail: async (orgId: string, noteId: string) => {
+    return apiClient.get<NoteDetail>(`/organizations/${orgId}/notes/${noteId}`);
+  },
+
+  create: async (
+    orgId: string,
+    data: {
+      title: string;
+      type: "FOLDER" | "DOCUMENT" | "BOARD";
+      parentId?: string | null;
+      content?: string;
+      tagIds?: string[];
+    },
+  ) => {
+    return apiClient.post<NoteDetail>(`/organizations/${orgId}/notes`, data);
+  },
+
+  update: async (
+    orgId: string,
+    noteId: string,
+    data: {
+      title?: string;
+      content?: string;
+      tagIds?: string[];
+    },
+    createVersion = true,
+  ) => {
+    const params = createVersion ? "" : "?createVersion=false";
+    return apiClient.put<NoteDetail>(
+      `/organizations/${orgId}/notes/${noteId}${params}`,
+      data,
+    );
+  },
+
+  delete: async (orgId: string, noteId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/organizations/${orgId}/notes/${noteId}`,
+    );
+  },
+
+  move: async (
+    orgId: string,
+    noteId: string,
+    data: {
+      parentId?: string | null;
+      position?: number;
+    },
+  ) => {
+    return apiClient.put<NoteDetail>(
+      `/organizations/${orgId}/notes/${noteId}/move`,
+      {
+        parent_id: data.parentId,
+        position: data.position,
+      },
+    );
+  },
+
+  getVersions: async (orgId: string, noteId: string) => {
+    return apiClient.get<NoteVersionInfo[]>(
+      `/organizations/${orgId}/notes/${noteId}/versions`,
+    );
+  },
+
+  getVersionDetail: async (
+    orgId: string,
+    noteId: string,
+    versionId: string,
+  ) => {
+    return apiClient.get<NoteVersionDetail>(
+      `/organizations/${orgId}/notes/${noteId}/versions/${versionId}`,
+    );
+  },
+
+  restoreVersion: async (
+    orgId: string,
+    noteId: string,
+    versionId: string,
+  ) => {
+    return apiClient.post<NoteDetail>(
+      `/organizations/${orgId}/notes/${noteId}/versions/${versionId}/restore`,
+    );
+  },
+
+  getTags: async (orgId: string) => {
+    return apiClient.get<NoteTagInfo[]>(`/organizations/${orgId}/note-tags`);
+  },
+
+  createTag: async (orgId: string, data: { name: string; color: string }) => {
+    return apiClient.post<NoteTagInfo>(`/organizations/${orgId}/note-tags`, data);
+  },
+
+  deleteTag: async (orgId: string, tagId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/organizations/${orgId}/note-tags/${tagId}`,
+    );
+  },
+
+  enableShare: async (orgId: string, noteId: string) => {
+    return apiClient.post<NoteDetail>(
+      `/organizations/${orgId}/notes/${noteId}/share`,
+    );
+  },
+
+  disableShare: async (orgId: string, noteId: string) => {
+    return apiClient.delete<NoteDetail>(
+      `/organizations/${orgId}/notes/${noteId}/share`,
+    );
+  },
+};
+
+export const orgNoteCommentAPI = {
+  getComments: async (orgId: string, noteId: string) => {
+    return apiClient.get<NoteCommentListResponse>(
+      `/organizations/${orgId}/notes/${noteId}/comments`,
+    );
+  },
+
+  createComment: async (
+    orgId: string,
+    noteId: string,
+    data: {
+      content: string;
+      block_id?: string | null;
+      parent_id?: string | null;
+      mentions?: string[];
+    },
+  ) => {
+    return apiClient.post<NoteCommentDetail>(
+      `/organizations/${orgId}/notes/${noteId}/comments`,
+      data,
+    );
+  },
+
+  updateComment: async (
+    orgId: string,
+    noteId: string,
+    commentId: string,
+    data: {
+      content: string;
+      mentions?: string[];
+    },
+  ) => {
+    return apiClient.put<NoteCommentDetail>(
+      `/organizations/${orgId}/notes/${noteId}/comments/${commentId}`,
+      data,
+    );
+  },
+
+  deleteComment: async (orgId: string, noteId: string, commentId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/organizations/${orgId}/notes/${noteId}/comments/${commentId}`,
+    );
+  },
+
+  toggleResolved: async (
+    orgId: string,
+    noteId: string,
+    commentId: string,
+  ) => {
+    return apiClient.post<NoteCommentDetail>(
+      `/organizations/${orgId}/notes/${noteId}/comments/${commentId}/resolve`,
+    );
+  },
+
+  toggleReaction: async (
+    orgId: string,
+    noteId: string,
+    commentId: string,
+    emoji: string,
+  ) => {
+    return apiClient.post<ReactionsToggleResponse>(
+      `/organizations/${orgId}/notes/${noteId}/comments/${commentId}/reactions/toggle`,
+      { emoji },
+    );
   },
 };
 

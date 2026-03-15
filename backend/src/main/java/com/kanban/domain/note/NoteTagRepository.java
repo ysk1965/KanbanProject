@@ -14,4 +14,11 @@ public interface NoteTagRepository extends JpaRepository<NoteTag, String> {
     boolean existsByBoardIdAndName(String boardId, String name);
 
     void deleteAllByBoardId(String boardId);
+
+    // Organization-scoped
+    List<NoteTag> findAllByOrganizationIdOrderByNameAsc(String organizationId);
+
+    boolean existsByOrganizationIdAndName(String organizationId, String name);
+
+    void deleteAllByOrganizationId(String organizationId);
 }
