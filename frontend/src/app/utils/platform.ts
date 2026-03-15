@@ -20,3 +20,20 @@ export const isMobileWeb = (): boolean => {
   if (isNative()) return false;
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
 };
+
+/** Detect Chrome on iOS (uses WKWebView — <a download> not supported) */
+export const isChromeiOS = (): boolean => {
+  const ua = navigator.userAgent || '';
+  return /CriOS/i.test(ua);
+};
+
+/** Detect any mobile Chrome (iOS CriOS + Android Chrome) */
+export const isChromeMobile = (): boolean => {
+  const ua = navigator.userAgent || '';
+  if (isNative()) return false;
+  // iOS Chrome
+  if (/CriOS/i.test(ua)) return true;
+  // Android Chrome (exclude in-app browsers)
+  if (/Android/i.test(ua) && /Chrome/i.test(ua) && !/KAKAOTALK|FBAN|FBAV|Instagram|Line\/|NAVER|Whale/i.test(ua)) return true;
+  return false;
+};

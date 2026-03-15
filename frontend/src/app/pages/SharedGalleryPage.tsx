@@ -12,6 +12,7 @@ import {
   Images,
   CheckSquare,
   X,
+  Maximize2,
 } from 'lucide-react';
 import { publicGalleryAPI, resolveFileUrl } from '../utils/api';
 import { PhotoLightbox } from '../components/organization/photo/PhotoLightbox';
@@ -432,6 +433,19 @@ export function SharedGalleryPage() {
                       <span className="text-xs font-bold">saved</span>
                     </div>
                   </div>
+                )}
+                {/* Select mode: view photo button */}
+                {selectMode && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxPhoto(photo);
+                    }}
+                    className="absolute bottom-2 right-2 z-10 p-1.5 rounded-lg bg-black/40 hover:bg-black/60 backdrop-blur-sm transition-all"
+                    aria-label="View photo"
+                  >
+                    <Maximize2 size={14} className="text-white" />
+                  </button>
                 )}
                 {!selectMode && (
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">

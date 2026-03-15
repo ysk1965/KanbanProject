@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Download, Check, Camera } from 'lucide-react';
+import { Download, Check, Camera, Maximize2 } from 'lucide-react';
 import type { OrgPhoto } from '../../../types';
 import { resolveFileUrl } from '../../../utils/api';
 
@@ -154,6 +154,20 @@ export function PhotoGrid({
                     )}
                   </div>
                 </div>
+              )}
+
+              {/* Select mode: view photo button */}
+              {selectMode && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenLightbox(photo);
+                  }}
+                  className="absolute bottom-2 right-2 z-10 p-1.5 rounded-lg bg-black/40 hover:bg-black/60 backdrop-blur-sm transition-all"
+                  aria-label="View photo"
+                >
+                  <Maximize2 size={14} className="text-white" />
+                </button>
               )}
             </motion.div>
           );
