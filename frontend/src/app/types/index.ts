@@ -3256,6 +3256,7 @@ export interface OrgPhotoPage {
 }
 
 export interface SharedGalleryInfo {
+  gallery_title: string | null;
   organization_name: string;
   organization_logo_url: string | null;
   albums: SharedAlbumSummary[];

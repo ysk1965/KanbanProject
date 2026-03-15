@@ -3847,6 +3847,8 @@
     "noAlbumsToShare": "没有可分享的相册",
     "sharePreview": "预览",
     "shareGalleryDesc": "通过一个链接分享选定的相册",
+    "shareGalleryTitleLabel": "相册标题",
+    "shareGalleryTitlePlaceholder": "例如：家庭照片、2026旅行",
     "shareSelectAlbums": "包含的相册",
     "galleryUploadLink": "相册上传链接",
     "galleryUploadLinkDesc": "任何拥有此链接的人都可以上传照片和管理相册",

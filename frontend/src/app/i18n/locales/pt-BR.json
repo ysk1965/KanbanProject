@@ -3847,6 +3847,8 @@
     "noAlbumsToShare": "Nenhum álbum para compartilhar",
     "sharePreview": "Visualizar",
     "shareGalleryDesc": "Compartilhe álbuns selecionados com um único link",
+    "shareGalleryTitleLabel": "Título da galeria",
+    "shareGalleryTitlePlaceholder": "Ex: Fotos de família, Viagem 2026",
     "shareSelectAlbums": "Álbuns a incluir",
     "galleryUploadLink": "Link de upload da galeria",
     "galleryUploadLinkDesc": "Qualquer pessoa com este link pode enviar fotos e gerenciar álbuns",

@@ -288,19 +288,24 @@ export function SharedGalleryPage() {
       {/* Top bar */}
       <header className="border-b border-foreground/5 bg-bridge-obsidian">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
-          <Link
-            to="/"
-            className="flex items-center gap-2 text-slate-400 hover:text-foreground transition-colors"
-          >
-            <img
-              src="/BridgeSpotsIcon.png"
-              alt="BRIDGE"
-              className="h-6 w-6"
-            />
+          <div className="flex items-center gap-2">
+            {galleryInfo.organization_logo_url ? (
+              <img
+                src={resolveFileUrl(galleryInfo.organization_logo_url)}
+                alt={galleryInfo.organization_name}
+                className="h-7 w-7 rounded-lg object-cover"
+              />
+            ) : (
+              <img
+                src="/BridgeSpotsIcon.png"
+                alt="BRIDGE"
+                className="h-6 w-6"
+              />
+            )}
             <span className="text-sm font-bold text-foreground">
-              BRIDGE
+              {galleryInfo.organization_name}
             </span>
-          </Link>
+          </div>
           <div className="flex items-center gap-2 text-xs tracking-[0.3em] uppercase text-slate-500">
             <Camera size={12} />
             {t('photoGallery.shareReadOnly', 'READ ONLY')}
@@ -310,20 +315,8 @@ export function SharedGalleryPage() {
 
       {/* Gallery header */}
       <div className="max-w-6xl mx-auto px-6 py-4">
-        <div className="flex items-center gap-3 mb-2">
-          {galleryInfo.organization_logo_url && (
-            <img
-              src={resolveFileUrl(galleryInfo.organization_logo_url)}
-              alt={galleryInfo.organization_name}
-              className="w-8 h-8 rounded-lg object-cover"
-            />
-          )}
-          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-            {galleryInfo.organization_name}
-          </span>
-        </div>
         <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1">
-          {t('photoGallery.title', 'Photos')}
+          {galleryInfo.gallery_title || t('photoGallery.title', 'Photos')}
         </h1>
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
@@ -432,7 +425,7 @@ export function SharedGalleryPage() {
                   </div>
                 )}
                 {/* Downloaded badge */}
-                {downloadedIds.has(photo.id) && !selectMode && (
+                {downloadedIds.has(photo.id) && (
                   <div className="absolute top-1.5 right-1.5 z-10">
                     <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/90 text-white">
                       <Check size={10} strokeWidth={3} />

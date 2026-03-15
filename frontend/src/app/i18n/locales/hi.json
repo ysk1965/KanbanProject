@@ -3847,6 +3847,8 @@
     "noAlbumsToShare": "साझा करने के लिए कोई एल्बम नहीं",
     "sharePreview": "पूर्वावलोकन",
     "shareGalleryDesc": "एक लिंक से चयनित एल्बम साझा करें",
+    "shareGalleryTitleLabel": "गैलरी शीर्षक",
+    "shareGalleryTitlePlaceholder": "उदा: परिवार की तस्वीरें, 2026 यात्रा",
     "shareSelectAlbums": "शामिल करने के लिए एल्बम",
     "galleryUploadLink": "गैलरी अपलोड लिंक",
     "galleryUploadLinkDesc": "इस लिंक वाला कोई भी व्यक्ति फ़ोटो अपलोड कर सकता है और एल्बम प्रबंधित कर सकता है",

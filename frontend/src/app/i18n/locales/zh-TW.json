@@ -3723,6 +3723,8 @@
     "noAlbumsToShare": "沒有可分享的相簿",
     "sharePreview": "預覽",
     "shareGalleryDesc": "透過一個連結分享選定的相簿",
+    "shareGalleryTitleLabel": "相簿標題",
+    "shareGalleryTitlePlaceholder": "例如：家庭照片、2026旅行",
     "shareSelectAlbums": "包含的相簿",
     "galleryUploadLink": "相簿上傳連結",
     "galleryUploadLinkDesc": "任何擁有此連結的人都可以上傳照片和管理相簿",

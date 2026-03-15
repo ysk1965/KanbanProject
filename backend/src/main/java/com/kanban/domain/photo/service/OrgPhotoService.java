@@ -594,13 +594,23 @@ public class OrgPhotoService {
 
     @Transactional
     @CacheEvict(value = "sharedGallery", allEntries = true)
-    public String enableGalleryShare(String orgId, String userId) {
+    public String enableGalleryShare(String orgId, String userId, String title) {
         organizationService.checkAdminOrAbove(orgId, userId);
         Organization org = organizationRepository.findActiveById(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
-        org.enableGalleryShare();
+        org.enableGalleryShare(title);
         log.info("Gallery share enabled: orgId={}, userId={}", orgId, userId);
         return org.getPhotoShareToken();
+    }
+
+    @Transactional
+    @CacheEvict(value = "sharedGallery", allEntries = true)
+    public void updateGalleryShareTitle(String orgId, String userId, String title) {
+        organizationService.checkAdminOrAbove(orgId, userId);
+        Organization org = organizationRepository.findActiveById(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
+        org.updatePhotoShareTitle(title);
+        log.info("Gallery share title updated: orgId={}, userId={}", orgId, userId);
     }
 
     @Transactional
@@ -616,10 +626,9 @@ public class OrgPhotoService {
         log.info("Gallery share disabled: orgId={}, userId={}", orgId, userId);
     }
 
-    public String getGalleryShareToken(String orgId) {
-        Organization org = organizationRepository.findActiveById(orgId)
+    public Organization getGalleryShareOrg(String orgId) {
+        return organizationRepository.findActiveById(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
-        return org.getPhotoShareToken();
     }
 
     @Cacheable(value = "sharedGallery", key = "'gallery:' + #shareToken")
@@ -643,6 +652,7 @@ public class OrgPhotoService {
         int totalPhotos = sharedTabs.stream().mapToInt(OrgPhotoTab::getPhotoCount).sum();
 
         return OrgPhotoResponse.SharedGalleryInfo.builder()
+                .galleryTitle(org.getPhotoShareTitle())
                 .organizationName(org.getName())
                 .organizationLogoUrl(org.getLogoUrl())
                 .albums(albumSummaries)

@@ -4337,6 +4337,8 @@
     "noAlbumsToShare": "ไม่มีอัลบั้มให้แชร์",
     "sharePreview": "ดูตัวอย่าง",
     "shareGalleryDesc": "แชร์อัลบั้มที่เลือกผ่านลิงก์เดียว",
+    "shareGalleryTitleLabel": "ชื่อแกลเลอรี",
+    "shareGalleryTitlePlaceholder": "เช่น ภาพถ่ายครอบครัว, ทริป 2026",
     "shareSelectAlbums": "อัลบั้มที่รวม",
     "galleryUploadLink": "ลิงก์อัปโหลดแกลเลอรี",
     "galleryUploadLinkDesc": "ใครก็ตามที่มีลิงก์นี้สามารถอัปโหลดรูปภาพและจัดการอัลบั้มได้",

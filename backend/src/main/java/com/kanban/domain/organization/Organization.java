@@ -78,6 +78,9 @@ public class Organization {
     @Column(name = "photo_share_token", unique = true, length = 36)
     private String photoShareToken;
 
+    @Column(name = "photo_share_title", length = 100)
+    private String photoShareTitle;
+
     @Column(name = "photo_upload_token", unique = true, length = 36)
     private String photoUploadToken;
 
@@ -168,14 +171,20 @@ public class Organization {
         this.trialUsed = true;
     }
 
-    public void enableGalleryShare() {
+    public void enableGalleryShare(String title) {
         if (this.photoShareToken == null) {
             this.photoShareToken = UUID.randomUUID().toString();
         }
+        this.photoShareTitle = title;
     }
 
     public void disableGalleryShare() {
         this.photoShareToken = null;
+        this.photoShareTitle = null;
+    }
+
+    public void updatePhotoShareTitle(String title) {
+        this.photoShareTitle = title;
     }
 
     public boolean isGalleryShared() {

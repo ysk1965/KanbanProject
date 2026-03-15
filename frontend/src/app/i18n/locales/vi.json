@@ -4337,6 +4337,8 @@
     "noAlbumsToShare": "Không có album để chia sẻ",
     "sharePreview": "Xem trước",
     "shareGalleryDesc": "Chia sẻ các album đã chọn qua một liên kết",
+    "shareGalleryTitleLabel": "Tiêu đề thư viện",
+    "shareGalleryTitlePlaceholder": "Ví dụ: Ảnh gia đình, Chuyến đi 2026",
     "shareSelectAlbums": "Album bao gồm",
     "galleryUploadLink": "Liên kết tải lên thư viện",
     "galleryUploadLinkDesc": "Bất kỳ ai có liên kết này đều có thể tải ảnh lên và quản lý album",

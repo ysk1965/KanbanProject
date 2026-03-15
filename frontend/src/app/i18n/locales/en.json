@@ -4317,6 +4317,8 @@
     "noAlbumsToShare": "No albums to share",
     "sharePreview": "Preview",
     "shareGalleryDesc": "Share selected albums via a single link",
+    "shareGalleryTitleLabel": "Gallery Title",
+    "shareGalleryTitlePlaceholder": "e.g. Family Photos, Trip 2026",
     "shareSelectAlbums": "Albums to include",
     "galleryUploadLink": "Gallery Upload Link",
     "galleryUploadLinkDesc": "Anyone with this link can upload photos and manage albums",
