@@ -467,6 +467,30 @@ resource "aws_cloudfront_distribution" "attachments" {
     max_ttl     = 31536000  # 1 year
   }
 
+  # 조직 사진첩 - 30일 캐시 (UUID 기반 immutable 파일)
+  ordered_cache_behavior {
+    path_pattern           = "photos/*"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "S3-attachments"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+
+    forwarded_values {
+      query_string = false
+      headers      = ["Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"]
+      cookies {
+        forward = "none"
+      }
+    }
+
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.attachments_cors.id
+
+    min_ttl     = 86400     # 1 day minimum
+    default_ttl = 2592000   # 30 days
+    max_ttl     = 31536000  # 1 year
+  }
+
   restrictions {
     geo_restriction {
       restriction_type = "none"
