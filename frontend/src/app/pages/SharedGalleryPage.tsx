@@ -283,6 +283,8 @@ export function SharedGalleryPage() {
 
   return (
     <div className="min-h-screen bg-bridge-dark">
+      {/* Sticky header wrapper */}
+      <div className="sticky top-0 z-30 bg-bridge-dark">
       {/* Top bar */}
       <header className="border-b border-foreground/5 bg-bridge-obsidian">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
@@ -307,7 +309,7 @@ export function SharedGalleryPage() {
       </header>
 
       {/* Gallery header */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-6 py-4">
         <div className="flex items-center gap-3 mb-2">
           {galleryInfo.organization_logo_url && (
             <img
@@ -323,7 +325,7 @@ export function SharedGalleryPage() {
         <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1">
           {t('photoGallery.title', 'Photos')}
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between">
           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
             {galleryInfo.total_photo_count}{' '}
             {t('photoGallery.photosUnit', 'photos')}
@@ -331,14 +333,16 @@ export function SharedGalleryPage() {
           {photos.length > 0 && (
             <button
               onClick={() => setSelectMode((prev) => !prev)}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 selectMode
-                  ? 'text-bridge-accent bg-bridge-accent/15'
-                  : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
+                  ? 'bg-bridge-accent/15 text-bridge-accent border border-bridge-accent/30'
+                  : 'bg-foreground/5 text-slate-400 border border-foreground/10 hover:text-foreground hover:bg-foreground/10'
               }`}
-              title={t('photoGallery.selectMode', 'Select')}
             >
-              <CheckSquare size={16} />
+              <CheckSquare size={14} />
+              {selectMode
+                ? t('photoGallery.selectModeOff', 'Cancel')
+                : t('photoGallery.selectMode', 'Select')}
             </button>
           )}
         </div>
@@ -375,6 +379,7 @@ export function SharedGalleryPage() {
       )}
 
       <div className="border-t border-foreground/5" />
+      </div>{/* end sticky header wrapper */}
 
       {/* Photo grid */}
       <div className="max-w-6xl mx-auto px-6 py-6">
@@ -556,30 +561,28 @@ export function SharedGalleryPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-bridge-obsidian border border-foreground/[0.08] shadow-2xl"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3 py-2 rounded-2xl bg-bridge-obsidian border border-foreground/[0.08] shadow-2xl whitespace-nowrap"
           >
             <span className="text-xs font-bold text-foreground">
-              {t('photoGallery.selectedCount', '{{count}} selected', {
-                count: selectedIds.size,
-              })}
+              {selectedIds.size}
             </span>
-            <div className="w-px h-5 bg-foreground/10" />
             <button
               onClick={handleBatchDownload}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 transition-all"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 transition-all"
             >
-              <Download size={14} />
+              <Download size={13} />
               {t('photoGallery.download', 'Download')}
             </button>
-            <IconButton
+            <button
               onClick={() => {
                 setSelectedIds(new Set());
                 setSelectMode(false);
               }}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
               aria-label="선택 해제"
             >
-              <X />
-            </IconButton>
+              <X size={16} />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

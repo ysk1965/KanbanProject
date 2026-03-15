@@ -392,6 +392,8 @@ export async function downloadPhotosBatch(
   }
 
   // Fallback: individual downloads (native, desktop, share failed)
+  // Chrome throttles rapid anchor downloads — add delay between each
+  const needsDelay = !isNative() && !canWebShare();
   for (let i = 0; i < photos.length; i++) {
     if (signal?.aborted) {
       report(i, 'cancelled');
@@ -404,6 +406,10 @@ export async function downloadPhotosBatch(
     } catch {
       failedCount++;
       console.warn('[NativeDownload] Failed to download photo:', photos[i].id);
+    }
+    // Delay between downloads to prevent Chrome from blocking
+    if (needsDelay && i < photos.length - 1) {
+      await new Promise((r) => setTimeout(r, 800));
     }
   }
 
