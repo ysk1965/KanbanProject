@@ -1917,6 +1917,57 @@ export interface CustomEmojiListResponse {
   emojis: CustomEmojiDetail[];
 }
 
+// ========================================
+// Board Resource API
+// ========================================
+
+export interface BoardResourceListResponse {
+  resources: import("../types").BoardResource[];
+  total_count: number;
+}
+
+export const boardResourceAPI = {
+  getResources: async (boardId: string) => {
+    return apiClient.get<BoardResourceListResponse>(
+      `/boards/${boardId}/resources`,
+    );
+  },
+
+  createResource: async (
+    boardId: string,
+    data: { title: string; url: string; description?: string },
+  ) => {
+    return apiClient.post<import("../types").BoardResource>(
+      `/boards/${boardId}/resources`,
+      data,
+    );
+  },
+
+  updateResource: async (
+    boardId: string,
+    resourceId: string,
+    data: { title: string; url: string; description?: string },
+  ) => {
+    return apiClient.put<import("../types").BoardResource>(
+      `/boards/${boardId}/resources/${resourceId}`,
+      data,
+    );
+  },
+
+  deleteResource: async (boardId: string, resourceId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/resources/${resourceId}`,
+    );
+  },
+
+  reorderResources: async (boardId: string, resourceIds: string[]) => {
+    return apiClient.put<BoardResourceListResponse>(
+      `/boards/${boardId}/resources/reorder`,
+      { resource_ids: resourceIds },
+    );
+  },
+};
+
 export const customEmojiAPI = {
   getEmojis: async (boardId: string) => {
     return apiClient.get<CustomEmojiListResponse>(

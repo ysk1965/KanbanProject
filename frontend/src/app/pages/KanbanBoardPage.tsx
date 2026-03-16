@@ -190,6 +190,7 @@ import { KanbanBoardHeader } from "../components/KanbanBoardHeader";
 import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
 import { BoardModalManager } from "../components/BoardModalManager";
 import { BoardViewSwitcher } from "../components/BoardViewSwitcher";
+import { BoardResourceBar } from "../components/BoardResourceBar";
 import { BoardListView } from "../components/BoardListView";
 import JoinRequestBanner from "../components/JoinRequestBanner";
 
@@ -2679,6 +2680,11 @@ export function KanbanBoardPage() {
               )
             }
           />
+        )}
+
+        {/* 보드 리소스 바 */}
+        {boardId && (
+          <BoardResourceBar boardId={boardId} canEdit={canEdit} />
         )}
 
         {/* 보드 서브뷰 전환 바 */}

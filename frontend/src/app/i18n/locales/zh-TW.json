@@ -917,6 +917,26 @@
     "copied": "已複製",
     "copy": "複製"
   },
+  "boardResource": {
+    "title": "資源",
+    "addResource": "新增資源",
+    "editResource": "編輯資源",
+    "deleteResource": "刪除資源",
+    "deleteConfirm": "確定要刪除此資源嗎？",
+    "linkTitle": "標題",
+    "linkTitlePlaceholder": "例：API文件",
+    "linkUrl": "URL",
+    "linkUrlPlaceholder": "https://...",
+    "linkDescription": "描述（選填）",
+    "linkDescriptionPlaceholder": "簡要描述",
+    "limitReached": "每個面板最多{{max}}個資源",
+    "invalidUrl": "請輸入有效的URL",
+    "openLink": "開啟連結",
+    "collapse": "收合資源列",
+    "expand": "展開資源列",
+    "noResources": "尚無共享資源",
+    "addFirst": "新增第一個資源"
+  },
   "discordBot": {
     "title": "Discord Bot",
     "notInstalled": "Discord Bot 尚未連接",

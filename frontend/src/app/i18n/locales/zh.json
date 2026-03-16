@@ -932,6 +932,26 @@
     "copied": "已复制",
     "copy": "复制"
   },
+  "boardResource": {
+    "title": "资源",
+    "addResource": "添加资源",
+    "editResource": "编辑资源",
+    "deleteResource": "删除资源",
+    "deleteConfirm": "确定要删除此资源吗？",
+    "linkTitle": "标题",
+    "linkTitlePlaceholder": "例：API文档",
+    "linkUrl": "URL",
+    "linkUrlPlaceholder": "https://...",
+    "linkDescription": "描述（可选）",
+    "linkDescriptionPlaceholder": "简要描述",
+    "limitReached": "每个面板最多{{max}}个资源",
+    "invalidUrl": "请输入有效的URL",
+    "openLink": "打开链接",
+    "collapse": "收起资源栏",
+    "expand": "展开资源栏",
+    "noResources": "暂无共享资源",
+    "addFirst": "添加第一个资源"
+  },
   "discordBot": {
     "title": "Discord Bot",
     "notInstalled": "Discord Bot 未连接",

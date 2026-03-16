@@ -932,6 +932,26 @@
     "copied": "Da sao chep",
     "copy": "Sao chep"
   },
+  "boardResource": {
+    "title": "Tài nguyên",
+    "addResource": "Thêm tài nguyên",
+    "editResource": "Sửa tài nguyên",
+    "deleteResource": "Xóa tài nguyên",
+    "deleteConfirm": "Bạn có chắc muốn xóa tài nguyên này?",
+    "linkTitle": "Tiêu đề",
+    "linkTitlePlaceholder": "VD: Tài liệu API",
+    "linkUrl": "URL",
+    "linkUrlPlaceholder": "https://...",
+    "linkDescription": "Mô tả (tùy chọn)",
+    "linkDescriptionPlaceholder": "Mô tả ngắn",
+    "limitReached": "Tối đa {{max}} tài nguyên mỗi bảng",
+    "invalidUrl": "Vui lòng nhập URL hợp lệ",
+    "openLink": "Mở liên kết",
+    "collapse": "Thu gọn thanh tài nguyên",
+    "expand": "Mở rộng thanh tài nguyên",
+    "noResources": "Chưa có tài nguyên chia sẻ",
+    "addFirst": "Thêm tài nguyên đầu tiên"
+  },
   "discordBot": {
     "title": "Discord Bot",
     "notInstalled": "Discord Bot chua duoc ket noi",

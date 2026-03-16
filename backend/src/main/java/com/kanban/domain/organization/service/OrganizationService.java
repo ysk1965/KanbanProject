@@ -12,6 +12,7 @@ import com.kanban.domain.system.MonetizationService;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.service.FileUploadService;
 import java.util.List;
@@ -316,7 +317,12 @@ public class OrganizationService {
                 .name(request.getName())
                 .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
                 .build();
-        orgJobGroupRepository.save(jobGroup);
+        try {
+            orgJobGroupRepository.save(jobGroup);
+            orgJobGroupRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException(ErrorCode.ORG_JOB_GROUP_ALREADY_EXISTS);
+        }
         return OrgJobGroupResponse.Detail.of(jobGroup);
     }
 

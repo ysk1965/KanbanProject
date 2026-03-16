@@ -361,6 +361,10 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     OKR_CYCLE_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "OKR004", "활성 상태가 아닌 사이클입니다"),
     OKR_UNAUTHORIZED(HttpStatus.FORBIDDEN, "OKR005", "OKR 접근 권한이 없습니다"),
 
+    // Board Resource
+    BOARD_RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "BR001", "리소스를 찾을 수 없습니다"),
+    BOARD_RESOURCE_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "BR002", "보드당 최대 20개의 리소스만 등록할 수 있습니다"),
+
     // Photo Gallery
     PHOTO_TAB_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "사진 탭을 찾을 수 없습니다"),
     PHOTO_NOT_FOUND(HttpStatus.NOT_FOUND, "P002", "사진을 찾을 수 없습니다"),

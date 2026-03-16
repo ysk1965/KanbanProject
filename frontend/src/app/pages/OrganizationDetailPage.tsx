@@ -515,8 +515,27 @@ function OrgDetailPageContent() {
       </header>
 
       {/* Content — visited tabs stay mounted (hidden when inactive) */}
-      <div className="flex-1" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-        <div ref={slideAnimRef} className="max-w-6xl mx-auto px-4 py-4 md:px-6 md:py-6">
+      <div className="flex-1 flex flex-col overflow-hidden" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        {/* Documents tab — full width/height, no max-w constraint */}
+        {visitedTabs.has("documents") && (
+          <div className={`flex-1 overflow-hidden ${activeTab === "documents" ? "" : "hidden"}`}>
+            {activeTab === "documents" ? (
+              <motion.div
+                className="h-full"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <OrgDocumentsTab orgId={orgId} role={myRole} />
+              </motion.div>
+            ) : (
+              <OrgDocumentsTab orgId={orgId} role={myRole} />
+            )}
+          </div>
+        )}
+
+        {/* Other tabs — constrained width */}
+        <div ref={slideAnimRef} className={`max-w-6xl mx-auto px-4 py-4 md:px-6 md:py-6 w-full ${activeTab === "documents" ? "hidden" : ""}`}>
           {renderTab("dashboard",
             <OrgDashboardTab orgId={orgId} role={myRole} />
           )}
@@ -572,9 +591,6 @@ function OrgDetailPageContent() {
           )}
           {renderTab("okr",
             <OrgOkrTab orgId={orgId} myRole={myRole} />
-          )}
-          {renderTab("documents",
-            <OrgDocumentsTab orgId={orgId} role={myRole} />
           )}
           {renderTab("photos",
             <OrgPhotoGalleryTab orgId={orgId} myRole={myRole} />

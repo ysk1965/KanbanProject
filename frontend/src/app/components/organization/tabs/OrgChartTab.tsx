@@ -11,6 +11,7 @@ import {
   UserMinus,
   UserPlus,
   Building2,
+  Briefcase,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { organizationService } from "../../../utils/services";
@@ -30,6 +31,7 @@ import type {
 import { MemberDetailModal } from "../MemberDetailModal";
 
 type ViewMode = "tree" | "list";
+type GroupMode = "department" | "jobGroup";
 
 interface OrgChartTabProps {
   orgId: string;
@@ -62,6 +64,7 @@ export function OrgChartTab({
   const [chartData, setChartData] = useState<OrgChartData | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("tree");
+  const [groupMode, setGroupMode] = useState<GroupMode>("department");
   const [search, setSearch] = useState("");
   const [collapsedDepts, setCollapsedDepts] = useState<Set<string>>(new Set());
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -103,6 +106,68 @@ export function OrgChartTab({
     chartData.unassigned.forEach(collectMembers);
     return members;
   }, [chartData]);
+
+  // Regroup chart data by job group
+  const jobGroupChartData = useMemo((): OrgChartData | null => {
+    if (!chartData) return null;
+
+    // Flatten all members from all departments + unassigned
+    const allFlat: OrgChartMemberNode[] = [];
+    const collectAll = (node: OrgChartMemberNode) => {
+      allFlat.push({ ...node, reports: [] });
+      node.reports.forEach(collectAll);
+    };
+    const collectFromDept = (dept: OrgChartDepartmentNode) => {
+      dept.members.forEach(collectAll);
+      dept.children.forEach(collectFromDept);
+    };
+    chartData.departments.forEach(collectFromDept);
+    chartData.unassigned.forEach(collectAll);
+
+    // Group by job_group_id
+    const grouped = new Map<string, { name: string; members: OrgChartMemberNode[] }>();
+    const noGroup: OrgChartMemberNode[] = [];
+
+    for (const m of allFlat) {
+      if (m.job_group_id && m.job_group_name) {
+        const existing = grouped.get(m.job_group_id);
+        if (existing) {
+          existing.members.push(m);
+        } else {
+          grouped.set(m.job_group_id, { name: m.job_group_name, members: [m] });
+        }
+      } else {
+        noGroup.push(m);
+      }
+    }
+
+    // Convert to DepartmentNode structure (reuse the same shape)
+    const departments: OrgChartDepartmentNode[] = Array.from(grouped.entries()).map(
+      ([id, { name, members }]) => ({
+        id,
+        name,
+        description: null,
+        display_order: 0,
+        parent_department_id: null,
+        member_count: members.length,
+        total_member_count: members.length,
+        child_dept_count: 0,
+        leader: null,
+        children: [],
+        members,
+      })
+    );
+
+    return {
+      organization_name: chartData.organization_name,
+      total_members: chartData.total_members,
+      departments,
+      unassigned: noGroup,
+    };
+  }, [chartData]);
+
+  // Pick data based on groupMode
+  const activeChartData = groupMode === "jobGroup" ? jobGroupChartData : chartData;
 
   // Filter department tree by search
   const filterDeptNode = useCallback(
@@ -158,10 +223,10 @@ export function OrgChartTab({
   );
 
   const filteredData = useMemo(() => {
-    if (!chartData || !search.trim()) return chartData;
+    if (!activeChartData || !search.trim()) return activeChartData;
     const q = search.trim();
 
-    const filteredDepts = chartData.departments
+    const filteredDepts = activeChartData.departments
       .map((d) => filterDeptNode(d, q))
       .filter(Boolean) as OrgChartDepartmentNode[];
 
@@ -180,16 +245,16 @@ export function OrgChartTab({
       }
       return null;
     };
-    const filteredUnassigned = chartData.unassigned
+    const filteredUnassigned = activeChartData.unassigned
       .map(filterMember)
       .filter(Boolean) as OrgChartMemberNode[];
 
     return {
-      ...chartData,
+      ...activeChartData,
       departments: filteredDepts,
       unassigned: filteredUnassigned,
     };
-  }, [chartData, search, filterDeptNode]);
+  }, [activeChartData, search, filterDeptNode]);
 
   const toggleDept = (deptId: string) => {
     setCollapsedDepts((prev) => {
@@ -202,13 +267,13 @@ export function OrgChartTab({
 
   const expandAll = () => setCollapsedDepts(new Set());
   const collapseAll = () => {
-    if (!chartData) return;
+    if (!activeChartData) return;
     const ids = new Set<string>();
     const collect = (dept: OrgChartDepartmentNode) => {
       ids.add(dept.id);
       dept.children.forEach(collect);
     };
-    chartData.departments.forEach(collect);
+    activeChartData.departments.forEach(collect);
     setCollapsedDepts(ids);
   };
 
@@ -285,7 +350,34 @@ export function OrgChartTab({
             className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 pl-9 pr-4 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Group mode toggle */}
+          <div className="flex items-center bg-foreground/[0.03] rounded-xl border border-foreground/10 p-0.5">
+            <button
+              onClick={() => setGroupMode("department")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                groupMode === "department"
+                  ? "bg-bridge-accent text-white"
+                  : "text-slate-500 hover:text-foreground"
+              }`}
+            >
+              <Building2 size={14} />
+              {t("organization.chart.byDepartment", "부서별")}
+            </button>
+            <button
+              onClick={() => setGroupMode("jobGroup")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                groupMode === "jobGroup"
+                  ? "bg-bridge-accent text-white"
+                  : "text-slate-500 hover:text-foreground"
+              }`}
+            >
+              <Briefcase size={14} />
+              {t("organization.chart.byJobGroup", "직군별")}
+            </button>
+          </div>
+
+          {/* View mode toggle */}
           <div className="flex items-center bg-foreground/[0.03] rounded-xl border border-foreground/10 p-0.5">
             <button
               onClick={() => setViewMode("tree")}
@@ -330,14 +422,18 @@ export function OrgChartTab({
         <span className="flex items-center gap-1">
           <UsersIcon size={14} />
           {t("organization.chart.totalMembers", "{{count}} members", {
-            count: chartData?.total_members ?? 0,
+            count: activeChartData?.total_members ?? 0,
           })}
         </span>
         <span className="flex items-center gap-1">
-          <Building2 size={14} />
-          {t("organization.chart.totalDepts", "{{count}} departments", {
-            count: chartData?.departments.length ?? 0,
-          })}
+          {groupMode === "jobGroup" ? <Briefcase size={14} /> : <Building2 size={14} />}
+          {groupMode === "jobGroup"
+            ? t("organization.chart.totalJobGroups", "{{count}}개 직군", {
+                count: activeChartData?.departments.length ?? 0,
+              })
+            : t("organization.chart.totalDepts", "{{count}} departments", {
+                count: chartData?.departments.length ?? 0,
+              })}
         </span>
       </div>
 
@@ -348,6 +444,7 @@ export function OrgChartTab({
           collapsedDepts={collapsedDepts}
           onToggleDept={toggleDept}
           onMemberClick={setSelectedMemberId}
+          groupMode={groupMode}
         />
       ) : (
         <ListView
@@ -364,6 +461,7 @@ export function OrgChartTab({
           onUpdateManager={handleUpdateManager}
           updatingManager={updatingManager}
           hrSystemEnabled={hrSystemEnabled}
+          groupMode={groupMode}
         />
       )}
 
@@ -399,11 +497,13 @@ function DepartmentTreeView({
   collapsedDepts,
   onToggleDept,
   onMemberClick,
+  groupMode,
 }: {
   data: OrgChartData;
   collapsedDepts: Set<string>;
   onToggleDept: (id: string) => void;
   onMemberClick: (id: string) => void;
+  groupMode: GroupMode;
 }) {
   const { t } = useTranslation();
 
@@ -421,7 +521,9 @@ function DepartmentTreeView({
               {data.total_members}
               {t("organization.chart.members", "members")} ·{" "}
               {data.departments.length}
-              {t("organization.chart.depts", "depts")}
+              {groupMode === "jobGroup"
+                ? t("organization.chart.jobGroups", "직군")
+                : t("organization.chart.depts", "depts")}
             </span>
           </div>
         </div>
@@ -438,6 +540,7 @@ function DepartmentTreeView({
             collapsedDepts={collapsedDepts}
             onToggleDept={onToggleDept}
             onMemberClick={onMemberClick}
+            groupMode={groupMode}
           />
         )}
 
@@ -468,11 +571,13 @@ function DeptChildrenRow({
   collapsedDepts,
   onToggleDept,
   onMemberClick,
+  groupMode,
 }: {
   depts: OrgChartDepartmentNode[];
   collapsedDepts: Set<string>;
   onToggleDept: (id: string) => void;
   onMemberClick: (id: string) => void;
+  groupMode: GroupMode;
 }) {
   return (
     <div className="relative">
@@ -496,6 +601,7 @@ function DeptChildrenRow({
             collapsedDepts={collapsedDepts}
             onToggleDept={onToggleDept}
             onMemberClick={onMemberClick}
+            groupMode={groupMode}
           />
         ))}
       </div>
@@ -520,11 +626,13 @@ function DepartmentTreeNode({
   collapsedDepts,
   onToggleDept,
   onMemberClick,
+  groupMode,
 }: {
   dept: OrgChartDepartmentNode;
   collapsedDepts: Set<string>;
   onToggleDept: (id: string) => void;
   onMemberClick: (id: string) => void;
+  groupMode: GroupMode;
 }) {
   const isCollapsed = collapsedDepts.has(dept.id);
   const hasChildren = dept.children.length > 0;
@@ -573,7 +681,11 @@ function DepartmentTreeNode({
                 </div>
               ) : (
                 <div className="w-8 h-8 rounded-full bg-foreground/[0.03] flex items-center justify-center shrink-0">
-                  <Building2 size={14} className="text-slate-400" />
+                  {groupMode === "jobGroup" ? (
+                    <Briefcase size={14} className="text-slate-400" />
+                  ) : (
+                    <Building2 size={14} className="text-slate-400" />
+                  )}
                 </div>
               )}
               <div className="min-w-0">
@@ -666,6 +778,7 @@ function DepartmentTreeNode({
                 collapsedDepts={collapsedDepts}
                 onToggleDept={onToggleDept}
                 onMemberClick={onMemberClick}
+                groupMode={groupMode}
               />
             </div>
           </motion.div>
@@ -718,6 +831,7 @@ function ListView({
   onUpdateManager,
   updatingManager,
   hrSystemEnabled,
+  groupMode,
 }: {
   data: OrgChartData;
   collapsedDepts: Set<string>;
@@ -732,6 +846,7 @@ function ListView({
   onUpdateManager: (memberId: string, managerId: string | null) => void;
   updatingManager: boolean;
   hrSystemEnabled?: boolean;
+  groupMode: GroupMode;
 }) {
   const { t } = useTranslation();
   const flatDeptList = useMemo(
@@ -773,7 +888,11 @@ function ListView({
                 ) : (
                   <div className="w-4 shrink-0" />
                 )}
-                <Building2 size={16} className="text-bridge-accent shrink-0" />
+                {groupMode === "jobGroup" ? (
+                  <Briefcase size={16} className="text-bridge-accent shrink-0" />
+                ) : (
+                  <Building2 size={16} className="text-bridge-accent shrink-0" />
+                )}
                 <span className="text-sm font-bold text-foreground">
                   {dept.name}
                 </span>
