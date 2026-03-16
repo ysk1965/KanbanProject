@@ -190,7 +190,7 @@ import { KanbanBoardHeader } from "../components/KanbanBoardHeader";
 import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
 import { BoardModalManager } from "../components/BoardModalManager";
 import { BoardViewSwitcher } from "../components/BoardViewSwitcher";
-import { BoardResourceBar } from "../components/BoardResourceBar";
+// BoardResourceBar removed — integrated into KanbanFilterToolbar
 import { BoardListView } from "../components/BoardListView";
 import JoinRequestBanner from "../components/JoinRequestBanner";
 
@@ -2682,11 +2682,6 @@ export function KanbanBoardPage() {
           />
         )}
 
-        {/* 보드 리소스 바 */}
-        {boardId && (
-          <BoardResourceBar boardId={boardId} canEdit={canEdit} />
-        )}
-
         {/* 보드 서브뷰 전환 바 */}
         {BOARD_SUB_MODES.includes(viewMode) && (
           <BoardViewSwitcher
@@ -2881,9 +2876,8 @@ export function KanbanBoardPage() {
               tags={tags}
               boardMembersData={boardMembersData}
               tasks={tasks}
-              onExpandAll={() => {}}
-              onCollapseAll={() => {}}
-              hideExpandCollapse
+              boardId={boardId || ""}
+              canEdit={canEdit}
             />
             <WeeklyScheduleView
               boardId={boardId || ""}
@@ -3024,32 +3018,8 @@ export function KanbanBoardPage() {
                   tags={tags}
                   boardMembersData={boardMembersData}
                   tasks={tasks}
-                  onExpandAll={() => {
-                    const allTaskIds = tasks.map((t) => t.id);
-                    const allFeatureIds = features.map((f) => f.id);
-                    setExpandedChecklistTaskIds(new Set(allTaskIds));
-                    setExpandedFeatureIds(new Set(allFeatureIds));
-                    localStorage.setItem(
-                      `expandedChecklist_${boardId}`,
-                      JSON.stringify(allTaskIds),
-                    );
-                    localStorage.setItem(
-                      `expandedFeatures_${boardId}`,
-                      JSON.stringify(allFeatureIds),
-                    );
-                  }}
-                  onCollapseAll={() => {
-                    setExpandedChecklistTaskIds(new Set());
-                    setExpandedFeatureIds(new Set());
-                    localStorage.setItem(
-                      `expandedChecklist_${boardId}`,
-                      JSON.stringify([]),
-                    );
-                    localStorage.setItem(
-                      `expandedFeatures_${boardId}`,
-                      JSON.stringify([]),
-                    );
-                  }}
+                  boardId={boardId || ""}
+                  canEdit={canEdit}
                 />
                 {/* Feature 칩 선택 영역 */}
                 <FeatureChipSelector
@@ -3434,9 +3404,8 @@ export function KanbanBoardPage() {
               tags={tags}
               boardMembersData={boardMembersData}
               tasks={tasks}
-              onExpandAll={() => {}}
-              onCollapseAll={() => {}}
-              hideExpandCollapse
+              boardId={boardId || ""}
+              canEdit={canEdit}
             />
             <CalendarView
               boardId={boardId || ""}
@@ -3582,9 +3551,8 @@ export function KanbanBoardPage() {
               tags={tags}
               boardMembersData={boardMembersData}
               tasks={tasks}
-              onExpandAll={() => {}}
-              onCollapseAll={() => {}}
-              hideExpandCollapse
+              boardId={boardId || ""}
+              canEdit={canEdit}
             />
             <BoardListView
               boardId={boardId || ""}

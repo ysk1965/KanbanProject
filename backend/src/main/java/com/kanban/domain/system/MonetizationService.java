@@ -68,7 +68,7 @@ public class MonetizationService {
             sub.setPlan(OrgPlan.TEAM);
             sub.setStatus(SubscriptionStatus.ACTIVE);
             sub.setBoardLimit(Integer.MAX_VALUE);
-            if (sub.getMonthlyAiCredits() == 0) {
+            if (sub.getMonthlyAiCredits() == null || sub.getMonthlyAiCredits() == 0) {
                 sub.initializeCredits(OrgSubscription.ORG_MONTHLY_CREDITS);
             }
         }
