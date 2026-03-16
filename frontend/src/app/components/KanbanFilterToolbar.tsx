@@ -109,7 +109,11 @@ export const KanbanFilterToolbar = forwardRef<
     if (!canEdit) return;
     e.preventDefault();
     e.stopPropagation();
-    setContextMenu({ id: resource.id, x: e.clientX, y: e.clientY });
+    const menuWidth = 160;
+    const menuHeight = 80;
+    const x = e.clientX + menuWidth > window.innerWidth ? e.clientX - menuWidth : e.clientX;
+    const y = e.clientY + menuHeight > window.innerHeight ? e.clientY - menuHeight : e.clientY;
+    setContextMenu({ id: resource.id, x, y });
   };
 
   return (
