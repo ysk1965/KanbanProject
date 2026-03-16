@@ -85,17 +85,18 @@ module "rds" {
   backup_retention_period = 1               # Minimal backup for dev
 }
 
-# ElastiCache Module - Single node for dev (cache + WebSocket Pub/Sub)
-module "elasticache" {
-  source = "../../modules/elasticache"
-
-  project_name       = var.project_name
-  environment        = var.environment
-  private_subnet_ids = module.vpc.private_subnet_ids
-  security_group_id  = module.security_groups.redis_security_group_id
-  node_type          = "cache.t4g.micro"  # Minimal for dev
-  num_cache_clusters = 1                  # Single node, no Multi-AZ
-}
+# ElastiCache Module - DISABLED (using Simple Cache instead, ~$11.50/mo savings)
+# To re-enable: uncomment this block and set redis_host = module.elasticache.redis_endpoint in EB module
+# module "elasticache" {
+#   source = "../../modules/elasticache"
+#
+#   project_name       = var.project_name
+#   environment        = var.environment
+#   private_subnet_ids = module.vpc.private_subnet_ids
+#   security_group_id  = module.security_groups.redis_security_group_id
+#   node_type          = "cache.t4g.micro"
+#   num_cache_clusters = 1
+# }
 
 # Elastic Beanstalk Module - Public Subnet (no NAT needed)
 module "elastic_beanstalk" {
@@ -118,8 +119,8 @@ module "elastic_beanstalk" {
   database_url   = module.rds.jdbc_url
   db_username    = "kanban_admin"
   db_password    = var.db_password
-  redis_host     = module.elasticache.redis_endpoint
-  redis_port     = "6379"
+  redis_host     = ""
+  redis_port     = ""
   jwt_secret     = var.jwt_secret
   claude_api_key   = var.claude_api_key
   openai_api_key   = var.openai_api_key
@@ -159,7 +160,7 @@ module "elastic_beanstalk" {
   slack_redirect_uri         = var.slack_redirect_uri
   slack_user_redirect_uri    = var.slack_user_redirect_uri
 
-  depends_on = [module.rds, module.elasticache, module.acm_certificate_alb]
+  depends_on = [module.rds, module.acm_certificate_alb]
 }
 
 # ACM Certificate (ap-northeast-2 for ALB)

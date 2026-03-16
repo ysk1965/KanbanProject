@@ -71,10 +71,7 @@ spring.data.redis:
 
 # Cache
 spring.cache:
-  type: ${CACHE_TYPE:redis}
-  redis:
-    time-to-live: 600000  # 10분
-    cache-null-values: false
+  type: ${CACHE_TYPE:simple}
 
 # Actuator
 management:
@@ -277,14 +274,14 @@ spring:
 
 app:
   websocket:
-    broker-type: redis
+    broker-type: simple
   file:
     s3-enabled: true
     s3-bucket: ${S3_BUCKET:bridge-kanban-attachments}
     cloudfront-domain: ${CLOUDFRONT_DOMAIN:}
 
 ---
-# Prod Profile (PostgreSQL + Redis Pub/Sub)
+# Prod Profile (PostgreSQL + Simple Cache)
 spring:
   config:
     activate:
@@ -320,7 +317,7 @@ spring:
 
 app:
   websocket:
-    broker-type: redis
+    broker-type: simple
   file:
     s3-enabled: true
     s3-bucket: ${S3_BUCKET}

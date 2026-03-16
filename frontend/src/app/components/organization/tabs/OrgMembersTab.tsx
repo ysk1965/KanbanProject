@@ -297,24 +297,9 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-foreground font-medium text-sm truncate">{member.user.name}</span>
-                    {hrSystemEnabled && (
-                      <span className={`text-xs font-bold uppercase px-1.5 py-0.5 rounded-full ${CONTRACT_BADGE[member.contract_type]}`}>
-                        {t(CONTRACT_LABEL_KEYS[member.contract_type])}
-                      </span>
-                    )}
                     {structureSettings.job_groups_enabled && member.job_group?.name && (
                       <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-600 dark:text-violet-400">
                         {member.job_group.name}
-                      </span>
-                    )}
-                    {structureSettings.positions_enabled && member.position?.name && (
-                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-600 dark:text-sky-400">
-                        {member.position.name}
-                      </span>
-                    )}
-                    {structureSettings.grades_enabled && member.grade?.name && (
-                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-600 dark:text-slate-300">
-                        {member.grade.name}
                       </span>
                     )}
                   </div>
