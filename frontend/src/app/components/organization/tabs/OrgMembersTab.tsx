@@ -309,7 +309,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
                     {member.job_title && <span>{member.job_title}</span>}
                   </div>
                 </div>
-                {hrSystemEnabled && (
+                {hrSystemEnabled && member.work_status !== 'ACTIVE' && (
                   <span className={`text-xs font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_BADGE[member.work_status]}`}>
                     {t(STATUS_LABEL_KEYS[member.work_status])}
                   </span>
