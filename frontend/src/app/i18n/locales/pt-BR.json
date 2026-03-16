@@ -932,6 +932,26 @@
     "copied": "Copiado",
     "copy": "Copiar"
   },
+  "boardResource": {
+    "title": "Recursos",
+    "addResource": "Adicionar recurso",
+    "editResource": "Editar recurso",
+    "deleteResource": "Excluir recurso",
+    "deleteConfirm": "Tem certeza de que deseja excluir este recurso?",
+    "linkTitle": "Título",
+    "linkTitlePlaceholder": "Ex: Documentação API",
+    "linkUrl": "URL",
+    "linkUrlPlaceholder": "https://...",
+    "linkDescription": "Descrição (opcional)",
+    "linkDescriptionPlaceholder": "Descrição breve",
+    "limitReached": "Máximo de {{max}} recursos por quadro",
+    "invalidUrl": "Por favor, insira uma URL válida",
+    "openLink": "Abrir link",
+    "collapse": "Recolher barra de recursos",
+    "expand": "Expandir barra de recursos",
+    "noResources": "Nenhum recurso compartilhado",
+    "addFirst": "Adicione seu primeiro recurso"
+  },
   "discordBot": {
     "title": "Discord Bot",
     "notInstalled": "Discord Bot não está conectado",

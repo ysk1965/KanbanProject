@@ -932,6 +932,26 @@
     "copied": "コピーしました",
     "copy": "コピー"
   },
+  "boardResource": {
+    "title": "リソース",
+    "addResource": "リソース追加",
+    "editResource": "リソース編集",
+    "deleteResource": "リソース削除",
+    "deleteConfirm": "このリソースを削除しますか？",
+    "linkTitle": "タイトル",
+    "linkTitlePlaceholder": "例: APIドキュメント",
+    "linkUrl": "URL",
+    "linkUrlPlaceholder": "https://...",
+    "linkDescription": "説明（任意）",
+    "linkDescriptionPlaceholder": "簡単な説明",
+    "limitReached": "ボードあたり最大{{max}}個のリソースです",
+    "invalidUrl": "有効なURLを入力してください",
+    "openLink": "リンクを開く",
+    "collapse": "リソースバーを折りたたむ",
+    "expand": "リソースバーを展開する",
+    "noResources": "共有リソースはありません",
+    "addFirst": "最初のリソースを追加しましょう"
+  },
   "discordBot": {
     "title": "Discord Bot",
     "notInstalled": "Discord Bot が接続されていません",

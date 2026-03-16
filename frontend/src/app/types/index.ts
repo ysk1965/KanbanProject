@@ -512,6 +512,17 @@ export interface BoardCustomEmoji {
   content_type: string;
 }
 
+export interface BoardResource {
+  id: string;
+  title: string;
+  url: string;
+  description?: string | null;
+  favicon_url?: string | null;
+  display_order: number;
+  created_by_name?: string | null;
+  created_at: string;
+}
+
 export interface TaskComment {
   id: string;
   task_id: string;
@@ -2616,6 +2627,8 @@ export interface OrgChartMemberNode {
   contract_type: string | null;
   work_status: string | null;
   manager_id: string | null;
+  job_group_id: string | null;
+  job_group_name: string | null;
   reports: OrgChartMemberNode[];
 }
 

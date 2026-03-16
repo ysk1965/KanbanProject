@@ -932,6 +932,26 @@
     "copied": "कॉपी किया गया",
     "copy": "कॉपी करें"
   },
+  "boardResource": {
+    "title": "संसाधन",
+    "addResource": "संसाधन जोड़ें",
+    "editResource": "संसाधन संपादित करें",
+    "deleteResource": "संसाधन हटाएं",
+    "deleteConfirm": "क्या आप इस संसाधन को हटाना चाहते हैं?",
+    "linkTitle": "शीर्षक",
+    "linkTitlePlaceholder": "उदा: API दस्तावेज़",
+    "linkUrl": "URL",
+    "linkUrlPlaceholder": "https://...",
+    "linkDescription": "विवरण (वैकल्पिक)",
+    "linkDescriptionPlaceholder": "संक्षिप्त विवरण",
+    "limitReached": "प्रति बोर्ड अधिकतम {{max}} संसाधन",
+    "invalidUrl": "कृपया एक मान्य URL दर्ज करें",
+    "openLink": "लिंक खोलें",
+    "collapse": "संसाधन बार छोटा करें",
+    "expand": "संसाधन बार बड़ा करें",
+    "noResources": "कोई साझा संसाधन नहीं",
+    "addFirst": "अपना पहला संसाधन जोड़ें"
+  },
   "discordBot": {
     "title": "Discord Bot",
     "notInstalled": "Discord Bot कनेक्ट नहीं है",

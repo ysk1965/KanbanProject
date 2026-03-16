@@ -56,6 +56,8 @@ public class OrgChartResponse {
         private String contractType;
         private String workStatus;
         private String managerId;
+        private String jobGroupId;
+        private String jobGroupName;
         private List<MemberNode> reports;
     }
 }
