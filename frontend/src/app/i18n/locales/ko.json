@@ -1703,7 +1703,8 @@
   "featureChip": {
     "count": "{{count}}개",
     "hideFilter": "필터 숨기기",
-    "showFilter": "필터 보기"
+    "showFilter": "필터 보기",
+    "tooltipCompleted": "완료"
   },
   "dailyChecklistColumn": {
     "completedCount": "{{completed}}/{{total}} 완료",

@@ -1701,7 +1701,8 @@
   "featureChip": {
     "count": "{{count}}",
     "hideFilter": "Hide filter",
-    "showFilter": "Show filter"
+    "showFilter": "Show filter",
+    "tooltipCompleted": "completed"
   },
   "dailyChecklistColumn": {
     "completedCount": "{{completed}}/{{total}} done",

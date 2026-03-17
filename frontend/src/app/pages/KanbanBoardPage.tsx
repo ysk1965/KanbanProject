@@ -577,6 +577,9 @@ export function KanbanBoardPage() {
   const [quickAddBlockId, setQuickAddBlockId] = useState<string | null>(null);
   const [isQuickAddSubmitting, setIsQuickAddSubmitting] = useState(false);
 
+  // 캐스케이드 펄스: 체크리스트 → Feature 칩
+  const [cascadeFeatureId, setCascadeFeatureId] = useState<string | null>(null);
+
   // 체크리스트 펼침 상태
   const [expandedChecklistTaskIds, setExpandedChecklistTaskIds] = useState<
     Set<string>
@@ -999,6 +1002,13 @@ export function KanbanBoardPage() {
               : t,
           ),
         );
+        // 캐스케이드 펄스: Task의 Feature 칩에 시각적 연결 표시
+        const cascadeTask = tasks.find((t) => t.id === toggleTaskId);
+        if (cascadeTask?.feature_id) {
+          setCascadeFeatureId(cascadeTask.feature_id);
+          setTimeout(() => setCascadeFeatureId(null), 1000);
+        }
+
         setWsChecklistEvent(event);
         break;
       }
@@ -3039,6 +3049,7 @@ export function KanbanBoardPage() {
                   }
                   onFeatureInfoClick={handleFeatureClick}
                   onAddFeature={() => setIsAddFeatureModalOpen(true)}
+                  cascadeFeatureId={cascadeFeatureId}
                 />
 
                 {/* 칸반 보드 */}

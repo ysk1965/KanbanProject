@@ -2120,7 +2120,8 @@
   "featureChip": {
     "count": "{{count}}",
     "hideFilter": "隐藏筛选",
-    "showFilter": "显示筛选"
+    "showFilter": "显示筛选",
+    "tooltipCompleted": "已完成"
   },
   "dailyChecklistColumn": {
     "completedCount": "{{completed}}/{{total}} 已完成",

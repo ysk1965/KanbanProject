@@ -2120,7 +2120,8 @@
   "featureChip": {
     "count": "{{count}}",
     "hideFilter": "फ़िल्टर छिपाएं",
-    "showFilter": "फ़िल्टर दिखाएं"
+    "showFilter": "फ़िल्टर दिखाएं",
+    "tooltipCompleted": "पूर्ण"
   },
   "dailyChecklistColumn": {
     "completedCount": "{{completed}}/{{total}} पूर्ण",

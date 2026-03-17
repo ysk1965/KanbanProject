@@ -2120,7 +2120,8 @@
   "featureChip": {
     "count": "{{count}}",
     "hideFilter": "An bo loc",
-    "showFilter": "Hien bo loc"
+    "showFilter": "Hien bo loc",
+    "tooltipCompleted": "hoàn thành"
   },
   "dailyChecklistColumn": {
     "completedCount": "{{completed}}/{{total}} hoan thanh",
