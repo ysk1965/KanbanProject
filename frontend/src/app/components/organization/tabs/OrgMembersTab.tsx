@@ -4,6 +4,7 @@ import { Search, Plus, Users, X, ChevronLeft, ChevronRight, Mail, Link2, Copy, C
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { organizationService } from '../../../utils/services';
+import { getJobGroupBadgeClass } from '../../../utils/jobGroupColor';
 import { MotionModal } from '../../ui/MotionModal';
 import { MemberDetailModal } from '../MemberDetailModal';
 import type {
@@ -298,7 +299,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
                   <div className="flex items-center gap-2">
                     <span className="text-foreground font-medium text-sm truncate">{member.user.name}</span>
                     {structureSettings.job_groups_enabled && member.job_group?.name && (
-                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-600 dark:text-violet-400">
+                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${getJobGroupBadgeClass(member.job_group.name)}`}>
                         {member.job_group.name}
                       </span>
                     )}

@@ -60,6 +60,7 @@ export function DraggableCard({
   >([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [cascadePulse, setCascadePulse] = useState(false);
 
   // 부모 데이터가 들어오면 로컬 상태로 동기화
   useEffect(() => {
@@ -226,6 +227,10 @@ export function DraggableCard({
   const handleToggleItem = async (e: React.MouseEvent, itemId: string) => {
     e.stopPropagation();
     if (!boardId) return;
+
+    // 캐스케이드 펄스 트리거
+    setCascadePulse(true);
+    setTimeout(() => setCascadePulse(false), 600);
 
     // 낙관적 업데이트
     setLocalChecklistItems((prev) =>
@@ -464,7 +469,7 @@ export function DraggableCard({
               <div className="flex items-center gap-2">
                 <div className="w-12 h-1 bg-slate-600 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                    className={`h-full bg-indigo-500 rounded-full transition-all duration-300 ${cascadePulse ? 'cascade-pulse' : ''}`}
                     style={{
                       width: `${
                         hasLoaded

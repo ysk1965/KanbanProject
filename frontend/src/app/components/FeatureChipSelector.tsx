@@ -1,8 +1,10 @@
 import { Feature } from '../types';
-import { Check, Eye, EyeOff, Plus } from 'lucide-react';
+import { Check, Eye, EyeOff, Plus, ListTodo, Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useRef, useEffect, useState } from 'react';
 import { CompletionParticles } from './CompletionParticles';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
+import { formatDate } from '../utils/dateUtils';
 
 interface FeatureChipSelectorProps {
   features: Feature[];
@@ -12,6 +14,7 @@ interface FeatureChipSelectorProps {
   onSelectAll: () => void;
   onFeatureInfoClick: (feature: Feature) => void;
   onAddFeature: () => void;
+  cascadeFeatureId?: string | null;
 }
 
 function useCompletionPulse(progressPercent: number, totalTasks: number) {
@@ -41,13 +44,15 @@ function FeatureChip({
   isSelected,
   onFeatureInfoClick,
   onToggleFeature,
+  isCascading,
   t,
 }: {
   feature: Feature;
   isSelected: boolean;
   onFeatureInfoClick: (feature: Feature) => void;
   onToggleFeature: (featureId: string) => void;
-  t: (key: string) => string;
+  isCascading?: boolean;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   const featureColor = feature.color || '#8B5CF6';
   const isCompleted = feature.progress_percentage === 100 && feature.total_tasks > 0;
@@ -79,45 +84,67 @@ function FeatureChip({
       />
 
       {/* 메인 영역 (클릭 = 상세 보기) */}
-      <button
-        onClick={() => onFeatureInfoClick(feature)}
-        className="flex flex-col justify-center gap-1 md:gap-1.5 pl-2 md:pl-3 pr-1.5 md:pr-2 py-2 md:py-2.5 min-w-[80px] md:min-w-[100px]"
-      >
-        {/* 타이틀 */}
-        <div className="flex items-center gap-1.5">
-          <div
-            className="w-2 h-2 rounded-full flex-shrink-0 transition-colors duration-500"
-            style={{ backgroundColor: isCompleted ? '#22c55e' : featureColor }}
-          />
-          <span className={`font-bold text-[12px] max-w-[130px] truncate ${
-            isSelected ? 'text-foreground' : 'text-zinc-400'
-          }`}>
-            {feature.title}
-          </span>
-        </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={() => onFeatureInfoClick(feature)}
+            className="flex flex-col justify-center gap-1 md:gap-1.5 pl-2 md:pl-3 pr-1.5 md:pr-2 py-2 md:py-2.5 min-w-[80px] md:min-w-[100px]"
+          >
+            {/* 타이틀 */}
+            <div className="flex items-center gap-1.5">
+              <div
+                className="w-2 h-2 rounded-full flex-shrink-0 transition-colors duration-500"
+                style={{ backgroundColor: isCompleted ? '#22c55e' : featureColor }}
+              />
+              <span className={`font-bold text-[12px] max-w-[130px] truncate ${
+                isSelected ? 'text-foreground' : 'text-zinc-400'
+              }`}>
+                {feature.title}
+              </span>
+            </div>
 
-        {/* 진행률 바 + 텍스트 */}
-        <div className="flex items-center gap-2 pl-3.5">
-          <div className="relative w-14 h-1.5 bg-foreground/5 rounded-full overflow-visible">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${justCompleted ? 'progress-bar-inner' : ''}`}
-              style={{
-                width: `${progressPercent}%`,
-                backgroundColor: isSelected ? progressColor : `${progressColor}60`,
-              }}
-            />
-            <CompletionParticles active={justCompleted} count={8} variant="chip" />
-          </div>
-          <span className={`text-xs font-medium flex items-center gap-0.5 ${
-            isCompleted ? 'text-green-400' : isSelected ? 'text-foreground/80' : 'text-zinc-500'
-          } ${justCompleted ? 'progress-text-bounce' : ''}`}>
-            {feature.completed_tasks}/{feature.total_tasks}
-            {isCompleted && (
-              <Check size={10} className={`text-green-400 ${justCompleted ? 'progress-check-pop' : ''}`} strokeWidth={3} />
+            {/* 진행률 바 + 텍스트 */}
+            <div className="flex items-center gap-2 pl-3.5">
+              <div className="relative w-14 h-1.5 bg-foreground/5 rounded-full overflow-visible">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${justCompleted ? 'progress-bar-inner' : ''} ${isCascading ? 'cascade-pulse-feature' : ''}`}
+                  style={{
+                    width: `${progressPercent}%`,
+                    backgroundColor: isSelected ? progressColor : `${progressColor}60`,
+                  }}
+                />
+                <CompletionParticles active={justCompleted} count={8} variant="chip" />
+              </div>
+              <span className={`text-xs font-medium flex items-center gap-0.5 ${
+                isCompleted ? 'text-green-400' : isSelected ? 'text-foreground/80' : 'text-zinc-500'
+              } ${justCompleted ? 'progress-text-bounce' : ''}`}>
+                {feature.completed_tasks}/{feature.total_tasks}
+                {isCompleted && (
+                  <Check size={10} className={`text-green-400 ${justCompleted ? 'progress-check-pop' : ''}`} strokeWidth={3} />
+                )}
+              </span>
+            </div>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" sideOffset={8} className="bg-bridge-obsidian border border-foreground/10 text-foreground px-3 py-2.5 rounded-xl shadow-xl">
+          <div className="flex flex-col gap-1.5 text-xs">
+            <div className="flex items-center gap-1.5">
+              <ListTodo size={12} className="text-bridge-accent" />
+              <span className="font-medium">
+                Task {feature.completed_tasks}/{feature.total_tasks} {t('featureChip.tooltipCompleted', { defaultValue: '완료' })}
+              </span>
+            </div>
+            {(feature.start_date || feature.due_date) && (
+              <div className="flex items-center gap-1.5 text-slate-400">
+                <Calendar size={12} />
+                <span>
+                  {feature.start_date ? formatDate(feature.start_date) : '–'} ~ {feature.due_date ? formatDate(feature.due_date) : '–'}
+                </span>
+              </div>
             )}
-          </span>
-        </div>
-      </button>
+          </div>
+        </TooltipContent>
+      </Tooltip>
 
       {/* 필터 토글 버튼 */}
       <button
@@ -146,6 +173,7 @@ export function FeatureChipSelector({
   onSelectAll,
   onFeatureInfoClick,
   onAddFeature,
+  cascadeFeatureId,
 }: FeatureChipSelectorProps) {
   const { t } = useTranslation();
 
@@ -177,6 +205,7 @@ export function FeatureChipSelector({
             isSelected={isAllSelected || selectedFeatureIds.includes(feature.id)}
             onFeatureInfoClick={onFeatureInfoClick}
             onToggleFeature={onToggleFeature}
+            isCascading={feature.id === cascadeFeatureId}
             t={t}
           />
         ))}

@@ -1,4 +1,11 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo, Suspense } from "react";
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+  Suspense,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   Save,
@@ -75,6 +82,68 @@ function handleEditorCopy(e: React.ClipboardEvent) {
   if (cleaned !== plain) {
     e.clipboardData.setData("text/plain", cleaned);
   }
+}
+
+/**
+ * Flatten nested list HTML from external sources (e.g. meeting notes)
+ * so BlockNote doesn't create nested List blocks for each item.
+ */
+function flattenListHtml(html: string): string | null {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+
+  // Check if there are nested lists (li > ul/ol) that need flattening
+  const nestedLists = doc.querySelectorAll("li > ul, li > ol");
+  if (nestedLists.length === 0) return null;
+
+  // Recursively collect flat list items from a list element
+  function collectItems(listEl: Element): string[] {
+    const items: string[] = [];
+    for (const child of Array.from(listEl.children)) {
+      if (child.tagName === "LI") {
+        // Extract direct content (excluding nested ul/ol)
+        const directHtml = Array.from(child.childNodes)
+          .filter(
+            (n) => n.nodeType !== 1 || !(n as Element).matches?.("ul, ol"),
+          )
+          .map((n) =>
+            n.nodeType === 1 ? (n as Element).outerHTML : n.textContent,
+          )
+          .join("")
+          .trim();
+        if (directHtml) {
+          items.push(directHtml);
+        }
+        // Recurse into nested lists within this li
+        const nestedList = child.querySelector(":scope > ul, :scope > ol");
+        if (nestedList) {
+          items.push(...collectItems(nestedList));
+        }
+      }
+    }
+    return items;
+  }
+
+  const topLists = doc.body.querySelectorAll(":scope > ul, :scope > ol");
+  if (topLists.length === 0) return null;
+
+  let result = "";
+  doc.body.childNodes.forEach((node) => {
+    if (node.nodeType === 1) {
+      const el = node as Element;
+      if (el.matches("ul, ol")) {
+        const tag = el.tagName.toLowerCase();
+        const items = collectItems(el);
+        result += `<${tag}>${items.map((t) => `<li>${t}</li>`).join("")}</${tag}>`;
+      } else {
+        result += el.outerHTML;
+      }
+    } else if (node.textContent?.trim()) {
+      result += node.textContent;
+    }
+  });
+
+  return result || null;
 }
 
 const schema = BlockNoteSchema.create({
@@ -479,7 +548,7 @@ function CollabNoteEditor({
   );
 
   // @mention: lazy-fetch board/org members
-  const scopeId = boardId || orgId || '';
+  const scopeId = boardId || orgId || "";
   const membersCache = useRef<MemberResponse[] | null>(null);
   const getMentionItems = useCallback(
     async (query: string) => {
@@ -509,7 +578,7 @@ function CollabNoteEditor({
         icon: m.user.profile_image ? (
           <img
             src={m.user.profile_image}
-            alt={m.user.name || '프로필'}
+            alt={m.user.name || "프로필"}
             className="bn-mention-avatar"
           />
         ) : (
@@ -588,6 +657,31 @@ function CollabNoteEditor({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleSave]);
+
+  // Flatten nested list HTML on paste from external sources
+  const handleEditorPaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const html = e.clipboardData.getData("text/html");
+      if (!html) return;
+      const flattened = flattenListHtml(html);
+      if (!flattened) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      try {
+        const blocks = editor.tryParseHTMLToBlocks(flattened);
+        editor.insertBlocks(
+          blocks,
+          editor.getTextCursorPosition().block,
+          "after",
+        );
+      } catch {
+        // Fallback: let BlockNote handle it normally
+      }
+    },
+    [editor],
+  );
 
   // Block hover detection for comment button
   const handleEditorMouseMove = useCallback((e: React.MouseEvent) => {
@@ -793,9 +887,7 @@ function CollabNoteEditor({
                 {t("common.save", "저장")}
               </span>
               {hasChanges && (
-                <span className="text-xs opacity-70 hidden lg:inline">
-                  ⌘S
-                </span>
+                <span className="text-xs opacity-70 hidden lg:inline">⌘S</span>
               )}
             </button>
           )}
@@ -817,6 +909,7 @@ function CollabNoteEditor({
             setHoveredBlock(null);
           }}
           onCopy={handleEditorCopy}
+          onPaste={handleEditorPaste}
         >
           <BlockNoteView
             editor={editor}
@@ -874,7 +967,7 @@ function CollabNoteEditor({
               </div>
             ) : (
               <NoteAIInlineSection
-                boardId={boardId || ''}
+                boardId={boardId || ""}
                 noteId={note.id}
                 loading={aiLoading}
                 error={aiError}
@@ -1004,7 +1097,7 @@ function FallbackNoteEditor({
         icon: m.user.profile_image ? (
           <img
             src={m.user.profile_image}
-            alt={m.user.name || '프로필'}
+            alt={m.user.name || "프로필"}
             className="bn-mention-avatar"
           />
         ) : (
@@ -1067,6 +1160,31 @@ function FallbackNoteEditor({
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasChanges]);
+
+  // Flatten nested list HTML on paste from external sources
+  const handleEditorPaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const html = e.clipboardData.getData("text/html");
+      if (!html) return;
+      const flattened = flattenListHtml(html);
+      if (!flattened) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      try {
+        const blocks = editor.tryParseHTMLToBlocks(flattened);
+        editor.insertBlocks(
+          blocks,
+          editor.getTextCursorPosition().block,
+          "after",
+        );
+      } catch {
+        // Fallback: let BlockNote handle it normally
+      }
+    },
+    [editor],
+  );
 
   const getContentHTML = useCallback(async (): Promise<string> => {
     return await editor.blocksToHTMLLossy(editor.document);
@@ -1211,7 +1329,9 @@ function FallbackNoteEditor({
               if (updated) {
                 if (updated.content?.trim()) {
                   try {
-                    const blocks = await editor.tryParseHTMLToBlocks(updated.content);
+                    const blocks = await editor.tryParseHTMLToBlocks(
+                      updated.content,
+                    );
                     editor.replaceBlocks(editor.document, blocks);
                   } catch (err) {
                     console.error("Failed to restore content:", err);
@@ -1251,6 +1371,7 @@ function FallbackNoteEditor({
         <div
           className="min-h-[60vh] bg-bridge-obsidian rounded-2xl border border-foreground/5"
           onCopy={handleEditorCopy}
+          onPaste={handleEditorPaste}
         >
           <BlockNoteView
             editor={editor}

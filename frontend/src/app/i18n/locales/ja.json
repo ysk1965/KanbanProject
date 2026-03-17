@@ -2120,7 +2120,8 @@
   "featureChip": {
     "count": "{{count}}",
     "hideFilter": "フィルターを非表示",
-    "showFilter": "フィルターを表示"
+    "showFilter": "フィルターを表示",
+    "tooltipCompleted": "完了"
   },
   "dailyChecklistColumn": {
     "completedCount": "{{completed}}/{{total}} 完了",

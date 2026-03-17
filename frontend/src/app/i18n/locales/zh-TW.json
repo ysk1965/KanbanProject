@@ -2078,7 +2078,8 @@
   "featureChip": {
     "count": "{{count}}",
     "hideFilter": "隱藏篩選",
-    "showFilter": "顯示篩選"
+    "showFilter": "顯示篩選",
+    "tooltipCompleted": "已完成"
   },
   "dailyChecklistColumn": {
     "completedCount": "{{completed}}/{{total}} 已完成",

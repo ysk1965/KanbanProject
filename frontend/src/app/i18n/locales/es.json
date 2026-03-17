@@ -2120,7 +2120,8 @@
   "featureChip": {
     "count": "{{count}}",
     "hideFilter": "Ocultar filtro",
-    "showFilter": "Mostrar filtro"
+    "showFilter": "Mostrar filtro",
+    "tooltipCompleted": "completados"
   },
   "dailyChecklistColumn": {
     "completedCount": "{{completed}}/{{total}} hechos",
