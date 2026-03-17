@@ -2857,6 +2857,9 @@ export const noteCommentService = {
 import { orgNoteAPI, orgNoteCommentAPI } from "./api";
 
 export const orgNoteService = {
+  getBoardNotes: async (orgId: string) => {
+    return await orgNoteAPI.getBoardNotes(orgId);
+  },
   getTree: async (orgId: string) => {
     return await orgNoteAPI.getTree(orgId);
   },

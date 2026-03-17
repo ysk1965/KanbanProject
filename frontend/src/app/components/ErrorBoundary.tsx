@@ -53,10 +53,8 @@ class ErrorBoundary extends Component<Props, State> {
       this.setState({ eventId });
     }
 
-    // 콘솔에도 로깅 (개발 환경에서 디버깅용)
-    if (import.meta.env.DEV) {
-      console.error('Error caught by boundary:', error, errorInfo);
-    }
+    // 콘솔에 로깅 (프로덕션 포함)
+    console.error('Error caught by boundary:', error, errorInfo);
   }
 
   handleRefresh = (): void => {

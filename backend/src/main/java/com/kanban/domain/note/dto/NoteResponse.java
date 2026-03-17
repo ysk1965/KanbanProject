@@ -205,6 +205,27 @@ public class NoteResponse {
     @Getter
     @Builder
     @AllArgsConstructor
+    public static class BoardNoteSection {
+        private String boardId;
+        private String boardName;
+        private int noteCount;
+        private String userRole;
+        private List<TreeItem> tree;
+
+        public static BoardNoteSection of(String boardId, String boardName, int noteCount, String userRole, List<TreeItem> tree) {
+            return BoardNoteSection.builder()
+                    .boardId(boardId)
+                    .boardName(boardName)
+                    .noteCount(noteCount)
+                    .userRole(userRole)
+                    .tree(tree)
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
     public static class UserInfo {
         private String id;
         private String name;

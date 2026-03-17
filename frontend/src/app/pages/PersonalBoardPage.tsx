@@ -44,7 +44,7 @@ export function PersonalBoardPage() {
       try {
         setIsLoading(true);
         const data = await personalTaskAPI.getAll();
-        setTasks(data);
+        setTasks(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Failed to load personal tasks:', error);
       } finally {

@@ -2692,6 +2692,13 @@ export function KanbanBoardPage() {
           />
         )}
 
+        {/* 서브뷰 ↔ 마일스톤 구분선 */}
+        {BOARD_SUB_MODES.includes(viewMode) &&
+          viewMode !== "milestone" &&
+          milestones.length > 0 && (
+            <div className="border-b border-foreground/[0.08]" />
+          )}
+
         {/* 마일스톤 탭 바 (보드 서브뷰에서 표시, milestone 뷰 제외) */}
         {BOARD_SUB_MODES.includes(viewMode) &&
           viewMode !== "milestone" &&
