@@ -35,6 +35,13 @@ public class OrgNoteController {
         return ResponseEntity.ok(orgNoteService.getNoteList(orgId, principal.getUserId()));
     }
 
+    @GetMapping("/board-notes")
+    public ResponseEntity<List<NoteResponse.BoardNoteSection>> getBoardNotes(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(orgNoteService.getBoardNotes(orgId, principal.getUserId()));
+    }
+
     @GetMapping("/{noteId}")
     public ResponseEntity<NoteResponse.Detail> getNoteDetail(
             @PathVariable String orgId,

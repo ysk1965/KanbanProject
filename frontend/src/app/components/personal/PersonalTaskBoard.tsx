@@ -195,9 +195,9 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
         personalHabitAPI.getToday(fmt(now)),
         personalHabitAPI.getWeekly(fmt(monday), fmt(sunday)),
       ]);
-      setAllHabits(all.filter(h => h.is_active));
-      setTodayHabits(today);
-      setWeeklyMatrix(weekly);
+      setAllHabits(Array.isArray(all) ? all.filter(h => h.is_active) : []);
+      setTodayHabits(Array.isArray(today) ? today : []);
+      setWeeklyMatrix(weekly && weekly.habits ? weekly : null);
     } catch {
       console.error('Failed to load habits');
     } finally {
@@ -1167,7 +1167,7 @@ function QuadrantCell({
   );
 }
 
-// ── HabitMatrixCard ──────────────────────────────────────────
+// ── HabitMatrixCard (unused — kept for future) ───────────────
 
 function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
   habit: HabitTodayItem;
@@ -1176,7 +1176,9 @@ function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
-  const urgencyRatio = getHabitUrgencyRatio(habit);
+  const urgencyRatio = (habit.weekly_target > 0 && habit.weekly_completed < habit.weekly_target)
+    ? (habit.weekly_target - habit.weekly_completed) / Math.max(habit.weekly_target, 1)
+    : 0;
 
   return (
     <div

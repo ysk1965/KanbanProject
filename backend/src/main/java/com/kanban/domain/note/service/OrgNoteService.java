@@ -1,5 +1,9 @@
 package com.kanban.domain.note.service;
 
+import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardMember;
+import com.kanban.domain.board.BoardMemberRepository;
+import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.note.*;
 import com.kanban.domain.note.dto.NoteRequest;
 import com.kanban.domain.note.dto.NoteResponse;
@@ -31,6 +35,8 @@ public class OrgNoteService {
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final OrganizationService organizationService;
+    private final BoardRepository boardRepository;
+    private final BoardMemberRepository boardMemberRepository;
 
     // ===== Note CRUD =====
 
@@ -68,6 +74,67 @@ public class OrgNoteService {
                     String parentTitle = note.getParent() != null ? note.getParent().getTitle() : null;
                     return NoteResponse.ListItem.of(note, parentTitle, tagMap.getOrDefault(note.getId(), List.of()));
                 })
+                .toList();
+    }
+
+    public List<NoteResponse.BoardNoteSection> getBoardNotes(String orgId, String userId) {
+        organizationService.getOrgMemberOrThrow(orgId, userId);
+
+        List<Board> orgBoards = boardRepository.findByOrganizationId(orgId);
+        if (orgBoards.isEmpty()) return List.of();
+
+        // Filter to boards where user is a member
+        List<BoardMember> userMemberships = boardMemberRepository.findByUserIdWithActiveBoards(userId);
+        Map<String, String> userBoardRoles = userMemberships.stream()
+                .collect(Collectors.toMap(
+                        bm -> bm.getBoard().getId(),
+                        bm -> bm.getRole().name(),
+                        (a, b) -> a
+                ));
+
+        List<Board> accessibleBoards = orgBoards.stream()
+                .filter(b -> userBoardRoles.containsKey(b.getId()))
+                .sorted(Comparator.comparing(Board::getName))
+                .toList();
+
+        if (accessibleBoards.isEmpty()) return List.of();
+
+        List<String> boardIds = accessibleBoards.stream().map(Board::getId).toList();
+
+        // Batch load all notes for all accessible boards
+        List<Note> allNotes = noteRepository.findAllByBoardIdInNotDeleted(boardIds);
+        List<String> noteIds = allNotes.stream().map(Note::getId).toList();
+        Map<String, List<NoteResponse.TagInfo>> tagMap = getTagMapForNotes(noteIds);
+
+        // Group notes by board
+        Map<String, List<Note>> notesByBoard = allNotes.stream()
+                .collect(Collectors.groupingBy(n -> n.getBoard().getId()));
+
+        return accessibleBoards.stream()
+                .map(board -> {
+                    List<Note> boardNotes = notesByBoard.getOrDefault(board.getId(), List.of());
+
+                    Map<String, List<Note>> childrenMap = boardNotes.stream()
+                            .filter(n -> n.getParent() != null)
+                            .collect(Collectors.groupingBy(n -> n.getParent().getId()));
+
+                    List<NoteResponse.TreeItem> tree = boardNotes.stream()
+                            .filter(n -> n.getParent() == null)
+                            .sorted(Comparator.comparingInt(Note::getPosition))
+                            .map(root -> buildTreeItem(root, childrenMap, tagMap))
+                            .toList();
+
+                    String role = userBoardRoles.getOrDefault(board.getId(), "VIEWER");
+
+                    return NoteResponse.BoardNoteSection.of(
+                            board.getId(),
+                            board.getName(),
+                            boardNotes.size(),
+                            role,
+                            tree
+                    );
+                })
+                .filter(section -> section.getNoteCount() > 0)
                 .toList();
     }
 

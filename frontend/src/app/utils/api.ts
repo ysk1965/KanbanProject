@@ -5089,6 +5089,14 @@ export interface NoteTreeItem {
   children: NoteTreeItem[];
 }
 
+export interface BoardNoteSection {
+  board_id: string;
+  board_name: string;
+  note_count: number;
+  user_role: string;
+  tree: NoteTreeItem[];
+}
+
 export interface NoteDetail {
   id: string;
   parent_id: string | null;
@@ -5421,6 +5429,10 @@ export const publicNoteAPI = {
 // ========================================
 
 export const orgNoteAPI = {
+  getBoardNotes: async (orgId: string) => {
+    return apiClient.get<BoardNoteSection[]>(`/organizations/${orgId}/notes/board-notes`);
+  },
+
   getTree: async (orgId: string) => {
     return apiClient.get<NoteTreeItem[]>(`/organizations/${orgId}/notes`);
   },

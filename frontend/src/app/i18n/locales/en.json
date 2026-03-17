@@ -3037,7 +3037,8 @@
     "shareNotFound": "Document not found",
     "shareNotAvailable": "Document unavailable",
     "shareNotAvailableDesc": "This shared link has expired or the document has been deleted.",
-    "shareGoHome": "Go to Home"
+    "shareGoHome": "Go to Home",
+    "boardNotes": "Board Notes"
   },
   "ai_credits": {
     "title": "AI Credits",

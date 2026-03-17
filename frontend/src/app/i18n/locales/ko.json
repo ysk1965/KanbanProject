@@ -3038,7 +3038,8 @@
     "shareNotFound": "문서를 찾을 수 없습니다",
     "shareNotAvailable": "문서를 볼 수 없습니다",
     "shareNotAvailableDesc": "이 공유 링크는 만료되었거나 문서가 삭제되었습니다.",
-    "shareGoHome": "홈으로 이동"
+    "shareGoHome": "홈으로 이동",
+    "boardNotes": "보드 노트"
   },
   "ai_credits": {
     "title": "AI 크레딧",

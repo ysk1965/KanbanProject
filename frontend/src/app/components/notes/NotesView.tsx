@@ -10,7 +10,7 @@ import { useCollaboration } from '../../hooks/useCollaboration';
 import { getAssigneeHex } from '../../utils/assigneeColor';
 import { Sheet, SheetContent, SheetTitle } from '../ui/sheet';
 import { IconButton } from '../ui/IconButton';
-import type { NoteTreeItem, NoteDetail, NoteListItem, NoteTagInfo } from '../../utils/api';
+import type { NoteTreeItem, NoteDetail, NoteListItem, NoteTagInfo, BoardNoteSection } from '../../utils/api';
 
 interface NotesViewProps {
   boardId?: string;
@@ -30,6 +30,9 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
   const [viewType, setViewType] = useState<'tree' | 'list'>('tree');
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [boardNoteSections, setBoardNoteSections] = useState<BoardNoteSection[]>([]);
+  // Track which scope the selected note belongs to (org notes vs board notes)
+  const [selectedNoteScope, setSelectedNoteScope] = useState<{ type: 'org' | 'board'; id: string } | null>(null);
   const hasUnsavedChangesRef = useRef(false);
 
   // Determine scope
@@ -71,10 +74,22 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
     }
   }, [scopeId, svc]);
 
+  // Load board note sections for org mode
+  const loadBoardNotes = useCallback(async () => {
+    if (!orgId) return;
+    try {
+      const data = await orgNoteService.getBoardNotes(orgId);
+      setBoardNoteSections(data);
+    } catch (err) {
+      console.error('Failed to load board notes:', err);
+    }
+  }, [orgId]);
+
   useEffect(() => {
     loadTree();
     loadTags();
-  }, [loadTree, loadTags]);
+    loadBoardNotes();
+  }, [loadTree, loadTags, loadBoardNotes]);
 
   const handleDirtyChange = useCallback((isDirty: boolean) => {
     hasUnsavedChangesRef.current = isDirty;
@@ -90,6 +105,7 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
     }
 
     setSelectedNoteId(noteId);
+    setSelectedNoteScope(orgId ? { type: 'org', id: orgId } : { type: 'board', id: boardId || '' });
     setNoteLoading(true);
     setMobileSidebarOpen(false);
     try {
@@ -100,7 +116,31 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
     } finally {
       setNoteLoading(false);
     }
-  }, [scopeId, svc, selectedNoteId, t]);
+  }, [scopeId, svc, selectedNoteId, t, orgId, boardId]);
+
+  // Handle selecting a board note from within org view
+  const handleSelectBoardNote = useCallback(async (noteId: string, noteBoardId: string) => {
+    if (noteId === selectedNoteId) return;
+
+    if (hasUnsavedChangesRef.current) {
+      if (!window.confirm(t('notes.unsavedWarning', '저장하지 않은 변경사항이 있습니다. 저장하지 않고 이동하시겠습니까?'))) {
+        return;
+      }
+    }
+
+    setSelectedNoteId(noteId);
+    setSelectedNoteScope({ type: 'board', id: noteBoardId });
+    setNoteLoading(true);
+    setMobileSidebarOpen(false);
+    try {
+      const detail = await noteService.getDetail(noteBoardId, noteId);
+      setSelectedNote(detail);
+    } catch (err) {
+      console.error('Failed to load board note detail:', err);
+    } finally {
+      setNoteLoading(false);
+    }
+  }, [selectedNoteId, t]);
 
   const handleCreateFolder = useCallback(async (parentId?: string | null) => {
     if (!canEdit) return;
@@ -183,13 +223,19 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
     createVersion = true
   ) => {
     try {
-      const updated = await svc.update(scopeId, noteId, data, createVersion);
+      // Use the correct service based on which scope the note belongs to
+      const saveSvc = selectedNoteScope?.type === 'board' && selectedNoteScope.id !== orgId
+        ? noteService : svc;
+      const saveId = selectedNoteScope?.type === 'board' && selectedNoteScope.id !== orgId
+        ? selectedNoteScope.id : scopeId;
+      const updated = await saveSvc.update(saveId, noteId, data, createVersion);
       setSelectedNote(updated);
       await loadTree();
+      if (selectedNoteScope?.type === 'board') await loadBoardNotes();
     } catch (err) {
       console.error('Failed to save note:', err);
     }
-  }, [scopeId, svc, loadTree]);
+  }, [scopeId, svc, loadTree, loadBoardNotes, selectedNoteScope, orgId]);
 
   const handleMoveNote = useCallback(async (noteId: string, parentId: string | null, position: number) => {
     try {
@@ -288,6 +334,8 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
             onRename={handleRenameNote}
             onMove={handleMoveNote}
             canEdit={canEdit}
+            boardNoteSections={orgId ? boardNoteSections : undefined}
+            onSelectBoardNote={orgId ? handleSelectBoardNote : undefined}
           />
         ) : (
           <NoteListView
@@ -329,12 +377,14 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
               <span className="text-sm text-foreground font-medium truncate">{selectedNote.title}</span>
             </div>
             <NoteEditor
-              boardId={boardId}
-              orgId={orgId}
+              boardId={selectedNoteScope?.type === 'board' ? selectedNoteScope.id : boardId}
+              orgId={selectedNoteScope?.type === 'org' ? selectedNoteScope.id : (selectedNoteScope?.type === 'board' ? undefined : orgId)}
               note={selectedNote}
               tags={tags}
               loading={noteLoading}
-              canEdit={canEdit}
+              canEdit={selectedNoteScope?.type === 'board' && orgId
+                ? boardNoteSections.find(s => s.board_id === selectedNoteScope.id)?.user_role !== 'VIEWER'
+                : canEdit}
               onSave={handleSaveNote}
               onTagsChange={loadTags}
               onDirtyChange={handleDirtyChange}

@@ -44,6 +44,9 @@ public interface NoteRepository extends JpaRepository<Note, String> {
     @Query("DELETE FROM Note n WHERE n.board.id = :boardId")
     void deleteAllByBoardId(@Param("boardId") String boardId);
 
+    @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy WHERE n.board.id IN :boardIds AND n.isDeleted = false ORDER BY n.board.id ASC, n.position ASC")
+    List<Note> findAllByBoardIdInNotDeleted(@Param("boardIds") List<String> boardIds);
+
     // ===== Organization-scoped queries =====
 
     @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy WHERE n.organization.id = :orgId AND n.isDeleted = false ORDER BY n.position ASC")

@@ -1,6 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, MoreHorizontal, Pencil, Trash2, FolderPlus, FilePlus, GripVertical, PenTool } from 'lucide-react';
+import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, MoreHorizontal, Pencil, Trash2, FolderPlus, FilePlus, GripVertical, PenTool, LayoutDashboard } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '../ui/dropdown-menu';
 import {
   DndContext,
   DragOverlay,
@@ -14,7 +21,7 @@ import {
   type DragEndEvent,
   type DragOverEvent,
 } from '@dnd-kit/core';
-import type { NoteTreeItem } from '../../utils/api';
+import type { NoteTreeItem, BoardNoteSection } from '../../utils/api';
 
 interface NoteTreeSidebarProps {
   tree: NoteTreeItem[];
@@ -28,6 +35,8 @@ interface NoteTreeSidebarProps {
   onRename: (noteId: string, newTitle: string) => void;
   onMove: (noteId: string, parentId: string | null, position: number) => void;
   canEdit: boolean;
+  boardNoteSections?: BoardNoteSection[];
+  onSelectBoardNote?: (noteId: string, boardId: string) => void;
 }
 
 type DropZone = 'before' | 'inside' | 'after';
@@ -56,6 +65,8 @@ export function NoteTreeSidebar({
   onRename,
   onMove,
   canEdit,
+  boardNoteSections,
+  onSelectBoardNote,
 }: NoteTreeSidebarProps) {
   const [activeItem, setActiveItem] = useState<NoteTreeItem | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTargetInfo | null>(null);
@@ -217,7 +228,21 @@ export function NoteTreeSidebar({
     }
   };
 
-  if (filteredTree.length === 0) {
+  // Filter board note sections by search query
+  const filteredBoardSections = boardNoteSections?.map(section => {
+    if (!searchQuery) return section;
+    const q = searchQuery.toLowerCase();
+    const boardNameMatch = section.board_name.toLowerCase().includes(q);
+    const filteredSectionTree = filterTree(section.tree, q);
+    if (boardNameMatch || filteredSectionTree.length > 0) {
+      return { ...section, tree: filteredSectionTree.length > 0 ? filteredSectionTree : section.tree };
+    }
+    return null;
+  }).filter((s): s is BoardNoteSection => s !== null);
+
+  const hasBoardSections = filteredBoardSections && filteredBoardSections.length > 0;
+
+  if (filteredTree.length === 0 && !hasBoardSections) {
     return (
       <div className="text-center text-slate-500 text-xs py-8">
         {searchQuery ? '검색 결과가 없습니다' : '노트가 없습니다'}
@@ -267,6 +292,18 @@ export function NoteTreeSidebar({
           </div>
         )}
       </DragOverlay>
+
+      {/* Board Note Sections */}
+      {hasBoardSections && filteredBoardSections!.map(section => (
+        <BoardNoteGroup
+          key={section.board_id}
+          section={section}
+          selectedNoteId={selectedNoteId}
+          searchQuery={searchQuery}
+          onSelect={(noteId) => onSelectBoardNote?.(noteId, section.board_id)}
+          defaultExpanded={!!searchQuery}
+        />
+      ))}
     </DndContext>
   );
 }
@@ -486,61 +523,63 @@ function TreeItemComponent({
 
         {/* Context Menu */}
         {canEdit && !renaming && (
-          <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
-              className="p-0.5 hover:bg-foreground/10 rounded"
-            >
-              <MoreHorizontal size={16} />
-            </button>
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-full mt-1 z-50 bg-bridge-obsidian border border-foreground/10 rounded-lg shadow-xl py-1.5 min-w-[160px]">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setRenaming(true); setRenameValue(item.title); setMenuOpen(false); }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-                  >
-                    <Pencil size={14} /> {t('notes.rename', '이름 변경')}
-                  </button>
-                  {item.depth < MAX_DEPTH && (
-                    <>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onCreateDocument(item.id); setMenuOpen(false); }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-                      >
-                        <FilePlus size={14} /> {t('notes.newDocumentInFolder', '문서 추가')}
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onCreateBoard(item.id); setMenuOpen(false); }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-                      >
-                        <PenTool size={14} /> {t('notes.addBoard', '보드 추가')}
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onCreateFolder(item.id); setMenuOpen(false); }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-                      >
-                        <FolderPlus size={14} /> {t('notes.newSubfolder', '하위 폴더')}
-                      </button>
-                    </>
-                  )}
-                  <div className="border-t border-white/5 my-1" />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (window.confirm(t('notes.confirmDelete', '정말 삭제하시겠습니까?'))) {
-                        onDelete(item.id);
-                      }
-                      setMenuOpen(false);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300"
-                  >
-                    <Trash2 size={14} /> {t('common.delete', '삭제')}
-                  </button>
-                </div>
-              </>
-            )}
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  className="p-0.5 hover:bg-foreground/10 rounded"
+                >
+                  <MoreHorizontal size={16} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                sideOffset={4}
+                className="bg-bridge-obsidian border-foreground/10 rounded-lg shadow-xl min-w-[160px]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <DropdownMenuItem
+                  onClick={() => { setRenaming(true); setRenameValue(item.title); }}
+                  className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground cursor-pointer"
+                >
+                  <Pencil size={14} /> {t('notes.rename', '이름 변경')}
+                </DropdownMenuItem>
+                {item.depth < MAX_DEPTH && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => onCreateDocument(item.id)}
+                      className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground cursor-pointer"
+                    >
+                      <FilePlus size={14} /> {t('notes.newDocumentInFolder', '문서 추가')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => onCreateBoard(item.id)}
+                      className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground cursor-pointer"
+                    >
+                      <PenTool size={14} /> {t('notes.addBoard', '보드 추가')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => onCreateFolder(item.id)}
+                      className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground cursor-pointer"
+                    >
+                      <FolderPlus size={14} /> {t('notes.newSubfolder', '하위 폴더')}
+                    </DropdownMenuItem>
+                  </>
+                )}
+                <DropdownMenuSeparator className="border-foreground/[0.08]" />
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (window.confirm(t('notes.confirmDelete', '정말 삭제하시겠습니까?'))) {
+                      onDelete(item.id);
+                    }
+                  }}
+                  className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 cursor-pointer"
+                >
+                  <Trash2 size={14} /> {t('common.delete', '삭제')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
       </div>
@@ -571,6 +610,138 @@ function TreeItemComponent({
             activeId={activeId}
             dropTarget={dropTarget}
           />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===== Board Note Section (read-only, collapsible) =====
+
+function BoardNoteGroup({
+  section,
+  selectedNoteId,
+  searchQuery,
+  onSelect,
+  defaultExpanded,
+}: {
+  section: BoardNoteSection;
+  selectedNoteId: string | null;
+  searchQuery: string;
+  onSelect: (noteId: string) => void;
+  defaultExpanded: boolean;
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  // Auto-expand when search query matches
+  useEffect(() => {
+    if (searchQuery) setExpanded(true);
+  }, [searchQuery]);
+
+  return (
+    <div className="mt-3">
+      {/* Board section header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 w-full px-2 py-2 text-xs font-bold text-slate-400 hover:text-foreground transition-colors rounded-lg hover:bg-foreground/5"
+      >
+        <ChevronRight size={12} className={`transition-transform flex-shrink-0 ${expanded ? 'rotate-90' : ''}`} />
+        <LayoutDashboard size={14} className="flex-shrink-0 text-bridge-accent" />
+        <span className="truncate">{section.board_name}</span>
+        <span className="ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent flex-shrink-0">
+          {section.note_count}
+        </span>
+      </button>
+
+      {/* Board notes tree (read-only) */}
+      {expanded && (
+        <div className="ml-1">
+          {section.tree.map(item => (
+            <ReadOnlyTreeItem
+              key={item.id}
+              item={item}
+              depth={0}
+              selectedNoteId={selectedNoteId}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReadOnlyTreeItem({
+  item,
+  depth,
+  selectedNoteId,
+  onSelect,
+}: {
+  item: NoteTreeItem;
+  depth: number;
+  selectedNoteId: string | null;
+  onSelect: (noteId: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(true);
+
+  const isFolder = item.type === 'FOLDER';
+  const isSelected = selectedNoteId === item.id;
+  const hasChildren = item.children && item.children.length > 0;
+  const indentPx = depth * 20 + 28; // extra indent for board section
+
+  const handleClick = () => {
+    if (hasChildren || isFolder) setExpanded(!expanded);
+    onSelect(item.id);
+  };
+
+  return (
+    <div>
+      <div
+        className={`group flex items-center gap-2 px-2.5 py-1.5 rounded-lg cursor-pointer transition-all duration-150 text-[14px] ${
+          isSelected
+            ? 'bg-bridge-accent/15 text-foreground'
+            : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground'
+        }`}
+        style={{ paddingLeft: `${indentPx}px` }}
+        onClick={handleClick}
+      >
+        {/* Expand/Collapse */}
+        {(isFolder || hasChildren) ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+            className="flex-shrink-0 p-0.5 hover:bg-foreground/10 rounded"
+          >
+            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+        ) : (
+          <span className="w-5 flex-shrink-0" />
+        )}
+
+        {/* Icon */}
+        {isFolder ? (
+          expanded ? <FolderOpen size={16} className="flex-shrink-0 text-bridge-accent" /> : <Folder size={16} className="flex-shrink-0 text-bridge-accent" />
+        ) : item.type === 'BOARD' ? (
+          <PenTool size={16} className="flex-shrink-0 text-bridge-secondary" />
+        ) : (
+          <FileText size={16} className="flex-shrink-0 text-slate-400" />
+        )}
+
+        {/* Title */}
+        <span className="flex-1 min-w-0 truncate">{item.title}</span>
+      </div>
+
+      {/* Children */}
+      {expanded && hasChildren && (
+        <div>
+          {item.children.map(child => (
+            <ReadOnlyTreeItem
+              key={child.id}
+              item={child}
+              depth={depth + 1}
+              selectedNoteId={selectedNoteId}
+              onSelect={onSelect}
+            />
+          ))}
         </div>
       )}
     </div>
