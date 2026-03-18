@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useEscClose } from "../../hooks/useEscClose";
 import {
   Search,
   Plus,
@@ -78,6 +79,7 @@ function DeleteConfirmModal({
   onConfirm: () => void;
 }) {
   const { t } = useTranslation();
+  useEscClose(isOpen, onClose);
   if (!isOpen) return null;
 
   return (

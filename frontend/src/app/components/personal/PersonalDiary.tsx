@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback, forwardRef, useImperativeHandle, Fragment } from 'react';
+import { useEscClose } from '../../hooks/useEscClose';
 import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw, BookOpen, Pencil, RefreshCw, AlertTriangle, X, CalendarIcon, Mic, Volume2, Play, Pause, Square, ClipboardCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -67,6 +68,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  useEscClose(showMobileSidebar, () => setShowMobileSidebar(false));
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Credit state

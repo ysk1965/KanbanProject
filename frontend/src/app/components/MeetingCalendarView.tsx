@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useEscClose } from '../hooks/useEscClose';
 import { FEATURE_COLORS } from '../constants';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Calendar, CalendarDays, Repeat, Clock, MoreVertical, Pencil, Trash2, X, Loader2 } from 'lucide-react';
@@ -528,6 +529,7 @@ interface RecurringEditModalProps {
 
 function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringEditModalProps) {
   const { t } = useTranslation();
+  useEscClose(true, onClose);
   const [title, setTitle] = useState(meeting.title);
   const [startTime, setStartTime] = useState(meeting.start_time?.slice(0, 5) || '');
   const [endTime, setEndTime] = useState(meeting.end_time?.slice(0, 5) || '');

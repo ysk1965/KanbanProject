@@ -2,13 +2,14 @@ import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { TaskComment, CommentAttachment, CommentReaction, User, BoardCustomEmoji, BoardWebSocketEvent } from '../types';
-import { commentAPI, checklistAPI, fileAPI, customEmojiAPI, resolveFileUrl, CommentAISummaryResponse } from '../utils/api';
+import { commentAPI, checklistAPI, fileAPI, customEmojiAPI, resolveFileUrl, CommentAISummaryResponse, mentionGroupAPI, MentionGroupDetail } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
 import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
 import { formatDate } from '../utils/dateUtils';
 import { MotionModal } from './ui/MotionModal';
-import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, ChevronLeft, ChevronRight, SmilePlus, Plus, ImageIcon, Sparkles, CheckCircle2, HelpCircle, ListChecks } from 'lucide-react';
+import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, ChevronLeft, ChevronRight, SmilePlus, Plus, ImageIcon, Sparkles, CheckCircle2, HelpCircle, ListChecks, Users } from 'lucide-react';
 import { VideoThumbnail } from './VideoThumbnail';
+import { MentionGroupModal } from './MentionGroupModal';
 
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 const VideoLightbox = lazyWithRetry(() => import('./VideoLightbox').then(m => ({ default: m.VideoLightbox })), 'VideoLightbox');
@@ -109,11 +110,13 @@ function cleanMarkdownArtifacts(text: string): string {
     .replace(/`([^`]+)`/g, '$1');
 }
 
-function renderContent(content: string, boardMembers: BoardMember[]) {
+function renderContent(content: string, boardMembers: BoardMember[], mentionGroups: MentionGroupDetail[] = []) {
   const cleaned = cleanMarkdownArtifacts(content);
   const memberNames = boardMembers.map(m => m.name);
-  const mentionPattern = memberNames.length > 0
-    ? new RegExp(`(@(?:${memberNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))(?=\\s|$)`, 'g')
+  const groupNames = mentionGroups.map(g => g.name);
+  const allNames = [...memberNames, ...groupNames];
+  const mentionPattern = allNames.length > 0
+    ? new RegExp(`(@(?:${allNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))(?=\\s|$)`, 'g')
     : null;
   if (!mentionPattern) return renderTextWithLinks(cleaned, 'root');
   const parts = cleaned.split(mentionPattern);
@@ -124,6 +127,10 @@ function renderContent(content: string, boardMembers: BoardMember[]) {
       if (member) {
         const color = getAssigneeClasses(name, member.assigneeColor);
         return <span key={i} className={`${color.text} font-medium`}>{part}</span>;
+      }
+      const group = mentionGroups.find(g => g.name === name);
+      if (group) {
+        return <span key={i} className="text-bridge-secondary font-medium">{part}</span>;
       }
     }
     return <span key={i}>{renderTextWithLinks(part, `p${i}`)}</span>;
@@ -210,6 +217,10 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   const [mentionIndex, setMentionIndex] = useState(0);
   const mentionJustSelected = useRef(false);
 
+  // 멘션 그룹
+  const [mentionGroups, setMentionGroups] = useState<MentionGroupDetail[]>([]);
+  const [showMentionGroupModal, setShowMentionGroupModal] = useState(false);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -234,6 +245,12 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   }, [boardId, taskId]);
 
   useEffect(() => { loadComments(); }, [loadComments]);
+
+  // 멘션 그룹 로드
+  useEffect(() => {
+    if (!boardId) return;
+    mentionGroupAPI.getGroups(boardId).then(res => setMentionGroups(res.groups)).catch(() => {});
+  }, [boardId]);
 
   // WebSocket 실시간 댓글 직접 상태 업데이트 (REST 재호출 없음)
   useEffect(() => {
@@ -562,9 +579,51 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     });
   };
 
+  const insertGroupMention = (group: MentionGroupDetail, isEdit: boolean) => {
+    const ref = isEdit ? editTextareaRef.current : textareaRef.current;
+    const text = isEdit ? editContent : newComment;
+    const cursorPos = ref?.selectionStart ?? text.length;
+    const before = text.slice(0, cursorPos);
+    const after = text.slice(cursorPos);
+    const replaced = before.replace(/@\S*$/, `@${group.name} `);
+
+    const memberIds = group.members.map(m => m.user_id);
+    if (isEdit) {
+      setEditContent(replaced + after);
+      setEditMentions(prev => [...new Set([...prev, ...memberIds])]);
+    } else {
+      setNewComment(replaced + after);
+      setPendingMentions(prev => [...new Set([...prev, ...memberIds])]);
+    }
+
+    setShowInlineMention(false);
+    setMentionQuery('');
+    mentionJustSelected.current = true;
+
+    requestAnimationFrame(() => {
+      if (ref) {
+        const newPos = replaced.length;
+        ref.selectionStart = newPos;
+        ref.selectionEnd = newPos;
+        ref.focus();
+      }
+    });
+  };
+
+  type MentionItem = { type: 'member'; member: BoardMember } | { type: 'group'; group: MentionGroupDetail };
+
   const filteredMembers = boardMembers.filter(m =>
     m.name.toLowerCase().includes(mentionQuery.toLowerCase())
   );
+
+  const filteredGroups = mentionGroups.filter(g =>
+    g.name.toLowerCase().includes(mentionQuery.toLowerCase())
+  );
+
+  const filteredItems: MentionItem[] = [
+    ...filteredGroups.map(g => ({ type: 'group' as const, group: g })),
+    ...filteredMembers.map(m => ({ type: 'member' as const, member: m })),
+  ];
 
   // ========== CRUD ==========
 
@@ -666,10 +725,16 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   // ========== 키보드 ==========
 
   const handleMentionNav = (e: React.KeyboardEvent<HTMLTextAreaElement>, isEdit: boolean): boolean => {
-    if (!showInlineMention || filteredMembers.length === 0) return false;
-    if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(prev => (prev + 1) % filteredMembers.length); return true; }
-    if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(prev => (prev - 1 + filteredMembers.length) % filteredMembers.length); return true; }
-    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); insertMention(filteredMembers[mentionIndex], isEdit); return true; }
+    if (!showInlineMention || filteredItems.length === 0) return false;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(prev => (prev + 1) % filteredItems.length); return true; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(prev => (prev - 1 + filteredItems.length) % filteredItems.length); return true; }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      const item = filteredItems[mentionIndex];
+      if (item.type === 'group') insertGroupMention(item.group, isEdit);
+      else insertMention(item.member, isEdit);
+      return true;
+    }
     if (e.key === 'Escape') { e.preventDefault(); setShowInlineMention(false); return true; }
     return false;
   };
@@ -703,10 +768,37 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   // ========== 서브 컴포넌트 ==========
 
   const InlineMentionDropdown = ({ isEdit }: { isEdit: boolean }) => {
-    if (!showInlineMention || inlineMentionForEdit !== isEdit || filteredMembers.length === 0) return null;
+    if (!showInlineMention || inlineMentionForEdit !== isEdit || (filteredItems.length === 0 && !isAdminOrOwner)) return null;
+    const hasGroups = filteredGroups.length > 0;
+    const hasMembers = filteredMembers.length > 0;
+    let itemIdx = 0;
     return (
-      <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-bridge-border rounded-lg shadow-lg z-50 py-1 max-h-40 overflow-y-auto custom-scrollbar">
-        {filteredMembers.map((member, idx) => {
+      <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-bridge-border rounded-lg shadow-lg z-50 py-1 max-h-48 overflow-y-auto custom-scrollbar">
+        {/* 그룹 섹션 */}
+        {hasGroups && (
+          <>
+            {filteredGroups.map((group) => {
+              const idx = itemIdx++;
+              return (
+                <button key={`g-${group.id}`}
+                  onMouseDown={e => { e.preventDefault(); insertGroupMention(group, isEdit); }}
+                  onMouseEnter={() => setMentionIndex(idx)}
+                  className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`}
+                >
+                  <div className="w-5 h-5 rounded-full bg-bridge-secondary/20 flex items-center justify-center">
+                    <Users className="w-3 h-3 text-bridge-secondary" />
+                  </div>
+                  <span className={idx === mentionIndex ? 'text-foreground' : ''}>{group.name}</span>
+                  <span className="text-xs text-slate-500 ml-auto">{group.members.length}{t('mentionGroup.memberCountSuffix', '명')}</span>
+                </button>
+              );
+            })}
+            {hasMembers && <div className="border-t border-foreground/[0.08] my-1" />}
+          </>
+        )}
+        {/* 개별 멤버 섹션 */}
+        {filteredMembers.map((member) => {
+          const idx = itemIdx++;
           const color = getAssigneeClasses(member.name, member.assigneeColor);
           return (
             <button key={member.userId}
@@ -718,10 +810,23 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                 {getInitials(member.name)}
               </div>
               <span className={idx === mentionIndex ? 'text-foreground' : ''}>{member.name}</span>
-              {member.userId === currentUser?.id && <span className="text-xs text-slate-400">(나)</span>}
+              {member.userId === currentUser?.id && <span className="text-xs text-slate-400">({t('mentionGroup.me', '나')})</span>}
             </button>
           );
         })}
+        {/* 멘션 그룹 만들기 버튼 */}
+        {isAdminOrOwner && (
+          <>
+            <div className="border-t border-foreground/[0.08] my-1" />
+            <button
+              onMouseDown={e => { e.preventDefault(); setShowMentionGroupModal(true); setShowInlineMention(false); }}
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-bridge-accent hover:bg-foreground/5 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t('mentionGroup.create', '멘션 그룹 만들기')}</span>
+            </button>
+          </>
+        )}
       </div>
     );
   };
@@ -1276,7 +1381,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                       <>
                         {comment.content && comment.content.trim() && (
                           <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
-                            {renderContent(comment.content, boardMembers)}
+                            {renderContent(comment.content, boardMembers, mentionGroups)}
                           </p>
                         )}
                         <AttachmentGrid attachments={comment.attachments || []} />
@@ -1400,6 +1505,16 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
           <button onClick={() => deleteTarget && handleDelete(deleteTarget)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white">{t('common.delete')}</button>
         </div>
       </MotionModal>
+
+      {/* 멘션 그룹 관리 */}
+      <MentionGroupModal
+        open={showMentionGroupModal}
+        onClose={() => setShowMentionGroupModal(false)}
+        boardId={boardId}
+        boardMembers={boardMembers}
+        mentionGroups={mentionGroups}
+        onGroupsChange={setMentionGroups}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useEscClose } from '../hooks/useEscClose';
 import { X, Megaphone, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { systemService } from '../utils/services';
 import type { AnnouncementDetail } from '../utils/api';
@@ -83,6 +84,10 @@ export function AnnouncementDisplay() {
       localStorage.setItem(todayKey, JSON.stringify(dismissed));
     }
   };
+
+  useEscClose(!!popupAnnouncement, () => {
+    if (popupAnnouncement) dismissPopup(popupAnnouncement.id);
+  });
 
   const goToBanner = (index: number) => {
     setCurrentBannerIndex(index);

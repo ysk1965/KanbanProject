@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useEscClose } from '../../hooks/useEscClose';
 import {
   Activity,
   Database,
@@ -46,6 +47,7 @@ export function AdminMonitoringTab() {
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [showErrorDetail, setShowErrorDetail] = useState(false);
+  useEscClose(showErrorDetail, () => setShowErrorDetail(false));
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [emailRecipients, setEmailRecipients] = useState<string[]>([]);
   const [newEmail, setNewEmail] = useState('');

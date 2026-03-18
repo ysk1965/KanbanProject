@@ -230,8 +230,8 @@ function OrgDetailPageContent() {
         ),
       };
     }
-    // 외부 HR 시스템 사용 시 (내장 HR 미사용) 워크스페이스에서 인사이트/OKR 숨김
-    if (g.key === "workspace" && hrSystemEnabled && g.subTabs) {
+    // HR 시스템 미사용 시 워크스페이스에서 인사이트/OKR 숨김
+    if (g.key === "workspace" && !hrSystemEnabled && g.subTabs) {
       const filtered = g.subTabs.filter(
         (s) => s.key !== "insights" && s.key !== "okr",
       );

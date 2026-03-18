@@ -375,6 +375,28 @@ function CollabNoteEditor({
         headers: true,
         splitCells: true,
       },
+      pasteHandler: ({
+        event,
+        editor: e,
+        defaultPasteHandler,
+      }: {
+        event: ClipboardEvent;
+        editor: any;
+        defaultPasteHandler: () => boolean;
+      }) => {
+        const html = event.clipboardData?.getData("text/html");
+        if (
+          html &&
+          !event.clipboardData?.types.includes("blocknote/html")
+        ) {
+          const flattened = flattenListHtml(html);
+          if (flattened) {
+            e.pasteHTML(flattened);
+            return true;
+          }
+        }
+        return defaultPasteHandler();
+      },
     } as any,
     [collaboration.fragment],
   );
@@ -658,31 +680,6 @@ function CollabNoteEditor({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleSave]);
 
-  // Flatten nested list HTML on paste from external sources
-  const handleEditorPaste = useCallback(
-    (e: React.ClipboardEvent) => {
-      const html = e.clipboardData.getData("text/html");
-      if (!html) return;
-      const flattened = flattenListHtml(html);
-      if (!flattened) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      try {
-        const blocks = editor.tryParseHTMLToBlocks(flattened);
-        editor.insertBlocks(
-          blocks,
-          editor.getTextCursorPosition().block,
-          "after",
-        );
-      } catch {
-        // Fallback: let BlockNote handle it normally
-      }
-    },
-    [editor],
-  );
-
   // Block hover detection for comment button
   const handleEditorMouseMove = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -909,7 +906,6 @@ function CollabNoteEditor({
             setHoveredBlock(null);
           }}
           onCopy={handleEditorCopy}
-          onPaste={handleEditorPaste}
         >
           <BlockNoteView
             editor={editor}
@@ -1066,6 +1062,28 @@ function FallbackNoteEditor({
       headers: true,
       splitCells: true,
     },
+    pasteHandler: ({
+      event,
+      editor: e,
+      defaultPasteHandler,
+    }: {
+      event: ClipboardEvent;
+      editor: any;
+      defaultPasteHandler: () => boolean;
+    }) => {
+      const html = event.clipboardData?.getData("text/html");
+      if (
+        html &&
+        !event.clipboardData?.types.includes("blocknote/html")
+      ) {
+        const flattened = flattenListHtml(html);
+        if (flattened) {
+          e.pasteHTML(flattened);
+          return true;
+        }
+      }
+      return defaultPasteHandler();
+    },
   } as any);
 
   const slashMenuItems = useMemo(
@@ -1160,31 +1178,6 @@ function FallbackNoteEditor({
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasChanges]);
-
-  // Flatten nested list HTML on paste from external sources
-  const handleEditorPaste = useCallback(
-    (e: React.ClipboardEvent) => {
-      const html = e.clipboardData.getData("text/html");
-      if (!html) return;
-      const flattened = flattenListHtml(html);
-      if (!flattened) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      try {
-        const blocks = editor.tryParseHTMLToBlocks(flattened);
-        editor.insertBlocks(
-          blocks,
-          editor.getTextCursorPosition().block,
-          "after",
-        );
-      } catch {
-        // Fallback: let BlockNote handle it normally
-      }
-    },
-    [editor],
-  );
 
   const getContentHTML = useCallback(async (): Promise<string> => {
     return await editor.blocksToHTMLLossy(editor.document);
@@ -1371,7 +1364,6 @@ function FallbackNoteEditor({
         <div
           className="min-h-[60vh] bg-bridge-obsidian rounded-2xl border border-foreground/5"
           onCopy={handleEditorCopy}
-          onPaste={handleEditorPaste}
         >
           <BlockNoteView
             editor={editor}

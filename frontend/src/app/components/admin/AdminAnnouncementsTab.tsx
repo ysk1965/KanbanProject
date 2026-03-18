@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useEscClose } from '../../hooks/useEscClose';
 import {
   Plus,
   Edit3,
@@ -228,6 +229,7 @@ function AnnouncementFormModal({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  useEscClose(true, onClose);
   const [title, setTitle] = useState(announcement?.title || '');
   const [content, setContent] = useState(announcement?.content || '');
   const [type, setType] = useState<'POPUP' | 'BANNER' | 'NOTICE'>(announcement?.type || 'NOTICE');

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useEscClose } from '../../hooks/useEscClose';
 import { FEATURE_COLORS } from '../../constants';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search, Flame, ChevronDown, ChevronUp, Layers, LayoutDashboard, Users, ExternalLink } from 'lucide-react';
@@ -142,6 +143,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
 
   // Mobile sidebar
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  useEscClose(showMobileSidebar, () => setShowMobileSidebar(false));
 
   // Edit modal
   const [editEvent, setEditEvent] = useState<PersonalEvent | null>(null);

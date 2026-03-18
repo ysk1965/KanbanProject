@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { useEscClose } from "../../hooks/useEscClose";
 import { History, RotateCcw, X, Loader2, Eye } from "lucide-react";
 import DOMPurify from "dompurify";
 import { noteService, orgNoteService } from "../../utils/services";
@@ -27,6 +28,7 @@ export function NoteVersionHistory({
   const scopeId = boardId || orgId || '';
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+  useEscClose(isOpen, () => { setIsOpen(false); setSelectedVersion(null); });
   const [versions, setVersions] = useState<NoteVersionInfo[]>([]);
   const [selectedVersion, setSelectedVersion] =
     useState<NoteVersionDetail | null>(null);

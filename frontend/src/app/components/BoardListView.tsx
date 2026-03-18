@@ -565,6 +565,11 @@ export function BoardListView({
             {groups.map((group, groupIdx) => {
               const isCollapsed = collapsedGroups.has(group.key);
               const showHeader = groupBy !== "none";
+              const completedCount = group.tasks.filter((task) => {
+                const block = blockMap.get(task.block_id);
+                return isDoneBlock(block) || task.completed;
+              }).length;
+              const allCompleted = completedCount === group.tasks.length && group.tasks.length > 0;
 
               return (
                 <motion.div
@@ -623,9 +628,16 @@ export function BoardListView({
                           {group.label}
                         </span>
                       )}
-                      <span className="text-xs text-slate-500 ml-auto shrink-0">
-                        {t("listViewTaskCount", { count: group.tasks.length })}
-                      </span>
+                      <div className="flex items-center gap-1 ml-auto shrink-0">
+                        <CheckCircle2
+                          size={12}
+                          className={allCompleted ? "text-emerald-500" : "text-slate-400"}
+                          aria-hidden="true"
+                        />
+                        <span className={`text-xs font-medium ${allCompleted ? "text-emerald-500" : "text-slate-500"}`}>
+                          {completedCount}/{group.tasks.length}
+                        </span>
+                      </div>
                     </div>
                   )}
 

@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, CheckCircle2, Layers, ListChecks, X, Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useEscClose } from '../hooks/useEscClose';
 import { Feature, Task, ChecklistItem } from '../types';
 import { useHolidays } from '../hooks/useHolidays';
 
@@ -97,6 +98,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [modalDate, setModalDate] = useState<{ dateKey: string; date: Date } | null>(null);
+  useEscClose(!!modalDate, () => setModalDate(null));
 
   // Holidays
   const { holidayMap } = useHolidays(i18n.language, currentYear);

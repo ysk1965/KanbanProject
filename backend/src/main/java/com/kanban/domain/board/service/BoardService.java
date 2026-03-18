@@ -155,11 +155,13 @@ public class BoardService {
         Block featureBlock = Block.createFixedBlock(board, FixedBlockType.FEATURE, 0);
         Block taskBlock = Block.createFixedBlock(board, FixedBlockType.TASK, 1);
         Block inProgressBlock = Block.createCustomBlock(board, "In Progress", null, 2);
+        Block inReviewBlock = Block.createCustomBlock(board, "In Review", null, 3);
         Block doneBlock = Block.createFixedBlock(board, FixedBlockType.DONE, 999);
 
         blockRepository.save(featureBlock);
         blockRepository.save(taskBlock);
         blockRepository.save(inProgressBlock);
+        blockRepository.save(inReviewBlock);
         blockRepository.save(doneBlock);
     }
 
