@@ -24,21 +24,21 @@ function generateBrandedIndex(): Plugin {
 
       let html = fs.readFileSync(indexPath, 'utf-8')
 
-      // Title & meta tags → BRIDGE SPOTS
+      // Title & meta tags → BRIDGE SPOTS (수련회 커스텀)
       html = html
         .replace(/<title>Milkyway - Smart Project Management<\/title>/g,
-          '<title>BRIDGE SPOTS - The Intelligent PM Orchestration</title>')
+          '<title>2026 성락교회 대학부 겨울수련회 🩵HEART-SET🩵</title>')
         .replace(/content="Milkyway - Smart Project Management"/g,
-          'content="BRIDGE SPOTS - The Intelligent PM Orchestration"')
+          'content="2026 성락교회 대학부 겨울수련회 🩵HEART-SET🩵"')
         .replace(/content="팀 프로젝트를 효율적으로 관리하는 스마트 협업 플랫폼"/g,
-          'content="칸반 보드, 간트 차트, 데일리 스케줄링을 하나로. 팀 협업의 흐름을 정밀하게 조율하는 프로젝트 관리 플랫폼."')
+          'content="2026 성락교회 대학부 겨울수련회 🩵HEART-SET🩵"')
         .replace(/content="프로젝트 관리, 칸반, 간트차트, 팀 협업, PM 도구, Kanban, Gantt, 일정 관리, Milkyway"/g,
-          'content="프로젝트 관리, 칸반, 간트차트, 팀 협업, PM 도구, Kanban, Gantt, 일정 관리, BRIDGE SPOTS"')
-        .replace(/content="Milkyway"/g, 'content="BRIDGE SPOTS"')
+          'content="성락교회, 대학부, 겨울수련회, HEART-SET, 2026"')
+        .replace(/content="Milkyway"/g, 'content="성락교회 대학부"')
         .replace(/href="https:\/\/milkyway\.pe\.kr/g, 'href="https://bridgespots.com')
         .replace(/content="https:\/\/milkyway\.pe\.kr/g, 'content="https://bridgespots.com')
         // OG image
-        .replace(/og-image-milkyway\.png/g, 'og-image-bridgespots.png')
+        .replace(/og-image-milkyway\.png/g, 'og-image-bridgespots.jpeg')
         // Favicon
         .replace(/href="\/MilkyWay\.png"/g, 'href="/BridgeSpotsIcon.png"')
         // PWA manifest → BRIDGE SPOTS 버전
@@ -105,12 +105,23 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024, // 8 MiB
+        // Precache only the entry HTML and core CSS — lazy chunks load on demand
+        globPatterns: ['**/*.html', '**/*.css'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: null,
         skipWaiting: true,
         clientsClaim: true,
         runtimeCaching: [
+          {
+            // JS chunks — cache after first load, serve from cache next time
+            urlPattern: /\.js$/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'js-cache',
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
           {
             urlPattern: /^https:\/\/.*\/api\/v1\/.*/i,
             handler: 'NetworkFirst',

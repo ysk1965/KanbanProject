@@ -308,7 +308,7 @@ export function OkrCreateModal({
   const textareaClass =
     "w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-foreground placeholder-slate-500 outline-none resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all";
   const labelClass =
-    "text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block";
+    "text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block";
 
   return (
     <MotionModal open={open} onClose={onClose} accentColor>
@@ -622,7 +622,7 @@ export function OkrCreateModal({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-[10px] text-slate-500">
+        <span className="text-xs text-slate-500">
           Esc {t("okr.cancel", "Cancel")}
         </span>
         <div className="flex items-center gap-2">

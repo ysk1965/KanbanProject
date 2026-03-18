@@ -127,6 +127,7 @@ export function WeightLevelSettingsModal({
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-foreground transition-colors"
+            aria-label="닫기"
           >
             <X className="h-5 w-5" />
           </button>

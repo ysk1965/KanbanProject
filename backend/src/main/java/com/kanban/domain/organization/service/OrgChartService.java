@@ -217,6 +217,8 @@ public class OrgChartService {
                 .contractType(member.getContractType() != null ? member.getContractType().name() : null)
                 .workStatus(member.getWorkStatus() != null ? member.getWorkStatus().name() : null)
                 .managerId(member.getManager() != null ? member.getManager().getId() : null)
+                .jobGroupId(member.getJobGroup() != null ? member.getJobGroup().getId() : null)
+                .jobGroupName(member.getJobGroup() != null ? member.getJobGroup().getName() : null)
                 .reports(reports)
                 .build();
     }

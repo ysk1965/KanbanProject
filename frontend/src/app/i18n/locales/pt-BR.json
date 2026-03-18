@@ -932,6 +932,26 @@
     "copied": "Copiado",
     "copy": "Copiar"
   },
+  "boardResource": {
+    "title": "Recursos",
+    "addResource": "Adicionar recurso",
+    "editResource": "Editar recurso",
+    "deleteResource": "Excluir recurso",
+    "deleteConfirm": "Tem certeza de que deseja excluir este recurso?",
+    "linkTitle": "Título",
+    "linkTitlePlaceholder": "Ex: Documentação API",
+    "linkUrl": "URL",
+    "linkUrlPlaceholder": "https://...",
+    "linkDescription": "Descrição (opcional)",
+    "linkDescriptionPlaceholder": "Descrição breve",
+    "limitReached": "Máximo de {{max}} recursos por quadro",
+    "invalidUrl": "Por favor, insira uma URL válida",
+    "openLink": "Abrir link",
+    "collapse": "Recolher barra de recursos",
+    "expand": "Expandir barra de recursos",
+    "noResources": "Nenhum recurso compartilhado",
+    "addFirst": "Adicione seu primeiro recurso"
+  },
   "discordBot": {
     "title": "Discord Bot",
     "notInstalled": "Discord Bot não está conectado",
@@ -1304,7 +1324,7 @@
     "attachImage": "Anexar imagens (máx. 5)",
     "attachFile": "Anexar arquivos (máx. 5)",
     "imageHelp": "Imagens: cole, arraste ou use o botão de clipe",
-    "fileHelp": "Imagens e vídeos: colar, arrastar ou usar o botão de clipe",
+    "fileHelp": "Imagens, vídeos e documentos: colar, arrastar ou usar o botão de clipe",
     "viewerReadOnly": "Observadores não podem escrever comentários",
     "attachedImage": "Imagem anexada",
     "attachedFile": "Arquivo anexo",
@@ -1314,9 +1334,10 @@
     "addFile": "Adicionar arquivo",
     "failed": "Falhou",
     "maxFilesError": "Você pode anexar até 5 arquivos.",
-    "fileTypeError": "Formatos aceitos: jpg, png, gif, webp, mp4, webm, mov.",
+    "fileTypeError": "Formatos aceitos: imagens, vídeos, PDF, Word, Excel, PPT, TXT.",
     "fileSizeError": "O tamanho máximo de imagem é 30MB.",
     "videoFileSizeError": "O tamanho máximo de vídeo é 50MB.",
+    "docFileSizeError": "O tamanho máximo de documento é 30MB.",
     "uploadInProgress": "Os arquivos estão sendo enviados. Por favor, aguarde.",
     "uploadFailedRetry": "Alguns arquivos falharam no envio. Por favor, remova e tente novamente.",
     "reaction": {
@@ -1341,6 +1362,24 @@
     "aiOpenQuestions": "Perguntas Pendentes",
     "aiActionItems": "Itens de Ação",
     "checklist": "Checklist"
+  },
+  "mentionGroup": {
+    "create": "Criar grupo de menção",
+    "edit": "Editar grupo de menção",
+    "delete": "Excluir grupo de menção",
+    "deleteConfirm": "Tem certeza que deseja excluir este grupo de menção?",
+    "name": "Nome do grupo",
+    "namePlaceholder": "Ex: Time de design, Time de dev",
+    "selectMembers": "Selecionar membros",
+    "searchMember": "Buscar membros...",
+    "memberCountSuffix": "",
+    "me": "Eu",
+    "noGroups": "Nenhum grupo de menção",
+    "groups": "Grupos",
+    "manageTitle": "Gerenciar grupos de menção",
+    "createBtn": "Criar",
+    "saveBtn": "Salvar",
+    "close": "Fechar"
   },
   "activity": {
     "title": "Registro de Atividades",
@@ -1687,7 +1726,20 @@
         "trialUsed": "Teste utilizado",
         "noSubscription": "Sem assinatura",
         "monthly": "Mensal",
-        "yearly": "Anual"
+        "yearly": "Anual",
+        "aiCredits": "Créditos de IA",
+        "monthlyLimit": "Limite mensal",
+        "creditsUsed": "Usados",
+        "creditsRemaining": "Restantes",
+        "creditsResetDate": "Data de reinício",
+        "addBonusCredits": "Adicionar créditos bônus",
+        "resetUsedCredits": "Reiniciar",
+        "confirmResetCredits": "Reiniciar créditos usados para 0? Isso dará à organização uma recarga completa de créditos.",
+        "creditsUpdated": "Créditos de IA atualizados",
+        "creditsUpdateFailed": "Falha ao atualizar créditos de IA",
+        "creditsReset": "Créditos usados foram reiniciados",
+        "exhausted": "Esgotados",
+        "low": "Baixo"
       },
       "actions": {
         "edit": "Editar informações",
@@ -2086,7 +2138,8 @@
   "featureChip": {
     "count": "{{count}}",
     "hideFilter": "Ocultar filtro",
-    "showFilter": "Mostrar filtro"
+    "showFilter": "Mostrar filtro",
+    "tooltipCompleted": "concluídas"
   },
   "dailyChecklistColumn": {
     "completedCount": "{{completed}}/{{total}} concluídos",
@@ -2883,6 +2936,10 @@
       "buy_button": "Comprar créditos",
       "later_button": "Depois"
     },
+    "org_managed": {
+      "description": "Este quadro é gerenciado por uma organização.\nApenas o administrador da organização pode gerenciar créditos de IA.\nEntre em contato com o administrador da sua organização.",
+      "close": "OK"
+    },
     "admin": {
       "title": "Status de créditos de IA",
       "monthly_allocation": "Alocação mensal",
@@ -3027,7 +3084,8 @@
       "settings": "Configurações",
       "attendance": "Ponto",
       "okr": "OKR",
-      "photos": "Fotos"
+      "photos": "Fotos",
+      "documents": "Documentos"
     },
     "chart": {
       "searchPlaceholder": "Buscar membros...",
@@ -3506,10 +3564,21 @@
       "deleteOrg": "Excluir Organização",
       "deleteWarning": "A exclusão não pode ser desfeita. Todos os boards serão desvinculados.",
       "typeOrgName": "Digite o nome da organização para confirmar",
+      "hrSystem": "Sistema RH",
+      "hrSystemDesc": "Ative se sua organização gerencia férias por um sistema de RH separado.",
+      "hrSystemEnabled": "Usar sistema RH",
+      "hrSystemHint": "Quando ativado, os recursos de gestão de férias do BRIDGE serão ocultados.",
       "autoBoardAccess": "Acesso automático ao quadro",
       "autoBoardAccessDesc": "Quando ativado, membros da organização podem acessar todos os quadros com permissões de edição sem solicitar participação.",
       "autoBoardAccessEnabled": "Ativar acesso automático ao quadro",
-      "autoBoardAccessHint": "Membros da organização receberão automaticamente acesso com papel MEMBER. Não serão adicionados à lista de membros do quadro."
+      "autoBoardAccessHint": "Membros da organização receberão automaticamente acesso com papel MEMBER. Não serão adicionados à lista de membros do quadro.",
+      "subtabs": {
+        "general": "Geral",
+        "billing": "Faturamento",
+        "structure": "Estrutura",
+        "attendance": "Política de presença",
+        "onboarding": "Integração"
+      }
     },
     "invite": {
       "invalidLink": "Este link de convite é inválido ou expirou.",
@@ -3847,6 +3916,8 @@
     "noAlbumsToShare": "Nenhum álbum para compartilhar",
     "sharePreview": "Visualizar",
     "shareGalleryDesc": "Compartilhe álbuns selecionados com um único link",
+    "shareGalleryTitleLabel": "Título da galeria",
+    "shareGalleryTitlePlaceholder": "Ex: Fotos de família, Viagem 2026",
     "shareSelectAlbums": "Álbuns a incluir",
     "galleryUploadLink": "Link de upload da galeria",
     "galleryUploadLinkDesc": "Qualquer pessoa com este link pode enviar fotos e gerenciar álbuns",

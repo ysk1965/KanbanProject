@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 미디어(이미지+영상) 매직바이트 검증 + 이미지 썸네일 생성 유틸
+ * 미디어(이미지+영상+문서) 매직바이트 검증 + 이미지 썸네일 생성 유틸
  */
 public class MediaUtils {
 
@@ -29,20 +29,43 @@ public class MediaUtils {
             "image/jpeg", "image/png", "image/gif", "image/webp"
     );
 
+    private static final Set<String> DOCUMENT_TYPES = Set.of(
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-powerpoint",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "text/plain",
+            "text/markdown"
+    );
+
+    // PDF: %PDF
+    private static final byte[] PDF_MAGIC = new byte[]{0x25, 0x50, 0x44, 0x46};
+    // OOXML (docx, xlsx, pptx): ZIP header
+    private static final byte[] ZIP_MAGIC = new byte[]{0x50, 0x4B, 0x03, 0x04};
+    // OLE2 (doc, xls, ppt): Compound Document
+    private static final byte[] OLE2_MAGIC = new byte[]{(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0};
+
     private MediaUtils() {}
 
     /**
-     * 파일의 매직바이트를 검사하여 실제 미디어 파일인지 확인 (이미지 + 영상)
+     * 파일의 매직바이트를 검사하여 실제 파일인지 확인 (이미지 + 영상 + 문서)
      */
     public static boolean isValidMediaMagicBytes(byte[] fileBytes, String declaredContentType) {
-        if (fileBytes == null || fileBytes.length < 12) return false;
+        if (fileBytes == null || fileBytes.length < 4) return false;
 
         if (isImageType(declaredContentType)) {
-            return isValidImageMagicBytes(fileBytes, declaredContentType);
+            return fileBytes.length >= 12 && isValidImageMagicBytes(fileBytes, declaredContentType);
         }
 
         if (isVideoType(declaredContentType)) {
-            return isValidVideoMagicBytes(fileBytes, declaredContentType);
+            return fileBytes.length >= 12 && isValidVideoMagicBytes(fileBytes, declaredContentType);
+        }
+
+        if (isDocumentType(declaredContentType)) {
+            return isValidDocumentMagicBytes(fileBytes, declaredContentType);
         }
 
         return false;
@@ -106,7 +129,52 @@ public class MediaUtils {
     }
 
     /**
-     * 이미지 썸네일 생성 (최대 400x400, JPEG 80%)
+     * 문서 타입 여부
+     */
+    public static boolean isDocumentType(String contentType) {
+        return contentType != null && DOCUMENT_TYPES.contains(contentType);
+    }
+
+    /**
+     * 문서 매직바이트 검증
+     */
+    public static boolean isValidDocumentMagicBytes(byte[] fileBytes, String declaredContentType) {
+        if (fileBytes == null || fileBytes.length < 4) return false;
+
+        // 텍스트 계열은 매직바이트 검증 스킵
+        if ("text/plain".equals(declaredContentType) || "text/markdown".equals(declaredContentType)) {
+            return true;
+        }
+
+        // PDF
+        if ("application/pdf".equals(declaredContentType)) {
+            return startsWith(fileBytes, PDF_MAGIC);
+        }
+
+        // OOXML (docx, xlsx, pptx) — ZIP 기반
+        if (declaredContentType.startsWith("application/vnd.openxmlformats-officedocument.")) {
+            return startsWith(fileBytes, ZIP_MAGIC);
+        }
+
+        // OLE2 (doc, xls, ppt)
+        if ("application/msword".equals(declaredContentType)
+                || "application/vnd.ms-excel".equals(declaredContentType)
+                || "application/vnd.ms-powerpoint".equals(declaredContentType)) {
+            return startsWith(fileBytes, OLE2_MAGIC);
+        }
+
+        return false;
+    }
+
+    private static boolean startsWith(byte[] data, byte[] prefix) {
+        for (int i = 0; i < prefix.length; i++) {
+            if (data[i] != prefix[i]) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 이미지 썸네일 생성 (JPEG 70%)
      */
     public static byte[] generateThumbnail(byte[] originalBytes, int maxWidth, int maxHeight) throws IOException {
         try (InputStream is = new ByteArrayInputStream(originalBytes);

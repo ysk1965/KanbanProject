@@ -932,6 +932,26 @@
     "copied": "คัดลอกแล้ว",
     "copy": "คัดลอก"
   },
+  "boardResource": {
+    "title": "ทรัพยากร",
+    "addResource": "เพิ่มทรัพยากร",
+    "editResource": "แก้ไขทรัพยากร",
+    "deleteResource": "ลบทรัพยากร",
+    "deleteConfirm": "คุณแน่ใจหรือไม่ว่าต้องการลบทรัพยากรนี้?",
+    "linkTitle": "ชื่อ",
+    "linkTitlePlaceholder": "เช่น: เอกสาร API",
+    "linkUrl": "URL",
+    "linkUrlPlaceholder": "https://...",
+    "linkDescription": "คำอธิบาย (ไม่บังคับ)",
+    "linkDescriptionPlaceholder": "คำอธิบายสั้นๆ",
+    "limitReached": "สูงสุด {{max}} ทรัพยากรต่อบอร์ด",
+    "invalidUrl": "กรุณาใส่ URL ที่ถูกต้อง",
+    "openLink": "เปิดลิงก์",
+    "collapse": "ย่อแถบทรัพยากร",
+    "expand": "ขยายแถบทรัพยากร",
+    "noResources": "ยังไม่มีทรัพยากรที่แชร์",
+    "addFirst": "เพิ่มทรัพยากรแรกของคุณ"
+  },
   "discordBot": {
     "title": "Discord Bot",
     "notInstalled": "Discord Bot ยังไม่ได้เชื่อมต่อ",
@@ -1304,7 +1324,7 @@
     "attachImage": "แนบรูปภาพ (สูงสุด 5 รูป)",
     "attachFile": "แนบไฟล์ (สูงสุด 5)",
     "imageHelp": "รูปภาพ: วาง ลาก หรือใช้ปุ่มคลิป",
-    "fileHelp": "รูปภาพและวิดีโอ: วาง ลาก หรือใช้ปุ่มคลิป",
+    "fileHelp": "รูปภาพ วิดีโอ และเอกสาร: วาง ลาก หรือใช้ปุ่มคลิป",
     "viewerReadOnly": "ผู้สังเกตการณ์ไม่สามารถเขียนความคิดเห็นได้",
     "attachedImage": "รูปภาพที่แนบ",
     "attachedFile": "ไฟล์แนบ",
@@ -1314,9 +1334,10 @@
     "addFile": "เพิ่มไฟล์",
     "failed": "ล้มเหลว",
     "maxFilesError": "แนบไฟล์ได้สูงสุด 5 ไฟล์",
-    "fileTypeError": "รองรับเฉพาะ jpg, png, gif, webp, mp4, webm, mov",
+    "fileTypeError": "รองรับเฉพาะรูปภาพ วิดีโอ PDF Word Excel PPT TXT",
     "fileSizeError": "ขนาดรูปภาพสูงสุด 30MB",
     "videoFileSizeError": "ขนาดวิดีโอสูงสุด 50MB",
+    "docFileSizeError": "ขนาดเอกสารสูงสุด 30MB",
     "uploadInProgress": "กำลังอัปโหลดไฟล์ กรุณารอสักครู่",
     "uploadFailedRetry": "บางไฟล์อัปโหลดไม่สำเร็จ กรุณาลบและลองใหม่อีกครั้ง",
     "reaction": {
@@ -1341,6 +1362,24 @@
     "aiOpenQuestions": "คำถามที่ยังไม่ได้ตอบ",
     "aiActionItems": "รายการดำเนินการ",
     "checklist": "เช็คลิสต์"
+  },
+  "mentionGroup": {
+    "create": "สร้างกลุ่มการกล่าวถึง",
+    "edit": "แก้ไขกลุ่มการกล่าวถึง",
+    "delete": "ลบกลุ่มการกล่าวถึง",
+    "deleteConfirm": "คุณแน่ใจหรือไม่ว่าต้องการลบกลุ่มนี้?",
+    "name": "ชื่อกลุ่ม",
+    "namePlaceholder": "เช่น ทีมออกแบบ, ทีมพัฒนา",
+    "selectMembers": "เลือกสมาชิก",
+    "searchMember": "ค้นหาสมาชิก...",
+    "memberCountSuffix": " คน",
+    "me": "ฉัน",
+    "noGroups": "ยังไม่มีกลุ่มการกล่าวถึง",
+    "groups": "กลุ่ม",
+    "manageTitle": "จัดการกลุ่มการกล่าวถึง",
+    "createBtn": "สร้าง",
+    "saveBtn": "บันทึก",
+    "close": "ปิด"
   },
   "activity": {
     "title": "บันทึกกิจกรรม",
@@ -1687,7 +1726,20 @@
         "trialUsed": "ใช้ทดลองแล้ว",
         "noSubscription": "ไม่มีการสมัครสมาชิก",
         "monthly": "รายเดือน",
-        "yearly": "รายปี"
+        "yearly": "รายปี",
+        "aiCredits": "เครดิต AI",
+        "monthlyLimit": "ขีดจำกัดรายเดือน",
+        "creditsUsed": "ใช้แล้ว",
+        "creditsRemaining": "คงเหลือ",
+        "creditsResetDate": "วันรีเซ็ต",
+        "addBonusCredits": "เพิ่มเครดิตโบนัส",
+        "resetUsedCredits": "รีเซ็ต",
+        "confirmResetCredits": "รีเซ็ตเครดิตที่ใช้เป็น 0? การดำเนินการนี้จะเติมเครดิตเต็มจำนวนให้องค์กร",
+        "creditsUpdated": "อัปเดตเครดิต AI แล้ว",
+        "creditsUpdateFailed": "ไม่สามารถอัปเดตเครดิต AI",
+        "creditsReset": "เครดิตที่ใช้ถูกรีเซ็ตแล้ว",
+        "exhausted": "หมดแล้ว",
+        "low": "เหลือน้อย"
       },
       "actions": {
         "edit": "แก้ไขข้อมูล",
@@ -2086,7 +2138,8 @@
   "featureChip": {
     "count": "{{count}}",
     "hideFilter": "ซ่อนตัวกรอง",
-    "showFilter": "แสดงตัวกรอง"
+    "showFilter": "แสดงตัวกรอง",
+    "tooltipCompleted": "เสร็จสิ้น"
   },
   "dailyChecklistColumn": {
     "completedCount": "{{completed}}/{{total}} เสร็จ",
@@ -2883,6 +2936,10 @@
       "buy_button": "ซื้อเครดิต",
       "later_button": "ภายหลัง"
     },
+    "org_managed": {
+      "description": "บอร์ดนี้จัดการโดยองค์กร\nเฉพาะผู้ดูแลองค์กรเท่านั้นที่สามารถจัดการเครดิต AI ได้\nกรุณาติดต่อผู้ดูแลองค์กรของคุณ",
+      "close": "ตกลง"
+    },
     "admin": {
       "title": "สถานะเครดิต AI",
       "monthly_allocation": "จัดสรรรายเดือน",
@@ -3026,7 +3083,8 @@
         "settings": "การตั้งค่า",
         "attendance": "การลงเวลา",
         "okr": "OKR",
-        "photos": "รูปถ่าย"
+        "photos": "รูปถ่าย",
+        "documents": "เอกสาร"
       },
       "chart": {
         "searchPlaceholder": "ค้นหาสมาชิก...",
@@ -3392,10 +3450,21 @@
         "deleteOrg": "ลบองค์กร",
         "deleteWarning": "การลบองค์กรนี้ไม่สามารถยกเลิกได้ บอร์ดทั้งหมดจะถูกปลด",
         "typeOrgName": "พิมพ์ชื่อองค์กรเพื่อยืนยัน",
+        "hrSystem": "ระบบ HR",
+        "hrSystemDesc": "เปิดใช้งานหากองค์กรจัดการวันลาผ่านระบบ HR แยกต่างหาก",
+        "hrSystemEnabled": "ใช้ระบบ HR",
+        "hrSystemHint": "เมื่อเปิดใช้งาน ฟีเจอร์จัดการวันลาของ BRIDGE จะถูกซ่อน",
         "autoBoardAccess": "เข้าถึงบอร์ดอัตโนมัติ",
         "autoBoardAccessDesc": "เมื่อเปิดใช้งาน สมาชิกองค์กรสามารถเข้าถึงบอร์ดทั้งหมดขององค์กรด้วยสิทธิ์แก้ไขโดยไม่ต้องขอเข้าร่วม",
         "autoBoardAccessEnabled": "อนุญาตเข้าถึงบอร์ดอัตโนมัติ",
-        "autoBoardAccessHint": "สมาชิกองค์กรจะได้รับสิทธิ์ MEMBER โดยอัตโนมัติ จะไม่ถูกเพิ่มในรายชื่อสมาชิกบอร์ด"
+        "autoBoardAccessHint": "สมาชิกองค์กรจะได้รับสิทธิ์ MEMBER โดยอัตโนมัติ จะไม่ถูกเพิ่มในรายชื่อสมาชิกบอร์ด",
+        "subtabs": {
+          "general": "ทั่วไป",
+          "billing": "การเรียกเก็บเงิน",
+          "structure": "โครงสร้าง",
+          "attendance": "นโยบายการเข้างาน",
+          "onboarding": "การปฐมนิเทศ"
+        }
       },
       "invite": {
         "invalidLink": "ลิงก์เชิญนี้ไม่ถูกต้องหรือหมดอายุแล้ว",
@@ -3521,7 +3590,8 @@
       "insights": "ข้อมูลเชิงลึก",
       "settings": "ตั้งค่า",
       "attendance": "การเข้างาน",
-      "photos": "รูปถ่าย"
+      "photos": "รูปถ่าย",
+      "documents": "เอกสาร"
     },
     "chart": {
       "searchPlaceholder": "ค้นหาสมาชิก...",
@@ -4337,6 +4407,8 @@
     "noAlbumsToShare": "ไม่มีอัลบั้มให้แชร์",
     "sharePreview": "ดูตัวอย่าง",
     "shareGalleryDesc": "แชร์อัลบั้มที่เลือกผ่านลิงก์เดียว",
+    "shareGalleryTitleLabel": "ชื่อแกลเลอรี",
+    "shareGalleryTitlePlaceholder": "เช่น ภาพถ่ายครอบครัว, ทริป 2026",
     "shareSelectAlbums": "อัลบั้มที่รวม",
     "galleryUploadLink": "ลิงก์อัปโหลดแกลเลอรี",
     "galleryUploadLinkDesc": "ใครก็ตามที่มีลิงก์นี้สามารถอัปโหลดรูปภาพและจัดการอัลบั้มได้",

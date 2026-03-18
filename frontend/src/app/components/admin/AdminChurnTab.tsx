@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import { IconButton } from '../ui/IconButton';
 import {
   BarChart,
   Bar,
@@ -85,7 +86,7 @@ export function AdminChurnTab() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-64" role="status" aria-label="로딩 중">
         <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
       </div>
     );
@@ -175,10 +176,10 @@ export function AdminChurnTab() {
       {retention && retention.cohorts.length > 0 && (
         <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5">
           <h3 className="text-sm font-bold text-foreground mb-1">{t('admin.churn.retention')}</h3>
-          <p className="text-[11px] text-slate-500 mb-4">{t('admin.churn.retentionDesc')}</p>
+          <p className="text-xs text-slate-500 mb-4">{t('admin.churn.retentionDesc')}</p>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-[11px]">
+            <table className="w-full text-xs">
               <thead>
                 <tr>
                   <th className="text-left py-2 px-2 text-slate-400 font-medium">{t('admin.churn.cohortWeek')}</th>
@@ -197,7 +198,7 @@ export function AdminChurnTab() {
                     <td className="py-1.5 px-2 text-center text-foreground font-medium">{cohort.signup_count}</td>
                     {cohort.retention.slice(0, 9).map((rate, i) => (
                       <td key={i} className="py-1 px-0.5 text-center">
-                        <span className={`inline-block w-full rounded px-1 py-0.5 text-[10px] font-bold ${getRetentionColor(rate)}`}>
+                        <span className={`inline-block w-full rounded px-1 py-0.5 text-xs font-bold ${getRetentionColor(rate)}`}>
                           {rate}%
                         </span>
                       </td>
@@ -210,7 +211,7 @@ export function AdminChurnTab() {
                   <td className="py-1.5 px-2 text-center">—</td>
                   {retention.average_retention.slice(0, 9).map((rate, i) => (
                     <td key={i} className="py-1 px-0.5 text-center">
-                      <span className={`inline-block w-full rounded px-1 py-0.5 text-[10px] font-bold ${getRetentionColor(rate)}`}>
+                      <span className={`inline-block w-full rounded px-1 py-0.5 text-xs font-bold ${getRetentionColor(rate)}`}>
                         {rate}%
                       </span>
                     </td>
@@ -228,7 +229,7 @@ export function AdminChurnTab() {
           {/* Dropout by Day */}
           <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5">
             <h3 className="text-sm font-bold text-foreground mb-1">{t('admin.churn.trialDropout')}</h3>
-            <p className="text-[11px] text-slate-500 mb-4">
+            <p className="text-xs text-slate-500 mb-4">
               {t('admin.churn.totalTrials', { count: trialDropout.total_expired_trials })}
             </p>
             <div className="h-64">
@@ -254,7 +255,7 @@ export function AdminChurnTab() {
               </ResponsiveContainer>
             </div>
             {trialDropout.never_acted_count > 0 && (
-              <p className="text-[10px] text-slate-500 mt-2">
+              <p className="text-xs text-slate-500 mt-2">
                 {t('admin.churn.neverActed')}: {trialDropout.never_acted_count} ({trialDropout.never_acted_percentage}%)
               </p>
             )}
@@ -300,7 +301,7 @@ export function AdminChurnTab() {
               <div>
                 <h3 className="text-sm font-bold text-foreground">{t('admin.churn.activityTrend')}</h3>
                 {activityTrends.activity_change_rate !== 0 && (
-                  <p className={`text-[11px] mt-1 flex items-center gap-1 ${
+                  <p className={`text-xs mt-1 flex items-center gap-1 ${
                     activityTrends.activity_change_rate >= 0 ? 'text-emerald-400' : 'text-red-400'
                   }`}>
                     <TrendingDown className="h-3 w-3" />
@@ -381,7 +382,7 @@ export function AdminChurnTab() {
                 <button
                   key={period}
                   onClick={() => { setInactivePeriod(period); setInactivePage(0); }}
-                  className={`px-3 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+                  className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
                     inactivePeriod === period
                       ? 'bg-bridge-accent text-white'
                       : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
@@ -397,19 +398,19 @@ export function AdminChurnTab() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-foreground/[0.08]">
-                  <th className="text-left py-2 px-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                  <th className="text-left py-2 px-3 text-xs font-bold uppercase tracking-widest text-slate-400">
                     {t('admin.churn.user')}
                   </th>
-                  <th className="text-left py-2 px-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                  <th className="text-left py-2 px-3 text-xs font-bold uppercase tracking-widest text-slate-400">
                     {t('admin.churn.created')}
                   </th>
-                  <th className="text-left py-2 px-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                  <th className="text-left py-2 px-3 text-xs font-bold uppercase tracking-widest text-slate-400">
                     {t('admin.churn.lastActive')}
                   </th>
-                  <th className="text-center py-2 px-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                  <th className="text-center py-2 px-3 text-xs font-bold uppercase tracking-widest text-slate-400">
                     {t('admin.churn.inactiveDaysCol')}
                   </th>
-                  <th className="text-left py-2 px-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                  <th className="text-left py-2 px-3 text-xs font-bold uppercase tracking-widest text-slate-400">
                     {t('admin.churn.lastAction')}
                   </th>
                 </tr>
@@ -420,15 +421,15 @@ export function AdminChurnTab() {
                     <td className="py-2.5 px-3">
                       <div className="flex items-center gap-2.5">
                         {user.profile_image ? (
-                          <img src={user.profile_image} alt="" className="w-7 h-7 rounded-full" />
+                          <img src={user.profile_image} alt={user.name || '프로필'} className="w-7 h-7 rounded-full" />
                         ) : (
-                          <div className="w-7 h-7 rounded-full bg-bridge-accent/20 flex items-center justify-center text-[10px] font-bold text-bridge-accent">
+                          <div className="w-7 h-7 rounded-full bg-bridge-accent/20 flex items-center justify-center text-xs font-bold text-bridge-accent">
                             {user.name?.charAt(0) || '?'}
                           </div>
                         )}
                         <div>
                           <p className="text-[13px] font-medium text-foreground">{user.name}</p>
-                          <p className="text-[10px] text-slate-500">{user.email}</p>
+                          <p className="text-xs text-slate-500">{user.email}</p>
                         </div>
                       </div>
                     </td>
@@ -439,7 +440,7 @@ export function AdminChurnTab() {
                       {user.last_active_at ? new Date(user.last_active_at).toLocaleDateString() : '—'}
                     </td>
                     <td className="py-2.5 px-3 text-center">
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
                         user.inactive_days >= 30
                           ? 'bg-red-500/15 text-red-600 dark:text-red-400'
                           : user.inactive_days >= 14
@@ -449,7 +450,7 @@ export function AdminChurnTab() {
                         {user.inactive_days}d
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-[11px] text-slate-400">
+                    <td className="py-2.5 px-3 text-xs text-slate-400">
                       {user.last_action ? formatAction(user.last_action) : t('admin.churn.noActivity')}
                     </td>
                   </tr>
@@ -468,24 +469,26 @@ export function AdminChurnTab() {
           {/* Pagination */}
           {inactiveUsers.total > 20 && (
             <div className="flex items-center justify-between mt-4 pt-3 border-t border-foreground/[0.06]">
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs text-slate-500">
                 {inactivePage * 20 + 1}–{Math.min((inactivePage + 1) * 20, inactiveUsers.total)} / {inactiveUsers.total}
               </p>
               <div className="flex gap-1">
-                <button
+                <IconButton
                   onClick={() => setInactivePage(Math.max(0, inactivePage - 1))}
                   disabled={inactivePage === 0}
-                  className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="이전 페이지"
+                  className="disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <button
+                  <ChevronLeft />
+                </IconButton>
+                <IconButton
                   onClick={() => setInactivePage(inactivePage + 1)}
                   disabled={(inactivePage + 1) * 20 >= inactiveUsers.total}
-                  className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="다음 페이지"
+                  className="disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
+                  <ChevronRight />
+                </IconButton>
               </div>
             </div>
           )}
@@ -511,7 +514,7 @@ function MetricCard({
   return (
     <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{label}</span>
+        <span className="text-xs font-bold uppercase tracking-widest text-slate-400">{label}</span>
         <div className={`p-2 rounded-lg ${bgColor}`}>{icon}</div>
       </div>
       <p className="text-3xl font-bold text-foreground">{value.toLocaleString()}</p>

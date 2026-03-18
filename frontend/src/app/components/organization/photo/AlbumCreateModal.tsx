@@ -90,7 +90,7 @@ export function AlbumCreateModal({
       {/* 3) Body */}
       <div className="px-5 pb-5 pt-4 space-y-3">
         <div>
-          <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+          <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
             {t('photoGallery.albumName', 'Album name')}
           </label>
           <input
@@ -105,7 +105,7 @@ export function AlbumCreateModal({
           />
         </div>
         <div>
-          <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+          <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
             {t('photoGallery.albumDescription', 'Description')}
           </label>
           <textarea
@@ -121,7 +121,7 @@ export function AlbumCreateModal({
 
       {/* 4) Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-[10px] text-slate-600">
+        <span className="text-xs text-slate-600">
           Esc {t('common.close', 'Close')}
         </span>
         <div className="flex gap-2">

@@ -81,10 +81,11 @@ export function ChecklistSelectModal({
     <MotionModal open={true} onClose={onClose} className="sm:max-w-[500px] p-0 overflow-hidden max-h-[80dvh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-bridge-border">
-          <h2 className="text-xl font-semibold text-foreground">{t('checklist.selectTitle')}</h2>
+          <h2 className="text-xl font-bold text-foreground">{t('checklist.selectTitle')}</h2>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-foreground transition-colors"
+            aria-label="닫기"
           >
             <X className="h-5 w-5" />
           </button>

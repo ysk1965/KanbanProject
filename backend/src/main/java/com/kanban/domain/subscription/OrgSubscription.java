@@ -144,7 +144,20 @@ public class OrgSubscription {
                 .plan(OrgPlan.TEAM)
                 .status(SubscriptionStatus.TRIAL)
                 .trialEndsAt(now.plusDays(TRIAL_DAYS))
-                .boardLimit(Integer.MAX_VALUE)
+                .boardLimit(-1)
+                .monthlyAiCredits(ORG_MONTHLY_CREDITS)
+                .monthlyCreditsUsed(0)
+                .creditsResetDate(now.plusMonths(1))
+                .build();
+    }
+
+    public static OrgSubscription createActive(Organization org) {
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        return OrgSubscription.builder()
+                .organization(org)
+                .plan(OrgPlan.TEAM)
+                .status(SubscriptionStatus.ACTIVE)
+                .boardLimit(-1)
                 .monthlyAiCredits(ORG_MONTHLY_CREDITS)
                 .monthlyCreditsUsed(0)
                 .creditsResetDate(now.plusMonths(1))
@@ -164,7 +177,7 @@ public class OrgSubscription {
                 : MONTHLY_PRICE_PER_SEAT;
         this.totalPrice = this.pricePerSeat * seats;
         this.paymentMethodId = paymentMethodId;
-        this.boardLimit = Integer.MAX_VALUE;
+        this.boardLimit = -1;
         this.trialEndsAt = null;
         initializePeriod();
         initializeCredits(ORG_MONTHLY_CREDITS);
@@ -210,7 +223,7 @@ public class OrgSubscription {
     }
 
     public int getAvailableSeats() {
-        if (plan == OrgPlan.FREE) return Integer.MAX_VALUE;
+        if (plan == OrgPlan.FREE) return -1;  // FREE는 unlimited
         return Math.max(0, seatCount - activeMemberCount);
     }
 
@@ -267,13 +280,13 @@ public class OrgSubscription {
     // ── Limit Methods ──
 
     public int getMemberLimit() {
-        return Integer.MAX_VALUE;
+        return -1;  // Org는 항상 unlimited members
     }
 
     public int getBoardLimit() {
         if (plan != OrgPlan.TEAM) return 0;
         if (!isActive() && !isTrialActive()) return 0;
-        return Integer.MAX_VALUE;
+        return -1;  // TEAM 플랜은 unlimited boards
     }
 
     // ── AI Credit Methods ──

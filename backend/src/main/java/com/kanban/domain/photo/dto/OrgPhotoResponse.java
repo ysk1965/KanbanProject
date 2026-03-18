@@ -6,6 +6,7 @@ import com.kanban.domain.user.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -102,8 +103,10 @@ public class OrgPhotoResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
     public static class SharedGalleryInfo {
+        private String galleryTitle;
         private String organizationName;
         private String organizationLogoUrl;
         private List<SharedAlbumSummary> albums;
@@ -112,6 +115,7 @@ public class OrgPhotoResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
     public static class SharedAlbumSummary {
         private String id;
@@ -124,6 +128,7 @@ public class OrgPhotoResponse {
     /** kept for backward compat — single-album share endpoint */
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
     public static class SharedAlbumInfo {
         private String albumName;
@@ -136,6 +141,7 @@ public class OrgPhotoResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
     public static class SharedPhotoItem {
         private String id;
@@ -167,6 +173,7 @@ public class OrgPhotoResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
     public static class SharedPhotoPage {
         private List<SharedPhotoItem> photos;

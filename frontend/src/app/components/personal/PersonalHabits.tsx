@@ -8,7 +8,9 @@ import {
   TrendingUp, Calendar, Zap, RotateCcw, ListTodo,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { MotionModal } from '../ui/MotionModal';
+import { IconButton } from '../ui/IconButton';
 import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { personalHabitAPI } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
@@ -92,7 +94,7 @@ function IconDropdown({ icon, onChange }: { icon: string; onChange: (v: string) 
         }`}
       >
         <span className="text-sm">{icon || '😊'}</span>
-        <span className="text-[10px] text-slate-400 flex-1 text-left truncate">
+        <span className="text-xs text-slate-400 flex-1 text-left truncate">
           {icon ? t('personal.habit.changeIcon', '변경') : t('personal.habit.selectIcon', '선택')}
         </span>
         <ChevronDown size={12} className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -136,6 +138,7 @@ function IconDropdown({ icon, onChange }: { icon: string; onChange: (v: string) 
 
 export function PersonalHabits() {
   const { t } = useTranslation();
+  const reduced = useReducedMotion();
   const [habits, setHabits] = useState<PersonalHabit[]>([]);
   const [todayItems, setTodayItems] = useState<HabitTodayItem[]>([]);
   const [nonTodayCompleted, setNonTodayCompleted] = useState<Record<string, boolean>>({});
@@ -333,7 +336,7 @@ export function PersonalHabits() {
         {/* Today's Habits */}
         {todayItems.length > 0 && (
           <section>
-            <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">
               {t('personal.habit.todaysProgress')}
             </h3>
             <div className="space-y-1.5">
@@ -364,19 +367,19 @@ export function PersonalHabits() {
                           : 'border-bridge-border hover:border-purple-400'
                       }`}
                       initial={false}
-                      animate={item.is_completed ? {
+                      animate={item.is_completed && !reduced ? {
                         scale: [1, 1.3, 0.9, 1.1, 1],
                       } : { scale: 1 }}
-                      transition={{ duration: 0.4, ease: 'easeOut' }}
+                      transition={reduced ? { duration: 0 } : { duration: 0.4, ease: 'easeOut' }}
                     >
                       <AnimatePresence mode="wait">
                         {item.is_completed && (
                           <motion.div
                             key="check"
-                            initial={{ scale: 0, rotate: -90, opacity: 0 }}
+                            initial={reduced ? false : { scale: 0, rotate: -90, opacity: 0 }}
                             animate={{ scale: 1, rotate: 0, opacity: 1 }}
                             exit={{ scale: 0, rotate: 90, opacity: 0 }}
-                            transition={{ type: 'spring', stiffness: 500, damping: 15, delay: 0.1 }}
+                            transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 15, delay: 0.1 }}
                           >
                             <CheckCircle2 size={12} className="text-white" />
                           </motion.div>
@@ -384,7 +387,7 @@ export function PersonalHabits() {
                       </AnimatePresence>
                     </motion.div>
                     {/* Completion ripple effect */}
-                    {item.is_completed && (
+                    {item.is_completed && !reduced && (
                       <motion.div
                         className="absolute left-[22px] top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full pointer-events-none"
                         initial={{ scale: 1, opacity: 0.4 }}
@@ -431,7 +434,7 @@ export function PersonalHabits() {
         {/* Non-Today Habits (checkable with confirmation) */}
         {nonTodayHabits.length > 0 && (
           <section>
-            <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-2">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-2">
               <Calendar size={12} />
               {t('personal.habit.otherHabits')}
             </h3>
@@ -463,24 +466,24 @@ export function PersonalHabits() {
                           : 'border-foreground/10 hover:border-purple-400'
                       }`}
                       initial={false}
-                      animate={isCompleted ? { scale: [1, 1.3, 0.9, 1.1, 1] } : { scale: 1 }}
-                      transition={{ duration: 0.4, ease: 'easeOut' }}
+                      animate={isCompleted && !reduced ? { scale: [1, 1.3, 0.9, 1.1, 1] } : { scale: 1 }}
+                      transition={reduced ? { duration: 0 } : { duration: 0.4, ease: 'easeOut' }}
                     >
                       <AnimatePresence mode="wait">
                         {isCompleted && (
                           <motion.div
                             key="check"
-                            initial={{ scale: 0, rotate: -90, opacity: 0 }}
+                            initial={reduced ? false : { scale: 0, rotate: -90, opacity: 0 }}
                             animate={{ scale: 1, rotate: 0, opacity: 1 }}
                             exit={{ scale: 0, rotate: 90, opacity: 0 }}
-                            transition={{ type: 'spring', stiffness: 500, damping: 15, delay: 0.1 }}
+                            transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 15, delay: 0.1 }}
                           >
                             <CheckCircle2 size={12} className="text-white" />
                           </motion.div>
                         )}
                       </AnimatePresence>
                     </motion.div>
-                    {isCompleted && (
+                    {isCompleted && !reduced && (
                       <motion.div
                         className="absolute left-[22px] top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full pointer-events-none"
                         initial={{ scale: 1, opacity: 0.4 }}
@@ -496,7 +499,7 @@ export function PersonalHabits() {
                         {habit.icon && <span className="mr-1.5">{habit.icon}</span>}
                         {habit.title}
                       </div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">
+                      <div className="text-xs text-slate-500 mt-0.5">
                         {formatFrequency(habit, t)}
                       </div>
                     </div>
@@ -519,7 +522,7 @@ export function PersonalHabits() {
 
         {/* All Habits List */}
         <section>
-          <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">
             {habits.length > 0 ? t('personal.habit.allHabits') : ''}
           </h3>
 
@@ -611,18 +614,20 @@ function StatCard({ icon, label, value, sub }: {
   value: string;
   sub: string;
 }) {
+  const reduced = useReducedMotion();
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={reduced ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={reduced ? { duration: 0 } : undefined}
       className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-3 md:p-4"
     >
       <div className="flex items-center gap-2 mb-2">
         {icon}
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</span>
+        <span className="text-xs font-bold uppercase tracking-widest text-slate-400">{label}</span>
       </div>
       <div className="text-xl md:text-2xl font-bold text-foreground">{value}</div>
-      <div className="text-[11px] text-slate-500 mt-0.5">{sub}</div>
+      <div className="text-xs text-slate-500 mt-0.5">{sub}</div>
     </motion.div>
   );
 }
@@ -692,11 +697,13 @@ function WeeklyDonut({ completed, target, color, size = 28 }: {
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   const { t } = useTranslation();
+  const reduced = useReducedMotion();
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
+      initial={reduced ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
+      transition={reduced ? { duration: 0 } : undefined}
       className="flex flex-col items-center justify-center py-16 text-center"
     >
       <div className="w-16 h-16 rounded-2xl bg-purple-500/15 flex items-center justify-center mb-4">
@@ -727,13 +734,15 @@ function HabitCard({ habit, onEdit, onDelete }: {
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
+  const reduced = useReducedMotion();
   const [showMenu, setShowMenu] = useState(false);
 
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
+      layout={!reduced}
+      initial={reduced ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={reduced ? { duration: 0 } : undefined}
       className="group bg-bridge-obsidian rounded-xl border border-foreground/[0.08] hover:border-foreground/[0.12] p-4 transition-all"
     >
       <div className="flex items-start gap-3">
@@ -750,19 +759,19 @@ function HabitCard({ habit, onEdit, onDelete }: {
           <div className="flex items-center gap-2">
             <h4 className="text-sm font-bold text-foreground truncate">{habit.title}</h4>
             {habit.current_streak > 0 && (
-              <div className="flex items-center gap-0.5 text-[10px] text-orange-400 font-bold flex-shrink-0 bg-orange-400/15 px-1.5 py-0.5 rounded-full">
+              <div className="flex items-center gap-0.5 text-xs text-orange-400 font-bold flex-shrink-0 bg-orange-400/15 px-1.5 py-0.5 rounded-full">
                 <Flame size={10} />
                 {habit.current_streak}
               </div>
             )}
           </div>
           <div className="flex items-center gap-3 mt-1">
-            <span className="text-[11px] text-slate-400 flex items-center gap-1">
+            <span className="text-xs text-slate-400 flex items-center gap-1">
               <Calendar size={10} />
               {formatFrequency(habit, t)}
             </span>
             {habit.best_streak > 0 && (
-              <span className="text-[11px] text-slate-500 flex items-center gap-1">
+              <span className="text-xs text-slate-500 flex items-center gap-1">
                 <TrendingUp size={10} />
                 {t('personal.habit.bestLabel', { count: habit.best_streak })}
               </span>
@@ -934,16 +943,17 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
             autoFocus
           />
           {isEdit && onDelete && (
-            <button
+            <IconButton
               onClick={onDelete}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0"
+              aria-label="삭제"
+              className="hover:text-rose-400 hover:bg-rose-500/10"
             >
-              <Trash2 size={16} />
-            </button>
+              <Trash2 />
+            </IconButton>
           )}
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
-            <X size={16} />
-          </button>
+          <IconButton onClick={onClose} aria-label="닫기">
+            <X />
+          </IconButton>
         </div>
 
         <div className="px-5 pb-5 space-y-3 pt-4">
@@ -953,7 +963,7 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
               <button
                 key={value}
                 onClick={() => toggleDay(value)}
-                className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
+                className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
                   selectedDays.includes(value)
                     ? 'text-white'
                     : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10'
@@ -965,14 +975,14 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
             ))}
           </div>
           {selectedDays.length === 0 && (
-            <p className="text-[10px] text-amber-400">{t('personal.habit.selectDay')}</p>
+            <p className="text-xs text-amber-400">{t('personal.habit.selectDay')}</p>
           )}
 
           {/* Importance */}
           <div className="flex gap-1.5">
             <button
               onClick={() => setImportance('HIGH')}
-              className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
+              className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
                 importance === 'HIGH'
                   ? 'bg-orange-500 text-white'
                   : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10'
@@ -982,7 +992,7 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
             </button>
             <button
               onClick={() => setImportance('MEDIUM')}
-              className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
+              className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
                 importance === 'MEDIUM'
                   ? 'bg-slate-500 text-white'
                   : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10'
@@ -1006,7 +1016,7 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-            <span className="text-[10px] text-slate-600">
+            <span className="text-xs text-slate-600">
               Esc {t('common.close', '닫기')}
             </span>
             <button
@@ -1047,11 +1057,11 @@ export function DeleteConfirmModal({ open, habitName, onConfirm, onCancel }: {
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-bold text-foreground">{t('personal.habit.deleteHabit')}</h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">{t('personal.habit.deleteWarning')}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{t('personal.habit.deleteWarning')}</p>
           </div>
-          <button onClick={onCancel} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
-            <X size={16} />
-          </button>
+          <IconButton onClick={onCancel} aria-label="닫기">
+            <X />
+          </IconButton>
         </div>
 
         <div className="px-5 pt-4 pb-5">
@@ -1060,7 +1070,7 @@ export function DeleteConfirmModal({ open, habitName, onConfirm, onCancel }: {
           </p>
 
           <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-            <span className="text-[11px] text-slate-600 select-none">Esc 닫기</span>
+            <span className="text-xs text-slate-600 select-none">Esc 닫기</span>
             <button
               onClick={onConfirm}
               className="flex items-center gap-1.5 px-4 py-1.5 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-500/90 transition-colors"
@@ -1120,7 +1130,7 @@ export function CheckInConfirmModal({ open, habitName, habitIcon, streakCount, i
                   ? t('personal.habit.nonTodayCheckInTitle', '오늘 해당 요일 아님')
                   : t('personal.habit.checkInTitle', '습관 완료')}
             </h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               {isUndo
                 ? t('personal.habit.undoSubtitle', '완료를 취소하시겠습니까?')
                 : isNonToday
@@ -1128,9 +1138,9 @@ export function CheckInConfirmModal({ open, habitName, habitIcon, streakCount, i
                   : t('personal.habit.checkInSubtitle', '오늘의 습관을 완료하시겠습니까?')}
             </p>
           </div>
-          <button onClick={onCancel} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
-            <X size={16} />
-          </button>
+          <IconButton onClick={onCancel} aria-label="닫기">
+            <X />
+          </IconButton>
         </div>
 
         <div className="px-5 pt-4 pb-5">
@@ -1149,7 +1159,7 @@ export function CheckInConfirmModal({ open, habitName, habitIcon, streakCount, i
           )}
 
           <div className="flex items-center justify-between pt-3 mt-4 border-t border-foreground/[0.08]">
-            <span className="text-[11px] text-slate-600 select-none">Esc 닫기</span>
+            <span className="text-xs text-slate-600 select-none">Esc 닫기</span>
             <button
               onClick={onConfirm}
               className={`flex items-center gap-1.5 px-4 py-1.5 text-white text-xs font-bold rounded-lg transition-colors ${btnClass}`}
@@ -1197,15 +1207,15 @@ export function TaskCompleteConfirmModal({ open, taskName, isUndo, onConfirm, on
                 ? t('personal.task.undoTitle', '완료 취소')
                 : t('personal.task.completeTitle', '할 일 완료')}
             </h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               {isUndo
                 ? t('personal.task.undoSubtitle', '완료를 취소하시겠습니까?')
                 : t('personal.task.completeSubtitle', '할 일을 완료하시겠습니까?')}
             </p>
           </div>
-          <button onClick={onCancel} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
-            <X size={16} />
-          </button>
+          <IconButton onClick={onCancel} aria-label="닫기">
+            <X />
+          </IconButton>
         </div>
 
         <div className="px-5 pt-4 pb-5">
@@ -1216,7 +1226,7 @@ export function TaskCompleteConfirmModal({ open, taskName, isUndo, onConfirm, on
           </p>
 
           <div className="flex items-center justify-between pt-3 mt-4 border-t border-foreground/[0.08]">
-            <span className="text-[11px] text-slate-600 select-none">Esc 닫기</span>
+            <span className="text-xs text-slate-600 select-none">Esc 닫기</span>
             <button
               onClick={onConfirm}
               className={`flex items-center gap-1.5 px-4 py-1.5 text-white text-xs font-bold rounded-lg transition-colors ${

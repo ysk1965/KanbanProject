@@ -1,4 +1,11 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo, Suspense } from "react";
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+  Suspense,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   Save,
@@ -45,7 +52,7 @@ import { ColumnLayout, Column } from "./blocks/ColumnLayout";
 import { Mention } from "./blocks/Mention";
 import { formatDateTime } from "../../utils/dateUtils";
 import { useTheme } from "../../contexts/ThemeContext";
-import { fileAPI, noteAPI, memberAPI } from "../../utils/api";
+import { fileAPI, noteAPI, memberAPI, orgNoteAPI } from "../../utils/api";
 import type {
   NoteDetail,
   NoteTagInfo,
@@ -54,6 +61,7 @@ import type {
 } from "../../utils/api";
 import { NoteShareButton } from "./NoteShareButton";
 import { NoteBottomComments } from "./NoteBottomComments";
+import { IconButton } from "../ui/IconButton";
 import type { CollaborationState } from "../../hooks/useCollaboration";
 
 function cleanMarkdownForPlainText(md: string): string {
@@ -76,6 +84,68 @@ function handleEditorCopy(e: React.ClipboardEvent) {
   }
 }
 
+/**
+ * Flatten nested list HTML from external sources (e.g. meeting notes)
+ * so BlockNote doesn't create nested List blocks for each item.
+ */
+function flattenListHtml(html: string): string | null {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+
+  // Check if there are nested lists (li > ul/ol) that need flattening
+  const nestedLists = doc.querySelectorAll("li > ul, li > ol");
+  if (nestedLists.length === 0) return null;
+
+  // Recursively collect flat list items from a list element
+  function collectItems(listEl: Element): string[] {
+    const items: string[] = [];
+    for (const child of Array.from(listEl.children)) {
+      if (child.tagName === "LI") {
+        // Extract direct content (excluding nested ul/ol)
+        const directHtml = Array.from(child.childNodes)
+          .filter(
+            (n) => n.nodeType !== 1 || !(n as Element).matches?.("ul, ol"),
+          )
+          .map((n) =>
+            n.nodeType === 1 ? (n as Element).outerHTML : n.textContent,
+          )
+          .join("")
+          .trim();
+        if (directHtml) {
+          items.push(directHtml);
+        }
+        // Recurse into nested lists within this li
+        const nestedList = child.querySelector(":scope > ul, :scope > ol");
+        if (nestedList) {
+          items.push(...collectItems(nestedList));
+        }
+      }
+    }
+    return items;
+  }
+
+  const topLists = doc.body.querySelectorAll(":scope > ul, :scope > ol");
+  if (topLists.length === 0) return null;
+
+  let result = "";
+  doc.body.childNodes.forEach((node) => {
+    if (node.nodeType === 1) {
+      const el = node as Element;
+      if (el.matches("ul, ol")) {
+        const tag = el.tagName.toLowerCase();
+        const items = collectItems(el);
+        result += `<${tag}>${items.map((t) => `<li>${t}</li>`).join("")}</${tag}>`;
+      } else {
+        result += el.outerHTML;
+      }
+    } else if (node.textContent?.trim()) {
+      result += node.textContent;
+    }
+  });
+
+  return result || null;
+}
+
 const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
@@ -94,7 +164,8 @@ const schema = BlockNoteSchema.create({
 });
 
 interface NoteEditorProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   note: NoteDetail;
   tags: NoteTagInfo[];
   loading: boolean;
@@ -114,6 +185,7 @@ interface NoteEditorProps {
 
 export function NoteEditor({
   boardId,
+  orgId,
   note,
   tags,
   loading,
@@ -162,6 +234,7 @@ export function NoteEditor({
       >
         <ExcalidrawEditor
           boardId={boardId}
+          orgId={orgId}
           note={note}
           tags={tags}
           canEdit={canEdit}
@@ -181,6 +254,7 @@ export function NoteEditor({
     return (
       <CollabNoteEditor
         boardId={boardId}
+        orgId={orgId}
         note={note}
         tags={tags}
         canEdit={canEdit}
@@ -199,6 +273,7 @@ export function NoteEditor({
   return (
     <FallbackNoteEditor
       boardId={boardId}
+      orgId={orgId}
       note={note}
       tags={tags}
       canEdit={canEdit}
@@ -214,7 +289,8 @@ export function NoteEditor({
  * ============================================================ */
 
 interface CollabEditorProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   note: NoteDetail;
   tags: NoteTagInfo[];
   canEdit: boolean;
@@ -233,6 +309,7 @@ interface CollabEditorProps {
 
 function CollabNoteEditor({
   boardId,
+  orgId,
   note,
   tags,
   canEdit,
@@ -297,6 +374,28 @@ function CollabNoteEditor({
         cellTextColor: true,
         headers: true,
         splitCells: true,
+      },
+      pasteHandler: ({
+        event,
+        editor: e,
+        defaultPasteHandler,
+      }: {
+        event: ClipboardEvent;
+        editor: any;
+        defaultPasteHandler: () => boolean;
+      }) => {
+        const html = event.clipboardData?.getData("text/html");
+        if (
+          html &&
+          !event.clipboardData?.types.includes("blocknote/html")
+        ) {
+          const flattened = flattenListHtml(html);
+          if (flattened) {
+            e.pasteHTML(flattened);
+            return true;
+          }
+        }
+        return defaultPasteHandler();
       },
     } as any,
     [collaboration.fragment],
@@ -470,14 +569,20 @@ function CollabNoteEditor({
     [editor],
   );
 
-  // @mention: lazy-fetch board members
+  // @mention: lazy-fetch board/org members
+  const scopeId = boardId || orgId || "";
   const membersCache = useRef<MemberResponse[] | null>(null);
   const getMentionItems = useCallback(
     async (query: string) => {
       if (!membersCache.current) {
         try {
-          const data = await memberAPI.getMembers(boardId);
-          membersCache.current = data.members;
+          if (boardId) {
+            const data = await memberAPI.getMembers(boardId);
+            membersCache.current = data.members;
+          } else {
+            // For org notes, members will be fetched differently if needed
+            membersCache.current = [];
+          }
         } catch {
           membersCache.current = [];
         }
@@ -495,7 +600,7 @@ function CollabNoteEditor({
         icon: m.user.profile_image ? (
           <img
             src={m.user.profile_image}
-            alt=""
+            alt={m.user.name || "프로필"}
             className="bn-mention-avatar"
           />
         ) : (
@@ -630,6 +735,7 @@ function CollabNoteEditor({
     setAiCollapsed(false);
     try {
       const lang = navigator.language?.split("-")[0] || "ko";
+      if (!boardId) return; // AI organize is board-specific
       const data = await noteAPI.aiOrganize(boardId, note.id, lang);
       setAiData(data);
       setAiContentSnapshot(note.content || "");
@@ -657,7 +763,7 @@ function CollabNoteEditor({
               {note.tags.map((tag) => (
                 <span
                   key={tag.id}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium"
                   style={{
                     backgroundColor: `${tag.color}20`,
                     color: tag.color,
@@ -668,7 +774,7 @@ function CollabNoteEditor({
                 </span>
               ))}
             </div>
-            <span className="text-[10px] text-slate-500 flex items-center gap-1 whitespace-nowrap">
+            <span className="text-xs text-slate-500 flex items-center gap-1 whitespace-nowrap">
               <Clock size={10} />
               {formatDateTime(note.updated_at)}
               {note.updated_by && ` · ${note.updated_by.name}`}
@@ -687,6 +793,7 @@ function CollabNoteEditor({
 
           <NoteShareButton
             boardId={boardId}
+            orgId={orgId}
             note={note}
             canEdit={canEdit}
             onNoteUpdate={onNoteUpdate}
@@ -711,6 +818,7 @@ function CollabNoteEditor({
 
           <NoteTagManager
             boardId={boardId}
+            orgId={orgId}
             noteId={note.id}
             noteTags={note.tags}
             allTags={tags}
@@ -720,18 +828,26 @@ function CollabNoteEditor({
           />
           <NoteVersionHistory
             boardId={boardId}
+            orgId={orgId}
             noteId={note.id}
             versionCount={note.version_count}
             canEdit={canEdit}
             onRestore={async () => {
               // After restoring, refetch and let the provider sync
-              const { noteService } = await import("../../utils/services");
-              const updated = await noteService.getDetail(boardId, note.id);
-              setTitle(updated.title);
-              setHasChanges(false);
+              if (boardId) {
+                const { noteService } = await import("../../utils/services");
+                const updated = await noteService.getDetail(boardId, note.id);
+                setTitle(updated.title);
+                setHasChanges(false);
+              } else if (orgId) {
+                const { orgNoteService } = await import("../../utils/services");
+                const updated = await orgNoteService.getDetail(orgId, note.id);
+                setTitle(updated.title);
+                setHasChanges(false);
+              }
             }}
           />
-          {canEdit && note.content?.trim() && (
+          {canEdit && boardId && note.content?.trim() && (
             <button
               onClick={handleAIOrganize}
               disabled={aiLoading}
@@ -753,7 +869,7 @@ function CollabNoteEditor({
             <button
               onClick={handleSave}
               disabled={!hasChanges || saving}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 hasChanges
                   ? "bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20"
                   : "bg-foreground/5 text-slate-500 cursor-not-allowed"
@@ -768,9 +884,7 @@ function CollabNoteEditor({
                 {t("common.save", "저장")}
               </span>
               {hasChanges && (
-                <span className="text-[10px] opacity-70 hidden lg:inline">
-                  ⌘S
-                </span>
+                <span className="text-xs opacity-70 hidden lg:inline">⌘S</span>
               )}
             </button>
           )}
@@ -814,18 +928,18 @@ function CollabNoteEditor({
 
           {/* Floating block comment button */}
           {hoveredBlock && (
-            <button
-              className="absolute right-2 z-10 p-1.5 rounded-lg bg-bridge-dark border border-foreground/10 text-slate-500 hover:text-bridge-accent hover:border-bridge-accent/30 transition-all shadow-lg"
+            <IconButton
+              className="absolute right-2 z-10 bg-bridge-dark border border-foreground/10 hover:text-bridge-accent hover:border-bridge-accent/30 shadow-lg"
               style={{ top: hoveredBlock.top + 2 }}
               onClick={() => handleAddBlockComment(hoveredBlock.id)}
               onMouseDown={(e) => e.preventDefault()}
-              title={t("notes.comment.addToBlock", "이 블록에 댓글 달기")}
+              aria-label={t("notes.comment.addToBlock", "이 블록에 댓글 달기")}
             >
-              <MessageSquare size={14} />
+              <MessageSquare />
               {commentBlockIds.has(hoveredBlock.id) && (
                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-bridge-accent rounded-full border-2 border-bridge-dark" />
               )}
-            </button>
+            </IconButton>
           )}
         </div>
 
@@ -836,7 +950,7 @@ function CollabNoteEditor({
               <div className="mt-4 flex items-center justify-between bg-white/[0.02] rounded-xl border border-foreground/5 px-4 py-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-bridge-accent" />
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                     {t("notes.aiOrganizeTitle")}
                   </span>
                 </div>
@@ -849,7 +963,7 @@ function CollabNoteEditor({
               </div>
             ) : (
               <NoteAIInlineSection
-                boardId={boardId}
+                boardId={boardId || ""}
                 noteId={note.id}
                 loading={aiLoading}
                 error={aiError}
@@ -866,6 +980,7 @@ function CollabNoteEditor({
           <div ref={commentsPanelRef}>
             <NoteCommentSidebar
               boardId={boardId}
+              orgId={orgId}
               noteId={note.id}
               currentUserId={currentUser.id}
               canEdit={canEdit}
@@ -883,6 +998,7 @@ function CollabNoteEditor({
         {currentUser && (
           <NoteBottomComments
             boardId={boardId}
+            orgId={orgId}
             noteId={note.id}
             currentUserId={currentUser.id}
             canEdit={canEdit}
@@ -898,7 +1014,8 @@ function CollabNoteEditor({
  * ============================================================ */
 
 interface FallbackEditorProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   note: NoteDetail;
   tags: NoteTagInfo[];
   canEdit: boolean;
@@ -915,6 +1032,7 @@ const AUTO_SAVE_DELAY = 30_000;
 
 function FallbackNoteEditor({
   boardId,
+  orgId,
   note,
   tags,
   canEdit,
@@ -943,6 +1061,28 @@ function FallbackNoteEditor({
       cellTextColor: true,
       headers: true,
       splitCells: true,
+    },
+    pasteHandler: ({
+      event,
+      editor: e,
+      defaultPasteHandler,
+    }: {
+      event: ClipboardEvent;
+      editor: any;
+      defaultPasteHandler: () => boolean;
+    }) => {
+      const html = event.clipboardData?.getData("text/html");
+      if (
+        html &&
+        !event.clipboardData?.types.includes("blocknote/html")
+      ) {
+        const flattened = flattenListHtml(html);
+        if (flattened) {
+          e.pasteHTML(flattened);
+          return true;
+        }
+      }
+      return defaultPasteHandler();
     },
   } as any);
 
@@ -975,7 +1115,7 @@ function FallbackNoteEditor({
         icon: m.user.profile_image ? (
           <img
             src={m.user.profile_image}
-            alt=""
+            alt={m.user.name || "프로필"}
             className="bn-mention-avatar"
           />
         ) : (
@@ -1141,13 +1281,13 @@ function FallbackNoteEditor({
             readOnly={!canEdit}
           />
           <div className="flex items-center gap-3 mt-1">
-            <span className="text-[10px] text-slate-500 flex items-center gap-1 whitespace-nowrap">
+            <span className="text-xs text-slate-500 flex items-center gap-1 whitespace-nowrap">
               <Clock size={10} />
               {formatDateTime(note.updated_at)}
               {note.updated_by && ` · ${note.updated_by.name}`}
             </span>
             {autoSaved && (
-              <span className="text-[10px] text-emerald-500/70">
+              <span className="text-xs text-emerald-500/70">
                 {t("notes.autoSaved", "자동 저장됨")}
               </span>
             )}
@@ -1156,6 +1296,7 @@ function FallbackNoteEditor({
         <div className="flex items-center gap-1 flex-shrink-0">
           <NoteTagManager
             boardId={boardId}
+            orgId={orgId}
             noteId={note.id}
             noteTags={note.tags}
             allTags={tags}
@@ -1165,34 +1306,43 @@ function FallbackNoteEditor({
           />
           <NoteVersionHistory
             boardId={boardId}
+            orgId={orgId}
             noteId={note.id}
             versionCount={note.version_count}
             canEdit={canEdit}
             onRestore={async () => {
-              const { noteService } = await import("../../utils/services");
-              const updated = await noteService.getDetail(boardId, note.id);
-              if (updated.content?.trim()) {
-                try {
-                  const blocks = await editor.tryParseHTMLToBlocks(
-                    updated.content,
-                  );
-                  editor.replaceBlocks(editor.document, blocks);
-                } catch (err) {
-                  console.error("Failed to restore content:", err);
-                }
-              } else {
-                editor.replaceBlocks(editor.document, []);
+              let updated;
+              if (boardId) {
+                const { noteService } = await import("../../utils/services");
+                updated = await noteService.getDetail(boardId, note.id);
+              } else if (orgId) {
+                const { orgNoteService } = await import("../../utils/services");
+                updated = await orgNoteService.getDetail(orgId, note.id);
               }
-              setTitle(updated.title);
-              setHasChanges(false);
-              setAutoSaved(false);
+              if (updated) {
+                if (updated.content?.trim()) {
+                  try {
+                    const blocks = await editor.tryParseHTMLToBlocks(
+                      updated.content,
+                    );
+                    editor.replaceBlocks(editor.document, blocks);
+                  } catch (err) {
+                    console.error("Failed to restore content:", err);
+                  }
+                } else {
+                  editor.replaceBlocks(editor.document, []);
+                }
+                setTitle(updated.title);
+                setHasChanges(false);
+                setAutoSaved(false);
+              }
             }}
           />
           {canEdit && (
             <button
               onClick={handleSave}
               disabled={!hasChanges || saving}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ml-1 ${
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-all ml-1 ${
                 hasChanges
                   ? "bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20"
                   : "bg-foreground/5 text-slate-500 cursor-not-allowed"
@@ -1242,6 +1392,7 @@ function FallbackNoteEditor({
         {fallbackCurrentUser && (
           <NoteBottomComments
             boardId={boardId}
+            orgId={orgId}
             noteId={note.id}
             currentUserId={fallbackCurrentUser.id}
             canEdit={canEdit}

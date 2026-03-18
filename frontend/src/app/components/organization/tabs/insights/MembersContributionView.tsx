@@ -146,22 +146,22 @@ export function MembersContributionView({
         <div className="bg-bridge-obsidian rounded-2xl border border-black/5 dark:border-white/5 overflow-hidden">
           {/* Desktop Header */}
           <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_2fr] gap-3 px-4 py-3 border-b border-black/5 dark:border-white/5">
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
               {t('organization.tabs.members', 'Member')}
             </span>
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 text-right">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400 text-right">
               {t('organization.insights.members.workHours', 'Hours')}
             </span>
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 text-right">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400 text-right">
               {t('organization.insights.members.completedTasks', 'Completed')}
             </span>
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 text-right">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400 text-right">
               {t('organization.insights.members.activityCount', 'Activities')}
             </span>
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
               {t('organization.insights.members.primaryBoard', 'Primary Board')}
             </span>
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
               {t('organization.insights.members.distribution', 'Distribution')}
             </span>
           </div>
@@ -192,7 +192,7 @@ export function MembersContributionView({
                   <div className="min-w-0">
                     <span className="text-sm text-slate-900 dark:text-white font-medium block truncate">{m.member.name}</span>
                     {(m.member.department || m.member.job_title) && (
-                      <span className="text-[11px] text-slate-400 block truncate">
+                      <span className="text-xs text-slate-400 block truncate">
                         {[m.member.department, m.member.job_title].filter(Boolean).join(' / ')}
                       </span>
                     )}
@@ -203,7 +203,7 @@ export function MembersContributionView({
                 <div className="flex flex-col items-end justify-center">
                   <span className="text-sm font-medium text-slate-900 dark:text-white">{formatMinutesToHours(m.total_work_minutes)}</span>
                   {m.change_percentage !== 0 && (
-                    <span className={`text-[10px] font-bold ${
+                    <span className={`text-xs font-bold ${
                       m.change_percentage > 0
                         ? 'text-emerald-600 dark:text-emerald-400'
                         : 'text-rose-600 dark:text-rose-400'
@@ -263,7 +263,7 @@ export function MembersContributionView({
                   <div className="min-w-0 flex-1">
                     <span className="text-sm text-slate-900 dark:text-white font-medium block truncate">{m.member.name}</span>
                     {(m.member.department || m.member.job_title) && (
-                      <span className="text-[11px] text-slate-400 block truncate">
+                      <span className="text-xs text-slate-400 block truncate">
                         {[m.member.department, m.member.job_title].filter(Boolean).join(' / ')}
                       </span>
                     )}
@@ -271,7 +271,7 @@ export function MembersContributionView({
                   <div className="text-right shrink-0">
                     <span className="text-sm font-bold text-slate-900 dark:text-white">{formatMinutesToHours(m.total_work_minutes)}</span>
                     {m.change_percentage !== 0 && (
-                      <span className={`text-[10px] font-bold block ${
+                      <span className={`text-xs font-bold block ${
                         m.change_percentage > 0
                           ? 'text-emerald-600 dark:text-emerald-400'
                           : 'text-rose-600 dark:text-rose-400'
@@ -281,7 +281,7 @@ export function MembersContributionView({
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-[11px] text-slate-400">
+                <div className="flex items-center gap-4 text-xs text-slate-400">
                   <span>{m.completed_tasks} {t('organization.insights.members.detail.tasks', 'tasks')}</span>
                   <span>{m.activity_count} {t('organization.insights.members.activityCount', 'activities')}</span>
                   {m.primary_board && <span className="truncate">{m.primary_board.name}</span>}

@@ -55,7 +55,7 @@ export function MyTasksWidget() {
           transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
           className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-bridge-secondary/20 border border-bridge-secondary/30 flex items-center justify-center"
         >
-          <span className="text-[10px]">✓</span>
+          <span className="text-xs">✓</span>
         </motion.div>
       </div>
       <p className="text-sm text-slate-500 font-medium mb-1">
@@ -63,7 +63,7 @@ export function MyTasksWidget() {
         {filter === 'week' && t('myTasks.noWeek', '이번 주 할 일이 없습니다')}
         {filter === 'overdue' && t('myTasks.noOverdue', '지연된 할 일이 없습니다')}
       </p>
-      <p className="text-[11px] text-slate-600">
+      <p className="text-xs text-slate-600">
         {filter === 'overdue'
           ? t('myTasks.noOverdueHint', '모든 업무가 정상입니다')
           : t('myTasks.emptyHint', '보드에서 태스크를 만들어 보세요')
@@ -85,7 +85,7 @@ export function MyTasksWidget() {
           </div>
           <h3 className="text-sm font-bold text-foreground">{t('myTasks.title', '내 할 일')}</h3>
           {totalCount > 0 && (
-            <span className="text-[10px] font-bold bg-bridge-accent/15 text-bridge-accent px-2 py-0.5 rounded-full">
+            <span className="text-xs font-bold bg-bridge-accent/15 text-bridge-accent px-2 py-0.5 rounded-full">
               {totalCount}
             </span>
           )}
@@ -101,7 +101,7 @@ export function MyTasksWidget() {
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key)}
-                className={`relative px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${
+                className={`relative px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                   filter === f.key
                     ? 'text-foreground bg-foreground/10 shadow-sm'
                     : 'text-slate-500 hover:text-muted-foreground'
@@ -143,7 +143,7 @@ export function MyTasksWidget() {
                         onClick={() => handleTaskClick(group.board_id)}
                         className="flex items-center gap-2 mb-1.5 group/header"
                       >
-                        <span className="text-[10px] uppercase tracking-widest font-bold text-slate-500 group-hover/header:text-foreground transition-colors">
+                        <span className="text-xs uppercase tracking-widest font-bold text-slate-500 group-hover/header:text-foreground transition-colors">
                           {group.board_name}
                           {group.board_type === 'PERSONAL' && ' (My Space)'}
                         </span>
@@ -166,10 +166,10 @@ export function MyTasksWidget() {
                               <div className="text-xs text-foreground truncate group-hover/task:text-foreground transition-colors">
                                 {task.title}
                               </div>
-                              <div className="text-[10px] text-slate-600">{task.block_name}</div>
+                              <div className="text-xs text-slate-600">{task.block_name}</div>
                             </div>
                             {task.due_date && (
-                              <span className={`text-[10px] flex-shrink-0 font-medium ${
+                              <span className={`text-xs flex-shrink-0 font-medium ${
                                 filter === 'overdue' ? 'text-rose-400' : 'text-slate-500'
                               }`}>
                                 {formatDate(task.due_date)}
@@ -180,7 +180,7 @@ export function MyTasksWidget() {
                         {group.tasks.length > 5 && (
                           <button
                             onClick={() => handleTaskClick(group.board_id)}
-                            className="text-[10px] text-slate-500 hover:text-bridge-secondary px-3 py-1 transition-colors"
+                            className="text-xs text-slate-500 hover:text-bridge-secondary px-3 py-1 transition-colors"
                           >
                             +{group.tasks.length - 5} more
                           </button>

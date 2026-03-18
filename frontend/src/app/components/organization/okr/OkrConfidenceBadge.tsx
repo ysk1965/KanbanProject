@@ -34,7 +34,7 @@ export function OkrConfidenceBadge({ confidence, size = "sm" }: OkrConfidenceBad
   return (
     <span
       className={`font-bold rounded-full ${style} ${
-        size === "sm" ? "text-[10px] px-1.5 py-0.5" : "text-[11px] px-2 py-0.5"
+        size === "sm" ? "text-xs px-1.5 py-0.5" : "text-xs px-2 py-0.5"
       }`}
     >
       {label}

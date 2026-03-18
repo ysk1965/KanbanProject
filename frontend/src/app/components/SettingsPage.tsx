@@ -401,7 +401,7 @@ export function SettingsPage() {
 
           <div className="space-y-4">
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                 {t("settings.emailLabel")}
               </label>
               <input
@@ -416,7 +416,7 @@ export function SettingsPage() {
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                 {t("settings.nameLabel")}
               </label>
               <input
@@ -666,7 +666,7 @@ export function SettingsPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                   {t("settings.currentPasswordLabel")}
                 </label>
                 <div className="relative">
@@ -692,7 +692,7 @@ export function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                   {t("settings.newPasswordLabel")}
                 </label>
                 <div className="relative">
@@ -718,7 +718,7 @@ export function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                   {t("settings.confirmPasswordLabel")}
                 </label>
                 <input
@@ -804,7 +804,7 @@ export function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-red-400/70 uppercase tracking-widest mb-2">
+                <label className="block text-xs font-bold text-red-400/70 uppercase tracking-widest mb-2">
                   {t("settings.deleteAccountTypeLabel")}
                 </label>
                 <input

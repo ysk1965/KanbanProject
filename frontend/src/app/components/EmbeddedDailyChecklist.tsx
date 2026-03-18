@@ -135,7 +135,7 @@ export function EmbeddedDailyChecklist({
 
   // Header row (always visible)
   const header = (
-    <div className="flex items-center justify-between text-[11px]">
+    <div className="flex items-center justify-between text-xs">
       <button
         onClick={onToggleExpand}
         className="flex items-center gap-1 text-slate-400 hover:text-foreground transition-colors min-w-0"
@@ -161,6 +161,7 @@ export function EmbeddedDailyChecklist({
           <button
             onClick={onAddClick}
             className="w-4 h-4 flex items-center justify-center rounded hover:bg-foreground/10 text-slate-400 hover:text-foreground transition-colors"
+            aria-label="추가"
           >
             <Plus className="h-3 w-3" />
           </button>
@@ -197,7 +198,7 @@ export function EmbeddedDailyChecklist({
           {localItems.length > 4 && (
             <button
               onClick={onToggleExpand}
-              className="text-[10px] text-slate-400 hover:text-foreground pl-2 transition-colors"
+              className="text-xs text-slate-400 hover:text-foreground pl-2 transition-colors"
             >
               {t('dailySchedule.moreItems', { count: localItems.length - 4 })}
             </button>

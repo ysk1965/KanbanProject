@@ -2,6 +2,30 @@
 
 > BRIDGE 프로덕션 환경에서 SimpleBroker → Redis Pub/Sub 전환을 위한 기술 문서
 
+## 인프라 현황 (2026-03-16 확인)
+
+### ElastiCache 상태
+
+- **실제 AWS**: ElastiCache Redis cache.t4g.micro **동작 중** (kanban-dev-redis-001)
+- **Terraform**: dev/main.tf에서 ElastiCache 모듈 **주석 처리됨** (Drift 상태)
+- **⚠️ 주의**: `terraform plan` 실행 시 ElastiCache 삭제를 시도할 수 있음
+- **조치 필요**: 주석 해제 또는 `terraform import` 실행
+
+### Phase 1 상태: **부분 완료**
+
+| 항목 | 상태 | 비고 |
+|------|------|------|
+| ElastiCache Replication Group | ❌ 미완료 | 단일 클러스터 노드로 동작 중 (Replication Group 아님) |
+| ALB Sticky Session | ✅ 완료 | lb_cookie, 3600초 (Terraform EB 모듈에 설정됨) |
+| CACHE_TYPE=redis | ✅ 완료 | Terraform EB 모듈에서 조건부 주입 |
+| WS_BROKER_TYPE=redis | ❌ 미완료 | Terraform EB 모듈에서 **미주입** — WebSocket이 SimpleBroker로 동작 중일 가능성 |
+
+### 현재 위험
+
+현재 EB가 1 instance로 동작 중이므로 SimpleBroker로도 정상 동작합니다. 하지만 Auto Scaling으로 2+ instances가 되면 WebSocket 실시간 동기화가 즉시 실패합니다. Phase 2~5 전환은 사용자 증가 전에 완료해야 합니다.
+
+---
+
 ## 1. 현재 아키텍처 (As-Is)
 
 ### 구성

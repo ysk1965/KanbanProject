@@ -4,19 +4,21 @@ import { FileText, FolderPlus, FilePlus, PenTool, Search, List, FolderTree, Load
 import { NoteTreeSidebar } from './NoteTreeSidebar';
 import { NoteEditor } from './NoteEditor';
 import { NoteListView } from './NoteListView';
-import { noteService } from '../../utils/services';
+import { noteService, orgNoteService } from '../../utils/services';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCollaboration } from '../../hooks/useCollaboration';
 import { getAssigneeHex } from '../../utils/assigneeColor';
 import { Sheet, SheetContent, SheetTitle } from '../ui/sheet';
-import type { NoteTreeItem, NoteDetail, NoteListItem, NoteTagInfo } from '../../utils/api';
+import { IconButton } from '../ui/IconButton';
+import type { NoteTreeItem, NoteDetail, NoteListItem, NoteTagInfo, BoardNoteSection } from '../../utils/api';
 
 interface NotesViewProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   currentUserRole: string;
 }
 
-export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
+export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
   const { t } = useTranslation();
   const { currentUser } = useAuth();
   const [tree, setTree] = useState<NoteTreeItem[]>([]);
@@ -28,7 +30,15 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
   const [viewType, setViewType] = useState<'tree' | 'list'>('tree');
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [boardNoteSections, setBoardNoteSections] = useState<BoardNoteSection[]>([]);
+  // Track which scope the selected note belongs to (org notes vs board notes)
+  const [selectedNoteScope, setSelectedNoteScope] = useState<{ type: 'org' | 'board'; id: string } | null>(null);
   const hasUnsavedChangesRef = useRef(false);
+
+  // Determine scope
+  const scopeId = boardId || orgId || '';
+  const scopeType = orgId ? 'org' : 'board';
+  const svc = scopeType === 'org' ? orgNoteService : noteService;
 
   const isViewer = currentUserRole === 'viewer';
   const canEdit = !isViewer;
@@ -46,28 +56,40 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
 
   const loadTree = useCallback(async () => {
     try {
-      const data = await noteService.getTree(boardId);
+      const data = await svc.getTree(scopeId);
       setTree(data);
     } catch (err) {
       console.error('Failed to load note tree:', err);
     } finally {
       setLoading(false);
     }
-  }, [boardId]);
+  }, [scopeId, svc]);
 
   const loadTags = useCallback(async () => {
     try {
-      const data = await noteService.getTags(boardId);
+      const data = await svc.getTags(scopeId);
       setTags(data);
     } catch (err) {
       console.error('Failed to load note tags:', err);
     }
-  }, [boardId]);
+  }, [scopeId, svc]);
+
+  // Load board note sections for org mode
+  const loadBoardNotes = useCallback(async () => {
+    if (!orgId) return;
+    try {
+      const data = await orgNoteService.getBoardNotes(orgId);
+      setBoardNoteSections(data);
+    } catch (err) {
+      console.error('Failed to load board notes:', err);
+    }
+  }, [orgId]);
 
   useEffect(() => {
     loadTree();
     loadTags();
-  }, [loadTree, loadTags]);
+    loadBoardNotes();
+  }, [loadTree, loadTags, loadBoardNotes]);
 
   const handleDirtyChange = useCallback((isDirty: boolean) => {
     hasUnsavedChangesRef.current = isDirty;
@@ -83,23 +105,48 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
     }
 
     setSelectedNoteId(noteId);
+    setSelectedNoteScope(orgId ? { type: 'org', id: orgId } : { type: 'board', id: boardId || '' });
     setNoteLoading(true);
     setMobileSidebarOpen(false);
     try {
-      const detail = await noteService.getDetail(boardId, noteId);
+      const detail = await svc.getDetail(scopeId, noteId);
       setSelectedNote(detail);
     } catch (err) {
       console.error('Failed to load note detail:', err);
     } finally {
       setNoteLoading(false);
     }
-  }, [boardId, selectedNoteId, t]);
+  }, [scopeId, svc, selectedNoteId, t, orgId, boardId]);
+
+  // Handle selecting a board note from within org view
+  const handleSelectBoardNote = useCallback(async (noteId: string, noteBoardId: string) => {
+    if (noteId === selectedNoteId) return;
+
+    if (hasUnsavedChangesRef.current) {
+      if (!window.confirm(t('notes.unsavedWarning', '저장하지 않은 변경사항이 있습니다. 저장하지 않고 이동하시겠습니까?'))) {
+        return;
+      }
+    }
+
+    setSelectedNoteId(noteId);
+    setSelectedNoteScope({ type: 'board', id: noteBoardId });
+    setNoteLoading(true);
+    setMobileSidebarOpen(false);
+    try {
+      const detail = await noteService.getDetail(noteBoardId, noteId);
+      setSelectedNote(detail);
+    } catch (err) {
+      console.error('Failed to load board note detail:', err);
+    } finally {
+      setNoteLoading(false);
+    }
+  }, [selectedNoteId, t]);
 
   const handleCreateFolder = useCallback(async (parentId?: string | null) => {
     if (!canEdit) return;
     try {
       const title = t('notes.newFolder', '새 폴더');
-      await noteService.create(boardId, {
+      await svc.create(scopeId, {
         title,
         type: 'FOLDER',
         parentId: parentId || null,
@@ -108,13 +155,13 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
     } catch (err) {
       console.error('Failed to create folder:', err);
     }
-  }, [boardId, canEdit, loadTree, t]);
+  }, [scopeId, svc, canEdit, loadTree, t]);
 
   const handleCreateDocument = useCallback(async (parentId?: string | null) => {
     if (!canEdit) return;
     try {
       const title = t('notes.newDocument', '새 문서');
-      const created = await noteService.create(boardId, {
+      const created = await svc.create(scopeId, {
         title,
         type: 'DOCUMENT',
         parentId: parentId || null,
@@ -125,13 +172,13 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
     } catch (err) {
       console.error('Failed to create document:', err);
     }
-  }, [boardId, canEdit, loadTree, handleSelectNote, t]);
+  }, [scopeId, svc, canEdit, loadTree, handleSelectNote, t]);
 
   const handleCreateBoard = useCallback(async (parentId?: string | null) => {
     if (!canEdit) return;
     try {
       const title = t('notes.newBoard', '새 보드');
-      const created = await noteService.create(boardId, {
+      const created = await svc.create(scopeId, {
         title,
         type: 'BOARD',
         parentId: parentId || null,
@@ -142,11 +189,11 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
     } catch (err) {
       console.error('Failed to create board:', err);
     }
-  }, [boardId, canEdit, loadTree, handleSelectNote, t]);
+  }, [scopeId, svc, canEdit, loadTree, handleSelectNote, t]);
 
   const handleDeleteNote = useCallback(async (noteId: string) => {
     try {
-      await noteService.delete(boardId, noteId);
+      await svc.delete(scopeId, noteId);
       if (selectedNoteId === noteId) {
         setSelectedNoteId(null);
         setSelectedNote(null);
@@ -156,11 +203,11 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
     } catch (err) {
       console.error('Failed to delete note:', err);
     }
-  }, [boardId, selectedNoteId, loadTree]);
+  }, [scopeId, svc, selectedNoteId, loadTree]);
 
   const handleRenameNote = useCallback(async (noteId: string, newTitle: string) => {
     try {
-      await noteService.update(boardId, noteId, { title: newTitle }, false);
+      await svc.update(scopeId, noteId, { title: newTitle }, false);
       await loadTree();
       if (selectedNoteId === noteId && selectedNote) {
         setSelectedNote({ ...selectedNote, title: newTitle });
@@ -168,7 +215,7 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
     } catch (err) {
       console.error('Failed to rename note:', err);
     }
-  }, [boardId, selectedNoteId, selectedNote, loadTree]);
+  }, [scopeId, svc, selectedNoteId, selectedNote, loadTree]);
 
   const handleSaveNote = useCallback(async (
     noteId: string,
@@ -176,22 +223,28 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
     createVersion = true
   ) => {
     try {
-      const updated = await noteService.update(boardId, noteId, data, createVersion);
+      // Use the correct service based on which scope the note belongs to
+      const saveSvc = selectedNoteScope?.type === 'board' && selectedNoteScope.id !== orgId
+        ? noteService : svc;
+      const saveId = selectedNoteScope?.type === 'board' && selectedNoteScope.id !== orgId
+        ? selectedNoteScope.id : scopeId;
+      const updated = await saveSvc.update(saveId, noteId, data, createVersion);
       setSelectedNote(updated);
       await loadTree();
+      if (selectedNoteScope?.type === 'board') await loadBoardNotes();
     } catch (err) {
       console.error('Failed to save note:', err);
     }
-  }, [boardId, loadTree]);
+  }, [scopeId, svc, loadTree, loadBoardNotes, selectedNoteScope, orgId]);
 
   const handleMoveNote = useCallback(async (noteId: string, parentId: string | null, position: number) => {
     try {
-      await noteService.move(boardId, noteId, { parentId, position });
+      await svc.move(scopeId, noteId, { parentId, position });
       await loadTree();
     } catch (err) {
       console.error('Failed to move note:', err);
     }
-  }, [boardId, loadTree]);
+  }, [scopeId, svc, loadTree]);
 
   if (loading) {
     return (
@@ -281,10 +334,12 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
             onRename={handleRenameNote}
             onMove={handleMoveNote}
             canEdit={canEdit}
+            boardNoteSections={orgId ? boardNoteSections : undefined}
+            onSelectBoardNote={orgId ? handleSelectBoardNote : undefined}
           />
         ) : (
           <NoteListView
-            boardId={boardId}
+            boardId={scopeId}
             selectedNoteId={selectedNoteId}
             searchQuery={searchQuery}
             onSelect={handleSelectNote}
@@ -316,20 +371,20 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
           <>
             {/* Mobile top bar with sidebar toggle */}
             <div className="flex md:hidden items-center gap-2 px-3 py-2 border-b border-foreground/5">
-              <button
-                onClick={() => setMobileSidebarOpen(true)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-              >
-                <Menu size={18} />
-              </button>
+              <IconButton onClick={() => setMobileSidebarOpen(true)} aria-label="사이드바 열기">
+                <Menu />
+              </IconButton>
               <span className="text-sm text-foreground font-medium truncate">{selectedNote.title}</span>
             </div>
             <NoteEditor
-              boardId={boardId}
+              boardId={selectedNoteScope?.type === 'board' ? selectedNoteScope.id : boardId}
+              orgId={selectedNoteScope?.type === 'org' ? selectedNoteScope.id : (selectedNoteScope?.type === 'board' ? undefined : orgId)}
               note={selectedNote}
               tags={tags}
               loading={noteLoading}
-              canEdit={canEdit}
+              canEdit={selectedNoteScope?.type === 'board' && orgId
+                ? boardNoteSections.find(s => s.board_id === selectedNoteScope.id)?.user_role !== 'VIEWER'
+                : canEdit}
               onSave={handleSaveNote}
               onTagsChange={loadTags}
               onDirtyChange={handleDirtyChange}
@@ -353,7 +408,7 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
             {canEdit && (
               <button
                 onClick={() => handleCreateDocument(null)}
-                className="mt-4 px-4 py-2 bg-bridge-accent text-white rounded-xl text-xs font-semibold hover:bg-bridge-accent/90 transition-all"
+                className="mt-4 px-4 py-2 bg-bridge-accent text-white rounded-xl text-xs font-bold hover:bg-bridge-accent/90 transition-all"
               >
                 <FilePlus size={14} className="inline mr-1.5" />
                 {t('notes.createFirstDocument', '첫 문서 만들기')}

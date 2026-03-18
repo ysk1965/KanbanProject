@@ -980,6 +980,26 @@
     "copied": "Copied",
     "copy": "Copy"
   },
+  "boardResource": {
+    "title": "Resources",
+    "addResource": "Add Resource",
+    "editResource": "Edit Resource",
+    "deleteResource": "Delete Resource",
+    "deleteConfirm": "Are you sure you want to delete this resource?",
+    "linkTitle": "Title",
+    "linkTitlePlaceholder": "e.g., API Docs",
+    "linkUrl": "URL",
+    "linkUrlPlaceholder": "https://...",
+    "linkDescription": "Description (optional)",
+    "linkDescriptionPlaceholder": "Brief description",
+    "limitReached": "Maximum {{max}} resources per board",
+    "invalidUrl": "Please enter a valid URL",
+    "openLink": "Open link",
+    "collapse": "Collapse resource bar",
+    "expand": "Expand resource bar",
+    "noResources": "No shared resources",
+    "addFirst": "Add your first resource"
+  },
   "discordBot": {
     "title": "Discord Bot",
     "notInstalled": "Discord Bot is not connected",
@@ -1379,7 +1399,7 @@
     "attachImage": "Attach images (max 5)",
     "attachFile": "Attach files (max 5)",
     "imageHelp": "Images: paste, drag, or use the clip button",
-    "fileHelp": "Images & videos: paste, drag, or use the clip button",
+    "fileHelp": "Images, videos & docs: paste, drag, or use the clip button",
     "viewerReadOnly": "Observers cannot write comments",
     "attachedImage": "Attached image",
     "attachedFile": "Attached file",
@@ -1389,9 +1409,10 @@
     "addFile": "Add file",
     "failed": "Failed",
     "maxFilesError": "You can attach up to 5 files.",
-    "fileTypeError": "Supported formats: jpg, png, gif, webp, mp4, webm, mov.",
+    "fileTypeError": "Supported formats: images, videos, PDF, Word, Excel, PPT, TXT.",
     "fileSizeError": "Maximum image size is 30MB.",
     "videoFileSizeError": "Maximum video size is 50MB.",
+    "docFileSizeError": "Maximum document size is 30MB.",
     "uploadInProgress": "Files are being uploaded. Please wait.",
     "uploadFailedRetry": "Some files failed to upload. Please remove and try again.",
     "reaction": {
@@ -1416,6 +1437,24 @@
     "aiOpenQuestions": "Open Questions",
     "aiActionItems": "Action Items",
     "checklist": "Checklist"
+  },
+  "mentionGroup": {
+    "create": "Create mention group",
+    "edit": "Edit mention group",
+    "delete": "Delete mention group",
+    "deleteConfirm": "Are you sure you want to delete this mention group?",
+    "name": "Group name",
+    "namePlaceholder": "e.g. Design Team, Dev Team",
+    "selectMembers": "Select members",
+    "searchMember": "Search members...",
+    "memberCountSuffix": "",
+    "me": "Me",
+    "noGroups": "No mention groups",
+    "groups": "Groups",
+    "manageTitle": "Manage mention groups",
+    "createBtn": "Create",
+    "saveBtn": "Save",
+    "close": "Close"
   },
   "activity": {
     "title": "Activity Log",
@@ -1680,7 +1719,8 @@
   "featureChip": {
     "count": "{{count}}",
     "hideFilter": "Hide filter",
-    "showFilter": "Show filter"
+    "showFilter": "Show filter",
+    "tooltipCompleted": "completed"
   },
   "dailyChecklistColumn": {
     "completedCount": "{{completed}}/{{total}} done",
@@ -2323,7 +2363,20 @@
         "trialUsed": "Trial Used",
         "noSubscription": "No subscription",
         "monthly": "Monthly",
-        "yearly": "Yearly"
+        "yearly": "Yearly",
+        "aiCredits": "AI Credits",
+        "monthlyLimit": "Monthly Limit",
+        "creditsUsed": "Used",
+        "creditsRemaining": "Remaining",
+        "creditsResetDate": "Reset Date",
+        "addBonusCredits": "Add Bonus Credits",
+        "resetUsedCredits": "Reset",
+        "confirmResetCredits": "Reset all used credits to 0? This gives the organization a full credit refill.",
+        "creditsUpdated": "AI credits updated",
+        "creditsUpdateFailed": "Failed to update AI credits",
+        "creditsReset": "Used credits have been reset",
+        "exhausted": "Exhausted",
+        "low": "Low"
       },
       "actions": {
         "edit": "Edit Info",
@@ -3003,7 +3056,8 @@
     "shareNotFound": "Document not found",
     "shareNotAvailable": "Document unavailable",
     "shareNotAvailableDesc": "This shared link has expired or the document has been deleted.",
-    "shareGoHome": "Go to Home"
+    "shareGoHome": "Go to Home",
+    "boardNotes": "Board Notes"
   },
   "ai_credits": {
     "title": "AI Credits",
@@ -3032,6 +3086,10 @@
       "description": "All AI credits have been used.\nPurchase additional credits to continue using AI features.",
       "buy_button": "Purchase Credits",
       "later_button": "Later"
+    },
+    "org_managed": {
+      "description": "This board is managed by an organization.\nOnly the organization admin can manage AI credits.\nPlease contact your organization admin.",
+      "close": "OK"
     },
     "admin": {
       "title": "AI Credit Status",
@@ -3462,7 +3520,8 @@
       "leave": "Leave",
       "workspace": "Workspace",
       "okr": "OKR",
-      "photos": "Photos"
+      "photos": "Photos",
+      "documents": "Documents"
     },
     "chart": {
       "searchPlaceholder": "Search members...",
@@ -3970,12 +4029,17 @@
       "deleteOrg": "Delete Organization",
       "deleteWarning": "Deleting this organization cannot be undone. All boards will be released.",
       "typeOrgName": "Type organization name to confirm",
+      "hrSystem": "HR System",
+      "hrSystemDesc": "Enable this if your organization manages leave/vacation through a separate HR system.",
+      "hrSystemEnabled": "Use HR System",
+      "hrSystemHint": "When enabled, BRIDGE's leave/vacation management features will be hidden.",
       "autoBoardAccess": "Auto Board Access",
       "autoBoardAccessDesc": "When enabled, organization members can access all organization boards with edit permissions without requesting to join.",
       "autoBoardAccessEnabled": "Enable Auto Board Access",
       "autoBoardAccessHint": "Organization members will automatically get MEMBER role access. They won't be added to the board member list.",
       "subtabs": {
         "general": "General",
+        "billing": "Billing",
         "structure": "Structure",
         "attendance": "Attendance Policy",
         "onboarding": "Onboarding"
@@ -4317,6 +4381,8 @@
     "noAlbumsToShare": "No albums to share",
     "sharePreview": "Preview",
     "shareGalleryDesc": "Share selected albums via a single link",
+    "shareGalleryTitleLabel": "Gallery Title",
+    "shareGalleryTitlePlaceholder": "e.g. Family Photos, Trip 2026",
     "shareSelectAlbums": "Albums to include",
     "galleryUploadLink": "Gallery Upload Link",
     "galleryUploadLinkDesc": "Anyone with this link can upload photos and manage albums",

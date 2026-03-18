@@ -187,7 +187,7 @@ export function AdminOrganizationsTab() {
 
       {/* Loading State */}
       {isLoading && !error && (
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-64" role="status" aria-label="로딩 중">
           <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
         </div>
       )}
@@ -214,28 +214,28 @@ export function AdminOrganizationsTab() {
               <table className="w-full min-w-[800px]">
                 <thead>
                   <tr className="border-b border-foreground/[0.08]">
-                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {t('admin.organizations.table.name')}
                     </th>
-                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {t('admin.organizations.table.owner')}
                     </th>
-                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {t('admin.organizations.table.plan')}
                     </th>
-                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {t('admin.organizations.table.status')}
                     </th>
-                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {t('admin.organizations.table.members')}
                     </th>
-                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {t('admin.organizations.table.boards')}
                     </th>
-                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       {showDeleted ? t('admin.organizations.deleted.deletedAt') : t('admin.organizations.table.created')}
                     </th>
-                    <th className="text-right px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-right px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                     </th>
                   </tr>
                 </thead>
@@ -256,7 +256,7 @@ export function AdminOrganizationsTab() {
                             {showDeleted ? (
                               <Trash2 className="h-5 w-5 text-red-400" />
                             ) : org.logo_url ? (
-                              <img src={org.logo_url} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                              <img src={org.logo_url} alt={org.name || '조직 로고'} className="w-10 h-10 rounded-lg object-cover" />
                             ) : (
                               <Building2 className="h-5 w-5 text-bridge-accent" />
                             )}
@@ -283,7 +283,7 @@ export function AdminOrganizationsTab() {
                         </span>
                       </td>
                       <td className="px-3 py-3 md:px-6 md:py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${getStatusStyle(org.subscription_status)}`}>
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${getStatusStyle(org.subscription_status)}`}>
                           {org.subscription_status || '-'}
                         </span>
                       </td>

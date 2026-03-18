@@ -3,6 +3,7 @@ import {
   ChevronDown,
   ChevronRight as ChevronRightIcon,
   FileText,
+  Flag,
   Calendar as CalendarIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -215,6 +216,8 @@ export function WeeklyScheduleView({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const headerScrollRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const sidebarScrollRef = useRef<HTMLDivElement>(null);
+  const isScrollSyncing = useRef(false);
 
   // 날짜들 (rangeStartDate ~ rangeEndDate)
   const days = useMemo(() => {
@@ -298,6 +301,21 @@ export function WeeklyScheduleView({
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (headerScrollRef.current) {
       headerScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
+    }
+    // 수직 스크롤 동기화 (타임라인 → 사이드바)
+    if (!isScrollSyncing.current && sidebarScrollRef.current) {
+      isScrollSyncing.current = true;
+      sidebarScrollRef.current.scrollTop = e.currentTarget.scrollTop;
+      isScrollSyncing.current = false;
+    }
+  };
+
+  // 사이드바 수직 스크롤 → 타임라인 동기화
+  const handleSidebarScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!isScrollSyncing.current && scrollContainerRef.current) {
+      isScrollSyncing.current = true;
+      scrollContainerRef.current.scrollTop = e.currentTarget.scrollTop;
+      isScrollSyncing.current = false;
     }
   };
 
@@ -981,6 +999,53 @@ export function WeeklyScheduleView({
     }
   };
 
+  // 마일스톤 바 위치 계산
+  const calculateMilestoneBarPosition = (milestone: Milestone) => {
+    const msStart = parseLocalDate(milestone.start_date);
+    const msEnd = parseLocalDate(milestone.end_date);
+
+    const rangeStart = rangeStartDate;
+    const rangeEnd = days[days.length - 1];
+
+    if (isAfter(msStart, rangeEnd) || isBefore(msEnd, rangeStart)) {
+      return null;
+    }
+
+    const displayStart = isBefore(msStart, rangeStart) ? rangeStart : msStart;
+    const displayEnd = isAfter(msEnd, rangeEnd) ? rangeEnd : msEnd;
+
+    if (viewMode === "day") {
+      const startOffset = differenceInDays(displayStart, rangeStart);
+      const duration = differenceInDays(displayEnd, displayStart) + 1;
+      return {
+        left: startOffset * DAY_WIDTH,
+        width: duration * DAY_WIDTH - 4,
+      };
+    } else {
+      const startWeekIndex = weeks.findIndex(
+        (week) =>
+          isWithinInterval(displayStart, {
+            start: week.start,
+            end: week.end,
+          }) ||
+          (isBefore(displayStart, week.start) &&
+            isAfter(displayEnd, week.start)),
+      );
+      const endWeekIndex = weeks.findIndex((week) =>
+        isWithinInterval(displayEnd, { start: week.start, end: week.end }),
+      );
+      if (startWeekIndex === -1 && endWeekIndex === -1) return null;
+      const effectiveStartWeek = startWeekIndex >= 0 ? startWeekIndex : 0;
+      const effectiveEndWeek =
+        endWeekIndex >= 0 ? endWeekIndex : weeks.length - 1;
+      const weekSpan = effectiveEndWeek - effectiveStartWeek + 1;
+      return {
+        left: effectiveStartWeek * WEEK_WIDTH,
+        width: weekSpan * WEEK_WIDTH - 4,
+      };
+    }
+  };
+
   // 오늘 표시선 위치 계산
   const getTodayLinePosition = () => {
     const today = startOfDay(new Date());
@@ -1050,6 +1115,10 @@ export function WeeklyScheduleView({
   // 타임라인 전체 높이 계산
   const timelineHeight = useMemo(() => {
     let height = 0;
+    // 마일스톤 행 높이
+    if (milestones.length > 0) {
+      height += 40; // 마일스톤 행
+    }
     displayedFeatures.forEach((feature) => {
       height += 48;
       if (!collapsedFeatures.has(feature.id)) {
@@ -1058,7 +1127,7 @@ export function WeeklyScheduleView({
       }
     });
     return height;
-  }, [displayedFeatures, collapsedFeatures, featureTaskMap]);
+  }, [displayedFeatures, collapsedFeatures, featureTaskMap, milestones]);
 
   // 총 그리드 너비
   const totalGridWidth =
@@ -1198,7 +1267,16 @@ export function WeeklyScheduleView({
           </div>
 
           {/* Feature/Task 목록 */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+          <div ref={sidebarScrollRef} onScroll={handleSidebarScroll} className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+            {/* 마일스톤 행 (최상단) */}
+            {milestones.length > 0 && (
+              <div className="h-10 p-2 md:p-3 border-b border-r border-bridge-border flex items-center gap-2 bg-foreground/[0.03]">
+                <Flag className="h-4 w-4 text-bridge-accent flex-shrink-0" />
+                <span className="text-sm font-medium text-foreground">
+                  {t("weeklySchedule.milestoneDefault", "마일스톤")}
+                </span>
+              </div>
+            )}
             {displayedFeatures.map((feature) => {
               const isCollapsed = collapsedFeatures.has(feature.id);
               const featureTasks = featureTaskMap.get(feature.id) || [];
@@ -1395,6 +1473,31 @@ export function WeeklyScheduleView({
                       );
                     })}
               </div>
+
+              {/* 마일스톤 바 행 (최상단) */}
+              {milestones.length > 0 && (
+                <div className="h-10 relative border-b border-bridge-border">
+                  {milestones.map((ms) => {
+                    const barPos = calculateMilestoneBarPosition(ms);
+                    if (!barPos) return null;
+                    return (
+                      <div
+                        key={ms.id}
+                        className="absolute top-1/2 -translate-y-1/2 h-6 rounded text-xs font-medium text-white flex items-center px-2 truncate"
+                        style={{
+                          left: barPos.left,
+                          width: barPos.width,
+                          minWidth: 20,
+                          background: "linear-gradient(135deg, #6366F1 0%, #818CF8 100%)",
+                        }}
+                        title={ms.title}
+                      >
+                        <span className="truncate">{ms.title}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Feature/Task 바들 */}
               {displayedFeatures.map((feature) => {

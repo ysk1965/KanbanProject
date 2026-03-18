@@ -47,7 +47,7 @@ export default function JoinRequestBanner({
       </div>
 
       {isPending ? (
-        <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 whitespace-nowrap shrink-0">
+        <span className="flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 whitespace-nowrap shrink-0">
           <Clock className="w-3 h-3" />
           {t('board.joinRequest.pending', '승인 대기중')}
         </span>

@@ -1513,6 +1513,41 @@ export const tagAPI = {
 };
 
 // ========================================
+// Mention Group API
+// ========================================
+
+export interface MentionGroupMemberInfo {
+  user_id: string;
+  name: string;
+  profile_image: string | null;
+}
+
+export interface MentionGroupDetail {
+  id: string;
+  name: string;
+  members: MentionGroupMemberInfo[];
+  created_at: string;
+}
+
+export const mentionGroupAPI = {
+  getGroups: async (boardId: string) => {
+    return apiClient.get<{ groups: MentionGroupDetail[] }>(`/boards/${boardId}/mention-groups`);
+  },
+
+  createGroup: async (boardId: string, data: { name: string; member_ids: string[] }) => {
+    return apiClient.post<MentionGroupDetail>(`/boards/${boardId}/mention-groups`, data);
+  },
+
+  updateGroup: async (boardId: string, groupId: string, data: { name: string; member_ids: string[] }) => {
+    return apiClient.put<MentionGroupDetail>(`/boards/${boardId}/mention-groups/${groupId}`, data);
+  },
+
+  deleteGroup: async (boardId: string, groupId: string) => {
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/mention-groups/${groupId}`);
+  },
+};
+
+// ========================================
 // Checklist API
 // ========================================
 
@@ -1916,6 +1951,57 @@ export interface CustomEmojiDetail {
 export interface CustomEmojiListResponse {
   emojis: CustomEmojiDetail[];
 }
+
+// ========================================
+// Board Resource API
+// ========================================
+
+export interface BoardResourceListResponse {
+  resources: import("../types").BoardResource[];
+  total_count: number;
+}
+
+export const boardResourceAPI = {
+  getResources: async (boardId: string) => {
+    return apiClient.get<BoardResourceListResponse>(
+      `/boards/${boardId}/resources`,
+    );
+  },
+
+  createResource: async (
+    boardId: string,
+    data: { title: string; url: string; description?: string },
+  ) => {
+    return apiClient.post<import("../types").BoardResource>(
+      `/boards/${boardId}/resources`,
+      data,
+    );
+  },
+
+  updateResource: async (
+    boardId: string,
+    resourceId: string,
+    data: { title: string; url: string; description?: string },
+  ) => {
+    return apiClient.put<import("../types").BoardResource>(
+      `/boards/${boardId}/resources/${resourceId}`,
+      data,
+    );
+  },
+
+  deleteResource: async (boardId: string, resourceId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/resources/${resourceId}`,
+    );
+  },
+
+  reorderResources: async (boardId: string, resourceIds: string[]) => {
+    return apiClient.put<BoardResourceListResponse>(
+      `/boards/${boardId}/resources/reorder`,
+      { resource_ids: resourceIds },
+    );
+  },
+};
 
 export const customEmojiAPI = {
   getEmojis: async (boardId: string) => {
@@ -3939,6 +4025,10 @@ export interface AdminOrgDetail extends AdminOrgSummary {
   total_price?: number | null;
   current_period_end?: string | null;
   trial_used?: boolean;
+  monthly_ai_credits?: number | null;
+  monthly_credits_used?: number | null;
+  remaining_ai_credits?: number | null;
+  credits_reset_date?: string | null;
   departments_enabled?: boolean;
   job_groups_enabled?: boolean;
   positions_enabled?: boolean;
@@ -4311,6 +4401,21 @@ export const adminAPI = {
     );
   },
 
+  // 조직 AI 크레딧 조정
+  adjustOrgAiCredits: async (
+    orgId: string,
+    data: {
+      monthly_ai_credits?: number;
+      reset_used_credits?: boolean;
+      add_bonus_credits?: number;
+    },
+  ) => {
+    return apiClient.patch<AdminOrgDetail>(
+      `/admin/organizations/${orgId}/ai-credits`,
+      data,
+    );
+  },
+
   // 조직 통계
   getOrgStatistics: async () => {
     return apiClient.get<AdminOrgStatistics>(
@@ -4430,6 +4535,15 @@ export const adminAPI = {
     );
   },
 
+  // 수익화 토글
+  getMonetizationStatus: async () => {
+    return apiClient.get<{ monetization_enabled: boolean }>("/admin/system/monetization");
+  },
+
+  setMonetizationEnabled: async (enabled: boolean) => {
+    return apiClient.put<{ monetization_enabled: boolean }>("/admin/system/monetization", { monetization_enabled: enabled });
+  },
+
   // 점검 모드
   getMaintenanceStatus: async () => {
     return apiClient.get<MaintenanceStatus>("/admin/system/maintenance");
@@ -4524,6 +4638,10 @@ export const systemAPI = {
 
   getActiveAnnouncements: async () => {
     return apiClient.get<AnnouncementDetail[]>("/system/announcements/active");
+  },
+
+  getMonetizationStatus: async () => {
+    return apiClient.get<{ monetization_enabled: boolean }>("/system/monetization");
   },
 };
 
@@ -5006,6 +5124,14 @@ export interface NoteTreeItem {
   children: NoteTreeItem[];
 }
 
+export interface BoardNoteSection {
+  board_id: string;
+  board_name: string;
+  note_count: number;
+  user_role: string;
+  tree: NoteTreeItem[];
+}
+
 export interface NoteDetail {
   id: string;
   parent_id: string | null;
@@ -5330,6 +5456,200 @@ export const noteAPI = {
 export const publicNoteAPI = {
   getSharedNote: async (shareToken: string) => {
     return apiClient.get<SharedNote>(`/public/notes/${shareToken}`, true);
+  },
+};
+
+// ========================================
+// Organization Note API
+// ========================================
+
+export const orgNoteAPI = {
+  getBoardNotes: async (orgId: string) => {
+    return apiClient.get<BoardNoteSection[]>(`/organizations/${orgId}/notes/board-notes`);
+  },
+
+  getTree: async (orgId: string) => {
+    return apiClient.get<NoteTreeItem[]>(`/organizations/${orgId}/notes`);
+  },
+
+  getList: async (orgId: string) => {
+    return apiClient.get<NoteListItem[]>(`/organizations/${orgId}/notes/list`);
+  },
+
+  getDetail: async (orgId: string, noteId: string) => {
+    return apiClient.get<NoteDetail>(`/organizations/${orgId}/notes/${noteId}`);
+  },
+
+  create: async (
+    orgId: string,
+    data: {
+      title: string;
+      type: "FOLDER" | "DOCUMENT" | "BOARD";
+      parentId?: string | null;
+      content?: string;
+      tagIds?: string[];
+    },
+  ) => {
+    return apiClient.post<NoteDetail>(`/organizations/${orgId}/notes`, data);
+  },
+
+  update: async (
+    orgId: string,
+    noteId: string,
+    data: {
+      title?: string;
+      content?: string;
+      tagIds?: string[];
+    },
+    createVersion = true,
+  ) => {
+    const params = createVersion ? "" : "?createVersion=false";
+    return apiClient.put<NoteDetail>(
+      `/organizations/${orgId}/notes/${noteId}${params}`,
+      data,
+    );
+  },
+
+  delete: async (orgId: string, noteId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/organizations/${orgId}/notes/${noteId}`,
+    );
+  },
+
+  move: async (
+    orgId: string,
+    noteId: string,
+    data: {
+      parentId?: string | null;
+      position?: number;
+    },
+  ) => {
+    return apiClient.put<NoteDetail>(
+      `/organizations/${orgId}/notes/${noteId}/move`,
+      {
+        parent_id: data.parentId,
+        position: data.position,
+      },
+    );
+  },
+
+  getVersions: async (orgId: string, noteId: string) => {
+    return apiClient.get<NoteVersionInfo[]>(
+      `/organizations/${orgId}/notes/${noteId}/versions`,
+    );
+  },
+
+  getVersionDetail: async (
+    orgId: string,
+    noteId: string,
+    versionId: string,
+  ) => {
+    return apiClient.get<NoteVersionDetail>(
+      `/organizations/${orgId}/notes/${noteId}/versions/${versionId}`,
+    );
+  },
+
+  restoreVersion: async (
+    orgId: string,
+    noteId: string,
+    versionId: string,
+  ) => {
+    return apiClient.post<NoteDetail>(
+      `/organizations/${orgId}/notes/${noteId}/versions/${versionId}/restore`,
+    );
+  },
+
+  getTags: async (orgId: string) => {
+    return apiClient.get<NoteTagInfo[]>(`/organizations/${orgId}/note-tags`);
+  },
+
+  createTag: async (orgId: string, data: { name: string; color: string }) => {
+    return apiClient.post<NoteTagInfo>(`/organizations/${orgId}/note-tags`, data);
+  },
+
+  deleteTag: async (orgId: string, tagId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/organizations/${orgId}/note-tags/${tagId}`,
+    );
+  },
+
+  enableShare: async (orgId: string, noteId: string) => {
+    return apiClient.post<NoteDetail>(
+      `/organizations/${orgId}/notes/${noteId}/share`,
+    );
+  },
+
+  disableShare: async (orgId: string, noteId: string) => {
+    return apiClient.delete<NoteDetail>(
+      `/organizations/${orgId}/notes/${noteId}/share`,
+    );
+  },
+};
+
+export const orgNoteCommentAPI = {
+  getComments: async (orgId: string, noteId: string) => {
+    return apiClient.get<NoteCommentListResponse>(
+      `/organizations/${orgId}/notes/${noteId}/comments`,
+    );
+  },
+
+  createComment: async (
+    orgId: string,
+    noteId: string,
+    data: {
+      content: string;
+      block_id?: string | null;
+      parent_id?: string | null;
+      mentions?: string[];
+    },
+  ) => {
+    return apiClient.post<NoteCommentDetail>(
+      `/organizations/${orgId}/notes/${noteId}/comments`,
+      data,
+    );
+  },
+
+  updateComment: async (
+    orgId: string,
+    noteId: string,
+    commentId: string,
+    data: {
+      content: string;
+      mentions?: string[];
+    },
+  ) => {
+    return apiClient.put<NoteCommentDetail>(
+      `/organizations/${orgId}/notes/${noteId}/comments/${commentId}`,
+      data,
+    );
+  },
+
+  deleteComment: async (orgId: string, noteId: string, commentId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/organizations/${orgId}/notes/${noteId}/comments/${commentId}`,
+    );
+  },
+
+  toggleResolved: async (
+    orgId: string,
+    noteId: string,
+    commentId: string,
+  ) => {
+    return apiClient.post<NoteCommentDetail>(
+      `/organizations/${orgId}/notes/${noteId}/comments/${commentId}/resolve`,
+    );
+  },
+
+  toggleReaction: async (
+    orgId: string,
+    noteId: string,
+    commentId: string,
+    emoji: string,
+  ) => {
+    return apiClient.post<ReactionsToggleResponse>(
+      `/organizations/${orgId}/notes/${noteId}/comments/${commentId}/reactions/toggle`,
+      { emoji },
+    );
   },
 };
 
@@ -7113,17 +7433,24 @@ export const orgPhotoAPI = {
   // Gallery-level sharing
   enableGalleryShare: (
     orgId: string,
+    title?: string,
   ): Promise<{ share_token: string }> =>
-    apiClient.post(`/organizations/${orgId}/photos/gallery-share`),
+    apiClient.post(`/organizations/${orgId}/photos/gallery-share`, { title }),
 
   disableGalleryShare: (
     orgId: string,
   ): Promise<void> =>
     apiClient.delete(`/organizations/${orgId}/photos/gallery-share`),
 
+  updateGalleryShareTitle: (
+    orgId: string,
+    title: string,
+  ): Promise<void> =>
+    apiClient.patch(`/organizations/${orgId}/photos/gallery-share`, { title }),
+
   getGalleryShareStatus: (
     orgId: string,
-  ): Promise<{ enabled: boolean; share_token: string }> =>
+  ): Promise<{ enabled: boolean; share_token: string; title: string }> =>
     apiClient.get(`/organizations/${orgId}/photos/gallery-share`),
 
   // Gallery-level upload
@@ -7235,6 +7562,64 @@ export const publicGalleryAPI = {
   },
 };
 
+// ─── Chunked Upload Helper ───
+
+const CHUNK_MAX_SIZE = 100 * 1024 * 1024; // 100MB per batch
+const CHUNK_MAX_FILES = 20; // max files per batch
+
+export interface ChunkedUploadProgress {
+  uploadedFiles: number;
+  totalFiles: number;
+  currentBatch: number;
+  totalBatches: number;
+}
+
+function splitFilesIntoChunks(files: File[]): File[][] {
+  const chunks: File[][] = [];
+  let currentChunk: File[] = [];
+  let currentSize = 0;
+
+  for (const file of files) {
+    // If adding this file exceeds limits, start a new chunk
+    if (
+      currentChunk.length > 0 &&
+      (currentSize + file.size > CHUNK_MAX_SIZE ||
+        currentChunk.length >= CHUNK_MAX_FILES)
+    ) {
+      chunks.push(currentChunk);
+      currentChunk = [];
+      currentSize = 0;
+    }
+    currentChunk.push(file);
+    currentSize += file.size;
+  }
+
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk);
+  }
+
+  return chunks;
+}
+
+async function uploadFormData(
+  url: string,
+  files: File[],
+): Promise<import("../types").OrgPhoto[]> {
+  const formData = new FormData();
+  files.forEach((f) => formData.append("files", f));
+  const response = await fetch(url, {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    const err = await response
+      .json()
+      .catch(() => ({ message: "Upload failed" }));
+    throw err;
+  }
+  return response.json();
+}
+
 export const publicUploadAPI = {
   getUploadAlbumInfo: (
     uploadToken: string,
@@ -7244,23 +7629,36 @@ export const publicUploadAPI = {
   uploadPhotos: async (
     uploadToken: string,
     files: File[],
+    onProgress?: (progress: ChunkedUploadProgress) => void,
   ): Promise<import("../types").OrgPhoto[]> => {
-    const formData = new FormData();
-    files.forEach((f) => formData.append("files", f));
-    const response = await fetch(
-      `${API_BASE_URL}/public/upload/${uploadToken}`,
-      {
-        method: "POST",
-        body: formData,
-      },
-    );
-    if (!response.ok) {
-      const err = await response
-        .json()
-        .catch(() => ({ message: "Upload failed" }));
-      throw err;
+    const chunks = splitFilesIntoChunks(files);
+    const allResults: import("../types").OrgPhoto[] = [];
+    let uploadedFiles = 0;
+
+    for (let i = 0; i < chunks.length; i++) {
+      onProgress?.({
+        uploadedFiles,
+        totalFiles: files.length,
+        currentBatch: i + 1,
+        totalBatches: chunks.length,
+      });
+
+      const results = await uploadFormData(
+        `${API_BASE_URL}/public/upload/${uploadToken}`,
+        chunks[i],
+      );
+      allResults.push(...results);
+      uploadedFiles += chunks[i].length;
     }
-    return response.json();
+
+    onProgress?.({
+      uploadedFiles: files.length,
+      totalFiles: files.length,
+      currentBatch: chunks.length,
+      totalBatches: chunks.length,
+    });
+
+    return allResults;
   },
 };
 
@@ -7303,23 +7701,36 @@ export const publicGalleryUploadAPI = {
     uploadToken: string,
     albumId: string,
     files: File[],
+    onProgress?: (progress: ChunkedUploadProgress) => void,
   ): Promise<import("../types").OrgPhoto[]> => {
-    const formData = new FormData();
-    files.forEach((f) => formData.append("files", f));
-    const response = await fetch(
-      `${API_BASE_URL}/public/gallery-upload/${uploadToken}/albums/${albumId}/photos`,
-      {
-        method: "POST",
-        body: formData,
-      },
-    );
-    if (!response.ok) {
-      const err = await response
-        .json()
-        .catch(() => ({ message: "Upload failed" }));
-      throw err;
+    const chunks = splitFilesIntoChunks(files);
+    const allResults: import("../types").OrgPhoto[] = [];
+    let uploadedFiles = 0;
+
+    for (let i = 0; i < chunks.length; i++) {
+      onProgress?.({
+        uploadedFiles,
+        totalFiles: files.length,
+        currentBatch: i + 1,
+        totalBatches: chunks.length,
+      });
+
+      const results = await uploadFormData(
+        `${API_BASE_URL}/public/gallery-upload/${uploadToken}/albums/${albumId}/photos`,
+        chunks[i],
+      );
+      allResults.push(...results);
+      uploadedFiles += chunks[i].length;
     }
-    return response.json();
+
+    onProgress?.({
+      uploadedFiles: files.length,
+      totalFiles: files.length,
+      currentBatch: chunks.length,
+      totalBatches: chunks.length,
+    });
+
+    return allResults;
   },
 
   deletePhoto: (

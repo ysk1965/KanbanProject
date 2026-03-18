@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { useEscClose } from "../../hooks/useEscClose";
 import { History, RotateCcw, X, Loader2, Eye } from "lucide-react";
 import DOMPurify from "dompurify";
-import { noteService } from "../../utils/services";
+import { noteService, orgNoteService } from "../../utils/services";
 import { formatDateTime } from "../../utils/dateUtils";
 import type { NoteVersionInfo, NoteVersionDetail } from "../../utils/api";
 
 interface NoteVersionHistoryProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   noteId: string;
   versionCount: number;
   canEdit: boolean;
@@ -16,13 +18,17 @@ interface NoteVersionHistoryProps {
 
 export function NoteVersionHistory({
   boardId,
+  orgId,
   noteId,
   versionCount,
   canEdit,
   onRestore,
 }: NoteVersionHistoryProps) {
+  const svc = orgId ? orgNoteService : noteService;
+  const scopeId = boardId || orgId || '';
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+  useEscClose(isOpen, () => { setIsOpen(false); setSelectedVersion(null); });
   const [versions, setVersions] = useState<NoteVersionInfo[]>([]);
   const [selectedVersion, setSelectedVersion] =
     useState<NoteVersionDetail | null>(null);
@@ -32,14 +38,14 @@ export function NoteVersionHistory({
   const loadVersions = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await noteService.getVersions(boardId, noteId);
+      const data = await svc.getVersions(scopeId, noteId);
       setVersions(data);
     } catch (err) {
       console.error("Failed to load versions:", err);
     } finally {
       setLoading(false);
     }
-  }, [boardId, noteId]);
+  }, [scopeId, noteId, svc]);
 
   useEffect(() => {
     if (isOpen) {
@@ -50,8 +56,8 @@ export function NoteVersionHistory({
   const handleViewVersion = useCallback(
     async (versionId: string) => {
       try {
-        const detail = await noteService.getVersionDetail(
-          boardId,
+        const detail = await svc.getVersionDetail(
+          scopeId,
           noteId,
           versionId,
         );
@@ -60,7 +66,7 @@ export function NoteVersionHistory({
         console.error("Failed to load version detail:", err);
       }
     },
-    [boardId, noteId],
+    [scopeId, noteId, svc],
   );
 
   const handleRestore = useCallback(
@@ -73,7 +79,7 @@ export function NoteVersionHistory({
         return;
       setRestoring(true);
       try {
-        await noteService.restoreVersion(boardId, noteId, versionId);
+        await svc.restoreVersion(scopeId, noteId, versionId);
         onRestore();
         setIsOpen(false);
         setSelectedVersion(null);
@@ -83,21 +89,21 @@ export function NoteVersionHistory({
         setRestoring(false);
       }
     },
-    [boardId, noteId, onRestore, t],
+    [scopeId, noteId, onRestore, t, svc],
   );
 
   return (
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-1 px-2 py-1 text-[10px] text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded transition-colors"
+        className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded transition-colors"
       >
         <History size={10} />
         <span className="hidden lg:inline">
           {t("notes.versionHistory", "버전")}
         </span>
         {versionCount > 0 && (
-          <span className="text-bridge-accent font-semibold">
+          <span className="text-bridge-accent font-medium">
             {versionCount}
           </span>
         )}
@@ -146,15 +152,15 @@ export function NoteVersionHistory({
                   <div>
                     <button
                       onClick={() => setSelectedVersion(null)}
-                      className="text-[10px] text-bridge-accent hover:underline"
+                      className="text-xs text-bridge-accent hover:underline"
                     >
                       ← {t("notes.backToList", "목록으로")}
                     </button>
-                    <p className="text-xs font-semibold text-foreground mt-1">
+                    <p className="text-xs font-medium text-foreground mt-1">
                       v{selectedVersion.version_number} ·{" "}
                       {selectedVersion.title}
                     </p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
+                    <p className="text-xs text-slate-500 mt-0.5">
                       {selectedVersion.created_by?.name} ·{" "}
                       {formatDateTime(selectedVersion.created_at)}
                     </p>
@@ -163,7 +169,7 @@ export function NoteVersionHistory({
                     <button
                       onClick={() => handleRestore(selectedVersion.id)}
                       disabled={restoring}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-bridge-accent text-white rounded-lg text-[10px] font-semibold hover:bg-bridge-accent/90 disabled:opacity-50"
+                      className="flex items-center gap-1 px-3 py-1.5 bg-bridge-accent text-white rounded-lg text-xs font-bold hover:bg-bridge-accent/90 disabled:opacity-50"
                     >
                       {restoring ? (
                         <Loader2 size={10} className="animate-spin" />
@@ -199,7 +205,7 @@ export function NoteVersionHistory({
                         className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-foreground/5 transition-colors group"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-foreground">
+                          <span className="text-xs font-medium text-foreground">
                             v{version.version_number}
                           </span>
                           <Eye
@@ -207,10 +213,10 @@ export function NoteVersionHistory({
                             className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity"
                           />
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-0.5 truncate">
+                        <p className="text-xs text-slate-400 mt-0.5 truncate">
                           {version.title}
                         </p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">
+                        <p className="text-xs text-slate-500 mt-0.5">
                           {version.created_by?.name} ·{" "}
                           {formatDateTime(version.created_at)}
                         </p>

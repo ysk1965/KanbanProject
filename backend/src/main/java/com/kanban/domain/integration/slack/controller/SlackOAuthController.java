@@ -59,10 +59,18 @@ public class SlackOAuthController {
      */
     @GetMapping("/oauth/callback")
     public void handleCallback(
-            @RequestParam("code") String code,
-            @RequestParam("state") String state,
+            @RequestParam(value = "code", required = false) String code,
+            @RequestParam(value = "state", required = false) String state,
+            @RequestParam(value = "error", required = false) String error,
             HttpServletResponse response) throws IOException {
         try {
+            if (code == null || code.isBlank()) {
+                log.warn("Slack OAuth bot install denied or missing code. error={}", error);
+                String origin = slackOAuthService.safeExtractOriginFromState(state);
+                String redirectBase = FrontendOriginResolver.resolve(origin, frontendUrl);
+                response.sendRedirect(redirectBase + "/auth/slack/callback?error=access_denied");
+                return;
+            }
             SlackAppResponse.OAuthCallback result = slackOAuthService.handleCallback(code, state);
             String redirectBase = FrontendOriginResolver.resolve(result.getOrigin(), frontendUrl);
             response.sendRedirect(redirectBase + result.getRedirectPath());
@@ -167,10 +175,18 @@ public class SlackOAuthController {
      */
     @GetMapping("/oauth/user-callback")
     public void handleUserLinkCallback(
-            @RequestParam("code") String code,
-            @RequestParam("state") String state,
+            @RequestParam(value = "code", required = false) String code,
+            @RequestParam(value = "state", required = false) String state,
+            @RequestParam(value = "error", required = false) String error,
             HttpServletResponse response) throws IOException {
         try {
+            if (code == null || code.isBlank()) {
+                log.warn("Slack OAuth user link denied or missing code. error={}", error);
+                String origin = slackOAuthService.safeExtractOriginFromState(state);
+                String redirectBase = FrontendOriginResolver.resolve(origin, frontendUrl);
+                response.sendRedirect(redirectBase + "/auth/slack/callback?error=access_denied");
+                return;
+            }
             SlackAppResponse.UserLinkCallback result = slackOAuthService.handleUserLinkCallback(code, state);
             String redirectBase = FrontendOriginResolver.resolve(result.getOrigin(), frontendUrl);
             response.sendRedirect(redirectBase + result.getRedirectPath());

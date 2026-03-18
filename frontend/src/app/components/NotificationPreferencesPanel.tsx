@@ -137,20 +137,20 @@ export function NotificationPreferencesPanel({
         <div className="flex items-center gap-2 pt-3 pb-1.5">
           <div className="flex-1" />
           <div className="w-10 text-center">
-            <span className="text-[9px] text-slate-500 uppercase tracking-wider">
+            <span className="text-xs text-slate-500 uppercase tracking-wider">
               {t("notificationPreferences.inApp")}
             </span>
           </div>
           <div className="w-10 text-center">
             <span
-              className={`text-[9px] uppercase tracking-wider ${hasSlack ? "text-slate-500" : "text-slate-600"}`}
+              className={`text-xs uppercase tracking-wider ${hasSlack ? "text-slate-500" : "text-slate-600"}`}
             >
               Slack
             </span>
           </div>
           <div className="w-10 text-center">
             <span
-              className={`text-[9px] uppercase tracking-wider ${hasDiscord ? "text-slate-500" : "text-slate-600"}`}
+              className={`text-xs uppercase tracking-wider ${hasDiscord ? "text-slate-500" : "text-slate-600"}`}
             >
               Discord
             </span>
@@ -162,10 +162,10 @@ export function NotificationPreferencesPanel({
           {NOTIFICATION_TYPES.map(({ key, labelKey, descKey }) => (
             <div key={key} className="flex items-center gap-2 py-1.5 group">
               <div className="flex-1 min-w-0">
-                <div className="text-[11px] text-muted-foreground">
+                <div className="text-xs text-muted-foreground">
                   {t(labelKey)}
                 </div>
-                <div className="text-[9px] text-slate-500 leading-tight">
+                <div className="text-xs text-slate-500 leading-tight">
                   {t(descKey)}
                 </div>
               </div>
@@ -245,12 +245,12 @@ export function NotificationPreferencesPanel({
         </div>
 
         {!hasSlack && (
-          <p className="text-[9px] text-slate-600 mt-2">
+          <p className="text-xs text-slate-600 mt-2">
             {t("notificationPreferences.slackRequiresConnection")}
           </p>
         )}
         {!hasDiscord && (
-          <p className="text-[9px] text-slate-600 mt-1">
+          <p className="text-xs text-slate-600 mt-1">
             {t("notificationPreferences.discordRequiresConnection")}
           </p>
         )}

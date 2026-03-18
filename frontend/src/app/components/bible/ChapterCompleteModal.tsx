@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { CheckCircle2, Trophy } from "lucide-react";
 import { Button } from "../ui/button";
+import { useEscClose } from "../../hooks/useEscClose";
 
 interface ChapterCompleteModalProps {
   show: boolean;
@@ -10,6 +11,8 @@ interface ChapterCompleteModalProps {
 }
 
 export function ChapterCompleteModal({ show, book, chapter, onNext }: ChapterCompleteModalProps) {
+  useEscClose(show, onNext);
+
   const handleNext = () => {
     onNext();
   };
@@ -59,7 +62,7 @@ export function ChapterCompleteModal({ show, book, chapter, onNext }: ChapterCom
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold text-gray-800">축하합니다!</h2>
                 <p className="text-lg text-gray-600">
-                  <span className="font-semibold text-blue-600">
+                  <span className="font-bold text-blue-600">
                     {book} {chapter}장
                   </span>
                   을 완성하셨습니다

@@ -124,7 +124,7 @@ export function InviteLandingPage({
 
         {/* 보드 정보 */}
         <div className="bg-bridge-dark rounded-lg p-4 mb-6">
-          <h2 className="text-lg font-semibold text-foreground mb-3">{inviteInfo.board_name}</h2>
+          <h2 className="text-lg font-bold text-foreground mb-3">{inviteInfo.board_name}</h2>
 
           <div className="flex items-center gap-2 text-sm">
             <span className="text-slate-400">{t('invite.role')}</span>

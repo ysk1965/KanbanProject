@@ -216,8 +216,11 @@ public class MonitoringAlertService {
         }
 
         try {
-            String timestamp = LocalDateTime.now(ZoneOffset.UTC)
-                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + " UTC";
+            String utcTime = LocalDateTime.now(ZoneOffset.UTC)
+                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            String kstTime = LocalDateTime.now(ZoneOffset.UTC).plusHours(9)
+                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            String timestamp = utcTime + " UTC / " + kstTime + " KST";
 
             String emoji = switch (severity) {
                 case "CRITICAL" -> "\uD83D\uDD34";
@@ -245,8 +248,11 @@ public class MonitoringAlertService {
             return;
         }
 
-        String timestamp = LocalDateTime.now(ZoneOffset.UTC)
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + " UTC";
+        String utcTime = LocalDateTime.now(ZoneOffset.UTC)
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        String kstTime = LocalDateTime.now(ZoneOffset.UTC).plusHours(9)
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        String timestamp = utcTime + " UTC / " + kstTime + " KST";
 
         String envBadgeColor = "prod".equals(env) ? "#DC2626" : "#F59E0B";
         String envLabel = env.toUpperCase();

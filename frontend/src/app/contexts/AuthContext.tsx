@@ -5,7 +5,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { authService } from "../utils/services";
+import { authService, getMonetizationStatus } from "../utils/services";
 import { setSentryUser } from "../../lib/sentry";
 import { isWhiteLabelDomain, isRestrictedEmail } from "../utils/domain";
 
@@ -27,6 +27,7 @@ interface AuthContextType {
   isTester: boolean;
   hideBilling: boolean; // TESTER/ADMIN 사용자는 과금 UI 숨김
   isRestricted: boolean; // milkyway 도메인 OR @cookapps.com 이메일 → 기능 제한
+  monetizationEnabled: boolean;
   currentUser: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -44,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [monetizationEnabled, setMonetizationEnabled] = useState<boolean>(true);
 
   // Analytics/Sentry 사용자 동기화
   const syncAnalyticsUser = (user: User | null) => {
@@ -82,6 +84,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .catch(() => console.debug("[Push] Push notifications unavailable"));
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    getMonetizationStatus()
+      .then(data => setMonetizationEnabled(data.monetization_enabled))
+      .catch(() => setMonetizationEnabled(true)); // default ON on error
+  }, []);
 
   useEffect(() => {
     // 초기 인증 상태 확인 (토큰 유효성 검증 포함)
@@ -185,7 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isRestricted =
     isWhiteLabelDomain || isRestrictedEmail(currentUser?.email); // milkyway 도메인 OR @cookapps.com 이메일
   const isTester = currentUser?.system_role === "TESTER" || isRestricted;
-  const hideBilling = isTester || isAdmin || isRestricted;
+  const hideBilling = !monetizationEnabled || isTester || isAdmin || isRestricted;
 
   return (
     <AuthContext.Provider
@@ -196,6 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isTester,
         hideBilling,
         isRestricted,
+        monetizationEnabled,
         currentUser,
         isLoading,
         login,

@@ -819,6 +819,27 @@ html {
   animation: burstFlash 0.5s ease-out both;
 }
 
+/* ===== Cascade Pulse — Checklist → Task → Feature ===== */
+@keyframes cascadePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.5);
+  }
+  40% {
+    box-shadow: 0 0 10px 3px rgba(45, 212, 191, 0.35);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(45, 212, 191, 0);
+  }
+}
+
+.cascade-pulse {
+  animation: cascadePulse 0.6s ease-out;
+}
+
+.cascade-pulse-feature {
+  animation: cascadePulse 0.5s ease-out 0.3s both;
+}
+
 /* ===== Plyr Video Player - Bridge Theme ===== */
 .plyr-bridge-theme {
   --plyr-color-main: var(--bridge-accent);
@@ -910,5 +931,19 @@ html {
   select,
   [contenteditable="true"] {
     font-size: 16px !important;
+  }
+}
+
+/* =============================================
+   Reduced Motion — Accessibility Safety Net
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

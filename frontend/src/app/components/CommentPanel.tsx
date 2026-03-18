@@ -2,13 +2,14 @@ import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { TaskComment, CommentAttachment, CommentReaction, User, BoardCustomEmoji, BoardWebSocketEvent } from '../types';
-import { commentAPI, checklistAPI, fileAPI, customEmojiAPI, resolveFileUrl, CommentAISummaryResponse } from '../utils/api';
+import { commentAPI, checklistAPI, fileAPI, customEmojiAPI, resolveFileUrl, CommentAISummaryResponse, mentionGroupAPI, MentionGroupDetail } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
 import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
 import { formatDate } from '../utils/dateUtils';
 import { MotionModal } from './ui/MotionModal';
-import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, ChevronLeft, ChevronRight, SmilePlus, Plus, ImageIcon, Sparkles, CheckCircle2, HelpCircle, ListChecks } from 'lucide-react';
+import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, ChevronLeft, ChevronRight, SmilePlus, Plus, ImageIcon, Sparkles, CheckCircle2, HelpCircle, ListChecks, Users } from 'lucide-react';
 import { VideoThumbnail } from './VideoThumbnail';
+import { MentionGroupModal } from './MentionGroupModal';
 
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 const VideoLightbox = lazyWithRetry(() => import('./VideoLightbox').then(m => ({ default: m.VideoLightbox })), 'VideoLightbox');
@@ -18,12 +19,46 @@ const VideoLightbox = lazyWithRetry(() => import('./VideoLightbox').then(m => ({
 const MAX_FILES = 5;
 const MAX_FILE_SIZE_IMAGE = 30 * 1024 * 1024;     // 30MB
 const MAX_FILE_SIZE_VIDEO = 50 * 1024 * 1024;      // 50MB
+const MAX_FILE_SIZE_DOC = 30 * 1024 * 1024;        // 30MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
-const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES];
+const ALLOWED_DOC_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/markdown',
+];
+const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES, ...ALLOWED_DOC_TYPES];
 
 const isVideoType = (type: string) => type?.startsWith('video/');
 const isVideoAttachment = (att: CommentAttachment) => att.content_type?.startsWith('video/');
+const isDocType = (type: string) => ALLOWED_DOC_TYPES.includes(type);
+const isDocAttachment = (att: CommentAttachment) => isDocType(att.content_type || '');
+
+const DOC_ACCEPT = ALLOWED_DOC_TYPES.join(',');
+const FILE_ACCEPT = `image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime,${DOC_ACCEPT}`;
+
+const getDocIcon = (type: string): string => {
+  if (type === 'application/pdf') return 'PDF';
+  if (type.includes('word') || type === 'application/msword') return 'DOC';
+  if (type.includes('spreadsheet') || type === 'application/vnd.ms-excel') return 'XLS';
+  if (type.includes('presentation') || type === 'application/vnd.ms-powerpoint') return 'PPT';
+  if (type === 'text/plain' || type === 'text/markdown') return 'TXT';
+  return 'FILE';
+};
+
+const getDocColor = (type: string): string => {
+  if (type === 'application/pdf') return 'bg-red-500/15 text-red-400';
+  if (type.includes('word') || type === 'application/msword') return 'bg-blue-500/15 text-blue-400';
+  if (type.includes('spreadsheet') || type === 'application/vnd.ms-excel') return 'bg-emerald-500/15 text-emerald-400';
+  if (type.includes('presentation') || type === 'application/vnd.ms-powerpoint') return 'bg-orange-500/15 text-orange-400';
+  return 'bg-slate-500/15 text-slate-400';
+};
 
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
@@ -75,11 +110,13 @@ function cleanMarkdownArtifacts(text: string): string {
     .replace(/`([^`]+)`/g, '$1');
 }
 
-function renderContent(content: string, boardMembers: BoardMember[]) {
+function renderContent(content: string, boardMembers: BoardMember[], mentionGroups: MentionGroupDetail[] = []) {
   const cleaned = cleanMarkdownArtifacts(content);
   const memberNames = boardMembers.map(m => m.name);
-  const mentionPattern = memberNames.length > 0
-    ? new RegExp(`(@(?:${memberNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))(?=\\s|$)`, 'g')
+  const groupNames = mentionGroups.map(g => g.name);
+  const allNames = [...memberNames, ...groupNames];
+  const mentionPattern = allNames.length > 0
+    ? new RegExp(`(@(?:${allNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))(?=\\s|$)`, 'g')
     : null;
   if (!mentionPattern) return renderTextWithLinks(cleaned, 'root');
   const parts = cleaned.split(mentionPattern);
@@ -90,6 +127,10 @@ function renderContent(content: string, boardMembers: BoardMember[]) {
       if (member) {
         const color = getAssigneeClasses(name, member.assigneeColor);
         return <span key={i} className={`${color.text} font-medium`}>{part}</span>;
+      }
+      const group = mentionGroups.find(g => g.name === name);
+      if (group) {
+        return <span key={i} className="text-bridge-secondary font-medium">{part}</span>;
       }
     }
     return <span key={i}>{renderTextWithLinks(part, `p${i}`)}</span>;
@@ -176,6 +217,10 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   const [mentionIndex, setMentionIndex] = useState(0);
   const mentionJustSelected = useRef(false);
 
+  // 멘션 그룹
+  const [mentionGroups, setMentionGroups] = useState<MentionGroupDetail[]>([]);
+  const [showMentionGroupModal, setShowMentionGroupModal] = useState(false);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -200,6 +245,12 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   }, [boardId, taskId]);
 
   useEffect(() => { loadComments(); }, [loadComments]);
+
+  // 멘션 그룹 로드
+  useEffect(() => {
+    if (!boardId) return;
+    mentionGroupAPI.getGroups(boardId).then(res => setMentionGroups(res.groups)).catch(() => {});
+  }, [boardId]);
 
   // WebSocket 실시간 댓글 직접 상태 업데이트 (REST 재호출 없음)
   useEffect(() => {
@@ -399,9 +450,9 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         setFileError('comment.fileTypeError');
         continue;
       }
-      const maxSize = isVideoType(file.type) ? MAX_FILE_SIZE_VIDEO : MAX_FILE_SIZE_IMAGE;
+      const maxSize = isVideoType(file.type) ? MAX_FILE_SIZE_VIDEO : isDocType(file.type) ? MAX_FILE_SIZE_DOC : MAX_FILE_SIZE_IMAGE;
       if (file.size > maxSize) {
-        setFileError(isVideoType(file.type) ? 'comment.videoFileSizeError' : 'comment.fileSizeError');
+        setFileError(isVideoType(file.type) ? 'comment.videoFileSizeError' : isDocType(file.type) ? 'comment.docFileSizeError' : 'comment.fileSizeError');
         continue;
       }
       newFiles.push({
@@ -456,7 +507,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     const mediaFiles: File[] = [];
     for (let i = 0; i < e.clipboardData.items.length; i++) {
       const item = e.clipboardData.items[i];
-      if (item.type.startsWith('image/') || item.type.startsWith('video/')) {
+      if (item.type.startsWith('image/') || item.type.startsWith('video/') || ALLOWED_DOC_TYPES.includes(item.type)) {
         const file = item.getAsFile();
         if (file) mediaFiles.push(file);
       }
@@ -528,9 +579,51 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     });
   };
 
+  const insertGroupMention = (group: MentionGroupDetail, isEdit: boolean) => {
+    const ref = isEdit ? editTextareaRef.current : textareaRef.current;
+    const text = isEdit ? editContent : newComment;
+    const cursorPos = ref?.selectionStart ?? text.length;
+    const before = text.slice(0, cursorPos);
+    const after = text.slice(cursorPos);
+    const replaced = before.replace(/@\S*$/, `@${group.name} `);
+
+    const memberIds = group.members.map(m => m.user_id);
+    if (isEdit) {
+      setEditContent(replaced + after);
+      setEditMentions(prev => [...new Set([...prev, ...memberIds])]);
+    } else {
+      setNewComment(replaced + after);
+      setPendingMentions(prev => [...new Set([...prev, ...memberIds])]);
+    }
+
+    setShowInlineMention(false);
+    setMentionQuery('');
+    mentionJustSelected.current = true;
+
+    requestAnimationFrame(() => {
+      if (ref) {
+        const newPos = replaced.length;
+        ref.selectionStart = newPos;
+        ref.selectionEnd = newPos;
+        ref.focus();
+      }
+    });
+  };
+
+  type MentionItem = { type: 'member'; member: BoardMember } | { type: 'group'; group: MentionGroupDetail };
+
   const filteredMembers = boardMembers.filter(m =>
     m.name.toLowerCase().includes(mentionQuery.toLowerCase())
   );
+
+  const filteredGroups = mentionGroups.filter(g =>
+    g.name.toLowerCase().includes(mentionQuery.toLowerCase())
+  );
+
+  const filteredItems: MentionItem[] = [
+    ...filteredGroups.map(g => ({ type: 'group' as const, group: g })),
+    ...filteredMembers.map(m => ({ type: 'member' as const, member: m })),
+  ];
 
   // ========== CRUD ==========
 
@@ -632,10 +725,16 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   // ========== 키보드 ==========
 
   const handleMentionNav = (e: React.KeyboardEvent<HTMLTextAreaElement>, isEdit: boolean): boolean => {
-    if (!showInlineMention || filteredMembers.length === 0) return false;
-    if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(prev => (prev + 1) % filteredMembers.length); return true; }
-    if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(prev => (prev - 1 + filteredMembers.length) % filteredMembers.length); return true; }
-    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); insertMention(filteredMembers[mentionIndex], isEdit); return true; }
+    if (!showInlineMention || filteredItems.length === 0) return false;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(prev => (prev + 1) % filteredItems.length); return true; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(prev => (prev - 1 + filteredItems.length) % filteredItems.length); return true; }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      const item = filteredItems[mentionIndex];
+      if (item.type === 'group') insertGroupMention(item.group, isEdit);
+      else insertMention(item.member, isEdit);
+      return true;
+    }
     if (e.key === 'Escape') { e.preventDefault(); setShowInlineMention(false); return true; }
     return false;
   };
@@ -669,10 +768,37 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   // ========== 서브 컴포넌트 ==========
 
   const InlineMentionDropdown = ({ isEdit }: { isEdit: boolean }) => {
-    if (!showInlineMention || inlineMentionForEdit !== isEdit || filteredMembers.length === 0) return null;
+    if (!showInlineMention || inlineMentionForEdit !== isEdit || (filteredItems.length === 0 && !isAdminOrOwner)) return null;
+    const hasGroups = filteredGroups.length > 0;
+    const hasMembers = filteredMembers.length > 0;
+    let itemIdx = 0;
     return (
-      <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-bridge-border rounded-lg shadow-lg z-50 py-1 max-h-40 overflow-y-auto custom-scrollbar">
-        {filteredMembers.map((member, idx) => {
+      <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-bridge-border rounded-lg shadow-lg z-50 py-1 max-h-48 overflow-y-auto custom-scrollbar">
+        {/* 그룹 섹션 */}
+        {hasGroups && (
+          <>
+            {filteredGroups.map((group) => {
+              const idx = itemIdx++;
+              return (
+                <button key={`g-${group.id}`}
+                  onMouseDown={e => { e.preventDefault(); insertGroupMention(group, isEdit); }}
+                  onMouseEnter={() => setMentionIndex(idx)}
+                  className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`}
+                >
+                  <div className="w-5 h-5 rounded-full bg-bridge-secondary/20 flex items-center justify-center">
+                    <Users className="w-3 h-3 text-bridge-secondary" />
+                  </div>
+                  <span className={idx === mentionIndex ? 'text-foreground' : ''}>{group.name}</span>
+                  <span className="text-xs text-slate-500 ml-auto">{group.members.length}{t('mentionGroup.memberCountSuffix', '명')}</span>
+                </button>
+              );
+            })}
+            {hasMembers && <div className="border-t border-foreground/[0.08] my-1" />}
+          </>
+        )}
+        {/* 개별 멤버 섹션 */}
+        {filteredMembers.map((member) => {
+          const idx = itemIdx++;
           const color = getAssigneeClasses(member.name, member.assigneeColor);
           return (
             <button key={member.userId}
@@ -680,32 +806,62 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               onMouseEnter={() => setMentionIndex(idx)}
               className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`}
             >
-              <div className={`w-5 h-5 rounded-full ${color.bg} flex items-center justify-center text-[10px] font-bold text-white whitespace-nowrap overflow-hidden`}>
+              <div className={`w-5 h-5 rounded-full ${color.bg} flex items-center justify-center text-xs font-bold text-white whitespace-nowrap overflow-hidden`}>
                 {getInitials(member.name)}
               </div>
               <span className={idx === mentionIndex ? 'text-foreground' : ''}>{member.name}</span>
-              {member.userId === currentUser?.id && <span className="text-[10px] text-slate-400">(나)</span>}
+              {member.userId === currentUser?.id && <span className="text-xs text-slate-400">({t('mentionGroup.me', '나')})</span>}
             </button>
           );
         })}
+        {/* 멘션 그룹 만들기 버튼 */}
+        {isAdminOrOwner && (
+          <>
+            <div className="border-t border-foreground/[0.08] my-1" />
+            <button
+              onMouseDown={e => { e.preventDefault(); setShowMentionGroupModal(true); setShowInlineMention(false); }}
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-bridge-accent hover:bg-foreground/5 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t('mentionGroup.create', '멘션 그룹 만들기')}</span>
+            </button>
+          </>
+        )}
       </div>
     );
   };
 
-  /** 댓글 첨부 미디어 그리드 (이미지 썸네일 + 영상 썸네일) */
+  /** 댓글 첨부 그리드 (이미지 썸네일 + 영상 썸네일 + 문서 아이콘) */
   const AttachmentGrid = ({ attachments }: { attachments: CommentAttachment[] }) => {
     if (!attachments || attachments.length === 0) return null;
-    const mediaItems = attachments.map(att => ({
+    const mediaItems = attachments.filter(att => !isDocAttachment(att)).map(att => ({
       url: resolveFileUrl(att.url),
       type: (isVideoAttachment(att) ? 'video' : 'image') as 'image' | 'video'
     }));
+    let mediaIdx = -1;
     return (
       <div className="flex flex-wrap gap-1.5 mt-1.5">
-        {attachments.map((att, idx) => {
+        {attachments.map((att) => {
           const isVideo = isVideoAttachment(att);
+          const isDoc = isDocAttachment(att);
+
+          if (isDoc) {
+            return (
+              <a key={att.id} href={resolveFileUrl(att.url)} target="_blank" rel="noopener noreferrer" download={att.file_name}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-foreground/[0.08] hover:border-foreground/[0.12] bg-foreground/[0.03] transition-colors max-w-[220px]">
+                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${getDocColor(att.content_type || '')}`}>
+                  {getDocIcon(att.content_type || '')}
+                </span>
+                <span className="text-xs text-foreground truncate">{att.file_name}</span>
+              </a>
+            );
+          }
+
+          mediaIdx++;
+          const currentMediaIdx = mediaIdx;
           return (
             <button key={att.id}
-              onClick={() => setLightboxMedia({ items: mediaItems, index: idx })}
+              onClick={() => setLightboxMedia({ items: mediaItems, index: currentMediaIdx })}
               className="relative group/img rounded-md overflow-hidden border border-bridge-border hover:border-bridge-border transition-colors">
               {isVideo ? (
                 <VideoThumbnail
@@ -753,7 +909,14 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         {/* 기존 첨부파일 (수정 모드) */}
         {keptExisting.map(att => (
           <div key={att.id} className="relative group/preview">
-            {isVideoAttachment(att) ? (
+            {isDocAttachment(att) ? (
+              <div className="flex items-center gap-1.5 h-16 px-2.5 rounded-md border border-bridge-border bg-foreground/[0.03]">
+                <span className={`text-xs font-bold px-1 py-0.5 rounded ${getDocColor(att.content_type || '')}`}>
+                  {getDocIcon(att.content_type || '')}
+                </span>
+                <span className="text-xs text-foreground truncate max-w-[80px]">{att.file_name}</span>
+              </div>
+            ) : isVideoAttachment(att) ? (
               <div className="relative h-16 w-[90px]">
                 <VideoThumbnail
                   videoUrl={resolveFileUrl(att.url)}
@@ -778,7 +941,14 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         {/* 새 파일 */}
         {files.map(pf => (
           <div key={pf.id} className="relative group/preview">
-            {isVideoType(pf.file.type) ? (
+            {isDocType(pf.file.type) ? (
+              <div className={`flex items-center gap-1.5 h-16 px-2.5 rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'} bg-foreground/[0.03]`}>
+                <span className={`text-xs font-bold px-1 py-0.5 rounded ${getDocColor(pf.file.type)}`}>
+                  {getDocIcon(pf.file.type)}
+                </span>
+                <span className="text-xs text-foreground truncate max-w-[80px]">{pf.file.name}</span>
+              </div>
+            ) : isVideoType(pf.file.type) ? (
               <video src={pf.previewUrl} muted preload="metadata"
                 className={`h-16 w-[90px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'}`} />
             ) : (
@@ -792,7 +962,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
             )}
             {pf.error && (
               <div className="absolute inset-0 bg-red-500/20 rounded-md flex items-center justify-center">
-                <span className="text-[8px] text-red-300 font-medium">{t('comment.failed')}</span>
+                <span className="text-xs text-red-300 font-medium">{t('comment.failed')}</span>
               </div>
             )}
             {isVideoType(pf.file.type) && !pf.uploading && !pf.error && (
@@ -802,7 +972,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity">
               <X className="h-2.5 w-2.5" />
             </button>
-            <span className="absolute bottom-0.5 right-0.5 text-[8px] bg-black/60 text-white/80 px-1 rounded">
+            <span className="absolute bottom-0.5 right-0.5 text-xs bg-black/60 text-white/80 px-1 rounded">
               {formatFileSize(pf.file.size)}
             </span>
           </div>
@@ -822,7 +992,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         onPointerDown={e => e.stopPropagation()}
         onMouseDown={e => e.stopPropagation()}>
         {/* 기본 이모지 */}
-        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.default', '기본')}</div>
+        <div className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.default', '기본')}</div>
         <div className="grid grid-cols-4 gap-1">
           {REACTION_EMOJIS.map(emoji => (
             <button key={emoji}
@@ -837,7 +1007,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         {(customEmojis.length > 0 || isAdminOrOwner) && (
           <>
             <div className="border-t border-foreground/10 my-1.5" />
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.title', '커스텀')}</div>
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.title', '커스텀')}</div>
             <div className="grid grid-cols-4 gap-1">
               {customEmojis.map(ce => (
                 <div key={ce.id} className="relative group/ce">
@@ -850,7 +1020,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                   {isAdminOrOwner && (
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDeleteCustomEmoji(ce.id); }}
-                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-white items-center justify-center text-[8px] leading-none hidden group-hover/ce:flex"
+                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-white items-center justify-center text-xs leading-none hidden group-hover/ce:flex"
                       title={t('comment.customEmoji.deleteConfirm', '삭제')}>
                       ×
                     </button>
@@ -874,7 +1044,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                   <button
                     onClick={() => emojiFileInputRef.current?.click()}
                     disabled={isUploadingEmoji}
-                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-medium rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                       selectedEmojiFile
                         ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
                         : 'bg-bridge-accent/20 text-bridge-accent hover:bg-bridge-accent/30'
@@ -888,7 +1058,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                   </button>
                   <button
                     onClick={() => { setShowEmojiUpload(false); setEmojiUploadName(''); setSelectedEmojiFile(null); }}
-                    className="px-2 py-1.5 text-[10px] font-medium rounded-lg text-slate-400 hover:text-muted-foreground hover:bg-foreground/5 transition-all">
+                    className="px-2 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-muted-foreground hover:bg-foreground/5 transition-all">
                     {t('common.cancel', '취소')}
                   </button>
                 </div>
@@ -908,13 +1078,13 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                     <button
                       onClick={() => handleUploadCustomEmoji()}
                       disabled={!emojiUploadName.trim() || isUploadingEmoji}
-                      className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-bold rounded-lg bg-bridge-accent text-white hover:bg-bridge-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                      className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-bold rounded-lg bg-bridge-accent text-white hover:bg-bridge-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
                       {isUploadingEmoji && <Loader2 className="w-3 h-3 animate-spin" />}
                       {t('comment.customEmoji.upload', '업로드')}
                     </button>
                   </>
                 )}
-                <p className="text-[9px] text-slate-500">{t('comment.customEmoji.maxSize', 'PNG, GIF, WebP · 128KB 이하')}</p>
+                <p className="text-xs text-slate-500">{t('comment.customEmoji.maxSize', 'PNG, GIF, WebP · 128KB 이하')}</p>
                 <input
                   ref={emojiFileInputRef}
                   type="file"
@@ -967,9 +1137,9 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               {reaction.is_custom && reaction.image_url ? (
                 <img src={resolveFileUrl(reaction.image_url)} alt={reaction.emoji} className="w-4 h-4 object-contain" />
               ) : (
-                <span className="text-[11px]">{reaction.emoji}</span>
+                <span className="text-xs">{reaction.emoji}</span>
               )}
-              <span className="text-[10px] font-medium">{reaction.count}</span>
+              <span className="text-xs font-medium">{reaction.count}</span>
             </button>
           );
         })}
@@ -1015,7 +1185,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               finally { setAiSummaryLoading(false); }
             }}
             disabled={aiSummaryLoading}
-            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all disabled:opacity-50"
+            className="flex items-center gap-1 px-2 py-0.5 text-xs font-bold text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all disabled:opacity-50"
           >
             {aiSummaryLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
             {t('comment.aiSummarize')}
@@ -1025,6 +1195,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
           <button
             onClick={onClose}
             className="hidden md:flex ml-2 p-1 rounded-sm text-slate-400 hover:text-foreground transition-colors"
+            aria-label="닫기"
           >
             <X className="h-4 w-4" />
           </button>
@@ -1039,7 +1210,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5 text-bridge-accent" />
-                <span className="text-[11px] font-bold uppercase tracking-widest text-bridge-accent">
+                <span className="text-xs font-bold uppercase tracking-widest text-bridge-accent">
                   {t('comment.aiSummaryTitle')}
                 </span>
               </div>
@@ -1052,7 +1223,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
             {aiSummary.decisions.length > 0 && (
               <div>
-                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">{t('comment.aiDecisions')}</span>
+                <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">{t('comment.aiDecisions')}</span>
                 <ul className="mt-1 space-y-0.5">
                   {aiSummary.decisions.map((d, i) => (
                     <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
@@ -1066,7 +1237,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
             {aiSummary.open_questions.length > 0 && (
               <div>
-                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">{t('comment.aiOpenQuestions')}</span>
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">{t('comment.aiOpenQuestions')}</span>
                 <ul className="mt-1 space-y-0.5">
                   {aiSummary.open_questions.map((q, i) => (
                     <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
@@ -1080,7 +1251,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
             {aiSummary.action_items.length > 0 && (
               <div>
-                <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">{t('comment.aiActionItems')}</span>
+                <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">{t('comment.aiActionItems')}</span>
                 <ul className="mt-1 space-y-1">
                   {aiSummary.action_items.map((item, i) => (
                     <li key={i} className="text-xs text-muted-foreground flex items-center justify-between">
@@ -1088,14 +1259,14 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                         <ListChecks className="h-3 w-3 text-blue-400 flex-shrink-0" />
                         {item.title}
                         {item.assignee_hint && (
-                          <span className="text-[10px] text-slate-500">@{item.assignee_hint}</span>
+                          <span className="text-xs text-slate-500">@{item.assignee_hint}</span>
                         )}
                       </span>
                       <button
                         onClick={async () => {
                           try { await checklistAPI.addItem(boardId, taskId, { title: item.title }); } catch { /* ignore */ }
                         }}
-                        className="text-[9px] text-bridge-accent hover:text-bridge-accent/80 px-1.5 py-0.5 rounded bg-bridge-accent/10 hover:bg-bridge-accent/20 transition-all whitespace-nowrap ml-2"
+                        className="text-xs text-bridge-accent hover:text-bridge-accent/80 px-1.5 py-0.5 rounded bg-bridge-accent/10 hover:bg-bridge-accent/20 transition-all whitespace-nowrap ml-2"
                       >
                         + {t('comment.checklist')}
                       </button>
@@ -1134,7 +1305,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-medium text-foreground">{comment.author.name}</span>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-xs text-slate-400">
                         {formatRelativeTime(comment.created_at)}
                         {isEdited && ` (${t('comment.edited')})`}
                       </span>
@@ -1173,7 +1344,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                           onRemoveFile={(id) => removePendingFile(id, setEditNewFiles)}
                           onRemoveExisting={(attId) => setEditKeepAttachmentIds(prev => prev.filter(id => id !== attId))}
                         />
-                        {fileError && <p className="text-[10px] text-red-400">{t(fileError)}</p>}
+                        {fileError && <p className="text-xs text-red-400">{t(fileError)}</p>}
 
                         <div className="relative">
                           <InlineMentionDropdown isEdit={true} />
@@ -1186,7 +1357,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                             rows={3} autoFocus />
                         </div>
                         <div className="flex items-center gap-1">
-                          <input ref={editFileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
+                          <input ref={editFileInputRef} type="file" accept={FILE_ACCEPT}
                             multiple className="hidden" onChange={e => handleFileSelect(e, true)} />
                           <button onClick={() => editFileInputRef.current?.click()}
                             disabled={editKeepAttachmentIds.length + editNewFiles.length >= MAX_FILES}
@@ -1195,11 +1366,13 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                           </button>
                           <div className="flex-1" />
                           <button onClick={cancelEditing}
-                            className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground">
+                            className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground"
+                            aria-label="닫기">
                             <X className="h-3.5 w-3.5" />
                           </button>
                           <button onClick={() => handleUpdate(comment.id)} disabled={isEditSubmitting}
-                            className="p-1 rounded hover:bg-bridge-accent/20 text-bridge-accent disabled:opacity-50">
+                            className="p-1 rounded hover:bg-bridge-accent/20 text-bridge-accent disabled:opacity-50"
+                            aria-label="확인">
                             {isEditSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                           </button>
                         </div>
@@ -1208,7 +1381,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                       <>
                         {comment.content && comment.content.trim() && (
                           <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
-                            {renderContent(comment.content, boardMembers)}
+                            {renderContent(comment.content, boardMembers, mentionGroups)}
                           </p>
                         )}
                         <AttachmentGrid attachments={comment.attachments || []} />
@@ -1229,7 +1402,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
           <FilePreviewList files={pendingFiles}
             onRemoveFile={(id) => removePendingFile(id, setPendingFiles)} />
 
-          {fileError && !editingId && <p className="text-[10px] text-red-400 mb-1">{t(fileError)}</p>}
+          {fileError && !editingId && <p className="text-xs text-red-400 mb-1">{t(fileError)}</p>}
 
           <div className="relative">
             <InlineMentionDropdown isEdit={false} />
@@ -1242,7 +1415,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               className="w-full text-xs bg-foreground/5 border border-bridge-border rounded-lg pl-3 pr-20 py-2.5 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
               rows={2} />
             <div className="absolute right-2 bottom-2 flex items-center gap-1">
-              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
+              <input ref={fileInputRef} type="file" accept={FILE_ACCEPT}
                 multiple className="hidden" onChange={e => handleFileSelect(e, false)} />
               <button onClick={() => fileInputRef.current?.click()} disabled={pendingFiles.length >= MAX_FILES}
                 className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
@@ -1256,7 +1429,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               </button>
             </div>
           </div>
-          <p className="text-[9px] text-slate-400 mt-1">{t('comment.fileHelp')}</p>
+          <p className="text-xs text-slate-400 mt-1">{t('comment.fileHelp')}</p>
         </div>
       ) : (
         <div className="px-4 py-3 border-t border-bridge-border">
@@ -1325,13 +1498,23 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
       {/* 삭제 확인 */}
       <MotionModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} className="sm:max-w-sm p-6">
-        <h3 className="text-lg font-semibold text-foreground">{t('comment.deleteTitle')}</h3>
+        <h3 className="text-lg font-bold text-foreground">{t('comment.deleteTitle')}</h3>
         <p className="text-sm text-slate-400 mt-1">{t('comment.deleteDesc')}</p>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
           <button onClick={() => setDeleteTarget(null)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-bridge-border text-foreground hover:bg-foreground/10">{t('common.cancel')}</button>
           <button onClick={() => deleteTarget && handleDelete(deleteTarget)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white">{t('common.delete')}</button>
         </div>
       </MotionModal>
+
+      {/* 멘션 그룹 관리 */}
+      <MentionGroupModal
+        open={showMentionGroupModal}
+        onClose={() => setShowMentionGroupModal(false)}
+        boardId={boardId}
+        boardMembers={boardMembers}
+        mentionGroups={mentionGroups}
+        onGroupsChange={setMentionGroups}
+      />
     </div>
   );
 }

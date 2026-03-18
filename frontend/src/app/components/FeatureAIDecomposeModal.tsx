@@ -194,7 +194,7 @@ export function FeatureAIDecomposeModal({
             <Sparkles className="h-4 w-4 text-bridge-accent" />
             <h3 className="text-sm font-bold text-foreground">{t('featureDetail.aiDecomposeTitle')}</h3>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors" aria-label="닫기">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -261,17 +261,17 @@ export function FeatureAIDecomposeModal({
                 <>
                   {/* Select all / deselect all */}
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                       {t('featureDetail.aiSelectedCount', { count: getSelectedCount() })}
                     </span>
                     <div className="flex gap-2">
                       <button onClick={selectAll}
-                        className="text-[10px] text-bridge-accent hover:text-bridge-accent/80 transition-colors">
+                        className="text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors">
                         {t('featureDetail.aiSelectAll')}
                       </button>
                       <span className="text-slate-600">|</span>
                       <button onClick={deselectAll}
-                        className="text-[10px] text-slate-400 hover:text-foreground transition-colors">
+                        className="text-xs text-slate-400 hover:text-foreground transition-colors">
                         {t('featureDetail.aiDeselectAll')}
                       </button>
                     </div>
@@ -292,11 +292,11 @@ export function FeatureAIDecomposeModal({
                         <div className="flex-1 min-w-0">
                           <span className="text-sm font-medium text-foreground">{task.title}</span>
                           {task.description && (
-                            <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{task.description}</p>
+                            <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{task.description}</p>
                           )}
                         </div>
                         {lockedTasks[ti] && (
-                          <span className="text-[10px] text-blue-400 whitespace-nowrap">{t('featureDetail.aiAlreadyExists')}</span>
+                          <span className="text-xs text-blue-400 whitespace-nowrap">{t('featureDetail.aiAlreadyExists')}</span>
                         )}
                       </div>
 

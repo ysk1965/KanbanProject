@@ -157,4 +157,13 @@ public class AdminRequest {
         @Min(value = 1, message = "연장 일수는 최소 1일 이상이어야 합니다")
         private Integer extendDays;
     }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AdjustOrgAiCredits {
+        private Integer monthlyAiCredits;
+        private Boolean resetUsedCredits;
+        private Integer addBonusCredits;
+    }
 }

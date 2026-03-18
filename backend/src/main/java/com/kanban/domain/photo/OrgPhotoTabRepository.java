@@ -26,4 +26,7 @@ public interface OrgPhotoTabRepository extends JpaRepository<OrgPhotoTab, String
            "JOIN FETCH t.organization " +
            "WHERE t.uploadToken = :uploadToken AND t.isUploadEnabled = true")
     Optional<OrgPhotoTab> findByUploadTokenAndIsUploadEnabledTrue(@Param("uploadToken") String uploadToken);
+
+    @Query("SELECT COALESCE(SUM(t.photoCount), 0) FROM OrgPhotoTab t WHERE t.organization.id = :orgId")
+    long sumPhotoCountByOrganizationId(@Param("orgId") String orgId);
 }

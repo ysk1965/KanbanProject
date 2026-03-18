@@ -31,7 +31,7 @@ export function ReferenceUpload({ referenceId, referenceUrl, onUpload, isUploadi
 
   return (
     <div className="space-y-3">
-      <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+      <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
         Reference Icon
       </label>
 

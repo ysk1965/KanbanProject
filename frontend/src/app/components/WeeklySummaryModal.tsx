@@ -289,13 +289,14 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
               {getInitials(member.name)}
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-foreground">{member.name}</h2>
+              <h2 className="text-lg font-bold text-foreground">{member.name}</h2>
               <p className="text-xs text-slate-400">{weekRangeLabel} {t('weeklySummary.weekSummary')}</p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-foreground transition-colors"
+            aria-label="닫기"
           >
             <X className="h-5 w-5" />
           </button>
@@ -376,7 +377,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
 
                 {/* 일별 현황 */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
                     {t('weeklySummary.dailyStatus')}
                   </label>
                   <div className="space-y-2">
@@ -390,7 +391,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                         <span className={`w-8 text-xs font-medium ${day.isToday ? 'text-indigo-400' : 'text-muted-foreground'}`}>
                           {day.dayLabel}
                         </span>
-                        <span className="w-10 text-[10px] text-slate-400">{day.dateLabel}</span>
+                        <span className="w-10 text-xs text-slate-400">{day.dateLabel}</span>
                         <span className="w-14 text-xs text-slate-400 text-right">{day.blockCount}</span>
                         <span className="w-14 text-xs text-foreground font-medium text-right">{day.hours.toFixed(1)}h</span>
                         <div className="flex-1 h-3 bg-foreground/5 rounded overflow-hidden">
@@ -407,7 +408,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                 {/* 피처별 현황 */}
                 {summaryData.featureBreakdown.length > 0 && (
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
                       {t('weeklySummary.featureStatus')}
                     </label>
                     <div className="space-y-3">
@@ -483,7 +484,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                         <div key={c.id} className="bg-bridge-dark rounded-lg p-3">
                           <div className="flex items-center justify-between mb-1.5">
                             <span className="text-xs text-slate-400">{c.task_title}</span>
-                            <span className="text-[10px] text-slate-500">
+                            <span className="text-xs text-slate-500">
                               {format(new Date(c.created_at), 'M/d E HH:mm', { locale: ko })}
                             </span>
                           </div>
@@ -502,10 +503,10 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                 {/* 주간 개요 */}
                 {overviewText && (
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('weeklySummary.weeklyOverview')}
                     </label>
-                    <p className="text-muted-foreground font-light leading-relaxed text-sm">
+                    <p className="text-muted-foreground font-normal leading-relaxed text-sm">
                       {overviewText}
                     </p>
                   </div>
@@ -513,11 +514,11 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
 
                 {/* 주간 기록 테이블 */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
                     {t('weeklySummary.weeklyRecord')}
                   </label>
                   {/* 테이블 헤더 */}
-                  <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-foreground/10">
+                  <div className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-foreground/10">
                     <div className="flex-1">{t('weeklySummary.timeBlockCol')}</div>
                     <div className="w-20 text-right">{t('weeklySummary.hoursSpent')}</div>
                     <div className="w-14 text-center">{t('weeklySummary.commentsCol')}</div>
@@ -543,7 +544,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                               </span>
                             </div>
                             <div className="flex items-center gap-2 mt-1 ml-4">
-                              <span className="text-[10px] text-slate-500">{row.featureTitle}</span>
+                              <span className="text-xs text-slate-500">{row.featureTitle}</span>
                               {/* 미니 바 */}
                               <div className="flex-1 h-1 bg-foreground/5 rounded overflow-hidden max-w-[120px]">
                                 <div
@@ -557,7 +558,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                           <div className="w-20 text-right flex-shrink-0">
                             <span className="text-sm font-medium text-foreground">{hours}h</span>
                             {row.blockCount > 1 && (
-                              <span className="text-[10px] text-slate-500 ml-1">({row.blockCount})</span>
+                              <span className="text-xs text-slate-500 ml-1">({row.blockCount})</span>
                             )}
                           </div>
                           {/* 댓글 버튼 */}

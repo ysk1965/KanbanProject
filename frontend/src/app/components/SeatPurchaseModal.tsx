@@ -58,6 +58,7 @@ export function SeatPurchaseModal({
           <button
             onClick={onClose}
             className="absolute right-4 top-4 p-1 text-white/60 hover:text-foreground transition-colors"
+            aria-label="닫기"
           >
             <X className="h-5 w-5" />
           </button>
@@ -102,7 +103,7 @@ export function SeatPurchaseModal({
 
           {/* Quantity selector */}
           <div className="mb-4">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 block">
               {t('seatPurchase.additionalSeats')}
             </label>
             <div className="flex items-center justify-center gap-4">

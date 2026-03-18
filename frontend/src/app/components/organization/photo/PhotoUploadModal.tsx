@@ -247,7 +247,7 @@ export function PhotoUploadModal({
           <h3 className="text-base font-bold text-foreground">
             {t('photoGallery.uploadTitle', 'Upload Photos')}
           </h3>
-          <p className="text-[10px] text-slate-500">
+          <p className="text-xs text-slate-500">
             {t('photoGallery.uploadHint', 'JPG, PNG, WebP, GIF supported')}
           </p>
         </div>
@@ -257,7 +257,7 @@ export function PhotoUploadModal({
       <div className="px-5 pb-5 pt-4 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
         {/* Album selector */}
         <div>
-          <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+          <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
             {t('photoGallery.album', 'Album')}
           </label>
           {creatingAlbum || albums.length === 0 ? (
@@ -333,7 +333,7 @@ export function PhotoUploadModal({
           <p className="text-sm text-slate-400">
             {t('photoGallery.uploadDropzone', 'Drag & drop or click to browse')}
           </p>
-          <p className="text-[10px] text-slate-600 mt-1">
+          <p className="text-xs text-slate-600 mt-1">
             {t('photoGallery.uploadFormats', 'JPG, PNG, WebP, GIF - max {{max}} files', { max: MAX_FILES })}
           </p>
         </div>
@@ -383,7 +383,7 @@ export function PhotoUploadModal({
                 animate={{ width: `${progress}%` }}
               />
             </div>
-            <p className="text-[10px] text-slate-500 text-center">
+            <p className="text-xs text-slate-500 text-center">
               {totalBatches > 1
                 ? t('photoGallery.uploadBatchProgress', 'Batch {{current}}/{{total}} — {{uploaded}}/{{count}} photos', {
                     current: currentBatch,
@@ -402,14 +402,14 @@ export function PhotoUploadModal({
       {/* 4) Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
         <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] text-slate-600">
+          <span className="text-xs text-slate-600">
             Esc {t('common.close', 'Close')}
           </span>
           {previews.length > 0 && !selectedAlbumId && !creatingAlbum && (
             <motion.span
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-[10px] text-amber-600 dark:text-amber-400"
+              className="text-xs text-amber-600 dark:text-amber-400"
             >
               {albums.length === 0
                 ? t('photoGallery.hintCreateAlbum', 'Create an album first')

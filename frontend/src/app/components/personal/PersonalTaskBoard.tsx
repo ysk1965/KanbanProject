@@ -6,7 +6,9 @@ import {
   Flame, CalendarClock, Zap, Archive, X, Pencil, Repeat,
 } from 'lucide-react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { MotionModal } from '../ui/MotionModal';
+import { IconButton } from '../ui/IconButton';
 import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { personalTaskAPI, personalHabitAPI } from '../../utils/api';
 import { PersonalTask, PersonalTaskPriority, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix } from '../../types';
@@ -193,9 +195,9 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
         personalHabitAPI.getToday(fmt(now)),
         personalHabitAPI.getWeekly(fmt(monday), fmt(sunday)),
       ]);
-      setAllHabits(all.filter(h => h.is_active));
-      setTodayHabits(today);
-      setWeeklyMatrix(weekly);
+      setAllHabits(Array.isArray(all) ? all.filter(h => h.is_active) : []);
+      setTodayHabits(Array.isArray(today) ? today : []);
+      setWeeklyMatrix(weekly && weekly.habits ? weekly : null);
     } catch {
       console.error('Failed to load habits');
     } finally {
@@ -301,14 +303,14 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
           <span className="text-xs font-bold text-foreground">
             {t('personal.habit.habits', '습관 관리')}
           </span>
-          <span className="text-[10px] font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded-full">
+          <span className="text-xs font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded-full">
             {completedCount}/{todayHabits.length}
           </span>
           <div className="flex-1" />
           {onNavigateHabits && (
             <button
               onClick={onNavigateHabits}
-              className="text-[11px] text-slate-500 hover:text-bridge-secondary transition-colors"
+              className="text-xs text-slate-500 hover:text-bridge-secondary transition-colors"
             >
               {t('personal.overview.viewAll', 'View all')} →
             </button>
@@ -335,9 +337,9 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
             return (
               <motion.div
                 key={habit.id}
-                initial={{ opacity: 0, x: 16 }}
+                initial={reduced ? false : { opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.03 }}
+                transition={reduced ? { duration: 0 } : { delay: idx * 0.03 }}
                 className={`flex-shrink-0 w-[164px] md:w-[188px] rounded-xl border p-3.5 text-left relative group transition-colors cursor-pointer ${
                   isScheduledToday
                     ? 'bg-foreground/[0.03] hover:bg-foreground/5'
@@ -406,7 +408,7 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
                       </div>
                     </div>
                     {streak > 0 && (
-                      <span className="inline-flex items-center gap-px text-[9px] text-orange-400 font-bold shrink-0">
+                      <span className="inline-flex items-center gap-px text-xs text-orange-400 font-bold shrink-0">
                         <Flame size={9} className="shrink-0" />
                         {streak}
                       </span>
@@ -421,15 +423,15 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
                       const isDayCompleted = weeklyCompletionMap.get(habit.id)?.has(dayIdx) ?? false;
                       return (
                         <div key={dayIdx} className="flex flex-col items-center gap-1 flex-1">
-                          <span className={`text-[9px] leading-none ${
+                          <span className={`text-xs leading-none ${
                             dayIdx === 0
                               ? isTodayDay && isScheduled
-                                ? 'font-extrabold text-red-400'
+                                ? 'font-bold text-red-400'
                                 : isTodayDay
                                 ? 'font-bold text-red-400/70'
                                 : 'font-medium text-red-400/60'
                               : isTodayDay && isScheduled
-                              ? 'font-extrabold text-purple-300'
+                              ? 'font-bold text-purple-300'
                               : isTodayDay
                               ? 'font-bold text-slate-400'
                               : isScheduled
@@ -521,6 +523,7 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
 
 export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: PersonalTaskBoardProps) {
   const { t } = useTranslation();
+  const reduced = useReducedMotion();
   const [modalTaskId, setModalTaskId] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
@@ -753,7 +756,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
             <div className="flex items-center gap-0.5 bg-foreground/5 rounded-lg p-0.5 shrink-0">
               <button
                 onClick={() => setCaptureType('task')}
-                className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-bold transition-all ${
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold transition-all ${
                   captureType === 'task'
                     ? 'bg-bridge-accent text-white shadow-sm'
                     : 'text-slate-400 hover:text-foreground'
@@ -764,7 +767,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
               </button>
               <button
                 onClick={() => setCaptureType('habit')}
-                className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-bold transition-all ${
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold transition-all ${
                   captureType === 'habit'
                     ? 'bg-purple-500 text-white shadow-sm'
                     : 'text-slate-400 hover:text-foreground'
@@ -811,7 +814,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                   <button
                     key={value}
                     onClick={() => setSelectedDays(prev => prev.includes(value) ? prev.filter(d => d !== value) : [...prev, value])}
-                    className={`w-7 h-7 text-[10px] font-bold rounded-md transition-all ${
+                    className={`w-7 h-7 text-xs font-bold rounded-md transition-all ${
                       selectedDays.includes(value)
                         ? 'bg-purple-500 text-white'
                         : 'bg-foreground/5 text-slate-500 hover:bg-foreground/10'
@@ -842,7 +845,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                   <button
                     key={value}
                     onClick={() => setSelectedDays(prev => prev.includes(value) ? prev.filter(d => d !== value) : [...prev, value])}
-                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
                       selectedDays.includes(value)
                         ? 'bg-purple-500 text-white'
                         : 'bg-foreground/5 text-slate-500 hover:bg-foreground/10'
@@ -858,7 +861,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
           {captureType === 'habit' && isAddFocused && (
             <div className="px-4 pb-2">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-500 shrink-0">{t('personal.habit.color', '색상')}</span>
+                <span className="text-xs text-slate-500 shrink-0">{t('personal.habit.color', '색상')}</span>
                 <ColorPickerPopover
                   colors={HABIT_COLORS_INLINE}
                   selectedColor={habitColor}
@@ -874,7 +877,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
           {isAddFocused && newTitle.trim() && (
             <div className="px-4 pb-3">
               <div className="flex items-center justify-between pt-2 border-t border-foreground/5">
-                <span className="text-[10px] text-slate-500">Enter {t('personal.tasks.toAdd', '추가')} · Esc {t('common.cancel', '취소')}</span>
+                <span className="text-xs text-slate-500">Enter {t('personal.tasks.toAdd', '추가')} · Esc {t('common.cancel', '취소')}</span>
                 <button
                   onClick={handleQuickAdd}
                   className={`px-3 py-1 text-white text-xs rounded-lg font-medium transition-colors ${
@@ -901,17 +904,17 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
             <span className="text-xs font-bold text-foreground">
               {t('personal.tasks.matrixTitle', '아이젠하워 매트릭스')}
             </span>
-            <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded-full">
+            <span className="text-xs font-bold text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded-full">
               {activeTasks.length}
             </span>
             <div className="flex-1" />
-            <span className="text-[10px] text-slate-500 hidden sm:inline mr-1">
+            <span className="text-xs text-slate-500 hidden sm:inline mr-1">
               {t('personal.tasks.thisWeek', { date: urgentDeadlineLabel })}
             </span>
             {completedTasks.length > 0 && (
               <button
                 onClick={() => setShowCompleted(true)}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/30 transition-all"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/30 transition-all"
               >
                 <Check size={11} />
                 {t('personal.tasks.completed', '완료됨')}
@@ -919,7 +922,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
               </button>
             )}
             {todayCompletedTasks.length > 0 && (
-              <span className="text-[10px] text-emerald-400/60 hidden sm:inline">
+              <span className="text-xs text-emerald-400/60 hidden sm:inline">
                 ({t('personal.tasks.todayDone', '오늘 {{count}}개', { count: todayCompletedTasks.length })})
               </span>
             )}
@@ -930,16 +933,16 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
             {/* Column axis labels */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-1.5">
               <div className="text-center hidden sm:block">
-                <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-red-400/80">
+                <span className="text-xs tracking-[0.15em] uppercase font-bold text-red-400/80">
                   {t('personal.tasks.urgentColumn')}
                 </span>
-                <span className="text-[10px] text-slate-500 ml-1.5">~{urgentDeadlineLabel} (D-{URGENT_DAYS})</span>
+                <span className="text-xs text-slate-500 ml-1.5">~{urgentDeadlineLabel} (D-{URGENT_DAYS})</span>
               </div>
               <div className="text-center hidden sm:block">
-                <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-slate-400/80">
+                <span className="text-xs tracking-[0.15em] uppercase font-bold text-slate-400/80">
                   {t('personal.tasks.notUrgentColumn')}
                 </span>
-                <span className="text-[10px] text-slate-500 ml-1.5">D-{URGENT_DAYS}+</span>
+                <span className="text-xs text-slate-500 ml-1.5">D-{URGENT_DAYS}+</span>
               </div>
             </div>
 
@@ -976,22 +979,22 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
             <div className="flex items-center gap-3 sm:gap-4 mt-2 flex-wrap">
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-red-400" />
-                <span className="text-[10px] text-red-400/80">{t('personal.tasks.q1Desc')}</span>
+                <span className="text-xs text-red-400/80">{t('personal.tasks.q1Desc')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-amber-400" />
-                <span className="text-[10px] text-amber-400/80">{t('personal.tasks.q3Desc')}</span>
+                <span className="text-xs text-amber-400/80">{t('personal.tasks.q3Desc')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-bridge-accent" />
-                <span className="text-[10px] text-bridge-accent/80">{t('personal.tasks.q2Desc')}</span>
+                <span className="text-xs text-bridge-accent/80">{t('personal.tasks.q2Desc')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-slate-400" />
-                <span className="text-[10px] text-slate-400/80">{t('personal.tasks.q4Desc')}</span>
+                <span className="text-xs text-slate-400/80">{t('personal.tasks.q4Desc')}</span>
               </div>
               <div className="flex-1" />
-              <span className="text-[10px] text-slate-500 italic hidden sm:inline">{t('personal.tasks.dragToMove')}</span>
+              <span className="text-xs text-slate-500 italic hidden sm:inline">{t('personal.tasks.dragToMove')}</span>
             </div>
           </div>
         </div>
@@ -1035,16 +1038,13 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
               <h3 className="text-sm font-bold text-foreground">
                 {t('personal.tasks.completed', '완료됨')}
               </h3>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-xs text-slate-500">
                 {completedTasks.length}{t('personal.tasks.completedCount', '개 완료')} · 7일 후 자동 삭제
               </span>
             </div>
-            <button
-              onClick={() => setShowCompleted(false)}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
-            >
-              <X size={16} />
-            </button>
+            <IconButton onClick={() => setShowCompleted(false)} aria-label="닫기">
+              <X />
+            </IconButton>
           </div>
 
           {completedTasks.length === 0 ? (
@@ -1120,22 +1120,22 @@ function QuadrantCell({
       <div className={`flex items-center gap-2 px-3 py-2 rounded-t-xl ${cfg.headerBg}`}>
         <Icon size={13} className={cfg.color} />
         <span className={`text-xs font-bold ${cfg.color}`}>{t(labelKeys.label)}</span>
-        <span className="text-[9px] text-slate-500">{t(labelKeys.sublabel)}</span>
+        <span className="text-xs text-slate-500">{t(labelKeys.sublabel)}</span>
         <div className="flex-1" />
-        <span className={`text-[10px] font-bold ${cfg.color}`}>{totalCount}</span>
+        <span className={`text-xs font-bold ${cfg.color}`}>{totalCount}</span>
       </div>
 
       {/* Items */}
       <div className="flex-1 p-1.5 space-y-1 overflow-y-auto max-h-[400px] custom-scrollbar">
         {totalCount === 0 && !isDragOver && (
           <div className="flex items-center justify-center h-full min-h-[40px] sm:min-h-[80px]">
-            <span className="text-[10px] text-slate-600">{t('personal.tasks.empty')}</span>
+            <span className="text-xs text-slate-600">{t('personal.tasks.empty')}</span>
           </div>
         )}
 
         {isDragOver && totalCount === 0 && (
           <div className="h-12 border border-dashed border-bridge-secondary/40 rounded-lg bg-bridge-secondary/5 flex items-center justify-center">
-            <span className="text-[10px] text-bridge-secondary">{t('personal.tasks.dropHere')}</span>
+            <span className="text-xs text-bridge-secondary">{t('personal.tasks.dropHere')}</span>
           </div>
         )}
 
@@ -1143,12 +1143,12 @@ function QuadrantCell({
           {tasks.map(task => (
             <motion.div
               key={task.id}
-              layoutId={`task-${task.id}`}
-              layout
-              initial={{ opacity: 0, scale: 0.9 }}
+              layoutId={reduced ? undefined : `task-${task.id}`}
+              layout={!reduced}
+              initial={reduced ? false : { opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
+              transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
             >
               <MatrixTaskCard
                 task={task}
@@ -1167,7 +1167,7 @@ function QuadrantCell({
   );
 }
 
-// ── HabitMatrixCard ──────────────────────────────────────────
+// ── HabitMatrixCard (unused — kept for future) ───────────────
 
 function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
   habit: HabitTodayItem;
@@ -1176,7 +1176,9 @@ function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
-  const urgencyRatio = getHabitUrgencyRatio(habit);
+  const urgencyRatio = (habit.weekly_target > 0 && habit.weekly_completed < habit.weekly_target)
+    ? (habit.weekly_target - habit.weekly_completed) / Math.max(habit.weekly_target, 1)
+    : 0;
 
   return (
     <div
@@ -1234,12 +1236,12 @@ function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
         </span>
         <div className="flex items-center gap-1.5 mt-0.5">
           {/* Weekly progress */}
-          <span className="text-[9px] text-purple-400 font-bold">
+          <span className="text-xs text-purple-400 font-bold">
             {habit.weekly_completed}/{habit.weekly_target} {t('personal.habit.thisWeek', '이번 주')}
           </span>
           {/* Urgency indicator */}
           {!habit.is_completed && urgencyRatio >= 1.0 && (
-            <span className="text-[8px] font-bold text-red-400 bg-red-400/15 px-1 rounded">
+            <span className="text-xs font-bold text-red-400 bg-red-400/15 px-1 rounded">
               {t('personal.habit.tight', '빠듯')}
             </span>
           )}
@@ -1272,7 +1274,7 @@ function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
           />
         )}
         {habit.current_streak > 0 && (
-          <div className="flex items-center gap-0.5 text-[9px] text-orange-400 font-bold">
+          <div className="flex items-center gap-0.5 text-xs text-orange-400 font-bold">
             <Flame size={10} />
             {habit.current_streak}
           </div>
@@ -1396,7 +1398,7 @@ function MatrixTaskCard({
 
         <div className="flex items-center gap-1.5 shrink-0">
           {isDone ? (
-            <span className="text-[9px] font-bold text-emerald-400/70 px-1.5 py-0.5 rounded bg-emerald-500/15">
+            <span className="text-xs font-bold text-emerald-400/70 px-1.5 py-0.5 rounded bg-emerald-500/15">
               ✓
             </span>
           ) : (
@@ -1408,7 +1410,7 @@ function MatrixTaskCard({
                     e.stopPropagation();
                     dateInputRef.current?.showPicker();
                   }}
-                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded hover:ring-1 hover:ring-white/20 transition-all ${DDAY_STYLES[dday.urgency]}`}
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded hover:ring-1 hover:ring-white/20 transition-all ${DDAY_STYLES[dday.urgency]}`}
                 >
                   {dday.text}
                 </button>
@@ -1453,7 +1455,7 @@ function CompletedTaskRow({ task, onToggleComplete, onDelete }: {
       </button>
       <div className="flex-1 min-w-0">
         <span className="text-sm line-through text-slate-500 truncate block">{task.title}</span>
-        <div className="flex items-center gap-1.5 text-[10px]">
+        <div className="flex items-center gap-1.5 text-xs">
           {task.due_date && (
             <span className={dday?.urgency === 'overdue' ? 'text-red-400/60' : 'text-slate-600'}>
               {task.due_date.slice(5).replace('-', '/')}
@@ -1550,19 +1552,16 @@ export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onTog
             className={`flex-1 min-w-0 bg-transparent text-sm font-bold outline-none placeholder-slate-500 ${isDone ? 'line-through text-slate-500' : 'text-foreground'}`}
             placeholder={t('personal.tasks.titlePlaceholder', '할 일 제목')}
           />
-          <button
+          <IconButton
             onClick={onDelete}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-foreground/5 transition-colors shrink-0"
-            title={t('common.delete', '삭제')}
+            aria-label={t('common.delete', '삭제')}
+            className="hover:text-rose-400"
           >
-            <Trash2 size={16} />
-          </button>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0"
-          >
-            <X size={16} />
-          </button>
+            <Trash2 />
+          </IconButton>
+          <IconButton onClick={onClose} aria-label="닫기">
+            <X />
+          </IconButton>
         </div>
 
         <div className="px-5 pb-5 space-y-4 pt-4">
@@ -1576,7 +1575,7 @@ export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onTog
                 className="bg-transparent text-xs text-muted-foreground outline-none [color-scheme:dark]"
               />
               {dday.urgency !== 'none' && (
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${DDAY_STYLES[dday.urgency]}`}>
+                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${DDAY_STYLES[dday.urgency]}`}>
                   {dday.text}
                 </span>
               )}
@@ -1600,7 +1599,7 @@ export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onTog
           />
 
           <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-            <span className="text-[10px] text-slate-600">
+            <span className="text-xs text-slate-600">
               Esc {t('common.close', '닫기')}
             </span>
             <button
@@ -1674,7 +1673,7 @@ function PriorityInline({ value, onChange }: {
         <button
           key={p}
           onClick={() => onChange(p)}
-          className={`text-[10px] px-1.5 py-0.5 rounded-md transition-all ${
+          className={`text-xs px-1.5 py-0.5 rounded-md transition-all ${
             value === p
               ? `${PRIORITY_CONFIG[p].color} font-bold`
               : 'text-slate-500 hover:text-muted-foreground hover:bg-foreground/5'

@@ -932,6 +932,26 @@
     "copied": "कॉपी किया गया",
     "copy": "कॉपी करें"
   },
+  "boardResource": {
+    "title": "संसाधन",
+    "addResource": "संसाधन जोड़ें",
+    "editResource": "संसाधन संपादित करें",
+    "deleteResource": "संसाधन हटाएं",
+    "deleteConfirm": "क्या आप इस संसाधन को हटाना चाहते हैं?",
+    "linkTitle": "शीर्षक",
+    "linkTitlePlaceholder": "उदा: API दस्तावेज़",
+    "linkUrl": "URL",
+    "linkUrlPlaceholder": "https://...",
+    "linkDescription": "विवरण (वैकल्पिक)",
+    "linkDescriptionPlaceholder": "संक्षिप्त विवरण",
+    "limitReached": "प्रति बोर्ड अधिकतम {{max}} संसाधन",
+    "invalidUrl": "कृपया एक मान्य URL दर्ज करें",
+    "openLink": "लिंक खोलें",
+    "collapse": "संसाधन बार छोटा करें",
+    "expand": "संसाधन बार बड़ा करें",
+    "noResources": "कोई साझा संसाधन नहीं",
+    "addFirst": "अपना पहला संसाधन जोड़ें"
+  },
   "discordBot": {
     "title": "Discord Bot",
     "notInstalled": "Discord Bot कनेक्ट नहीं है",
@@ -1304,7 +1324,7 @@
     "attachImage": "छवियाँ संलग्न करें (अधिकतम 5)",
     "attachFile": "फ़ाइलें संलग्न करें (अधिकतम 5)",
     "imageHelp": "छवियाँ: पेस्ट, ड्रैग, या क्लिप बटन का उपयोग करें",
-    "fileHelp": "चित्र और वीडियो: पेस्ट करें, खींचें या क्लिप बटन का उपयोग करें",
+    "fileHelp": "चित्र, वीडियो और दस्तावेज़: पेस्ट करें, खींचें या क्लिप बटन का उपयोग करें",
     "viewerReadOnly": "पर्यवेक्षक टिप्पणी नहीं लिख सकते",
     "attachedImage": "संलग्न छवि",
     "attachedFile": "संलग्न फ़ाइल",
@@ -1314,9 +1334,10 @@
     "addFile": "फ़ाइल जोड़ें",
     "failed": "विफल",
     "maxFilesError": "आप अधिकतम 5 फ़ाइलें संलग्न कर सकते हैं।",
-    "fileTypeError": "समर्थित प्रारूप: jpg, png, gif, webp, mp4, webm, mov।",
+    "fileTypeError": "समर्थित प्रारूप: चित्र, वीडियो, PDF, Word, Excel, PPT, TXT।",
     "fileSizeError": "अधिकतम छवि आकार 30MB है।",
     "videoFileSizeError": "अधिकतम वीडियो आकार 50MB है।",
+    "docFileSizeError": "अधिकतम दस्तावेज़ आकार 30MB है।",
     "uploadInProgress": "फ़ाइलें अपलोड हो रही हैं। कृपया प्रतीक्षा करें।",
     "uploadFailedRetry": "कुछ फ़ाइलें अपलोड करने में विफल रहीं। कृपया हटाकर पुनः प्रयास करें।",
     "reaction": {
@@ -1341,6 +1362,24 @@
     "aiOpenQuestions": "अनसुलझे प्रश्न",
     "aiActionItems": "कार्य आइटम",
     "checklist": "चेकलिस्ट"
+  },
+  "mentionGroup": {
+    "create": "मेंशन ग्रुप बनाएं",
+    "edit": "मेंशन ग्रुप संपादित करें",
+    "delete": "मेंशन ग्रुप हटाएं",
+    "deleteConfirm": "क्या आप इस मेंशन ग्रुप को हटाना चाहते हैं?",
+    "name": "ग्रुप का नाम",
+    "namePlaceholder": "जैसे: डिज़ाइन टीम, डेव टीम",
+    "selectMembers": "सदस्य चुनें",
+    "searchMember": "सदस्य खोजें...",
+    "memberCountSuffix": "",
+    "me": "मैं",
+    "noGroups": "कोई मेंशन ग्रुप नहीं",
+    "groups": "ग्रुप",
+    "manageTitle": "मेंशन ग्रुप प्रबंधित करें",
+    "createBtn": "बनाएं",
+    "saveBtn": "सहेजें",
+    "close": "बंद करें"
   },
   "activity": {
     "title": "गतिविधि लॉग",
@@ -1687,7 +1726,20 @@
         "trialUsed": "ट्रायल उपयोग किया गया",
         "noSubscription": "कोई सदस्यता नहीं",
         "monthly": "मासिक",
-        "yearly": "वार्षिक"
+        "yearly": "वार्षिक",
+        "aiCredits": "AI क्रेडिट",
+        "monthlyLimit": "मासिक सीमा",
+        "creditsUsed": "उपयोग किए गए",
+        "creditsRemaining": "शेष",
+        "creditsResetDate": "रीसेट तिथि",
+        "addBonusCredits": "बोनस क्रेडिट जोड़ें",
+        "resetUsedCredits": "रीसेट",
+        "confirmResetCredits": "उपयोग किए गए क्रेडिट को 0 पर रीसेट करें? इससे संगठन को पूर्ण क्रेडिट रिफिल मिलेगा।",
+        "creditsUpdated": "AI क्रेडिट अपडेट किए गए",
+        "creditsUpdateFailed": "AI क्रेडिट अपडेट विफल",
+        "creditsReset": "उपयोग किए गए क्रेडिट रीसेट किए गए",
+        "exhausted": "समाप्त",
+        "low": "कम"
       },
       "actions": {
         "edit": "जानकारी संपादित करें",
@@ -2086,7 +2138,8 @@
   "featureChip": {
     "count": "{{count}}",
     "hideFilter": "फ़िल्टर छिपाएं",
-    "showFilter": "फ़िल्टर दिखाएं"
+    "showFilter": "फ़िल्टर दिखाएं",
+    "tooltipCompleted": "पूर्ण"
   },
   "dailyChecklistColumn": {
     "completedCount": "{{completed}}/{{total}} पूर्ण",
@@ -2883,6 +2936,10 @@
       "buy_button": "क्रेडिट खरीदें",
       "later_button": "बाद में"
     },
+    "org_managed": {
+      "description": "यह बोर्ड संगठन द्वारा प्रबंधित है।\nकेवल संगठन प्रशासक ही AI क्रेडिट प्रबंधित कर सकते हैं।\nकृपया अपने संगठन प्रशासक से संपर्क करें।",
+      "close": "ठीक है"
+    },
     "admin": {
       "title": "AI क्रेडिट स्थिति",
       "monthly_allocation": "मासिक आवंटन",
@@ -3027,7 +3084,8 @@
       "settings": "सेटिंग्स",
       "attendance": "उपस्थिति",
       "okr": "OKR",
-      "photos": "फ़ोटो"
+      "photos": "फ़ोटो",
+      "documents": "दस्तावेज़"
     },
     "chart": {
       "searchPlaceholder": "सदस्य खोजें...",
@@ -3506,10 +3564,21 @@
       "deleteOrg": "संगठन हटाएं",
       "deleteWarning": "हटाना पूर्ववत नहीं किया जा सकता। सभी बोर्ड हटा दिए जाएंगे।",
       "typeOrgName": "पुष्टि के लिए संगठन का नाम टाइप करें",
+      "hrSystem": "HR सिस्टम",
+      "hrSystemDesc": "यदि आपका संगठन अलग HR सिस्टम से छुट्टी प्रबंधित करता है तो इसे सक्षम करें।",
+      "hrSystemEnabled": "HR सिस्टम उपयोग करें",
+      "hrSystemHint": "सक्षम होने पर, BRIDGE की छुट्टी प्रबंधन सुविधाएँ छिपी रहेंगी।",
       "autoBoardAccess": "स्वचालित बोर्ड एक्सेस",
       "autoBoardAccessDesc": "सक्षम होने पर, संगठन के सदस्य शामिल होने का अनुरोध किए बिना संपादन अनुमतियों के साथ सभी संगठन बोर्ड तक पहुंच सकते हैं।",
       "autoBoardAccessEnabled": "स्वचालित बोर्ड एक्सेस सक्षम करें",
-      "autoBoardAccessHint": "संगठन के सदस्यों को स्वचालित रूप से MEMBER भूमिका एक्सेस मिलेगा। उन्हें बोर्ड सदस्य सूची में नहीं जोड़ा जाएगा।"
+      "autoBoardAccessHint": "संगठन के सदस्यों को स्वचालित रूप से MEMBER भूमिका एक्सेस मिलेगा। उन्हें बोर्ड सदस्य सूची में नहीं जोड़ा जाएगा।",
+      "subtabs": {
+        "general": "सामान्य",
+        "billing": "बिलिंग",
+        "structure": "संरचना",
+        "attendance": "उपस्थिति नीति",
+        "onboarding": "ऑनबोर्डिंग"
+      }
     },
     "invite": {
       "invalidLink": "यह आमंत्रण लिंक अमान्य या समाप्त हो चुका है।",
@@ -3847,6 +3916,8 @@
     "noAlbumsToShare": "साझा करने के लिए कोई एल्बम नहीं",
     "sharePreview": "पूर्वावलोकन",
     "shareGalleryDesc": "एक लिंक से चयनित एल्बम साझा करें",
+    "shareGalleryTitleLabel": "गैलरी शीर्षक",
+    "shareGalleryTitlePlaceholder": "उदा: परिवार की तस्वीरें, 2026 यात्रा",
     "shareSelectAlbums": "शामिल करने के लिए एल्बम",
     "galleryUploadLink": "गैलरी अपलोड लिंक",
     "galleryUploadLinkDesc": "इस लिंक वाला कोई भी व्यक्ति फ़ोटो अपलोड कर सकता है और एल्बम प्रबंधित कर सकता है",

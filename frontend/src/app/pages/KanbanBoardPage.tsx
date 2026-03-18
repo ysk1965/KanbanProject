@@ -190,6 +190,7 @@ import { KanbanBoardHeader } from "../components/KanbanBoardHeader";
 import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
 import { BoardModalManager } from "../components/BoardModalManager";
 import { BoardViewSwitcher } from "../components/BoardViewSwitcher";
+// BoardResourceBar removed — integrated into KanbanFilterToolbar
 import { BoardListView } from "../components/BoardListView";
 import JoinRequestBanner from "../components/JoinRequestBanner";
 
@@ -575,6 +576,9 @@ export function KanbanBoardPage() {
   // Quick Add Task 모달 상태
   const [quickAddBlockId, setQuickAddBlockId] = useState<string | null>(null);
   const [isQuickAddSubmitting, setIsQuickAddSubmitting] = useState(false);
+
+  // 캐스케이드 펄스: 체크리스트 → Feature 칩
+  const [cascadeFeatureId, setCascadeFeatureId] = useState<string | null>(null);
 
   // 체크리스트 펼침 상태
   const [expandedChecklistTaskIds, setExpandedChecklistTaskIds] = useState<
@@ -998,6 +1002,13 @@ export function KanbanBoardPage() {
               : t,
           ),
         );
+        // 캐스케이드 펄스: Task의 Feature 칩에 시각적 연결 표시
+        const cascadeTask = tasks.find((t) => t.id === toggleTaskId);
+        if (cascadeTask?.feature_id) {
+          setCascadeFeatureId(cascadeTask.feature_id);
+          setTimeout(() => setCascadeFeatureId(null), 1000);
+        }
+
         setWsChecklistEvent(event);
         break;
       }
@@ -1155,6 +1166,7 @@ export function KanbanBoardPage() {
 
   // Upgrade Modal 열기 헬퍼
   const openUpgradeModal = (trigger: UpgradeTrigger) => {
+    if (hideBilling) return;
     setUpgradeTrigger(trigger);
     setIsUpgradeModalOpen(true);
   };
@@ -2591,7 +2603,7 @@ export function KanbanBoardPage() {
   if (isLoading) {
     return (
       <div className="min-h-dvh bg-bridge-dark flex items-center justify-center">
-        <div className="text-foreground text-lg font-light">
+        <div className="text-foreground text-lg font-normal">
           {t("common.loading")}
         </div>
       </div>
@@ -2636,8 +2648,8 @@ export function KanbanBoardPage() {
           unreadInquiryCount={unreadInquiryCount}
           onOpenInquiry={() => setIsInquiryModalOpen(true)}
           onOpenShareBoard={() => setIsShareBoardModalOpen(true)}
-          onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
-          onOpenPremiumBenefits={() => setIsPremiumBenefitsModalOpen(true)}
+          onOpenSubscription={() => { if (!hideBilling) setIsSubscriptionModalOpen(true); }}
+          onOpenPremiumBenefits={() => { if (!hideBilling) setIsPremiumBenefitsModalOpen(true); }}
           onUpdatePayment={async () => {
             if (!boardId) return;
             try {
@@ -2690,6 +2702,13 @@ export function KanbanBoardPage() {
           />
         )}
 
+        {/* 서브뷰 ↔ 마일스톤 구분선 */}
+        {BOARD_SUB_MODES.includes(viewMode) &&
+          viewMode !== "milestone" &&
+          milestones.length > 0 && (
+            <div className="border-b border-foreground/[0.08]" />
+          )}
+
         {/* 마일스톤 탭 바 (보드 서브뷰에서 표시, milestone 뷰 제외) */}
         {BOARD_SUB_MODES.includes(viewMode) &&
           viewMode !== "milestone" &&
@@ -2707,7 +2726,7 @@ export function KanbanBoardPage() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => handleKanbanMilestoneSelect("all")}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                       kanbanSelectedMilestoneId === "all"
                         ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
                         : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
@@ -2718,7 +2737,7 @@ export function KanbanBoardPage() {
                   {hasUnassignedFeatures && (
                     <button
                       onClick={() => handleKanbanMilestoneSelect("none")}
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                      className={`px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                         kanbanSelectedMilestoneId === "none"
                           ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
                           : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
@@ -2739,7 +2758,7 @@ export function KanbanBoardPage() {
                         onClick={() =>
                           handleKanbanMilestoneSelect(milestone.id)
                         }
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                           kanbanSelectedMilestoneId === milestone.id
                             ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
                             : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
@@ -2747,7 +2766,7 @@ export function KanbanBoardPage() {
                       >
                         <span>{milestone.title}</span>
                         <span
-                          className={`text-[10px] font-normal ${kanbanSelectedMilestoneId === milestone.id ? "text-white/70" : "text-zinc-500"}`}
+                          className={`text-xs font-normal ${kanbanSelectedMilestoneId === milestone.id ? "text-white/70" : "text-zinc-500"}`}
                         >
                           {startDate} ~ {endDate}
                         </span>
@@ -2874,9 +2893,8 @@ export function KanbanBoardPage() {
               tags={tags}
               boardMembersData={boardMembersData}
               tasks={tasks}
-              onExpandAll={() => {}}
-              onCollapseAll={() => {}}
-              hideExpandCollapse
+              boardId={boardId || ""}
+              canEdit={canEdit}
             />
             <WeeklyScheduleView
               boardId={boardId || ""}
@@ -2977,7 +2995,7 @@ export function KanbanBoardPage() {
                           "아직 콘텐츠가 없는 보드입니다",
                         )}
                       </h2>
-                      <p className="text-slate-400 font-light text-sm md:text-base leading-relaxed mb-8">
+                      <p className="text-slate-400 font-normal text-sm md:text-base leading-relaxed mb-8">
                         {t(
                           "board.joinRequest.emptyBoardDesc",
                           "이 보드에 참가하면 Feature를 만들고 편집할 수 있습니다. 상단 배너에서 참가 신청을 해보세요.",
@@ -3017,32 +3035,8 @@ export function KanbanBoardPage() {
                   tags={tags}
                   boardMembersData={boardMembersData}
                   tasks={tasks}
-                  onExpandAll={() => {
-                    const allTaskIds = tasks.map((t) => t.id);
-                    const allFeatureIds = features.map((f) => f.id);
-                    setExpandedChecklistTaskIds(new Set(allTaskIds));
-                    setExpandedFeatureIds(new Set(allFeatureIds));
-                    localStorage.setItem(
-                      `expandedChecklist_${boardId}`,
-                      JSON.stringify(allTaskIds),
-                    );
-                    localStorage.setItem(
-                      `expandedFeatures_${boardId}`,
-                      JSON.stringify(allFeatureIds),
-                    );
-                  }}
-                  onCollapseAll={() => {
-                    setExpandedChecklistTaskIds(new Set());
-                    setExpandedFeatureIds(new Set());
-                    localStorage.setItem(
-                      `expandedChecklist_${boardId}`,
-                      JSON.stringify([]),
-                    );
-                    localStorage.setItem(
-                      `expandedFeatures_${boardId}`,
-                      JSON.stringify([]),
-                    );
-                  }}
+                  boardId={boardId || ""}
+                  canEdit={canEdit}
                 />
                 {/* Feature 칩 선택 영역 */}
                 <FeatureChipSelector
@@ -3055,6 +3049,7 @@ export function KanbanBoardPage() {
                   }
                   onFeatureInfoClick={handleFeatureClick}
                   onAddFeature={() => setIsAddFeatureModalOpen(true)}
+                  cascadeFeatureId={cascadeFeatureId}
                 />
 
                 {/* 칸반 보드 */}
@@ -3216,7 +3211,7 @@ export function KanbanBoardPage() {
                             <h3 className="font-bold text-sm text-foreground">
                               {activeBlock.name}
                             </h3>
-                            <span className="text-xs font-semibold text-zinc-400 bg-bridge-surface-hover px-2 py-0.5 rounded-md">
+                            <span className="text-xs font-medium text-zinc-400 bg-bridge-surface-hover px-2 py-0.5 rounded-md">
                               {(blockTasksMap[activeBlock.id] || []).length}
                             </span>
                           </div>
@@ -3427,9 +3422,8 @@ export function KanbanBoardPage() {
               tags={tags}
               boardMembersData={boardMembersData}
               tasks={tasks}
-              onExpandAll={() => {}}
-              onCollapseAll={() => {}}
-              hideExpandCollapse
+              boardId={boardId || ""}
+              canEdit={canEdit}
             />
             <CalendarView
               boardId={boardId || ""}
@@ -3575,9 +3569,8 @@ export function KanbanBoardPage() {
               tags={tags}
               boardMembersData={boardMembersData}
               tasks={tasks}
-              onExpandAll={() => {}}
-              onCollapseAll={() => {}}
-              hideExpandCollapse
+              boardId={boardId || ""}
+              canEdit={canEdit}
             />
             <BoardListView
               boardId={boardId || ""}
@@ -3917,6 +3910,7 @@ export function KanbanBoardPage() {
           creditModalMode={creditModalMode}
           onCreditPurchaseComplete={handleCreditPurchaseComplete}
           currentCredits={aiCredits}
+          isOrgBoard={!!board?.organization_id}
           // Permissions
           canEdit={canEdit}
           currentUser={currentUser}
@@ -3930,7 +3924,7 @@ export function KanbanBoardPage() {
         />
 
         {/* Version Info */}
-        <div className="fixed bottom-16 md:bottom-2 right-3 text-[10px] text-slate-600 select-none pointer-events-none z-10">
+        <div className="fixed bottom-16 md:bottom-2 right-3 text-xs text-slate-600 select-none pointer-events-none z-10">
           FE:{" "}
           {typeof __FE_COMMIT_HASH__ !== "undefined"
             ? __FE_COMMIT_HASH__
@@ -3986,7 +3980,7 @@ function MobileTabButton({
         />
       )}
       {iconMap[icon]}
-      <span className="text-[10px] font-medium">{label}</span>
+      <span className="text-xs font-medium">{label}</span>
       {locked && (
         <Lock size={8} className="absolute top-0.5 right-1 text-zinc-600" />
       )}

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { FEATURE_COLORS } from '../../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
+import { IconButton } from '../ui/IconButton';
 import { TimePicker } from '../ui/TimePicker';
 import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { personalTaskAPI } from '../../utils/api';
@@ -569,17 +570,17 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
       {/* Header */}
       <div className="flex items-center justify-between px-4 md:px-6 py-1.5 border-b border-foreground/5 shrink-0">
         <div className="flex items-center gap-2">
-          <button onClick={goToPrevMonth} className="p-1 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors">
+          <button onClick={goToPrevMonth} className="p-1 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors" aria-label="이전 달">
             <ChevronLeft size={16} />
           </button>
           <h2 className="text-sm font-bold text-foreground min-w-[120px] text-center">{monthLabel}</h2>
-          <button onClick={goToNextMonth} className="p-1 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors">
+          <button onClick={goToNextMonth} className="p-1 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors" aria-label="다음 달">
             <ChevronRight size={16} />
           </button>
         </div>
         <div className="flex items-center gap-1.5">
           {/* Legend */}
-          <div className="hidden md:flex items-center gap-3 mr-3 text-[10px] text-zinc-500">
+          <div className="hidden md:flex items-center gap-3 mr-3 text-xs text-zinc-500">
             <span className="flex items-center gap-1">
               <ListTodo size={10} className="text-bridge-accent" />
               {t('personal.calendar.task')}
@@ -592,7 +593,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
 
           <button
             onClick={goToToday}
-            className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors ${
+            className={`px-2.5 py-1 text-xs font-bold rounded-md transition-colors ${
               isTodayMonth
                 ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white'
                 : 'text-bridge-secondary border border-bridge-secondary/30 hover:bg-bridge-secondary/10'
@@ -602,7 +603,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
           </button>
           <button
             onClick={() => openCreateModal(todayKey)}
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-bridge-accent text-white text-[11px] font-bold rounded-md hover:bg-bridge-accent/90 transition-colors"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-bridge-accent text-white text-xs font-bold rounded-md hover:bg-bridge-accent/90 transition-colors"
           >
             <Plus size={12} />
             <span>{t('personal.calendar.event')}</span>
@@ -633,7 +634,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
           <button
             key={f.key}
             onClick={() => setCalendarFilters(prev => ({ ...prev, [f.key]: !prev[f.key] }))}
-            className={`text-[10px] font-bold px-2 py-1 rounded-full border transition-colors flex items-center gap-1 ${
+            className={`text-xs font-bold px-2 py-1 rounded-full border transition-colors flex items-center gap-1 ${
               calendarFilters[f.key]
                 ? f.activeClass
                 : 'bg-foreground/5 text-slate-500 border-foreground/10'
@@ -650,7 +651,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
         {dayLabels.map((label, i) => (
           <div
             key={label}
-            className={`py-2 text-center text-[11px] font-bold uppercase tracking-widest ${
+            className={`py-2 text-center text-xs font-bold uppercase tracking-widest ${
               i === 0 ? 'text-red-400/70' : i === 6 ? 'text-blue-400/70' : 'text-slate-500'
             }`}
           >
@@ -697,7 +698,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
                     {/* Date number + holiday name */}
                     <div className="px-1 sm:px-1.5 pt-1 flex items-center gap-1 shrink-0 min-w-0">
                       <span
-                        className={`text-[11px] font-semibold w-6 h-6 flex items-center justify-center rounded-full shrink-0 ${
+                        className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full shrink-0 ${
                           isTodayCell
                             ? 'bg-bridge-accent text-white'
                             : !isCurrentMonth
@@ -712,12 +713,12 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
                         {date.getDate()}
                       </span>
                       {isHoliday && (
-                        <span className="text-[8px] sm:text-[9px] text-red-300/80 truncate font-medium leading-none">
+                        <span className="text-xs sm:text-xs text-red-300/80 truncate font-medium leading-none">
                           {holidays[0].name}
                         </span>
                       )}
                       {cellItems.length > 0 && (
-                        <span className="text-[9px] text-zinc-600 tabular-nums ml-auto shrink-0">{cellItems.length}</span>
+                        <span className="text-xs text-zinc-600 tabular-nums ml-auto shrink-0">{cellItems.length}</span>
                       )}
                     </div>
 
@@ -726,7 +727,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
                       {visibleItems.map((item) => (
                         <div
                           key={item.id}
-                          className={`py-0.5 text-[10px] md:text-[11px] overflow-hidden whitespace-nowrap ${
+                          className={`py-0.5 text-xs md:text-xs overflow-hidden whitespace-nowrap ${
                             item.isDone ? 'opacity-50' : ''
                           } ${
                             item.isMultiDay
@@ -743,7 +744,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
                         </div>
                       ))}
                       {hiddenCount > 0 && (
-                        <div className="text-[9px] text-zinc-600 text-center">+{hiddenCount}</div>
+                        <div className="text-xs text-zinc-600 text-center">+{hiddenCount}</div>
                       )}
                     </div>
 
@@ -776,7 +777,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
                           {dots.slice(0, 4).map(d => (
                             <span key={d.key} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: d.color }} />
                           ))}
-                          {dots.length > 4 && <span className="text-[8px] text-slate-500">+{dots.length - 4}</span>}
+                          {dots.length > 4 && <span className="text-xs text-slate-500">+{dots.length - 4}</span>}
                         </div>
                       );
                     })()}
@@ -789,7 +790,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
                 const leftPct = (span.colStart / totalCols) * 100;
                 const widthPct = ((span.colEnd - span.colStart + 1) / totalCols) * 100;
                 // Position: date header ~28px + slot row offset
-                // Each item row is ~18px (py-0.5 + text-[10px]/text-[11px])
+                // Each item row is ~18px (py-0.5 + text-xs/text-xs)
                 const topPx = 28 + span.row * 19;
                 return (
                   <div
@@ -802,7 +803,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
                       height: '18px',
                     }}
                   >
-                    <span className={`text-[10px] md:text-[11px] truncate max-w-full px-1 ${span.isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                    <span className={`text-xs md:text-xs truncate max-w-full px-1 ${span.isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                       {span.title}
                     </span>
                   </div>
@@ -815,7 +816,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
 
       {/* Mobile toolbar */}
       <div className="md:hidden border-t border-white/[0.06] px-3 py-2 flex items-center justify-between shrink-0">
-        <p className="text-[10px] text-slate-500 flex-1">
+        <p className="text-xs text-slate-500 flex-1">
           {t('personal.calendar.tapToView')}
         </p>
         <button
@@ -919,15 +920,15 @@ function TodaySchedule({
     <div className="mx-3 md:mx-5 my-1.5 border border-bridge-border rounded-xl shrink-0 overflow-hidden">
       <div className="flex items-center justify-between px-3 md:px-4 py-1.5 mb-0 bg-foreground/[0.04] border-b border-foreground/[0.06]">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
             {t('personal.calendar.todaySchedule', "Today's Schedule")}
           </span>
-          <span className="text-[10px] text-zinc-600">{dateLabel}</span>
+          <span className="text-xs text-zinc-600">{dateLabel}</span>
         </div>
         {items.length > MAX_PREVIEW && (
           <button
             onClick={onViewAll}
-            className="text-[10px] text-bridge-accent hover:text-bridge-accent/80 font-semibold transition-colors"
+            className="text-xs text-bridge-accent hover:text-bridge-accent/80 font-medium transition-colors"
           >
             {t('personal.calendar.viewAll', 'View all')} ({items.length})
           </button>
@@ -971,9 +972,9 @@ function TodaySchedule({
 
               {/* Time */}
               {item.startTime ? (
-                <span className="text-[11px] text-zinc-500 tabular-nums w-10 shrink-0">{item.startTime}</span>
+                <span className="text-xs text-zinc-500 tabular-nums w-10 shrink-0">{item.startTime}</span>
               ) : (
-                <span className="text-[11px] text-muted-foreground w-10 shrink-0">
+                <span className="text-xs text-muted-foreground w-10 shrink-0">
                   {item.type === 'event' ? t('personal.calendar.allDay', 'All day') : ''}
                 </span>
               )}
@@ -986,7 +987,7 @@ function TodaySchedule({
               </span>
 
               {/* Type badge */}
-              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${
+              <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${
                 item.type === 'task'
                   ? 'text-bridge-accent/70 bg-bridge-accent/10'
                   : 'text-bridge-secondary/70 bg-bridge-secondary/10'
@@ -1009,7 +1010,7 @@ function TodaySchedule({
           {hiddenCount > 0 && (
             <button
               onClick={onViewAll}
-              className="w-full text-center text-[11px] text-zinc-500 hover:text-foreground py-1 transition-colors"
+              className="w-full text-center text-xs text-zinc-500 hover:text-foreground py-1 transition-colors"
             >
               +{hiddenCount} {t('personal.calendar.more', 'more')}
             </button>
@@ -1081,6 +1082,7 @@ function DayDetailModal({
             <button
               onClick={onClose}
               className="p-2 rounded-xl text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+              aria-label="닫기"
             >
               <X size={18} />
             </button>
@@ -1124,17 +1126,17 @@ function DayDetailModal({
                 </span>
                 <div className="flex items-center gap-2 mt-0.5">
                   {item.type === 'task' && (
-                    <span className="text-[10px] font-semibold text-bridge-accent/70 bg-bridge-accent/10 px-1.5 py-0.5 rounded">
+                    <span className="text-xs font-medium text-bridge-accent/70 bg-bridge-accent/10 px-1.5 py-0.5 rounded">
                       {t('personal.calendar.task')}
                     </span>
                   )}
                   {item.type === 'event' && (
-                    <span className="text-[10px] font-semibold text-bridge-secondary/70 bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
+                    <span className="text-xs font-medium text-bridge-secondary/70 bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
                       {t('personal.calendar.event')}
                     </span>
                   )}
                   {item.startTime && (
-                    <span className="text-[10px] text-zinc-500 flex items-center gap-0.5">
+                    <span className="text-xs text-zinc-500 flex items-center gap-0.5">
                       <Clock size={8} />
                       {item.startTime}
                       {item.event?.end_time && ` - ${item.event.end_time.slice(0, 5)}`}
@@ -1142,19 +1144,19 @@ function DayDetailModal({
                     </span>
                   )}
                   {item.isOverdue && (
-                    <span className="text-[10px] font-semibold text-red-400">{t('personal.calendar.overdue')}</span>
+                    <span className="text-xs font-medium text-red-400">{t('personal.calendar.overdue')}</span>
                   )}
                   {item.task?.priority && item.task.priority !== 'NONE' && (
-                    <span className="text-[10px] text-zinc-500">{item.task.priority}</span>
+                    <span className="text-xs text-zinc-500">{item.task.priority}</span>
                   )}
                   {item.event?.end_date && (
-                    <span className="text-[10px] text-bridge-secondary flex items-center gap-0.5">
+                    <span className="text-xs text-bridge-secondary flex items-center gap-0.5">
                       <CalendarDays size={8} />
                       {formatDate(item.event.event_date, 'MM/dd')} ~ {formatDate(item.event.end_date, 'MM/dd')}
                     </span>
                   )}
                   {item.event?.recurrence_group_id && (
-                    <span className="text-[10px] text-purple-400 flex items-center gap-0.5">
+                    <span className="text-xs text-purple-400 flex items-center gap-0.5">
                       <RotateCw size={8} />
                       {t('personal.calendar.recurring')}
                     </span>
@@ -1198,15 +1200,15 @@ function DayDetailModal({
 
         {/* Footer legend */}
         <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 border-t border-foreground/5 shrink-0 flex-wrap">
-          <span className="flex items-center gap-1.5 text-[10px] text-zinc-500">
+          <span className="flex items-center gap-1.5 text-xs text-zinc-500">
             <ListTodo size={10} className="text-bridge-accent" />
             {t('personal.calendar.taskDeadline')}
           </span>
-          <span className="flex items-center gap-1.5 text-[10px] text-zinc-500">
+          <span className="flex items-center gap-1.5 text-xs text-zinc-500">
             <CalendarDays size={10} className="text-bridge-secondary" />
             {t('personal.calendar.event')}
           </span>
-          <span className="flex items-center gap-1.5 text-[10px] text-zinc-500">
+          <span className="flex items-center gap-1.5 text-xs text-zinc-500">
             <span className="w-2 h-2 rounded-full bg-red-500" />
             {t('personal.calendar.overdue')}
           </span>
@@ -1316,9 +1318,9 @@ function CreateEventModal({
           />
           <span className="text-sm font-bold text-foreground">{t('personal.calendar.newEvent')}</span>
           <div className="flex-1" />
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
-            <X size={16} />
-          </button>
+          <IconButton onClick={onClose} aria-label="닫기">
+            <X />
+          </IconButton>
         </div>
 
         <div className="px-5 pb-5 space-y-3 pt-4">
@@ -1406,7 +1408,7 @@ function CreateEventModal({
                 />
               </div>
               {startTime && endTime && endTime < startTime && (
-                <span className="text-[10px] font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
+                <span className="text-xs font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
               )}
             </div>
           )}
@@ -1416,17 +1418,17 @@ function CreateEventModal({
             <div className="flex items-start gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/10 rounded-lg">
               <AlertCircle size={13} className="text-amber-400 shrink-0 mt-0.5" />
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold text-amber-400">
+                <p className="text-xs font-medium text-amber-400">
                   {t('personal.schedule.overlapWarning', { count: overlapping.length })}
                 </p>
                 <div className="mt-0.5 space-y-0.5">
                   {overlapping.slice(0, 3).map((ev) => (
-                    <p key={ev.id} className="text-[10px] text-amber-400/70 truncate">
+                    <p key={ev.id} className="text-xs text-amber-400/70 truncate">
                       {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)}{ev.start_time && ev.end_time && ev.end_time < ev.start_time ? ` (${t('personal.schedule.nextDay')})` : ''} {ev.title}
                     </p>
                   ))}
                   {overlapping.length > 3 && (
-                    <p className="text-[10px] text-amber-400/50">
+                    <p className="text-xs text-amber-400/50">
                       +{overlapping.length - 3}
                     </p>
                   )}
@@ -1437,7 +1439,7 @@ function CreateEventModal({
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-            <span className="text-[10px] text-slate-600">
+            <span className="text-xs text-slate-600">
               Esc {t('common.close', '닫기')}
             </span>
             <button
@@ -1556,15 +1558,16 @@ function EditEventModal({
             className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground outline-none placeholder-slate-600"
             autoFocus
           />
-          <button
+          <IconButton
             onClick={() => onDelete(event.id)}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-foreground/5 transition-colors shrink-0"
+            aria-label="삭제"
+            className="hover:text-rose-400"
           >
-            <Trash2 size={16} />
-          </button>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
-            <X size={16} />
-          </button>
+            <Trash2 />
+          </IconButton>
+          <IconButton onClick={onClose} aria-label="닫기">
+            <X />
+          </IconButton>
         </div>
 
         <div className="px-5 pb-5 space-y-3 pt-4">
@@ -1641,7 +1644,7 @@ function EditEventModal({
                 />
               </div>
               {startTime && endTime && endTime < startTime && (
-                <span className="text-[10px] font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
+                <span className="text-xs font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
               )}
             </div>
           )}
@@ -1651,17 +1654,17 @@ function EditEventModal({
             <div className="flex items-start gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/10 rounded-lg">
               <AlertCircle size={13} className="text-amber-400 shrink-0 mt-0.5" />
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold text-amber-400">
+                <p className="text-xs font-medium text-amber-400">
                   {t('personal.schedule.overlapWarning', { count: overlapping.length })}
                 </p>
                 <div className="mt-0.5 space-y-0.5">
                   {overlapping.slice(0, 3).map((ev) => (
-                    <p key={ev.id} className="text-[10px] text-amber-400/70 truncate">
+                    <p key={ev.id} className="text-xs text-amber-400/70 truncate">
                       {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)}{ev.start_time && ev.end_time && ev.end_time < ev.start_time ? ` (${t('personal.schedule.nextDay')})` : ''} {ev.title}
                     </p>
                   ))}
                   {overlapping.length > 3 && (
-                    <p className="text-[10px] text-amber-400/50">
+                    <p className="text-xs text-amber-400/50">
                       +{overlapping.length - 3}
                     </p>
                   )}
@@ -1672,7 +1675,7 @@ function EditEventModal({
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-            <span className="text-[10px] text-slate-600">
+            <span className="text-xs text-slate-600">
               Esc {t('common.close', '닫기')}
             </span>
             <button

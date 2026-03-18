@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MoreVertical, Shield, ShieldCheck, Crown, Camera, Trash2, Loader2 } from 'lucide-react';
+import { IconButton } from '../../ui/IconButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { OrgMemberDetail, OrgRole, WorkStatus } from '../../../types';
 
@@ -90,7 +91,7 @@ export function MemberProfileHeader({ member, myRole, isSelf, onChangeRole, onRe
             {uploading ? (
               <Loader2 size={24} className="animate-spin text-bridge-accent" />
             ) : member.user.profile_image ? (
-              <img src={member.user.profile_image} alt="" className="w-16 h-16 rounded-full object-cover" />
+              <img src={member.user.profile_image} alt={member.user.name || '프로필'} className="w-16 h-16 rounded-full object-cover" />
             ) : (
               member.user.name?.charAt(0) || '?'
             )}
@@ -148,11 +149,11 @@ export function MemberProfileHeader({ member, myRole, isSelf, onChangeRole, onRe
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white truncate">{member.user.name}</h2>
-            <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${roleBadge.style}`}>
+            <span className={`inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full ${roleBadge.style}`}>
               <RoleIcon size={10} />
               {member.role}
             </span>
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_BADGE[member.work_status]}`}>
+            <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${STATUS_BADGE[member.work_status]}`}>
               {member.work_status.replace('_', ' ')}
             </span>
           </div>
@@ -167,12 +168,9 @@ export function MemberProfileHeader({ member, myRole, isSelf, onChangeRole, onRe
         {/* More Menu */}
         {isAdmin && !isSelf && member.role !== 'OWNER' && (
           <div className="relative shrink-0" ref={menuRef}>
-            <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
-            >
-              <MoreVertical size={18} />
-            </button>
+            <IconButton onClick={() => setShowMenu(!showMenu)} aria-label="더보기">
+              <MoreVertical />
+            </IconButton>
 
             <AnimatePresence>
               {showMenu && (

@@ -167,7 +167,7 @@ import { Loader2 } from 'lucide-react';
 <div className="px-5 pb-5 pt-4">{children}</div>
 // Footer (통일)
 <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-  <span className="text-[10px] text-slate-600">Esc 닫기</span>
+  <span className="text-xs text-slate-600">Esc 닫기</span>
   <button className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent" />
 </div>
 // 스크롤바: custom-scrollbar (kanban-scrollbar 사용 금지)
@@ -177,7 +177,7 @@ import { Loader2 } from 'lucide-react';
 
 ```tsx
 // 기본 뱃지 (통일 패턴)
-<span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-{color}/15 text-{color}" />
+<span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-{color}/15 text-{color}" />
 // Bridge 뱃지: bg-bridge-accent/15 text-bridge-accent
 // Status 뱃지: bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 (텍스트만 dark: 분기)
 // ⚠️ 배경 투명도: /15 통일 (/10, /20 사용 금지)
@@ -198,13 +198,17 @@ animate={{ opacity: 1, y: 0 }}
 
 ### 타이포그래피
 
+**최소 텍스트 크기: `text-xs` (12px) — 이하 사용 금지** (text-[8px]~text-[11px] 금지)
+**허용 폰트 웨이트: 3종만 사용** — `font-normal`(400), `font-medium`(500), `font-bold`(700)
+  - ❌ font-light, font-semibold, font-extrabold, font-black 사용 금지
+
 - **페이지 제목**: `text-sm md:text-lg font-bold text-foreground tracking-tight`
-- **위젯 제목**: `text-[13px] md:text-sm font-bold text-foreground`
-- **라벨**: `text-[11px] font-bold uppercase tracking-widest text-slate-400`
-- **Subtitle**: `text-[11px] text-slate-500`
-- **본문**: `text-base font-light leading-relaxed`
-- **Badge**: `text-[10px] font-bold`
-- **Hint**: `text-[10px] text-slate-600`
+- **위젯 제목**: `text-xs md:text-sm font-bold text-foreground`
+- **라벨**: `text-xs font-bold uppercase tracking-widest text-slate-400`
+- **Subtitle**: `text-xs text-slate-500`
+- **본문**: `text-base font-normal leading-relaxed`
+- **Badge**: `text-xs font-bold`
+- **Hint**: `text-xs text-slate-600`
 
 ### 컴포넌트 스타일
 
@@ -230,9 +234,10 @@ animate={{ opacity: 1, y: 0 }}
 // Ghost 버튼
 <button className="text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors" />
 
-// Icon 버튼
-<button className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5
-  transition-colors shrink-0" />
+// Icon 버튼 (IconButton 컴포넌트 사용 권장 — 44x44px 터치타겟 + aria-label 필수)
+import { IconButton } from './components/ui/IconButton';
+<IconButton aria-label="삭제" onClick={...}><Trash2 /></IconButton>
+// size 변형: sm(44x44, 16px) / md(44x44, 20px) / lg(48x48, 24px)
 
 // 입력 필드 (통일)
 <input className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-3 px-4
@@ -256,21 +261,30 @@ animate={{ opacity: 1, y: 0 }}
 4. **호버**: `hover:bg-foreground/5` (통일)
 5. **라운드**: 카드 `rounded-2xl`, 버튼/인풋 `rounded-xl`, 작은 요소 `rounded-lg`, 뱃지 `rounded-full`
 6. **아이콘**: Lucide React (`import { Plus } from 'lucide-react'`)
-7. **애니메이션**: Framer Motion — `y: 8` 통일, delay: `index * 0.04`
-8. **모달**: `MotionModal` 컴포넌트 사용, padding 통일 (header: px-5 pt-4 pb-3, body: px-5 pb-5 pt-4)
+7. **애니메이션**: Framer Motion — `y: 8` 통일, delay: `index * 0.04`, `useReducedMotion()` 훅으로 모션 축소 대응
+8. **모달**: `MotionModal` 컴포넌트 사용 (role=dialog, aria-modal, 포커스 트랩 내장), padding 통일 (header: px-5 pt-4 pb-3, body: px-5 pb-5 pt-4)
 9. **뱃지 BG**: `/15` 통일, Status 텍스트만 `dark:` 분기 (예: `text-amber-600 dark:text-amber-400`)
 10. **로딩**: `<Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />` (커스텀 spinner 금지)
 11. **placeholder**: `placeholder-slate-500` 통일
 12. **포커스**: `focus:outline-none focus:ring-2 focus:ring-bridge-accent/50` 통일
 13. **회색톤**: `slate-` 통일 (`zinc-` 사용 금지)
 14. **스크롤바**: `custom-scrollbar` 통일 (`kanban-scrollbar` 사용 금지)
+15. **아이콘 버튼**: `IconButton` 컴포넌트 사용 (44x44px 최소 터치타겟, `aria-label` 필수)
+16. **모바일 하단 내비**: `MobileBottomNav` — md:hidden, 5탭, safe-area 대응
+17. **접근성**: 아이콘 전용 버튼에 `aria-label` 필수, 이미지에 의미 있는 `alt` 텍스트
+18. **반응형 그리드**: `grid-cols-N` (N≥3) 사용 시 반드시 `sm:`/`md:` 브레이크포인트 포함
+19. **폰트 웨이트**: `font-normal`(400), `font-medium`(500), `font-bold`(700) 3종만 허용
+20. **최소 텍스트**: `text-xs` (12px) 미만 사용 금지 (랜딩 페이지 장식용 제외)
 
 ### 디자인 참조 파일
 
 - `docs/Design/v1.5.0.md` - **디자인 시스템 전체 기획서**
 - `docs/Design/UI-UX-Audit.md` - **UI/UX 현황 비교 분석 및 통일 방향**
-- `frontend/src/styles/theme.css` - CSS 변수 정의 (Bridge + shadcn + Light Mode)
-- `frontend/src/app/components/ui/MotionModal.tsx` - 모달 컴포넌트
+- `frontend/src/styles/theme.css` - CSS 변수 정의 (Bridge + shadcn + Light Mode + Reduced Motion)
+- `frontend/src/app/components/ui/MotionModal.tsx` - 모달 컴포넌트 (접근성: role=dialog, 포커스 트랩)
+- `frontend/src/app/components/ui/IconButton.tsx` - 아이콘 버튼 (44x44px 터치타겟, aria-label 필수)
+- `frontend/src/app/components/ui/MobileBottomNav.tsx` - 모바일 하단 내비게이션
+- `frontend/src/app/hooks/useReducedMotion.ts` - 모션 축소 감지 훅
 - `frontend/src/app/components/landing/LandingPage.tsx` - 랜딩 디자인
 
 ---

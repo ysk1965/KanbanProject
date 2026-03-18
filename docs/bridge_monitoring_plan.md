@@ -1,6 +1,40 @@
 # BRIDGE Admin Monitoring System 기획서
 
-> **Version** 1.0 | **작성일** 2025.02.13 | **작성자** 유상건 | **문서 분류** 내부 기획서
+> **Version** 1.1 | **작성일** 2025.02.13 | **최종 갱신** 2026.03.16 | **작성자** 유상건 | **문서 분류** 내부 기획서
+
+## 현재 모니터링 현황 (2026-03-16 AWS CLI 확인)
+
+### CloudWatch Alarms
+
+| Alarm | State | Metric | 비고 |
+|-------|-------|--------|------|
+| AlarmHigh (NetworkOut) | OK | EC2 Auto Scaling 스케일업 | 정상 |
+| AlarmLow (NetworkOut) | ALARM | EC2 Auto Scaling 스케일다운 | 정상 (저트래픽이므로 ALARM=스케일다운 조건 충족) |
+
+### Free Tier 사용률
+
+| 서비스 | 사용량 | 한도 | 사용률 | 주의 |
+|--------|--------|------|--------|------|
+| CloudWatch Log Ingestion | 2.33 GB | 5 GB | **47%** | 월말 ~4.5 GB (90%) 예상 |
+| CloudWatch Log Storage | 0.52 GB | 5 GB | 10% | 양호 |
+| CloudWatch Alarms | 1 | 10 | 10% | 양호 |
+| CloudWatch Requests | 2 | 1,000,000 | <0.01% | 양호 |
+
+> **⚠️ CloudWatch Log Ingestion 주의**: 월 5 GB 초과 시 $0.50/GB 과금. EB 로그 보존 기간(현재 30일) 단축 또는 로그 레벨 조정 검토 필요.
+
+### 미사용 모니터링 서비스
+
+- CloudWatch Agent: **미설치** (EC2 메모리/디스크 메트릭 수집 불가)
+- SNS: 미사용 (알림 토픽 없음)
+- CloudWatch Dashboard: 미생성
+- X-Ray: 미사용
+
+### 구현된 모니터링 (Backend)
+
+- **MonitoringScheduler**: 1시간 간격 메트릭 flush, 5분 간격 체크, 매일 3am 정리
+- **CloudWatch 연동**: `CLOUDWATCH_ENABLED=false` (기본 비활성화)
+- **Actuator**: `/actuator/health`, `/actuator/metrics`, `/actuator/info` 노출 (details 숨김)
+- **Slack Webhook**: `MONITORING_SLACK_WEBHOOK_URL` 환경변수 (선택 사항)
 
 ---
 

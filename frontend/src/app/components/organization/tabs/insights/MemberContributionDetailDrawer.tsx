@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useEscClose } from '../../../../hooks/useEscClose';
 import { X, Clock, CheckSquare } from 'lucide-react';
+import { IconButton } from '../../../ui/IconButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   PieChart as RechartsPieChart,
@@ -43,22 +45,16 @@ export function MemberContributionDetailDrawer({
   const { t } = useTranslation();
   const [data, setData] = useState<OrgMemberContributionDetail | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // ESC key handler
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
-  }, [onClose]);
+  useEscClose(isOpen, onClose);
 
   useEffect(() => {
     if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
     }
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
     };
-  }, [isOpen, handleKeyDown]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!memberId || !isOpen) return;
@@ -129,12 +125,9 @@ export function MemberContributionDetailDrawer({
                   <div className="h-6 w-40 bg-white/5 rounded animate-pulse" />
                 )}
               </div>
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-              >
-                <X size={18} />
-              </button>
+              <IconButton onClick={onClose} aria-label="닫기">
+                <X />
+              </IconButton>
             </div>
 
             {loading ? (
@@ -146,21 +139,21 @@ export function MemberContributionDetailDrawer({
             ) : data ? (
               <div className="p-5 space-y-6">
                 {/* Summary Stats */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="bg-bridge-obsidian rounded-xl border border-black/5 dark:border-white/5 p-3 text-center">
                     <Clock size={14} className="text-bridge-accent mx-auto mb-1" />
                     <span className="text-lg font-bold text-slate-900 dark:text-white block">{formatMinutesToHours(data.total_work_minutes)}</span>
-                    <span className="text-[10px] text-slate-400">{t('organization.insights.members.detail.hours', 'hours')}</span>
+                    <span className="text-xs text-slate-400">{t('organization.insights.members.detail.hours', 'hours')}</span>
                   </div>
                   <div className="bg-bridge-obsidian rounded-xl border border-black/5 dark:border-white/5 p-3 text-center">
                     <CheckSquare size={14} className="text-emerald-500 mx-auto mb-1" />
                     <span className="text-lg font-bold text-slate-900 dark:text-white block">{data.completed_tasks}</span>
-                    <span className="text-[10px] text-slate-400">{t('organization.insights.members.detail.tasks', 'tasks')}</span>
+                    <span className="text-xs text-slate-400">{t('organization.insights.members.detail.tasks', 'tasks')}</span>
                   </div>
                   <div className="bg-bridge-obsidian rounded-xl border border-black/5 dark:border-white/5 p-3 text-center">
                     <Clock size={14} className="text-amber-500 mx-auto mb-1" />
                     <span className="text-lg font-bold text-slate-900 dark:text-white block">{data.activity_count}</span>
-                    <span className="text-[10px] text-slate-400">{t('organization.insights.members.activityCount', 'Activities')}</span>
+                    <span className="text-xs text-slate-400">{t('organization.insights.members.activityCount', 'Activities')}</span>
                   </div>
                 </div>
 
@@ -197,7 +190,7 @@ export function MemberContributionDetailDrawer({
                       {boardPieData.map((b, i) => (
                         <div key={i} className="flex items-center gap-1.5">
                           <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length] }} />
-                          <span className="text-[11px] text-slate-400">{b.name}</span>
+                          <span className="text-xs text-slate-400">{b.name}</span>
                         </div>
                       ))}
                     </div>
@@ -247,7 +240,7 @@ export function MemberContributionDetailDrawer({
                           </div>
                           {board.top_features.length > 0 && (
                             <div>
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">
+                              <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">
                                 {t('organization.insights.members.detail.topFeatures', 'Top Features')}
                               </span>
                               <div className="space-y-1">

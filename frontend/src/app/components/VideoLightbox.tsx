@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
 import { Plyr, type PlyrProps } from 'plyr-react';
 import { X } from 'lucide-react';
+import { useEscClose } from '../hooks/useEscClose';
 
 interface VideoLightboxProps {
   url: string;
@@ -38,16 +38,7 @@ const plyrOptions: PlyrProps['options'] = {
 };
 
 export function VideoLightbox({ url, onClose }: VideoLightboxProps) {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  useEscClose(true, onClose);
 
   const plyrSource: PlyrProps['source'] = {
     type: 'video',
@@ -68,6 +59,7 @@ export function VideoLightbox({ url, onClose }: VideoLightboxProps) {
       <button
         onClick={onClose}
         className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
+        aria-label="닫기"
       >
         <X className="h-5 w-5" />
       </button>

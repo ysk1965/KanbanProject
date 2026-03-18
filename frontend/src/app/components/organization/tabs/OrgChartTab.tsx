@@ -11,6 +11,7 @@ import {
   UserMinus,
   UserPlus,
   Building2,
+  Briefcase,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { organizationService } from "../../../utils/services";
@@ -30,6 +31,7 @@ import type {
 import { MemberDetailModal } from "../MemberDetailModal";
 
 type ViewMode = "tree" | "list";
+type GroupMode = "department" | "jobGroup";
 
 interface OrgChartTabProps {
   orgId: string;
@@ -41,6 +43,7 @@ interface OrgChartTabProps {
   titles: OrgTitle[];
   grades: OrgGrade[];
   structureSettings: OrgStructureSettings;
+  hrSystemEnabled?: boolean;
 }
 
 export function OrgChartTab({
@@ -53,6 +56,7 @@ export function OrgChartTab({
   titles,
   grades,
   structureSettings,
+  hrSystemEnabled,
 }: OrgChartTabProps) {
   const { t } = useTranslation();
   const isAdmin = myRole === "OWNER" || myRole === "ADMIN";
@@ -60,6 +64,7 @@ export function OrgChartTab({
   const [chartData, setChartData] = useState<OrgChartData | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("tree");
+  const [groupMode, setGroupMode] = useState<GroupMode>("department");
   const [search, setSearch] = useState("");
   const [collapsedDepts, setCollapsedDepts] = useState<Set<string>>(new Set());
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -101,6 +106,68 @@ export function OrgChartTab({
     chartData.unassigned.forEach(collectMembers);
     return members;
   }, [chartData]);
+
+  // Regroup chart data by job group
+  const jobGroupChartData = useMemo((): OrgChartData | null => {
+    if (!chartData) return null;
+
+    // Flatten all members from all departments + unassigned
+    const allFlat: OrgChartMemberNode[] = [];
+    const collectAll = (node: OrgChartMemberNode) => {
+      allFlat.push({ ...node, reports: [] });
+      node.reports.forEach(collectAll);
+    };
+    const collectFromDept = (dept: OrgChartDepartmentNode) => {
+      dept.members.forEach(collectAll);
+      dept.children.forEach(collectFromDept);
+    };
+    chartData.departments.forEach(collectFromDept);
+    chartData.unassigned.forEach(collectAll);
+
+    // Group by job_group_id
+    const grouped = new Map<string, { name: string; members: OrgChartMemberNode[] }>();
+    const noGroup: OrgChartMemberNode[] = [];
+
+    for (const m of allFlat) {
+      if (m.job_group_id && m.job_group_name) {
+        const existing = grouped.get(m.job_group_id);
+        if (existing) {
+          existing.members.push(m);
+        } else {
+          grouped.set(m.job_group_id, { name: m.job_group_name, members: [m] });
+        }
+      } else {
+        noGroup.push(m);
+      }
+    }
+
+    // Convert to DepartmentNode structure (reuse the same shape)
+    const departments: OrgChartDepartmentNode[] = Array.from(grouped.entries()).map(
+      ([id, { name, members }]) => ({
+        id,
+        name,
+        description: null,
+        display_order: 0,
+        parent_department_id: null,
+        member_count: members.length,
+        total_member_count: members.length,
+        child_dept_count: 0,
+        leader: null,
+        children: [],
+        members,
+      })
+    );
+
+    return {
+      organization_name: chartData.organization_name,
+      total_members: chartData.total_members,
+      departments,
+      unassigned: noGroup,
+    };
+  }, [chartData]);
+
+  // Pick data based on groupMode
+  const activeChartData = groupMode === "jobGroup" ? jobGroupChartData : chartData;
 
   // Filter department tree by search
   const filterDeptNode = useCallback(
@@ -156,10 +223,10 @@ export function OrgChartTab({
   );
 
   const filteredData = useMemo(() => {
-    if (!chartData || !search.trim()) return chartData;
+    if (!activeChartData || !search.trim()) return activeChartData;
     const q = search.trim();
 
-    const filteredDepts = chartData.departments
+    const filteredDepts = activeChartData.departments
       .map((d) => filterDeptNode(d, q))
       .filter(Boolean) as OrgChartDepartmentNode[];
 
@@ -178,16 +245,16 @@ export function OrgChartTab({
       }
       return null;
     };
-    const filteredUnassigned = chartData.unassigned
+    const filteredUnassigned = activeChartData.unassigned
       .map(filterMember)
       .filter(Boolean) as OrgChartMemberNode[];
 
     return {
-      ...chartData,
+      ...activeChartData,
       departments: filteredDepts,
       unassigned: filteredUnassigned,
     };
-  }, [chartData, search, filterDeptNode]);
+  }, [activeChartData, search, filterDeptNode]);
 
   const toggleDept = (deptId: string) => {
     setCollapsedDepts((prev) => {
@@ -200,13 +267,13 @@ export function OrgChartTab({
 
   const expandAll = () => setCollapsedDepts(new Set());
   const collapseAll = () => {
-    if (!chartData) return;
+    if (!activeChartData) return;
     const ids = new Set<string>();
     const collect = (dept: OrgChartDepartmentNode) => {
       ids.add(dept.id);
       dept.children.forEach(collect);
     };
-    chartData.departments.forEach(collect);
+    activeChartData.departments.forEach(collect);
     setCollapsedDepts(ids);
   };
 
@@ -283,7 +350,34 @@ export function OrgChartTab({
             className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 pl-9 pr-4 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Group mode toggle */}
+          <div className="flex items-center bg-foreground/[0.03] rounded-xl border border-foreground/10 p-0.5">
+            <button
+              onClick={() => setGroupMode("department")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                groupMode === "department"
+                  ? "bg-bridge-accent text-white"
+                  : "text-slate-500 hover:text-foreground"
+              }`}
+            >
+              <Building2 size={14} />
+              {t("organization.chart.byDepartment", "부서별")}
+            </button>
+            <button
+              onClick={() => setGroupMode("jobGroup")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                groupMode === "jobGroup"
+                  ? "bg-bridge-accent text-white"
+                  : "text-slate-500 hover:text-foreground"
+              }`}
+            >
+              <Briefcase size={14} />
+              {t("organization.chart.byJobGroup", "직군별")}
+            </button>
+          </div>
+
+          {/* View mode toggle */}
           <div className="flex items-center bg-foreground/[0.03] rounded-xl border border-foreground/10 p-0.5">
             <button
               onClick={() => setViewMode("tree")}
@@ -328,14 +422,18 @@ export function OrgChartTab({
         <span className="flex items-center gap-1">
           <UsersIcon size={14} />
           {t("organization.chart.totalMembers", "{{count}} members", {
-            count: chartData?.total_members ?? 0,
+            count: activeChartData?.total_members ?? 0,
           })}
         </span>
         <span className="flex items-center gap-1">
-          <Building2 size={14} />
-          {t("organization.chart.totalDepts", "{{count}} departments", {
-            count: chartData?.departments.length ?? 0,
-          })}
+          {groupMode === "jobGroup" ? <Briefcase size={14} /> : <Building2 size={14} />}
+          {groupMode === "jobGroup"
+            ? t("organization.chart.totalJobGroups", "{{count}}개 직군", {
+                count: activeChartData?.departments.length ?? 0,
+              })
+            : t("organization.chart.totalDepts", "{{count}} departments", {
+                count: chartData?.departments.length ?? 0,
+              })}
         </span>
       </div>
 
@@ -346,6 +444,7 @@ export function OrgChartTab({
           collapsedDepts={collapsedDepts}
           onToggleDept={toggleDept}
           onMemberClick={setSelectedMemberId}
+          groupMode={groupMode}
         />
       ) : (
         <ListView
@@ -361,6 +460,8 @@ export function OrgChartTab({
           onManagerSearchChange={setManagerSearch}
           onUpdateManager={handleUpdateManager}
           updatingManager={updatingManager}
+          hrSystemEnabled={hrSystemEnabled}
+          groupMode={groupMode}
         />
       )}
 
@@ -396,11 +497,13 @@ function DepartmentTreeView({
   collapsedDepts,
   onToggleDept,
   onMemberClick,
+  groupMode,
 }: {
   data: OrgChartData;
   collapsedDepts: Set<string>;
   onToggleDept: (id: string) => void;
   onMemberClick: (id: string) => void;
+  groupMode: GroupMode;
 }) {
   const { t } = useTranslation();
 
@@ -412,13 +515,15 @@ function DepartmentTreeView({
           <div className="text-sm font-bold text-foreground">
             {data.organization_name}
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
+          <div className="text-xs text-muted-foreground mt-0.5">
             <span className="flex items-center justify-center gap-1">
               <UsersIcon size={12} />
               {data.total_members}
               {t("organization.chart.members", "members")} ·{" "}
               {data.departments.length}
-              {t("organization.chart.depts", "depts")}
+              {groupMode === "jobGroup"
+                ? t("organization.chart.jobGroups", "직군")
+                : t("organization.chart.depts", "depts")}
             </span>
           </div>
         </div>
@@ -435,6 +540,7 @@ function DepartmentTreeView({
             collapsedDepts={collapsedDepts}
             onToggleDept={onToggleDept}
             onMemberClick={onMemberClick}
+            groupMode={groupMode}
           />
         )}
 
@@ -448,7 +554,7 @@ function DepartmentTreeView({
                 <span className="text-xs font-bold text-foreground">
                   {t("organization.chart.unassigned", "Unassigned")}
                 </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-500">
+                <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-500">
                   {data.unassigned.length}
                 </span>
               </div>
@@ -465,11 +571,13 @@ function DeptChildrenRow({
   collapsedDepts,
   onToggleDept,
   onMemberClick,
+  groupMode,
 }: {
   depts: OrgChartDepartmentNode[];
   collapsedDepts: Set<string>;
   onToggleDept: (id: string) => void;
   onMemberClick: (id: string) => void;
+  groupMode: GroupMode;
 }) {
   return (
     <div className="relative">
@@ -493,6 +601,7 @@ function DeptChildrenRow({
             collapsedDepts={collapsedDepts}
             onToggleDept={onToggleDept}
             onMemberClick={onMemberClick}
+            groupMode={groupMode}
           />
         ))}
       </div>
@@ -517,11 +626,13 @@ function DepartmentTreeNode({
   collapsedDepts,
   onToggleDept,
   onMemberClick,
+  groupMode,
 }: {
   dept: OrgChartDepartmentNode;
   collapsedDepts: Set<string>;
   onToggleDept: (id: string) => void;
   onMemberClick: (id: string) => void;
+  groupMode: GroupMode;
 }) {
   const isCollapsed = collapsedDepts.has(dept.id);
   const hasChildren = dept.children.length > 0;
@@ -564,20 +675,24 @@ function DepartmentTreeNode({
                       onMemberClick(dept.leader.member_id);
                   }}
                 >
-                  <span className="text-[10px] font-bold text-bridge-accent">
+                  <span className="text-xs font-bold text-bridge-accent">
                     {dept.leader.user_name?.charAt(0)?.toUpperCase() || "?"}
                   </span>
                 </div>
               ) : (
                 <div className="w-8 h-8 rounded-full bg-foreground/[0.03] flex items-center justify-center shrink-0">
-                  <Building2 size={14} className="text-slate-400" />
+                  {groupMode === "jobGroup" ? (
+                    <Briefcase size={14} className="text-slate-400" />
+                  ) : (
+                    <Building2 size={14} className="text-slate-400" />
+                  )}
                 </div>
               )}
               <div className="min-w-0">
                 <div className="text-xs font-bold text-foreground truncate">
                   {dept.name}
                 </div>
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <UsersIcon size={10} />
                   <span>{dept.total_member_count}</span>
                   {dept.leader && (
@@ -613,16 +728,16 @@ function DepartmentTreeNode({
                     />
                   ) : (
                     <div className="w-5 h-5 rounded-full bg-bridge-accent/15 flex items-center justify-center shrink-0">
-                      <span className="text-[8px] font-bold text-bridge-accent">
+                      <span className="text-xs font-bold text-bridge-accent">
                         {member.user_name?.charAt(0)?.toUpperCase() || "?"}
                       </span>
                     </div>
                   )}
-                  <span className="text-[10px] text-foreground truncate">
+                  <span className="text-xs text-foreground truncate">
                     {member.user_name}
                   </span>
                   {member.job_title && (
-                    <span className="text-[9px] text-muted-foreground truncate hidden md:inline">
+                    <span className="text-xs text-muted-foreground truncate hidden md:inline">
                       {member.job_title}
                     </span>
                   )}
@@ -635,7 +750,7 @@ function DepartmentTreeNode({
         {/* Child dept count badge */}
         {hasChildren && (
           <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-10">
-            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/90 text-white shadow-sm">
+            <span className="inline-flex items-center gap-0.5 text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/90 text-white shadow-sm">
               {dept.child_dept_count}
               <ChevronDown
                 size={10}
@@ -663,6 +778,7 @@ function DepartmentTreeNode({
                 collapsedDepts={collapsedDepts}
                 onToggleDept={onToggleDept}
                 onMemberClick={onMemberClick}
+                groupMode={groupMode}
               />
             </div>
           </motion.div>
@@ -714,6 +830,8 @@ function ListView({
   onManagerSearchChange,
   onUpdateManager,
   updatingManager,
+  hrSystemEnabled,
+  groupMode,
 }: {
   data: OrgChartData;
   collapsedDepts: Set<string>;
@@ -727,6 +845,8 @@ function ListView({
   onManagerSearchChange: (s: string) => void;
   onUpdateManager: (memberId: string, managerId: string | null) => void;
   updatingManager: boolean;
+  hrSystemEnabled?: boolean;
+  groupMode: GroupMode;
 }) {
   const { t } = useTranslation();
   const flatDeptList = useMemo(
@@ -768,20 +888,24 @@ function ListView({
                 ) : (
                   <div className="w-4 shrink-0" />
                 )}
-                <Building2 size={16} className="text-bridge-accent shrink-0" />
+                {groupMode === "jobGroup" ? (
+                  <Briefcase size={16} className="text-bridge-accent shrink-0" />
+                ) : (
+                  <Building2 size={16} className="text-bridge-accent shrink-0" />
+                )}
                 <span className="text-sm font-bold text-foreground">
                   {dept.name}
                 </span>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   ({dept.total_member_count})
                 </span>
                 {dept.leader && (
-                  <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                  <span className="text-xs text-muted-foreground hidden sm:inline">
                     · {dept.leader.user_name}
                   </span>
                 )}
                 {hasChildren && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                     {dept.child_dept_count}
                   </span>
                 )}
@@ -812,6 +936,7 @@ function ListView({
                           onManagerSearchChange={onManagerSearchChange}
                           onUpdateManager={onUpdateManager}
                           updatingManager={updatingManager}
+                          hrSystemEnabled={hrSystemEnabled}
                         />
                       ))}
                     </div>
@@ -844,7 +969,7 @@ function ListView({
             <span className="text-sm font-bold text-foreground">
               {t("organization.chart.unassigned", "Unassigned")}
             </span>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               ({data.unassigned.length})
             </span>
           </button>
@@ -897,6 +1022,7 @@ function MemberListNode({
   onManagerSearchChange,
   onUpdateManager,
   updatingManager,
+  hrSystemEnabled,
 }: {
   member: OrgChartMemberNode;
   depth: number;
@@ -909,6 +1035,7 @@ function MemberListNode({
   onManagerSearchChange: (s: string) => void;
   onUpdateManager: (memberId: string, managerId: string | null) => void;
   updatingManager: boolean;
+  hrSystemEnabled?: boolean;
 }) {
   const { t } = useTranslation();
   const isEditing = managerEditMemberId === member.id;
@@ -943,7 +1070,7 @@ function MemberListNode({
         style={{ paddingLeft: `${12 + depth * 24}px` }}
       >
         {depth > 0 && (
-          <div className="text-muted-foreground text-[10px] select-none">
+          <div className="text-muted-foreground text-xs select-none">
             |--
           </div>
         )}
@@ -971,13 +1098,13 @@ function MemberListNode({
                 {member.user_name}
               </span>
               {member.job_title && (
-                <span className="text-[11px] text-muted-foreground truncate hidden sm:inline">
+                <span className="text-xs text-muted-foreground truncate hidden sm:inline">
                   · {member.job_title}
                 </span>
               )}
-              {member.contract_type && (
+              {!hrSystemEnabled && member.contract_type && (
                 <span
-                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full hidden sm:inline ${CONTRACT_COLORS[member.contract_type] || "bg-slate-500/15 text-slate-500"}`}
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded-full hidden sm:inline ${CONTRACT_COLORS[member.contract_type] || "bg-slate-500/15 text-slate-500"}`}
                 >
                   {CONTRACT_LABELS[member.contract_type] ||
                     member.contract_type}
@@ -985,7 +1112,7 @@ function MemberListNode({
               )}
             </div>
             {member.job_title && (
-              <span className="text-[10px] text-muted-foreground truncate sm:hidden block">
+              <span className="text-xs text-muted-foreground truncate sm:hidden block">
                 {member.job_title}
               </span>
             )}
@@ -998,7 +1125,7 @@ function MemberListNode({
               <button
                 onClick={() => onUpdateManager(member.id, null)}
                 disabled={updatingManager}
-                className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
                 title={t("organization.chart.removeManager", "Remove Manager")}
               >
                 <UserMinus size={12} />
@@ -1009,7 +1136,7 @@ function MemberListNode({
                   onManagerEdit(member.id);
                   onManagerSearchChange("");
                 }}
-                className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-bridge-accent hover:bg-bridge-accent/10 rounded-lg transition-colors"
+                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-bridge-accent hover:bg-bridge-accent/10 rounded-lg transition-colors"
                 title={t("organization.chart.assignManager", "Assign Manager")}
               >
                 <UserPlus size={12} />
@@ -1051,7 +1178,7 @@ function MemberListNode({
                   />
                 ) : (
                   <div className="w-6 h-6 rounded-full bg-bridge-accent/15 flex items-center justify-center shrink-0">
-                    <span className="text-[9px] font-bold text-bridge-accent">
+                    <span className="text-xs font-bold text-bridge-accent">
                       {candidate.user_name?.charAt(0)?.toUpperCase() || "?"}
                     </span>
                   </div>
@@ -1061,7 +1188,7 @@ function MemberListNode({
                     {candidate.user_name}
                   </div>
                   {candidate.job_title && (
-                    <div className="text-[10px] text-muted-foreground truncate">
+                    <div className="text-xs text-muted-foreground truncate">
                       {candidate.job_title}
                     </div>
                   )}
@@ -1076,7 +1203,7 @@ function MemberListNode({
           </div>
           <button
             onClick={() => onManagerEdit(null)}
-            className="w-full mt-1 text-[10px] text-muted-foreground hover:text-foreground text-center py-1"
+            className="w-full mt-1 text-xs text-muted-foreground hover:text-foreground text-center py-1"
           >
             {t("common.cancel", "Cancel")}
           </button>
@@ -1097,6 +1224,7 @@ function MemberListNode({
           onManagerSearchChange={onManagerSearchChange}
           onUpdateManager={onUpdateManager}
           updatingManager={updatingManager}
+          hrSystemEnabled={hrSystemEnabled}
         />
       ))}
     </>

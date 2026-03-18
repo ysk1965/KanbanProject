@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useCallback, forwardRef, useImperativeHandle, Fragment } from 'react';
+import { useEscClose } from '../../hooks/useEscClose';
 import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw, BookOpen, Pencil, RefreshCw, AlertTriangle, X, CalendarIcon, Mic, Volume2, Play, Pause, Square, ClipboardCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { MotionModal } from '../ui/MotionModal';
+import { IconButton } from '../ui/IconButton';
 import { useTranslation } from 'react-i18next';
 import {
   startOfMonth,
@@ -56,6 +59,7 @@ type VoiceState = 'idle' | 'recording' | 'processing' | 'ai-speaking';
 
 export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_props, ref) {
   const { t, i18n } = useTranslation();
+  const reduced = useReducedMotion();
   const MOODS = useMemo(() => getMoods(t), [t]);
   const [currentDate, setCurrentDate] = useState(getDiaryTodayDateString());
   const [diary, setDiary] = useState<DiaryDetail | null>(null);
@@ -64,6 +68,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  useEscClose(showMobileSidebar, () => setShowMobileSidebar(false));
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Credit state
@@ -600,28 +605,22 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
 
           {/* Month Navigation */}
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-semibold text-foreground">
+            <span className="text-sm font-bold text-foreground">
               {format(calendarMonth, t('personal.diary.yearMonthFormat'))}
             </span>
             <div className="flex items-center gap-1">
-              <button
-                onClick={handlePrevMonth}
-                className="p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-              >
-                <ChevronLeft size={16} />
-              </button>
+              <IconButton onClick={handlePrevMonth} aria-label="이전 달">
+                <ChevronLeft />
+              </IconButton>
               <button
                 onClick={handleCalendarToday}
-                className="px-2 py-0.5 text-[10px] font-semibold rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                className="px-2 py-0.5 text-xs font-medium rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
                 {t('personal.diary.today')}
               </button>
-              <button
-                onClick={handleNextMonth}
-                className="p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-              >
-                <ChevronRight size={16} />
-              </button>
+              <IconButton onClick={handleNextMonth} aria-label="다음 달">
+                <ChevronRight />
+              </IconButton>
             </div>
           </div>
         </div>
@@ -634,7 +633,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
               {weekDays.map((day, i) => (
                 <div
                   key={day}
-                  className={`text-center text-[10px] font-bold uppercase tracking-widest py-1 ${
+                  className={`text-center text-xs font-bold uppercase tracking-widest py-1 ${
                     i === 0 ? 'text-red-400/60' : i === 6 ? 'text-blue-400/60' : 'text-slate-500'
                   }`}
                 >
@@ -671,7 +670,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
                       className={`
                         text-xs font-medium leading-none
                         ${isTodayDate
-                          ? 'bg-bridge-accent text-white rounded-full w-6 h-6 flex items-center justify-center text-[11px]'
+                          ? 'bg-bridge-accent text-white rounded-full w-6 h-6 flex items-center justify-center text-xs'
                           : isSelected
                             ? 'text-foreground'
                             : isHoliday || dayOfWeek === 0
@@ -700,11 +699,11 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
         <div className="flex-1 overflow-auto px-4 pb-4 min-h-0 custom-scrollbar">
           <div className="flex items-center gap-2 mb-2">
             <BookHeart size={14} className="text-bridge-secondary" />
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
               {t('personal.diary.monthDiaries')}
             </span>
             {diaryList.length > 0 && (
-              <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
+              <span className="text-xs font-bold text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
                 {diaryList.length}
               </span>
             )}
@@ -712,7 +711,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
           {diaryList.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-slate-500 text-xs">{t('personal.diary.noMonthDiaries')}</p>
-              <p className="text-slate-600 text-[10px] mt-1">{t('personal.diary.startToday')}</p>
+              <p className="text-slate-600 text-xs mt-1">{t('personal.diary.startToday')}</p>
             </div>
           ) : (
             <div className="space-y-1.5">
@@ -740,14 +739,14 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-1">
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
                           d.status === 'COMPLETED'
                             ? 'text-bridge-secondary/80 bg-bridge-secondary/10'
                             : 'text-amber-400/80 bg-amber-400/10'
                         }`}>
                           {d.status === 'COMPLETED' ? t('personal.diary.completed') : t('personal.diary.writing')}
                         </span>
-                        <span className="text-[10px] text-slate-500">
+                        <span className="text-xs text-slate-500">
                           {format(new Date(d.diary_date + 'T00:00:00'), t('personal.diary.dateShortFormat'))}
                         </span>
                       </div>
@@ -770,7 +769,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
                 setCreditModalMode(credits.total_available <= 0 ? 'exhausted' : 'purchase');
                 setShowCreditModal(true);
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:bg-foreground/5 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:bg-foreground/5 ${
                 credits.warning_level === 'EXHAUSTED'
                   ? 'text-red-400 bg-red-500/10 border border-red-500/20'
                   : credits.warning_level === 'CRITICAL'
@@ -798,16 +797,16 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
           /* No diary for this date - Warm Welcome */
           <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={reduced ? false : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
+              transition={reduced ? { duration: 0 } : { duration: 0.5, ease: 'easeOut' }}
               className="flex flex-col items-center gap-4 md:gap-5 max-w-md text-center"
             >
               {/* Greeting icon */}
               <motion.div
-                initial={{ scale: 0.8 }}
+                initial={reduced ? false : { scale: 0.8 }}
                 animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                transition={reduced ? { duration: 0 } : { delay: 0.2, type: 'spring', stiffness: 200 }}
                 className="relative"
               >
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-bridge-accent/20 via-purple-500/15 to-bridge-secondary/20 border border-foreground/10 flex items-center justify-center">
@@ -852,10 +851,10 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
               </motion.button>
 
               {/* Subtle hint */}
-              <p className="text-[11px] text-slate-600 mt-1">
+              <p className="text-xs text-slate-600 mt-1">
                 {t('personal.diary.canContinue')}
               </p>
-              <p className="text-[10px] text-slate-600/60 mt-0.5">
+              <p className="text-xs text-slate-600/60 mt-0.5">
                 {t('personal.diary.dayCutoffHint')}
               </p>
             </motion.div>
@@ -961,18 +960,19 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
                     {/* Work context card: render after the first AI message */}
                     {msgIdx === 0 && msg.role === 'AI' && workContext && workContext.completed_today.length > 0 && (
                       <motion.div
-                        initial={{ opacity: 0, y: 8 }}
+                        initial={reduced ? false : { opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
+                        transition={reduced ? { duration: 0 } : undefined}
                         className="mt-2 ml-11 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08] p-3"
                       >
                         <div className="flex items-center gap-1.5 mb-2">
                           <ClipboardCheck className="w-3.5 h-3.5 text-bridge-accent" />
-                          <span className="text-[11px] font-bold text-foreground">오늘 완료한 작업</span>
+                          <span className="text-xs font-bold text-foreground">오늘 완료한 작업</span>
                         </div>
                         <div className="space-y-1">
                           {workContext.completed_today.map(board => (
                             board.items.map(item => (
-                              <div key={item.title + item.completed_at} className="flex items-center gap-2 text-[11px]">
+                              <div key={item.title + item.completed_at} className="flex items-center gap-2 text-xs">
                                 <span className="text-slate-500">{board.board_emoji || '\u{1F4CB}'}</span>
                                 <span className="text-foreground">{item.title}</span>
                                 <Check className="w-3 h-3 text-emerald-400" />
@@ -981,7 +981,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
                           ))}
                         </div>
                         {workContext.weekly_summary && (
-                          <div className="mt-2 pt-2 border-t border-foreground/[0.06] text-[10px] text-slate-500">
+                          <div className="mt-2 pt-2 border-t border-foreground/[0.06] text-xs text-slate-500">
                             이번 주 {workContext.weekly_summary.total_completed}건 완료
                             {workContext.weekly_summary.change_percentage > 0 && (
                               <span className="text-emerald-400 ml-1">
@@ -1037,7 +1037,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
 
                         {/* Mood Selection */}
                         <div className="mb-3">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-2">
+                          <span className="text-xs font-bold uppercase tracking-widest text-slate-500 block mb-2">
                             {t('personal.diary.todaysMood')}
                           </span>
                           <div className="flex flex-wrap gap-1.5">
@@ -1201,7 +1201,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
 
                 {/* Voice hint */}
                 {hasMicSupport && voiceState === 'idle' && !isSending && (
-                  <p className="text-[10px] text-slate-600 text-center mt-2">
+                  <p className="text-xs text-slate-600 text-center mt-2">
                     {t('personal.diary.voiceHint')}
                   </p>
                 )}
@@ -1223,9 +1223,9 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
             <div className="flex-1 min-w-0">
               <h3 className="text-sm font-bold text-foreground">{t('personal.diary.resetTitle')}</h3>
             </div>
-            <button onClick={() => setShowResetConfirm(false)} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
-              <X size={16} />
-            </button>
+            <IconButton onClick={() => setShowResetConfirm(false)} aria-label="닫기">
+              <X />
+            </IconButton>
           </div>
 
           <div className="px-5 pt-4 pb-5">
@@ -1234,7 +1234,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
             </p>
 
             <div className="flex items-center justify-between pt-3 mt-4 border-t border-foreground/[0.08]">
-              <span className="text-[11px] text-slate-600 select-none">Esc 닫기</span>
+              <span className="text-xs text-slate-600 select-none">Esc 닫기</span>
               <button
                 onClick={handleReset}
                 className="flex items-center gap-1.5 px-4 py-1.5 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-500/90 transition-colors"
@@ -1296,7 +1296,7 @@ function AudioPlayButton({ src }: { src: string }) {
   return (
     <button
       onClick={togglePlay}
-      className="flex items-center gap-1.5 mt-1.5 px-2 py-1 bg-foreground/5 rounded-lg text-[11px] text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
+      className="flex items-center gap-1.5 mt-1.5 px-2 py-1 bg-foreground/5 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
     >
       {isPlaying ? <Pause size={11} /> : <Play size={11} />}
       <Volume2 size={11} />
@@ -1308,12 +1308,14 @@ function AudioPlayButton({ src }: { src: string }) {
 // Chat Bubble
 // ============================
 function ChatBubble({ message }: { message: DiaryMessage }) {
+  const reduced = useReducedMotion();
   const isAI = message.role === 'AI';
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={reduced ? false : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={reduced ? { duration: 0 } : undefined}
       className={`flex gap-3 ${isAI ? '' : 'flex-row-reverse'}`}
     >
       {isAI && (

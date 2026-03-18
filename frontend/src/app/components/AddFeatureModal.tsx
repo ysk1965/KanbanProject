@@ -62,6 +62,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
           <button
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-foreground transition-colors"
+            aria-label="닫기"
           >
             <X size={20} />
           </button>
@@ -171,14 +172,14 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
         <div className="px-5 py-3 border-t border-foreground/[0.08] bg-foreground/[0.03] flex justify-end items-center gap-4">
           <button
             onClick={onClose}
-            className="text-[11px] font-bold text-slate-400 hover:text-foreground transition-all tracking-wider"
+            className="text-xs font-bold text-slate-400 hover:text-foreground transition-all tracking-wider"
           >
             {t('common.cancel')}
           </button>
           <button
             onClick={handleSubmit}
             disabled={!title.trim()}
-            className="px-6 py-2.5 bg-white text-black font-black text-[11px] rounded-lg tracking-widest hover:bg-slate-200 transition-all flex items-center gap-2 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2.5 bg-white text-black font-bold text-xs rounded-lg tracking-widest hover:bg-slate-200 transition-all flex items-center gap-2 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {t('common.add')}
             <CheckCircle2 size={14} className="text-indigo-600" />

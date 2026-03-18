@@ -151,7 +151,7 @@ public enum ErrorCode {
 
     // File Upload
     FILE_TOO_LARGE(HttpStatus.BAD_REQUEST, "FL001", "파일 크기가 30MB를 초과합니다"),
-    FILE_TYPE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "FL002", "허용되지 않는 파일 형식입니다 (jpg/png/gif/webp만 가능)"),
+    FILE_TYPE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "FL002", "허용되지 않는 파일 형식입니다 (이미지/영상/PDF/Office/텍스트만 가능)"),
     ATTACHMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "FL003", "첨부파일을 찾을 수 없습니다"),
     ATTACHMENT_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "FL004", "첨부파일은 최대 5개까지 가능합니다"),
     TEMP_FILE_NOT_FOUND(HttpStatus.BAD_REQUEST, "FL005", "업로드된 임시 파일을 찾을 수 없습니다"),
@@ -360,6 +360,14 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     OKR_KEY_RESULT_NOT_FOUND(HttpStatus.NOT_FOUND, "OKR003", "OKR 핵심 결과를 찾을 수 없습니다"),
     OKR_CYCLE_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "OKR004", "활성 상태가 아닌 사이클입니다"),
     OKR_UNAUTHORIZED(HttpStatus.FORBIDDEN, "OKR005", "OKR 접근 권한이 없습니다"),
+
+    // Board Resource
+    BOARD_RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "BR001", "리소스를 찾을 수 없습니다"),
+    BOARD_RESOURCE_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "BR002", "보드당 최대 20개의 리소스만 등록할 수 있습니다"),
+
+    // Mention Group
+    MENTION_GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "MG001", "멘션 그룹을 찾을 수 없습니다"),
+    MENTION_GROUP_ALREADY_EXISTS(HttpStatus.CONFLICT, "MG002", "이미 존재하는 멘션 그룹 이름입니다"),
 
     // Photo Gallery
     PHOTO_TAB_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "사진 탭을 찾을 수 없습니다"),

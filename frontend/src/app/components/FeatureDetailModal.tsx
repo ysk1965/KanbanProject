@@ -114,6 +114,8 @@ export function FeatureDetailModal({
       setEditedFeature(JSON.parse(JSON.stringify(feature)));
       setHasChanges(false);
       setIsEditingTitle(false);
+      setShowDeleteDialog(false);
+      setShowConfirmDialog(false);
     }
   }, [feature, open]);
 
@@ -291,7 +293,7 @@ export function FeatureDetailModal({
                         setIsEditingTitle(false);
                       }
                     }}
-                    className="text-lg font-semibold border border-foreground/10 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-foreground/5 text-foreground"
+                    className="text-lg font-bold border border-foreground/10 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-foreground/5 text-foreground"
                     autoFocus
                   />
                 ) : (
@@ -299,7 +301,7 @@ export function FeatureDetailModal({
                     className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${canEdit ? "cursor-pointer hover:bg-foreground/5" : ""}`}
                     onClick={() => canEdit && setIsEditingTitle(true)}
                   >
-                    <span className="text-lg font-semibold text-foreground">
+                    <span className="text-lg font-bold text-foreground">
                       {editedFeature.title}
                     </span>
                     {canEdit && (
@@ -324,6 +326,7 @@ export function FeatureDetailModal({
                 <button
                   onClick={handleClose}
                   className="p-2 text-slate-400 hover:text-foreground transition-colors"
+                  aria-label="닫기"
                 >
                   <X size={20} />
                 </button>
@@ -339,7 +342,7 @@ export function FeatureDetailModal({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-slate-400" />
-                <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                   {t("featureDetail.description")}
                 </Label>
               </div>
@@ -360,7 +363,7 @@ export function FeatureDetailModal({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4 text-slate-400" />
-                <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                   {t("featureDetail.dateRange")}
                 </Label>
               </div>
@@ -495,7 +498,7 @@ export function FeatureDetailModal({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Tags className="h-4 w-4 text-slate-400" />
-                <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                   {t("featureDetail.tags")}
                 </Label>
               </div>
@@ -503,7 +506,7 @@ export function FeatureDetailModal({
                 {featureTags.map((tag) => (
                   <span
                     key={tag.id}
-                    className="text-[10px] font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5"
+                    className="text-xs font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5"
                     style={{
                       backgroundColor: `${tag.color}15`,
                       borderColor: `${tag.color}44`,
@@ -544,13 +547,13 @@ export function FeatureDetailModal({
                     className="h-5 w-5"
                     style={{ color: selectedColor }}
                   />
-                  <Label className="text-base font-semibold text-foreground">
+                  <Label className="text-base font-bold text-foreground">
                     {t("featureDetail.subtaskList")}
                   </Label>
                   {canEdit && !isRestricted && (
                     <button
                       onClick={() => setShowAIConfirm(true)}
-                      className="ml-1 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-lg hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
+                      className="ml-1 flex items-center gap-1 px-2 py-0.5 text-xs font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-lg hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
                     >
                       <Sparkles className="h-3 w-3" />
                       AI
@@ -568,7 +571,7 @@ export function FeatureDetailModal({
                     />
                   </div>
                   <span
-                    className="text-sm font-semibold"
+                    className="text-sm font-medium"
                     style={{ color: selectedColor }}
                   >
                     {Math.round(progressPercent)}%
@@ -626,7 +629,7 @@ export function FeatureDetailModal({
                               transition={{ duration: 2, repeat: Infinity }}
                               className="px-2.5 h-8 rounded-lg bg-gradient-to-br from-bridge-accent to-purple-500 flex items-center justify-center flex-shrink-0"
                             >
-                              <span className="text-[10px] font-black text-white tracking-widest uppercase">
+                              <span className="text-xs font-bold text-white tracking-widest uppercase">
                                 Step 2
                               </span>
                             </motion.div>
@@ -634,7 +637,7 @@ export function FeatureDetailModal({
                               <p className="text-sm font-bold text-white">
                                 {t("featureDetail.onboardingStep2")}
                               </p>
-                              <p className="text-[11px] text-slate-400 mt-0.5">
+                              <p className="text-xs text-slate-400 mt-0.5">
                                 {t("featureDetail.subtaskDescription")}
                               </p>
                             </div>
@@ -650,7 +653,7 @@ export function FeatureDetailModal({
                             className="flex items-center justify-center gap-1.5 text-bridge-accent/70"
                           >
                             <ArrowRight className="h-3.5 w-3.5 rotate-90" />
-                            <span className="text-[10px] font-bold tracking-wider uppercase">
+                            <span className="text-xs font-bold tracking-wider uppercase">
                               {t("featureDetail.addSubtaskGuide")}
                             </span>
                             <ArrowRight className="h-3.5 w-3.5 rotate-90" />
@@ -669,10 +672,10 @@ export function FeatureDetailModal({
                               />
                             </div>
                             <div>
-                              <p className="text-xs font-semibold text-foreground mb-1">
+                              <p className="text-xs font-medium text-foreground mb-1">
                                 {t("featureDetail.addSubtaskGuide")}
                               </p>
-                              <p className="text-[11px] text-slate-500 leading-relaxed">
+                              <p className="text-xs text-slate-500 leading-relaxed">
                                 {t("featureDetail.subtaskDescription")}
                               </p>
                             </div>
@@ -682,7 +685,7 @@ export function FeatureDetailModal({
                       {/* Example subtasks (visual guide) */}
                       <div className="mx-4 mb-4 rounded-lg border border-dashed border-foreground/10 overflow-hidden opacity-40 pointer-events-none select-none">
                         <div className="px-3 py-1.5 bg-white/[0.02]">
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                          <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
                             예시
                           </span>
                         </div>
@@ -704,11 +707,11 @@ export function FeatureDetailModal({
                                     boxShadow: `0 0 8px ${selectedColor}44`,
                                   }}
                                 />
-                                <span className="text-xs font-semibold text-slate-400">
+                                <span className="text-xs font-medium text-slate-400">
                                   {title}
                                 </span>
                               </div>
-                              <span className="text-[10px] font-black tracking-widest text-slate-500">
+                              <span className="text-xs font-bold tracking-widest text-slate-500">
                                 →{" "}
                                 {i === 0
                                   ? "TASK"
@@ -755,11 +758,11 @@ export function FeatureDetailModal({
                               if (e.key === "Enter") handleSaveTaskTitle();
                               if (e.key === "Escape") setEditingTaskId(null);
                             }}
-                            className="flex-1 text-xs font-semibold bg-foreground/5 border border-bridge-accent/50 rounded-md px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                            className="flex-1 text-xs font-medium bg-foreground/5 border border-bridge-accent/50 rounded-md px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                           />
                         ) : (
                           <span
-                            className={`text-xs font-semibold text-foreground/80 group-hover:text-foreground transition-colors truncate ${canEdit ? "cursor-text hover:bg-foreground/5 rounded px-1 -mx-1" : ""}`}
+                            className={`text-xs font-medium text-foreground/80 group-hover:text-foreground transition-colors truncate ${canEdit ? "cursor-text hover:bg-foreground/5 rounded px-1 -mx-1" : ""}`}
                             onClick={(e) => {
                               if (canEdit) {
                                 e.stopPropagation();
@@ -771,7 +774,7 @@ export function FeatureDetailModal({
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 flex-shrink-0 ml-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-400 flex-shrink-0 ml-2">
                         <span
                           className="tracking-widest transition-colors"
                           style={{ color: undefined }}
@@ -819,7 +822,7 @@ export function FeatureDetailModal({
                     <motion.button
                       ref={addBtnRef}
                       onClick={handleAddSubtask}
-                      className="px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg border transition-all active:scale-95"
+                      className="px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-lg border transition-all active:scale-95"
                       style={{
                         backgroundColor:
                           isOnboarding && tasks.length === 0
@@ -875,7 +878,7 @@ export function FeatureDetailModal({
         onClose={() => setShowConfirmDialog(false)}
         className="sm:max-w-sm p-6"
       >
-        <h3 className="text-lg font-semibold text-foreground">
+        <h3 className="text-lg font-bold text-foreground">
           {t("featureDetail.saveChangesTitle")}
         </h3>
         <p className="text-sm text-slate-400 mt-1">
@@ -916,7 +919,7 @@ export function FeatureDetailModal({
                   <ArrowRightLeft className="h-4 w-4 text-amber-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-foreground">
+                  <h3 className="text-base font-bold text-foreground">
                     {t("featureDetail.deleteTitle")}
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
@@ -931,7 +934,7 @@ export function FeatureDetailModal({
             {/* Bulk migration */}
             <div className="px-6 py-3 border-b border-foreground/5 bg-foreground/[0.02] flex-shrink-0">
               <div className="flex items-center gap-3">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 whitespace-nowrap">
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-400 whitespace-nowrap">
                   {t("featureDetail.bulkMigrate", "일괄 이관")}
                 </span>
                 <div className="relative flex-1">
@@ -1005,7 +1008,7 @@ export function FeatureDetailModal({
                           });
                           setBulkTargetFeatureId("");
                         }}
-                        className="appearance-none bg-foreground/5 border border-foreground/10 rounded-md px-2.5 py-1.5 pr-7 text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 max-w-[160px]"
+                        className="appearance-none bg-foreground/5 border border-foreground/10 rounded-md px-2.5 py-1.5 pr-7 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 max-w-[160px]"
                       >
                         <option value="">
                           {t("featureDetail.deleteWithFeature", "삭제")}
@@ -1040,7 +1043,7 @@ export function FeatureDetailModal({
                     {deleteCount > 0 && (
                       <div className="flex items-start gap-2 mb-3 p-2.5 rounded-lg bg-red-500/10 border border-red-500/20">
                         <AlertTriangle className="h-3.5 w-3.5 text-red-400 flex-shrink-0 mt-0.5" />
-                        <p className="text-[11px] text-red-300">
+                        <p className="text-xs text-red-300">
                           {t("featureDetail.deleteWarning", {
                             deleteCount,
                             defaultValue: `${deleteCount}개 태스크가 피처와 함께 삭제됩니다.`,
@@ -1095,7 +1098,7 @@ export function FeatureDetailModal({
         ) : (
           /* 태스크 없을 때: 간단 확인 모달 */
           <div className="p-6">
-            <h3 className="text-lg font-semibold text-foreground">
+            <h3 className="text-lg font-bold text-foreground">
               {t("featureDetail.deleteTitle")}
             </h3>
             <p className="text-sm text-slate-400 mt-1">
@@ -1155,7 +1158,7 @@ export function FeatureDetailModal({
 
             {/* Feature title */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
                 {t("featureDetail.aiConfirmFeatureTitle")}
               </label>
               <input
@@ -1168,7 +1171,7 @@ export function FeatureDetailModal({
 
             {/* Feature description */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
                 {t("featureDetail.aiConfirmFeatureDesc")}
               </label>
               <textarea

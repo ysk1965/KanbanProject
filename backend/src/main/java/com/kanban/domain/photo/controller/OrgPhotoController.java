@@ -1,5 +1,6 @@
 package com.kanban.domain.photo.controller;
 
+import com.kanban.domain.organization.Organization;
 import com.kanban.domain.photo.dto.OrgPhotoRequest;
 import com.kanban.domain.photo.dto.OrgPhotoResponse;
 import com.kanban.domain.photo.service.OrgPhotoService;
@@ -96,8 +97,10 @@ public class OrgPhotoController {
     @PostMapping("/gallery-share")
     public ResponseEntity<Map<String, String>> enableGalleryShare(
             @PathVariable String orgId,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        String token = orgPhotoService.enableGalleryShare(orgId, principal.getUserId());
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody(required = false) Map<String, String> body) {
+        String title = body != null ? body.get("title") : null;
+        String token = orgPhotoService.enableGalleryShare(orgId, principal.getUserId(), title);
         return ResponseEntity.ok(Map.of("share_token", token));
     }
 
@@ -109,15 +112,28 @@ public class OrgPhotoController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/gallery-share")
+    public ResponseEntity<Void> updateGalleryShareTitle(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody Map<String, String> body) {
+        String title = body.get("title");
+        orgPhotoService.updateGalleryShareTitle(orgId, principal.getUserId(), title);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/gallery-share")
     public ResponseEntity<Map<String, Object>> getGalleryShareStatus(
             @PathVariable String orgId,
             @AuthenticationPrincipal UserPrincipal principal) {
-        String token = orgPhotoService.getGalleryShareToken(orgId);
-        return ResponseEntity.ok(Map.of(
-                "enabled", token != null,
-                "share_token", token != null ? token : ""
-        ));
+        Organization org = orgPhotoService.getGalleryShareOrg(orgId);
+        String token = org.getPhotoShareToken();
+        String title = org.getPhotoShareTitle();
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("enabled", token != null);
+        result.put("share_token", token != null ? token : "");
+        result.put("title", title != null ? title : "");
+        return ResponseEntity.ok(result);
     }
 
     // ==================== Gallery-Level Upload ====================

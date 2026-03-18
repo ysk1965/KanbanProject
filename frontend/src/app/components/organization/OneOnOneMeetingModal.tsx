@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Trash2 } from "lucide-react";
+import { IconButton } from "../ui/IconButton";
 import { MotionModal } from "../ui/MotionModal";
 import { organizationService } from "../../utils/services";
 import { getTodayDateString } from "../../utils/dateUtils";
@@ -142,7 +143,7 @@ export function OneOnOneMeetingModal({
               ? t("organization.oneOnOne.editMeeting", "Edit Meeting")
               : t("organization.oneOnOne.newMeetingTitle", "1:1 Meeting")}
           </h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             {otherMemberName}
           </p>
         </div>
@@ -152,7 +153,7 @@ export function OneOnOneMeetingModal({
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         {/* Date */}
         <div>
-          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
             {t("organization.oneOnOne.meetingDate", "Meeting Date")}
           </label>
           <input
@@ -165,7 +166,7 @@ export function OneOnOneMeetingModal({
 
         {/* Agenda */}
         <div>
-          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
             {t("organization.oneOnOne.agenda", "Agenda")}
           </label>
           <textarea
@@ -182,7 +183,7 @@ export function OneOnOneMeetingModal({
 
         {/* Notes */}
         <div>
-          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
             {t("organization.oneOnOne.notes", "Notes")}
           </label>
           <textarea
@@ -200,13 +201,13 @@ export function OneOnOneMeetingModal({
         {/* Action Items */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
               {t("organization.oneOnOne.actionItems", "Action Items")}
             </label>
             <button
               type="button"
               onClick={addActionItem}
-              className="flex items-center gap-1 text-[10px] font-bold text-bridge-accent hover:text-bridge-accent/80 transition-colors"
+              className="flex items-center gap-1 text-xs font-bold text-bridge-accent hover:text-bridge-accent/80 transition-colors"
             >
               <Plus size={10} />
               {t("organization.oneOnOne.addAction", "Add")}
@@ -242,7 +243,7 @@ export function OneOnOneMeetingModal({
                       onChange={(e) =>
                         updateActionItem(index, "assignee_id", e.target.value)
                       }
-                      className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1.5 px-3 text-[11px] text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                      className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1.5 px-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                     >
                       <option value="">
                         {t("organization.oneOnOne.noAssignee", "No assignee")}
@@ -254,13 +255,13 @@ export function OneOnOneMeetingModal({
                       ))}
                     </select>
                   </div>
-                  <button
-                    type="button"
+                  <IconButton
                     onClick={() => removeActionItem(index)}
-                    className="mt-2 p-1 rounded text-slate-400 hover:text-red-500 transition-colors"
+                    aria-label="삭제"
+                    className="mt-2 hover:text-red-500 hover:bg-red-500/10"
                   >
-                    <Trash2 size={12} />
-                  </button>
+                    <Trash2 />
+                  </IconButton>
                 </div>
               ))}
             </div>
@@ -270,7 +271,7 @@ export function OneOnOneMeetingModal({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08] shrink-0">
-        <span className="text-[10px] text-slate-500">
+        <span className="text-xs text-slate-500">
           Esc {t("common.close", "닫기")}
         </span>
         <button

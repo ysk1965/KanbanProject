@@ -71,10 +71,7 @@ spring.data.redis:
 
 # Cache
 spring.cache:
-  type: ${CACHE_TYPE:redis}
-  redis:
-    time-to-live: 600000  # 10분
-    cache-null-values: false
+  type: ${CACHE_TYPE:simple}
 
 # Actuator
 management:
@@ -93,6 +90,8 @@ management:
 spring.servlet.multipart:
   max-file-size: 110MB
   max-request-size: 220MB
+  file-size-threshold: 1MB
+  location: ${MULTIPART_LOCATION:/var/tmp/spring-multipart}
 
 # AI Provider ("claude" or "openai")
 ai:
@@ -192,7 +191,7 @@ app:
     s3-enabled: ${S3_ENABLED:false}
     max-size: 31457280
     max-count: 5
-    allowed-types: image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime
+    allowed-types: image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/markdown
     s3-bucket: ${S3_BUCKET:bridge-kanban-attachments}
     cloudfront-domain: ${CLOUDFRONT_DOMAIN:}
     upload-dir: comments
@@ -275,14 +274,14 @@ spring:
 
 app:
   websocket:
-    broker-type: redis
+    broker-type: simple
   file:
     s3-enabled: true
     s3-bucket: ${S3_BUCKET:bridge-kanban-attachments}
     cloudfront-domain: ${CLOUDFRONT_DOMAIN:}
 
 ---
-# Prod Profile (PostgreSQL + Redis Pub/Sub)
+# Prod Profile (PostgreSQL + Simple Cache)
 spring:
   config:
     activate:
@@ -310,15 +309,15 @@ spring:
     url: ${DATABASE_URL}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 3
+      maximum-pool-size: 20
+      minimum-idle: 5
       connection-timeout: 20000
       idle-timeout: 300000
       max-lifetime: 1200000
 
 app:
   websocket:
-    broker-type: redis
+    broker-type: simple
   file:
     s3-enabled: true
     s3-bucket: ${S3_BUCKET}

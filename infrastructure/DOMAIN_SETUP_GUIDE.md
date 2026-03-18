@@ -1,6 +1,19 @@
-# bridgespots.com 도메인 연결 가이드
+# 도메인 연결 가이드 (듀얼 도메인)
 
-이 문서는 Terraform을 사용하여 bridgespots.com 도메인을 AWS 인프라에 연결하는 전체 과정을 설명합니다.
+이 문서는 Terraform을 사용하여 bridgespots.com + milkyway.pe.kr 듀얼 도메인을 AWS 인프라에 연결하는 전체 과정을 설명합니다.
+
+## 현재 상태 (2026-03-16 확인)
+
+| 도메인 | 용도 | Route53 | ACM (서울) | ACM (us-east-1) | CloudFront |
+|--------|------|---------|-----------|----------------|------------|
+| bridgespots.com | Dev 프론트엔드 | Z001600031MWAX7YIP2BO (6 records) | ISSUED | ISSUED | E3C9295UMI1LW7 |
+| milkyway.pe.kr | Testprod 프론트엔드 | Z04362322QT3T525T8YCY (7 records) | ISSUED | ISSUED | E22U5C46YWKCL7 |
+
+### CloudFront 매핑
+
+- **bridgespots.com, www.bridgespots.com** → S3: kanban-dev-frontend
+- **milkyway.pe.kr, www.milkyway.pe.kr** → S3: kanban-testprod-frontend
+- ALB는 두 도메인 모두 SNI로 처리 (각각 별도 ACM 인증서)
 
 ## 📋 목차
 
@@ -10,7 +23,8 @@
 4. [네임서버 변경](#네임서버-변경)
 5. [DNS 전파 확인](#dns-전파-확인)
 6. [GitHub Secrets 업데이트](#github-secrets-업데이트)
-7. [트러블슈팅](#트러블슈팅)
+7. [세컨더리 도메인 추가](#세컨더리-도메인-추가)
+8. [트러블슈팅](#트러블슈팅)
 
 ---
 
@@ -38,9 +52,10 @@ aws sts get-caller-identity
 
 ### 도메인 정보
 
-- **도메인 이름**: bridgespots.com
-- **현재 등록 업체**: Hostingkr
-- **관리 권한**: 네임서버 변경 가능
+- **Primary 도메인**: bridgespots.com (등록: Hostingkr)
+- **Secondary 도메인**: milkyway.pe.kr (등록: 별도)
+- **관리 권한**: 두 도메인 모두 네임서버 변경 가능
+- Terraform `domain_name` = primary, `secondary_domain_name` = secondary
 
 ---
 
@@ -383,12 +398,14 @@ terraform init -migrate-state
 
 ### 인프라 비용 예측
 
-**예상 월 비용** (AWS ap-northeast-2):
-- Route 53 Hosted Zone: $0.50/월
-- ACM Certificate: 무료
-- CloudFront: 트래픽 기반 ($0.085/GB)
-- Elastic Beanstalk: EC2 인스턴스 비용
-- 총 예상: ~$30-50/월 (트래픽에 따라 변동)
+**실제 월 비용** (2026-03-16 확인): **사실상 $0/월** (Free Tier 내)
+- Route 53 Hosted Zone: 2개 × $0.50 = $1.00/월
+- ACM Certificate: 무료 (4개)
+- CloudFront: Free Tier 내 (3개 distribution)
+- RDS: db.t4g.micro Free Tier
+- ElastiCache: cache.t4g.micro Free Tier
+- EB (EC2 t3.small): Free Tier 범위 내
+- 총 실제: ~$0/월 (트래픽 증가 시 변동)
 
 ### 도메인 갱신
 
@@ -407,3 +424,41 @@ bridgespots.com 도메인은 Hostingkr에서 계속 관리됩니다:
 - GitHub Actions 워크플로우 로그
 
 추가 지원이 필요하면 팀에 문의하세요.
+
+---
+
+## 세컨더리 도메인 추가
+
+### milkyway.pe.kr 설정 (완료됨)
+
+Terraform `secondary_domain_name` 변수로 세컨더리 도메인을 추가합니다.
+
+```hcl
+# terraform.tfvars
+domain_name           = "bridgespots.com"
+secondary_domain_name = "milkyway.pe.kr"
+```
+
+세컨더리 도메인 설정 시 자동으로 생성되는 리소스:
+1. **Route53 Hosted Zone** — milkyway.pe.kr 전용
+2. **ACM 인증서 (서울)** — ALB HTTPS 리스너에 추가
+3. **ACM 인증서 (us-east-1)** — CloudFront에 연결
+4. **CloudFront Distribution** — S3 testprod-frontend 버킷 연결
+5. **ALB HTTPS 리스너 인증서** — SNI로 두 도메인 구분
+
+### CloudFront SPA 라우팅
+
+CloudFront Function이 Host 헤더로 도메인을 분기합니다:
+- `bridgespots.com` → `index-bridgespots.html`
+- `milkyway.pe.kr` → `index.html`
+
+빌드 시 `vite.config.ts`의 `generateBrandedIndex()` 플러그인이 각 도메인용 HTML을 생성합니다.
+
+### CORS 설정 확인
+
+세컨더리 도메인 추가 시 3곳의 CORS 설정에 도메인을 추가해야 합니다:
+1. `backend/.../SecurityConfig.java` (line ~103)
+2. `backend/.../WebSocketConfig.java` (line ~52)
+3. `backend/.../NoteCollabWebSocketConfig.java` (line ~29)
+
+> 현재 bridgespots.com + milkyway.pe.kr 모두 설정되어 있습니다.

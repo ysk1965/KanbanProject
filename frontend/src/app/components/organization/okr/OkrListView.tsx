@@ -13,6 +13,7 @@ import {
   Target,
 } from "lucide-react";
 import type { OkrObjective, OkrKeyResult } from "../../../types";
+import { IconButton } from "../../ui/IconButton";
 import { OkrProgressBar } from "./OkrProgressBar";
 import { OkrConfidenceBadge } from "./OkrConfidenceBadge";
 
@@ -150,7 +151,7 @@ function ObjectiveRow({
                 {objective.title}
               </span>
               {objective.level === "DEPARTMENT" && objective.department_name && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent shrink-0 hidden sm:inline">
+                <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent shrink-0 hidden sm:inline">
                   {objective.department_name}
                 </span>
               )}
@@ -165,7 +166,7 @@ function ObjectiveRow({
               className="w-16 hidden sm:block"
               animated={false}
             />
-            <span className="text-[11px] font-bold text-foreground w-10 text-right">
+            <span className="text-xs font-bold text-foreground w-10 text-right">
               {Math.round(objective.progress)}%
             </span>
             <OkrConfidenceBadge confidence={objective.confidence} />
@@ -173,16 +174,16 @@ function ObjectiveRow({
 
           {/* Admin actions */}
           {isAdmin && (
-            <button
+            <IconButton
               onClick={(e) => {
                 e.stopPropagation();
                 onAddChild(objective.id);
               }}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
-              title={t("okr.addObjective", "Add Objective")}
+              aria-label={t("okr.addObjective", "Add Objective")}
+              className="opacity-0 group-hover:opacity-100"
             >
-              <Plus size={14} />
-            </button>
+              <Plus />
+            </IconButton>
           )}
         </div>
 
@@ -275,7 +276,7 @@ function KeyResultRow({
       </span>
 
       {/* Current / Target */}
-      <span className="text-[10px] text-slate-500 shrink-0 hidden sm:inline">
+      <span className="text-xs text-slate-500 shrink-0 hidden sm:inline">
         {kr.current_value}
         {kr.unit ? ` ${kr.unit}` : ""} / {kr.target_value}
         {kr.unit ? ` ${kr.unit}` : ""}
@@ -289,22 +290,22 @@ function KeyResultRow({
         animated={false}
       />
 
-      <span className="text-[10px] font-bold text-foreground w-8 text-right shrink-0">
+      <span className="text-xs font-bold text-foreground w-8 text-right shrink-0">
         {Math.round(progress)}%
       </span>
 
       {/* Check-in button */}
       {isAdmin && (
-        <button
+        <IconButton
           onClick={(e) => {
             e.stopPropagation();
             onCheckIn(kr.id);
           }}
-          className="p-1 rounded-md text-slate-500 hover:text-bridge-accent hover:bg-bridge-accent/10 transition-colors shrink-0 opacity-0 group-hover/kr:opacity-100"
-          title={t("okr.addCheckin", "Check-in")}
+          aria-label={t("okr.addCheckin", "Check-in")}
+          className="opacity-0 group-hover/kr:opacity-100 hover:text-bridge-accent hover:bg-bridge-accent/10"
         >
-          <PlusCircle size={12} />
-        </button>
+          <PlusCircle />
+        </IconButton>
       )}
     </div>
   );

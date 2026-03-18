@@ -36,6 +36,7 @@ import com.kanban.domain.board.BoardRole;
 import com.kanban.domain.user.SystemRole;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
+import com.kanban.domain.system.MonetizationService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -74,6 +75,7 @@ public class BoardFacadeService {
     private final ActivityService activityService;
     private final MilestoneService milestoneService;
     private final AiCreditService aiCreditService;
+    private final MonetizationService monetizationService;
 
     private static final int DEFAULT_ACTIVITY_LIMIT = 20;
 
@@ -155,7 +157,9 @@ public class BoardFacadeService {
                 ? SubscriptionResponse.Detail.of(subscription) : null;
 
         // 6. Tier & Limits
-        BoardResponse.TierInfo tierInfo = BoardResponse.TierInfo.of(board);
+        BoardResponse.TierInfo tierInfo = monetizationService.isMonetizationEnabled()
+                ? BoardResponse.TierInfo.of(board)
+                : BoardResponse.TierInfo.allFeaturesEnabled(board);
         int currentTaskCount = taskRepository.countByBoardId(boardId);
         BoardResponse.Limits limits = BoardResponse.Limits.of(board, currentTaskCount);
 

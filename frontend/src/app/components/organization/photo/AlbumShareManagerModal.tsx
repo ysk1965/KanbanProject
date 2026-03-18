@@ -32,6 +32,8 @@ export function AlbumShareManagerModal({
   const { t } = useTranslation();
   const [galleryEnabled, setGalleryEnabled] = useState(false);
   const [galleryToken, setGalleryToken] = useState('');
+  const [galleryTitle, setGalleryTitle] = useState('');
+  const [galleryTitleSaving, setGalleryTitleSaving] = useState(false);
   const [galleryToggling, setGalleryToggling] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -66,6 +68,7 @@ export function AlbumShareManagerModal({
         ]);
         setGalleryEnabled(shareStatus.enabled);
         setGalleryToken(shareStatus.share_token || '');
+        setGalleryTitle(shareStatus.title || '');
         setGalleryUploadEnabled(uploadStatus.enabled);
         setGalleryUploadToken(uploadStatus.upload_token || '');
         setGalleryUploadExpiresAt(uploadStatus.expires_at || '');
@@ -87,9 +90,10 @@ export function AlbumShareManagerModal({
         await orgPhotoService.disableGalleryShare(orgId);
         setGalleryEnabled(false);
         setGalleryToken('');
+        setGalleryTitle('');
         toast.success(t('photoGallery.shareDisabled', 'Sharing disabled'));
       } else {
-        const result = await orgPhotoService.enableGalleryShare(orgId);
+        const result = await orgPhotoService.enableGalleryShare(orgId, galleryTitle || undefined);
         setGalleryEnabled(true);
         setGalleryToken(result.share_token);
         toast.success(t('photoGallery.shareEnabled', 'Sharing enabled'));
@@ -101,7 +105,20 @@ export function AlbumShareManagerModal({
     } finally {
       setGalleryToggling(false);
     }
-  }, [galleryToggling, galleryEnabled, orgId, t]);
+  }, [galleryToggling, galleryEnabled, orgId, galleryTitle, t]);
+
+  // Save gallery title (debounced on blur)
+  const handleTitleSave = useCallback(async () => {
+    if (!galleryEnabled || galleryTitleSaving) return;
+    try {
+      setGalleryTitleSaving(true);
+      await orgPhotoService.updateGalleryShareTitle(orgId, galleryTitle);
+    } catch {
+      toast.error(t('photoGallery.shareToggleError', 'Failed to update'));
+    } finally {
+      setGalleryTitleSaving(false);
+    }
+  }, [galleryEnabled, galleryTitleSaving, orgId, galleryTitle, t]);
 
   // Toggle gallery-level upload
   const handleGalleryUploadToggle = useCallback(async () => {
@@ -230,7 +247,7 @@ export function AlbumShareManagerModal({
           <h3 className="text-base font-bold text-foreground">
             {t('photoGallery.shareManagerTitle', 'Share Albums')}
           </h3>
-          <p className="text-[10px] text-slate-500">
+          <p className="text-xs text-slate-500">
             {t(
               'photoGallery.shareManagerDesc',
               'Manage public sharing for your albums',
@@ -255,7 +272,7 @@ export function AlbumShareManagerModal({
                     'Public Link Sharing',
                   )}
                 </p>
-                <p className="text-[10px] text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   {t(
                     'photoGallery.shareGalleryDesc',
                     'Share selected albums via a single link',
@@ -284,12 +301,35 @@ export function AlbumShareManagerModal({
               </button>
             </div>
 
+            {/* Gallery title input */}
+            {galleryEnabled && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400">
+                  {t('photoGallery.shareGalleryTitleLabel', 'Gallery Title')}
+                </label>
+                <input
+                  type="text"
+                  value={galleryTitle}
+                  onChange={(e) => setGalleryTitle(e.target.value)}
+                  onBlur={handleTitleSave}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  maxLength={100}
+                  placeholder={t('photoGallery.shareGalleryTitlePlaceholder', 'e.g. Family Photos, Trip 2026')}
+                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                />
+              </div>
+            )}
+
             {/* Link display */}
             {galleryEnabled && shareUrl && (
               <div className="flex items-center gap-2">
                 <div className="flex-1 flex items-center gap-2 px-2.5 py-2 bg-foreground/[0.03] border border-foreground/10 rounded-xl min-w-0">
                   <Link2 size={12} className="text-slate-400 shrink-0" />
-                  <span className="text-[11px] text-foreground truncate">
+                  <span className="text-xs text-foreground truncate">
                     {shareUrl}
                   </span>
                 </div>
@@ -325,7 +365,7 @@ export function AlbumShareManagerModal({
                   </p>
                   <Upload size={14} className="text-bridge-secondary" />
                 </div>
-                <p className="text-[10px] text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   {t(
                     'photoGallery.galleryUploadLinkDesc',
                     'Anyone with this link can upload photos and manage albums',
@@ -359,7 +399,7 @@ export function AlbumShareManagerModal({
                 <div className="flex items-center gap-2">
                   <div className="flex-1 flex items-center gap-2 px-2.5 py-2 bg-foreground/[0.03] border border-foreground/10 rounded-xl min-w-0">
                     <Upload size={12} className="text-bridge-secondary shrink-0" />
-                    <span className="text-[11px] text-foreground truncate">
+                    <span className="text-xs text-foreground truncate">
                       {galleryUploadUrl}
                     </span>
                   </div>
@@ -387,7 +427,7 @@ export function AlbumShareManagerModal({
                   const hrs = Math.max(0, Math.floor((exp.getTime() - Date.now()) / (1000 * 60 * 60)));
                   const days = Math.floor(hrs / 24);
                   return (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
                       {days > 0 ? `${days}d ${hrs % 24}h left` : `${hrs}h left`}
                     </span>
                   );
@@ -400,14 +440,14 @@ export function AlbumShareManagerModal({
           {galleryEnabled && (
             <>
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                   {t(
                     'photoGallery.shareSelectAlbums',
                     'Albums to include',
                   )}
                 </label>
                 {sharedCount > 0 && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
                     {sharedCount}{' '}
                     {t('photoGallery.shareActiveCount', 'active')}
                   </span>
@@ -429,7 +469,7 @@ export function AlbumShareManagerModal({
                             <span className="text-sm font-bold text-foreground truncate">
                               {album.name}
                             </span>
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-foreground/10 text-slate-500 shrink-0">
+                            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/10 text-slate-500 shrink-0">
                               {album.photo_count}
                             </span>
                           </div>
@@ -484,13 +524,13 @@ export function AlbumShareManagerModal({
                         <div className="flex items-center gap-2 px-3 pb-2.5">
                           <div className="flex-1 flex items-center gap-2 px-2.5 py-1.5 bg-foreground/[0.03] border border-foreground/10 rounded-lg min-w-0">
                             <Upload size={10} className="text-bridge-secondary shrink-0" />
-                            <span className="text-[10px] text-slate-400 truncate">
+                            <span className="text-xs text-slate-400 truncate">
                               {window.location.origin}/shared/upload/{album.upload_token}
                             </span>
                           </div>
                           <button
                             onClick={() => handleCopyUploadLink(album.upload_token!)}
-                            className="px-2 py-1.5 rounded-lg text-[10px] font-bold bg-bridge-secondary/15 text-bridge-secondary hover:bg-bridge-secondary/25 transition-all shrink-0"
+                            className="px-2 py-1.5 rounded-lg text-xs font-bold bg-bridge-secondary/15 text-bridge-secondary hover:bg-bridge-secondary/25 transition-all shrink-0"
                           >
                             {copiedUploadLink === album.upload_token ? (
                               <Check size={12} />
@@ -511,7 +551,7 @@ export function AlbumShareManagerModal({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-[10px] text-slate-600">
+        <span className="text-xs text-slate-600">
           Esc {t('common.close', 'Close')}
         </span>
         <button

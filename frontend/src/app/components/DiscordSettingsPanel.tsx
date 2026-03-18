@@ -189,21 +189,21 @@ export function DiscordSettingsPanel({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
             <Lock size={12} className="text-bridge-accent" />
-            <span className="text-[11px] font-medium text-bridge-accent">
+            <span className="text-xs font-medium text-bridge-accent">
               {t("discordBot.title")}
             </span>
           </div>
           {onUpgrade && (
             <button
               onClick={onUpgrade}
-              className="flex items-center gap-1 px-2 py-1 text-[11px] text-white bg-bridge-accent hover:bg-bridge-accent/90 rounded-md transition-all"
+              className="flex items-center gap-1 px-2 py-1 text-xs text-white bg-bridge-accent hover:bg-bridge-accent/90 rounded-md transition-all"
             >
               <Rocket size={11} />
               {t("discordBot.upgradeButton")}
             </button>
           )}
         </div>
-        <p className="text-[10px] text-slate-400 leading-relaxed">
+        <p className="text-xs text-slate-400 leading-relaxed">
           {t("discordBot.premiumRequired")}
         </p>
       </div>
@@ -213,7 +213,7 @@ export function DiscordSettingsPanel({
   // OAuth callback message
   const oauthBanner = oauthMessage && (
     <div
-      className={`flex items-center gap-1.5 mb-2 px-2.5 py-1.5 rounded-lg text-[11px] ${
+      className={`flex items-center gap-1.5 mb-2 px-2.5 py-1.5 rounded-lg text-xs ${
         oauthMessage.type === "success"
           ? "bg-emerald-500/10 text-emerald-400"
           : "bg-red-500/10 text-red-400"
@@ -230,7 +230,7 @@ export function DiscordSettingsPanel({
 
   const errorBanner = errorMessage && (
     <div
-      className="flex items-center gap-1.5 mb-2 px-2.5 py-1.5 rounded-lg text-[11px] bg-red-500/10 text-red-400 cursor-pointer"
+      className="flex items-center gap-1.5 mb-2 px-2.5 py-1.5 rounded-lg text-xs bg-red-500/10 text-red-400 cursor-pointer"
       onClick={() => setErrorMessage(null)}
     >
       <AlertCircle size={12} />
@@ -245,13 +245,13 @@ export function DiscordSettingsPanel({
         {oauthBanner}
         {errorBanner}
         <div className="text-center py-2">
-          <p className="text-[11px] text-slate-400 mb-3">
+          <p className="text-xs text-slate-400 mb-3">
             {t("discordBot.installDesc")}
           </p>
           <button
             onClick={handleInstallBot}
             disabled={isRedirecting}
-            className="flex items-center gap-2 mx-auto px-4 py-2 text-[11px] font-bold text-white bg-bridge-accent rounded-xl hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
+            className="flex items-center gap-2 mx-auto px-4 py-2 text-xs font-bold text-white bg-bridge-accent rounded-xl hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
           >
             {isRedirecting ? (
               <Loader2 size={13} className="animate-spin" />
@@ -275,14 +275,14 @@ export function DiscordSettingsPanel({
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
-          <span className="text-[11px] font-medium text-green-400">
+          <span className="text-xs font-medium text-green-400">
             {t("discordBot.guildConnected")}
           </span>
         </div>
         <button
           onClick={handleDisconnectBot}
           disabled={isDisconnecting}
-          className="text-[10px] text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+          className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
         >
           {isDisconnecting ? (
             <Loader2 size={11} className="animate-spin" />
@@ -295,10 +295,10 @@ export function DiscordSettingsPanel({
       {/* Guild info */}
       <div className="space-y-1.5 mb-3">
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-slate-500">
+          <span className="text-xs text-slate-500">
             {t("discordBot.serverLabel", "Server")}:
           </span>
-          <span className="text-[11px] text-foreground font-medium">
+          <span className="text-xs text-foreground font-medium">
             {config.guild_name}
           </span>
         </div>
@@ -306,7 +306,7 @@ export function DiscordSettingsPanel({
 
       {/* User link section */}
       <div className="border-t border-foreground/[0.08] pt-3 mt-3">
-        <label className="text-[10px] text-slate-400 uppercase tracking-wider font-medium mb-1.5 block">
+        <label className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-1.5 block">
           {t("discordBot.personalLink", "My Discord Account")}
         </label>
         {userLink?.linked ? (
@@ -314,17 +314,17 @@ export function DiscordSettingsPanel({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <UserCheck size={12} className="text-green-400" />
-                <span className="text-[11px] text-foreground">
+                <span className="text-xs text-foreground">
                   {userLink.discord_username}
                 </span>
-                <span className="text-[9px] text-slate-500">
+                <span className="text-xs text-slate-500">
                   ({t("discordBot.dmEnabled", "DM enabled")})
                 </span>
               </div>
               <button
                 onClick={handleUnlink}
                 disabled={isUnlinking}
-                className="text-[10px] text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
               >
                 {isUnlinking ? (
                   <Loader2 size={11} className="animate-spin" />
@@ -339,7 +339,7 @@ export function DiscordSettingsPanel({
               <button
                 onClick={handleTest}
                 disabled={isTesting}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-muted-foreground bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-all disabled:opacity-50"
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-muted-foreground bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-all disabled:opacity-50"
               >
                 {isTesting ? (
                   <Loader2 size={11} className="animate-spin" />
@@ -352,7 +352,7 @@ export function DiscordSettingsPanel({
 
             {testResult && (
               <div
-                className={`flex items-center gap-1.5 text-[11px] ${
+                className={`flex items-center gap-1.5 text-xs ${
                   testResult.success ? "text-green-400" : "text-red-400"
                 }`}
               >
@@ -369,13 +369,13 @@ export function DiscordSettingsPanel({
           </div>
         ) : (
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-slate-500">
+            <span className="text-xs text-slate-500">
               {t("discordBot.linkDesc")}
             </span>
             <button
               onClick={handleLinkAccount}
               disabled={isRedirecting}
-              className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all disabled:opacity-50"
+              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all disabled:opacity-50"
             >
               {isRedirecting ? (
                 <Loader2 size={10} className="animate-spin" />

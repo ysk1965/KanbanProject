@@ -1,25 +1,56 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { useEscClose } from "../../hooks/useEscClose";
 import {
-  MessageSquare, Send, Loader2, Pencil, Trash2, X, Check, SmilePlus,
-} from 'lucide-react';
-import { noteCommentService } from '../../utils/services';
-import { memberAPI } from '../../utils/api';
-import { wsManager } from '../../utils/websocket';
-import type { BoardWebSocketEvent } from '../../types';
-import { formatRelativeTime } from '../../utils/dateUtils';
-import { getAssigneeClasses, getInitials } from '../../utils/assigneeColor';
-import type { NoteCommentDetail, NoteCommentListResponse, MemberResponse, CommentReactionResponse } from '../../utils/api';
+  MessageSquare,
+  Send,
+  Loader2,
+  Pencil,
+  Trash2,
+  X,
+  Check,
+  SmilePlus,
+} from "lucide-react";
+import {
+  noteCommentService,
+  orgNoteCommentService,
+} from "../../utils/services";
+import {
+  memberAPI,
+  mentionGroupAPI,
+  MentionGroupDetail,
+} from "../../utils/api";
+import { wsManager } from "../../utils/websocket";
+import type { BoardWebSocketEvent } from "../../types";
+import { formatRelativeTime } from "../../utils/dateUtils";
+import { getAssigneeClasses, getInitials } from "../../utils/assigneeColor";
+import type {
+  NoteCommentDetail,
+  NoteCommentListResponse,
+  MemberResponse,
+  CommentReactionResponse,
+} from "../../utils/api";
+import { Users } from "lucide-react";
 
 // ========== Constants ==========
 
-const REACTION_EMOJIS = ['\uD83D\uDC4D', '\u2764\uFE0F', '\uD83D\uDE04', '\uD83C\uDF89', '\uD83E\uDD14', '\uD83D\uDC40', '\uD83D\uDC4F', '\uD83D\uDD25'];
+const REACTION_EMOJIS = [
+  "\uD83D\uDC4D",
+  "\u2764\uFE0F",
+  "\uD83D\uDE04",
+  "\uD83C\uDF89",
+  "\uD83E\uDD14",
+  "\uD83D\uDC40",
+  "\uD83D\uDC4F",
+  "\uD83D\uDD25",
+];
 
 // ========== Types ==========
 
 interface NoteBottomCommentsProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   noteId: string;
   currentUserId: string;
   canEdit: boolean;
@@ -29,31 +60,49 @@ interface NoteBottomCommentsProps {
 
 function cleanMarkdownArtifacts(text: string): string {
   return text
-    .replace(/\\\n/g, '\n')
-    .replace(/\\$/gm, '')
-    .replace(/\*\*(.*?)\*\*/g, '$1')
-    .replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '$1')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/`([^`]+)`/g, '$1');
+    .replace(/\\\n/g, "\n")
+    .replace(/\\$/gm, "")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/`([^`]+)`/g, "$1");
 }
 
-function renderContentWithMentions(content: string, members: MemberResponse[]) {
+function renderContentWithMentions(
+  content: string,
+  members: MemberResponse[],
+  mentionGroups: MentionGroupDetail[] = [],
+) {
   const cleaned = cleanMarkdownArtifacts(content);
-  const memberNames = members.map(m => m.user.name);
-  if (memberNames.length === 0) return cleaned;
+  const memberNames = members.map((m) => m.user.name);
+  const groupNames = mentionGroups.map((g) => g.name);
+  const allNames = [...memberNames, ...groupNames];
+  if (allNames.length === 0) return cleaned;
 
   const mentionPattern = new RegExp(
-    `(@(?:${memberNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))(?=\\s|$)`,
-    'g'
+    `(@(?:${allNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")}))(?=\\s|$)`,
+    "g",
   );
   const parts = cleaned.split(mentionPattern);
   return parts.map((part, i) => {
-    if (part.startsWith('@')) {
+    if (part.startsWith("@")) {
       const name = part.slice(1);
-      const member = members.find(m => m.user.name === name);
+      const member = members.find((m) => m.user.name === name);
       if (member) {
         const color = getAssigneeClasses(name);
-        return <span key={i} className={`${color.text} font-medium`}>{part}</span>;
+        return (
+          <span key={i} className={`${color.text} font-medium`}>
+            {part}
+          </span>
+        );
+      }
+      const group = mentionGroups.find((g) => g.name === name);
+      if (group) {
+        return (
+          <span key={i} className="text-bridge-secondary font-medium">
+            {part}
+          </span>
+        );
       }
     }
     return <span key={i}>{part}</span>;
@@ -63,63 +112,81 @@ function renderContentWithMentions(content: string, members: MemberResponse[]) {
 // ========== Component ==========
 
 export function NoteBottomComments({
-  boardId, noteId, currentUserId, canEdit,
+  boardId,
+  orgId,
+  noteId,
+  currentUserId,
+  canEdit,
 }: NoteBottomCommentsProps) {
+  const svc = orgId ? orgNoteCommentService : noteCommentService;
+  const scopeId = boardId || orgId || "";
+  const wsTopic = orgId ? `/topic/org/${orgId}` : `/topic/board/${boardId}`;
   // State
   const [comments, setComments] = useState<NoteCommentDetail[]>([]);
   const [members, setMembers] = useState<MemberResponse[]>([]);
+  const [mentionGroups, setMentionGroups] = useState<MentionGroupDetail[]>([]);
   const [loading, setLoading] = useState(true);
 
   // New comment
-  const [newContent, setNewContent] = useState('');
+  const [newContent, setNewContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showMentions, setShowMentions] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionQuery, setMentionQuery] = useState("");
   const [selectedMentions, setSelectedMentions] = useState<string[]>([]);
   const [mentionIndex, setMentionIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Edit
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
+  const [editContent, setEditContent] = useState("");
   const [editMentions, setEditMentions] = useState<string[]>([]);
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editShowMentions, setEditShowMentions] = useState(false);
-  const [editMentionQuery, setEditMentionQuery] = useState('');
+  const [editMentionQuery, setEditMentionQuery] = useState("");
   const [editMentionIndex, setEditMentionIndex] = useState(0);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Emoji
-  const [emojiPickerCommentId, setEmojiPickerCommentId] = useState<string | null>(null);
-  const [emojiPickerPos, setEmojiPickerPos] = useState<{ top: number; left: number } | null>(null);
+  const [emojiPickerCommentId, setEmojiPickerCommentId] = useState<
+    string | null
+  >(null);
+  const [emojiPickerPos, setEmojiPickerPos] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const emojiTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   // Delete confirm
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  useEscClose(!!deleteTarget, () => setDeleteTarget(null));
 
   // ========== Data loading ==========
 
   const loadComments = useCallback(async () => {
     try {
-      const data: NoteCommentListResponse = await noteCommentService.getComments(boardId, noteId);
+      const data: NoteCommentListResponse = await svc.getComments(
+        scopeId,
+        noteId,
+      );
       // Flatten: only general (non-block) root comments, no replies (flat model)
       // For bottom panel, show all root comments (block_id === null, parent_id === null)
-      const flat = data.threads.filter(t => !t.block_id && !t.parent_id);
+      const flat = data.threads.filter((t) => !t.block_id && !t.parent_id);
       setComments(flat);
     } catch (err) {
-      console.error('Failed to load note comments:', err);
+      console.error("Failed to load note comments:", err);
     } finally {
       setLoading(false);
     }
-  }, [boardId, noteId]);
+  }, [scopeId, noteId, svc]);
 
   const loadMembers = useCallback(async () => {
+    if (!boardId) return; // org context: members not loaded via board API
     try {
       const data = await memberAPI.getMembers(boardId);
       setMembers(data.members || []);
     } catch (err) {
-      console.error('Failed to load members:', err);
+      console.error("Failed to load members:", err);
     }
   }, [boardId]);
 
@@ -130,12 +197,27 @@ export function NoteBottomComments({
     loadMembers();
   }, [loadComments, loadMembers]);
 
+  // Load mention groups
+  useEffect(() => {
+    if (!boardId) return;
+    mentionGroupAPI
+      .getGroups(boardId)
+      .then((res) => setMentionGroups(res.groups))
+      .catch(() => {});
+  }, [boardId]);
+
   // ========== WebSocket: real-time comment sync ==========
 
-  const NOTE_COMMENT_EVENTS = ['NOTE_COMMENT_CREATED', 'NOTE_COMMENT_UPDATED', 'NOTE_COMMENT_DELETED', 'NOTE_COMMENT_RESOLVED', 'NOTE_COMMENT_REACTION_TOGGLED'];
+  const NOTE_COMMENT_EVENTS = [
+    "NOTE_COMMENT_CREATED",
+    "NOTE_COMMENT_UPDATED",
+    "NOTE_COMMENT_DELETED",
+    "NOTE_COMMENT_RESOLVED",
+    "NOTE_COMMENT_REACTION_TOGGLED",
+  ];
 
   useEffect(() => {
-    const sub = wsManager.subscribe(`/topic/board/${boardId}`, (message) => {
+    const sub = wsManager.subscribe(wsTopic, (message) => {
       try {
         const event: BoardWebSocketEvent = JSON.parse(message.body);
         if (!NOTE_COMMENT_EVENTS.includes(event.type)) return;
@@ -143,10 +225,12 @@ export function NoteBottomComments({
         const data = event.data as { note_id?: string };
         if (data?.note_id !== noteId) return;
         loadComments();
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     });
     return () => sub.unsubscribe();
-  }, [boardId, noteId, currentUserId, loadComments]);
+  }, [wsTopic, noteId, currentUserId, loadComments]);
 
   // ========== Emoji picker outside click ==========
 
@@ -154,32 +238,45 @@ export function NoteBottomComments({
     if (!emojiPickerCommentId) return;
     const handleClick = (e: MouseEvent) => {
       if (
-        emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node) &&
-        emojiTriggerRef.current && !emojiTriggerRef.current.contains(e.target as Node)
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(e.target as Node) &&
+        emojiTriggerRef.current &&
+        !emojiTriggerRef.current.contains(e.target as Node)
       ) {
         setEmojiPickerCommentId(null);
         setEmojiPickerPos(null);
       }
     };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, [emojiPickerCommentId]);
 
   // ========== Mention helpers ==========
 
-  const detectMentionQuery = (text: string, cursorPos: number): string | null => {
+  const detectMentionQuery = (
+    text: string,
+    cursorPos: number,
+  ): string | null => {
     const before = text.slice(0, cursorPos);
     const match = before.match(/@(\S*)$/);
     return match ? match[1] : null;
   };
 
-  const filteredMembers = members.filter(m =>
-    m.user.name.toLowerCase().includes(
-      (editingId ? editMentionQuery : mentionQuery).toLowerCase()
-    )
+  const currentQuery = (
+    editingId ? editMentionQuery : mentionQuery
+  ).toLowerCase();
+
+  const filteredMembers = members.filter((m) =>
+    m.user.name.toLowerCase().includes(currentQuery),
   );
 
-  const handleNewContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const filteredGroups = mentionGroups.filter((g) =>
+    g.name.toLowerCase().includes(currentQuery),
+  );
+
+  const handleNewContentChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+  ) => {
     const val = e.target.value;
     setNewContent(val);
     const cursorPos = e.target.selectionStart;
@@ -193,7 +290,9 @@ export function NoteBottomComments({
     }
   };
 
-  const handleEditContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleEditContentChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+  ) => {
     const val = e.target.value;
     setEditContent(val);
     const cursorPos = e.target.selectionStart;
@@ -218,14 +317,43 @@ export function NoteBottomComments({
     if (isEdit) {
       setEditContent(replaced + after);
       if (!editMentions.includes(member.user.id)) {
-        setEditMentions(prev => [...prev, member.user.id]);
+        setEditMentions((prev) => [...prev, member.user.id]);
       }
       setEditShowMentions(false);
     } else {
       setNewContent(replaced + after);
       if (!selectedMentions.includes(member.user.id)) {
-        setSelectedMentions(prev => [...prev, member.user.id]);
+        setSelectedMentions((prev) => [...prev, member.user.id]);
       }
+      setShowMentions(false);
+    }
+
+    requestAnimationFrame(() => {
+      if (ref) {
+        const newPos = replaced.length;
+        ref.selectionStart = newPos;
+        ref.selectionEnd = newPos;
+        ref.focus();
+      }
+    });
+  };
+
+  const insertGroupMention = (group: MentionGroupDetail, isEdit: boolean) => {
+    const ref = isEdit ? editTextareaRef.current : textareaRef.current;
+    const text = isEdit ? editContent : newContent;
+    const cursorPos = ref?.selectionStart ?? text.length;
+    const before = text.slice(0, cursorPos);
+    const after = text.slice(cursorPos);
+    const replaced = before.replace(/@\S*$/, `@${group.name} `);
+
+    const memberIds = group.members.map((m) => m.user_id);
+    if (isEdit) {
+      setEditContent(replaced + after);
+      setEditMentions((prev) => [...new Set([...prev, ...memberIds])]);
+      setEditShowMentions(false);
+    } else {
+      setNewContent(replaced + after);
+      setSelectedMentions((prev) => [...new Set([...prev, ...memberIds])]);
       setShowMentions(false);
     }
 
@@ -245,21 +373,29 @@ export function NoteBottomComments({
     if (!newContent.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await noteCommentService.createComment(boardId, noteId, {
+      await svc.createComment(scopeId, noteId, {
         content: newContent.trim(),
         block_id: null,
         parent_id: null,
         mentions: selectedMentions.length > 0 ? selectedMentions : undefined,
       });
-      setNewContent('');
+      setNewContent("");
       setSelectedMentions([]);
       await loadComments();
     } catch (err) {
-      console.error('Failed to create comment:', err);
+      console.error("Failed to create comment:", err);
     } finally {
       setSubmitting(false);
     }
-  }, [boardId, noteId, newContent, selectedMentions, submitting, loadComments]);
+  }, [
+    scopeId,
+    noteId,
+    newContent,
+    selectedMentions,
+    submitting,
+    loadComments,
+    svc,
+  ]);
 
   const startEditing = (comment: NoteCommentDetail) => {
     setEditingId(comment.id);
@@ -269,53 +405,77 @@ export function NoteBottomComments({
 
   const cancelEditing = () => {
     setEditingId(null);
-    setEditContent('');
+    setEditContent("");
     setEditMentions([]);
   };
 
-  const handleUpdate = useCallback(async (commentId: string) => {
-    if (!editContent.trim() || editSubmitting) return;
-    setEditSubmitting(true);
-    try {
-      await noteCommentService.updateComment(boardId, noteId, commentId, {
-        content: editContent.trim(),
-        mentions: editMentions.length > 0 ? editMentions : undefined,
-      });
-      setEditingId(null);
-      setEditContent('');
-      setEditMentions([]);
-      await loadComments();
-    } catch (err) {
-      console.error('Failed to update comment:', err);
-    } finally {
-      setEditSubmitting(false);
-    }
-  }, [boardId, noteId, editContent, editMentions, editSubmitting, loadComments]);
+  const handleUpdate = useCallback(
+    async (commentId: string) => {
+      if (!editContent.trim() || editSubmitting) return;
+      setEditSubmitting(true);
+      try {
+        await svc.updateComment(scopeId, noteId, commentId, {
+          content: editContent.trim(),
+          mentions: editMentions.length > 0 ? editMentions : undefined,
+        });
+        setEditingId(null);
+        setEditContent("");
+        setEditMentions([]);
+        await loadComments();
+      } catch (err) {
+        console.error("Failed to update comment:", err);
+      } finally {
+        setEditSubmitting(false);
+      }
+    },
+    [
+      scopeId,
+      noteId,
+      editContent,
+      editMentions,
+      editSubmitting,
+      loadComments,
+      svc,
+    ],
+  );
 
-  const handleDelete = useCallback(async (commentId: string) => {
-    try {
-      await noteCommentService.deleteComment(boardId, noteId, commentId);
-      setDeleteTarget(null);
-      await loadComments();
-    } catch (err) {
-      console.error('Failed to delete comment:', err);
-    }
-  }, [boardId, noteId, loadComments]);
+  const handleDelete = useCallback(
+    async (commentId: string) => {
+      try {
+        await svc.deleteComment(scopeId, noteId, commentId);
+        setDeleteTarget(null);
+        await loadComments();
+      } catch (err) {
+        console.error("Failed to delete comment:", err);
+      }
+    },
+    [scopeId, noteId, loadComments, svc],
+  );
 
   // ========== Reactions ==========
 
-  const handleToggleReaction = useCallback(async (commentId: string, emoji: string) => {
-    try {
-      const response = await noteCommentService.toggleReaction(boardId, noteId, commentId, emoji);
-      setComments(prev => prev.map(c =>
-        c.id === commentId ? { ...c, reactions: response.reactions } : c
-      ));
-    } catch (err) {
-      console.error('Failed to toggle reaction:', err);
-    }
-    setEmojiPickerCommentId(null);
-    setEmojiPickerPos(null);
-  }, [boardId, noteId]);
+  const handleToggleReaction = useCallback(
+    async (commentId: string, emoji: string) => {
+      try {
+        const response = await svc.toggleReaction(
+          scopeId,
+          noteId,
+          commentId,
+          emoji,
+        );
+        setComments((prev) =>
+          prev.map((c) =>
+            c.id === commentId ? { ...c, reactions: response.reactions } : c,
+          ),
+        );
+      } catch (err) {
+        console.error("Failed to toggle reaction:", err);
+      }
+      setEmojiPickerCommentId(null);
+      setEmojiPickerPos(null);
+    },
+    [scopeId, noteId, svc],
+  );
 
   const openEmojiPicker = (commentId: string, buttonEl: HTMLButtonElement) => {
     if (emojiPickerCommentId === commentId) {
@@ -339,31 +499,37 @@ export function NoteBottomComments({
 
   // ========== Keyboard ==========
 
+  const totalFilteredCount = filteredGroups.length + filteredMembers.length;
+
   const handleMentionNav = (
     e: React.KeyboardEvent<HTMLTextAreaElement>,
-    isEdit: boolean
+    isEdit: boolean,
   ): boolean => {
     const isActive = isEdit ? editShowMentions : showMentions;
-    if (!isActive || filteredMembers.length === 0) return false;
+    if (!isActive || totalFilteredCount === 0) return false;
     const idx = isEdit ? editMentionIndex : mentionIndex;
     const setIdx = isEdit ? setEditMentionIndex : setMentionIndex;
 
-    if (e.key === 'ArrowDown') {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
-      setIdx((idx + 1) % filteredMembers.length);
+      setIdx((idx + 1) % totalFilteredCount);
       return true;
     }
-    if (e.key === 'ArrowUp') {
+    if (e.key === "ArrowUp") {
       e.preventDefault();
-      setIdx((idx - 1 + filteredMembers.length) % filteredMembers.length);
+      setIdx((idx - 1 + totalFilteredCount) % totalFilteredCount);
       return true;
     }
-    if (e.key === 'Enter' || e.key === 'Tab') {
+    if (e.key === "Enter" || e.key === "Tab") {
       e.preventDefault();
-      insertMention(filteredMembers[idx], isEdit);
+      if (idx < filteredGroups.length) {
+        insertGroupMention(filteredGroups[idx], isEdit);
+      } else {
+        insertMention(filteredMembers[idx - filteredGroups.length], isEdit);
+      }
       return true;
     }
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       e.preventDefault();
       if (isEdit) setEditShowMentions(false);
       else setShowMentions(false);
@@ -375,20 +541,23 @@ export function NoteBottomComments({
   const handleNewKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing) return;
     if (handleMentionNav(e, false)) return;
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleSubmit();
     }
   };
 
-  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, commentId: string) => {
+  const handleEditKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>,
+    commentId: string,
+  ) => {
     if (e.nativeEvent.isComposing) return;
     if (handleMentionNav(e, true)) return;
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleUpdate(commentId);
     }
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       cancelEditing();
     }
   };
@@ -397,32 +566,71 @@ export function NoteBottomComments({
 
   const MentionDropdown = ({ isEdit }: { isEdit: boolean }) => {
     const isActive = isEdit ? editShowMentions : showMentions;
-    if (!isActive || filteredMembers.length === 0) return null;
+    if (!isActive || totalFilteredCount === 0) return null;
     const idx = isEdit ? editMentionIndex : mentionIndex;
+    const setIdx = isEdit ? setEditMentionIndex : setMentionIndex;
+    let itemIdx = 0;
     return (
-      <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-xl z-50 py-1 max-h-40 overflow-y-auto">
-        {filteredMembers.map((member, i) => (
-          <button
-            key={member.user.id}
-            onMouseDown={e => { e.preventDefault(); insertMention(member, isEdit); }}
-            onMouseEnter={() => isEdit ? setEditMentionIndex(i) : setMentionIndex(i)}
-            className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${
-              i === idx ? 'bg-foreground/10' : 'hover:bg-foreground/5'
-            }`}
-          >
-            {member.user.profile_image ? (
-              <img src={member.user.profile_image} alt="" className="h-5 w-5 rounded-full" />
-            ) : (
-              <div className="h-5 w-5 rounded-full bg-bridge-accent/20 flex items-center justify-center text-[10px] font-bold text-bridge-accent">
-                {member.user.name.charAt(0)}
+      <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-xl z-50 py-1 max-h-48 overflow-y-auto custom-scrollbar">
+        {/* Groups */}
+        {filteredGroups.map((group) => {
+          const currentIdx = itemIdx++;
+          return (
+            <button
+              key={`g-${group.id}`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                insertGroupMention(group, isEdit);
+              }}
+              onMouseEnter={() => setIdx(currentIdx)}
+              className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${currentIdx === idx ? "bg-foreground/10" : "hover:bg-foreground/5"}`}
+            >
+              <div className="w-5 h-5 rounded-full bg-bridge-secondary/20 flex items-center justify-center">
+                <Users className="w-3 h-3 text-bridge-secondary" />
               </div>
-            )}
-            <span>{member.user.name}</span>
-            {member.user.id === currentUserId && (
-              <span className="text-[10px] text-slate-500">(me)</span>
-            )}
-          </button>
-        ))}
+              <span className={currentIdx === idx ? "text-foreground" : ""}>
+                {group.name}
+              </span>
+              <span className="text-xs text-slate-500 ml-auto">
+                {group.members.length}명
+              </span>
+            </button>
+          );
+        })}
+        {filteredGroups.length > 0 && filteredMembers.length > 0 && (
+          <div className="border-t border-foreground/[0.08] my-1" />
+        )}
+        {/* Members */}
+        {filteredMembers.map((member) => {
+          const currentIdx = itemIdx++;
+          return (
+            <button
+              key={member.user.id}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                insertMention(member, isEdit);
+              }}
+              onMouseEnter={() => setIdx(currentIdx)}
+              className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${currentIdx === idx ? "bg-foreground/10" : "hover:bg-foreground/5"}`}
+            >
+              {member.user.profile_image ? (
+                <img
+                  src={member.user.profile_image}
+                  alt={member.user.name || "프로필"}
+                  className="h-5 w-5 rounded-full"
+                />
+              ) : (
+                <div className="h-5 w-5 rounded-full bg-bridge-accent/20 flex items-center justify-center text-xs font-bold text-bridge-accent">
+                  {member.user.name.charAt(0)}
+                </div>
+              )}
+              <span>{member.user.name}</span>
+              {member.user.id === currentUserId && (
+                <span className="text-xs text-slate-500">(me)</span>
+              )}
+            </button>
+          );
+        })}
       </div>
     );
   };
@@ -432,13 +640,18 @@ export function NoteBottomComments({
     return createPortal(
       <div
         ref={emojiPickerRef}
-        style={{ position: 'fixed', top: emojiPickerPos.top, left: emojiPickerPos.left, zIndex: 9999 }}
+        style={{
+          position: "fixed",
+          top: emojiPickerPos.top,
+          left: emojiPickerPos.left,
+          zIndex: 9999,
+        }}
         className="bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-xl p-2 min-w-[200px] pointer-events-auto"
-        onPointerDown={e => e.stopPropagation()}
-        onMouseDown={e => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="grid grid-cols-4 gap-1">
-          {REACTION_EMOJIS.map(emoji => (
+          {REACTION_EMOJIS.map((emoji) => (
             <button
               key={emoji}
               onClick={() => handleToggleReaction(commentId, emoji)}
@@ -449,7 +662,7 @@ export function NoteBottomComments({
           ))}
         </div>
       </div>,
-      document.body
+      document.body,
     );
   };
 
@@ -460,31 +673,40 @@ export function NoteBottomComments({
     return (
       <div className="flex flex-wrap items-center gap-1 mt-1.5">
         {reactions.map((reaction: CommentReactionResponse) => {
-          const isMyReaction = reaction.users.some(u => u.id === currentUserId);
-          const tooltipNames = reaction.users.map(u =>
-            u.id === currentUserId ? 'You' : u.name
-          ).join(', ');
+          const isMyReaction = reaction.users.some(
+            (u) => u.id === currentUserId,
+          );
+          const tooltipNames = reaction.users
+            .map((u) => (u.id === currentUserId ? "You" : u.name))
+            .join(", ");
 
           return (
             <button
               key={reaction.emoji}
-              onClick={() => canEdit && handleToggleReaction(comment.id, reaction.emoji)}
+              onClick={() =>
+                canEdit && handleToggleReaction(comment.id, reaction.emoji)
+              }
               disabled={!canEdit}
               className={`group/reaction relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all
-                ${isMyReaction
-                  ? 'bg-bridge-accent/20 border border-bridge-accent/50 text-bridge-accent hover:bg-bridge-accent/30'
-                  : 'bg-foreground/5 border border-foreground/10 text-slate-400 hover:bg-foreground/10 hover:text-muted-foreground'
+                ${
+                  isMyReaction
+                    ? "bg-bridge-accent/20 border border-bridge-accent/50 text-bridge-accent hover:bg-bridge-accent/30"
+                    : "bg-foreground/5 border border-foreground/10 text-slate-400 hover:bg-foreground/10 hover:text-muted-foreground"
                 }
-                ${!canEdit ? 'cursor-default' : 'cursor-pointer'}
+                ${!canEdit ? "cursor-default" : "cursor-pointer"}
               `}
               title={tooltipNames}
             >
               {reaction.is_custom && reaction.image_url ? (
-                <img src={reaction.image_url} alt={reaction.emoji} className="w-4 h-4 object-contain" />
+                <img
+                  src={reaction.image_url}
+                  alt={reaction.emoji}
+                  className="w-4 h-4 object-contain"
+                />
               ) : (
-                <span className="text-[11px]">{reaction.emoji}</span>
+                <span className="text-xs">{reaction.emoji}</span>
               )}
-              <span className="text-[10px] font-medium">{reaction.count}</span>
+              <span className="text-xs font-medium">{reaction.count}</span>
             </button>
           );
         })}
@@ -501,7 +723,7 @@ export function NoteBottomComments({
         <MessageSquare className="h-4 w-4 text-slate-400" />
         <span className="text-sm font-bold text-foreground">댓글</span>
         {comments.length > 0 && (
-          <span className="text-[10px] bg-bridge-accent/20 text-bridge-accent px-1.5 py-0.5 rounded-full font-bold">
+          <span className="text-xs bg-bridge-accent/20 text-bridge-accent px-1.5 py-0.5 rounded-full font-bold">
             {comments.length}
           </span>
         )}
@@ -520,7 +742,7 @@ export function NoteBottomComments({
           </div>
         ) : (
           <AnimatePresence mode="popLayout">
-            {comments.map(comment => {
+            {comments.map((comment) => {
               const isAuthor = currentUserId === comment.author.id;
               const isEditing = editingId === comment.id;
               const isEdited = comment.created_at !== comment.updated_at;
@@ -540,12 +762,14 @@ export function NoteBottomComments({
                     {comment.author.profile_image ? (
                       <img
                         src={comment.author.profile_image}
-                        alt=""
+                        alt={comment.author.name || "프로필"}
                         className="h-7 w-7 rounded-full flex-shrink-0 mt-0.5"
                       />
                     ) : (
-                      <div className={`h-7 w-7 rounded-full ${authorColor.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
-                        <span className="text-[10px] font-bold text-white">
+                      <div
+                        className={`h-7 w-7 rounded-full ${authorColor.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}
+                      >
+                        <span className="text-xs font-bold text-white">
                           {getInitials(comment.author.name)}
                         </span>
                       </div>
@@ -554,17 +778,21 @@ export function NoteBottomComments({
                     <div className="flex-1 min-w-0">
                       {/* Author line */}
                       <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-xs font-medium text-foreground">{comment.author.name}</span>
-                        <span className="text-[10px] text-slate-500">
+                        <span className="text-xs font-medium text-foreground">
+                          {comment.author.name}
+                        </span>
+                        <span className="text-xs text-slate-500">
                           {formatRelativeTime(comment.created_at)}
-                          {isEdited && ' (수정됨)'}
+                          {isEdited && " (수정됨)"}
                         </span>
 
                         {/* Actions */}
                         {canEdit && !isEditing && (
                           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
                             <button
-                              onClick={(e) => openEmojiPicker(comment.id, e.currentTarget)}
+                              onClick={(e) =>
+                                openEmojiPicker(comment.id, e.currentTarget)
+                              }
                               className="p-1 rounded hover:bg-foreground/10 text-slate-500 hover:text-muted-foreground transition-colors"
                             >
                               <SmilePlus className="h-3 w-3" />
@@ -600,8 +828,15 @@ export function NoteBottomComments({
                               ref={editTextareaRef}
                               value={editContent}
                               onChange={handleEditContentChange}
-                              onKeyDown={e => handleEditKeyDown(e, comment.id)}
-                              onBlur={() => setTimeout(() => setEditShowMentions(false), 150)}
+                              onKeyDown={(e) =>
+                                handleEditKeyDown(e, comment.id)
+                              }
+                              onBlur={() =>
+                                setTimeout(
+                                  () => setEditShowMentions(false),
+                                  150,
+                                )
+                              }
                               className="w-full text-xs bg-foreground/5 border border-foreground/10 rounded-xl px-3 py-2 text-foreground placeholder-slate-600 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 transition-all"
                               rows={3}
                               autoFocus
@@ -611,6 +846,7 @@ export function NoteBottomComments({
                             <button
                               onClick={cancelEditing}
                               className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground transition-colors"
+                              aria-label="닫기"
                             >
                               <X className="h-3.5 w-3.5" />
                             </button>
@@ -618,6 +854,7 @@ export function NoteBottomComments({
                               onClick={() => handleUpdate(comment.id)}
                               disabled={editSubmitting || !editContent.trim()}
                               className="p-1 rounded hover:bg-bridge-accent/20 text-bridge-accent disabled:opacity-50 transition-colors"
+                              aria-label="확인"
                             >
                               {editSubmitting ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -630,7 +867,11 @@ export function NoteBottomComments({
                       ) : (
                         <>
                           <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
-                            {renderContentWithMentions(comment.content, members)}
+                            {renderContentWithMentions(
+                              comment.content,
+                              members,
+                              mentionGroups,
+                            )}
                           </p>
                           <ReactionBar comment={comment} />
                         </>
@@ -682,15 +923,20 @@ export function NoteBottomComments({
 
       {/* Delete confirmation */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onClick={() => setDeleteTarget(null)}
         >
           <div
             className="bg-bridge-obsidian rounded-2xl border border-foreground/10 p-6 shadow-2xl max-w-sm mx-4"
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-sm font-bold text-foreground mb-2">댓글 삭제</h3>
-            <p className="text-xs text-slate-400 mb-4">이 댓글을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</p>
+            <h3 className="text-sm font-bold text-foreground mb-2">
+              댓글 삭제
+            </h3>
+            <p className="text-xs text-slate-400 mb-4">
+              이 댓글을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setDeleteTarget(null)}

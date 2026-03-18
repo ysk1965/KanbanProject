@@ -17,6 +17,9 @@ import com.kanban.global.service.FileUploadService;
 import com.kanban.global.util.MediaUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -90,6 +93,10 @@ public class OrgPhotoService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sharedGallery", allEntries = true),
+            @CacheEvict(value = "sharedPhotos", allEntries = true)
+    })
     public OrgPhotoResponse.TabInfo updateTab(String orgId, String userId, String tabId, OrgPhotoRequest.TabUpdate request) {
         organizationService.checkAdminOrAbove(orgId, userId);
         OrgPhotoTab tab = getTabOrThrow(tabId, orgId);
@@ -111,6 +118,10 @@ public class OrgPhotoService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sharedGallery", allEntries = true),
+            @CacheEvict(value = "sharedPhotos", allEntries = true)
+    })
     public void deleteTab(String orgId, String userId, String tabId) {
         organizationService.checkAdminOrAbove(orgId, userId);
         OrgPhotoTab tab = getTabOrThrow(tabId, orgId);
@@ -137,6 +148,7 @@ public class OrgPhotoService {
     }
 
     @Transactional
+    @CacheEvict(value = "sharedGallery", allEntries = true)
     public void reorderTabs(String orgId, String userId, OrgPhotoRequest.TabReorder request) {
         organizationService.checkAdminOrAbove(orgId, userId);
         List<OrgPhotoTab> tabs = orgPhotoTabRepository.findByOrganizationIdOrderBySortOrder(orgId);
@@ -174,12 +186,15 @@ public class OrgPhotoService {
             photos = cursorDateTime != null
                     ? orgPhotoRepository.findByTabIdAndCreatedAtBefore(tabId, cursorDateTime, pageable)
                     : orgPhotoRepository.findByTabIdOrderByCreatedAtDesc(tabId, pageable);
-            totalCount = orgPhotoRepository.countByTabId(tabId);
+            // Use tab's managed photoCount instead of COUNT query
+            OrgPhotoTab tab = getTabOrThrow(tabId, orgId);
+            totalCount = tab.getPhotoCount();
         } else {
             photos = cursorDateTime != null
                     ? orgPhotoRepository.findByOrgIdAndCreatedAtBefore(orgId, cursorDateTime, pageable)
                     : orgPhotoRepository.findByOrgIdOrderByCreatedAtDesc(orgId, pageable);
-            totalCount = orgPhotoRepository.countByOrganizationId(orgId);
+            // Sum from tab table (lightweight) instead of COUNT on photos table
+            totalCount = orgPhotoTabRepository.sumPhotoCountByOrganizationId(orgId);
         }
 
         boolean hasNext = photos.size() > size;
@@ -206,6 +221,10 @@ public class OrgPhotoService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sharedGallery", allEntries = true),
+            @CacheEvict(value = "sharedPhotos", allEntries = true)
+    })
     public List<OrgPhotoResponse.PhotoDetail> uploadPhotos(String orgId, String userId, String tabId,
                                                             List<MultipartFile> files) {
         organizationService.checkAdminOrAbove(orgId, userId);
@@ -291,6 +310,7 @@ public class OrgPhotoService {
     }
 
     @Transactional
+    @CacheEvict(value = "sharedPhotos", allEntries = true)
     public OrgPhotoResponse.PhotoDetail updatePhoto(String orgId, String userId, String photoId,
                                                      OrgPhotoRequest.PhotoUpdate request) {
         organizationService.checkAdminOrAbove(orgId, userId);
@@ -307,6 +327,10 @@ public class OrgPhotoService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sharedGallery", allEntries = true),
+            @CacheEvict(value = "sharedPhotos", allEntries = true)
+    })
     public void deletePhotos(String orgId, String userId, OrgPhotoRequest.BatchDelete request) {
         organizationService.checkAdminOrAbove(orgId, userId);
 
@@ -369,6 +393,10 @@ public class OrgPhotoService {
     // ==================== Sharing Operations ====================
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sharedGallery", allEntries = true),
+            @CacheEvict(value = "sharedPhotos", allEntries = true)
+    })
     public OrgPhotoResponse.TabInfo enableShare(String orgId, String userId, String tabId) {
         organizationService.checkAdminOrAbove(orgId, userId);
         OrgPhotoTab tab = getTabOrThrow(tabId, orgId);
@@ -378,6 +406,10 @@ public class OrgPhotoService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sharedGallery", allEntries = true),
+            @CacheEvict(value = "sharedPhotos", allEntries = true)
+    })
     public OrgPhotoResponse.TabInfo disableShare(String orgId, String userId, String tabId) {
         organizationService.checkAdminOrAbove(orgId, userId);
         OrgPhotoTab tab = getTabOrThrow(tabId, orgId);
@@ -386,6 +418,7 @@ public class OrgPhotoService {
         return OrgPhotoResponse.TabInfo.from(tab);
     }
 
+    @Cacheable(value = "sharedGallery", key = "'album:' + #shareToken")
     public OrgPhotoResponse.SharedAlbumInfo getSharedAlbum(String shareToken) {
         OrgPhotoTab tab = orgPhotoTabRepository.findByShareTokenAndIsSharedTrue(shareToken)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
@@ -400,6 +433,7 @@ public class OrgPhotoService {
                 .build();
     }
 
+    @Cacheable(value = "sharedPhotos", key = "'album:' + #shareToken + ':' + (#cursor ?: 'first') + ':' + #size")
     public OrgPhotoResponse.SharedPhotoPage getSharedAlbumPhotos(String shareToken, String cursor, int size) {
         OrgPhotoTab tab = orgPhotoTabRepository.findByShareTokenAndIsSharedTrue(shareToken)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
@@ -425,7 +459,7 @@ public class OrgPhotoService {
             nextCursor = lastPhoto.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         }
 
-        long totalCount = orgPhotoRepository.countByTabId(tab.getId());
+        long totalCount = tab.getPhotoCount();
 
         List<OrgPhotoResponse.SharedPhotoItem> items = photos.stream()
                 .map(OrgPhotoResponse.SharedPhotoItem::from)
@@ -476,6 +510,10 @@ public class OrgPhotoService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sharedGallery", allEntries = true),
+            @CacheEvict(value = "sharedPhotos", allEntries = true)
+    })
     public List<OrgPhotoResponse.PhotoDetail> publicUploadPhotos(String uploadToken, List<MultipartFile> files) {
         OrgPhotoTab tab = orgPhotoTabRepository.findByUploadTokenAndIsUploadEnabledTrue(uploadToken)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
@@ -555,16 +593,31 @@ public class OrgPhotoService {
     // ==================== Gallery-Level Sharing ====================
 
     @Transactional
-    public String enableGalleryShare(String orgId, String userId) {
+    @CacheEvict(value = "sharedGallery", allEntries = true)
+    public String enableGalleryShare(String orgId, String userId, String title) {
         organizationService.checkAdminOrAbove(orgId, userId);
         Organization org = organizationRepository.findActiveById(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
-        org.enableGalleryShare();
+        org.enableGalleryShare(title);
         log.info("Gallery share enabled: orgId={}, userId={}", orgId, userId);
         return org.getPhotoShareToken();
     }
 
     @Transactional
+    @CacheEvict(value = "sharedGallery", allEntries = true)
+    public void updateGalleryShareTitle(String orgId, String userId, String title) {
+        organizationService.checkAdminOrAbove(orgId, userId);
+        Organization org = organizationRepository.findActiveById(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
+        org.updatePhotoShareTitle(title);
+        log.info("Gallery share title updated: orgId={}, userId={}", orgId, userId);
+    }
+
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sharedGallery", allEntries = true),
+            @CacheEvict(value = "sharedPhotos", allEntries = true)
+    })
     public void disableGalleryShare(String orgId, String userId) {
         organizationService.checkAdminOrAbove(orgId, userId);
         Organization org = organizationRepository.findActiveById(orgId)
@@ -573,12 +626,12 @@ public class OrgPhotoService {
         log.info("Gallery share disabled: orgId={}, userId={}", orgId, userId);
     }
 
-    public String getGalleryShareToken(String orgId) {
-        Organization org = organizationRepository.findActiveById(orgId)
+    public Organization getGalleryShareOrg(String orgId) {
+        return organizationRepository.findActiveById(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
-        return org.getPhotoShareToken();
     }
 
+    @Cacheable(value = "sharedGallery", key = "'gallery:' + #shareToken")
     public OrgPhotoResponse.SharedGalleryInfo getSharedGallery(String shareToken) {
         Organization org = organizationRepository.findByPhotoShareToken(shareToken)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
@@ -599,6 +652,7 @@ public class OrgPhotoService {
         int totalPhotos = sharedTabs.stream().mapToInt(OrgPhotoTab::getPhotoCount).sum();
 
         return OrgPhotoResponse.SharedGalleryInfo.builder()
+                .galleryTitle(org.getPhotoShareTitle())
                 .organizationName(org.getName())
                 .organizationLogoUrl(org.getLogoUrl())
                 .albums(albumSummaries)
@@ -606,6 +660,7 @@ public class OrgPhotoService {
                 .build();
     }
 
+    @Cacheable(value = "sharedPhotos", key = "'gallery:' + #shareToken + ':' + #albumId + ':' + (#cursor ?: 'first') + ':' + #size")
     public OrgPhotoResponse.SharedPhotoPage getSharedGalleryPhotos(
             String shareToken, String albumId, String cursor, int size) {
         Organization org = organizationRepository.findByPhotoShareToken(shareToken)
@@ -636,7 +691,7 @@ public class OrgPhotoService {
                     .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         }
 
-        long totalCount = orgPhotoRepository.countByTabId(tab.getId());
+        long totalCount = tab.getPhotoCount();
 
         List<OrgPhotoResponse.SharedPhotoItem> items = photos.stream()
                 .map(OrgPhotoResponse.SharedPhotoItem::from)
@@ -740,6 +795,10 @@ public class OrgPhotoService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sharedGallery", allEntries = true),
+            @CacheEvict(value = "sharedPhotos", allEntries = true)
+    })
     public void publicGalleryDeleteTab(String uploadToken, String albumId) {
         Organization org = organizationRepository.findByPhotoUploadToken(uploadToken)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
@@ -804,7 +863,7 @@ public class OrgPhotoService {
                     .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         }
 
-        long totalCount = orgPhotoRepository.countByTabId(tab.getId());
+        long totalCount = tab.getPhotoCount();
 
         List<OrgPhotoResponse.SharedPhotoItem> items = photos.stream()
                 .map(OrgPhotoResponse.SharedPhotoItem::from)
@@ -819,6 +878,10 @@ public class OrgPhotoService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sharedGallery", allEntries = true),
+            @CacheEvict(value = "sharedPhotos", allEntries = true)
+    })
     public List<OrgPhotoResponse.PhotoDetail> publicGalleryUploadPhotos(
             String uploadToken, String albumId, List<MultipartFile> files) {
         Organization org = organizationRepository.findByPhotoUploadToken(uploadToken)
@@ -903,6 +966,10 @@ public class OrgPhotoService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sharedGallery", allEntries = true),
+            @CacheEvict(value = "sharedPhotos", allEntries = true)
+    })
     public void publicGalleryDeletePhoto(String uploadToken, String albumId, String photoId) {
         Organization org = organizationRepository.findByPhotoUploadToken(uploadToken)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));

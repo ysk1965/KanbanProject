@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useEscClose } from '../hooks/useEscClose';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -111,7 +112,7 @@ function KanbanIllustration() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 + ci * 0.12, duration: 0.5 }}
             >
-              <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                 {col.label}
               </div>
               <div className="space-y-1.5">
@@ -157,7 +158,7 @@ function ScheduleIllustration() {
         {/* Day headers */}
         <div className="flex gap-1 mb-3 pl-8">
           {days.map((d) => (
-            <div key={d} className="flex-1 text-center text-[9px] font-bold text-slate-500">
+            <div key={d} className="flex-1 text-center text-xs font-bold text-slate-500">
               {d}
             </div>
           ))}
@@ -229,7 +230,7 @@ function AIIllustration() {
               transition={{ delay: 1, duration: 0.8, ease: 'easeOut' }}
             />
           </div>
-          <span className="text-[10px] text-slate-500 font-bold">72%</span>
+          <span className="text-xs text-slate-500 font-bold">72%</span>
         </div>
       </div>
     </div>
@@ -244,6 +245,7 @@ const STEP_ILLUSTRATIONS = [
 
 export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
   const { t } = useTranslation();
+  useEscClose(isOpen, onClose);
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1); // 1 = forward, -1 = backward
   const totalSteps = 3;
@@ -398,7 +400,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                           transition={{ delay: 0.15 }}
                         >
                           <Sparkles size={13} className="text-bridge-secondary" />
-                          <span className="text-[11px] font-bold text-bridge-secondary tracking-wider uppercase">
+                          <span className="text-xs font-bold text-bridge-secondary tracking-wider uppercase">
                             {t('onboarding.welcome.badge')}
                           </span>
                         </motion.div>
@@ -456,10 +458,10 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                                 {feature.icon}
                               </div>
                               <div className="min-w-0">
-                                <div className="text-sm font-semibold text-foreground truncate">
+                                <div className="text-sm font-medium text-foreground truncate">
                                   {t(feature.labelKey)}
                                 </div>
-                                <div className="text-[11px] text-slate-500 truncate">
+                                <div className="text-xs text-slate-500 truncate">
                                   {t(feature.descKey)}
                                 </div>
                               </div>
@@ -479,7 +481,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                           transition={{ delay: 0.15 }}
                         >
                           <Zap size={13} className="text-emerald-400" />
-                          <span className="text-[11px] font-bold text-emerald-400 tracking-wider uppercase">
+                          <span className="text-xs font-bold text-emerald-400 tracking-wider uppercase">
                             {t('onboarding.quickstart.badge')}
                           </span>
                         </motion.div>
@@ -547,7 +549,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                   </button>
                   <button
                     onClick={handleNext}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-bridge-accent text-white text-sm font-semibold rounded-xl hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.25)] transition-all active:scale-[0.97]"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.25)] transition-all active:scale-[0.97]"
                   >
                     <span>
                       {step === totalSteps - 1

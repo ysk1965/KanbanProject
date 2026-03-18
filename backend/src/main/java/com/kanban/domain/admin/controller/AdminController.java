@@ -10,6 +10,7 @@ import com.kanban.domain.inquiry.InquiryStatus;
 import com.kanban.domain.inquiry.dto.InquiryRequest;
 import com.kanban.domain.inquiry.dto.InquiryResponse;
 import com.kanban.domain.inquiry.service.InquiryService;
+import com.kanban.domain.system.MonetizationService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.security.UserPrincipal;
@@ -31,6 +32,7 @@ public class AdminController {
 
     private final AdminService adminService;
     private final InquiryService inquiryService;
+    private final MonetizationService monetizationService;
 
     /**
      * Admin 권한 검증
@@ -454,6 +456,15 @@ public class AdminController {
         return ResponseEntity.ok(adminService.updateOrgSubscription(orgId, request));
     }
 
+    @PatchMapping("/organizations/{orgId}/ai-credits")
+    public ResponseEntity<AdminResponse.OrgDetail> adjustOrgAiCredits(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String orgId,
+            @Valid @RequestBody AdminRequest.AdjustOrgAiCredits request) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.adjustOrgAiCredits(orgId, request));
+    }
+
     @PatchMapping("/organizations/{orgId}/extend-trial")
     public ResponseEntity<AdminResponse.OrgDetail> extendOrgTrial(
             @AuthenticationPrincipal UserPrincipal principal,
@@ -520,6 +531,25 @@ public class AdminController {
             @Valid @RequestBody AdminRequest.SetMaintenance request) {
         verifyAdminAccess(principal);
         return ResponseEntity.ok(adminService.setMaintenanceMode(request));
+    }
+
+    @GetMapping("/system/monetization")
+    public ResponseEntity<Map<String, Boolean>> getMonetizationStatus(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(Map.of(
+            "monetization_enabled", monetizationService.isMonetizationEnabled()
+        ));
+    }
+
+    @PutMapping("/system/monetization")
+    public ResponseEntity<Map<String, Boolean>> setMonetizationStatus(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody Map<String, Boolean> request) {
+        verifyAdminAccess(principal);
+        boolean enabled = request.getOrDefault("monetization_enabled", true);
+        monetizationService.setMonetizationEnabled(enabled);
+        return ResponseEntity.ok(Map.of("monetization_enabled", enabled));
     }
 
     // ==================== Inquiries ====================

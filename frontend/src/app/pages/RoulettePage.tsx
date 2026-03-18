@@ -272,7 +272,7 @@ function RouletteContent() {
                   onClick={handleSpin}
                   disabled={isSpinning || participants.length < 2}
                   size="lg"
-                  className="w-full max-w-xs text-base sm:text-lg font-semibold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 dark:from-amber-600 dark:to-orange-600"
+                  className="w-full max-w-xs text-base sm:text-lg font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 dark:from-amber-600 dark:to-orange-600"
                 >
                   {isSpinning ? t('spinning') : t('spinButton')}
                 </Button>
@@ -281,7 +281,7 @@ function RouletteContent() {
 
             {/* 사용 방법 */}
             <Card className="p-4 sm:p-6 bg-white/60 dark:bg-gray-800/60 backdrop-blur border-0 dark:border dark:border-gray-700 order-3 lg:order-2">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">{t('howToUse')}</h3>
+              <h3 className="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3">{t('howToUse')}</h3>
               <ol className="list-decimal list-inside space-y-1 sm:space-y-2 text-sm sm:text-base text-gray-700 dark:text-gray-300">
                 <li>{t('step1')}</li>
                 <li>{t('step2')}</li>
@@ -294,7 +294,7 @@ function RouletteContent() {
               <div className="mt-4 p-4 bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/40 dark:to-yellow-900/40 rounded-lg border border-amber-300 dark:border-amber-700">
                 <div className="flex items-center gap-2 mb-2">
                   <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                  <p className="font-semibold text-amber-800 dark:text-amber-200 text-sm sm:text-base">
+                  <p className="font-medium text-amber-800 dark:text-amber-200 text-sm sm:text-base">
                     {t('appDescription')}
                   </p>
                 </div>
@@ -411,7 +411,7 @@ function RouletteContent() {
 
                         return (
                           <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-700">
-                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 text-center font-semibold">
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 text-center font-medium">
                               {activeGroup.name} {t('winRecordTitle')} ({t('totalRoundsLabel')} {totalWins}{t('roundsUnit')})
                             </p>
                             <div className="flex flex-wrap gap-1 justify-center">

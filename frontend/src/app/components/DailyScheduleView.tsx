@@ -1210,7 +1210,7 @@ export function DailyScheduleView({
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm md:text-lg font-semibold text-foreground min-w-0 sm:min-w-[280px] text-center whitespace-nowrap">
+            <span className="text-sm md:text-lg font-bold text-foreground min-w-0 sm:min-w-[280px] text-center whitespace-nowrap">
               {viewMode === "day"
                 ? `${formatDate(selectedDate, t("dailySchedule.dateFormatDay"))} (${dayOfWeek})`
                 : `${formatDate(weekDays[0], t("dailySchedule.dateFormatWeek"))} - ${formatDate(weekDays[6], t("dailySchedule.dateFormatWeek"))}`}
@@ -1295,7 +1295,7 @@ export function DailyScheduleView({
                         </span>
                         <button
                           onClick={() => setSummaryMember(member)}
-                          className="text-[10px] text-bridge-accent hover:text-bridge-accent/80 transition-colors mt-0.5"
+                          className="text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors mt-0.5"
                         >
                           {t("dailySummary.summaryButton")}
                         </button>
@@ -1523,7 +1523,7 @@ export function DailyScheduleView({
                   >
                     {/* 왼쪽 시간 라벨 */}
                     <div className="w-14 md:w-20 flex-shrink-0 flex justify-end pr-1">
-                      <span className="text-[10px] font-bold text-red-400 bg-red-500/20 px-1 rounded">
+                      <span className="text-xs font-bold text-red-400 bg-red-500/20 px-1 rounded">
                         {now.getHours().toString().padStart(2, "0")}:
                         {now.getMinutes().toString().padStart(2, "0")}
                       </span>
@@ -1633,14 +1633,14 @@ export function DailyScheduleView({
                               style={{ backgroundColor: meeting.color }}
                             />
                             <span
-                              className="text-xs font-semibold truncate"
+                              className="text-xs font-medium truncate"
                               style={{ color: meeting.color }}
                             >
                               {meeting.title}
                             </span>
                             {meeting.start_time && (
                               <span
-                                className="text-[10px] opacity-60 flex-shrink-0"
+                                className="text-xs opacity-60 flex-shrink-0"
                                 style={{ color: meeting.color }}
                               >
                                 {meeting.start_time.slice(0, 5)}
@@ -1716,7 +1716,7 @@ export function DailyScheduleView({
                         </span>
                         <button
                           onClick={() => setSummaryMember(member)}
-                          className="text-[10px] text-bridge-accent hover:text-bridge-accent/80 transition-colors mt-0.5"
+                          className="text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors mt-0.5"
                         >
                           요약
                         </button>
@@ -1835,7 +1835,7 @@ export function DailyScheduleView({
                                 className="p-2 rounded bg-bridge-accent/10 border border-dashed border-bridge-accent/30 opacity-60 pointer-events-none"
                               >
                                 {block.board_name && (
-                                  <span className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent truncate inline-block max-w-full mb-0.5">
+                                  <span className="text-xs font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent truncate inline-block max-w-full mb-0.5">
                                     {t("scheduleBlock.orgScheduleLabel", {
                                       boardName: block.board_name,
                                     })}

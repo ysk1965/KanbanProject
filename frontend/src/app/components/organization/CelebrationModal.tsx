@@ -116,7 +116,7 @@ export function CelebrationModal({
           }}
         />
         <div className="flex items-center justify-between mt-2">
-          <span className="text-[10px] text-slate-500">{newMessage.length}/500</span>
+          <span className="text-xs text-slate-500">{newMessage.length}/500</span>
           <button
             onClick={handleSend}
             disabled={!newMessage.trim() || sending}
@@ -127,7 +127,7 @@ export function CelebrationModal({
           </button>
         </div>
         {error && (
-          <p className="text-[11px] text-red-500 mt-1">{error}</p>
+          <p className="text-xs text-red-500 mt-1">{error}</p>
         )}
       </div>
 
@@ -162,14 +162,14 @@ export function CelebrationModal({
                     className="w-7 h-7 rounded-full object-cover shrink-0"
                   />
                 ) : (
-                  <div className="w-7 h-7 rounded-full bg-bridge-accent/15 flex items-center justify-center text-[10px] text-bridge-accent font-bold shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-bridge-accent/15 flex items-center justify-center text-xs text-bridge-accent font-bold shrink-0">
                     {msg.author_name.charAt(0)}
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-foreground">{msg.author_name}</span>
-                    <span className="text-[10px] text-slate-500">{formatRelativeTime(msg.created_at)}</span>
+                    <span className="text-xs text-slate-500">{formatRelativeTime(msg.created_at)}</span>
                   </div>
                   <p className="text-xs text-foreground/80 leading-relaxed mt-0.5">{msg.message}</p>
                 </div>
@@ -181,9 +181,9 @@ export function CelebrationModal({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-[10px] text-slate-500">Esc {t('common.close', 'Close')}</span>
+        <span className="text-xs text-slate-500">Esc {t('common.close', 'Close')}</span>
         {messages.length > 0 && (
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {t('organization.anniversary.messageCount', '{{count}} messages', { count: String(messages.length) })}
           </span>
         )}

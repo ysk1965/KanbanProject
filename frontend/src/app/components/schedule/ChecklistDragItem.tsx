@@ -1,4 +1,5 @@
 import { GripVertical, ExternalLink, Calendar } from 'lucide-react';
+import { IconButton } from '../ui/IconButton';
 import { AssigneeItemResponse } from '../../utils/api';
 import { getInitials, getAssigneeHex } from '../../utils/assigneeColor';
 import { resolveFileUrl } from '../../utils/api';
@@ -96,14 +97,14 @@ export function ChecklistDragItem({
 
           {/* Feature > Task subtitle */}
           {subtitle && (
-            <p className="text-[10px] text-slate-500 truncate mt-0.5 leading-snug">
+            <p className="text-xs text-slate-500 truncate mt-0.5 leading-snug">
               {subtitle}
             </p>
           )}
 
           {/* Date range */}
           {hasDate && dateLabel && (
-            <p className="flex items-center gap-1 text-[10px] text-slate-500 mt-0.5 leading-snug">
+            <p className="flex items-center gap-1 text-xs text-slate-500 mt-0.5 leading-snug">
               <Calendar size={10} className="shrink-0" />
               {dateLabel}
             </p>
@@ -114,19 +115,19 @@ export function ChecklistDragItem({
         <div className="shrink-0 flex items-center gap-1 self-start">
           {/* Detail view button */}
           {onDetailClick && item.task && (
-            <button
+            <IconButton
+              aria-label="Detail"
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 onDetailClick(item);
               }}
               onMouseDown={(e) => e.stopPropagation()}
-              className="p-1 rounded-lg text-slate-500 hover:text-foreground
-                hover:bg-foreground/5 transition-colors opacity-0 group-hover:opacity-100"
+              className="opacity-0 group-hover:opacity-100"
               title="Detail"
             >
-              <ExternalLink size={12} />
-            </button>
+              <ExternalLink />
+            </IconButton>
           )}
 
           {/* Assignee avatar */}
@@ -141,7 +142,7 @@ export function ChecklistDragItem({
               ) : (
                 <div
                   className="w-5 h-5 rounded-full flex items-center justify-center
-                    text-[9px] font-bold text-white shrink-0"
+                    text-xs font-bold text-white shrink-0"
                   style={{ backgroundColor: getAssigneeHex(assignee.name) }}
                   aria-label={assignee.name}
                 >

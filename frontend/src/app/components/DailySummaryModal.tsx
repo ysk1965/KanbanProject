@@ -127,11 +127,11 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
               {getInitials(member.name)}
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-foreground">{member.name}</h2>
+              <h2 className="text-lg font-bold text-foreground">{member.name}</h2>
               <p className="text-xs text-slate-400">{dateLabel} {t('dailySummary.title')}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors" aria-label="닫기">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -160,7 +160,7 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
             <MessageSquare className="h-3.5 w-3.5" />
             {t('dailySummary.commentsTab')}
             {commentsFetched && comments.length > 0 && (
-              <span className="text-[10px] bg-foreground/10 px-1.5 rounded-full">{comments.length}</span>
+              <span className="text-xs bg-foreground/10 px-1.5 rounded-full">{comments.length}</span>
             )}
           </button>
           <button
@@ -174,7 +174,7 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
             <AtSign className="h-3.5 w-3.5" />
             {t('dailySummary.mentionsTab')}
             {mentionsFetched && mentions.length > 0 && (
-              <span className="text-[10px] bg-foreground/10 px-1.5 rounded-full">{mentions.length}</span>
+              <span className="text-xs bg-foreground/10 px-1.5 rounded-full">{mentions.length}</span>
             )}
           </button>
         </div>
@@ -192,15 +192,15 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
                 {/* 요약 카드 */}
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-bridge-dark rounded-lg p-3">
-                    <div className="text-slate-400 text-[10px] uppercase tracking-widest mb-1">{t('dailySummary.totalBlocks')}</div>
+                    <div className="text-slate-400 text-xs uppercase tracking-widest mb-1">{t('dailySummary.totalBlocks')}</div>
                     <div className="text-xl font-bold text-foreground">{summaryData.totalBlocks}</div>
                   </div>
                   <div className="bg-bridge-dark rounded-lg p-3">
-                    <div className="text-slate-400 text-[10px] uppercase tracking-widest mb-1">{t('dailySummary.totalHours')}</div>
+                    <div className="text-slate-400 text-xs uppercase tracking-widest mb-1">{t('dailySummary.totalHours')}</div>
                     <div className="text-xl font-bold text-foreground">{summaryData.totalHours.toFixed(1)}h</div>
                   </div>
                   <div className="bg-bridge-dark rounded-lg p-3">
-                    <div className="text-slate-400 text-[10px] uppercase tracking-widest mb-1">{t('dailySummary.completionRate')}</div>
+                    <div className="text-slate-400 text-xs uppercase tracking-widest mb-1">{t('dailySummary.completionRate')}</div>
                     <div className="text-xl font-bold text-foreground">
                       {summaryData.completionRate}%
                       <span className="text-xs font-normal text-slate-400 ml-1">
@@ -227,10 +227,10 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
                           <div className="text-sm text-foreground font-medium">
                             {formatTime(block.start_time)}
                           </div>
-                          <div className="text-[10px] text-slate-400">
+                          <div className="text-xs text-slate-400">
                             ~ {formatTime(block.end_time)}
                           </div>
-                          <div className="text-[10px] text-slate-500 mt-0.5">
+                          <div className="text-xs text-slate-500 mt-0.5">
                             {duration >= 60 ? `${Math.floor(duration / 60)}h ${duration % 60 > 0 ? `${duration % 60}m` : ''}` : `${duration}m`}
                           </div>
                         </div>
@@ -251,7 +251,7 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
                           {featureTitle && (
                             <div className="flex items-center gap-1.5 mt-1">
                               <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: featureColor || '#6366F1' }} />
-                              <span className="text-[11px] text-slate-400 truncate">{featureTitle}</span>
+                              <span className="text-xs text-slate-400 truncate">{featureTitle}</span>
                             </div>
                           )}
                         </div>
@@ -279,7 +279,7 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
                   <div key={comment.id} className="bg-bridge-dark rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-xs font-medium text-bridge-accent truncate">{comment.task_title}</span>
-                      <span className="text-[10px] text-slate-500 flex-shrink-0">{formatDateTime(comment.created_at)}</span>
+                      <span className="text-xs text-slate-500 flex-shrink-0">{formatDateTime(comment.created_at)}</span>
                     </div>
                     <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words line-clamp-4">{comment.content}</p>
                   </div>
@@ -304,10 +304,10 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
                   <div key={mention.id} className="bg-bridge-dark rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-xs font-medium text-bridge-accent truncate">{mention.task_title}</span>
-                      <span className="text-[10px] text-slate-500 flex-shrink-0">{formatDateTime(mention.created_at)}</span>
+                      <span className="text-xs text-slate-500 flex-shrink-0">{formatDateTime(mention.created_at)}</span>
                     </div>
                     {mention.author_name && (
-                      <div className="text-[11px] text-slate-400 mb-1.5">
+                      <div className="text-xs text-slate-400 mb-1.5">
                         {t('dailySummary.authorLabel')}: <span className="text-muted-foreground">{mention.author_name}</span>
                       </div>
                     )}

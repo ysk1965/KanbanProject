@@ -287,6 +287,7 @@ export function ChecklistCreateModal({
         <button
           onClick={onClose}
           className="text-slate-400 hover:text-foreground transition-colors"
+          aria-label="닫기"
         >
           <X className="h-5 w-5" />
         </button>
@@ -384,7 +385,7 @@ export function ChecklistCreateModal({
           <>
             {/* 오늘의 체크리스트 (먼저 표시) */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                 <CheckSquare className="inline h-4 w-4 mr-1 text-bridge-accent" />
                 {t("dailySchedule.selectFromToday", { date: dateLabel })}
               </label>
@@ -417,7 +418,7 @@ export function ChecklistCreateModal({
                                 className="w-2 h-2 rounded-full"
                                 style={{ backgroundColor: item.feature.color }}
                               />
-                              <span className="text-[10px] text-slate-400 truncate">
+                              <span className="text-xs text-slate-400 truncate">
                                 {item.feature.title} · {item.task?.title}
                               </span>
                             </div>
@@ -435,7 +436,7 @@ export function ChecklistCreateModal({
 
             {/* 기존 항목에서 선택 */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                 <ClipboardList className="inline h-4 w-4 mr-1 text-bridge-secondary" />
                 {t("dailySchedule.selectFromBoard")}
               </label>
@@ -468,7 +469,7 @@ export function ChecklistCreateModal({
                                 className="w-2 h-2 rounded-full"
                                 style={{ backgroundColor: item.feature.color }}
                               />
-                              <span className="text-[10px] text-slate-400 truncate">
+                              <span className="text-xs text-slate-400 truncate">
                                 {item.feature.title} · {item.task?.title}
                               </span>
                             </div>
@@ -504,7 +505,7 @@ export function ChecklistCreateModal({
               <>
                 {/* Feature Selection */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                     <Folder className="inline h-4 w-4 mr-1 text-amber-500" />
                     Feature
                   </label>
@@ -578,7 +579,7 @@ export function ChecklistCreateModal({
 
                 {/* Task Selection */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                     <FileText className="inline h-4 w-4 mr-1 text-bridge-accent" />
                     Task
                   </label>
@@ -650,7 +651,7 @@ export function ChecklistCreateModal({
 
                 {/* 새 체크리스트 생성 */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                     {t("dailySchedule.newChecklistItem")}
                   </label>
                   <input
@@ -670,7 +671,7 @@ export function ChecklistCreateModal({
         {activeTab === "meeting" && onSelectMeeting && (
           <>
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                 <FileText className="inline h-4 w-4 mr-1 text-purple-400" />
                 {t("meeting.selectMeeting", { date: dateLabel })}
               </label>
@@ -701,7 +702,7 @@ export function ChecklistCreateModal({
                             {meeting.title}
                           </div>
                           {meeting.start_time && (
-                            <div className="text-[10px] text-slate-400 mt-0.5">
+                            <div className="text-xs text-slate-400 mt-0.5">
                               {meeting.start_time.slice(0, 5)}
                               {meeting.end_time
                                 ? ` - ${meeting.end_time.slice(0, 5)}`
@@ -737,7 +738,7 @@ export function ChecklistCreateModal({
             {/* 새 회의 생성 폼 */}
             {showMeetingCreateForm && (
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                   <FileText className="inline h-4 w-4 mr-1 text-purple-400" />
                   {t("meeting.title")}
                 </label>
@@ -759,7 +760,7 @@ export function ChecklistCreateModal({
           <div className="space-y-4">
             {/* Preset Buttons */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                 {t("dailySchedule.customPresets")}
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -818,7 +819,7 @@ export function ChecklistCreateModal({
 
             {/* Custom Label Input */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                 {t("dailySchedule.customLabel")}
               </label>
               <input
@@ -833,7 +834,7 @@ export function ChecklistCreateModal({
 
             {/* Color Picker */}
             <div className="flex items-center gap-3">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                 {t("dailySchedule.customColor")}
               </label>
               <ColorPickerPopover

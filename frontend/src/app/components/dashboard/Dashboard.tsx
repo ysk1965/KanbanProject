@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useEscClose } from "../../hooks/useEscClose";
 import {
   Search,
   Plus,
@@ -23,7 +24,9 @@ import {
   Clock,
   BookOpen,
 } from "lucide-react";
+import { IconButton } from '../ui/IconButton';
 import { motion, AnimatePresence } from "framer-motion";
+import { useReducedMotion } from "../../hooks/useReducedMotion";
 import { useAuth } from "../../contexts/AuthContext";
 import { Board, PersonalDashboardToday, OrganizationSimple } from "../../types";
 import {
@@ -76,6 +79,7 @@ function DeleteConfirmModal({
   onConfirm: () => void;
 }) {
   const { t } = useTranslation();
+  useEscClose(isOpen, onClose);
   if (!isOpen) return null;
 
   return (
@@ -138,6 +142,7 @@ export function Dashboard({
 }: DashboardProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const reduced = useReducedMotion();
   const { currentUser, logout, isAdmin, isRestricted, updateCurrentUser } =
     useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -484,9 +489,10 @@ export function Dashboard({
         <AnimatePresence>
           {mobileSearchOpen && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
+              initial={reduced ? false : { height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
+              transition={reduced ? { duration: 0 } : undefined}
               className="md:hidden border-b border-bridge-border bg-bridge-dark/60 backdrop-blur-sm overflow-hidden"
             >
               <div className="px-4 py-3">
@@ -533,9 +539,9 @@ export function Dashboard({
                 />
               ) : (
                 <motion.button
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={reduced ? false : { opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  transition={reduced ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
                   onClick={() => setShowMySpaceIntro(true)}
                   disabled={activatingSpace}
                   className="hidden lg:flex group w-full items-center gap-4 px-4 py-2.5
@@ -558,29 +564,29 @@ export function Dashboard({
                     <div className="flex items-center gap-4 text-slate-500">
                       <div className="flex items-center gap-1.5">
                         <ListTodo size={13} />
-                        <span className="text-[10px]">Task</span>
+                        <span className="text-xs">Task</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Flame size={13} />
-                        <span className="text-[10px]">Habit</span>
+                        <span className="text-xs">Habit</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Clock size={13} />
-                        <span className="text-[10px]">Events</span>
+                        <span className="text-xs">Events</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <BookOpen size={13} />
-                        <span className="text-[10px]">Diary</span>
+                        <span className="text-xs">Diary</span>
                       </div>
                     </div>
-                    <span className="text-[11px] text-slate-500">
+                    <span className="text-xs text-slate-500">
                       {t("dashboard.mySpaceSetup")}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0 ml-auto">
                     <span
-                      className="px-3 py-1 rounded-lg text-[11px] font-bold text-bridge-secondary bg-bridge-secondary/10
+                      className="px-3 py-1 rounded-lg text-xs font-bold text-bridge-secondary bg-bridge-secondary/10
                       group-hover:bg-bridge-secondary/20 transition-colors"
                     >
                       {activatingSpace ? "..." : t("dashboard.mySpaceCreate")}
@@ -606,9 +612,9 @@ export function Dashboard({
               !searchQuery &&
               !isRestricted && (
                 <motion.button
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={reduced ? false : { opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, ease: "easeOut", delay: 0.05 }}
+                  transition={reduced ? { duration: 0 } : { duration: 0.5, ease: "easeOut", delay: 0.05 }}
                   onClick={() => navigate("/organizations")}
                   className="hidden lg:flex group w-full items-center gap-4 px-4 py-2.5
                   bg-bridge-obsidian rounded-2xl border border-dashed border-bridge-accent/30
@@ -627,25 +633,25 @@ export function Dashboard({
                     <div className="flex items-center gap-4 text-slate-500">
                       <div className="flex items-center gap-1.5">
                         <Users size={13} />
-                        <span className="text-[10px]">
+                        <span className="text-xs">
                           {t("organization.tabs.members")}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <LayoutGrid size={13} />
-                        <span className="text-[10px]">
+                        <span className="text-xs">
                           {t("organization.tabs.boards")}
                         </span>
                       </div>
                     </div>
-                    <span className="text-[11px] text-slate-500">
+                    <span className="text-xs text-slate-500">
                       {t("dashboard.orgSetup")}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0 ml-auto">
                     <span
-                      className="px-3 py-1 rounded-lg text-[11px] font-bold text-bridge-accent bg-bridge-accent/10
+                      className="px-3 py-1 rounded-lg text-xs font-bold text-bridge-accent bg-bridge-accent/10
                     group-hover:bg-bridge-accent/20 transition-colors"
                     >
                       {t("dashboard.orgCreate")}
@@ -675,7 +681,7 @@ export function Dashboard({
                     <button
                       key={f}
                       onClick={() => setBoardFilter(f)}
-                      className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
+                      className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${
                         boardFilter === f
                           ? "text-foreground bg-foreground/10"
                           : "text-muted-foreground hover:text-foreground"
@@ -744,10 +750,10 @@ export function Dashboard({
                 <section>
                   <div className="flex items-center gap-2 mb-4">
                     <Star size={14} className="text-amber-500" fill="#F59E0B" />
-                    <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">
+                    <h2 className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">
                       {t("dashboard.starredBoards")}
                     </h2>
-                    <span className="text-[10px] text-slate-600">
+                    <span className="text-xs text-slate-600">
                       {starredBoards.length}
                     </span>
                   </div>
@@ -787,10 +793,10 @@ export function Dashboard({
               <section>
                 <div className="flex items-center gap-2 mb-4">
                   <LayoutGrid size={14} className="text-bridge-secondary" />
-                  <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">
+                  <h2 className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">
                     {t("dashboard.allBoards", "All Boards")}
                   </h2>
-                  <span className="text-[10px] text-slate-600">
+                  <span className="text-xs text-slate-600">
                     {nonStarredBoards.length}
                   </span>
                 </div>
@@ -849,7 +855,7 @@ export function Dashboard({
                 <section>
                   <div className="flex items-center gap-2 mb-4">
                     <LayoutGrid size={14} className="text-bridge-secondary" />
-                    <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">
+                    <h2 className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">
                       {t("dashboard.allBoards", "All Boards")}
                     </h2>
                   </div>
@@ -997,7 +1003,7 @@ export function Dashboard({
                             );
                           });
                         return nextEvent ? (
-                          <span className="text-[10px] text-slate-500 truncate max-w-[160px]">
+                          <span className="text-xs text-slate-500 truncate max-w-[160px]">
                             {nextEvent.start_time?.slice(0, 5)}{" "}
                             {nextEvent.title}
                           </span>
@@ -1009,12 +1015,12 @@ export function Dashboard({
                   {todayData && (
                     <div className="flex items-center gap-1.5">
                       {todayTaskCount > 0 && (
-                        <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded">
+                        <span className="text-xs font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded">
                           {todayTaskCount}
                         </span>
                       )}
                       {(todayData.habits_today?.length || 0) > 0 && (
-                        <span className="text-[10px] font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded">
+                        <span className="text-xs font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded">
                           {todayData.habits_today?.filter((h) => h.is_completed)
                             .length || 0}
                           /{todayData.habits_today?.length || 0}
@@ -1043,12 +1049,12 @@ export function Dashboard({
                     <span className="text-sm font-bold text-foreground">
                       {t("dashboard.mySpace")}
                     </span>
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-xs text-slate-500">
                       {t("dashboard.mySpaceSetup")}
                     </span>
                   </div>
                 </div>
-                <span className="px-3 py-1 rounded-lg text-[11px] font-bold text-bridge-secondary bg-bridge-secondary/10">
+                <span className="px-3 py-1 rounded-lg text-xs font-bold text-bridge-secondary bg-bridge-secondary/10">
                   {activatingSpace ? "..." : t("dashboard.mySpaceCreate")}
                 </span>
               </button>
@@ -1116,7 +1122,7 @@ export function Dashboard({
               <h2 className="text-base font-bold text-foreground tracking-tight">
                 {t("dashboard.mySpaceIntroTitle")}
               </h2>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs text-slate-500">
                 {t("dashboard.mySpaceIntroDesc")}
               </p>
             </div>
@@ -1151,9 +1157,9 @@ export function Dashboard({
             ].map((item, index) => (
               <motion.div
                 key={item.titleKey}
-                initial={{ opacity: 0, y: 8 }}
+                initial={reduced ? false : { opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.06 }}
+                transition={reduced ? { duration: 0 } : { delay: index * 0.06 }}
                 className="flex items-start gap-2.5 p-3 bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl"
               >
                 <item.icon
@@ -1164,7 +1170,7 @@ export function Dashboard({
                   <p className="text-[12px] font-bold text-foreground">
                     {t(`dashboard.${item.titleKey}`)}
                   </p>
-                  <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
                     {t(`dashboard.${item.descKey}`)}
                   </p>
                 </div>
@@ -1175,7 +1181,7 @@ export function Dashboard({
 
         <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
           <span
-            className="text-[10px] text-slate-600 cursor-pointer hover:text-slate-400 transition-colors"
+            className="text-xs text-slate-600 cursor-pointer hover:text-slate-400 transition-colors"
             onClick={() => setShowMySpaceIntro(false)}
           >
             Esc {t("dashboard.mySpaceIntroClose")}
@@ -1222,6 +1228,7 @@ function BoardListItem({
   onEdit?: (board: Board) => void;
 }) {
   const { t } = useTranslation();
+  const reduced = useReducedMotion();
   const isTrial =
     board.subscription?.status === "TRIAL" && board.tier !== "PREMIUM";
   const isOrgBoard = !!board.organization_id;
@@ -1233,7 +1240,7 @@ function BoardListItem({
 
   return (
     <motion.div
-      whileHover={{ x: 2 }}
+      whileHover={reduced ? undefined : { x: 2 }}
       onClick={() => onClick(board)}
       className={`flex items-center gap-4 px-4 py-3 rounded-xl bg-foreground/[0.02] border hover:bg-foreground/[0.03] cursor-pointer transition-all group ${isOrgBoard ? "border-bridge-accent/20 hover:border-bridge-accent/40" : "border-bridge-border hover:border-foreground/[0.12]"}`}
     >
@@ -1250,18 +1257,18 @@ function BoardListItem({
             {board.name}
           </h3>
           {isOrgBoard && board.organization_name && (
-            <span className="flex items-center gap-1 px-1.5 py-0.5 bg-bridge-accent/15 text-bridge-accent text-[9px] font-bold rounded-full shrink-0">
+            <span className="flex items-center gap-1 px-1.5 py-0.5 bg-bridge-accent/15 text-bridge-accent text-xs font-bold rounded-full shrink-0">
               <Building2 size={9} />
               {board.organization_name}
             </span>
           )}
           {isTrial && (
-            <span className="px-1.5 py-0.5 bg-bridge-secondary/10 text-bridge-secondary text-[8px] font-bold uppercase tracking-wider rounded shrink-0">
+            <span className="px-1.5 py-0.5 bg-bridge-secondary/10 text-bridge-secondary text-xs font-bold uppercase tracking-wider rounded shrink-0">
               {t("dashboard.trialPlan")}
             </span>
           )}
         </div>
-        <p className="text-[11px] text-slate-500 truncate">
+        <p className="text-xs text-slate-500 truncate">
           {board.description || t("dashboard.noDescription")}
         </p>
       </div>
@@ -1274,7 +1281,7 @@ function BoardListItem({
             style={{ width: `${progress}%` }}
           />
         </div>
-        <span className="text-[10px] font-bold text-muted-foreground w-8 text-right">
+        <span className="text-xs font-bold text-muted-foreground w-8 text-right">
           {progress}%
         </span>
       </div>
@@ -1282,23 +1289,22 @@ function BoardListItem({
       {/* Members */}
       <div className="hidden sm:flex items-center gap-1.5 text-slate-500 shrink-0">
         <Users size={12} />
-        <span className="text-[10px] font-medium">{board.member_count}</span>
+        <span className="text-xs font-medium">{board.member_count}</span>
       </div>
 
       {/* Star */}
-      <button
+      <IconButton
+        aria-label="즐겨찾기"
         onClick={(e) => {
           e.stopPropagation();
           onToggleStar(board.id);
         }}
-        className="p-1.5 hover:bg-foreground/5 rounded-lg transition-colors shrink-0"
       >
         <Star
-          size={14}
           fill={board.is_starred ? "#F59E0B" : "transparent"}
           stroke={board.is_starred ? "#F59E0B" : "rgba(255,255,255,0.3)"}
         />
-      </button>
+      </IconButton>
     </motion.div>
   );
 }

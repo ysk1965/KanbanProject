@@ -917,6 +917,26 @@
     "copied": "已複製",
     "copy": "複製"
   },
+  "boardResource": {
+    "title": "資源",
+    "addResource": "新增資源",
+    "editResource": "編輯資源",
+    "deleteResource": "刪除資源",
+    "deleteConfirm": "確定要刪除此資源嗎？",
+    "linkTitle": "標題",
+    "linkTitlePlaceholder": "例：API文件",
+    "linkUrl": "URL",
+    "linkUrlPlaceholder": "https://...",
+    "linkDescription": "描述（選填）",
+    "linkDescriptionPlaceholder": "簡要描述",
+    "limitReached": "每個面板最多{{max}}個資源",
+    "invalidUrl": "請輸入有效的URL",
+    "openLink": "開啟連結",
+    "collapse": "收合資源列",
+    "expand": "展開資源列",
+    "noResources": "尚無共享資源",
+    "addFirst": "新增第一個資源"
+  },
   "discordBot": {
     "title": "Discord Bot",
     "notInstalled": "Discord Bot 尚未連接",
@@ -1289,7 +1309,7 @@
     "attachImage": "附加圖片（最多 5 張）",
     "attachFile": "附加檔案（最多5個）",
     "imageHelp": "圖片：貼上、拖曳或使用附件按鈕",
-    "fileHelp": "圖片和影片：貼上、拖曳或使用迴紋針按鈕",
+    "fileHelp": "圖片、影片和文件：貼上、拖曳或使用迴紋針按鈕",
     "viewerReadOnly": "觀察者無法撰寫留言",
     "attachedImage": "已附加的圖片",
     "attachedFile": "附件",
@@ -1299,9 +1319,10 @@
     "addFile": "新增檔案",
     "failed": "失敗",
     "maxFilesError": "最多可以附加5個檔案。",
-    "fileTypeError": "僅支援jpg、png、gif、webp、mp4、webm、mov格式。",
+    "fileTypeError": "僅支援圖片、影片、PDF、Word、Excel、PPT、TXT格式。",
     "fileSizeError": "圖片檔案最大30MB。",
     "videoFileSizeError": "影片檔案最大50MB。",
+    "docFileSizeError": "文件檔案最大30MB。",
     "uploadInProgress": "檔案正在上傳中，請稍候。",
     "uploadFailedRetry": "部分檔案上傳失敗。請移除後重試。",
     "reaction": {
@@ -1326,6 +1347,24 @@
     "aiOpenQuestions": "待解決問題",
     "aiActionItems": "待辦事項",
     "checklist": "檢查清單"
+  },
+  "mentionGroup": {
+    "create": "建立提及群組",
+    "edit": "編輯提及群組",
+    "delete": "刪除提及群組",
+    "deleteConfirm": "確定刪除此提及群組嗎？",
+    "name": "群組名稱",
+    "namePlaceholder": "例：設計組、開發組",
+    "selectMembers": "選擇成員",
+    "searchMember": "搜尋成員...",
+    "memberCountSuffix": "人",
+    "me": "我",
+    "noGroups": "尚無提及群組",
+    "groups": "群組",
+    "manageTitle": "管理提及群組",
+    "createBtn": "建立",
+    "saveBtn": "儲存",
+    "close": "關閉"
   },
   "activity": {
     "title": "活動紀錄",
@@ -1671,7 +1710,20 @@
         "trialUsed": "試用已使用",
         "noSubscription": "無訂閱",
         "monthly": "月付",
-        "yearly": "年付"
+        "yearly": "年付",
+        "aiCredits": "AI點數",
+        "monthlyLimit": "月度上限",
+        "creditsUsed": "已使用",
+        "creditsRemaining": "剩餘",
+        "creditsResetDate": "重置日期",
+        "addBonusCredits": "新增獎勵點數",
+        "resetUsedCredits": "重置",
+        "confirmResetCredits": "將使用量重置為0？這將為組織提供完整的點數補充。",
+        "creditsUpdated": "AI點數已更新",
+        "creditsUpdateFailed": "AI點數更新失敗",
+        "creditsReset": "已使用點數已重置",
+        "exhausted": "已耗盡",
+        "low": "不足"
       },
       "actions": {
         "edit": "編輯資訊",
@@ -2044,7 +2096,8 @@
   "featureChip": {
     "count": "{{count}}",
     "hideFilter": "隱藏篩選",
-    "showFilter": "顯示篩選"
+    "showFilter": "顯示篩選",
+    "tooltipCompleted": "已完成"
   },
   "dailyChecklistColumn": {
     "completedCount": "{{completed}}/{{total}} 已完成",
@@ -2769,6 +2822,10 @@
       "buy_button": "購買積分",
       "later_button": "稍後"
     },
+    "org_managed": {
+      "description": "此看板由組織管理。\n只有組織管理員才能管理AI積分。\n請聯繫您的組織管理員。",
+      "close": "確認"
+    },
     "admin": {
       "title": "AI積分狀態",
       "monthly_allocation": "月度分配",
@@ -2912,7 +2969,8 @@
         "settings": "設定",
         "attendance": "考勤",
         "okr": "OKR",
-        "photos": "照片"
+        "photos": "照片",
+        "documents": "文件"
       },
       "chart": {
         "searchPlaceholder": "搜尋成員...",
@@ -3391,10 +3449,21 @@
         "deleteOrg": "刪除組織",
         "deleteWarning": "刪除組織後無法復原。所有看板將被解除關聯。",
         "typeOrgName": "輸入組織名稱以確認",
+        "hrSystem": "HR系統",
+        "hrSystemDesc": "如果您的組織透過其他HR系統管理休假，請啟用此選項。",
+        "hrSystemEnabled": "使用HR系統",
+        "hrSystemHint": "啟用後，BRIDGE的休假管理功能將被隱藏。",
         "autoBoardAccess": "自動看板存取",
         "autoBoardAccessDesc": "啟用後，組織成員無需申請加入即可以編輯權限存取所有組織看板。",
         "autoBoardAccessEnabled": "允許自動看板存取",
-        "autoBoardAccessHint": "組織成員將自動獲得MEMBER角色存取權限。不會被新增到看板成員列表中。"
+        "autoBoardAccessHint": "組織成員將自動獲得MEMBER角色存取權限。不會被新增到看板成員列表中。",
+        "subtabs": {
+          "general": "一般",
+          "billing": "帳單",
+          "structure": "結構",
+          "attendance": "出勤政策",
+          "onboarding": "入職引導"
+        }
       },
       "invite": {
         "invalidLink": "此邀請連結無效或已過期。",
@@ -3723,6 +3792,8 @@
     "noAlbumsToShare": "沒有可分享的相簿",
     "sharePreview": "預覽",
     "shareGalleryDesc": "透過一個連結分享選定的相簿",
+    "shareGalleryTitleLabel": "相簿標題",
+    "shareGalleryTitlePlaceholder": "例如：家庭照片、2026旅行",
     "shareSelectAlbums": "包含的相簿",
     "galleryUploadLink": "相簿上傳連結",
     "galleryUploadLinkDesc": "任何擁有此連結的人都可以上傳照片和管理相簿",

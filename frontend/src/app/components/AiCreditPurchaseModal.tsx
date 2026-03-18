@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, AlertCircle, Sparkles, History, Loader2 } from 'lucide-react';
+import { X, AlertCircle, Sparkles, History, Loader2, Building2 } from 'lucide-react';
 import { AiCredits, AiCreditUsageHistory } from '../types';
 import { aiCreditService, subscriptionService } from '../utils/services';
 import { formatRelativeTime } from '../utils/dateUtils';
@@ -14,6 +14,7 @@ interface AiCreditPurchaseModalProps {
   mode: 'purchase' | 'exhausted';
   onPurchaseComplete?: (credits: AiCredits) => void;
   currentCredits?: AiCredits | null;
+  isOrgBoard?: boolean;
 }
 
 const CREDIT_PACKAGES = [100, 200, 300, 500, 1000];
@@ -36,6 +37,7 @@ export function AiCreditPurchaseModal({
   mode,
   onPurchaseComplete,
   currentCredits,
+  isOrgBoard,
 }: AiCreditPurchaseModalProps) {
   const { t } = useTranslation();
   const [internalMode, setInternalMode] = useState<'purchase' | 'exhausted'>(mode);
@@ -109,214 +111,237 @@ export function AiCreditPurchaseModal({
             <button
               onClick={onClose}
               className="text-slate-400 hover:text-foreground transition-colors p-1"
+              aria-label="닫기"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Exhausted Mode Warning */}
-          {internalMode === 'exhausted' && (
-            <div className="mb-6 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-              <p className="text-sm text-muted-foreground whitespace-pre-line">
-                {t('ai_credits.exhausted_modal.description')}
-              </p>
-            </div>
-          )}
-
-          {/* Purchase Mode with Tabs */}
-          {internalMode === 'purchase' && (
+          {/* ORG_MANAGED Board: Contact Admin */}
+          {isOrgBoard ? (
             <>
-              {/* Tab Bar */}
-              <div className="flex gap-1 mb-5 p-1 bg-foreground/5 rounded-xl">
-                <button
-                  onClick={() => setActiveTab('purchase')}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                    activeTab === 'purchase'
-                      ? 'bg-bridge-accent text-white'
-                      : 'text-slate-400 hover:text-foreground'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  {t('ai_credits.purchase.title')}
-                </button>
-                <button
-                  onClick={() => {
-                    setActiveTab('usage');
-                    loadUsageHistory();
-                  }}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                    activeTab === 'usage'
-                      ? 'bg-bridge-accent text-white'
-                      : 'text-slate-400 hover:text-foreground'
-                  }`}
-                >
-                  <History className="w-3.5 h-3.5" />
-                  {t('ai_credits.usage.tab_title')}
-                </button>
+              <div className="mb-6 p-4 bg-bridge-accent/5 border border-bridge-accent/20 rounded-xl">
+                <div className="flex items-start gap-3">
+                  <Building2 className="w-5 h-5 text-bridge-accent mt-0.5 shrink-0" />
+                  <p className="text-sm text-muted-foreground whitespace-pre-line">
+                    {t('ai_credits.org_managed.description')}
+                  </p>
+                </div>
               </div>
+              <Button
+                onClick={onClose}
+                className="w-full bg-bridge-accent hover:bg-bridge-accent/90 text-white font-bold"
+              >
+                {t('ai_credits.org_managed.close')}
+              </Button>
+            </>
+          ) : (
+            <>
+              {/* Exhausted Mode Warning */}
+              {internalMode === 'exhausted' && (
+                <div className="mb-6 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                  <p className="text-sm text-muted-foreground whitespace-pre-line">
+                    {t('ai_credits.exhausted_modal.description')}
+                  </p>
+                </div>
+              )}
 
-              {/* Purchase Tab */}
-              {activeTab === 'purchase' && (
+              {/* Purchase Mode with Tabs */}
+              {internalMode === 'purchase' && (
                 <>
-                  {/* Current Status */}
-                  {currentCredits && (
-                    <div className="mb-6 p-4 bg-foreground/5 border border-foreground/10 rounded-xl">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <p className="text-slate-400">{t('ai_credits.remaining')}</p>
-                          <p className="text-xl font-bold text-foreground mt-1">
-                            {currentCredits.total_available}
-                          </p>
+                  {/* Tab Bar */}
+                  <div className="flex gap-1 mb-5 p-1 bg-foreground/5 rounded-xl">
+                    <button
+                      onClick={() => setActiveTab('purchase')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                        activeTab === 'purchase'
+                          ? 'bg-bridge-accent text-white'
+                          : 'text-slate-400 hover:text-foreground'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      {t('ai_credits.purchase.title')}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab('usage');
+                        loadUsageHistory();
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                        activeTab === 'usage'
+                          ? 'bg-bridge-accent text-white'
+                          : 'text-slate-400 hover:text-foreground'
+                      }`}
+                    >
+                      <History className="w-3.5 h-3.5" />
+                      {t('ai_credits.usage.tab_title')}
+                    </button>
+                  </div>
+
+                  {/* Purchase Tab */}
+                  {activeTab === 'purchase' && (
+                    <>
+                      {/* Current Status */}
+                      {currentCredits && (
+                        <div className="mb-6 p-4 bg-foreground/5 border border-foreground/10 rounded-xl">
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <p className="text-slate-400">{t('ai_credits.remaining')}</p>
+                              <p className="text-xl font-bold text-foreground mt-1">
+                                {currentCredits.total_available}
+                              </p>
+                            </div>
+                            {currentCredits.reset_date && (
+                              <div>
+                                <p className="text-slate-400">{t('ai_credits.reset_date')}</p>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {new Date(currentCredits.reset_date).toLocaleDateString('ko-KR')}
+                                </p>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        {currentCredits.reset_date && (
-                          <div>
-                            <p className="text-slate-400">{t('ai_credits.reset_date')}</p>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {new Date(currentCredits.reset_date).toLocaleDateString('ko-KR')}
+                      )}
+
+                      {/* Package Selection */}
+                      <div className="mb-6">
+                        <label className="block text-sm font-medium text-muted-foreground mb-3">
+                          {t('ai_credits.purchase.quantity')}
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {CREDIT_PACKAGES.map((amount) => (
+                            <button
+                              key={amount}
+                              onClick={() => setSelectedAmount(amount)}
+                              className={`px-4 py-3 rounded-xl font-bold transition-all ${
+                                selectedAmount === amount
+                                  ? 'bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30'
+                                  : 'bg-foreground/5 text-muted-foreground hover:bg-foreground/10 border border-foreground/10'
+                              }`}
+                            >
+                              {amount}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Price Summary */}
+                      <div className="mb-6 p-4 bg-foreground/5 border border-foreground/10 rounded-xl">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-slate-400">{t('ai_credits.purchase.unit_price')}</span>
+                          <span className="text-sm text-muted-foreground">₩{PRICE_PER_CREDIT.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-slate-400">{t('ai_credits.purchase.quantity')}</span>
+                          <span className="text-sm text-muted-foreground">{selectedAmount} {t('ai_credits.purchase.quantity_unit')}</span>
+                        </div>
+                        <div className="h-px bg-foreground/10 my-3" />
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-foreground">{t('ai_credits.purchase.total_price')}</span>
+                          <span className="text-2xl font-bold text-bridge-accent">
+                            ₩{totalPrice.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Error Message */}
+                      {error && (
+                        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                          <p className="text-sm text-red-400">{error}</p>
+                        </div>
+                      )}
+
+                      {/* Buttons */}
+                      <div className="flex gap-3">
+                        <Button
+                          onClick={onClose}
+                          variant="ghost"
+                          className="flex-1 bg-foreground/5 hover:bg-foreground/10 text-foreground"
+                        >
+                          {t('common.cancel')}
+                        </Button>
+                        <Button
+                          onClick={handlePurchase}
+                          disabled={isLoading}
+                          className="flex-1 bg-gradient-to-r from-bridge-secondary to-bridge-accent hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] text-white font-bold"
+                        >
+                          {isLoading ? (
+                            <span className="flex items-center gap-2">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              {t('common.loading')}
+                            </span>
+                          ) : (
+                            t('ai_credits.purchase.buy_button')
+                          )}
+                        </Button>
+                      </div>
+
+                      {/* Info */}
+                      <p className="mt-4 text-xs text-slate-500 text-center">
+                        {t('ai_credits.purchase.description')}
+                      </p>
+                    </>
+                  )}
+
+                  {/* Usage History Tab */}
+                  {activeTab === 'usage' && (
+                    <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                      {usageLoading ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+                        </div>
+                      ) : usageHistory.length === 0 ? (
+                        <div className="text-center py-8 text-slate-500 text-sm">
+                          {t('ai_credits.usage.empty')}
+                        </div>
+                      ) : (
+                        usageHistory.map((item) => (
+                          <div key={item.id} className="p-3 bg-white/[0.04] border border-foreground/5 rounded-xl">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-sm font-medium text-foreground truncate">
+                                  {item.user_name}
+                                </span>
+                                <span className={`text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
+                                  featureTypeStyle(item.feature_type)
+                                }`}>
+                                  {t(`ai_credits.usage.feature.${item.feature_type}`, { defaultValue: item.feature_type })}
+                                </span>
+                              </div>
+                              <span className="text-sm font-bold text-bridge-secondary whitespace-nowrap ml-2">
+                                -{item.credits_used}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">
+                              {formatRelativeTime(item.created_at)}
                             </p>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Package Selection */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-muted-foreground mb-3">
-                      {t('ai_credits.purchase.quantity')}
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {CREDIT_PACKAGES.map((amount) => (
-                        <button
-                          key={amount}
-                          onClick={() => setSelectedAmount(amount)}
-                          className={`px-4 py-3 rounded-xl font-bold transition-all ${
-                            selectedAmount === amount
-                              ? 'bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30'
-                              : 'bg-foreground/5 text-muted-foreground hover:bg-foreground/10 border border-foreground/10'
-                          }`}
-                        >
-                          {amount}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Price Summary */}
-                  <div className="mb-6 p-4 bg-foreground/5 border border-foreground/10 rounded-xl">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-slate-400">{t('ai_credits.purchase.unit_price')}</span>
-                      <span className="text-sm text-muted-foreground">₩{PRICE_PER_CREDIT.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-slate-400">{t('ai_credits.purchase.quantity')}</span>
-                      <span className="text-sm text-muted-foreground">{selectedAmount} {t('ai_credits.purchase.quantity_unit')}</span>
-                    </div>
-                    <div className="h-px bg-foreground/10 my-3" />
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-foreground">{t('ai_credits.purchase.total_price')}</span>
-                      <span className="text-2xl font-bold text-bridge-accent">
-                        ₩{totalPrice.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Error Message */}
-                  {error && (
-                    <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                      <p className="text-sm text-red-400">{error}</p>
-                    </div>
-                  )}
-
-                  {/* Buttons */}
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={onClose}
-                      variant="ghost"
-                      className="flex-1 bg-foreground/5 hover:bg-foreground/10 text-foreground"
-                    >
-                      {t('common.cancel')}
-                    </Button>
-                    <Button
-                      onClick={handlePurchase}
-                      disabled={isLoading}
-                      className="flex-1 bg-gradient-to-r from-bridge-secondary to-bridge-accent hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] text-white font-bold"
-                    >
-                      {isLoading ? (
-                        <span className="flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          {t('common.loading')}
-                        </span>
-                      ) : (
-                        t('ai_credits.purchase.buy_button')
+                        ))
                       )}
-                    </Button>
-                  </div>
-
-                  {/* Info */}
-                  <p className="mt-4 text-xs text-slate-500 text-center">
-                    {t('ai_credits.purchase.description')}
-                  </p>
+                    </div>
+                  )}
                 </>
               )}
 
-              {/* Usage History Tab */}
-              {activeTab === 'usage' && (
-                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                  {usageLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
-                    </div>
-                  ) : usageHistory.length === 0 ? (
-                    <div className="text-center py-8 text-slate-500 text-sm">
-                      {t('ai_credits.usage.empty')}
-                    </div>
-                  ) : (
-                    usageHistory.map((item) => (
-                      <div key={item.id} className="p-3 bg-white/[0.04] border border-foreground/5 rounded-xl">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm font-medium text-foreground truncate">
-                              {item.user_name}
-                            </span>
-                            <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
-                              featureTypeStyle(item.feature_type)
-                            }`}>
-                              {t(`ai_credits.usage.feature.${item.feature_type}`, { defaultValue: item.feature_type })}
-                            </span>
-                          </div>
-                          <span className="text-sm font-bold text-bridge-secondary whitespace-nowrap ml-2">
-                            -{item.credits_used}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-1">
-                          {formatRelativeTime(item.created_at)}
-                        </p>
-                      </div>
-                    ))
-                  )}
+              {/* Exhausted Mode Actions */}
+              {internalMode === 'exhausted' && (
+                <div className="flex flex-col gap-3">
+                  <Button
+                    onClick={() => setInternalMode('purchase')}
+                    className="w-full bg-gradient-to-r from-bridge-secondary to-bridge-accent hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] text-white font-bold"
+                  >
+                    {t('ai_credits.exhausted_modal.buy_button')}
+                  </Button>
+                  <Button
+                    onClick={onClose}
+                    variant="ghost"
+                    className="w-full bg-foreground/5 hover:bg-foreground/10 text-foreground"
+                  >
+                    {t('ai_credits.exhausted_modal.later_button')}
+                  </Button>
                 </div>
               )}
             </>
-          )}
-
-          {/* Exhausted Mode Actions */}
-          {internalMode === 'exhausted' && (
-            <div className="flex flex-col gap-3">
-              <Button
-                onClick={() => setInternalMode('purchase')}
-                className="w-full bg-gradient-to-r from-bridge-secondary to-bridge-accent hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] text-white font-bold"
-              >
-                {t('ai_credits.exhausted_modal.buy_button')}
-              </Button>
-              <Button
-                onClick={onClose}
-                variant="ghost"
-                className="w-full bg-foreground/5 hover:bg-foreground/10 text-foreground"
-              >
-                {t('ai_credits.exhausted_modal.later_button')}
-              </Button>
-            </div>
           )}
         </div>
     </MotionModal>

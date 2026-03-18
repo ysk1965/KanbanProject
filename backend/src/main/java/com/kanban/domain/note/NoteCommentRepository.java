@@ -32,4 +32,9 @@ public interface NoteCommentRepository extends JpaRepository<NoteComment, String
     @Modifying
     @Query("UPDATE NoteComment c SET c.author = null WHERE c.author.id = :userId")
     void nullifyAuthorByUserId(@Param("userId") String userId);
+
+    // Organization-scoped
+    @Modifying
+    @Query("DELETE FROM NoteComment c WHERE c.organization.id = :orgId")
+    void deleteByOrganizationId(@Param("orgId") String orgId);
 }

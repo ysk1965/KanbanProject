@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Star, Users, MoreHorizontal, ShieldCheck, Pencil, Trash2, Building2 } from 'lucide-react';
+import { IconButton } from '../ui/IconButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Board } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 import { getInitials } from '../../utils/assigneeColor';
 import { formatRelativeTime } from '../../utils/dateUtils';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 // 보드 배경 그라데이션 색상 (빨주노초파남보 무지개 순서)
 const GRADIENTS = [
@@ -41,6 +44,8 @@ interface BoardCardProps {
 
 export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: BoardCardProps) {
   const { t } = useTranslation();
+  const { monetizationEnabled } = useAuth();
+  const reduced = useReducedMotion();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [starAnimating, setStarAnimating] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -74,7 +79,7 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
 
   return (
     <motion.div
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      whileHover={reduced ? undefined : { y: -4, transition: { duration: 0.2 } }}
       className={`relative flex flex-col h-[14rem] min-h-0 w-full bg-bridge-obsidian/60 backdrop-blur-sm rounded-2xl group border transition-all shadow-lg hover:shadow-xl cursor-pointer ${isOrgBoard ? 'border-bridge-accent/20 hover:border-bridge-accent/40 hover:shadow-bridge-accent/10' : 'border-bridge-border hover:border-foreground/[0.15] hover:shadow-bridge-accent/5'} ${isMenuOpen ? 'z-50' : ''}`}
       onClick={() => onClick(board)}
     >
@@ -95,8 +100,8 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
           {/* Star Button */}
           <motion.button
             onClick={handleStarClick}
-            animate={starAnimating ? { scale: [1, 1.4, 1] } : {}}
-            transition={{ duration: 0.4 }}
+            animate={starAnimating && !reduced ? { scale: [1, 1.4, 1] } : {}}
+            transition={reduced ? { duration: 0 } : { duration: 0.4 }}
             className="p-1.5 bg-black/20 backdrop-blur-sm rounded-lg hover:bg-white/20 transition-colors"
           >
             <Star
@@ -110,24 +115,25 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
           {/* Context Menu */}
           {canManage && (
             <div ref={menuRef} className="relative">
-              <button
+              <IconButton
+                aria-label="더보기"
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsMenuOpen(!isMenuOpen);
                 }}
-                className="p-1.5 bg-black/20 backdrop-blur-sm rounded-lg hover:bg-white/20 transition-colors"
+                className="bg-black/20 backdrop-blur-sm hover:bg-white/20"
               >
-                <MoreHorizontal size={13} className="text-white/80" />
-              </button>
+                <MoreHorizontal className="text-white/80" />
+              </IconButton>
 
               {/* Dropdown Menu */}
               <AnimatePresence>
                 {isMenuOpen && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    initial={reduced ? false : { opacity: 0, scale: 0.95, y: -4 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                    transition={{ duration: 0.15 }}
+                    transition={reduced ? { duration: 0 } : { duration: 0.15 }}
                     className="absolute top-full right-0 mt-1.5 w-44 bg-bridge-obsidian border border-bridge-border rounded-xl shadow-2xl overflow-hidden z-30"
                   >
                     {onEdit && (
@@ -167,8 +173,8 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
           </h3>
           <div className="flex items-center gap-1.5 shrink-0">
             {isOwner && <ShieldCheck size={13} className="text-bridge-accent" />}
-            {isTrial && (
-              <span className="px-1.5 py-0.5 bg-bridge-secondary/10 text-bridge-secondary text-[8px] font-bold uppercase tracking-wider rounded border border-bridge-secondary/20">
+            {monetizationEnabled && isTrial && (
+              <span className="px-1.5 py-0.5 bg-bridge-secondary/10 text-bridge-secondary text-xs font-bold uppercase tracking-wider rounded border border-bridge-secondary/20">
                 {t('dashboard.trialPlan')}
               </span>
             )}
@@ -179,7 +185,7 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
         {isOrgBoard && board.organization_name && (
           <div className="flex items-center gap-1 mb-0.5 shrink-0">
             <Building2 size={10} className="text-bridge-accent shrink-0" />
-            <span className="text-[10px] font-medium text-bridge-accent truncate">
+            <span className="text-xs font-medium text-bridge-accent truncate">
               {board.organization_name}
             </span>
           </div>
@@ -187,7 +193,7 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
 
         {/* Description — hide for org cards to save space */}
         {!isOrgBoard && (
-          <p className="text-[11px] text-slate-500 line-clamp-1 shrink-0">
+          <p className="text-xs text-slate-500 line-clamp-1 shrink-0">
             {board.description || t('dashboard.noDescription')}
           </p>
         )}
@@ -208,9 +214,9 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
                   strokeWidth="3"
                   strokeLinecap="round"
                   strokeDasharray={`${2 * Math.PI * 13}`}
-                  initial={{ strokeDashoffset: 2 * Math.PI * 13 }}
+                  initial={reduced ? false : { strokeDashoffset: 2 * Math.PI * 13 }}
                   animate={{ strokeDashoffset: 2 * Math.PI * 13 * (1 - progress / 100) }}
-                  transition={{ duration: 0.8, ease: 'easeOut' }}
+                  transition={reduced ? { duration: 0 } : { duration: 0.8, ease: 'easeOut' }}
                 />
                 <defs>
                   <linearGradient id="progressGrad" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -219,19 +225,19 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
                   </linearGradient>
                 </defs>
               </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-slate-300">
+              <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-300">
                 {progress}%
               </span>
             </div>
 
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between text-[10px] mb-0.5">
+              <div className="flex items-center justify-between text-xs mb-0.5">
                 <span className="text-slate-500 font-medium">{t('dashboard.tasksProgress')}</span>
                 <span className="text-slate-400 font-bold">{completedTasks}/{taskCount}</span>
               </div>
               {/* Last Activity */}
               {board.updated_at && (
-                <div className="text-[10px] text-slate-600 truncate">
+                <div className="text-xs text-slate-600 truncate">
                   {t('dashboard.lastActivity', 'Last activity')} {formatRelativeTime(board.updated_at)}
                 </div>
               )}
@@ -243,7 +249,7 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
         <div className="flex justify-between items-center mt-2 pt-2 border-t border-foreground/[0.06] shrink-0">
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <Users size={11} />
-            <span className="text-[10px] font-medium">{t('dashboard.memberCount', { count: board.member_count })}</span>
+            <span className="text-xs font-medium">{t('dashboard.memberCount', { count: board.member_count })}</span>
           </div>
 
           {/* Member Avatars */}
@@ -256,14 +262,14 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
                 {member.profile_image ? (
                   <img src={member.profile_image} alt={member.name} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[9px] font-bold text-white bg-gradient-to-br from-bridge-secondary to-bridge-accent">
+                  <div className="w-full h-full flex items-center justify-center text-xs font-bold text-white bg-gradient-to-br from-bridge-secondary to-bridge-accent">
                     {getInitials(member.name)}
                   </div>
                 )}
               </div>
             ))}
             {board.member_count > 3 && (
-              <div className="w-[22px] h-[22px] rounded-full border-[1.5px] border-bridge-obsidian bg-foreground/5 flex items-center justify-center text-[8px] font-bold text-muted-foreground">
+              <div className="w-[22px] h-[22px] rounded-full border-[1.5px] border-bridge-obsidian bg-foreground/5 flex items-center justify-center text-xs font-bold text-muted-foreground">
                 +{board.member_count - 3}
               </div>
             )}
@@ -285,10 +291,11 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
 // 새 보드 생성 카드
 export function CreateBoardCard({ onClick }: { onClick: () => void }) {
   const { t } = useTranslation();
+  const reduced = useReducedMotion();
   return (
     <motion.div
-      whileHover={{ scale: 1.02, y: -2 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={reduced ? undefined : { scale: 1.02, y: -2 }}
+      whileTap={reduced ? undefined : { scale: 0.98 }}
       onClick={onClick}
       className="h-[14rem] flex flex-col items-center justify-center bg-foreground/[0.02] backdrop-blur-sm border-2 border-dashed border-bridge-border rounded-2xl cursor-pointer hover:border-bridge-secondary/30 hover:bg-foreground/[0.03] transition-all group"
     >
@@ -303,7 +310,7 @@ export function CreateBoardCard({ onClick }: { onClick: () => void }) {
           <path d="M12 5v14" />
         </svg>
       </div>
-      <span className="text-[10px] font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-[0.2em] transition-colors">
+      <span className="text-xs font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-[0.2em] transition-colors">
         {t('dashboard.newBoard')}
       </span>
     </motion.div>

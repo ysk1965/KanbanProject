@@ -3,6 +3,7 @@ package com.kanban.domain.subscription.service;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.BoardTier;
+import com.kanban.domain.system.MonetizationService;
 import com.kanban.domain.monitoring.entity.AiUsageLog;
 import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
 import com.kanban.domain.subscription.AiCreditPurchase;
@@ -38,11 +39,14 @@ public class AiCreditService {
     private final AiCreditPurchaseRepository aiCreditPurchaseRepository;
     private final AiUsageLogRepository aiUsageLogRepository;
     private final UserRepository userRepository;
+    private final MonetizationService monetizationService;
 
     // === Credit Consumption (Core - Uses Pessimistic Lock) ===
 
     @Transactional
     public void consumeCredit(String boardId, String userId, String featureType, int creditCost) {
+        if (!monetizationService.isMonetizationEnabled()) return;
+
         // Check if board is ORG_MANAGED → use Org credit pool
         Board board = boardRepository.findById(boardId).orElse(null);
         if (board != null && board.getTier() == BoardTier.ORG_MANAGED && board.getOrganization() != null) {
@@ -71,6 +75,8 @@ public class AiCreditService {
      */
     @Transactional
     public void consumeOrgCredit(String orgId, String boardId, String userId, String featureType, int creditCost) {
+        if (!monetizationService.isMonetizationEnabled()) return;
+
         OrgSubscription orgSub = orgSubscriptionRepository.findByOrganizationIdForUpdate(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
 
@@ -112,6 +118,8 @@ public class AiCreditService {
 
     @Transactional
     public void consumeUserCredit(String userId, String featureType, int creditCost) {
+        if (!monetizationService.isMonetizationEnabled()) return;
+
         User user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 

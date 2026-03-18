@@ -4,6 +4,7 @@ import { Search, Plus, Users, X, ChevronLeft, ChevronRight, Mail, Link2, Copy, C
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { organizationService } from '../../../utils/services';
+import { getJobGroupBadgeClass } from '../../../utils/jobGroupColor';
 import { MotionModal } from '../../ui/MotionModal';
 import { MemberDetailModal } from '../MemberDetailModal';
 import type {
@@ -213,7 +214,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
           </select>
         )}
 
-        {!hrSystemEnabled && (
+        {hrSystemEnabled && (
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
@@ -289,7 +290,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-bridge-accent/15 flex items-center justify-center text-sm text-bridge-accent font-bold shrink-0">
                   {member.user.profile_image ? (
-                    <img src={member.user.profile_image} alt="" className="w-10 h-10 rounded-full object-cover" />
+                    <img src={member.user.profile_image} alt={member.user.name || '프로필'} className="w-10 h-10 rounded-full object-cover" />
                   ) : (
                     member.user.name?.charAt(0) || '?'
                   )}
@@ -297,19 +298,9 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-foreground font-medium text-sm truncate">{member.user.name}</span>
-                    {!hrSystemEnabled && (
-                      <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${CONTRACT_BADGE[member.contract_type]}`}>
-                        {t(CONTRACT_LABEL_KEYS[member.contract_type])}
-                      </span>
-                    )}
-                    {structureSettings.positions_enabled && member.position?.name && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-600 dark:text-sky-400">
-                        {member.position.name}
-                      </span>
-                    )}
-                    {structureSettings.grades_enabled && member.grade?.name && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-600 dark:text-slate-300">
-                        {member.grade.name}
+                    {structureSettings.job_groups_enabled && member.job_group?.name && (
+                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${getJobGroupBadgeClass(member.job_group.name)}`}>
+                        {member.job_group.name}
                       </span>
                     )}
                   </div>
@@ -319,8 +310,8 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
                     {member.job_title && <span>{member.job_title}</span>}
                   </div>
                 </div>
-                {!hrSystemEnabled && (
-                  <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_BADGE[member.work_status]}`}>
+                {hrSystemEnabled && member.work_status !== 'ACTIVE' && (
+                  <span className={`text-xs font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_BADGE[member.work_status]}`}>
                     {t(STATUS_LABEL_KEYS[member.work_status])}
                   </span>
                 )}
@@ -410,7 +401,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
           <>
             <div className="px-5 pb-5 pt-4 space-y-4">
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
                   {t('organization.members.email', 'Email')}
                 </label>
                 <input
@@ -423,7 +414,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
                 />
               </div>
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
                   {t('organization.members.role', 'Role')}
                 </label>
                 <select
@@ -437,7 +428,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
               </div>
               {structureSettings.departments_enabled && departments.length > 0 && (
                 <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
                     {t('organization.members.department', 'Department')}
                   </label>
                   <select
@@ -453,7 +444,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
                 </div>
               )}
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
                   {t('organization.members.jobTitle', 'Job Title')}
                 </label>
                 <input
@@ -466,7 +457,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
               </div>
             </div>
             <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground">ESC</span>
+              <span className="text-xs text-muted-foreground">ESC</span>
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowInviteModal(false)}
@@ -489,9 +480,9 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
             <div className="px-5 pb-5 pt-4 space-y-4">
               {/* Create link form */}
               <div className="p-3 bg-foreground/[0.03] rounded-xl border border-foreground/[0.08] space-y-3">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">
+                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1 block">
                       {t('organization.members.role', 'Role')}
                     </label>
                     <select
@@ -504,7 +495,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">
+                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1 block">
                       {t('organization.members.linkExpiry', 'Expires')}
                     </label>
                     <select
@@ -519,7 +510,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">
+                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1 block">
                       {t('organization.members.linkMaxUses', 'Max Uses')}
                     </label>
                     <select
@@ -563,18 +554,18 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <Link2 size={14} className="text-slate-500 shrink-0" />
                         <span className="text-xs text-foreground truncate font-mono">{link.code}</span>
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
                           link.role === 'ADMIN'
                             ? 'bg-bridge-accent/15 text-bridge-accent'
                             : 'bg-slate-500/15 text-slate-600 dark:text-slate-400'
                         }`}>
                           {link.role}
                         </span>
-                        <span className="text-[9px] text-slate-500 shrink-0">
+                        <span className="text-xs text-slate-500 shrink-0">
                           {link.used_count}{link.max_uses ? `/${link.max_uses}` : ''} {t('organization.members.used', 'used')}
                         </span>
                         {link.expires_at && (
-                          <span className="text-[9px] text-slate-500 flex items-center gap-0.5 shrink-0">
+                          <span className="text-xs text-slate-500 flex items-center gap-0.5 shrink-0">
                             <Clock size={8} />
                             {formatExpiry(link.expires_at)}
                           </span>
@@ -604,7 +595,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups,
               )}
             </div>
             <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground">ESC</span>
+              <span className="text-xs text-muted-foreground">ESC</span>
               <button
                 onClick={() => setShowInviteModal(false)}
                 className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"

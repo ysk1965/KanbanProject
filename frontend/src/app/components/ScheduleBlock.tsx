@@ -464,16 +464,16 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       >
         <div className="flex flex-col h-full overflow-hidden">
           {block.board_name && (
-            <span className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent truncate max-w-[80%] self-start mb-0.5">
+            <span className="text-xs font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent truncate max-w-[80%] self-start mb-0.5">
               {t('scheduleBlock.orgScheduleLabel', { boardName: block.board_name })}
             </span>
           )}
           <span className={`text-xs font-medium truncate ${displayInfo.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
             {displayInfo.title}
-            {isOvernight && <span className="text-bridge-accent ml-1 text-[10px]">({t('scheduleBlock.nextDay')})</span>}
+            {isOvernight && <span className="text-bridge-accent ml-1 text-xs">({t('scheduleBlock.nextDay')})</span>}
           </span>
           {displayHeight > 30 && displayInfo.taskTitle && (
-            <span className="text-[10px] text-muted-foreground truncate">
+            <span className="text-xs text-muted-foreground truncate">
               {displayInfo.taskTitle}
             </span>
           )}
@@ -511,10 +511,10 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       <div className="flex flex-col h-full overflow-hidden">
         <span className={`text-xs font-medium truncate ${displayInfo.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
           {displayInfo.title}
-          {isOvernight && <span className="text-bridge-accent ml-1 text-[10px]">({t('scheduleBlock.nextDay')})</span>}
+          {isOvernight && <span className="text-bridge-accent ml-1 text-xs">({t('scheduleBlock.nextDay')})</span>}
         </span>
         {displayHeight > 30 && displayInfo.taskTitle && (
-          <span className="text-[10px] text-muted-foreground truncate">
+          <span className="text-xs text-muted-foreground truncate">
             {displayInfo.taskTitle}
           </span>
         )}
@@ -524,7 +524,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
               className="w-2 h-2 rounded-full flex-shrink-0"
               style={{ backgroundColor: displayInfo.featureColor }}
             />
-            <span className="text-[10px] text-muted-foreground truncate">
+            <span className="text-xs text-muted-foreground truncate">
               {displayInfo.featureTitle}
             </span>
           </div>

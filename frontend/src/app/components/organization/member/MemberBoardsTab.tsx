@@ -56,12 +56,12 @@ export function MemberBoardsTab({ boards, loading, onBoardClick }: MemberBoardsT
           >
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm font-bold text-slate-900 dark:text-white">{board.name}</span>
-              <span className="text-[10px] text-slate-400">{t('organization.boards.memberCount', { count: board.member_count })}</span>
+              <span className="text-xs text-slate-400">{t('organization.boards.memberCount', { count: board.member_count })}</span>
             </div>
             {board.description && (
               <p className="text-xs text-slate-400 truncate">{board.description}</p>
             )}
-            <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500">
+            <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
               <span>Owner: {board.owner_name}</span>
               <span>{formatDate(board.created_at)}</span>
             </div>

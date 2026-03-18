@@ -7,6 +7,7 @@ import { leaveService } from '../../../utils/services';
 import { leaveAPI, organizationAPI } from '../../../utils/api';
 import { getTodayDateString } from '../../../utils/dateUtils';
 import { MotionModal } from '../../ui/MotionModal';
+import { IconButton } from '../../ui/IconButton';
 import type {
   LeaveBalance, LeavePolicy, LeaveRequestResponse,
   LeaveBalanceAdjustmentResponse,
@@ -260,7 +261,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
       {/* My Balance */}
       {balances.length > 0 && (
         <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5">
-          <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
             {t('organization.leave.myBalance', 'My Leave Balance')}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -278,7 +279,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                     <span className="text-sm text-foreground font-medium">{b.policy_name}</span>
                     <div className="flex items-baseline gap-1">
                       <span className="text-sm text-bridge-secondary font-bold">{b.remaining}</span>
-                      <span className="text-[10px] text-muted-foreground">/ {b.total_days}</span>
+                      <span className="text-xs text-muted-foreground">/ {b.total_days}</span>
                     </div>
                   </div>
                   <div className="h-1.5 rounded-full bg-foreground/[0.06] overflow-hidden">
@@ -299,10 +300,10 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
         <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5">
           <div className="flex items-center gap-2 mb-3">
             <Palmtree size={14} className="text-bridge-secondary" />
-            <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
               {t('organization.leave.onLeaveToday', "Today's Leave")}
             </h3>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
               {onLeaveToday.length}
             </span>
           </div>
@@ -315,12 +316,12 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                 transition={{ delay: index * 0.04 }}
                 className="flex items-center gap-2.5 px-3 py-2 bg-foreground/[0.03] rounded-xl border border-foreground/[0.08]"
               >
-                <div className="w-7 h-7 rounded-full bg-bridge-accent/15 flex items-center justify-center text-[11px] text-bridge-accent font-bold shrink-0">
+                <div className="w-7 h-7 rounded-full bg-bridge-accent/15 flex items-center justify-center text-xs text-bridge-accent font-bold shrink-0">
                   {leave.requester?.name?.charAt(0) || '?'}
                 </div>
                 <div className="min-w-0">
                   <span className="text-sm text-foreground font-medium block truncate">{leave.requester?.name}</span>
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {leave.policy.name}
                     {leave.duration_type !== 'FULL_DAY' && (
                       <> · {leave.duration_type === 'AM_HALF' ? t('organization.leave.amHalf', 'AM') : t('organization.leave.pmHalf', 'PM')}</>
@@ -404,23 +405,25 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                 {t('organization.leave.totalRequests', '{{count}} requests', { count: totalElements })}
               </p>
               <div className="flex items-center gap-2">
-                <button
+                <IconButton
                   onClick={() => setPage(Math.max(0, page - 1))}
                   disabled={page === 0}
-                  className="p-1.5 bg-bridge-obsidian border border-foreground/[0.08] rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="이전 페이지"
+                  className="bg-bridge-obsidian border border-foreground/[0.08] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
+                  <ChevronLeft />
+                </IconButton>
                 <span className="text-muted-foreground text-xs px-2">
                   {page + 1} / {Math.ceil(totalElements / 20) || 1}
                 </span>
-                <button
+                <IconButton
                   onClick={() => setPage(Math.min(Math.ceil(totalElements / 20) - 1, page + 1))}
                   disabled={page >= Math.ceil(totalElements / 20) - 1}
-                  className="p-1.5 bg-bridge-obsidian border border-foreground/[0.08] rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="다음 페이지"
+                  className="bg-bridge-obsidian border border-foreground/[0.08] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
+                  <ChevronRight />
+                </IconButton>
               </div>
             </div>
           )}
@@ -440,7 +443,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-foreground font-medium text-sm">{req.requester?.name}</span>
-                      <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_STYLES[req.status]}`}>
+                      <span className={`text-xs font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_STYLES[req.status]}`}>
                         {t(STATUS_LABEL_KEYS[req.status])}
                       </span>
                     </div>
@@ -508,7 +511,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
               <Scale size={14} className="text-bridge-accent" />
               <span className="text-[13px] font-bold text-foreground">조정 이력</span>
               {adjustmentTotal > 0 && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+                <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
                   {adjustmentTotal}
                 </span>
               )}
@@ -547,26 +550,26 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                         className="flex items-center justify-between py-2.5 px-3 bg-foreground/[0.02] rounded-xl border border-foreground/[0.06]"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${typeStyles[adj.adjustment_type] || ''}`}>
+                          <span className={`text-xs font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${typeStyles[adj.adjustment_type] || ''}`}>
                             {typeLabels[adj.adjustment_type] || adj.adjustment_type}
                           </span>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                               <span className="text-sm text-foreground font-medium truncate">{adj.member_name}</span>
-                              <span className="text-[10px] text-slate-400">&middot;</span>
-                              <span className="text-[10px] text-slate-400">{adj.policy_name}</span>
+                              <span className="text-xs text-slate-400">&middot;</span>
+                              <span className="text-xs text-slate-400">{adj.policy_name}</span>
                             </div>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className={`text-xs font-bold ${adj.days > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                                 {adj.days > 0 ? '+' : ''}{adj.days}일
                               </span>
-                              <span className="text-[10px] text-slate-500">
+                              <span className="text-xs text-slate-500">
                                 ({adj.previous_total} &rarr; {adj.new_total})
                               </span>
                               {adj.reason && adj.reason !== '수동 조정' && adj.reason !== '연간 기본 배정' && (
                                 <>
-                                  <span className="text-[10px] text-slate-400">&middot;</span>
-                                  <span className="text-[10px] text-slate-400 truncate max-w-[200px]">{adj.reason}</span>
+                                  <span className="text-xs text-slate-400">&middot;</span>
+                                  <span className="text-xs text-slate-400 truncate max-w-[200px]">{adj.reason}</span>
                                 </>
                               )}
                             </div>
@@ -574,9 +577,9 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                         </div>
                         <div className="text-right shrink-0 ml-3">
                           {adj.granted_by_name && (
-                            <span className="text-[10px] text-slate-400 block">{adj.granted_by_name}</span>
+                            <span className="text-xs text-slate-400 block">{adj.granted_by_name}</span>
                           )}
-                          <span className="text-[10px] text-slate-500">
+                          <span className="text-xs text-slate-500">
                             {new Date(adj.created_at).toLocaleDateString()}
                           </span>
                         </div>
@@ -585,23 +588,25 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                   })}
                   {adjustmentTotal > 20 && (
                     <div className="flex items-center justify-center gap-2 pt-2">
-                      <button
+                      <IconButton
                         onClick={() => setAdjustmentPage(Math.max(0, adjustmentPage - 1))}
                         disabled={adjustmentPage === 0}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 disabled:opacity-50 transition-colors"
+                        aria-label="이전 페이지"
+                        className="disabled:opacity-50"
                       >
-                        <ChevronLeft className="h-4 w-4" />
-                      </button>
-                      <span className="text-[10px] text-slate-400">
+                        <ChevronLeft />
+                      </IconButton>
+                      <span className="text-xs text-slate-400">
                         {adjustmentPage + 1} / {Math.ceil(adjustmentTotal / 20)}
                       </span>
-                      <button
+                      <IconButton
                         onClick={() => setAdjustmentPage(Math.min(Math.ceil(adjustmentTotal / 20) - 1, adjustmentPage + 1))}
                         disabled={adjustmentPage >= Math.ceil(adjustmentTotal / 20) - 1}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 disabled:opacity-50 transition-colors"
+                        aria-label="다음 페이지"
+                        className="disabled:opacity-50"
                       >
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
+                        <ChevronRight />
+                      </IconButton>
                     </div>
                   )}
                 </div>
@@ -619,7 +624,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
         </div>
         <div className="px-5 pb-5 pt-4 space-y-4">
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
               {t('organization.leave.leaveType', 'Leave Type')}
             </label>
             <select
@@ -634,7 +639,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
             </select>
           </div>
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
               {t('organization.leave.durationType', 'Duration Type')}
             </label>
             <div className="flex gap-2">
@@ -661,7 +666,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
                 {t('organization.leave.startDate', 'Start Date')}
               </label>
               <input
@@ -679,7 +684,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
               />
             </div>
             <div>
-              <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
                 {t('organization.leave.endDate', 'End Date')}
               </label>
               <input
@@ -693,7 +698,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
             </div>
           </div>
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
               {t('organization.leave.reason', 'Reason (Optional)')}
             </label>
             <textarea
@@ -705,7 +710,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
           </div>
         </div>
         <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground">ESC</span>
+          <span className="text-xs text-muted-foreground">ESC</span>
           <div className="flex gap-2">
             <button
               onClick={() => setShowRequestModal(false)}
@@ -733,7 +738,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
         <div className="px-5 pb-5 pt-4 space-y-4">
           {/* Member Select */}
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">대상 멤버</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">대상 멤버</label>
             <select
               value={adjustForm.member_id}
               onChange={(e) => {
@@ -758,7 +763,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
           {/* Balance Select */}
           {adjustForm.member_id && (
             <div>
-              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">대상 정책</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">대상 정책</label>
               <select
                 value={adjustForm.balance_id}
                 onChange={(e) => setAdjustForm({ ...adjustForm, balance_id: e.target.value })}
@@ -805,7 +810,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
 
           {/* Adjustment Type */}
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">조정 유형</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">조정 유형</label>
             <div className="flex gap-2">
               {(['GRANT', 'REVOKE'] as const).map((type) => (
                 <button
@@ -827,7 +832,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
 
           {/* Days Input */}
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">일수</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">일수</label>
             <input
               type="number"
               min="0.5"
@@ -840,7 +845,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
 
           {/* Reason */}
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">사유 (필수)</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">사유 (필수)</label>
             <textarea
               value={adjustForm.reason}
               onChange={(e) => setAdjustForm({ ...adjustForm, reason: e.target.value })}
@@ -851,7 +856,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
           </div>
         </div>
         <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
-          <span className="text-[10px] text-slate-600">ESC 닫기</span>
+          <span className="text-xs text-slate-600">ESC 닫기</span>
           <div className="flex gap-2">
             <button
               onClick={() => setShowAdjustModal(false)}

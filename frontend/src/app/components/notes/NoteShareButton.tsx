@@ -1,17 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Share2, Link2, Check, Globe, X } from 'lucide-react';
-import { noteAPI } from '../../utils/api';
+import { noteAPI, orgNoteAPI } from '../../utils/api';
 import type { NoteDetail } from '../../utils/api';
 
 interface NoteShareButtonProps {
-  boardId: string;
+  boardId?: string;
+  orgId?: string;
   note: NoteDetail;
   canEdit: boolean;
   onNoteUpdate?: (note: NoteDetail) => void;
 }
 
-export function NoteShareButton({ boardId, note, canEdit, onNoteUpdate }: NoteShareButtonProps) {
+export function NoteShareButton({ boardId, orgId, note, canEdit, onNoteUpdate }: NoteShareButtonProps) {
+  const isOrg = !!orgId;
+  const scopeId = boardId || orgId || '';
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -42,10 +45,11 @@ export function NoteShareButton({ boardId, note, canEdit, onNoteUpdate }: NoteSh
     setLoading(true);
     try {
       let updated: NoteDetail;
+      const api = isOrg ? orgNoteAPI : noteAPI;
       if (isShared) {
-        updated = await noteAPI.disableShare(boardId, note.id);
+        updated = await api.disableShare(scopeId, note.id);
       } else {
-        updated = await noteAPI.enableShare(boardId, note.id);
+        updated = await api.enableShare(scopeId, note.id);
       }
       onNoteUpdate?.(updated);
     } catch (err) {
@@ -97,7 +101,7 @@ export function NoteShareButton({ boardId, note, canEdit, onNoteUpdate }: NoteSh
           <div className="px-4 py-3 border-b border-foreground/5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Share2 size={14} className="text-bridge-accent" />
-              <span className="text-sm font-semibold text-foreground">
+              <span className="text-sm font-bold text-foreground">
                 {t('notes.shareTitle', '문서 공유')}
               </span>
             </div>
@@ -117,7 +121,7 @@ export function NoteShareButton({ boardId, note, canEdit, onNoteUpdate }: NoteSh
                 <p className="text-sm text-foreground font-medium">
                   {t('notes.sharePublicLink', '공개 링크 공유')}
                 </p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   {t('notes.sharePublicLinkDesc', '링크가 있는 누구나 읽기 전용으로 볼 수 있습니다')}
                 </p>
               </div>
@@ -151,7 +155,7 @@ export function NoteShareButton({ boardId, note, canEdit, onNoteUpdate }: NoteSh
                   </div>
                   <button
                     onClick={handleCopyLink}
-                    className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                       copied
                         ? 'bg-emerald-500/20 text-emerald-400'
                         : 'bg-bridge-accent text-white hover:bg-bridge-accent/90'

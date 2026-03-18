@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useEscClose } from '../hooks/useEscClose';
 import { FEATURE_COLORS } from '../constants';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Calendar, CalendarDays, Repeat, Clock, MoreVertical, Pencil, Trash2, X, Loader2 } from 'lucide-react';
@@ -162,25 +163,27 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
 
         {/* Month Navigation */}
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-semibold text-foreground">
+          <span className="text-sm font-bold text-foreground">
             {format(currentMonth, 'yyyy년 M월', { locale: ko })}
           </span>
           <div className="flex items-center gap-1">
             <button
               onClick={handlePrevMonth}
               className="p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+              aria-label="이전 달"
             >
               <ChevronLeft size={16} />
             </button>
             <button
               onClick={handleToday}
-              className="px-2 py-0.5 text-[10px] font-semibold rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+              className="px-2 py-0.5 text-xs font-medium rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
             >
               {t('dailySchedule.today', '오늘')}
             </button>
             <button
               onClick={handleNextMonth}
               className="p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+              aria-label="다음 달"
             >
               <ChevronRight size={16} />
             </button>
@@ -196,7 +199,7 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
             {weekDays.map((day, i) => (
               <div
                 key={day}
-                className={`text-center text-[10px] font-bold uppercase tracking-widest py-1 ${
+                className={`text-center text-xs font-bold uppercase tracking-widest py-1 ${
                   i === 0 ? 'text-red-400/60' : i === 6 ? 'text-blue-400/60' : 'text-slate-500'
                 }`}
               >
@@ -233,7 +236,7 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
                     className={`
                       text-xs font-medium leading-none
                       ${isTodayDate
-                        ? 'bg-bridge-accent text-white rounded-full w-6 h-6 flex items-center justify-center text-[11px]'
+                        ? 'bg-bridge-accent text-white rounded-full w-6 h-6 flex items-center justify-center text-xs'
                         : isSelected
                           ? 'text-foreground'
                           : isHoliday || dayOfWeek === 0
@@ -261,7 +264,7 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
         <div className="px-4 pb-4 flex-1 overflow-y-auto min-h-0">
           <div className="flex items-center gap-2 mb-2">
             <Repeat size={14} className="text-bridge-secondary" />
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
               {t('meeting.recurring', '반복')} {t('meeting.tab', '회의')}
             </span>
           </div>
@@ -391,12 +394,12 @@ function RecurringMeetingCard({ meeting, monthMeetings, boardId, onNavigate, onR
         {/* Row 1: Badge + Title + Menu */}
         <div className="flex items-center gap-2">
           <span
-            className="flex-shrink-0 text-[10px] font-bold text-white px-2 py-0.5 rounded-md"
+            className="flex-shrink-0 text-xs font-bold text-white px-2 py-0.5 rounded-md"
             style={{ backgroundColor: meetingColor }}
           >
             {ruleLabel}
           </span>
-          <span className="flex-1 min-w-0 text-[13px] font-semibold text-foreground truncate group-hover:text-white transition-colors">
+          <span className="flex-1 min-w-0 text-[13px] font-medium text-foreground truncate group-hover:text-white transition-colors">
             {meeting.title}
           </span>
 
@@ -444,13 +447,13 @@ function RecurringMeetingCard({ meeting, monthMeetings, boardId, onNavigate, onR
         {/* Row 2: Time + Date Range */}
         <div className="flex items-center gap-3 mt-1.5 pl-0.5">
           {timeStr && (
-            <span className="flex items-center gap-1 text-[10px] text-slate-400">
+            <span className="flex items-center gap-1 text-xs text-slate-400">
               <Clock size={10} className="opacity-60" />
               {timeStr}
             </span>
           )}
           {firstOccurrence && (
-            <span className="flex items-center gap-1 text-[10px] text-slate-400">
+            <span className="flex items-center gap-1 text-xs text-slate-400">
               <CalendarDays size={10} className="opacity-60" />
               {format(parseISO(firstOccurrence.meeting_date), 'M/d', { locale: ko })}
               <span className="text-slate-500">~</span>
@@ -496,7 +499,7 @@ function RecurringMeetingCard({ meeting, monthMeetings, boardId, onNavigate, onR
                     console.error('Failed to delete recurring series:', error);
                   }
                 }}
-                className="w-full px-4 py-3 text-sm font-semibold bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/20 transition-all"
+                className="w-full px-4 py-3 text-sm font-bold bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/20 transition-all"
               >
                 {t('meeting.deleteThisAndFuture', '이후 회의 모두 삭제')}
               </button>
@@ -526,6 +529,7 @@ interface RecurringEditModalProps {
 
 function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringEditModalProps) {
   const { t } = useTranslation();
+  useEscClose(true, onClose);
   const [title, setTitle] = useState(meeting.title);
   const [startTime, setStartTime] = useState(meeting.start_time?.slice(0, 5) || '');
   const [endTime, setEndTime] = useState(meeting.end_time?.slice(0, 5) || '');
@@ -571,7 +575,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
           <h2 className="text-base font-bold text-foreground">
             {t('meeting.editRecurring', '반복 회의 수정')}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors" aria-label="닫기">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -580,7 +584,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
         <div className="px-6 py-4 space-y-4">
           {/* Title */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
               {t('meeting.title')}
             </label>
             <input
@@ -595,7 +599,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
           {/* Time */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                 {t('meeting.startTime', '시작 시간')}
               </label>
               <TimePicker
@@ -611,7 +615,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
               />
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                 {t('meeting.endTime', '종료 시간')}
               </label>
               <TimePicker
@@ -623,7 +627,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
 
           {/* Color */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
               {t('meeting.color', '색상')}
             </label>
             <ColorPickerPopover
@@ -637,7 +641,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
 
           {/* Recurrence End Date */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
               {t('meeting.recurrenceEndDate', '반복 종료일')}
             </label>
             <input
@@ -646,7 +650,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
               onChange={(e) => setRecurrenceEndDate(e.target.value)}
               className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all [color-scheme:dark]"
             />
-            <p className="mt-1 text-[10px] text-slate-500">
+            <p className="mt-1 text-xs text-slate-500">
               {t('meeting.recurrenceEndDateHint', '비워두면 계속 반복됩니다')}
             </p>
           </div>
@@ -676,7 +680,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
           </button>
         </div>
 
-        <p className="px-6 pb-4 text-[10px] text-slate-500">
+        <p className="px-6 pb-4 text-xs text-slate-500">
           {t('meeting.editRecurringHint', '이후 모든 반복 회의에 적용됩니다')}
         </p>
       </div>

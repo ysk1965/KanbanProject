@@ -47,6 +47,7 @@ import com.kanban.domain.weight.TaskWeightRepository;
 import com.kanban.domain.weight.WeightLevelRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.domain.system.MonetizationService;
 import com.kanban.global.service.FileUploadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -108,13 +109,15 @@ public class BoardService {
     private final BoardJoinRequestRepository boardJoinRequestRepository;
     private final OrgMemberRepository orgMemberRepository;
     private final FileUploadService fileUploadService;
+    private final MonetizationService monetizationService;
 
     @Transactional
     public BoardResponse.Detail createBoard(String userId, BoardRequest.Create request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        boolean skipBilling = user.getSystemRole() == SystemRole.TESTER;
+        boolean skipBilling = user.getSystemRole() == SystemRole.TESTER
+                || !monetizationService.isMonetizationEnabled();
 
         // 보드 생성 (TESTER는 PREMIUM 티어)
         Board board = Board.builder()
@@ -152,11 +155,13 @@ public class BoardService {
         Block featureBlock = Block.createFixedBlock(board, FixedBlockType.FEATURE, 0);
         Block taskBlock = Block.createFixedBlock(board, FixedBlockType.TASK, 1);
         Block inProgressBlock = Block.createCustomBlock(board, "In Progress", null, 2);
+        Block inReviewBlock = Block.createCustomBlock(board, "In Review", null, 3);
         Block doneBlock = Block.createFixedBlock(board, FixedBlockType.DONE, 999);
 
         blockRepository.save(featureBlock);
         blockRepository.save(taskBlock);
         blockRepository.save(inProgressBlock);
+        blockRepository.save(inReviewBlock);
         blockRepository.save(doneBlock);
     }
 
@@ -549,7 +554,9 @@ public class BoardService {
             log.info("Board tier auto-downgraded to STANDARD: {}", boardId);
         }
 
-        return BoardResponse.TierInfo.of(board);
+        return monetizationService.isMonetizationEnabled()
+                ? BoardResponse.TierInfo.of(board)
+                : BoardResponse.TierInfo.allFeaturesEnabled(board);
     }
 
     /**

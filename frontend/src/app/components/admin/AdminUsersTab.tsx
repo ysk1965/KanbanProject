@@ -95,7 +95,7 @@ export function AdminUsersTab() {
 
       {/* Loading State */}
       {isLoading && !error && (
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-64" role="status" aria-label="로딩 중">
           <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
         </div>
       )}
@@ -107,22 +107,22 @@ export function AdminUsersTab() {
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-foreground/[0.08]">
-                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.users.user')}
                   </th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.users.role')}
                   </th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.users.provider')}
                   </th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.users.boards')}
                   </th>
-                  <th className="text-center px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-center px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.users.personalBoard', 'PB')}
                   </th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.users.joinedAt')}
                   </th>
                 </tr>

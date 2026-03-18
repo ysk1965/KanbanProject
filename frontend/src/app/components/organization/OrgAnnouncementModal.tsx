@@ -120,7 +120,7 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
         {/* Body */}
         <div className="px-5 py-4 space-y-4">
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
               {t('organization.announcement.title', 'Title')}
             </label>
             <input
@@ -135,7 +135,7 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
           </div>
 
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
               {t('organization.announcement.content', 'Content')}
             </label>
             <textarea
@@ -152,17 +152,17 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
           {/* Image attachments */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 {t('organization.announcement.images', 'Images')}
               </label>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-xs text-slate-500">
                 {existingAttachments.length + uploadedFiles.length}/5
               </span>
             </div>
 
             {/* Preview grid */}
             {(existingAttachments.length > 0 || uploadedFiles.length > 0) && (
-              <div className="grid grid-cols-5 gap-2 mb-2">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-2">
                 {existingAttachments.map(att => (
                   <div key={att.id} className="relative group aspect-square rounded-lg overflow-hidden border border-foreground/10">
                     <img src={resolveFileUrl(att.url)} className="w-full h-full object-cover" alt={att.file_name} />
@@ -228,7 +228,7 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
 
         {/* Footer */}
         <div className="flex items-center justify-between px-5 pb-4 pt-3 border-t border-foreground/[0.08]">
-          <span className="text-[10px] text-slate-600">Esc {t('common.close', 'Close')}</span>
+          <span className="text-xs text-slate-600">Esc {t('common.close', 'Close')}</span>
           <div className="flex items-center gap-2">
             <button onClick={onClose}
               className="px-4 py-1.5 rounded-lg text-xs text-slate-400 hover:bg-foreground/5 transition-colors">

@@ -182,7 +182,7 @@ export function AttendanceMembersModal({
               <tab.icon size={14} className={activeTab === tab.key ? "text-bridge-accent" : tab.iconClass} />
               <span>{t(tab.labelKey, tab.fallback)}</span>
               <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
                   activeTab === tab.key
                     ? "bg-bridge-accent/15 text-bridge-accent"
                     : "bg-foreground/[0.06] text-slate-400"
@@ -233,26 +233,26 @@ export function AttendanceMembersModal({
                           {m.name}
                         </div>
                         {m.department_name && (
-                          <div className="text-[11px] text-slate-400 truncate">
+                          <div className="text-xs text-slate-400 truncate">
                             {m.department_name}
                           </div>
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-xs text-slate-400">
                           {extractTimeFromISO(m.clock_in)}
                         </span>
                         {m.clock_out ? (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-500/10 text-slate-500">
+                          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-slate-500/10 text-slate-500">
                             {t("organization.attendance.clockedOut", "Clocked Out")}
                           </span>
                         ) : m.elapsed_minutes != null ? (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                             {formatElapsedShort(m.elapsed_minutes)}
                           </span>
                         ) : null}
                         {m.late && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
                             {t("organization.attendance.late", "Late")}
                           </span>
                         )}
@@ -281,7 +281,7 @@ export function AttendanceMembersModal({
                           {m.name}
                         </div>
                         {m.department_name && (
-                          <div className="text-[11px] text-slate-400 truncate">
+                          <div className="text-xs text-slate-400 truncate">
                             {m.department_name}
                           </div>
                         )}
@@ -312,13 +312,13 @@ export function AttendanceMembersModal({
                             {m.name}
                           </div>
                           {m.department_name && (
-                            <div className="text-[11px] text-slate-400 truncate">
+                            <div className="text-xs text-slate-400 truncate">
                               {m.department_name}
                             </div>
                           )}
                         </div>
                         <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${style.className}`}
+                          className={`text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 ${style.className}`}
                         >
                           {t(style.labelKey, style.fallback)}
                         </span>
@@ -332,7 +332,7 @@ export function AttendanceMembersModal({
 
         {/* Footer */}
         <div className="flex items-center justify-end px-5 py-3 border-t border-foreground/[0.08] shrink-0">
-          <span className="text-[10px] text-slate-500">Esc {t("common.close", "Close")}</span>
+          <span className="text-xs text-slate-500">Esc {t("common.close", "Close")}</span>
         </div>
       </div>
     </MotionModal>

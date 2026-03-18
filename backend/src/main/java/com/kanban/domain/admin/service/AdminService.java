@@ -15,6 +15,7 @@ import com.kanban.domain.organization.Organization;
 import com.kanban.domain.organization.OrganizationMember;
 import com.kanban.domain.organization.repository.OrganizationRepository;
 import com.kanban.domain.organization.repository.OrgMemberRepository;
+import com.kanban.domain.subscription.BillingCycle;
 import com.kanban.domain.subscription.OrgPlan;
 import com.kanban.domain.subscription.OrgSubscription;
 import com.kanban.domain.subscription.OrgSubscriptionRepository;
@@ -685,7 +686,28 @@ public class AdminService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
 
         if (request.getPlan() != null) {
-            sub.setPlan(OrgPlan.valueOf(request.getPlan()));
+            OrgPlan oldPlan = sub.getPlan();
+            OrgPlan newPlan = OrgPlan.valueOf(request.getPlan());
+            sub.setPlan(newPlan);
+
+            // FREE → TEAM 전환 시 필드 초기화
+            if (oldPlan == OrgPlan.FREE && newPlan == OrgPlan.TEAM) {
+                sub.setBoardLimit(-1);
+                if (sub.getMonthlyAiCredits() == null || sub.getMonthlyAiCredits() == 0) {
+                    sub.initializeCredits(OrgSubscription.ORG_MONTHLY_CREDITS);
+                }
+                if (sub.getPricePerSeat() == 0) {
+                    BillingCycle cycle = sub.getBillingCycle() != null
+                            ? sub.getBillingCycle() : BillingCycle.MONTHLY;
+                    sub.setPricePerSeat(cycle == BillingCycle.YEARLY
+                            ? OrgSubscription.YEARLY_PRICE_PER_SEAT
+                            : OrgSubscription.MONTHLY_PRICE_PER_SEAT);
+                }
+            }
+            // TEAM → FREE 전환 시 정리
+            if (newPlan == OrgPlan.FREE) {
+                sub.setBoardLimit(0);
+            }
         }
         if (request.getStatus() != null) {
             sub.setStatus(SubscriptionStatus.valueOf(request.getStatus()));
@@ -721,6 +743,32 @@ public class AdminService {
         }
 
         log.info("Organization trial extended by admin: orgId={}, extendDays={}", orgId, request.getExtendDays());
+
+        return getOrganization(orgId);
+    }
+
+    @Transactional
+    public AdminResponse.OrgDetail adjustOrgAiCredits(String orgId, AdminRequest.AdjustOrgAiCredits request) {
+        organizationRepository.findByIdForAdmin(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
+
+        OrgSubscription sub = orgSubscriptionRepository.findByOrganizationId(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
+
+        if (request.getMonthlyAiCredits() != null) {
+            sub.initializeCredits(request.getMonthlyAiCredits());
+        }
+
+        if (Boolean.TRUE.equals(request.getResetUsedCredits())) {
+            sub.setMonthlyCreditsUsed(0);
+        }
+
+        if (request.getAddBonusCredits() != null && request.getAddBonusCredits() > 0) {
+            sub.setMonthlyAiCredits(sub.getMonthlyAiCredits() + request.getAddBonusCredits());
+        }
+
+        log.info("Organization AI credits adjusted by admin: orgId={}, monthlyAiCredits={}, resetUsed={}, addBonus={}",
+                orgId, request.getMonthlyAiCredits(), request.getResetUsedCredits(), request.getAddBonusCredits());
 
         return getOrganization(orgId);
     }

@@ -156,6 +156,7 @@ interface BoardModalManagerProps {
   creditModalMode: 'purchase' | 'exhausted';
   onCreditPurchaseComplete: (credits: AiCredits) => void;
   currentCredits: AiCredits | null;
+  isOrgBoard?: boolean;
   // Onboarding
   isOnboarding?: boolean;
   // Permissions
@@ -197,7 +198,7 @@ function OrgSeatLimitModalInline({
           </div>
           <div>
             <h3 className="text-sm font-bold text-foreground">{t('orgSeatLimit.title')}</h3>
-            <p className="text-[11px] text-slate-500">{t('orgSeatLimit.subtitle')}</p>
+            <p className="text-xs text-slate-500">{t('orgSeatLimit.subtitle')}</p>
           </div>
         </div>
 
@@ -205,7 +206,7 @@ function OrgSeatLimitModalInline({
           {modal.isOrgAdmin ? (
             <>
               <div className="flex items-center justify-between py-2 mb-3">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                   {t('orgSeatLimit.currentSeats')}
                 </span>
                 <span className="text-sm font-bold text-foreground">
@@ -243,7 +244,7 @@ function OrgSeatLimitModalInline({
                 </div>
               </div>
 
-              <div className="text-[10px] text-slate-500 mb-4">
+              <div className="text-xs text-slate-500 mb-4">
                 ₩{modal.monthlyPricePerSeat.toLocaleString()}/{t('orgSeatLimit.month')} · ₩{modal.yearlyPricePerSeat.toLocaleString()}/{t('orgSeatLimit.year')}
               </div>
             </>
@@ -259,7 +260,7 @@ function OrgSeatLimitModalInline({
         </div>
 
         <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-          <span className="text-[10px] text-slate-600">Esc {t('orgSeatLimit.close')}</span>
+          <span className="text-xs text-slate-600">Esc {t('orgSeatLimit.close')}</span>
           {modal.isOrgAdmin ? (
             <button
               onClick={handlePurchase}
@@ -481,6 +482,7 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         mode={props.creditModalMode}
         onPurchaseComplete={props.onCreditPurchaseComplete}
         currentCredits={props.currentCredits}
+        isOrgBoard={props.isOrgBoard}
       />
     </>
   );

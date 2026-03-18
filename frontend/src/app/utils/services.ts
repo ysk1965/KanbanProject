@@ -2575,9 +2575,30 @@ export const adminService = {
     return adminAPI.extendOrgTrial(orgId, extendDays);
   },
 
+  // 조직 AI 크레딧 조정
+  adjustOrgAiCredits: async (
+    orgId: string,
+    data: {
+      monthly_ai_credits?: number;
+      reset_used_credits?: boolean;
+      add_bonus_credits?: number;
+    },
+  ): Promise<AdminOrgDetail> => {
+    return adminAPI.adjustOrgAiCredits(orgId, data);
+  },
+
   // 조직 통계
   getOrgStatistics: async (): Promise<AdminOrgStatistics> => {
     return adminAPI.getOrgStatistics();
+  },
+
+  // 수익화 토글
+  getMonetizationStatus: async (): Promise<{ monetization_enabled: boolean }> => {
+    return await adminAPI.getMonetizationStatus();
+  },
+
+  setMonetizationEnabled: async (enabled: boolean): Promise<{ monetization_enabled: boolean }> => {
+    return await adminAPI.setMonetizationEnabled(enabled);
   },
 
   // 점검 모드
@@ -2619,6 +2640,10 @@ export const adminService = {
 // System Service (공개 API)
 // ========================================
 
+export const getMonetizationStatus = async (): Promise<{ monetization_enabled: boolean }> => {
+  return await systemAPI.getMonetizationStatus();
+};
+
 // ========================================
 // Inquiry Service (유저용)
 // ========================================
@@ -2656,6 +2681,10 @@ export const systemService = {
 
   getActiveAnnouncements: async (): Promise<AnnouncementDetail[]> => {
     return await systemAPI.getActiveAnnouncements();
+  },
+
+  getMonetizationStatus: async (): Promise<{ monetization_enabled: boolean }> => {
+    return await systemAPI.getMonetizationStatus();
   },
 };
 
@@ -2818,6 +2847,116 @@ export const noteCommentService = {
       commentId,
       emoji,
     );
+  },
+};
+
+// ========================================
+// Organization Note Service
+// ========================================
+
+import { orgNoteAPI, orgNoteCommentAPI } from "./api";
+
+export const orgNoteService = {
+  getBoardNotes: async (orgId: string) => {
+    return await orgNoteAPI.getBoardNotes(orgId);
+  },
+  getTree: async (orgId: string) => {
+    return await orgNoteAPI.getTree(orgId);
+  },
+  getList: async (orgId: string) => {
+    return await orgNoteAPI.getList(orgId);
+  },
+  getDetail: async (orgId: string, noteId: string) => {
+    return await orgNoteAPI.getDetail(orgId, noteId);
+  },
+  create: async (
+    orgId: string,
+    data: {
+      title: string;
+      type: "FOLDER" | "DOCUMENT" | "BOARD";
+      parentId?: string | null;
+      content?: string;
+      tagIds?: string[];
+    },
+  ) => {
+    return await orgNoteAPI.create(orgId, data);
+  },
+  update: async (
+    orgId: string,
+    noteId: string,
+    data: { title?: string; content?: string; tagIds?: string[] },
+    createVersion = true,
+  ) => {
+    return await orgNoteAPI.update(orgId, noteId, data, createVersion);
+  },
+  delete: async (orgId: string, noteId: string) => {
+    return await orgNoteAPI.delete(orgId, noteId);
+  },
+  move: async (
+    orgId: string,
+    noteId: string,
+    data: { parentId?: string | null; position?: number },
+  ) => {
+    return await orgNoteAPI.move(orgId, noteId, data);
+  },
+  getVersions: async (orgId: string, noteId: string) => {
+    return await orgNoteAPI.getVersions(orgId, noteId);
+  },
+  getVersionDetail: async (orgId: string, noteId: string, versionId: string) => {
+    return await orgNoteAPI.getVersionDetail(orgId, noteId, versionId);
+  },
+  restoreVersion: async (orgId: string, noteId: string, versionId: string) => {
+    return await orgNoteAPI.restoreVersion(orgId, noteId, versionId);
+  },
+  getTags: async (orgId: string) => {
+    return await orgNoteAPI.getTags(orgId);
+  },
+  createTag: async (orgId: string, data: { name: string; color: string }) => {
+    return await orgNoteAPI.createTag(orgId, data);
+  },
+  deleteTag: async (orgId: string, tagId: string) => {
+    return await orgNoteAPI.deleteTag(orgId, tagId);
+  },
+  enableShare: async (orgId: string, noteId: string) => {
+    return await orgNoteAPI.enableShare(orgId, noteId);
+  },
+  disableShare: async (orgId: string, noteId: string) => {
+    return await orgNoteAPI.disableShare(orgId, noteId);
+  },
+};
+
+export const orgNoteCommentService = {
+  getComments: async (orgId: string, noteId: string) => {
+    return await orgNoteCommentAPI.getComments(orgId, noteId);
+  },
+  createComment: async (
+    orgId: string,
+    noteId: string,
+    data: {
+      content: string;
+      block_id?: string | null;
+      parent_id?: string | null;
+      mentions?: string[];
+    },
+  ) => {
+    return await orgNoteCommentAPI.createComment(orgId, noteId, data);
+  },
+  updateComment: async (
+    orgId: string,
+    noteId: string,
+    commentId: string,
+    data: { content: string; mentions?: string[] },
+  ) => {
+    return await orgNoteCommentAPI.updateComment(orgId, noteId, commentId, data);
+  },
+  deleteComment: async (orgId: string, noteId: string, commentId: string) => {
+    return await orgNoteCommentAPI.deleteComment(orgId, noteId, commentId);
+  },
+  toggleResolved: async (orgId: string, noteId: string, commentId: string) => {
+    return await orgNoteCommentAPI.toggleResolved(orgId, noteId, commentId);
+  },
+  toggleReaction: async (orgId: string, noteId: string, commentId: string, emoji: string) => {
+    return await orgNoteCommentAPI.toggleReaction(orgId, noteId, commentId, emoji);
   },
 };
 
@@ -3428,6 +3567,7 @@ export const orgPhotoService = {
   // Gallery-level sharing
   enableGalleryShare: orgPhotoAPI.enableGalleryShare,
   disableGalleryShare: orgPhotoAPI.disableGalleryShare,
+  updateGalleryShareTitle: orgPhotoAPI.updateGalleryShareTitle,
   getGalleryShareStatus: orgPhotoAPI.getGalleryShareStatus,
 
   // Gallery-level upload

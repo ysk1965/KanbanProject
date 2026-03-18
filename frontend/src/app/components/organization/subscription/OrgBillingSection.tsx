@@ -168,7 +168,7 @@ export function OrgBillingSection({
                   : t('orgSubscription.billing.freePlan', 'Free Plan')}
               </h3>
               <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusColor(subscription.status)}`}
+                className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${statusColor(subscription.status)}`}
               >
                 {subscription.status}
               </span>
@@ -185,7 +185,7 @@ export function OrgBillingSection({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {subscription.billing_cycle && (
             <div>
-              <span className="text-[11px] text-slate-500 block mb-1">
+              <span className="text-xs text-slate-500 block mb-1">
                 {t('orgSubscription.billing.cycle', 'Billing Cycle')}
               </span>
               <span className="text-sm font-bold text-foreground">
@@ -197,12 +197,12 @@ export function OrgBillingSection({
           )}
           {subscription.total_price > 0 && (
             <div>
-              <span className="text-[11px] text-slate-500 block mb-1">
+              <span className="text-xs text-slate-500 block mb-1">
                 {t('orgSubscription.billing.totalPrice', 'Total Price')}
               </span>
               <span className="text-sm font-bold text-foreground">
                 {formatCurrency(subscription.total_price)}
-                <span className="text-[11px] text-slate-400 ml-0.5">
+                <span className="text-xs text-slate-400 ml-0.5">
                   /{subscription.billing_cycle === 'YEARLY'
                     ? t('orgSubscription.billing.yr', 'yr')
                     : t('orgSubscription.billing.mo', 'mo')}
@@ -212,7 +212,7 @@ export function OrgBillingSection({
           )}
           {subscription.next_payment_at && (
             <div>
-              <span className="text-[11px] text-slate-500 block mb-1">
+              <span className="text-xs text-slate-500 block mb-1">
                 {t('orgSubscription.billing.nextPayment', 'Next Payment')}
               </span>
               <span className="text-sm font-bold text-foreground">
@@ -222,7 +222,7 @@ export function OrgBillingSection({
           )}
           {subscription.current_period_end && (
             <div>
-              <span className="text-[11px] text-slate-500 block mb-1">
+              <span className="text-xs text-slate-500 block mb-1">
                 {t('orgSubscription.billing.periodEnd', 'Period End')}
               </span>
               <span className="text-sm font-bold text-foreground">
@@ -249,7 +249,7 @@ export function OrgBillingSection({
                   {t('orgSubscription.billing.cancelPendingTitle', 'Cancellation Scheduled')}
                 </h3>
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 {t('orgSubscription.billing.cancelPendingDesc', 'Your subscription will end on {{date}}. Premium features remain active until then.', {
                   date: subscription.current_period_end ? formatDate(subscription.current_period_end) : '-',
                 })}
@@ -282,7 +282,7 @@ export function OrgBillingSection({
             <h3 className="text-sm font-bold text-foreground">
               {t('orgSubscription.billing.seats', 'Seat Management')}
             </h3>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-xs text-slate-500">
               {t('orgSubscription.billing.seatsDesc', 'Active members vs. available seats')}
             </p>
           </div>
@@ -326,7 +326,7 @@ export function OrgBillingSection({
                 price: formatCurrency(subscription.price_per_seat),
               })}
             </span>
-            <span className="text-[11px] text-slate-500">
+            <span className="text-xs text-slate-500">
               {t('orgSubscription.billing.seatCount', '{{count}} seats', {
                 count: subscription.seat_count,
               })}
@@ -381,7 +381,7 @@ export function OrgBillingSection({
               <h3 className="text-sm font-bold text-foreground">
                 {t('orgSubscription.billing.aiCredits', 'AI Credits')}
               </h3>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs text-slate-500">
                 {t('orgSubscription.billing.aiCreditsDesc', 'Shared across all organization boards')}
               </p>
             </div>
@@ -418,7 +418,7 @@ export function OrgBillingSection({
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-xs text-slate-500">
                     {t('orgSubscription.billing.aiCreditsAvailable', 'Available')}
                   </span>
                   <span className={`text-sm font-bold ${
@@ -433,10 +433,10 @@ export function OrgBillingSection({
                 </div>
                 {subscription.credits_reset_date && (
                   <div className="flex items-center justify-between mt-1">
-                    <span className="text-[11px] text-slate-500">
+                    <span className="text-xs text-slate-500">
                       {t('orgSubscription.billing.aiCreditsReset', 'Resets')}
                     </span>
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-xs text-slate-400">
                       {formatDate(subscription.credits_reset_date)}
                     </span>
                   </div>
@@ -495,19 +495,19 @@ export function OrgBillingSection({
                         {formatCurrency(payment.amount)}
                       </span>
                       {payment.description && (
-                        <span className="text-[11px] text-slate-500">
+                        <span className="text-xs text-slate-500">
                           {payment.description}
                         </span>
                       )}
                     </div>
                     <div className="text-right">
                       <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusColor(payment.status)}`}
+                        className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${statusColor(payment.status)}`}
                       >
                         {payment.status}
                       </span>
                       {payment.paid_at && (
-                        <span className="text-[11px] text-slate-500 block mt-0.5">
+                        <span className="text-xs text-slate-500 block mt-0.5">
                           {formatDate(payment.paid_at)}
                         </span>
                       )}
@@ -531,7 +531,7 @@ export function OrgBillingSection({
           <h3 className="text-sm font-bold text-foreground mb-1">
             {t('orgSubscription.billing.dangerZone', 'Danger Zone')}
           </h3>
-          <p className="text-[11px] text-slate-500 mb-4">
+          <p className="text-xs text-slate-500 mb-4">
             {t(
               'orgSubscription.billing.dangerDesc',
               'Downgrading or cancelling will remove premium features.',
@@ -571,7 +571,7 @@ export function OrgBillingSection({
           />
         </div>
         <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-          <span className="text-[10px] text-slate-600">Esc {t('common.close', 'Close')}</span>
+          <span className="text-xs text-slate-600">Esc {t('common.close', 'Close')}</span>
           <button
             onClick={() => setShowPlanModal(false)}
             className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
@@ -622,7 +622,7 @@ export function OrgBillingSection({
           </p>
         </div>
         <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
-          <span className="text-[10px] text-slate-600">ESC</span>
+          <span className="text-xs text-slate-600">ESC</span>
           <div className="flex gap-2">
             <button
               onClick={() => setShowDowngradeConfirm(false)}
@@ -698,7 +698,7 @@ export function OrgBillingSection({
           </div>
         </div>
         <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
-          <span className="text-[10px] text-slate-600">ESC</span>
+          <span className="text-xs text-slate-600">ESC</span>
           <div className="flex gap-2">
             <button
               onClick={() => setShowCancelConfirm(false)}

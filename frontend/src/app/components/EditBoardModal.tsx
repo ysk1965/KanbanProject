@@ -46,7 +46,7 @@ export function EditBoardModal({
     <MotionModal open={open} onClose={handleClose}>
         <div className="p-6">
         <div className="mb-4">
-          <h2 className="text-foreground font-jakarta font-semibold text-lg">Edit Board</h2>
+          <h2 className="text-foreground font-jakarta font-bold text-lg">Edit Board</h2>
           <p className="text-slate-400 text-sm">Update your board information</p>
         </div>
 

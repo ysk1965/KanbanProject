@@ -6,6 +6,7 @@ import com.kanban.domain.board.BoardTier;
 import com.kanban.domain.subscription.*;
 import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.domain.subscription.service.OrgSubscriptionService;
+import com.kanban.domain.system.MonetizationService;
 import com.kanban.global.security.WebSocketAuthInterceptor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ public class SubscriptionScheduler {
     private final AiCreditService aiCreditService;
     private final OrgSubscriptionService orgSubscriptionService;
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+    private final MonetizationService monetizationService;
 
     /**
      * Trial 만료 자동 처리: 매시간 실행
@@ -37,6 +39,10 @@ public class SubscriptionScheduler {
     @Scheduled(cron = "0 0 * * * *")
     @Transactional
     public void expireTrials() {
+        if (!monetizationService.isMonetizationEnabled()) {
+            log.debug("[Monetization OFF] Skipping expireTrials");
+            return;
+        }
         try {
             LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
             List<Subscription> expiredTrials = subscriptionRepository.findExpiredTrials(now);
@@ -68,6 +74,10 @@ public class SubscriptionScheduler {
     @Scheduled(cron = "0 15 * * * *")
     @Transactional
     public void expireOrgTrials() {
+        if (!monetizationService.isMonetizationEnabled()) {
+            log.debug("[Monetization OFF] Skipping expireOrgTrials");
+            return;
+        }
         try {
             orgSubscriptionService.expireTrials();
         } catch (Exception e) {
@@ -83,6 +93,10 @@ public class SubscriptionScheduler {
     @Scheduled(cron = "0 20 * * * *")
     @Transactional
     public void processCancellationRequests() {
+        if (!monetizationService.isMonetizationEnabled()) {
+            log.debug("[Monetization OFF] Skipping processCancellationRequests");
+            return;
+        }
         try {
             LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
@@ -128,6 +142,10 @@ public class SubscriptionScheduler {
     @Scheduled(cron = "0 25 * * * *")
     @Transactional
     public void escalatePastDueSubscriptions() {
+        if (!monetizationService.isMonetizationEnabled()) {
+            log.debug("[Monetization OFF] Skipping escalatePastDueSubscriptions");
+            return;
+        }
         try {
             LocalDateTime threshold = LocalDateTime.now(ZoneOffset.UTC).minusDays(7);
 
@@ -169,6 +187,10 @@ public class SubscriptionScheduler {
      */
     @Scheduled(cron = "0 5 * * * *")
     public void resetMonthlyAiCredits() {
+        if (!monetizationService.isMonetizationEnabled()) {
+            log.debug("[Monetization OFF] Skipping resetMonthlyAiCredits");
+            return;
+        }
         try {
             List<String> subscriptionIds = aiCreditService.findSubscriptionIdsDueForReset();
 
@@ -202,6 +224,10 @@ public class SubscriptionScheduler {
      */
     @Scheduled(cron = "0 8 * * * *")
     public void resetOrgMonthlyAiCredits() {
+        if (!monetizationService.isMonetizationEnabled()) {
+            log.debug("[Monetization OFF] Skipping resetOrgMonthlyAiCredits");
+            return;
+        }
         try {
             List<String> orgSubIds = aiCreditService.findOrgSubscriptionIdsDueForReset();
 
@@ -235,6 +261,10 @@ public class SubscriptionScheduler {
      */
     @Scheduled(cron = "0 10 * * * *")
     public void resetUserPersonalAiCredits() {
+        if (!monetizationService.isMonetizationEnabled()) {
+            log.debug("[Monetization OFF] Skipping resetUserPersonalAiCredits");
+            return;
+        }
         try {
             List<String> userIds = aiCreditService.findUserIdsDueForPersonalCreditReset();
 

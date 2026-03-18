@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Upload, Loader2, Check, ImagePlus, X, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { publicUploadAPI } from '../utils/api';
+import { publicUploadAPI, type ChunkedUploadProgress } from '../utils/api';
 import type { UploadAlbumInfo } from '../types';
 
 export function PublicUploadPage() {
@@ -15,6 +15,7 @@ export function PublicUploadPage() {
   const [uploading, setUploading] = useState(false);
   const [uploaded, setUploaded] = useState(false);
   const [uploadCount, setUploadCount] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState<ChunkedUploadProgress | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -65,12 +66,19 @@ export function PublicUploadPage() {
     if (!uploadToken || files.length === 0 || uploading) return;
     try {
       setUploading(true);
-      await publicUploadAPI.uploadPhotos(uploadToken, files);
+      setUploadProgress(null);
+      await publicUploadAPI.uploadPhotos(
+        uploadToken,
+        files,
+        (progress) => setUploadProgress(progress),
+      );
       setUploadCount(files.length);
       setUploaded(true);
+      setUploadProgress(null);
       setFiles([]);
       setPreviews([]);
     } catch {
+      setUploadProgress(null);
       setError('Upload failed. Please try again.');
     } finally {
       setUploading(false);
@@ -90,7 +98,7 @@ export function PublicUploadPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
+      <div className="min-h-screen bg-bridge-dark flex items-center justify-center" role="status" aria-label="로딩 중">
         <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
       </div>
     );
@@ -148,7 +156,7 @@ export function PublicUploadPage() {
           {albumInfo.organization_logo_url ? (
             <img
               src={albumInfo.organization_logo_url}
-              alt=""
+              alt={albumInfo.organization_name || '조직 로고'}
               className="w-8 h-8 rounded-lg object-cover"
             />
           ) : (
@@ -160,11 +168,11 @@ export function PublicUploadPage() {
             <h1 className="text-sm font-bold text-foreground truncate">
               {albumInfo.album_name}
             </h1>
-            <p className="text-[10px] text-slate-500">
+            <p className="text-xs text-slate-500">
               {albumInfo.organization_name}
             </p>
           </div>
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0">
+          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0">
             {daysLeft > 0 ? `${daysLeft}d left` : `${hoursLeft}h left`}
           </span>
         </div>
@@ -194,7 +202,7 @@ export function PublicUploadPage() {
             <p className="text-sm font-bold text-foreground mb-1">
               Drop photos here or click to browse
             </p>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-xs text-slate-500">
               Supports JPG, PNG, GIF, WebP
             </p>
           </div>
@@ -217,12 +225,12 @@ export function PublicUploadPage() {
           {files.length > 0 && (
             <div className="mt-6 space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                   {files.length} photo{files.length !== 1 ? 's' : ''} selected
                 </span>
                 <button
                   onClick={() => { setFiles([]); setPreviews([]); }}
-                  className="text-[10px] text-slate-500 hover:text-foreground transition-colors"
+                  className="text-xs text-slate-500 hover:text-foreground transition-colors"
                 >
                   Clear all
                 </button>
@@ -239,7 +247,7 @@ export function PublicUploadPage() {
                   >
                     <img
                       src={preview}
-                      alt=""
+                      alt="업로드 미리보기"
                       className="w-full h-full object-cover"
                     />
                     <button
@@ -276,6 +284,44 @@ export function PublicUploadPage() {
           )}
         </motion.div>
       </div>
+
+      {/* Upload Progress Modal */}
+      {uploading && uploadProgress && uploadProgress.totalBatches > 1 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-sm mx-4 bg-bridge-obsidian rounded-2xl border border-foreground/10 shadow-2xl overflow-hidden"
+          >
+            <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
+            <div className="px-5 pt-5 pb-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-bridge-accent/15 flex items-center justify-center shrink-0">
+                  <Loader2 className="w-5 h-5 animate-spin text-bridge-accent" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">Uploading...</p>
+                  <p className="text-xs text-slate-500">
+                    {uploadProgress.uploadedFiles} / {uploadProgress.totalFiles} photos
+                  </p>
+                </div>
+              </div>
+              {/* Progress bar */}
+              <div className="w-full h-2 bg-foreground/[0.08] rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-bridge-accent rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(uploadProgress.uploadedFiles / uploadProgress.totalFiles) * 100}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+              <p className="text-xs text-slate-600 text-center">
+                Batch {uploadProgress.currentBatch} / {uploadProgress.totalBatches}
+              </p>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
