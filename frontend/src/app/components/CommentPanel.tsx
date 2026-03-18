@@ -774,6 +774,19 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     let itemIdx = 0;
     return (
       <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-bridge-border rounded-lg shadow-lg z-50 py-1 max-h-48 overflow-y-auto custom-scrollbar">
+        {/* 멘션 그룹 만들기 버튼 — @만 입력했을 때만 표시 */}
+        {isAdminOrOwner && !mentionQuery && (
+          <>
+            <button
+              onMouseDown={e => { e.preventDefault(); setShowMentionGroupModal(true); setShowInlineMention(false); }}
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-bridge-accent hover:bg-foreground/5 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t('mentionGroup.create', '멘션 그룹 만들기')}</span>
+            </button>
+            {(hasGroups || hasMembers) && <div className="border-t border-foreground/[0.08] my-1" />}
+          </>
+        )}
         {/* 그룹 섹션 */}
         {hasGroups && (
           <>
@@ -814,19 +827,6 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
             </button>
           );
         })}
-        {/* 멘션 그룹 만들기 버튼 */}
-        {isAdminOrOwner && (
-          <>
-            <div className="border-t border-foreground/[0.08] my-1" />
-            <button
-              onMouseDown={e => { e.preventDefault(); setShowMentionGroupModal(true); setShowInlineMention(false); }}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-bridge-accent hover:bg-foreground/5 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{t('mentionGroup.create', '멘션 그룹 만들기')}</span>
-            </button>
-          </>
-        )}
       </div>
     );
   };
