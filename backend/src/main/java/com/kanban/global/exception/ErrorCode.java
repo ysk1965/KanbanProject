@@ -365,6 +365,10 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     BOARD_RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "BR001", "리소스를 찾을 수 없습니다"),
     BOARD_RESOURCE_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "BR002", "보드당 최대 20개의 리소스만 등록할 수 있습니다"),
 
+    // Mention Group
+    MENTION_GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "MG001", "멘션 그룹을 찾을 수 없습니다"),
+    MENTION_GROUP_ALREADY_EXISTS(HttpStatus.CONFLICT, "MG002", "이미 존재하는 멘션 그룹 이름입니다"),
+
     // Photo Gallery
     PHOTO_TAB_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "사진 탭을 찾을 수 없습니다"),
     PHOTO_NOT_FOUND(HttpStatus.NOT_FOUND, "P002", "사진을 찾을 수 없습니다"),

@@ -1,13 +1,29 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
-import { MessageSquarePlus, X, Loader2, Filter, ChevronDown, ChevronUp, Hash } from 'lucide-react';
-import { noteCommentService, orgNoteCommentService } from '../../utils/services';
-import { memberAPI } from '../../utils/api';
-import { wsManager } from '../../utils/websocket';
-import type { BoardWebSocketEvent } from '../../types';
-import { NoteCommentThread } from './NoteCommentThread';
-import { NoteCommentInput } from './NoteCommentInput';
-import type { NoteCommentDetail, NoteCommentListResponse, MemberResponse } from '../../utils/api';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  MessageSquarePlus,
+  X,
+  Loader2,
+  Filter,
+  ChevronDown,
+  ChevronUp,
+  Hash,
+} from "lucide-react";
+import {
+  noteCommentService,
+  orgNoteCommentService,
+} from "../../utils/services";
+import { memberAPI, mentionGroupAPI } from "../../utils/api";
+import type { MentionGroupDetail } from "../../utils/api";
+import { wsManager } from "../../utils/websocket";
+import type { BoardWebSocketEvent } from "../../types";
+import { NoteCommentThread } from "./NoteCommentThread";
+import { NoteCommentInput } from "./NoteCommentInput";
+import type {
+  NoteCommentDetail,
+  NoteCommentListResponse,
+  MemberResponse,
+} from "../../utils/api";
 
 interface NoteCommentSidebarProps {
   boardId?: string;
@@ -21,27 +37,37 @@ interface NoteCommentSidebarProps {
 }
 
 export function NoteCommentSidebar({
-  boardId, orgId, noteId, currentUserId, canEdit, onClose, activeBlockId,
+  boardId,
+  orgId,
+  noteId,
+  currentUserId,
+  canEdit,
+  onClose,
+  activeBlockId,
   onBlockIdsChange,
 }: NoteCommentSidebarProps) {
   const svc = orgId ? orgNoteCommentService : noteCommentService;
-  const scopeId = boardId || orgId || '';
+  const scopeId = boardId || orgId || "";
   const wsTopic = orgId ? `/topic/org/${orgId}` : `/topic/board/${boardId}`;
   const { t } = useTranslation();
   const [threads, setThreads] = useState<NoteCommentDetail[]>([]);
   const [members, setMembers] = useState<MemberResponse[]>([]);
+  const [mentionGroups, setMentionGroups] = useState<MentionGroupDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewComment, setShowNewComment] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'open' | 'resolved'>('all');
+  const [filter, setFilter] = useState<"all" | "open" | "resolved">("all");
   const [collapsed, setCollapsed] = useState(false);
   const newCommentRef = useRef<HTMLDivElement>(null);
 
   const loadComments = useCallback(async () => {
     try {
-      const data: NoteCommentListResponse = await svc.getComments(scopeId, noteId);
+      const data: NoteCommentListResponse = await svc.getComments(
+        scopeId,
+        noteId,
+      );
       setThreads(data.threads);
     } catch (err) {
-      console.error('Failed to load note comments:', err);
+      console.error("Failed to load note comments:", err);
     } finally {
       setLoading(false);
     }
@@ -53,18 +79,35 @@ export function NoteCommentSidebar({
       const data = await memberAPI.getMembers(boardId);
       setMembers(data.members || []);
     } catch (err) {
-      console.error('Failed to load members:', err);
+      console.error("Failed to load members:", err);
+    }
+  }, [boardId]);
+
+  const loadMentionGroups = useCallback(async () => {
+    if (!boardId) return;
+    try {
+      const data = await mentionGroupAPI.getGroups(boardId);
+      setMentionGroups(data.groups || []);
+    } catch {
+      // ignore
     }
   }, [boardId]);
 
   useEffect(() => {
     loadComments();
     loadMembers();
-  }, [loadComments, loadMembers]);
+    loadMentionGroups();
+  }, [loadComments, loadMembers, loadMentionGroups]);
 
   // ========== WebSocket: real-time comment sync ==========
 
-  const NOTE_COMMENT_EVENTS = ['NOTE_COMMENT_CREATED', 'NOTE_COMMENT_UPDATED', 'NOTE_COMMENT_DELETED', 'NOTE_COMMENT_RESOLVED', 'NOTE_COMMENT_REACTION_TOGGLED'];
+  const NOTE_COMMENT_EVENTS = [
+    "NOTE_COMMENT_CREATED",
+    "NOTE_COMMENT_UPDATED",
+    "NOTE_COMMENT_DELETED",
+    "NOTE_COMMENT_RESOLVED",
+    "NOTE_COMMENT_REACTION_TOGGLED",
+  ];
 
   useEffect(() => {
     const sub = wsManager.subscribe(wsTopic, (message) => {
@@ -75,7 +118,9 @@ export function NoteCommentSidebar({
         const data = event.data as { note_id?: string };
         if (data?.note_id !== noteId) return;
         loadComments();
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     });
     return () => sub.unsubscribe();
   }, [wsTopic, noteId, currentUserId, loadComments]);
@@ -84,7 +129,7 @@ export function NoteCommentSidebar({
   useEffect(() => {
     if (!onBlockIdsChange) return;
     const blockIds = new Set(
-      threads.filter(t => t.block_id).map(t => t.block_id!)
+      threads.filter((t) => t.block_id).map((t) => t.block_id!),
     );
     onBlockIdsChange(blockIds);
   }, [threads, onBlockIdsChange]);
@@ -96,61 +141,79 @@ export function NoteCommentSidebar({
       setShowNewComment(true);
       setCollapsed(false);
       setTimeout(() => {
-        newCommentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        newCommentRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
       }, 100);
     }
     prevActiveBlockIdRef.current = activeBlockId;
   }, [activeBlockId]);
 
-  const handleCreateComment = useCallback(async (content: string, mentions: string[]) => {
-    await svc.createComment(scopeId, noteId, {
-      content,
-      block_id: activeBlockId || undefined,
-      mentions: mentions.length > 0 ? mentions : undefined,
-    });
-    setShowNewComment(false);
-    await loadComments();
-  }, [scopeId, noteId, activeBlockId, loadComments, svc]);
+  const handleCreateComment = useCallback(
+    async (content: string, mentions: string[]) => {
+      await svc.createComment(scopeId, noteId, {
+        content,
+        block_id: activeBlockId || undefined,
+        mentions: mentions.length > 0 ? mentions : undefined,
+      });
+      setShowNewComment(false);
+      await loadComments();
+    },
+    [scopeId, noteId, activeBlockId, loadComments, svc],
+  );
 
-  const handleReply = useCallback(async (parentId: string, content: string, mentions: string[]) => {
-    await svc.createComment(scopeId, noteId, {
-      content,
-      parent_id: parentId,
-      mentions: mentions.length > 0 ? mentions : undefined,
-    });
-    await loadComments();
-  }, [scopeId, noteId, loadComments, svc]);
+  const handleReply = useCallback(
+    async (parentId: string, content: string, mentions: string[]) => {
+      await svc.createComment(scopeId, noteId, {
+        content,
+        parent_id: parentId,
+        mentions: mentions.length > 0 ? mentions : undefined,
+      });
+      await loadComments();
+    },
+    [scopeId, noteId, loadComments, svc],
+  );
 
-  const handleUpdate = useCallback(async (commentId: string, content: string, mentions: string[]) => {
-    await svc.updateComment(scopeId, noteId, commentId, {
-      content,
-      mentions: mentions.length > 0 ? mentions : undefined,
-    });
-    await loadComments();
-  }, [scopeId, noteId, loadComments, svc]);
+  const handleUpdate = useCallback(
+    async (commentId: string, content: string, mentions: string[]) => {
+      await svc.updateComment(scopeId, noteId, commentId, {
+        content,
+        mentions: mentions.length > 0 ? mentions : undefined,
+      });
+      await loadComments();
+    },
+    [scopeId, noteId, loadComments, svc],
+  );
 
-  const handleDelete = useCallback(async (commentId: string) => {
-    await svc.deleteComment(scopeId, noteId, commentId);
-    await loadComments();
-  }, [scopeId, noteId, loadComments, svc]);
+  const handleDelete = useCallback(
+    async (commentId: string) => {
+      await svc.deleteComment(scopeId, noteId, commentId);
+      await loadComments();
+    },
+    [scopeId, noteId, loadComments, svc],
+  );
 
-  const handleToggleResolved = useCallback(async (commentId: string) => {
-    await svc.toggleResolved(scopeId, noteId, commentId);
-    await loadComments();
-  }, [scopeId, noteId, loadComments, svc]);
+  const handleToggleResolved = useCallback(
+    async (commentId: string) => {
+      await svc.toggleResolved(scopeId, noteId, commentId);
+      await loadComments();
+    },
+    [scopeId, noteId, loadComments, svc],
+  );
 
-  const filteredThreads = threads.filter(thread => {
-    if (filter === 'open') return !thread.is_resolved;
-    if (filter === 'resolved') return thread.is_resolved;
+  const filteredThreads = threads.filter((thread) => {
+    if (filter === "open") return !thread.is_resolved;
+    if (filter === "resolved") return thread.is_resolved;
     return true;
   });
 
   // Group threads: block-specific first, then general
-  const blockThreads = filteredThreads.filter(t => t.block_id);
-  const generalThreads = filteredThreads.filter(t => !t.block_id);
+  const blockThreads = filteredThreads.filter((t) => t.block_id);
+  const generalThreads = filteredThreads.filter((t) => !t.block_id);
 
-  const openCount = threads.filter(t => !t.is_resolved).length;
-  const resolvedCount = threads.filter(t => t.is_resolved).length;
+  const openCount = threads.filter((t) => !t.is_resolved).length;
+  const resolvedCount = threads.filter((t) => t.is_resolved).length;
 
   return (
     <div className="border-t border-foreground/10 bg-bridge-dark/80 backdrop-blur-sm">
@@ -160,8 +223,12 @@ export function NoteCommentSidebar({
           onClick={() => setCollapsed(!collapsed)}
           className="flex items-center gap-2 text-sm font-bold text-foreground hover:text-bridge-accent transition-colors"
         >
-          {collapsed ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          {t('notes.comment.title', '댓글')}
+          {collapsed ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
+          {t("notes.comment.title", "댓글")}
           <span className="text-xs bg-bridge-accent/20 text-bridge-accent px-1.5 py-0.5 rounded-full font-bold">
             {openCount}
           </span>
@@ -173,17 +240,29 @@ export function NoteCommentSidebar({
             <div className="flex items-center gap-1">
               <Filter className="h-3 w-3 text-slate-500" />
               {[
-                { key: 'all' as const, label: t('notes.comment.filterAll', '전체'), count: threads.length },
-                { key: 'open' as const, label: t('notes.comment.filterOpen', '열림'), count: openCount },
-                { key: 'resolved' as const, label: t('notes.comment.filterResolved', '해결'), count: resolvedCount },
-              ].map(f => (
+                {
+                  key: "all" as const,
+                  label: t("notes.comment.filterAll", "전체"),
+                  count: threads.length,
+                },
+                {
+                  key: "open" as const,
+                  label: t("notes.comment.filterOpen", "열림"),
+                  count: openCount,
+                },
+                {
+                  key: "resolved" as const,
+                  label: t("notes.comment.filterResolved", "해결"),
+                  count: resolvedCount,
+                },
+              ].map((f) => (
                 <button
                   key={f.key}
                   onClick={() => setFilter(f.key)}
                   className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
                     filter === f.key
-                      ? 'bg-bridge-accent/20 text-bridge-accent font-bold'
-                      : 'text-slate-500 hover:text-slate-300 hover:bg-foreground/5'
+                      ? "bg-bridge-accent/20 text-bridge-accent font-bold"
+                      : "text-slate-500 hover:text-slate-300 hover:bg-foreground/5"
                   }`}
                 >
                   {f.label} ({f.count})
@@ -207,18 +286,25 @@ export function NoteCommentSidebar({
         <>
           {/* New comment input */}
           {canEdit && (
-            <div className="px-6 py-2 border-t border-foreground/5" ref={newCommentRef}>
+            <div
+              className="px-6 py-2 border-t border-foreground/5"
+              ref={newCommentRef}
+            >
               {showNewComment ? (
                 <div>
                   {activeBlockId && (
                     <div className="flex items-center gap-1.5 mb-2 text-xs text-slate-500">
                       <Hash className="h-3 w-3" />
-                      <span>{t('notes.comment.blockComment', '블록 댓글')}: {activeBlockId.substring(0, 8)}</span>
+                      <span>
+                        {t("notes.comment.blockComment", "블록 댓글")}:{" "}
+                        {activeBlockId.substring(0, 8)}
+                      </span>
                     </div>
                   )}
                   <NoteCommentInput
                     boardId={scopeId}
                     members={members}
+                    mentionGroups={mentionGroups}
                     autoFocus
                     onSubmit={handleCreateComment}
                     onCancel={() => setShowNewComment(false)}
@@ -232,7 +318,7 @@ export function NoteCommentSidebar({
                     hover:text-foreground hover:bg-foreground/5 hover:border-foreground/10 transition-all"
                 >
                   <MessageSquarePlus className="h-3.5 w-3.5" />
-                  {t('notes.comment.new', '새 댓글 작성')}
+                  {t("notes.comment.new", "새 댓글 작성")}
                 </button>
               )}
             </div>
@@ -248,9 +334,12 @@ export function NoteCommentSidebar({
               <div className="text-center py-6">
                 <MessageSquarePlus className="h-6 w-6 mx-auto text-slate-600 mb-2" />
                 <p className="text-xs text-slate-500">
-                  {filter === 'all'
-                    ? t('notes.comment.empty', '아직 댓글이 없습니다')
-                    : t('notes.comment.emptyFilter', '해당 필터에 댓글이 없습니다')}
+                  {filter === "all"
+                    ? t("notes.comment.empty", "아직 댓글이 없습니다")
+                    : t(
+                        "notes.comment.emptyFilter",
+                        "해당 필터에 댓글이 없습니다",
+                      )}
                 </p>
               </div>
             ) : (
@@ -261,16 +350,17 @@ export function NoteCommentSidebar({
                     {generalThreads.length > 0 && (
                       <p className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1">
                         <Hash className="h-3 w-3" />
-                        {t('notes.comment.blockComments', '블록 댓글')}
+                        {t("notes.comment.blockComments", "블록 댓글")}
                       </p>
                     )}
-                    {blockThreads.map(thread => (
+                    {blockThreads.map((thread) => (
                       <NoteCommentThread
                         key={thread.id}
                         thread={thread}
                         boardId={scopeId}
                         noteId={noteId}
                         members={members}
+                        mentionGroups={mentionGroups}
                         currentUserId={currentUserId}
                         canEdit={canEdit}
                         onReply={handleReply}
@@ -287,16 +377,17 @@ export function NoteCommentSidebar({
                   <div className="space-y-2">
                     {blockThreads.length > 0 && (
                       <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-2">
-                        {t('notes.comment.generalComments', '일반 댓글')}
+                        {t("notes.comment.generalComments", "일반 댓글")}
                       </p>
                     )}
-                    {generalThreads.map(thread => (
+                    {generalThreads.map((thread) => (
                       <NoteCommentThread
                         key={thread.id}
                         thread={thread}
                         boardId={scopeId}
                         noteId={noteId}
                         members={members}
+                        mentionGroups={mentionGroups}
                         currentUserId={currentUserId}
                         canEdit={canEdit}
                         onReply={handleReply}

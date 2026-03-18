@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useEscClose } from '../../../../hooks/useEscClose';
 import { X, Clock, CheckSquare } from 'lucide-react';
 import { IconButton } from '../../../ui/IconButton';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -44,22 +45,16 @@ export function MemberContributionDetailDrawer({
   const { t } = useTranslation();
   const [data, setData] = useState<OrgMemberContributionDetail | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // ESC key handler
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
-  }, [onClose]);
+  useEscClose(isOpen, onClose);
 
   useEffect(() => {
     if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
     }
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
     };
-  }, [isOpen, handleKeyDown]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!memberId || !isOpen) return;

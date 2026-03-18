@@ -6,19 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './utils';
 import { SPRING, FADE_SCALE } from '../../constants/motion';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
-
-/* ── Global ESC stack: only the topmost modal closes on Escape ── */
-const escStack: (() => void)[] = [];
-
-if (typeof document !== 'undefined') {
-  document.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && escStack.length > 0) {
-      e.preventDefault();
-      e.stopPropagation();
-      escStack[escStack.length - 1]();
-    }
-  });
-}
+import { escStack } from '../../hooks/useEscClose';
 
 /* ── Focus trap helper ── */
 const FOCUSABLE_SELECTOR =

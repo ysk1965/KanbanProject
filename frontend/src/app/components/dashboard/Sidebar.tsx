@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useEscClose } from "../../hooks/useEscClose";
 import {
   LayoutGrid,
   User,
@@ -36,6 +37,7 @@ export function Sidebar({
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  useEscClose(!!isOpen, () => onClose?.());
   const { currentUser, isRestricted } = useAuth();
   const hasPersonalSpace =
     !isRestricted && (currentUser?.personal_space_enabled ?? false);

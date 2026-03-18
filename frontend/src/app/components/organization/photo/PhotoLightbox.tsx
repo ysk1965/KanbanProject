@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useEscClose } from '../../../hooks/useEscClose';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Trash2, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import type { OrgPhoto } from '../../../types';
@@ -41,6 +42,15 @@ export function PhotoLightbox({
   onDelete,
 }: PhotoLightboxProps) {
   const { t } = useTranslation();
+
+  useEscClose(!!photo, () => {
+    if (zoom > 1) {
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+    } else {
+      onClose();
+    }
+  });
 
   // Zoom state
   const [zoom, setZoom] = useState(1);
@@ -300,10 +310,6 @@ export function PhotoLightbox({
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         if (!isZoomed) goNext();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        if (isZoomed) resetZoom();
-        else onClose();
       } else if (e.key === '+' || e.key === '=') {
         e.preventDefault();
         zoomIn();
@@ -317,7 +323,7 @@ export function PhotoLightbox({
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [photo, goPrev, goNext, onClose, isZoomed, resetZoom, zoomIn, zoomOut]);
+  }, [photo, goPrev, goNext, isZoomed, resetZoom, zoomIn, zoomOut]);
 
   // Prevent body scroll
   useEffect(() => {

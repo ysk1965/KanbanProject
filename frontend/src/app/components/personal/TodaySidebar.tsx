@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useEscClose } from '../../hooks/useEscClose';
 import { ChevronLeft, ChevronRight, Clock, CheckCircle2, Calendar, ListTodo, Loader2, Flame, X, Pencil, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { personalDashboardAPI, personalHabitAPI } from '../../utils/api';
@@ -17,6 +18,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
   const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  useEscClose(showMobileSidebar, () => setShowMobileSidebar(false));
   const [todayData, setTodayData] = useState<PersonalDashboardToday | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [editHabitData, setEditHabitData] = useState<PersonalHabit | null>(null);

@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { CheckCircle2, Trophy } from "lucide-react";
 import { Button } from "../ui/button";
+import { useEscClose } from "../../hooks/useEscClose";
 
 interface ChapterCompleteModalProps {
   show: boolean;
@@ -10,6 +11,8 @@ interface ChapterCompleteModalProps {
 }
 
 export function ChapterCompleteModal({ show, book, chapter, onNext }: ChapterCompleteModalProps) {
+  useEscClose(show, onNext);
+
   const handleNext = () => {
     onNext();
   };

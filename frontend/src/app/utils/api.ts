@@ -1513,6 +1513,41 @@ export const tagAPI = {
 };
 
 // ========================================
+// Mention Group API
+// ========================================
+
+export interface MentionGroupMemberInfo {
+  user_id: string;
+  name: string;
+  profile_image: string | null;
+}
+
+export interface MentionGroupDetail {
+  id: string;
+  name: string;
+  members: MentionGroupMemberInfo[];
+  created_at: string;
+}
+
+export const mentionGroupAPI = {
+  getGroups: async (boardId: string) => {
+    return apiClient.get<{ groups: MentionGroupDetail[] }>(`/boards/${boardId}/mention-groups`);
+  },
+
+  createGroup: async (boardId: string, data: { name: string; member_ids: string[] }) => {
+    return apiClient.post<MentionGroupDetail>(`/boards/${boardId}/mention-groups`, data);
+  },
+
+  updateGroup: async (boardId: string, groupId: string, data: { name: string; member_ids: string[] }) => {
+    return apiClient.put<MentionGroupDetail>(`/boards/${boardId}/mention-groups/${groupId}`, data);
+  },
+
+  deleteGroup: async (boardId: string, groupId: string) => {
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/mention-groups/${groupId}`);
+  },
+};
+
+// ========================================
 // Checklist API
 // ========================================
 

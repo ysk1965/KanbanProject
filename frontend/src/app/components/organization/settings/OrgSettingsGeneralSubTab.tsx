@@ -170,18 +170,18 @@ export function OrgSettingsGeneralSubTab({
       <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
         <h3 className="text-sm font-bold text-foreground mb-1 flex items-center gap-2">
           <MonitorSmartphone size={16} className="text-bridge-accent" />
-          {t("organization.settings.hrSystem", "External HR System")}
+          {t("organization.settings.hrSystem", "HR System")}
         </h3>
         <p className="text-xs text-slate-500 mb-4">
-          {t("organization.settings.hrSystemDesc", "If your organization manages leave/vacation in an external HR system, you can hide those features from BRIDGE.")}
+          {t("organization.settings.hrSystemDesc", "Enable this if your organization manages leave/vacation through a separate HR system.")}
         </p>
         <div className="flex items-center justify-between p-3 bg-foreground/[0.02] rounded-xl border border-foreground/[0.08]">
           <div>
             <span className="text-sm font-medium text-foreground">
-              {t("organization.settings.hrSystemEnabled", "Hide BRIDGE leave/vacation features")}
+              {t("organization.settings.hrSystemEnabled", "Use HR System")}
             </span>
             <p className="text-xs text-slate-500 mt-0.5">
-              {t("organization.settings.hrSystemHint", "Leave management, leave balance, and HR info will not be displayed.")}
+              {t("organization.settings.hrSystemHint", "When enabled, BRIDGE's leave/vacation management features will be hidden.")}
             </p>
           </div>
           <button

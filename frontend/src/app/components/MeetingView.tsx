@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { useEscClose } from "../hooks/useEscClose";
 import {
   Plus,
   Users,
@@ -254,6 +255,7 @@ function MeetingCreateModal({
   onCreated,
 }: MeetingCreateModalProps) {
   const { t } = useTranslation();
+  useEscClose(true, onClose);
   const [title, setTitle] = useState("");
   const [memo, setMemo] = useState("");
   const [recurrenceRule, setRecurrenceRule] = useState<string>("");
