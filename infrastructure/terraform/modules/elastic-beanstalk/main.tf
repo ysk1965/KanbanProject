@@ -188,6 +188,12 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.alb_security_group_id
   }
 
+  setting {
+    namespace = "aws:elbv2:loadbalancer"
+    name      = "IdleTimeout"
+    value     = "90"
+  }
+
   # HTTPS Listener (conditional)
   dynamic "setting" {
     for_each = var.ssl_certificate_arn != "" ? [1] : []
