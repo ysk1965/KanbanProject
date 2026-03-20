@@ -18,6 +18,7 @@ public enum BoardEventType {
     BLOCK_UPDATED,
     BLOCK_DELETED,
     BLOCKS_REORDERED,
+    BLOCK_VISIBILITY_CHANGED,
 
     // Comment events
     COMMENT_CREATED,

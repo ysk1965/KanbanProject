@@ -4,6 +4,7 @@ import { Block, Feature, Task, Tag, Board, InviteLink, Subscription, ActivityLog
 import { BoardMember as ShareBoardMember, MemberRole } from '../components/ShareBoardModal';
 import {
   boardService,
+  blockService,
   featureService,
   taskService,
   checklistService,
@@ -36,6 +37,7 @@ export function useBoardDataLoader(boardId: string | undefined) {
   // 보드 데이터
   const [board, setBoard] = useState<Board | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
+  const [hiddenBlocks, setHiddenBlocks] = useState<Block[]>([]);
   const [features, setFeatures] = useState<Feature[]>([]);
   const [allFeatures, setAllFeatures] = useState<Feature[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -84,7 +86,6 @@ export function useBoardDataLoader(boardId: string | undefined) {
           created_at: fullData.created_at,
           updated_at: fullData.updated_at,
         });
-        setBlocks(fullData.blocks);
         setTags(fullData.tags);
         setInviteLinks(fullData.invite_links || []);
         setSubscription(fullData.subscription_detail);
@@ -118,6 +119,16 @@ export function useBoardDataLoader(boardId: string | undefined) {
             filteredFeatures = fullData.features.filter((f: Feature) => milestoneFeatureIds.has(f.id));
             finalTasks = fullData.tasks.filter((t: Task) => milestoneFeatureIds.has(t.feature_id));
           }
+          // 마일스톤 선택 시 블록도 필터링 (숨긴 블록 포함)
+          try {
+            const blockResult = await blockService.getBlocksWithHidden(boardId, fullData.selected_milestone_id);
+            setBlocks(blockResult.blocks);
+            setHiddenBlocks(blockResult.hiddenBlocks);
+          } catch {
+            setBlocks(fullData.blocks);
+          }
+        } else {
+          setBlocks(fullData.blocks);
         }
         // 체크리스트 배치 + 스케줄 Task ID를 먼저 로드 (카드 렌더링 전에 데이터 준비)
         const taskIdsWithChecklist = finalTasks
@@ -150,13 +161,14 @@ export function useBoardDataLoader(boardId: string | undefined) {
     loadBoardData();
   }, [boardId, navigate]);
 
-  // Feature와 Task를 milestoneId로 필터링해서 다시 로드
+  // Feature, Task, Blocks를 milestoneId로 필터링해서 다시 로드
   const reloadFeaturesAndTasks = useCallback(async (milestoneId?: string) => {
     if (!boardId) return;
     try {
-      const [featuresData, tasksData] = await Promise.all([
+      const [featuresData, tasksData, blockResult] = await Promise.all([
         featureService.getFeatures(boardId, milestoneId),
         taskService.getTasks(boardId, milestoneId ? { milestone_id: milestoneId } : undefined),
+        blockService.getBlocksWithHidden(boardId, milestoneId),
       ]);
       const taskIdsWithChecklist = tasksData
         .filter((t: Task) => (t.checklist_total ?? 0) > 0)
@@ -174,6 +186,8 @@ export function useBoardDataLoader(boardId: string | undefined) {
 
       setFeatures(featuresData);
       setTasks(tasksData);
+      setBlocks(blockResult.blocks);
+      setHiddenBlocks(blockResult.hiddenBlocks);
       setChecklistDataMap(batchChecklistMap);
       setScheduledTaskIds(new Set(scheduledData.task_ids));
     } catch (error) {
@@ -203,6 +217,7 @@ export function useBoardDataLoader(boardId: string | undefined) {
     // Data
     board, setBoard,
     blocks, setBlocks,
+    hiddenBlocks, setHiddenBlocks,
     features, setFeatures,
     allFeatures, setAllFeatures,
     tasks, setTasks,

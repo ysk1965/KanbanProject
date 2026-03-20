@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   X,
   Clock,
@@ -148,6 +148,7 @@ export function ScheduleDetailPanel({
     ChecklistItemResponse[]
   >([]);
   const [isLoadingChecklist, setIsLoadingChecklist] = useState(false);
+  const currentChecklistRef = useRef<HTMLDivElement>(null);
 
   // Meeting 상세 정보
   const [meetingDetail, setMeetingDetail] = useState<MeetingDetail | null>(
@@ -194,6 +195,18 @@ export function ScheduleDetailPanel({
     };
     loadChecklist();
   }, [boardId, task?.id]);
+
+  // 체크리스트 로드 후 현재 아이템으로 스크롤
+  useEffect(() => {
+    if (!isLoadingChecklist && allChecklistItems.length > 0 && checklist?.id) {
+      requestAnimationFrame(() => {
+        currentChecklistRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      });
+    }
+  }, [isLoadingChecklist, allChecklistItems, checklist?.id]);
 
   // Meeting 상세 정보 로드
   useEffect(() => {
@@ -1039,6 +1052,7 @@ export function ScheduleDetailPanel({
                   return (
                     <div
                       key={item.id}
+                      ref={isCurrent ? currentChecklistRef : undefined}
                       className={`flex items-start gap-2 p-2 rounded ${
                         isCurrent
                           ? "bg-purple-500/20 border border-purple-500/50"

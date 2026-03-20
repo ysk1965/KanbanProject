@@ -2151,6 +2151,7 @@
     "dragToMove": "ドラッグして Block を移動",
     "rename": "名前を変更",
     "changeColor": "色を変更",
+    "hideInMilestone": "このマイルストーンで非表示",
     "deleteBlock": "Block を削除"
   },
   "dailyChecklistView": {

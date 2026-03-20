@@ -12,7 +12,8 @@ import java.util.Optional;
 
 public interface BlockRepository extends JpaRepository<Block, String> {
 
-    List<Block> findByBoardIdOrderByPositionAsc(String boardId);
+    @Query("SELECT b FROM Block b LEFT JOIN FETCH b.milestone WHERE b.board.id = :boardId ORDER BY b.position ASC")
+    List<Block> findByBoardIdOrderByPositionAsc(@Param("boardId") String boardId);
 
     @Query("SELECT b FROM Block b WHERE b.board.id = :boardId AND b.fixedType = :fixedType")
     Optional<Block> findByBoardIdAndFixedType(@Param("boardId") String boardId, @Param("fixedType") FixedBlockType fixedType);
@@ -36,4 +37,13 @@ public interface BlockRepository extends JpaRepository<Block, String> {
     @Modifying
     @Query("DELETE FROM Block b WHERE b.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
+
+    List<Block> findByMilestoneIdOrderByPositionAsc(String milestoneId);
+
+    @Query("SELECT b FROM Block b WHERE b.board.id = :boardId AND b.milestone IS NULL ORDER BY b.position ASC")
+    List<Block> findBoardLevelBlocksByBoardId(@Param("boardId") String boardId);
+
+    @Modifying
+    @Query("DELETE FROM Block b WHERE b.milestone.id = :milestoneId")
+    void deleteByMilestoneId(@Param("milestoneId") String milestoneId);
 }

@@ -2151,6 +2151,7 @@
     "dragToMove": "Arraste para mover o bloco",
     "rename": "Renomear",
     "changeColor": "Alterar cor",
+    "hideInMilestone": "Ocultar neste marco",
     "deleteBlock": "Excluir bloco"
   },
   "dailyChecklistView": {

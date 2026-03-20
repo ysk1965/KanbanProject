@@ -11,6 +11,9 @@ import com.kanban.domain.block.dto.BlockResponse;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.milestone.Milestone;
+import com.kanban.domain.milestone.MilestoneBlockConfigRepository;
+import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
@@ -25,8 +28,11 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -43,19 +49,51 @@ public class BlockService {
     private final UserRepository userRepository;
     private final ActivityService activityService;
     private final WebSocketEventService webSocketEventService;
+    private final MilestoneBlockConfigRepository milestoneBlockConfigRepository;
+    private final MilestoneRepository milestoneRepository;
 
-    @Cacheable(value = "blocks", key = "#boardId", unless = "#result == null")
-    public BlockResponse.ListResponse getBlocks(String boardId, String userId) {
+    @Cacheable(value = "blocks", key = "#boardId + '_' + (#milestoneId != null ? #milestoneId : 'all')", unless = "#result == null")
+    public BlockResponse.ListResponse getBlocks(String boardId, String userId, String milestoneId) {
         // 뷰어 이상 권한 확인
         boardService.checkViewerOrAbove(boardId, userId);
 
-        List<Block> blocks = blockRepository.findByBoardIdOrderByPositionAsc(boardId);
-        log.debug("Blocks loaded from DB for board: {}", boardId);
-        return BlockResponse.ListResponse.of(blocks);
+        if (milestoneId == null) {
+            // 마일스톤 필터 없음: 보드의 모든 블록 반환
+            List<Block> blocks = blockRepository.findByBoardIdOrderByPositionAsc(boardId);
+            log.debug("Blocks loaded from DB for board: {}", boardId);
+            return BlockResponse.ListResponse.of(blocks);
+        }
+
+        // 마일스톤 필터 있음: 고정 블록 + 보드 레벨 커스텀 블록(숨기지 않은 것) + 해당 마일스톤 전용 블록
+        Set<String> hiddenBlockIds = milestoneBlockConfigRepository.findHiddenBlockIdsByMilestoneId(milestoneId);
+
+        List<Block> boardLevelBlocks = blockRepository.findBoardLevelBlocksByBoardId(boardId);
+        List<Block> milestoneSpecificBlocks = blockRepository.findByMilestoneIdOrderByPositionAsc(milestoneId);
+
+        List<Block> filteredBlocks = new ArrayList<>();
+        List<Block> hiddenBlocks = new ArrayList<>();
+
+        // 보드 레벨 블록: 고정 블록은 항상 포함, 커스텀 블록은 숨김 여부 확인
+        for (Block block : boardLevelBlocks) {
+            if (block.isFixed() || !hiddenBlockIds.contains(block.getId())) {
+                filteredBlocks.add(block);
+            } else {
+                hiddenBlocks.add(block);
+            }
+        }
+
+        // 마일스톤 전용 블록 추가
+        filteredBlocks.addAll(milestoneSpecificBlocks);
+
+        // position 기준 정렬
+        filteredBlocks.sort(Comparator.comparingInt(Block::getPosition));
+
+        log.debug("Blocks loaded from DB for board: {} with milestone filter: {}", boardId, milestoneId);
+        return BlockResponse.ListResponse.of(filteredBlocks, hiddenBlocks);
     }
 
     @Transactional
-    @CacheEvict(value = "blocks", key = "#boardId")
+    @CacheEvict(value = "blocks", allEntries = true)
     public BlockResponse.Detail createBlock(String boardId, String userId, BlockRequest.Create request) {
         // Admin 이상 권한 확인
         boardService.checkAdminOrAbove(boardId, userId);
@@ -79,7 +117,17 @@ public class BlockService {
             block.updatePosition(block.getPosition() + 1);
         }
 
-        Block newBlock = Block.createCustomBlock(board, request.getName(), request.getColor(), newPosition);
+        Block newBlock;
+        if (request.getMilestoneId() != null) {
+            Milestone milestone = milestoneRepository.findById(request.getMilestoneId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
+            if (!milestone.getBoard().getId().equals(boardId)) {
+                throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
+            }
+            newBlock = Block.createMilestoneBlock(board, milestone, request.getName(), request.getColor(), newPosition);
+        } else {
+            newBlock = Block.createCustomBlock(board, request.getName(), request.getColor(), newPosition);
+        }
         blockRepository.save(newBlock);
 
         User user = userRepository.findById(userId)
@@ -95,7 +143,7 @@ public class BlockService {
     }
 
     @Transactional
-    @CacheEvict(value = "blocks", key = "#boardId")
+    @CacheEvict(value = "blocks", allEntries = true)
     public BlockResponse.Detail updateBlock(String boardId, String blockId, String userId, BlockRequest.Update request) {
         // Admin 이상 권한 확인
         boardService.checkAdminOrAbove(boardId, userId);
@@ -128,7 +176,7 @@ public class BlockService {
     }
 
     @Transactional
-    @CacheEvict(value = "blocks", key = "#boardId")
+    @CacheEvict(value = "blocks", allEntries = true)
     public void deleteBlock(String boardId, String blockId, String userId) {
         // Admin 이상 권한 확인
         boardService.checkAdminOrAbove(boardId, userId);
@@ -158,6 +206,9 @@ public class BlockService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
         taskRepository.moveTasksToBlock(blockId, taskBlock);
 
+        // 마일스톤 블록 숨김 설정 정리
+        milestoneBlockConfigRepository.deleteByBlockId(blockId);
+
         int deletedPosition = block.getPosition();
         blockRepository.delete(block);
 
@@ -176,7 +227,7 @@ public class BlockService {
     }
 
     @Transactional
-    @CacheEvict(value = "blocks", key = "#boardId")
+    @CacheEvict(value = "blocks", allEntries = true)
     public BlockResponse.ListResponse reorderBlocks(String boardId, String userId, BlockRequest.Reorder request) {
         // Admin 이상 권한 확인
         boardService.checkAdminOrAbove(boardId, userId);
