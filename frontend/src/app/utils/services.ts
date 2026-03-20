@@ -303,9 +303,9 @@ export const boardService = {
 // ========================================
 
 export const blockService = {
-  getBlocks: async (boardId: string): Promise<Block[]> => {
+  getBlocks: async (boardId: string, milestoneId?: string): Promise<Block[]> => {
     try {
-      const response = await blockAPI.getBlocks(boardId);
+      const response = await blockAPI.getBlocks(boardId, milestoneId);
       return response.blocks;
     } catch (error) {
       console.warn("API failed, using mock data for blocks", error);
@@ -316,9 +316,25 @@ export const blockService = {
     }
   },
 
+  getBlocksWithHidden: async (boardId: string, milestoneId?: string): Promise<{ blocks: Block[]; hiddenBlocks: Block[] }> => {
+    try {
+      const response = await blockAPI.getBlocks(boardId, milestoneId);
+      return {
+        blocks: response.blocks,
+        hiddenBlocks: response.hidden_blocks || [],
+      };
+    } catch (error) {
+      console.warn("API failed for getBlocksWithHidden", error);
+      if (USE_MOCK_ON_ERROR) {
+        return { blocks: loadFromLocalStorage("kanban_blocks", mockBlocks), hiddenBlocks: [] };
+      }
+      throw error;
+    }
+  },
+
   createBlock: async (
     boardId: string,
-    data: { name: string; color: string },
+    data: { name: string; color: string; milestone_id?: string },
   ): Promise<Block> => {
     try {
       const block = await blockAPI.createBlock(boardId, data);

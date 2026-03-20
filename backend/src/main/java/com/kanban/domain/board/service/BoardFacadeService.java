@@ -127,7 +127,7 @@ public class BoardFacadeService {
         Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
 
         // 3. 각 서비스에서 데이터 조회 (checkViewerOrAbove가 시스템 ADMIN도 허용)
-        BlockResponse.ListResponse blocksResponse = blockService.getBlocks(boardId, userId);
+        BlockResponse.ListResponse blocksResponse = blockService.getBlocks(boardId, userId, null);
         FeatureResponse.ListResponse featuresResponse = featureService.getFeatures(boardId, userId, null);
         TaskResponse.ListResponse tasksResponse = taskService.getTasks(boardId, userId, null, null, null);
         TagResponse.ListResponse tagsResponse = tagService.getTags(boardId, userId);

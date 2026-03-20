@@ -1732,6 +1732,7 @@
     "dragToMove": "Drag to move block",
     "rename": "Rename",
     "changeColor": "Change color",
+    "hideInMilestone": "Hide in this milestone",
     "deleteBlock": "Delete block"
   },
   "quickAdd": {

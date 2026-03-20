@@ -3,6 +3,8 @@ package com.kanban.domain.milestone.controller;
 import com.kanban.domain.milestone.dto.MilestoneRequest;
 import com.kanban.domain.milestone.dto.MilestoneResponse;
 import com.kanban.domain.milestone.service.MilestoneService;
+import com.kanban.global.exception.BusinessException;
+import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/boards/{boardId}/milestones")
@@ -83,6 +87,23 @@ public class MilestoneController {
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         milestoneService.removeFeature(boardId, milestoneId, featureId, userPrincipal.getUserId());
+        return ResponseEntity.ok().build();
+    }
+
+    // ==================== Block Visibility Endpoints ====================
+
+    @PutMapping("/{milestoneId}/blocks/{blockId}/visibility")
+    public ResponseEntity<Void> toggleBlockVisibility(
+            @PathVariable String boardId,
+            @PathVariable String milestoneId,
+            @PathVariable String blockId,
+            @RequestBody Map<String, Boolean> request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        Boolean hidden = request.get("hidden");
+        if (hidden == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        milestoneService.toggleBlockVisibility(boardId, milestoneId, blockId, hidden, userPrincipal.getUserId());
         return ResponseEntity.ok().build();
     }
 

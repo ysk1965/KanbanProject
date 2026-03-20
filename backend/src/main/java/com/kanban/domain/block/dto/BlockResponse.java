@@ -27,6 +27,8 @@ public class BlockResponse {
         private FixedBlockType fixedType;
         private String color;
         private Integer position;
+        private String milestoneId;
+        private String milestoneTitle;
 
         public static Detail of(Block block) {
             return Detail.builder()
@@ -36,6 +38,8 @@ public class BlockResponse {
                     .fixedType(block.getFixedType())
                     .color(block.getColor())
                     .position(block.getPosition())
+                    .milestoneId(block.getMilestone() != null ? block.getMilestone().getId() : null)
+                    .milestoneTitle(block.getMilestone() != null ? block.getMilestone().getTitle() : null)
                     .build();
         }
     }
@@ -49,10 +53,18 @@ public class BlockResponse {
         private static final long serialVersionUID = 1L;
 
         private List<Detail> blocks;
+        private List<Detail> hiddenBlocks;
 
         public static ListResponse of(List<Block> blocks) {
             return ListResponse.builder()
                     .blocks(blocks.stream().map(Detail::of).toList())
+                    .build();
+        }
+
+        public static ListResponse of(List<Block> blocks, List<Block> hiddenBlocks) {
+            return ListResponse.builder()
+                    .blocks(blocks.stream().map(Detail::of).toList())
+                    .hiddenBlocks(hiddenBlocks.stream().map(Detail::of).toList())
                     .build();
         }
     }

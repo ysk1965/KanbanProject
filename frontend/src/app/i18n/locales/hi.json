@@ -2151,6 +2151,7 @@
     "dragToMove": "Block ले जाने के लिए खींचें",
     "rename": "नाम बदलें",
     "changeColor": "रंग बदलें",
+    "hideInMilestone": "इस माइलस्टोन में छिपाएं",
     "deleteBlock": "Block हटाएं"
   },
   "dailyChecklistView": {

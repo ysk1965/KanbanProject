@@ -23,8 +23,9 @@ public class BlockController {
     @GetMapping
     public ResponseEntity<BlockResponse.ListResponse> getBlocks(
             @PathVariable String boardId,
+            @RequestParam(required = false) String milestoneId,
             @AuthenticationPrincipal UserPrincipal principal) {
-        BlockResponse.ListResponse response = blockService.getBlocks(boardId, principal.getUserId());
+        BlockResponse.ListResponse response = blockService.getBlocks(boardId, principal.getUserId(), milestoneId);
         return ResponseEntity.ok(response);
     }
 

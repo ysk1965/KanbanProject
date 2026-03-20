@@ -71,6 +71,7 @@ public enum ErrorCode {
     BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "BL001", "블록을 찾을 수 없습니다"),
     BLOCK_CANNOT_DELETE_FIXED(HttpStatus.BAD_REQUEST, "BL002", "고정 블록은 삭제할 수 없습니다"),
     BLOCK_CANNOT_MODIFY_FIXED(HttpStatus.BAD_REQUEST, "BL003", "고정 블록은 수정할 수 없습니다"),
+    BLOCK_CANNOT_HIDE_FIXED(HttpStatus.BAD_REQUEST, "BL004", "고정 블록은 숨길 수 없습니다"),
 
     // Feature
     FEATURE_NOT_FOUND(HttpStatus.NOT_FOUND, "F001", "Feature를 찾을 수 없습니다"),

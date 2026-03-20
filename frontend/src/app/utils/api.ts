@@ -78,16 +78,16 @@ const decodeToken = (token: string): { exp: number } | null => {
   }
 };
 
-// 토큰이 곧 만료되는지 확인 (10분 이내)
+// 토큰이 곧 만료되는지 확인 (1시간 이내)
 const isTokenExpiringSoon = (token: string): boolean => {
   const decoded = decodeToken(token);
   if (!decoded) return true;
 
   const now = Math.floor(Date.now() / 1000);
   const timeUntilExpiry = decoded.exp - now;
-  const TEN_MINUTES = 10 * 60;
+  const ONE_HOUR = 60 * 60;
 
-  return timeUntilExpiry < TEN_MINUTES;
+  return timeUntilExpiry < ONE_HOUR;
 };
 
 // 토큰이 이미 만료되었는지 확인
@@ -514,6 +514,8 @@ export interface BlockResponse {
   fixed_type: "FEATURE" | "TASK" | "DONE" | null;
   color: string | null;
   position: number;
+  milestone_id?: string | null;
+  milestone_title?: string | null;
 }
 
 export interface TagResponse {
@@ -1203,15 +1205,16 @@ export const boardJoinRequestAPI = {
 // ========================================
 
 export const blockAPI = {
-  getBlocks: async (boardId: string) => {
-    return apiClient.get<{ blocks: BlockResponse[] }>(
-      `/boards/${boardId}/blocks`,
+  getBlocks: async (boardId: string, milestoneId?: string) => {
+    const query = milestoneId ? `?milestoneId=${milestoneId}` : '';
+    return apiClient.get<{ blocks: BlockResponse[]; hidden_blocks?: BlockResponse[] }>(
+      `/boards/${boardId}/blocks${query}`,
     );
   },
 
   createBlock: async (
     boardId: string,
-    data: { name: string; color: string },
+    data: { name: string; color: string; milestone_id?: string },
   ) => {
     return apiClient.post<BlockResponse>(`/boards/${boardId}/blocks`, data);
   },
@@ -1239,6 +1242,24 @@ export const blockAPI = {
       {
         block_ids: blockIds,
       },
+    );
+  },
+};
+
+// ========================================
+// Milestone Block Visibility API
+// ========================================
+
+export const milestoneBlockAPI = {
+  toggleVisibility: async (
+    boardId: string,
+    milestoneId: string,
+    blockId: string,
+    hidden: boolean,
+  ) => {
+    return apiClient.put<void>(
+      `/boards/${boardId}/milestones/${milestoneId}/blocks/${blockId}/visibility`,
+      { hidden },
     );
   },
 };

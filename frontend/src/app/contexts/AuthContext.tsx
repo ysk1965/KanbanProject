@@ -137,6 +137,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
+  // 탭 복귀 시 토큰 만료 체크 → 자동 갱신
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && isAuthenticated) {
+        if (authService.isTokenExpiredButExists()) {
+          console.log('🔄 [Auth] 탭 복귀, 만료된 토큰 갱신 시도...');
+          const refreshed = await authService.tryRefreshToken();
+          if (!refreshed) {
+            setIsAuthenticated(false);
+            setCurrentUser(null);
+            syncAnalyticsUser(null);
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isAuthenticated]);
+
   const login = async (email: string, password: string) => {
     const response = await authService.login(email, password);
     setIsAuthenticated(true);

@@ -275,6 +275,8 @@ export interface Block {
   fixed_type: FixedBlockType;
   color: string | null;
   position: number;
+  milestone_id?: string | null;
+  milestone_title?: string | null;
 }
 
 // ========================================

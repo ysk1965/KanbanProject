@@ -1734,6 +1734,7 @@
     "dragToMove": "드래그하여 블록 이동",
     "rename": "이름 변경",
     "changeColor": "색상 변경",
+    "hideInMilestone": "이 마일스톤에서 숨기기",
     "deleteBlock": "블록 삭제"
   },
   "quickAdd": {
