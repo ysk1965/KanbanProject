@@ -29,6 +29,7 @@ import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -277,6 +278,7 @@ public class MilestoneService {
     }
 
     @Transactional
+    @CacheEvict(value = "blocks", allEntries = true)
     public void toggleBlockVisibility(String boardId, String milestoneId, String blockId, boolean hidden, String userId) {
         boardService.checkAdminOrAbove(boardId, userId);
 
