@@ -1,5 +1,85 @@
 # Documentation Changelog
 
+## [2026-03-20] v1.7.0
+
+### IA v1.7.0
+- Added: Organization 도메인 (145개 Java 파일, 14개 컨트롤러) — HR, 출퇴근, 1:1, 온보딩, 기념일
+- Added: OKR 도메인 (20개 파일, 13개 엔드포인트) — 사이클, 목표, 핵심결과, 체크인
+- Added: Photo 도메인 (9개 파일, 34개 엔드포인트) — 조직 갤러리, 공유 앨범
+- Added: Discord 연동 도메인 (10개 엔드포인트) — 웹훅, 봇, 사용자 연결
+- Added: MentionGroup 도메인 (7개 파일) — 멘션 그룹 관리
+- Added: `components/organization/` (73개 파일, okr/photo/tabs/member/settings/subscription 하위 디렉토리)
+- Added: `components/schedule/` (4개 파일: CalendarView, ResourceView, ChecklistPanel, DragItem)
+- Added: BoardViewSwitcher, BoardListView — 보드 5개 서브뷰 (kanban, list, gantt, calendar, milestone)
+- Added: ExcalidrawEditor — 노트 화이트보드 (BOARD 타입)
+- Added: 6개 신규 페이지 (Organization, SharedAlbum, SharedGallery, GalleryUpload, OrgInvite)
+- Added: OrgDataContext, 3개 신규 훅 (useHolidays, useVisualViewport, useReducedMotion)
+- Changed: Frontend 컴포넌트 207개 → 312개, Backend 도메인 27개 → 38개
+- Changed: 컨트롤러 51개 → 78개, 엔드포인트 ~588개
+- Changed: Flyway V30 → V94 + 16개 타임스탬프 마이그레이션 (105개 총)
+
+### Wireframe v1.7.0
+- Added: OrganizationDetailPage (12개 탭: 대시보드, 멤버, 조직도, 보드, 출퇴근, 휴가, OKR, 갤러리, 문서, 인사이트, 설정, 공지)
+- Added: 보드 뷰 구조 개편 — BoardViewSwitcher (5개 서브뷰, Premium lock)
+- Added: BoardListView (테이블 기반, 그룹핑/정렬/검색)
+- Added: 일정 탭 3개 서브탭 (timeblock, calendar, resource) + ChecklistItemPanel
+- Added: 노트 화이트보드 (ExcalidrawEditor, Yjs 협업, NoteType BOARD)
+- Added: 사진 갤러리 (PhotoAlbumBar, PhotoGrid, PhotoLightbox, 공유/업로드)
+- Added: OKR 시스템 (13개 컴포넌트: CycleSelector, TreeView, ListView, CheckInModal 등)
+- Added: Discord 설정 패널, 보드 리소스, 멘션 그룹, 참가 요청
+
+### Design v1.6.0
+- Changed: Bridge Design System v2.0.0 통일 토큰 시스템 적용
+- Changed: 컬러 팔레트 업데이트 (bridge-dark #191f2d, bridge-obsidian #151B28, bridge-surface #1e2a42)
+- Added: 3-Tier 테마 시스템 (CSS Variables → dark: prefix → BlockNote)
+- Added: 통일 디자인 토큰 (border-foreground/[0.08], badge /15, hover-foreground/5)
+- Added: 타이포그래피 제약 (text-xs 최소, font-weight 3종만)
+- Added: 20개 컴포넌트 작성 규칙 (IconButton, MotionModal, MobileBottomNav 등)
+- Changed: `zinc-` → `slate-` 통일, `kanban-scrollbar` → `custom-scrollbar` 통일
+- Removed: 하드코딩 색상 패턴 (border-black/5 dark:border-white/5 등)
+
+### ERD v1.7.0
+- Added: Organization 테이블 군 (organizations, departments, members, invite_links 등 26개 테이블)
+- Added: Leave 관리 (leave_policies, leave_balances, leave_requests, leave_balance_adjustments)
+- Added: OKR 시스템 (okr_cycles, okr_objectives, okr_key_results, okr_checkins)
+- Added: Photo 갤러리 (org_photo_tabs, org_photos)
+- Added: Discord 연동 (member_discord_webhooks, discord_bot_configs, discord_user_links)
+- Added: Slack 확장 (slack_installations, slack_event_logs, slack_user_links)
+- Added: Board 기능 (board_resources, board_join_requests, mention_groups, milestone_block_configs)
+- Added: Personal Space (personal_events, personal_tasks, personal_habits)
+- Added: 노트 확장 (note_collab_states, note_sharings, note_comments, task_dependencies, device_tokens)
+- Changed: Board에 organization_id/board_type/deleted_at, Note에 BOARD 타입, Block에 milestone_id
+- Changed: Subscription에 AI 크레딧 필드, NotificationPreference에 Discord 5개 필드
+- Changed: Migration V31~V94 + 16개 타임스탬프 마이그레이션 추가 (총 105개)
+
+### API v1.7.0
+- Added: Organization API (14개 컨트롤러, 165+ 엔드포인트) — 조직/멤버/출퇴근/1:1/공지/기념일/온보딩/인사이트/보드/이력/활동/조직도/초대
+- Added: Leave API (16개 엔드포인트) — 휴가 정책/잔여/요청/조정
+- Added: OKR API (13개 엔드포인트) — 사이클/목표/핵심결과/체크인
+- Added: Photo Gallery API (34개 엔드포인트) — 조직 갤러리 + 공개 앨범
+- Added: Discord API (11개 엔드포인트) — 웹훅/봇/테스트
+- Added: Organization Notes API (22개 엔드포인트) — 조직 노트/댓글/태그
+- Added: Board Resources API (5개), Join Requests API (4개), Mention Groups API (4개)
+- Added: Organization Subscription API (10개), Polar Webhook API (1개)
+- Added: 권한 레벨 Org.Owner, Org.Admin+, Org.Member+
+- Changed: Schedule API에 checklist-items/by-assignee 추가
+- Changed: 34개 → 60개 섹션, 총 ~588 엔드포인트
+
+### Tech v1.7.0
+- Added: Excalidraw ^0.18.0 (화이트보드, lazy-loaded ~1.5MB)
+- Added: Capacitor 6.2.1 (14개 모바일 플러그인)
+- Added: Discord 연동 (OAuth2 + Bot + Webhook)
+- Added: Polar.sh 결제 (13개 환경변수)
+- Added: Slack App 확장 (OAuth, 토큰 암호화)
+- Added: AnniversaryNotificationScheduler (9번째 스케줄러)
+- Changed: Redis/ElastiCache Dev에서 비활성화 (비용 ~$11.50/월 절감)
+- Changed: Cache 타입 simple로 기본값 변경 (Redis → Simple)
+- Changed: Flyway 마이그레이션 타임스탬프 기반 전환
+- Changed: AI Provider 전략 패턴 (Claude/OpenAI 환경변수 전환)
+- Changed: Global config 11개 → 22개, WebSocket 파일 6개로 확장
+
+---
+
 ## [2026-02-13] v1.6.0
 
 ### IA v1.6.0

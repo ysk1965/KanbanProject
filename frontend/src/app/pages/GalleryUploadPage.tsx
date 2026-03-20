@@ -281,21 +281,38 @@ export function GalleryUploadPage() {
   }, [hasNext, photosLoading, nextCursor, fetchPhotos]);
 
   // File handling
+  const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30MB
+  const MAX_TOTAL_FILES = 100;
+
   const addFiles = useCallback((newFiles: File[]) => {
     const imageFiles = newFiles.filter((f) => f.type.startsWith('image/'));
-    setFiles((prev) => [...prev, ...imageFiles]);
-    imageFiles.forEach((f) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreviews((prev) => [...prev, e.target?.result as string]);
-      };
-      reader.readAsDataURL(f);
+    const oversized = imageFiles.filter((f) => f.size > MAX_FILE_SIZE);
+    if (oversized.length > 0) {
+      setError(t('photoGallery.fileTooLarge', `${oversized.length} file(s) exceed 30MB limit`));
+      return;
+    }
+    setFiles((prev) => {
+      const remaining = MAX_TOTAL_FILES - prev.length;
+      if (remaining <= 0) {
+        setError(t('photoGallery.maxFilesReached', `Maximum ${MAX_TOTAL_FILES} photos per upload`));
+        return prev;
+      }
+      const toAdd = imageFiles.slice(0, remaining);
+      if (toAdd.length < imageFiles.length) {
+        setError(t('photoGallery.filesLimited', `Only ${toAdd.length} of ${imageFiles.length} photos added (max ${MAX_TOTAL_FILES})`));
+      }
+      const objectUrls = toAdd.map((f) => URL.createObjectURL(f));
+      setPreviews((p) => [...p, ...objectUrls]);
+      return [...prev, ...toAdd];
     });
-  }, []);
+  }, [t]);
 
   const removeFile = useCallback((index: number) => {
+    setPreviews((prev) => {
+      if (prev[index]) URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
     setFiles((prev) => prev.filter((_, i) => i !== index));
-    setPreviews((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   const handleDrop = useCallback(
@@ -322,6 +339,7 @@ export function GalleryUploadPage() {
       setUploaded(true);
       setUploadProgress(null);
       setError(null);
+      previews.forEach((u) => URL.revokeObjectURL(u));
       setFiles([]);
       setPreviews([]);
       // Refresh photos and album info
@@ -341,9 +359,15 @@ export function GalleryUploadPage() {
       setActiveAlbum((prev) =>
         prev ? { ...prev, photo_count: prev.photo_count + files.length } : prev,
       );
-    } catch {
+    } catch (err: unknown) {
       setUploadProgress(null);
-      setError('Upload failed. Please try again.');
+      const code = (err as { error?: { code?: string } })?.error?.code;
+      const message = code === 'FILE_TOO_LARGE' ? t('photoGallery.errorFileTooLarge', 'File size exceeds the limit (max 30MB)')
+        : code === 'FILE_TYPE_NOT_ALLOWED' ? t('photoGallery.errorFileType', 'Unsupported file format')
+        : code === 'PHOTO_UPLOAD_LIMIT_EXCEEDED' ? t('photoGallery.errorUploadLimit', 'Maximum 20 photos per upload')
+        : code === 'ORGANIZATION_NOT_FOUND' ? t('photoGallery.errorTokenExpired', 'Upload link has expired')
+        : t('photoGallery.errorUploadFailed', 'Upload failed. Please try again.');
+      setError(message);
     } finally {
       setUploading(false);
     }
@@ -880,7 +904,7 @@ export function GalleryUploadPage() {
                     {files.length} {t('photoGallery.photosUnit', 'photos')} selected
                   </span>
                   <button
-                    onClick={() => { setFiles([]); setPreviews([]); }}
+                    onClick={() => { previews.forEach((u) => URL.revokeObjectURL(u)); setFiles([]); setPreviews([]); }}
                     className="text-xs text-slate-500 hover:text-foreground transition-colors"
                   >
                     Clear all
