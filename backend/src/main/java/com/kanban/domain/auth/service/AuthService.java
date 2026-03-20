@@ -126,8 +126,8 @@ public class AuthService {
         // 사용자 가져오기 (Lazy loading)
         User user = storedToken.getUser();
 
-        // 해당 사용자의 모든 리프레시 토큰 삭제 후 flush
-        refreshTokenRepository.deleteByUserId(user.getId());
+        // 현재 사용된 리프레시 토큰만 삭제 (다른 기기 세션 유지)
+        refreshTokenRepository.deleteByUserIdAndToken(user.getId(), refreshToken);
         entityManager.flush();
 
         try {

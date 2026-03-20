@@ -2151,6 +2151,7 @@
     "dragToMove": "Keo de di chuyen khoi",
     "rename": "Doi ten",
     "changeColor": "Doi mau",
+    "hideInMilestone": "Ẩn trong milestone này",
     "deleteBlock": "Xoa khoi"
   },
   "dailyChecklistView": {

@@ -25,6 +25,7 @@ interface KanbanBlockProps {
   onTaskClick?: (task: Task) => void;
   onEditBlock?: () => void;
   onDeleteBlock?: () => void;
+  onHideBlock?: () => void;
   onMoveBlockLeft?: () => void;
   onMoveBlockRight?: () => void;
   canMoveLeft?: boolean;
@@ -40,6 +41,7 @@ interface KanbanBlockProps {
   onQuickAddTask?: (blockId: string) => void;
   isPersonal?: boolean;
   recentlyCompletedTaskIds?: Set<string>;
+  selectedMilestoneId?: string;
 }
 
 export const KanbanBlock = memo(function KanbanBlock({
@@ -52,6 +54,7 @@ export const KanbanBlock = memo(function KanbanBlock({
   onTaskClick,
   onEditBlock,
   onDeleteBlock,
+  onHideBlock,
   boardId,
   expandedChecklistTaskIds,
   onToggleChecklistExpand,
@@ -62,6 +65,7 @@ export const KanbanBlock = memo(function KanbanBlock({
   onQuickAddTask,
   isPersonal = false,
   recentlyCompletedTaskIds,
+  selectedMilestoneId,
 }: KanbanBlockProps) {
   const { t } = useTranslation();
   const taskContainerRef = useRef<HTMLDivElement>(null);
@@ -314,6 +318,11 @@ export const KanbanBlock = memo(function KanbanBlock({
           <span className="text-xs font-medium text-slate-400 bg-bridge-surface-hover px-2 py-0.5 rounded-md">
             {tasks.length}
           </span>
+          {block.milestone_title && !selectedMilestoneId && (
+            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+              {block.milestone_title}
+            </span>
+          )}
         </div>
 
         {!isFixedBlock && (
@@ -343,6 +352,17 @@ export const KanbanBlock = memo(function KanbanBlock({
               >
                 {t("kanbanBlock.changeColor")}
               </DropdownMenuItem>
+              {onHideBlock && (
+                <>
+                  <DropdownMenuSeparator className="bg-bridge-border" />
+                  <DropdownMenuItem
+                    onClick={onHideBlock}
+                    className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
+                  >
+                    {t("kanbanBlock.hideInMilestone", "이 마일스톤에서 숨기기")}
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuSeparator className="bg-bridge-border" />
               <DropdownMenuItem
                 onClick={onDeleteBlock}

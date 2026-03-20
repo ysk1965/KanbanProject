@@ -22,6 +22,12 @@ import {
   Lock,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 
 // 뷰 모드 타입
 type ViewMode =
@@ -173,6 +179,7 @@ import {
   checklistAPI,
   scheduleAPI,
   boardJoinRequestAPI,
+  milestoneBlockAPI,
 } from "../utils/api";
 
 import { useTranslation } from "react-i18next";
@@ -371,6 +378,8 @@ export function KanbanBoardPage() {
     setBoard,
     blocks,
     setBlocks,
+    hiddenBlocks,
+    setHiddenBlocks,
     features,
     setFeatures,
     allFeatures,
@@ -913,6 +922,12 @@ export function KanbanBoardPage() {
         if (Array.isArray(blocks)) {
           setBlocks(blocks);
         }
+        break;
+      }
+
+      case "BLOCK_VISIBILITY_CHANGED": {
+        // 다른 사용자가 블록 숨김/표시를 변경한 경우 블록 재로드
+        reloadBlocksForMilestone();
         break;
       }
 
@@ -1631,9 +1646,18 @@ export function KanbanBoardPage() {
     if (!boardId) return;
 
     try {
-      const newBlock = await blockService.createBlock(boardId, { name, color });
-      const blocksData = await blockService.getBlocks(boardId);
-      setBlocks(blocksData);
+      const milestoneId =
+        kanbanSelectedMilestoneId &&
+        kanbanSelectedMilestoneId !== "all" &&
+        kanbanSelectedMilestoneId !== "none"
+          ? kanbanSelectedMilestoneId
+          : undefined;
+      await blockService.createBlock(boardId, {
+        name,
+        color,
+        milestone_id: milestoneId,
+      });
+      await reloadBlocksForMilestone();
     } catch (error) {
       console.error("Failed to create block:", error);
     }
@@ -1688,6 +1712,61 @@ export function KanbanBoardPage() {
         setBlocks(previousBlocks);
         setTasks(previousTasks);
       }
+    }
+  };
+
+  const reloadBlocksForMilestone = async () => {
+    if (!boardId) return;
+    const reloadMilestoneId =
+      kanbanSelectedMilestoneId && kanbanSelectedMilestoneId !== "all" && kanbanSelectedMilestoneId !== "none"
+        ? kanbanSelectedMilestoneId
+        : undefined;
+    const blockResult = await blockService.getBlocksWithHidden(boardId, reloadMilestoneId);
+    setBlocks(blockResult.blocks);
+    setHiddenBlocks(blockResult.hiddenBlocks);
+  };
+
+  const handleHideBlock = async (blockId: string) => {
+    if (
+      !boardId ||
+      !kanbanSelectedMilestoneId ||
+      kanbanSelectedMilestoneId === "all" ||
+      kanbanSelectedMilestoneId === "none"
+    )
+      return;
+
+    try {
+      await milestoneBlockAPI.toggleVisibility(
+        boardId,
+        kanbanSelectedMilestoneId,
+        blockId,
+        true,
+      );
+      await reloadBlocksForMilestone();
+    } catch (error) {
+      console.error("Failed to hide block:", error);
+    }
+  };
+
+  const handleShowBlock = async (blockId: string) => {
+    if (
+      !boardId ||
+      !kanbanSelectedMilestoneId ||
+      kanbanSelectedMilestoneId === "all" ||
+      kanbanSelectedMilestoneId === "none"
+    )
+      return;
+
+    try {
+      await milestoneBlockAPI.toggleVisibility(
+        boardId,
+        kanbanSelectedMilestoneId,
+        blockId,
+        false,
+      );
+      await reloadBlocksForMilestone();
+    } catch (error) {
+      console.error("Failed to show block:", error);
     }
   };
 
@@ -1756,9 +1835,21 @@ export function KanbanBoardPage() {
     setBlocks(updatedBlocks);
 
     if (boardId) {
-      const blockIds = fullOrder.map((b) => b.id);
-      blockService.reorderBlocks(boardId, blockIds).catch((error) => {
-        console.error("Failed to reorder blocks:", error);
+      // 마일스톤 필터 활성 시, 보이지 않는 블록(숨긴 블록 + 다른 마일스톤 전용)도 포함해서 전송
+      // → 전체 블록 목록을 다시 로드하여 reorder API에 전달
+      blockService.getBlocks(boardId).then((allBlocks) => {
+        // 현재 보이는 블록의 새 순서를 전체 블록에 반영
+        const visibleOrder = fullOrder.map((b) => b.id);
+        const hiddenBlockIds = allBlocks
+          .filter((b) => !visibleOrder.includes(b.id))
+          .map((b) => b.id);
+        // Feature, Task 고정 + 보이는 순서 + 숨긴 블록(원래 위치 유지)
+        const reorderIds = [...visibleOrder, ...hiddenBlockIds];
+        blockService.reorderBlocks(boardId, reorderIds).catch((error) => {
+          console.error("Failed to reorder blocks:", error);
+        });
+      }).catch((error) => {
+        console.error("Failed to load all blocks for reorder:", error);
       });
     }
   };
@@ -2648,8 +2739,12 @@ export function KanbanBoardPage() {
           unreadInquiryCount={unreadInquiryCount}
           onOpenInquiry={() => setIsInquiryModalOpen(true)}
           onOpenShareBoard={() => setIsShareBoardModalOpen(true)}
-          onOpenSubscription={() => { if (!hideBilling) setIsSubscriptionModalOpen(true); }}
-          onOpenPremiumBenefits={() => { if (!hideBilling) setIsPremiumBenefitsModalOpen(true); }}
+          onOpenSubscription={() => {
+            if (!hideBilling) setIsSubscriptionModalOpen(true);
+          }}
+          onOpenPremiumBenefits={() => {
+            if (!hideBilling) setIsPremiumBenefitsModalOpen(true);
+          }}
           onUpdatePayment={async () => {
             if (!boardId) return;
             try {
@@ -3098,12 +3193,41 @@ export function KanbanBoardPage() {
                                 recentlyCompletedTaskIds
                               }
                             />
-                            <button
-                              onClick={() => setIsAddBlockModalOpen(true)}
-                              className="h-10 w-10 mt-4 self-start flex items-center justify-center rounded-xl border border-dashed border-bridge-border text-zinc-500 hover:text-foreground hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all"
-                            >
-                              <Plus className="h-5 w-5" />
-                            </button>
+                            <div className="flex flex-col gap-2 mt-4 self-start">
+                              <button
+                                onClick={() => setIsAddBlockModalOpen(true)}
+                                className="h-10 w-10 flex items-center justify-center rounded-xl border border-dashed border-bridge-border text-zinc-500 hover:text-foreground hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all"
+                              >
+                                <Plus className="h-5 w-5" />
+                              </button>
+                              {hiddenBlocks.length > 0 && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button className="h-10 w-10 flex items-center justify-center rounded-xl border border-dashed border-bridge-border text-slate-400 hover:text-foreground hover:border-bridge-secondary/50 hover:bg-bridge-secondary/10 transition-all relative">
+                                      <Eye className="h-4 w-4" />
+                                      <span className="absolute -top-1 -right-1 text-xs font-bold bg-bridge-secondary text-white rounded-full w-4 h-4 flex items-center justify-center">
+                                        {hiddenBlocks.length}
+                                      </span>
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent
+                                    align="start"
+                                    className="bg-bridge-surface border-bridge-border"
+                                  >
+                                    {hiddenBlocks.map((hb) => (
+                                      <DropdownMenuItem
+                                        key={hb.id}
+                                        onClick={() => handleShowBlock(hb.id)}
+                                        className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
+                                      >
+                                        <Eye className="h-3 w-3 mr-2" />
+                                        {hb.name}
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
                           </div>
                         );
                       })()}
@@ -3150,6 +3274,21 @@ export function KanbanBoardPage() {
                                 onDeleteBlock={
                                   block.type === "CUSTOM"
                                     ? () => handleDeleteBlock(block.id)
+                                    : undefined
+                                }
+                                onHideBlock={
+                                  block.type === "CUSTOM" &&
+                                  !block.milestone_id &&
+                                  kanbanSelectedMilestoneId &&
+                                  kanbanSelectedMilestoneId !== "all" &&
+                                  kanbanSelectedMilestoneId !== "none"
+                                    ? () => handleHideBlock(block.id)
+                                    : undefined
+                                }
+                                selectedMilestoneId={
+                                  kanbanSelectedMilestoneId !== "all" &&
+                                  kanbanSelectedMilestoneId !== "none"
+                                    ? kanbanSelectedMilestoneId
                                     : undefined
                                 }
                                 onMoveBlockLeft={

@@ -1,6 +1,7 @@
 package com.kanban.domain.block;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.milestone.Milestone;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -38,6 +39,10 @@ public class Block {
 
     @Column(name = "position", nullable = false)
     private Integer position;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "milestone_id")
+    private Milestone milestone;
 
     @PrePersist
     public void prePersist() {
@@ -105,5 +110,24 @@ public class Block {
                 .color(color)
                 .position(position)
                 .build();
+    }
+
+    public static Block createMilestoneBlock(Board board, Milestone milestone, String name, String color, int position) {
+        return Block.builder()
+                .board(board)
+                .milestone(milestone)
+                .name(name)
+                .type(BlockType.CUSTOM)
+                .color(color)
+                .position(position)
+                .build();
+    }
+
+    public boolean isMilestoneSpecific() {
+        return this.milestone != null;
+    }
+
+    public boolean isBoardLevel() {
+        return this.milestone == null;
     }
 }

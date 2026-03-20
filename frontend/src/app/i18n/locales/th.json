@@ -2151,6 +2151,7 @@
     "dragToMove": "ลากเพื่อย้าย Block",
     "rename": "เปลี่ยนชื่อ",
     "changeColor": "เปลี่ยนสี",
+    "hideInMilestone": "ซ่อนใน Milestone นี้",
     "deleteBlock": "ลบ Block"
   },
   "dailyChecklistView": {

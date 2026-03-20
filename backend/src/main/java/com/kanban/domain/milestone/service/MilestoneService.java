@@ -1,5 +1,8 @@
 package com.kanban.domain.milestone.service;
 
+import com.kanban.domain.block.Block;
+import com.kanban.domain.block.BlockRepository;
+import com.kanban.domain.block.FixedBlockType;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
@@ -8,6 +11,8 @@ import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneAllocation;
 import com.kanban.domain.milestone.MilestoneAllocationRepository;
+import com.kanban.domain.milestone.MilestoneBlockConfig;
+import com.kanban.domain.milestone.MilestoneBlockConfigRepository;
 import com.kanban.domain.milestone.MilestoneFeature;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
 import com.kanban.domain.milestone.MilestoneRepository;
@@ -15,10 +20,13 @@ import com.kanban.domain.milestone.dto.MilestoneRequest;
 import com.kanban.domain.milestone.dto.MilestoneResponse;
 import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
+import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.websocket.WebSocketEventService;
+import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +37,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -41,11 +50,15 @@ public class MilestoneService {
     private final MilestoneRepository milestoneRepository;
     private final MilestoneFeatureRepository milestoneFeatureRepository;
     private final MilestoneAllocationRepository milestoneAllocationRepository;
+    private final MilestoneBlockConfigRepository milestoneBlockConfigRepository;
     private final FeatureRepository featureRepository;
     private final BoardRepository boardRepository;
+    private final BlockRepository blockRepository;
+    private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final BoardService boardService;
+    private final WebSocketEventService webSocketEventService;
 
     public MilestoneResponse.ListResponse getMilestones(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
@@ -182,6 +195,20 @@ public class MilestoneService {
         milestoneAllocationRepository.deleteByMilestoneId(milestoneId);
         milestoneFeatureRepository.deleteByMilestoneId(milestoneId);
 
+        // 마일스톤 전용 블록의 태스크를 Task 고정 블록으로 이동 후 삭제
+        List<Block> milestoneBlocks = blockRepository.findByMilestoneIdOrderByPositionAsc(milestoneId);
+        if (!milestoneBlocks.isEmpty()) {
+            Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
+            for (Block milestoneBlock : milestoneBlocks) {
+                taskRepository.moveTasksToBlock(milestoneBlock.getId(), taskBlock);
+            }
+            blockRepository.deleteByMilestoneId(milestoneId);
+        }
+
+        // 숨김 설정 정리
+        milestoneBlockConfigRepository.deleteByMilestoneId(milestoneId);
+
         // Board의 selectedMilestoneId가 이 마일스톤을 참조하면 해제
         Board board = milestone.getBoard();
         if (milestoneId.equals(board.getSelectedMilestoneId())) {
@@ -247,6 +274,45 @@ public class MilestoneService {
         milestoneFeatureRepository.deleteByMilestoneIdAndFeatureId(milestoneId, featureId);
 
         log.info("Feature {} removed from milestone {} by user: {}", featureId, milestoneId, userId);
+    }
+
+    @Transactional
+    public void toggleBlockVisibility(String boardId, String milestoneId, String blockId, boolean hidden, String userId) {
+        boardService.checkAdminOrAbove(boardId, userId);
+
+        Milestone milestone = getMilestoneWithBoardCheck(boardId, milestoneId);
+
+        Block block = blockRepository.findById(blockId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
+
+        if (!block.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.BLOCK_NOT_FOUND);
+        }
+
+        // 고정 블록은 숨길 수 없음
+        if (block.isFixed()) {
+            throw new BusinessException(ErrorCode.BLOCK_CANNOT_HIDE_FIXED);
+        }
+
+        // 마일스톤 전용 블록은 이 API로 숨길 수 없음 (삭제를 사용)
+        if (block.isMilestoneSpecific()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        Optional<MilestoneBlockConfig> existingConfig = milestoneBlockConfigRepository.findByMilestoneIdAndBlockId(milestoneId, blockId);
+
+        if (existingConfig.isPresent()) {
+            existingConfig.get().updateHidden(hidden);
+        } else {
+            MilestoneBlockConfig config = MilestoneBlockConfig.create(milestone, block, hidden);
+            milestoneBlockConfigRepository.save(config);
+        }
+
+        log.info("Block {} visibility changed to hidden={} in milestone {} by user: {}", blockId, hidden, milestoneId, userId);
+
+        // WebSocket 이벤트
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.BLOCK_VISIBILITY_CHANGED, userId, null,
+                Map.of("blockId", blockId, "milestoneId", milestoneId, "hidden", hidden));
     }
 
     private int calculateProgress(List<Feature> features) {

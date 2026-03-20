@@ -2151,6 +2151,7 @@
     "dragToMove": "拖动以移动 Block",
     "rename": "重命名",
     "changeColor": "更改颜色",
+    "hideInMilestone": "在此里程碑中隐藏",
     "deleteBlock": "删除 Block"
   },
   "dailyChecklistView": {
