@@ -2,6 +2,7 @@ package com.kanban.global.service;
 
 import com.kanban.global.util.MediaUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +19,7 @@ public class AsyncThumbnailService {
     private final FileUploadService fileUploadService;
     private final VideoThumbnailService videoThumbnailService;
 
-    public AsyncThumbnailService(FileUploadService fileUploadService,
+    public AsyncThumbnailService(@Lazy FileUploadService fileUploadService,
                                   VideoThumbnailService videoThumbnailService) {
         this.fileUploadService = fileUploadService;
         this.videoThumbnailService = videoThumbnailService;
