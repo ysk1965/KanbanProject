@@ -194,6 +194,9 @@ public class ChecklistService {
                     }
                 });
             }
+        } else if (oldAssigneeId != null) {
+            // 담당자 해제: 기존 담당자가 있었는데 null로 요청된 경우
+            item.updateAssignee(null);
         }
 
         log.info("Checklist item updated: {} by user: {}", itemId, userId);

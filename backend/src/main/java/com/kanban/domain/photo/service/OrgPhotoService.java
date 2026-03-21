@@ -13,6 +13,7 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.service.AsyncThumbnailService;
 import com.kanban.global.service.FileUploadService;
 import com.kanban.global.util.MediaUtils;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +55,7 @@ public class OrgPhotoService {
     private final OrganizationRepository organizationRepository;
     private final OrganizationService organizationService;
     private final FileUploadService fileUploadService;
+    private final AsyncThumbnailService asyncThumbnailService;
     private final UserRepository userRepository;
 
     private static final int MAX_UPLOAD_FILES = 20;
@@ -241,67 +243,44 @@ public class OrgPhotoService {
         List<OrgPhotoResponse.PhotoDetail> results = new ArrayList<>();
 
         for (MultipartFile file : files) {
-            try {
-                // Validate file
-                fileUploadService.validateFile(file);
+            // Validate file (스트림 기반 — 첫 12바이트만 읽어서 검증)
+            fileUploadService.validateFile(file);
 
-                byte[] fileBytes = file.getBytes();
-                String contentType = file.getContentType();
-                String originalFilename = file.getOriginalFilename();
-                String ext = MediaUtils.getExtension(originalFilename);
-                String uuid = UUID.randomUUID().toString();
+            String contentType = file.getContentType();
+            String originalFilename = file.getOriginalFilename();
+            String ext = MediaUtils.getExtension(originalFilename);
+            String uuid = UUID.randomUUID().toString();
 
-                // Upload original
-                String s3Key = String.format("photos/org/%s/%s/%s%s", orgId, tabId, uuid, ext);
-                String url = fileUploadService.uploadDirect(fileBytes, s3Key, contentType);
+            // Upload original (스트림으로 직접 전송 — byte[] 메모리 로드 없음)
+            String s3Key = String.format("photos/org/%s/%s/%s%s", orgId, tabId, uuid, ext);
+            String url = fileUploadService.uploadDirect(file, s3Key);
 
-                // Generate and upload thumbnail
-                String thumbnailKey = String.format("photos/org/%s/%s/%s_thumb.jpg", orgId, tabId, uuid);
-                String thumbnailUrl = null;
-                try {
-                    byte[] thumbnailBytes = MediaUtils.generateThumbnail(fileBytes, THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_HEIGHT);
-                    thumbnailUrl = fileUploadService.uploadDirect(thumbnailBytes, thumbnailKey, "image/jpeg");
-                } catch (IOException e) {
-                    log.warn("Failed to generate thumbnail for {}: {}", originalFilename, e.getMessage());
-                    thumbnailKey = null;
-                }
+            // 썸네일 비동기 생성 (백그라운드 스레드에서 처리)
+            String thumbnailKey = String.format("photos/org/%s/%s/%s_thumb.jpg", orgId, tabId, uuid);
+            String thumbnailUrl = fileUploadService.resolveUrl(thumbnailKey);
+            asyncThumbnailService.generateAndUploadThumbnail(
+                    s3Key, thumbnailKey, contentType,
+                    THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_HEIGHT);
 
-                // Get image dimensions
-                Integer width = null;
-                Integer height = null;
-                try {
-                    BufferedImage bufferedImage = ImageIO.read(new ByteArrayInputStream(fileBytes));
-                    if (bufferedImage != null) {
-                        width = bufferedImage.getWidth();
-                        height = bufferedImage.getHeight();
-                    }
-                } catch (IOException e) {
-                    log.warn("Failed to read image dimensions for {}: {}", originalFilename, e.getMessage());
-                }
+            OrgPhoto photo = OrgPhoto.builder()
+                    .tab(tab)
+                    .organization(org)
+                    .s3Key(s3Key)
+                    .thumbnailKey(thumbnailKey)
+                    .url(url)
+                    .thumbnailUrl(thumbnailUrl)
+                    .originalFilename(originalFilename)
+                    .fileSize(file.getSize())
+                    .contentType(contentType)
+                    .width(null)
+                    .height(null)
+                    .uploadedBy(user)
+                    .build();
+            orgPhotoRepository.save(photo);
 
-                OrgPhoto photo = OrgPhoto.builder()
-                        .tab(tab)
-                        .organization(org)
-                        .s3Key(s3Key)
-                        .thumbnailKey(thumbnailKey)
-                        .url(url)
-                        .thumbnailUrl(thumbnailUrl)
-                        .originalFilename(originalFilename)
-                        .fileSize(file.getSize())
-                        .contentType(contentType)
-                        .width(width)
-                        .height(height)
-                        .uploadedBy(user)
-                        .build();
-                orgPhotoRepository.save(photo);
+            tab.incrementPhotoCount();
 
-                tab.incrementPhotoCount();
-
-                results.add(OrgPhotoResponse.PhotoDetail.from(photo));
-            } catch (IOException e) {
-                log.error("Failed to upload photo {}: {}", file.getOriginalFilename(), e.getMessage());
-                throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
-            }
+            results.add(OrgPhotoResponse.PhotoDetail.from(photo));
         }
 
         log.info("Photos uploaded: orgId={}, tabId={}, count={}, userId={}",
@@ -528,62 +507,40 @@ public class OrgPhotoService {
         List<OrgPhotoResponse.PhotoDetail> results = new ArrayList<>();
 
         for (MultipartFile file : files) {
-            try {
-                fileUploadService.validateFile(file);
+            fileUploadService.validateFile(file);
 
-                byte[] fileBytes = file.getBytes();
-                String contentType = file.getContentType();
-                String originalFilename = file.getOriginalFilename();
-                String ext = MediaUtils.getExtension(originalFilename);
-                String uuid = UUID.randomUUID().toString();
+            String contentType = file.getContentType();
+            String originalFilename = file.getOriginalFilename();
+            String ext = MediaUtils.getExtension(originalFilename);
+            String uuid = UUID.randomUUID().toString();
 
-                String s3Key = String.format("photos/org/%s/%s/%s%s", orgId, tabId, uuid, ext);
-                String url = fileUploadService.uploadDirect(fileBytes, s3Key, contentType);
+            String s3Key = String.format("photos/org/%s/%s/%s%s", orgId, tabId, uuid, ext);
+            String url = fileUploadService.uploadDirect(file, s3Key);
 
-                String thumbnailKey = String.format("photos/org/%s/%s/%s_thumb.jpg", orgId, tabId, uuid);
-                String thumbnailUrl = null;
-                try {
-                    byte[] thumbnailBytes = MediaUtils.generateThumbnail(fileBytes, THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_HEIGHT);
-                    thumbnailUrl = fileUploadService.uploadDirect(thumbnailBytes, thumbnailKey, "image/jpeg");
-                } catch (IOException e) {
-                    log.warn("Failed to generate thumbnail for {}: {}", originalFilename, e.getMessage());
-                    thumbnailKey = null;
-                }
+            String thumbnailKey = String.format("photos/org/%s/%s/%s_thumb.jpg", orgId, tabId, uuid);
+            String thumbnailUrl = fileUploadService.resolveUrl(thumbnailKey);
+            asyncThumbnailService.generateAndUploadThumbnail(
+                    s3Key, thumbnailKey, contentType,
+                    THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_HEIGHT);
 
-                Integer width = null;
-                Integer height = null;
-                try {
-                    BufferedImage bufferedImage = ImageIO.read(new ByteArrayInputStream(fileBytes));
-                    if (bufferedImage != null) {
-                        width = bufferedImage.getWidth();
-                        height = bufferedImage.getHeight();
-                    }
-                } catch (IOException e) {
-                    log.warn("Failed to read image dimensions for {}: {}", originalFilename, e.getMessage());
-                }
+            OrgPhoto photo = OrgPhoto.builder()
+                    .tab(tab)
+                    .organization(org)
+                    .s3Key(s3Key)
+                    .thumbnailKey(thumbnailKey)
+                    .url(url)
+                    .thumbnailUrl(thumbnailUrl)
+                    .originalFilename(originalFilename)
+                    .fileSize(file.getSize())
+                    .contentType(contentType)
+                    .width(null)
+                    .height(null)
+                    .build();
+            orgPhotoRepository.save(photo);
 
-                OrgPhoto photo = OrgPhoto.builder()
-                        .tab(tab)
-                        .organization(org)
-                        .s3Key(s3Key)
-                        .thumbnailKey(thumbnailKey)
-                        .url(url)
-                        .thumbnailUrl(thumbnailUrl)
-                        .originalFilename(originalFilename)
-                        .fileSize(file.getSize())
-                        .contentType(contentType)
-                        .width(width)
-                        .height(height)
-                        .build();
-                orgPhotoRepository.save(photo);
+            tab.incrementPhotoCount();
 
-                tab.incrementPhotoCount();
-
-                results.add(OrgPhotoResponse.PhotoDetail.from(photo));
-            } catch (IOException e) {
-                log.error("Failed to upload photo {}: {}", file.getOriginalFilename(), e.getMessage());
-                throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
-            }
+            results.add(OrgPhotoResponse.PhotoDetail.from(photo));
         }
 
         log.info("Public photos uploaded: orgId={}, tabId={}, count={}", orgId, tabId, files.size());
@@ -903,62 +860,40 @@ public class OrgPhotoService {
         List<OrgPhotoResponse.PhotoDetail> results = new ArrayList<>();
 
         for (MultipartFile file : files) {
-            try {
-                fileUploadService.validateFile(file);
+            fileUploadService.validateFile(file);
 
-                byte[] fileBytes = file.getBytes();
-                String contentType = file.getContentType();
-                String originalFilename = file.getOriginalFilename();
-                String ext = MediaUtils.getExtension(originalFilename);
-                String uuid = UUID.randomUUID().toString();
+            String contentType = file.getContentType();
+            String originalFilename = file.getOriginalFilename();
+            String ext = MediaUtils.getExtension(originalFilename);
+            String uuid = UUID.randomUUID().toString();
 
-                String s3Key = String.format("photos/org/%s/%s/%s%s", orgId, tabId, uuid, ext);
-                String url = fileUploadService.uploadDirect(fileBytes, s3Key, contentType);
+            String s3Key = String.format("photos/org/%s/%s/%s%s", orgId, tabId, uuid, ext);
+            String url = fileUploadService.uploadDirect(file, s3Key);
 
-                String thumbnailKey = String.format("photos/org/%s/%s/%s_thumb.jpg", orgId, tabId, uuid);
-                String thumbnailUrl = null;
-                try {
-                    byte[] thumbnailBytes = MediaUtils.generateThumbnail(fileBytes, THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_HEIGHT);
-                    thumbnailUrl = fileUploadService.uploadDirect(thumbnailBytes, thumbnailKey, "image/jpeg");
-                } catch (IOException e) {
-                    log.warn("Failed to generate thumbnail for {}: {}", originalFilename, e.getMessage());
-                    thumbnailKey = null;
-                }
+            String thumbnailKey = String.format("photos/org/%s/%s/%s_thumb.jpg", orgId, tabId, uuid);
+            String thumbnailUrl = fileUploadService.resolveUrl(thumbnailKey);
+            asyncThumbnailService.generateAndUploadThumbnail(
+                    s3Key, thumbnailKey, contentType,
+                    THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_HEIGHT);
 
-                Integer width = null;
-                Integer height = null;
-                try {
-                    BufferedImage bufferedImage = ImageIO.read(new ByteArrayInputStream(fileBytes));
-                    if (bufferedImage != null) {
-                        width = bufferedImage.getWidth();
-                        height = bufferedImage.getHeight();
-                    }
-                } catch (IOException e) {
-                    log.warn("Failed to read image dimensions for {}: {}", originalFilename, e.getMessage());
-                }
+            OrgPhoto photo = OrgPhoto.builder()
+                    .tab(tab)
+                    .organization(org)
+                    .s3Key(s3Key)
+                    .thumbnailKey(thumbnailKey)
+                    .url(url)
+                    .thumbnailUrl(thumbnailUrl)
+                    .originalFilename(originalFilename)
+                    .fileSize(file.getSize())
+                    .contentType(contentType)
+                    .width(null)
+                    .height(null)
+                    .build();
+            orgPhotoRepository.save(photo);
 
-                OrgPhoto photo = OrgPhoto.builder()
-                        .tab(tab)
-                        .organization(org)
-                        .s3Key(s3Key)
-                        .thumbnailKey(thumbnailKey)
-                        .url(url)
-                        .thumbnailUrl(thumbnailUrl)
-                        .originalFilename(originalFilename)
-                        .fileSize(file.getSize())
-                        .contentType(contentType)
-                        .width(width)
-                        .height(height)
-                        .build();
-                orgPhotoRepository.save(photo);
+            tab.incrementPhotoCount();
 
-                tab.incrementPhotoCount();
-
-                results.add(OrgPhotoResponse.PhotoDetail.from(photo));
-            } catch (IOException e) {
-                log.error("Failed to upload photo {}: {}", file.getOriginalFilename(), e.getMessage());
-                throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
-            }
+            results.add(OrgPhotoResponse.PhotoDetail.from(photo));
         }
 
         log.info("Public gallery photos uploaded: orgId={}, tabId={}, count={}", orgId, tabId, files.size());
