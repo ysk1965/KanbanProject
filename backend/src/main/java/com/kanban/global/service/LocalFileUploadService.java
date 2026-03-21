@@ -28,6 +28,7 @@ import java.util.UUID;
 public class LocalFileUploadService implements FileUploadService {
 
     private final VideoThumbnailService videoThumbnailService;
+    private final AsyncThumbnailService asyncThumbnailService;
 
     @Value("${app.file.max-size:31457280}")
     private long maxFileSize;
@@ -53,8 +54,10 @@ public class LocalFileUploadService implements FileUploadService {
     @Value("${app.file.temp-expiry-minutes:60}")
     private int tempExpiryMinutes;
 
-    public LocalFileUploadService(VideoThumbnailService videoThumbnailService) {
+    public LocalFileUploadService(VideoThumbnailService videoThumbnailService,
+                                    AsyncThumbnailService asyncThumbnailService) {
         this.videoThumbnailService = videoThumbnailService;
+        this.asyncThumbnailService = asyncThumbnailService;
     }
 
     @Override
@@ -71,10 +74,9 @@ public class LocalFileUploadService implements FileUploadService {
         if (file.getSize() > sizeLimit) {
             throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
         }
-        // 매직바이트 검증
-        try {
-            byte[] bytes = file.getBytes();
-            if (!MediaUtils.isValidMediaMagicBytes(bytes, contentType)) {
+        // 매직바이트 검증 (첫 12바이트만 읽어서 검증 — 메모리 효율적)
+        try (InputStream is = file.getInputStream()) {
+            if (!MediaUtils.isValidMediaMagicBytes(is, contentType)) {
                 throw new BusinessException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
             }
         } catch (IOException e) {
@@ -158,7 +160,7 @@ public class LocalFileUploadService implements FileUploadService {
         }
 
         try {
-            byte[] fileBytes = Files.readAllBytes(tempPath);
+            long fileSize = Files.size(tempPath);
             String extension = MediaUtils.getExtension(tempKey);
 
             // content type 감지
@@ -175,37 +177,22 @@ public class LocalFileUploadService implements FileUploadService {
             Files.createDirectories(permanentPath.getParent());
             Files.move(tempPath, permanentPath, StandardCopyOption.REPLACE_EXISTING);
 
-            // 썸네일 생성 (이미지 vs 영상 분기, 문서는 스킵)
+            // 썸네일 비동기 생성 (이미지 vs 영상 분기, 문서는 스킵)
             String thumbnailKey = null;
             String thumbnailUrl = "";
             if (!MediaUtils.isDocumentType(contentType)) {
                 thumbnailKey = permanentKey.replaceAll("\\.[^.]+$", "_thumb.jpg");
-                try {
-                    byte[] thumbnailBytes;
-                    if (MediaUtils.isVideoType(contentType)) {
-                        thumbnailBytes = videoThumbnailService.extractThumbnail(fileBytes, extension, thumbnailMaxWidth, thumbnailMaxHeight);
-                    } else {
-                        thumbnailBytes = MediaUtils.generateThumbnail(fileBytes, thumbnailMaxWidth, thumbnailMaxHeight);
-                    }
-
-                    if (thumbnailBytes != null && thumbnailBytes.length > 0) {
-                        Path thumbnailPath = Paths.get(localDir, thumbnailKey);
-                        Files.write(thumbnailPath, thumbnailBytes);
-                        thumbnailUrl = String.format("/uploads/%s", thumbnailKey);
-                        log.info("Thumbnail generated: {}", thumbnailPath);
-                    } else {
-                        thumbnailKey = null;
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to generate thumbnail for {}: {}", tempKey, e.getMessage());
-                    thumbnailKey = null;
-                }
+                thumbnailUrl = String.format("/uploads/%s", thumbnailKey);
+                asyncThumbnailService.generateAndUploadThumbnail(
+                        permanentKey, thumbnailKey, contentType,
+                        thumbnailMaxWidth, thumbnailMaxHeight);
+                log.info("Async thumbnail generation queued: {}", thumbnailKey);
             }
 
             String url = String.format("/uploads/%s", permanentKey);
             log.info("File moved to permanent: {} -> {}", tempPath, permanentPath);
 
-            return new PermanentResult(permanentKey, url, thumbnailKey, thumbnailUrl, contentType, fileBytes.length);
+            return new PermanentResult(permanentKey, url, thumbnailKey, thumbnailUrl, contentType, fileSize);
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
