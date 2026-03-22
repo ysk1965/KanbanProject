@@ -403,6 +403,19 @@ export async function downloadPhotosBatch(
           report(total, 'done');
           return downloadedIds;
         }
+        // Batch Web Share failed (e.g. Chrome iOS) → try individual Web Share with already-fetched files
+        let allShared = true;
+        for (let i = 0; i < files.length; i++) {
+          if (signal?.aborted) { report(i, 'cancelled'); allShared = false; break; }
+          report(i + 1, 'saving');
+          const ok = await tryWebShare([files[i]]);
+          if (!ok) { allShared = false; break; }
+        }
+        if (allShared && !signal?.aborted) {
+          markManyAsDownloaded(downloadedIds);
+          report(total, 'done');
+          return downloadedIds;
+        }
       }
     } catch {
       // Fall through to individual downloads
