@@ -293,9 +293,6 @@ function openForManualSave(url: string): void {
  * - KakaoTalk in-app: open external browser via intent scheme
  * - Desktop browsers: fetch → blob → anchor download
  */
-/** When true, downloadPhoto skips per-file Web Share (set during batch fallback) */
-let _batchBypassWebShare = false;
-
 export async function downloadPhoto(photoUrl: string, filename: string, photoId?: string): Promise<void> {
   const url = resolveFileUrl(photoUrl);
 
@@ -311,7 +308,7 @@ export async function downloadPhoto(photoUrl: string, filename: string, photoId?
   }
 
   // 2. Mobile web → try Web Share API first (skip if batchBypass flag)
-  if (canWebShare() && !_batchBypassWebShare) {
+  if (canWebShare()) {
     try {
       const file = await fetchAsFile(url, filename);
       const shared = await tryWebShare([file]);
@@ -416,8 +413,7 @@ export async function downloadPhotosBatch(
   }
 
   // Fallback: individual downloads (native, desktop, share failed)
-  // Skip per-file Web Share in fallback to avoid multiple share sheets
-  _batchBypassWebShare = true;
+  // Each file uses the same flow as single download (Web Share on mobile)
   // Always delay between downloads on web to prevent Chrome from throttling
   const needsDelay = !isNative();
   for (let i = 0; i < photos.length; i++) {
@@ -438,8 +434,6 @@ export async function downloadPhotosBatch(
       await new Promise((r) => setTimeout(r, 800));
     }
   }
-  _batchBypassWebShare = false;
-
   if (!signal?.aborted) {
     report(total, 'done');
   }
