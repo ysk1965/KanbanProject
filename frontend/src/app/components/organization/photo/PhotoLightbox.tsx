@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useEscClose } from '../../../hooks/useEscClose';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Trash2, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Download, Trash2, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Loader2 } from 'lucide-react';
 import type { OrgPhoto } from '../../../types';
 import { resolveFileUrl } from '../../../utils/api';
 
@@ -12,6 +12,7 @@ interface PhotoLightboxProps {
   totalCount?: number;
   hasMore?: boolean;
   onLoadMore?: () => void;
+  loadingMore?: boolean;
   isAdmin: boolean;
   onClose: () => void;
   onNavigate: (photo: OrgPhoto) => void;
@@ -35,6 +36,7 @@ export function PhotoLightbox({
   totalCount,
   hasMore,
   onLoadMore,
+  loadingMore,
   isAdmin,
   onClose,
   onNavigate,
@@ -64,12 +66,25 @@ export function PhotoLightbox({
   const lastPinchDistRef = useRef<number | null>(null);
   const wasPinchingRef = useRef(false);
 
+  // Waiting for next page to load before auto-navigating
+  const [waitingForNext, setWaitingForNext] = useState(false);
+  const waitingIndexRef = useRef(-1);
+
   const isZoomed = zoom > 1;
 
   const currentIndex = useMemo(() => {
     if (!photo) return -1;
     return photos.findIndex((p) => p.id === photo.id);
   }, [photo, photos]);
+
+  // Auto-navigate to next photo when new photos arrive while waiting
+  useEffect(() => {
+    if (waitingForNext && waitingIndexRef.current >= 0 && waitingIndexRef.current < photos.length) {
+      onNavigate(photos[waitingIndexRef.current]);
+      setWaitingForNext(false);
+      waitingIndexRef.current = -1;
+    }
+  }, [photos.length, waitingForNext, photos, onNavigate]);
 
   // Reset zoom when photo changes
   useEffect(() => {
@@ -120,9 +135,14 @@ export function PhotoLightbox({
     if (currentIndex < photos.length - 1) {
       onNavigate(photos[currentIndex + 1]);
       // Pre-fetch more photos when near the end of loaded list
-      if (hasMore && onLoadMore && currentIndex >= photos.length - 4) {
+      if (hasMore && onLoadMore && currentIndex >= photos.length - 6) {
         onLoadMore();
       }
+    } else if (hasMore && onLoadMore) {
+      // At the last loaded photo — request more and wait
+      onLoadMore();
+      setWaitingForNext(true);
+      waitingIndexRef.current = photos.length; // index of the first new photo
     }
   }, [currentIndex, photos, onNavigate, hasMore, onLoadMore]);
 
@@ -482,10 +502,15 @@ export function PhotoLightbox({
           {!isZoomed && (currentIndex < photos.length - 1 || hasMore) && (
             <button
               onClick={goNext}
-              className="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 text-white/60 hover:text-white transition-all"
+              disabled={waitingForNext}
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 text-white/60 hover:text-white transition-all disabled:opacity-60"
               aria-label="다음"
             >
-              <ChevronRight size={20} />
+              {waitingForNext || (currentIndex === photos.length - 1 && loadingMore) ? (
+                <Loader2 size={20} className="animate-spin" />
+              ) : (
+                <ChevronRight size={20} />
+              )}
             </button>
           )}
 
