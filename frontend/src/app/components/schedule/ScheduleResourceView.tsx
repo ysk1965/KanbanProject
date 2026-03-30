@@ -48,6 +48,7 @@ interface ScheduleResourceViewProps {
 interface DragState {
   itemId: string;
   taskId: string;
+  assigneeId: string | null;
   assigneeIndex: number;
   startDate: string;
   dueDate: string;
@@ -485,9 +486,11 @@ export function ScheduleResourceView({
         e.clientX - (containerRect?.left || 0) - LEFT_COL_WIDTH + scrollLeft;
       const initialCursorDayIndex = Math.floor(cursorContentX / DAY_WIDTH);
 
+      const rowId = rows[assigneeIndex]?.id || null;
       const newDragState: DragState = {
         itemId: item.id,
         taskId: item.task?.id || "",
+        assigneeId: rowId && rowId !== "__unassigned__" ? rowId : null,
         assigneeIndex,
         startDate,
         dueDate,
@@ -585,6 +588,7 @@ export function ScheduleResourceView({
             await checklistAPI.updateItem(boardId, ds.taskId, ds.itemId, {
               start_date: newStart,
               due_date: newDue,
+              assignee_id: ds.assigneeId,
             });
             // Silent refresh without loading spinner
             const result = await boardChecklistAPI.getItemsByAssignee(boardId, {
@@ -603,7 +607,7 @@ export function ScheduleResourceView({
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     },
-    [boardId, fetchData, rangeStart, rangeEnd],
+    [boardId, fetchData, rangeStart, rangeEnd, rows],
   );
 
   // ─── External DnD drop handling ───

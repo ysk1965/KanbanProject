@@ -222,6 +222,7 @@ export function KanbanBoardPage() {
   const urlTab = searchParams.get("tab");
   const urlTaskId = searchParams.get("task");
   const pendingDeepLinkTaskId = useRef<string | null>(urlTaskId);
+  const milestoneIdRef = useRef<string>("");
 
   // 버전 정보
   const [beCommit, setBeCommit] = useState<string>("");
@@ -418,6 +419,11 @@ export function KanbanBoardPage() {
     reloadFeaturesAndTasks,
     refreshMembers,
   } = useBoardDataLoader(boardId);
+
+  // milestoneIdRef를 최신 값으로 동기화 (WebSocket 핸들러에서 stale closure 방지)
+  useEffect(() => {
+    milestoneIdRef.current = kanbanSelectedMilestoneId;
+  }, [kanbanSelectedMilestoneId]);
 
   // URL ?task= 딥링크: 데이터 로딩 완료 후 TaskDetailModal 자동 오픈
   useEffect(() => {
@@ -902,9 +908,16 @@ export function KanbanBoardPage() {
       // Block events
       case "BLOCK_CREATED": {
         const block = data as Block;
-        setBlocks((prev) =>
-          prev.some((b) => b.id === block.id) ? prev : [...prev, block],
-        );
+        if (blocks.some((b) => b.id === block.id)) break;
+        setBlocks((prev) => {
+          if (prev.some((b) => b.id === block.id)) return prev;
+          // Done 블록 position을 새 블록 뒤로 밀어서 순서 보장
+          return [...prev.map((b) =>
+            b.fixed_type === 'DONE' && b.position <= block.position
+              ? { ...b, position: block.position + 1 }
+              : b
+          ), block];
+        });
         break;
       }
       case "BLOCK_UPDATED": {
@@ -918,16 +931,21 @@ export function KanbanBoardPage() {
         break;
       }
       case "BLOCKS_REORDERED": {
-        const { blocks } = data as { blocks: Block[] };
-        if (Array.isArray(blocks)) {
-          setBlocks(blocks);
+        const currentMilestone = milestoneIdRef.current;
+        if (currentMilestone && currentMilestone !== "all" && currentMilestone !== "none") {
+          reloadBlocksForMilestone(currentMilestone);
+        } else {
+          const { blocks: reorderedBlocks } = data as { blocks: Block[] };
+          if (Array.isArray(reorderedBlocks)) {
+            setBlocks(reorderedBlocks);
+          }
         }
         break;
       }
 
       case "BLOCK_VISIBILITY_CHANGED": {
         // 다른 사용자가 블록 숨김/표시를 변경한 경우 블록 재로드
-        reloadBlocksForMilestone();
+        reloadBlocksForMilestone(milestoneIdRef.current);
         break;
       }
 
@@ -1715,11 +1733,12 @@ export function KanbanBoardPage() {
     }
   };
 
-  const reloadBlocksForMilestone = async () => {
+  const reloadBlocksForMilestone = async (overrideMilestoneId?: string) => {
     if (!boardId) return;
+    const effectiveMilestoneId = overrideMilestoneId ?? kanbanSelectedMilestoneId;
     const reloadMilestoneId =
-      kanbanSelectedMilestoneId && kanbanSelectedMilestoneId !== "all" && kanbanSelectedMilestoneId !== "none"
-        ? kanbanSelectedMilestoneId
+      effectiveMilestoneId && effectiveMilestoneId !== "all" && effectiveMilestoneId !== "none"
+        ? effectiveMilestoneId
         : undefined;
     const blockResult = await blockService.getBlocksWithHidden(boardId, reloadMilestoneId);
     setBlocks(blockResult.blocks);
@@ -1770,6 +1789,30 @@ export function KanbanBoardPage() {
     }
   };
 
+  // 숨긴 블록의 원래 상대 위치를 유지하면서 보이는 블록의 새 순서를 백엔드에 저장
+  const persistBlockReorder = (newVisibleOrder: Block[]) => {
+    if (!boardId) return;
+    const visibleOrder = newVisibleOrder.map((b) => b.id);
+    const visibleSet = new Set(visibleOrder);
+
+    blockService.getBlocks(boardId).then((allBlocks) => {
+      const reorderIds: string[] = [];
+      let visibleIdx = 0;
+      for (const block of allBlocks) {
+        if (visibleSet.has(block.id)) {
+          reorderIds.push(visibleOrder[visibleIdx++]);
+        } else {
+          reorderIds.push(block.id);
+        }
+      }
+      blockService.reorderBlocks(boardId, reorderIds).catch((error) => {
+        console.error("Failed to reorder blocks:", error);
+      });
+    }).catch((error) => {
+      console.error("Failed to load all blocks for reorder:", error);
+    });
+  };
+
   const handleMoveBlock = (blockId: string, direction: "left" | "right") => {
     const blockIndex = sortedBlocks.findIndex((b) => b.id === blockId);
     if (blockIndex === -1) return;
@@ -1790,6 +1833,12 @@ export function KanbanBoardPage() {
     });
 
     setBlocks(updatedBlocks);
+
+    // 새 순서를 백엔드에 저장
+    const newVisibleOrder = [...sortedBlocks];
+    newVisibleOrder[blockIndex] = sortedBlocks[swapIndex];
+    newVisibleOrder[swapIndex] = sortedBlocks[blockIndex];
+    persistBlockReorder(newVisibleOrder);
   };
 
   // @dnd-kit 블록 드래그 상태
@@ -1834,24 +1883,7 @@ export function KanbanBoardPage() {
 
     setBlocks(updatedBlocks);
 
-    if (boardId) {
-      // 마일스톤 필터 활성 시, 보이지 않는 블록(숨긴 블록 + 다른 마일스톤 전용)도 포함해서 전송
-      // → 전체 블록 목록을 다시 로드하여 reorder API에 전달
-      blockService.getBlocks(boardId).then((allBlocks) => {
-        // 현재 보이는 블록의 새 순서를 전체 블록에 반영
-        const visibleOrder = fullOrder.map((b) => b.id);
-        const hiddenBlockIds = allBlocks
-          .filter((b) => !visibleOrder.includes(b.id))
-          .map((b) => b.id);
-        // Feature, Task 고정 + 보이는 순서 + 숨긴 블록(원래 위치 유지)
-        const reorderIds = [...visibleOrder, ...hiddenBlockIds];
-        blockService.reorderBlocks(boardId, reorderIds).catch((error) => {
-          console.error("Failed to reorder blocks:", error);
-        });
-      }).catch((error) => {
-        console.error("Failed to load all blocks for reorder:", error);
-      });
-    }
+    persistBlockReorder(fullOrder);
   };
 
   const activeBlock = activeBlockId
