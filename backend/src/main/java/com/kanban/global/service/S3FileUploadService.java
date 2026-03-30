@@ -31,6 +31,7 @@ public class S3FileUploadService implements FileUploadService {
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
     private final VideoThumbnailService videoThumbnailService;
+    private final AsyncThumbnailService asyncThumbnailService;
 
     @Value("${app.file.max-size:31457280}")
     private long maxFileSize;
@@ -60,10 +61,12 @@ public class S3FileUploadService implements FileUploadService {
     private int tempExpiryMinutes;
 
     public S3FileUploadService(S3Client s3Client, S3Presigner s3Presigner,
-                               VideoThumbnailService videoThumbnailService) {
+                               VideoThumbnailService videoThumbnailService,
+                               AsyncThumbnailService asyncThumbnailService) {
         this.s3Client = s3Client;
         this.s3Presigner = s3Presigner;
         this.videoThumbnailService = videoThumbnailService;
+        this.asyncThumbnailService = asyncThumbnailService;
     }
 
     @Override
@@ -80,10 +83,9 @@ public class S3FileUploadService implements FileUploadService {
         if (file.getSize() > sizeLimit) {
             throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
         }
-        // 매직바이트 검증
-        try {
-            byte[] bytes = file.getBytes();
-            if (!MediaUtils.isValidMediaMagicBytes(bytes, contentType)) {
+        // 매직바이트 검증 (첫 12바이트만 읽어서 검증 — 메모리 효율적)
+        try (InputStream is = file.getInputStream()) {
+            if (!MediaUtils.isValidMediaMagicBytes(is, contentType)) {
                 throw new BusinessException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
             }
         } catch (IOException e) {
@@ -223,39 +225,16 @@ public class S3FileUploadService implements FileUploadService {
                     .destinationBucket(bucketName).destinationKey(permanentKey)
                     .build());
 
-            // 썸네일 생성 (이미지 vs 영상 분기, 문서는 스킵)
+            // 썸네일 비동기 생성 (이미지 vs 영상 분기, 문서는 스킵)
             String thumbnailKey = null;
             String thumbnailUrl = "";
             if (!MediaUtils.isDocumentType(contentType)) {
                 thumbnailKey = permanentKey.replaceAll("\\.[^.]+$", "_thumb.jpg");
-                try {
-                    ResponseInputStream<GetObjectResponse> objStream = s3Client.getObject(
-                            GetObjectRequest.builder().bucket(bucketName).key(tempKey).build());
-                    byte[] originalBytes = objStream.readAllBytes();
-
-                    byte[] thumbnailBytes;
-                    if (MediaUtils.isVideoType(contentType)) {
-                        thumbnailBytes = videoThumbnailService.extractThumbnail(originalBytes, extension, thumbnailMaxWidth, thumbnailMaxHeight);
-                    } else {
-                        thumbnailBytes = MediaUtils.generateThumbnail(originalBytes, thumbnailMaxWidth, thumbnailMaxHeight);
-                    }
-
-                    if (thumbnailBytes != null && thumbnailBytes.length > 0) {
-                        s3Client.putObject(PutObjectRequest.builder()
-                                .bucket(bucketName).key(thumbnailKey)
-                                .contentType("image/jpeg")
-                                .contentLength((long) thumbnailBytes.length)
-                                .build(), RequestBody.fromBytes(thumbnailBytes));
-
-                        thumbnailUrl = buildUrl(thumbnailKey);
-                        log.info("Thumbnail generated: {}", thumbnailKey);
-                    } else {
-                        thumbnailKey = null;
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to generate thumbnail for {}: {}", tempKey, e.getMessage());
-                    thumbnailKey = null;
-                }
+                thumbnailUrl = buildUrl(thumbnailKey);
+                asyncThumbnailService.generateAndUploadThumbnail(
+                        permanentKey, thumbnailKey, contentType,
+                        thumbnailMaxWidth, thumbnailMaxHeight);
+                log.info("Async thumbnail generation queued: {}", thumbnailKey);
             }
 
             // temp 삭제

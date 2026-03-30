@@ -16,6 +16,7 @@ import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionStatus;
 import com.kanban.domain.user.SystemRole;
 import com.kanban.domain.user.User;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -680,8 +681,11 @@ public class AdminResponse {
         @Builder
         @AllArgsConstructor
         public static class InactiveSummary {
+            @JsonProperty("inactive_7d")
             private long inactive7d;
+            @JsonProperty("inactive_14d")
             private long inactive14d;
+            @JsonProperty("inactive_30d")
             private long inactive30d;
         }
     }

@@ -58,7 +58,14 @@ type TabKey =
   | "settings_onboarding"
   | "settings_billing";
 
-type GroupKey = "dashboard" | "people" | "leave" | "workspace" | "documents" | "photos" | "settings";
+type GroupKey =
+  | "dashboard"
+  | "people"
+  | "leave"
+  | "workspace"
+  | "documents"
+  | "photos"
+  | "settings";
 
 interface TabGroup {
   key: GroupKey;
@@ -135,10 +142,22 @@ const TAB_GROUPS: TabGroup[] = [
     adminOnly: true,
     subTabs: [
       { key: "settings", labelKey: "organization.settings.subtabs.general" },
-      { key: "settings_billing", labelKey: "organization.settings.subtabs.billing" },
-      { key: "settings_structure", labelKey: "organization.settings.subtabs.structure" },
-      { key: "settings_attendance", labelKey: "organization.settings.subtabs.attendance" },
-      { key: "settings_onboarding", labelKey: "organization.settings.subtabs.onboarding" },
+      {
+        key: "settings_billing",
+        labelKey: "organization.settings.subtabs.billing",
+      },
+      {
+        key: "settings_structure",
+        labelKey: "organization.settings.subtabs.structure",
+      },
+      {
+        key: "settings_attendance",
+        labelKey: "organization.settings.subtabs.attendance",
+      },
+      {
+        key: "settings_onboarding",
+        labelKey: "organization.settings.subtabs.onboarding",
+      },
     ],
   },
 ];
@@ -155,13 +174,20 @@ export function OrganizationDetailPage() {
   );
 }
 
-function OrgBillingSubTabWrapper({ orgId, subscription, loadSubscription, refreshSubscription }: {
+function OrgBillingSubTabWrapper({
+  orgId,
+  subscription,
+  loadSubscription,
+  refreshSubscription,
+}: {
   orgId: string;
   subscription: OrgSubscription | null;
   loadSubscription: () => Promise<void>;
   refreshSubscription: () => Promise<void>;
 }) {
-  useEffect(() => { loadSubscription(); }, [loadSubscription]);
+  useEffect(() => {
+    loadSubscription();
+  }, [loadSubscription]);
 
   if (!subscription) {
     return (
@@ -171,7 +197,13 @@ function OrgBillingSubTabWrapper({ orgId, subscription, loadSubscription, refres
     );
   }
 
-  return <OrgBillingSection orgId={orgId} subscription={subscription} onUpdate={refreshSubscription} />;
+  return (
+    <OrgBillingSection
+      orgId={orgId}
+      subscription={subscription}
+      onUpdate={refreshSubscription}
+    />
+  );
 }
 
 function OrgDetailPageContent() {
@@ -205,15 +237,20 @@ function OrgDetailPageContent() {
 
   // ─── Tab state with visited-tab persistence ───
   const activeTab = (searchParams.get("tab") as TabKey) || "dashboard";
-  const [visitedTabs, setVisitedTabs] = useState<Set<TabKey>>(new Set([activeTab]));
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabKey>>(
+    new Set([activeTab]),
+  );
 
-  const setActiveTab = useCallback((tab: TabKey) => {
-    setVisitedTabs((prev) => {
-      if (prev.has(tab)) return prev;
-      return new Set([...prev, tab]);
-    });
-    setSearchParams({ tab });
-  }, [setSearchParams]);
+  const setActiveTab = useCallback(
+    (tab: TabKey) => {
+      setVisitedTabs((prev) => {
+        if (prev.has(tab)) return prev;
+        return new Set([...prev, tab]);
+      });
+      setSearchParams({ tab });
+    },
+    [setSearchParams],
+  );
 
   const hrSystemEnabled = org?.hr_system_enabled === true;
   const visibleGroups = TAB_GROUPS.filter((g) => {
@@ -226,7 +263,8 @@ function OrgDetailPageContent() {
       return {
         ...g,
         subTabs: g.subTabs.filter(
-          (s) => s.key !== "settings_attendance" && s.key !== "settings_onboarding",
+          (s) =>
+            s.key !== "settings_attendance" && s.key !== "settings_onboarding",
         ),
       };
     }
@@ -257,7 +295,12 @@ function OrgDetailPageContent() {
     const active = myLeaveBalances.filter((b) => b.is_active !== false);
     if (active.length === 0) return null;
     const order = ["ANNUAL", "SICK", "REFRESH", "OTHER"] as const;
-    const sums: Record<string, number> = { ANNUAL: 0, SICK: 0, REFRESH: 0, OTHER: 0 };
+    const sums: Record<string, number> = {
+      ANNUAL: 0,
+      SICK: 0,
+      REFRESH: 0,
+      OTHER: 0,
+    };
     for (const b of active) sums[b.leave_category || "OTHER"] += b.remaining;
     const i18nKeys: Record<string, string> = {
       ANNUAL: "organization.settings.categoryAnnual",
@@ -272,7 +315,11 @@ function OrgDetailPageContent() {
   }, [myLeaveBalances]);
 
   // ─── Sub-tab swipe navigation (mobile) ───
-  const touchStartRef = useRef<{ x: number; y: number; target: EventTarget | null } | null>(null);
+  const touchStartRef = useRef<{
+    x: number;
+    y: number;
+    target: EventTarget | null;
+  } | null>(null);
   const slideAnimRef = useRef<HTMLDivElement>(null);
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
@@ -287,46 +334,67 @@ function OrgDetailPageContent() {
     el.style.transition = "transform 0.2s ease-out, opacity 0.2s ease-out";
     el.style.transform = "translateX(0)";
     el.style.opacity = "1";
+    const cleanup = () => {
+      el.style.transform = "";
+      el.style.transition = "";
+      el.style.opacity = "";
+    };
+    el.addEventListener("transitionend", cleanup, { once: true });
   }, []);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, target: e.target };
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      target: e.target,
+    };
   }, []);
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!touchStartRef.current) return;
-    const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
-    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
-    const target = touchStartRef.current.target;
-    touchStartRef.current = null;
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (!touchStartRef.current) return;
+      const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
+      const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+      const target = touchStartRef.current.target;
+      touchStartRef.current = null;
 
-    if (Math.abs(deltaX) < 50 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+      if (Math.abs(deltaX) < 50 || Math.abs(deltaX) < Math.abs(deltaY)) return;
 
-    // 가로 스크롤 가능한 컨테이너 내부에서 시작된 스와이프는 무시
-    let el = target as HTMLElement | null;
-    while (el && el !== e.currentTarget) {
-      if (el.scrollWidth > el.clientWidth + 1) return;
-      el = el.parentElement;
-    }
+      // 가로 스크롤 가능한 컨테이너 내부에서 시작된 스와이프는 무시
+      let el = target as HTMLElement | null;
+      while (el && el !== e.currentTarget) {
+        if (el.scrollWidth > el.clientWidth + 1) return;
+        el = el.parentElement;
+      }
 
-    const currentGroup = TAB_GROUPS.find(
-      (g) => g.defaultTab === activeTabRef.current || g.subTabs?.some((s) => s.key === activeTabRef.current),
-    );
-    if (!currentGroup?.subTabs) return;
+      const currentGroup = TAB_GROUPS.find(
+        (g) =>
+          g.defaultTab === activeTabRef.current ||
+          g.subTabs?.some((s) => s.key === activeTabRef.current),
+      );
+      if (!currentGroup?.subTabs) return;
 
-    const currentIdx = currentGroup.subTabs.findIndex((s) => s.key === activeTabRef.current);
-    if (currentIdx === -1) return;
+      const currentIdx = currentGroup.subTabs.findIndex(
+        (s) => s.key === activeTabRef.current,
+      );
+      if (currentIdx === -1) return;
 
-    const nextIdx = deltaX < 0 ? currentIdx + 1 : currentIdx - 1;
-    if (nextIdx < 0 || nextIdx >= currentGroup.subTabs.length) return;
+      const nextIdx = deltaX < 0 ? currentIdx + 1 : currentIdx - 1;
+      if (nextIdx < 0 || nextIdx >= currentGroup.subTabs.length) return;
 
-    triggerSlide(deltaX < 0 ? -1 : 1);
-    setActiveTab(currentGroup.subTabs[nextIdx].key);
-  }, [setActiveTab, triggerSlide]);
+      triggerSlide(deltaX < 0 ? -1 : 1);
+      setActiveTab(currentGroup.subTabs[nextIdx].key);
+    },
+    [setActiveTab, triggerSlide],
+  );
 
   if (loading || !org) {
     return (
-      <div className="min-h-screen bg-bridge-dark flex items-center justify-center" role="status" aria-label="로딩 중">
+      <div
+        className="min-h-screen bg-bridge-dark flex items-center justify-center"
+        role="status"
+        aria-label="로딩 중"
+      >
         <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
       </div>
     );
@@ -363,7 +431,11 @@ function OrgDetailPageContent() {
   );
 
   // ─── Tab rendering helper: visited tabs stay mounted, hidden when inactive ───
-  const renderTab = (key: TabKey, component: React.ReactNode, adminRequired = false) => {
+  const renderTab = (
+    key: TabKey,
+    component: React.ReactNode,
+    adminRequired = false,
+  ) => {
     if (adminRequired && !isAdmin) return null;
     if (!visitedTabs.has(key)) return null;
     return (
@@ -444,7 +516,10 @@ function OrgDetailPageContent() {
             {aggregatedLeave && !hrSystemEnabled && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button onClick={() => setActiveTab("leaves")} className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full bg-foreground/[0.03] border border-foreground/[0.08] cursor-pointer hover:border-foreground/[0.15] transition-colors">
+                  <button
+                    onClick={() => setActiveTab("leaves")}
+                    className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full bg-foreground/[0.03] border border-foreground/[0.08] cursor-pointer hover:border-foreground/[0.15] transition-colors"
+                  >
                     <span className="text-xs md:text-xs font-bold text-slate-400">
                       {t("organization.tabs.leave", "휴가")}
                     </span>
@@ -515,10 +590,16 @@ function OrgDetailPageContent() {
       </header>
 
       {/* Content — visited tabs stay mounted (hidden when inactive) */}
-      <div className="flex-1 flex flex-col overflow-hidden" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      <div
+        className="flex-1 flex flex-col overflow-hidden"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         {/* Documents tab — full width/height, no max-w constraint */}
         {visitedTabs.has("documents") && (
-          <div className={`flex-1 overflow-hidden ${activeTab === "documents" ? "" : "hidden"}`}>
+          <div
+            className={`flex-1 overflow-hidden ${activeTab === "documents" ? "" : "hidden"}`}
+          >
             {activeTab === "documents" ? (
               <motion.div
                 className="h-full"
@@ -535,11 +616,16 @@ function OrgDetailPageContent() {
         )}
 
         {/* Other tabs — constrained width */}
-        <div ref={slideAnimRef} className={`max-w-6xl mx-auto px-4 py-4 md:px-6 md:py-6 w-full ${activeTab === "documents" ? "hidden" : ""}`}>
-          {renderTab("dashboard",
-            <OrgDashboardTab orgId={orgId} role={myRole} />
+        <div
+          ref={slideAnimRef}
+          className={`max-w-6xl mx-auto px-4 py-4 md:px-6 md:py-6 w-full ${activeTab === "documents" ? "hidden" : ""}`}
+        >
+          {renderTab(
+            "dashboard",
+            <OrgDashboardTab orgId={orgId} role={myRole} />,
           )}
-          {renderTab("members",
+          {renderTab(
+            "members",
             <OrgMembersTab
               orgId={orgId}
               myRole={myRole}
@@ -551,9 +637,10 @@ function OrgDetailPageContent() {
               grades={grades}
               structureSettings={structureSettings}
               hrSystemEnabled={hrSystemEnabled}
-            />
+            />,
           )}
-          {renderTab("chart",
+          {renderTab(
+            "chart",
             <OrgChartTab
               orgId={orgId}
               myRole={myRole}
@@ -565,37 +652,35 @@ function OrgDetailPageContent() {
               grades={grades}
               structureSettings={structureSettings}
               hrSystemEnabled={hrSystemEnabled}
-            />
+            />,
           )}
-          {renderTab("boards",
-            <OrgBoardsTab orgId={orgId} myRole={myRole} />
-          )}
-          {renderTab("leaves",
-            <OrgLeaveTab orgId={orgId} myRole={myRole} />
-          )}
-          {renderTab("attendance",
+          {renderTab("boards", <OrgBoardsTab orgId={orgId} myRole={myRole} />)}
+          {renderTab("leaves", <OrgLeaveTab orgId={orgId} myRole={myRole} />)}
+          {renderTab(
+            "attendance",
             <OrgAttendanceTab
               orgId={orgId}
               myRole={myRole}
               departments={departments}
-            />
+            />,
           )}
-          {renderTab("insights",
+          {renderTab(
+            "insights",
             <OrgInsightsTab
               orgId={orgId}
               myRole={myRole}
               departments={departments}
               jobGroups={jobGroups}
               structureSettings={structureSettings}
-            />
+            />,
           )}
-          {renderTab("okr",
-            <OrgOkrTab orgId={orgId} myRole={myRole} />
+          {renderTab("okr", <OrgOkrTab orgId={orgId} myRole={myRole} />)}
+          {renderTab(
+            "photos",
+            <OrgPhotoGalleryTab orgId={orgId} myRole={myRole} />,
           )}
-          {renderTab("photos",
-            <OrgPhotoGalleryTab orgId={orgId} myRole={myRole} />
-          )}
-          {renderTab("settings",
+          {renderTab(
+            "settings",
             <OrgSettingsGeneralSubTab
               orgId={orgId}
               org={org}
@@ -604,31 +689,49 @@ function OrgDetailPageContent() {
             />,
             true,
           )}
-          {renderTab("settings_billing",
-            <OrgBillingSubTabWrapper orgId={orgId} subscription={subscription} loadSubscription={loadSubscription} refreshSubscription={refreshSubscription} />,
+          {renderTab(
+            "settings_billing",
+            <OrgBillingSubTabWrapper
+              orgId={orgId}
+              subscription={subscription}
+              loadSubscription={loadSubscription}
+              refreshSubscription={refreshSubscription}
+            />,
             true,
           )}
-          {renderTab("settings_structure",
+          {renderTab(
+            "settings_structure",
             <OrgSettingsStructureSubTab orgId={orgId} />,
             true,
           )}
-          {renderTab("settings_attendance",
-            <OrgSettingsAttendanceSubTab orgId={orgId} onLeaveBalanceChange={refreshLeaveBalances} hrSystemEnabled={hrSystemEnabled} />,
+          {renderTab(
+            "settings_attendance",
+            <OrgSettingsAttendanceSubTab
+              orgId={orgId}
+              onLeaveBalanceChange={refreshLeaveBalances}
+              hrSystemEnabled={hrSystemEnabled}
+            />,
             true,
           )}
-          {renderTab("settings_onboarding",
+          {renderTab(
+            "settings_onboarding",
             <OrgSettingsOnboardingSubTab orgId={orgId} />,
             true,
           )}
         </div>
 
         {/* Bottom spacer for mobile tab bar */}
-        <div className="shrink-0 md:hidden" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }} />
+        <div
+          className="shrink-0 md:hidden"
+          style={{ height: "calc(3.5rem + env(safe-area-inset-bottom, 0px))" }}
+        />
       </div>
 
       {/* ─── Mobile Bottom Tab Bar (MySpace style) ─── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-foreground/10"
-           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-foreground/10"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
         <div className="flex items-center justify-around px-1 pt-2 pb-1.5">
           {visibleGroups.map((group) => {
             const Icon = group.icon;
@@ -654,7 +757,9 @@ function OrgDetailPageContent() {
                   />
                 )}
                 <motion.div
-                  animate={isActive ? { scale: 1.15, y: -2 } : { scale: 1, y: 0 }}
+                  animate={
+                    isActive ? { scale: 1.15, y: -2 } : { scale: 1, y: 0 }
+                  }
                   transition={{ type: "spring", stiffness: 500, damping: 25 }}
                 >
                   <Icon
@@ -668,10 +773,15 @@ function OrgDetailPageContent() {
                   className={`text-xs font-medium transition-colors duration-200 ${
                     isActive ? "text-bridge-secondary" : "text-slate-500"
                   }`}
-                  animate={isActive ? { opacity: 1, y: 0 } : { opacity: 0.7, y: 0 }}
+                  animate={
+                    isActive ? { opacity: 1, y: 0 } : { opacity: 0.7, y: 0 }
+                  }
                   transition={{ duration: 0.2 }}
                 >
-                  {t(group.labelKey, group.key.charAt(0).toUpperCase() + group.key.slice(1))}
+                  {t(
+                    group.labelKey,
+                    group.key.charAt(0).toUpperCase() + group.key.slice(1),
+                  )}
                 </motion.span>
               </button>
             );

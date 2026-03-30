@@ -51,6 +51,15 @@ public class MediaUtils {
     private MediaUtils() {}
 
     /**
+     * InputStream의 첫 N바이트만 읽어 매직바이트 검증 (메모리 효율적)
+     */
+    public static boolean isValidMediaMagicBytes(InputStream inputStream, String declaredContentType) throws IOException {
+        if (inputStream == null) return false;
+        byte[] header = inputStream.readNBytes(12);
+        return isValidMediaMagicBytes(header, declaredContentType);
+    }
+
+    /**
      * 파일의 매직바이트를 검사하여 실제 파일인지 확인 (이미지 + 영상 + 문서)
      */
     public static boolean isValidMediaMagicBytes(byte[] fileBytes, String declaredContentType) {

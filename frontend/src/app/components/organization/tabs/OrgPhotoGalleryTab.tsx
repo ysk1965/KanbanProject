@@ -332,6 +332,22 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
     setShareAlbum(updated);
   }, []);
 
+  // Reorder albums (drag & drop)
+  const handleReorderAlbums = useCallback(
+    async (reorderedAlbums: OrgPhotoTab[]) => {
+      const prevAlbums = albums;
+      setAlbums(reorderedAlbums);
+      try {
+        await orgPhotoService.reorderTabs(orgId, reorderedAlbums.map((a) => a.id));
+      } catch (error) {
+        console.warn('Failed to reorder albums:', error);
+        setAlbums(prevAlbums);
+        toast.error(t('photoGallery.reorderError', 'Failed to reorder albums'));
+      }
+    },
+    [orgId, albums, t],
+  );
+
   // Open create album modal
   const handleCreateAlbum = useCallback(() => {
     setEditingAlbum(null);
@@ -363,6 +379,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
           onEditAlbum={handleEditAlbum}
           onDeleteAlbum={(album) => setShowDeleteAlbumConfirm(album)}
           onShareAlbum={setShareAlbum}
+          onReorderAlbums={handleReorderAlbums}
         />
       )}
 
@@ -475,6 +492,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
         totalCount={totalCount}
         hasMore={hasNext}
         onLoadMore={handleLoadMore}
+        loadingMore={photosLoading}
         isAdmin={isAdmin}
         onClose={() => setLightboxPhoto(null)}
         onNavigate={setLightboxPhoto}

@@ -37,4 +37,17 @@ public class KanbanApplication {
         executor.initialize();
         return executor;
     }
+
+    @Bean(name = "thumbnailExecutor")
+    public TaskExecutor thumbnailExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(3);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("thumbnail-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(60);
+        executor.initialize();
+        return executor;
+    }
 }
