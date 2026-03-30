@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { TaskComment, CommentAttachment, CommentReaction, User, BoardCustomEmoji, BoardWebSocketEvent } from '../types';
@@ -6,6 +6,7 @@ import { commentAPI, checklistAPI, fileAPI, customEmojiAPI, resolveFileUrl, Comm
 import { BoardMember } from './ShareBoardModal';
 import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
 import { formatDate } from '../utils/dateUtils';
+import { escStack } from '../hooks/useEscClose';
 import { MotionModal } from './ui/MotionModal';
 import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, ChevronLeft, ChevronRight, SmilePlus, Plus, ImageIcon, Sparkles, CheckCircle2, HelpCircle, ListChecks, Users } from 'lucide-react';
 import { VideoThumbnail } from './VideoThumbnail';
@@ -159,6 +160,454 @@ interface CommentPanelProps {
   onClose?: () => void;
 }
 
+// ========== 추출 서브 컴포넌트 (안정적 참조를 위해 CommentPanel 외부에 정의) ==========
+
+type LightboxMediaState = {
+  items: { url: string; type: 'image' | 'video' }[];
+  index: number;
+};
+
+/** 댓글 첨부 그리드 (이미지 썸네일 + 영상 썸네일 + 문서 아이콘) */
+const AttachmentGrid = memo(function AttachmentGrid({ attachments, onOpenLightbox }: {
+  attachments: CommentAttachment[];
+  onOpenLightbox: (media: LightboxMediaState) => void;
+}) {
+  if (!attachments || attachments.length === 0) return null;
+  const mediaItems = attachments.filter(att => !isDocAttachment(att)).map(att => ({
+    url: resolveFileUrl(att.url),
+    type: (isVideoAttachment(att) ? 'video' : 'image') as 'image' | 'video'
+  }));
+  let mediaIdx = -1;
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1.5">
+      {attachments.map((att) => {
+        const isVideo = isVideoAttachment(att);
+        const isDoc = isDocAttachment(att);
+
+        if (isDoc) {
+          return (
+            <a key={att.id} href={resolveFileUrl(att.url)} target="_blank" rel="noopener noreferrer" download={att.file_name}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-foreground/[0.08] hover:border-foreground/[0.12] bg-foreground/[0.03] transition-colors max-w-[220px]">
+              <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${getDocColor(att.content_type || '')}`}>
+                {getDocIcon(att.content_type || '')}
+              </span>
+              <span className="text-xs text-foreground truncate">{att.file_name}</span>
+            </a>
+          );
+        }
+
+        mediaIdx++;
+        const currentMediaIdx = mediaIdx;
+        return (
+          <button key={att.id}
+            onClick={() => onOpenLightbox({ items: mediaItems, index: currentMediaIdx })}
+            className="relative group/img rounded-md overflow-hidden border border-bridge-border hover:border-bridge-border transition-colors">
+            {isVideo ? (
+              <VideoThumbnail
+                videoUrl={resolveFileUrl(att.url)}
+                serverThumbnailUrl={att.thumbnail_url ? resolveFileUrl(att.thumbnail_url) : null}
+                className="h-20 w-[120px] max-w-[160px] object-cover"
+                alt={att.file_name}
+              />
+            ) : att.thumbnail_url ? (
+              <img src={resolveFileUrl(att.thumbnail_url)} alt={att.file_name}
+                className="h-20 w-auto max-w-[160px] object-cover" loading="lazy" />
+            ) : (
+              <img src={resolveFileUrl(att.url)} alt={att.file_name}
+                className="h-20 w-auto max-w-[160px] object-cover" loading="lazy" />
+            )}
+            {isVideo && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
+                  <Play className="h-4 w-4 text-white ml-0.5" />
+                </div>
+              </div>
+            )}
+            <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition-colors" />
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
+/** 파일 미리보기 리스트 (새 댓글 or 수정 모드) */
+const FilePreviewList = memo(function FilePreviewList({
+  files, existingAttachments, keepIds, onRemoveFile, onRemoveExisting
+}: {
+  files: PendingFile[];
+  existingAttachments?: CommentAttachment[];
+  keepIds?: string[];
+  onRemoveFile: (id: string) => void;
+  onRemoveExisting?: (attId: string) => void;
+}) {
+  const { t } = useTranslation();
+  const keptExisting = existingAttachments?.filter(a => keepIds?.includes(a.id)) || [];
+  if (keptExisting.length === 0 && files.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-2 mb-2">
+      {/* 기존 첨부파일 (수정 모드) */}
+      {keptExisting.map(att => (
+        <div key={att.id} className="relative group/preview">
+          {isDocAttachment(att) ? (
+            <div className="flex items-center gap-1.5 h-16 px-2.5 rounded-md border border-bridge-border bg-foreground/[0.03]">
+              <span className={`text-xs font-bold px-1 py-0.5 rounded ${getDocColor(att.content_type || '')}`}>
+                {getDocIcon(att.content_type || '')}
+              </span>
+              <span className="text-xs text-foreground truncate max-w-[80px]">{att.file_name}</span>
+            </div>
+          ) : isVideoAttachment(att) ? (
+            <div className="relative h-16 w-[90px]">
+              <VideoThumbnail
+                videoUrl={resolveFileUrl(att.url)}
+                serverThumbnailUrl={att.thumbnail_url ? resolveFileUrl(att.thumbnail_url) : null}
+                className="h-16 w-[90px] object-cover rounded-md border border-bridge-border"
+                alt={att.file_name}
+              />
+              <Play className="absolute bottom-1 left-1 h-3 w-3 text-white drop-shadow" />
+            </div>
+          ) : (
+            <img src={resolveFileUrl(att.thumbnail_url || att.url)} alt={att.file_name}
+              className="h-16 w-auto max-w-[120px] object-cover rounded-md border border-bridge-border" />
+          )}
+          {onRemoveExisting && (
+            <button onClick={() => onRemoveExisting(att.id)}
+              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity">
+              <X className="h-2.5 w-2.5" />
+            </button>
+          )}
+        </div>
+      ))}
+      {/* 새 파일 */}
+      {files.map(pf => (
+        <div key={pf.id} className="relative group/preview">
+          {isDocType(pf.file.type) ? (
+            <div className={`flex items-center gap-1.5 h-16 px-2.5 rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'} bg-foreground/[0.03]`}>
+              <span className={`text-xs font-bold px-1 py-0.5 rounded ${getDocColor(pf.file.type)}`}>
+                {getDocIcon(pf.file.type)}
+              </span>
+              <span className="text-xs text-foreground truncate max-w-[80px]">{pf.file.name}</span>
+            </div>
+          ) : isVideoType(pf.file.type) ? (
+            <video src={pf.previewUrl} muted preload="metadata"
+              className={`h-16 w-[90px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'}`} />
+          ) : (
+            <img src={pf.previewUrl} alt={pf.file.name}
+              className={`h-16 w-auto max-w-[120px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'}`} />
+          )}
+          {pf.uploading && (
+            <div className="absolute inset-0 bg-black/40 rounded-md flex items-center justify-center">
+              <Loader2 className="h-4 w-4 animate-spin text-white" />
+            </div>
+          )}
+          {pf.error && (
+            <div className="absolute inset-0 bg-red-500/20 rounded-md flex items-center justify-center">
+              <span className="text-xs text-red-300 font-medium">{t('comment.failed')}</span>
+            </div>
+          )}
+          {isVideoType(pf.file.type) && !pf.uploading && !pf.error && (
+            <Play className="absolute bottom-1 left-1 h-3 w-3 text-white drop-shadow" />
+          )}
+          <button onClick={() => onRemoveFile(pf.id)}
+            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity">
+            <X className="h-2.5 w-2.5" />
+          </button>
+          <span className="absolute bottom-0.5 right-0.5 text-xs bg-black/60 text-white/80 px-1 rounded">
+            {formatFileSize(pf.file.size)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+});
+
+/** 리액션 뱃지 바 */
+const ReactionBar = memo(function ReactionBar({ comment, currentUserId, canEdit, onToggleReaction }: {
+  comment: TaskComment;
+  currentUserId: string | undefined;
+  canEdit: boolean;
+  onToggleReaction: (commentId: string, emoji: string) => void;
+}) {
+  const { t } = useTranslation();
+  const reactions = comment.reactions || [];
+  const hasReactions = reactions.length > 0;
+  if (!hasReactions) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1 mt-1.5">
+      {reactions.map(reaction => {
+        const isMyReaction = reaction.users.some(u => u.id === currentUserId);
+        const tooltipNames = reaction.users.map(u =>
+          u.id === currentUserId ? t('comment.reaction.you') : u.name
+        ).join(', ');
+
+        return (
+          <button key={reaction.emoji}
+            onClick={() => canEdit && onToggleReaction(comment.id, reaction.emoji)}
+            disabled={!canEdit}
+            className={`group/reaction relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all
+              ${isMyReaction
+                ? 'bg-bridge-accent/20 border border-bridge-accent/50 text-bridge-accent hover:bg-bridge-accent/30'
+                : 'bg-foreground/5 border border-foreground/10 text-slate-400 hover:bg-foreground/10 hover:text-muted-foreground'
+              }
+              ${!canEdit ? 'cursor-default' : 'cursor-pointer'}
+            `}
+            title={tooltipNames}>
+            {reaction.is_custom && reaction.image_url ? (
+              <img src={resolveFileUrl(reaction.image_url)} alt={reaction.emoji} className="w-4 h-4 object-contain" />
+            ) : (
+              <span className="text-xs">{reaction.emoji}</span>
+            )}
+            <span className="text-xs font-medium">{reaction.count}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
+/** 멘션 드롭다운 */
+const InlineMentionDropdown = memo(function InlineMentionDropdown({
+  isEdit, show, forEdit, filteredGroups, filteredMembers,
+  mentionIndex, onMentionIndexChange, isAdminOrOwner, mentionQuery,
+  onInsertMention, onInsertGroupMention, currentUserId,
+  onShowMentionGroupModal, onHideMention,
+}: {
+  isEdit: boolean;
+  show: boolean;
+  forEdit: boolean;
+  filteredGroups: MentionGroupDetail[];
+  filteredMembers: BoardMember[];
+  mentionIndex: number;
+  onMentionIndexChange: (index: number) => void;
+  isAdminOrOwner: boolean;
+  mentionQuery: string;
+  onInsertMention: (member: BoardMember, isEdit: boolean) => void;
+  onInsertGroupMention: (group: MentionGroupDetail, isEdit: boolean) => void;
+  currentUserId: string | undefined;
+  onShowMentionGroupModal: () => void;
+  onHideMention: () => void;
+}) {
+  const { t } = useTranslation();
+  const totalItems = filteredGroups.length + filteredMembers.length;
+  if (!show || forEdit !== isEdit || (totalItems === 0 && !isAdminOrOwner)) return null;
+  const hasGroups = filteredGroups.length > 0;
+  const hasMembers = filteredMembers.length > 0;
+  let itemIdx = 0;
+  return (
+    <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-bridge-border rounded-lg shadow-lg z-50 py-1 max-h-48 overflow-y-auto custom-scrollbar">
+      {/* 멘션 그룹 만들기 버튼 — @만 입력했을 때만 표시 */}
+      {isAdminOrOwner && !mentionQuery && (
+        <>
+          <button
+            onMouseDown={e => { e.preventDefault(); onShowMentionGroupModal(); onHideMention(); }}
+            className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-bridge-accent hover:bg-foreground/5 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{t('mentionGroup.create', '멘션 그룹 만들기')}</span>
+          </button>
+          {(hasGroups || hasMembers) && <div className="border-t border-foreground/[0.08] my-1" />}
+        </>
+      )}
+      {/* 그룹 섹션 */}
+      {hasGroups && (
+        <>
+          {filteredGroups.map((group) => {
+            const idx = itemIdx++;
+            return (
+              <button key={`g-${group.id}`}
+                onMouseDown={e => { e.preventDefault(); onInsertGroupMention(group, isEdit); }}
+                onMouseEnter={() => onMentionIndexChange(idx)}
+                className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`}
+              >
+                <div className="w-5 h-5 rounded-full bg-bridge-secondary/20 flex items-center justify-center">
+                  <Users className="w-3 h-3 text-bridge-secondary" />
+                </div>
+                <span className={idx === mentionIndex ? 'text-foreground' : ''}>{group.name}</span>
+                <span className="text-xs text-slate-500 ml-auto">{group.members.length}{t('mentionGroup.memberCountSuffix', '명')}</span>
+              </button>
+            );
+          })}
+          {hasMembers && <div className="border-t border-foreground/[0.08] my-1" />}
+        </>
+      )}
+      {/* 개별 멤버 섹션 */}
+      {filteredMembers.map((member) => {
+        const idx = itemIdx++;
+        const color = getAssigneeClasses(member.name, member.assigneeColor);
+        return (
+          <button key={member.userId}
+            onMouseDown={e => { e.preventDefault(); onInsertMention(member, isEdit); }}
+            onMouseEnter={() => onMentionIndexChange(idx)}
+            className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`}
+          >
+            <div className={`w-5 h-5 rounded-full ${color.bg} flex items-center justify-center text-xs font-bold text-white whitespace-nowrap overflow-hidden`}>
+              {getInitials(member.name)}
+            </div>
+            <span className={idx === mentionIndex ? 'text-foreground' : ''}>{member.name}</span>
+            {member.userId === currentUserId && <span className="text-xs text-slate-400">({t('mentionGroup.me', '나')})</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
+/** 이모지 피커 팝업 (portal) */
+const EmojiPickerPopup = memo(function EmojiPickerPopup({
+  commentId, activeCommentId, position, pickerRef,
+  onToggleReaction, customEmojis, isAdminOrOwner,
+  showEmojiUpload, onShowEmojiUploadChange,
+  selectedEmojiFile, onSelectedEmojiFileChange,
+  emojiUploadName, onEmojiUploadNameChange,
+  isUploadingEmoji, onUploadCustomEmoji, onDeleteCustomEmoji,
+  emojiFileInputRef, emojiNameInputRef,
+}: {
+  commentId: string;
+  activeCommentId: string | null;
+  position: { top: number; left: number } | null;
+  pickerRef: React.RefObject<HTMLDivElement | null>;
+  onToggleReaction: (commentId: string, emoji: string) => void;
+  customEmojis: BoardCustomEmoji[];
+  isAdminOrOwner: boolean;
+  showEmojiUpload: boolean;
+  onShowEmojiUploadChange: (show: boolean) => void;
+  selectedEmojiFile: File | null;
+  onSelectedEmojiFileChange: (file: File | null) => void;
+  emojiUploadName: string;
+  onEmojiUploadNameChange: (name: string) => void;
+  isUploadingEmoji: boolean;
+  onUploadCustomEmoji: () => void;
+  onDeleteCustomEmoji: (emojiId: string) => void;
+  emojiFileInputRef: React.RefObject<HTMLInputElement | null>;
+  emojiNameInputRef: React.RefObject<HTMLInputElement | null>;
+}) {
+  const { t } = useTranslation();
+  if (activeCommentId !== commentId || !position) return null;
+  return createPortal(
+    <div ref={pickerRef}
+      data-emoji-picker
+      style={{ position: 'fixed', top: position.top, left: position.left, zIndex: 9999 }}
+      className="bg-bridge-obsidian border border-bridge-border rounded-xl shadow-xl p-2 min-w-[200px] pointer-events-auto"
+      onPointerDown={e => e.stopPropagation()}
+      onMouseDown={e => e.stopPropagation()}>
+      {/* 기본 이모지 */}
+      <div className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.default', '기본')}</div>
+      <div className="grid grid-cols-4 gap-1">
+        {REACTION_EMOJIS.map(emoji => (
+          <button key={emoji}
+            onClick={() => onToggleReaction(commentId, emoji)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-all hover:scale-110 text-base">
+            {emoji}
+          </button>
+        ))}
+      </div>
+
+      {/* 커스텀 이모지 */}
+      {(customEmojis.length > 0 || isAdminOrOwner) && (
+        <>
+          <div className="border-t border-foreground/10 my-1.5" />
+          <div className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.title', '커스텀')}</div>
+          <div className="grid grid-cols-4 gap-1">
+            {customEmojis.map(ce => (
+              <div key={ce.id} className="relative group/ce">
+                <button
+                  onClick={() => onToggleReaction(commentId, `custom:${ce.id}`)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-all hover:scale-110"
+                  title={ce.name}>
+                  <img src={resolveFileUrl(ce.image_url)} alt={ce.name} className="w-5 h-5 object-contain" />
+                </button>
+                {isAdminOrOwner && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDeleteCustomEmoji(ce.id); }}
+                    className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-white items-center justify-center text-xs leading-none hidden group-hover/ce:flex"
+                    title={t('comment.customEmoji.deleteConfirm', '삭제')}>
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+            {isAdminOrOwner && (
+              <button
+                onClick={() => onShowEmojiUploadChange(!showEmojiUpload)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-all text-slate-400 hover:text-muted-foreground border border-dashed border-foreground/10"
+                title={t('comment.customEmoji.add', '이모지 추가')}>
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* 업로드 UI */}
+          {showEmojiUpload && isAdminOrOwner && (
+            <div className="mt-2 p-2 bg-foreground/5 rounded-lg space-y-2">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => emojiFileInputRef.current?.click()}
+                  disabled={isUploadingEmoji}
+                  className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                    selectedEmojiFile
+                      ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                      : 'bg-bridge-accent/20 text-bridge-accent hover:bg-bridge-accent/30'
+                  }`}>
+                  {isUploadingEmoji ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
+                  {selectedEmojiFile
+                    ? selectedEmojiFile.name.length > 12
+                      ? selectedEmojiFile.name.slice(0, 12) + '…'
+                      : selectedEmojiFile.name
+                    : t('comment.customEmoji.selectFile', '파일 선택')}
+                </button>
+                <button
+                  onClick={() => { onShowEmojiUploadChange(false); onEmojiUploadNameChange(''); onSelectedEmojiFileChange(null); }}
+                  className="px-2 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-muted-foreground hover:bg-foreground/5 transition-all">
+                  {t('common.cancel', '취소')}
+                </button>
+              </div>
+              {selectedEmojiFile && (
+                <>
+                  <input
+                    ref={emojiNameInputRef}
+                    type="text"
+                    value={emojiUploadName}
+                    onChange={e => onEmojiUploadNameChange(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && emojiUploadName.trim()) onUploadCustomEmoji(); }}
+                    placeholder={t('comment.customEmoji.namePlaceholder', '이모지 이름')}
+                    className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1 text-xs text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                    maxLength={50}
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => onUploadCustomEmoji()}
+                    disabled={!emojiUploadName.trim() || isUploadingEmoji}
+                    className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-bold rounded-lg bg-bridge-accent text-white hover:bg-bridge-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                    {isUploadingEmoji && <Loader2 className="w-3 h-3 animate-spin" />}
+                    {t('comment.customEmoji.upload', '업로드')}
+                  </button>
+                </>
+              )}
+              <p className="text-xs text-slate-500">{t('comment.customEmoji.maxSize', 'PNG, GIF, WebP · 128KB 이하')}</p>
+              <input
+                ref={emojiFileInputRef}
+                type="file"
+                accept="image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    onSelectedEmojiFileChange(file);
+                    setTimeout(() => emojiNameInputRef.current?.focus(), 50);
+                  }
+                  e.target.value = '';
+                }}
+              />
+            </div>
+          )}
+        </>
+      )}
+    </div>,
+    document.body
+  );
+});
+
 // ========== 컴포넌트 ==========
 
 export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEdit = true, isAdminOrOwner = false, wsCommentEvent, onClose }: CommentPanelProps) {
@@ -295,6 +744,17 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
       editNewFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
     };
   }, []);
+
+  // 라이트박스 escStack 등록 (Escape로 라이트박스만 닫기, 모달은 유지)
+  useEffect(() => {
+    if (!lightboxMedia) return;
+    const handler = () => setLightboxMedia(null);
+    escStack.push(handler);
+    return () => {
+      const idx = escStack.indexOf(handler);
+      if (idx !== -1) escStack.splice(idx, 1);
+    };
+  }, [lightboxMedia]);
 
   // 이모지 피커 외부 클릭 시 닫기
   useEffect(() => {
@@ -765,387 +1225,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     }
   };
 
-  // ========== 서브 컴포넌트 ==========
-
-  const InlineMentionDropdown = ({ isEdit }: { isEdit: boolean }) => {
-    if (!showInlineMention || inlineMentionForEdit !== isEdit || (filteredItems.length === 0 && !isAdminOrOwner)) return null;
-    const hasGroups = filteredGroups.length > 0;
-    const hasMembers = filteredMembers.length > 0;
-    let itemIdx = 0;
-    return (
-      <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-bridge-border rounded-lg shadow-lg z-50 py-1 max-h-48 overflow-y-auto custom-scrollbar">
-        {/* 멘션 그룹 만들기 버튼 — @만 입력했을 때만 표시 */}
-        {isAdminOrOwner && !mentionQuery && (
-          <>
-            <button
-              onMouseDown={e => { e.preventDefault(); setShowMentionGroupModal(true); setShowInlineMention(false); }}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-bridge-accent hover:bg-foreground/5 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{t('mentionGroup.create', '멘션 그룹 만들기')}</span>
-            </button>
-            {(hasGroups || hasMembers) && <div className="border-t border-foreground/[0.08] my-1" />}
-          </>
-        )}
-        {/* 그룹 섹션 */}
-        {hasGroups && (
-          <>
-            {filteredGroups.map((group) => {
-              const idx = itemIdx++;
-              return (
-                <button key={`g-${group.id}`}
-                  onMouseDown={e => { e.preventDefault(); insertGroupMention(group, isEdit); }}
-                  onMouseEnter={() => setMentionIndex(idx)}
-                  className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`}
-                >
-                  <div className="w-5 h-5 rounded-full bg-bridge-secondary/20 flex items-center justify-center">
-                    <Users className="w-3 h-3 text-bridge-secondary" />
-                  </div>
-                  <span className={idx === mentionIndex ? 'text-foreground' : ''}>{group.name}</span>
-                  <span className="text-xs text-slate-500 ml-auto">{group.members.length}{t('mentionGroup.memberCountSuffix', '명')}</span>
-                </button>
-              );
-            })}
-            {hasMembers && <div className="border-t border-foreground/[0.08] my-1" />}
-          </>
-        )}
-        {/* 개별 멤버 섹션 */}
-        {filteredMembers.map((member) => {
-          const idx = itemIdx++;
-          const color = getAssigneeClasses(member.name, member.assigneeColor);
-          return (
-            <button key={member.userId}
-              onMouseDown={e => { e.preventDefault(); insertMention(member, isEdit); }}
-              onMouseEnter={() => setMentionIndex(idx)}
-              className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`}
-            >
-              <div className={`w-5 h-5 rounded-full ${color.bg} flex items-center justify-center text-xs font-bold text-white whitespace-nowrap overflow-hidden`}>
-                {getInitials(member.name)}
-              </div>
-              <span className={idx === mentionIndex ? 'text-foreground' : ''}>{member.name}</span>
-              {member.userId === currentUser?.id && <span className="text-xs text-slate-400">({t('mentionGroup.me', '나')})</span>}
-            </button>
-          );
-        })}
-      </div>
-    );
-  };
-
-  /** 댓글 첨부 그리드 (이미지 썸네일 + 영상 썸네일 + 문서 아이콘) */
-  const AttachmentGrid = ({ attachments }: { attachments: CommentAttachment[] }) => {
-    if (!attachments || attachments.length === 0) return null;
-    const mediaItems = attachments.filter(att => !isDocAttachment(att)).map(att => ({
-      url: resolveFileUrl(att.url),
-      type: (isVideoAttachment(att) ? 'video' : 'image') as 'image' | 'video'
-    }));
-    let mediaIdx = -1;
-    return (
-      <div className="flex flex-wrap gap-1.5 mt-1.5">
-        {attachments.map((att) => {
-          const isVideo = isVideoAttachment(att);
-          const isDoc = isDocAttachment(att);
-
-          if (isDoc) {
-            return (
-              <a key={att.id} href={resolveFileUrl(att.url)} target="_blank" rel="noopener noreferrer" download={att.file_name}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-foreground/[0.08] hover:border-foreground/[0.12] bg-foreground/[0.03] transition-colors max-w-[220px]">
-                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${getDocColor(att.content_type || '')}`}>
-                  {getDocIcon(att.content_type || '')}
-                </span>
-                <span className="text-xs text-foreground truncate">{att.file_name}</span>
-              </a>
-            );
-          }
-
-          mediaIdx++;
-          const currentMediaIdx = mediaIdx;
-          return (
-            <button key={att.id}
-              onClick={() => setLightboxMedia({ items: mediaItems, index: currentMediaIdx })}
-              className="relative group/img rounded-md overflow-hidden border border-bridge-border hover:border-bridge-border transition-colors">
-              {isVideo ? (
-                <VideoThumbnail
-                  videoUrl={resolveFileUrl(att.url)}
-                  serverThumbnailUrl={att.thumbnail_url ? resolveFileUrl(att.thumbnail_url) : null}
-                  className="h-20 w-[120px] max-w-[160px] object-cover"
-                  alt={att.file_name}
-                />
-              ) : att.thumbnail_url ? (
-                <img src={resolveFileUrl(att.thumbnail_url)} alt={att.file_name}
-                  className="h-20 w-auto max-w-[160px] object-cover" loading="lazy" />
-              ) : (
-                <img src={resolveFileUrl(att.url)} alt={att.file_name}
-                  className="h-20 w-auto max-w-[160px] object-cover" loading="lazy" />
-              )}
-              {isVideo && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
-                    <Play className="h-4 w-4 text-white ml-0.5" />
-                  </div>
-                </div>
-              )}
-              <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition-colors" />
-            </button>
-          );
-        })}
-      </div>
-    );
-  };
-
-  /** 파일 미리보기 리스트 (새 댓글 or 수정 모드) */
-  const FilePreviewList = ({
-    files, existingAttachments, keepIds, onRemoveFile, onRemoveExisting
-  }: {
-    files: PendingFile[];
-    existingAttachments?: CommentAttachment[];
-    keepIds?: string[];
-    onRemoveFile: (id: string) => void;
-    onRemoveExisting?: (attId: string) => void;
-  }) => {
-    const keptExisting = existingAttachments?.filter(a => keepIds?.includes(a.id)) || [];
-    if (keptExisting.length === 0 && files.length === 0) return null;
-    return (
-      <div className="flex flex-wrap gap-2 mb-2">
-        {/* 기존 첨부파일 (수정 모드) */}
-        {keptExisting.map(att => (
-          <div key={att.id} className="relative group/preview">
-            {isDocAttachment(att) ? (
-              <div className="flex items-center gap-1.5 h-16 px-2.5 rounded-md border border-bridge-border bg-foreground/[0.03]">
-                <span className={`text-xs font-bold px-1 py-0.5 rounded ${getDocColor(att.content_type || '')}`}>
-                  {getDocIcon(att.content_type || '')}
-                </span>
-                <span className="text-xs text-foreground truncate max-w-[80px]">{att.file_name}</span>
-              </div>
-            ) : isVideoAttachment(att) ? (
-              <div className="relative h-16 w-[90px]">
-                <VideoThumbnail
-                  videoUrl={resolveFileUrl(att.url)}
-                  serverThumbnailUrl={att.thumbnail_url ? resolveFileUrl(att.thumbnail_url) : null}
-                  className="h-16 w-[90px] object-cover rounded-md border border-bridge-border"
-                  alt={att.file_name}
-                />
-                <Play className="absolute bottom-1 left-1 h-3 w-3 text-white drop-shadow" />
-              </div>
-            ) : (
-              <img src={resolveFileUrl(att.thumbnail_url || att.url)} alt={att.file_name}
-                className="h-16 w-auto max-w-[120px] object-cover rounded-md border border-bridge-border" />
-            )}
-            {onRemoveExisting && (
-              <button onClick={() => onRemoveExisting(att.id)}
-                className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity">
-                <X className="h-2.5 w-2.5" />
-              </button>
-            )}
-          </div>
-        ))}
-        {/* 새 파일 */}
-        {files.map(pf => (
-          <div key={pf.id} className="relative group/preview">
-            {isDocType(pf.file.type) ? (
-              <div className={`flex items-center gap-1.5 h-16 px-2.5 rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'} bg-foreground/[0.03]`}>
-                <span className={`text-xs font-bold px-1 py-0.5 rounded ${getDocColor(pf.file.type)}`}>
-                  {getDocIcon(pf.file.type)}
-                </span>
-                <span className="text-xs text-foreground truncate max-w-[80px]">{pf.file.name}</span>
-              </div>
-            ) : isVideoType(pf.file.type) ? (
-              <video src={pf.previewUrl} muted preload="metadata"
-                className={`h-16 w-[90px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'}`} />
-            ) : (
-              <img src={pf.previewUrl} alt={pf.file.name}
-                className={`h-16 w-auto max-w-[120px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'}`} />
-            )}
-            {pf.uploading && (
-              <div className="absolute inset-0 bg-black/40 rounded-md flex items-center justify-center">
-                <Loader2 className="h-4 w-4 animate-spin text-white" />
-              </div>
-            )}
-            {pf.error && (
-              <div className="absolute inset-0 bg-red-500/20 rounded-md flex items-center justify-center">
-                <span className="text-xs text-red-300 font-medium">{t('comment.failed')}</span>
-              </div>
-            )}
-            {isVideoType(pf.file.type) && !pf.uploading && !pf.error && (
-              <Play className="absolute bottom-1 left-1 h-3 w-3 text-white drop-shadow" />
-            )}
-            <button onClick={() => onRemoveFile(pf.id)}
-              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity">
-              <X className="h-2.5 w-2.5" />
-            </button>
-            <span className="absolute bottom-0.5 right-0.5 text-xs bg-black/60 text-white/80 px-1 rounded">
-              {formatFileSize(pf.file.size)}
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  /** 이모지 피커 팝업 (portal) */
-  const EmojiPicker = ({ commentId }: { commentId: string }) => {
-    if (emojiPickerCommentId !== commentId || !emojiPickerPos) return null;
-    return createPortal(
-      <div ref={emojiPickerRef}
-        data-emoji-picker
-        style={{ position: 'fixed', top: emojiPickerPos.top, left: emojiPickerPos.left, zIndex: 9999 }}
-        className="bg-bridge-obsidian border border-bridge-border rounded-xl shadow-xl p-2 min-w-[200px] pointer-events-auto"
-        onPointerDown={e => e.stopPropagation()}
-        onMouseDown={e => e.stopPropagation()}>
-        {/* 기본 이모지 */}
-        <div className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.default', '기본')}</div>
-        <div className="grid grid-cols-4 gap-1">
-          {REACTION_EMOJIS.map(emoji => (
-            <button key={emoji}
-              onClick={() => handleToggleReaction(commentId, emoji)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-all hover:scale-110 text-base">
-              {emoji}
-            </button>
-          ))}
-        </div>
-
-        {/* 커스텀 이모지 */}
-        {(customEmojis.length > 0 || isAdminOrOwner) && (
-          <>
-            <div className="border-t border-foreground/10 my-1.5" />
-            <div className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.title', '커스텀')}</div>
-            <div className="grid grid-cols-4 gap-1">
-              {customEmojis.map(ce => (
-                <div key={ce.id} className="relative group/ce">
-                  <button
-                    onClick={() => handleToggleReaction(commentId, `custom:${ce.id}`)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-all hover:scale-110"
-                    title={ce.name}>
-                    <img src={resolveFileUrl(ce.image_url)} alt={ce.name} className="w-5 h-5 object-contain" />
-                  </button>
-                  {isAdminOrOwner && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDeleteCustomEmoji(ce.id); }}
-                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-white items-center justify-center text-xs leading-none hidden group-hover/ce:flex"
-                      title={t('comment.customEmoji.deleteConfirm', '삭제')}>
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
-              {isAdminOrOwner && (
-                <button
-                  onClick={() => setShowEmojiUpload(prev => !prev)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-all text-slate-400 hover:text-muted-foreground border border-dashed border-foreground/10"
-                  title={t('comment.customEmoji.add', '이모지 추가')}>
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* 업로드 UI */}
-            {showEmojiUpload && isAdminOrOwner && (
-              <div className="mt-2 p-2 bg-foreground/5 rounded-lg space-y-2">
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => emojiFileInputRef.current?.click()}
-                    disabled={isUploadingEmoji}
-                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                      selectedEmojiFile
-                        ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
-                        : 'bg-bridge-accent/20 text-bridge-accent hover:bg-bridge-accent/30'
-                    }`}>
-                    {isUploadingEmoji ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
-                    {selectedEmojiFile
-                      ? selectedEmojiFile.name.length > 12
-                        ? selectedEmojiFile.name.slice(0, 12) + '…'
-                        : selectedEmojiFile.name
-                      : t('comment.customEmoji.selectFile', '파일 선택')}
-                  </button>
-                  <button
-                    onClick={() => { setShowEmojiUpload(false); setEmojiUploadName(''); setSelectedEmojiFile(null); }}
-                    className="px-2 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-muted-foreground hover:bg-foreground/5 transition-all">
-                    {t('common.cancel', '취소')}
-                  </button>
-                </div>
-                {selectedEmojiFile && (
-                  <>
-                    <input
-                      ref={emojiNameInputRef}
-                      type="text"
-                      value={emojiUploadName}
-                      onChange={e => setEmojiUploadName(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter' && emojiUploadName.trim()) handleUploadCustomEmoji(); }}
-                      placeholder={t('comment.customEmoji.namePlaceholder', '이모지 이름')}
-                      className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1 text-xs text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
-                      maxLength={50}
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => handleUploadCustomEmoji()}
-                      disabled={!emojiUploadName.trim() || isUploadingEmoji}
-                      className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-bold rounded-lg bg-bridge-accent text-white hover:bg-bridge-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-                      {isUploadingEmoji && <Loader2 className="w-3 h-3 animate-spin" />}
-                      {t('comment.customEmoji.upload', '업로드')}
-                    </button>
-                  </>
-                )}
-                <p className="text-xs text-slate-500">{t('comment.customEmoji.maxSize', 'PNG, GIF, WebP · 128KB 이하')}</p>
-                <input
-                  ref={emojiFileInputRef}
-                  type="file"
-                  accept="image/png,image/gif,image/webp"
-                  className="hidden"
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setSelectedEmojiFile(file);
-                      setTimeout(() => emojiNameInputRef.current?.focus(), 50);
-                    }
-                    e.target.value = '';
-                  }}
-                />
-              </div>
-            )}
-          </>
-        )}
-      </div>,
-      document.body
-    );
-  };
-
-  /** 리액션 뱃지 바 */
-  const ReactionBar = ({ comment }: { comment: TaskComment }) => {
-    const reactions = comment.reactions || [];
-    const hasReactions = reactions.length > 0;
-    if (!hasReactions) return null;
-
-    return (
-      <div className="flex flex-wrap items-center gap-1 mt-1.5">
-        {reactions.map(reaction => {
-          const isMyReaction = reaction.users.some(u => u.id === currentUser?.id);
-          const tooltipNames = reaction.users.map(u =>
-            u.id === currentUser?.id ? t('comment.reaction.you') : u.name
-          ).join(', ');
-
-          return (
-            <button key={reaction.emoji}
-              onClick={() => canEdit && handleToggleReaction(comment.id, reaction.emoji)}
-              disabled={!canEdit}
-              className={`group/reaction relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all
-                ${isMyReaction
-                  ? 'bg-bridge-accent/20 border border-bridge-accent/50 text-bridge-accent hover:bg-bridge-accent/30'
-                  : 'bg-foreground/5 border border-foreground/10 text-slate-400 hover:bg-foreground/10 hover:text-muted-foreground'
-                }
-                ${!canEdit ? 'cursor-default' : 'cursor-pointer'}
-              `}
-              title={tooltipNames}>
-              {reaction.is_custom && reaction.image_url ? (
-                <img src={resolveFileUrl(reaction.image_url)} alt={reaction.emoji} className="w-4 h-4 object-contain" />
-              ) : (
-                <span className="text-xs">{reaction.emoji}</span>
-              )}
-              <span className="text-xs font-medium">{reaction.count}</span>
-            </button>
-          );
-        })}
-      </div>
-    );
-  };
+  // (서브 컴포넌트들은 파일 상단에 추출됨)
 
   // ========== 메인 렌더 ==========
 
@@ -1317,7 +1397,26 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                             title={t('comment.reaction.addReaction')}>
                             <SmilePlus className="h-3 w-3" />
                           </button>
-                          <EmojiPicker commentId={comment.id} />
+                          <EmojiPickerPopup
+                            commentId={comment.id}
+                            activeCommentId={emojiPickerCommentId}
+                            position={emojiPickerPos}
+                            pickerRef={emojiPickerRef}
+                            onToggleReaction={handleToggleReaction}
+                            customEmojis={customEmojis}
+                            isAdminOrOwner={isAdminOrOwner}
+                            showEmojiUpload={showEmojiUpload}
+                            onShowEmojiUploadChange={setShowEmojiUpload}
+                            selectedEmojiFile={selectedEmojiFile}
+                            onSelectedEmojiFileChange={setSelectedEmojiFile}
+                            emojiUploadName={emojiUploadName}
+                            onEmojiUploadNameChange={setEmojiUploadName}
+                            isUploadingEmoji={isUploadingEmoji}
+                            onUploadCustomEmoji={handleUploadCustomEmoji}
+                            onDeleteCustomEmoji={handleDeleteCustomEmoji}
+                            emojiFileInputRef={emojiFileInputRef}
+                            emojiNameInputRef={emojiNameInputRef}
+                          />
                           {isAuthor && (
                             <button onClick={() => startEditing(comment)}
                               className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground">
@@ -1347,7 +1446,13 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                         {fileError && <p className="text-xs text-red-400">{t(fileError)}</p>}
 
                         <div className="relative">
-                          <InlineMentionDropdown isEdit={true} />
+                          <InlineMentionDropdown isEdit={true} show={showInlineMention} forEdit={inlineMentionForEdit}
+                            filteredGroups={filteredGroups} filteredMembers={filteredMembers}
+                            mentionIndex={mentionIndex} onMentionIndexChange={setMentionIndex}
+                            isAdminOrOwner={isAdminOrOwner} mentionQuery={mentionQuery}
+                            onInsertMention={insertMention} onInsertGroupMention={insertGroupMention}
+                            currentUserId={currentUser?.id} onShowMentionGroupModal={() => setShowMentionGroupModal(true)}
+                            onHideMention={() => setShowInlineMention(false)} />
                           <textarea ref={editTextareaRef} value={editContent}
                             onChange={e => handleTextChange(e.target.value, true)}
                             onKeyDown={e => handleEditKeyDown(e, comment.id)}
@@ -1384,8 +1489,8 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                             {renderContent(comment.content, boardMembers, mentionGroups)}
                           </p>
                         )}
-                        <AttachmentGrid attachments={comment.attachments || []} />
-                        <ReactionBar comment={comment} />
+                        <AttachmentGrid attachments={comment.attachments || []} onOpenLightbox={setLightboxMedia} />
+                        <ReactionBar comment={comment} currentUserId={currentUser?.id} canEdit={canEdit} onToggleReaction={handleToggleReaction} />
                       </>
                     )}
                   </div>
@@ -1405,7 +1510,13 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
           {fileError && !editingId && <p className="text-xs text-red-400 mb-1">{t(fileError)}</p>}
 
           <div className="relative">
-            <InlineMentionDropdown isEdit={false} />
+            <InlineMentionDropdown isEdit={false} show={showInlineMention} forEdit={inlineMentionForEdit}
+              filteredGroups={filteredGroups} filteredMembers={filteredMembers}
+              mentionIndex={mentionIndex} onMentionIndexChange={setMentionIndex}
+              isAdminOrOwner={isAdminOrOwner} mentionQuery={mentionQuery}
+              onInsertMention={insertMention} onInsertGroupMention={insertGroupMention}
+              currentUserId={currentUser?.id} onShowMentionGroupModal={() => setShowMentionGroupModal(true)}
+              onHideMention={() => setShowInlineMention(false)} />
             <textarea ref={textareaRef} value={newComment}
               onChange={e => handleTextChange(e.target.value, false)}
               onKeyDown={handleKeyDown}
@@ -1462,7 +1573,6 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               onKeyDown={(e) => {
                 if (e.key === 'ArrowLeft') { e.stopPropagation(); goPrev(); }
                 else if (e.key === 'ArrowRight') { e.stopPropagation(); goNext(); }
-                else if (e.key === 'Escape') { e.stopPropagation(); setLightboxMedia(null); }
               }}
               tabIndex={0}
               ref={(el) => el?.focus()}>
