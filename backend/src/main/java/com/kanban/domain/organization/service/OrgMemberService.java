@@ -25,6 +25,7 @@ import java.time.ZoneOffset;
 import java.util.HashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -66,6 +67,7 @@ public class OrgMemberService {
     private final OrgOnboardingInstanceRepository orgOnboardingInstanceRepository;
     private final OrgCelebrationMessageRepository orgCelebrationMessageRepository;
     private final OrgOneOnOneRepository orgOneOnOneRepository;
+    private final CacheManager cacheManager;
 
     public OrgMemberResponse.PageResponse getMembers(String orgId, String userId,
             String departmentId, String jobGroupId, ContractType contractType,
@@ -320,6 +322,7 @@ public class OrgMemberService {
                     .orElse(null);
             if (boardMember != null) {
                 boardMemberRepository.delete(boardMember);
+                evictMembersCache(board.getId());
                 removedBoards.add(OrgMemberResponse.RemovedBoardInfo.builder()
                         .boardId(board.getId())
                         .boardName(board.getName())
@@ -362,6 +365,13 @@ public class OrgMemberService {
                         .build())
                 .cascadeRemovedFromBoards(removedBoards)
                 .build();
+    }
+
+    private void evictMembersCache(String boardId) {
+        var cache = cacheManager.getCache("members");
+        if (cache != null) {
+            cache.evict(boardId);
+        }
     }
 
     @Transactional

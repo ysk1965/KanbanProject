@@ -82,7 +82,7 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
-const REACTION_EMOJIS = ['👍', '❤️', '😄', '🎉', '🤔', '👀', '👏', '🔥'];
+const REACTION_EMOJIS = ['👍', '❤️', '😄', '🎉', '🤔', '👀', '👏', '🔥', '✅', '🙏', '💯', '😢'];
 
 const URL_PATTERN = /(https?:\/\/[^\s<]+)/g;
 

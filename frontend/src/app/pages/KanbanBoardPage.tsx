@@ -1534,7 +1534,8 @@ export function KanbanBoardPage() {
   const handleRemoveMember = async (memberId: string) => {
     if (!boardId) return;
 
-    if (memberId === currentUserId) {
+    const targetMember = boardMembersData.find((m) => m.id === memberId);
+    if (targetMember?.userId === currentUserId) {
       alert(t("kanban.cannotRemoveSelf"));
       return;
     }
