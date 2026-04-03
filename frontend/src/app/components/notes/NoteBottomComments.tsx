@@ -44,6 +44,10 @@ const REACTION_EMOJIS = [
   "\uD83D\uDC40",
   "\uD83D\uDC4F",
   "\uD83D\uDD25",
+  "\u2705",
+  "\uD83D\uDE4F",
+  "\uD83D\uDCAF",
+  "\uD83D\uDE22",
 ];
 
 // ========== Types ==========
