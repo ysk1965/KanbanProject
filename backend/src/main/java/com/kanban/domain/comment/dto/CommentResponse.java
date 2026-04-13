@@ -25,6 +25,8 @@ public class CommentResponse {
         private List<String> mentions;
         private List<AttachmentInfo> attachments;
         private List<ReactionInfo> reactions;
+        private String parentId;
+        private String parentAuthorName;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
@@ -68,6 +70,9 @@ public class CommentResponse {
                     .mentions(mentionList)
                     .attachments(attachmentList)
                     .reactions(reactionList)
+                    .parentId(comment.getParent() != null ? comment.getParent().getId() : null)
+                    .parentAuthorName(comment.getParent() != null && comment.getParent().getAuthor() != null
+                            ? comment.getParent().getAuthor().getName() : null)
                     .createdAt(comment.getCreatedAt())
                     .updatedAt(comment.getUpdatedAt())
                     .build();

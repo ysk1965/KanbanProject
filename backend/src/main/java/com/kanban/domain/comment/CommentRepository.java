@@ -13,6 +13,8 @@ public interface CommentRepository extends JpaRepository<Comment, String> {
     @Query("SELECT DISTINCT c FROM Comment c " +
            "LEFT JOIN FETCH c.author " +
            "LEFT JOIN FETCH c.attachments " +
+           "LEFT JOIN FETCH c.parent p " +
+           "LEFT JOIN FETCH p.author " +
            "WHERE c.task.id = :taskId " +
            "ORDER BY c.createdAt ASC")
     List<Comment> findByTaskIdWithAuthor(@Param("taskId") String taskId);
@@ -22,6 +24,8 @@ public interface CommentRepository extends JpaRepository<Comment, String> {
            "LEFT JOIN FETCH c.attachments " +
            "LEFT JOIN FETCH c.reactions r " +
            "LEFT JOIN FETCH r.user " +
+           "LEFT JOIN FETCH c.parent p " +
+           "LEFT JOIN FETCH p.author " +
            "WHERE c.task.id = :taskId " +
            "ORDER BY c.createdAt ASC")
     List<Comment> findByTaskIdWithAuthorAndReactions(@Param("taskId") String taskId);

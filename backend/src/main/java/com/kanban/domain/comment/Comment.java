@@ -18,7 +18,8 @@ import java.util.UUID;
 @Table(name = "comments", indexes = {
     @Index(name = "idx_comment_task_id", columnList = "task_id"),
     @Index(name = "idx_comment_board_id", columnList = "board_id"),
-    @Index(name = "idx_comment_board_created", columnList = "board_id, created_at")
+    @Index(name = "idx_comment_board_created", columnList = "board_id, created_at"),
+    @Index(name = "idx_comment_parent_id", columnList = "parent_id")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -48,6 +49,10 @@ public class Comment extends BaseTimeEntity {
     /** 멘션된 사용자 ID를 쉼표로 저장 (예: "userId1,userId2") */
     @Column(name = "mentions", columnDefinition = "TEXT")
     private String mentions;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Comment parent;
 
     @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

@@ -1325,6 +1325,8 @@
     "docFileSizeError": "文件檔案最大30MB。",
     "uploadInProgress": "檔案正在上傳中，請稍候。",
     "uploadFailedRetry": "部分檔案上傳失敗。請移除後重試。",
+    "reply": "回覆",
+    "replyingTo": "回覆 {{name}}",
     "reaction": {
       "addReaction": "新增反應",
       "you": "我",

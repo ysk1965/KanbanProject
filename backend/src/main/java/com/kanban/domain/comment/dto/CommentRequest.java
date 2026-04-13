@@ -19,6 +19,9 @@ public class CommentRequest {
 
         /** 미리 업로드된 파일의 임시 키 목록 */
         private List<String> fileKeys;
+
+        /** 답글 대상 댓글 ID (null이면 루트 댓글) */
+        private String parentId;
     }
 
     @Getter

@@ -1340,6 +1340,8 @@
     "docFileSizeError": "文書ファイルは最大30MBです。",
     "uploadInProgress": "ファイルをアップロード中です。しばらくお待ちください。",
     "uploadFailedRetry": "一部のファイルのアップロードに失敗しました。削除して再試行してください。",
+    "reply": "返信",
+    "replyingTo": "{{name}}に返信",
     "reaction": {
       "addReaction": "リアクションを追加",
       "you": "自分",
