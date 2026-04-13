@@ -1862,7 +1862,7 @@ export const commentAPI = {
   createComment: async (
     boardId: string,
     taskId: string,
-    data: { content: string; mentions?: string[]; fileKeys?: string[] },
+    data: { content: string; mentions?: string[]; fileKeys?: string[]; parentId?: string },
   ) => {
     return apiClient.post<CommentDetailResponse>(
       `/boards/${boardId}/tasks/${taskId}/comments`,
@@ -1870,6 +1870,7 @@ export const commentAPI = {
         content: data.content,
         mentions: data.mentions,
         file_keys: data.fileKeys,
+        parent_id: data.parentId,
       },
     );
   },

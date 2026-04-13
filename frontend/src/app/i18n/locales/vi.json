@@ -1340,6 +1340,8 @@
     "docFileSizeError": "Kích thước tài liệu tối đa là 30MB.",
     "uploadInProgress": "Tep dang duoc tai len. Vui long cho.",
     "uploadFailedRetry": "Mot so tep tai len that bai. Vui long xoa va thu lai.",
+    "reply": "Trả lời",
+    "replyingTo": "Trả lời {{name}}",
     "reaction": {
       "addReaction": "Thêm biểu cảm",
       "you": "Bạn",

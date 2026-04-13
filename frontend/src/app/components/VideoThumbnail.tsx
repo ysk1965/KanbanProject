@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useVideoThumbnail } from '../hooks/useVideoThumbnail';
 import { Film } from 'lucide-react';
 
@@ -9,15 +10,31 @@ interface VideoThumbnailProps {
 }
 
 export function VideoThumbnail({ videoUrl, serverThumbnailUrl, className, alt }: VideoThumbnailProps) {
+  const [serverFailed, setServerFailed] = useState(false);
+
+  const effectiveServerUrl = serverFailed ? null : serverThumbnailUrl;
+
   const generatedThumbnail = useVideoThumbnail(
     videoUrl,
-    !serverThumbnailUrl
+    !effectiveServerUrl
   );
 
-  const thumbnailSrc = serverThumbnailUrl || generatedThumbnail;
+  const thumbnailSrc = effectiveServerUrl || generatedThumbnail;
 
   if (thumbnailSrc) {
-    return <img src={thumbnailSrc} alt={alt || 'Video thumbnail'} className={className} loading="lazy" />;
+    return (
+      <img
+        src={thumbnailSrc}
+        alt={alt || 'Video thumbnail'}
+        className={className}
+        loading="lazy"
+        onError={() => {
+          if (!serverFailed && serverThumbnailUrl) {
+            setServerFailed(true);
+          }
+        }}
+      />
+    );
   }
 
   return (

@@ -537,6 +537,8 @@ export interface TaskComment {
   mentions: string[];
   attachments: CommentAttachment[];
   reactions: CommentReaction[];
+  parent_id: string | null;
+  parent_author_name: string | null;
   created_at: string;
   updated_at: string;
 }

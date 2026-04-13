@@ -42,7 +42,7 @@ public class VideoThumbnailService {
             tempThumbnail = Files.createTempFile("thumb_" + UUID.randomUUID(), ".jpg");
 
             // FFmpeg 실행: 1초 시점에서 프레임 추출, 지정 크기로 리사이즈
-            String scaleFilter = String.format("scale='min(%d,iw)':min'(%d,ih)':force_original_aspect_ratio=decrease", maxWidth, maxHeight);
+            String scaleFilter = String.format("scale='min(%d,iw)':'min(%d,ih)':force_original_aspect_ratio=decrease", maxWidth, maxHeight);
             ProcessBuilder pb = new ProcessBuilder(
                     ffmpegPath,
                     "-i", tempVideo.toString(),
