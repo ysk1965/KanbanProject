@@ -1416,6 +1416,8 @@
     "docFileSizeError": "문서 파일은 최대 30MB입니다.",
     "uploadInProgress": "파일 업로드 중입니다. 잠시만 기다려주세요.",
     "uploadFailedRetry": "업로드 실패한 파일이 있습니다. 삭제 후 다시 시도해주세요.",
+    "reply": "답글",
+    "replyingTo": "{{name}}에게 답글",
     "reaction": {
       "addReaction": "리액션 추가",
       "you": "나",

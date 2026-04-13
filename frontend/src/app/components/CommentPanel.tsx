@@ -8,7 +8,7 @@ import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
 import { formatDate } from '../utils/dateUtils';
 import { escStack } from '../hooks/useEscClose';
 import { MotionModal } from './ui/MotionModal';
-import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, ChevronLeft, ChevronRight, SmilePlus, Plus, ImageIcon, Sparkles, CheckCircle2, HelpCircle, ListChecks, Users } from 'lucide-react';
+import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, ChevronLeft, ChevronRight, SmilePlus, Plus, ImageIcon, Sparkles, CheckCircle2, HelpCircle, ListChecks, Users, Reply } from 'lucide-react';
 import { VideoThumbnail } from './VideoThumbnail';
 import { MentionGroupModal } from './MentionGroupModal';
 
@@ -211,7 +211,8 @@ const AttachmentGrid = memo(function AttachmentGrid({ attachments, onOpenLightbo
               />
             ) : att.thumbnail_url ? (
               <img src={resolveFileUrl(att.thumbnail_url)} alt={att.file_name}
-                className="h-20 w-auto max-w-[160px] object-cover" loading="lazy" />
+                className="h-20 w-auto max-w-[160px] object-cover" loading="lazy"
+                onError={(e) => { e.currentTarget.src = resolveFileUrl(att.url); }} />
             ) : (
               <img src={resolveFileUrl(att.url)} alt={att.file_name}
                 className="h-20 w-auto max-w-[160px] object-cover" loading="lazy" />
@@ -620,6 +621,9 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   // AI 요약
   const [aiSummary, setAiSummary] = useState<CommentAISummaryResponse | null>(null);
   const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
+
+  // 답글 대상
+  const [replyTo, setReplyTo] = useState<{ id: string; authorName: string } | null>(null);
 
   // 새 댓글 입력
   const [newComment, setNewComment] = useState('');
@@ -1111,9 +1115,11 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         content: newComment.trim() || '',
         mentions: pendingMentions,
         fileKeys: fileKeys.length > 0 ? fileKeys : undefined,
+        parentId: replyTo?.id,
       });
       setComments(prev => [...prev, response]);
       setNewComment('');
+      setReplyTo(null);
       setPendingMentions([]);
       pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
       setPendingFiles([]);
@@ -1417,6 +1423,15 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                             emojiFileInputRef={emojiFileInputRef}
                             emojiNameInputRef={emojiNameInputRef}
                           />
+                          <button
+                            onClick={() => {
+                              setReplyTo({ id: comment.id, authorName: comment.author.name });
+                              textareaRef.current?.focus();
+                            }}
+                            className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground"
+                            title={t('comment.reply')}>
+                            <Reply className="h-3 w-3" />
+                          </button>
                           {isAuthor && (
                             <button onClick={() => startEditing(comment)}
                               className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground">
@@ -1432,6 +1447,13 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                         </div>
                       )}
                     </div>
+
+                    {!isBeingEdited && comment.parent_id && comment.parent_author_name && (
+                      <div className="flex items-center gap-1 mb-1 text-xs text-slate-400">
+                        <Reply className="h-2.5 w-2.5 flex-shrink-0" />
+                        <span className="truncate">@{comment.parent_author_name}</span>
+                      </div>
+                    )}
 
                     {isBeingEdited ? (
                       <div className="space-y-2">
@@ -1504,6 +1526,19 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
       {/* 입력 영역 - Viewer는 댓글 작성 불가 */}
       {canEdit ? (
         <div className="px-4 py-3 border-t border-bridge-border">
+          {replyTo && (
+            <div className="flex items-center gap-2 px-1 py-1.5 mb-1.5 rounded-lg bg-bridge-accent/10 border border-bridge-accent/20">
+              <Reply className="h-3 w-3 text-bridge-accent flex-shrink-0" />
+              <span className="text-xs text-bridge-accent font-medium truncate">
+                {t('comment.replyingTo', { name: replyTo.authorName })}
+              </span>
+              <button
+                onClick={() => setReplyTo(null)}
+                className="ml-auto p-0.5 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground flex-shrink-0">
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
           <FilePreviewList files={pendingFiles}
             onRemoveFile={(id) => removePendingFile(id, setPendingFiles)} />
 

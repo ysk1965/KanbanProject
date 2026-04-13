@@ -1340,6 +1340,8 @@
     "docFileSizeError": "O tamanho máximo de documento é 30MB.",
     "uploadInProgress": "Os arquivos estão sendo enviados. Por favor, aguarde.",
     "uploadFailedRetry": "Alguns arquivos falharam no envio. Por favor, remova e tente novamente.",
+    "reply": "Responder",
+    "replyingTo": "Respondendo a {{name}}",
     "reaction": {
       "addReaction": "Adicionar reação",
       "you": "Você",

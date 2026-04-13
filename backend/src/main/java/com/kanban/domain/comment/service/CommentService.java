@@ -145,12 +145,19 @@ public class CommentService {
                 ? String.join(",", request.getMentions())
                 : null;
 
+        Comment parentComment = null;
+        if (request.getParentId() != null && !request.getParentId().isBlank()) {
+            parentComment = commentRepository.findById(request.getParentId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
+        }
+
         Comment comment = Comment.builder()
                 .task(task)
                 .board(board)
                 .author(user)
                 .content(content)
                 .mentions(mentionsStr)
+                .parent(parentComment)
                 .build();
 
         commentRepository.save(comment);

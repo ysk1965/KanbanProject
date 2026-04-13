@@ -1340,6 +1340,8 @@
     "docFileSizeError": "ขนาดเอกสารสูงสุด 30MB",
     "uploadInProgress": "กำลังอัปโหลดไฟล์ กรุณารอสักครู่",
     "uploadFailedRetry": "บางไฟล์อัปโหลดไม่สำเร็จ กรุณาลบและลองใหม่อีกครั้ง",
+    "reply": "ตอบกลับ",
+    "replyingTo": "ตอบกลับ {{name}}",
     "reaction": {
       "addReaction": "เพิ่มรีแอคชัน",
       "you": "คุณ",

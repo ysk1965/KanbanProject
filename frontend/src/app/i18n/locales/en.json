@@ -1415,6 +1415,8 @@
     "docFileSizeError": "Maximum document size is 30MB.",
     "uploadInProgress": "Files are being uploaded. Please wait.",
     "uploadFailedRetry": "Some files failed to upload. Please remove and try again.",
+    "reply": "Reply",
+    "replyingTo": "Replying to {{name}}",
     "reaction": {
       "addReaction": "Add reaction",
       "you": "You",
