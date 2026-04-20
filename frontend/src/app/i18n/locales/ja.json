@@ -764,14 +764,24 @@
       "milestone": "マイルストーン",
       "unassigned": "未割り当て",
       "noItems": "割り当てられた項目はありません",
-      "completed": "完了"
+      "completed": "完了",
+      "collapse": "折りたたむ",
+      "more": "もっと見る"
     },
     "panel": {
       "title": "チェックリスト",
       "search": "検索...",
       "noUnscheduled": "すべての項目がスケジュール済みです",
       "dragHint": "カレンダー/リソースにドラッグして配置",
-      "filterFeature": "フィーチャーで絞り込み"
+      "filterFeature": "フィーチャーで絞り込み",
+      "addItem": "チェックリスト項目追加",
+      "selectFeature": "フィーチャー",
+      "selectTask": "タスク",
+      "itemTitle": "項目タイトル",
+      "selectFeaturePlaceholder": "フィーチャーを選択",
+      "selectTaskPlaceholder": "タスクを選択",
+      "noFeatures": "フィーチャーがありません",
+      "noTasks": "このフィーチャーにタスクがありません"
     },
     "settingsTitle": "スケジュール設定",
     "managementMethod": "管理方法",
@@ -1082,6 +1092,18 @@
     "autoRefresh": "30秒ごとに自動確認中",
     "progress": "メンテナンス進捗 {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "nightShutdown": {
+    "title": "営業時間外です",
+    "subtitle": "毎日 08:00 ~ 23:00 (KST) にサービスを提供しています",
+    "resumeAt": "サービス再開時間",
+    "hours": "時間",
+    "minutes": "分",
+    "seconds": "秒",
+    "checking": "確認中...",
+    "checkNow": "今すぐ確認",
+    "autoRefresh": "30秒ごとに自動確認します",
+    "schedule": "営業時間"
   },
   "error": {
     "title": "問題が発生しました",

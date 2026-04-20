@@ -93,6 +93,42 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Ensure infrastructure is running
+        run: |
+          # Check if EB ASG is scaled to 0 (off-peak shutdown mode)
+          ASG_NAME=$(aws elasticbeanstalk describe-environment-resources \
+            --environment-name ${{ env.EB_ENVIRONMENT_NAME }} \
+            --query 'EnvironmentResources.AutoScalingGroups[0].Name' \
+            --output text 2>/dev/null || echo "")
+
+          if [ -z "$ASG_NAME" ] || [ "$ASG_NAME" == "None" ]; then
+            echo "Could not find ASG, skipping wake-up check"
+            exit 0
+          fi
+
+          DESIRED=$(aws autoscaling describe-auto-scaling-groups \
+            --auto-scaling-group-names "$ASG_NAME" \
+            --query 'AutoScalingGroups[0].DesiredCapacity' \
+            --output text)
+
+          if [ "$DESIRED" -eq "0" ]; then
+            echo "Infrastructure is in shutdown mode. Waking up for deployment..."
+
+            # Start RDS first (takes longer to boot)
+            aws rds start-db-instance \
+              --db-instance-identifier kanban-dev-db 2>/dev/null || true
+
+            # Scale up EB ASG
+            aws autoscaling update-auto-scaling-group \
+              --auto-scaling-group-name "$ASG_NAME" \
+              --min-size 1 --max-size 2 --desired-capacity 1
+
+            echo "Waiting for RDS and EB to become available (~3 min)..."
+            sleep 180
+          else
+            echo "Infrastructure is running (desired=$DESIRED). Proceeding with deploy."
+          fi
+
       - name: Generate deployment package
         run: |
           cd backend

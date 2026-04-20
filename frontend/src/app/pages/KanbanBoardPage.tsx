@@ -3502,6 +3502,8 @@ export function KanbanBoardPage() {
                     boardId={boardId || ""}
                     onDragStateChange={setPanelDragState}
                     onItemDetailClick={handleChecklistItemDetailClick}
+                    boardMembers={boardMembersData}
+                    onItemAdded={() => setScheduleRefreshPanel((k) => k + 1)}
                   />
                 </Suspense>
               </div>
@@ -3571,6 +3573,7 @@ export function KanbanBoardPage() {
                       panelDragState?.isActive ? panelDragState.item : null
                     }
                     refreshTrigger={scheduleRefreshPanel}
+                    onMilestoneClick={handleOpenMilestoneWithCheck}
                   />
                 </Suspense>
                 <Suspense fallback={null}>
@@ -3579,6 +3582,8 @@ export function KanbanBoardPage() {
                     boardId={boardId || ""}
                     onDragStateChange={setPanelDragState}
                     onItemDetailClick={handleChecklistItemDetailClick}
+                    boardMembers={boardMembersData}
+                    onItemAdded={() => setScheduleRefreshPanel((k) => k + 1)}
                   />
                 </Suspense>
               </div>

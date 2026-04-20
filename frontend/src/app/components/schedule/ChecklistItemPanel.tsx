@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PanelRightClose, Search, ChevronDown, ChevronRight, Loader2, Filter, X } from 'lucide-react';
+import { PanelRightClose, Search, ChevronDown, ChevronRight, Loader2, Filter, X, Plus } from 'lucide-react';
 import { AssigneeItemResponse, boardChecklistAPI } from '../../utils/api';
+import { BoardMember } from '../ShareBoardModal';
 import { ChecklistDragItem } from './ChecklistDragItem';
+import { AddChecklistItemModal } from './AddChecklistItemModal';
 
 // ─── Public interface consumed by sibling views ──────────────────────────────
 
@@ -32,6 +34,10 @@ interface ChecklistItemPanelProps {
   onItemDropped?: (itemId: string) => void;
   /** Called when user clicks detail button on an item (opens task detail). */
   onItemDetailClick?: (item: AssigneeItemResponse) => void;
+  /** Board members for assignee selection in add modal. */
+  boardMembers?: BoardMember[];
+  /** Called after new items are added via modal (triggers parent refresh). */
+  onItemAdded?: () => void;
 }
 
 // ─── Status group types ───────────────────────────────────────────────────────
@@ -119,11 +125,16 @@ export function ChecklistItemPanel({
   onDragStateChange,
   onItemDropped,
   onItemDetailClick,
+  boardMembers = [],
+  onItemAdded,
 }: ChecklistItemPanelProps) {
   const { t } = useTranslation();
 
   // ── Panel open/close ──
   const [isOpen, setIsOpen] = useState(true);
+
+  // ── Add modal ──
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // ── Data ──
   const [items, setItems] = useState<AssigneeItemResponse[]>([]);
@@ -154,25 +165,25 @@ export function ChecklistItemPanel({
   const dragStateRef = useRef<PanelDragState | null>(null);
 
   // ── Load unscheduled items ──
-  useEffect(() => {
-    const loadItems = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await boardChecklistAPI.getItems(boardId, { is_scheduled: false });
-        setItems(response.items);
-      } catch (err) {
-        console.error('ChecklistItemPanel: failed to load items', err);
-        setError(t('common.error'));
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const loadItems = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await boardChecklistAPI.getItems(boardId, { is_scheduled: false });
+      setItems(response.items);
+    } catch (err) {
+      console.error('ChecklistItemPanel: failed to load items', err);
+      setError(t('common.error'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [boardId, t]);
 
+  useEffect(() => {
     if (boardId) {
       loadItems();
     }
-  }, [boardId, t]);
+  }, [boardId, loadItems]);
 
   // ── Notify parent of drag state changes ──
   useEffect(() => {
@@ -364,14 +375,24 @@ export function ChecklistItemPanel({
           <span className="text-[13px] font-bold text-foreground">
             {t('schedule.panel.title', 'Checklist')}
           </span>
-          <button
-            onClick={() => setIsOpen(false)}
-            aria-label={t('common.close', 'Close')}
-            className="p-1 rounded-lg text-slate-500 hover:text-foreground
-              hover:bg-foreground/5 transition-colors"
-          >
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => setShowAddModal(true)}
+              aria-label={t('schedule.panel.addItem', 'Add checklist item')}
+              className="p-1 rounded-lg text-slate-500 hover:text-foreground
+                hover:bg-foreground/5 transition-colors"
+            >
+              <Plus size={16} aria-hidden="true" />
+            </button>
+            <button
+              onClick={() => setIsOpen(false)}
+              aria-label={t('common.close', 'Close')}
+              className="p-1 rounded-lg text-slate-500 hover:text-foreground
+                hover:bg-foreground/5 transition-colors"
+            >
             <PanelRightClose size={16} aria-hidden="true" />
-          </button>
+            </button>
+          </div>
         </div>
 
         {/* Search input */}
@@ -596,6 +617,19 @@ export function ChecklistItemPanel({
             </span>
           )}
         </div>
+      )}
+
+      {/* Add checklist item modal */}
+      {showAddModal && (
+        <AddChecklistItemModal
+          boardId={boardId}
+          boardMembers={boardMembers}
+          onAdd={() => {
+            loadItems();
+            onItemAdded?.();
+          }}
+          onClose={() => setShowAddModal(false)}
+        />
       )}
     </>
   );

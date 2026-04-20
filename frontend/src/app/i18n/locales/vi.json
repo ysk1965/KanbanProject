@@ -764,14 +764,24 @@
       "milestone": "Mốc quan trọng",
       "unassigned": "Chưa phân công",
       "noItems": "Không có mục nào được phân công",
-      "completed": "Đã hoàn thành"
+      "completed": "Đã hoàn thành",
+      "collapse": "Thu gọn",
+      "more": "thêm"
     },
     "panel": {
       "title": "Danh sách kiểm tra",
       "search": "Tìm kiếm...",
       "noUnscheduled": "Tất cả các mục đã được lên lịch",
       "dragHint": "Kéo để đặt vào lịch/tài nguyên",
-      "filterFeature": "Lọc theo tính năng"
+      "filterFeature": "Lọc theo tính năng",
+      "addItem": "Thêm mục kiểm tra",
+      "selectFeature": "Tính năng",
+      "selectTask": "Công việc",
+      "itemTitle": "Tiêu đề mục",
+      "selectFeaturePlaceholder": "Chọn tính năng",
+      "selectTaskPlaceholder": "Chọn công việc",
+      "noFeatures": "Chưa có tính năng",
+      "noTasks": "Chưa có công việc trong tính năng này"
     },
     "settingsTitle": "Cai dat lich trinh",
     "managementMethod": "Phuong thuc quan ly",
@@ -1082,6 +1092,18 @@
     "autoRefresh": "Tu dong kiem tra moi 30 giay",
     "progress": "Tien do bao tri {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "nightShutdown": {
+    "title": "Ngoài giờ hoạt động",
+    "subtitle": "Dịch vụ hoạt động hàng ngày từ 08:00 đến 23:00 (KST)",
+    "resumeAt": "Thời gian mở lại",
+    "hours": "Giờ",
+    "minutes": "Phút",
+    "seconds": "Giây",
+    "checking": "Đang kiểm tra...",
+    "checkNow": "Kiểm tra ngay",
+    "autoRefresh": "Tự động kiểm tra mỗi 30 giây",
+    "schedule": "Giờ hoạt động"
   },
   "error": {
     "title": "Da xay ra loi",

@@ -218,3 +218,10 @@ variable "slack_user_redirect_uri" {
   type        = string
   default     = ""
 }
+
+# Infrastructure Scheduler
+variable "notification_email" {
+  description = "Email for infrastructure scheduler notifications"
+  type        = string
+  default     = ""
+}
