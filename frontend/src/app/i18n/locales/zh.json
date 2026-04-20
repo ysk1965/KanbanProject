@@ -764,14 +764,24 @@
       "milestone": "里程碑",
       "unassigned": "未分配",
       "noItems": "没有已分配的项目",
-      "completed": "已完成"
+      "completed": "已完成",
+      "collapse": "收起",
+      "more": "更多"
     },
     "panel": {
       "title": "清单",
       "search": "搜索...",
       "noUnscheduled": "所有项目均已安排",
       "dragHint": "拖拽以放置到日历/资源",
-      "filterFeature": "按功能筛选"
+      "filterFeature": "按功能筛选",
+      "addItem": "添加检查项",
+      "selectFeature": "功能",
+      "selectTask": "任务",
+      "itemTitle": "项目标题",
+      "selectFeaturePlaceholder": "选择功能",
+      "selectTaskPlaceholder": "选择任务",
+      "noFeatures": "暂无功能",
+      "noTasks": "此功能下暂无任务"
     },
     "settingsTitle": "日程设置",
     "managementMethod": "管理方式",
@@ -1082,6 +1092,18 @@
     "autoRefresh": "每 30 秒自动检查",
     "progress": "维护进度 {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "nightShutdown": {
+    "title": "非运营时间",
+    "subtitle": "服务每天 08:00 ~ 23:00 (KST) 运营",
+    "resumeAt": "服务恢复时间",
+    "hours": "小时",
+    "minutes": "分钟",
+    "seconds": "秒",
+    "checking": "检查中...",
+    "checkNow": "立即检查",
+    "autoRefresh": "每30秒自动检查",
+    "schedule": "运营时间"
   },
   "error": {
     "title": "出了点问题",

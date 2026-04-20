@@ -764,14 +764,24 @@
       "milestone": "หมุดสำคัญ",
       "unassigned": "ยังไม่มอบหมาย",
       "noItems": "ไม่มีรายการที่มอบหมาย",
-      "completed": "เสร็จสิ้น"
+      "completed": "เสร็จสิ้น",
+      "collapse": "ยุบ",
+      "more": "เพิ่มเติม"
     },
     "panel": {
       "title": "รายการตรวจสอบ",
       "search": "ค้นหา...",
       "noUnscheduled": "รายการทั้งหมดถูกกำหนดไว้แล้ว",
       "dragHint": "ลากเพื่อวางในปฏิทิน/ทรัพยากร",
-      "filterFeature": "กรองตามฟีเจอร์"
+      "filterFeature": "กรองตามฟีเจอร์",
+      "addItem": "เพิ่มรายการตรวจสอบ",
+      "selectFeature": "ฟีเจอร์",
+      "selectTask": "งาน",
+      "itemTitle": "ชื่อรายการ",
+      "selectFeaturePlaceholder": "เลือกฟีเจอร์",
+      "selectTaskPlaceholder": "เลือกงาน",
+      "noFeatures": "ยังไม่มีฟีเจอร์",
+      "noTasks": "ยังไม่มีงานในฟีเจอร์นี้"
     },
     "settingsTitle": "การตั้งค่าตารางเวลา",
     "managementMethod": "วิธีการจัดการ",
@@ -1082,6 +1092,18 @@
     "autoRefresh": "ตรวจสอบอัตโนมัติทุก 30 วินาที",
     "progress": "ความคืบหน้าการบำรุงรักษา {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "nightShutdown": {
+    "title": "นอกเวลาทำการ",
+    "subtitle": "บริการเปิดให้ใช้งานทุกวัน 08:00 - 23:00 (KST)",
+    "resumeAt": "เวลาเปิดให้บริการ",
+    "hours": "ชั่วโมง",
+    "minutes": "นาที",
+    "seconds": "วินาที",
+    "checking": "กำลังตรวจสอบ...",
+    "checkNow": "ตรวจสอบตอนนี้",
+    "autoRefresh": "ตรวจสอบอัตโนมัติทุก 30 วินาที",
+    "schedule": "เวลาทำการ"
   },
   "error": {
     "title": "เกิดข้อผิดพลาด",

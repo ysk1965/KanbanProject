@@ -812,14 +812,24 @@
       "milestone": "Milestone",
       "unassigned": "Unassigned",
       "noItems": "No items assigned",
-      "completed": "Completed"
+      "completed": "Completed",
+      "collapse": "Collapse",
+      "more": "more"
     },
     "panel": {
       "title": "Checklist",
       "search": "Search...",
       "noUnscheduled": "All items are scheduled",
       "dragHint": "Drag to place on calendar/resource",
-      "filterFeature": "Filter by feature"
+      "filterFeature": "Filter by feature",
+      "addItem": "Add checklist item",
+      "selectFeature": "Feature",
+      "selectTask": "Task",
+      "itemTitle": "Item title",
+      "selectFeaturePlaceholder": "Select a feature",
+      "selectTaskPlaceholder": "Select a task",
+      "noFeatures": "No features yet",
+      "noTasks": "No tasks in this feature"
     },
     "settingsTitle": "Schedule Settings",
     "managementMethod": "Management Method",
@@ -1130,6 +1140,18 @@
     "autoRefresh": "Auto-checking every 30 seconds",
     "progress": "Maintenance progress {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "nightShutdown": {
+    "title": "Outside Operating Hours",
+    "subtitle": "Service is available daily from 08:00 to 23:00 (KST)",
+    "resumeAt": "Service resumes at",
+    "hours": "Hours",
+    "minutes": "Min",
+    "seconds": "Sec",
+    "checking": "Checking...",
+    "checkNow": "Check Now",
+    "autoRefresh": "Automatically checking every 30 seconds",
+    "schedule": "Operating Hours"
   },
   "error": {
     "title": "Something went wrong",

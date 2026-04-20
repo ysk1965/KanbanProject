@@ -813,14 +813,24 @@
       "milestone": "마일스톤",
       "unassigned": "미배정",
       "noItems": "배정된 항목이 없습니다",
-      "completed": "완료"
+      "completed": "완료",
+      "collapse": "접기",
+      "more": "더 보기"
     },
     "panel": {
       "title": "체크리스트",
       "search": "검색...",
       "noUnscheduled": "모든 항목이 배정되었습니다",
       "dragHint": "드래그하여 캘린더/리소스에 배치",
-      "filterFeature": "피쳐별 필터"
+      "filterFeature": "피쳐별 필터",
+      "addItem": "체크리스트 항목 추가",
+      "selectFeature": "피처",
+      "selectTask": "태스크",
+      "itemTitle": "항목 제목",
+      "selectFeaturePlaceholder": "피처를 선택하세요",
+      "selectTaskPlaceholder": "태스크를 선택하세요",
+      "noFeatures": "피처가 없습니다",
+      "noTasks": "이 피처에 태스크가 없습니다"
     },
     "settingsTitle": "스케줄 설정",
     "managementMethod": "관리 방식",
@@ -1131,6 +1141,18 @@
     "autoRefresh": "30초마다 자동으로 확인합니다",
     "progress": "점검 진행률 {{percent}}%",
     "dateFormat": "M월 d일 HH:mm"
+  },
+  "nightShutdown": {
+    "title": "운영 시간이 아닙니다",
+    "subtitle": "매일 08:00 ~ 23:00 (KST) 에 서비스가 운영됩니다",
+    "resumeAt": "서비스 재개 시간",
+    "hours": "시간",
+    "minutes": "분",
+    "seconds": "초",
+    "checking": "확인 중...",
+    "checkNow": "지금 확인하기",
+    "autoRefresh": "30초마다 자동으로 확인합니다",
+    "schedule": "운영 시간"
   },
   "error": {
     "title": "문제가 발생했습니다",

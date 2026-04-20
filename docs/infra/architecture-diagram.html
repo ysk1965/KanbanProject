@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>BRIDGE Infrastructure Architecture</title>
+<style>
+  body {
+    background: #0f1117;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 { color: #6366f1; font-size: 24px; margin-bottom: 4px; }
+  h2 { color: #94a3b8; font-size: 14px; font-weight: normal; margin-top: 0; }
+  .mermaid { background: #1a1d2e; border-radius: 12px; padding: 20px; }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .stat-card {
+    background: #1a1d2e;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .stat-card h3 {
+    font-size: 13px;
+    color: #6366f1;
+    margin: 0 0 8px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { color: #94a3b8; }
+  .stat-value { color: #e2e8f0; font-weight: 600; }
+  .stat-value.green { color: #34d399; }
+  .stat-value.yellow { color: #fbbf24; }
+  .stat-value.red { color: #f87171; }
+  .legend {
+    margin-top: 20px;
+    background: #1a1d2e;
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 12px;
+    color: #94a3b8;
+  }
+</style>
+</head>
+<body>
+
+<h1>BRIDGE Infrastructure Architecture</h1>
+<h2>AWS ap-northeast-2 (Seoul) — 실제 배포 기준 2026-04-02 — 월 $81.69</h2>
+
+<div class="mermaid">
+graph TB
+  subgraph Users["👤 사용자"]
+    Browser["브라우저 / 모바일"]
+  end
+
+  subgraph DNS["Route 53"]
+    R53_1["bridgespots.com<br/>milkyway.pe.kr"]
+    R53_API["api.bridgespots.com<br/>api.milkyway.pe.kr"]
+  end
+
+  subgraph CDN["CloudFront (3 Distributions)"]
+    CF1["🌐 E3C929..<br/>bridgespots.com<br/>PriceClass_100<br/><i>14K req/week</i>"]
+    CF2["🌐 E22U5C..<br/>milkyway.pe.kr<br/>PriceClass_200<br/><i>19K req/week</i>"]
+    CF3["📎 E1F85V..<br/>Attachments CDN<br/>PriceClass_100<br/><i>17K req/week</i>"]
+  end
+
+  subgraph S3["S3 Buckets"]
+    S3_1["📦 kanban-dev-frontend<br/>React SPA (1GB, 5425 files)"]
+    S3_2["📦 kanban-testprod-frontend<br/>React SPA (1GB, 5425 files)"]
+    S3_3["📦 bridge-kanban-attachments<br/>17.5GB, 5231 files<br/>Intelligent-Tiering → Archive 90d"]
+  end
+
+  subgraph VPC["VPC: kanban-dev-vpc (10.0.0.0/16)"]
+    subgraph PubSub["Public Subnets (2 AZ)"]
+      subgraph ALB_Box["ALB — $17.15/월"]
+        ALB["⚡ Application Load Balancer<br/>:443 HTTPS (TLS 1.3) + :80 HTTP<br/>ACM: bridgespots.com + milkyway.pe.kr<br/>Sticky Session: LB Cookie 3600s<br/>2 AZ × EIP = $7.50 IPv4 과금"]
+      end
+      subgraph EC2_Box["EC2 (Elastic Beanstalk) — $19.68/월"]
+        EC2["🖥️ i-04869aecbc1dd08df<br/>t3.small (2vCPU, 2GB)<br/>Corretto 21 / AL2023<br/>Spring Boot 3.4.1 :5000<br/>Public IP: 43.203.236.43<br/><b>CPU: 1.7%</b> │ IPv4: $3.75"]
+      end
+    end
+    subgraph PrivSub["Private Subnets (2 AZ)"]
+      subgraph RDS_Box["RDS PostgreSQL — $21.22/월"]
+        RDS["🗄️ kanban-dev-db<br/>db.t4g.micro (1vCPU, 1GB ARM)<br/>PostgreSQL 15.10<br/>20GB gp3 (사용: 3GB)<br/><b>CPU: 3.4%</b> │ Conn: 5~7"]
+      end
+      REDIS["🚫 ElastiCache Redis<br/>(미배포 — Simple Cache 사용)"]
+    end
+  end
+
+  subgraph Mgmt["관리"]
+    TF_S3["📦 kanban-terraform-state"]
+    TF_DDB["🔒 kanban-terraform-lock<br/>(DynamoDB)"]
+  end
+
+  Browser --> R53_1
+  Browser --> R53_API
+  R53_1 --> CF1
+  R53_1 --> CF2
+  Browser --> CF3
+  R53_API --> ALB
+  CF1 --> S3_1
+  CF2 --> S3_2
+  CF3 --> S3_3
+  ALB --> EC2
+  EC2 --> RDS
+  EC2 -.->|"CACHE_TYPE=simple<br/>(인메모리)"| REDIS
+
+  classDef green fill:#065f46,stroke:#34d399,color:#d1fae5
+  classDef blue fill:#1e3a5f,stroke:#60a5fa,color:#dbeafe
+  classDef purple fill:#3b1f6e,stroke:#a78bfa,color:#ede9fe
+  classDef orange fill:#5c3a1e,stroke:#fb923c,color:#ffedd5
+  classDef gray fill:#1e293b,stroke:#64748b,color:#cbd5e1
+  classDef red fill:#5c1e1e,stroke:#f87171,color:#fee2e2
+
+  class CF1,CF2,CF3 blue
+  class S3_1,S3_2,S3_3,TF_S3 purple
+  class ALB orange
+  class EC2 green
+  class RDS green
+  class REDIS gray
+  class TF_DDB gray
+</div>
+
+<div class="stats">
+  <div class="stat-card">
+    <h3>리소스 사용률 (7일 평균)</h3>
+    <div class="stat-row"><span class="stat-label">EC2 CPU</span><span class="stat-value green">1.7%</span></div>
+    <div class="stat-row"><span class="stat-label">RDS CPU</span><span class="stat-value green">3.4%</span></div>
+    <div class="stat-row"><span class="stat-label">RDS 연결 수</span><span class="stat-value green">5~7</span></div>
+    <div class="stat-row"><span class="stat-label">RDS 스토리지</span><span class="stat-value green">3GB / 20GB (15%)</span></div>
+    <div class="stat-row"><span class="stat-label">ALB 일일 요청</span><span class="stat-value yellow">50K~678K</span></div>
+    <div class="stat-row"><span class="stat-label">EB Health</span><span class="stat-value green">Green (Ok)</span></div>
+  </div>
+
+  <div class="stat-card">
+    <h3>월 비용 ($81.69)</h3>
+    <div class="stat-row"><span class="stat-label">RDS (db.t4g.micro)</span><span class="stat-value">$21.22 (26%)</span></div>
+    <div class="stat-row"><span class="stat-label">EC2 (t3.small)</span><span class="stat-value">$19.68 (24%)</span></div>
+    <div class="stat-row"><span class="stat-label">ALB</span><span class="stat-value">$17.15 (21%)</span></div>
+    <div class="stat-row"><span class="stat-label">Public IPv4 × 3</span><span class="stat-value">$11.24 (14%)</span></div>
+    <div class="stat-row"><span class="stat-label">CF + S3 + CW 등</span><span class="stat-value">$11.33 (14%)</span></div>
+    <div class="stat-row"><span class="stat-label">Route 53 (2 zones)</span><span class="stat-value">$1.07 (1%)</span></div>
+  </div>
+
+  <div class="stat-card">
+    <h3>사용 여부 판정</h3>
+    <div class="stat-row"><span class="stat-label">EC2 (EB)</span><span class="stat-value green">✅ 사용 중</span></div>
+    <div class="stat-row"><span class="stat-label">RDS</span><span class="stat-value green">✅ 사용 중</span></div>
+    <div class="stat-row"><span class="stat-label">ALB</span><span class="stat-value green">✅ 필수 (HTTPS+WS)</span></div>
+    <div class="stat-row"><span class="stat-label">CF bridgespots</span><span class="stat-value green">✅ 14K/week</span></div>
+    <div class="stat-row"><span class="stat-label">CF milkyway</span><span class="stat-value green">✅ 19K/week</span></div>
+    <div class="stat-row"><span class="stat-label">CF attachments</span><span class="stat-value green">✅ 17K/week</span></div>
+    <div class="stat-row"><span class="stat-label">S3 × 4</span><span class="stat-value green">✅ 모두 사용 중</span></div>
+    <div class="stat-row"><span class="stat-label">Route 53 × 2</span><span class="stat-value green">✅ 필수</span></div>
+    <div class="stat-row"><span class="stat-label">ElastiCache</span><span class="stat-value">⛔ 미배포 (정상)</span></div>
+  </div>
+</div>
+
+<div class="legend">
+  <b>참고</b><br/>
+  • 도메인 2개(bridgespots.com, milkyway.pe.kr)가 동일 백엔드(ALB→EC2→RDS) 공유<br/>
+  • 프론트엔드만 S3+CloudFront 별도 배포 (dev / testprod)<br/>
+  • ElastiCache(Redis)는 dev에서 비활성 → Spring Boot 인메모리 캐시 사용<br/>
+  • Public IPv4 과금 ($3.75/IP/월): ALB ENI 2개 + EC2 1개 = $11.25<br/>
+  • 데이터 기준: AWS CloudWatch 최근 7일 메트릭 + AWS CLI 실시간 조회
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'dark',
+  themeVariables: {
+    darkMode: true,
+    background: '#1a1d2e',
+    primaryColor: '#6366f1',
+    primaryBorderColor: '#818cf8',
+    primaryTextColor: '#e2e8f0',
+    secondaryColor: '#1e3a5f',
+    tertiaryColor: '#1e293b',
+    lineColor: '#64748b',
+    textColor: '#e2e8f0',
+    fontSize: '13px'
+  },
+  flowchart: {
+    curve: 'basis',
+    padding: 15,
+    nodeSpacing: 30,
+    rankSpacing: 50,
+    htmlLabels: true,
+    useMaxWidth: true
+  }
+});
+</script>
+</body>
+</html>
