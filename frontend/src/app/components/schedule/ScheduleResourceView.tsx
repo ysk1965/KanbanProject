@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Users, CheckCircle2, Loader2, Flag } from "lucide-react";
+import { Users, CheckCircle2, Loader2, Flag, ChevronDown, ChevronUp } from "lucide-react";
 import { BoardMember } from "../ShareBoardModal";
 import { Milestone } from "../../types";
 import {
@@ -23,6 +23,8 @@ const BAR_TOP_OFFSET = 4;
 const LEFT_COL_WIDTH = 200;
 const HEADER_HEIGHT = 48;
 const MIN_BAR_WIDTH = 20;
+/** Maximum number of visible bar lanes before collapsing with "+N more" */
+const MAX_VISIBLE_LANES = 3;
 
 // ========================================
 // Types
@@ -43,6 +45,7 @@ interface ScheduleResourceViewProps {
   externalDragItem?: AssigneeItemResponse | null;
   /** Increment to trigger data refresh */
   refreshTrigger?: number;
+  onMilestoneClick?: (milestone: Milestone) => void;
 }
 
 interface DragState {
@@ -137,6 +140,7 @@ export function ScheduleResourceView({
   onDropChecklist,
   externalDragItem,
   refreshTrigger,
+  onMilestoneClick,
 }: ScheduleResourceViewProps) {
   const { t, i18n } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -149,6 +153,8 @@ export function ScheduleResourceView({
   const [dropHighlight, setDropHighlight] = useState<DropHighlight | null>(
     null,
   );
+  /** Track which member rows are expanded (showing all lanes) */
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   // Refs for mouse event handlers (avoid stale closure)
   const dragStateRef = useRef<DragState | null>(null);
   // 드래그/리사이즈 후 click 이벤트 방지용 ref
@@ -860,13 +866,14 @@ export function ScheduleResourceView({
                       <div
                         key={milestone.id}
                         className="absolute h-7 rounded-lg flex items-center px-2 text-xs font-medium
-                        text-white bg-bridge-accent/80 hover:bg-bridge-accent hover:shadow-lg transition-all cursor-default"
+                        text-white bg-bridge-accent/80 hover:bg-bridge-accent hover:shadow-lg transition-all cursor-pointer"
                         style={{
                           left: pos.left,
                           width: pos.width,
                           top: (MILESTONE_ROW_HEIGHT - 28) / 2,
                         }}
                         title={`${milestone.title} (${milestone.start_date} ~ ${milestone.end_date})`}
+                        onClick={() => onMilestoneClick?.(milestone)}
                       >
                         <span className="truncate">{milestone.title}</span>
                       </div>
@@ -908,10 +915,19 @@ export function ScheduleResourceView({
             );
 
             const maxLane = Math.max(0, ...Object.values(barLanes));
+            const isExpanded = expandedRows.has(row.id);
+            const needsCollapse = maxLane >= MAX_VISIBLE_LANES;
+            const visibleMaxLane = (!isExpanded && needsCollapse)
+              ? MAX_VISIBLE_LANES - 1
+              : maxLane;
+            const hiddenCount = needsCollapse && !isExpanded
+              ? itemsWithBars.filter((d) => (barLanes[d.item.id] || 0) >= MAX_VISIBLE_LANES).length
+              : 0;
+            const COLLAPSE_BTN_HEIGHT = needsCollapse ? 28 : 0;
             const dynamicRowHeight = Math.max(
               ROW_HEIGHT,
-              (maxLane + 1) * (BAR_HEIGHT + BAR_TOP_OFFSET) +
-                BAR_TOP_OFFSET * 2,
+              (visibleMaxLane + 1) * (BAR_HEIGHT + BAR_TOP_OFFSET) +
+                BAR_TOP_OFFSET * 2 + COLLAPSE_BTN_HEIGHT,
             );
 
             return (
@@ -925,31 +941,61 @@ export function ScheduleResourceView({
                 {/* Left label */}
                 <div
                   className="shrink-0 sticky left-0 z-10 bg-bridge-obsidian border-r border-foreground/[0.08]
-                    flex items-start gap-2 px-4 pt-3"
+                    flex flex-col px-4 pt-3"
                   style={{ width: LEFT_COL_WIDTH, minHeight: dynamicRowHeight }}
                 >
-                  {row.avatar ? (
-                    <img
-                      src={row.avatar}
-                      alt={row.name}
-                      className="w-7 h-7 rounded-full shrink-0 object-cover"
-                    />
-                  ) : (
-                    <div
-                      className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-white"
-                      style={{
-                        backgroundColor:
-                          row.id === "__unassigned__"
-                            ? "#64748b"
-                            : getAssigneeHex(row.name, row.color),
+                  <div className="flex items-start gap-2">
+                    {row.avatar ? (
+                      <img
+                        src={row.avatar}
+                        alt={row.name}
+                        className="w-7 h-7 rounded-full shrink-0 object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-white"
+                        style={{
+                          backgroundColor:
+                            row.id === "__unassigned__"
+                              ? "#64748b"
+                              : getAssigneeHex(row.name, row.color),
+                        }}
+                      >
+                        {getInitials(row.name)}
+                      </div>
+                    )}
+                    <span className="text-sm font-medium text-foreground truncate mt-1">
+                      {row.name}
+                    </span>
+                  </div>
+                  {needsCollapse && (
+                    <button
+                      className="flex items-center gap-1 mt-1.5 text-xs text-slate-400 hover:text-foreground transition-colors"
+                      onClick={() => {
+                        setExpandedRows((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(row.id)) {
+                            next.delete(row.id);
+                          } else {
+                            next.add(row.id);
+                          }
+                          return next;
+                        });
                       }}
                     >
-                      {getInitials(row.name)}
-                    </div>
+                      {isExpanded ? (
+                        <>
+                          <ChevronUp size={12} />
+                          {t("schedule.resource.collapse", "Collapse")}
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown size={12} />
+                          +{hiddenCount} {t("schedule.resource.more", "more")}
+                        </>
+                      )}
+                    </button>
                   )}
-                  <span className="text-sm font-medium text-foreground truncate mt-1">
-                    {row.name}
-                  </span>
                 </div>
 
                 {/* Timeline area */}
@@ -1013,8 +1059,11 @@ export function ScheduleResourceView({
                     ({ item, pos, isDragging: isItemDragging }) => {
                       if (!pos) return null;
 
-                      const featureColor = item.feature?.color || "#6366F1";
                       const lane = barLanes[item.id] || 0;
+                      // Hide bars beyond MAX_VISIBLE_LANES when collapsed
+                      if (!isExpanded && needsCollapse && lane >= MAX_VISIBLE_LANES) return null;
+
+                      const featureColor = item.feature?.color || "#6366F1";
                       const barTop =
                         BAR_TOP_OFFSET + lane * (BAR_HEIGHT + BAR_TOP_OFFSET);
 

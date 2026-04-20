@@ -764,14 +764,24 @@
       "milestone": "Hito",
       "unassigned": "Sin asignar",
       "noItems": "No hay elementos asignados",
-      "completed": "Completado"
+      "completed": "Completado",
+      "collapse": "Contraer",
+      "more": "más"
     },
     "panel": {
       "title": "Lista de verificación",
       "search": "Buscar...",
       "noUnscheduled": "Todos los elementos están programados",
       "dragHint": "Arrastra para colocar en el calendario/recurso",
-      "filterFeature": "Filtrar por función"
+      "filterFeature": "Filtrar por función",
+      "addItem": "Agregar elemento de checklist",
+      "selectFeature": "Característica",
+      "selectTask": "Tarea",
+      "itemTitle": "Título del elemento",
+      "selectFeaturePlaceholder": "Seleccionar característica",
+      "selectTaskPlaceholder": "Seleccionar tarea",
+      "noFeatures": "Sin características",
+      "noTasks": "Sin tareas en esta característica"
     },
     "settingsTitle": "Configuración de horario",
     "managementMethod": "Método de gestión",
@@ -1082,6 +1092,18 @@
     "autoRefresh": "Verificación automática cada 30 segundos",
     "progress": "Progreso del mantenimiento {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "nightShutdown": {
+    "title": "Fuera del horario de servicio",
+    "subtitle": "El servicio está disponible todos los días de 08:00 a 23:00 (KST)",
+    "resumeAt": "El servicio se reanuda a las",
+    "hours": "Horas",
+    "minutes": "Min",
+    "seconds": "Seg",
+    "checking": "Verificando...",
+    "checkNow": "Verificar ahora",
+    "autoRefresh": "Verificación automática cada 30 segundos",
+    "schedule": "Horario de servicio"
   },
   "error": {
     "title": "Algo salió mal",

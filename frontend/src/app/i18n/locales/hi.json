@@ -764,14 +764,24 @@
       "milestone": "माइलस्टोन",
       "unassigned": "अनियत",
       "noItems": "कोई आइटम नियत नहीं है",
-      "completed": "पूर्ण"
+      "completed": "पूर्ण",
+      "collapse": "संक्षिप्त करें",
+      "more": "और"
     },
     "panel": {
       "title": "चेकलिस्ट",
       "search": "खोजें...",
       "noUnscheduled": "सभी आइटम शेड्यूल किए गए हैं",
       "dragHint": "कैलेंडर/संसाधन पर रखने के लिए खींचें",
-      "filterFeature": "फ़ीचर से फ़िल्टर करें"
+      "filterFeature": "फ़ीचर से फ़िल्टर करें",
+      "addItem": "चेकलिस्ट आइटम जोड़ें",
+      "selectFeature": "फ़ीचर",
+      "selectTask": "कार्य",
+      "itemTitle": "आइटम शीर्षक",
+      "selectFeaturePlaceholder": "फ़ीचर चुनें",
+      "selectTaskPlaceholder": "कार्य चुनें",
+      "noFeatures": "कोई फ़ीचर नहीं",
+      "noTasks": "इस फ़ीचर में कोई कार्य नहीं"
     },
     "settingsTitle": "शेड्यूल सेटिंग्स",
     "managementMethod": "प्रबंधन विधि",
@@ -1082,6 +1092,18 @@
     "autoRefresh": "हर 30 सेकंड में स्वचालित जांच",
     "progress": "रखरखाव प्रगति {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "nightShutdown": {
+    "title": "संचालन समय के बाहर",
+    "subtitle": "सेवा प्रतिदिन 08:00 से 23:00 (KST) तक उपलब्ध है",
+    "resumeAt": "सेवा फिर से शुरू होगी",
+    "hours": "घंटे",
+    "minutes": "मिनट",
+    "seconds": "सेकंड",
+    "checking": "जाँच हो रही है...",
+    "checkNow": "अभी जाँचें",
+    "autoRefresh": "हर 30 सेकंड में स्वचालित जाँच",
+    "schedule": "संचालन समय"
   },
   "error": {
     "title": "कुछ गलत हो गया",

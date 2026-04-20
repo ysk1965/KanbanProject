@@ -755,14 +755,24 @@
       "milestone": "里程碑",
       "unassigned": "未分配",
       "noItems": "沒有已分配的項目",
-      "completed": "已完成"
+      "completed": "已完成",
+      "collapse": "收起",
+      "more": "更多"
     },
     "panel": {
       "title": "清單",
       "search": "搜尋...",
       "noUnscheduled": "所有項目均已排程",
       "dragHint": "拖曳以放置到日曆/資源",
-      "filterFeature": "依功能篩選"
+      "filterFeature": "依功能篩選",
+      "addItem": "新增檢查項目",
+      "selectFeature": "功能",
+      "selectTask": "任務",
+      "itemTitle": "項目標題",
+      "selectFeaturePlaceholder": "選擇功能",
+      "selectTaskPlaceholder": "選擇任務",
+      "noFeatures": "尚無功能",
+      "noTasks": "此功能下尚無任務"
     },
     "settingsTitle": "日程設定",
     "managementMethod": "管理方式",
@@ -1067,6 +1077,18 @@
     "autoRefresh": "每 30 秒自動檢查",
     "progress": "維護進度 {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "nightShutdown": {
+    "title": "非營運時間",
+    "subtitle": "服務每天 08:00 ~ 23:00 (KST) 營運",
+    "resumeAt": "服務恢復時間",
+    "hours": "小時",
+    "minutes": "分鐘",
+    "seconds": "秒",
+    "checking": "檢查中...",
+    "checkNow": "立即檢查",
+    "autoRefresh": "每30秒自動檢查",
+    "schedule": "營運時間"
   },
   "error": {
     "title": "出了點問題",

@@ -37,6 +37,7 @@ import { OrgInviteAcceptPage } from './pages/OrgInviteAcceptPage';
 import { SlackOAuthCallback } from './components/slack/SlackOAuthCallback';
 import { AnnouncementDisplay } from './components/AnnouncementDisplay';
 import { MaintenancePage } from './components/MaintenancePage';
+import { NightShutdownPage } from './components/NightShutdownPage';
 import { boardService, inviteLinkService, organizationService, systemService } from './utils/services';
 import { useState, useEffect, useCallback } from 'react';
 import { Board } from './types';
@@ -616,15 +617,29 @@ const MAINTENANCE_ALLOWED_PATHS = [
 function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [maintenanceStatus, setMaintenanceStatus] = useState<MaintenanceStatus | null>(null);
+  const [isNightShutdown, setIsNightShutdown] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
 
   const checkMaintenance = useCallback(async () => {
     try {
       const status = await systemService.getStatus();
       setMaintenanceStatus(status);
+      setIsNightShutdown(false);
     } catch {
-      // 503 에러 시에도 점검 모드로 간주하지 않음 (서버 장애일 수 있음)
-      setMaintenanceStatus(null);
+      // 서버 접속 불가 + 야간 점검 시간(KST 23:00~08:00)이면 야간 셧다운 페이지 표시
+      const kstHour = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCHours();
+      if (kstHour >= 23 || kstHour < 8) {
+        setIsNightShutdown(true);
+        setMaintenanceStatus({
+          enabled: true,
+          message: '서버 점검 중입니다 (23:00~08:00)',
+          started_at: null,
+          estimated_end_at: null,
+        });
+      } else {
+        setIsNightShutdown(false);
+        setMaintenanceStatus(null);
+      }
     } finally {
       setIsChecking(false);
     }
@@ -649,6 +664,9 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
 
   // 점검 모드이지만 허용된 경로면 정상 렌더링
   if (maintenanceStatus?.enabled && !isAllowedPath) {
+    if (isNightShutdown) {
+      return <NightShutdownPage onRetry={checkMaintenance} />;
+    }
     return <MaintenancePage status={maintenanceStatus} onRetry={checkMaintenance} />;
   }
 
