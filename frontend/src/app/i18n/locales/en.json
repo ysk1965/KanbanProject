@@ -799,7 +799,8 @@
     "subTab": {
       "timeblock": "Time Block",
       "calendar": "Calendar",
-      "resource": "Workload"
+      "resource": "Workload",
+      "planning": "Planning"
     },
     "calendar": {
       "today": "Today",
@@ -857,7 +858,91 @@
     "breakStart": "Start",
     "breakEnd": "End",
     "excludingBreak": "(excluding {{hours}}hr break)",
-    "effectiveHours": "Effective:"
+    "effectiveHours": "Effective:",
+    "planning": {
+      "title": "Planning",
+      "toolbar": {
+        "today": "Go to Today",
+        "legend": "Legend"
+      },
+      "col": {
+        "member": "Member"
+      },
+      "header": {
+        "week": "W{{num}}",
+        "milestone": "Milestone"
+      },
+      "cell": {
+        "placeHint": "+ Drop to place",
+        "noMilestone": "No milestone",
+        "expandMore": "+{{count}} more"
+      },
+      "load": {
+        "over": "Overloaded",
+        "normal": "Balanced",
+        "under": "Under-utilized",
+        "unknown": "Unknown",
+        "format": "{{actual}}h / {{allocated}}h"
+      },
+      "pool": {
+        "title": "Pending Work Pool",
+        "quickAdd": "Enter title…",
+        "hours": "Estimated hours",
+        "assignee": "Assignee",
+        "filter": {
+          "all": "All",
+          "unplaced": "Unplaced",
+          "placed": "Placed"
+        },
+        "empty": {
+          "title": "No pending work yet",
+          "description": "Enter a title and hours above and press Enter"
+        }
+      },
+      "card": {
+        "edit": "Edit",
+        "delete": "Delete",
+        "unplace": "Move to pool",
+        "deleted": "Card deleted",
+        "undo": "Undo"
+      },
+      "empty": {
+        "noMilestones": {
+          "title": "No milestones",
+          "description": "Create a milestone to enable capacity visualization",
+          "cta": "Create milestone"
+        },
+        "noMembers": {
+          "title": "No members",
+          "description": "Invite members to the board to run resource simulations"
+        }
+      },
+      "warn": {
+        "noAllocations": "No milestone allocations configured. Please set per-member allocated hours in the milestone first."
+      },
+      "error": {
+        "placeFailed": "Placement failed. Please try again.",
+        "invalidWeek": "Only Monday-start weeks can be used for placement."
+      },
+      "legend": {
+        "title": "Load Status",
+        "over": "Overloaded (> capacity × 1.1)",
+        "normal": "Balanced (capacity × 0.5~1.1)",
+        "under": "Under-utilized (< capacity × 0.5)",
+        "unknown": "Capacity not set"
+      },
+      "tooltip": {
+        "allocated": "Allocated: {{hours}}h",
+        "placed": "Placed: {{hours}}h",
+        "diff": "Diff: {{diff}}h",
+        "weekRange": "{{start}} ~ {{end}}",
+        "milestone": "Milestone: {{title}}"
+      },
+      "mobile": {
+        "segmentPool": "Pool",
+        "segmentGrid": "Grid"
+      }
+    }
   },
   "dailySummary": {
     "summaryButton": "Summary",

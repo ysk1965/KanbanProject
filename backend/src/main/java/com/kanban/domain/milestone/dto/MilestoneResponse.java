@@ -4,6 +4,7 @@ import com.kanban.domain.feature.Feature;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneAllocation;
 import com.kanban.domain.user.User;
+import com.kanban.global.util.UtilizationStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -192,7 +193,8 @@ public class MilestoneResponse {
             Double difference = actualWorkedHours != null && allocated != null
                     ? actualWorkedHours - allocated
                     : null;
-            String status = determineStatus(allocated, actualWorkedHours);
+            // UtilizationStatus.determine(actual, capacity) — capacity = allocated, actual = actualWorkedHours
+            String status = UtilizationStatus.determine(actualWorkedHours, allocated).name();
 
             return AllocationDto.builder()
                     .id(allocation.getId())
@@ -204,19 +206,6 @@ public class MilestoneResponse {
                     .difference(difference != null ? Math.round(difference * 100.0) / 100.0 : null)
                     .status(status)
                     .build();
-        }
-
-        private static String determineStatus(Double allocated, Double actual) {
-            if (allocated == null || actual == null) {
-                return "NORMAL";
-            }
-            double diff = actual - allocated;
-            if (diff > allocated * 0.1) {  // 10% 초과
-                return "OVER";
-            } else if (diff < -allocated * 0.1) {  // 10% 미달
-                return "UNDER";
-            }
-            return "NORMAL";
         }
     }
 

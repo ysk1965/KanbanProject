@@ -20,6 +20,7 @@ import {
   FileText,
   BarChart3,
   Lock,
+  Target,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import {
@@ -155,6 +156,13 @@ const ChecklistItemPanel = lazyWithRetry(
     })),
   "ChecklistItemPanel",
 );
+const SchedulePlanningView = lazyWithRetry(
+  () =>
+    import("../components/schedule/SchedulePlanningView").then((m) => ({
+      default: m.SchedulePlanningView,
+    })),
+  "SchedulePlanningView",
+);
 import type { PanelDragState } from "../components/schedule/ChecklistItemPanel";
 import { EmptyBoardGuide } from "../components/EmptyBoardGuide";
 import { QuickAddTaskModal } from "../components/QuickAddTaskModal";
@@ -207,7 +215,7 @@ export function KanbanBoardPage() {
   const { boardId } = useParams<{ boardId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const {
     currentUser,
     logout,
@@ -310,11 +318,11 @@ export function KanbanBoardPage() {
     if (saved === "milestone") return "milestone";
     return "kanban";
   };
-  // 일정 탭 서브모드 (타임블록 / 캘린더 / 리소스)
-  type ScheduleSubTab = "timeblock" | "calendar" | "resource";
+  // 일정 탭 서브모드 (타임블록 / 캘린더 / 리소스 / 플래닝)
+  type ScheduleSubTab = "timeblock" | "calendar" | "resource" | "planning";
   const getScheduleSubTab = (): ScheduleSubTab => {
     const saved = localStorage.getItem(`scheduleSubTab_${boardId}`);
-    if (saved === "calendar" || saved === "resource") return saved;
+    if (saved === "calendar" || saved === "resource" || saved === "planning") return saved;
     return "timeblock";
   };
 
@@ -347,6 +355,7 @@ export function KanbanBoardPage() {
       if (e.key === "1") handleScheduleSubTabChange("timeblock");
       else if (e.key === "2") handleScheduleSubTabChange("resource");
       else if (e.key === "3") handleScheduleSubTabChange("calendar");
+      else if (e.key === "4") handleScheduleSubTabChange("planning");
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -357,6 +366,7 @@ export function KanbanBoardPage() {
     null,
   );
   const [scheduleRefreshPanel, setScheduleRefreshPanel] = useState(0);
+  const [planningRefreshKey, setPlanningRefreshKey] = useState(0);
 
   const getAISubMode = (): "statistics" | "ai_report" => {
     const saved = localStorage.getItem(`aiSubMode_${boardId}`);
@@ -1096,6 +1106,16 @@ export function KanbanBoardPage() {
       // Notification events
       case "NOTIFICATION_CREATED":
         setUnreadNotificationCount((prev) => prev + 1);
+        break;
+
+      // Planning events — trigger SchedulePlanningView refetch
+      case "PLANNING_CARD_CREATED":
+      case "PLANNING_CARD_UPDATED":
+      case "PLANNING_CARD_MOVED":
+      case "PLANNING_CARD_DELETED":
+      case "PLANNING_CARDS_REORDERED":
+      case "PLANNING_MILESTONE_REINDEXED":
+        setPlanningRefreshKey((k) => k + 1);
         break;
 
       default:
@@ -2977,6 +2997,20 @@ export function KanbanBoardPage() {
                   {t("schedule.subTab.calendar", "Calendar")}
                 </span>
               </button>
+              <button
+                onClick={() => handleScheduleSubTabChange("planning")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all ${
+                  scheduleSubTab === "planning"
+                    ? "font-medium bg-foreground/10 text-foreground"
+                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                }`}
+                aria-label={t("schedule.subTab.planning", "Planning")}
+              >
+                <Target size={14} />
+                <span className="hidden md:inline">
+                  {t("schedule.subTab.planning", "Planning")}
+                </span>
+              </button>
             </div>
           </div>
         )}
@@ -3587,6 +3621,29 @@ export function KanbanBoardPage() {
                   />
                 </Suspense>
               </div>
+            ) : scheduleSubTab === "planning" ? (
+              <div className="flex flex-1 overflow-hidden">
+                <Suspense
+                  fallback={
+                    <div className="flex-1 flex items-center justify-center h-64">
+                      <div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  }
+                >
+                  <SchedulePlanningView
+                    boardId={boardId || ""}
+                    currentUser={{ id: currentUser?.id || "", name: currentUser?.name || "" }}
+                    canEdit={canEdit}
+                    memberColorMap={memberColorMap}
+                    onMilestoneClick={(milestoneId) => {
+                      const milestone = milestones.find((m) => m.id === milestoneId);
+                      handleOpenMilestoneWithCheck(milestone);
+                    }}
+                    language={i18n.language}
+                    refreshTrigger={planningRefreshKey}
+                  />
+                </Suspense>
+              </div>
             ) : null}
           </main>
         ) : viewMode === "calendar" ? (
@@ -4087,7 +4144,6 @@ export function KanbanBoardPage() {
           creditModalMode={creditModalMode}
           onCreditPurchaseComplete={handleCreditPurchaseComplete}
           currentCredits={aiCredits}
-          isOrgBoard={!!board?.organization_id}
           // Permissions
           canEdit={canEdit}
           currentUser={currentUser}
