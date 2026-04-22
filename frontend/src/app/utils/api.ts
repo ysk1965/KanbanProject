@@ -7802,3 +7802,53 @@ export const publicAlbumAPI = {
     );
   },
 };
+
+// ========================================
+// Planning Cards API
+// ========================================
+
+import type {
+  PlanningCard,
+  PlanningListResponse,
+  PlanningCardCreateRequest,
+  PlanningCardUpdateRequest,
+  PlanningCardMoveRequest,
+  PlanningReorderRequest,
+} from "../types";
+
+export const planningAPI = {
+  list: (boardId: string): Promise<PlanningListResponse> =>
+    apiClient.get<PlanningListResponse>(`/boards/${boardId}/planning-cards`),
+
+  create: (
+    boardId: string,
+    data: PlanningCardCreateRequest,
+  ): Promise<PlanningCard> =>
+    apiClient.post<PlanningCard>(`/boards/${boardId}/planning-cards`, data),
+
+  update: (
+    boardId: string,
+    cardId: string,
+    data: PlanningCardUpdateRequest,
+  ): Promise<PlanningCard> =>
+    apiClient.put<PlanningCard>(
+      `/boards/${boardId}/planning-cards/${cardId}`,
+      data,
+    ),
+
+  move: (
+    boardId: string,
+    cardId: string,
+    data: PlanningCardMoveRequest,
+  ): Promise<PlanningCard> =>
+    apiClient.patch<PlanningCard>(
+      `/boards/${boardId}/planning-cards/${cardId}/move`,
+      data,
+    ),
+
+  remove: (boardId: string, cardId: string): Promise<void> =>
+    apiClient.delete<void>(`/boards/${boardId}/planning-cards/${cardId}`),
+
+  reorder: (boardId: string, data: PlanningReorderRequest): Promise<void> =>
+    apiClient.put<void>(`/boards/${boardId}/planning-cards/reorder`, data),
+};

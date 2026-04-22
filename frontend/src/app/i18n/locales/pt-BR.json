@@ -751,7 +751,8 @@
     "subTab": {
       "timeblock": "Bloco de Tempo",
       "calendar": "Calendário",
-      "resource": "Carga de trabalho"
+      "resource": "Carga de trabalho",
+      "planning": "Planejamento"
     },
     "calendar": {
       "today": "Hoje",
@@ -809,7 +810,91 @@
     "breakTime": "Intervalo",
     "breakTimeDesc": "O intervalo é excluído das horas de trabalho",
     "effectiveHours": "Efetivas:",
-    "excludingBreak": "(excluindo {{hours}}h de intervalo)"
+    "excludingBreak": "(excluindo {{hours}}h de intervalo)",
+    "planning": {
+      "title": "Planejamento",
+      "toolbar": {
+        "today": "Ir para hoje",
+        "legend": "Legenda"
+      },
+      "col": {
+        "member": "Membro"
+      },
+      "header": {
+        "week": "W{{num}}",
+        "milestone": "Marco"
+      },
+      "cell": {
+        "placeHint": "+ Soltar para posicionar",
+        "noMilestone": "Sem marco",
+        "expandMore": "+{{count}} mais"
+      },
+      "load": {
+        "over": "Sobrecarregado",
+        "normal": "Equilibrado",
+        "under": "Subutilizado",
+        "unknown": "Não configurado",
+        "format": "{{actual}}h / {{allocated}}h"
+      },
+      "pool": {
+        "title": "Pool de tarefas pendentes",
+        "quickAdd": "Digite um título…",
+        "hours": "Horas estimadas",
+        "assignee": "Responsável",
+        "filter": {
+          "all": "Todos",
+          "unplaced": "Não posicionado",
+          "placed": "Posicionado"
+        },
+        "empty": {
+          "title": "Ainda não há tarefas pendentes",
+          "description": "Digite um título e as horas no campo acima e pressione Enter"
+        }
+      },
+      "card": {
+        "edit": "Editar",
+        "delete": "Excluir",
+        "unplace": "Mover para o pool",
+        "deleted": "Cartão excluído",
+        "undo": "Desfazer"
+      },
+      "empty": {
+        "noMilestones": {
+          "title": "Nenhum marco",
+          "description": "Crie um marco para ativar a visualização de capacidade",
+          "cta": "Criar marco"
+        },
+        "noMembers": {
+          "title": "Nenhum membro",
+          "description": "Convide membros para o quadro para executar simulações de recursos"
+        }
+      },
+      "warn": {
+        "noAllocations": "Nenhuma alocação de marco configurada. Configure primeiro as horas alocadas por membro no marco."
+      },
+      "error": {
+        "placeFailed": "Falha ao posicionar. Tente novamente.",
+        "invalidWeek": "Somente semanas iniciadas na segunda-feira podem ser usadas para posicionamento."
+      },
+      "legend": {
+        "title": "Status de carga",
+        "over": "Sobrecarregado (> capacidade × 1.1)",
+        "normal": "Equilibrado (capacidade × 0.5~1.1)",
+        "under": "Subutilizado (< capacidade × 0.5)",
+        "unknown": "Capacidade não configurada"
+      },
+      "tooltip": {
+        "allocated": "Alocado: {{hours}}h",
+        "placed": "Posicionado: {{hours}}h",
+        "diff": "Diferença: {{diff}}h",
+        "weekRange": "{{start}} ~ {{end}}",
+        "milestone": "Marco: {{title}}"
+      },
+      "mobile": {
+        "segmentPool": "Pool",
+        "segmentGrid": "Grade"
+      }
+    }
   },
   "dailySummary": {
     "summaryButton": "Resumo",

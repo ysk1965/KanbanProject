@@ -68,5 +68,13 @@ public enum BoardEventType {
     NOTE_COMMENT_REACTION_TOGGLED,
 
     // Inquiry events (global user-level, not board-scoped)
-    INQUIRY_REPLIED
+    INQUIRY_REPLIED,
+
+    // Planning events
+    PLANNING_CARD_CREATED,
+    PLANNING_CARD_UPDATED,
+    PLANNING_CARD_MOVED,
+    PLANNING_CARD_DELETED,
+    PLANNING_CARDS_REORDERED,
+    PLANNING_MILESTONE_REINDEXED
 }

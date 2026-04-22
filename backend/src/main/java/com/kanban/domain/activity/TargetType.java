@@ -8,5 +8,6 @@ public enum TargetType {
     CHECKLIST,
     MEMBER,
     TAG,
-    SUBSCRIPTION
+    SUBSCRIPTION,
+    PLANNING_CARD
 }
