@@ -751,7 +751,8 @@
     "subTab": {
       "timeblock": "टाइम ब्लॉक",
       "calendar": "कैलेंडर",
-      "resource": "कार्यभार"
+      "resource": "कार्यभार",
+      "planning": "योजना"
     },
     "calendar": {
       "today": "आज",
@@ -809,7 +810,91 @@
     "breakTime": "ब्रेक टाइम",
     "breakTimeDesc": "ब्रेक टाइम कार्य घंटों से बाहर है",
     "effectiveHours": "प्रभावी:",
-    "excludingBreak": "({{hours}} घंटे ब्रेक को छोड़कर)"
+    "excludingBreak": "({{hours}} घंटे ब्रेक को छोड़कर)",
+    "planning": {
+      "title": "योजना",
+      "toolbar": {
+        "today": "आज पर जाएं",
+        "legend": "लेजेंड"
+      },
+      "col": {
+        "member": "सदस्य"
+      },
+      "header": {
+        "week": "W{{num}}",
+        "milestone": "माइलस्टोन"
+      },
+      "cell": {
+        "placeHint": "+ ड्रॉप करके रखें",
+        "noMilestone": "कोई माइलस्टोन नहीं",
+        "expandMore": "+{{count}} और"
+      },
+      "load": {
+        "over": "अधिक भार",
+        "normal": "संतुलित",
+        "under": "कम उपयोग",
+        "unknown": "अज्ञात",
+        "format": "{{actual}}h / {{allocated}}h"
+      },
+      "pool": {
+        "title": "अस्थायी कार्य पूल",
+        "quickAdd": "शीर्षक दर्ज करें…",
+        "hours": "अनुमानित घंटे",
+        "assignee": "असाइनी",
+        "filter": {
+          "all": "सभी",
+          "unplaced": "न रखा गया",
+          "placed": "रखा गया"
+        },
+        "empty": {
+          "title": "अभी कोई अस्थायी कार्य नहीं",
+          "description": "ऊपर दिए गए फ़ील्ड में शीर्षक और घंटे दर्ज करें और Enter दबाएं"
+        }
+      },
+      "card": {
+        "edit": "संपादित करें",
+        "delete": "हटाएं",
+        "unplace": "पूल में ले जाएं",
+        "deleted": "कार्ड हटा दिया गया",
+        "undo": "पूर्ववत करें"
+      },
+      "empty": {
+        "noMilestones": {
+          "title": "कोई माइलस्टोन नहीं",
+          "description": "क्षमता विज़ुअलाइज़ेशन सक्षम करने के लिए माइलस्टोन बनाएं",
+          "cta": "माइलस्टोन बनाएं"
+        },
+        "noMembers": {
+          "title": "कोई सदस्य नहीं",
+          "description": "संसाधन सिमुलेशन चलाने के लिए बोर्ड में सदस्यों को आमंत्रित करें"
+        }
+      },
+      "warn": {
+        "noAllocations": "कोई माइलस्टोन आवंटन कॉन्फ़िगर नहीं है। पहले माइलस्टोन में प्रत्येक सदस्य के लिए आवंटित घंटे सेट करें।"
+      },
+      "error": {
+        "placeFailed": "रखने में विफल। कृपया पुनः प्रयास करें।",
+        "invalidWeek": "केवल सोमवार से शुरू होने वाले सप्ताह में रखा जा सकता है।"
+      },
+      "legend": {
+        "title": "लोड स्थिति",
+        "over": "अधिक भार (capacity × 1.1 से अधिक)",
+        "normal": "संतुलित (capacity × 0.5~1.1)",
+        "under": "कम उपयोग (capacity × 0.5 से कम)",
+        "unknown": "capacity सेट नहीं"
+      },
+      "tooltip": {
+        "allocated": "आवंटित: {{hours}}h",
+        "placed": "रखा गया: {{hours}}h",
+        "diff": "अंतर: {{diff}}h",
+        "weekRange": "{{start}} ~ {{end}}",
+        "milestone": "माइलस्टोन: {{title}}"
+      },
+      "mobile": {
+        "segmentPool": "पूल",
+        "segmentGrid": "ग्रिड"
+      }
+    }
   },
   "dailySummary": {
     "summaryButton": "सारांश",

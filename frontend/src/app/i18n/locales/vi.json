@@ -751,7 +751,8 @@
     "subTab": {
       "timeblock": "Khối thời gian",
       "calendar": "Lịch",
-      "resource": "Khối lượng công việc"
+      "resource": "Khối lượng công việc",
+      "planning": "Lập kế hoạch"
     },
     "calendar": {
       "today": "Hôm nay",
@@ -809,7 +810,91 @@
     "breakTime": "Giờ nghỉ",
     "breakTimeDesc": "Giờ nghỉ không tính vào giờ làm việc",
     "effectiveHours": "Thực tế:",
-    "excludingBreak": "(trừ {{hours}} giờ nghỉ)"
+    "excludingBreak": "(trừ {{hours}} giờ nghỉ)",
+    "planning": {
+      "title": "Lập kế hoạch",
+      "toolbar": {
+        "today": "Về hôm nay",
+        "legend": "Chú giải"
+      },
+      "col": {
+        "member": "Thành viên"
+      },
+      "header": {
+        "week": "W{{num}}",
+        "milestone": "Cột mốc"
+      },
+      "cell": {
+        "placeHint": "+ Thả để sắp xếp",
+        "noMilestone": "Không có cột mốc",
+        "expandMore": "+{{count}} mục nữa"
+      },
+      "load": {
+        "over": "Quá tải",
+        "normal": "Bình thường",
+        "under": "Nhàn rỗi",
+        "unknown": "Chưa thiết lập",
+        "format": "{{actual}}h / {{allocated}}h"
+      },
+      "pool": {
+        "title": "Vùng công việc tạm thời",
+        "quickAdd": "Nhập tiêu đề…",
+        "hours": "Giờ dự kiến",
+        "assignee": "Người thực hiện",
+        "filter": {
+          "all": "Tất cả",
+          "unplaced": "Chưa sắp xếp",
+          "placed": "Đã sắp xếp"
+        },
+        "empty": {
+          "title": "Chưa có công việc tạm thời",
+          "description": "Nhập tiêu đề và số giờ vào ô trên rồi nhấn Enter"
+        }
+      },
+      "card": {
+        "edit": "Chỉnh sửa",
+        "delete": "Xóa",
+        "unplace": "Chuyển về vùng tạm",
+        "deleted": "Thẻ đã bị xóa",
+        "undo": "Hoàn tác"
+      },
+      "empty": {
+        "noMilestones": {
+          "title": "Chưa có cột mốc",
+          "description": "Tạo cột mốc để kích hoạt trực quan hóa năng lực",
+          "cta": "Tạo cột mốc"
+        },
+        "noMembers": {
+          "title": "Chưa có thành viên",
+          "description": "Mời thành viên vào bảng để chạy mô phỏng tài nguyên"
+        }
+      },
+      "warn": {
+        "noAllocations": "Chưa có cấu hình phân bổ cột mốc. Hãy thiết lập số giờ phân bổ cho từng thành viên trong cột mốc trước."
+      },
+      "error": {
+        "placeFailed": "Sắp xếp thất bại. Vui lòng thử lại.",
+        "invalidWeek": "Chỉ có thể sắp xếp vào tuần bắt đầu từ thứ Hai."
+      },
+      "legend": {
+        "title": "Trạng thái tải",
+        "over": "Quá tải (> capacity × 1.1)",
+        "normal": "Bình thường (capacity × 0.5~1.1)",
+        "under": "Nhàn rỗi (< capacity × 0.5)",
+        "unknown": "Chưa thiết lập capacity"
+      },
+      "tooltip": {
+        "allocated": "Phân bổ: {{hours}}h",
+        "placed": "Đã sắp xếp: {{hours}}h",
+        "diff": "Chênh lệch: {{diff}}h",
+        "weekRange": "{{start}} ~ {{end}}",
+        "milestone": "Cột mốc: {{title}}"
+      },
+      "mobile": {
+        "segmentPool": "Vùng tạm",
+        "segmentGrid": "Lưới"
+      }
+    }
   },
   "dailySummary": {
     "summaryButton": "Tóm tắt",

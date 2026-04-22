@@ -751,7 +751,8 @@
     "subTab": {
       "timeblock": "时间块",
       "calendar": "日历",
-      "resource": "工作负载"
+      "resource": "工作负载",
+      "planning": "规划"
     },
     "calendar": {
       "today": "今天",
@@ -809,7 +810,91 @@
     "breakTime": "午休时间",
     "breakTimeDesc": "午休时间不计入工作时间",
     "effectiveHours": "实际工时：",
-    "excludingBreak": "（不含{{hours}}小时午休）"
+    "excludingBreak": "（不含{{hours}}小时午休）",
+    "planning": {
+      "title": "规划",
+      "toolbar": {
+        "today": "跳转到今天",
+        "legend": "图例"
+      },
+      "col": {
+        "member": "成员"
+      },
+      "header": {
+        "week": "W{{num}}",
+        "milestone": "里程碑"
+      },
+      "cell": {
+        "placeHint": "+ 拖放放置",
+        "noMilestone": "无里程碑",
+        "expandMore": "+{{count}} 更多"
+      },
+      "load": {
+        "over": "超负荷",
+        "normal": "适中",
+        "under": "较空闲",
+        "unknown": "未设置",
+        "format": "{{actual}}h / {{allocated}}h"
+      },
+      "pool": {
+        "title": "临时任务池",
+        "quickAdd": "输入标题…",
+        "hours": "预计工时",
+        "assignee": "负责人",
+        "filter": {
+          "all": "全部",
+          "unplaced": "未排布",
+          "placed": "已排布"
+        },
+        "empty": {
+          "title": "暂无临时任务",
+          "description": "在上方输入框中输入标题和工时，然后按 Enter"
+        }
+      },
+      "card": {
+        "edit": "编辑",
+        "delete": "删除",
+        "unplace": "移回任务池",
+        "deleted": "卡片已删除",
+        "undo": "撤销"
+      },
+      "empty": {
+        "noMilestones": {
+          "title": "暂无里程碑",
+          "description": "创建里程碑后将启用容量可视化",
+          "cta": "创建里程碑"
+        },
+        "noMembers": {
+          "title": "暂无成员",
+          "description": "邀请成员加入看板后即可进行资源模拟"
+        }
+      },
+      "warn": {
+        "noAllocations": "尚未配置里程碑分配。请先在里程碑中为每位成员设置分配工时。"
+      },
+      "error": {
+        "placeFailed": "排布失败，请重试。",
+        "invalidWeek": "只能排布到以周一为起始日的周次。"
+      },
+      "legend": {
+        "title": "负荷状态",
+        "over": "超负荷（超过 capacity × 1.1）",
+        "normal": "适中（capacity × 0.5~1.1）",
+        "under": "较空闲（低于 capacity × 0.5）",
+        "unknown": "capacity 未设置"
+      },
+      "tooltip": {
+        "allocated": "分配: {{hours}}h",
+        "placed": "已排布: {{hours}}h",
+        "diff": "差值: {{diff}}h",
+        "weekRange": "{{start}} ~ {{end}}",
+        "milestone": "里程碑: {{title}}"
+      },
+      "mobile": {
+        "segmentPool": "任务池",
+        "segmentGrid": "网格"
+      }
+    }
   },
   "dailySummary": {
     "summaryButton": "摘要",

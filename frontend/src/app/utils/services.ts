@@ -29,6 +29,7 @@ import {
   personalCalendarAPI,
   orgSubscriptionAPI,
   orgPhotoAPI,
+  planningAPI,
 } from "./api";
 import {
   mockBoards,
@@ -71,6 +72,12 @@ import type {
   OkrKeyResult,
   OkrCheckIn,
   OkrTreeData,
+  PlanningCard,
+  PlanningListResponse,
+  PlanningCardCreateRequest,
+  PlanningCardUpdateRequest,
+  PlanningCardMoveRequest,
+  PlanningReorderRequest,
 } from "../types";
 
 // API 호출 실패 시 목업 데이터 사용
@@ -3604,4 +3611,92 @@ export const orgPhotoService = {
   // Download
   downloadPhoto: orgPhotoAPI.downloadPhoto,
   downloadPhotos: orgPhotoAPI.downloadPhotos,
+};
+
+// ========================================
+// Planning Service
+// ========================================
+
+export const planningService = {
+  list: async (boardId: string): Promise<PlanningListResponse> => {
+    try {
+      return await planningAPI.list(boardId);
+    } catch (error) {
+      console.warn("API failed, using empty response for planning list", error);
+      if (USE_MOCK_ON_ERROR) {
+        return {
+          cards: [],
+          summary: {
+            weeks: [],
+            milestones: [],
+            members: [],
+            cells: [],
+            row_totals: [],
+            column_totals: [],
+            pool: { card_count: 0, load_hours: 0 },
+          },
+        };
+      }
+      throw error;
+    }
+  },
+
+  create: async (
+    boardId: string,
+    data: PlanningCardCreateRequest,
+  ): Promise<PlanningCard> => {
+    try {
+      return await planningAPI.create(boardId, data);
+    } catch (error) {
+      console.warn("API failed for planningService.create", error);
+      throw error;
+    }
+  },
+
+  update: async (
+    boardId: string,
+    cardId: string,
+    data: PlanningCardUpdateRequest,
+  ): Promise<PlanningCard> => {
+    try {
+      return await planningAPI.update(boardId, cardId, data);
+    } catch (error) {
+      console.warn("API failed for planningService.update", error);
+      throw error;
+    }
+  },
+
+  move: async (
+    boardId: string,
+    cardId: string,
+    data: PlanningCardMoveRequest,
+  ): Promise<PlanningCard> => {
+    try {
+      return await planningAPI.move(boardId, cardId, data);
+    } catch (error) {
+      console.warn("API failed for planningService.move", error);
+      throw error;
+    }
+  },
+
+  remove: async (boardId: string, cardId: string): Promise<void> => {
+    try {
+      await planningAPI.remove(boardId, cardId);
+    } catch (error) {
+      console.warn("API failed for planningService.remove", error);
+      throw error;
+    }
+  },
+
+  reorder: async (
+    boardId: string,
+    data: PlanningReorderRequest,
+  ): Promise<void> => {
+    try {
+      await planningAPI.reorder(boardId, data);
+    } catch (error) {
+      console.warn("API failed for planningService.reorder", error);
+      throw error;
+    }
+  },
 };

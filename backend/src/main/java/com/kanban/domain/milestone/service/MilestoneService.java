@@ -18,6 +18,7 @@ import com.kanban.domain.milestone.MilestoneFeatureRepository;
 import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.milestone.dto.MilestoneRequest;
 import com.kanban.domain.milestone.dto.MilestoneResponse;
+import com.kanban.domain.planning.service.PlanningCardRecomputeService;
 import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.task.TaskRepository;
@@ -34,10 +35,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -60,6 +63,7 @@ public class MilestoneService {
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final BoardService boardService;
     private final WebSocketEventService webSocketEventService;
+    private final PlanningCardRecomputeService planningCardRecomputeService;
 
     public MilestoneResponse.ListResponse getMilestones(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
@@ -166,6 +170,10 @@ public class MilestoneService {
             throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
         }
 
+        // 기간 변경 여부 감지 (startDate 또는 endDate가 바뀐 경우)
+        LocalDate oldStartDate = milestone.getStartDate();
+        LocalDate oldEndDate = milestone.getEndDate();
+
         milestone.updateInfo(
                 request.getTitle(),
                 request.getDescription(),
@@ -177,6 +185,18 @@ public class MilestoneService {
         int progress = calculateProgress(features);
 
         log.info("Milestone updated: {} by user: {}", milestoneId, userId);
+
+        // 마일스톤 기간이 변경된 경우 PlanningCard의 primaryMilestone 재계산
+        boolean dateChanged = !Objects.equals(oldStartDate, request.getStartDate())
+                || !Objects.equals(oldEndDate, request.getEndDate());
+        if (dateChanged) {
+            try {
+                planningCardRecomputeService.recomputeForBoard(boardId);
+            } catch (Exception e) {
+                log.warn("PlanningCard recompute failed after milestone update: milestone={}, board={}, error={}",
+                        milestoneId, boardId, e.getMessage());
+            }
+        }
 
         return MilestoneResponse.Detail.of(milestone, features, progress);
     }
@@ -219,6 +239,15 @@ public class MilestoneService {
         milestoneRepository.delete(milestone);
 
         log.info("Milestone deleted: {} by user: {}", milestoneId, userId);
+
+        // 마일스톤 삭제 후 PlanningCard의 primaryMilestone 재계산
+        // DB FK ON DELETE SET NULL이 먼저 적용되므로 삭제된 마일스톤 참조는 이미 null
+        try {
+            planningCardRecomputeService.recomputeAfterMilestoneDeleted(boardId);
+        } catch (Exception e) {
+            log.warn("PlanningCard recompute failed after milestone delete: milestone={}, board={}, error={}",
+                    milestoneId, boardId, e.getMessage());
+        }
     }
 
     @Transactional

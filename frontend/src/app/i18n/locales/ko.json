@@ -800,7 +800,8 @@
     "subTab": {
       "timeblock": "타임블록",
       "calendar": "캘린더",
-      "resource": "워크로드"
+      "resource": "워크로드",
+      "planning": "플래닝"
     },
     "calendar": {
       "today": "오늘",
@@ -858,7 +859,91 @@
     "breakStart": "시작",
     "breakEnd": "종료",
     "excludingBreak": "(점심 {{hours}}시간 제외)",
-    "effectiveHours": "실 근무:"
+    "effectiveHours": "실 근무:",
+    "planning": {
+      "title": "플래닝",
+      "toolbar": {
+        "today": "오늘로 이동",
+        "legend": "범례"
+      },
+      "col": {
+        "member": "멤버"
+      },
+      "header": {
+        "week": "W{{num}}",
+        "milestone": "마일스톤"
+      },
+      "cell": {
+        "placeHint": "+ 드롭하여 배치",
+        "noMilestone": "마일스톤 없음",
+        "expandMore": "+{{count}}개 더"
+      },
+      "load": {
+        "over": "과부하",
+        "normal": "적정",
+        "under": "여유",
+        "unknown": "미설정",
+        "format": "{{actual}}h / {{allocated}}h"
+      },
+      "pool": {
+        "title": "임시업무 풀",
+        "quickAdd": "제목 입력…",
+        "hours": "예상 시간",
+        "assignee": "담당자",
+        "filter": {
+          "all": "전체",
+          "unplaced": "미배치",
+          "placed": "배치됨"
+        },
+        "empty": {
+          "title": "아직 임시업무가 없습니다",
+          "description": "위 입력창에 제목과 시간을 입력하고 Enter를 누르세요"
+        }
+      },
+      "card": {
+        "edit": "편집",
+        "delete": "삭제",
+        "unplace": "풀로 이동",
+        "deleted": "카드가 삭제되었습니다",
+        "undo": "되돌리기"
+      },
+      "empty": {
+        "noMilestones": {
+          "title": "마일스톤이 없습니다",
+          "description": "마일스톤을 생성하면 capacity 시각화가 활성화됩니다",
+          "cta": "마일스톤 생성"
+        },
+        "noMembers": {
+          "title": "멤버가 없습니다",
+          "description": "보드에 멤버를 초대하면 리소스 시뮬레이션이 가능합니다"
+        }
+      },
+      "warn": {
+        "noAllocations": "마일스톤 할당 설정이 없습니다. 마일스톤에서 멤버별 할당 시간을 먼저 설정하세요."
+      },
+      "error": {
+        "placeFailed": "배치에 실패했습니다. 다시 시도해주세요.",
+        "invalidWeek": "월요일 주차만 배치 가능합니다."
+      },
+      "legend": {
+        "title": "부하 상태",
+        "over": "과부하 (capacity × 1.1 초과)",
+        "normal": "적정 (capacity × 0.5~1.1)",
+        "under": "여유 (capacity × 0.5 미만)",
+        "unknown": "capacity 미설정"
+      },
+      "tooltip": {
+        "allocated": "할당: {{hours}}h",
+        "placed": "배치: {{hours}}h",
+        "diff": "차이: {{diff}}h",
+        "weekRange": "{{start}} ~ {{end}}",
+        "milestone": "마일스톤: {{title}}"
+      },
+      "mobile": {
+        "segmentPool": "풀",
+        "segmentGrid": "그리드"
+      }
+    }
   },
   "dailySummary": {
     "summaryButton": "요약",

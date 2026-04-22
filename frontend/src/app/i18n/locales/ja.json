@@ -751,7 +751,8 @@
     "subTab": {
       "timeblock": "タイムブロック",
       "calendar": "カレンダー",
-      "resource": "ワークロード"
+      "resource": "ワークロード",
+      "planning": "プランニング"
     },
     "calendar": {
       "today": "今日",
@@ -809,7 +810,91 @@
     "breakTime": "休憩時間",
     "breakTimeDesc": "休憩時間は勤務時間から除外されます",
     "effectiveHours": "実働：",
-    "excludingBreak": "（休憩{{hours}}時間を除く）"
+    "excludingBreak": "（休憩{{hours}}時間を除く）",
+    "planning": {
+      "title": "プランニング",
+      "toolbar": {
+        "today": "今日へ移動",
+        "legend": "凡例"
+      },
+      "col": {
+        "member": "メンバー"
+      },
+      "header": {
+        "week": "W{{num}}",
+        "milestone": "マイルストーン"
+      },
+      "cell": {
+        "placeHint": "+ ドロップして配置",
+        "noMilestone": "マイルストーンなし",
+        "expandMore": "+{{count}}件 もっと見る"
+      },
+      "load": {
+        "over": "過負荷",
+        "normal": "適正",
+        "under": "余裕あり",
+        "unknown": "未設定",
+        "format": "{{actual}}h / {{allocated}}h"
+      },
+      "pool": {
+        "title": "仮タスクプール",
+        "quickAdd": "タイトルを入力…",
+        "hours": "予定時間",
+        "assignee": "担当者",
+        "filter": {
+          "all": "すべて",
+          "unplaced": "未配置",
+          "placed": "配置済み"
+        },
+        "empty": {
+          "title": "仮タスクがまだありません",
+          "description": "上の入力欄にタイトルと時間を入力してEnterを押してください"
+        }
+      },
+      "card": {
+        "edit": "編集",
+        "delete": "削除",
+        "unplace": "プールへ戻す",
+        "deleted": "カードが削除されました",
+        "undo": "元に戻す"
+      },
+      "empty": {
+        "noMilestones": {
+          "title": "マイルストーンがありません",
+          "description": "マイルストーンを作成するとキャパシティの可視化が有効になります",
+          "cta": "マイルストーンを作成"
+        },
+        "noMembers": {
+          "title": "メンバーがいません",
+          "description": "ボードにメンバーを招待するとリソースシミュレーションが可能になります"
+        }
+      },
+      "warn": {
+        "noAllocations": "マイルストーンの割り当て設定がありません。先にマイルストーンでメンバーごとの割り当て時間を設定してください。"
+      },
+      "error": {
+        "placeFailed": "配置に失敗しました。もう一度お試しください。",
+        "invalidWeek": "月曜日始まりの週にのみ配置できます。"
+      },
+      "legend": {
+        "title": "負荷状態",
+        "over": "過負荷（capacity × 1.1 超過）",
+        "normal": "適正（capacity × 0.5〜1.1）",
+        "under": "余裕あり（capacity × 0.5 未満）",
+        "unknown": "capacity 未設定"
+      },
+      "tooltip": {
+        "allocated": "割り当て: {{hours}}h",
+        "placed": "配置: {{hours}}h",
+        "diff": "差分: {{diff}}h",
+        "weekRange": "{{start}} 〜 {{end}}",
+        "milestone": "マイルストーン: {{title}}"
+      },
+      "mobile": {
+        "segmentPool": "プール",
+        "segmentGrid": "グリッド"
+      }
+    }
   },
   "dailySummary": {
     "summaryButton": "要約",
