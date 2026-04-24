@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -45,14 +46,14 @@ import type {
 } from '../../types';
 
 // =============================================================================
-// Layout constants
+// Layout constants (rotated: members = columns, weeks = rows)
 // =============================================================================
 
-const MEMBER_COL_WIDTH = 200;
-const WEEK_COL_WIDTH = 112;
-const MILESTONE_BAR_HEIGHT = 40;
-const WEEK_HEADER_HEIGHT = 48;
-const ROW_MIN_HEIGHT = 92;
+const MEMBER_COL_WIDTH = 220;
+const WEEK_COL_WIDTH = 140;
+const MILESTONE_LANE_WIDTH = 56;
+const ROW_MIN_HEIGHT = 88;
+const MEMBER_HEADER_HEIGHT = 60;
 const CARD_HEIGHT = 32;
 const LOAD_STRIP_HEIGHT = 20;
 const FOOTER_HEIGHT = 40;
@@ -444,6 +445,8 @@ export function SchedulePlanningView({
     return map;
   }, [summary]);
 
+  /** Per-week totals (keyed by week_start_date). Reserved for future inline use. */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const columnTotalMap = useMemo(() => {
     const map = new Map<string, PlanningColumnTotal>();
     for (const c of summary?.column_totals ?? []) {
@@ -468,17 +471,17 @@ export function SchedulePlanningView({
     return result;
   }, [cards, poolFilter, searchQuery]);
 
-  // ─── Today scroll ───
+  // ─── Today scroll (vertical — weeks are rows) ───
   const scrollToToday = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container || todayWeekIndex < 0) return;
-    const left =
-      MEMBER_COL_WIDTH +
-      todayWeekIndex * WEEK_COL_WIDTH -
-      container.clientWidth / 2 +
-      WEEK_COL_WIDTH / 2;
+    const top =
+      MEMBER_HEADER_HEIGHT +
+      todayWeekIndex * ROW_MIN_HEIGHT -
+      container.clientHeight / 2 +
+      ROW_MIN_HEIGHT / 2;
     container.scrollTo({
-      left: Math.max(0, left),
+      top: Math.max(0, top),
       behavior: reducedMotion ? 'auto' : 'smooth',
     });
   }, [todayWeekIndex, reducedMotion]);
@@ -730,12 +733,12 @@ export function SchedulePlanningView({
     [canEdit],
   );
 
-  // ─── Milestone bar positions ───
+  // ─── Milestone bar positions (vertical lane on the left) ───
   const milestoneBars = useMemo(() => {
     if (weeks.length === 0) return [] as Array<{
       milestone: PlanningMilestoneInfo;
-      left: number;
-      width: number;
+      top: number;
+      height: number;
     }>;
     const firstWeek = weeks[0];
     const lastWeek = weeks[weeks.length - 1];
@@ -756,12 +759,12 @@ export function SchedulePlanningView({
         const endWeekIdx = Math.floor(
           Math.max(0, diffInDays(firstWeekStart, clampedEnd)) / 7,
         );
-        const left = MEMBER_COL_WIDTH + startWeekIdx * WEEK_COL_WIDTH + 3;
-        const width = Math.max(
-          20,
-          (endWeekIdx - startWeekIdx + 1) * WEEK_COL_WIDTH - 6,
+        const top = startWeekIdx * ROW_MIN_HEIGHT + 4;
+        const height = Math.max(
+          28,
+          (endWeekIdx - startWeekIdx + 1) * ROW_MIN_HEIGHT - 8,
         );
-        return { milestone: m, left, width };
+        return { milestone: m, top, height };
       });
   }, [milestones, weeks]);
 
@@ -793,7 +796,10 @@ export function SchedulePlanningView({
     );
   }
 
-  const totalWidth = MEMBER_COL_WIDTH + weeks.length * WEEK_COL_WIDTH;
+  const totalWidth =
+    MILESTONE_LANE_WIDTH + WEEK_COL_WIDTH + members.length * MEMBER_COL_WIDTH;
+  const totalHeight =
+    MEMBER_HEADER_HEIGHT + weeks.length * ROW_MIN_HEIGHT + FOOTER_HEIGHT;
   const showMobilePool = mobileSegment === 'pool';
   const showMobileGrid = mobileSegment === 'grid';
 
@@ -905,7 +911,7 @@ export function SchedulePlanningView({
         </div>
       )}
 
-      {/* ─── Main grid ─── */}
+      {/* ─── Main grid (rotated: members = columns, weeks = rows) ─── */}
       <div
         className={`flex-1 flex flex-col overflow-hidden ${showMobileGrid ? '' : 'hidden md:flex'}`}
       >
@@ -913,55 +919,126 @@ export function SchedulePlanningView({
           ref={scrollContainerRef}
           className="flex-1 overflow-auto custom-scrollbar"
           role="grid"
-          aria-rowcount={members.length + 1}
-          aria-colcount={weeks.length + 1}
+          aria-rowcount={weeks.length + 2}
+          aria-colcount={members.length + 2}
         >
-          <div style={{ width: totalWidth }}>
-            {/* Milestone timeline lane (sticky top-0) */}
-            <MilestoneTimelineLane
-              milestoneBars={milestoneBars}
-              weeks={weeks}
-              onMilestoneClick={onMilestoneClick}
-              memberColWidth={MEMBER_COL_WIDTH}
-              reducedMotion={reducedMotion}
-            />
+          <div
+            className="grid relative"
+            style={{
+              width: totalWidth,
+              minHeight: totalHeight,
+              gridTemplateColumns: `${MILESTONE_LANE_WIDTH}px ${WEEK_COL_WIDTH}px repeat(${Math.max(1, members.length)}, ${MEMBER_COL_WIDTH}px)`,
+              gridTemplateRows: `${MEMBER_HEADER_HEIGHT}px repeat(${weeks.length}, ${ROW_MIN_HEIGHT}px) ${FOOTER_HEIGHT}px`,
+            }}
+          >
+            {/* ── Row 1: Header row ── */}
+            {/* Top-left corner intersection (milestone + week label columns) */}
+            <div
+              className="sticky top-0 left-0 z-40 bg-bridge-obsidian border-r border-b border-foreground/[0.08] flex items-center justify-center gap-2 px-3"
+              style={{ gridColumn: '1 / 3', gridRow: '1 / 2', height: MEMBER_HEADER_HEIGHT }}
+            >
+              <Flag size={14} className="text-bridge-accent shrink-0" aria-hidden="true" />
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                {t('schedule.planning.col.member', 'Member')}
+              </span>
+            </div>
 
-            {/* Week header lane (sticky top-10) */}
-            <WeekHeaderLane
-              weeks={weeks}
-              milestones={milestones}
-              todayWeekIndex={todayWeekIndex}
-              memberColWidth={MEMBER_COL_WIDTH}
-            />
-
-            {/* Member rows */}
+            {/* Member column headers (sticky top-0) */}
             {members.length === 0 ? (
-              <div className="px-4 py-10 text-center">
+              <div
+                className="sticky top-0 z-30 bg-bridge-obsidian border-b border-foreground/[0.08] flex items-center justify-center"
+                style={{
+                  gridColumn: `3 / ${members.length + 3}`,
+                  gridRow: '1 / 2',
+                  height: MEMBER_HEADER_HEIGHT,
+                }}
+              >
                 <p className="text-xs text-slate-500">
-                  {t(
-                    'schedule.planning.empty.noMembers.title',
-                    'No members yet',
-                  )}
+                  {t('schedule.planning.empty.noMembers.title', 'No members yet')}
                 </p>
               </div>
             ) : (
-              members.map((member, rowIdx) => {
+              members.map((member, colIdx) => {
                 const rowTotal = rowTotalMap.get(member.id);
                 return (
                   <div
-                    key={member.id}
-                    className="flex border-b border-foreground/[0.08]"
-                    style={{ minHeight: ROW_MIN_HEIGHT }}
+                    key={`hdr-${member.id}`}
+                    className="sticky top-0 z-30 bg-bridge-obsidian border-b border-foreground/[0.08]"
+                    style={{
+                      gridColumn: `${colIdx + 3} / ${colIdx + 4}`,
+                      gridRow: '1 / 2',
+                      height: MEMBER_HEADER_HEIGHT,
+                    }}
                     role="row"
                   >
-                    <MemberLabelColumn
+                    <MemberHeaderRow
                       member={member}
                       rowTotal={rowTotal}
                       reducedMotion={reducedMotion}
-                      index={rowIdx}
+                      index={colIdx}
                     />
-                    {weeks.map((weekStart, colIdx) => {
-                      const weekKey = weekKeys[colIdx];
+                  </div>
+                );
+              })
+            )}
+
+            {/* ── Milestone vertical lane (sticky left-0, spans all week rows) ── */}
+            {members.length > 0 && (
+              <div
+                className="sticky left-0 z-30 bg-bridge-obsidian border-r border-foreground/[0.08]"
+                style={{
+                  gridColumn: '1 / 2',
+                  gridRow: `2 / ${weeks.length + 2}`,
+                  width: MILESTONE_LANE_WIDTH,
+                }}
+              >
+                <MilestoneVerticalLane
+                  milestoneBars={milestoneBars}
+                  weeksCount={weeks.length}
+                  onMilestoneClick={onMilestoneClick}
+                  reducedMotion={reducedMotion}
+                />
+              </div>
+            )}
+
+            {/* ── Week rows (label column + member cells) ── */}
+            {members.length > 0 &&
+              weeks.map((weekStart, rowIdx) => {
+                const weekKey = weekKeys[rowIdx];
+                const isTodayRow = rowIdx === todayWeekIndex;
+                const iso = getIsoWeek(weekStart);
+                const hasMilestone = primaryMilestoneFor(weekStart, milestones) != null;
+                const gridRow = `${rowIdx + 2} / ${rowIdx + 3}`;
+
+                return (
+                  <Fragment key={weekKey}>
+                    {/* Week label column (sticky left at milestone-lane offset) */}
+                    <div
+                      className={`sticky z-30 flex flex-col items-center justify-center border-r border-b border-foreground/[0.08] text-xs tabular-nums
+                        ${isTodayRow ? 'bg-bridge-accent/10' : 'bg-bridge-obsidian'}
+                        ${!hasMilestone && !isTodayRow ? 'bg-foreground/[0.02]' : ''}`}
+                      style={{
+                        left: MILESTONE_LANE_WIDTH,
+                        gridColumn: '2 / 3',
+                        gridRow,
+                        minHeight: ROW_MIN_HEIGHT,
+                      }}
+                      role="rowheader"
+                    >
+                      <span
+                        className={`font-bold ${isTodayRow ? 'text-bridge-accent' : 'text-foreground'}`}
+                      >
+                        {t('schedule.planning.header.week', 'W{{num}}', { num: iso })}
+                      </span>
+                      <span
+                        className={`${isTodayRow ? 'text-bridge-accent/80' : 'text-slate-500'}`}
+                      >
+                        {formatDateShort(weekStart)}
+                      </span>
+                    </div>
+
+                    {/* Member cells for this week */}
+                    {members.map((member, colIdx) => {
                       const cellKey = `${member.id}|${weekKey}`;
                       const cellCards = cardsByCell.get(cellKey) ?? [];
                       const cellSummary = cellSummaryMap.get(cellKey);
@@ -974,7 +1051,6 @@ export function SchedulePlanningView({
                           ),
                           null,
                         );
-                      const isTodayCol = colIdx === todayWeekIndex;
                       const isDropTarget =
                         dropHint?.type === 'cell' &&
                         dropHint.memberId === member.id &&
@@ -995,54 +1071,72 @@ export function SchedulePlanningView({
                           : null;
 
                       return (
-                        <PlanningCell
-                          key={weekKey}
-                          memberId={member.id}
-                          weekStart={weekKey}
-                          cards={cellCards}
-                          summary={cellSummary}
-                          status={status}
-                          isTodayCol={isTodayCol}
-                          isDropTarget={isDropTarget}
-                          overPreview={overPreview}
-                          canEdit={canEdit}
-                          onEmptyClick={() => handleEmptyCellClick(member.id, weekKey)}
-                          onCardMouseDown={startCardDrag}
-                          onCardDelete={handleDelete}
-                          draggingId={dragState?.isActive ? dragState.card.id : null}
-                        />
+                        <div
+                          key={`${member.id}|${weekKey}`}
+                          style={{
+                            gridColumn: `${colIdx + 3} / ${colIdx + 4}`,
+                            gridRow,
+                          }}
+                          className="relative border-b border-foreground/[0.08]"
+                        >
+                          {/* Today marker (horizontal line across first cell of row) */}
+                          {isTodayRow && colIdx === 0 && (
+                            <div
+                              className="absolute left-0 right-0 h-px bg-bridge-accent pointer-events-none z-20"
+                              style={{ top: 0 }}
+                              aria-hidden="true"
+                            />
+                          )}
+                          <PlanningCell
+                            memberId={member.id}
+                            weekStart={weekKey}
+                            cards={cellCards}
+                            summary={cellSummary}
+                            status={status}
+                            isTodayRow={isTodayRow}
+                            isDropTarget={isDropTarget}
+                            overPreview={overPreview}
+                            canEdit={canEdit}
+                            onEmptyClick={() => handleEmptyCellClick(member.id, weekKey)}
+                            onCardMouseDown={startCardDrag}
+                            onCardDelete={handleDelete}
+                            draggingId={dragState?.isActive ? dragState.card.id : null}
+                          />
+                        </div>
                       );
                     })}
-                  </div>
+                  </Fragment>
                 );
-              })
-            )}
+              })}
 
-            {/* Footer Σ column totals (sticky bottom) */}
+            {/* ── Footer Σ row: per-member totals (sticky bottom) ── */}
             {members.length > 0 && (
-              <div
-                className="flex sticky bottom-0 z-20 bg-bridge-obsidian border-t border-foreground/[0.08]"
-                style={{ height: FOOTER_HEIGHT }}
-                role="row"
-              >
+              <>
                 <div
-                  className="shrink-0 sticky left-0 z-30 bg-bridge-obsidian border-r border-foreground/[0.08] flex items-center gap-2 px-4"
-                  style={{ width: MEMBER_COL_WIDTH, height: FOOTER_HEIGHT }}
+                  className="sticky bottom-0 left-0 z-40 bg-bridge-obsidian border-t border-r border-foreground/[0.08] flex items-center justify-center"
+                  style={{
+                    gridColumn: '1 / 3',
+                    gridRow: `${weeks.length + 2} / ${weeks.length + 3}`,
+                    height: FOOTER_HEIGHT,
+                  }}
                   role="rowheader"
                 >
                   <span className="text-xs font-bold text-slate-400 tracking-widest uppercase">
                     Σ
                   </span>
                 </div>
-                {weeks.map((_, colIdx) => {
-                  const key = weekKeys[colIdx];
-                  const total = columnTotalMap.get(key);
+                {members.map((member, colIdx) => {
+                  const total = rowTotalMap.get(member.id);
                   const status: PlanningCardStatus = total?.status ?? 'UNKNOWN';
                   return (
                     <div
-                      key={key}
-                      className="shrink-0 flex items-center justify-center gap-1 border-r border-foreground/[0.04]"
-                      style={{ width: WEEK_COL_WIDTH, height: FOOTER_HEIGHT }}
+                      key={`foot-${member.id}`}
+                      className="sticky bottom-0 z-20 bg-bridge-obsidian border-t border-r border-foreground/[0.04] flex items-center justify-center gap-1"
+                      style={{
+                        gridColumn: `${colIdx + 3} / ${colIdx + 4}`,
+                        gridRow: `${weeks.length + 2} / ${weeks.length + 3}`,
+                        height: FOOTER_HEIGHT,
+                      }}
                       role="gridcell"
                     >
                       <span
@@ -1056,7 +1150,7 @@ export function SchedulePlanningView({
                     </div>
                   );
                 })}
-              </div>
+              </>
             )}
           </div>
         </div>
@@ -1140,170 +1234,112 @@ SchedulePlanningView.displayName = 'SchedulePlanningView';
 // Sub-components
 // =============================================================================
 
-interface MilestoneTimelineLaneProps {
+interface MilestoneVerticalLaneProps {
   milestoneBars: Array<{
     milestone: PlanningMilestoneInfo;
-    left: number;
-    width: number;
+    top: number;
+    height: number;
   }>;
-  weeks: Date[];
-  memberColWidth: number;
+  weeksCount: number;
   onMilestoneClick?: (id: string) => void;
   reducedMotion: boolean;
 }
 
-function MilestoneTimelineLane({
+/**
+ * Inner contents of the left vertical milestone lane. The parent wrapper in
+ * the main grid supplies sticky-left positioning and the bounding box. Bar
+ * positions are absolute and computed from weekly indices.
+ */
+function MilestoneVerticalLane({
   milestoneBars,
-  weeks,
-  memberColWidth,
+  weeksCount,
   onMilestoneClick,
   reducedMotion,
-}: MilestoneTimelineLaneProps) {
-  const { t } = useTranslation();
+}: MilestoneVerticalLaneProps) {
   return (
     <div
-      className="flex sticky top-0 z-30 bg-bridge-obsidian border-b border-foreground/[0.08]"
-      style={{ height: MILESTONE_BAR_HEIGHT }}
+      className="relative w-full"
+      style={{ height: weeksCount * ROW_MIN_HEIGHT }}
     >
-      <div
-        className="shrink-0 sticky left-0 z-40 bg-bridge-obsidian border-r border-foreground/[0.08] flex items-center gap-2 px-4"
-        style={{ width: memberColWidth, height: MILESTONE_BAR_HEIGHT }}
-      >
-        <Flag size={12} className="text-bridge-accent shrink-0" aria-hidden="true" />
-        <span className="text-xs font-bold text-foreground truncate">
-          {t('schedule.planning.header.milestone', 'Milestone')}
-        </span>
-      </div>
-      <div
-        className="relative"
-        style={{
-          width: weeks.length * WEEK_COL_WIDTH,
-          height: MILESTONE_BAR_HEIGHT,
-        }}
-      >
-        {milestoneBars.map(({ milestone, left, width }) => (
-          <button
-            key={milestone.id}
-            onClick={() => onMilestoneClick?.(milestone.id)}
-            className={`absolute top-2 h-6 rounded-md px-2.5 flex items-center gap-1.5
-              bg-bridge-accent/80 hover:bg-bridge-accent transition-all
-              ${reducedMotion ? '' : 'hover:shadow-[0_0_18px_rgba(99,102,241,0.35)]'}`}
-            style={{ left: left - memberColWidth, width }}
-            title={`${milestone.title} (${milestone.start_date} ~ ${milestone.end_date})`}
+      {milestoneBars.map(({ milestone, top, height }) => (
+        <button
+          key={milestone.id}
+          onClick={() => onMilestoneClick?.(milestone.id)}
+          className={`absolute left-1 rounded-md flex flex-col items-center justify-start pt-2 pb-2
+            bg-bridge-accent/80 hover:bg-bridge-accent transition-all
+            ${reducedMotion ? '' : 'hover:shadow-[0_0_18px_rgba(99,102,241,0.35)]'}`}
+          style={{
+            top,
+            height,
+            width: MILESTONE_LANE_WIDTH - 8,
+          }}
+          title={`${milestone.title} (${milestone.start_date} ~ ${milestone.end_date})`}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-white/90 shrink-0 mb-1" />
+          <span
+            className="text-xs font-bold text-white text-center leading-tight overflow-hidden"
+            style={{
+              writingMode: 'vertical-rl',
+              textOrientation: 'mixed',
+              maxHeight: Math.max(0, height - 32),
+            }}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-white/90 shrink-0" />
-            <span className="text-xs font-bold text-white truncate">
-              {milestone.title}
+            {milestone.title}
+          </span>
+          {milestone.progress_percentage > 0 && (
+            <span className="mt-auto text-xs font-bold text-white/70 tabular-nums shrink-0">
+              {milestone.progress_percentage}%
             </span>
-            {milestone.progress_percentage > 0 && (
-              <span className="ml-auto text-xs font-bold text-white/70 tabular-nums shrink-0">
-                {milestone.progress_percentage}%
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+          )}
+        </button>
+      ))}
     </div>
   );
 }
 
-interface WeekHeaderLaneProps {
-  weeks: Date[];
-  milestones: PlanningMilestoneInfo[];
-  todayWeekIndex: number;
-  memberColWidth: number;
-}
-
-function WeekHeaderLane({
-  weeks,
-  milestones,
-  todayWeekIndex,
-  memberColWidth,
-}: WeekHeaderLaneProps) {
-  const { t } = useTranslation();
-  return (
-    <div
-      className="flex sticky z-30 bg-bridge-obsidian border-b border-foreground/[0.08]"
-      style={{ top: MILESTONE_BAR_HEIGHT, height: WEEK_HEADER_HEIGHT }}
-    >
-      <div
-        className="shrink-0 sticky left-0 z-40 bg-bridge-obsidian border-r border-foreground/[0.08] flex items-center px-4"
-        style={{ width: memberColWidth, height: WEEK_HEADER_HEIGHT }}
-        role="columnheader"
-      >
-        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-          {t('schedule.planning.col.member', 'Member')}
-        </span>
-      </div>
-      {weeks.map((weekStart, idx) => {
-        const iso = getIsoWeek(weekStart);
-        const hasMilestone = primaryMilestoneFor(weekStart, milestones) != null;
-        const isTodayCol = idx === todayWeekIndex;
-        return (
-          <div
-            key={formatISODate(weekStart)}
-            role="columnheader"
-            className={`shrink-0 flex flex-col items-center justify-center border-r border-foreground/[0.08] text-xs tabular-nums
-              ${isTodayCol ? 'bg-bridge-accent/10' : ''}
-              ${!hasMilestone && !isTodayCol ? 'bg-foreground/[0.02]' : ''}`}
-            style={{ width: WEEK_COL_WIDTH, height: WEEK_HEADER_HEIGHT }}
-          >
-            <span
-              className={`font-bold ${isTodayCol ? 'text-bridge-accent' : 'text-foreground'}`}
-            >
-              {t('schedule.planning.header.week', 'W{{num}}', { num: iso })}
-            </span>
-            <span
-              className={`${isTodayCol ? 'text-bridge-accent/80' : 'text-slate-500'}`}
-            >
-              {formatDateShort(weekStart)}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-interface MemberLabelColumnProps {
+interface MemberHeaderRowProps {
   member: MemberLite;
   rowTotal?: PlanningRowTotal;
   reducedMotion: boolean;
   index: number;
 }
 
-function MemberLabelColumn({
+/**
+ * Top-row header cell for a single member (replaces the former left sticky
+ * column label). Shown as a column header in the rotated layout.
+ */
+function MemberHeaderRow({
   member,
   rowTotal,
   reducedMotion,
   index,
-}: MemberLabelColumnProps) {
+}: MemberHeaderRowProps) {
   const status: PlanningCardStatus = rowTotal?.status ?? 'UNKNOWN';
   return (
     <motion.div
       initial={reducedMotion ? undefined : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: reducedMotion ? 0 : index * 0.04 }}
-      className="shrink-0 sticky left-0 z-20 bg-bridge-obsidian border-r border-foreground/[0.08] flex items-start gap-2 px-3 pt-3 pb-2"
-      style={{ width: MEMBER_COL_WIDTH }}
-      role="rowheader"
+      className="shrink-0 flex items-center gap-2 px-3 border-r border-foreground/[0.08]"
+      style={{ width: MEMBER_COL_WIDTH, height: MEMBER_HEADER_HEIGHT }}
+      role="columnheader"
     >
       {member.profile_image ? (
         <img
           src={member.profile_image}
           alt={member.name}
-          className="w-7 h-7 rounded-full shrink-0 object-cover mt-0.5"
+          className="w-7 h-7 rounded-full shrink-0 object-cover"
         />
       ) : (
         <div
-          className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-white mt-0.5"
+          className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-white"
           style={{ backgroundColor: getAssigneeHex(member.name, member.color) }}
         >
           {getInitials(member.name)}
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-foreground truncate">{member.name}</p>
+        <p className="text-xs font-bold text-foreground truncate">{member.name}</p>
         {rowTotal && (
           <p className={`text-xs font-bold tabular-nums ${statusTextClass(status)}`}>
             {formatLoadNumbers(rowTotal.load_hours, rowTotal.capacity_hours)}
@@ -1320,7 +1356,7 @@ interface PlanningCellProps {
   cards: PlanningCard[];
   summary?: PlanningCellSummary;
   status: PlanningCardStatus;
-  isTodayCol: boolean;
+  isTodayRow: boolean;
   isDropTarget: boolean;
   overPreview: PlanningCardStatus | null;
   canEdit: boolean;
@@ -1336,7 +1372,7 @@ function PlanningCell({
   cards,
   summary,
   status,
-  isTodayCol,
+  isTodayRow,
   isDropTarget,
   overPreview,
   canEdit,
@@ -1363,7 +1399,7 @@ function PlanningCell({
   if (status === 'UNKNOWN') {
     cellClasses.push('border-r-dashed border-foreground/10');
   }
-  if (isTodayCol && !isDropTarget) {
+  if (isTodayRow && !isDropTarget) {
     cellClasses.push('bg-bridge-accent/5');
   }
 
@@ -1371,7 +1407,7 @@ function PlanningCell({
   return (
     <div
       className={cellClasses.join(' ')}
-      style={{ width: WEEK_COL_WIDTH, minHeight: ROW_MIN_HEIGHT }}
+      style={{ width: MEMBER_COL_WIDTH, minHeight: ROW_MIN_HEIGHT }}
       data-drop-target="planning-cell"
       data-member-id={memberId}
       data-week-start={weekStart}
