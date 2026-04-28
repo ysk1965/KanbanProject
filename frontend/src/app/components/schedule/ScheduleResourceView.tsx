@@ -10,6 +10,7 @@ import {
   ChecklistByAssigneeResponse,
 } from "../../utils/api";
 import { getInitials, getAssigneeHex } from "../../utils/assigneeColor";
+import { useHolidays, HolidayInfo } from "../../hooks/useHolidays";
 
 // ========================================
 // Constants
@@ -187,6 +188,19 @@ export function ScheduleResourceView({
       rangeEnd: formatDateStr(end),
     };
   }, []);
+
+  // ─── Holidays (covers ~52w timeline crossing up to 3 calendar years) ───
+  const currentYear = new Date().getFullYear();
+  const { holidayMap: hPrev } = useHolidays(i18n.language, currentYear - 1);
+  const { holidayMap: hCur } = useHolidays(i18n.language, currentYear);
+  const { holidayMap: hNext } = useHolidays(i18n.language, currentYear + 1);
+  const holidayMap = useMemo(() => {
+    const merged = new Map<string, HolidayInfo[]>();
+    [hPrev, hCur, hNext].forEach((m) =>
+      m.forEach((v, k) => merged.set(k, v)),
+    );
+    return merged;
+  }, [hPrev, hCur, hNext]);
 
   // ─── Fetch data ───
   const fetchData = useCallback(
@@ -783,12 +797,18 @@ export function ScheduleResourceView({
                 const dayNum = day.getDate();
                 const showMonth = dayNum === 1 || idx === 0;
                 const locale = i18n.language || "en";
+                const holidays = holidayMap.get(formatDateStr(day));
+                const isHoliday = !!holidays && holidays.length > 0;
+                const holidayName = isHoliday
+                  ? holidays!.map((h) => h.name).join(", ")
+                  : undefined;
 
                 return (
                   <div
                     key={idx}
+                    title={holidayName}
                     className={`absolute top-0 flex flex-col items-center justify-center border-r border-foreground/[0.04]
-                      ${weekend ? "bg-foreground/[0.02]" : ""}
+                      ${isHoliday ? "bg-red-500/[0.04]" : weekend ? "bg-foreground/[0.02]" : ""}
                       ${isToday ? "bg-bridge-accent/5" : ""}`}
                     style={{
                       left: idx * DAY_WIDTH,
@@ -797,7 +817,13 @@ export function ScheduleResourceView({
                     }}
                   >
                     <span
-                      className={`text-xs ${weekend ? "text-slate-500" : "text-slate-400"}`}
+                      className={`text-xs ${
+                        isHoliday
+                          ? "text-red-400"
+                          : weekend
+                            ? "text-slate-500"
+                            : "text-slate-400"
+                      }`}
                     >
                       {getDayLabel(day, locale)}
                     </span>
@@ -805,9 +831,11 @@ export function ScheduleResourceView({
                       className={`text-xs font-medium ${
                         isToday
                           ? "w-6 h-6 rounded-full bg-bridge-accent text-white flex items-center justify-center"
-                          : weekend
-                            ? "text-slate-500"
-                            : "text-foreground"
+                          : isHoliday
+                            ? "text-red-400"
+                            : weekend
+                              ? "text-slate-500"
+                              : "text-foreground"
                       }`}
                     >
                       {dayNum}
@@ -846,17 +874,21 @@ export function ScheduleResourceView({
                   height: MILESTONE_ROW_HEIGHT,
                 }}
               >
-                {/* Weekend columns */}
-                {timelineDays.map(
-                  (day, idx) =>
-                    isWeekend(day) && (
-                      <div
-                        key={`mw-${idx}`}
-                        className="absolute top-0 bottom-0 bg-foreground/[0.02]"
-                        style={{ left: idx * DAY_WIDTH, width: DAY_WIDTH }}
-                      />
-                    ),
-                )}
+                {/* Weekend + holiday columns */}
+                {timelineDays.map((day, idx) => {
+                  const weekend = isWeekend(day);
+                  const isHoliday = holidayMap.has(formatDateStr(day));
+                  if (!weekend && !isHoliday) return null;
+                  return (
+                    <div
+                      key={`mw-${idx}`}
+                      className={`absolute top-0 bottom-0 ${
+                        isHoliday ? "bg-red-500/[0.04]" : "bg-foreground/[0.02]"
+                      }`}
+                      style={{ left: idx * DAY_WIDTH, width: DAY_WIDTH }}
+                    />
+                  );
+                })}
 
                 {/* Milestone bars */}
                 {milestoneBarData.map(
@@ -1034,9 +1066,10 @@ export function ScheduleResourceView({
                     handleDrop(e, row.id, dayIndex);
                   }}
                 >
-                  {/* Weekend + grid columns */}
+                  {/* Weekend + holiday + grid columns */}
                   {timelineDays.map((day, idx) => {
                     const weekend = isWeekend(day);
+                    const isHoliday = holidayMap.has(formatDateStr(day));
                     const isHighlighted =
                       dropHighlight?.rowIndex === rowIndex &&
                       dropHighlight?.dayIndex === idx;
@@ -1046,7 +1079,7 @@ export function ScheduleResourceView({
                         key={`grid-${idx}`}
                         data-day-index={idx}
                         className={`absolute top-0 bottom-0 border-r border-foreground/[0.04]
-                          ${weekend ? "bg-foreground/[0.02]" : ""}
+                          ${isHoliday ? "bg-red-500/[0.04]" : weekend ? "bg-foreground/[0.02]" : ""}
                           ${isHighlighted ? "bg-bridge-accent/10 ring-2 ring-bridge-accent/30 ring-inset" : ""}`}
                         style={{ left: idx * DAY_WIDTH, width: DAY_WIDTH }}
                       />
