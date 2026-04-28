@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { IconButton } from '../ui/IconButton';
+import { IconButton } from "../ui/IconButton";
 import {
   startOfMonth,
   endOfMonth,
@@ -21,6 +21,7 @@ import {
   AssigneeItemResponse,
   ChecklistByAssigneeResponse,
 } from "../../utils/api";
+import { useHolidays, HolidayInfo } from "../../hooks/useHolidays";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -224,7 +225,7 @@ export function ScheduleCalendarView({
   externalDragItem,
   refreshTrigger,
 }: ScheduleCalendarViewProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // ------ State ------
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
@@ -271,6 +272,17 @@ export function ScheduleCalendarView({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
+
+  // ------ Holidays (cover prev/current/next year for grid spillover) ------
+  const calendarYear = currentMonth.getFullYear();
+  const { holidayMap: hPrev } = useHolidays(i18n.language, calendarYear - 1);
+  const { holidayMap: hCur } = useHolidays(i18n.language, calendarYear);
+  const { holidayMap: hNext } = useHolidays(i18n.language, calendarYear + 1);
+  const holidayMap = useMemo(() => {
+    const merged = new Map<string, HolidayInfo[]>();
+    [hPrev, hCur, hNext].forEach((m) => m.forEach((v, k) => merged.set(k, v)));
+    return merged;
+  }, [hPrev, hCur, hNext]);
 
   // ------ Calendar grid computation ------
   const weeks: Date[][] = useMemo(() => {
@@ -553,6 +565,11 @@ export function ScheduleCalendarView({
                     const today = isToday(day);
                     const isDropTarget = dropTargetDate === dateStr;
                     const dots = dotItemsMap.get(dateStr) || [];
+                    const holidays = holidayMap.get(dateStr);
+                    const isHoliday = !!holidays && holidays.length > 0;
+                    const holidayName = isHoliday
+                      ? holidays!.map((h) => h.name).join(", ")
+                      : undefined;
 
                     // Count how many multiday bar segments start or pass through this column
                     const cellSegments = segments.filter(
@@ -574,22 +591,33 @@ export function ScheduleCalendarView({
                         }}
                         role="gridcell"
                         aria-label={format(day, "MMMM d, yyyy")}
+                        title={holidayName}
                         className={`align-top border border-foreground/[0.05] p-1
                           transition-colors relative
                           ${!inMonth ? "opacity-40" : ""}
+                          ${isHoliday ? "bg-red-500/[0.04]" : ""}
                           ${isDropTarget ? "bg-bridge-accent/10 ring-2 ring-bridge-accent/30 ring-inset" : ""}
                         `}
                       >
-                        {/* Date number */}
-                        <div className="flex items-center justify-end mb-1">
+                        {/* Date number + holiday label */}
+                        <div className="flex items-center justify-between gap-1 mb-1 min-w-0">
+                          {isHoliday ? (
+                            <span className="text-xs font-medium text-red-400 truncate">
+                              {holidayName}
+                            </span>
+                          ) : (
+                            <span />
+                          )}
                           <span
-                            className={`text-xs font-medium leading-none
+                            className={`text-xs font-medium leading-none shrink-0
                               ${
                                 today
                                   ? "bg-bridge-accent text-white w-6 h-6 rounded-full flex items-center justify-center font-bold"
-                                  : inMonth
-                                    ? "text-foreground"
-                                    : "text-slate-500"
+                                  : isHoliday
+                                    ? "text-red-400"
+                                    : inMonth
+                                      ? "text-foreground"
+                                      : "text-slate-500"
                               }
                             `}
                           >
