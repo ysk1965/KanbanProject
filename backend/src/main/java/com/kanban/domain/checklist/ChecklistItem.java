@@ -98,6 +98,18 @@ public class ChecklistItem {
         this.dueDate = dueDate;
     }
 
+    public void updateTitle(String title) {
+        this.title = title;
+    }
+
+    public void updateStartDate(LocalDate startDate) {
+        this.startDate = startDate;
+    }
+
+    public void updateDueDate(LocalDate dueDate) {
+        this.dueDate = dueDate;
+    }
+
     public void updateAssignee(User assignee) {
         this.assignee = assignee;
     }

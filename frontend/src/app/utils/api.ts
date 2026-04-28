@@ -1642,6 +1642,25 @@ export const checklistAPI = {
     );
   },
 
+  // 부분 업데이트: payload에 포함된 키만 서버에서 갱신.
+  // 키가 없으면 기존 값 보존, 키가 있고 값이 null이면 명시적 클리어.
+  patchItem: async (
+    boardId: string,
+    taskId: string,
+    itemId: string,
+    data: {
+      title?: string;
+      assignee_id?: string | null;
+      start_date?: string | null;
+      due_date?: string | null;
+    },
+  ) => {
+    return apiClient.patch<ChecklistItemResponse>(
+      `/boards/${boardId}/tasks/${taskId}/checklist/${itemId}`,
+      data,
+    );
+  },
+
   deleteItem: async (boardId: string, taskId: string, itemId: string) => {
     return apiClient.delete<{ message: string }>(
       `/boards/${boardId}/tasks/${taskId}/checklist/${itemId}`,
