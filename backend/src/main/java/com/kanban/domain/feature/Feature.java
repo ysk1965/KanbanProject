@@ -5,6 +5,7 @@ import com.kanban.domain.common.BaseTimeEntity;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
+@SQLRestriction("deleted_at IS NULL")
 @Table(name = "features", indexes = {
     @Index(name = "idx_feature_board_id", columnList = "board_id"),
     @Index(name = "idx_feature_status", columnList = "status"),
@@ -74,10 +76,44 @@ public class Feature extends BaseTimeEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "deleted_by", length = 36)
+    private String deletedBy;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
             this.id = UUID.randomUUID().toString();
+        }
+    }
+
+    public void softDelete(String userId, LocalDateTime when) {
+        this.deletedAt = when;
+        this.deletedBy = userId;
+    }
+
+    public void restore() {
+        this.deletedAt = null;
+        this.deletedBy = null;
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
+    }
+
+    public void recalcCounters(int total, int completed) {
+        this.totalTasks = total;
+        this.completedTasks = completed;
+        if (this.totalTasks > 0 && this.completedTasks.equals(this.totalTasks)) {
+            this.status = FeatureStatus.COMPLETED;
+            if (this.completedAt == null) {
+                this.completedAt = LocalDateTime.now(ZoneOffset.UTC);
+            }
+        } else {
+            this.status = FeatureStatus.ACTIVE;
+            this.completedAt = null;
         }
     }
 

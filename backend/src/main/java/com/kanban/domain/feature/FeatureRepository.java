@@ -5,7 +5,9 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface FeatureRepository extends JpaRepository<Feature, String> {
 
@@ -31,7 +33,7 @@ public interface FeatureRepository extends JpaRepository<Feature, String> {
     int countByBoardId(String boardId);
 
     @Modifying
-    @Query("DELETE FROM Feature f WHERE f.board.id = :boardId")
+    @Query(value = "DELETE FROM features WHERE board_id = :boardId", nativeQuery = true)
     void deleteByBoardId(@Param("boardId") String boardId);
 
     @Modifying
@@ -41,6 +43,17 @@ public interface FeatureRepository extends JpaRepository<Feature, String> {
     @Modifying
     @Query("UPDATE Feature f SET f.createdBy = null WHERE f.createdBy.id = :userId")
     void nullifyCreatedByUserId(@Param("userId") String userId);
+
+    // ==================== Soft-delete / Trash Queries (native to bypass @SQLRestriction) ====================
+
+    @Query(value = "SELECT * FROM features WHERE board_id = :boardId AND deleted_at IS NOT NULL ORDER BY deleted_at DESC", nativeQuery = true)
+    List<Feature> findDeletedByBoardId(@Param("boardId") String boardId);
+
+    @Query(value = "SELECT * FROM features WHERE id = :id", nativeQuery = true)
+    Optional<Feature> findByIdIncludingDeleted(@Param("id") String id);
+
+    @Query(value = "SELECT * FROM features WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff", nativeQuery = true)
+    List<Feature> findExpiredSoftDeleted(@Param("cutoff") LocalDateTime cutoff);
 
     // ==================== Organization Insights Queries ====================
 

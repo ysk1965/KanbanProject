@@ -5,6 +5,7 @@ public enum BoardEventType {
     FEATURE_CREATED,
     FEATURE_UPDATED,
     FEATURE_DELETED,
+    FEATURE_RESTORED,
     FEATURES_REORDERED,
 
     // Task events
@@ -12,6 +13,7 @@ public enum BoardEventType {
     TASK_UPDATED,
     TASK_DELETED,
     TASK_MOVED,
+    TASK_RESTORED,
 
     // Block events
     BLOCK_CREATED,
@@ -30,6 +32,7 @@ public enum BoardEventType {
     CHECKLIST_CREATED,
     CHECKLIST_UPDATED,
     CHECKLIST_DELETED,
+    CHECKLIST_RESTORED,
     CHECKLIST_TOGGLED,
 
     // Board events

@@ -209,6 +209,10 @@ public class ChecklistService {
         return response;
     }
 
+    /**
+     * 소프트 삭제: deleted_at 마킹만 함. 자식 데이터 없음.
+     * 영구삭제(스케줄 블록 unlink 등)는 hardDeleteChecklistItem에서 처리.
+     */
     @Transactional
     public void deleteChecklistItem(String boardId, String taskId, String itemId, String userId) {
         boardService.checkMemberOrAbove(boardId, userId);
@@ -227,19 +231,33 @@ public class ChecklistService {
             throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
         }
 
-        // 연관된 데일리 체크리스트 연결 해제
-        dailyChecklistRepository.unlinkByChecklistItemId(itemId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(task.getBoard(), user, ActivityAction.CHECKLIST_DELETED, TargetType.CHECKLIST, itemId,
+                Map.of("title", item.getTitle(), "taskTitle", task.getTitle()));
 
-        // 연관된 스케줄 블록 연결 해제 (타임블럭 업무 기록 보존)
+        item.softDelete(userId, LocalDateTime.now(ZoneOffset.UTC));
+
+        log.info("Checklist item soft-deleted: {} by user: {}", itemId, userId);
+
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_DELETED, userId, user.getName(), Map.of("id", itemId, "task_id", taskId));
+    }
+
+    /**
+     * 영구삭제: 스케줄 블록 / 데일리 체크리스트 연결 해제 후 row 삭제.
+     */
+    @Transactional
+    public void hardDeleteChecklistItem(String boardId, String itemId) {
+        ChecklistItem item = checklistItemRepository.findByIdIncludingDeleted(itemId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
+
+        // 연관된 데일리 체크리스트 / 스케줄 블록 연결 해제 (타임블럭 업무 기록 보존)
+        dailyChecklistRepository.unlinkByChecklistItemId(itemId);
         scheduleBlockRepository.unlinkByChecklistItemId(itemId);
 
         checklistItemRepository.delete(item);
 
-        log.info("Checklist item deleted: {} by user: {}", itemId, userId);
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_DELETED, userId, user.getName(), Map.of("id", itemId, "task_id", taskId));
+        log.info("Checklist item hard-deleted: {}", itemId);
     }
 
     @Transactional

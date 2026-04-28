@@ -8,11 +8,12 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, String> {
 
     @Modifying
-    @Query("DELETE FROM ChecklistItem ci WHERE ci.task.id IN (SELECT t.id FROM Task t WHERE t.board.id = :boardId)")
+    @Query(value = "DELETE FROM checklist_items WHERE task_id IN (SELECT id FROM tasks WHERE board_id = :boardId)", nativeQuery = true)
     void deleteAllByBoardId(@Param("boardId") String boardId);
 
     List<ChecklistItem> findByTaskIdOrderByPositionAsc(String taskId);
@@ -24,7 +25,9 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
 
     int countByTaskIdAndIsCompletedTrue(String taskId);
 
-    void deleteByTaskId(String taskId);
+    @Modifying
+    @Query(value = "DELETE FROM checklist_items WHERE task_id = :taskId", nativeQuery = true)
+    void deleteByTaskId(@Param("taskId") String taskId);
 
     @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId ORDER BY c.task.id, c.position")
     List<ChecklistItem> findByBoardId(@Param("boardId") String boardId);
@@ -115,8 +118,52 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     void nullifyAssigneeByUserId(@Param("userId") String userId);
 
     @Modifying
-    @Query("DELETE FROM ChecklistItem ci WHERE ci.task.feature.id = :featureId")
+    @Query(value = "DELETE FROM checklist_items WHERE task_id IN (SELECT id FROM tasks WHERE feature_id = :featureId)", nativeQuery = true)
     void deleteByFeatureId(@Param("featureId") String featureId);
+
+    // ==================== Soft-delete / Trash Queries (native to bypass @SQLRestriction) ====================
+
+    @Query(value = "SELECT * FROM checklist_items ci WHERE ci.task_id IN (SELECT id FROM tasks WHERE board_id = :boardId) AND ci.deleted_at IS NOT NULL ORDER BY ci.deleted_at DESC", nativeQuery = true)
+    List<ChecklistItem> findDeletedByBoardId(@Param("boardId") String boardId);
+
+    @Query(value = "SELECT * FROM checklist_items WHERE task_id = :taskId AND deleted_at = :deletedAt", nativeQuery = true)
+    List<ChecklistItem> findByTaskIdAndDeletedAt(@Param("taskId") String taskId, @Param("deletedAt") LocalDateTime deletedAt);
+
+    @Query(value = "SELECT * FROM checklist_items WHERE id = :id", nativeQuery = true)
+    Optional<ChecklistItem> findByIdIncludingDeleted(@Param("id") String id);
+
+    @Query(value = "SELECT * FROM checklist_items WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff", nativeQuery = true)
+    List<ChecklistItem> findExpiredSoftDeleted(@Param("cutoff") LocalDateTime cutoff);
+
+    /**
+     * 영구삭제 스케줄러용: ci.id + 해당 task의 board_id를 한 번에 native 조회 (associations 미사용).
+     * Task가 soft-deleted여도 board_id는 정상 반환 (native이라 @SQLRestriction 우회).
+     */
+    @Query(value = "SELECT ci.id, t.board_id FROM checklist_items ci JOIN tasks t ON ci.task_id = t.id " +
+                   "WHERE ci.deleted_at IS NOT NULL AND ci.deleted_at < :cutoff", nativeQuery = true)
+    List<Object[]> findExpiredSoftDeletedWithBoardId(@Param("cutoff") LocalDateTime cutoff);
+
+    @Modifying
+    @Query(value = "UPDATE checklist_items SET deleted_at = :deletedAt, deleted_by = :deletedBy WHERE task_id = :taskId AND deleted_at IS NULL", nativeQuery = true)
+    int softDeleteByTaskId(@Param("taskId") String taskId,
+                           @Param("deletedAt") LocalDateTime deletedAt,
+                           @Param("deletedBy") String deletedBy);
+
+    @Modifying
+    @Query(value = "UPDATE checklist_items SET deleted_at = :deletedAt, deleted_by = :deletedBy WHERE task_id IN (SELECT id FROM tasks WHERE feature_id = :featureId) AND deleted_at IS NULL", nativeQuery = true)
+    int softDeleteByFeatureId(@Param("featureId") String featureId,
+                              @Param("deletedAt") LocalDateTime deletedAt,
+                              @Param("deletedBy") String deletedBy);
+
+    @Modifying
+    @Query(value = "UPDATE checklist_items SET deleted_at = NULL, deleted_by = NULL WHERE task_id = :taskId AND deleted_at = :deletedAt", nativeQuery = true)
+    int restoreByTaskIdAndDeletedAt(@Param("taskId") String taskId,
+                                    @Param("deletedAt") LocalDateTime deletedAt);
+
+    @Modifying
+    @Query(value = "UPDATE checklist_items SET deleted_at = NULL, deleted_by = NULL WHERE task_id IN (SELECT id FROM tasks WHERE feature_id = :featureId) AND deleted_at = :deletedAt", nativeQuery = true)
+    int restoreByFeatureIdAndDeletedAt(@Param("featureId") String featureId,
+                                       @Param("deletedAt") LocalDateTime deletedAt);
 
     // ==================== Schedule Calendar / Resource View Queries ====================
 

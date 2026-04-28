@@ -4075,5 +4075,46 @@
     "statsImpact": "प्रभाव",
     "statsManagement": "प्रबंधन",
     "contextStatistics": "AI विश्लेषण टैब"
+  },
+  "trash": {
+    "title": "ट्रैश",
+    "retentionInfo": "{{days}} दिनों तक रखा गया",
+    "tabs": {
+      "features": "फ़ीचर",
+      "tasks": "कार्य",
+      "checklists": "चेकलिस्ट"
+    },
+    "restore": "पुनर्स्थापित करें",
+    "permanentDelete": "स्थायी रूप से हटाएं",
+    "emptyAll": "ट्रैश खाली करें",
+    "emptyConfirm": "क्या वाकई सब कुछ स्थायी रूप से हटाना है?",
+    "emptyConfirmYes": "सब हटाएं",
+    "confirmPermanent": "स्थायी रूप से हटाएं? इसे पूर्ववत नहीं किया जा सकता।",
+    "daysRemaining": "{{days}} दिन शेष",
+    "loadFailed": "ट्रैश लोड नहीं किया जा सका",
+    "escClose": "Esc से बंद करें",
+    "featureMeta": "{{completed}}/{{total}} कार्य",
+    "unknownFeature": "अज्ञात फ़ीचर",
+    "unknownTask": "अज्ञात कार्य",
+    "parentDeletedFeature": "पैरेंट फ़ीचर हटा दिया गया है। पहले फ़ीचर पुनर्स्थापित करें।",
+    "parentDeletedTask": "पैरेंट कार्य हटा दिया गया है। पहले कार्य पुनर्स्थापित करें।",
+    "empty": {
+      "features": "कोई हटाया गया फ़ीचर नहीं",
+      "tasks": "कोई हटाया गया कार्य नहीं",
+      "checklists": "कोई हटाया गया चेकलिस्ट आइटम नहीं"
+    },
+    "toast": {
+      "featureDeleted": "फ़ीचर \"{{title}}\" हटा दिया गया",
+      "taskDeleted": "कार्य \"{{title}}\" हटा दिया गया",
+      "checklistDeleted": "चेकलिस्ट आइटम \"{{title}}\" हटा दिया गया",
+      "untitledFeature": "हटाया गया फ़ीचर",
+      "undo": "पूर्ववत करें",
+      "restored": "पुनर्स्थापित किया गया",
+      "restoreFailed": "पुनर्स्थापित करने में विफल",
+      "permanentlyDeleted": "स्थायी रूप से हटा दिया गया",
+      "permanentDeleteFailed": "स्थायी रूप से हटाने में विफल",
+      "emptied": "ट्रैश खाली कर दिया गया",
+      "emptyFailed": "ट्रैश खाली करने में विफल"
+    }
   }
 }

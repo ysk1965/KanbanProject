@@ -482,8 +482,6 @@ export function ScheduleResourceView({
       const startDate = item.start_date || item.due_date!;
       const dueDate = item.due_date || item.start_date!;
 
-      wasDraggedRef.current = true;
-
       // Compute cursor's day-column index at mousedown for grid-aligned snapping
       const container = scrollContainerRef.current;
       const containerRect = container?.getBoundingClientRect();
@@ -525,6 +523,7 @@ export function ScheduleResourceView({
         const deltaDays = currentDayIndex - ds.initialCursorDayIndex;
 
         if (deltaDays !== ds.currentDeltaDays) {
+          wasDraggedRef.current = true;
           const updated = { ...ds, currentDeltaDays: deltaDays };
           dragStateRef.current = updated;
           setDragState(updated);
@@ -1110,7 +1109,9 @@ export function ScheduleResourceView({
                           <span
                             className={`truncate flex-1 ${item.completed ? "line-through" : ""}`}
                           >
-                            {item.title}
+                            {item.task
+                              ? `${item.task.title} / ${item.title}`
+                              : item.title}
                           </span>
                           {item.completed && (
                             <CheckCircle2 size={12} className="ml-1 shrink-0" />

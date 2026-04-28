@@ -42,7 +42,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.kanban.domain.feature.FeatureStatus;
 
 import com.kanban.domain.checklist.ChecklistItem;
+import jakarta.persistence.EntityManager;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -75,6 +78,7 @@ public class TaskService {
     private final NotificationRepository notificationRepository;
     private final FileUploadService fileUploadService;
     private final WebSocketEventService webSocketEventService;
+    private final EntityManager entityManager;
 
     public TaskResponse.ListResponse getTasks(String boardId, String userId, String blockId, String featureId, String milestoneId) {
         boardService.checkViewerOrAbove(boardId, userId);
@@ -243,6 +247,10 @@ public class TaskService {
         return response;
     }
 
+    /**
+     * 소프트 삭제: Task와 자식 ChecklistItem에 동일 timestamp의 deleted_at을 마킹.
+     * 자식 데이터(댓글/첨부/스케줄/태그)는 그대로 유지 → 휴지통에서 복구 시 함께 살아남.
+     */
     @Transactional
     public void deleteTask(String boardId, String taskId, String userId) {
         boardService.checkMemberOrAbove(boardId, userId);
@@ -256,36 +264,68 @@ public class TaskService {
 
         Feature feature = task.getFeature();
 
-        // 활동 로그 기록 (삭제 전에 기록)
+        // 활동 로그 기록
         String taskTitle = task.getTitle();
         User deleter = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         activityService.logActivity(task.getBoard(), deleter, ActivityAction.TASK_DELETED, TargetType.TASK, taskId,
                 Map.of("taskTitle", taskTitle, "featureTitle", feature.getTitle()));
 
-        // 완료된 Task였으면 completedTasks 감소
+        // Feature 카운터 감소 (복구 시 increment 되돌림)
         if (task.getIsCompleted()) {
             feature.decrementCompletedTasks();
         }
-        // totalTasks 감소
         feature.decrementTotalTasks();
 
-        // 관련 데이터 삭제 (FK 의존성 순서: leaf → parent)
-        // 1) 알림 (task_id는 VARCHAR 참조이지만 orphan 방지)
+        // 부모-자식 timestamp 통일
+        LocalDateTime deletedAt = LocalDateTime.now(ZoneOffset.UTC);
+
+        // 1) 자식 ChecklistItem 일괄 소프트 삭제
+        checklistItemRepository.softDeleteByTaskId(taskId, deletedAt, userId);
+
+        // 2) Task 자체 소프트 삭제
+        task.softDelete(userId, deletedAt);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        log.info("Task soft-deleted: {} by user: {}", taskId, userId);
+
+        // Feature가 영속화 컨텍스트에서 분리됐을 수 있으므로 재조회 후 summary
+        Feature freshFeature = featureRepository.findById(feature.getId())
+                .orElse(feature);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.TASK_DELETED, userId, deleter.getName(),
+                Map.of("id", taskId, "feature", buildFeatureSummary(freshFeature)));
+    }
+
+    /**
+     * 영구삭제: 자식 데이터(댓글/첨부/S3/스케줄/태그/체크리스트) 전부 정리 후 Task row 삭제.
+     * soft-deleted 상태든 활성 상태든 동작.
+     */
+    @Transactional
+    public void hardDeleteTask(String boardId, String taskId) {
+        Task task = taskRepository.findByIdIncludingDeleted(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        if (!task.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+
+        // 1) 알림
         notificationRepository.deleteByTaskId(taskId);
 
-        // 2) 스케줄/데일리 (checklist_item_id FK)
+        // 2) 스케줄/데일리
         scheduleBlockRepository.unlinkByTaskId(taskId);
         dailyChecklistRepository.deleteByTaskId(taskId);
 
-        // 3) 체크리스트 아이템
+        // 3) 체크리스트 (native: deleted 포함)
         checklistItemRepository.deleteByTaskId(taskId);
 
-        // 4) 태그 연결, 가중치
+        // 4) 태그/가중치
         taskTagRepository.deleteByTaskId(taskId);
         taskWeightRepository.deleteByTaskId(taskId);
 
-        // 5) 댓글 첨부파일 S3 삭제 → 댓글 첨부파일 DB 삭제 → 댓글 삭제
+        // 5) 댓글 첨부파일 S3 → DB → 댓글
         List<CommentAttachment> attachments = commentAttachmentRepository.findByTaskId(taskId);
         for (CommentAttachment attachment : attachments) {
             fileUploadService.delete(attachment.getS3Key());
@@ -293,13 +333,10 @@ public class TaskService {
         commentAttachmentRepository.deleteByTaskId(taskId);
         commentRepository.deleteByTaskId(taskId);
 
-        // 6) Task 삭제
+        // 6) Task row 삭제
         taskRepository.delete(task);
 
-        log.info("Task deleted: {} by user: {}", taskId, userId);
-
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.TASK_DELETED, userId, deleter.getName(),
-                Map.of("id", taskId, "feature", buildFeatureSummary(feature)));
+        log.info("Task hard-deleted: {}", taskId);
     }
 
     @Transactional
