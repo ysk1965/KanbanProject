@@ -4075,5 +4075,46 @@
     "statsImpact": "Impacto",
     "statsManagement": "Gestão",
     "contextStatistics": "Aba Análise IA"
+  },
+  "trash": {
+    "title": "Lixeira",
+    "retentionInfo": "Mantido por {{days}} dias",
+    "tabs": {
+      "features": "Funcionalidades",
+      "tasks": "Tarefas",
+      "checklists": "Checklists"
+    },
+    "restore": "Restaurar",
+    "permanentDelete": "Excluir permanentemente",
+    "emptyAll": "Esvaziar lixeira",
+    "emptyConfirm": "Excluir tudo permanentemente?",
+    "emptyConfirmYes": "Esvaziar tudo",
+    "confirmPermanent": "Excluir permanentemente? Não pode ser desfeito.",
+    "daysRemaining": "{{days}} dias restantes",
+    "loadFailed": "Falha ao carregar a lixeira",
+    "escClose": "Esc para fechar",
+    "featureMeta": "{{completed}}/{{total}} tarefas",
+    "unknownFeature": "Funcionalidade desconhecida",
+    "unknownTask": "Tarefa desconhecida",
+    "parentDeletedFeature": "A funcionalidade pai foi excluída. Restaure-a primeiro.",
+    "parentDeletedTask": "A tarefa pai foi excluída. Restaure-a primeiro.",
+    "empty": {
+      "features": "Nenhuma funcionalidade excluída",
+      "tasks": "Nenhuma tarefa excluída",
+      "checklists": "Nenhum item de checklist excluído"
+    },
+    "toast": {
+      "featureDeleted": "Funcionalidade \"{{title}}\" excluída",
+      "taskDeleted": "Tarefa \"{{title}}\" excluída",
+      "checklistDeleted": "Item de checklist \"{{title}}\" excluído",
+      "untitledFeature": "Funcionalidade excluída",
+      "undo": "Desfazer",
+      "restored": "Restaurado",
+      "restoreFailed": "Falha ao restaurar",
+      "permanentlyDeleted": "Excluído permanentemente",
+      "permanentDeleteFailed": "Falha ao excluir permanentemente",
+      "emptied": "Lixeira esvaziada",
+      "emptyFailed": "Falha ao esvaziar a lixeira"
+    }
   }
 }

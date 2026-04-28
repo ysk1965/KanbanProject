@@ -4566,5 +4566,46 @@
     "statsImpact": "ผลกระทบ",
     "statsManagement": "การจัดการ",
     "contextStatistics": "แท็บวิเคราะห์ AI"
+  },
+  "trash": {
+    "title": "ถังขยะ",
+    "retentionInfo": "เก็บไว้ {{days}} วัน",
+    "tabs": {
+      "features": "ฟีเจอร์",
+      "tasks": "งาน",
+      "checklists": "เช็คลิสต์"
+    },
+    "restore": "กู้คืน",
+    "permanentDelete": "ลบถาวร",
+    "emptyAll": "เทถังขยะ",
+    "emptyConfirm": "ลบทั้งหมดอย่างถาวร?",
+    "emptyConfirmYes": "ลบทั้งหมด",
+    "confirmPermanent": "ลบถาวร? ไม่สามารถกู้คืนได้",
+    "daysRemaining": "เหลือ {{days}} วัน",
+    "loadFailed": "ไม่สามารถโหลดถังขยะ",
+    "escClose": "Esc ปิด",
+    "featureMeta": "{{completed}}/{{total}} งาน",
+    "unknownFeature": "ฟีเจอร์ไม่ทราบ",
+    "unknownTask": "งานไม่ทราบ",
+    "parentDeletedFeature": "ฟีเจอร์แม่ถูกลบ กรุณากู้คืนฟีเจอร์ก่อน",
+    "parentDeletedTask": "งานแม่ถูกลบ กรุณากู้คืนงานก่อน",
+    "empty": {
+      "features": "ไม่มีฟีเจอร์ที่ถูกลบ",
+      "tasks": "ไม่มีงานที่ถูกลบ",
+      "checklists": "ไม่มีรายการเช็คลิสต์ที่ถูกลบ"
+    },
+    "toast": {
+      "featureDeleted": "ลบฟีเจอร์ \"{{title}}\" แล้ว",
+      "taskDeleted": "ลบงาน \"{{title}}\" แล้ว",
+      "checklistDeleted": "ลบรายการเช็คลิสต์ \"{{title}}\" แล้ว",
+      "untitledFeature": "ฟีเจอร์ที่ถูกลบ",
+      "undo": "เลิกทำ",
+      "restored": "กู้คืนแล้ว",
+      "restoreFailed": "กู้คืนล้มเหลว",
+      "permanentlyDeleted": "ลบถาวรแล้ว",
+      "permanentDeleteFailed": "ลบถาวรล้มเหลว",
+      "emptied": "เทถังขยะแล้ว",
+      "emptyFailed": "เทถังขยะล้มเหลว"
+    }
   }
 }

@@ -4,6 +4,7 @@ import com.kanban.domain.task.Task;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -11,6 +12,7 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
+@SQLRestriction("deleted_at IS NULL")
 @Table(name = "checklist_items", indexes = {
     @Index(name = "idx_checklist_task_id", columnList = "task_id"),
     @Index(name = "idx_checklist_assignee_id", columnList = "assignee_id"),
@@ -60,6 +62,12 @@ public class ChecklistItem {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "deleted_by", length = 36)
+    private String deletedBy;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -68,6 +76,20 @@ public class ChecklistItem {
         if (this.createdAt == null) {
             this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
         }
+    }
+
+    public void softDelete(String userId, LocalDateTime when) {
+        this.deletedAt = when;
+        this.deletedBy = userId;
+    }
+
+    public void restore() {
+        this.deletedAt = null;
+        this.deletedBy = null;
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 
     public void updateInfo(String title, LocalDate startDate, LocalDate dueDate) {

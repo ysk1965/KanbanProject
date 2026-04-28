@@ -7,6 +7,7 @@ import com.kanban.domain.feature.Feature;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
+@SQLRestriction("deleted_at IS NULL")
 @Table(name = "tasks", indexes = {
     @Index(name = "idx_task_board_id", columnList = "board_id"),
     @Index(name = "idx_task_feature_id", columnList = "feature_id"),
@@ -79,11 +81,31 @@ public class Task extends BaseTimeEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "deleted_by", length = 36)
+    private String deletedBy;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
             this.id = UUID.randomUUID().toString();
         }
+    }
+
+    public void softDelete(String userId, LocalDateTime when) {
+        this.deletedAt = when;
+        this.deletedBy = userId;
+    }
+
+    public void restore() {
+        this.deletedAt = null;
+        this.deletedBy = null;
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 
     public void updateInfo(String title, String description, LocalDate startDate, LocalDate dueDate, Integer estimatedMinutes) {

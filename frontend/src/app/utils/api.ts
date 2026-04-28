@@ -7852,3 +7852,46 @@ export const planningAPI = {
   reorder: (boardId: string, data: PlanningReorderRequest): Promise<void> =>
     apiClient.put<void>(`/boards/${boardId}/planning-cards/reorder`, data),
 };
+
+// ========================================
+// Trash API (휴지통)
+// ========================================
+
+import type { TrashListResponse } from "../types";
+
+export const trashAPI = {
+  list: (boardId: string): Promise<TrashListResponse> =>
+    apiClient.get<TrashListResponse>(`/boards/${boardId}/trash`),
+
+  restoreFeature: (boardId: string, featureId: string): Promise<void> =>
+    apiClient.post<void>(
+      `/boards/${boardId}/trash/features/${featureId}/restore`,
+      {},
+    ),
+
+  restoreTask: (boardId: string, taskId: string): Promise<void> =>
+    apiClient.post<void>(
+      `/boards/${boardId}/trash/tasks/${taskId}/restore`,
+      {},
+    ),
+
+  restoreChecklistItem: (boardId: string, itemId: string): Promise<void> =>
+    apiClient.post<void>(
+      `/boards/${boardId}/trash/checklist-items/${itemId}/restore`,
+      {},
+    ),
+
+  permanentlyDeleteFeature: (boardId: string, featureId: string): Promise<void> =>
+    apiClient.delete<void>(`/boards/${boardId}/trash/features/${featureId}`),
+
+  permanentlyDeleteTask: (boardId: string, taskId: string): Promise<void> =>
+    apiClient.delete<void>(`/boards/${boardId}/trash/tasks/${taskId}`),
+
+  permanentlyDeleteChecklistItem: (boardId: string, itemId: string): Promise<void> =>
+    apiClient.delete<void>(
+      `/boards/${boardId}/trash/checklist-items/${itemId}`,
+    ),
+
+  emptyTrash: (boardId: string): Promise<void> =>
+    apiClient.delete<void>(`/boards/${boardId}/trash`),
+};

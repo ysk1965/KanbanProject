@@ -1643,11 +1643,13 @@ export type BoardEventType =
   | "FEATURE_CREATED"
   | "FEATURE_UPDATED"
   | "FEATURE_DELETED"
+  | "FEATURE_RESTORED"
   | "FEATURES_REORDERED"
   | "TASK_CREATED"
   | "TASK_UPDATED"
   | "TASK_DELETED"
   | "TASK_MOVED"
+  | "TASK_RESTORED"
   | "BLOCK_CREATED"
   | "BLOCK_UPDATED"
   | "BLOCK_DELETED"
@@ -1659,6 +1661,7 @@ export type BoardEventType =
   | "CHECKLIST_CREATED"
   | "CHECKLIST_UPDATED"
   | "CHECKLIST_DELETED"
+  | "CHECKLIST_RESTORED"
   | "CHECKLIST_TOGGLED"
   | "SCHEDULE_CREATED"
   | "SCHEDULE_UPDATED"
@@ -3462,4 +3465,45 @@ export interface SharedPhotoPage {
   next_cursor: string | null;
   has_next: boolean;
   total_count: number;
+}
+
+// ========================================
+// Trash (휴지통)
+// ========================================
+
+export interface TrashFeatureItem {
+  id: string;
+  title: string;
+  description: string | null;
+  total_tasks: number;
+  completed_tasks: number;
+  deleted_at: string;
+  deleted_by: string | null;
+}
+
+export interface TrashTaskItem {
+  id: string;
+  title: string;
+  feature_id: string | null;
+  feature_title: string | null;
+  deleted_at: string;
+  deleted_by: string | null;
+  part_of_deleted_feature: boolean;
+}
+
+export interface TrashChecklistItemEntry {
+  id: string;
+  title: string;
+  task_id: string | null;
+  task_title: string | null;
+  deleted_at: string;
+  deleted_by: string | null;
+  part_of_deleted_parent: boolean;
+}
+
+export interface TrashListResponse {
+  features: TrashFeatureItem[];
+  tasks: TrashTaskItem[];
+  checklist_items: TrashChecklistItemEntry[];
+  retention_days: number;
 }
