@@ -210,6 +210,87 @@ public class ChecklistService {
     }
 
     /**
+     * 부분 업데이트(PATCH): 요청에 포함된 필드만 갱신한다.
+     * <p>
+     * - 필드 미전송 → 기존 값 보존
+     * - 필드 명시적 null → 해당 필드 클리어 (담당자 해제, 일정 삭제 등)
+     * <p>
+     * 동시에 담당자 + 일정을 부분 갱신할 때 한쪽이 사라지는 버그를 방지하기 위해 도입.
+     */
+    @Transactional
+    public ChecklistResponse.Detail patchChecklistItem(String boardId, String taskId, String itemId, String userId, ChecklistRequest.Patch request, String originUrl) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        if (!task.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+
+        ChecklistItem item = checklistItemRepository.findById(itemId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
+
+        if (!item.getTask().getId().equals(taskId)) {
+            throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
+        }
+
+        String oldAssigneeId = item.getAssignee() != null ? item.getAssignee().getId() : null;
+
+        if (request.hasTitle() && request.getTitle() != null) {
+            item.updateTitle(request.getTitle());
+        }
+        if (request.hasStartDate()) {
+            item.updateStartDate(request.getStartDate());
+        }
+        if (request.hasDueDate()) {
+            item.updateDueDate(request.getDueDate());
+        }
+
+        boolean assigneeNewlyAssigned = false;
+        if (request.hasAssigneeId()) {
+            String newAssigneeId = request.getAssigneeId();
+            if (newAssigneeId != null) {
+                User assignee = userRepository.findById(newAssigneeId)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                item.updateAssignee(assignee);
+                assigneeNewlyAssigned = !newAssigneeId.equals(oldAssigneeId);
+            } else if (oldAssigneeId != null) {
+                item.updateAssignee(null);
+            }
+        }
+
+        if (assigneeNewlyAssigned) {
+            User assigner = userRepository.findById(userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            final ChecklistItem savedItem = item;
+            final User savedAssigner = assigner;
+            final Board savedBoard = task.getBoard();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        notificationService.createChecklistAssignedNotification(savedItem, savedAssigner, savedBoard);
+                    } catch (Exception e) {
+                        log.warn("Failed to create checklist assigned notification for item: {}", savedItem.getId(), e);
+                    }
+                    slackNotificationService.sendChecklistAssignedNotification(savedItem, savedAssigner, savedBoard, originUrl);
+                    discordNotificationService.sendChecklistAssignedNotification(savedItem, savedAssigner, savedBoard, originUrl);
+                }
+            });
+        }
+
+        log.info("Checklist item patched: {} by user: {}", itemId, userId);
+
+        ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, userId, user.getName(),
+                Map.of("task_id", taskId, "item", response));
+        return response;
+    }
+
+    /**
      * 소프트 삭제: deleted_at 마킹만 함. 자식 데이터 없음.
      * 영구삭제(스케줄 블록 unlink 등)는 hardDeleteChecklistItem에서 처리.
      */

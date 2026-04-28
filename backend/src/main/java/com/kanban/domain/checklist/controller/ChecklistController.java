@@ -64,6 +64,26 @@ public class ChecklistController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * 부분 업데이트(PATCH).
+     * 요청 body에 포함된 필드만 갱신하며, 명시적 null은 해당 필드 클리어로 동작한다.
+     * 담당자 + 일정 동시 부분 변경 시 한쪽이 null로 덮어써지는 버그를 방지한다.
+     */
+    @PatchMapping("/{itemId}")
+    public ResponseEntity<ChecklistResponse.Detail> patchChecklistItem(
+            @PathVariable String boardId,
+            @PathVariable String taskId,
+            @PathVariable String itemId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody ChecklistRequest.Patch request,
+            @RequestHeader(value = "Origin", required = false) String origin,
+            HttpServletRequest httpRequest) {
+        String resolvedOrigin = FrontendOriginResolver.resolveFrontendUrl(
+                origin, httpRequest.getHeader("X-Forwarded-Host"), null);
+        ChecklistResponse.Detail response = checklistService.patchChecklistItem(boardId, taskId, itemId, principal.getUserId(), request, resolvedOrigin);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{itemId}")
     public ResponseEntity<Map<String, String>> deleteChecklistItem(
             @PathVariable String boardId,
