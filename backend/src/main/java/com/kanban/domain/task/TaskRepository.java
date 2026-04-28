@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<Task, String> {
 
@@ -145,12 +146,43 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     List<Task> findOverdueTasksByBoardIds(@Param("boardIds") List<String> boardIds);
 
     @Modifying
-    @Query("DELETE FROM Task t WHERE t.board.id = :boardId")
+    @Query(value = "DELETE FROM tasks WHERE board_id = :boardId", nativeQuery = true)
     void deleteByBoardId(@Param("boardId") String boardId);
 
     @Modifying
-    @Query("DELETE FROM Task t WHERE t.feature.id = :featureId")
+    @Query(value = "DELETE FROM tasks WHERE feature_id = :featureId", nativeQuery = true)
     void deleteByFeatureId(@Param("featureId") String featureId);
+
+    // ==================== Soft-delete / Trash Queries (native to bypass @SQLRestriction) ====================
+
+    @Query(value = "SELECT * FROM tasks WHERE board_id = :boardId AND deleted_at IS NOT NULL ORDER BY deleted_at DESC", nativeQuery = true)
+    List<Task> findDeletedByBoardId(@Param("boardId") String boardId);
+
+    @Query(value = "SELECT * FROM tasks WHERE feature_id = :featureId AND deleted_at = :deletedAt", nativeQuery = true)
+    List<Task> findByFeatureIdAndDeletedAt(@Param("featureId") String featureId, @Param("deletedAt") LocalDateTime deletedAt);
+
+    @Query(value = "SELECT * FROM tasks WHERE id = :id", nativeQuery = true)
+    Optional<Task> findByIdIncludingDeleted(@Param("id") String id);
+
+    @Query(value = "SELECT * FROM tasks WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff", nativeQuery = true)
+    List<Task> findExpiredSoftDeleted(@Param("cutoff") LocalDateTime cutoff);
+
+    @Query(value = "SELECT id FROM tasks WHERE feature_id = :featureId AND deleted_at IS NULL", nativeQuery = true)
+    List<String> findActiveIdsByFeatureId(@Param("featureId") String featureId);
+
+    @Query(value = "SELECT id FROM tasks WHERE feature_id = :featureId", nativeQuery = true)
+    List<String> findAllIdsByFeatureIdIncludingDeleted(@Param("featureId") String featureId);
+
+    @Modifying
+    @Query(value = "UPDATE tasks SET deleted_at = :deletedAt, deleted_by = :deletedBy WHERE feature_id = :featureId AND deleted_at IS NULL", nativeQuery = true)
+    int softDeleteByFeatureId(@Param("featureId") String featureId,
+                              @Param("deletedAt") LocalDateTime deletedAt,
+                              @Param("deletedBy") String deletedBy);
+
+    @Modifying
+    @Query(value = "UPDATE tasks SET deleted_at = NULL, deleted_by = NULL WHERE feature_id = :featureId AND deleted_at = :deletedAt", nativeQuery = true)
+    int restoreByFeatureIdAndDeletedAt(@Param("featureId") String featureId,
+                                       @Param("deletedAt") LocalDateTime deletedAt);
 
     @Modifying
     @Query("UPDATE Task t SET t.createdBy = null WHERE t.createdBy.id = :userId")

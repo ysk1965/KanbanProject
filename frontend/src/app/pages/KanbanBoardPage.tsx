@@ -166,6 +166,7 @@ const SchedulePlanningView = lazyWithRetry(
 import type { PanelDragState } from "../components/schedule/ChecklistItemPanel";
 import { EmptyBoardGuide } from "../components/EmptyBoardGuide";
 import { QuickAddTaskModal } from "../components/QuickAddTaskModal";
+import { BoardTrashView } from "../components/trash/BoardTrashView";
 import {
   boardService,
   featureService,
@@ -188,7 +189,9 @@ import {
   scheduleAPI,
   boardJoinRequestAPI,
   milestoneBlockAPI,
+  trashAPI,
 } from "../utils/api";
+import { toast } from "sonner";
 
 import { useTranslation } from "react-i18next";
 import { getRandomFeatureColor } from "../constants";
@@ -322,7 +325,8 @@ export function KanbanBoardPage() {
   type ScheduleSubTab = "timeblock" | "calendar" | "resource" | "planning";
   const getScheduleSubTab = (): ScheduleSubTab => {
     const saved = localStorage.getItem(`scheduleSubTab_${boardId}`);
-    if (saved === "calendar" || saved === "resource" || saved === "planning") return saved;
+    if (saved === "calendar" || saved === "resource" || saved === "planning")
+      return saved;
     return "timeblock";
   };
 
@@ -533,6 +537,7 @@ export function KanbanBoardPage() {
   const [editingBlock, setEditingBlock] = useState<Block | null>(null);
   const [isAddFeatureModalOpen, setIsAddFeatureModalOpen] = useState(false);
   const [isShareBoardModalOpen, setIsShareBoardModalOpen] = useState(false);
+  const [isTrashOpen, setIsTrashOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [isPremiumBenefitsModalOpen, setIsPremiumBenefitsModalOpen] =
     useState(false);
@@ -922,11 +927,14 @@ export function KanbanBoardPage() {
         setBlocks((prev) => {
           if (prev.some((b) => b.id === block.id)) return prev;
           // Done 블록 position을 새 블록 뒤로 밀어서 순서 보장
-          return [...prev.map((b) =>
-            b.fixed_type === 'DONE' && b.position <= block.position
-              ? { ...b, position: block.position + 1 }
-              : b
-          ), block];
+          return [
+            ...prev.map((b) =>
+              b.fixed_type === "DONE" && b.position <= block.position
+                ? { ...b, position: block.position + 1 }
+                : b,
+            ),
+            block,
+          ];
         });
         break;
       }
@@ -942,7 +950,11 @@ export function KanbanBoardPage() {
       }
       case "BLOCKS_REORDERED": {
         const currentMilestone = milestoneIdRef.current;
-        if (currentMilestone && currentMilestone !== "all" && currentMilestone !== "none") {
+        if (
+          currentMilestone &&
+          currentMilestone !== "all" &&
+          currentMilestone !== "none"
+        ) {
           reloadBlocksForMilestone(currentMilestone);
         } else {
           const { blocks: reorderedBlocks } = data as { blocks: Block[] };
@@ -1117,6 +1129,18 @@ export function KanbanBoardPage() {
       case "PLANNING_MILESTONE_REINDEXED":
         setPlanningRefreshKey((k) => k + 1);
         break;
+
+      // Trash restore events — refetch features/tasks/checklists from server
+      case "FEATURE_RESTORED":
+      case "TASK_RESTORED":
+      case "CHECKLIST_RESTORED": {
+        const mid =
+          milestoneIdRef.current && milestoneIdRef.current !== "all"
+            ? milestoneIdRef.current
+            : undefined;
+        reloadFeaturesAndTasks(mid).catch(() => {});
+        break;
+      }
 
       default:
         break;
@@ -1756,12 +1780,18 @@ export function KanbanBoardPage() {
 
   const reloadBlocksForMilestone = async (overrideMilestoneId?: string) => {
     if (!boardId) return;
-    const effectiveMilestoneId = overrideMilestoneId ?? kanbanSelectedMilestoneId;
+    const effectiveMilestoneId =
+      overrideMilestoneId ?? kanbanSelectedMilestoneId;
     const reloadMilestoneId =
-      effectiveMilestoneId && effectiveMilestoneId !== "all" && effectiveMilestoneId !== "none"
+      effectiveMilestoneId &&
+      effectiveMilestoneId !== "all" &&
+      effectiveMilestoneId !== "none"
         ? effectiveMilestoneId
         : undefined;
-    const blockResult = await blockService.getBlocksWithHidden(boardId, reloadMilestoneId);
+    const blockResult = await blockService.getBlocksWithHidden(
+      boardId,
+      reloadMilestoneId,
+    );
     setBlocks(blockResult.blocks);
     setHiddenBlocks(blockResult.hiddenBlocks);
   };
@@ -1816,22 +1846,25 @@ export function KanbanBoardPage() {
     const visibleOrder = newVisibleOrder.map((b) => b.id);
     const visibleSet = new Set(visibleOrder);
 
-    blockService.getBlocks(boardId).then((allBlocks) => {
-      const reorderIds: string[] = [];
-      let visibleIdx = 0;
-      for (const block of allBlocks) {
-        if (visibleSet.has(block.id)) {
-          reorderIds.push(visibleOrder[visibleIdx++]);
-        } else {
-          reorderIds.push(block.id);
+    blockService
+      .getBlocks(boardId)
+      .then((allBlocks) => {
+        const reorderIds: string[] = [];
+        let visibleIdx = 0;
+        for (const block of allBlocks) {
+          if (visibleSet.has(block.id)) {
+            reorderIds.push(visibleOrder[visibleIdx++]);
+          } else {
+            reorderIds.push(block.id);
+          }
         }
-      }
-      blockService.reorderBlocks(boardId, reorderIds).catch((error) => {
-        console.error("Failed to reorder blocks:", error);
+        blockService.reorderBlocks(boardId, reorderIds).catch((error) => {
+          console.error("Failed to reorder blocks:", error);
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to load all blocks for reorder:", error);
       });
-    }).catch((error) => {
-      console.error("Failed to load all blocks for reorder:", error);
-    });
   };
 
   const handleMoveBlock = (blockId: string, direction: "left" | "right") => {
@@ -2055,8 +2088,39 @@ export function KanbanBoardPage() {
     setIsFeatureModalOpen(false);
     setSelectedFeature(null);
 
+    const deletedFeature = features.find((f) => f.id === featureId);
+    const deletedTitle =
+      deletedFeature?.title ?? t("trash.toast.untitledFeature", "삭제된 피처");
+
     try {
       await featureService.deleteFeature(boardId, featureId, taskMigrations);
+      toast(
+        t("trash.toast.featureDeleted", '"{{title}}" 피처를 삭제했습니다', {
+          title: deletedTitle,
+        }),
+        {
+          duration: 8000,
+          action: {
+            label: t("trash.toast.undo", "되돌리기"),
+            onClick: async () => {
+              try {
+                await trashAPI.restoreFeature(boardId, featureId);
+                const mid =
+                  milestoneIdRef.current && milestoneIdRef.current !== "all"
+                    ? milestoneIdRef.current
+                    : undefined;
+                await reloadFeaturesAndTasks(mid);
+                toast.success(t("trash.toast.restored", "복구되었습니다"));
+              } catch (e) {
+                console.error("Failed to restore feature:", e);
+                toast.error(
+                  t("trash.toast.restoreFailed", "복구에 실패했습니다"),
+                );
+              }
+            },
+          },
+        },
+      );
     } catch (error) {
       console.error("Failed to delete feature:", error);
     }
@@ -2253,8 +2317,37 @@ export function KanbanBoardPage() {
     setIsTaskModalOpen(false);
     setSelectedTask(null);
 
+    const deletedTitle = task.title;
+
     try {
       await taskService.deleteTask(boardId, taskId);
+      toast(
+        t("trash.toast.taskDeleted", '"{{title}}" 태스크를 삭제했습니다', {
+          title: deletedTitle,
+        }),
+        {
+          duration: 8000,
+          action: {
+            label: t("trash.toast.undo", "되돌리기"),
+            onClick: async () => {
+              try {
+                await trashAPI.restoreTask(boardId, taskId);
+                const mid =
+                  milestoneIdRef.current && milestoneIdRef.current !== "all"
+                    ? milestoneIdRef.current
+                    : undefined;
+                await reloadFeaturesAndTasks(mid);
+                toast.success(t("trash.toast.restored", "복구되었습니다"));
+              } catch (e) {
+                console.error("Failed to restore task:", e);
+                toast.error(
+                  t("trash.toast.restoreFailed", "복구에 실패했습니다"),
+                );
+              }
+            },
+          },
+        },
+      );
     } catch (error) {
       console.error("Failed to delete task:", error);
     }
@@ -2792,6 +2885,7 @@ export function KanbanBoardPage() {
           unreadInquiryCount={unreadInquiryCount}
           onOpenInquiry={() => setIsInquiryModalOpen(true)}
           onOpenShareBoard={() => setIsShareBoardModalOpen(true)}
+          onOpenTrash={() => setIsTrashOpen(true)}
           onOpenSubscription={() => {
             if (!hideBilling) setIsSubscriptionModalOpen(true);
           }}
@@ -3632,11 +3726,16 @@ export function KanbanBoardPage() {
                 >
                   <SchedulePlanningView
                     boardId={boardId || ""}
-                    currentUser={{ id: currentUser?.id || "", name: currentUser?.name || "" }}
+                    currentUser={{
+                      id: currentUser?.id || "",
+                      name: currentUser?.name || "",
+                    }}
                     canEdit={canEdit}
                     memberColorMap={memberColorMap}
                     onMilestoneClick={(milestoneId) => {
-                      const milestone = milestones.find((m) => m.id === milestoneId);
+                      const milestone = milestones.find(
+                        (m) => m.id === milestoneId,
+                      );
                       handleOpenMilestoneWithCheck(milestone);
                     }}
                     language={i18n.language}
@@ -3908,6 +4007,22 @@ export function KanbanBoardPage() {
           onSubmit={handleQuickAddTask}
           isSubmitting={isQuickAddSubmitting}
         />
+
+        {/* 휴지통 */}
+        {boardId && (
+          <BoardTrashView
+            open={isTrashOpen}
+            onClose={() => setIsTrashOpen(false)}
+            boardId={boardId}
+            onRestored={() => {
+              const mid =
+                milestoneIdRef.current && milestoneIdRef.current !== "all"
+                  ? milestoneIdRef.current
+                  : undefined;
+              reloadFeaturesAndTasks(mid).catch(() => {});
+            }}
+          />
+        )}
 
         {/* 모달들 */}
         <BoardModalManager

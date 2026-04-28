@@ -27,6 +27,7 @@ import {
   X,
 } from 'lucide-react';
 import { IconButton } from '../ui/IconButton';
+import { PoolCardEditPopover } from './PoolCardEditPopover';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { getAssigneeHex, getInitials } from '../../utils/assigneeColor';
 import { planningService } from '../../utils/services';
@@ -237,7 +238,7 @@ function statusCellRingClass(status: PlanningCardStatus): string {
 // Local types
 // =============================================================================
 
-type MemberLite = {
+export type MemberLite = {
   id: string;
   name: string;
   profile_image: string | null;
@@ -289,6 +290,7 @@ export function SchedulePlanningView({
   const { t } = useTranslation();
   const reducedMotion = useReducedMotion();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const todayRowRef = useRef<HTMLDivElement>(null);
 
   // ─── Data state ───
   const [data, setData] = useState<PlanningListResponse | null>(null);
@@ -475,6 +477,21 @@ export function SchedulePlanningView({
   const scrollToToday = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container || todayWeekIndex < 0) return;
+    const rowEl = todayRowRef.current;
+    if (rowEl) {
+      // Variable row heights → use the actual element's offset rather than
+      // an index × ROW_MIN_HEIGHT estimate (which drifts when cells expand).
+      const rowOffset = rowEl.offsetTop;
+      const rowHeight = rowEl.offsetHeight;
+      const top =
+        rowOffset - container.clientHeight / 2 + rowHeight / 2;
+      container.scrollTo({
+        top: Math.max(0, top),
+        behavior: reducedMotion ? 'auto' : 'smooth',
+      });
+      return;
+    }
+    // Fallback: rough estimate using min row height.
     const top =
       MEMBER_HEADER_HEIGHT +
       todayWeekIndex * ROW_MIN_HEIGHT -
@@ -722,6 +739,22 @@ export function SchedulePlanningView({
     [boardId, canEdit, fetchData, onRefresh, t],
   );
 
+  // ─── Move (assignee / week change via popover) ───
+  const handleCardMove = useCallback(
+    async (card: PlanningCard, moveReq: PlanningCardMoveRequest) => {
+      if (!canEdit) return;
+      try {
+        await planningService.move(boardId, card.id, moveReq);
+        await fetchData(true);
+        onRefresh?.();
+      } catch (err) {
+        console.warn('Failed to move planning card', err);
+        toast.error(t('schedule.planning.error.placeFailed', 'Failed to move card'));
+      }
+    },
+    [boardId, canEdit, fetchData, onRefresh, t],
+  );
+
   // ─── Empty-cell click: focus pool input and set pending placement ───
   const handleEmptyCellClick = useCallback(
     (memberId: string, weekStart: string) => {
@@ -733,12 +766,14 @@ export function SchedulePlanningView({
     [canEdit],
   );
 
-  // ─── Milestone bar positions (vertical lane on the left) ───
+  // ─── Milestone bar week-row spans (vertical lane on the left) ───
+  // Indices are 0-based within `weeks`. Renderers convert to grid-row coordinates
+  // by adding 2 (row 1 = header, rows 2..N+1 = weeks).
   const milestoneBars = useMemo(() => {
     if (weeks.length === 0) return [] as Array<{
       milestone: PlanningMilestoneInfo;
-      top: number;
-      height: number;
+      startWeekIdx: number;
+      endWeekIdx: number;
     }>;
     const firstWeek = weeks[0];
     const lastWeek = weeks[weeks.length - 1];
@@ -759,12 +794,7 @@ export function SchedulePlanningView({
         const endWeekIdx = Math.floor(
           Math.max(0, diffInDays(firstWeekStart, clampedEnd)) / 7,
         );
-        const top = startWeekIdx * ROW_MIN_HEIGHT + 4;
-        const height = Math.max(
-          28,
-          (endWeekIdx - startWeekIdx + 1) * ROW_MIN_HEIGHT - 8,
-        );
-        return { milestone: m, top, height };
+        return { milestone: m, startWeekIdx, endWeekIdx };
       });
   }, [milestones, weeks]);
 
@@ -928,7 +958,7 @@ export function SchedulePlanningView({
               width: totalWidth,
               minHeight: totalHeight,
               gridTemplateColumns: `${MILESTONE_LANE_WIDTH}px ${WEEK_COL_WIDTH}px repeat(${Math.max(1, members.length)}, ${MEMBER_COL_WIDTH}px)`,
-              gridTemplateRows: `${MEMBER_HEADER_HEIGHT}px repeat(${weeks.length}, ${ROW_MIN_HEIGHT}px) ${FOOTER_HEIGHT}px`,
+              gridTemplateRows: `${MEMBER_HEADER_HEIGHT}px repeat(${weeks.length}, minmax(${ROW_MIN_HEIGHT}px, auto)) ${FOOTER_HEIGHT}px`,
             }}
           >
             {/* ── Row 1: Header row ── */}
@@ -982,7 +1012,7 @@ export function SchedulePlanningView({
               })
             )}
 
-            {/* ── Milestone vertical lane (sticky left-0, spans all week rows) ── */}
+            {/* ── Milestone vertical lane background (sticky left-0, spans all week rows) ── */}
             {members.length > 0 && (
               <div
                 className="sticky left-0 z-30 bg-bridge-obsidian border-r border-foreground/[0.08]"
@@ -991,15 +1021,22 @@ export function SchedulePlanningView({
                   gridRow: `2 / ${weeks.length + 2}`,
                   width: MILESTONE_LANE_WIDTH,
                 }}
-              >
-                <MilestoneVerticalLane
-                  milestoneBars={milestoneBars}
-                  weeksCount={weeks.length}
+                aria-hidden="true"
+              />
+            )}
+
+            {/* ── Milestone bars (each spans one or more week-rows so heights track row tracks) ── */}
+            {members.length > 0 &&
+              milestoneBars.map(({ milestone, startWeekIdx, endWeekIdx }) => (
+                <MilestoneBar
+                  key={milestone.id}
+                  milestone={milestone}
+                  startWeekIdx={startWeekIdx}
+                  endWeekIdx={endWeekIdx}
                   onMilestoneClick={onMilestoneClick}
                   reducedMotion={reducedMotion}
                 />
-              </div>
-            )}
+              ))}
 
             {/* ── Week rows (label column + member cells) ── */}
             {members.length > 0 &&
@@ -1014,6 +1051,7 @@ export function SchedulePlanningView({
                   <Fragment key={weekKey}>
                     {/* Week label column (sticky left at milestone-lane offset) */}
                     <div
+                      ref={isTodayRow ? todayRowRef : undefined}
                       className={`sticky z-30 flex flex-col items-center justify-center border-r border-b border-foreground/[0.08] text-xs tabular-nums
                         ${isTodayRow ? 'bg-bridge-accent/10' : 'bg-bridge-obsidian'}
                         ${!hasMilestone && !isTodayRow ? 'bg-foreground/[0.02]' : ''}`}
@@ -1181,6 +1219,7 @@ export function SchedulePlanningView({
             onCardMouseDown={startCardDrag}
             onCardDelete={handleDelete}
             onCardUpdate={handleUpdate}
+            onCardMove={handleCardMove}
             draggingId={dragState?.isActive ? dragState.card.id : null}
             dropHint={dropHint}
             currentUser={currentUser}
@@ -1214,6 +1253,7 @@ export function SchedulePlanningView({
             onCardMouseDown={startCardDrag}
             onCardDelete={handleDelete}
             onCardUpdate={handleUpdate}
+            onCardMove={handleCardMove}
             draggingId={dragState?.isActive ? dragState.card.id : null}
             dropHint={dropHint}
             currentUser={currentUser}
@@ -1234,66 +1274,62 @@ SchedulePlanningView.displayName = 'SchedulePlanningView';
 // Sub-components
 // =============================================================================
 
-interface MilestoneVerticalLaneProps {
-  milestoneBars: Array<{
-    milestone: PlanningMilestoneInfo;
-    top: number;
-    height: number;
-  }>;
-  weeksCount: number;
+interface MilestoneBarProps {
+  milestone: PlanningMilestoneInfo;
+  startWeekIdx: number;
+  endWeekIdx: number;
   onMilestoneClick?: (id: string) => void;
   reducedMotion: boolean;
 }
 
 /**
- * Inner contents of the left vertical milestone lane. The parent wrapper in
- * the main grid supplies sticky-left positioning and the bounding box. Bar
- * positions are absolute and computed from weekly indices.
+ * One milestone bar in the left vertical lane. The bar is a direct child of
+ * the main grid and uses `gridRow` spans so its height tracks the actual row
+ * heights — including rows that auto-expand to fit stacked planning cards.
+ * Stays sticky to the left edge of the scroll container.
  */
-function MilestoneVerticalLane({
-  milestoneBars,
-  weeksCount,
+function MilestoneBar({
+  milestone,
+  startWeekIdx,
+  endWeekIdx,
   onMilestoneClick,
   reducedMotion,
-}: MilestoneVerticalLaneProps) {
+}: MilestoneBarProps) {
   return (
-    <div
-      className="relative w-full"
-      style={{ height: weeksCount * ROW_MIN_HEIGHT }}
+    <button
+      onClick={() => onMilestoneClick?.(milestone.id)}
+      className={`rounded-md flex flex-col items-center justify-start pt-2 pb-2
+        bg-bridge-accent/80 hover:bg-bridge-accent transition-all
+        ${reducedMotion ? '' : 'hover:shadow-[0_0_18px_rgba(99,102,241,0.35)]'}`}
+      style={{
+        position: 'sticky',
+        left: 4,
+        gridColumn: '1 / 2',
+        gridRow: `${startWeekIdx + 2} / ${endWeekIdx + 3}`,
+        width: MILESTONE_LANE_WIDTH - 8,
+        marginTop: 4,
+        marginBottom: 4,
+        zIndex: 31,
+        minHeight: 28,
+      }}
+      title={`${milestone.title} (${milestone.start_date} ~ ${milestone.end_date})`}
     >
-      {milestoneBars.map(({ milestone, top, height }) => (
-        <button
-          key={milestone.id}
-          onClick={() => onMilestoneClick?.(milestone.id)}
-          className={`absolute left-1 rounded-md flex flex-col items-center justify-start pt-2 pb-2
-            bg-bridge-accent/80 hover:bg-bridge-accent transition-all
-            ${reducedMotion ? '' : 'hover:shadow-[0_0_18px_rgba(99,102,241,0.35)]'}`}
-          style={{
-            top,
-            height,
-            width: MILESTONE_LANE_WIDTH - 8,
-          }}
-          title={`${milestone.title} (${milestone.start_date} ~ ${milestone.end_date})`}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-white/90 shrink-0 mb-1" />
-          <span
-            className="text-xs font-bold text-white text-center leading-tight overflow-hidden"
-            style={{
-              writingMode: 'vertical-rl',
-              textOrientation: 'mixed',
-              maxHeight: Math.max(0, height - 32),
-            }}
-          >
-            {milestone.title}
-          </span>
-          {milestone.progress_percentage > 0 && (
-            <span className="mt-auto text-xs font-bold text-white/70 tabular-nums shrink-0">
-              {milestone.progress_percentage}%
-            </span>
-          )}
-        </button>
-      ))}
-    </div>
+      <span className="w-1.5 h-1.5 rounded-full bg-white/90 shrink-0 mb-1" />
+      <span
+        className="text-xs font-bold text-white text-center leading-tight overflow-hidden flex-1"
+        style={{
+          writingMode: 'vertical-rl',
+          textOrientation: 'mixed',
+        }}
+      >
+        {milestone.title}
+      </span>
+      {milestone.progress_percentage > 0 && (
+        <span className="mt-auto text-xs font-bold text-white/70 tabular-nums shrink-0">
+          {milestone.progress_percentage}%
+        </span>
+      )}
+    </button>
   );
 }
 
@@ -1573,6 +1609,7 @@ interface PlanningPoolProps {
   onCardMouseDown: (e: React.MouseEvent, card: PlanningCard) => void;
   onCardDelete: (card: PlanningCard) => void;
   onCardUpdate: (card: PlanningCard, patch: PlanningCardUpdateRequest) => void;
+  onCardMove: (card: PlanningCard, moveReq: PlanningCardMoveRequest) => void;
   draggingId: string | null;
   dropHint: DropTargetHint | null;
   currentUser: { id: string; name: string };
@@ -1601,6 +1638,7 @@ function PlanningPool({
   onCardMouseDown,
   onCardDelete,
   onCardUpdate,
+  onCardMove,
   draggingId,
   dropHint,
   reducedMotion,
@@ -1653,11 +1691,13 @@ function PlanningPool({
             <PoolCardView
               key={card.id}
               card={card}
+              members={members}
               canEdit={canEdit}
               isDragging={draggingId === card.id}
               onMouseDown={onCardMouseDown}
               onDelete={onCardDelete}
               onUpdate={onCardUpdate}
+              onMove={onCardMove}
               reducedMotion={reducedMotion}
               index={idx}
             />
@@ -1897,28 +1937,33 @@ function PoolToolbar({
 
 interface PoolCardViewProps {
   card: PlanningCard;
+  members: MemberLite[];
   canEdit: boolean;
   isDragging: boolean;
   onMouseDown: (e: React.MouseEvent, card: PlanningCard) => void;
   onDelete: (card: PlanningCard) => void;
   onUpdate: (card: PlanningCard, patch: PlanningCardUpdateRequest) => void;
+  onMove: (card: PlanningCard, moveReq: PlanningCardMoveRequest) => void;
   reducedMotion: boolean;
   index: number;
 }
 
 function PoolCardView({
   card,
+  members,
   canEdit,
   isDragging,
   onMouseDown,
   onDelete,
   onUpdate,
+  onMove,
   reducedMotion,
   index,
 }: PoolCardViewProps) {
   const { t } = useTranslation();
   const [showActions, setShowActions] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState(card.title);
   const hex = card.color || (card.assignee
     ? getAssigneeHex(card.assignee.name, null)
@@ -1945,14 +1990,14 @@ function PoolCardView({
       style={{ width: 200, height: 88 }}
       onMouseDown={(e) => {
         if (!canEdit) return;
-        if (editing) return;
+        if (editing || popoverOpen) return;
         const target = e.target as HTMLElement;
         if (target.closest('[data-card-action]')) return;
         onMouseDown(e, card);
       }}
-      onDoubleClick={() => canEdit && setEditing(true)}
+      onDoubleClick={() => canEdit && !popoverOpen && setEditing(true)}
       onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
+      onMouseLeave={() => { if (!popoverOpen) setShowActions(false); }}
     >
       {/* Color accent */}
       <div
@@ -1992,18 +2037,24 @@ function PoolCardView({
         </span>
       </div>
 
-      {canEdit && showActions && !editing && (
+      {canEdit && (showActions || popoverOpen) && !editing && (
         <div className="absolute top-1 right-1 flex items-center gap-0.5" data-card-action>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditing(true);
-            }}
-            aria-label={t('schedule.planning.card.edit', 'Edit')}
-            className="p-1 rounded-md text-slate-500 hover:text-foreground hover:bg-foreground/5"
+          <PoolCardEditPopover
+            card={card}
+            members={members}
+            open={popoverOpen}
+            onOpenChange={setPopoverOpen}
+            onUpdate={onUpdate}
+            onMove={onMove}
           >
-            <MoreHorizontal size={12} aria-hidden="true" />
-          </button>
+            <button
+              onClick={(e) => e.stopPropagation()}
+              aria-label={t('schedule.planning.card.edit', 'Edit')}
+              className="p-1 rounded-md text-slate-500 hover:text-foreground hover:bg-foreground/5"
+            >
+              <MoreHorizontal size={12} aria-hidden="true" />
+            </button>
+          </PoolCardEditPopover>
           <button
             onClick={(e) => {
               e.stopPropagation();

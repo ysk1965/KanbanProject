@@ -4075,5 +4075,46 @@
     "statsImpact": "インパクトビュー",
     "statsManagement": "管理ビュー",
     "contextStatistics": "AI分析タブ"
+  },
+  "trash": {
+    "title": "ゴミ箱",
+    "retentionInfo": "{{days}}日間保管",
+    "tabs": {
+      "features": "フィーチャー",
+      "tasks": "タスク",
+      "checklists": "チェックリスト"
+    },
+    "restore": "復元",
+    "permanentDelete": "完全に削除",
+    "emptyAll": "ゴミ箱を空にする",
+    "emptyConfirm": "本当にすべて完全に削除しますか?",
+    "emptyConfirmYes": "すべて完全削除",
+    "confirmPermanent": "完全に削除しますか?元に戻せません。",
+    "daysRemaining": "残り{{days}}日",
+    "loadFailed": "ゴミ箱を読み込めませんでした",
+    "escClose": "Escで閉じる",
+    "featureMeta": "{{completed}}/{{total}} タスク",
+    "unknownFeature": "不明なフィーチャー",
+    "unknownTask": "不明なタスク",
+    "parentDeletedFeature": "親フィーチャーが削除されています。先にフィーチャーを復元してください。",
+    "parentDeletedTask": "親タスクが削除されています。先にタスクを復元してください。",
+    "empty": {
+      "features": "削除されたフィーチャーはありません",
+      "tasks": "削除されたタスクはありません",
+      "checklists": "削除されたチェックリスト項目はありません"
+    },
+    "toast": {
+      "featureDeleted": "「{{title}}」フィーチャーを削除しました",
+      "taskDeleted": "「{{title}}」タスクを削除しました",
+      "checklistDeleted": "「{{title}}」チェックリスト項目を削除しました",
+      "untitledFeature": "削除されたフィーチャー",
+      "undo": "元に戻す",
+      "restored": "復元しました",
+      "restoreFailed": "復元に失敗しました",
+      "permanentlyDeleted": "完全に削除しました",
+      "permanentDeleteFailed": "完全削除に失敗しました",
+      "emptied": "ゴミ箱を空にしました",
+      "emptyFailed": "ゴミ箱を空にできませんでした"
+    }
   }
 }

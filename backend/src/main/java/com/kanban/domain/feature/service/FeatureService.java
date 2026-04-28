@@ -41,6 +41,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.kanban.domain.task.Task;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -211,6 +213,11 @@ public class FeatureService {
         return response;
     }
 
+    /**
+     * 소프트 삭제: Feature와 자식(Task, ChecklistItem)에 동일 timestamp의 deleted_at을 마킹.
+     * 이관된 Task는 살아남고, 자식 데이터(댓글/첨부/스케줄 등)는 그대로 유지된다 → 휴지통에서 복구 시 함께 살아남.
+     * 영구삭제(S3 첨부 정리 포함)는 BoardItemCleanupScheduler 또는 휴지통 비우기에서 hardDeleteFeature로 처리.
+     */
     @Transactional
     @CacheEvict(value = "features", key = "#boardId")
     public void deleteFeature(String boardId, String featureId, String userId, FeatureRequest.Delete request) {
@@ -230,7 +237,7 @@ public class FeatureService {
         activityService.logActivity(feature.getBoard(), deleter, ActivityAction.FEATURE_DELETED, TargetType.FEATURE, featureId,
                 Map.of("featureTitle", featureTitle));
 
-        // 태스크 이관 처리 (요청이 있는 경우)
+        // 태스크 이관 처리 (요청이 있는 경우) — 이관된 태스크는 살아남는다
         List<Map<String, String>> migratedTasks = new ArrayList<>();
         if (request != null && request.getTaskMigrations() != null && !request.getTaskMigrations().isEmpty()) {
             for (FeatureRequest.Delete.TaskMigration migration : request.getTaskMigrations()) {
@@ -258,55 +265,23 @@ public class FeatureService {
                         "target_feature_id", targetFeature.getId()
                 ));
             }
-            // flush로 이관 변경사항을 DB에 반영 (이후 bulk delete가 이관된 태스크를 건드리지 않도록)
             taskRepository.flush();
         }
 
-        // 관련 데이터 삭제 (FK 의존성 순서: leaf → parent)
-        // 이관된 태스크는 feature_id가 변경되었으므로 deleteByFeatureId에서 제외됨
-        // 1) 마일스톤-피처 연결 삭제
-        milestoneFeatureRepository.deleteByFeatureId(featureId);
+        // 부모와 자식이 정확히 같은 timestamp를 공유해야 cascade 복구 시 그룹 식별이 정확함
+        LocalDateTime deletedAt = LocalDateTime.now(ZoneOffset.UTC);
 
-        // 2) 피처 태그 연결 삭제
-        featureTagRepository.deleteByFeatureId(featureId);
+        // 1) 자식 ChecklistItem 일괄 소프트 삭제 (이관된 task의 checklist는 task_id가 다른 feature 소속이라 영향 없음)
+        checklistItemRepository.softDeleteByFeatureId(featureId, deletedAt, userId);
 
-        // 3) 남은 Task 하위 데이터 벌크 삭제
-        // 3-1) 알림 (task_id는 VARCHAR 참조)
-        List<String> taskIds = taskRepository.findByFeatureIdOrderByPositionAsc(featureId)
-                .stream().map(t -> t.getId()).toList();
-        for (String taskId : taskIds) {
-            notificationRepository.deleteByTaskId(taskId);
-        }
+        // 2) 자식 Task 일괄 소프트 삭제
+        taskRepository.softDeleteByFeatureId(featureId, deletedAt, userId);
 
-        // 3-2) 스케줄/데일리 (checklist_item_id FK)
-        scheduleBlockRepository.deleteByFeatureId(featureId);
-        dailyChecklistRepository.deleteByFeatureId(featureId);
-
-        // 3-3) 체크리스트 아이템
-        checklistItemRepository.deleteByFeatureId(featureId);
-
-        // 3-4) 태그 연결, 가중치
-        taskTagRepository.deleteByFeatureId(featureId);
-        taskWeightRepository.deleteByFeatureId(featureId);
-
-        // 3-5) 댓글 첨부파일 S3 삭제 → DB 삭제 → 댓글 삭제
-        List<CommentAttachment> attachments = commentAttachmentRepository.findByFeatureId(featureId);
-        for (CommentAttachment attachment : attachments) {
-            fileUploadService.delete(attachment.getS3Key());
-        }
-        commentAttachmentRepository.deleteByFeatureId(featureId);
-        commentRepository.deleteByFeatureId(featureId);
-
-        // 4) 남은 Task 삭제
-        taskRepository.deleteByFeatureId(featureId);
-
-        // 벌크 JPQL DELETE는 Hibernate 1차 캐시를 우회하므로,
-        // 세션에 남은 stale 엔티티가 삭제된 Feature를 참조하면 TransientObjectException 발생.
-        // flush → clear로 세션 상태를 DB와 동기화.
+        // 벌크 native UPDATE는 Hibernate 1차 캐시를 우회하므로 동기화
         entityManager.flush();
         entityManager.clear();
 
-        // 5) Feature 삭제 전 position 조정 (clear 후 재조회 필요)
+        // 3) Feature 삭제 전 position 조정 (살아있는 형제만 shift — @SQLRestriction 자동 적용)
         feature = featureRepository.findById(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
         int deletedPosition = feature.getPosition();
@@ -318,18 +293,77 @@ public class FeatureService {
             f.updatePosition(f.getPosition() - 1);
         }
 
-        // Feature 삭제
-        featureRepository.delete(feature);
+        // 4) Feature 소프트 삭제
+        feature.softDelete(userId, deletedAt);
 
-        log.info("Feature deleted: {} by user: {} (migrated {} tasks)", featureId, userId, migratedTasks.size());
+        log.info("Feature soft-deleted: {} by user: {} (migrated {} tasks)", featureId, userId, migratedTasks.size());
 
-        // WebSocket 이벤트 (이관 정보 포함)
+        // WebSocket 이벤트 (FE는 보드에서 즉시 제거)
         Map<String, Object> eventData = new HashMap<>();
         eventData.put("id", featureId);
         if (!migratedTasks.isEmpty()) {
             eventData.put("migrated_tasks", migratedTasks);
         }
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.FEATURE_DELETED, userId, deleter.getName(), eventData);
+    }
+
+    /**
+     * 영구삭제: 자식 데이터(댓글/첨부/S3/스케줄/태그/태스크) 전부 정리 후 Feature row 삭제.
+     * 휴지통 비우기 / 보존기간 만료 스케줄러에서 호출. soft-deleted 상태든 활성 상태든 동작한다.
+     */
+    @Transactional
+    @CacheEvict(value = "features", key = "#boardId")
+    public void hardDeleteFeature(String boardId, String featureId) {
+        Feature feature = featureRepository.findByIdIncludingDeleted(featureId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
+
+        if (!feature.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
+        }
+
+        // 1) 마일스톤-피처 연결
+        milestoneFeatureRepository.deleteByFeatureId(featureId);
+
+        // 2) 피처 태그
+        featureTagRepository.deleteByFeatureId(featureId);
+
+        // 3-1) 알림 — soft-deleted 포함 모든 task 정리
+        List<String> allTaskIds = taskRepository.findAllIdsByFeatureIdIncludingDeleted(featureId);
+        for (String tid : allTaskIds) {
+            notificationRepository.deleteByTaskId(tid);
+        }
+
+        // 3-2) 스케줄/데일리 — feature_id 기준 native bulk
+        scheduleBlockRepository.deleteByFeatureId(featureId);
+        dailyChecklistRepository.deleteByFeatureId(featureId);
+
+        // 3-3) 체크리스트 (native: deleted 포함)
+        checklistItemRepository.deleteByFeatureId(featureId);
+
+        // 3-4) 태그/가중치
+        taskTagRepository.deleteByFeatureId(featureId);
+        taskWeightRepository.deleteByFeatureId(featureId);
+
+        // 3-5) 댓글 첨부파일 S3 정리 → DB 정리 → 댓글
+        List<CommentAttachment> attachments = commentAttachmentRepository.findByFeatureId(featureId);
+        for (CommentAttachment attachment : attachments) {
+            fileUploadService.delete(attachment.getS3Key());
+        }
+        commentAttachmentRepository.deleteByFeatureId(featureId);
+        commentRepository.deleteByFeatureId(featureId);
+
+        // 4) 남은 Task hard delete (native: deleted 포함)
+        taskRepository.deleteByFeatureId(featureId);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // 5) Feature row 삭제 — @SQLRestriction이 SELECT만 영향, delete()는 PK 기준이라 무관
+        feature = featureRepository.findByIdIncludingDeleted(featureId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
+        featureRepository.delete(feature);
+
+        log.info("Feature hard-deleted: {}", featureId);
     }
 
     @Transactional

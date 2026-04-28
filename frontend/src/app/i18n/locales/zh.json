@@ -4075,5 +4075,46 @@
     "statsImpact": "影响力视图",
     "statsManagement": "管理视图",
     "contextStatistics": "AI分析标签"
+  },
+  "trash": {
+    "title": "回收站",
+    "retentionInfo": "保留 {{days}} 天",
+    "tabs": {
+      "features": "功能",
+      "tasks": "任务",
+      "checklists": "清单"
+    },
+    "restore": "恢复",
+    "permanentDelete": "永久删除",
+    "emptyAll": "清空回收站",
+    "emptyConfirm": "确定要永久删除所有项目吗?",
+    "emptyConfirmYes": "全部永久删除",
+    "confirmPermanent": "永久删除?此操作无法撤销。",
+    "daysRemaining": "剩余 {{days}} 天",
+    "loadFailed": "无法加载回收站",
+    "escClose": "Esc 关闭",
+    "featureMeta": "{{completed}}/{{total}} 任务",
+    "unknownFeature": "未知功能",
+    "unknownTask": "未知任务",
+    "parentDeletedFeature": "父功能已被删除。请先恢复功能。",
+    "parentDeletedTask": "父任务已被删除。请先恢复任务。",
+    "empty": {
+      "features": "没有已删除的功能",
+      "tasks": "没有已删除的任务",
+      "checklists": "没有已删除的清单项"
+    },
+    "toast": {
+      "featureDeleted": "已删除功能\"{{title}}\"",
+      "taskDeleted": "已删除任务\"{{title}}\"",
+      "checklistDeleted": "已删除清单项\"{{title}}\"",
+      "untitledFeature": "已删除的功能",
+      "undo": "撤销",
+      "restored": "已恢复",
+      "restoreFailed": "恢复失败",
+      "permanentlyDeleted": "已永久删除",
+      "permanentDeleteFailed": "永久删除失败",
+      "emptied": "回收站已清空",
+      "emptyFailed": "清空回收站失败"
+    }
   }
 }

@@ -14,7 +14,9 @@ import {
   taskAPI,
   scheduleAPI,
   ScheduleBlockDetailResponse,
+  trashAPI,
 } from "../utils/api";
+import { toast } from "sonner";
 import { BoardMember } from "./ShareBoardModal";
 import { MotionModal } from "./ui/MotionModal";
 import { Button } from "./ui/button";
@@ -571,6 +573,7 @@ export function TaskDetailModal({
     if (!boardId || !task) return;
 
     const originalItems = [...checklistItems];
+    const deletedItem = originalItems.find((item) => item.id === itemId);
     // 낙관적 업데이트
     const newItems = checklistItems.filter((item) => item.id !== itemId);
     setChecklistItems(newItems);
@@ -584,11 +587,7 @@ export function TaskDetailModal({
     });
     onChecklistSync?.(task.id, newItems);
 
-    try {
-      await checklistAPI.deleteItem(boardId, task.id, itemId);
-    } catch (error) {
-      console.error("Failed to delete checklist item:", error);
-      // 롤백
+    const rollback = () => {
       setChecklistItems(originalItems);
       const rolledBackCompleted = originalItems.filter(
         (item) => item.completed,
@@ -599,6 +598,34 @@ export function TaskDetailModal({
         checklist_version: Date.now(),
       });
       onChecklistSync?.(task.id, originalItems);
+    };
+
+    try {
+      await checklistAPI.deleteItem(boardId, task.id, itemId);
+      toast(
+        t("trash.toast.checklistDeleted", "\"{{title}}\" 체크리스트 항목을 삭제했습니다", {
+          title: deletedItem?.title || "",
+        }),
+        {
+          duration: 8000,
+          action: {
+            label: t("trash.toast.undo", "되돌리기"),
+            onClick: async () => {
+              try {
+                await trashAPI.restoreChecklistItem(boardId, itemId);
+                rollback();
+                toast.success(t("trash.toast.restored", "복구되었습니다"));
+              } catch (e) {
+                console.error("Failed to restore checklist item:", e);
+                toast.error(t("trash.toast.restoreFailed", "복구에 실패했습니다"));
+              }
+            },
+          },
+        },
+      );
+    } catch (error) {
+      console.error("Failed to delete checklist item:", error);
+      rollback();
     }
   };
 

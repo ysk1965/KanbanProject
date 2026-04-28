@@ -4566,5 +4566,46 @@
     "statsImpact": "Tác động",
     "statsManagement": "Quản lý",
     "contextStatistics": "Tab Phân tích AI"
+  },
+  "trash": {
+    "title": "Thùng rác",
+    "retentionInfo": "Lưu trong {{days}} ngày",
+    "tabs": {
+      "features": "Tính năng",
+      "tasks": "Nhiệm vụ",
+      "checklists": "Danh mục"
+    },
+    "restore": "Khôi phục",
+    "permanentDelete": "Xoá vĩnh viễn",
+    "emptyAll": "Dọn thùng rác",
+    "emptyConfirm": "Xoá vĩnh viễn tất cả?",
+    "emptyConfirmYes": "Xoá tất cả",
+    "confirmPermanent": "Xoá vĩnh viễn? Không thể hoàn tác.",
+    "daysRemaining": "Còn {{days}} ngày",
+    "loadFailed": "Không thể tải thùng rác",
+    "escClose": "Esc để đóng",
+    "featureMeta": "{{completed}}/{{total}} nhiệm vụ",
+    "unknownFeature": "Tính năng không rõ",
+    "unknownTask": "Nhiệm vụ không rõ",
+    "parentDeletedFeature": "Tính năng cha đã bị xoá. Hãy khôi phục tính năng trước.",
+    "parentDeletedTask": "Nhiệm vụ cha đã bị xoá. Hãy khôi phục nhiệm vụ trước.",
+    "empty": {
+      "features": "Không có tính năng đã xoá",
+      "tasks": "Không có nhiệm vụ đã xoá",
+      "checklists": "Không có mục checklist đã xoá"
+    },
+    "toast": {
+      "featureDeleted": "Đã xoá tính năng \"{{title}}\"",
+      "taskDeleted": "Đã xoá nhiệm vụ \"{{title}}\"",
+      "checklistDeleted": "Đã xoá mục checklist \"{{title}}\"",
+      "untitledFeature": "Tính năng đã xoá",
+      "undo": "Hoàn tác",
+      "restored": "Đã khôi phục",
+      "restoreFailed": "Khôi phục thất bại",
+      "permanentlyDeleted": "Đã xoá vĩnh viễn",
+      "permanentDeleteFailed": "Xoá vĩnh viễn thất bại",
+      "emptied": "Đã dọn thùng rác",
+      "emptyFailed": "Dọn thùng rác thất bại"
+    }
   }
 }

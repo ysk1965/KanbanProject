@@ -3955,5 +3955,46 @@
     "statsImpact": "影響力檢視",
     "statsManagement": "管理檢視",
     "contextStatistics": "AI分析標籤"
+  },
+  "trash": {
+    "title": "資源回收筒",
+    "retentionInfo": "保留 {{days}} 天",
+    "tabs": {
+      "features": "功能",
+      "tasks": "任務",
+      "checklists": "清單"
+    },
+    "restore": "還原",
+    "permanentDelete": "永久刪除",
+    "emptyAll": "清空回收筒",
+    "emptyConfirm": "確定要永久刪除所有項目嗎?",
+    "emptyConfirmYes": "全部永久刪除",
+    "confirmPermanent": "永久刪除?此操作無法復原。",
+    "daysRemaining": "剩餘 {{days}} 天",
+    "loadFailed": "無法載入回收筒",
+    "escClose": "Esc 關閉",
+    "featureMeta": "{{completed}}/{{total}} 任務",
+    "unknownFeature": "未知功能",
+    "unknownTask": "未知任務",
+    "parentDeletedFeature": "父功能已被刪除。請先還原功能。",
+    "parentDeletedTask": "父任務已被刪除。請先還原任務。",
+    "empty": {
+      "features": "沒有已刪除的功能",
+      "tasks": "沒有已刪除的任務",
+      "checklists": "沒有已刪除的清單項"
+    },
+    "toast": {
+      "featureDeleted": "已刪除功能「{{title}}」",
+      "taskDeleted": "已刪除任務「{{title}}」",
+      "checklistDeleted": "已刪除清單項「{{title}}」",
+      "untitledFeature": "已刪除的功能",
+      "undo": "復原",
+      "restored": "已還原",
+      "restoreFailed": "還原失敗",
+      "permanentlyDeleted": "已永久刪除",
+      "permanentDeleteFailed": "永久刪除失敗",
+      "emptied": "回收筒已清空",
+      "emptyFailed": "清空回收筒失敗"
+    }
   }
 }

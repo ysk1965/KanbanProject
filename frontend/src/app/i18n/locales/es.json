@@ -4566,5 +4566,46 @@
     "statsImpact": "Impacto",
     "statsManagement": "Gestión",
     "contextStatistics": "Pestaña Análisis IA"
+  },
+  "trash": {
+    "title": "Papelera",
+    "retentionInfo": "Conservado durante {{days}} días",
+    "tabs": {
+      "features": "Funciones",
+      "tasks": "Tareas",
+      "checklists": "Listas"
+    },
+    "restore": "Restaurar",
+    "permanentDelete": "Eliminar permanentemente",
+    "emptyAll": "Vaciar papelera",
+    "emptyConfirm": "¿Eliminar todo permanentemente?",
+    "emptyConfirmYes": "Vaciar todo",
+    "confirmPermanent": "¿Eliminar permanentemente? No se puede deshacer.",
+    "daysRemaining": "{{days}} días restantes",
+    "loadFailed": "Error al cargar la papelera",
+    "escClose": "Esc para cerrar",
+    "featureMeta": "{{completed}}/{{total}} tareas",
+    "unknownFeature": "Función desconocida",
+    "unknownTask": "Tarea desconocida",
+    "parentDeletedFeature": "La función padre fue eliminada. Restaure la función primero.",
+    "parentDeletedTask": "La tarea padre fue eliminada. Restaure la tarea primero.",
+    "empty": {
+      "features": "No hay funciones eliminadas",
+      "tasks": "No hay tareas eliminadas",
+      "checklists": "No hay elementos de lista eliminados"
+    },
+    "toast": {
+      "featureDeleted": "Función \"{{title}}\" eliminada",
+      "taskDeleted": "Tarea \"{{title}}\" eliminada",
+      "checklistDeleted": "Elemento de lista \"{{title}}\" eliminado",
+      "untitledFeature": "Función eliminada",
+      "undo": "Deshacer",
+      "restored": "Restaurado",
+      "restoreFailed": "Error al restaurar",
+      "permanentlyDeleted": "Eliminado permanentemente",
+      "permanentDeleteFailed": "Error al eliminar permanentemente",
+      "emptied": "Papelera vaciada",
+      "emptyFailed": "Error al vaciar la papelera"
+    }
   }
 }

@@ -4545,5 +4545,46 @@
     "statsImpact": "Impact",
     "statsManagement": "Management",
     "contextStatistics": "AI Analysis Tab"
+  },
+  "trash": {
+    "title": "Trash",
+    "retentionInfo": "Kept for {{days}} days",
+    "tabs": {
+      "features": "Features",
+      "tasks": "Tasks",
+      "checklists": "Checklists"
+    },
+    "restore": "Restore",
+    "permanentDelete": "Delete permanently",
+    "emptyAll": "Empty trash",
+    "emptyConfirm": "Permanently delete everything?",
+    "emptyConfirmYes": "Empty all",
+    "confirmPermanent": "Delete permanently? This cannot be undone.",
+    "daysRemaining": "{{days}}d left",
+    "loadFailed": "Failed to load trash",
+    "escClose": "Esc to close",
+    "featureMeta": "{{completed}}/{{total}} tasks",
+    "unknownFeature": "Unknown feature",
+    "unknownTask": "Unknown task",
+    "parentDeletedFeature": "Parent feature is deleted. Restore the feature first.",
+    "parentDeletedTask": "Parent task is deleted. Restore the task first.",
+    "empty": {
+      "features": "No deleted features",
+      "tasks": "No deleted tasks",
+      "checklists": "No deleted checklist items"
+    },
+    "toast": {
+      "featureDeleted": "Deleted feature \"{{title}}\"",
+      "taskDeleted": "Deleted task \"{{title}}\"",
+      "checklistDeleted": "Deleted checklist item \"{{title}}\"",
+      "untitledFeature": "Deleted feature",
+      "undo": "Undo",
+      "restored": "Restored",
+      "restoreFailed": "Failed to restore",
+      "permanentlyDeleted": "Permanently deleted",
+      "permanentDeleteFailed": "Failed to permanently delete",
+      "emptied": "Trash emptied",
+      "emptyFailed": "Failed to empty trash"
+    }
   }
 }
