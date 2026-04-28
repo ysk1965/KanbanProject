@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PanelRightClose, Search, ChevronDown, ChevronRight, Loader2, Filter, X, Plus } from 'lucide-react';
 import { AssigneeItemResponse, boardChecklistAPI } from '../../utils/api';
+import { Milestone } from '../../types';
 import { BoardMember } from '../ShareBoardModal';
 import { ChecklistDragItem } from './ChecklistDragItem';
 import { AddChecklistItemModal } from './AddChecklistItemModal';
@@ -38,51 +39,64 @@ interface ChecklistItemPanelProps {
   boardMembers?: BoardMember[];
   /** Called after new items are added via modal (triggers parent refresh). */
   onItemAdded?: () => void;
+  /** Board milestones (with their feature lists) for the milestone filter. */
+  milestones?: Milestone[];
 }
 
-// ─── Status group types ───────────────────────────────────────────────────────
+// ─── Feature group types ──────────────────────────────────────────────────────
 
-type StatusGroup = 'todo' | 'in_progress' | 'done';
+const NO_FEATURE_KEY = '__no_feature__';
 
-interface GroupedItems {
-  todo: AssigneeItemResponse[];
-  in_progress: AssigneeItemResponse[];
-  done: AssigneeItemResponse[];
+interface FeatureGroup {
+  key: string;
+  /** id is null for the "no feature" bucket. */
+  featureId: string | null;
+  title: string;
+  color: string | null;
+  items: AssigneeItemResponse[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getStatusGroup(item: AssigneeItemResponse): StatusGroup {
-  if (item.completed) return 'done';
-  if (item.start_date) return 'in_progress';
-  return 'todo';
-}
-
-function groupItems(items: AssigneeItemResponse[]): GroupedItems {
-  const groups: GroupedItems = { todo: [], in_progress: [], done: [] };
+function groupItemsByFeature(items: AssigneeItemResponse[], noFeatureLabel: string): FeatureGroup[] {
+  const map = new Map<string, FeatureGroup>();
   for (const item of items) {
-    groups[getStatusGroup(item)].push(item);
+    const key = item.feature?.id ?? NO_FEATURE_KEY;
+    let group = map.get(key);
+    if (!group) {
+      group = {
+        key,
+        featureId: item.feature?.id ?? null,
+        title: item.feature?.title ?? noFeatureLabel,
+        color: item.feature?.color ?? null,
+        items: [],
+      };
+      map.set(key, group);
+    }
+    group.items.push(item);
   }
-  return groups;
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.featureId === null) return 1;
+    if (b.featureId === null) return -1;
+    return a.title.localeCompare(b.title);
+  });
 }
 
-// ─── StatusGroupSection sub-component ────────────────────────────────────────
+// ─── FeatureGroupSection sub-component ───────────────────────────────────────
 
-interface StatusGroupSectionProps {
-  label: string;
-  count: number;
+interface FeatureGroupSectionProps {
+  group: FeatureGroup;
   isOpen: boolean;
   onToggle: () => void;
   children: React.ReactNode;
 }
 
-function StatusGroupSection({
-  label,
-  count,
+function FeatureGroupSection({
+  group,
   isOpen,
   onToggle,
   children,
-}: StatusGroupSectionProps) {
+}: FeatureGroupSectionProps) {
   return (
     <div>
       {/* Group header */}
@@ -98,8 +112,17 @@ function StatusGroupSection({
         ) : (
           <ChevronRight size={12} className="shrink-0" aria-hidden="true" />
         )}
-        <span className="font-bold uppercase tracking-widest text-xs">{label}</span>
-        <span className="ml-auto text-xs font-bold text-slate-500">{count}</span>
+        {group.color ? (
+          <span
+            className="w-2 h-2 rounded-full shrink-0"
+            style={{ backgroundColor: group.color }}
+            aria-hidden="true"
+          />
+        ) : (
+          <span className="w-2 h-2 rounded-full shrink-0 bg-foreground/20" aria-hidden="true" />
+        )}
+        <span className="font-bold text-xs text-foreground truncate">{group.title}</span>
+        <span className="ml-auto text-xs font-bold text-slate-500">{group.items.length}</span>
       </button>
 
       {/* Items */}
@@ -127,6 +150,7 @@ export function ChecklistItemPanel({
   onItemDetailClick,
   boardMembers = [],
   onItemAdded,
+  milestones = [],
 }: ChecklistItemPanelProps) {
   const { t } = useTranslation();
 
@@ -144,17 +168,13 @@ export function ChecklistItemPanel({
   // ── Search ──
   const [searchQuery, setSearchQuery] = useState('');
 
-  // ── Feature filter ──
-  const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null);
-  const [showFeatureDropdown, setShowFeatureDropdown] = useState(false);
-  const featureDropdownRef = useRef<HTMLDivElement>(null);
+  // ── Milestone filter (narrows visible features to those in selected milestone) ──
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
+  const [showMilestoneDropdown, setShowMilestoneDropdown] = useState(false);
+  const milestoneDropdownRef = useRef<HTMLDivElement>(null);
 
-  // ── Status group collapse state (todo/in_progress open by default, done closed) ──
-  const [openGroups, setOpenGroups] = useState<Record<StatusGroup, boolean>>({
-    todo: true,
-    in_progress: true,
-    done: false,
-  });
+  // ── Feature group collapse state (collapsed feature ids) ──
+  const [collapsedFeatureKeys, setCollapsedFeatureKeys] = useState<Set<string>>(new Set());
 
   // ── Scroll container ref (to preserve scroll position on item removal) ──
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -204,32 +224,51 @@ export function ChecklistItemPanel({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // ── Extract unique features from items ──
-  const uniqueFeatures = useMemo(() => {
-    const featureMap = new Map<string, { id: string; title: string; color: string }>();
-    for (const item of items) {
-      if (item.feature) {
-        featureMap.set(item.feature.id, item.feature);
-      }
-    }
-    return Array.from(featureMap.values()).sort((a, b) => a.title.localeCompare(b.title));
-  }, [items]);
+  // ── Milestone options (only milestones that have features) ──
+  const milestoneOptions = useMemo(() => {
+    return milestones
+      .filter((m) => (m.features?.length ?? 0) > 0)
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [milestones]);
 
-  // ── Close feature dropdown on outside click ──
+  // ── Selected milestone's feature ids (used to filter items) ──
+  const selectedMilestoneFeatureIds = useMemo(() => {
+    if (!selectedMilestoneId) return null;
+    const milestone = milestones.find((m) => m.id === selectedMilestoneId);
+    if (!milestone?.features) return new Set<string>();
+    return new Set(milestone.features.map((f) => f.id));
+  }, [milestones, selectedMilestoneId]);
+
+  // ── Reset milestone filter if its milestone disappears ──
   useEffect(() => {
-    if (!showFeatureDropdown) return;
+    if (selectedMilestoneId && !milestones.some((m) => m.id === selectedMilestoneId)) {
+      setSelectedMilestoneId(null);
+    }
+  }, [milestones, selectedMilestoneId]);
+
+  // ── Close milestone dropdown on outside click ──
+  useEffect(() => {
+    if (!showMilestoneDropdown) return;
     const handleClick = (e: MouseEvent) => {
-      if (featureDropdownRef.current && !featureDropdownRef.current.contains(e.target as Node)) {
-        setShowFeatureDropdown(false);
+      if (milestoneDropdownRef.current && !milestoneDropdownRef.current.contains(e.target as Node)) {
+        setShowMilestoneDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [showFeatureDropdown]);
+  }, [showMilestoneDropdown]);
 
-  // ── Toggle a status group ──
-  const toggleGroup = useCallback((group: StatusGroup) => {
-    setOpenGroups((prev) => ({ ...prev, [group]: !prev[group] }));
+  // ── Toggle a feature group ──
+  const toggleFeatureGroup = useCallback((key: string) => {
+    setCollapsedFeatureKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
   }, []);
 
   // ── Drag start handler (onMouseDown on each item) ──
@@ -318,26 +357,26 @@ export function ChecklistItemPanel({
     [onItemDropped],
   );
 
-  // ── Filter items by search query + feature ──
+  // ── Filter items by search query + milestone (via feature ids) ──
   const filteredItems = useMemo(() => {
     let result = items;
-    if (selectedFeatureId) {
-      result = result.filter((item) => item.feature?.id === selectedFeatureId);
+    if (selectedMilestoneFeatureIds) {
+      result = result.filter(
+        (item) => item.feature && selectedMilestoneFeatureIds.has(item.feature.id),
+      );
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter((item) => item.title.toLowerCase().includes(q));
     }
     return result;
-  }, [items, selectedFeatureId, searchQuery]);
+  }, [items, selectedMilestoneFeatureIds, searchQuery]);
 
-  const grouped = groupItems(filteredItems);
-
-  const groupLabels: Record<StatusGroup, string> = {
-    todo: t('kanban.status.todo', 'To-do'),
-    in_progress: t('kanban.status.inProgress', 'In progress'),
-    done: t('kanban.status.done', 'Done'),
-  };
+  const noFeatureLabel = t('schedule.panel.noFeature', '피처 없음');
+  const featureGroups = useMemo(
+    () => groupItemsByFeature(filteredItems, noFeatureLabel),
+    [filteredItems, noFeatureLabel],
+  );
 
   // ── Collapsed state: render only a slim toggle strip ──
   if (!isOpen) {
@@ -416,28 +455,20 @@ export function ChecklistItemPanel({
           </div>
         </div>
 
-        {/* Feature filter */}
-        {uniqueFeatures.length > 1 && (
-          <div className="px-3 py-1.5 border-b border-foreground/[0.08]" ref={featureDropdownRef}>
-            {selectedFeatureId ? (
+        {/* Milestone filter */}
+        {milestoneOptions.length > 0 && (
+          <div className="px-3 py-1.5 border-b border-foreground/[0.08]" ref={milestoneDropdownRef}>
+            {selectedMilestoneId ? (
               // Active filter chip
               <button
-                onClick={() => setSelectedFeatureId(null)}
+                onClick={() => setSelectedMilestoneId(null)}
                 className="inline-flex items-center gap-1.5 max-w-full px-2 py-1 rounded-lg
                   bg-bridge-accent/10 text-bridge-accent text-xs font-medium
                   hover:bg-bridge-accent/15 transition-colors"
               >
                 {(() => {
-                  const feat = uniqueFeatures.find((f) => f.id === selectedFeatureId);
-                  return feat ? (
-                    <>
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: feat.color }}
-                      />
-                      <span className="truncate">{feat.title}</span>
-                    </>
-                  ) : null;
+                  const ms = milestoneOptions.find((m) => m.id === selectedMilestoneId);
+                  return ms ? <span className="truncate">{ms.title}</span> : null;
                 })()}
                 <X size={12} className="shrink-0 ml-0.5" />
               </button>
@@ -445,35 +476,34 @@ export function ChecklistItemPanel({
               // Filter toggle button
               <div className="relative">
                 <button
-                  onClick={() => setShowFeatureDropdown((prev) => !prev)}
+                  onClick={() => setShowMilestoneDropdown((prev) => !prev)}
                   className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg
                     text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                 >
                   <Filter size={12} />
-                  <span>{t('schedule.panel.filterFeature', 'Filter by feature')}</span>
-                  <ChevronDown size={10} className={`transition-transform ${showFeatureDropdown ? 'rotate-180' : ''}`} />
+                  <span>{t('schedule.panel.filterMilestone', '마일스톤별 필터')}</span>
+                  <ChevronDown size={10} className={`transition-transform ${showMilestoneDropdown ? 'rotate-180' : ''}`} />
                 </button>
 
                 {/* Dropdown */}
-                {showFeatureDropdown && (
+                {showMilestoneDropdown && (
                   <div className="absolute top-full left-0 right-0 mt-1 z-30
                     bg-bridge-obsidian border border-foreground/[0.08] rounded-lg shadow-xl
                     max-h-[200px] overflow-y-auto custom-scrollbar py-1">
-                    {uniqueFeatures.map((feature) => (
+                    {milestoneOptions.map((milestone) => (
                       <button
-                        key={feature.id}
+                        key={milestone.id}
                         onClick={() => {
-                          setSelectedFeatureId(feature.id);
-                          setShowFeatureDropdown(false);
+                          setSelectedMilestoneId(milestone.id);
+                          setShowMilestoneDropdown(false);
                         }}
                         className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs
                           text-foreground hover:bg-foreground/5 transition-colors"
                       >
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: feature.color }}
-                        />
-                        <span className="truncate">{feature.title}</span>
+                        <span className="truncate">{milestone.title}</span>
+                        <span className="ml-auto text-xs text-slate-500 shrink-0">
+                          {milestone.features?.length ?? 0}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -513,15 +543,14 @@ export function ChecklistItemPanel({
 
           {!isLoading && !error && filteredItems.length > 0 && (
             <>
-              {/* To-do group */}
-              {(grouped.todo.length > 0 || !searchQuery) && (
-                <StatusGroupSection
-                  label={groupLabels.todo}
-                  count={grouped.todo.length}
-                  isOpen={openGroups.todo}
-                  onToggle={() => toggleGroup('todo')}
+              {featureGroups.map((group) => (
+                <FeatureGroupSection
+                  key={group.key}
+                  group={group}
+                  isOpen={!collapsedFeatureKeys.has(group.key)}
+                  onToggle={() => toggleFeatureGroup(group.key)}
                 >
-                  {grouped.todo.map((item) => (
+                  {group.items.map((item) => (
                     <ChecklistDragItem
                       key={item.id}
                       item={item}
@@ -531,50 +560,8 @@ export function ChecklistItemPanel({
                       onDetailClick={onItemDetailClick}
                     />
                   ))}
-                </StatusGroupSection>
-              )}
-
-              {/* In Progress group */}
-              {(grouped.in_progress.length > 0 || !searchQuery) && (
-                <StatusGroupSection
-                  label={groupLabels.in_progress}
-                  count={grouped.in_progress.length}
-                  isOpen={openGroups.in_progress}
-                  onToggle={() => toggleGroup('in_progress')}
-                >
-                  {grouped.in_progress.map((item) => (
-                    <ChecklistDragItem
-                      key={item.id}
-                      item={item}
-                      assignee={null}
-                      isDragging={dragState?.item.id === item.id && dragState.isActive}
-                      onMouseDown={handleItemMouseDown}
-                      onDetailClick={onItemDetailClick}
-                    />
-                  ))}
-                </StatusGroupSection>
-              )}
-
-              {/* Done group */}
-              {(grouped.done.length > 0 || !searchQuery) && (
-                <StatusGroupSection
-                  label={groupLabels.done}
-                  count={grouped.done.length}
-                  isOpen={openGroups.done}
-                  onToggle={() => toggleGroup('done')}
-                >
-                  {grouped.done.map((item) => (
-                    <ChecklistDragItem
-                      key={item.id}
-                      item={item}
-                      assignee={null}
-                      isDragging={dragState?.item.id === item.id && dragState.isActive}
-                      onMouseDown={handleItemMouseDown}
-                      onDetailClick={onItemDetailClick}
-                    />
-                  ))}
-                </StatusGroupSection>
-              )}
+                </FeatureGroupSection>
+              ))}
             </>
           )}
         </div>
