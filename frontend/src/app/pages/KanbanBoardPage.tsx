@@ -3632,6 +3632,7 @@ export function KanbanBoardPage() {
                     onItemDetailClick={handleChecklistItemDetailClick}
                     boardMembers={boardMembersData}
                     onItemAdded={() => setScheduleRefreshPanel((k) => k + 1)}
+                    milestones={milestones}
                   />
                 </Suspense>
               </div>
@@ -3712,6 +3713,7 @@ export function KanbanBoardPage() {
                     onItemDetailClick={handleChecklistItemDetailClick}
                     boardMembers={boardMembersData}
                     onItemAdded={() => setScheduleRefreshPanel((k) => k + 1)}
+                    milestones={milestones}
                   />
                 </Suspense>
               </div>

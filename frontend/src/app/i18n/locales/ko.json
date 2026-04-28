@@ -824,6 +824,8 @@
       "noUnscheduled": "모든 항목이 배정되었습니다",
       "dragHint": "드래그하여 캘린더/리소스에 배치",
       "filterFeature": "피쳐별 필터",
+      "filterMilestone": "마일스톤별 필터",
+      "noFeature": "피처 없음",
       "addItem": "체크리스트 항목 추가",
       "selectFeature": "피처",
       "selectTask": "태스크",
