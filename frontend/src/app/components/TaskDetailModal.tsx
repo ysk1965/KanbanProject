@@ -554,13 +554,33 @@ export function TaskDetailModal({
       item.id === itemId ? { ...item, ...updates } : item,
     );
 
+    // 호출자가 명시적으로 보낸 키만 PATCH payload에 포함.
+    // 키 자체가 없으면 서버가 기존 값을 보존, 값이 null이면 명시적 클리어.
+    const payload: {
+      title?: string;
+      assignee_id?: string | null;
+      start_date?: string | null;
+      due_date?: string | null;
+    } = {};
+    if ("title" in updates && updates.title !== undefined) {
+      payload.title = updates.title;
+    }
+    if ("assignee" in updates) {
+      payload.assignee_id = updates.assignee?.id ?? null;
+    }
+    if ("start_date" in updates) {
+      payload.start_date = updates.start_date ?? null;
+    }
+    if ("due_date" in updates) {
+      payload.due_date = updates.due_date ?? null;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      return;
+    }
+
     try {
-      await checklistAPI.updateItem(boardId, task.id, itemId, {
-        title: updates.title,
-        assignee_id: updates.assignee?.id ?? null,
-        start_date: updates.start_date ?? null,
-        due_date: updates.due_date ?? null,
-      });
+      await checklistAPI.patchItem(boardId, task.id, itemId, payload);
       // 체크리스트 버전 업데이트하여 카드에 변경 알림
       onUpdate({ checklist_version: Date.now() });
       onChecklistSync?.(task.id, updatedItems);
