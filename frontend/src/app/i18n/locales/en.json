@@ -823,6 +823,8 @@
       "noUnscheduled": "All items are scheduled",
       "dragHint": "Drag to place on calendar/resource",
       "filterFeature": "Filter by feature",
+      "filterMilestone": "Filter by milestone",
+      "noFeature": "No feature",
       "addItem": "Add checklist item",
       "selectFeature": "Feature",
       "selectTask": "Task",
