@@ -12,8 +12,10 @@ interface ChecklistDragItemProps {
     profile_image: string | null;
   } | null;
   isDragging?: boolean;
+  isScheduled?: boolean;
   onMouseDown: (e: React.MouseEvent, item: AssigneeItemResponse) => void;
   onDetailClick?: (item: AssigneeItemResponse) => void;
+  onScheduledClick?: () => void;
 }
 
 /**
@@ -30,8 +32,10 @@ export function ChecklistDragItem({
   item,
   assignee,
   isDragging = false,
+  isScheduled = false,
   onMouseDown,
   onDetailClick,
+  onScheduledClick,
 }: ChecklistDragItemProps) {
   const featureColor = item.feature?.color ?? '#6366F1';
 
@@ -64,10 +68,13 @@ export function ChecklistDragItem({
   return (
     <div
       className={`relative flex items-stretch rounded-lg border border-foreground/[0.08]
-        bg-bridge-dark overflow-hidden cursor-grab select-none
-        hover:border-foreground/[0.12] transition-colors group
-        ${isDragging ? 'opacity-50' : 'opacity-100'}`}
-      onMouseDown={(e) => onMouseDown(e, item)}
+        bg-bridge-dark overflow-hidden select-none
+        hover:border-foreground/[0.12] transition-all group
+        ${isScheduled
+          ? 'opacity-40 cursor-pointer hover:opacity-60'
+          : `cursor-grab ${isDragging ? 'opacity-50' : 'opacity-100'}`}`}
+      onMouseDown={(e) => { if (!isScheduled) onMouseDown(e, item); }}
+      onClick={() => { if (isScheduled) onScheduledClick?.(); }}
     >
       {/* Feature color bar (4px left accent) */}
       <div
@@ -78,12 +85,14 @@ export function ChecklistDragItem({
 
       {/* Content area */}
       <div className="flex items-start gap-2 px-2 py-2 flex-1 min-w-0">
-        {/* Drag handle */}
-        <GripVertical
-          size={14}
-          className="shrink-0 text-slate-500 mt-0.5 cursor-grab"
-          aria-hidden="true"
-        />
+        {/* Drag handle (hidden for scheduled items) */}
+        {!isScheduled && (
+          <GripVertical
+            size={14}
+            className="shrink-0 text-slate-500 mt-0.5 cursor-grab"
+            aria-hidden="true"
+          />
+        )}
 
         {/* Text content */}
         <div className="flex-1 min-w-0">
