@@ -35,6 +35,8 @@ interface ChecklistItemPanelProps {
   onItemDropped?: (itemId: string) => void;
   /** Called when user clicks detail button on an item (opens task detail). */
   onItemDetailClick?: (item: AssigneeItemResponse) => void;
+  /** Called when a scheduled item is clicked (scroll-to in workload). */
+  onScheduledItemClick?: (item: AssigneeItemResponse) => void;
   /** Board members for assignee selection in add modal. */
   boardMembers?: BoardMember[];
   /** Called after new items are added via modal (triggers parent refresh). */
@@ -75,11 +77,21 @@ function groupItemsByFeature(items: AssigneeItemResponse[], noFeatureLabel: stri
     }
     group.items.push(item);
   }
-  return Array.from(map.values()).sort((a, b) => {
+  // Sort groups, then within each group sort: unscheduled first, scheduled last
+  const groups = Array.from(map.values()).sort((a, b) => {
     if (a.featureId === null) return 1;
     if (b.featureId === null) return -1;
     return a.title.localeCompare(b.title);
   });
+  for (const group of groups) {
+    group.items.sort((a, b) => {
+      const aScheduled = !!(a.start_date || a.due_date);
+      const bScheduled = !!(b.start_date || b.due_date);
+      if (aScheduled !== bScheduled) return aScheduled ? 1 : -1;
+      return 0;
+    });
+  }
+  return groups;
 }
 
 // ─── FeatureGroupSection sub-component ───────────────────────────────────────
@@ -148,6 +160,7 @@ export function ChecklistItemPanel({
   onDragStateChange,
   onItemDropped,
   onItemDetailClick,
+  onScheduledItemClick,
   boardMembers = [],
   onItemAdded,
   milestones = [],
@@ -184,12 +197,12 @@ export function ChecklistItemPanel({
   // Use refs for handlers that need the latest drag values inside document listeners
   const dragStateRef = useRef<PanelDragState | null>(null);
 
-  // ── Load unscheduled items ──
+  // ── Load all items (both scheduled and unscheduled) ──
   const loadItems = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await boardChecklistAPI.getItems(boardId, { is_scheduled: false });
+      const response = await boardChecklistAPI.getItems(boardId);
       setItems(response.items);
     } catch (err) {
       console.error('ChecklistItemPanel: failed to load items', err);
@@ -550,16 +563,21 @@ export function ChecklistItemPanel({
                   isOpen={!collapsedFeatureKeys.has(group.key)}
                   onToggle={() => toggleFeatureGroup(group.key)}
                 >
-                  {group.items.map((item) => (
-                    <ChecklistDragItem
-                      key={item.id}
-                      item={item}
-                      assignee={null}
-                      isDragging={dragState?.item.id === item.id && dragState.isActive}
-                      onMouseDown={handleItemMouseDown}
-                      onDetailClick={onItemDetailClick}
-                    />
-                  ))}
+                  {group.items.map((item) => {
+                    const scheduled = !!(item.start_date || item.due_date);
+                    return (
+                      <ChecklistDragItem
+                        key={item.id}
+                        item={item}
+                        assignee={null}
+                        isDragging={dragState?.item.id === item.id && dragState.isActive}
+                        isScheduled={scheduled}
+                        onMouseDown={handleItemMouseDown}
+                        onDetailClick={onItemDetailClick}
+                        onScheduledClick={() => onScheduledItemClick?.(item)}
+                      />
+                    );
+                  })}
                 </FeatureGroupSection>
               ))}
             </>

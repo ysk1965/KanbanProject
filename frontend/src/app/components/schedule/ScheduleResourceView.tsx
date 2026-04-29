@@ -25,7 +25,7 @@ const LEFT_COL_WIDTH = 200;
 const HEADER_HEIGHT = 48;
 const MIN_BAR_WIDTH = 20;
 /** Maximum number of visible bar lanes before collapsing with "+N more" */
-const MAX_VISIBLE_LANES = 3;
+const MAX_VISIBLE_LANES = 4;
 
 // ========================================
 // Types
@@ -47,6 +47,8 @@ interface ScheduleResourceViewProps {
   /** Increment to trigger data refresh */
   refreshTrigger?: number;
   onMilestoneClick?: (milestone: Milestone) => void;
+  /** Scroll to and highlight a specific item (from panel click) */
+  scrollToItem?: { id: string; ts: number } | null;
 }
 
 interface DragState {
@@ -142,6 +144,7 @@ export function ScheduleResourceView({
   externalDragItem,
   refreshTrigger,
   onMilestoneClick,
+  scrollToItem,
 }: ScheduleResourceViewProps) {
   const { t, i18n } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -156,6 +159,8 @@ export function ScheduleResourceView({
   );
   /** Track which member rows are expanded (showing all lanes) */
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  /** Highlighted item id for scroll-to flash effect */
+  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
   // Refs for mouse event handlers (avoid stale closure)
   const dragStateRef = useRef<DragState | null>(null);
   // 드래그/리사이즈 후 click 이벤트 방지용 ref
@@ -416,6 +421,23 @@ export function ScheduleResourceView({
     return memberRows;
   }, [data, boardMembers, memberColorMap, t]);
 
+  // ─── 'w' shortcut: toggle expand/collapse all rows ───
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "w" && e.key !== "W") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+      e.preventDefault();
+      setExpandedRows((prev) =>
+        prev.size > 0 ? new Set() : new Set(rows.map((r) => r.id)),
+      );
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [rows]);
+
   // ─── Bar position calculations ───
   const getBarPosition = useCallback(
     (startDate: string | null, dueDate: string | null) => {
@@ -436,6 +458,51 @@ export function ScheduleResourceView({
     },
     [rangeStart],
   );
+
+  // ─── Scroll to a specific item (triggered by panel click) ───
+  useEffect(() => {
+    if (!scrollToItem || !data || !scrollContainerRef.current) return;
+
+    let targetRowId: string | null = null;
+    let targetItem: AssigneeItemResponse | null = null;
+
+    for (const group of data.assignees) {
+      const found = group.items.find((i) => i.id === scrollToItem.id);
+      if (found) {
+        targetRowId = group.assignee.id;
+        targetItem = found;
+        break;
+      }
+    }
+    if (!targetItem) {
+      const found = data.unassigned.find((i) => i.id === scrollToItem.id);
+      if (found) {
+        targetRowId = "__unassigned__";
+        targetItem = found;
+      }
+    }
+    if (!targetItem || !targetRowId) return;
+
+    const pos = getBarPosition(targetItem.start_date, targetItem.due_date);
+    if (pos) {
+      const containerWidth = scrollContainerRef.current.clientWidth;
+      scrollContainerRef.current.scrollTo({
+        left: Math.max(0, pos.left - containerWidth / 2 + pos.width / 2),
+        behavior: "smooth",
+      });
+    }
+
+    const rowEl = scrollContainerRef.current.querySelector(
+      `[data-resource-row="${targetRowId}"]`,
+    );
+    if (rowEl) {
+      rowEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    setHighlightedItemId(scrollToItem.id);
+    const timer = setTimeout(() => setHighlightedItemId(null), 2000);
+    return () => clearTimeout(timer);
+  }, [scrollToItem, data, getBarPosition]);
 
   // ─── Milestone bar positions ───
   const milestoneBarData = useMemo(() => {
@@ -1099,13 +1166,16 @@ export function ScheduleResourceView({
                       const barTop =
                         BAR_TOP_OFFSET + lane * (BAR_HEIGHT + BAR_TOP_OFFSET);
 
+                      const isHighlightTarget = highlightedItemId === item.id;
+
                       return (
                         <div
                           key={item.id}
                           className={`absolute rounded-lg flex items-center px-2 text-xs font-medium
                           text-white cursor-pointer hover:brightness-110 hover:shadow-lg transition-all
                           ${item.completed ? "opacity-50" : ""}
-                          ${isItemDragging ? "z-20 shadow-2xl ring-2 ring-white/30" : ""}`}
+                          ${isItemDragging ? "z-20 shadow-2xl ring-2 ring-white/30" : ""}
+                          ${isHighlightTarget ? "z-30 ring-2 ring-white/70 shadow-[0_0_16px_rgba(255,255,255,0.4)] animate-pulse" : ""}`}
                           style={{
                             left: pos.left,
                             width: pos.width,
