@@ -370,6 +370,7 @@ export function KanbanBoardPage() {
     null,
   );
   const [scheduleRefreshPanel, setScheduleRefreshPanel] = useState(0);
+  const [scrollToItem, setScrollToItem] = useState<{ id: string; ts: number } | null>(null);
   const [planningRefreshKey, setPlanningRefreshKey] = useState(0);
 
   const getAISubMode = (): "statistics" | "ai_report" => {
@@ -992,6 +993,7 @@ export function KanbanBoardPage() {
           ),
         );
         setWsChecklistEvent(event);
+        setScheduleRefreshPanel((k) => k + 1);
         break;
       }
       case "CHECKLIST_UPDATED": {
@@ -1006,6 +1008,7 @@ export function KanbanBoardPage() {
           ),
         }));
         setWsChecklistEvent(event);
+        setScheduleRefreshPanel((k) => k + 1);
         break;
       }
       case "CHECKLIST_DELETED": {
@@ -1030,6 +1033,7 @@ export function KanbanBoardPage() {
           ),
         );
         setWsChecklistEvent(event);
+        setScheduleRefreshPanel((k) => k + 1);
         break;
       }
       case "CHECKLIST_TOGGLED": {
@@ -1065,6 +1069,7 @@ export function KanbanBoardPage() {
         }
 
         setWsChecklistEvent(event);
+        setScheduleRefreshPanel((k) => k + 1);
         break;
       }
 
@@ -3703,6 +3708,7 @@ export function KanbanBoardPage() {
                     }
                     refreshTrigger={scheduleRefreshPanel}
                     onMilestoneClick={handleOpenMilestoneWithCheck}
+                    scrollToItem={scrollToItem}
                   />
                 </Suspense>
                 <Suspense fallback={null}>
@@ -3711,6 +3717,7 @@ export function KanbanBoardPage() {
                     boardId={boardId || ""}
                     onDragStateChange={setPanelDragState}
                     onItemDetailClick={handleChecklistItemDetailClick}
+                    onScheduledItemClick={(item) => setScrollToItem({ id: item.id, ts: Date.now() })}
                     boardMembers={boardMembersData}
                     onItemAdded={() => setScheduleRefreshPanel((k) => k + 1)}
                     milestones={milestones}
