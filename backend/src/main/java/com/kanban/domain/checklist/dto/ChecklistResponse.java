@@ -2,6 +2,7 @@ package com.kanban.domain.checklist.dto;
 
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.feature.Feature;
+import com.kanban.domain.jobrole.dto.JobRoleResponse;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.user.User;
 import lombok.AllArgsConstructor;
@@ -55,6 +56,7 @@ public class ChecklistResponse {
         private String id;
         private String name;
         private String profileImage;
+        private JobRoleResponse.JobRoleInfo jobRole;
 
         public static AssigneeInfo of(ChecklistItem item) {
             return AssigneeInfo.builder()
@@ -66,13 +68,22 @@ public class ChecklistResponse {
 
         /**
          * User 엔티티로부터 직접 생성 (by-assignee 뷰용)
-         * Jackson SNAKE_CASE 전략에 의해 profileImage → profile_image 직렬화됨
+         * Jackson SNAKE_CASE 전략에 의해 profileImage → profile_image, jobRole → job_role 직렬화됨
          */
         public static AssigneeInfo of(User user) {
             return AssigneeInfo.builder()
                     .id(user.getId())
                     .name(user.getName())
                     .profileImage(user.getProfileImage())
+                    .build();
+        }
+
+        public static AssigneeInfo of(User user, JobRoleResponse.JobRoleInfo jobRole) {
+            return AssigneeInfo.builder()
+                    .id(user.getId())
+                    .name(user.getName())
+                    .profileImage(user.getProfileImage())
+                    .jobRole(jobRole)
                     .build();
         }
     }
@@ -189,6 +200,14 @@ public class ChecklistResponse {
         private List<AssigneeItemResponse> unassigned;
 
         public static ByAssigneeResponse of(List<ChecklistItem> items) {
+            return of(items, Map.of());
+        }
+
+        /**
+         * @param jobRoleByUserId userId → 해당 유저의 보드 멤버 직군 정보 (없으면 빈 맵)
+         */
+        public static ByAssigneeResponse of(List<ChecklistItem> items,
+                                             Map<String, JobRoleResponse.JobRoleInfo> jobRoleByUserId) {
             // 담당자 있는 항목과 없는 항목 분리
             List<ChecklistItem> assignedItems = items.stream()
                     .filter(c -> c.getAssignee() != null)
@@ -208,11 +227,12 @@ public class ChecklistResponse {
             List<AssigneeGroup> assigneeGroups = grouped.entrySet().stream()
                     .map(entry -> {
                         User assignee = entry.getValue().get(0).getAssignee();
+                        JobRoleResponse.JobRoleInfo jobRole = jobRoleByUserId.get(assignee.getId());
                         List<AssigneeItemResponse> groupItems = entry.getValue().stream()
                                 .map(AssigneeItemResponse::of)
                                 .toList();
                         return AssigneeGroup.builder()
-                                .assignee(AssigneeInfo.of(assignee))
+                                .assignee(AssigneeInfo.of(assignee, jobRole))
                                 .items(groupItems)
                                 .build();
                     })

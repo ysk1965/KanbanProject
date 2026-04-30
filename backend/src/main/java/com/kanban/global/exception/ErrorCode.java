@@ -115,6 +115,10 @@ public enum ErrorCode {
     CANNOT_REMOVE_OWNER(HttpStatus.BAD_REQUEST, "M003", "Owner는 내보낼 수 없습니다"),
     CANNOT_CHANGE_OWNER_ROLE(HttpStatus.BAD_REQUEST, "M004", "Owner의 역할은 변경할 수 없습니다"),
 
+    // Job Role
+    JOB_ROLE_NOT_FOUND(HttpStatus.NOT_FOUND, "JR001", "직군을 찾을 수 없습니다"),
+    JOB_ROLE_ALREADY_EXISTS(HttpStatus.CONFLICT, "JR002", "이미 존재하는 직군 이름입니다"),
+
     // Invite
     INVITE_LINK_NOT_FOUND(HttpStatus.NOT_FOUND, "I001", "초대 링크를 찾을 수 없습니다"),
     INVITE_LINK_EXPIRED(HttpStatus.BAD_REQUEST, "I002", "만료된 초대 링크입니다"),

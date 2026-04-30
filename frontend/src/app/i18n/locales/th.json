@@ -1389,6 +1389,10 @@
     "noDate": "ไม่มีวันที่",
     "assignee": "ผู้รับมอบหมาย",
     "addAssigneeToChecklist": "ซิงค์กับผู้รับมอบหมายในเช็คลิสต์",
+    "checklistFilter": {
+      "unassigned": "ไม่ได้มอบหมาย",
+      "showingCount": "แสดง {{visible}} / {{total}}"
+    },
     "tags": "แท็ก",
     "tagName": "ชื่อแท็ก",
     "addTag": "เพิ่มแท็ก",

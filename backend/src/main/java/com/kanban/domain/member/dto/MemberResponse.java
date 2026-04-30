@@ -2,6 +2,7 @@ package com.kanban.domain.member.dto;
 
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardRole;
+import com.kanban.domain.jobrole.dto.JobRoleResponse;
 import com.kanban.domain.organization.OrganizationMember;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,6 +30,7 @@ public class MemberResponse {
         private InvitedByInfo invitedBy;
         private String assigneeColor;
         private Integer displayOrder;
+        private JobRoleResponse.JobRoleInfo jobRole;
 
         public static Detail of(BoardMember member) {
             return Detail.builder()
@@ -39,6 +41,9 @@ public class MemberResponse {
                     .invitedBy(member.getInvitedBy() != null ? InvitedByInfo.of(member) : null)
                     .assigneeColor(member.getAssigneeColor())
                     .displayOrder(member.getDisplayOrder())
+                    .jobRole(member.getJobRole() != null
+                            ? JobRoleResponse.JobRoleInfo.of(member.getJobRole())
+                            : null)
                     .build();
         }
     }

@@ -48,6 +48,13 @@ public class MemberRequest {
 
     @Getter
     @NoArgsConstructor
+    public static class UpdateJobRole {
+        // null 허용 (직군 해제)
+        private String jobRoleId;
+    }
+
+    @Getter
+    @NoArgsConstructor
     public static class TransferOwnership {
         @NotBlank(message = "새 소유자의 사용자 ID는 필수입니다")
         private String newOwnerUserId;

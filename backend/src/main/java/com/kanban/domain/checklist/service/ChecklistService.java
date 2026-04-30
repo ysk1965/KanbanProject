@@ -4,6 +4,8 @@ import com.kanban.domain.activity.ActivityAction;
 import com.kanban.domain.activity.TargetType;
 import com.kanban.domain.activity.service.ActivityService;
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardMember;
+import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
@@ -11,6 +13,7 @@ import com.kanban.domain.checklist.dto.ChecklistBatchRequest;
 import com.kanban.domain.checklist.dto.ChecklistBatchResponse;
 import com.kanban.domain.checklist.dto.ChecklistRequest;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
+import com.kanban.domain.jobrole.dto.JobRoleResponse;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.integration.discord.service.DiscordNotificationService;
 import com.kanban.domain.integration.slack.service.SlackNotificationService;
@@ -48,6 +51,7 @@ public class ChecklistService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
+    private final BoardMemberRepository boardMemberRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final DailyChecklistRepository dailyChecklistRepository;
     private final ActivityService activityService;
@@ -506,7 +510,16 @@ public class ChecklistService {
         List<ChecklistItem> items = checklistItemRepository.findByBoardIdAndDateRange(
                 boardId, startDate, endDate);
 
-        return ChecklistResponse.ByAssigneeResponse.of(items);
+        // 보드 멤버 → 직군 매핑 (assignee.id → JobRoleInfo)
+        Map<String, JobRoleResponse.JobRoleInfo> jobRoleByUserId = new java.util.HashMap<>();
+        for (BoardMember m : boardMemberRepository.findByBoardId(boardId)) {
+            if (m.getJobRole() != null) {
+                jobRoleByUserId.put(m.getUser().getId(),
+                        JobRoleResponse.JobRoleInfo.of(m.getJobRole()));
+            }
+        }
+
+        return ChecklistResponse.ByAssigneeResponse.of(items, jobRoleByUserId);
     }
 
     /**

@@ -43,6 +43,9 @@ public enum BoardEventType {
     MEMBER_LEFT,
     MEMBER_UPDATED,
 
+    // Job Role events
+    JOB_ROLE_UPDATED,
+
     // Notification events
     NOTIFICATION_CREATED,
 

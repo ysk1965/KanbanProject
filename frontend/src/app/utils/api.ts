@@ -727,6 +727,21 @@ export interface MemberResponse {
   invited_by: { id: string; name: string } | null;
   assignee_color?: string | null;
   display_order?: number | null;
+  job_role?: { id: string; name: string; color?: string | null; icon?: string | null } | null;
+}
+
+export interface JobRoleResponse {
+  id: string;
+  name: string;
+  color?: string | null;
+  icon?: string | null;
+  display_order?: number | null;
+  member_count?: number;
+  created_at?: string;
+}
+
+export interface JobRolesListResponse {
+  job_roles: JobRoleResponse[];
 }
 
 export interface MembersListResponse {
@@ -2136,6 +2151,17 @@ export const memberAPI = {
     );
   },
 
+  updateMemberJobRole: async (
+    boardId: string,
+    memberId: string,
+    jobRoleId: string | null,
+  ) => {
+    return apiClient.put<MemberResponse>(
+      `/boards/${boardId}/members/${memberId}/job-role`,
+      { job_role_id: jobRoleId },
+    );
+  },
+
   reorderMembers: async (boardId: string, memberIds: string[]) => {
     return apiClient.put<MembersListResponse>(
       `/boards/${boardId}/members/reorder`,
@@ -2152,6 +2178,47 @@ export const memberAPI = {
     return apiClient.post(`/boards/${boardId}/members/transfer-ownership`, {
       new_owner_user_id: newOwnerUserId,
     });
+  },
+};
+
+// ========================================
+// Job Role API
+// ========================================
+
+export const jobRoleAPI = {
+  list: async (boardId: string) => {
+    return apiClient.get<JobRolesListResponse>(`/boards/${boardId}/job-roles`);
+  },
+
+  create: async (
+    boardId: string,
+    data: { name: string; color?: string | null; icon?: string | null },
+  ) => {
+    return apiClient.post<JobRoleResponse>(`/boards/${boardId}/job-roles`, data);
+  },
+
+  update: async (
+    boardId: string,
+    roleId: string,
+    data: { name?: string; color?: string | null; icon?: string | null },
+  ) => {
+    return apiClient.put<JobRoleResponse>(
+      `/boards/${boardId}/job-roles/${roleId}`,
+      data,
+    );
+  },
+
+  remove: async (boardId: string, roleId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/job-roles/${roleId}`,
+    );
+  },
+
+  reorder: async (boardId: string, ids: string[]) => {
+    return apiClient.put<JobRolesListResponse>(
+      `/boards/${boardId}/job-roles/reorder`,
+      { ids },
+    );
   },
 };
 
@@ -2607,6 +2674,7 @@ export interface AssigneeGroupResponse {
     id: string;
     name: string;
     profile_image: string | null;
+    job_role?: { id: string; name: string; color?: string | null; icon?: string | null } | null;
   };
   items: AssigneeItemResponse[];
 }

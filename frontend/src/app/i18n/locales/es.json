@@ -1389,6 +1389,10 @@
     "noDate": "Sin fecha",
     "assignee": "Asignado",
     "addAssigneeToChecklist": "Sincronizado con asignados del checklist",
+    "checklistFilter": {
+      "unassigned": "Sin asignar",
+      "showingCount": "Mostrando {{visible}} / {{total}}"
+    },
     "tags": "Etiquetas",
     "tagName": "Nombre de etiqueta",
     "addTag": "Agregar etiqueta",

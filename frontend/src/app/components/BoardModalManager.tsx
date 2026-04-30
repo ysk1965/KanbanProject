@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Feature, Task, Block, Tag, Milestone, Subscription, AiCredits, InviteLink, BoardWebSocketEvent, ChecklistItem } from '../types';
+import { Feature, Task, Block, Tag, Milestone, Subscription, AiCredits, InviteLink, BoardWebSocketEvent, ChecklistItem, JobRole } from '../types';
 import { BoardMember as ShareBoardMember, MemberRole } from './ShareBoardModal';
 import { UpgradeTrigger } from './UpgradeModal';
 import { FeatureDetailModal } from './FeatureDetailModal';
@@ -8,6 +8,7 @@ import { TaskDetailModal } from './TaskDetailModal';
 import { AddBlockModal } from './AddBlockModal';
 import { AddFeatureModal } from './AddFeatureModal';
 import { ShareBoardModal } from './ShareBoardModal';
+import { JobRoleManageModal } from './JobRoleManageModal';
 import { SubscriptionModal } from './SubscriptionModal';
 import { InquiryModal } from './InquiryModal';
 import { MilestoneModal } from './MilestoneModal';
@@ -94,6 +95,11 @@ interface BoardModalManagerProps {
   boardName?: string;
   onTransferOwnership?: (newOwnerUserId: string) => Promise<void>;
   hideBillingForUser: boolean;
+  // 직군(JobRole)
+  jobRoles?: JobRole[];
+  onUpdateMemberJobRole?: (memberId: string, jobRoleId: string | null) => void;
+  canManageJobRoles?: boolean;
+  onJobRolesChanged?: (roles: JobRole[]) => void;
   // Subscription Modal
   isSubscriptionModalOpen: boolean;
   onCloseSubscription: () => void;
@@ -290,6 +296,7 @@ function OrgSeatLimitModalInline({
 }
 
 export function BoardModalManager(props: BoardModalManagerProps) {
+  const [isJobRoleManagerOpen, setIsJobRoleManagerOpen] = useState(false);
   return (
     <>
       <FeatureDetailModal
@@ -390,6 +397,18 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         onJoinRequestHandled={props.onJoinRequestHandled}
         boardName={props.boardName}
         onTransferOwnership={props.onTransferOwnership}
+        jobRoles={props.jobRoles}
+        onUpdateMemberJobRole={props.onUpdateMemberJobRole}
+        onOpenJobRoleManager={() => setIsJobRoleManagerOpen(true)}
+        canManageJobRoles={props.canManageJobRoles}
+      />
+
+      <JobRoleManageModal
+        open={isJobRoleManagerOpen}
+        onClose={() => setIsJobRoleManagerOpen(false)}
+        boardId={props.boardId}
+        canManage={!!props.canManageJobRoles}
+        onChanged={props.onJobRolesChanged}
       />
 
       {!props.hideBillingForUser && (

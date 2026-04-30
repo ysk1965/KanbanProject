@@ -1389,6 +1389,10 @@
     "noDate": "Khong co ngay",
     "assignee": "Nguoi phu trach",
     "addAssigneeToChecklist": "Đồng bộ với người phụ trách trong danh sách",
+    "checklistFilter": {
+      "unassigned": "Chưa phân công",
+      "showingCount": "Đang hiển thị {{visible}} / {{total}}"
+    },
     "tags": "The",
     "tagName": "Ten the",
     "addTag": "Them the",

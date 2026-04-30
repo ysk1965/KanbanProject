@@ -2,6 +2,8 @@ package com.kanban.domain.member.service;
 
 import com.kanban.domain.board.*;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.jobrole.entity.JobRole;
+import com.kanban.domain.jobrole.repository.JobRoleRepository;
 import com.kanban.domain.organization.OrganizationMember;
 import com.kanban.domain.invite.InviteLink;
 import com.kanban.domain.invite.InviteLinkRepository;
@@ -52,6 +54,7 @@ public class MemberService {
     private final EmailService emailService;
     private final WebSocketEventService webSocketEventService;
     private final OrgMemberRepository orgMemberRepository;
+    private final JobRoleRepository jobRoleRepository;
 
     @Cacheable(value = "members", key = "#boardId", unless = "#result == null")
     public MemberResponse.ListResponse getMembers(String boardId, String userId) {
@@ -246,6 +249,37 @@ public class MemberService {
 
         log.info("Member color updated: {} to {} in board: {} by user: {}",
                 memberId, request.getAssigneeColor(), boardId, userId);
+
+        MemberResponse.Detail response = MemberResponse.Detail.of(member);
+        User user = userRepository.findById(userId).orElse(null);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEMBER_UPDATED,
+                userId, user != null ? user.getName() : null, response);
+
+        return response;
+    }
+
+    @Transactional
+    @CacheEvict(value = "members", key = "#boardId")
+    public MemberResponse.Detail updateMemberJobRole(String boardId, String memberId, String userId, MemberRequest.UpdateJobRole request) {
+        boardService.checkAdminOrAbove(boardId, userId);
+
+        BoardMember member = boardMemberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        if (!member.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
+        }
+
+        JobRole jobRole = null;
+        if (request.getJobRoleId() != null && !request.getJobRoleId().isBlank()) {
+            jobRole = jobRoleRepository.findByIdAndBoardId(request.getJobRoleId(), boardId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.JOB_ROLE_NOT_FOUND));
+        }
+
+        member.updateJobRole(jobRole);
+
+        log.info("Member jobRole updated: {} to {} in board: {} by user: {}",
+                memberId, jobRole != null ? jobRole.getId() : "null", boardId, userId);
 
         MemberResponse.Detail response = MemberResponse.Detail.of(member);
         User user = userRepository.findById(userId).orElse(null);

@@ -259,6 +259,24 @@ export interface BoardMember {
   joined_at: string;
   invited_by?: { id: string; name: string } | null;
   assignee_color?: string | null;
+  job_role?: JobRoleInfo | null;
+}
+
+// ========================================
+// 직군(JobRole) 타입
+// ========================================
+
+export interface JobRoleInfo {
+  id: string;
+  name: string;
+  color?: string | null;
+  icon?: string | null;
+}
+
+export interface JobRole extends JobRoleInfo {
+  display_order?: number | null;
+  member_count?: number;
+  created_at?: string;
 }
 
 // ========================================

@@ -30,6 +30,7 @@ import {
   orgSubscriptionAPI,
   orgPhotoAPI,
   planningAPI,
+  jobRoleAPI,
 } from "./api";
 import {
   mockBoards,
@@ -1143,6 +1144,14 @@ export const memberService = {
     return memberAPI.updateMemberColor(boardId, memberId, assigneeColor);
   },
 
+  updateMemberJobRole: async (
+    boardId: string,
+    memberId: string,
+    jobRoleId: string | null,
+  ) => {
+    return memberAPI.updateMemberJobRole(boardId, memberId, jobRoleId);
+  },
+
   reorderMembers: async (boardId: string, memberIds: string[]) => {
     return memberAPI.reorderMembers(boardId, memberIds);
   },
@@ -1168,6 +1177,32 @@ export const memberService = {
 
   transferOwnership: async (boardId: string, newOwnerUserId: string) => {
     return memberAPI.transferOwnership(boardId, newOwnerUserId);
+  },
+};
+
+// ========================================
+// Job Role Service
+// ========================================
+
+export const jobRoleService = {
+  list: async (boardId: string) => {
+    const response = await jobRoleAPI.list(boardId);
+    return response.job_roles;
+  },
+  create: async (
+    boardId: string,
+    payload: { name: string; color?: string | null; icon?: string | null },
+  ) => jobRoleAPI.create(boardId, payload),
+  update: async (
+    boardId: string,
+    roleId: string,
+    payload: { name?: string; color?: string | null; icon?: string | null },
+  ) => jobRoleAPI.update(boardId, roleId, payload),
+  remove: async (boardId: string, roleId: string) =>
+    jobRoleAPI.remove(boardId, roleId),
+  reorder: async (boardId: string, ids: string[]) => {
+    const response = await jobRoleAPI.reorder(boardId, ids);
+    return response.job_roles;
   },
 };
 
