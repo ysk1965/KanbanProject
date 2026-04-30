@@ -385,6 +385,24 @@ export function TaskDetailModal({
     }),
   );
 
+  const sortedChecklistItems = useMemo(
+    () => [...checklistItems].sort((a, b) => a.position - b.position),
+    [checklistItems],
+  );
+
+  const visibleChecklistItems = useMemo(() => {
+    if (filterAssigneeIds.length === 0) return sortedChecklistItems;
+    const includesUnassigned = filterAssigneeIds.includes("__no_assignee__");
+    const realIds = filterAssigneeIds.filter((id) => id !== "__no_assignee__");
+    return sortedChecklistItems.filter(
+      (item) =>
+        (includesUnassigned && !item.assignee) ||
+        (item.assignee && realIds.includes(item.assignee.id)),
+    );
+  }, [sortedChecklistItems, filterAssigneeIds]);
+
+  const isChecklistFilterActive = filterAssigneeIds.length > 0;
+
   if (!task || !editedTask) return null;
 
   const handleClose = () => {
@@ -652,25 +670,6 @@ export function TaskDetailModal({
       rollback();
     }
   };
-
-  const sortedChecklistItems = useMemo(
-    () => [...checklistItems].sort((a, b) => a.position - b.position),
-    [checklistItems],
-  );
-
-  // 필터 적용 결과 (렌더링/카운터용). 미적용 시 sortedChecklistItems와 동일.
-  const visibleChecklistItems = useMemo(() => {
-    if (filterAssigneeIds.length === 0) return sortedChecklistItems;
-    const includesUnassigned = filterAssigneeIds.includes("__no_assignee__");
-    const realIds = filterAssigneeIds.filter((id) => id !== "__no_assignee__");
-    return sortedChecklistItems.filter(
-      (item) =>
-        (includesUnassigned && !item.assignee) ||
-        (item.assignee && realIds.includes(item.assignee.id)),
-    );
-  }, [sortedChecklistItems, filterAssigneeIds]);
-
-  const isChecklistFilterActive = filterAssigneeIds.length > 0;
 
   const handleChecklistDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;

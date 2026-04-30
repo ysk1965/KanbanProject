@@ -107,6 +107,7 @@ import { DailyScheduleView } from "../components/DailyScheduleView";
 import { MeetingCalendarView } from "../components/MeetingCalendarView";
 import { WeeklyScheduleView } from "../components/WeeklyScheduleView";
 import { CalendarView } from "../components/CalendarView";
+import { ContractorManageModal } from "../components/ContractorManageModal";
 import { lazyWithRetry } from "../utils/lazyWithRetry";
 const StatisticsView = lazyWithRetry(
   () =>
@@ -541,6 +542,7 @@ export function KanbanBoardPage() {
   const [isAddFeatureModalOpen, setIsAddFeatureModalOpen] = useState(false);
   const [isShareBoardModalOpen, setIsShareBoardModalOpen] = useState(false);
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
+  const [isContractorManagerOpen, setIsContractorManagerOpen] = useState(false);
   const [isTrashOpen, setIsTrashOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [isPremiumBenefitsModalOpen, setIsPremiumBenefitsModalOpen] =
@@ -3765,6 +3767,7 @@ export function KanbanBoardPage() {
                     milestones={milestones}
                     memberColorMap={memberColorMap}
                     jobRoles={jobRoles}
+                    onOpenContractorManager={() => setIsContractorManagerOpen(true)}
                     onViewTask={async (taskId) => {
                       const task = tasks.find((t) => t.id === taskId);
                       if (task) {
@@ -3791,18 +3794,33 @@ export function KanbanBoardPage() {
                     ) => {
                       if (item.task_id) {
                         try {
+                          // targetAssigneeId 가 "contractor:<id>" 라면 외주 행, 아니면 user 행
+                          const isContractorRow =
+                            typeof targetAssigneeId === "string" &&
+                            targetAssigneeId.startsWith("contractor:");
+                          const payload = isContractorRow
+                            ? {
+                                start_date: targetDate,
+                                due_date: targetDate,
+                                assignee_id: null,
+                                contractor_id: targetAssigneeId!.substring(
+                                  "contractor:".length,
+                                ),
+                              }
+                            : {
+                                start_date: targetDate,
+                                due_date: targetDate,
+                                assignee_id:
+                                  targetAssigneeId === "__unassigned__"
+                                    ? null
+                                    : targetAssigneeId,
+                                contractor_id: null,
+                              };
                           await checklistAPI.updateItem(
                             boardId!,
                             item.task_id,
                             item.id,
-                            {
-                              start_date: targetDate,
-                              due_date: targetDate,
-                              assignee_id:
-                                targetAssigneeId === "__unassigned__"
-                                  ? null
-                                  : targetAssigneeId,
-                            },
+                            payload,
                           );
                         } catch (err) {
                           console.warn(
@@ -4404,6 +4422,20 @@ export function KanbanBoardPage() {
             : "dev"}
           {beCommit && <> · BE: {beCommit}</>}
         </div>
+
+        {boardId && (
+          <ContractorManageModal
+            open={isContractorManagerOpen}
+            onClose={() => setIsContractorManagerOpen(false)}
+            boardId={boardId}
+            members={boardMembersData}
+            currentUserId={currentUserId}
+            isAdminOrAbove={isAdminOrOwner}
+            onChanged={() => {
+              setScheduleRefreshPanel((k) => k + 1);
+            }}
+          />
+        )}
       </div>
     </DragProvider>
   );

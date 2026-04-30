@@ -31,6 +31,7 @@ import {
   orgPhotoAPI,
   planningAPI,
   jobRoleAPI,
+  contractorAPI,
 } from "./api";
 import {
   mockBoards,
@@ -1203,6 +1204,42 @@ export const jobRoleService = {
   reorder: async (boardId: string, ids: string[]) => {
     const response = await jobRoleAPI.reorder(boardId, ids);
     return response.job_roles;
+  },
+};
+
+// ========================================
+// Contractor Service (외주)
+// ========================================
+
+export const contractorService = {
+  list: async (boardId: string) => {
+    const response = await contractorAPI.list(boardId);
+    return response.contractors;
+  },
+  create: async (
+    boardId: string,
+    payload: {
+      name: string;
+      manager_member_id: string;
+      job_role_id?: string | null;
+      color?: string | null;
+    },
+  ) => contractorAPI.create(boardId, payload),
+  update: async (
+    boardId: string,
+    contractorId: string,
+    payload: {
+      name?: string;
+      manager_member_id?: string;
+      job_role_id?: string | null;
+      color?: string | null;
+    },
+  ) => contractorAPI.update(boardId, contractorId, payload),
+  remove: async (boardId: string, contractorId: string) =>
+    contractorAPI.remove(boardId, contractorId),
+  reorder: async (boardId: string, ids: string[]) => {
+    const response = await contractorAPI.reorder(boardId, ids);
+    return response.contractors;
   },
 };
 

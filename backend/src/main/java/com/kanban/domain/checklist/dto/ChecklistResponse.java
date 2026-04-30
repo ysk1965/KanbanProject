@@ -1,6 +1,8 @@
 package com.kanban.domain.checklist.dto;
 
 import com.kanban.domain.checklist.ChecklistItem;
+import com.kanban.domain.contractor.dto.BoardContractorResponse;
+import com.kanban.domain.contractor.entity.BoardContractor;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.jobrole.dto.JobRoleResponse;
 import com.kanban.domain.task.Task;
@@ -11,6 +13,7 @@ import lombok.Getter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -26,6 +29,7 @@ public class ChecklistResponse {
         private String title;
         private boolean completed;
         private AssigneeInfo assignee;
+        private BoardContractorResponse.ContractorInfo contractor;
         private LocalDate startDate;
         private LocalDate dueDate;
         private LocalDate doneDate;
@@ -39,6 +43,7 @@ public class ChecklistResponse {
                     .title(item.getTitle())
                     .completed(item.getIsCompleted())
                     .assignee(item.getAssignee() != null ? AssigneeInfo.of(item) : null)
+                    .contractor(BoardContractorResponse.ContractorInfo.of(item.getContractor()))
                     .startDate(item.getStartDate())
                     .dueDate(item.getDueDate())
                     .doneDate(item.getDoneDate())
@@ -116,6 +121,7 @@ public class ChecklistResponse {
         private String title;
         private boolean completed;
         private AssigneeInfo assignee;
+        private BoardContractorResponse.ContractorInfo contractor;
         private LocalDate startDate;
         private LocalDate dueDate;
         private TaskInfo task;
@@ -130,6 +136,7 @@ public class ChecklistResponse {
                     .title(item.getTitle())
                     .completed(item.getIsCompleted())
                     .assignee(item.getAssignee() != null ? AssigneeInfo.of(item) : null)
+                    .contractor(BoardContractorResponse.ContractorInfo.of(item.getContractor()))
                     .startDate(item.getStartDate())
                     .dueDate(item.getDueDate())
                     .task(task != null ? TaskInfo.of(task) : null)
@@ -189,7 +196,8 @@ public class ChecklistResponse {
 
     /**
      * UC-001: GET /boards/{boardId}/checklist-items/by-assignee 응답 최상위 DTO
-     * - assignees: 담당자별 그룹 목록
+     * - assignees: 담당자(User)별 그룹 목록
+     * - contractors: 외주(BoardContractor)별 그룹 목록
      * - unassigned: 담당자 미배정 항목 목록
      */
     @Getter
@@ -197,6 +205,7 @@ public class ChecklistResponse {
     @AllArgsConstructor
     public static class ByAssigneeResponse {
         private List<AssigneeGroup> assignees;
+        private List<ContractorGroup> contractors;
         private List<AssigneeItemResponse> unassigned;
 
         public static ByAssigneeResponse of(List<ChecklistItem> items) {
@@ -208,15 +217,17 @@ public class ChecklistResponse {
          */
         public static ByAssigneeResponse of(List<ChecklistItem> items,
                                              Map<String, JobRoleResponse.JobRoleInfo> jobRoleByUserId) {
-            // 담당자 있는 항목과 없는 항목 분리
-            List<ChecklistItem> assignedItems = items.stream()
-                    .filter(c -> c.getAssignee() != null)
-                    .toList();
-            List<ChecklistItem> unassignedItems = items.stream()
-                    .filter(c -> c.getAssignee() == null)
-                    .toList();
+            // 담당자(User), 외주(Contractor), 미배정으로 분리
+            List<ChecklistItem> assignedItems = new ArrayList<>();
+            List<ChecklistItem> contractorItems = new ArrayList<>();
+            List<ChecklistItem> unassignedItems = new ArrayList<>();
+            for (ChecklistItem c : items) {
+                if (c.getAssignee() != null) assignedItems.add(c);
+                else if (c.getContractor() != null) contractorItems.add(c);
+                else unassignedItems.add(c);
+            }
 
-            // 담당자별 그룹핑 (LinkedHashMap으로 삽입 순서 유지)
+            // 담당자(User)별 그룹핑
             Map<String, List<ChecklistItem>> grouped = assignedItems.stream()
                     .collect(Collectors.groupingBy(
                             c -> c.getAssignee().getId(),
@@ -238,8 +249,30 @@ public class ChecklistResponse {
                     })
                     .toList();
 
+            // 외주(Contractor)별 그룹핑
+            Map<String, List<ChecklistItem>> groupedContractors = contractorItems.stream()
+                    .collect(Collectors.groupingBy(
+                            c -> c.getContractor().getId(),
+                            LinkedHashMap::new,
+                            Collectors.toList()
+                    ));
+
+            List<ContractorGroup> contractorGroups = groupedContractors.entrySet().stream()
+                    .map(entry -> {
+                        BoardContractor contractor = entry.getValue().get(0).getContractor();
+                        List<AssigneeItemResponse> groupItems = entry.getValue().stream()
+                                .map(AssigneeItemResponse::of)
+                                .toList();
+                        return ContractorGroup.builder()
+                                .contractor(BoardContractorResponse.ContractorInfo.of(contractor))
+                                .items(groupItems)
+                                .build();
+                    })
+                    .toList();
+
             return ByAssigneeResponse.builder()
                     .assignees(assigneeGroups)
+                    .contractors(contractorGroups)
                     .unassigned(unassignedItems.stream().map(AssigneeItemResponse::of).toList())
                     .build();
         }
@@ -253,6 +286,17 @@ public class ChecklistResponse {
     @AllArgsConstructor
     public static class AssigneeGroup {
         private AssigneeInfo assignee;
+        private List<AssigneeItemResponse> items;
+    }
+
+    /**
+     * 외주 + 해당 외주의 ChecklistItem 목록 (워크로드 뷰의 별도 행)
+     */
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class ContractorGroup {
+        private BoardContractorResponse.ContractorInfo contractor;
         private List<AssigneeItemResponse> items;
     }
 

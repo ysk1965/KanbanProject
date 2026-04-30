@@ -280,6 +280,26 @@ export interface JobRole extends JobRoleInfo {
 }
 
 // ========================================
+// 외주(BoardContractor) 타입
+// ========================================
+
+export interface ContractorInfo {
+  id: string;
+  name: string;
+  color?: string | null;
+  manager_member_id?: string | null;
+  manager_name?: string | null;
+  job_role?: JobRoleInfo | null;
+}
+
+export interface BoardContractor extends ContractorInfo {
+  display_order?: number | null;
+  manager_user_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ========================================
 // 블록 타입
 // ========================================
 
@@ -457,6 +477,7 @@ export interface ChecklistItem {
     name: string;
     profile_image: string | null;
   } | null;
+  contractor?: ContractorInfo | null;
   start_date: string | null;
   due_date: string | null;
   done_date: string | null;
