@@ -1389,6 +1389,10 @@
     "noDate": "日付なし",
     "assignee": "担当者",
     "addAssigneeToChecklist": "チェックリストの担当者と自動連動",
+    "checklistFilter": {
+      "unassigned": "未割り当て",
+      "showingCount": "{{visible}} / {{total}} 件表示中"
+    },
     "tags": "タグ",
     "tagName": "タグ名",
     "addTag": "タグを追加",

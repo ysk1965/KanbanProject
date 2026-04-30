@@ -211,18 +211,38 @@ export const KanbanFilterToolbar = forwardRef<
                       : "text-muted-foreground hover:bg-foreground/5"
                   }`}
                 >
-                  <div
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-xs text-white font-bold whitespace-nowrap overflow-hidden"
-                    style={{
-                      backgroundColor: getAssigneeHex(
-                        member.name,
-                        member.assigneeColor,
-                      ),
-                    }}
-                  >
-                    {getInitials(member.name)}
+                  <div className="relative shrink-0">
+                    <div
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-xs text-white font-bold whitespace-nowrap overflow-hidden"
+                      style={{
+                        backgroundColor: getAssigneeHex(
+                          member.name,
+                          member.assigneeColor,
+                        ),
+                      }}
+                    >
+                      {getInitials(member.name)}
+                    </div>
+                    {member.jobRole && (
+                      <span
+                        className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ring-1 ring-bridge-obsidian"
+                        style={{ backgroundColor: member.jobRole.color || "#6366F1" }}
+                        title={member.jobRole.name}
+                      />
+                    )}
                   </div>
                   <span className="truncate">{member.name}</span>
+                  {member.jobRole && (
+                    <span
+                      className="text-xs font-bold px-1.5 py-0.5 rounded-full"
+                      style={{
+                        backgroundColor: `${member.jobRole.color || "#6366F1"}26`,
+                        color: member.jobRole.color || "#6366F1",
+                      }}
+                    >
+                      {member.jobRole.name}
+                    </span>
+                  )}
                   {filterOptions.members.includes(member.name) && (
                     <CheckCircle2
                       size={14}

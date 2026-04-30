@@ -72,6 +72,7 @@ import {
   AiCredits,
   TaskDependency,
   StatisticsViewType,
+  JobRole,
 } from "../types";
 import {
   DndContext,
@@ -182,6 +183,7 @@ import {
   checklistService,
   aiCreditService,
   taskDependencyService,
+  jobRoleService,
 } from "../utils/services";
 import {
   notificationAPI,
@@ -538,6 +540,7 @@ export function KanbanBoardPage() {
   const [editingBlock, setEditingBlock] = useState<Block | null>(null);
   const [isAddFeatureModalOpen, setIsAddFeatureModalOpen] = useState(false);
   const [isShareBoardModalOpen, setIsShareBoardModalOpen] = useState(false);
+  const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
   const [isTrashOpen, setIsTrashOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [isPremiumBenefitsModalOpen, setIsPremiumBenefitsModalOpen] =
@@ -678,6 +681,15 @@ export function KanbanBoardPage() {
     const map: Record<string, string | null> = {};
     boardMembersData.forEach((m) => {
       map[m.userId] = m.assigneeColor || null;
+    });
+    return map;
+  }, [boardMembersData]);
+
+  // 직군(JobRole) 데이터: userId → JobRoleInfo
+  const memberJobRoleMap = useMemo(() => {
+    const map: Record<string, import("../types").JobRoleInfo | null> = {};
+    boardMembersData.forEach((m) => {
+      map[m.userId] = m.jobRole || null;
     });
     return map;
   }, [boardMembersData]);
@@ -1102,6 +1114,7 @@ export function KanbanBoardPage() {
           user?: { id?: string };
           assignee_color?: string | null;
           role?: string;
+          job_role?: { id: string; name: string; color?: string | null; icon?: string | null } | null;
         };
         if (memberData?.id) {
           setBoardMembersData((prev) =>
@@ -1112,10 +1125,41 @@ export function KanbanBoardPage() {
                     assigneeColor: memberData.assignee_color ?? null,
                     role:
                       (memberData.role?.toLowerCase() as MemberRole) || m.role,
+                    jobRole:
+                      memberData.job_role !== undefined
+                        ? memberData.job_role
+                        : m.jobRole,
                   }
                 : m,
             ),
           );
+        }
+        break;
+      }
+
+      // Job Role events — 직군 정의 변경 시 목록 + 멤버 매핑 새로고침
+      case "JOB_ROLE_UPDATED": {
+        if (boardId) {
+          jobRoleService
+            .list(boardId)
+            .then((roles) => setJobRoles(roles))
+            .catch(() => {});
+          memberService
+            .getMembers(boardId)
+            .then((res) => {
+              setBoardMembersData(
+                res.members.map((m: any) => ({
+                  id: m.id,
+                  userId: m.user.id,
+                  name: m.user.name,
+                  email: m.user.email,
+                  role: m.role.toLowerCase() as MemberRole,
+                  assigneeColor: m.assignee_color || null,
+                  jobRole: m.job_role || null,
+                })),
+              );
+            })
+            .catch(() => {});
         }
         break;
       }
@@ -1214,6 +1258,68 @@ export function KanbanBoardPage() {
       }
     }
   }, [boardId, isLoading]);
+
+  // 직군(JobRole) 목록 로드
+  useEffect(() => {
+    if (!boardId) return;
+    let cancelled = false;
+    jobRoleService
+      .list(boardId)
+      .then((roles) => {
+        if (!cancelled) setJobRoles(roles);
+      })
+      .catch(() => {
+        if (!cancelled) setJobRoles([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [boardId]);
+
+  const refreshJobRoles = useCallback(async () => {
+    if (!boardId) return;
+    try {
+      const roles = await jobRoleService.list(boardId);
+      setJobRoles(roles);
+    } catch (err) {
+      console.error("Failed to refresh job roles:", err);
+    }
+  }, [boardId]);
+
+  const handleUpdateMemberJobRole = useCallback(
+    async (memberId: string, jobRoleId: string | null) => {
+      if (!boardId) return;
+      const prev = boardMembersData;
+      const targetRole = jobRoleId
+        ? jobRoles.find((r) => r.id === jobRoleId) || null
+        : null;
+      setBoardMembersData(
+        prev.map((m) =>
+          m.id === memberId
+            ? {
+                ...m,
+                jobRole: targetRole
+                  ? {
+                      id: targetRole.id,
+                      name: targetRole.name,
+                      color: targetRole.color,
+                      icon: targetRole.icon,
+                    }
+                  : null,
+              }
+            : m,
+        ),
+      );
+      try {
+        await memberService.updateMemberJobRole(boardId, memberId, jobRoleId);
+        await refreshJobRoles();
+      } catch (err) {
+        console.error("Failed to update member jobRole:", err);
+        setBoardMembersData(prev);
+      }
+    },
+    [boardId, boardMembersData, jobRoles, refreshJobRoles, setBoardMembersData],
+  );
 
   // ShareBoardModal 열릴 때 멤버 목록 새로고침
   useEffect(() => {
@@ -3583,6 +3689,7 @@ export function KanbanBoardPage() {
                     boardId={boardId || ""}
                     boardMembers={boardMembersData}
                     memberColorMap={memberColorMap}
+                    jobRoles={jobRoles}
                     onViewTask={async (taskId) => {
                       const task = tasks.find((t) => t.id === taskId);
                       if (task) {
@@ -3638,6 +3745,8 @@ export function KanbanBoardPage() {
                     boardMembers={boardMembersData}
                     onItemAdded={() => setScheduleRefreshPanel((k) => k + 1)}
                     milestones={milestones}
+                    jobRoles={jobRoles}
+                    memberJobRoleMap={memberJobRoleMap}
                   />
                 </Suspense>
               </div>
@@ -3655,6 +3764,7 @@ export function KanbanBoardPage() {
                     boardMembers={boardMembersData}
                     milestones={milestones}
                     memberColorMap={memberColorMap}
+                    jobRoles={jobRoles}
                     onViewTask={async (taskId) => {
                       const task = tasks.find((t) => t.id === taskId);
                       if (task) {
@@ -3721,6 +3831,8 @@ export function KanbanBoardPage() {
                     boardMembers={boardMembersData}
                     onItemAdded={() => setScheduleRefreshPanel((k) => k + 1)}
                     milestones={milestones}
+                    jobRoles={jobRoles}
+                    memberJobRoleMap={memberJobRoleMap}
                   />
                 </Suspense>
               </div>
@@ -4200,6 +4312,10 @@ export function KanbanBoardPage() {
           boardName={board?.name}
           onTransferOwnership={handleTransferOwnership}
           hideBillingForUser={hideBillingForUser}
+          jobRoles={jobRoles}
+          onUpdateMemberJobRole={handleUpdateMemberJobRole}
+          canManageJobRoles={isAdminOrOwner}
+          onJobRolesChanged={(roles) => setJobRoles(roles)}
           // Subscription Modal
           isSubscriptionModalOpen={isSubscriptionModalOpen}
           onCloseSubscription={() => setIsSubscriptionModalOpen(false)}

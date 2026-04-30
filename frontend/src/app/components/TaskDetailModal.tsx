@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Task,
@@ -193,6 +193,9 @@ export function TaskDetailModal({
   const [checklistTimeBlocksMap, setChecklistTimeBlocksMap] = useState<
     Record<string, ScheduleBlockDetailResponse[]>
   >({});
+  // 체크리스트 담당자 필터 (모달 로컬, 임시) — 빈 배열이면 필터 미적용
+  // '__no_assignee__' 토큰은 미할당 항목을 의미
+  const [filterAssigneeIds, setFilterAssigneeIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (task && open) {
@@ -200,6 +203,7 @@ export function TaskDetailModal({
       setEditedTask(JSON.parse(JSON.stringify(task)));
       setIsEditingTitle(false);
       setChecklistItems([]); // 체크리스트 초기화
+      setFilterAssigneeIds([]); // 담당자 필터 초기화
 
       // 체크리스트 API 로드
       if (boardId) {
@@ -649,13 +653,30 @@ export function TaskDetailModal({
     }
   };
 
-  const sortedChecklistItems = [...checklistItems].sort(
-    (a, b) => a.position - b.position,
+  const sortedChecklistItems = useMemo(
+    () => [...checklistItems].sort((a, b) => a.position - b.position),
+    [checklistItems],
   );
+
+  // 필터 적용 결과 (렌더링/카운터용). 미적용 시 sortedChecklistItems와 동일.
+  const visibleChecklistItems = useMemo(() => {
+    if (filterAssigneeIds.length === 0) return sortedChecklistItems;
+    const includesUnassigned = filterAssigneeIds.includes("__no_assignee__");
+    const realIds = filterAssigneeIds.filter((id) => id !== "__no_assignee__");
+    return sortedChecklistItems.filter(
+      (item) =>
+        (includesUnassigned && !item.assignee) ||
+        (item.assignee && realIds.includes(item.assignee.id)),
+    );
+  }, [sortedChecklistItems, filterAssigneeIds]);
+
+  const isChecklistFilterActive = filterAssigneeIds.length > 0;
 
   const handleChecklistDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !boardId || !task) return;
+    // 필터 적용 중에는 reorder 비활성 (가시 항목과 전체 인덱스 불일치 위험)
+    if (isChecklistFilterActive) return;
 
     const oldIndex = sortedChecklistItems.findIndex(
       (item) => item.id === active.id,
@@ -1009,7 +1030,14 @@ export function TaskDetailModal({
                           }>,
                         );
 
-                      if (uniqueAssignees.length === 0) {
+                      const hasUnassigned = checklistItems.some(
+                        (item) => !item.assignee,
+                      );
+
+                      if (
+                        uniqueAssignees.length === 0 &&
+                        !hasUnassigned
+                      ) {
                         return (
                           <span className="text-sm text-slate-400">
                             {t("task.addAssigneeToChecklist")}
@@ -1017,40 +1045,90 @@ export function TaskDetailModal({
                         );
                       }
 
-                      return uniqueAssignees.map((assignee) => {
-                        const memberData = boardMembers.find(
-                          (m) => m.userId === assignee.id,
+                      const toggleFilter = (id: string) => {
+                        setFilterAssigneeIds((prev) =>
+                          prev.includes(id)
+                            ? prev.filter((x) => x !== id)
+                            : [...prev, id],
                         );
-                        const color = getAssigneeClasses(
-                          assignee.name,
-                          memberData?.assigneeColor,
-                        );
-                        return (
-                          <div
-                            key={assignee.id}
-                            className={`flex items-center gap-2 px-3 py-2 ${color.bgLight} border border-foreground/10 rounded-lg`}
-                            style={
-                              !color.bgLight
-                                ? { backgroundColor: color.hex + "20" }
-                                : undefined
-                            }
-                          >
-                            <div
-                              className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white whitespace-nowrap overflow-hidden`}
-                              style={
-                                !color.bg
-                                  ? { backgroundColor: color.hex }
-                                  : undefined
-                              }
-                            >
-                              {getInitials(assignee.name)}
-                            </div>
-                            <span className="text-sm text-foreground">
-                              {assignee.name}
-                            </span>
-                          </div>
-                        );
-                      });
+                      };
+
+                      return (
+                        <>
+                          {uniqueAssignees.map((assignee) => {
+                            const memberData = boardMembers.find(
+                              (m) => m.userId === assignee.id,
+                            );
+                            const color = getAssigneeClasses(
+                              assignee.name,
+                              memberData?.assigneeColor,
+                            );
+                            const isActive = filterAssigneeIds.includes(
+                              assignee.id,
+                            );
+                            return (
+                              <button
+                                key={assignee.id}
+                                type="button"
+                                onClick={() => toggleFilter(assignee.id)}
+                                aria-pressed={isActive}
+                                className={`flex items-center gap-2 px-3 py-2 ${color.bgLight} border rounded-lg transition-all hover:brightness-110 ${
+                                  isActive
+                                    ? "border-bridge-accent ring-2 ring-bridge-accent/50"
+                                    : "border-foreground/10"
+                                }`}
+                                style={
+                                  !color.bgLight
+                                    ? { backgroundColor: color.hex + "20" }
+                                    : undefined
+                                }
+                              >
+                                <div
+                                  className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white whitespace-nowrap overflow-hidden`}
+                                  style={
+                                    !color.bg
+                                      ? { backgroundColor: color.hex }
+                                      : undefined
+                                  }
+                                >
+                                  {getInitials(assignee.name)}
+                                </div>
+                                <span className="text-sm text-foreground">
+                                  {assignee.name}
+                                </span>
+                              </button>
+                            );
+                          })}
+                          {hasUnassigned &&
+                            (() => {
+                              const isActive = filterAssigneeIds.includes(
+                                "__no_assignee__",
+                              );
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleFilter("__no_assignee__")}
+                                  aria-pressed={isActive}
+                                  className={`flex items-center gap-2 px-3 py-2 bg-foreground/5 border rounded-lg transition-all hover:bg-foreground/10 ${
+                                    isActive
+                                      ? "border-bridge-accent ring-2 ring-bridge-accent/50"
+                                      : "border-foreground/10"
+                                  }`}
+                                >
+                                  <div className="w-6 h-6 rounded-full bg-foreground/10 flex items-center justify-center text-xs text-slate-400">
+                                    ?
+                                  </div>
+                                  <span className="text-sm text-slate-400">
+                                    {t(
+                                      "task.checklistFilter.unassigned",
+                                      "미할당",
+                                    )}
+                                  </span>
+                                </button>
+                              );
+                            })()}
+                        </>
+                      );
                     })()}
                   </div>
                 </div>
@@ -1122,6 +1200,15 @@ export function TaskDetailModal({
                   )}
                 </div>
                 <div className="flex items-center gap-3">
+                  {isChecklistFilterActive && (
+                    <span className="text-xs text-slate-500">
+                      {t("task.checklistFilter.showingCount", {
+                        visible: visibleChecklistItems.length,
+                        total: checklistItems.length,
+                        defaultValue: "{{visible}} / {{total}} 표시 중",
+                      })}
+                    </span>
+                  )}
                   <div className="w-24 h-2 bg-foreground/10 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-300"
@@ -1172,10 +1259,10 @@ export function TaskDetailModal({
                   onDragEnd={handleChecklistDragEnd}
                 >
                   <SortableContext
-                    items={sortedChecklistItems.map((item) => item.id)}
+                    items={visibleChecklistItems.map((item) => item.id)}
                     strategy={verticalListSortingStrategy}
                   >
-                    {sortedChecklistItems.map((item) => (
+                    {visibleChecklistItems.map((item) => (
                       <SortableChecklistItemRow
                         key={item.id}
                         item={item}
@@ -1195,6 +1282,7 @@ export function TaskDetailModal({
                         boardMembers={boardMembers}
                         boardId={boardId}
                         canEdit={canEdit}
+                        dragDisabled={isChecklistFilterActive}
                         isPersonal={isPersonal}
                         preloadedTimeBlocks={checklistTimeBlocksMap[item.id]}
                       />
@@ -1768,9 +1856,11 @@ function SortableChecklistItemRow(props: {
   boardMembers: BoardMember[];
   boardId: string | null;
   canEdit?: boolean;
+  dragDisabled?: boolean;
   isPersonal?: boolean;
   preloadedTimeBlocks?: ScheduleBlockDetailResponse[];
 }) {
+  const dragEnabled = !!props.canEdit && !props.dragDisabled;
   const {
     attributes,
     listeners,
@@ -1780,7 +1870,7 @@ function SortableChecklistItemRow(props: {
     isDragging,
   } = useSortable({
     id: props.item.id,
-    disabled: !props.canEdit,
+    disabled: !dragEnabled,
   });
 
   const style = {
@@ -1794,7 +1884,7 @@ function SortableChecklistItemRow(props: {
     <div ref={setNodeRef} style={style} {...attributes}>
       <ChecklistItemRow
         {...props}
-        dragHandleProps={props.canEdit ? listeners : undefined}
+        dragHandleProps={dragEnabled ? listeners : undefined}
       />
     </div>
   );

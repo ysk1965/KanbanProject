@@ -11,10 +11,10 @@ import {
   SelectValue,
 } from './ui/select';
 import { Badge } from './ui/badge';
-import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Loader2, Pipette, Users, Settings, GripVertical, Sparkles, Building2, Search, ArrowRightLeft } from 'lucide-react';
+import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Loader2, Pipette, Users, Settings, GripVertical, Sparkles, Building2, Search, ArrowRightLeft, Briefcase } from 'lucide-react';
 import { ColorPickerPopover } from './ui/ColorPickerPopover';
 import { InviteLink, slackWebhookAPI, SlackWebhookMemberStatus, discordAPI, DiscordMemberStatus } from '../utils/api';
-import { AiCredits, OrgBoardCandidate } from '../types';
+import { AiCredits, JobRole, JobRoleInfo, OrgBoardCandidate } from '../types';
 import { FEATURE_COLORS } from '../constants';
 import { ASSIGNEE_COLOR_NAMES, getAssigneeClasses, getAssigneeHex, getInitials } from '../utils/assigneeColor';
 import { memberService } from '../utils/services';
@@ -39,6 +39,7 @@ export interface BoardMember {
   role: MemberRole;
   avatar?: string;
   assigneeColor?: string | null;
+  jobRole?: JobRoleInfo | null;
 }
 
 interface ShareBoardModalProps {
@@ -73,6 +74,11 @@ interface ShareBoardModalProps {
   // 소유권 이전
   boardName?: string;
   onTransferOwnership?: (newOwnerUserId: string) => Promise<void>;
+  // 직군(JobRole)
+  jobRoles?: JobRole[];
+  onUpdateMemberJobRole?: (memberId: string, jobRoleId: string | null) => void;
+  onOpenJobRoleManager?: () => void;
+  canManageJobRoles?: boolean;
 }
 
 const ROLE_LABELS: Record<MemberRole, string> = {
@@ -117,6 +123,9 @@ interface SortableMemberRowProps {
   onUpdateMemberRole: (memberId: string, role: MemberRole) => void;
   onRemoveMember: (memberId: string) => void;
   onUpdateMemberColor?: (memberId: string, color: string | null) => void;
+  jobRoles?: JobRole[];
+  canChangeJobRole?: boolean;
+  onUpdateMemberJobRole?: (memberId: string, jobRoleId: string | null) => void;
   t: (key: string, options?: Record<string, unknown>) => string;
   isCurrentUserOwner?: boolean;
   onTransferClick?: () => void;
@@ -124,7 +133,9 @@ interface SortableMemberRowProps {
 
 function SortableMemberRow({
   member, canDrag, isCurrentMember, isOnline, canEdit, canChangeColor, webhookStatus, discordStatus,
-  onUpdateMemberRole, onRemoveMember, onUpdateMemberColor, t, isCurrentUserOwner, onTransferClick,
+  onUpdateMemberRole, onRemoveMember, onUpdateMemberColor,
+  jobRoles, canChangeJobRole, onUpdateMemberJobRole,
+  t, isCurrentUserOwner, onTransferClick,
 }: SortableMemberRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: member.id, disabled: !canDrag });
   const style = {
@@ -248,6 +259,55 @@ function SortableMemberRow({
 
       {/* 역할 & 액션 */}
       <div className="flex items-center gap-1.5">
+        {/* 직군(JobRole) 드롭다운 */}
+        {jobRoles !== undefined && (
+          canChangeJobRole ? (
+            <Select
+              value={member.jobRole?.id ?? '__none__'}
+              onValueChange={(value) =>
+                onUpdateMemberJobRole?.(member.id, value === '__none__' ? null : value)
+              }
+            >
+              <SelectTrigger
+                className="w-[120px] bg-foreground/[0.04] border-foreground/10 rounded-lg text-foreground text-xs h-8"
+                title={t('jobRole.title')}
+              >
+                <SelectValue placeholder={t('jobRole.unassigned')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">
+                  <span className="text-slate-400">{t('jobRole.unassigned')}</span>
+                </SelectItem>
+                {jobRoles.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: r.color || '#6366F1' }}
+                      />
+                      {r.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : member.jobRole ? (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold"
+              style={{
+                backgroundColor: `${member.jobRole.color || '#6366F1'}26`,
+                color: member.jobRole.color || '#6366F1',
+              }}
+              title={t('jobRole.title')}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: member.jobRole.color || '#6366F1' }}
+              />
+              {member.jobRole.name}
+            </span>
+          ) : null
+        )}
         {canEdit ? (
           <>
             <Select
@@ -326,6 +386,10 @@ export function ShareBoardModal({
   // 소유권 이전
   boardName,
   onTransferOwnership,
+  // 직군
+  jobRoles,
+  onUpdateMemberJobRole,
+  onOpenJobRoleManager,
 }: ShareBoardModalProps) {
   const { t } = useTranslation();
   const [inviteEmail, setInviteEmail] = useState('');
@@ -795,6 +859,17 @@ export function ShareBoardModal({
               <span className="text-xs font-bold text-bridge-accent bg-bridge-accent/15 px-2 py-0.5 rounded-full">
                 {members.length}
               </span>
+              {onOpenJobRoleManager && (
+                <button
+                  type="button"
+                  onClick={onOpenJobRoleManager}
+                  className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold text-bridge-accent bg-bridge-accent/10 hover:bg-bridge-accent/20 transition-all"
+                  title={t('jobRole.manage')}
+                >
+                  <Briefcase className="h-3.5 w-3.5" />
+                  {t('jobRole.manage')}
+                </button>
+              )}
             </div>
 
             <DndContext
@@ -813,6 +888,7 @@ export function ShareBoardModal({
                     const discordStatus = discordStatusMap[member.userId];
                     const canDrag = !!onReorderMembers && isCurrentUserAdmin;
 
+                    const canChangeJobRole = isCurrentUserAdmin && member.role !== 'owner' && !!onUpdateMemberJobRole;
                     return (
                       <SortableMemberRow
                         key={member.id}
@@ -827,6 +903,9 @@ export function ShareBoardModal({
                         onUpdateMemberRole={onUpdateMemberRole}
                         onRemoveMember={onRemoveMember}
                         onUpdateMemberColor={onUpdateMemberColor}
+                        jobRoles={jobRoles}
+                        canChangeJobRole={canChangeJobRole}
+                        onUpdateMemberJobRole={onUpdateMemberJobRole}
                         t={t}
                         isCurrentUserOwner={isCurrentUserOwner}
                         onTransferClick={onTransferOwnership ? () => setShowTransferSection(true) : undefined}

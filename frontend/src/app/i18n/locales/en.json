@@ -395,6 +395,21 @@
     "cancel": "Cancel",
     "createBoard": "Create Board"
   },
+  "jobRole": {
+    "title": "Job Role",
+    "manage": "Manage Roles",
+    "manageDesc": "Define job roles (Dev/Design/Plan/etc.) to assign to board members",
+    "add": "Add",
+    "namePlaceholder": "Role name (e.g. Dev, Design, Plan)",
+    "colorLabel": "Color",
+    "iconLabel": "Icon",
+    "unassigned": "Unassigned",
+    "memberCount": "{{count}}",
+    "deleteConfirm": "{{count}} member(s) will lose this role. Delete?",
+    "deleteConfirmEmpty": "Delete this role?",
+    "duplicateName": "A role with this name already exists",
+    "empty": "No roles defined yet"
+  },
   "share": {
     "title": "Share Board",
     "description": "Share this board with your team",
@@ -815,7 +830,9 @@
       "noItems": "No items assigned",
       "completed": "Completed",
       "collapse": "Collapse",
-      "more": "more"
+      "more": "more",
+      "groupByMember": "By Member",
+      "groupByJobRole": "By Role"
     },
     "panel": {
       "title": "Checklist",
@@ -824,6 +841,7 @@
       "dragHint": "Drag to place on calendar/resource",
       "filterFeature": "Filter by feature",
       "filterMilestone": "Filter by milestone",
+      "filterJobRole": "Filter by job role",
       "noFeature": "No feature",
       "addItem": "Add checklist item",
       "selectFeature": "Feature",
@@ -1446,6 +1464,10 @@
     "noDate": "No date",
     "assignee": "Assignee",
     "addAssigneeToChecklist": "Synced with checklist assignees",
+    "checklistFilter": {
+      "unassigned": "Unassigned",
+      "showingCount": "Showing {{visible}} / {{total}}"
+    },
     "tags": "Tags",
     "tagName": "Tag name",
     "addTag": "Add Tag",

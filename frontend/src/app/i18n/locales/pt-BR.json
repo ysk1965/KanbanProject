@@ -1389,6 +1389,10 @@
     "noDate": "Sem data",
     "assignee": "Responsável",
     "addAssigneeToChecklist": "Sincronizado com responsáveis do checklist",
+    "checklistFilter": {
+      "unassigned": "Não atribuído",
+      "showingCount": "Mostrando {{visible}} / {{total}}"
+    },
     "tags": "Tags",
     "tagName": "Nome da tag",
     "addTag": "Adicionar Tag",

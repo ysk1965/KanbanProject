@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PanelRightClose, Search, ChevronDown, ChevronRight, Loader2, Filter, X, Plus } from 'lucide-react';
+import { PanelRightClose, Search, ChevronDown, ChevronRight, Loader2, Filter, X, Plus, Briefcase } from 'lucide-react';
 import { AssigneeItemResponse, boardChecklistAPI } from '../../utils/api';
-import { Milestone } from '../../types';
+import { JobRole, JobRoleInfo, Milestone } from '../../types';
 import { BoardMember } from '../ShareBoardModal';
 import { ChecklistDragItem } from './ChecklistDragItem';
 import { AddChecklistItemModal } from './AddChecklistItemModal';
@@ -43,6 +43,10 @@ interface ChecklistItemPanelProps {
   onItemAdded?: () => void;
   /** Board milestones (with their feature lists) for the milestone filter. */
   milestones?: Milestone[];
+  /** 직군(JobRole) 목록 — 필터 드롭다운에 사용 */
+  jobRoles?: JobRole[];
+  /** userId → JobRoleInfo 매핑 — 항목의 assignee를 직군에 매칭 */
+  memberJobRoleMap?: Record<string, JobRoleInfo | null>;
 }
 
 // ─── Feature group types ──────────────────────────────────────────────────────
@@ -164,6 +168,8 @@ export function ChecklistItemPanel({
   boardMembers = [],
   onItemAdded,
   milestones = [],
+  jobRoles = [],
+  memberJobRoleMap = {},
 }: ChecklistItemPanelProps) {
   const { t } = useTranslation();
 
@@ -185,6 +191,27 @@ export function ChecklistItemPanel({
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
   const [showMilestoneDropdown, setShowMilestoneDropdown] = useState(false);
   const milestoneDropdownRef = useRef<HTMLDivElement>(null);
+
+  // ── 직군 필터 (단일 선택, "__none__" = 미지정) ──
+  const jobRoleFilterKey = `checklistPanelJobRoleFilter_${boardId}`;
+  const [selectedJobRoleId, setSelectedJobRoleId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(jobRoleFilterKey);
+  });
+  const [showJobRoleDropdown, setShowJobRoleDropdown] = useState(false);
+  const jobRoleDropdownRef = useRef<HTMLDivElement>(null);
+  const updateJobRoleFilter = useCallback(
+    (id: string | null) => {
+      setSelectedJobRoleId(id);
+      try {
+        if (id) window.localStorage.setItem(jobRoleFilterKey, id);
+        else window.localStorage.removeItem(jobRoleFilterKey);
+      } catch {
+        /* ignore */
+      }
+    },
+    [jobRoleFilterKey],
+  );
 
   // ── Feature group collapse state (collapsed feature ids) ──
   const [collapsedFeatureKeys, setCollapsedFeatureKeys] = useState<Set<string>>(new Set());
@@ -370,7 +397,7 @@ export function ChecklistItemPanel({
     [onItemDropped],
   );
 
-  // ── Filter items by search query + milestone (via feature ids) ──
+  // ── Filter items by search query + milestone (via feature ids) + job role ──
   const filteredItems = useMemo(() => {
     let result = items;
     if (selectedMilestoneFeatureIds) {
@@ -378,12 +405,20 @@ export function ChecklistItemPanel({
         (item) => item.feature && selectedMilestoneFeatureIds.has(item.feature.id),
       );
     }
+    if (selectedJobRoleId) {
+      result = result.filter((item) => {
+        const assigneeId = (item as unknown as { assignee?: { id: string } | null }).assignee?.id;
+        const role = assigneeId ? memberJobRoleMap[assigneeId] : null;
+        const key = role?.id || "__none__";
+        return key === selectedJobRoleId;
+      });
+    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter((item) => item.title.toLowerCase().includes(q));
     }
     return result;
-  }, [items, selectedMilestoneFeatureIds, searchQuery]);
+  }, [items, selectedMilestoneFeatureIds, searchQuery, selectedJobRoleId, memberJobRoleMap]);
 
   const noFeatureLabel = t('schedule.panel.noFeature', '피처 없음');
   const featureGroups = useMemo(
@@ -467,6 +502,77 @@ export function ChecklistItemPanel({
             />
           </div>
         </div>
+
+        {/* 직군 필터 */}
+        {jobRoles.length > 0 && (
+          <div className="px-3 py-1.5 border-b border-foreground/[0.08]" ref={jobRoleDropdownRef}>
+            {selectedJobRoleId ? (
+              <button
+                onClick={() => updateJobRoleFilter(null)}
+                className="inline-flex items-center gap-1.5 max-w-full px-2 py-1 rounded-lg
+                  bg-bridge-accent/10 text-bridge-accent text-xs font-medium
+                  hover:bg-bridge-accent/15 transition-colors"
+              >
+                <Briefcase size={12} />
+                {(() => {
+                  if (selectedJobRoleId === "__none__")
+                    return <span>{t("jobRole.unassigned", "미지정")}</span>;
+                  const r = jobRoles.find((x) => x.id === selectedJobRoleId);
+                  return r ? <span className="truncate">{r.name}</span> : null;
+                })()}
+                <X size={12} className="shrink-0 ml-0.5" />
+              </button>
+            ) : (
+              <div className="relative">
+                <button
+                  onClick={() => setShowJobRoleDropdown((p) => !p)}
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg
+                    text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                >
+                  <Briefcase size={12} />
+                  <span>{t("schedule.panel.filterJobRole", "직군별 필터")}</span>
+                  <ChevronDown size={10} className={`transition-transform ${showJobRoleDropdown ? "rotate-180" : ""}`} />
+                </button>
+                {showJobRoleDropdown && (
+                  <div
+                    className="absolute top-full left-0 right-0 mt-1 z-30
+                    bg-bridge-obsidian border border-foreground/[0.08] rounded-lg shadow-xl
+                    max-h-[240px] overflow-y-auto custom-scrollbar py-1"
+                  >
+                    {jobRoles.map((role) => (
+                      <button
+                        key={role.id}
+                        onClick={() => {
+                          updateJobRoleFilter(role.id);
+                          setShowJobRoleDropdown(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs
+                          text-foreground hover:bg-foreground/5 transition-colors"
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: role.color || "#6366F1" }}
+                        />
+                        <span className="truncate">{role.name}</span>
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => {
+                        updateJobRoleFilter("__none__");
+                        setShowJobRoleDropdown(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs
+                        text-slate-400 hover:bg-foreground/5 transition-colors border-t border-foreground/[0.06] mt-1 pt-1.5"
+                    >
+                      <span className="w-2 h-2 rounded-full shrink-0 bg-slate-500" />
+                      {t("jobRole.unassigned", "미지정")}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Milestone filter */}
         {milestoneOptions.length > 0 && (

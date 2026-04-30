@@ -104,6 +104,7 @@ export function useBoardDataLoader(boardId: string | undefined) {
           email: m.user.email,
           role: m.role.toLowerCase() as MemberRole,
           assigneeColor: m.assignee_color || null,
+          jobRole: m.job_role || null,
         })));
 
         // 마일스톤 선택 시 클라이언트 사이드 필터링 (추가 API 호출 제거)
@@ -207,6 +208,7 @@ export function useBoardDataLoader(boardId: string | undefined) {
         email: m.user.email,
         role: m.role.toLowerCase() as MemberRole,
         assigneeColor: m.assignee_color,
+        jobRole: m.job_role || null,
       })));
     } catch (error) {
       console.error('Failed to refresh members:', error);
