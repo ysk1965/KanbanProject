@@ -41,6 +41,7 @@ export function JobRoleManageModal({
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState<string>(COLOR_PRESETS[0].hex);
+  const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState<string>('');
@@ -70,8 +71,10 @@ export function JobRoleManageModal({
   }, [open, boardId]);
 
   const handleCreate = async () => {
+    if (submitting) return;
     const name = newName.trim();
     if (!name) return;
+    setSubmitting(true);
     setError(null);
     try {
       await jobRoleService.create(boardId, { name, color: newColor });
@@ -80,6 +83,8 @@ export function JobRoleManageModal({
       await reload();
     } catch (e: any) {
       setError(e?.message || t('jobRole.duplicateName'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -90,15 +95,19 @@ export function JobRoleManageModal({
   };
 
   const saveEdit = async () => {
+    if (submitting) return;
     if (!editingId) return;
     const name = editName.trim();
     if (!name) return;
+    setSubmitting(true);
     try {
       await jobRoleService.update(boardId, editingId, { name, color: editColor });
       setEditingId(null);
       await reload();
     } catch (e: any) {
       setError(e?.message || t('jobRole.duplicateName'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -148,13 +157,18 @@ export function JobRoleManageModal({
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder={t('jobRole.namePlaceholder')}
                 className="flex-1 bg-bridge-obsidian border border-foreground/10 rounded-lg py-2 px-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  if (e.nativeEvent.isComposing || e.repeat) return;
+                  e.preventDefault();
+                  handleCreate();
+                }}
                 maxLength={50}
               />
               <button
                 type="button"
                 onClick={handleCreate}
-                disabled={!newName.trim()}
+                disabled={!newName.trim() || submitting}
                 className="px-3 py-2 bg-bridge-accent text-white rounded-lg text-xs font-bold hover:bg-bridge-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1"
               >
                 <Plus className="w-4 h-4" />
@@ -212,7 +226,12 @@ export function JobRoleManageModal({
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
                         className="flex-1 bg-bridge-obsidian border border-foreground/10 rounded-lg py-1 px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                        onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); }}
+                        onKeyDown={(e) => {
+                          if (e.key !== 'Enter') return;
+                          if (e.nativeEvent.isComposing || e.repeat) return;
+                          e.preventDefault();
+                          saveEdit();
+                        }}
                         maxLength={50}
                         autoFocus
                       />
