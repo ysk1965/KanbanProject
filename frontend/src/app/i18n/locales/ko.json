@@ -396,6 +396,21 @@
     "cancel": "취소",
     "createBoard": "보드 생성"
   },
+  "jobRole": {
+    "title": "직군",
+    "manage": "직군 관리",
+    "manageDesc": "보드 멤버에게 부여할 직군(개발/기획/UI/연출 등)을 관리합니다",
+    "add": "추가",
+    "namePlaceholder": "직군 이름 (예: 개발, 기획, UI)",
+    "colorLabel": "색상",
+    "iconLabel": "아이콘",
+    "unassigned": "미지정",
+    "memberCount": "{{count}}명",
+    "deleteConfirm": "이 직군이 부여된 {{count}}명의 직군이 해제됩니다. 삭제할까요?",
+    "deleteConfirmEmpty": "이 직군을 삭제할까요?",
+    "duplicateName": "이미 존재하는 직군 이름입니다",
+    "empty": "아직 정의된 직군이 없습니다"
+  },
   "share": {
     "title": "보드 공유",
     "description": "보드를 팀원과 공유합니다",
@@ -816,7 +831,9 @@
       "noItems": "배정된 항목이 없습니다",
       "completed": "완료",
       "collapse": "접기",
-      "more": "더 보기"
+      "more": "더 보기",
+      "groupByMember": "멤버별",
+      "groupByJobRole": "직군별"
     },
     "panel": {
       "title": "체크리스트",
@@ -825,6 +842,7 @@
       "dragHint": "드래그하여 캘린더/리소스에 배치",
       "filterFeature": "피쳐별 필터",
       "filterMilestone": "마일스톤별 필터",
+      "filterJobRole": "직군별 필터",
       "noFeature": "피처 없음",
       "addItem": "체크리스트 항목 추가",
       "selectFeature": "피처",
@@ -1447,6 +1465,10 @@
     "noDate": "날짜 없음",
     "assignee": "담당자",
     "addAssigneeToChecklist": "체크리스트 담당자와 자동 연동됩니다",
+    "checklistFilter": {
+      "unassigned": "미할당",
+      "showingCount": "{{visible}} / {{total}} 표시 중"
+    },
     "tags": "태그",
     "tagName": "태그 이름",
     "addTag": "태그 추가",

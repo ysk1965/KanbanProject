@@ -1,8 +1,8 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect, Fragment } from "react";
 import { useTranslation } from "react-i18next";
-import { Users, CheckCircle2, Loader2, Flag, ChevronDown, ChevronUp } from "lucide-react";
+import { Users, CheckCircle2, Loader2, Flag, ChevronDown, ChevronUp, Briefcase } from "lucide-react";
 import { BoardMember } from "../ShareBoardModal";
-import { Milestone } from "../../types";
+import { JobRole, Milestone } from "../../types";
 import {
   boardChecklistAPI,
   checklistAPI,
@@ -36,6 +36,7 @@ interface ScheduleResourceViewProps {
   boardMembers: BoardMember[];
   milestones: Milestone[];
   memberColorMap?: Record<string, string | null>;
+  jobRoles?: JobRole[];
   onViewTask?: (taskId: string) => void;
   onDropChecklist?: (
     item: { id: string; task_id: string },
@@ -63,6 +64,12 @@ interface DragState {
   /** Day index of the cursor column at mousedown (for day-aligned snapping) */
   initialCursorDayIndex: number;
   currentDeltaDays: number;
+  /** Cross-row drag: origin row index (fixed at drag start) */
+  originRowIndex: number;
+  /** Cross-row drag: current target row index (updates on mousemove) */
+  targetRowIndex: number;
+  /** Cross-row drag: target row's assignee ID */
+  targetAssigneeId: string | null;
 }
 
 interface TooltipState {
@@ -139,6 +146,7 @@ export function ScheduleResourceView({
   boardMembers,
   milestones,
   memberColorMap,
+  jobRoles = [],
   onViewTask,
   onDropChecklist,
   externalDragItem,
@@ -161,6 +169,50 @@ export function ScheduleResourceView({
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   /** Highlighted item id for scroll-to flash effect */
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
+
+  // 직군별 그룹 모드
+  const groupKey = `scheduleResourceGroupBy_${boardId}`;
+  const collapsedKey = `scheduleResourceCollapsedRoles_${boardId}`;
+  const [groupByJobRole, setGroupByJobRoleState] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(groupKey) === "jobRole";
+  });
+  const setGroupByJobRole = useCallback(
+    (next: boolean) => {
+      setGroupByJobRoleState(next);
+      try {
+        window.localStorage.setItem(groupKey, next ? "jobRole" : "member");
+      } catch {
+        /* ignore */
+      }
+    },
+    [groupKey],
+  );
+  const [collapsedRoleGroups, setCollapsedRoleGroups] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = window.localStorage.getItem(collapsedKey);
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  const toggleRoleGroupCollapsed = useCallback(
+    (key: string) => {
+      setCollapsedRoleGroups((prev) => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        try {
+          window.localStorage.setItem(collapsedKey, JSON.stringify([...next]));
+        } catch {
+          /* ignore */
+        }
+        return next;
+      });
+    },
+    [collapsedKey],
+  );
   // Refs for mouse event handlers (avoid stale closure)
   const dragStateRef = useRef<DragState | null>(null);
   // 드래그/리사이즈 후 click 이벤트 방지용 ref
@@ -403,8 +455,23 @@ export function ScheduleResourceView({
         avatar: member.avatar || null,
         color: memberColorMap?.[member.name] || null,
         items: assigneeGroup?.items || [],
+        jobRoleId: member.jobRole?.id || null,
+        jobRoleName: member.jobRole?.name || null,
+        jobRoleColor: member.jobRole?.color || null,
       };
     });
+
+    // 직군별 그룹 모드: 직군 순서대로 정렬 (정의 순서, 미지정은 마지막)
+    if (groupByJobRole && jobRoles.length > 0) {
+      const orderMap = new Map<string, number>();
+      jobRoles.forEach((r, i) => orderMap.set(r.id, i));
+      memberRows.sort((a, b) => {
+        const ai = a.jobRoleId ? (orderMap.get(a.jobRoleId) ?? 9999) : 10000;
+        const bi = b.jobRoleId ? (orderMap.get(b.jobRoleId) ?? 9999) : 10000;
+        if (ai !== bi) return ai - bi;
+        return a.name.localeCompare(b.name);
+      });
+    }
 
     // Add unassigned row if there are unassigned items
     if (data && data.unassigned.length > 0) {
@@ -415,11 +482,53 @@ export function ScheduleResourceView({
         avatar: null,
         color: null,
         items: data.unassigned,
+        jobRoleId: null,
+        jobRoleName: null,
+        jobRoleColor: null,
       });
     }
 
     return memberRows;
-  }, [data, boardMembers, memberColorMap, t]);
+  }, [data, boardMembers, memberColorMap, t, groupByJobRole, jobRoles]);
+
+  // ─── Compute group segments (직군별 그룹 헤더 위치) ───
+  const roleGroupSegments = useMemo(() => {
+    if (!groupByJobRole) return [] as Array<{ key: string; name: string; color: string | null; startIndex: number; count: number }>;
+    const segments: Array<{ key: string; name: string; color: string | null; startIndex: number; count: number }> = [];
+    let currentKey: string | null | undefined = undefined; // sentinel
+    rows.forEach((row, idx) => {
+      // __unassigned__ 행은 별도 그룹으로 노출하지 않음
+      if (row.id === "__unassigned__") return;
+      const key = row.jobRoleId || "__none__";
+      if (key !== currentKey) {
+        const role = key === "__none__" ? null : jobRoles.find((r) => r.id === key);
+        segments.push({
+          key,
+          name: role?.name || t("jobRole.unassigned", "미지정"),
+          color: role?.color || null,
+          startIndex: idx,
+          count: 0,
+        });
+        currentKey = key;
+      }
+      segments[segments.length - 1].count += 1;
+    });
+    return segments;
+  }, [groupByJobRole, rows, jobRoles, t]);
+
+  /** Hidden row indices (collapsed group members) */
+  const hiddenRowIndices = useMemo(() => {
+    if (!groupByJobRole) return new Set<number>();
+    const set = new Set<number>();
+    roleGroupSegments.forEach((seg) => {
+      if (collapsedRoleGroups.has(seg.key)) {
+        for (let i = seg.startIndex; i < seg.startIndex + seg.count; i++) {
+          set.add(i);
+        }
+      }
+    });
+    return set;
+  }, [groupByJobRole, roleGroupSegments, collapsedRoleGroups]);
 
   // ─── 'w' shortcut: toggle expand/collapse all rows ───
   useEffect(() => {
@@ -572,10 +681,11 @@ export function ScheduleResourceView({
       const initialCursorDayIndex = Math.floor(cursorContentX / DAY_WIDTH);
 
       const rowId = rows[assigneeIndex]?.id || null;
+      const initialAssigneeId = rowId && rowId !== "__unassigned__" ? rowId : null;
       const newDragState: DragState = {
         itemId: item.id,
         taskId: item.task?.id || "",
-        assigneeId: rowId && rowId !== "__unassigned__" ? rowId : null,
+        assigneeId: initialAssigneeId,
         assigneeIndex,
         startDate,
         dueDate,
@@ -583,6 +693,9 @@ export function ScheduleResourceView({
         dragType: type,
         initialCursorDayIndex,
         currentDeltaDays: 0,
+        originRowIndex: assigneeIndex,
+        targetRowIndex: assigneeIndex,
+        targetAssigneeId: initialAssigneeId,
       };
 
       setDragState(newDragState);
@@ -594,7 +707,7 @@ export function ScheduleResourceView({
         const ds = dragStateRef.current;
         if (!ds) return;
 
-        // Compute current cursor day-column index for grid-aligned delta
+        // X-axis: day-column index for grid-aligned delta
         const cont = scrollContainerRef.current;
         const rect = cont?.getBoundingClientRect();
         const sl = cont?.scrollLeft || 0;
@@ -603,9 +716,34 @@ export function ScheduleResourceView({
         const currentDayIndex = Math.floor(contentX / DAY_WIDTH);
         const deltaDays = currentDayIndex - ds.initialCursorDayIndex;
 
-        if (deltaDays !== ds.currentDeltaDays) {
+        // Y-axis: detect target row for cross-row reassignment (move only)
+        let newTargetRowIndex = ds.targetRowIndex;
+        let newTargetAssigneeId = ds.targetAssigneeId;
+
+        if (ds.dragType === "move") {
+          const el = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+          const rowEl = el?.closest("[data-resource-row]") as HTMLElement | null;
+          if (rowEl) {
+            const rowIdx = Number(rowEl.getAttribute("data-resource-row-index") ?? ds.originRowIndex);
+            if (rowIdx !== newTargetRowIndex) {
+              newTargetRowIndex = rowIdx;
+              const targetRow = rows[rowIdx];
+              newTargetAssigneeId = targetRow?.id && targetRow.id !== "__unassigned__" ? targetRow.id : null;
+            }
+          }
+        }
+
+        const hasChanged = deltaDays !== ds.currentDeltaDays ||
+          newTargetRowIndex !== ds.targetRowIndex;
+
+        if (hasChanged) {
           wasDraggedRef.current = true;
-          const updated = { ...ds, currentDeltaDays: deltaDays };
+          const updated = {
+            ...ds,
+            currentDeltaDays: deltaDays,
+            targetRowIndex: newTargetRowIndex,
+            targetAssigneeId: newTargetAssigneeId,
+          };
           dragStateRef.current = updated;
           setDragState(updated);
         }
@@ -618,7 +756,8 @@ export function ScheduleResourceView({
         document.body.style.cursor = "";
 
         const ds = dragStateRef.current;
-        if (!ds || ds.currentDeltaDays === 0) {
+        const isCrossRow = ds ? ds.targetRowIndex !== ds.originRowIndex : false;
+        if (!ds || (ds.currentDeltaDays === 0 && !isCrossRow)) {
           setDragState(null);
           dragStateRef.current = null;
           return;
@@ -632,59 +771,100 @@ export function ScheduleResourceView({
           newDue = addDaysToDate(ds.dueDate, ds.currentDeltaDays);
         } else if (ds.dragType === "resize-left") {
           newStart = addDaysToDate(ds.startDate, ds.currentDeltaDays);
-          // Ensure start <= due
           if (diffDays(newStart, newDue) < 0) {
             newStart = newDue;
           }
         } else if (ds.dragType === "resize-right") {
           newDue = addDaysToDate(ds.dueDate, ds.currentDeltaDays);
-          // Ensure due >= start
           if (diffDays(newStart, newDue) < 0) {
             newDue = newStart;
           }
         }
 
-        // Optimistic update: apply new dates to local data immediately
-        // so the bar stays at the dragged position without flashing back
-        setData((prevData) => {
-          if (!prevData) return prevData;
-          const updateItems = (
-            items: AssigneeItemResponse[],
-          ): AssigneeItemResponse[] =>
-            items.map((item) =>
-              item.id === ds.itemId
-                ? { ...item, start_date: newStart, due_date: newDue }
-                : item,
-            );
-          return {
-            assignees: prevData.assignees.map((group) => ({
+        const newAssigneeId = isCrossRow ? ds.targetAssigneeId : ds.assigneeId;
+
+        if (isCrossRow) {
+          // Cross-row: remove from origin row, add to target row
+          setData((prevData) => {
+            if (!prevData) return prevData;
+            let movedItem: AssigneeItemResponse | null = null;
+
+            const newAssignees = prevData.assignees.map((group) => ({
               ...group,
-              items: updateItems(group.items),
-            })),
-            unassigned: updateItems(prevData.unassigned),
-          };
-        });
+              items: group.items.filter((item) => {
+                if (item.id === ds.itemId) {
+                  movedItem = { ...item, start_date: newStart, due_date: newDue };
+                  return false;
+                }
+                return true;
+              }),
+            }));
+            let newUnassigned = prevData.unassigned.filter((item) => {
+              if (item.id === ds.itemId) {
+                movedItem = { ...item, start_date: newStart, due_date: newDue };
+                return false;
+              }
+              return true;
+            });
+
+            if (!movedItem) return prevData;
+
+            const targetRow = rows[ds.targetRowIndex];
+            if (targetRow?.id === "__unassigned__") {
+              newUnassigned = [...newUnassigned, movedItem];
+            } else {
+              const idx = newAssignees.findIndex(
+                (g) => g.assignee.id === targetRow?.id,
+              );
+              if (idx >= 0) {
+                newAssignees[idx] = {
+                  ...newAssignees[idx],
+                  items: [...newAssignees[idx].items, movedItem],
+                };
+              }
+            }
+
+            return { assignees: newAssignees, unassigned: newUnassigned };
+          });
+        } else {
+          // Same-row: update dates in-place
+          setData((prevData) => {
+            if (!prevData) return prevData;
+            const updateItems = (
+              items: AssigneeItemResponse[],
+            ): AssigneeItemResponse[] =>
+              items.map((item) =>
+                item.id === ds.itemId
+                  ? { ...item, start_date: newStart, due_date: newDue }
+                  : item,
+              );
+            return {
+              assignees: prevData.assignees.map((group) => ({
+                ...group,
+                items: updateItems(group.items),
+              })),
+              unassigned: updateItems(prevData.unassigned),
+            };
+          });
+        }
 
         setDragState(null);
         dragStateRef.current = null;
 
-        // Call API to persist, then silently refresh (no loading spinner)
         if (ds.taskId) {
           try {
             await checklistAPI.updateItem(boardId, ds.taskId, ds.itemId, {
               start_date: newStart,
               due_date: newDue,
-              assignee_id: ds.assigneeId,
+              assignee_id: newAssigneeId,
             });
-            // Silent refresh without loading spinner
             const result = await boardChecklistAPI.getItemsByAssignee(boardId, {
               start_date: rangeStart,
               end_date: rangeEnd,
             });
             setData(result);
           } catch (err) {
-            console.warn("Failed to update checklist item dates", err);
-            // Revert: re-fetch server state
+            console.warn("Failed to update checklist item", err);
             fetchData();
           }
         }
@@ -846,11 +1026,29 @@ export function ScheduleResourceView({
         >
           {/* ─── Header row ─── */}
           <div className="flex sticky top-0 z-20 bg-bridge-obsidian border-b border-foreground/[0.08]">
-            {/* Empty left corner */}
+            {/* Empty left corner — 직군별 그룹 토글 */}
             <div
-              className="shrink-0 sticky left-0 z-30 bg-bridge-obsidian border-r border-foreground/[0.08]"
+              className="shrink-0 sticky left-0 z-30 bg-bridge-obsidian border-r border-foreground/[0.08] flex items-center justify-center px-2"
               style={{ width: LEFT_COL_WIDTH, height: HEADER_HEIGHT }}
-            />
+            >
+              {jobRoles.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setGroupByJobRole(!groupByJobRole)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                    groupByJobRole
+                      ? "bg-bridge-accent/20 text-bridge-accent"
+                      : "bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                  }`}
+                  title={t("schedule.resource.groupByJobRole", "직군별 그룹")}
+                >
+                  <Briefcase className="w-3.5 h-3.5" />
+                  {groupByJobRole
+                    ? t("schedule.resource.groupByJobRole", "직군별")
+                    : t("schedule.resource.groupByMember", "멤버별")}
+                </button>
+              )}
+            </div>
 
             {/* Day headers — drag to scroll */}
             <div
@@ -991,6 +1189,53 @@ export function ScheduleResourceView({
 
           {/* ─── Member rows ─── */}
           {rows.map((row, rowIndex) => {
+            const isCrossRowTarget = dragState?.dragType === "move" &&
+              dragState.targetRowIndex === rowIndex &&
+              dragState.originRowIndex !== rowIndex;
+
+            // 직군 그룹 헤더 — 이 row가 그룹의 시작이면 헤더 먼저 렌더
+            const groupSegment = roleGroupSegments.find((s) => s.startIndex === rowIndex);
+            const groupHeader = groupSegment ? (
+              <div
+                key={`group-${groupSegment.key}`}
+                className="flex border-b border-foreground/[0.08] bg-bridge-surface/40 sticky z-[5]"
+                style={{ minHeight: 36 }}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleRoleGroupCollapsed(groupSegment.key)}
+                  className="shrink-0 sticky left-0 z-10 bg-bridge-surface/80 border-r border-foreground/[0.08] flex items-center gap-2 px-4 hover:bg-bridge-surface transition-colors"
+                  style={{ width: LEFT_COL_WIDTH }}
+                >
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: groupSegment.color || "#64748b" }}
+                  />
+                  <Briefcase size={12} className="text-slate-400 shrink-0" />
+                  <span className="text-xs font-bold text-foreground truncate flex-1 text-left">
+                    {groupSegment.name}
+                  </span>
+                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+                    {groupSegment.count}
+                  </span>
+                  {collapsedRoleGroups.has(groupSegment.key) ? (
+                    <ChevronDown size={14} className="text-slate-400" />
+                  ) : (
+                    <ChevronUp size={14} className="text-slate-400" />
+                  )}
+                </button>
+                <div
+                  className="bg-bridge-surface/40"
+                  style={{ width: totalTimelineWidth }}
+                />
+              </div>
+            ) : null;
+
+            // 그룹이 접힌 경우 멤버 행을 숨김 (헤더만 노출)
+            if (hiddenRowIndices.has(rowIndex)) {
+              return <Fragment key={row.id}>{groupHeader}</Fragment>;
+            }
+
             // Compute bars for this row based on items with valid dates
             const itemsWithBars = row.items
               .filter((item) => item.start_date || item.due_date)
@@ -1029,17 +1274,18 @@ export function ScheduleResourceView({
             );
 
             return (
+              <Fragment key={row.id}>
+                {groupHeader}
               <div
-                key={row.id}
-                className="flex border-b border-foreground/[0.08]"
+                className={`flex border-b border-foreground/[0.08] ${isCrossRowTarget ? "bg-bridge-accent/5" : ""}`}
                 style={{ height: dynamicRowHeight }}
                 data-resource-row={row.id}
                 data-resource-row-index={rowIndex}
               >
                 {/* Left label */}
                 <div
-                  className="shrink-0 sticky left-0 z-10 bg-bridge-obsidian border-r border-foreground/[0.08]
-                    flex flex-col px-4 pt-3"
+                  className={`shrink-0 sticky left-0 z-10 bg-bridge-obsidian border-r border-foreground/[0.08]
+                    flex flex-col px-4 pt-3 ${isCrossRowTarget ? "ring-2 ring-bridge-accent/30 ring-inset" : ""}`}
                   style={{ width: LEFT_COL_WIDTH, minHeight: dynamicRowHeight }}
                 >
                   <div className="flex items-start gap-2">
@@ -1174,7 +1420,11 @@ export function ScheduleResourceView({
                           className={`absolute rounded-lg flex items-center px-2 text-xs font-medium
                           text-white cursor-pointer hover:brightness-110 hover:shadow-lg transition-all
                           ${item.completed ? "opacity-50" : ""}
-                          ${isItemDragging ? "z-20 shadow-2xl ring-2 ring-white/30" : ""}
+                          ${isItemDragging
+                            ? (dragState?.targetRowIndex !== dragState?.originRowIndex
+                              ? "z-20 opacity-30"
+                              : "z-20 shadow-2xl ring-2 ring-white/30")
+                            : ""}
                           ${isHighlightTarget ? "z-30 ring-2 ring-white/70 shadow-[0_0_16px_rgba(255,255,255,0.4)] animate-pulse" : ""}`}
                           style={{
                             left: pos.left,
@@ -1239,6 +1489,35 @@ export function ScheduleResourceView({
                     },
                   )}
 
+                  {/* Ghost bar for cross-row drag target */}
+                  {isCrossRowTarget && dragState && (() => {
+                    const gs = addDaysToDate(dragState.startDate, dragState.currentDeltaDays);
+                    const ge = addDaysToDate(dragState.dueDate, dragState.currentDeltaDays);
+                    const gPos = getBarPosition(gs, ge);
+                    if (!gPos) return null;
+                    const originRow = rows[dragState.originRowIndex];
+                    const draggedItem = originRow?.items.find((i) => i.id === dragState.itemId);
+                    return (
+                      <div
+                        className="absolute rounded-lg flex items-center px-2 text-xs font-medium
+                          text-white opacity-50 pointer-events-none z-20 border-2 border-dashed border-white/40"
+                        style={{
+                          left: gPos.left,
+                          width: gPos.width,
+                          top: BAR_TOP_OFFSET,
+                          height: BAR_HEIGHT,
+                          backgroundColor: dragState.featureColor,
+                        }}
+                      >
+                        <span className="truncate">
+                          {draggedItem?.task
+                            ? `${draggedItem.task.title} / ${draggedItem.title}`
+                            : draggedItem?.title || ""}
+                        </span>
+                      </div>
+                    );
+                  })()}
+
                   {/* Today line */}
                   {todayIndex >= 0 && (
                     <div
@@ -1253,6 +1532,7 @@ export function ScheduleResourceView({
                   )}
                 </div>
               </div>
+              </Fragment>
             );
           })}
         </div>

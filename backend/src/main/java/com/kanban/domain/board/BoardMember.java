@@ -1,5 +1,6 @@
 package com.kanban.domain.board;
 
+import com.kanban.domain.jobrole.entity.JobRole;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -47,6 +48,10 @@ public class BoardMember {
     @Column(name = "display_order")
     private Integer displayOrder;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "job_role_id")
+    private JobRole jobRole;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -67,6 +72,10 @@ public class BoardMember {
 
     public void updateDisplayOrder(Integer displayOrder) {
         this.displayOrder = displayOrder;
+    }
+
+    public void updateJobRole(JobRole jobRole) {
+        this.jobRole = jobRole;
     }
 
     public boolean isOwner() {

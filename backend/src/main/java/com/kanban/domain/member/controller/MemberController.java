@@ -61,6 +61,16 @@ public class MemberController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/{memberId}/job-role")
+    public ResponseEntity<MemberResponse.Detail> updateMemberJobRole(
+            @PathVariable String boardId,
+            @PathVariable String memberId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody MemberRequest.UpdateJobRole request) {
+        MemberResponse.Detail response = memberService.updateMemberJobRole(boardId, memberId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/reorder")
     public ResponseEntity<MemberResponse.ListResponse> reorderMembers(
             @PathVariable String boardId,

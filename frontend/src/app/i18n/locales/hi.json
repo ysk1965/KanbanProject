@@ -1389,6 +1389,10 @@
     "noDate": "कोई तिथि नहीं",
     "assignee": "असाइनी",
     "addAssigneeToChecklist": "चेकलिस्ट असाइनी के साथ स्वचालित सिंक",
+    "checklistFilter": {
+      "unassigned": "अनसाइन्ड",
+      "showingCount": "{{visible}} / {{total}} दिखा रहा है"
+    },
     "tags": "टैग",
     "tagName": "टैग का नाम",
     "addTag": "टैग जोड़ें",

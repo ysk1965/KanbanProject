@@ -1389,6 +1389,10 @@
     "noDate": "无日期",
     "assignee": "负责人",
     "addAssigneeToChecklist": "与清单负责人自动同步",
+    "checklistFilter": {
+      "unassigned": "未分配",
+      "showingCount": "显示 {{visible}} / {{total}}"
+    },
     "tags": "标签",
     "tagName": "标签名称",
     "addTag": "添加标签",

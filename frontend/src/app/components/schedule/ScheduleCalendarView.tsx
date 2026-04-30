@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Briefcase } from "lucide-react";
 import { IconButton } from "../ui/IconButton";
+import { JobRole } from "../../types";
 import {
   startOfMonth,
   endOfMonth,
@@ -31,6 +32,7 @@ interface ScheduleCalendarViewProps {
   boardId: string;
   boardMembers: BoardMember[];
   memberColorMap?: Record<string, string | null>;
+  jobRoles?: JobRole[];
   onViewTask?: (taskId: string) => void;
   onDropChecklist?: (item: AssigneeItemResponse, targetDate: string) => void;
   /** External drag state forwarded from parent (ChecklistItemPanel ghost) */
@@ -52,6 +54,7 @@ interface CalendarItem {
   taskTitle: string | null;
   assigneeProfileImage: string | null;
   assigneeName: string | null;
+  assigneeJobRoleId: string | null;
 }
 
 /** Multiday bar segment that spans across a calendar row */
@@ -100,7 +103,11 @@ function flattenToCalendarItems(
 
   const mapItem = (
     item: AssigneeItemResponse,
-    assignee: { name: string; profile_image: string | null } | null,
+    assignee: {
+      name: string;
+      profile_image: string | null;
+      job_role?: { id: string } | null;
+    } | null,
   ): CalendarItem => ({
     id: item.id,
     title: item.title,
@@ -113,6 +120,7 @@ function flattenToCalendarItems(
     taskTitle: item.task?.title || null,
     assigneeProfileImage: assignee?.profile_image || null,
     assigneeName: assignee?.name || null,
+    assigneeJobRoleId: assignee?.job_role?.id || null,
   });
 
   for (const group of data.assignees) {
@@ -220,6 +228,7 @@ export function ScheduleCalendarView({
   boardId,
   boardMembers: _boardMembers,
   memberColorMap: _memberColorMap,
+  jobRoles = [],
   onViewTask,
   onDropChecklist,
   externalDragItem,
@@ -232,6 +241,42 @@ export function ScheduleCalendarView({
   const [data, setData] = useState<ChecklistByAssigneeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showCompleted, setShowCompleted] = useState(true);
+
+  // 직군 필터 (멀티 선택, 빈 Set = 전체)
+  const jobRoleFilterKey = `scheduleCalendarJobRoleFilter_${boardId}`;
+  const [selectedJobRoleIds, setSelectedJobRoleIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = window.localStorage.getItem(jobRoleFilterKey);
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  const toggleJobRoleFilter = useCallback(
+    (key: string) => {
+      setSelectedJobRoleIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        try {
+          window.localStorage.setItem(jobRoleFilterKey, JSON.stringify([...next]));
+        } catch {
+          /* ignore */
+        }
+        return next;
+      });
+    },
+    [jobRoleFilterKey],
+  );
+  const clearJobRoleFilter = useCallback(() => {
+    setSelectedJobRoleIds(new Set());
+    try {
+      window.localStorage.removeItem(jobRoleFilterKey);
+    } catch {
+      /* ignore */
+    }
+  }, [jobRoleFilterKey]);
 
   // DnD drop target
   const [dropTargetDate, setDropTargetDate] = useState<string | null>(null);
@@ -302,10 +347,17 @@ export function ScheduleCalendarView({
   // ------ Calendar items ------
   const calendarItems = useMemo(() => {
     if (!data) return [];
-    const all = flattenToCalendarItems(data);
-    if (!showCompleted) return all.filter((i) => !i.completed);
+    let all = flattenToCalendarItems(data);
+    if (!showCompleted) all = all.filter((i) => !i.completed);
+    // 직군 필터: 빈 Set이면 전체, 아니면 선택된 직군 OR "__none__"(미지정 포함)만
+    if (selectedJobRoleIds.size > 0) {
+      all = all.filter((i) => {
+        const key = i.assigneeJobRoleId || "__none__";
+        return selectedJobRoleIds.has(key);
+      });
+    }
     return all;
-  }, [data, showCompleted]);
+  }, [data, showCompleted, selectedJobRoleIds]);
 
   // Items that span multiple days (have both start_date and due_date)
   const multidayItems = useMemo(
@@ -509,7 +561,59 @@ export function ScheduleCalendarView({
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* 직군 필터 칩 */}
+          {jobRoles.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              <Briefcase className="w-3.5 h-3.5 text-slate-500" />
+              {jobRoles.map((r) => {
+                const active = selectedJobRoleIds.has(r.id);
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => toggleJobRoleFilter(r.id)}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold transition-all ${
+                      active ? "ring-1" : "opacity-60 hover:opacity-100"
+                    }`}
+                    style={{
+                      backgroundColor: active ? `${r.color || "#6366F1"}26` : "rgba(255,255,255,0.04)",
+                      color: active ? (r.color || "#6366F1") : "rgb(148 163 184)",
+                      borderColor: r.color || "#6366F1",
+                    }}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ backgroundColor: r.color || "#6366F1" }}
+                    />
+                    {r.name}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => toggleJobRoleFilter("__none__")}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold transition-all ${
+                  selectedJobRoleIds.has("__none__")
+                    ? "bg-slate-500/20 text-slate-300 ring-1 ring-slate-500/50"
+                    : "bg-foreground/[0.04] text-slate-500 hover:opacity-100 opacity-60"
+                }`}
+              >
+                {t("jobRole.unassigned", "미지정")}
+              </button>
+              {selectedJobRoleIds.size > 0 && (
+                <button
+                  type="button"
+                  onClick={clearJobRoleFilter}
+                  className="text-xs text-slate-500 hover:text-foreground px-1.5"
+                  title={t("common.clear", "Clear")}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Completed toggle */}
           <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer select-none">
             <input
