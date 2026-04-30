@@ -32,6 +32,7 @@
     "and": "and",
     "completed": "Completed",
     "incomplete": "Incomplete",
+    "reorder": "Reorder",
     "days": {
       "mon": "Mon",
       "tue": "Tue",

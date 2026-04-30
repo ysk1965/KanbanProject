@@ -31,7 +31,8 @@
     "or": "hoac",
     "and": "va",
     "completed": "Hoan thanh",
-    "incomplete": "Chua hoan thanh"
+    "incomplete": "Chua hoan thanh",
+    "reorder": "Sap xep lai"
   },
   "app": {
     "loading": "Dang tai...",

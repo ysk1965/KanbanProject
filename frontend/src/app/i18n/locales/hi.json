@@ -31,7 +31,8 @@
     "or": "या",
     "and": "और",
     "completed": "पूर्ण",
-    "incomplete": "अपूर्ण"
+    "incomplete": "अपूर्ण",
+    "reorder": "पुनः क्रमित करें"
   },
   "app": {
     "loading": "लोड हो रहा है...",

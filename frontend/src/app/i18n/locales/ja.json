@@ -31,7 +31,8 @@
     "or": "または",
     "and": "および",
     "completed": "完了",
-    "incomplete": "未完了"
+    "incomplete": "未完了",
+    "reorder": "並べ替え"
   },
   "app": {
     "loading": "読み込み中...",
