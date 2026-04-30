@@ -31,7 +31,8 @@
     "or": "ou",
     "and": "e",
     "completed": "Concluído",
-    "incomplete": "Incompleto"
+    "incomplete": "Incompleto",
+    "reorder": "Reordenar"
   },
   "app": {
     "loading": "Carregando...",

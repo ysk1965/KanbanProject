@@ -8,6 +8,22 @@ import { IconButton } from './ui/IconButton';
 import { jobRoleService } from '../utils/services';
 import type { JobRole } from '../types';
 import { ASSIGNEE_COLOR_NAMES } from '../utils/assigneeColor';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
+import {
+  arrayMove,
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const COLOR_PRESETS: { name: string; hex: string }[] = [
   { name: 'indigo', hex: '#6366F1' },
@@ -28,6 +44,137 @@ export interface JobRoleManageModalProps {
   onChanged?: (roles: JobRole[]) => void;
 }
 
+interface SortableJobRoleRowProps {
+  role: JobRole;
+  isEditing: boolean;
+  editName: string;
+  editColor: string;
+  canManage: boolean;
+  canDrag: boolean;
+  t: (key: string, options?: Record<string, unknown>) => string;
+  onStartEdit: (role: JobRole) => void;
+  onChangeEditName: (value: string) => void;
+  onChangeEditColor: (hex: string) => void;
+  onSaveEdit: () => void;
+  onCancelEdit: () => void;
+  onDelete: (role: JobRole) => void;
+}
+
+function SortableJobRoleRow({
+  role,
+  isEditing,
+  editName,
+  editColor,
+  canManage,
+  canDrag,
+  t,
+  onStartEdit,
+  onChangeEditName,
+  onChangeEditColor,
+  onSaveEdit,
+  onCancelEdit,
+  onDelete,
+}: SortableJobRoleRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: role.id,
+    disabled: !canDrag,
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.85 : undefined,
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`group flex items-center gap-2 px-2 py-2 rounded-lg bg-foreground/[0.03] border border-foreground/[0.08] hover:border-foreground/[0.12] transition-colors ${
+        isDragging ? 'shadow-lg border-foreground/[0.16]' : ''
+      }`}
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        disabled={!canDrag}
+        className={`flex items-center justify-center w-5 h-5 text-slate-500 hover:text-slate-300 shrink-0 ${
+          canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-default opacity-40'
+        }`}
+        aria-label={t('common.reorder')}
+      >
+        <GripVertical className="w-4 h-4" />
+      </button>
+      <span
+        className="w-3 h-3 rounded-full shrink-0"
+        style={{ backgroundColor: isEditing ? editColor : (role.color || '#6366F1') }}
+      />
+      {isEditing ? (
+        <>
+          <input
+            type="text"
+            value={editName}
+            onChange={(e) => onChangeEditName(e.target.value)}
+            className="flex-1 bg-bridge-obsidian border border-foreground/10 rounded-lg py-1 px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return;
+              if (e.nativeEvent.isComposing || e.repeat) return;
+              e.preventDefault();
+              onSaveEdit();
+            }}
+            maxLength={50}
+            autoFocus
+          />
+          <div className="flex items-center gap-1">
+            {COLOR_PRESETS.slice(0, 6).map((c) => (
+              <button
+                key={c.name}
+                type="button"
+                onClick={() => onChangeEditColor(c.hex)}
+                className={`w-4 h-4 rounded-full border-2 ${editColor === c.hex ? 'border-foreground' : 'border-transparent'}`}
+                style={{ backgroundColor: c.hex }}
+                aria-label={c.name}
+              />
+            ))}
+          </div>
+          <IconButton aria-label={t('common.save')} onClick={onSaveEdit} size="sm">
+            <Check />
+          </IconButton>
+          <IconButton aria-label={t('common.cancel')} onClick={onCancelEdit} size="sm">
+            <X />
+          </IconButton>
+        </>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => canManage && onStartEdit(role)}
+            disabled={!canManage}
+            className="flex-1 text-left text-sm text-foreground font-medium truncate disabled:cursor-default"
+          >
+            {role.name}
+          </button>
+          {(role.member_count ?? 0) > 0 && (
+            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+              {role.member_count}
+            </span>
+          )}
+          {canManage && (
+            <IconButton
+              aria-label={t('common.delete')}
+              onClick={() => onDelete(role)}
+              size="sm"
+            >
+              <Trash2 />
+            </IconButton>
+          )}
+        </>
+      )}
+    </li>
+  );
+}
+
 export function JobRoleManageModal({
   open,
   onClose,
@@ -45,6 +192,37 @@ export function JobRoleManageModal({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState<string>('');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    if (!canManage) return;
+
+    const oldIndex = roles.findIndex((r) => r.id === active.id);
+    const newIndex = roles.findIndex((r) => r.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const previous = roles;
+    const reordered = arrayMove(roles, oldIndex, newIndex);
+    setRoles(reordered);
+    onChanged?.(reordered);
+    try {
+      const updated = await jobRoleService.reorder(
+        boardId,
+        reordered.map((r) => r.id),
+      );
+      setRoles(updated);
+      onChanged?.(updated);
+    } catch (e: any) {
+      setRoles(previous);
+      onChanged?.(previous);
+      setError(e?.message || 'Failed to reorder');
+    }
+  };
 
   const reload = async () => {
     setLoading(true);
@@ -206,84 +384,38 @@ export function JobRoleManageModal({
             {t('jobRole.empty')}
           </div>
         ) : (
-          <ul className="space-y-1.5">
-            {roles.map((role) => {
-              const isEditing = editingId === role.id;
-              return (
-                <li
-                  key={role.id}
-                  className="group flex items-center gap-2 px-2 py-2 rounded-lg bg-foreground/[0.03] border border-foreground/[0.08] hover:border-foreground/[0.12] transition-colors"
-                >
-                  <GripVertical className="w-4 h-4 text-slate-500 shrink-0" />
-                  <span
-                    className="w-3 h-3 rounded-full shrink-0"
-                    style={{ backgroundColor: isEditing ? editColor : (role.color || '#6366F1') }}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+          >
+            <SortableContext
+              items={roles.map((r) => r.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul className="space-y-1.5">
+                {roles.map((role) => (
+                  <SortableJobRoleRow
+                    key={role.id}
+                    role={role}
+                    isEditing={editingId === role.id}
+                    editName={editName}
+                    editColor={editColor}
+                    canManage={canManage}
+                    canDrag={canManage && editingId === null}
+                    t={t}
+                    onStartEdit={startEdit}
+                    onChangeEditName={setEditName}
+                    onChangeEditColor={setEditColor}
+                    onSaveEdit={saveEdit}
+                    onCancelEdit={() => setEditingId(null)}
+                    onDelete={handleDelete}
                   />
-                  {isEditing ? (
-                    <>
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="flex-1 bg-bridge-obsidian border border-foreground/10 rounded-lg py-1 px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                        onKeyDown={(e) => {
-                          if (e.key !== 'Enter') return;
-                          if (e.nativeEvent.isComposing || e.repeat) return;
-                          e.preventDefault();
-                          saveEdit();
-                        }}
-                        maxLength={50}
-                        autoFocus
-                      />
-                      <div className="flex items-center gap-1">
-                        {COLOR_PRESETS.slice(0, 6).map((c) => (
-                          <button
-                            key={c.name}
-                            type="button"
-                            onClick={() => setEditColor(c.hex)}
-                            className={`w-4 h-4 rounded-full border-2 ${editColor === c.hex ? 'border-foreground' : 'border-transparent'}`}
-                            style={{ backgroundColor: c.hex }}
-                            aria-label={c.name}
-                          />
-                        ))}
-                      </div>
-                      <IconButton aria-label={t('common.save')} onClick={saveEdit} size="sm">
-                        <Check />
-                      </IconButton>
-                      <IconButton aria-label={t('common.cancel')} onClick={() => setEditingId(null)} size="sm">
-                        <X />
-                      </IconButton>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => canManage && startEdit(role)}
-                        disabled={!canManage}
-                        className="flex-1 text-left text-sm text-foreground font-medium truncate disabled:cursor-default"
-                      >
-                        {role.name}
-                      </button>
-                      {(role.member_count ?? 0) > 0 && (
-                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
-                          {role.member_count}
-                        </span>
-                      )}
-                      {canManage && (
-                        <IconButton
-                          aria-label={t('common.delete')}
-                          onClick={() => handleDelete(role)}
-                          size="sm"
-                        >
-                          <Trash2 />
-                        </IconButton>
-                      )}
-                    </>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
 
