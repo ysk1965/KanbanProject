@@ -888,7 +888,7 @@ export function ShareBoardModal({
                     const discordStatus = discordStatusMap[member.userId];
                     const canDrag = !!onReorderMembers && isCurrentUserAdmin;
 
-                    const canChangeJobRole = isCurrentUserAdmin && member.role !== 'owner' && !!onUpdateMemberJobRole;
+                    const canChangeJobRole = isCurrentUserAdmin && !!onUpdateMemberJobRole;
                     return (
                       <SortableMemberRow
                         key={member.id}
