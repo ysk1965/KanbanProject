@@ -2,10 +2,11 @@ import { useState, useMemo, useCallback, useRef, useEffect, Fragment } from "rea
 import { useTranslation } from "react-i18next";
 import { Users, CheckCircle2, Loader2, Flag, ChevronDown, ChevronUp, Briefcase } from "lucide-react";
 import { BoardMember } from "../ShareBoardModal";
-import { JobRole, Milestone } from "../../types";
+import { BoardContractor, JobRole, Milestone } from "../../types";
 import {
   boardChecklistAPI,
   checklistAPI,
+  contractorAPI,
   AssigneeItemResponse,
   ChecklistByAssigneeResponse,
 } from "../../utils/api";
@@ -37,6 +38,8 @@ interface ScheduleResourceViewProps {
   milestones: Milestone[];
   memberColorMap?: Record<string, string | null>;
   jobRoles?: JobRole[];
+  /** 외주 관리 모달을 여는 핸들러 (없으면 버튼 미표시) */
+  onOpenContractorManager?: () => void;
   onViewTask?: (taskId: string) => void;
   onDropChecklist?: (
     item: { id: string; task_id: string },
@@ -147,6 +150,7 @@ export function ScheduleResourceView({
   milestones,
   memberColorMap,
   jobRoles = [],
+  onOpenContractorManager,
   onViewTask,
   onDropChecklist,
   externalDragItem,
@@ -159,6 +163,7 @@ export function ScheduleResourceView({
 
   // ─── State ───
   const [data, setData] = useState<ChecklistByAssigneeResponse | null>(null);
+  const [contractors, setContractors] = useState<BoardContractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
@@ -265,11 +270,15 @@ export function ScheduleResourceView({
       if (!boardId) return;
       try {
         if (!silent) setLoading(true);
-        const result = await boardChecklistAPI.getItemsByAssignee(boardId, {
-          start_date: rangeStart,
-          end_date: rangeEnd,
-        });
+        const [result, contractorList] = await Promise.all([
+          boardChecklistAPI.getItemsByAssignee(boardId, {
+            start_date: rangeStart,
+            end_date: rangeEnd,
+          }),
+          contractorAPI.list(boardId).catch(() => ({ contractors: [] })),
+        ]);
         setData(result);
+        setContractors(contractorList.contractors as BoardContractor[]);
       } catch (err) {
         console.warn("Failed to fetch checklist items by assignee", err);
       } finally {
@@ -440,16 +449,30 @@ export function ScheduleResourceView({
   // ─── Build row data ───
   // Always show board members as rows, even when API data is not yet loaded
   const rows = useMemo(() => {
+    type Row = {
+      kind: "member" | "contractor" | "unassigned";
+      id: string;
+      contractorId?: string | null;
+      managerMemberId?: string | null;
+      name: string;
+      avatar: string | null;
+      color: string | null;
+      items: AssigneeItemResponse[];
+      jobRoleId: string | null;
+      jobRoleName: string | null;
+      jobRoleColor: string | null;
+    };
+
     // Filter members to exclude viewers
     const activeMembers = boardMembers.filter((m) => m.role !== "viewer");
 
-    // Build member rows — always show all active members
-    const memberRows = activeMembers.map((member) => {
+    // Build member rows
+    const memberRows: Row[] = activeMembers.map((member) => {
       const assigneeGroup = data?.assignees.find(
         (a) => a.assignee.id === member.userId,
       );
       return {
-        type: "member" as const,
+        kind: "member",
         id: member.userId,
         name: member.name,
         avatar: member.avatar || null,
@@ -473,10 +496,57 @@ export function ScheduleResourceView({
       });
     }
 
+    // Build contractor rows grouped by manager
+    const memberIdToBoardMemberId = new Map<string, string>();
+    activeMembers.forEach((m) => memberIdToBoardMemberId.set(m.id, m.userId));
+    const contractorItemsById = new Map<string, AssigneeItemResponse[]>();
+    (data?.contractors ?? []).forEach((g) => {
+      contractorItemsById.set(g.contractor.id, g.items);
+    });
+
+    const contractorsByManager = new Map<string, Row[]>();
+    const orphanContractors: Row[] = [];
+    contractors.forEach((c) => {
+      const row: Row = {
+        kind: "contractor",
+        id: `contractor:${c.id}`,
+        contractorId: c.id,
+        managerMemberId: c.manager_member_id || null,
+        name: c.name,
+        avatar: null,
+        color: c.color || null,
+        items: contractorItemsById.get(c.id) || [],
+        jobRoleId: c.job_role?.id || null,
+        jobRoleName: c.job_role?.name || null,
+        jobRoleColor: c.job_role?.color || null,
+      };
+      if (c.manager_member_id) {
+        const arr = contractorsByManager.get(c.manager_member_id) || [];
+        arr.push(row);
+        contractorsByManager.set(c.manager_member_id, arr);
+      } else {
+        orphanContractors.push(row);
+      }
+    });
+
+    // Interleave: member row → manager 의 외주 행들
+    const interleaved: Row[] = [];
+    memberRows.forEach((mr) => {
+      interleaved.push(mr);
+      const member = activeMembers.find((m) => m.userId === mr.id);
+      if (!member) return;
+      const childContractors = contractorsByManager.get(member.id) || [];
+      // 직군 그룹 모드에서는 외주의 직군이 우선, 아니면 manager 직군 상속 표시는 그대로 둠
+      childContractors.forEach((cr) => interleaved.push(cr));
+    });
+
+    // Manager 가 사라진 (또는 viewer 인) 외주는 끝쪽에 모아서 표시
+    orphanContractors.forEach((cr) => interleaved.push(cr));
+
     // Add unassigned row if there are unassigned items
     if (data && data.unassigned.length > 0) {
-      memberRows.push({
-        type: "member" as const,
+      interleaved.push({
+        kind: "unassigned",
         id: "__unassigned__",
         name: t("schedule.resource.unassigned", "Unassigned"),
         avatar: null,
@@ -488,8 +558,8 @@ export function ScheduleResourceView({
       });
     }
 
-    return memberRows;
-  }, [data, boardMembers, memberColorMap, t, groupByJobRole, jobRoles]);
+    return interleaved;
+  }, [data, boardMembers, memberColorMap, t, groupByJobRole, jobRoles, contractors]);
 
   // ─── Compute group segments (직군별 그룹 헤더 위치) ───
   const roleGroupSegments = useMemo(() => {
@@ -853,11 +923,22 @@ export function ScheduleResourceView({
 
         if (ds.taskId) {
           try {
-            await checklistAPI.updateItem(boardId, ds.taskId, ds.itemId, {
-              start_date: newStart,
-              due_date: newDue,
-              assignee_id: newAssigneeId,
-            });
+            // newAssigneeId 가 "contractor:<id>" 라면 contractor_id 로 전송, 아니면 assignee_id
+            const isContractor = typeof newAssigneeId === "string" && newAssigneeId.startsWith("contractor:");
+            const payload = isContractor
+              ? {
+                  start_date: newStart,
+                  due_date: newDue,
+                  assignee_id: null as string | null,
+                  contractor_id: newAssigneeId!.substring("contractor:".length),
+                }
+              : {
+                  start_date: newStart,
+                  due_date: newDue,
+                  assignee_id: newAssigneeId,
+                  contractor_id: null as string | null,
+                };
+            await checklistAPI.updateItem(boardId, ds.taskId, ds.itemId, payload);
             const result = await boardChecklistAPI.getItemsByAssignee(boardId, {
               start_date: rangeStart,
               end_date: rangeEnd,
@@ -1026,9 +1107,9 @@ export function ScheduleResourceView({
         >
           {/* ─── Header row ─── */}
           <div className="flex sticky top-0 z-20 bg-bridge-obsidian border-b border-foreground/[0.08]">
-            {/* Empty left corner — 직군별 그룹 토글 */}
+            {/* Empty left corner — 직군별 그룹 토글 + 외주 관리 */}
             <div
-              className="shrink-0 sticky left-0 z-30 bg-bridge-obsidian border-r border-foreground/[0.08] flex items-center justify-center px-2"
+              className="shrink-0 sticky left-0 z-30 bg-bridge-obsidian border-r border-foreground/[0.08] flex items-center justify-center gap-1 px-2"
               style={{ width: LEFT_COL_WIDTH, height: HEADER_HEIGHT }}
             >
               {jobRoles.length > 0 && (
@@ -1046,6 +1127,17 @@ export function ScheduleResourceView({
                   {groupByJobRole
                     ? t("schedule.resource.groupByJobRole", "직군별")
                     : t("schedule.resource.groupByMember", "멤버별")}
+                </button>
+              )}
+              {onOpenContractorManager && (
+                <button
+                  type="button"
+                  onClick={onOpenContractorManager}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
+                  title={t("contractor.manage", "외주 관리")}
+                >
+                  <Briefcase className="w-3.5 h-3.5 border-l-2 border-dashed pl-0.5" />
+                  {t("contractor.short", "외주")}
                 </button>
               )}
             </div>
@@ -1285,7 +1377,7 @@ export function ScheduleResourceView({
                 {/* Left label */}
                 <div
                   className={`shrink-0 sticky left-0 z-10 bg-bridge-obsidian border-r border-foreground/[0.08]
-                    flex flex-col px-4 pt-3 ${isCrossRowTarget ? "ring-2 ring-bridge-accent/30 ring-inset" : ""}`}
+                    flex flex-col ${row.kind === "contractor" ? "pl-8 pr-4" : "px-4"} pt-3 ${isCrossRowTarget ? "ring-2 ring-bridge-accent/30 ring-inset" : ""}`}
                   style={{ width: LEFT_COL_WIDTH, minHeight: dynamicRowHeight }}
                 >
                   <div className="flex items-start gap-2">
@@ -1297,20 +1389,29 @@ export function ScheduleResourceView({
                       />
                     ) : (
                       <div
-                        className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-white"
+                        className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-white ${row.kind === "contractor" ? "border-2 border-dashed border-foreground/30" : ""}`}
                         style={{
                           backgroundColor:
                             row.id === "__unassigned__"
                               ? "#64748b"
-                              : getAssigneeHex(row.name, row.color),
+                              : row.kind === "contractor"
+                                ? row.color || "#94a3b8"
+                                : getAssigneeHex(row.name, row.color),
                         }}
                       >
                         {getInitials(row.name)}
                       </div>
                     )}
-                    <span className="text-sm font-medium text-foreground truncate mt-1">
-                      {row.name}
-                    </span>
+                    <div className="flex flex-col min-w-0 mt-0.5">
+                      <span className="text-sm font-medium text-foreground truncate">
+                        {row.name}
+                      </span>
+                      {row.kind === "contractor" && (
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mt-0.5">
+                          {t("schedule.resource.contractor", "외주")}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {needsCollapse && (
                     <button

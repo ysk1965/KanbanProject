@@ -1,5 +1,6 @@
 package com.kanban.domain.feature.dto;
 
+import com.kanban.domain.contractor.dto.BoardContractorResponse;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureStatus;
 import com.kanban.domain.tag.Tag;
@@ -27,6 +28,7 @@ public class FeatureResponse {
         private String title;
         private String color;
         private AssigneeInfo assignee;
+        private BoardContractorResponse.ContractorInfo contractor;
         private LocalDate startDate;
         private LocalDate dueDate;
         private FeatureStatus status;
@@ -42,6 +44,7 @@ public class FeatureResponse {
                     .title(feature.getTitle())
                     .color(feature.getColor())
                     .assignee(feature.getAssignee() != null ? AssigneeInfo.of(feature) : null)
+                    .contractor(BoardContractorResponse.ContractorInfo.of(feature.getContractor()))
                     .startDate(feature.getStartDate())
                     .dueDate(feature.getDueDate())
                     .status(feature.getStatus())
@@ -66,6 +69,7 @@ public class FeatureResponse {
         private String description;
         private String color;
         private AssigneeInfo assignee;
+        private BoardContractorResponse.ContractorInfo contractor;
         private LocalDate startDate;
         private LocalDate dueDate;
         private FeatureStatus status;
@@ -86,6 +90,7 @@ public class FeatureResponse {
                     .description(feature.getDescription())
                     .color(feature.getColor())
                     .assignee(feature.getAssignee() != null ? AssigneeInfo.of(feature) : null)
+                    .contractor(BoardContractorResponse.ContractorInfo.of(feature.getContractor()))
                     .startDate(feature.getStartDate())
                     .dueDate(feature.getDueDate())
                     .status(feature.getStatus())

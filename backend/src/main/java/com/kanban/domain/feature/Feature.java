@@ -2,6 +2,7 @@ package com.kanban.domain.feature;
 
 import com.kanban.domain.board.Board;
 import com.kanban.domain.common.BaseTimeEntity;
+import com.kanban.domain.contractor.entity.BoardContractor;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -45,6 +46,10 @@ public class Feature extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignee_id")
     private User assignee;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "contractor_id")
+    private BoardContractor contractor;
 
     @Column(name = "start_date")
     private LocalDate startDate;
@@ -127,6 +132,16 @@ public class Feature extends BaseTimeEntity {
 
     public void updateAssignee(User assignee) {
         this.assignee = assignee;
+        if (assignee != null) {
+            this.contractor = null;
+        }
+    }
+
+    public void updateContractor(BoardContractor contractor) {
+        this.contractor = contractor;
+        if (contractor != null) {
+            this.assignee = null;
+        }
     }
 
     public void updatePosition(Integer position) {

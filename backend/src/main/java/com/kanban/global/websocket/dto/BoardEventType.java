@@ -46,6 +46,9 @@ public enum BoardEventType {
     // Job Role events
     JOB_ROLE_UPDATED,
 
+    // Contractor events
+    CONTRACTOR_UPDATED,
+
     // Notification events
     NOTIFICATION_CREATED,
 
