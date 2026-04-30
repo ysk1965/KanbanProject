@@ -744,6 +744,27 @@ export interface JobRolesListResponse {
   job_roles: JobRoleResponse[];
 }
 
+// 외주(BoardContractor) 타입
+export interface ContractorInfo {
+  id: string;
+  name: string;
+  color?: string | null;
+  manager_member_id?: string | null;
+  manager_name?: string | null;
+  job_role?: { id: string; name: string; color?: string | null; icon?: string | null } | null;
+}
+
+export interface ContractorResponse extends ContractorInfo {
+  display_order?: number | null;
+  manager_user_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ContractorsListResponse {
+  contractors: ContractorResponse[];
+}
+
 export interface MembersListResponse {
   total: number;
   billable: number;
@@ -1647,6 +1668,7 @@ export const checklistAPI = {
     data: {
       title?: string;
       assignee_id?: string | null;
+      contractor_id?: string | null;
       start_date?: string | null;
       due_date?: string | null;
     },
@@ -1666,6 +1688,7 @@ export const checklistAPI = {
     data: {
       title?: string;
       assignee_id?: string | null;
+      contractor_id?: string | null;
       start_date?: string | null;
       due_date?: string | null;
     },
@@ -2223,6 +2246,57 @@ export const jobRoleAPI = {
 };
 
 // ========================================
+// Contractor API (외주)
+// ========================================
+
+export const contractorAPI = {
+  list: async (boardId: string) => {
+    return apiClient.get<ContractorsListResponse>(`/boards/${boardId}/contractors`);
+  },
+
+  create: async (
+    boardId: string,
+    data: {
+      name: string;
+      manager_member_id: string;
+      job_role_id?: string | null;
+      color?: string | null;
+    },
+  ) => {
+    return apiClient.post<ContractorResponse>(`/boards/${boardId}/contractors`, data);
+  },
+
+  update: async (
+    boardId: string,
+    contractorId: string,
+    data: {
+      name?: string;
+      manager_member_id?: string;
+      job_role_id?: string | null;
+      color?: string | null;
+    },
+  ) => {
+    return apiClient.put<ContractorResponse>(
+      `/boards/${boardId}/contractors/${contractorId}`,
+      data,
+    );
+  },
+
+  remove: async (boardId: string, contractorId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/contractors/${contractorId}`,
+    );
+  },
+
+  reorder: async (boardId: string, ids: string[]) => {
+    return apiClient.put<ContractorsListResponse>(
+      `/boards/${boardId}/contractors/reorder`,
+      { ids },
+    );
+  },
+};
+
+// ========================================
 // Invite Link API
 // ========================================
 
@@ -2679,8 +2753,14 @@ export interface AssigneeGroupResponse {
   items: AssigneeItemResponse[];
 }
 
+export interface ContractorGroupResponse {
+  contractor: ContractorInfo;
+  items: AssigneeItemResponse[];
+}
+
 export interface ChecklistByAssigneeResponse {
   assignees: AssigneeGroupResponse[];
+  contractors?: ContractorGroupResponse[];
   unassigned: AssigneeItemResponse[];
 }
 

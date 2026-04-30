@@ -10,6 +10,8 @@ import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.CommentAttachment;
 import com.kanban.domain.comment.CommentAttachmentRepository;
 import com.kanban.domain.comment.CommentRepository;
+import com.kanban.domain.contractor.entity.BoardContractor;
+import com.kanban.domain.contractor.repository.BoardContractorRepository;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
@@ -67,6 +69,7 @@ public class FeatureService {
     private final TaskTagRepository taskTagRepository;
     private final TaskWeightRepository taskWeightRepository;
     private final ChecklistItemRepository checklistItemRepository;
+    private final BoardContractorRepository contractorRepository;
     private final CommentAttachmentRepository commentAttachmentRepository;
     private final CommentRepository commentRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
@@ -139,9 +142,13 @@ public class FeatureService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         User assignee = null;
+        BoardContractor contractor = null;
         if (request.getAssigneeId() != null) {
             assignee = userRepository.findById(request.getAssigneeId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        } else if (request.getContractorId() != null) {
+            contractor = contractorRepository.findByIdAndBoardId(request.getContractorId(), boardId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
         }
 
         Integer maxPosition = featureRepository.findMaxPositionByBoardId(boardId);
@@ -153,6 +160,7 @@ public class FeatureService {
                 .description(request.getDescription())
                 .color(request.getColor())
                 .assignee(assignee)
+                .contractor(contractor)
                 .startDate(request.getStartDate())
                 .dueDate(request.getDueDate())
                 .position(newPosition)
@@ -195,6 +203,10 @@ public class FeatureService {
             User assignee = userRepository.findById(request.getAssigneeId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
             feature.updateAssignee(assignee);
+        } else if (request.getContractorId() != null) {
+            BoardContractor contractor = contractorRepository.findByIdAndBoardId(request.getContractorId(), boardId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
+            feature.updateContractor(contractor);
         }
 
         User updater = userRepository.findById(userId)

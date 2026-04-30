@@ -13,6 +13,8 @@ import com.kanban.domain.checklist.dto.ChecklistBatchRequest;
 import com.kanban.domain.checklist.dto.ChecklistBatchResponse;
 import com.kanban.domain.checklist.dto.ChecklistRequest;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
+import com.kanban.domain.contractor.entity.BoardContractor;
+import com.kanban.domain.contractor.repository.BoardContractorRepository;
 import com.kanban.domain.jobrole.dto.JobRoleResponse;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.integration.discord.service.DiscordNotificationService;
@@ -52,6 +54,7 @@ public class ChecklistService {
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final BoardMemberRepository boardMemberRepository;
+    private final BoardContractorRepository contractorRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final DailyChecklistRepository dailyChecklistRepository;
     private final ActivityService activityService;
@@ -86,9 +89,13 @@ public class ChecklistService {
         }
 
         User assignee = null;
+        BoardContractor contractor = null;
         if (request.getAssigneeId() != null) {
             assignee = userRepository.findById(request.getAssigneeId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        } else if (request.getContractorId() != null) {
+            contractor = contractorRepository.findByIdAndBoardId(request.getContractorId(), boardId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
         }
 
         Integer maxPosition = checklistItemRepository.findMaxPositionByTaskId(taskId);
@@ -99,6 +106,7 @@ public class ChecklistService {
                 .task(task)
                 .title(request.getTitle())
                 .assignee(assignee)
+                .contractor(contractor)
                 .startDate(request.getStartDate())
                 .dueDate(request.getDueDate())
                 .position(newPosition)
@@ -146,6 +154,20 @@ public class ChecklistService {
                     discordNotificationService.sendChecklistAssignedNotification(savedItem, savedCreator, savedBoard, originUrl);
                 }
             });
+        } else if (contractor != null) {
+            final ChecklistItem savedItem = item;
+            final User savedCreator = creator;
+            final Board savedBoard = task.getBoard();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        notificationService.createContractorChecklistAssignedNotification(savedItem, savedCreator, savedBoard);
+                    } catch (Exception e) {
+                        log.warn("Failed to create contractor notification for item: {}", savedItem.getId(), e);
+                    }
+                }
+            });
         }
 
         return response;
@@ -170,15 +192,16 @@ public class ChecklistService {
         }
 
         String oldAssigneeId = item.getAssignee() != null ? item.getAssignee().getId() : null;
+        String oldContractorId = item.getContractor() != null ? item.getContractor().getId() : null;
 
         item.updateInfo(request.getTitle(), request.getStartDate(), request.getDueDate());
 
+        // assignee 와 contractor 는 mutually exclusive — assignee 우선
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
             item.updateAssignee(assignee);
 
-            // 배정자가 변경된 경우 알림 발송 (트랜잭션 커밋 후)
             if (!request.getAssigneeId().equals(oldAssigneeId)) {
                 User assigner = userRepository.findById(userId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -198,9 +221,32 @@ public class ChecklistService {
                     }
                 });
             }
-        } else if (oldAssigneeId != null) {
-            // 담당자 해제: 기존 담당자가 있었는데 null로 요청된 경우
-            item.updateAssignee(null);
+        } else if (request.getContractorId() != null) {
+            BoardContractor contractor = contractorRepository.findByIdAndBoardId(request.getContractorId(), boardId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
+            item.updateContractor(contractor);
+
+            if (!request.getContractorId().equals(oldContractorId)) {
+                User assigner = userRepository.findById(userId)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                final ChecklistItem savedItem = item;
+                final User savedAssigner = assigner;
+                final Board savedBoard = task.getBoard();
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        try {
+                            notificationService.createContractorChecklistAssignedNotification(savedItem, savedAssigner, savedBoard);
+                        } catch (Exception e) {
+                            log.warn("Failed to create contractor notification for item: {}", savedItem.getId(), e);
+                        }
+                    }
+                });
+            }
+        } else {
+            // 둘 다 null → 담당자 해제
+            if (oldAssigneeId != null) item.updateAssignee(null);
+            if (oldContractorId != null) item.updateContractor(null);
         }
 
         log.info("Checklist item updated: {} by user: {}", itemId, userId);
@@ -240,6 +286,7 @@ public class ChecklistService {
         }
 
         String oldAssigneeId = item.getAssignee() != null ? item.getAssignee().getId() : null;
+        String oldContractorId = item.getContractor() != null ? item.getContractor().getId() : null;
 
         if (request.hasTitle() && request.getTitle() != null) {
             item.updateTitle(request.getTitle());
@@ -264,6 +311,19 @@ public class ChecklistService {
             }
         }
 
+        boolean contractorNewlyAssigned = false;
+        if (request.hasContractorId()) {
+            String newContractorId = request.getContractorId();
+            if (newContractorId != null) {
+                BoardContractor contractor = contractorRepository.findByIdAndBoardId(newContractorId, boardId)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
+                item.updateContractor(contractor);
+                contractorNewlyAssigned = !newContractorId.equals(oldContractorId);
+            } else if (oldContractorId != null) {
+                item.updateContractor(null);
+            }
+        }
+
         if (assigneeNewlyAssigned) {
             User assigner = userRepository.findById(userId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -280,6 +340,22 @@ public class ChecklistService {
                     }
                     slackNotificationService.sendChecklistAssignedNotification(savedItem, savedAssigner, savedBoard, originUrl);
                     discordNotificationService.sendChecklistAssignedNotification(savedItem, savedAssigner, savedBoard, originUrl);
+                }
+            });
+        } else if (contractorNewlyAssigned) {
+            User assigner = userRepository.findById(userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            final ChecklistItem savedItem = item;
+            final User savedAssigner = assigner;
+            final Board savedBoard = task.getBoard();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        notificationService.createContractorChecklistAssignedNotification(savedItem, savedAssigner, savedBoard);
+                    } catch (Exception e) {
+                        log.warn("Failed to create contractor notification for item: {}", savedItem.getId(), e);
+                    }
                 }
             });
         }

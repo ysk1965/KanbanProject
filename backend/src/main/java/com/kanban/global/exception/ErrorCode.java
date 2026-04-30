@@ -119,6 +119,11 @@ public enum ErrorCode {
     JOB_ROLE_NOT_FOUND(HttpStatus.NOT_FOUND, "JR001", "직군을 찾을 수 없습니다"),
     JOB_ROLE_ALREADY_EXISTS(HttpStatus.CONFLICT, "JR002", "이미 존재하는 직군 이름입니다"),
 
+    // Contractor
+    CONTRACTOR_NOT_FOUND(HttpStatus.NOT_FOUND, "C001", "외주를 찾을 수 없습니다"),
+    CONTRACTOR_ALREADY_EXISTS(HttpStatus.CONFLICT, "C002", "이미 존재하는 외주 이름입니다"),
+    CONTRACTOR_MANAGER_INVALID(HttpStatus.BAD_REQUEST, "C003", "유효하지 않은 외주 관리자입니다"),
+
     // Invite
     INVITE_LINK_NOT_FOUND(HttpStatus.NOT_FOUND, "I001", "초대 링크를 찾을 수 없습니다"),
     INVITE_LINK_EXPIRED(HttpStatus.BAD_REQUEST, "I002", "만료된 초대 링크입니다"),

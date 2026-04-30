@@ -29,6 +29,8 @@ public class ChecklistRequest {
 
         private String assigneeId;
 
+        private String contractorId;
+
         private LocalDate startDate;
 
         private LocalDate dueDate;
@@ -41,6 +43,8 @@ public class ChecklistRequest {
         private String title;
 
         private String assigneeId;
+
+        private String contractorId;
 
         private LocalDate startDate;
 
@@ -62,6 +66,8 @@ public class ChecklistRequest {
 
         private String assigneeId;
 
+        private String contractorId;
+
         private LocalDate startDate;
 
         private LocalDate dueDate;
@@ -70,6 +76,8 @@ public class ChecklistRequest {
         private boolean titlePresent;
         @JsonIgnore
         private boolean assigneeIdPresent;
+        @JsonIgnore
+        private boolean contractorIdPresent;
         @JsonIgnore
         private boolean startDatePresent;
         @JsonIgnore
@@ -85,6 +93,11 @@ public class ChecklistRequest {
             this.assigneeIdPresent = true;
         }
 
+        public void setContractorId(String contractorId) {
+            this.contractorId = contractorId;
+            this.contractorIdPresent = true;
+        }
+
         public void setStartDate(LocalDate startDate) {
             this.startDate = startDate;
             this.startDatePresent = true;
@@ -97,6 +110,7 @@ public class ChecklistRequest {
 
         public boolean hasTitle() { return titlePresent; }
         public boolean hasAssigneeId() { return assigneeIdPresent; }
+        public boolean hasContractorId() { return contractorIdPresent; }
         public boolean hasStartDate() { return startDatePresent; }
         public boolean hasDueDate() { return dueDatePresent; }
     }

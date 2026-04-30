@@ -94,6 +94,55 @@ public class NotificationService {
         }
     }
 
+    /**
+     * 외주(Contractor)에게 체크리스트가 배정된 경우 — 알림은 외주의 매니저(BoardMember)에게 대신 전달.
+     * Contractor 는 User 계정이 없으므로 manager.user 를 recipient 로 사용.
+     */
+    @Transactional
+    public void createContractorChecklistAssignedNotification(ChecklistItem item, User assigner, Board board) {
+        if (item.getContractor() == null || item.getContractor().getManager() == null) {
+            return;
+        }
+        User manager = item.getContractor().getManager().getUser();
+        if (manager == null || manager.getId().equals(assigner.getId())) {
+            return;
+        }
+        if (!isInAppEnabled(manager.getId(), board.getId(), NotificationType.CHECKLIST_ASSIGNED)) {
+            return;
+        }
+
+        Task task = item.getTask();
+        String contractorName = item.getContractor().getName();
+
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("senderName", assigner.getName());
+        metadata.put("senderProfileImage", assigner.getProfileImage() != null ? assigner.getProfileImage() : "");
+        metadata.put("boardName", board.getName());
+        metadata.put("taskTitle", task.getTitle());
+        metadata.put("checklistTitle", item.getTitle());
+        metadata.put("contractorName", contractorName);
+
+        Notification notification = Notification.builder()
+                .recipient(manager)
+                .board(board)
+                .type(NotificationType.CHECKLIST_ASSIGNED)
+                .title(assigner.getName() + "님이 외주(" + contractorName + ")에게 체크리스트 항목을 배정했습니다")
+                .message(item.getTitle())
+                .taskId(task.getId())
+                .senderId(assigner.getId())
+                .metadata(metadata)
+                .build();
+
+        notificationRepository.save(notification);
+        log.info("Contractor checklist assigned notification created for manager: {} item: {} contractor: {}",
+                manager.getId(), item.getId(), item.getContractor().getId());
+
+        NotificationResponse.Detail response = NotificationResponse.Detail.of(notification);
+        webSocketEventService.sendUserEvent(board.getId(), manager.getId(), BoardEventType.NOTIFICATION_CREATED, response);
+
+        pushNotificationService.sendPushForNotification(notification);
+    }
+
     @Transactional
     public void createChecklistAssignedNotification(ChecklistItem item, User assigner, Board board) {
         User assignee = item.getAssignee();
