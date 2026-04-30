@@ -31,7 +31,8 @@
     "or": "或",
     "and": "和",
     "completed": "已完成",
-    "incomplete": "未完成"
+    "incomplete": "未完成",
+    "reorder": "重新排序"
   },
   "app": {
     "loading": "載入中...",
