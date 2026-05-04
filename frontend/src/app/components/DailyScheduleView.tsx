@@ -1293,12 +1293,30 @@ export function DailyScheduleView({
                         <span className="text-sm font-medium text-foreground truncate block">
                           {member.name}
                         </span>
-                        <button
-                          onClick={() => setSummaryMember(member)}
-                          className="text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors mt-0.5"
-                        >
-                          {t("dailySummary.summaryButton")}
-                        </button>
+                        <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                          {member.jobRole && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0"
+                              style={{
+                                backgroundColor: `${member.jobRole.color || '#6366F1'}26`,
+                                color: member.jobRole.color || '#6366F1',
+                              }}
+                              title={t('jobRole.title')}
+                            >
+                              <span
+                                className="w-1.5 h-1.5 rounded-full"
+                                style={{ backgroundColor: member.jobRole.color || '#6366F1' }}
+                              />
+                              <span className="truncate max-w-[80px]">{member.jobRole.name}</span>
+                            </span>
+                          )}
+                          <button
+                            onClick={() => setSummaryMember(member)}
+                            className="text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors shrink-0"
+                          >
+                            {t("dailySummary.summaryButton")}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1714,12 +1732,30 @@ export function DailyScheduleView({
                         <span className="text-sm font-medium text-foreground truncate block">
                           {member.name}
                         </span>
-                        <button
-                          onClick={() => setSummaryMember(member)}
-                          className="text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors mt-0.5"
-                        >
-                          요약
-                        </button>
+                        <div className="flex items-center gap-1 mt-0.5 min-w-0 flex-wrap">
+                          {member.jobRole && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0"
+                              style={{
+                                backgroundColor: `${member.jobRole.color || '#6366F1'}26`,
+                                color: member.jobRole.color || '#6366F1',
+                              }}
+                              title={t('jobRole.title')}
+                            >
+                              <span
+                                className="w-1.5 h-1.5 rounded-full"
+                                style={{ backgroundColor: member.jobRole.color || '#6366F1' }}
+                              />
+                              <span className="truncate max-w-[60px]">{member.jobRole.name}</span>
+                            </span>
+                          )}
+                          <button
+                            onClick={() => setSummaryMember(member)}
+                            className="text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors shrink-0"
+                          >
+                            요약
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
