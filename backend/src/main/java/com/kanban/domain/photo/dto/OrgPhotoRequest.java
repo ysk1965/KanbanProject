@@ -62,4 +62,18 @@ public class OrgPhotoRequest {
         @Size(max = 100, message = "일괄 다운로드는 최대 100장까지 가능합니다")
         private List<String> photoIds;
     }
+
+    @Getter
+    @NoArgsConstructor
+    public static class ShareLinkCreate {
+        private String tabId;
+
+        @NotBlank(message = "링크 종류는 필수입니다")
+        private String linkType;
+
+        private Integer expiresInDays;
+
+        @Size(max = 100, message = "라벨은 100자 이내여야 합니다")
+        private String title;
+    }
 }

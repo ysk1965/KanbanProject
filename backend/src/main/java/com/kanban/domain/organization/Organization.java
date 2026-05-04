@@ -206,4 +206,14 @@ public class Organization {
                 && this.photoUploadTokenExpiresAt != null
                 && LocalDateTime.now(ZoneOffset.UTC).isBefore(this.photoUploadTokenExpiresAt);
     }
+
+    public void adoptGalleryShareToken(String token, String title) {
+        this.photoShareToken = token;
+        this.photoShareTitle = title;
+    }
+
+    public void adoptGalleryUploadToken(String token, LocalDateTime expiresAt) {
+        this.photoUploadToken = token;
+        this.photoUploadTokenExpiresAt = expiresAt;
+    }
 }

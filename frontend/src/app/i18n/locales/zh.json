@@ -4037,7 +4037,37 @@
     "galleryUploadLink": "相册上传链接",
     "galleryUploadLinkDesc": "任何拥有此链接的人都可以上传照片和管理相册",
     "galleryUploadLinkEnabled": "相册上传链接已创建",
-    "galleryUploadLinkDisabled": "相册上传链接已删除"
+    "galleryUploadLinkDisabled": "相册上传链接已删除",
+    "manageLinksDesc": "查看已签发的共享链接,可随时立即失效",
+    "galleryAllAlbums": "整个相册库",
+    "newViewLink": "新的查看链接",
+    "newUploadLink": "新的上传链接",
+    "expiresIn": "过期",
+    "expiresNever": "永久",
+    "expireNow": "立即失效",
+    "linkRevoked": "链接已失效",
+    "linkIssued": "链接已签发",
+    "accessedNTimes": "{{n}}次访问",
+    "lastAccessed": "最近 {{time}}",
+    "daysLeft": "剩余{{n}}天",
+    "hoursLeft": "剩余{{n}}小时",
+    "noLinksYet": "尚未签发任何链接",
+    "linkLabelPlaceholder": "标签(可选,如:外部共享、活动)",
+    "issueLink": "签发",
+    "statusExpired": "已过期",
+    "statusRevoked": "已撤销",
+    "unnamed": "未命名",
+    "confirmExpire": "立即失效此链接?",
+    "linkType": {
+      "view": "查看",
+      "upload": "上传"
+    },
+    "expirePresets": {
+      "1d": "1天",
+      "7d": "7天",
+      "30d": "30天",
+      "never": "永久"
+    }
   },
   "listViewGroupBy": "分组",
   "listViewSortBy": "排序",

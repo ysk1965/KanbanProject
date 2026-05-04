@@ -130,4 +130,15 @@ public class OrgPhotoTab extends BaseTimeEntity {
                 && this.uploadTokenExpiresAt != null
                 && LocalDateTime.now(ZoneOffset.UTC).isBefore(this.uploadTokenExpiresAt);
     }
+
+    public void adoptShareToken(String token) {
+        this.shareToken = token;
+        this.isShared = (token != null);
+    }
+
+    public void adoptUploadToken(String token, LocalDateTime expiresAt) {
+        this.uploadToken = token;
+        this.uploadTokenExpiresAt = expiresAt;
+        this.isUploadEnabled = (token != null);
+    }
 }

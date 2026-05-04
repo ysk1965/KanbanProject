@@ -4528,7 +4528,37 @@
     "galleryUploadLink": "ลิงก์อัปโหลดแกลเลอรี",
     "galleryUploadLinkDesc": "ใครก็ตามที่มีลิงก์นี้สามารถอัปโหลดรูปภาพและจัดการอัลบั้มได้",
     "galleryUploadLinkEnabled": "สร้างลิงก์อัปโหลดแกลเลอรีแล้ว",
-    "galleryUploadLinkDisabled": "ลบลิงก์อัปโหลดแกลเลอรีแล้ว"
+    "galleryUploadLinkDisabled": "ลบลิงก์อัปโหลดแกลเลอรีแล้ว",
+    "manageLinksDesc": "ดูลิงก์ที่ออกแล้วและยกเลิกได้ทันที",
+    "galleryAllAlbums": "ทั้งแกลเลอรี",
+    "newViewLink": "ลิงก์ดูใหม่",
+    "newUploadLink": "ลิงก์อัปโหลดใหม่",
+    "expiresIn": "หมดอายุ",
+    "expiresNever": "ตลอดไป",
+    "expireNow": "ยกเลิกทันที",
+    "linkRevoked": "ลิงก์ถูกยกเลิก",
+    "linkIssued": "ออกลิงก์แล้ว",
+    "accessedNTimes": "เข้า {{n}} ครั้ง",
+    "lastAccessed": "ล่าสุด {{time}}",
+    "daysLeft": "เหลือ {{n}} วัน",
+    "hoursLeft": "เหลือ {{n}} ชม.",
+    "noLinksYet": "ยังไม่มีลิงก์",
+    "linkLabelPlaceholder": "ป้ายชื่อ (เลือกได้, เช่น แชร์ภายนอก, อีเวนต์)",
+    "issueLink": "ออกลิงก์",
+    "statusExpired": "หมดอายุ",
+    "statusRevoked": "ยกเลิกแล้ว",
+    "unnamed": "ไม่มีชื่อ",
+    "confirmExpire": "ยกเลิกลิงก์นี้ทันที?",
+    "linkType": {
+      "view": "ดู",
+      "upload": "อัปโหลด"
+    },
+    "expirePresets": {
+      "1d": "1 วัน",
+      "7d": "7 วัน",
+      "30d": "30 วัน",
+      "never": "ตลอดไป"
+    }
   },
   "listViewGroupBy": "จัดกลุ่ม",
   "listViewSortBy": "เรียงลำดับ",

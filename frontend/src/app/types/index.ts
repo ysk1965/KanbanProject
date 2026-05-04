@@ -3395,6 +3395,38 @@ export interface MigrationPreview {
 }
 
 // ===== Photo Gallery (v14.0) =====
+
+export type PhotoShareLinkType = 'VIEW' | 'UPLOAD';
+export type PhotoShareLinkStatus = 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+
+export interface PhotoShareLink {
+  id: string;
+  link_type: PhotoShareLinkType;
+  token: string;
+  tab_id: string | null;
+  tab_name: string | null;
+  title: string | null;
+  expires_at: string | null;
+  revoked_at: string | null;
+  last_accessed_at: string | null;
+  access_count: number;
+  created_by: {
+    id: string;
+    name: string;
+    email: string;
+    profile_image_url: string | null;
+  } | null;
+  created_at: string;
+  status: PhotoShareLinkStatus;
+}
+
+export interface PhotoShareLinkCreatePayload {
+  tab_id?: string | null;
+  link_type: PhotoShareLinkType;
+  expires_in_days?: number | null;
+  title?: string | null;
+}
+
 export interface OrgPhotoTab {
   id: string;
   name: string;

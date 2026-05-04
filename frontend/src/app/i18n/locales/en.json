@@ -4522,7 +4522,37 @@
     "galleryUploadLink": "Gallery Upload Link",
     "galleryUploadLinkDesc": "Anyone with this link can upload photos and manage albums",
     "galleryUploadLinkEnabled": "Gallery upload link created",
-    "galleryUploadLinkDisabled": "Gallery upload link removed"
+    "galleryUploadLinkDisabled": "Gallery upload link removed",
+    "manageLinksDesc": "Review issued links and revoke any of them instantly",
+    "galleryAllAlbums": "Entire gallery",
+    "newViewLink": "New view link",
+    "newUploadLink": "New upload link",
+    "expiresIn": "Expires",
+    "expiresNever": "Never",
+    "expireNow": "Expire now",
+    "linkRevoked": "Link expired",
+    "linkIssued": "Link issued",
+    "accessedNTimes": "{{n}} visits",
+    "lastAccessed": "last {{time}}",
+    "daysLeft": "{{n}}d left",
+    "hoursLeft": "{{n}}h left",
+    "noLinksYet": "No links issued yet",
+    "linkLabelPlaceholder": "Label (optional, e.g. \"External share\", \"Event\")",
+    "issueLink": "Issue",
+    "statusExpired": "Expired",
+    "statusRevoked": "Revoked",
+    "unnamed": "Untitled",
+    "confirmExpire": "Expire this link immediately?",
+    "linkType": {
+      "view": "View",
+      "upload": "Upload"
+    },
+    "expirePresets": {
+      "1d": "1 day",
+      "7d": "7 days",
+      "30d": "30 days",
+      "never": "Never"
+    }
   },
   "listViewGroupBy": "Group by",
   "listViewSortBy": "Sort by",

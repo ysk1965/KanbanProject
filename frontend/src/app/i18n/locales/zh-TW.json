@@ -3913,7 +3913,37 @@
     "galleryUploadLink": "相簿上傳連結",
     "galleryUploadLinkDesc": "任何擁有此連結的人都可以上傳照片和管理相簿",
     "galleryUploadLinkEnabled": "相簿上傳連結已建立",
-    "galleryUploadLinkDisabled": "相簿上傳連結已移除"
+    "galleryUploadLinkDisabled": "相簿上傳連結已移除",
+    "manageLinksDesc": "檢視已簽發的共用連結,可隨時立即失效",
+    "galleryAllAlbums": "整個相簿庫",
+    "newViewLink": "新的檢視連結",
+    "newUploadLink": "新的上傳連結",
+    "expiresIn": "到期",
+    "expiresNever": "永久",
+    "expireNow": "立即失效",
+    "linkRevoked": "連結已失效",
+    "linkIssued": "連結已簽發",
+    "accessedNTimes": "{{n}}次存取",
+    "lastAccessed": "最近 {{time}}",
+    "daysLeft": "剩餘{{n}}天",
+    "hoursLeft": "剩餘{{n}}小時",
+    "noLinksYet": "尚未簽發任何連結",
+    "linkLabelPlaceholder": "標籤(選填,如:外部共用、活動)",
+    "issueLink": "簽發",
+    "statusExpired": "已過期",
+    "statusRevoked": "已撤銷",
+    "unnamed": "未命名",
+    "confirmExpire": "立即失效此連結?",
+    "linkType": {
+      "view": "檢視",
+      "upload": "上傳"
+    },
+    "expirePresets": {
+      "1d": "1天",
+      "7d": "7天",
+      "30d": "30天",
+      "never": "永久"
+    }
   },
   "notes": {
     "newBoard": "新畫板",
