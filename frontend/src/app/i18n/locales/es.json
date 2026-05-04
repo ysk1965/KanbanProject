@@ -4528,7 +4528,37 @@
     "galleryUploadLink": "Enlace de subida de galería",
     "galleryUploadLinkDesc": "Cualquiera con este enlace puede subir fotos y gestionar álbumes",
     "galleryUploadLinkEnabled": "Enlace de subida de galería creado",
-    "galleryUploadLinkDisabled": "Enlace de subida de galería eliminado"
+    "galleryUploadLinkDisabled": "Enlace de subida de galería eliminado",
+    "manageLinksDesc": "Revisa los enlaces emitidos y revócalos al instante",
+    "galleryAllAlbums": "Toda la galería",
+    "newViewLink": "Nuevo enlace de visualización",
+    "newUploadLink": "Nuevo enlace de subida",
+    "expiresIn": "Vence",
+    "expiresNever": "Nunca",
+    "expireNow": "Caducar ahora",
+    "linkRevoked": "Enlace caducado",
+    "linkIssued": "Enlace emitido",
+    "accessedNTimes": "{{n}} accesos",
+    "lastAccessed": "último {{time}}",
+    "daysLeft": "{{n}} d restantes",
+    "hoursLeft": "{{n}} h restantes",
+    "noLinksYet": "Aún no hay enlaces",
+    "linkLabelPlaceholder": "Etiqueta (opcional, p. ej. \"Compartir externo\", \"Evento\")",
+    "issueLink": "Emitir",
+    "statusExpired": "Caducado",
+    "statusRevoked": "Revocado",
+    "unnamed": "Sin nombre",
+    "confirmExpire": "¿Caducar este enlace ahora?",
+    "linkType": {
+      "view": "Ver",
+      "upload": "Subir"
+    },
+    "expirePresets": {
+      "1d": "1 día",
+      "7d": "7 días",
+      "30d": "30 días",
+      "never": "Nunca"
+    }
   },
   "listViewGroupBy": "Agrupar",
   "listViewSortBy": "Ordenar",

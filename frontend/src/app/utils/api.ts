@@ -7689,6 +7689,27 @@ export const orgPhotoAPI = {
   ): Promise<import("../types").OrgPhotoTab> =>
     apiClient.delete(`/organizations/${orgId}/photos/tabs/${tabId}/upload-link`),
 
+  // Multi share-link management
+  listShareLinks: (
+    orgId: string,
+    tabId?: string,
+  ): Promise<{ links: import("../types").PhotoShareLink[] }> => {
+    const query = tabId ? `?tab_id=${encodeURIComponent(tabId)}` : "";
+    return apiClient.get(`/organizations/${orgId}/photos/share-links${query}`);
+  },
+
+  issueShareLink: (
+    orgId: string,
+    payload: import("../types").PhotoShareLinkCreatePayload,
+  ): Promise<import("../types").PhotoShareLink> =>
+    apiClient.post(`/organizations/${orgId}/photos/share-links`, payload),
+
+  revokeShareLink: (
+    orgId: string,
+    linkId: string,
+  ): Promise<void> =>
+    apiClient.delete(`/organizations/${orgId}/photos/share-links/${linkId}`),
+
   // Photo CRUD
   getPhotos: (
     orgId: string,

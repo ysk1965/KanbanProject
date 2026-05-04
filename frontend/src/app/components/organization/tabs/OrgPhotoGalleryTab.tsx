@@ -25,7 +25,6 @@ import { PhotoGrid } from '../photo/PhotoGrid';
 import { PhotoLightbox } from '../photo/PhotoLightbox';
 import { PhotoUploadModal } from '../photo/PhotoUploadModal';
 import { AlbumCreateModal } from '../photo/AlbumCreateModal';
-import { AlbumShareModal } from '../photo/AlbumShareButton';
 import { AlbumShareManagerModal } from '../photo/AlbumShareManagerModal';
 import type { OrgPhotoTab, OrgPhoto, OrgPhotoPage } from '../../../types';
 
@@ -324,12 +323,6 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
   const handleEditAlbum = useCallback((album: OrgPhotoTab) => {
     setEditingAlbum(album);
     setShowAlbumModal(true);
-  }, []);
-
-  // Share album update
-  const handleShareAlbumUpdate = useCallback((updated: OrgPhotoTab) => {
-    setAlbums((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
-    setShareAlbum(updated);
   }, []);
 
   // Reorder albums (drag & drop)
@@ -744,23 +737,16 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
           </div>
         </div>
       </MotionModal>
-      {/* Share Album Modal (single — from context menu) */}
-      {shareAlbum && (
-        <AlbumShareModal
-          open={!!shareAlbum}
-          onClose={() => setShareAlbum(null)}
-          orgId={orgId}
-          album={shareAlbum}
-          onAlbumUpdate={handleShareAlbumUpdate}
-        />
-      )}
-
-      {/* Share Manager Modal (multi — from toolbar) */}
+      {/* Share Manager Modal — handles both per-album (from menu) and gallery-wide (from toolbar) entry */}
       <AlbumShareManagerModal
-        open={showShareManager}
-        onClose={() => setShowShareManager(false)}
+        open={showShareManager || !!shareAlbum}
+        onClose={() => {
+          setShowShareManager(false);
+          setShareAlbum(null);
+        }}
         orgId={orgId}
         albums={albums}
+        focusTabId={shareAlbum?.id ?? null}
         onAlbumsUpdate={setAlbums}
       />
     </div>

@@ -4037,7 +4037,37 @@
     "galleryUploadLink": "Link de upload da galeria",
     "galleryUploadLinkDesc": "Qualquer pessoa com este link pode enviar fotos e gerenciar álbuns",
     "galleryUploadLinkEnabled": "Link de upload da galeria criado",
-    "galleryUploadLinkDisabled": "Link de upload da galeria removido"
+    "galleryUploadLinkDisabled": "Link de upload da galeria removido",
+    "manageLinksDesc": "Veja os links emitidos e revogue-os imediatamente",
+    "galleryAllAlbums": "Galeria inteira",
+    "newViewLink": "Novo link de visualização",
+    "newUploadLink": "Novo link de upload",
+    "expiresIn": "Expira",
+    "expiresNever": "Nunca",
+    "expireNow": "Expirar agora",
+    "linkRevoked": "Link expirado",
+    "linkIssued": "Link emitido",
+    "accessedNTimes": "{{n}} acessos",
+    "lastAccessed": "último {{time}}",
+    "daysLeft": "{{n}}d restantes",
+    "hoursLeft": "{{n}}h restantes",
+    "noLinksYet": "Nenhum link emitido",
+    "linkLabelPlaceholder": "Rótulo (opcional, ex: \"Compartilhamento externo\", \"Evento\")",
+    "issueLink": "Emitir",
+    "statusExpired": "Expirado",
+    "statusRevoked": "Revogado",
+    "unnamed": "Sem nome",
+    "confirmExpire": "Expirar este link agora?",
+    "linkType": {
+      "view": "Ver",
+      "upload": "Upload"
+    },
+    "expirePresets": {
+      "1d": "1 dia",
+      "7d": "7 dias",
+      "30d": "30 dias",
+      "never": "Nunca"
+    }
   },
   "listViewGroupBy": "Agrupar",
   "listViewSortBy": "Ordenar",

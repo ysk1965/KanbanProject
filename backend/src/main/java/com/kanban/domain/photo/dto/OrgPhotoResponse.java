@@ -2,6 +2,7 @@ package com.kanban.domain.photo.dto;
 
 import com.kanban.domain.photo.OrgPhoto;
 import com.kanban.domain.photo.OrgPhotoTab;
+import com.kanban.domain.photo.PhotoShareLink;
 import com.kanban.domain.user.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -201,6 +202,60 @@ public class OrgPhotoResponse {
         private String organizationLogoUrl;
         private List<SharedAlbumSummary> albums;
         private LocalDateTime expiresAt;
+    }
+
+    // ==================== Share Link DTOs ====================
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class ShareLinkInfo {
+        private String id;
+        private String linkType;
+        private String token;
+        private String tabId;
+        private String tabName;
+        private String title;
+        private LocalDateTime expiresAt;
+        private LocalDateTime revokedAt;
+        private LocalDateTime lastAccessedAt;
+        private int accessCount;
+        private UserInfo createdBy;
+        private LocalDateTime createdAt;
+        private String status;
+
+        public static ShareLinkInfo from(PhotoShareLink link) {
+            String status;
+            if (link.isRevoked()) {
+                status = "REVOKED";
+            } else if (link.isExpired()) {
+                status = "EXPIRED";
+            } else {
+                status = "ACTIVE";
+            }
+            return ShareLinkInfo.builder()
+                    .id(link.getId())
+                    .linkType(link.getLinkType().name())
+                    .token(link.getToken())
+                    .tabId(link.getTab() != null ? link.getTab().getId() : null)
+                    .tabName(link.getTab() != null ? link.getTab().getName() : null)
+                    .title(link.getTitle())
+                    .expiresAt(link.getExpiresAt())
+                    .revokedAt(link.getRevokedAt())
+                    .lastAccessedAt(link.getLastAccessedAt())
+                    .accessCount(link.getAccessCount())
+                    .createdBy(link.getCreatedBy() != null ? UserInfo.from(link.getCreatedBy()) : null)
+                    .createdAt(link.getCreatedAt())
+                    .status(status)
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class ShareLinkListResponse {
+        private List<ShareLinkInfo> links;
     }
 
     // ==================== Common DTOs ====================
