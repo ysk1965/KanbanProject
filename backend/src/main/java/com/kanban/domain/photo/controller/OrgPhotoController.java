@@ -1,9 +1,13 @@
 package com.kanban.domain.photo.controller;
 
 import com.kanban.domain.organization.Organization;
+import com.kanban.domain.photo.PhotoShareLink;
 import com.kanban.domain.photo.dto.OrgPhotoRequest;
 import com.kanban.domain.photo.dto.OrgPhotoResponse;
 import com.kanban.domain.photo.service.OrgPhotoService;
+import com.kanban.domain.photo.service.PhotoShareLinkService;
+import com.kanban.global.exception.BusinessException;
+import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +32,7 @@ import java.util.Map;
 public class OrgPhotoController {
 
     private final OrgPhotoService orgPhotoService;
+    private final PhotoShareLinkService photoShareLinkService;
 
     // ==================== Tab Endpoints ====================
 
@@ -159,6 +164,50 @@ public class OrgPhotoController {
             @PathVariable String orgId,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(orgPhotoService.getGalleryUploadStatus(orgId));
+    }
+
+    // ==================== Multi Share Link Management ====================
+
+    @GetMapping("/share-links")
+    public ResponseEntity<OrgPhotoResponse.ShareLinkListResponse> listShareLinks(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(value = "tab_id", required = false) String tabId) {
+        List<OrgPhotoResponse.ShareLinkInfo> links = photoShareLinkService
+                .list(orgId, principal.getUserId(), tabId)
+                .stream()
+                .map(OrgPhotoResponse.ShareLinkInfo::from)
+                .toList();
+        return ResponseEntity.ok(OrgPhotoResponse.ShareLinkListResponse.builder()
+                .links(links).build());
+    }
+
+    @PostMapping("/share-links")
+    public ResponseEntity<OrgPhotoResponse.ShareLinkInfo> issueShareLink(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody OrgPhotoRequest.ShareLinkCreate request) {
+        PhotoShareLink.LinkType type;
+        try {
+            type = PhotoShareLink.LinkType.valueOf(request.getLinkType().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(ErrorCode.PHOTO_SHARE_LINK_INVALID_TYPE);
+        }
+        PhotoShareLink link = photoShareLinkService.issue(
+                orgId, principal.getUserId(),
+                request.getTabId(), type,
+                request.getExpiresInDays(), request.getTitle());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(OrgPhotoResponse.ShareLinkInfo.from(link));
+    }
+
+    @DeleteMapping("/share-links/{linkId}")
+    public ResponseEntity<Void> revokeShareLink(
+            @PathVariable String orgId,
+            @PathVariable String linkId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        photoShareLinkService.revoke(orgId, principal.getUserId(), linkId);
+        return ResponseEntity.noContent().build();
     }
 
     // ==================== Upload Link Endpoints ====================

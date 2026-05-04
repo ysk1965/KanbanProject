@@ -4528,7 +4528,37 @@
     "galleryUploadLink": "Liên kết tải lên thư viện",
     "galleryUploadLinkDesc": "Bất kỳ ai có liên kết này đều có thể tải ảnh lên và quản lý album",
     "galleryUploadLinkEnabled": "Đã tạo liên kết tải lên thư viện",
-    "galleryUploadLinkDisabled": "Đã xóa liên kết tải lên thư viện"
+    "galleryUploadLinkDisabled": "Đã xóa liên kết tải lên thư viện",
+    "manageLinksDesc": "Xem các liên kết đã phát hành và thu hồi tức thì",
+    "galleryAllAlbums": "Toàn bộ thư viện",
+    "newViewLink": "Liên kết xem mới",
+    "newUploadLink": "Liên kết tải lên mới",
+    "expiresIn": "Hết hạn",
+    "expiresNever": "Vô thời hạn",
+    "expireNow": "Hết hạn ngay",
+    "linkRevoked": "Đã thu hồi liên kết",
+    "linkIssued": "Đã phát hành liên kết",
+    "accessedNTimes": "{{n}} lượt truy cập",
+    "lastAccessed": "gần nhất {{time}}",
+    "daysLeft": "còn {{n}} ngày",
+    "hoursLeft": "còn {{n}} giờ",
+    "noLinksYet": "Chưa có liên kết nào",
+    "linkLabelPlaceholder": "Nhãn (tuỳ chọn, vd: Chia sẻ ngoài, Sự kiện)",
+    "issueLink": "Phát hành",
+    "statusExpired": "Hết hạn",
+    "statusRevoked": "Đã thu hồi",
+    "unnamed": "Chưa đặt tên",
+    "confirmExpire": "Thu hồi liên kết này ngay?",
+    "linkType": {
+      "view": "Xem",
+      "upload": "Tải lên"
+    },
+    "expirePresets": {
+      "1d": "1 ngày",
+      "7d": "7 ngày",
+      "30d": "30 ngày",
+      "never": "Vô thời hạn"
+    }
   },
   "listViewGroupBy": "Nhóm",
   "listViewSortBy": "Sắp xếp",

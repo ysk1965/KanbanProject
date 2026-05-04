@@ -4037,7 +4037,37 @@
     "galleryUploadLink": "गैलरी अपलोड लिंक",
     "galleryUploadLinkDesc": "इस लिंक वाला कोई भी व्यक्ति फ़ोटो अपलोड कर सकता है और एल्बम प्रबंधित कर सकता है",
     "galleryUploadLinkEnabled": "गैलरी अपलोड लिंक बनाया गया",
-    "galleryUploadLinkDisabled": "गैलरी अपलोड लिंक हटाया गया"
+    "galleryUploadLinkDisabled": "गैलरी अपलोड लिंक हटाया गया",
+    "manageLinksDesc": "जारी किए गए लिंक देखें और तुरंत निरस्त करें",
+    "galleryAllAlbums": "पूरी गैलरी",
+    "newViewLink": "नया देखने का लिंक",
+    "newUploadLink": "नया अपलोड लिंक",
+    "expiresIn": "समाप्ति",
+    "expiresNever": "स्थायी",
+    "expireNow": "तुरंत समाप्त",
+    "linkRevoked": "लिंक समाप्त किया गया",
+    "linkIssued": "लिंक जारी किया गया",
+    "accessedNTimes": "{{n}} बार एक्सेस",
+    "lastAccessed": "अंतिम {{time}}",
+    "daysLeft": "{{n}} दिन शेष",
+    "hoursLeft": "{{n}} घंटे शेष",
+    "noLinksYet": "अभी तक कोई लिंक नहीं",
+    "linkLabelPlaceholder": "लेबल (वैकल्पिक, जैसे \"बाहरी साझा\", \"कार्यक्रम\")",
+    "issueLink": "जारी करें",
+    "statusExpired": "समाप्त",
+    "statusRevoked": "निरस्त",
+    "unnamed": "अनाम",
+    "confirmExpire": "इस लिंक को तुरंत समाप्त करें?",
+    "linkType": {
+      "view": "देखें",
+      "upload": "अपलोड"
+    },
+    "expirePresets": {
+      "1d": "1 दिन",
+      "7d": "7 दिन",
+      "30d": "30 दिन",
+      "never": "स्थायी"
+    }
   },
   "listViewGroupBy": "समूह",
   "listViewSortBy": "क्रमबद्ध करें",

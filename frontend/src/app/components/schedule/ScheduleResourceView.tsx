@@ -1,6 +1,21 @@
-import { useState, useMemo, useCallback, useRef, useEffect, Fragment } from "react";
+import {
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  useEffect,
+  Fragment,
+} from "react";
 import { useTranslation } from "react-i18next";
-import { Users, CheckCircle2, Loader2, Flag, ChevronDown, ChevronUp, Briefcase } from "lucide-react";
+import {
+  Users,
+  CheckCircle2,
+  Loader2,
+  Flag,
+  ChevronDown,
+  ChevronUp,
+  Briefcase,
+} from "lucide-react";
 import { BoardMember } from "../ShareBoardModal";
 import { BoardContractor, JobRole, Milestone } from "../../types";
 import {
@@ -173,7 +188,9 @@ export function ScheduleResourceView({
   /** Track which member rows are expanded (showing all lanes) */
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   /** Highlighted item id for scroll-to flash effect */
-  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
+  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(
+    null,
+  );
 
   // 직군별 그룹 모드
   const groupKey = `scheduleResourceGroupBy_${boardId}`;
@@ -193,15 +210,17 @@ export function ScheduleResourceView({
     },
     [groupKey],
   );
-  const [collapsedRoleGroups, setCollapsedRoleGroups] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") return new Set();
-    try {
-      const raw = window.localStorage.getItem(collapsedKey);
-      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
+  const [collapsedRoleGroups, setCollapsedRoleGroups] = useState<Set<string>>(
+    () => {
+      if (typeof window === "undefined") return new Set();
+      try {
+        const raw = window.localStorage.getItem(collapsedKey);
+        return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+      } catch {
+        return new Set();
+      }
+    },
+  );
   const toggleRoleGroupCollapsed = useCallback(
     (key: string) => {
       setCollapsedRoleGroups((prev) => {
@@ -258,9 +277,7 @@ export function ScheduleResourceView({
   const { holidayMap: hNext } = useHolidays(i18n.language, currentYear + 1);
   const holidayMap = useMemo(() => {
     const merged = new Map<string, HolidayInfo[]>();
-    [hPrev, hCur, hNext].forEach((m) =>
-      m.forEach((v, k) => merged.set(k, v)),
-    );
+    [hPrev, hCur, hNext].forEach((m) => m.forEach((v, k) => merged.set(k, v)));
     return merged;
   }, [hPrev, hCur, hNext]);
 
@@ -302,10 +319,7 @@ export function ScheduleResourceView({
   // Scroll to today on mount
   useEffect(() => {
     if (!loading && scrollContainerRef.current && todayIndex >= 0) {
-      const scrollTo =
-        todayIndex * DAY_WIDTH -
-        scrollContainerRef.current.clientWidth / 2 +
-        DAY_WIDTH / 2;
+      const scrollTo = todayIndex * DAY_WIDTH - 7 * DAY_WIDTH;
       scrollContainerRef.current.scrollLeft = Math.max(0, scrollTo);
     }
   }, [loading, todayIndex]);
@@ -559,19 +573,41 @@ export function ScheduleResourceView({
     }
 
     return interleaved;
-  }, [data, boardMembers, memberColorMap, t, groupByJobRole, jobRoles, contractors]);
+  }, [
+    data,
+    boardMembers,
+    memberColorMap,
+    t,
+    groupByJobRole,
+    jobRoles,
+    contractors,
+  ]);
 
   // ─── Compute group segments (직군별 그룹 헤더 위치) ───
   const roleGroupSegments = useMemo(() => {
-    if (!groupByJobRole) return [] as Array<{ key: string; name: string; color: string | null; startIndex: number; count: number }>;
-    const segments: Array<{ key: string; name: string; color: string | null; startIndex: number; count: number }> = [];
+    if (!groupByJobRole)
+      return [] as Array<{
+        key: string;
+        name: string;
+        color: string | null;
+        startIndex: number;
+        count: number;
+      }>;
+    const segments: Array<{
+      key: string;
+      name: string;
+      color: string | null;
+      startIndex: number;
+      count: number;
+    }> = [];
     let currentKey: string | null | undefined = undefined; // sentinel
     rows.forEach((row, idx) => {
       // __unassigned__ 행은 별도 그룹으로 노출하지 않음
       if (row.id === "__unassigned__") return;
       const key = row.jobRoleId || "__none__";
       if (key !== currentKey) {
-        const role = key === "__none__" ? null : jobRoles.find((r) => r.id === key);
+        const role =
+          key === "__none__" ? null : jobRoles.find((r) => r.id === key);
         segments.push({
           key,
           name: role?.name || t("jobRole.unassigned", "미지정"),
@@ -607,7 +643,8 @@ export function ScheduleResourceView({
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable)
+        return;
       e.preventDefault();
       setExpandedRows((prev) =>
         prev.size > 0 ? new Set() : new Set(rows.map((r) => r.id)),
@@ -751,7 +788,8 @@ export function ScheduleResourceView({
       const initialCursorDayIndex = Math.floor(cursorContentX / DAY_WIDTH);
 
       const rowId = rows[assigneeIndex]?.id || null;
-      const initialAssigneeId = rowId && rowId !== "__unassigned__" ? rowId : null;
+      const initialAssigneeId =
+        rowId && rowId !== "__unassigned__" ? rowId : null;
       const newDragState: DragState = {
         itemId: item.id,
         taskId: item.task?.id || "",
@@ -791,19 +829,31 @@ export function ScheduleResourceView({
         let newTargetAssigneeId = ds.targetAssigneeId;
 
         if (ds.dragType === "move") {
-          const el = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
-          const rowEl = el?.closest("[data-resource-row]") as HTMLElement | null;
+          const el = document.elementFromPoint(
+            moveEvent.clientX,
+            moveEvent.clientY,
+          );
+          const rowEl = el?.closest(
+            "[data-resource-row]",
+          ) as HTMLElement | null;
           if (rowEl) {
-            const rowIdx = Number(rowEl.getAttribute("data-resource-row-index") ?? ds.originRowIndex);
+            const rowIdx = Number(
+              rowEl.getAttribute("data-resource-row-index") ??
+                ds.originRowIndex,
+            );
             if (rowIdx !== newTargetRowIndex) {
               newTargetRowIndex = rowIdx;
               const targetRow = rows[rowIdx];
-              newTargetAssigneeId = targetRow?.id && targetRow.id !== "__unassigned__" ? targetRow.id : null;
+              newTargetAssigneeId =
+                targetRow?.id && targetRow.id !== "__unassigned__"
+                  ? targetRow.id
+                  : null;
             }
           }
         }
 
-        const hasChanged = deltaDays !== ds.currentDeltaDays ||
+        const hasChanged =
+          deltaDays !== ds.currentDeltaDays ||
           newTargetRowIndex !== ds.targetRowIndex;
 
         if (hasChanged) {
@@ -863,7 +913,11 @@ export function ScheduleResourceView({
               ...group,
               items: group.items.filter((item) => {
                 if (item.id === ds.itemId) {
-                  movedItem = { ...item, start_date: newStart, due_date: newDue };
+                  movedItem = {
+                    ...item,
+                    start_date: newStart,
+                    due_date: newDue,
+                  };
                   return false;
                 }
                 return true;
@@ -924,7 +978,9 @@ export function ScheduleResourceView({
         if (ds.taskId) {
           try {
             // newAssigneeId 가 "contractor:<id>" 라면 contractor_id 로 전송, 아니면 assignee_id
-            const isContractor = typeof newAssigneeId === "string" && newAssigneeId.startsWith("contractor:");
+            const isContractor =
+              typeof newAssigneeId === "string" &&
+              newAssigneeId.startsWith("contractor:");
             const payload = isContractor
               ? {
                   start_date: newStart,
@@ -938,7 +994,12 @@ export function ScheduleResourceView({
                   assignee_id: newAssigneeId,
                   contractor_id: null as string | null,
                 };
-            await checklistAPI.updateItem(boardId, ds.taskId, ds.itemId, payload);
+            await checklistAPI.updateItem(
+              boardId,
+              ds.taskId,
+              ds.itemId,
+              payload,
+            );
             const result = await boardChecklistAPI.getItemsByAssignee(boardId, {
               start_date: rangeStart,
               end_date: rangeEnd,
@@ -1281,12 +1342,15 @@ export function ScheduleResourceView({
 
           {/* ─── Member rows ─── */}
           {rows.map((row, rowIndex) => {
-            const isCrossRowTarget = dragState?.dragType === "move" &&
+            const isCrossRowTarget =
+              dragState?.dragType === "move" &&
               dragState.targetRowIndex === rowIndex &&
               dragState.originRowIndex !== rowIndex;
 
             // 직군 그룹 헤더 — 이 row가 그룹의 시작이면 헤더 먼저 렌더
-            const groupSegment = roleGroupSegments.find((s) => s.startIndex === rowIndex);
+            const groupSegment = roleGroupSegments.find(
+              (s) => s.startIndex === rowIndex,
+            );
             const groupHeader = groupSegment ? (
               <div
                 key={`group-${groupSegment.key}`}
@@ -1352,287 +1416,316 @@ export function ScheduleResourceView({
             const maxLane = Math.max(0, ...Object.values(barLanes));
             const isExpanded = expandedRows.has(row.id);
             const needsCollapse = maxLane >= MAX_VISIBLE_LANES;
-            const visibleMaxLane = (!isExpanded && needsCollapse)
-              ? MAX_VISIBLE_LANES - 1
-              : maxLane;
-            const hiddenCount = needsCollapse && !isExpanded
-              ? itemsWithBars.filter((d) => (barLanes[d.item.id] || 0) >= MAX_VISIBLE_LANES).length
-              : 0;
+            const visibleMaxLane =
+              !isExpanded && needsCollapse ? MAX_VISIBLE_LANES - 1 : maxLane;
+            const hiddenCount =
+              needsCollapse && !isExpanded
+                ? itemsWithBars.filter(
+                    (d) => (barLanes[d.item.id] || 0) >= MAX_VISIBLE_LANES,
+                  ).length
+                : 0;
             const COLLAPSE_BTN_HEIGHT = needsCollapse ? 28 : 0;
             const dynamicRowHeight = Math.max(
               ROW_HEIGHT,
               (visibleMaxLane + 1) * (BAR_HEIGHT + BAR_TOP_OFFSET) +
-                BAR_TOP_OFFSET * 2 + COLLAPSE_BTN_HEIGHT,
+                BAR_TOP_OFFSET * 2 +
+                COLLAPSE_BTN_HEIGHT,
             );
 
             return (
               <Fragment key={row.id}>
                 {groupHeader}
-              <div
-                className={`flex border-b border-foreground/[0.08] ${isCrossRowTarget ? "bg-bridge-accent/5" : ""}`}
-                style={{ height: dynamicRowHeight }}
-                data-resource-row={row.id}
-                data-resource-row-index={rowIndex}
-              >
-                {/* Left label */}
                 <div
-                  className={`shrink-0 sticky left-0 z-10 bg-bridge-obsidian border-r border-foreground/[0.08]
-                    flex flex-col ${row.kind === "contractor" ? "pl-8 pr-4" : "px-4"} pt-3 ${isCrossRowTarget ? "ring-2 ring-bridge-accent/30 ring-inset" : ""}`}
-                  style={{ width: LEFT_COL_WIDTH, minHeight: dynamicRowHeight }}
+                  className={`flex border-b border-foreground/[0.08] ${isCrossRowTarget ? "bg-bridge-accent/5" : ""}`}
+                  style={{ height: dynamicRowHeight }}
+                  data-resource-row={row.id}
+                  data-resource-row-index={rowIndex}
                 >
-                  <div className="flex items-start gap-2">
-                    {row.avatar ? (
-                      <img
-                        src={row.avatar}
-                        alt={row.name}
-                        className="w-7 h-7 rounded-full shrink-0 object-cover"
-                      />
-                    ) : (
-                      <div
-                        className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-white ${row.kind === "contractor" ? "border-2 border-dashed border-foreground/30" : ""}`}
-                        style={{
-                          backgroundColor:
-                            row.id === "__unassigned__"
-                              ? "#64748b"
-                              : row.kind === "contractor"
-                                ? row.color || "#94a3b8"
-                                : getAssigneeHex(row.name, row.color),
+                  {/* Left label */}
+                  <div
+                    className={`shrink-0 sticky left-0 z-10 bg-bridge-obsidian border-r border-foreground/[0.08]
+                    flex flex-col ${row.kind === "contractor" ? "pl-8 pr-4" : "px-4"} pt-3 ${isCrossRowTarget ? "ring-2 ring-bridge-accent/30 ring-inset" : ""}`}
+                    style={{
+                      width: LEFT_COL_WIDTH,
+                      minHeight: dynamicRowHeight,
+                    }}
+                  >
+                    <div className="flex items-start gap-2">
+                      {row.avatar ? (
+                        <img
+                          src={row.avatar}
+                          alt={row.name}
+                          className="w-7 h-7 rounded-full shrink-0 object-cover"
+                        />
+                      ) : (
+                        <div
+                          className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-white ${row.kind === "contractor" ? "border-2 border-dashed border-foreground/30" : ""}`}
+                          style={{
+                            backgroundColor:
+                              row.id === "__unassigned__"
+                                ? "#64748b"
+                                : row.kind === "contractor"
+                                  ? row.color || "#94a3b8"
+                                  : getAssigneeHex(row.name, row.color),
+                          }}
+                        >
+                          {getInitials(row.name)}
+                        </div>
+                      )}
+                      <div className="flex flex-col min-w-0 mt-0.5">
+                        <span className="text-sm font-medium text-foreground truncate">
+                          {row.name}
+                        </span>
+                        {row.kind === "contractor" && (
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mt-0.5">
+                            {t("schedule.resource.contractor", "외주")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {needsCollapse && (
+                      <button
+                        className="flex items-center gap-1 mt-1.5 text-xs text-slate-400 hover:text-foreground transition-colors"
+                        onClick={() => {
+                          setExpandedRows((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(row.id)) {
+                              next.delete(row.id);
+                            } else {
+                              next.add(row.id);
+                            }
+                            return next;
+                          });
                         }}
                       >
-                        {getInitials(row.name)}
-                      </div>
+                        {isExpanded ? (
+                          <>
+                            <ChevronUp size={12} />
+                            {t("schedule.resource.collapse", "Collapse")}
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown size={12} />+{hiddenCount}{" "}
+                            {t("schedule.resource.more", "more")}
+                          </>
+                        )}
+                      </button>
                     )}
-                    <div className="flex flex-col min-w-0 mt-0.5">
-                      <span className="text-sm font-medium text-foreground truncate">
-                        {row.name}
-                      </span>
-                      {row.kind === "contractor" && (
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mt-0.5">
-                          {t("schedule.resource.contractor", "외주")}
-                        </span>
-                      )}
-                    </div>
                   </div>
-                  {needsCollapse && (
-                    <button
-                      className="flex items-center gap-1 mt-1.5 text-xs text-slate-400 hover:text-foreground transition-colors"
-                      onClick={() => {
-                        setExpandedRows((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(row.id)) {
-                            next.delete(row.id);
-                          } else {
-                            next.add(row.id);
-                          }
-                          return next;
-                        });
-                      }}
-                    >
-                      {isExpanded ? (
-                        <>
-                          <ChevronUp size={12} />
-                          {t("schedule.resource.collapse", "Collapse")}
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown size={12} />
-                          +{hiddenCount} {t("schedule.resource.more", "more")}
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
 
-                {/* Timeline area */}
-                <div
-                  className="relative"
-                  style={{
-                    width: totalTimelineWidth,
-                    minHeight: dynamicRowHeight,
-                  }}
-                  onDragOver={(e) => {
-                    const rect =
-                      scrollContainerRef.current?.getBoundingClientRect();
-                    const scrollLeft =
-                      scrollContainerRef.current?.scrollLeft || 0;
-                    const di = Math.floor(
-                      (e.clientX -
-                        (rect?.left || 0) -
-                        LEFT_COL_WIDTH +
-                        scrollLeft) /
-                        DAY_WIDTH,
-                    );
-                    handleDragOver(e, rowIndex, di);
-                  }}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => {
-                    const rect =
-                      scrollContainerRef.current?.getBoundingClientRect();
-                    const scrollLeft =
-                      scrollContainerRef.current?.scrollLeft || 0;
-                    const dayIndex = Math.floor(
-                      (e.clientX -
-                        (rect?.left || 0) -
-                        LEFT_COL_WIDTH +
-                        scrollLeft) /
-                        DAY_WIDTH,
-                    );
-                    handleDrop(e, row.id, dayIndex);
-                  }}
-                >
-                  {/* Weekend + holiday + grid columns */}
-                  {timelineDays.map((day, idx) => {
-                    const weekend = isWeekend(day);
-                    const isHoliday = holidayMap.has(formatDateStr(day));
-                    const isHighlighted =
-                      dropHighlight?.rowIndex === rowIndex &&
-                      dropHighlight?.dayIndex === idx;
-
-                    return (
-                      <div
-                        key={`grid-${idx}`}
-                        data-day-index={idx}
-                        className={`absolute top-0 bottom-0 border-r border-foreground/[0.04]
-                          ${isHoliday ? "bg-red-500/[0.04]" : weekend ? "bg-foreground/[0.02]" : ""}
-                          ${isHighlighted ? "bg-bridge-accent/10 ring-2 ring-bridge-accent/30 ring-inset" : ""}`}
-                        style={{ left: idx * DAY_WIDTH, width: DAY_WIDTH }}
-                      />
-                    );
-                  })}
-
-                  {/* Checklist item bars */}
-                  {itemsWithBars.map(
-                    ({ item, pos, isDragging: isItemDragging }) => {
-                      if (!pos) return null;
-
-                      const lane = barLanes[item.id] || 0;
-                      // Hide bars beyond MAX_VISIBLE_LANES when collapsed
-                      if (!isExpanded && needsCollapse && lane >= MAX_VISIBLE_LANES) return null;
-
-                      const featureColor = item.feature?.color || "#6366F1";
-                      const barTop =
-                        BAR_TOP_OFFSET + lane * (BAR_HEIGHT + BAR_TOP_OFFSET);
-
-                      const isHighlightTarget = highlightedItemId === item.id;
+                  {/* Timeline area */}
+                  <div
+                    className="relative"
+                    style={{
+                      width: totalTimelineWidth,
+                      minHeight: dynamicRowHeight,
+                    }}
+                    onDragOver={(e) => {
+                      const rect =
+                        scrollContainerRef.current?.getBoundingClientRect();
+                      const scrollLeft =
+                        scrollContainerRef.current?.scrollLeft || 0;
+                      const di = Math.floor(
+                        (e.clientX -
+                          (rect?.left || 0) -
+                          LEFT_COL_WIDTH +
+                          scrollLeft) /
+                          DAY_WIDTH,
+                      );
+                      handleDragOver(e, rowIndex, di);
+                    }}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => {
+                      const rect =
+                        scrollContainerRef.current?.getBoundingClientRect();
+                      const scrollLeft =
+                        scrollContainerRef.current?.scrollLeft || 0;
+                      const dayIndex = Math.floor(
+                        (e.clientX -
+                          (rect?.left || 0) -
+                          LEFT_COL_WIDTH +
+                          scrollLeft) /
+                          DAY_WIDTH,
+                      );
+                      handleDrop(e, row.id, dayIndex);
+                    }}
+                  >
+                    {/* Weekend + holiday + grid columns */}
+                    {timelineDays.map((day, idx) => {
+                      const weekend = isWeekend(day);
+                      const isHoliday = holidayMap.has(formatDateStr(day));
+                      const isHighlighted =
+                        dropHighlight?.rowIndex === rowIndex &&
+                        dropHighlight?.dayIndex === idx;
 
                       return (
                         <div
-                          key={item.id}
-                          className={`absolute rounded-lg flex items-center px-2 text-xs font-medium
+                          key={`grid-${idx}`}
+                          data-day-index={idx}
+                          className={`absolute top-0 bottom-0 border-r border-foreground/[0.04]
+                          ${isHoliday ? "bg-red-500/[0.04]" : weekend ? "bg-foreground/[0.02]" : ""}
+                          ${isHighlighted ? "bg-bridge-accent/10 ring-2 ring-bridge-accent/30 ring-inset" : ""}`}
+                          style={{ left: idx * DAY_WIDTH, width: DAY_WIDTH }}
+                        />
+                      );
+                    })}
+
+                    {/* Checklist item bars */}
+                    {itemsWithBars.map(
+                      ({ item, pos, isDragging: isItemDragging }) => {
+                        if (!pos) return null;
+
+                        const lane = barLanes[item.id] || 0;
+                        // Hide bars beyond MAX_VISIBLE_LANES when collapsed
+                        if (
+                          !isExpanded &&
+                          needsCollapse &&
+                          lane >= MAX_VISIBLE_LANES
+                        )
+                          return null;
+
+                        const featureColor = item.feature?.color || "#6366F1";
+                        const barTop =
+                          BAR_TOP_OFFSET + lane * (BAR_HEIGHT + BAR_TOP_OFFSET);
+
+                        const isHighlightTarget = highlightedItemId === item.id;
+
+                        return (
+                          <div
+                            key={item.id}
+                            className={`absolute rounded-lg flex items-center px-2 text-xs font-medium
                           text-white cursor-pointer hover:brightness-110 hover:shadow-lg transition-all
                           ${item.completed ? "opacity-50" : ""}
-                          ${isItemDragging
-                            ? (dragState?.targetRowIndex !== dragState?.originRowIndex
-                              ? "z-20 opacity-30"
-                              : "z-20 shadow-2xl ring-2 ring-white/30")
-                            : ""}
+                          ${
+                            isItemDragging
+                              ? dragState?.targetRowIndex !==
+                                dragState?.originRowIndex
+                                ? "z-20 opacity-30"
+                                : "z-20 shadow-2xl ring-2 ring-white/30"
+                              : ""
+                          }
                           ${isHighlightTarget ? "z-30 ring-2 ring-white/70 shadow-[0_0_16px_rgba(255,255,255,0.4)] animate-pulse" : ""}`}
-                          style={{
-                            left: pos.left,
-                            width: pos.width,
-                            top: barTop,
-                            height: BAR_HEIGHT,
-                            backgroundColor: featureColor,
-                          }}
-                          onClick={() => handleBarClick(item)}
-                          onMouseDown={(e) => {
-                            // Ignore if clicking on resize handles
-                            if ((e.target as HTMLElement).dataset.resizeHandle)
-                              return;
-                            handleResizeStart(e, item, rowIndex, "move");
-                          }}
-                          onMouseEnter={(e) => handleBarMouseEnter(e, item)}
-                          onMouseLeave={handleBarMouseLeave}
-                        >
-                          {/* Left resize handle */}
-                          <div
-                            data-resize-handle="true"
-                            className="absolute top-0 left-0 w-2 h-full cursor-ew-resize
-                            hover:bg-white/30 rounded-l-lg"
-                            onMouseDown={(e) =>
-                              handleResizeStart(
-                                e,
-                                item,
-                                rowIndex,
-                                "resize-left",
+                            style={{
+                              left: pos.left,
+                              width: pos.width,
+                              top: barTop,
+                              height: BAR_HEIGHT,
+                              backgroundColor: featureColor,
+                            }}
+                            onClick={() => handleBarClick(item)}
+                            onMouseDown={(e) => {
+                              // Ignore if clicking on resize handles
+                              if (
+                                (e.target as HTMLElement).dataset.resizeHandle
                               )
-                            }
-                          />
-
-                          {/* Content */}
-                          <span
-                            className={`truncate flex-1 ${item.completed ? "line-through" : ""}`}
+                                return;
+                              handleResizeStart(e, item, rowIndex, "move");
+                            }}
+                            onMouseEnter={(e) => handleBarMouseEnter(e, item)}
+                            onMouseLeave={handleBarMouseLeave}
                           >
-                            {item.task
-                              ? `${item.task.title} / ${item.title}`
-                              : item.title}
-                          </span>
-                          {item.completed && (
-                            <CheckCircle2 size={12} className="ml-1 shrink-0" />
-                          )}
+                            {/* Left resize handle */}
+                            <div
+                              data-resize-handle="true"
+                              className="absolute top-0 left-0 w-2 h-full cursor-ew-resize
+                            hover:bg-white/30 rounded-l-lg"
+                              onMouseDown={(e) =>
+                                handleResizeStart(
+                                  e,
+                                  item,
+                                  rowIndex,
+                                  "resize-left",
+                                )
+                              }
+                            />
 
-                          {/* Right resize handle */}
-                          <div
-                            data-resize-handle="true"
-                            className="absolute top-0 right-0 w-2 h-full cursor-ew-resize
+                            {/* Content */}
+                            <span
+                              className={`truncate flex-1 ${item.completed ? "line-through" : ""}`}
+                            >
+                              {item.task
+                                ? `${item.task.title} / ${item.title}`
+                                : item.title}
+                            </span>
+                            {item.completed && (
+                              <CheckCircle2
+                                size={12}
+                                className="ml-1 shrink-0"
+                              />
+                            )}
+
+                            {/* Right resize handle */}
+                            <div
+                              data-resize-handle="true"
+                              className="absolute top-0 right-0 w-2 h-full cursor-ew-resize
                             hover:bg-white/30 rounded-r-lg"
-                            onMouseDown={(e) =>
-                              handleResizeStart(
-                                e,
-                                item,
-                                rowIndex,
-                                "resize-right",
-                              )
-                            }
-                          />
-                        </div>
-                      );
-                    },
-                  )}
+                              onMouseDown={(e) =>
+                                handleResizeStart(
+                                  e,
+                                  item,
+                                  rowIndex,
+                                  "resize-right",
+                                )
+                              }
+                            />
+                          </div>
+                        );
+                      },
+                    )}
 
-                  {/* Ghost bar for cross-row drag target */}
-                  {isCrossRowTarget && dragState && (() => {
-                    const gs = addDaysToDate(dragState.startDate, dragState.currentDeltaDays);
-                    const ge = addDaysToDate(dragState.dueDate, dragState.currentDeltaDays);
-                    const gPos = getBarPosition(gs, ge);
-                    if (!gPos) return null;
-                    const originRow = rows[dragState.originRowIndex];
-                    const draggedItem = originRow?.items.find((i) => i.id === dragState.itemId);
-                    return (
-                      <div
-                        className="absolute rounded-lg flex items-center px-2 text-xs font-medium
+                    {/* Ghost bar for cross-row drag target */}
+                    {isCrossRowTarget &&
+                      dragState &&
+                      (() => {
+                        const gs = addDaysToDate(
+                          dragState.startDate,
+                          dragState.currentDeltaDays,
+                        );
+                        const ge = addDaysToDate(
+                          dragState.dueDate,
+                          dragState.currentDeltaDays,
+                        );
+                        const gPos = getBarPosition(gs, ge);
+                        if (!gPos) return null;
+                        const originRow = rows[dragState.originRowIndex];
+                        const draggedItem = originRow?.items.find(
+                          (i) => i.id === dragState.itemId,
+                        );
+                        return (
+                          <div
+                            className="absolute rounded-lg flex items-center px-2 text-xs font-medium
                           text-white opacity-50 pointer-events-none z-20 border-2 border-dashed border-white/40"
-                        style={{
-                          left: gPos.left,
-                          width: gPos.width,
-                          top: BAR_TOP_OFFSET,
-                          height: BAR_HEIGHT,
-                          backgroundColor: dragState.featureColor,
-                        }}
-                      >
-                        <span className="truncate">
-                          {draggedItem?.task
-                            ? `${draggedItem.task.title} / ${draggedItem.title}`
-                            : draggedItem?.title || ""}
-                        </span>
-                      </div>
-                    );
-                  })()}
+                            style={{
+                              left: gPos.left,
+                              width: gPos.width,
+                              top: BAR_TOP_OFFSET,
+                              height: BAR_HEIGHT,
+                              backgroundColor: dragState.featureColor,
+                            }}
+                          >
+                            <span className="truncate">
+                              {draggedItem?.task
+                                ? `${draggedItem.task.title} / ${draggedItem.title}`
+                                : draggedItem?.title || ""}
+                            </span>
+                          </div>
+                        );
+                      })()}
 
-                  {/* Today line */}
-                  {todayIndex >= 0 && (
-                    <div
-                      className="absolute top-0 bottom-0 w-px bg-red-400 z-10 pointer-events-none"
-                      style={{
-                        left: todayIndex * DAY_WIDTH + DAY_WIDTH / 2,
-                        borderLeft: "1px dashed",
-                        borderColor: "rgb(248 113 113)",
-                        width: 0,
-                      }}
-                    />
-                  )}
+                    {/* Today line */}
+                    {todayIndex >= 0 && (
+                      <div
+                        className="absolute top-0 bottom-0 w-px bg-red-400 z-10 pointer-events-none"
+                        style={{
+                          left: todayIndex * DAY_WIDTH + DAY_WIDTH / 2,
+                          borderLeft: "1px dashed",
+                          borderColor: "rgb(248 113 113)",
+                          width: 0,
+                        }}
+                      />
+                    )}
+                  </div>
                 </div>
-              </div>
               </Fragment>
             );
           })}

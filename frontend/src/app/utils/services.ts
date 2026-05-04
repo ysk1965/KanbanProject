@@ -3674,6 +3674,11 @@ export const orgPhotoService = {
   enableUploadLink: orgPhotoAPI.enableUploadLink,
   disableUploadLink: orgPhotoAPI.disableUploadLink,
 
+  // Multi share-link management
+  listShareLinks: orgPhotoAPI.listShareLinks,
+  issueShareLink: orgPhotoAPI.issueShareLink,
+  revokeShareLink: orgPhotoAPI.revokeShareLink,
+
   // Photo CRUD
   getPhotos: orgPhotoAPI.getPhotos,
   uploadPhotos: orgPhotoAPI.uploadPhotos,

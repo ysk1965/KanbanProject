@@ -7,6 +7,7 @@ import com.kanban.domain.photo.OrgPhoto;
 import com.kanban.domain.photo.OrgPhotoRepository;
 import com.kanban.domain.photo.OrgPhotoTab;
 import com.kanban.domain.photo.OrgPhotoTabRepository;
+import com.kanban.domain.photo.PhotoShareLink;
 import com.kanban.domain.photo.dto.OrgPhotoRequest;
 import com.kanban.domain.photo.dto.OrgPhotoResponse;
 import com.kanban.domain.user.User;
@@ -57,6 +58,7 @@ public class OrgPhotoService {
     private final FileUploadService fileUploadService;
     private final AsyncThumbnailService asyncThumbnailService;
     private final UserRepository userRepository;
+    private final PhotoShareLinkService photoShareLinkService;
 
     private static final int MAX_UPLOAD_FILES = 20;
     private static final int MAX_BATCH_DOWNLOAD = 100;
@@ -371,35 +373,23 @@ public class OrgPhotoService {
 
     // ==================== Sharing Operations ====================
 
-    @Transactional
-    @Caching(evict = {
-            @CacheEvict(value = "sharedGallery", allEntries = true),
-            @CacheEvict(value = "sharedPhotos", allEntries = true)
-    })
     public OrgPhotoResponse.TabInfo enableShare(String orgId, String userId, String tabId) {
-        organizationService.checkAdminOrAbove(orgId, userId);
+        photoShareLinkService.issue(orgId, userId, tabId, PhotoShareLink.LinkType.VIEW, null, null);
         OrgPhotoTab tab = getTabOrThrow(tabId, orgId);
-        tab.enableShare();
-        log.info("Photo tab share enabled: tabId={}, orgId={}, userId={}", tabId, orgId, userId);
         return OrgPhotoResponse.TabInfo.from(tab);
     }
 
-    @Transactional
-    @Caching(evict = {
-            @CacheEvict(value = "sharedGallery", allEntries = true),
-            @CacheEvict(value = "sharedPhotos", allEntries = true)
-    })
     public OrgPhotoResponse.TabInfo disableShare(String orgId, String userId, String tabId) {
-        organizationService.checkAdminOrAbove(orgId, userId);
+        photoShareLinkService.revokeAllForTab(orgId, tabId, userId, PhotoShareLink.LinkType.VIEW);
         OrgPhotoTab tab = getTabOrThrow(tabId, orgId);
-        tab.disableShare();
-        log.info("Photo tab share disabled: tabId={}, orgId={}, userId={}", tabId, orgId, userId);
         return OrgPhotoResponse.TabInfo.from(tab);
     }
 
     @Cacheable(value = "sharedGallery", key = "'album:' + #shareToken")
     public OrgPhotoResponse.SharedAlbumInfo getSharedAlbum(String shareToken) {
-        OrgPhotoTab tab = orgPhotoTabRepository.findByShareTokenAndIsSharedTrue(shareToken)
+        OrgPhotoTab tab = photoShareLinkService.lookupActive(shareToken, PhotoShareLink.LinkType.VIEW)
+                .map(PhotoShareLink::getTab)
+                .filter(t -> t != null)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
         Organization org = tab.getOrganization();
         return OrgPhotoResponse.SharedAlbumInfo.builder()
@@ -414,7 +404,9 @@ public class OrgPhotoService {
 
     @Cacheable(value = "sharedPhotos", key = "'album:' + #shareToken + ':' + (#cursor ?: 'first') + ':' + #size")
     public OrgPhotoResponse.SharedPhotoPage getSharedAlbumPhotos(String shareToken, String cursor, int size) {
-        OrgPhotoTab tab = orgPhotoTabRepository.findByShareTokenAndIsSharedTrue(shareToken)
+        OrgPhotoTab tab = photoShareLinkService.lookupActive(shareToken, PhotoShareLink.LinkType.VIEW)
+                .map(PhotoShareLink::getTab)
+                .filter(t -> t != null)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
 
         LocalDateTime cursorDateTime = null;
@@ -454,37 +446,31 @@ public class OrgPhotoService {
 
     // ==================== Upload Link Operations ====================
 
-    @Transactional
     public OrgPhotoResponse.TabInfo enableUploadLink(String orgId, String userId, String tabId) {
-        organizationService.checkAdminOrAbove(orgId, userId);
+        photoShareLinkService.issue(orgId, userId, tabId, PhotoShareLink.LinkType.UPLOAD, 7, null);
         OrgPhotoTab tab = getTabOrThrow(tabId, orgId);
-        tab.enableUpload();
-        log.info("Upload link enabled: tabId={}, orgId={}, userId={}", tabId, orgId, userId);
         return OrgPhotoResponse.TabInfo.from(tab);
     }
 
-    @Transactional
     public OrgPhotoResponse.TabInfo disableUploadLink(String orgId, String userId, String tabId) {
-        organizationService.checkAdminOrAbove(orgId, userId);
+        photoShareLinkService.revokeAllForTab(orgId, tabId, userId, PhotoShareLink.LinkType.UPLOAD);
         OrgPhotoTab tab = getTabOrThrow(tabId, orgId);
-        tab.disableUpload();
-        log.info("Upload link disabled: tabId={}, orgId={}, userId={}", tabId, orgId, userId);
         return OrgPhotoResponse.TabInfo.from(tab);
     }
 
     public OrgPhotoResponse.UploadAlbumInfo getUploadAlbumInfo(String uploadToken) {
-        OrgPhotoTab tab = orgPhotoTabRepository.findByUploadTokenAndIsUploadEnabledTrue(uploadToken)
+        OrgPhotoTab tab = photoShareLinkService.lookupActive(uploadToken, PhotoShareLink.LinkType.UPLOAD)
+                .map(PhotoShareLink::getTab)
+                .filter(t -> t != null)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
-        if (!tab.isUploadTokenValid()) {
-            throw new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND);
-        }
         Organization org = tab.getOrganization();
         return OrgPhotoResponse.UploadAlbumInfo.builder()
                 .albumName(tab.getName())
                 .albumDescription(tab.getDescription())
                 .organizationName(org.getName())
                 .organizationLogoUrl(org.getLogoUrl())
-                .expiresAt(tab.getUploadTokenExpiresAt())
+                .expiresAt(photoShareLinkService.lookupActive(uploadToken, PhotoShareLink.LinkType.UPLOAD)
+                        .map(PhotoShareLink::getExpiresAt).orElse(null))
                 .build();
     }
 
@@ -494,11 +480,10 @@ public class OrgPhotoService {
             @CacheEvict(value = "sharedPhotos", allEntries = true)
     })
     public List<OrgPhotoResponse.PhotoDetail> publicUploadPhotos(String uploadToken, List<MultipartFile> files) {
-        OrgPhotoTab tab = orgPhotoTabRepository.findByUploadTokenAndIsUploadEnabledTrue(uploadToken)
+        OrgPhotoTab tab = photoShareLinkService.lookupActive(uploadToken, PhotoShareLink.LinkType.UPLOAD)
+                .map(PhotoShareLink::getTab)
+                .filter(t -> t != null)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
-        if (!tab.isUploadTokenValid()) {
-            throw new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND);
-        }
 
         Organization org = tab.getOrganization();
         String orgId = org.getId();
@@ -549,15 +534,10 @@ public class OrgPhotoService {
 
     // ==================== Gallery-Level Sharing ====================
 
-    @Transactional
-    @CacheEvict(value = "sharedGallery", allEntries = true)
     public String enableGalleryShare(String orgId, String userId, String title) {
-        organizationService.checkAdminOrAbove(orgId, userId);
-        Organization org = organizationRepository.findActiveById(orgId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
-        org.enableGalleryShare(title);
-        log.info("Gallery share enabled: orgId={}, userId={}", orgId, userId);
-        return org.getPhotoShareToken();
+        PhotoShareLink link = photoShareLinkService.issue(
+                orgId, userId, null, PhotoShareLink.LinkType.VIEW, null, title);
+        return link.getToken();
     }
 
     @Transactional
@@ -570,17 +550,8 @@ public class OrgPhotoService {
         log.info("Gallery share title updated: orgId={}, userId={}", orgId, userId);
     }
 
-    @Transactional
-    @Caching(evict = {
-            @CacheEvict(value = "sharedGallery", allEntries = true),
-            @CacheEvict(value = "sharedPhotos", allEntries = true)
-    })
     public void disableGalleryShare(String orgId, String userId) {
-        organizationService.checkAdminOrAbove(orgId, userId);
-        Organization org = organizationRepository.findActiveById(orgId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
-        org.disableGalleryShare();
-        log.info("Gallery share disabled: orgId={}, userId={}", orgId, userId);
+        photoShareLinkService.revokeAllGalleryLinks(orgId, userId, PhotoShareLink.LinkType.VIEW);
     }
 
     public Organization getGalleryShareOrg(String orgId) {
@@ -590,8 +561,11 @@ public class OrgPhotoService {
 
     @Cacheable(value = "sharedGallery", key = "'gallery:' + #shareToken")
     public OrgPhotoResponse.SharedGalleryInfo getSharedGallery(String shareToken) {
-        Organization org = organizationRepository.findByPhotoShareToken(shareToken)
+        PhotoShareLink link = photoShareLinkService.lookupActive(shareToken, PhotoShareLink.LinkType.VIEW)
+                .filter(l -> l.getTab() == null)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
+        Organization org = link.getOrganization();
+        String galleryTitle = link.getTitle() != null ? link.getTitle() : org.getPhotoShareTitle();
 
         List<OrgPhotoTab> sharedTabs = orgPhotoTabRepository
                 .findByOrganizationIdAndIsSharedTrueOrderBySortOrderAsc(org.getId());
@@ -609,7 +583,7 @@ public class OrgPhotoService {
         int totalPhotos = sharedTabs.stream().mapToInt(OrgPhotoTab::getPhotoCount).sum();
 
         return OrgPhotoResponse.SharedGalleryInfo.builder()
-                .galleryTitle(org.getPhotoShareTitle())
+                .galleryTitle(galleryTitle)
                 .organizationName(org.getName())
                 .organizationLogoUrl(org.getLogoUrl())
                 .albums(albumSummaries)
@@ -620,12 +594,17 @@ public class OrgPhotoService {
     @Cacheable(value = "sharedPhotos", key = "'gallery:' + #shareToken + ':' + #albumId + ':' + (#cursor ?: 'first') + ':' + #size")
     public OrgPhotoResponse.SharedPhotoPage getSharedGalleryPhotos(
             String shareToken, String albumId, String cursor, int size) {
-        Organization org = organizationRepository.findByPhotoShareToken(shareToken)
+        PhotoShareLink link = photoShareLinkService.lookupActive(shareToken, PhotoShareLink.LinkType.VIEW)
+                .filter(l -> l.getTab() == null)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
+        Organization org = link.getOrganization();
 
         OrgPhotoTab tab = orgPhotoTabRepository.findById(albumId)
-                .filter(t -> t.getOrganization().getId().equals(org.getId()) && Boolean.TRUE.equals(t.getIsShared()))
+                .filter(t -> t.getOrganization().getId().equals(org.getId())
+                        && Boolean.TRUE.equals(t.getIsShared()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
+        // is_shared 컬럼은 PhotoShareLinkService.syncLegacyCanonical()로 동기화되며,
+        // 활성 VIEW 링크가 하나라도 있으면 true. 추가로 토큰 단위 검증을 원할 경우 lookupActive 사용 가능.
 
         LocalDateTime cursorDateTime = null;
         if (cursor != null && !cursor.isEmpty()) {
@@ -664,23 +643,14 @@ public class OrgPhotoService {
 
     // ==================== Gallery-Level Upload ====================
 
-    @Transactional
     public String enableGalleryUpload(String orgId, String userId) {
-        organizationService.checkAdminOrAbove(orgId, userId);
-        Organization org = organizationRepository.findActiveById(orgId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
-        org.enableGalleryUpload();
-        log.info("Gallery upload enabled: orgId={}, userId={}", orgId, userId);
-        return org.getPhotoUploadToken();
+        PhotoShareLink link = photoShareLinkService.issue(
+                orgId, userId, null, PhotoShareLink.LinkType.UPLOAD, 7, null);
+        return link.getToken();
     }
 
-    @Transactional
     public void disableGalleryUpload(String orgId, String userId) {
-        organizationService.checkAdminOrAbove(orgId, userId);
-        Organization org = organizationRepository.findActiveById(orgId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
-        org.disableGalleryUpload();
-        log.info("Gallery upload disabled: orgId={}, userId={}", orgId, userId);
+        photoShareLinkService.revokeAllGalleryLinks(orgId, userId, PhotoShareLink.LinkType.UPLOAD);
     }
 
     public Map<String, Object> getGalleryUploadStatus(String orgId) {
@@ -696,11 +666,10 @@ public class OrgPhotoService {
     }
 
     public OrgPhotoResponse.GalleryUploadInfo getGalleryUploadInfo(String uploadToken) {
-        Organization org = organizationRepository.findByPhotoUploadToken(uploadToken)
+        PhotoShareLink link = photoShareLinkService.lookupActive(uploadToken, PhotoShareLink.LinkType.UPLOAD)
+                .filter(l -> l.getTab() == null)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
-        if (!org.isGalleryUploadEnabled()) {
-            throw new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND);
-        }
+        Organization org = link.getOrganization();
 
         List<OrgPhotoTab> tabs = orgPhotoTabRepository.findByOrganizationIdOrderBySortOrder(org.getId());
 
@@ -718,17 +687,16 @@ public class OrgPhotoService {
                 .organizationName(org.getName())
                 .organizationLogoUrl(org.getLogoUrl())
                 .albums(albumSummaries)
-                .expiresAt(org.getPhotoUploadTokenExpiresAt())
+                .expiresAt(link.getExpiresAt())
                 .build();
     }
 
     @Transactional
     public OrgPhotoResponse.SharedAlbumSummary publicGalleryCreateTab(String uploadToken, OrgPhotoRequest.TabCreate request) {
-        Organization org = organizationRepository.findByPhotoUploadToken(uploadToken)
+        PhotoShareLink link = photoShareLinkService.lookupActive(uploadToken, PhotoShareLink.LinkType.UPLOAD)
+                .filter(l -> l.getTab() == null)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
-        if (!org.isGalleryUploadEnabled()) {
-            throw new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND);
-        }
+        Organization org = link.getOrganization();
 
         int nextSortOrder = (int) orgPhotoTabRepository.countByOrganizationId(org.getId());
 
@@ -757,11 +725,10 @@ public class OrgPhotoService {
             @CacheEvict(value = "sharedPhotos", allEntries = true)
     })
     public void publicGalleryDeleteTab(String uploadToken, String albumId) {
-        Organization org = organizationRepository.findByPhotoUploadToken(uploadToken)
+        PhotoShareLink link = photoShareLinkService.lookupActive(uploadToken, PhotoShareLink.LinkType.UPLOAD)
+                .filter(l -> l.getTab() == null)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
-        if (!org.isGalleryUploadEnabled()) {
-            throw new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND);
-        }
+        Organization org = link.getOrganization();
 
         OrgPhotoTab tab = orgPhotoTabRepository.findByIdAndOrganizationId(albumId, org.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
@@ -790,11 +757,10 @@ public class OrgPhotoService {
 
     public OrgPhotoResponse.SharedPhotoPage getGalleryUploadPhotos(
             String uploadToken, String albumId, String cursor, int size) {
-        Organization org = organizationRepository.findByPhotoUploadToken(uploadToken)
+        PhotoShareLink link = photoShareLinkService.lookupActive(uploadToken, PhotoShareLink.LinkType.UPLOAD)
+                .filter(l -> l.getTab() == null)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
-        if (!org.isGalleryUploadEnabled()) {
-            throw new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND);
-        }
+        Organization org = link.getOrganization();
 
         OrgPhotoTab tab = orgPhotoTabRepository.findByIdAndOrganizationId(albumId, org.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
@@ -841,11 +807,10 @@ public class OrgPhotoService {
     })
     public List<OrgPhotoResponse.PhotoDetail> publicGalleryUploadPhotos(
             String uploadToken, String albumId, List<MultipartFile> files) {
-        Organization org = organizationRepository.findByPhotoUploadToken(uploadToken)
+        PhotoShareLink link = photoShareLinkService.lookupActive(uploadToken, PhotoShareLink.LinkType.UPLOAD)
+                .filter(l -> l.getTab() == null)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
-        if (!org.isGalleryUploadEnabled()) {
-            throw new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND);
-        }
+        Organization org = link.getOrganization();
 
         if (files.size() > MAX_UPLOAD_FILES) {
             throw new BusinessException(ErrorCode.PHOTO_UPLOAD_LIMIT_EXCEEDED);
@@ -906,11 +871,10 @@ public class OrgPhotoService {
             @CacheEvict(value = "sharedPhotos", allEntries = true)
     })
     public void publicGalleryDeletePhoto(String uploadToken, String albumId, String photoId) {
-        Organization org = organizationRepository.findByPhotoUploadToken(uploadToken)
+        PhotoShareLink link = photoShareLinkService.lookupActive(uploadToken, PhotoShareLink.LinkType.UPLOAD)
+                .filter(l -> l.getTab() == null)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
-        if (!org.isGalleryUploadEnabled()) {
-            throw new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND);
-        }
+        Organization org = link.getOrganization();
 
         OrgPhotoTab tab = orgPhotoTabRepository.findByIdAndOrganizationId(albumId, org.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));

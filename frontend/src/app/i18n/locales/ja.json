@@ -4037,7 +4037,37 @@
     "galleryUploadLink": "ギャラリーアップロードリンク",
     "galleryUploadLinkDesc": "このリンクを持つ誰でも写真をアップロードしアルバムを管理できます",
     "galleryUploadLinkEnabled": "ギャラリーアップロードリンクが作成されました",
-    "galleryUploadLinkDisabled": "ギャラリーアップロードリンクが削除されました"
+    "galleryUploadLinkDisabled": "ギャラリーアップロードリンクが削除されました",
+    "manageLinksDesc": "発行した共有リンクを確認し、即時無効化できます",
+    "galleryAllAlbums": "ギャラリー全体",
+    "newViewLink": "新しい閲覧リンク",
+    "newUploadLink": "新しいアップロードリンク",
+    "expiresIn": "有効期限",
+    "expiresNever": "無期限",
+    "expireNow": "今すぐ無効化",
+    "linkRevoked": "リンクを無効化しました",
+    "linkIssued": "リンクを発行しました",
+    "accessedNTimes": "{{n}}回アクセス",
+    "lastAccessed": "最終 {{time}}",
+    "daysLeft": "残り{{n}}日",
+    "hoursLeft": "残り{{n}}時間",
+    "noLinksYet": "発行済みのリンクはありません",
+    "linkLabelPlaceholder": "ラベル(任意、例:外部共有、イベント)",
+    "issueLink": "発行",
+    "statusExpired": "期限切れ",
+    "statusRevoked": "無効化済み",
+    "unnamed": "名称未設定",
+    "confirmExpire": "このリンクを今すぐ無効化しますか?",
+    "linkType": {
+      "view": "閲覧",
+      "upload": "アップロード"
+    },
+    "expirePresets": {
+      "1d": "1日",
+      "7d": "7日",
+      "30d": "30日",
+      "never": "無期限"
+    }
   },
   "listViewGroupBy": "グループ",
   "listViewSortBy": "並び替え",
