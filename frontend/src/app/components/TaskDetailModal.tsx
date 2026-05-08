@@ -58,6 +58,8 @@ import {
   Copy,
   Sparkles,
   AlertCircle,
+  Link,
+  Check,
 } from "lucide-react";
 import { TaskMoveModal } from "./TaskMoveModal";
 import { TaskAIChecklistModal } from "./TaskAIChecklistModal";
@@ -163,6 +165,7 @@ export function TaskDetailModal({
   const [initialTask, setInitialTask] = useState<Task | null>(null);
   const [editedTask, setEditedTask] = useState<Task | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [showDoneDialog, setShowDoneDialog] = useState(false);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
@@ -414,6 +417,24 @@ export function TaskDetailModal({
     }
     onClose();
   };
+
+  const handleCopyTaskLink = useCallback(async () => {
+    if (!boardId || !task) return;
+    const url = `${window.location.origin}/boards/${boardId}?task=${task.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const input = document.createElement('input');
+      input.value = url;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+    }
+    setLinkCopied(true);
+    toast.success(t('share.linkCopied'));
+    setTimeout(() => setLinkCopied(false), 2000);
+  }, [boardId, task, t]);
 
   const updateEditedTask = (updates: Partial<Task>) => {
     setEditedTask((prev) => (prev ? { ...prev, ...updates } : null));
@@ -818,8 +839,19 @@ export function TaskDetailModal({
                       </div>
                     )}
                   </div>
-                  {canEdit && (
-                    <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCopyTaskLink}
+                      className="text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                      title={t("share.copyLink")}
+                      aria-label={t("share.copyLink")}
+                    >
+                      {linkCopied ? <Check className="h-4 w-4 text-emerald-400" /> : <Link className="h-4 w-4" />}
+                    </Button>
+                    {canEdit && (
+                      <>
                       {onMoveToDone && task.block_name !== "Done" && (
                         <Button
                           variant="ghost"
@@ -869,8 +901,9 @@ export function TaskDetailModal({
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                    </div>
-                  )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

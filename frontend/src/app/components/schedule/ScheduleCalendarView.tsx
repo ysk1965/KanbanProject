@@ -282,7 +282,7 @@ export function ScheduleCalendarView({
   const [dropTargetDate, setDropTargetDate] = useState<string | null>(null);
   const dropTargetRef = useRef<string | null>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
-  const cellRefs = useRef<Map<string, HTMLTableCellElement>>(new Map());
+  const cellRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // ------ Data fetching ------
   const fetchData = useCallback(async () => {
@@ -628,172 +628,177 @@ export function ScheduleCalendarView({
       </div>
 
       {/* ===== Calendar grid ===== */}
-      <div className="flex-1 overflow-hidden">
-        <table
-          className="w-full h-full table-fixed border-collapse"
-          role="grid"
-          aria-label="Monthly calendar"
+      <div
+        className="flex-1 overflow-hidden flex flex-col"
+        role="grid"
+        aria-label="Monthly calendar"
+      >
+        {/* Weekday headers */}
+        <div
+          role="row"
+          className="grid grid-cols-7 border-b border-foreground/[0.08]"
         >
-          {/* Weekday headers */}
-          <thead>
-            <tr>
-              {WEEKDAY_LABELS_EN.map((label, idx) => (
-                <th
-                  key={idx}
-                  scope="col"
-                  className="text-xs font-bold uppercase tracking-widest text-slate-400
-                    py-2 text-center border-b border-foreground/[0.08]"
-                >
-                  {label}
-                </th>
-              ))}
-            </tr>
-          </thead>
+          {WEEKDAY_LABELS_EN.map((label, idx) => (
+            <div
+              key={idx}
+              role="columnheader"
+              className="text-xs font-bold uppercase tracking-widest text-slate-400 py-2 text-center"
+            >
+              {label}
+            </div>
+          ))}
+        </div>
 
-          <tbody>
-            {weeks.map((week, weekIdx) => {
-              const segments = barSegmentsByWeek[weekIdx] || [];
-              // Compute max row count for this week to size the bar area
-              const maxRow = segments.reduce(
-                (m, s) => Math.max(m, s.row + 1),
-                0,
-              );
-              const visibleRows = Math.min(maxRow, MAX_VISIBLE_BARS);
-              const barAreaHeight = visibleRows * (BAR_HEIGHT + BAR_GAP);
+        {/* Weeks */}
+        <div
+          role="rowgroup"
+          className="flex-1 grid"
+          style={{
+            gridTemplateRows: `repeat(${weeks.length}, minmax(0, 1fr))`,
+          }}
+        >
+          {weeks.map((week, weekIdx) => {
+            const segments = barSegmentsByWeek[weekIdx] || [];
+            // Compute max row count for this week to size the bar area
+            const maxRow = segments.reduce(
+              (m, s) => Math.max(m, s.row + 1),
+              0,
+            );
+            const visibleRows = Math.min(maxRow, MAX_VISIBLE_BARS);
+            const barAreaHeight = visibleRows * (BAR_HEIGHT + BAR_GAP);
 
-              return (
-                <tr key={weekIdx} style={{ height: `${100 / weeks.length}%` }}>
-                  {week.map((day, colIdx) => {
-                    const dateStr = toDateString(day);
-                    const inMonth = isSameMonth(day, currentMonth);
-                    const today = isToday(day);
-                    const isDropTarget = dropTargetDate === dateStr;
-                    const dots = dotItemsMap.get(dateStr) || [];
-                    const holidays = holidayMap.get(dateStr);
-                    const isHoliday = !!holidays && holidays.length > 0;
-                    const holidayName = isHoliday
-                      ? holidays!.map((h) => h.name).join(", ")
-                      : undefined;
+            return (
+              <div
+                key={weekIdx}
+                role="row"
+                className="relative grid grid-cols-7 min-h-0"
+              >
+                {week.map((day, colIdx) => {
+                  const dateStr = toDateString(day);
+                  const inMonth = isSameMonth(day, currentMonth);
+                  const today = isToday(day);
+                  const isDropTarget = dropTargetDate === dateStr;
+                  const dots = dotItemsMap.get(dateStr) || [];
+                  const holidays = holidayMap.get(dateStr);
+                  const isHoliday = !!holidays && holidays.length > 0;
+                  const holidayName = isHoliday
+                    ? holidays!.map((h) => h.name).join(", ")
+                    : undefined;
 
-                    // Count how many multiday bar segments start or pass through this column
-                    const cellSegments = segments.filter(
-                      (s) =>
-                        colIdx >= s.startCol && colIdx < s.startCol + s.span,
-                    );
-                    const overflowCount =
-                      cellSegments.filter((s) => s.row >= MAX_VISIBLE_BARS)
-                        .length +
-                      (dots.length > 0 && visibleRows >= MAX_VISIBLE_BARS
-                        ? dots.length
-                        : 0);
+                  // Count how many multiday bar segments start or pass through this column
+                  const cellSegments = segments.filter(
+                    (s) =>
+                      colIdx >= s.startCol && colIdx < s.startCol + s.span,
+                  );
+                  const overflowCount =
+                    cellSegments.filter((s) => s.row >= MAX_VISIBLE_BARS)
+                      .length +
+                    (dots.length > 0 && visibleRows >= MAX_VISIBLE_BARS
+                      ? dots.length
+                      : 0);
 
-                    return (
-                      <td
-                        key={colIdx}
-                        ref={(el) => {
-                          if (el) cellRefs.current.set(dateStr, el);
-                        }}
-                        role="gridcell"
-                        aria-label={format(day, "MMMM d, yyyy")}
-                        title={holidayName}
-                        className={`align-top border border-foreground/[0.05] p-1
-                          transition-colors relative
-                          ${!inMonth ? "opacity-40" : ""}
-                          ${isHoliday ? "bg-red-500/[0.04]" : ""}
-                          ${isDropTarget ? "bg-bridge-accent/10 ring-2 ring-bridge-accent/30 ring-inset" : ""}
-                        `}
-                      >
-                        {/* Date number + holiday label */}
-                        <div className="flex items-center justify-between gap-1 mb-1 min-w-0">
-                          {isHoliday ? (
-                            <span className="text-xs font-medium text-red-400 truncate">
-                              {holidayName}
-                            </span>
-                          ) : (
-                            <span />
-                          )}
-                          <span
-                            className={`text-xs font-medium leading-none shrink-0
-                              ${
-                                today
-                                  ? "bg-bridge-accent text-white w-6 h-6 rounded-full flex items-center justify-center font-bold"
-                                  : isHoliday
-                                    ? "text-red-400"
-                                    : inMonth
-                                      ? "text-foreground"
-                                      : "text-slate-500"
-                              }
-                            `}
-                          >
-                            {day.getDate()}
+                  return (
+                    <div
+                      key={colIdx}
+                      ref={(el) => {
+                        if (el) cellRefs.current.set(dateStr, el);
+                      }}
+                      role="gridcell"
+                      aria-label={format(day, "MMMM d, yyyy")}
+                      title={holidayName}
+                      className={`align-top border border-foreground/[0.05] p-1
+                        transition-colors relative min-w-0 overflow-hidden
+                        ${!inMonth ? "opacity-40" : ""}
+                        ${isHoliday ? "bg-red-500/[0.04]" : ""}
+                        ${isDropTarget ? "bg-bridge-accent/10 ring-2 ring-bridge-accent/30 ring-inset" : ""}
+                      `}
+                    >
+                      {/* Date number + holiday label */}
+                      <div className="flex items-center justify-between gap-1 mb-1 min-w-0">
+                        {isHoliday ? (
+                          <span className="text-xs font-medium text-red-400 truncate">
+                            {holidayName}
                           </span>
-                        </div>
+                        ) : (
+                          <span />
+                        )}
+                        <span
+                          className={`text-xs font-medium leading-none shrink-0
+                            ${
+                              today
+                                ? "bg-bridge-accent text-white w-6 h-6 rounded-full flex items-center justify-center font-bold"
+                                : isHoliday
+                                  ? "text-red-400"
+                                  : inMonth
+                                    ? "text-foreground"
+                                    : "text-slate-500"
+                            }
+                          `}
+                        >
+                          {day.getDate()}
+                        </span>
+                      </div>
 
-                        {/* Multiday bar area – rendered absolutely positioned within cell row */}
-                        {colIdx === 0 && barAreaHeight > 0 && (
+                      {/* Dot items (single-date items) */}
+                      <div
+                        className="flex flex-col gap-0.5"
+                        style={{
+                          marginTop: `${barAreaHeight + 2}px`,
+                        }}
+                      >
+                        {dots
+                          .slice(0, MAX_VISIBLE_BARS)
+                          .map((item) => renderDot(item))}
+                      </div>
+
+                      {/* Overflow indicator – pinned to bottom */}
+                      {overflowCount > 0 && (
+                        <div className="absolute bottom-1 right-1 text-xs text-slate-400">
+                          +{overflowCount} more
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Multiday bar overlay – spans the full week row */}
+                {barAreaHeight > 0 && (
+                  <div
+                    className="absolute inset-x-0 pointer-events-none"
+                    style={{
+                      top: "28px",
+                      height: `${barAreaHeight}px`,
+                    }}
+                  >
+                    {segments
+                      .filter((s) => s.row < MAX_VISIBLE_BARS)
+                      .map((segment) => {
+                        const leftPercent = (segment.startCol / 7) * 100;
+                        const widthPercent = (segment.span / 7) * 100;
+                        const topPx =
+                          segment.row * (BAR_HEIGHT + BAR_GAP);
+
+                        return (
                           <div
-                            className="absolute left-0 right-0 pointer-events-none"
+                            key={segment.item.id}
+                            className="absolute pointer-events-auto"
                             style={{
-                              top: "28px",
-                              height: `${barAreaHeight}px`,
+                              left: `calc(${leftPercent}% + 4px)`,
+                              width: `calc(${widthPercent}% - 8px)`,
+                              top: `${topPx}px`,
+                              height: `${BAR_HEIGHT}px`,
                             }}
                           >
-                            {segments
-                              .filter((s) => s.row < MAX_VISIBLE_BARS)
-                              .map((segment) => {
-                                const leftPercent =
-                                  (segment.startCol / 7) * 100;
-                                const widthPercent = (segment.span / 7) * 100;
-                                const topPx =
-                                  segment.row * (BAR_HEIGHT + BAR_GAP);
-
-                                return (
-                                  <div
-                                    key={segment.item.id}
-                                    className="absolute pointer-events-auto"
-                                    style={{
-                                      left: `calc(${leftPercent}% + 4px)`,
-                                      width: `calc(${widthPercent}% - 8px)`,
-                                      top: `${topPx}px`,
-                                      height: `${BAR_HEIGHT}px`,
-                                    }}
-                                  >
-                                    {renderBar(segment.item)}
-                                  </div>
-                                );
-                              })}
+                            {renderBar(segment.item)}
                           </div>
-                        )}
-
-                        {/* Dot items (single-date items) */}
-                        <div
-                          className="flex flex-col gap-0.5"
-                          style={{
-                            marginTop:
-                              colIdx === 0
-                                ? `${barAreaHeight + 2}px`
-                                : `${barAreaHeight + 2}px`,
-                          }}
-                        >
-                          {dots
-                            .slice(0, MAX_VISIBLE_BARS)
-                            .map((item) => renderDot(item))}
-                        </div>
-
-                        {/* Overflow indicator – pinned to bottom */}
-                        {overflowCount > 0 && (
-                          <div className="absolute bottom-1 right-1 text-xs text-slate-400">
-                            +{overflowCount} more
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

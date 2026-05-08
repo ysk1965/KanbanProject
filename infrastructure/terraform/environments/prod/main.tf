@@ -100,7 +100,7 @@ module "rds" {
   backup_retention_period = 3               # Prod: 3-day backup (vs dev 1-day)
 }
 
-# Infrastructure Scheduler - Off-peak shutdown (KST 23:00~08:00)
+# Infrastructure Scheduler - Off-peak shutdown (KST 01:00~09:00)
 # Saves ~$10/month by stopping EC2 (EB) and RDS during night hours
 # Note: ElastiCache cannot be stopped — remains running ($11/month)
 module "infra_scheduler" {
@@ -109,8 +109,8 @@ module "infra_scheduler" {
   project_name        = var.project_name
   environment         = var.environment
   enabled             = true
-  shutdown_cron       = "cron(0 14 ? * * *)"  # KST 23:00 = UTC 14:00
-  startup_cron        = "cron(30 22 ? * * *)" # KST 07:30 = UTC 22:30 (30min buffer)
+  shutdown_cron       = "cron(0 16 ? * * *)" # KST 01:00 = UTC 16:00
+  startup_cron        = "cron(0 0 ? * * *)"  # KST 09:00 = UTC 00:00
   eb_environment_name = module.elastic_beanstalk.environment_name
   eb_min_instances    = 1
   eb_max_instances    = 2
