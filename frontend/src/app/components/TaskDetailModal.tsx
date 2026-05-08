@@ -406,18 +406,6 @@ export function TaskDetailModal({
 
   const isChecklistFilterActive = filterAssigneeIds.length > 0;
 
-  if (!task || !editedTask) return null;
-
-  const handleClose = () => {
-    // pending description 저장 flush
-    if (descriptionTimerRef.current && editedTask) {
-      clearTimeout(descriptionTimerRef.current);
-      descriptionTimerRef.current = null;
-      autoSaveFields({ description: editedTask.description });
-    }
-    onClose();
-  };
-
   const handleCopyTaskLink = useCallback(async () => {
     if (!boardId || !task) return;
     const url = `${window.location.origin}/boards/${boardId}?task=${task.id}`;
@@ -435,6 +423,18 @@ export function TaskDetailModal({
     toast.success(t('share.linkCopied'));
     setTimeout(() => setLinkCopied(false), 2000);
   }, [boardId, task, t]);
+
+  if (!task || !editedTask) return null;
+
+  const handleClose = () => {
+    // pending description 저장 flush
+    if (descriptionTimerRef.current && editedTask) {
+      clearTimeout(descriptionTimerRef.current);
+      descriptionTimerRef.current = null;
+      autoSaveFields({ description: editedTask.description });
+    }
+    onClose();
+  };
 
   const updateEditedTask = (updates: Partial<Task>) => {
     setEditedTask((prev) => (prev ? { ...prev, ...updates } : null));
