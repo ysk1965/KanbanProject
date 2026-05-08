@@ -309,10 +309,11 @@ export function ScheduleResourceView({
     fetchData();
   }, [fetchData]);
 
-  // Refresh when parent triggers (e.g. after external drop) — silent to avoid chart unmount
+  // Refresh when parent triggers (e.g. after external drop) — debounced to batch rapid updates
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
-      fetchData(true);
+      const timer = setTimeout(() => fetchData(true), 400);
+      return () => clearTimeout(timer);
     }
   }, [refreshTrigger, fetchData]);
 
