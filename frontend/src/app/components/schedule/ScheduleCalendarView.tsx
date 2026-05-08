@@ -310,10 +310,11 @@ export function ScheduleCalendarView({
     fetchData();
   }, [fetchData]);
 
-  // Refresh when parent triggers (e.g. after external drop)
+  // Refresh when parent triggers (e.g. after external drop) — debounced to batch rapid updates
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
-      fetchData();
+      const timer = setTimeout(() => fetchData(), 400);
+      return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);

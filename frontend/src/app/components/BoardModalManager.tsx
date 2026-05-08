@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Component, ErrorInfo, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Feature, Task, Block, Tag, Milestone, Subscription, AiCredits, InviteLink, BoardWebSocketEvent, ChecklistItem, JobRole } from '../types';
 import { BoardMember as ShareBoardMember, MemberRole } from './ShareBoardModal';
@@ -20,6 +20,30 @@ import { AlertModal } from './AlertModal';
 import { AiCreditPurchaseModal } from './AiCreditPurchaseModal';
 import { MotionModal } from './ui/MotionModal';
 import { Users, Loader2 } from 'lucide-react';
+
+// DEBUG: TaskDetailModal 크래시 원인 포착용 로컬 ErrorBoundary
+class ModalErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[ModalErrorBoundary]', error.message, error.stack, info.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.7)' }}>
+          <div style={{ background: '#1e2a42', padding: 24, borderRadius: 16, maxWidth: 600, width: '90%', color: '#fff', fontFamily: 'monospace' }}>
+            <h2 style={{ color: '#f87171', marginBottom: 12 }}>TaskDetailModal Error</h2>
+            <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 13, color: '#fbbf24' }}>{this.state.error.message}</pre>
+            <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 11, color: '#94a3b8', marginTop: 8, maxHeight: 200, overflow: 'auto' }}>{this.state.error.stack}</pre>
+            <button onClick={() => this.setState({ error: null })} style={{ marginTop: 16, padding: '8px 20px', background: '#6366f1', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>닫기</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface BoardModalManagerProps {
   boardId: string;
@@ -320,33 +344,35 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         onTaskClick={props.onFeatureTaskClick}
       />
 
-      <TaskDetailModal
-        task={props.selectedTask}
-        open={props.isTaskModalOpen}
-        onClose={props.onCloseTask}
-        onUpdate={props.onUpdateTask}
-        onDelete={props.onDeleteTask}
-        onMoveToDone={props.onMoveToDone}
-        onMoveToBlock={props.onMoveToBlock}
-        onMoveToFeature={props.onMoveToFeature}
-        onMoveChecklistToTask={props.onMoveChecklistToTask}
-        blocks={props.blocks}
-        features={props.features}
-        allTasks={props.allTasks}
-        availableTags={props.tags}
-        onCreateTag={props.onCreateTag}
-        onUpdateTag={props.onUpdateTag}
-        onDeleteTag={props.onDeleteTag}
-        boardMembers={props.boardMembers}
-        currentUser={props.currentUser}
-        boardId={props.boardId}
-        canEdit={props.canEdit}
-        isAdminOrOwner={props.isAdminOrOwner}
-        wsCommentEvent={props.wsCommentEvent}
-        wsChecklistEvent={props.wsChecklistEvent}
-        onOpenFeature={props.onOpenFeature}
-        onChecklistSync={props.onChecklistSync}
-      />
+      <ModalErrorBoundary>
+        <TaskDetailModal
+          task={props.selectedTask}
+          open={props.isTaskModalOpen}
+          onClose={props.onCloseTask}
+          onUpdate={props.onUpdateTask}
+          onDelete={props.onDeleteTask}
+          onMoveToDone={props.onMoveToDone}
+          onMoveToBlock={props.onMoveToBlock}
+          onMoveToFeature={props.onMoveToFeature}
+          onMoveChecklistToTask={props.onMoveChecklistToTask}
+          blocks={props.blocks}
+          features={props.features}
+          allTasks={props.allTasks}
+          availableTags={props.tags}
+          onCreateTag={props.onCreateTag}
+          onUpdateTag={props.onUpdateTag}
+          onDeleteTag={props.onDeleteTag}
+          boardMembers={props.boardMembers}
+          currentUser={props.currentUser}
+          boardId={props.boardId}
+          canEdit={props.canEdit}
+          isAdminOrOwner={props.isAdminOrOwner}
+          wsCommentEvent={props.wsCommentEvent}
+          wsChecklistEvent={props.wsChecklistEvent}
+          onOpenFeature={props.onOpenFeature}
+          onChecklistSync={props.onChecklistSync}
+        />
+      </ModalErrorBoundary>
 
       <AddBlockModal
         open={props.isAddBlockModalOpen}

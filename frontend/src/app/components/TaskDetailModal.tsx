@@ -63,6 +63,8 @@ import {
 } from "lucide-react";
 import { TaskMoveModal } from "./TaskMoveModal";
 import { TaskAIChecklistModal } from "./TaskAIChecklistModal";
+import { TaskHeaderActionsMenu } from "./TaskHeaderActionsMenu";
+import { BlockStatusPicker } from "./BlockStatusPicker";
 import { CommentPanel } from "./CommentPanel";
 import { TagPickerPopover } from "./TagPickerPopover";
 import { getAssigneeClasses, getInitials } from "../utils/assigneeColor";
@@ -167,8 +169,6 @@ export function TaskDetailModal({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showDoneDialog, setShowDoneDialog] = useState(false);
-  const [showMoveDialog, setShowMoveDialog] = useState(false);
-  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [showMoveFeatureDialog, setShowMoveFeatureDialog] = useState(false);
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(
     null,
@@ -788,22 +788,21 @@ export function TaskDetailModal({
                     />
                     {task.feature_title}
                   </button>
-                  {canEdit && onMoveToFeature && features.length > 1 && (
-                    <button
-                      onClick={() => setShowMoveFeatureDialog(true)}
-                      className="p-1 rounded-full text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-colors"
-                      title={t("task.moveFeature")}
-                    >
-                      <ArrowRightLeft className="h-3 w-3" />
-                    </button>
-                  )}
                 </div>
                 {/* 현재 블록 상태 */}
-                {task.block_name && (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-foreground/10 text-muted-foreground border border-foreground/10">
-                    <Layers className="h-3 w-3" />
-                    {task.block_name}
-                  </div>
+                {task.block_id && (
+                  <BlockStatusPicker
+                    blocks={blocks}
+                    currentBlockId={task.block_id}
+                    currentBlockName={task.block_name}
+                    canEdit={!!canEdit && (!!onMoveToBlock || !!onMoveToDone)}
+                    onSelectBlock={(blockId) => {
+                      if (task && onMoveToBlock) {
+                        onMoveToBlock(task.id, blockId);
+                      }
+                    }}
+                    onSelectDone={() => setShowDoneDialog(true)}
+                  />
                 )}
               </div>
               <div>
@@ -850,59 +849,14 @@ export function TaskDetailModal({
                     >
                       {linkCopied ? <Check className="h-4 w-4 text-emerald-400" /> : <Link className="h-4 w-4" />}
                     </Button>
-                    {canEdit && (
-                      <>
-                      {onMoveToDone && task.block_name !== "Done" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowDoneDialog(true)}
-                          className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 gap-1"
-                          title={t("task.markComplete")}
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                          <span className="text-xs font-bold">DONE</span>
-                        </Button>
-                      )}
-                      {onMoveToBlock && task.block_name === "Done" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowMoveDialog(true)}
-                          className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
-                          title={t("task.moveBlock")}
-                        >
-                          <Undo2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setMoveCopyMode("move")}
-                        className="text-slate-400 hover:text-foreground hover:bg-foreground/10"
-                        title={t("task.moveToBoard", "다른 보드로 이동")}
-                      >
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setMoveCopyMode("copy")}
-                        className="text-slate-400 hover:text-foreground hover:bg-foreground/10"
-                        title={t("task.copyToBoard", "다른 보드로 복사")}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowDeleteDialog(true)}
-                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      </>
-                    )}
+                    <TaskHeaderActionsMenu
+                      canEdit={!!canEdit}
+                      hasMultipleFeatures={!!onMoveToFeature && features.length > 1}
+                      onMoveFeature={() => setShowMoveFeatureDialog(true)}
+                      onMoveToBoard={() => setMoveCopyMode("move")}
+                      onCopyToBoard={() => setMoveCopyMode("copy")}
+                      onDelete={() => setShowDeleteDialog(true)}
+                    />
                   </div>
                 </div>
               </div>
@@ -1414,67 +1368,6 @@ export function TaskDetailModal({
           >
             {t("task.markComplete")}
           </button>
-        </div>
-      </MotionModal>
-
-      {/* 블록 이동 다이얼로그 */}
-      <MotionModal
-        open={showMoveDialog}
-        onClose={() => {
-          setShowMoveDialog(false);
-          setSelectedBlockId(null);
-        }}
-        className="sm:max-w-sm p-6"
-      >
-        <h3 className="text-lg font-bold text-foreground">
-          {t("task.moveBlockTitle")}
-        </h3>
-        <p className="text-sm text-slate-400 mt-1">{t("task.moveBlockDesc")}</p>
-        <div className="space-y-2 py-4">
-          {blocks
-            .filter(
-              (b) => b.fixed_type !== "FEATURE" && b.fixed_type !== "DONE",
-            )
-            .map((block) => (
-              <button
-                key={block.id}
-                onClick={() => setSelectedBlockId(block.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
-                  selectedBlockId === block.id
-                    ? "border-bridge-accent bg-bridge-accent/10"
-                    : "border-foreground/10 hover:border-foreground/10 hover:bg-foreground/5"
-                }`}
-              >
-                <Layers className="h-4 w-4 text-slate-400" />
-                <span className="text-foreground">{block.name}</span>
-              </button>
-            ))}
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              setShowMoveDialog(false);
-              setSelectedBlockId(null);
-            }}
-            className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button
-            onClick={() => {
-              if (task && onMoveToBlock && selectedBlockId) {
-                onMoveToBlock(task.id, selectedBlockId);
-              }
-              setShowMoveDialog(false);
-              setSelectedBlockId(null);
-              onClose();
-            }}
-            disabled={!selectedBlockId}
-            className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
-          >
-            {t("task.move")}
-          </Button>
         </div>
       </MotionModal>
 
