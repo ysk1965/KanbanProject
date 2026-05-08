@@ -822,6 +822,7 @@ export function KanbanBoardPage() {
         setAllFeatures((prev) =>
           prev.some((f) => f.id === feature.id) ? prev : [...prev, feature],
         );
+        setScheduleRefreshPanel((k) => k + 1);
         break;
       }
       case "FEATURE_UPDATED": {
@@ -832,6 +833,7 @@ export function KanbanBoardPage() {
         setAllFeatures((prev) =>
           prev.map((f) => (f.id === feature.id ? feature : f)),
         );
+        setScheduleRefreshPanel((k) => k + 1);
         break;
       }
       case "FEATURE_DELETED": {
@@ -863,6 +865,7 @@ export function KanbanBoardPage() {
         } else {
           setTasks((prev) => prev.filter((t) => t.feature_id !== id));
         }
+        setScheduleRefreshPanel((k) => k + 1);
         break;
       }
       case "FEATURES_REORDERED": {
@@ -891,6 +894,7 @@ export function KanbanBoardPage() {
         setFeatures((prev) =>
           prev.map((f) => (f.id === feature.id ? { ...f, ...feature } : f)),
         );
+        setScheduleRefreshPanel((k) => k + 1);
         break;
       }
       case "TASK_UPDATED": {
@@ -898,6 +902,7 @@ export function KanbanBoardPage() {
         setTasks((prev) =>
           prev.map((t) => (t.id === task.id ? { ...t, ...task } : t)),
         );
+        setScheduleRefreshPanel((k) => k + 1);
         break;
       }
       case "TASK_DELETED": {
@@ -914,6 +919,7 @@ export function KanbanBoardPage() {
         setFeatures((prev) =>
           prev.map((f) => (f.id === feature.id ? { ...f, ...feature } : f)),
         );
+        setScheduleRefreshPanel((k) => k + 1);
         break;
       }
       case "TASK_MOVED": {
@@ -932,6 +938,7 @@ export function KanbanBoardPage() {
         setFeatures((prev) =>
           prev.map((f) => (f.id === feature.id ? { ...f, ...feature } : f)),
         );
+        setScheduleRefreshPanel((k) => k + 1);
         break;
       }
 
@@ -2097,6 +2104,7 @@ export function KanbanBoardPage() {
       setAllFeatures([...allFeatures, newFeature]);
       setSelectedFeature(newFeature);
       setIsFeatureModalOpen(true);
+      setScheduleRefreshPanel((k) => k + 1);
     } catch (error) {
       console.error("Failed to create feature:", error);
     }
@@ -2256,6 +2264,7 @@ export function KanbanBoardPage() {
           f.id === featureId ? { ...f, total_tasks: f.total_tasks + 1 } : f,
         ),
       );
+      setScheduleRefreshPanel((k) => k + 1);
     } catch (error: any) {
       console.error("Failed to create task:", error);
     }
@@ -2316,6 +2325,7 @@ export function KanbanBoardPage() {
           f.id === featureId ? { ...f, total_tasks: f.total_tasks + 1 } : f,
         ),
       );
+      setScheduleRefreshPanel((k) => k + 1);
 
       setQuickAddBlockId(null);
     } catch (error) {
@@ -2394,6 +2404,7 @@ export function KanbanBoardPage() {
             : t,
         ),
       );
+      setScheduleRefreshPanel((k) => k + 1);
     } catch (error) {
       console.error("Failed to update task:", error);
     }
@@ -4255,6 +4266,7 @@ export function KanbanBoardPage() {
               }
               return { ...prev, [taskId]: items };
             });
+            setScheduleRefreshPanel((k) => k + 1);
           }}
           // Tag
           tags={tags}
