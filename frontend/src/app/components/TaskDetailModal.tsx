@@ -424,22 +424,6 @@ export function TaskDetailModal({
     setTimeout(() => setLinkCopied(false), 2000);
   }, [boardId, task, t]);
 
-  if (!task || !editedTask) return null;
-
-  const handleClose = () => {
-    // pending description 저장 flush
-    if (descriptionTimerRef.current && editedTask) {
-      clearTimeout(descriptionTimerRef.current);
-      descriptionTimerRef.current = null;
-      autoSaveFields({ description: editedTask.description });
-    }
-    onClose();
-  };
-
-  const updateEditedTask = (updates: Partial<Task>) => {
-    setEditedTask((prev) => (prev ? { ...prev, ...updates } : null));
-  };
-
   const handleTitleCommit = useCallback(() => {
     if (!editedTask || !initialTask) {
       setIsEditingTitle(false);
@@ -470,6 +454,22 @@ export function TaskDetailModal({
     }
     setIsEditingTitle(false);
   }, [initialTask]);
+
+  if (!task || !editedTask) return null;
+
+  const handleClose = () => {
+    // pending description 저장 flush
+    if (descriptionTimerRef.current && editedTask) {
+      clearTimeout(descriptionTimerRef.current);
+      descriptionTimerRef.current = null;
+      autoSaveFields({ description: editedTask.description });
+    }
+    onClose();
+  };
+
+  const updateEditedTask = (updates: Partial<Task>) => {
+    setEditedTask((prev) => (prev ? { ...prev, ...updates } : null));
+  };
 
   const handleAddTag = async (tagId: string) => {
     if (!boardId || !task) return;
