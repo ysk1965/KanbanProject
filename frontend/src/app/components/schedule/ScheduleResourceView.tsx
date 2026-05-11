@@ -637,7 +637,7 @@ export function ScheduleResourceView({
     return set;
   }, [groupByJobRole, roleGroupSegments, collapsedRoleGroups]);
 
-  // ─── 'w' shortcut: toggle expand/collapse all rows ───
+  // ─── 'w' shortcut: toggle expand/collapse all rows + role groups ───
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== "w" && e.key !== "W") return;
@@ -647,13 +647,31 @@ export function ScheduleResourceView({
       if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable)
         return;
       e.preventDefault();
+
+      if (groupByJobRole && roleGroupSegments.length > 0) {
+        const anyExpanded = roleGroupSegments.some(
+          (seg) => !collapsedRoleGroups.has(seg.key),
+        );
+        const allKeys = roleGroupSegments.map((seg) => seg.key);
+        const nextCollapsed = anyExpanded ? new Set(allKeys) : new Set<string>();
+        setCollapsedRoleGroups(nextCollapsed);
+        try {
+          window.localStorage.setItem(
+            collapsedKey,
+            JSON.stringify([...nextCollapsed]),
+          );
+        } catch {
+          /* ignore */
+        }
+      }
+
       setExpandedRows((prev) =>
         prev.size > 0 ? new Set() : new Set(rows.map((r) => r.id)),
       );
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [rows]);
+  }, [rows, groupByJobRole, roleGroupSegments, collapsedRoleGroups, collapsedKey]);
 
   // ─── Bar position calculations ───
   const getBarPosition = useCallback(
