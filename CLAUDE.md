@@ -366,6 +366,24 @@ new Date(x).toLocaleDateString('ko-KR')
 
 ## 핵심 아키텍처 패턴
 
+### React Hooks 규칙 (필수)
+
+**모든 hook(`useState`, `useEffect`, `useCallback`, `useMemo`, `useRef` 등)은 early return 위에 선언한다.**
+
+```tsx
+// ❌ 잘못된 예 — early return 이후 useCallback
+if (!task) return null;
+const handleX = useCallback(() => { ... }, [task]);   // React #310
+
+// ✅ 올바른 예 — hook 먼저, early return 나중
+const handleX = useCallback(() => { ... }, [task]);
+if (!task) return null;
+```
+
+- React #310 "Rendered more hooks than during the previous render"의 가장 흔한 원인.
+- 큰 모달(`TaskDetailModal`, `FeatureDetailModal` 등)에서 `if (!task || !editedTask) return null;` 뒤에 새 콜백을 추가하기 쉬워 반복 발생.
+- 참고 커밋: 663d98b (`handleCopyTaskLink`), e5777fa (`handleTitleCommit/Cancel`).
+
 ### Assignee Color System
 - 중앙 관리: `frontend/src/app/utils/assigneeColor.ts`
 - 6색: indigo, purple, teal, rose, amber, emerald
