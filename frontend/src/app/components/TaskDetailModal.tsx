@@ -440,6 +440,37 @@ export function TaskDetailModal({
     setEditedTask((prev) => (prev ? { ...prev, ...updates } : null));
   };
 
+  const handleTitleCommit = useCallback(() => {
+    if (!editedTask || !initialTask) {
+      setIsEditingTitle(false);
+      return;
+    }
+    const trimmed = editedTask.title.trim();
+    if (!trimmed) {
+      setEditedTask((prev) =>
+        prev ? { ...prev, title: initialTask.title } : null,
+      );
+      setIsEditingTitle(false);
+      return;
+    }
+    if (trimmed !== initialTask.title) {
+      autoSaveFields({ title: trimmed });
+      if (trimmed !== editedTask.title) {
+        setEditedTask((prev) => (prev ? { ...prev, title: trimmed } : null));
+      }
+    }
+    setIsEditingTitle(false);
+  }, [editedTask, initialTask, autoSaveFields]);
+
+  const handleTitleCancel = useCallback(() => {
+    if (initialTask) {
+      setEditedTask((prev) =>
+        prev ? { ...prev, title: initialTask.title } : null,
+      );
+    }
+    setIsEditingTitle(false);
+  }, [initialTask]);
+
   const handleAddTag = async (tagId: string) => {
     if (!boardId || !task) return;
 
@@ -754,7 +785,7 @@ export function TaskDetailModal({
         />
         <div className="flex flex-col md:flex-row flex-1 min-h-0">
           {/* 왼쪽: 기존 태스크 상세 */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-10 custom-scrollbar min-h-0 relative">
+          <div className="flex-1 flex flex-col min-h-0 relative">
             {/* 모바일 닫기 버튼 */}
             <button
               onClick={handleClose}
@@ -763,7 +794,7 @@ export function TaskDetailModal({
             >
               <X className="h-4 w-4" />
             </button>
-            <div>
+            <div className="flex-shrink-0 p-4 md:p-6 pb-0">
               {/* 피처 & 블록 상태 표시 */}
               <div className="flex items-center gap-2 mb-3 flex-wrap">
                 {/* 피처 뱃지 */}
@@ -814,11 +845,15 @@ export function TaskDetailModal({
                         onChange={(e) =>
                           updateEditedTask({ title: e.target.value })
                         }
-                        onBlur={() => setIsEditingTitle(false)}
+                        onBlur={handleTitleCommit}
                         onKeyDown={(e) => {
                           if (e.nativeEvent.isComposing) return;
-                          if (e.key === "Enter" || e.key === "Escape") {
-                            setIsEditingTitle(false);
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleTitleCommit();
+                          } else if (e.key === "Escape") {
+                            e.preventDefault();
+                            handleTitleCancel();
                           }
                         }}
                         className="text-lg font-bold border border-foreground/10 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-foreground/5 text-foreground"
@@ -1164,7 +1199,8 @@ export function TaskDetailModal({
               </div>
             </div>
 
-            {/* 체크리스트 섹션 */}
+            {/* 체크리스트 섹션 — 스크롤 영역 */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 px-4 md:px-6 pb-10">
             <div className="mt-6 pt-6 border-t border-foreground/10">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -1286,6 +1322,7 @@ export function TaskDetailModal({
                   />
                 )}
               </div>
+            </div>
             </div>
           </div>
 
