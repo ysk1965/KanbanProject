@@ -73,6 +73,7 @@ import {
   TaskDependency,
   StatisticsViewType,
   JobRole,
+  BoardContractor,
 } from "../types";
 import {
   DndContext,
@@ -185,6 +186,7 @@ import {
   aiCreditService,
   taskDependencyService,
   jobRoleService,
+  contractorService,
 } from "../utils/services";
 import {
   notificationAPI,
@@ -543,6 +545,7 @@ export function KanbanBoardPage() {
   const [isShareBoardModalOpen, setIsShareBoardModalOpen] = useState(false);
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
   const [isContractorManagerOpen, setIsContractorManagerOpen] = useState(false);
+  const [headerContractors, setHeaderContractors] = useState<BoardContractor[]>([]);
   const [isTrashOpen, setIsTrashOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [isPremiumBenefitsModalOpen, setIsPremiumBenefitsModalOpen] =
@@ -1279,6 +1282,22 @@ export function KanbanBoardPage() {
       })
       .catch(() => {
         if (!cancelled) setJobRoles([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [boardId]);
+
+  useEffect(() => {
+    if (!boardId) return;
+    let cancelled = false;
+    contractorService
+      .list(boardId)
+      .then((list) => {
+        if (!cancelled) setHeaderContractors(list as BoardContractor[]);
+      })
+      .catch(() => {
+        if (!cancelled) setHeaderContractors([]);
       });
     return () => {
       cancelled = true;
@@ -3030,6 +3049,8 @@ export function KanbanBoardPage() {
           currentUser={currentUser}
           memberColorMap={memberColorMap}
           onLogout={logout}
+          contractors={headerContractors}
+          onOpenContractorManager={() => setIsContractorManagerOpen(true)}
           getBoardSubMode={getBoardSubMode}
           getScheduleSubMode={() => "schedule" as const}
           getAISubMode={getAISubMode}
@@ -4443,8 +4464,9 @@ export function KanbanBoardPage() {
             members={boardMembersData}
             currentUserId={currentUserId}
             isAdminOrAbove={isAdminOrOwner}
-            onChanged={() => {
+            onChanged={(list) => {
               setScheduleRefreshPanel((k) => k + 1);
+              if (list) setHeaderContractors(list);
             }}
           />
         )}

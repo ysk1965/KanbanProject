@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public class BoardContractorRequest {
@@ -24,6 +25,9 @@ public class BoardContractorRequest {
 
         @Size(max = 20, message = "색상 코드는 20자 이내여야 합니다")
         private String color;
+
+        private LocalDate startDate;
+        private LocalDate endDate;
     }
 
     @Getter
@@ -38,6 +42,12 @@ public class BoardContractorRequest {
 
         @Size(max = 20, message = "색상 코드는 20자 이내여야 합니다")
         private String color;
+
+        private LocalDate startDate;
+        private LocalDate endDate;
+
+        private boolean clearStartDate;
+        private boolean clearEndDate;
     }
 
     @Getter

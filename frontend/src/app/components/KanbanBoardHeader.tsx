@@ -25,6 +25,7 @@ import {
   BoardTierInfo,
   Subscription,
   AiCredits,
+  BoardContractor,
 } from "../types";
 import { BoardMember as ShareBoardMember, MemberRole } from "./ShareBoardModal";
 import { UpgradeTrigger } from "./UpgradeModal";
@@ -33,6 +34,7 @@ import { NotificationDropdown } from "./NotificationDropdown";
 import { UserMenu } from "./UserMenu";
 import { AnnouncementDisplay } from "./AnnouncementDisplay";
 import { boardService } from "../utils/services";
+import { getContractorPeriodStatus } from "./ContractorManageModal";
 
 type ViewMode =
   | "kanban"
@@ -112,6 +114,9 @@ interface KanbanBoardHeaderProps {
   } | null;
   onLogout: () => void;
   isTester: boolean;
+  // Contractors
+  contractors?: BoardContractor[];
+  onOpenContractorManager?: () => void;
   // Sub mode helpers
   getBoardSubMode: () => "kanban" | "gantt" | "calendar" | "list" | "milestone";
   getScheduleSubMode: () => "schedule";
@@ -163,6 +168,8 @@ export function KanbanBoardHeader({
   currentUser,
   onLogout,
   isTester,
+  contractors,
+  onOpenContractorManager,
   getBoardSubMode,
   getScheduleSubMode,
   getAISubMode,
@@ -505,6 +512,51 @@ export function KanbanBoardHeader({
                 {t("kanban.team")}
               </span>
             </button>
+            {contractors && contractors.length > 0 && (
+              <div className="hidden md:flex items-center gap-1">
+                {contractors.slice(0, 3).map((c) => {
+                  const status = getContractorPeriodStatus(c.start_date, c.end_date);
+                  const statusColors: Record<string, string> = {
+                    active: 'border-emerald-500/60 text-emerald-500',
+                    upcoming: 'border-amber-500/60 text-amber-500',
+                    expired: 'border-slate-500/60 text-slate-500',
+                    none: 'border-foreground/20 text-slate-400',
+                  };
+                  const endLabel = status === 'active' && c.end_date
+                    ? `~${c.end_date.slice(5).replace('-', '/')}`
+                    : status === 'upcoming' && c.start_date
+                      ? `${c.start_date.slice(5).replace('-', '/')}~`
+                      : null;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={onOpenContractorManager}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-md border border-dashed text-xs font-medium transition-colors hover:bg-foreground/5 ${statusColors[status]}`}
+                      title={`${c.name}${c.start_date ? ` (${c.start_date} ~ ${c.end_date || '?'})` : ''}`}
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: c.color || '#6366F1' }}
+                      />
+                      <span className="max-w-[60px] truncate">{c.name}</span>
+                      {endLabel && (
+                        <span className="text-xs opacity-70">{endLabel}</span>
+                      )}
+                    </button>
+                  );
+                })}
+                {contractors.length > 3 && (
+                  <button
+                    type="button"
+                    onClick={onOpenContractorManager}
+                    className="px-1.5 py-1 rounded-md border border-dashed border-foreground/20 text-xs text-slate-400 hover:bg-foreground/5 transition-colors"
+                  >
+                    +{contractors.length - 3}
+                  </button>
+                )}
+              </div>
+            )}
             {isAdminOrOwner && (
               <button
                 onClick={onOpenTrash}

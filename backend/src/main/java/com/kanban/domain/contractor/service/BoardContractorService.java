@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -87,6 +88,8 @@ public class BoardContractorService {
                 .jobRole(jobRole)
                 .name(request.getName())
                 .color(request.getColor())
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
                 .displayOrder(nextOrder)
                 .build();
 
@@ -117,6 +120,21 @@ public class BoardContractorService {
         }
 
         contractor.updateInfo(request.getName(), request.getColor());
+
+        // Update period if provided
+        if (request.getStartDate() != null || request.isClearStartDate()) {
+            LocalDate newStart = request.isClearStartDate() ? null : request.getStartDate();
+            LocalDate newEnd = request.isClearEndDate() ? null : request.getEndDate();
+            contractor.updatePeriod(
+                newStart != null ? newStart : contractor.getStartDate(),
+                newEnd != null ? newEnd : contractor.getEndDate()
+            );
+        } else if (request.getEndDate() != null || request.isClearEndDate()) {
+            contractor.updatePeriod(
+                contractor.getStartDate(),
+                request.isClearEndDate() ? null : request.getEndDate()
+            );
+        }
 
         if (request.getManagerMemberId() != null) {
             BoardMember newManager = boardMemberRepository.findById(request.getManagerMemberId())

@@ -2261,6 +2261,8 @@ export const contractorAPI = {
       manager_member_id: string;
       job_role_id?: string | null;
       color?: string | null;
+      start_date?: string | null;
+      end_date?: string | null;
     },
   ) => {
     return apiClient.post<ContractorResponse>(`/boards/${boardId}/contractors`, data);
@@ -2274,6 +2276,10 @@ export const contractorAPI = {
       manager_member_id?: string;
       job_role_id?: string | null;
       color?: string | null;
+      start_date?: string | null;
+      end_date?: string | null;
+      clear_start_date?: boolean;
+      clear_end_date?: boolean;
     },
   ) => {
     return apiClient.put<ContractorResponse>(

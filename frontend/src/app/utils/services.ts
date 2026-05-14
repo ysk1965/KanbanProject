@@ -1223,6 +1223,8 @@ export const contractorService = {
       manager_member_id: string;
       job_role_id?: string | null;
       color?: string | null;
+      start_date?: string | null;
+      end_date?: string | null;
     },
   ) => contractorAPI.create(boardId, payload),
   update: async (
@@ -1233,6 +1235,10 @@ export const contractorService = {
       manager_member_id?: string;
       job_role_id?: string | null;
       color?: string | null;
+      start_date?: string | null;
+      end_date?: string | null;
+      clear_start_date?: boolean;
+      clear_end_date?: boolean;
     },
   ) => contractorAPI.update(boardId, contractorId, payload),
   remove: async (boardId: string, contractorId: string) =>
