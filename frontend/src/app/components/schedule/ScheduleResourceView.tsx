@@ -476,6 +476,8 @@ export function ScheduleResourceView({
       jobRoleId: string | null;
       jobRoleName: string | null;
       jobRoleColor: string | null;
+      startDate?: string | null;
+      endDate?: string | null;
     };
 
     // Filter members to exclude viewers
@@ -534,6 +536,8 @@ export function ScheduleResourceView({
         jobRoleId: c.job_role?.id || null,
         jobRoleName: c.job_role?.name || null,
         jobRoleColor: c.job_role?.color || null,
+        startDate: c.start_date || null,
+        endDate: c.end_date || null,
       };
       if (c.manager_member_id) {
         const arr = contractorsByManager.get(c.manager_member_id) || [];
@@ -1498,6 +1502,11 @@ export function ScheduleResourceView({
                         {row.kind === "contractor" && (
                           <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mt-0.5">
                             {t("schedule.resource.contractor", "외주")}
+                            {(row.startDate || row.endDate) && (
+                              <span className="font-medium normal-case tracking-normal ml-1">
+                                · {row.startDate?.slice(5).replace('-', '.') || '?'}~{row.endDate?.slice(5).replace('-', '.') || '?'}
+                              </span>
+                            )}
                           </span>
                         )}
                       </div>
@@ -1588,6 +1597,25 @@ export function ScheduleResourceView({
                         />
                       );
                     })}
+
+                    {/* Contract period background bar for contractor rows */}
+                    {row.kind === "contractor" && (row.startDate || row.endDate) && (() => {
+                      const periodPos = getBarPosition(row.startDate || null, row.endDate || null);
+                      if (!periodPos) return null;
+                      return (
+                        <div
+                          className="absolute rounded-lg border-2 border-dashed pointer-events-none"
+                          style={{
+                            left: periodPos.left,
+                            width: periodPos.width,
+                            top: 0,
+                            bottom: 0,
+                            borderColor: `${row.color || '#14b8a6'}40`,
+                            backgroundColor: `${row.color || '#14b8a6'}08`,
+                          }}
+                        />
+                      );
+                    })()}
 
                     {/* Checklist item bars */}
                     {itemsWithBars.map(
