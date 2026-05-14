@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -26,6 +27,8 @@ public class BoardContractorResponse {
         private String name;
         private String color;
         private Integer displayOrder;
+        private LocalDate startDate;
+        private LocalDate endDate;
 
         private String managerMemberId;
         private String managerName;
@@ -49,6 +52,8 @@ public class BoardContractorResponse {
                     .name(c.getName())
                     .color(c.getColor())
                     .displayOrder(c.getDisplayOrder())
+                    .startDate(c.getStartDate())
+                    .endDate(c.getEndDate())
                     .managerMemberId(managerMemberId)
                     .managerName(managerName)
                     .managerUserId(managerUserId)
@@ -84,6 +89,8 @@ public class BoardContractorResponse {
         private String id;
         private String name;
         private String color;
+        private LocalDate startDate;
+        private LocalDate endDate;
         private String managerMemberId;
         private String managerName;
         private JobRoleResponse.JobRoleInfo jobRole;
@@ -99,6 +106,8 @@ public class BoardContractorResponse {
                     .id(c.getId())
                     .name(c.getName())
                     .color(c.getColor())
+                    .startDate(c.getStartDate())
+                    .endDate(c.getEndDate())
                     .managerMemberId(managerMemberId)
                     .managerName(managerName)
                     .jobRole(JobRoleResponse.JobRoleInfo.of(c.getJobRole()))

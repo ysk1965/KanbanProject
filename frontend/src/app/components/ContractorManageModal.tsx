@@ -1,13 +1,53 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, X, Check, Briefcase } from 'lucide-react';
+import { Plus, Trash2, X, Check, Briefcase, Calendar } from 'lucide-react';
 import { MotionModal } from './ui/MotionModal';
 import { IconButton } from './ui/IconButton';
 import { contractorService, jobRoleService } from '../utils/services';
 import type { BoardContractor, JobRole } from '../types';
 import type { BoardMember } from './ShareBoardModal';
+
+export type ContractorPeriodStatus = 'active' | 'upcoming' | 'expired' | 'none';
+
+export function getContractorPeriodStatus(
+  startDate?: string | null,
+  endDate?: string | null,
+): ContractorPeriodStatus {
+  if (!startDate && !endDate) return 'none';
+  const today = new Date().toISOString().slice(0, 10);
+  if (startDate && today < startDate) return 'upcoming';
+  if (endDate && today > endDate) return 'expired';
+  return 'active';
+}
+
+export function getContractorDaysRemaining(
+  startDate?: string | null,
+  endDate?: string | null,
+): string | null {
+  const status = getContractorPeriodStatus(startDate, endDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (status === 'active' && endDate) {
+    const end = new Date(endDate + 'T00:00:00');
+    const days = Math.ceil((end.getTime() - today.getTime()) / 86400000);
+    return `D-${days}`;
+  }
+  if (status === 'upcoming' && startDate) {
+    const start = new Date(startDate + 'T00:00:00');
+    const days = Math.ceil((start.getTime() - today.getTime()) / 86400000);
+    return `D-${days}`;
+  }
+  return null;
+}
+
+const PERIOD_STATUS_STYLES: Record<ContractorPeriodStatus, { bg: string; text: string; dot: string; label: string }> = {
+  active: { bg: 'bg-emerald-500/15', text: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500', label: '활동중' },
+  upcoming: { bg: 'bg-amber-500/15', text: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500', label: '예정' },
+  expired: { bg: 'bg-slate-500/15', text: 'text-slate-500', dot: 'bg-slate-500', label: '만료' },
+  none: { bg: '', text: '', dot: '', label: '' },
+};
 
 const COLOR_PRESETS: { name: string; hex: string }[] = [
   { name: 'indigo', hex: '#6366F1' },
@@ -51,6 +91,8 @@ export function ContractorManageModal({
   const [newColor, setNewColor] = useState<string>(COLOR_PRESETS[0].hex);
   const [newManagerMemberId, setNewManagerMemberId] = useState<string>('');
   const [newJobRoleId, setNewJobRoleId] = useState<string>('');
+  const [newStartDate, setNewStartDate] = useState<string>('');
+  const [newEndDate, setNewEndDate] = useState<string>('');
 
   // edit state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -58,6 +100,8 @@ export function ContractorManageModal({
   const [editColor, setEditColor] = useState<string>('');
   const [editManagerMemberId, setEditManagerMemberId] = useState<string>('');
   const [editJobRoleId, setEditJobRoleId] = useState<string>('');
+  const [editStartDate, setEditStartDate] = useState<string>('');
+  const [editEndDate, setEditEndDate] = useState<string>('');
 
   const selfMember = useMemo(
     () => members.find((m) => m.userId === currentUserId) || null,
@@ -117,10 +161,14 @@ export function ContractorManageModal({
         color: newColor,
         manager_member_id: managerId,
         job_role_id: newJobRoleId || null,
+        start_date: newStartDate || null,
+        end_date: newEndDate || null,
       });
       setNewName('');
       setNewColor(COLOR_PRESETS[0].hex);
       setNewJobRoleId('');
+      setNewStartDate('');
+      setNewEndDate('');
       await reload();
     } catch (e: any) {
       setError(e?.message || t('contractor.duplicateName', '이미 존재하는 외주 이름입니다'));
@@ -135,6 +183,8 @@ export function ContractorManageModal({
     setEditColor(c.color || COLOR_PRESETS[0].hex);
     setEditManagerMemberId(c.manager_member_id || '');
     setEditJobRoleId(c.job_role?.id || '');
+    setEditStartDate(c.start_date || '');
+    setEditEndDate(c.end_date || '');
   };
 
   const saveEdit = async () => {
@@ -143,11 +193,16 @@ export function ContractorManageModal({
     if (!name) return;
     setSubmitting(true);
     try {
+      const editing = contractors.find((c) => c.id === editingId);
       await contractorService.update(boardId, editingId, {
         name,
         color: editColor,
         manager_member_id: editManagerMemberId || undefined,
         job_role_id: editJobRoleId || null,
+        start_date: editStartDate || null,
+        end_date: editEndDate || null,
+        clear_start_date: !editStartDate && !!editing?.start_date,
+        clear_end_date: !editEndDate && !!editing?.end_date,
       });
       setEditingId(null);
       await reload();
@@ -259,6 +314,23 @@ export function ContractorManageModal({
             </select>
           </div>
 
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 shrink-0">{t('contractor.period', '기간')}:</span>
+            <input
+              type="date"
+              value={newStartDate}
+              onChange={(e) => setNewStartDate(e.target.value)}
+              className="flex-1 bg-bridge-obsidian border border-foreground/10 rounded-lg py-1.5 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+            />
+            <span className="text-xs text-slate-500">~</span>
+            <input
+              type="date"
+              value={newEndDate}
+              onChange={(e) => setNewEndDate(e.target.value)}
+              className="flex-1 bg-bridge-obsidian border border-foreground/10 rounded-lg py-1.5 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+            />
+          </div>
+
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-slate-500">{t('jobRole.colorLabel', '색상')}:</span>
             {COLOR_PRESETS.map((c) => (
@@ -344,6 +416,22 @@ export function ContractorManageModal({
                           ))}
                         </select>
                       </div>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3 h-3 text-slate-500 shrink-0" />
+                        <input
+                          type="date"
+                          value={editStartDate}
+                          onChange={(e) => setEditStartDate(e.target.value)}
+                          className="flex-1 bg-bridge-obsidian border border-foreground/10 rounded-lg py-1 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                        />
+                        <span className="text-xs text-slate-500">~</span>
+                        <input
+                          type="date"
+                          value={editEndDate}
+                          onChange={(e) => setEditEndDate(e.target.value)}
+                          className="flex-1 bg-bridge-obsidian border border-foreground/10 rounded-lg py-1 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                        />
+                      </div>
                       <div className="flex items-center gap-1">
                         {COLOR_PRESETS.slice(0, 6).map((cp) => (
                           <button
@@ -373,11 +461,40 @@ export function ContractorManageModal({
                         disabled={!canEdit}
                         className="flex-1 text-left disabled:cursor-default min-w-0"
                       >
-                        <div className="text-sm text-foreground font-medium truncate">{c.name}</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm text-foreground font-medium truncate">{c.name}</span>
+                          {(() => {
+                            const ps = getContractorPeriodStatus(c.start_date, c.end_date);
+                            if (ps === 'none') return null;
+                            const st = PERIOD_STATUS_STYLES[ps];
+                            return (
+                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-bold ${st.bg} ${st.text}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
+                                {t(`contractor.status.${ps}`, st.label)}
+                              </span>
+                            );
+                          })()}
+                        </div>
                         <div className="text-xs text-slate-500 truncate">
                           {c.manager_name || t('contractor.noManager', '관리자 없음')}
                           {c.job_role?.name ? ` · ${c.job_role.name}` : ''}
                         </div>
+                        {(c.start_date || c.end_date) && (
+                          <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
+                            <Calendar className="w-3 h-3" />
+                            <span>
+                              {c.start_date?.slice(5).replace('-', '.') || '?'}
+                              {' ~ '}
+                              {c.end_date?.slice(5).replace('-', '.') || '?'}
+                            </span>
+                            {(() => {
+                              const d = getContractorDaysRemaining(c.start_date, c.end_date);
+                              if (!d) return null;
+                              const ps = getContractorPeriodStatus(c.start_date, c.end_date);
+                              return <span className={PERIOD_STATUS_STYLES[ps].text}>{d}</span>;
+                            })()}
+                          </div>
+                        )}
                       </button>
                       {canEdit && (
                         <IconButton

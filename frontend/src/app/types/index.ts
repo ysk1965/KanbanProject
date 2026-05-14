@@ -287,6 +287,8 @@ export interface ContractorInfo {
   id: string;
   name: string;
   color?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
   manager_member_id?: string | null;
   manager_name?: string | null;
   job_role?: JobRoleInfo | null;
