@@ -8,6 +8,8 @@ import {
   Block,
   Feature,
   BoardWebSocketEvent,
+  BoardContractor,
+  ContractorInfo,
 } from "../types";
 import {
   checklistAPI,
@@ -60,6 +62,7 @@ import {
   AlertCircle,
   Link,
   Check,
+  Wrench,
 } from "lucide-react";
 import { TaskMoveModal } from "./TaskMoveModal";
 import { TaskAIChecklistModal } from "./TaskAIChecklistModal";
@@ -121,6 +124,7 @@ interface TaskDetailModalProps {
   ) => Promise<void>;
   onDeleteTag: (tagId: string) => Promise<void>;
   boardMembers: BoardMember[];
+  contractors?: BoardContractor[];
   currentUser: User | null;
   boardId: string | null;
   canEdit?: boolean;
@@ -150,6 +154,7 @@ export function TaskDetailModal({
   onUpdateTag,
   onDeleteTag,
   boardMembers,
+  contractors = [],
   currentUser,
   boardId,
   canEdit = true,
@@ -230,6 +235,7 @@ export function TaskDetailModal({
                     profile_image: item.assignee.profile_image,
                   }
                 : null,
+              contractor: item.contractor ?? null,
             }));
             setChecklistItems(items);
 
@@ -550,6 +556,7 @@ export function TaskDetailModal({
               profile_image: response.assignee.profile_image,
             }
           : null,
+        contractor: response.contractor ?? null,
       };
 
       const newItems = [...checklistItems, newItem];
@@ -633,6 +640,7 @@ export function TaskDetailModal({
     const payload: {
       title?: string;
       assignee_id?: string | null;
+      contractor_id?: string | null;
       start_date?: string | null;
       due_date?: string | null;
     } = {};
@@ -641,6 +649,9 @@ export function TaskDetailModal({
     }
     if ("assignee" in updates) {
       payload.assignee_id = updates.assignee?.id ?? null;
+    }
+    if ("contractor" in updates) {
+      payload.contractor_id = updates.contractor?.id ?? null;
     }
     if ("start_date" in updates) {
       payload.start_date = updates.start_date ?? null;
@@ -782,16 +793,16 @@ export function TaskDetailModal({
         open={open}
         onClose={handleClose}
         overlayClose={true}
-        className="sm:max-w-[1100px] max-h-[calc(var(--visual-viewport-height,100vh)*0.85)] flex flex-col overflow-hidden bg-bridge-surface p-0"
+        className="sm:max-w-[640px] md:max-w-[900px] lg:max-w-[1100px] xl:max-w-[1280px] 2xl:max-w-[1400px] max-h-[calc(var(--visual-viewport-height,100vh)*0.85)] flex flex-col overflow-hidden bg-bridge-surface p-0"
       >
         {/* Feature color accent line */}
         <div
           className="h-[3px] w-full flex-shrink-0 rounded-t-lg"
           style={{ backgroundColor: task.feature_color }}
         />
-        <div className="flex flex-col md:flex-row flex-1 min-h-0">
+        <div className="flex flex-col md:grid md:grid-cols-[minmax(0,1fr)_clamp(360px,40%,560px)] flex-1 min-h-0">
           {/* 왼쪽: 기존 태스크 상세 */}
-          <div className="flex-1 flex flex-col min-h-0 relative">
+          <div className="flex-1 md:flex-none flex flex-col min-h-0 min-w-0 relative">
             {/* 모바일 닫기 버튼 */}
             <button
               onClick={handleClose}
@@ -909,7 +920,7 @@ export function TaskDetailModal({
               </div>
             </div>
 
-            <div className="space-y-5">
+            <div className="space-y-5 px-8 md:px-10">
               {/* 설명 섹션 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -1315,6 +1326,7 @@ export function TaskDetailModal({
                               : undefined
                           }
                           boardMembers={boardMembers}
+                          contractors={contractors}
                           boardId={boardId}
                           canEdit={canEdit}
                           dragDisabled={isChecklistFilterActive}
@@ -1341,7 +1353,7 @@ export function TaskDetailModal({
 
           {/* 오른쪽: 댓글 패널 + 닫기 버튼 */}
           {boardId && (
-            <div className="w-full md:w-[420px] border-t md:border-t-0 md:border-l border-bridge-border/30 flex-1 md:flex-initial md:flex-shrink-0 relative z-10 bg-bridge-dark/30 min-h-0">
+            <div className="w-full md:w-auto flex-1 md:flex-none border-t md:border-t-0 md:border-l border-bridge-border/30 relative z-10 bg-bridge-dark/30 min-h-0 min-w-0">
               <CommentPanel
                 taskId={task.id}
                 boardId={boardId}
@@ -1807,6 +1819,7 @@ export function TaskDetailModal({
                           profile_image: item.assignee.profile_image,
                         }
                       : null,
+                    contractor: item.contractor ?? null,
                   }));
                   setChecklistItems(items);
                 })
@@ -1829,6 +1842,7 @@ function SortableChecklistItemRow(props: {
   onDelete: () => void;
   onMoveToTask?: () => void;
   boardMembers: BoardMember[];
+  contractors?: BoardContractor[];
   boardId: string | null;
   canEdit?: boolean;
   dragDisabled?: boolean;
@@ -1873,6 +1887,7 @@ function ChecklistItemRow({
   onDelete,
   onMoveToTask,
   boardMembers,
+  contractors = [],
   boardId,
   canEdit = true,
   isPersonal = false,
@@ -1885,6 +1900,7 @@ function ChecklistItemRow({
   onDelete: () => void;
   onMoveToTask?: () => void;
   boardMembers: BoardMember[];
+  contractors?: BoardContractor[];
   boardId: string | null;
   canEdit?: boolean;
   isPersonal?: boolean;
@@ -1907,6 +1923,9 @@ function ChecklistItemRow({
   const assigneeColor = item.assignee
     ? getAssigneeClasses(item.assignee.name, memberData?.assigneeColor)
     : null;
+
+  // 외주 담당자 (BRIDGE accent fallback)
+  const contractorColor = item.contractor?.color || "#6366F1";
 
   // 타임블록 총합 시간 (분)
   const totalTimeMinutes = timeBlocks.reduce((sum, block) => {
@@ -2160,7 +2179,32 @@ function ChecklistItemRow({
             (canEdit ? (
               <Popover>
                 <PopoverTrigger asChild>
-                  {item.assignee && assigneeColor ? (
+                  {item.contractor ? (
+                    <button
+                      className="flex items-center gap-1 rounded-full px-1.5 py-0.5 border border-dashed hover:opacity-80 transition-opacity"
+                      style={{
+                        backgroundColor: contractorColor + "15",
+                        borderColor: contractorColor + "66",
+                      }}
+                    >
+                      <Wrench
+                        className="w-3 h-3"
+                        style={{ color: contractorColor }}
+                      />
+                      <span
+                        className="text-xs font-medium"
+                        style={{ color: contractorColor }}
+                      >
+                        {item.contractor.name}
+                      </span>
+                      <span
+                        className="text-xs opacity-60"
+                        style={{ color: contractorColor }}
+                      >
+                        · {t("task.checklistContractorBadge", "외주")}
+                      </span>
+                    </button>
+                  ) : item.assignee && assigneeColor ? (
                     <button
                       className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5 hover:opacity-80 transition-opacity`}
                       style={
@@ -2199,14 +2243,16 @@ function ChecklistItemRow({
                   )}
                 </PopoverTrigger>
                 <PopoverContent
-                  className="w-40 p-1 bg-bridge-obsidian border-foreground/10"
+                  className="w-48 p-1 bg-bridge-obsidian border-foreground/10 max-h-72 overflow-y-auto custom-scrollbar"
                   align="end"
                 >
                   <div className="space-y-0.5">
                     <button
-                      onClick={() => onUpdate({ assignee: null })}
+                      onClick={() =>
+                        onUpdate({ assignee: null, contractor: null })
+                      }
                       className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/10 transition-colors ${
-                        !item.assignee
+                        !item.assignee && !item.contractor
                           ? "bg-foreground/10 text-foreground"
                           : "text-muted-foreground"
                       }`}
@@ -2228,6 +2274,7 @@ function ChecklistItemRow({
                                 name: member.name,
                                 profile_image: member.avatar || null,
                               },
+                              contractor: null,
                             })
                           }
                           className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/10 transition-colors ${
@@ -2250,11 +2297,82 @@ function ChecklistItemRow({
                         </button>
                       );
                     })}
+                    {contractors.length > 0 && (
+                      <>
+                        <div className="my-1 border-t border-foreground/[0.08]" />
+                        <div className="px-2 py-1 text-xs font-bold uppercase tracking-widest text-slate-400">
+                          {t("task.contractorSection", "외주 작업자")}
+                        </div>
+                        {contractors.map((c) => {
+                          const color = c.color || "#6366F1";
+                          const isSelected = item.contractor?.id === c.id;
+                          return (
+                            <button
+                              key={c.id}
+                              onClick={() =>
+                                onUpdate({
+                                  assignee: null,
+                                  contractor: {
+                                    id: c.id,
+                                    name: c.name,
+                                    color: c.color,
+                                  } as ContractorInfo,
+                                })
+                              }
+                              className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/10 transition-colors ${
+                                isSelected
+                                  ? "bg-foreground/10 text-foreground"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              <div
+                                className="w-4 h-4 rounded-full border border-dashed flex items-center justify-center"
+                                style={{
+                                  backgroundColor: color + "15",
+                                  borderColor: color + "66",
+                                }}
+                              >
+                                <Wrench
+                                  className="w-2.5 h-2.5"
+                                  style={{ color }}
+                                />
+                              </div>
+                              {c.name}
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
                   </div>
                 </PopoverContent>
               </Popover>
             ) : // Viewer: 읽기 전용 담당자 표시
-            item.assignee && assigneeColor ? (
+            item.contractor ? (
+              <div
+                className="flex items-center gap-1 rounded-full px-1.5 py-0.5 border border-dashed"
+                style={{
+                  backgroundColor: contractorColor + "15",
+                  borderColor: contractorColor + "66",
+                }}
+              >
+                <Wrench
+                  className="w-3 h-3"
+                  style={{ color: contractorColor }}
+                />
+                <span
+                  className="text-xs font-medium"
+                  style={{ color: contractorColor }}
+                >
+                  {item.contractor.name}
+                </span>
+                <span
+                  className="text-xs opacity-60"
+                  style={{ color: contractorColor }}
+                >
+                  · {t("task.checklistContractorBadge", "외주")}
+                </span>
+              </div>
+            ) : item.assignee && assigneeColor ? (
               <div
                 className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5`}
                 style={

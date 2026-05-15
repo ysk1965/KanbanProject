@@ -1,6 +1,6 @@
 import { useState, Component, ErrorInfo, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Feature, Task, Block, Tag, Milestone, Subscription, AiCredits, InviteLink, BoardWebSocketEvent, ChecklistItem, JobRole } from '../types';
+import { Feature, Task, Block, Tag, Milestone, Subscription, AiCredits, InviteLink, BoardWebSocketEvent, ChecklistItem, JobRole, BoardContractor } from '../types';
 import { BoardMember as ShareBoardMember, MemberRole } from './ShareBoardModal';
 import { UpgradeTrigger } from './UpgradeModal';
 import { FeatureDetailModal } from './FeatureDetailModal';
@@ -201,6 +201,7 @@ interface BoardModalManagerProps {
   isAdminOrOwner: boolean;
   currentUser: any;
   boardMembers: ShareBoardMember[];
+  contractors?: BoardContractor[];
 }
 
 function OrgSeatLimitModalInline({
@@ -370,6 +371,7 @@ export function BoardModalManager(props: BoardModalManagerProps) {
           onUpdateTag={props.onUpdateTag}
           onDeleteTag={props.onDeleteTag}
           boardMembers={props.boardMembers}
+          contractors={props.contractors}
           currentUser={props.currentUser}
           boardId={props.boardId}
           canEdit={props.canEdit}

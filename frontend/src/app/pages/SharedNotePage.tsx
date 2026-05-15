@@ -36,6 +36,19 @@ import { Embed } from "../components/notes/blocks/Embed";
 import { ColumnLayout, Column } from "../components/notes/blocks/ColumnLayout";
 import { Mention } from "../components/notes/blocks/Mention";
 
+function unwrapListItemParagraphs(html: string): string {
+  if (!html) return html;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.querySelectorAll("li > p").forEach((p) => {
+    const li = p.parentElement!;
+    while (p.firstChild) {
+      li.insertBefore(p.firstChild, p);
+    }
+    p.remove();
+  });
+  return doc.body.innerHTML;
+}
+
 function useSystemTheme() {
   const [isDark, setIsDark] = useState(
     () => window.matchMedia("(prefers-color-scheme: dark)").matches,
@@ -122,7 +135,9 @@ export function SharedNotePage() {
 
     const loadContent = async () => {
       try {
-        const blocks = await editor.tryParseHTMLToBlocks(note.content!);
+        const blocks = await editor.tryParseHTMLToBlocks(
+          unwrapListItemParagraphs(note.content!),
+        );
         editor.replaceBlocks(editor.document, blocks);
       } catch (err) {
         console.error("Failed to parse shared note content:", err);
@@ -183,9 +198,7 @@ export function SharedNotePage() {
             className="flex items-center gap-2 text-slate-400 hover:text-foreground transition-colors"
           >
             <img src="/BridgeSpotsIcon.png" alt="BRIDGE" className="h-6 w-6" />
-            <span className="text-sm font-bold text-foreground">
-              BRIDGE
-            </span>
+            <span className="text-sm font-bold text-foreground">BRIDGE</span>
           </Link>
           <div className="flex items-center gap-2 text-xs tracking-[0.3em] uppercase text-slate-500">
             <FileText size={12} />
@@ -234,7 +247,11 @@ export function SharedNotePage() {
         {note.type === "BOARD" ? (
           <Suspense
             fallback={
-              <div className="flex items-center justify-center min-h-[60vh]" role="status" aria-label="로딩 중">
+              <div
+                className="flex items-center justify-center min-h-[60vh]"
+                role="status"
+                aria-label="로딩 중"
+              >
                 <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
               </div>
             }

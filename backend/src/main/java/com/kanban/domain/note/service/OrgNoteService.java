@@ -208,13 +208,21 @@ public class OrgNoteService {
 
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
 
-        if (createVersion) {
+        // Only snapshot when title/content actually differs — clicking Save with
+        // no edits should not bloat the version history.
+        boolean contentChanged = request.getContent() != null
+                && !Objects.equals(request.getContent(), note.getContent());
+        boolean titleChanged = request.getTitle() != null
+                && !Objects.equals(request.getTitle(), note.getTitle());
+        boolean hasChanges = contentChanged || titleChanged;
+
+        if (createVersion && hasChanges) {
             versionCount = versionCount + 1;
             NoteVersion version = NoteVersion.createFrom(note, user, versionCount);
             noteVersionRepository.save(version);
         }
 
-        boolean publishedNewSnapshot = createVersion && request.getContent() != null;
+        boolean publishedNewSnapshot = createVersion && hasChanges;
 
         if (request.getTitle() != null) {
             note.updateTitle(request.getTitle());

@@ -1394,6 +1394,8 @@
     "noDate": "无日期",
     "assignee": "负责人",
     "addAssigneeToChecklist": "与清单负责人自动同步",
+    "checklistContractorBadge": "外包",
+    "contractorSection": "外包人员",
     "checklistFilter": {
       "unassigned": "未分配",
       "showingCount": "显示 {{visible}} / {{total}}"

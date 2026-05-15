@@ -1394,6 +1394,8 @@
     "noDate": "Sem data",
     "assignee": "Responsável",
     "addAssigneeToChecklist": "Sincronizado com responsáveis do checklist",
+    "checklistContractorBadge": "Externo",
+    "contractorSection": "Contratados externos",
     "checklistFilter": {
       "unassigned": "Não atribuído",
       "showingCount": "Mostrando {{visible}} / {{total}}"
