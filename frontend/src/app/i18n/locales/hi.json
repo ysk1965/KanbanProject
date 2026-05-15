@@ -1394,6 +1394,8 @@
     "noDate": "कोई तिथि नहीं",
     "assignee": "असाइनी",
     "addAssigneeToChecklist": "चेकलिस्ट असाइनी के साथ स्वचालित सिंक",
+    "checklistContractorBadge": "बाहरी",
+    "contractorSection": "बाहरी ठेकेदार",
     "checklistFilter": {
       "unassigned": "अनसाइन्ड",
       "showingCount": "{{visible}} / {{total}} दिखा रहा है"

@@ -666,6 +666,7 @@ export interface ChecklistItemResponse {
     name: string;
     profile_image: string | null;
   } | null;
+  contractor?: ContractorInfo | null;
   start_date: string | null;
   due_date: string | null;
   done_date: string | null;
