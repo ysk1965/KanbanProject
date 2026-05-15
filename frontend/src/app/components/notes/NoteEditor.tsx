@@ -81,8 +81,7 @@ function cleanMarkdownForPlainText(md: string): string {
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/^>\s+/gm, "")
     .replace(/`([^`]+)`/g, "$1")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/^([ \t]*(?:[-*+]|\d+\.) .+)\n\n(?=[ \t]*(?:[-*+]|\d+\.) )/gm, "$1\n");
+    .replace(/\n{2,}/g, "\n");
 }
 
 // 클립보드 HTML에서 비어 있는 <p>(텍스트 없음 / <br>만 / 공백만)를 제거.
@@ -93,8 +92,7 @@ function stripEmptyParagraphsForExternalHTML(html: string): string {
   const doc = new DOMParser().parseFromString(html, "text/html");
   doc.body.querySelectorAll("p").forEach((p) => {
     if (p.textContent?.trim()) return;
-    const onlyBr =
-      p.children.length === 1 && p.children[0].tagName === "BR";
+    const onlyBr = p.children.length === 1 && p.children[0].tagName === "BR";
     if (p.childNodes.length === 0 || onlyBr) {
       p.remove();
     }
@@ -340,9 +338,8 @@ function CollabNoteEditor({
     return collaboration.provider.onSnapshotUpdated(async () => {
       if (mode !== "view") return;
       try {
-        const { noteService, orgNoteService } = await import(
-          "../../utils/services"
-        );
+        const { noteService, orgNoteService } =
+          await import("../../utils/services");
         const updated = boardId
           ? await noteService.getDetail(boardId, note.id)
           : orgId
@@ -359,8 +356,7 @@ function CollabNoteEditor({
   }, [collaboration, mode, note.id, boardId, orgId, onNoteUpdate]);
 
   const editorPeers = useMemo(
-    () =>
-      collaboration.connectedUsers.filter((u) => u.mode === "edit"),
+    () => collaboration.connectedUsers.filter((u) => u.mode === "edit"),
     [collaboration.connectedUsers],
   );
 
@@ -1551,10 +1547,7 @@ function FallbackNoteEditor({
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-4">
-        <div
-          className="min-h-[60vh]"
-          onCopy={handleEditorCopy}
-        >
+        <div className="min-h-[60vh]" onCopy={handleEditorCopy}>
           <BlockNoteView
             editor={editor}
             theme={isDark ? "dark" : "light"}
