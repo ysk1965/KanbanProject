@@ -123,6 +123,25 @@ public class NoteController {
         return ResponseEntity.ok(restored);
     }
 
+    @DeleteMapping("/{noteId}/versions/{versionId}")
+    public ResponseEntity<Void> deleteVersion(
+            @PathVariable String boardId,
+            @PathVariable String noteId,
+            @PathVariable String versionId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        noteService.deleteVersion(boardId, noteId, versionId, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{noteId}/versions")
+    public ResponseEntity<Void> deleteAllVersions(
+            @PathVariable String boardId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        noteService.deleteAllVersions(boardId, noteId, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
     // ===== Sharing =====
 
     @PostMapping("/{noteId}/share")

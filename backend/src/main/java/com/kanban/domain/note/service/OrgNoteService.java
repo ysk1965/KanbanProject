@@ -322,6 +322,25 @@ public class OrgNoteService {
         return NoteResponse.Detail.of(note, tags, nextVersion);
     }
 
+    @Transactional
+    public void deleteVersion(String orgId, String noteId, String versionId, String userId) {
+        organizationService.getOrgMemberOrThrow(orgId, userId);
+        getNoteOrThrow(orgId, noteId);
+
+        NoteVersion version = noteVersionRepository.findByIdAndNoteId(versionId, noteId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_VERSION_NOT_FOUND));
+
+        noteVersionRepository.delete(version);
+    }
+
+    @Transactional
+    public void deleteAllVersions(String orgId, String noteId, String userId) {
+        organizationService.getOrgMemberOrThrow(orgId, userId);
+        getNoteOrThrow(orgId, noteId);
+
+        noteVersionRepository.deleteAllByNoteId(noteId);
+    }
+
     // ===== Tags =====
 
     public List<NoteResponse.TagInfo> getTags(String orgId, String userId) {

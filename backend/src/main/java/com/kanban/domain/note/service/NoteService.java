@@ -280,6 +280,25 @@ public class NoteService {
         return NoteResponse.Detail.of(note, tags, nextVersion);
     }
 
+    @Transactional
+    public void deleteVersion(String boardId, String noteId, String versionId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+        getNoteOrThrow(boardId, noteId);
+
+        NoteVersion version = noteVersionRepository.findByIdAndNoteId(versionId, noteId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_VERSION_NOT_FOUND));
+
+        noteVersionRepository.delete(version);
+    }
+
+    @Transactional
+    public void deleteAllVersions(String boardId, String noteId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+        getNoteOrThrow(boardId, noteId);
+
+        noteVersionRepository.deleteAllByNoteId(noteId);
+    }
+
     // ===== Tags =====
 
     public List<NoteResponse.TagInfo> getTags(String boardId, String userId) {

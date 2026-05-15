@@ -1921,6 +1921,29 @@ export const fileAPI = {
     // Fallback: 서버 직접 업로드
     return fileAPI.upload(file);
   },
+
+  uploadNote: async (
+    file: File,
+    boardId: string,
+  ): Promise<{ url: string }> => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/files/upload-note?boardId=${encodeURIComponent(boardId)}`,
+      { method: "POST", body: formData },
+    );
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({
+        code: "UNKNOWN",
+        message: response.statusText,
+      }));
+      throw errData;
+    }
+
+    return response.json();
+  },
 };
 
 // ========================================
@@ -5617,6 +5640,22 @@ export const noteAPI = {
     );
   },
 
+  deleteVersion: async (
+    boardId: string,
+    noteId: string,
+    versionId: string,
+  ) => {
+    return apiClient.delete<void>(
+      `/boards/${boardId}/notes/${noteId}/versions/${versionId}`,
+    );
+  },
+
+  deleteAllVersions: async (boardId: string, noteId: string) => {
+    return apiClient.delete<void>(
+      `/boards/${boardId}/notes/${noteId}/versions`,
+    );
+  },
+
   getTags: async (boardId: string) => {
     return apiClient.get<NoteTagInfo[]>(`/boards/${boardId}/note-tags`);
   },
@@ -5769,6 +5808,22 @@ export const orgNoteAPI = {
   ) => {
     return apiClient.post<NoteDetail>(
       `/organizations/${orgId}/notes/${noteId}/versions/${versionId}/restore`,
+    );
+  },
+
+  deleteVersion: async (
+    orgId: string,
+    noteId: string,
+    versionId: string,
+  ) => {
+    return apiClient.delete<void>(
+      `/organizations/${orgId}/notes/${noteId}/versions/${versionId}`,
+    );
+  },
+
+  deleteAllVersions: async (orgId: string, noteId: string) => {
+    return apiClient.delete<void>(
+      `/organizations/${orgId}/notes/${noteId}/versions`,
     );
   },
 
