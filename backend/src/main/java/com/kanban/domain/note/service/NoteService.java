@@ -152,16 +152,24 @@ public class NoteService {
 
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
 
-        // Create version snapshot before updating (only on manual save)
-        if (createVersion) {
+        // Only snapshot when title/content actually differs — clicking Save with
+        // no edits should not bloat the version history.
+        boolean contentChanged = request.getContent() != null
+                && !Objects.equals(request.getContent(), note.getContent());
+        boolean titleChanged = request.getTitle() != null
+                && !Objects.equals(request.getTitle(), note.getTitle());
+        boolean hasChanges = contentChanged || titleChanged;
+
+        // Create version snapshot before updating (only on manual save with diff)
+        if (createVersion && hasChanges) {
             versionCount = versionCount + 1;
             NoteVersion version = NoteVersion.createFrom(note, user, versionCount);
             noteVersionRepository.save(version);
         }
 
         // Notify View-mode clients that the published snapshot changed so they
-        // can refetch notes.content. Fire only when content was actually saved.
-        boolean publishedNewSnapshot = createVersion && request.getContent() != null;
+        // can refetch notes.content. Fire only when a new version was created.
+        boolean publishedNewSnapshot = createVersion && hasChanges;
 
         // Update note
         if (request.getTitle() != null) {
