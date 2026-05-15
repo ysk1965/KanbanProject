@@ -405,8 +405,9 @@ function CollabNoteEditor({
         },
       },
       uploadFile: async (file: File) => {
-        const result = await fileAPI.smartUpload(file);
-        return result.previewUrl || "";
+        const scopeId = boardId || orgId || "";
+        const result = await fileAPI.uploadNote(file, scopeId);
+        return result.url;
       },
       tables: {
         cellBackgroundColor: true,
@@ -442,6 +443,33 @@ function CollabNoteEditor({
     } as any,
     [collaboration.fragment],
   );
+
+  // Separate BlockNote instance for VIEW mode. This editor is NOT bound to
+  // Yjs, so live edits from other Edit-mode users never bleed into a
+  // viewer's screen — they only see the last published snapshot (notes.content).
+  // Switching back to Edit mode mounts the Yjs-bound `editor` above, which
+  // still holds the live (possibly unsaved) state.
+  const viewEditor = useCreateBlockNote({ schema } as any);
+
+  useEffect(() => {
+    if (!viewEditor) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!note.content?.trim()) {
+          if (!cancelled) viewEditor.replaceBlocks(viewEditor.document, []);
+          return;
+        }
+        const blocks = await viewEditor.tryParseHTMLToBlocks(note.content);
+        if (!cancelled) viewEditor.replaceBlocks(viewEditor.document, blocks);
+      } catch (err) {
+        console.error("Failed to load snapshot content into view editor:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewEditor, note.content]);
 
   // When Yjs document is empty but note has HTML content (e.g. created via saveToNote),
   // initialize the editor from the HTML content
@@ -715,6 +743,7 @@ function CollabNoteEditor({
         true,
       );
       setHasChanges(false);
+      setMode("view");
     } finally {
       setSaving(false);
     }
@@ -964,11 +993,24 @@ function CollabNoteEditor({
                 const updated = await noteService.getDetail(boardId, note.id);
                 setTitle(updated.title);
                 setHasChanges(false);
+                onNoteUpdate?.(updated);
               } else if (orgId) {
                 const { orgNoteService } = await import("../../utils/services");
                 const updated = await orgNoteService.getDetail(orgId, note.id);
                 setTitle(updated.title);
                 setHasChanges(false);
+                onNoteUpdate?.(updated);
+              }
+            }}
+            onVersionsChanged={async () => {
+              if (boardId) {
+                const { noteService } = await import("../../utils/services");
+                const updated = await noteService.getDetail(boardId, note.id);
+                onNoteUpdate?.(updated);
+              } else if (orgId) {
+                const { orgNoteService } = await import("../../utils/services");
+                const updated = await orgNoteService.getDetail(orgId, note.id);
+                onNoteUpdate?.(updated);
               }
             }}
           />
@@ -1050,27 +1092,35 @@ function CollabNoteEditor({
           }}
           onCopy={handleEditorCopy}
         >
-          <BlockNoteView
-            editor={editor}
-            theme={isDark ? "dark" : "light"}
-            editable={canEdit && mode === "edit"}
-            onChange={handleEditorChange}
-          >
-            <SuggestionMenuController
-              triggerCharacter="/"
-              getItems={async (query) =>
-                filterSuggestionItems(slashMenuItems, query)
-              }
+          {mode === "view" ? (
+            <BlockNoteView
+              editor={viewEditor}
+              theme={isDark ? "dark" : "light"}
+              editable={false}
             />
-            <SuggestionMenuController
-              triggerCharacter="@"
-              getItems={getMentionItems}
-            />
-            <TableHandlesController />
-          </BlockNoteView>
+          ) : (
+            <BlockNoteView
+              editor={editor}
+              theme={isDark ? "dark" : "light"}
+              editable={canEdit && mode === "edit"}
+              onChange={handleEditorChange}
+            >
+              <SuggestionMenuController
+                triggerCharacter="/"
+                getItems={async (query) =>
+                  filterSuggestionItems(slashMenuItems, query)
+                }
+              />
+              <SuggestionMenuController
+                triggerCharacter="@"
+                getItems={getMentionItems}
+              />
+              <TableHandlesController />
+            </BlockNoteView>
+          )}
 
-          {/* Floating block comment button */}
-          {hoveredBlock && (
+          {/* Floating block comment button — Edit mode only */}
+          {mode === "edit" && hoveredBlock && (
             <IconButton
               className="absolute right-2 z-10 bg-bridge-dark border border-foreground/10 hover:text-bridge-accent hover:border-bridge-accent/30 shadow-lg"
               style={{ top: hoveredBlock.top + 2 }}
@@ -1201,8 +1251,9 @@ function FallbackNoteEditor({
   const editor = useCreateBlockNote({
     schema,
     uploadFile: async (file: File) => {
-      const result = await fileAPI.smartUpload(file);
-      return result.previewUrl || "";
+      const scopeId = boardId || orgId || "";
+      const result = await fileAPI.uploadNote(file, scopeId);
+      return result.url;
     },
     tables: {
       cellBackgroundColor: true,
@@ -1236,6 +1287,33 @@ function FallbackNoteEditor({
       return defaultPasteHandler();
     },
   } as any);
+
+  // Read-only editor that mirrors the last-saved snapshot. Used while the user
+  // is in View mode so unsaved edits in `editor` don't bleed into the display.
+  const viewEditor = useCreateBlockNote({ schema } as any);
+
+  useEffect(() => {
+    if (!viewEditor) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!note.content?.trim()) {
+          if (!cancelled) viewEditor.replaceBlocks(viewEditor.document, []);
+          return;
+        }
+        const blocks = await viewEditor.tryParseHTMLToBlocks(note.content);
+        if (!cancelled) viewEditor.replaceBlocks(viewEditor.document, blocks);
+      } catch (err) {
+        console.error(
+          "Failed to load snapshot content into fallback view editor:",
+          err,
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewEditor, note.content]);
 
   const slashMenuItems = useMemo(
     () => [...getDefaultReactSlashMenuItems(editor)],
@@ -1335,21 +1413,24 @@ function FallbackNoteEditor({
   }, [editor]);
 
   const handleSave = useCallback(async () => {
-    if (!hasChanges || !canEdit) return;
+    if (!canEdit) return;
     setSaving(true);
     try {
-      const html = await getContentHTML();
-      await onSave(
-        note.id,
-        {
-          title: title !== note.title ? title : undefined,
-          content: html,
-          tagIds: note.tags.map((t) => t.id),
-        },
-        true,
-      );
-      setHasChanges(false);
-      setAutoSaved(false);
+      if (hasChanges) {
+        const html = await getContentHTML();
+        await onSave(
+          note.id,
+          {
+            title: title !== note.title ? title : undefined,
+            content: html,
+            tagIds: note.tags.map((t) => t.id),
+          },
+          true,
+        );
+        setHasChanges(false);
+        setAutoSaved(false);
+      }
+      setMode("view");
     } finally {
       setSaving(false);
     }
@@ -1503,6 +1584,18 @@ function FallbackNoteEditor({
                 setTitle(updated.title);
                 setHasChanges(false);
                 setAutoSaved(false);
+                onNoteUpdate?.(updated);
+              }
+            }}
+            onVersionsChanged={async () => {
+              if (boardId) {
+                const { noteService } = await import("../../utils/services");
+                const updated = await noteService.getDetail(boardId, note.id);
+                onNoteUpdate?.(updated);
+              } else if (orgId) {
+                const { orgNoteService } = await import("../../utils/services");
+                const updated = await orgNoteService.getDetail(orgId, note.id);
+                onNoteUpdate?.(updated);
               }
             }}
           />
@@ -1548,28 +1641,36 @@ function FallbackNoteEditor({
       </div>
       <div className="flex-1 overflow-y-auto p-4">
         <div className="min-h-[60vh]" onCopy={handleEditorCopy}>
-          <BlockNoteView
-            editor={editor}
-            theme={isDark ? "dark" : "light"}
-            editable={canEdit && mode === "edit"}
-            onChange={() => {
-              if (mode !== "edit") return;
-              setHasChanges(true);
-              setAutoSaved(false);
-            }}
-          >
-            <SuggestionMenuController
-              triggerCharacter="/"
-              getItems={async (query) =>
-                filterSuggestionItems(slashMenuItems, query)
-              }
+          {mode === "view" ? (
+            <BlockNoteView
+              editor={viewEditor}
+              theme={isDark ? "dark" : "light"}
+              editable={false}
             />
-            <SuggestionMenuController
-              triggerCharacter="@"
-              getItems={getMentionItems}
-            />
-            <TableHandlesController />
-          </BlockNoteView>
+          ) : (
+            <BlockNoteView
+              editor={editor}
+              theme={isDark ? "dark" : "light"}
+              editable={canEdit && mode === "edit"}
+              onChange={() => {
+                if (mode !== "edit") return;
+                setHasChanges(true);
+                setAutoSaved(false);
+              }}
+            >
+              <SuggestionMenuController
+                triggerCharacter="/"
+                getItems={async (query) =>
+                  filterSuggestionItems(slashMenuItems, query)
+                }
+              />
+              <SuggestionMenuController
+                triggerCharacter="@"
+                getItems={getMentionItems}
+              />
+              <TableHandlesController />
+            </BlockNoteView>
+          )}
         </div>
 
         {/* Bottom Confluence-style Comments Panel */}

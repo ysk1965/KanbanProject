@@ -244,6 +244,8 @@ export default function ExcalidrawEditor({
   };
 
   // ---- Yjs collaboration ----
+  // Only the Edit-mode user sees Yjs updates. View-mode users keep showing
+  // the last published snapshot (notes.content) — see the view-sync effect below.
   useEffect(() => {
     if (!collaboration) {
       yMapRef.current = null;
@@ -255,6 +257,7 @@ export default function ExcalidrawEditor({
     const observer = () => {
       if (isLocalUpdateRef.current) return;
       if (!excalidrawAPIRef.current) return;
+      if (mode !== "edit") return;
       isRemoteUpdateRef.current = true;
       const elements: any[] = [];
       yMap.forEach((value, _key) => {
@@ -273,11 +276,63 @@ export default function ExcalidrawEditor({
     };
 
     yMap.observe(observer);
-    if (yMap.size > 0 && excalidrawAPIRef.current) observer();
+    if (yMap.size > 0 && excalidrawAPIRef.current && mode === "edit") {
+      observer();
+    }
     return () => {
       yMap.unobserve(observer);
     };
-  }, [collaboration, note.id]);
+  }, [collaboration, note.id, mode]);
+
+  // View-mode scene sync: whenever notes.content changes (or we enter view
+  // mode), display the saved snapshot — NOT the live Yjs state.
+  useEffect(() => {
+    if (mode !== "view") return;
+    if (!excalidrawAPIRef.current) return;
+    let elements: any[] = [];
+    if (note.content?.trim()) {
+      try {
+        const parsed = JSON.parse(note.content);
+        elements = parsed.elements || [];
+      } catch {
+        elements = [];
+      }
+    }
+    isRemoteUpdateRef.current = true;
+    excalidrawAPIRef.current.updateScene({
+      elements,
+      ...(CaptureUpdateActionRef
+        ? { captureUpdate: CaptureUpdateActionRef.NEVER }
+        : {}),
+    });
+    requestAnimationFrame(() => {
+      isRemoteUpdateRef.current = false;
+    });
+  }, [mode, note.content]);
+
+  // Entering Edit mode: pull the current Yjs state onto the canvas so the user
+  // sees whatever unsaved progress was left behind by a previous editor.
+  useEffect(() => {
+    if (mode !== "edit") return;
+    const yMap = yMapRef.current;
+    if (!yMap || !excalidrawAPIRef.current) return;
+    if (yMap.size === 0) return;
+    isRemoteUpdateRef.current = true;
+    const elements: any[] = [];
+    yMap.forEach((value) => {
+      if (value) elements.push(value);
+    });
+    elements.sort((a, b) => (a.index || "").localeCompare(b.index || ""));
+    excalidrawAPIRef.current.updateScene({
+      elements,
+      ...(CaptureUpdateActionRef
+        ? { captureUpdate: CaptureUpdateActionRef.NEVER }
+        : {}),
+    });
+    requestAnimationFrame(() => {
+      isRemoteUpdateRef.current = false;
+    });
+  }, [mode]);
 
   const handleExcalidrawChange = useCallback(
     (elements: readonly any[], _appState: any) => {

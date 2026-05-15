@@ -2867,6 +2867,18 @@ export const noteService = {
     return await noteAPI.restoreVersion(boardId, noteId, versionId);
   },
 
+  deleteVersion: async (
+    boardId: string,
+    noteId: string,
+    versionId: string,
+  ) => {
+    return await noteAPI.deleteVersion(boardId, noteId, versionId);
+  },
+
+  deleteAllVersions: async (boardId: string, noteId: string) => {
+    return await noteAPI.deleteAllVersions(boardId, noteId);
+  },
+
   getTags: async (boardId: string) => {
     return await noteAPI.getTags(boardId);
   },
@@ -3008,6 +3020,12 @@ export const orgNoteService = {
   },
   restoreVersion: async (orgId: string, noteId: string, versionId: string) => {
     return await orgNoteAPI.restoreVersion(orgId, noteId, versionId);
+  },
+  deleteVersion: async (orgId: string, noteId: string, versionId: string) => {
+    return await orgNoteAPI.deleteVersion(orgId, noteId, versionId);
+  },
+  deleteAllVersions: async (orgId: string, noteId: string) => {
+    return await orgNoteAPI.deleteAllVersions(orgId, noteId);
   },
   getTags: async (orgId: string) => {
     return await orgNoteAPI.getTags(orgId);
