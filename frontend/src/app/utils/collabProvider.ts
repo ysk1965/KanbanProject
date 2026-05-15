@@ -4,6 +4,7 @@ import * as awarenessProtocol from 'y-protocols/awareness';
 const MSG_SYNC_FULL = 0;
 const MSG_SYNC_UPDATE = 1;
 const MSG_AWARENESS = 2;
+const MSG_SNAPSHOT_UPDATED = 3;
 
 export type CollabStatus = 'connecting' | 'connected' | 'disconnected';
 
@@ -24,11 +25,13 @@ export class CollabProvider {
   private noteId: string;
   private wsUrl: string;
   private statusListeners = new Set<(status: CollabStatus) => void>();
+  private snapshotListeners = new Set<() => void>();
   private status: CollabStatus = 'disconnected';
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private shouldConnect = true;
   private autoSaveTimer: ReturnType<typeof setInterval> | null = null;
   private reconnectAttempt = 0;
+  private readOnly = false;
 
   private static readonly RECONNECT_BASE_DELAY = 1000;
   private static readonly RECONNECT_MAX_DELAY = 30_000;
@@ -67,7 +70,9 @@ export class CollabProvider {
     this.ws.onopen = () => {
       this.reconnectAttempt = 0;
       this.updateStatus('connected');
-      this.startAutoSave();
+      if (!this.readOnly) {
+        this.startAutoSave();
+      }
       // Broadcast local awareness so others know we joined
       const update = awarenessProtocol.encodeAwarenessUpdate(
         this.awareness,
@@ -90,6 +95,10 @@ export class CollabProvider {
           break;
         case MSG_AWARENESS:
           awarenessProtocol.applyAwarenessUpdate(this.awareness, payload, this);
+          break;
+        case MSG_SNAPSHOT_UPDATED:
+          // Server signaled that someone hit "Save" — View clients refetch.
+          this.snapshotListeners.forEach((l) => l());
           break;
       }
     };
@@ -114,8 +123,10 @@ export class CollabProvider {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    // Persist full state before leaving
-    this.sendFullState();
+    // Persist full state before leaving (skip in readOnly to avoid clobbering server state)
+    if (!this.readOnly) {
+      this.sendFullState();
+    }
     // Remove awareness so others know we left
     awarenessProtocol.removeAwarenessStates(this.awareness, [this.doc.clientID], 'disconnect');
 
@@ -132,6 +143,7 @@ export class CollabProvider {
     this.awareness.off('update', this.handleAwarenessUpdate);
     this.awareness.destroy();
     this.statusListeners.clear();
+    this.snapshotListeners.clear();
   }
 
   onStatusChange(listener: (status: CollabStatus) => void): () => void {
@@ -140,10 +152,31 @@ export class CollabProvider {
     return () => this.statusListeners.delete(listener);
   }
 
+  onSnapshotUpdated(listener: () => void): () => void {
+    this.snapshotListeners.add(listener);
+    return () => this.snapshotListeners.delete(listener);
+  }
+
   /** Send full Y.Doc state for server-side persistence */
   sendFullState(): void {
+    if (this.readOnly) return;
     const state = Y.encodeStateAsUpdate(this.doc);
     this.send(MSG_SYNC_FULL, state);
+  }
+
+  /**
+   * Toggle read-only mode. In read-only mode the client still receives remote
+   * updates and awareness, but does not auto-save, does not send local doc
+   * updates, and does not flush full state on disconnect.
+   */
+  setReadOnly(readOnly: boolean): void {
+    if (this.readOnly === readOnly) return;
+    this.readOnly = readOnly;
+    if (readOnly) {
+      this.stopAutoSave();
+    } else if (this.status === 'connected') {
+      this.startAutoSave();
+    }
   }
 
   private send(type: number, payload: Uint8Array): void {
@@ -156,6 +189,7 @@ export class CollabProvider {
 
   private handleDocUpdate = (update: Uint8Array, origin: unknown): void => {
     if (origin === 'remote') return;
+    if (this.readOnly) return;
     this.send(MSG_SYNC_UPDATE, update);
   };
 

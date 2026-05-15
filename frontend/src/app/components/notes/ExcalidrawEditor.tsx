@@ -15,6 +15,10 @@ import {
   MessageSquare,
   ChevronDown,
   Grid3X3,
+  Pencil,
+  Eye,
+  DoorOpen,
+  Users,
 } from "lucide-react";
 import { NoteTagManager } from "./NoteTagManager";
 import { NoteVersionHistory } from "./NoteVersionHistory";
@@ -94,6 +98,64 @@ export default function ExcalidrawEditor({
   const [saving, setSaving] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [gridEnabled, setGridEnabled] = useState(false);
+  const [mode, setMode] = useState<"view" | "edit">("view");
+
+  // Reset to view whenever the note changes
+  useEffect(() => {
+    setMode("view");
+  }, [note.id]);
+
+  // Sync collab readOnly + awareness mode to the active mode
+  useEffect(() => {
+    if (!collaboration) return;
+    collaboration.provider.setReadOnly(mode === "view");
+    collaboration.provider.awareness.setLocalStateField("mode", mode);
+  }, [mode, collaboration]);
+
+  const editorPeers = collaboration
+    ? collaboration.connectedUsers.filter((u) => u.mode === "edit")
+    : [];
+
+  // When a peer hits Save while we're in View mode, refetch the published
+  // scene so the View user sees the new state. Edit users skip — they already
+  // have it via Yjs.
+  useEffect(() => {
+    if (!collaboration) return;
+    return collaboration.provider.onSnapshotUpdated(async () => {
+      if (mode !== "view") return;
+      try {
+        const { noteService, orgNoteService } = await import(
+          "../../utils/services"
+        );
+        const updated = boardId
+          ? await noteService.getDetail(boardId, note.id)
+          : orgId
+            ? await orgNoteService.getDetail(orgId, note.id)
+            : null;
+        if (!updated) return;
+        onNoteUpdate?.(updated);
+        setTitle(updated.title);
+        if (updated.content?.trim() && excalidrawAPIRef.current) {
+          try {
+            const parsed = JSON.parse(updated.content);
+            excalidrawAPIRef.current.updateScene({
+              elements: parsed.elements || [],
+              ...(CaptureUpdateActionRef
+                ? { captureUpdate: CaptureUpdateActionRef.NEVER }
+                : {}),
+            });
+          } catch {
+            // ignore parse errors
+          }
+        }
+      } catch (err) {
+        console.error(
+          "Failed to refetch board note after snapshot update:",
+          err,
+        );
+      }
+    });
+  }, [collaboration, mode, note.id, boardId, orgId, onNoteUpdate]);
 
   const excalidrawAPIRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -176,6 +238,7 @@ export default function ExcalidrawEditor({
   }, [hasChanges, onDirtyChange]);
 
   const handleTitleChange = (newTitle: string) => {
+    if (mode !== "edit") return;
     setTitle(newTitle);
     setHasChanges(true);
   };
@@ -223,6 +286,7 @@ export default function ExcalidrawEditor({
         initializedRef.current = true;
         return;
       }
+      if (mode !== "edit") return;
 
       setHasChanges(true);
       if (!collaboration || !yMapRef.current) return;
@@ -245,7 +309,7 @@ export default function ExcalidrawEditor({
       });
       isLocalUpdateRef.current = false;
     },
-    [collaboration],
+    [collaboration, mode],
   );
 
   // Track pointer via Excalidraw's onPointerUpdate (canvas coords, not screen)
@@ -372,7 +436,7 @@ export default function ExcalidrawEditor({
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (!canEdit) return;
+    if (!canEdit || mode !== "edit") return;
     setSaving(true);
     try {
       const api = excalidrawAPIRef.current;
@@ -402,7 +466,18 @@ export default function ExcalidrawEditor({
     } finally {
       setSaving(false);
     }
-  }, [canEdit, onSave, note.id, note.title, note.tags, title, collaboration]);
+  }, [canEdit, mode, onSave, note.id, note.title, note.tags, title, collaboration]);
+
+  const handleEnterEdit = useCallback(() => {
+    if (!canEdit) return;
+    setMode("edit");
+  }, [canEdit]);
+
+  const handleExitEdit = useCallback(() => {
+    if (collaboration) collaboration.provider.sendFullState();
+    setMode("view");
+    setHasChanges(false);
+  }, [collaboration]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -505,7 +580,7 @@ export default function ExcalidrawEditor({
             onChange={(e) => handleTitleChange(e.target.value)}
             className="bg-transparent text-sm font-bold text-foreground focus:outline-none placeholder-slate-500 min-w-0 flex-1"
             placeholder={t("notes.titlePlaceholder", "제목을 입력하세요")}
-            readOnly={!canEdit}
+            readOnly={mode !== "edit" || !canEdit}
           />
           {note.tags.length > 0 && (
             <div className="flex items-center gap-1 flex-shrink-0">
@@ -528,13 +603,28 @@ export default function ExcalidrawEditor({
             <Clock size={9} />
             {formatDateTime(note.updated_at)}
           </span>
+          {mode === "view" && editorPeers.length > 0 && (
+            <span className="text-xs flex items-center gap-1 text-emerald-500 flex-shrink-0">
+              <Users size={9} />
+              {t("notes.editorsCount", {
+                count: editorPeers.length,
+                defaultValue: "{{count}}명 편집 중",
+              })}
+            </span>
+          )}
+          {mode === "view" && editorPeers.length === 0 && (
+            <span className="text-xs flex items-center gap-1 text-slate-500 flex-shrink-0 hidden sm:flex">
+              <Eye size={9} />
+              {t("notes.viewMode", "읽기 모드")}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          {collaboration && (
+          {collaboration && mode === "edit" && (
             <CollabPresence
               status={collaboration.status}
-              connectedUsers={collaboration.connectedUsers}
+              connectedUsers={editorPeers}
               currentUserName={currentUserName}
               currentUserColor={currentUserColor}
             />
@@ -546,22 +636,24 @@ export default function ExcalidrawEditor({
             canEdit={canEdit}
             onNoteUpdate={onNoteUpdate}
           />
-          <NoteTagManager
-            boardId={boardId}
-            orgId={orgId}
-            noteId={note.id}
-            noteTags={note.tags}
-            allTags={tags}
-            canEdit={canEdit}
-            onSave={(tagIds) => onSave(note.id, { tagIds })}
-            onTagsChange={onTagsChange}
-          />
+          {mode === "edit" && (
+            <NoteTagManager
+              boardId={boardId}
+              orgId={orgId}
+              noteId={note.id}
+              noteTags={note.tags}
+              allTags={tags}
+              canEdit={canEdit}
+              onSave={(tagIds) => onSave(note.id, { tagIds })}
+              onTagsChange={onTagsChange}
+            />
+          )}
           <NoteVersionHistory
             boardId={boardId}
             orgId={orgId}
             noteId={note.id}
             versionCount={note.version_count}
-            canEdit={canEdit}
+            canEdit={canEdit && mode === "edit"}
             onRestore={async () => {
               let updated;
               if (boardId) {
@@ -589,17 +681,19 @@ export default function ExcalidrawEditor({
               }
             }}
           />
-          <button
-            onClick={() => setGridEnabled((v) => !v)}
-            className={`p-1.5 rounded-lg text-xs transition-colors ${
-              gridEnabled
-                ? "text-bridge-accent bg-bridge-accent/10"
-                : "text-slate-500 hover:text-foreground hover:bg-foreground/5"
-            }`}
-            title={t("notes.grid", "그리드")}
-          >
-            <Grid3X3 size={14} />
-          </button>
+          {mode === "edit" && (
+            <button
+              onClick={() => setGridEnabled((v) => !v)}
+              className={`p-1.5 rounded-lg text-xs transition-colors ${
+                gridEnabled
+                  ? "text-bridge-accent bg-bridge-accent/10"
+                  : "text-slate-500 hover:text-foreground hover:bg-foreground/5"
+              }`}
+              title={t("notes.grid", "그리드")}
+            >
+              <Grid3X3 size={14} />
+            </button>
+          )}
           {currentUser && (
             <button
               onClick={() => setShowComments(!showComments)}
@@ -613,30 +707,43 @@ export default function ExcalidrawEditor({
               <MessageSquare size={14} />
             </button>
           )}
-          {canEdit && (
+          {canEdit && mode === "view" && (
             <button
-              onClick={handleSave}
-              disabled={!hasChanges || saving}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                hasChanges
-                  ? "bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20"
-                  : "bg-foreground/5 text-slate-500 cursor-not-allowed"
-              }`}
+              onClick={handleEnterEdit}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20"
             >
-              {saving ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <Save size={12} />
-              )}
-              <span className="hidden lg:inline">
-                {t("common.save", "저장")}
+              <Pencil size={12} />
+              <span className="hidden sm:inline">
+                {t("notes.editButton", "편집")}
               </span>
-              {hasChanges && (
-                <span className="text-xs opacity-70 hidden lg:inline">
-                  ⌘S
-                </span>
-              )}
             </button>
+          )}
+          {canEdit && mode === "edit" && (
+            <>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20 disabled:opacity-60"
+              >
+                {saving ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <Save size={12} />
+                )}
+                <span className="hidden lg:inline">
+                  {t("notes.saveSnapshot", "저장")}
+                </span>
+              </button>
+              <button
+                onClick={handleExitEdit}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all bg-foreground/5 text-slate-400 hover:text-foreground hover:bg-foreground/10"
+              >
+                <DoorOpen size={12} />
+                <span className="hidden lg:inline">
+                  {t("notes.exitEdit", "편집 종료")}
+                </span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -670,7 +777,7 @@ export default function ExcalidrawEditor({
               onChange={handleExcalidrawChange}
               onPointerUpdate={handlePointerUpdate}
               theme={isDark ? "dark" : "light"}
-              viewModeEnabled={!canEdit}
+              viewModeEnabled={!canEdit || mode !== "edit"}
               isCollaborating={!!collaboration}
               langCode={langCode}
               autoFocus

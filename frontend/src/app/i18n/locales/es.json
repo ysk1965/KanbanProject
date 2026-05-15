@@ -2958,7 +2958,13 @@
     "treeView": "Vista de árbol",
     "versionSave": "Guardar versión",
     "version": "Versión",
-    "versionHistory": "Historial de versiones"
+    "versionHistory": "Historial de versiones",
+    "editButton": "Editar",
+    "enterEdit": "Entrar al modo edición",
+    "exitEdit": "Salir de edición",
+    "saveSnapshot": "Guardar",
+    "viewMode": "Modo lectura",
+    "editorsCount": "{{count}} editando"
   },
   "payment": {
     "error": "Error de pago",

@@ -2958,7 +2958,13 @@
     "treeView": "ट्री दृश्य",
     "versionSave": "संस्करण सहेजें",
     "version": "संस्करण",
-    "versionHistory": "संस्करण इतिहास"
+    "versionHistory": "संस्करण इतिहास",
+    "editButton": "संपादित करें",
+    "enterEdit": "संपादन मोड में प्रवेश करें",
+    "exitEdit": "संपादन समाप्त",
+    "saveSnapshot": "सहेजें",
+    "viewMode": "पठन मोड",
+    "editorsCount": "{{count}} संपादन कर रहे हैं"
   },
   "payment": {
     "error": "भुगतान त्रुटि",

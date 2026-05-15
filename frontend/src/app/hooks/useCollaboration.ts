@@ -7,6 +7,7 @@ export interface CollabUser {
   name: string;
   color: string;
   clientId: number;
+  mode: 'view' | 'edit';
 }
 
 export interface CollaborationState {
@@ -54,13 +55,13 @@ export function useCollaboration({
       const states = provider.awareness.getStates();
       const users: CollabUser[] = [];
       states.forEach((state, clientId) => {
-        if (clientId !== doc.clientID && state.user) {
-          users.push({
-            name: state.user.name,
-            color: state.user.color,
-            clientId,
-          });
-        }
+        if (clientId === doc.clientID || !state.user) return;
+        users.push({
+          name: state.user.name,
+          color: state.user.color,
+          clientId,
+          mode: state.mode === 'view' ? 'view' : 'edit',
+        });
       });
       setConnectedUsers(users);
     };
