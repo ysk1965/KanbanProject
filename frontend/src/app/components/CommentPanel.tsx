@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, Suspense, memo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { TaskComment, CommentAttachment, CommentReaction, User, BoardCustomEmoji, BoardWebSocketEvent } from '../types';
@@ -162,22 +162,12 @@ interface CommentPanelProps {
 
 // ========== 추출 서브 컴포넌트 (안정적 참조를 위해 CommentPanel 외부에 정의) ==========
 
-type LightboxMediaState = {
-  items: { url: string; type: 'image' | 'video' }[];
-  index: number;
-};
-
 /** 댓글 첨부 그리드 (이미지 썸네일 + 영상 썸네일 + 문서 아이콘) */
 const AttachmentGrid = memo(function AttachmentGrid({ attachments, onOpenLightbox }: {
   attachments: CommentAttachment[];
-  onOpenLightbox: (media: LightboxMediaState) => void;
+  onOpenLightbox: (attachmentId: string) => void;
 }) {
   if (!attachments || attachments.length === 0) return null;
-  const mediaItems = attachments.filter(att => !isDocAttachment(att)).map(att => ({
-    url: resolveFileUrl(att.url),
-    type: (isVideoAttachment(att) ? 'video' : 'image') as 'image' | 'video'
-  }));
-  let mediaIdx = -1;
   return (
     <div className="flex flex-wrap gap-1.5 mt-1.5">
       {attachments.map((att) => {
@@ -196,11 +186,9 @@ const AttachmentGrid = memo(function AttachmentGrid({ attachments, onOpenLightbo
           );
         }
 
-        mediaIdx++;
-        const currentMediaIdx = mediaIdx;
         return (
           <button key={att.id}
-            onClick={() => onOpenLightbox({ items: mediaItems, index: currentMediaIdx })}
+            onClick={() => onOpenLightbox(att.id)}
             className="relative group/img rounded-md overflow-hidden border border-bridge-border hover:border-bridge-border transition-colors">
             {isVideo ? (
               <VideoThumbnail
@@ -658,10 +646,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
   // 삭제 / 라이트박스
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [lightboxMedia, setLightboxMedia] = useState<{
-    items: { url: string; type: 'image' | 'video' }[];
-    index: number;
-  } | null>(null);
+  const [lightboxAttachmentId, setLightboxAttachmentId] = useState<string | null>(null);
 
   // 멘션 드롭다운
   const [mentionQuery, setMentionQuery] = useState('');
@@ -751,14 +736,37 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
   // 라이트박스 escStack 등록 (Escape로 라이트박스만 닫기, 모달은 유지)
   useEffect(() => {
-    if (!lightboxMedia) return;
-    const handler = () => setLightboxMedia(null);
+    if (!lightboxAttachmentId) return;
+    const handler = () => setLightboxAttachmentId(null);
     escStack.push(handler);
     return () => {
       const idx = escStack.indexOf(handler);
       if (idx !== -1) escStack.splice(idx, 1);
     };
-  }, [lightboxMedia]);
+  }, [lightboxAttachmentId]);
+
+  // 태스크 댓글 전체의 미디어 첨부를 시간 오름차순으로 평면화 (라이트박스 통합 탐색용)
+  const allMedia = useMemo(() => {
+    const items: { url: string; type: 'image' | 'video'; attachmentId: string }[] = [];
+    for (const c of comments) {
+      for (const att of c.attachments || []) {
+        if (isDocAttachment(att)) continue;
+        items.push({
+          url: resolveFileUrl(att.url),
+          type: isVideoAttachment(att) ? 'video' : 'image',
+          attachmentId: att.id,
+        });
+      }
+    }
+    return items;
+  }, [comments]);
+
+  // 보고 있는 첨부가 더 이상 존재하지 않으면 라이트박스 자동 닫기
+  useEffect(() => {
+    if (lightboxAttachmentId && !allMedia.some(m => m.attachmentId === lightboxAttachmentId)) {
+      setLightboxAttachmentId(null);
+    }
+  }, [allMedia, lightboxAttachmentId]);
 
   // 이모지 피커 외부 클릭 시 닫기
   useEffect(() => {
@@ -1511,7 +1519,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                             {renderContent(comment.content, boardMembers, mentionGroups)}
                           </p>
                         )}
-                        <AttachmentGrid attachments={comment.attachments || []} onOpenLightbox={setLightboxMedia} />
+                        <AttachmentGrid attachments={comment.attachments || []} onOpenLightbox={setLightboxAttachmentId} />
                         <ReactionBar comment={comment} currentUserId={currentUser?.id} canEdit={canEdit} onToggleReaction={handleToggleReaction} />
                       </>
                     )}
@@ -1584,57 +1592,78 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
       )}
 
       {/* 미디어 라이트박스 - Portal로 body에 렌더링 (모달 transform 영향 회피) */}
-      {lightboxMedia && createPortal(
+      {lightboxAttachmentId && createPortal(
         (() => {
-          const current = lightboxMedia.items[lightboxMedia.index];
-          const hasPrev = lightboxMedia.index > 0;
-          const hasNext = lightboxMedia.index < lightboxMedia.items.length - 1;
-          const goPrev = () => hasPrev && setLightboxMedia({ ...lightboxMedia, index: lightboxMedia.index - 1 });
-          const goNext = () => hasNext && setLightboxMedia({ ...lightboxMedia, index: lightboxMedia.index + 1 });
+          const index = allMedia.findIndex(m => m.attachmentId === lightboxAttachmentId);
+          if (index < 0) return null;
+          const current = allMedia[index];
+          const total = allMedia.length;
+          const hasPrev = index > 0;
+          const hasNext = index < total - 1;
+          const goPrev = () => hasPrev && setLightboxAttachmentId(allMedia[index - 1].attachmentId);
+          const goNext = () => hasNext && setLightboxAttachmentId(allMedia[index + 1].attachmentId);
+          const close = () => setLightboxAttachmentId(null);
+
+          const navChrome = (
+            <>
+              {hasPrev && (
+                <button onClick={(e) => { e.stopPropagation(); goPrev(); }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10 pointer-events-auto">
+                  <ChevronLeft className="h-6 w-6" />
+                </button>
+              )}
+              {hasNext && (
+                <button onClick={(e) => { e.stopPropagation(); goNext(); }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10 pointer-events-auto">
+                  <ChevronRight className="h-6 w-6" />
+                </button>
+              )}
+              {total > 1 && (
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-black/50 text-white text-xs z-10 pointer-events-none">
+                  {index + 1} / {total}
+                </div>
+              )}
+            </>
+          );
 
           return current.type === 'video' ? (
-            <Suspense fallback={
-              <div data-lightbox-overlay className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm pointer-events-auto">
-                <Loader2 className="h-8 w-8 animate-spin text-white" />
+            <>
+              <Suspense fallback={
+                <div data-lightbox-overlay className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm pointer-events-auto">
+                  <Loader2 className="h-8 w-8 animate-spin text-white" />
+                </div>
+              }>
+                <VideoLightbox key={current.attachmentId} url={current.url} onClose={close} />
+              </Suspense>
+              <div className="fixed inset-0 z-[10000] pointer-events-none"
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowLeft') { e.stopPropagation(); goPrev(); }
+                  else if (e.key === 'ArrowRight') { e.stopPropagation(); goNext(); }
+                }}
+                tabIndex={0}
+                ref={(el) => el?.focus()}>
+                {navChrome}
               </div>
-            }>
-              <VideoLightbox url={current.url} onClose={() => setLightboxMedia(null)} />
-            </Suspense>
+            </>
           ) : (
             <div data-lightbox-overlay className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer pointer-events-auto"
               onPointerDown={e => e.stopPropagation()}
               onMouseDown={e => e.stopPropagation()}
-              onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}
+              onClick={(e) => { e.stopPropagation(); close(); }}
               onKeyDown={(e) => {
                 if (e.key === 'ArrowLeft') { e.stopPropagation(); goPrev(); }
                 else if (e.key === 'ArrowRight') { e.stopPropagation(); goNext(); }
               }}
               tabIndex={0}
               ref={(el) => el?.focus()}>
-              <button onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}
+              <button onClick={(e) => { e.stopPropagation(); close(); }}
                 className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10">
                 <X className="h-5 w-5" />
               </button>
-              {hasPrev && (
-                <button onClick={(e) => { e.stopPropagation(); goPrev(); }}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10">
-                  <ChevronLeft className="h-6 w-6" />
-                </button>
-              )}
-              {hasNext && (
-                <button onClick={(e) => { e.stopPropagation(); goNext(); }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10">
-                  <ChevronRight className="h-6 w-6" />
-                </button>
-              )}
+              {navChrome}
               <img src={current.url} alt={t('comment.attachedFile')}
                 className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
                 onClick={e => e.stopPropagation()} />
-              {lightboxMedia.items.length > 1 && (
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-black/50 text-white text-xs z-10">
-                  {lightboxMedia.index + 1} / {lightboxMedia.items.length}
-                </div>
-              )}
             </div>
           );
         })(),
