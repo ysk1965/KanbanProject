@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileText, FolderPlus, FilePlus, PenTool, Search, List, FolderTree, Loader2, Menu } from 'lucide-react';
 import { NoteTreeSidebar } from './NoteTreeSidebar';
@@ -33,8 +33,6 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
   const [boardNoteSections, setBoardNoteSections] = useState<BoardNoteSection[]>([]);
   // Track which scope the selected note belongs to (org notes vs board notes)
   const [selectedNoteScope, setSelectedNoteScope] = useState<{ type: 'org' | 'board'; id: string } | null>(null);
-  const hasUnsavedChangesRef = useRef(false);
-
   // Determine scope
   const scopeId = boardId || orgId || '';
   const scopeType = orgId ? 'org' : 'board';
@@ -91,18 +89,8 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
     loadBoardNotes();
   }, [loadTree, loadTags, loadBoardNotes]);
 
-  const handleDirtyChange = useCallback((isDirty: boolean) => {
-    hasUnsavedChangesRef.current = isDirty;
-  }, []);
-
   const handleSelectNote = useCallback(async (noteId: string) => {
     if (noteId === selectedNoteId) return;
-
-    if (hasUnsavedChangesRef.current) {
-      if (!window.confirm(t('notes.unsavedWarning', '저장하지 않은 변경사항이 있습니다. 저장하지 않고 이동하시겠습니까?'))) {
-        return;
-      }
-    }
 
     setSelectedNoteId(noteId);
     setSelectedNoteScope(orgId ? { type: 'org', id: orgId } : { type: 'board', id: boardId || '' });
@@ -116,17 +104,11 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
     } finally {
       setNoteLoading(false);
     }
-  }, [scopeId, svc, selectedNoteId, t, orgId, boardId]);
+  }, [scopeId, svc, selectedNoteId, orgId, boardId]);
 
   // Handle selecting a board note from within org view
   const handleSelectBoardNote = useCallback(async (noteId: string, noteBoardId: string) => {
     if (noteId === selectedNoteId) return;
-
-    if (hasUnsavedChangesRef.current) {
-      if (!window.confirm(t('notes.unsavedWarning', '저장하지 않은 변경사항이 있습니다. 저장하지 않고 이동하시겠습니까?'))) {
-        return;
-      }
-    }
 
     setSelectedNoteId(noteId);
     setSelectedNoteScope({ type: 'board', id: noteBoardId });
@@ -140,7 +122,7 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
     } finally {
       setNoteLoading(false);
     }
-  }, [selectedNoteId, t]);
+  }, [selectedNoteId]);
 
   const handleCreateFolder = useCallback(async (parentId?: string | null) => {
     if (!canEdit) return;
@@ -167,7 +149,7 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
         parentId: parentId || null,
       });
       await loadTree();
-      hasUnsavedChangesRef.current = false;
+
       handleSelectNote(created.id);
     } catch (err) {
       console.error('Failed to create document:', err);
@@ -184,7 +166,7 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
         parentId: parentId || null,
       });
       await loadTree();
-      hasUnsavedChangesRef.current = false;
+
       handleSelectNote(created.id);
     } catch (err) {
       console.error('Failed to create board:', err);
@@ -197,7 +179,7 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
       if (selectedNoteId === noteId) {
         setSelectedNoteId(null);
         setSelectedNote(null);
-        hasUnsavedChangesRef.current = false;
+  
       }
       await loadTree();
     } catch (err) {
@@ -387,7 +369,7 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
                 : canEdit}
               onSave={handleSaveNote}
               onTagsChange={loadTags}
-              onDirtyChange={handleDirtyChange}
+
               onNoteUpdate={(updated) => setSelectedNote(updated)}
               collaboration={collaboration}
               currentUserName={userName}

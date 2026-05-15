@@ -18,6 +18,10 @@ import {
   Check,
   X,
   MessageSquare,
+  History,
+  Cloud,
+  CloudUpload,
+  CloudOff,
 } from "lucide-react";
 
 const ExcalidrawEditor = React.lazy(() => import("./ExcalidrawEditor"));
@@ -84,66 +88,9 @@ function handleEditorCopy(e: React.ClipboardEvent) {
   }
 }
 
-/**
- * Flatten nested list HTML from external sources (e.g. meeting notes)
- * so BlockNote doesn't create nested List blocks for each item.
- */
-function flattenListHtml(html: string): string | null {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, "text/html");
-
-  // Check if there are nested lists (li > ul/ol) that need flattening
-  const nestedLists = doc.querySelectorAll("li > ul, li > ol");
-  if (nestedLists.length === 0) return null;
-
-  // Recursively collect flat list items from a list element
-  function collectItems(listEl: Element): string[] {
-    const items: string[] = [];
-    for (const child of Array.from(listEl.children)) {
-      if (child.tagName === "LI") {
-        // Extract direct content (excluding nested ul/ol)
-        const directHtml = Array.from(child.childNodes)
-          .filter(
-            (n) => n.nodeType !== 1 || !(n as Element).matches?.("ul, ol"),
-          )
-          .map((n) =>
-            n.nodeType === 1 ? (n as Element).outerHTML : n.textContent,
-          )
-          .join("")
-          .trim();
-        if (directHtml) {
-          items.push(directHtml);
-        }
-        // Recurse into nested lists within this li
-        const nestedList = child.querySelector(":scope > ul, :scope > ol");
-        if (nestedList) {
-          items.push(...collectItems(nestedList));
-        }
-      }
-    }
-    return items;
-  }
-
-  const topLists = doc.body.querySelectorAll(":scope > ul, :scope > ol");
-  if (topLists.length === 0) return null;
-
-  let result = "";
-  doc.body.childNodes.forEach((node) => {
-    if (node.nodeType === 1) {
-      const el = node as Element;
-      if (el.matches("ul, ol")) {
-        const tag = el.tagName.toLowerCase();
-        const items = collectItems(el);
-        result += `<${tag}>${items.map((t) => `<li>${t}</li>`).join("")}</${tag}>`;
-      } else {
-        result += el.outerHTML;
-      }
-    } else if (node.textContent?.trim()) {
-      result += node.textContent;
-    }
-  });
-
-  return result || null;
+function hasNestedListHtml(html: string): boolean {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return doc.querySelectorAll("li > ul, li > ol").length > 0;
 }
 
 const schema = BlockNoteSchema.create({
@@ -329,6 +276,13 @@ function CollabNoteEditor({
   const [saving, setSaving] = useState(false);
   const isInitializedRef = useRef(false);
 
+  const syncDisplay = useMemo(() => {
+    if (collaboration.status === "disconnected") return "offline" as const;
+    if (collaboration.status === "connecting") return "connecting" as const;
+    if (hasChanges) return "syncing" as const;
+    return "saved" as const;
+  }, [collaboration.status, hasChanges]);
+
   // Comment state
   const [showComments, setShowComments] = useState(false);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
@@ -385,15 +339,9 @@ function CollabNoteEditor({
         defaultPasteHandler: () => boolean;
       }) => {
         const html = event.clipboardData?.getData("text/html");
-        if (
-          html &&
-          !event.clipboardData?.types.includes("blocknote/html")
-        ) {
-          const flattened = flattenListHtml(html);
-          if (flattened) {
-            e.pasteHTML(flattened);
-            return true;
-          }
+        if (html && hasNestedListHtml(html)) {
+          e.pasteHTML(html);
+          return true;
         }
         return defaultPasteHandler();
       },
@@ -614,10 +562,15 @@ function CollabNoteEditor({
     [boardId, editor],
   );
 
-  // Notify parent about dirty state
   useEffect(() => {
-    onDirtyChange?.(hasChanges);
-  }, [hasChanges, onDirtyChange]);
+    if (!hasChanges) return;
+    const timer = setTimeout(() => setHasChanges(false), 2000);
+    return () => clearTimeout(timer);
+  }, [hasChanges]);
+
+  useEffect(() => {
+    onDirtyChange?.(false);
+  }, [onDirtyChange]);
 
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
@@ -625,7 +578,6 @@ function CollabNoteEditor({
   };
 
   const handleEditorChange = useCallback(() => {
-    // Skip onChange events from Yjs initial sync / HTML content loading
     if (!isInitializedRef.current) return;
     setHasChanges(true);
   }, []);
@@ -635,14 +587,12 @@ function CollabNoteEditor({
     return await editor.blocksToHTMLLossy(editor.document);
   }, [editor]);
 
-  // Manual save: persist Yjs state + create HTML version snapshot
+  // Version save: persist Yjs state + create HTML version snapshot
   const handleSave = useCallback(async () => {
     if (!canEdit) return;
     setSaving(true);
     try {
-      // 1. Persist Yjs binary state via WebSocket
       collaboration.provider.sendFullState();
-      // 2. Create HTML version snapshot via REST API
       const html = await getContentHTML();
       await onSave(
         note.id,
@@ -779,6 +729,36 @@ function CollabNoteEditor({
               {formatDateTime(note.updated_at)}
               {note.updated_by && ` · ${note.updated_by.name}`}
             </span>
+            <span className="text-xs flex items-center gap-1 whitespace-nowrap">
+              <span className="text-slate-600">·</span>
+              {syncDisplay === "syncing" ? (
+                <span className="flex items-center gap-1 text-slate-400 animate-pulse">
+                  <CloudUpload size={10} />
+                  {t("notes.syncSaving", "저장 중...")}
+                </span>
+              ) : syncDisplay === "offline" ? (
+                <span
+                  className="flex items-center gap-1 text-amber-500"
+                  title={t(
+                    "notes.syncOfflineTooltip",
+                    "연결이 끊어졌습니다. 자동으로 재연결됩니다.",
+                  )}
+                >
+                  <CloudOff size={10} />
+                  {t("notes.syncOffline", "오프라인")}
+                </span>
+              ) : syncDisplay === "connecting" ? (
+                <span className="flex items-center gap-1 text-slate-400 animate-pulse">
+                  <CloudUpload size={10} />
+                  {t("notes.syncConnecting", "연결 중...")}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-slate-500">
+                  <Cloud size={10} />
+                  {t("notes.syncSaved", "자동 저장됨")}
+                </span>
+              )}
+            </span>
           </div>
         </div>
 
@@ -868,24 +848,18 @@ function CollabNoteEditor({
           {canEdit && (
             <button
               onClick={handleSave}
-              disabled={!hasChanges || saving}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                hasChanges
-                  ? "bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20"
-                  : "bg-foreground/5 text-slate-500 cursor-not-allowed"
-              }`}
+              disabled={saving}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-foreground/5 text-slate-400 hover:text-foreground hover:bg-foreground/10"
+              title={t("notes.versionSave", "버전 저장") + " (⌘S)"}
             >
               {saving ? (
                 <Loader2 size={12} className="animate-spin" />
               ) : (
-                <Save size={12} />
+                <History size={12} />
               )}
               <span className="hidden lg:inline">
-                {t("common.save", "저장")}
+                {t("notes.versionSave", "버전 저장")}
               </span>
-              {hasChanges && (
-                <span className="text-xs opacity-70 hidden lg:inline">⌘S</span>
-              )}
             </button>
           )}
         </div>
@@ -1072,15 +1046,9 @@ function FallbackNoteEditor({
       defaultPasteHandler: () => boolean;
     }) => {
       const html = event.clipboardData?.getData("text/html");
-      if (
-        html &&
-        !event.clipboardData?.types.includes("blocknote/html")
-      ) {
-        const flattened = flattenListHtml(html);
-        if (flattened) {
-          e.pasteHTML(flattened);
-          return true;
-        }
+      if (html && hasNestedListHtml(html)) {
+        e.pasteHTML(html);
+        return true;
       }
       return defaultPasteHandler();
     },
