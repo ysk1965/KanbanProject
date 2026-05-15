@@ -2958,7 +2958,13 @@
     "treeView": "มุมมองต้นไม้",
     "versionSave": "บันทึกเวอร์ชัน",
     "version": "เวอร์ชัน",
-    "versionHistory": "ประวัติเวอร์ชัน"
+    "versionHistory": "ประวัติเวอร์ชัน",
+    "editButton": "แก้ไข",
+    "enterEdit": "เข้าโหมดแก้ไข",
+    "exitEdit": "ออกจากการแก้ไข",
+    "saveSnapshot": "บันทึก",
+    "viewMode": "โหมดอ่าน",
+    "editorsCount": "{{count}} คนกำลังแก้ไข"
   },
   "payment": {
     "error": "ข้อผิดพลาดการชำระเงิน",

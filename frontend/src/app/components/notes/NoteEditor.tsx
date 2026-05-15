@@ -22,6 +22,10 @@ import {
   Cloud,
   CloudUpload,
   CloudOff,
+  Pencil,
+  Eye,
+  DoorOpen,
+  Users,
 } from "lucide-react";
 
 const ExcalidrawEditor = React.lazy(() => import("./ExcalidrawEditor"));
@@ -76,7 +80,9 @@ function cleanMarkdownForPlainText(md: string): string {
     .replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, "$1")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/^>\s+/gm, "")
-    .replace(/`([^`]+)`/g, "$1");
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/^([ \t]*(?:[-*+]|\d+\.) .+)\n\n(?=[ \t]*(?:[-*+]|\d+\.) )/gm, "$1\n");
 }
 
 // 클립보드 HTML에서 비어 있는 <p>(텍스트 없음 / <br>만 / 공백만)를 제거.
@@ -309,15 +315,62 @@ function CollabNoteEditor({
   const [title, setTitle] = useState(note.title);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [mode, setMode] = useState<"view" | "edit">("view");
   const isInitializedRef = useRef(false);
   const titleSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Sync collab readOnly + awareness mode field whenever local mode changes.
+  // View clients never broadcast doc updates, never auto-save, and surface
+  // themselves to peers as readers rather than editors.
+  useEffect(() => {
+    if (!collaboration) return;
+    collaboration.provider.setReadOnly(mode === "view");
+    collaboration.provider.awareness.setLocalStateField("mode", mode);
+  }, [mode, collaboration]);
+
+  // Reset to view mode whenever the note changes
+  useEffect(() => {
+    setMode("view");
+  }, [note.id]);
+
+  // Refetch note detail when another editor publishes a snapshot, but only
+  // when we're a View client. Edit clients already have the latest Yjs state.
+  useEffect(() => {
+    if (!collaboration) return;
+    return collaboration.provider.onSnapshotUpdated(async () => {
+      if (mode !== "view") return;
+      try {
+        const { noteService, orgNoteService } = await import(
+          "../../utils/services"
+        );
+        const updated = boardId
+          ? await noteService.getDetail(boardId, note.id)
+          : orgId
+            ? await orgNoteService.getDetail(orgId, note.id)
+            : null;
+        if (updated) {
+          onNoteUpdate?.(updated);
+          setTitle(updated.title);
+        }
+      } catch (err) {
+        console.error("Failed to refetch note after snapshot update:", err);
+      }
+    });
+  }, [collaboration, mode, note.id, boardId, orgId, onNoteUpdate]);
+
+  const editorPeers = useMemo(
+    () =>
+      collaboration.connectedUsers.filter((u) => u.mode === "edit"),
+    [collaboration.connectedUsers],
+  );
+
   const syncDisplay = useMemo(() => {
+    if (mode === "view") return "view" as const;
     if (collaboration.status === "disconnected") return "offline" as const;
     if (collaboration.status === "connecting") return "connecting" as const;
     if (hasChanges) return "syncing" as const;
     return "saved" as const;
-  }, [collaboration.status, hasChanges]);
+  }, [collaboration.status, hasChanges, mode]);
 
   // Comment state
   const [showComments, setShowComments] = useState(false);
@@ -625,6 +678,7 @@ function CollabNoteEditor({
   }, [onDirtyChange]);
 
   const handleTitleChange = (newTitle: string) => {
+    if (mode !== "edit") return;
     setTitle(newTitle);
     setHasChanges(true);
 
@@ -638,17 +692,19 @@ function CollabNoteEditor({
 
   const handleEditorChange = useCallback(() => {
     if (!isInitializedRef.current) return;
+    if (mode !== "edit") return;
     setHasChanges(true);
-  }, []);
+  }, [mode]);
 
   // Get HTML content from current editor state
   const getContentHTML = useCallback(async (): Promise<string> => {
     return await editor.blocksToHTMLLossy(editor.document);
   }, [editor]);
 
-  // Version save: persist Yjs state + create HTML version snapshot
+  // Save current state as a published snapshot: persist Yjs state + write
+  // notes.content + create a NoteVersion row. This is what View users see.
   const handleSave = useCallback(async () => {
-    if (!canEdit) return;
+    if (!canEdit || mode !== "edit") return;
     setSaving(true);
     try {
       collaboration.provider.sendFullState();
@@ -668,6 +724,7 @@ function CollabNoteEditor({
     }
   }, [
     canEdit,
+    mode,
     collaboration.provider,
     getContentHTML,
     onSave,
@@ -677,7 +734,21 @@ function CollabNoteEditor({
     note.tags,
   ]);
 
-  // Keyboard shortcut: Ctrl/Cmd+S
+  const handleEnterEdit = useCallback(() => {
+    if (!canEdit) return;
+    setMode("edit");
+  }, [canEdit]);
+
+  // Leave edit mode without publishing. Yjs state remains on the server so the
+  // next editor picks up where we left off; View users keep seeing the last
+  // published snapshot until someone hits Save.
+  const handleExitEdit = useCallback(() => {
+    collaboration.provider.sendFullState();
+    setMode("view");
+    setHasChanges(false);
+  }, [collaboration.provider]);
+
+  // Keyboard shortcut: Ctrl/Cmd+S (Edit mode only)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
@@ -765,7 +836,7 @@ function CollabNoteEditor({
             onChange={(e) => handleTitleChange(e.target.value)}
             className="w-full bg-transparent text-lg font-bold text-foreground focus:outline-none placeholder-slate-600"
             placeholder={t("notes.titlePlaceholder", "제목을 입력하세요")}
-            readOnly={!canEdit}
+            readOnly={mode !== "edit" || !canEdit}
           />
           <div className="flex items-center gap-3 mt-1">
             <div className="flex items-center gap-1 flex-wrap">
@@ -790,7 +861,22 @@ function CollabNoteEditor({
             </span>
             <span className="text-xs flex items-center gap-1 whitespace-nowrap">
               <span className="text-slate-600">·</span>
-              {syncDisplay === "syncing" ? (
+              {syncDisplay === "view" ? (
+                editorPeers.length > 0 ? (
+                  <span className="flex items-center gap-1 text-emerald-500">
+                    <Users size={10} />
+                    {t("notes.editorsCount", {
+                      count: editorPeers.length,
+                      defaultValue: "{{count}}명 편집 중",
+                    })}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-slate-500">
+                    <Eye size={10} />
+                    {t("notes.viewMode", "읽기 모드")}
+                  </span>
+                )
+              ) : syncDisplay === "syncing" ? (
                 <span className="flex items-center gap-1 text-slate-400 animate-pulse">
                   <CloudUpload size={10} />
                   {t("notes.syncSaving", "저장 중...")}
@@ -822,13 +908,15 @@ function CollabNoteEditor({
         </div>
 
         <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0 flex-wrap justify-end">
-          {/* Collaboration presence */}
-          <CollabPresence
-            status={collaboration.status}
-            connectedUsers={collaboration.connectedUsers}
-            currentUserName={currentUserName}
-            currentUserColor={currentUserColor}
-          />
+          {/* Collaboration presence — show only fellow editors (no viewers) */}
+          {mode === "edit" && (
+            <CollabPresence
+              status={collaboration.status}
+              connectedUsers={editorPeers}
+              currentUserName={currentUserName}
+              currentUserColor={currentUserColor}
+            />
+          )}
 
           <NoteShareButton
             boardId={boardId}
@@ -855,22 +943,24 @@ function CollabNoteEditor({
 
           <div className="w-px h-5 bg-white/10 hidden sm:block" />
 
-          <NoteTagManager
-            boardId={boardId}
-            orgId={orgId}
-            noteId={note.id}
-            noteTags={note.tags}
-            allTags={tags}
-            canEdit={canEdit}
-            onSave={(tagIds) => onSave(note.id, { tagIds })}
-            onTagsChange={onTagsChange}
-          />
+          {mode === "edit" && (
+            <NoteTagManager
+              boardId={boardId}
+              orgId={orgId}
+              noteId={note.id}
+              noteTags={note.tags}
+              allTags={tags}
+              canEdit={canEdit}
+              onSave={(tagIds) => onSave(note.id, { tagIds })}
+              onTagsChange={onTagsChange}
+            />
+          )}
           <NoteVersionHistory
             boardId={boardId}
             orgId={orgId}
             noteId={note.id}
             versionCount={note.version_count}
-            canEdit={canEdit}
+            canEdit={canEdit && mode === "edit"}
             onRestore={async () => {
               // After restoring, refetch and let the provider sync
               if (boardId) {
@@ -886,7 +976,7 @@ function CollabNoteEditor({
               }
             }}
           />
-          {canEdit && boardId && note.content?.trim() && (
+          {mode === "edit" && canEdit && boardId && note.content?.trim() && (
             <button
               onClick={handleAIOrganize}
               disabled={aiLoading}
@@ -904,22 +994,46 @@ function CollabNoteEditor({
               <span className="hidden lg:inline">{t("notes.aiOrganize")}</span>
             </button>
           )}
-          {canEdit && (
+          {canEdit && mode === "view" && (
             <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-foreground/5 text-slate-400 hover:text-foreground hover:bg-foreground/10"
-              title={t("notes.versionSave", "버전 저장") + " (⌘S)"}
+              onClick={handleEnterEdit}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20"
+              title={t("notes.enterEdit", "편집 모드 진입")}
             >
-              {saving ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <History size={12} />
-              )}
-              <span className="hidden lg:inline">
-                {t("notes.versionSave", "버전 저장")}
+              <Pencil size={12} />
+              <span className="hidden sm:inline">
+                {t("notes.editButton", "편집")}
               </span>
             </button>
+          )}
+          {canEdit && mode === "edit" && (
+            <>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20 disabled:opacity-60"
+                title={t("notes.saveSnapshot", "저장") + " (⌘S)"}
+              >
+                {saving ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <Save size={12} />
+                )}
+                <span className="hidden sm:inline">
+                  {t("notes.saveSnapshot", "저장")}
+                </span>
+              </button>
+              <button
+                onClick={handleExitEdit}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-foreground/5 text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                title={t("notes.exitEdit", "편집 종료")}
+              >
+                <DoorOpen size={12} />
+                <span className="hidden sm:inline">
+                  {t("notes.exitEdit", "편집 종료")}
+                </span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -943,7 +1057,7 @@ function CollabNoteEditor({
           <BlockNoteView
             editor={editor}
             theme={isDark ? "dark" : "light"}
-            editable={canEdit}
+            editable={canEdit && mode === "edit"}
             onChange={handleEditorChange}
           >
             <SuggestionMenuController
@@ -1080,8 +1194,13 @@ function FallbackNoteEditor({
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [autoSaved, setAutoSaved] = useState(false);
+  const [mode, setMode] = useState<"view" | "edit">("view");
   const noteIdRef = useRef(note.id);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setMode("view");
+  }, [note.id]);
 
   const editor = useCreateBlockNote({
     schema,
@@ -1301,6 +1420,13 @@ function FallbackNoteEditor({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleSave]);
 
+  const handleExitEdit = useCallback(async () => {
+    if (hasChanges) {
+      await handleAutoSave();
+    }
+    setMode("view");
+  }, [hasChanges, handleAutoSave]);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="px-4 sm:px-6 py-3 border-b border-foreground/5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:justify-between">
@@ -1308,13 +1434,14 @@ function FallbackNoteEditor({
           <input
             value={title}
             onChange={(e) => {
+              if (mode !== "edit") return;
               setTitle(e.target.value);
               setHasChanges(true);
               setAutoSaved(false);
             }}
             className="w-full bg-transparent text-lg font-bold text-foreground focus:outline-none placeholder-slate-600"
             placeholder={t("notes.titlePlaceholder", "제목을 입력하세요")}
-            readOnly={!canEdit}
+            readOnly={mode !== "edit" || !canEdit}
           />
           <div className="flex items-center gap-3 mt-1">
             <span className="text-xs text-slate-500 flex items-center gap-1 whitespace-nowrap">
@@ -1322,30 +1449,39 @@ function FallbackNoteEditor({
               {formatDateTime(note.updated_at)}
               {note.updated_by && ` · ${note.updated_by.name}`}
             </span>
-            {autoSaved && (
-              <span className="text-xs text-emerald-500/70">
-                {t("notes.autoSaved", "자동 저장됨")}
+            {mode === "view" ? (
+              <span className="text-xs text-slate-500 flex items-center gap-1">
+                <Eye size={10} />
+                {t("notes.viewMode", "읽기 모드")}
               </span>
+            ) : (
+              autoSaved && (
+                <span className="text-xs text-emerald-500/70">
+                  {t("notes.autoSaved", "자동 저장됨")}
+                </span>
+              )
             )}
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          <NoteTagManager
-            boardId={boardId}
-            orgId={orgId}
-            noteId={note.id}
-            noteTags={note.tags}
-            allTags={tags}
-            canEdit={canEdit}
-            onSave={(tagIds) => onSave(note.id, { tagIds })}
-            onTagsChange={onTagsChange}
-          />
+          {mode === "edit" && (
+            <NoteTagManager
+              boardId={boardId}
+              orgId={orgId}
+              noteId={note.id}
+              noteTags={note.tags}
+              allTags={tags}
+              canEdit={canEdit}
+              onSave={(tagIds) => onSave(note.id, { tagIds })}
+              onTagsChange={onTagsChange}
+            />
+          )}
           <NoteVersionHistory
             boardId={boardId}
             orgId={orgId}
             noteId={note.id}
             versionCount={note.version_count}
-            canEdit={canEdit}
+            canEdit={canEdit && mode === "edit"}
             onRestore={async () => {
               let updated;
               if (boardId) {
@@ -1374,25 +1510,43 @@ function FallbackNoteEditor({
               }
             }}
           />
-          {canEdit && (
+          {canEdit && mode === "view" && (
             <button
-              onClick={handleSave}
-              disabled={!hasChanges || saving}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-all ml-1 ${
-                hasChanges
-                  ? "bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20"
-                  : "bg-foreground/5 text-slate-500 cursor-not-allowed"
-              }`}
+              onClick={() => setMode("edit")}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ml-1 bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20"
             >
-              {saving ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <Save size={12} />
-              )}
+              <Pencil size={12} />
               <span className="hidden sm:inline">
-                {t("common.save", "저장")}
+                {t("notes.editButton", "편집")}
               </span>
             </button>
+          )}
+          {canEdit && mode === "edit" && (
+            <>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ml-1 bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20 disabled:opacity-60"
+              >
+                {saving ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <Save size={12} />
+                )}
+                <span className="hidden sm:inline">
+                  {t("notes.saveSnapshot", "저장")}
+                </span>
+              </button>
+              <button
+                onClick={handleExitEdit}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-foreground/5 text-slate-400 hover:text-foreground hover:bg-foreground/10"
+              >
+                <DoorOpen size={12} />
+                <span className="hidden sm:inline">
+                  {t("notes.exitEdit", "편집 종료")}
+                </span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -1404,8 +1558,9 @@ function FallbackNoteEditor({
           <BlockNoteView
             editor={editor}
             theme={isDark ? "dark" : "light"}
-            editable={canEdit}
+            editable={canEdit && mode === "edit"}
             onChange={() => {
+              if (mode !== "edit") return;
               setHasChanges(true);
               setAutoSaved(false);
             }}

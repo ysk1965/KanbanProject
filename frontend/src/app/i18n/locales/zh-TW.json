@@ -3951,7 +3951,13 @@
   },
   "notes": {
     "newBoard": "新畫板",
-    "addBoard": "新增畫板"
+    "addBoard": "新增畫板",
+    "editButton": "編輯",
+    "enterEdit": "進入編輯模式",
+    "exitEdit": "結束編輯",
+    "saveSnapshot": "儲存",
+    "viewMode": "閱讀模式",
+    "editorsCount": "{{count}} 人正在編輯"
   },
   "listViewGroupBy": "分組",
   "listViewSortBy": "排序",

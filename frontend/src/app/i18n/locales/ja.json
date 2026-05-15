@@ -2958,7 +2958,13 @@
     "treeView": "ツリービュー",
     "versionSave": "バージョン保存",
     "version": "バージョン",
-    "versionHistory": "バージョン履歴"
+    "versionHistory": "バージョン履歴",
+    "editButton": "編集",
+    "enterEdit": "編集モードに入る",
+    "exitEdit": "編集を終了",
+    "saveSnapshot": "保存",
+    "viewMode": "閲覧モード",
+    "editorsCount": "{{count}}人が編集中"
   },
   "payment": {
     "error": "決済エラー",

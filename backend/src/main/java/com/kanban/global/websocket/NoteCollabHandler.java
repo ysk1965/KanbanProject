@@ -1,8 +1,10 @@
 package com.kanban.global.websocket;
 
+import com.kanban.domain.note.NoteSnapshotSavedEvent;
 import com.kanban.domain.note.service.NoteCollabService;
 import com.kanban.global.security.JwtProvider;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -49,6 +51,8 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
     private static final byte MSG_SYNC_FULL = 0;
     private static final byte MSG_SYNC_UPDATE = 1;
     private static final byte MSG_AWARENESS = 2;
+    /** Server → client: a new published snapshot exists; View clients should refetch. */
+    private static final byte MSG_SNAPSHOT_UPDATED = 3;
 
     private static final String REDIS_CHANNEL_PREFIX = "ws-collab:";
 
@@ -182,6 +186,35 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
         } catch (Exception e) {
             log.error("Error during cleanup after transport error", e);
         }
+    }
+
+    // --- Snapshot broadcast (server → all clients in the room) ---
+
+    /**
+     * Push a {@code MSG_SNAPSHOT_UPDATED} frame to every session in the room.
+     * Used when {@link com.kanban.domain.note.NoteService} (or the org variant)
+     * persists a manual save: View clients react by refetching note content.
+     * Also relayed across instances via Redis so multi-pod deployments work.
+     */
+    @EventListener
+    public void onNoteSnapshotSaved(NoteSnapshotSavedEvent event) {
+        String noteId = event.noteId();
+        byte[] data = new byte[] { MSG_SNAPSHOT_UPDATED };
+        Room room = rooms.get(noteId);
+        if (room != null) {
+            BinaryMessage msg = new BinaryMessage(data);
+            room.sessions.forEach((sessionId, ws) -> {
+                if (!ws.isOpen()) return;
+                try {
+                    synchronized (ws) {
+                        ws.sendMessage(msg);
+                    }
+                } catch (IOException e) {
+                    log.error("Failed to push snapshot update to session: {}", sessionId, e);
+                }
+            });
+        }
+        publishToRedis(noteId, "snapshot-broadcast", data);
     }
 
     // --- Redis Pub/Sub ---

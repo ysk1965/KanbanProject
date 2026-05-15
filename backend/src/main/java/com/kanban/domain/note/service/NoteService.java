@@ -12,6 +12,7 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,7 @@ public class NoteService {
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // ===== Note CRUD =====
 
@@ -157,6 +159,10 @@ public class NoteService {
             noteVersionRepository.save(version);
         }
 
+        // Notify View-mode clients that the published snapshot changed so they
+        // can refetch notes.content. Fire only when content was actually saved.
+        boolean publishedNewSnapshot = createVersion && request.getContent() != null;
+
         // Update note
         if (request.getTitle() != null) {
             note.updateTitle(request.getTitle());
@@ -174,6 +180,11 @@ public class NoteService {
         }
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
+
+        if (publishedNewSnapshot) {
+            eventPublisher.publishEvent(new NoteSnapshotSavedEvent(noteId));
+        }
+
         return NoteResponse.Detail.of(note, tags, versionCount);
     }
 

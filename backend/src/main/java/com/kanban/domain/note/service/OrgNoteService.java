@@ -16,6 +16,7 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +38,7 @@ public class OrgNoteService {
     private final OrganizationService organizationService;
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     // ===== Note CRUD =====
 
@@ -212,6 +214,8 @@ public class OrgNoteService {
             noteVersionRepository.save(version);
         }
 
+        boolean publishedNewSnapshot = createVersion && request.getContent() != null;
+
         if (request.getTitle() != null) {
             note.updateTitle(request.getTitle());
         }
@@ -227,6 +231,11 @@ public class OrgNoteService {
         }
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
+
+        if (publishedNewSnapshot) {
+            eventPublisher.publishEvent(new NoteSnapshotSavedEvent(noteId));
+        }
+
         return NoteResponse.Detail.of(note, tags, versionCount);
     }
 
