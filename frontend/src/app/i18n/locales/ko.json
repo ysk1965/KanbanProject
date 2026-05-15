@@ -1470,6 +1470,8 @@
     "noDate": "날짜 없음",
     "assignee": "담당자",
     "addAssigneeToChecklist": "체크리스트 담당자와 자동 연동됩니다",
+    "checklistContractorBadge": "외주",
+    "contractorSection": "외주 작업자",
     "checklistFilter": {
       "unassigned": "미할당",
       "showingCount": "{{visible}} / {{total}} 표시 중"

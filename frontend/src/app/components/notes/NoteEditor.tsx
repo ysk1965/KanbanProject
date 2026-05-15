@@ -122,6 +122,24 @@ function hasNestedListHtml(html: string): boolean {
   return doc.querySelectorAll("li > ul, li > ol").length > 0;
 }
 
+// blocksToHTMLLossy() wraps list item content in <p> tags: <li><p>text</p></li>.
+// When tryParseHTMLToBlocks() parses this back, ProseMirror sees a block element
+// (<p>) inside bulletListItem (which expects inline* content), causing it to split
+// into an empty list item + separate paragraph — showing a "List" label in view mode.
+// Fix: unwrap single <p> children inside <li> so content becomes direct inline text.
+function unwrapListItemParagraphs(html: string): string {
+  if (!html) return html;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.querySelectorAll("li > p").forEach((p) => {
+    const li = p.parentElement!;
+    while (p.firstChild) {
+      li.insertBefore(p.firstChild, p);
+    }
+    p.remove();
+  });
+  return doc.body.innerHTML;
+}
+
 // 블록 레벨 닫는 태그와 다음 블록 여는 태그 사이의 whitespace/개행을 제거.
 // BlockNote externalHTML(`<p>X</p>\n<p>Y</p>`)을 paste 할 때 ProseMirror DOMParser가
 // 사이 공백을 빈 문단 블록으로 만드는 현상 방지. 인라인 태그 사이 공백은 건드리지 않음.
@@ -460,7 +478,9 @@ function CollabNoteEditor({
           if (!cancelled) viewEditor.replaceBlocks(viewEditor.document, []);
           return;
         }
-        const blocks = await viewEditor.tryParseHTMLToBlocks(note.content);
+        const blocks = await viewEditor.tryParseHTMLToBlocks(
+          unwrapListItemParagraphs(note.content),
+        );
         if (!cancelled) viewEditor.replaceBlocks(viewEditor.document, blocks);
       } catch (err) {
         console.error("Failed to load snapshot content into view editor:", err);
@@ -497,7 +517,9 @@ function CollabNoteEditor({
 
       if (isEmpty && note.content?.trim()) {
         try {
-          const blocks = await editor.tryParseHTMLToBlocks(note.content);
+          const blocks = await editor.tryParseHTMLToBlocks(
+            unwrapListItemParagraphs(note.content),
+          );
           editor.replaceBlocks(editor.document, blocks);
           initialContentLoaded.current = true;
           // Persist the Yjs state so next time it loads from collab
@@ -1301,7 +1323,9 @@ function FallbackNoteEditor({
           if (!cancelled) viewEditor.replaceBlocks(viewEditor.document, []);
           return;
         }
-        const blocks = await viewEditor.tryParseHTMLToBlocks(note.content);
+        const blocks = await viewEditor.tryParseHTMLToBlocks(
+          unwrapListItemParagraphs(note.content),
+        );
         if (!cancelled) viewEditor.replaceBlocks(viewEditor.document, blocks);
       } catch (err) {
         console.error(
@@ -1370,7 +1394,9 @@ function FallbackNoteEditor({
           return;
         }
         try {
-          const blocks = await editor.tryParseHTMLToBlocks(note.content);
+          const blocks = await editor.tryParseHTMLToBlocks(
+            unwrapListItemParagraphs(note.content),
+          );
           editor.replaceBlocks(editor.document, blocks);
         } catch (err) {
           console.error("Failed to load note content:", err);
@@ -1387,7 +1413,9 @@ function FallbackNoteEditor({
     if (!note.content?.trim()) return;
     const loadInitial = async () => {
       try {
-        const blocks = await editor.tryParseHTMLToBlocks(note.content!);
+        const blocks = await editor.tryParseHTMLToBlocks(
+          unwrapListItemParagraphs(note.content!),
+        );
         editor.replaceBlocks(editor.document, blocks);
       } catch (err) {
         console.error("Failed to load initial content:", err);
@@ -1572,7 +1600,7 @@ function FallbackNoteEditor({
                 if (updated.content?.trim()) {
                   try {
                     const blocks = await editor.tryParseHTMLToBlocks(
-                      updated.content,
+                      unwrapListItemParagraphs(updated.content),
                     );
                     editor.replaceBlocks(editor.document, blocks);
                   } catch (err) {

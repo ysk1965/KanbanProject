@@ -4439,6 +4439,7 @@ export function KanbanBoardPage() {
           canEdit={canEdit}
           currentUser={currentUser}
           boardMembers={boardMembersData}
+          contractors={headerContractors}
         />
 
         {/* Keyboard Shortcuts Help */}
