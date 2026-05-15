@@ -79,18 +79,53 @@ function cleanMarkdownForPlainText(md: string): string {
     .replace(/`([^`]+)`/g, "$1");
 }
 
+// 클립보드 HTML에서 비어 있는 <p>(텍스트 없음 / <br>만 / 공백만)를 제거.
+// 외부 앱에 paste 했을 때 BlockNote 노트의 잠재적 빈 문단이 빈 줄로 표시되는 현상 방지.
+// blocknote/html(ProseMirror native)은 내부 round-trip 용이므로 손대지 않는다.
+function stripEmptyParagraphsForExternalHTML(html: string): string {
+  if (!html) return html;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.body.querySelectorAll("p").forEach((p) => {
+    if (p.textContent?.trim()) return;
+    const onlyBr =
+      p.children.length === 1 && p.children[0].tagName === "BR";
+    if (p.childNodes.length === 0 || onlyBr) {
+      p.remove();
+    }
+  });
+  return doc.body.innerHTML;
+}
+
 function handleEditorCopy(e: React.ClipboardEvent) {
   const plain = e.clipboardData.getData("text/plain");
-  if (!plain) return;
-  const cleaned = cleanMarkdownForPlainText(plain);
-  if (cleaned !== plain) {
-    e.clipboardData.setData("text/plain", cleaned);
+  if (plain) {
+    const cleaned = cleanMarkdownForPlainText(plain);
+    if (cleaned !== plain) {
+      e.clipboardData.setData("text/plain", cleaned);
+    }
+  }
+  const html = e.clipboardData.getData("text/html");
+  if (html) {
+    const cleaned = stripEmptyParagraphsForExternalHTML(html);
+    if (cleaned !== html) {
+      e.clipboardData.setData("text/html", cleaned);
+    }
   }
 }
 
 function hasNestedListHtml(html: string): boolean {
   const doc = new DOMParser().parseFromString(html, "text/html");
   return doc.querySelectorAll("li > ul, li > ol").length > 0;
+}
+
+// 블록 레벨 닫는 태그와 다음 블록 여는 태그 사이의 whitespace/개행을 제거.
+// BlockNote externalHTML(`<p>X</p>\n<p>Y</p>`)을 paste 할 때 ProseMirror DOMParser가
+// 사이 공백을 빈 문단 블록으로 만드는 현상 방지. 인라인 태그 사이 공백은 건드리지 않음.
+function collapseInterBlockWhitespace(html: string): string {
+  return html.replace(
+    /(<\/(?:p|div|h[1-6]|ul|ol|li|blockquote|pre|table|tr|thead|tbody)>)\s+(?=<(?:p|div|h[1-6]|ul|ol|li|blockquote|pre|table|tr|thead|tbody)\b)/gi,
+    "$1",
+  );
 }
 
 const schema = BlockNoteSchema.create({
@@ -275,6 +310,7 @@ function CollabNoteEditor({
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const isInitializedRef = useRef(false);
+  const titleSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const syncDisplay = useMemo(() => {
     if (collaboration.status === "disconnected") return "offline" as const;
@@ -338,9 +374,18 @@ function CollabNoteEditor({
         editor: any;
         defaultPasteHandler: () => boolean;
       }) => {
+        const bnHtml = event.clipboardData?.getData("blocknote/html");
+        if (bnHtml) {
+          e.pasteHTML(bnHtml, true);
+          return true;
+        }
         const html = event.clipboardData?.getData("text/html");
         if (html && hasNestedListHtml(html)) {
           e.pasteHTML(html);
+          return true;
+        }
+        if (html) {
+          e.pasteHTML(collapseInterBlockWhitespace(html));
           return true;
         }
         return defaultPasteHandler();
@@ -394,6 +439,13 @@ function CollabNoteEditor({
       clearTimeout(initTimer);
     };
   }, [editor, note.content, collaboration.provider]);
+
+  // Cleanup title save timer on unmount or note change
+  useEffect(() => {
+    return () => {
+      if (titleSaveTimerRef.current) clearTimeout(titleSaveTimerRef.current);
+    };
+  }, [note.id]);
 
   // Sync title when note changes
   useEffect(() => {
@@ -575,6 +627,13 @@ function CollabNoteEditor({
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
     setHasChanges(true);
+
+    if (titleSaveTimerRef.current) clearTimeout(titleSaveTimerRef.current);
+    titleSaveTimerRef.current = setTimeout(() => {
+      if (newTitle.trim() && newTitle !== note.title) {
+        onSave(note.id, { title: newTitle }, false);
+      }
+    }, 800);
   };
 
   const handleEditorChange = useCallback(() => {
@@ -873,7 +932,7 @@ function CollabNoteEditor({
         {/* Editor with block hover overlay */}
         <div
           ref={editorContainerRef}
-          className="relative min-h-[60vh] bg-bridge-obsidian rounded-2xl border border-foreground/5"
+          className="relative min-h-[60vh]"
           onMouseMove={handleEditorMouseMove}
           onMouseLeave={() => {
             hoveredBlockIdRef.current = null;
@@ -1045,9 +1104,18 @@ function FallbackNoteEditor({
       editor: any;
       defaultPasteHandler: () => boolean;
     }) => {
+      const bnHtml = event.clipboardData?.getData("blocknote/html");
+      if (bnHtml) {
+        e.pasteHTML(bnHtml, true);
+        return true;
+      }
       const html = event.clipboardData?.getData("text/html");
       if (html && hasNestedListHtml(html)) {
         e.pasteHTML(html);
+        return true;
+      }
+      if (html) {
+        e.pasteHTML(collapseInterBlockWhitespace(html));
         return true;
       }
       return defaultPasteHandler();
@@ -1330,7 +1398,7 @@ function FallbackNoteEditor({
       </div>
       <div className="flex-1 overflow-y-auto p-4">
         <div
-          className="min-h-[60vh] bg-bridge-obsidian rounded-2xl border border-foreground/5"
+          className="min-h-[60vh]"
           onCopy={handleEditorCopy}
         >
           <BlockNoteView

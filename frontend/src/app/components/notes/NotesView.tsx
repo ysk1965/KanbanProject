@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FileText, FolderPlus, FilePlus, PenTool, Search, List, FolderTree, Loader2, Menu } from 'lucide-react';
 import { NoteTreeSidebar } from './NoteTreeSidebar';
@@ -21,8 +22,11 @@ interface NotesViewProps {
 export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
   const { t } = useTranslation();
   const { currentUser } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlNoteId = searchParams.get('note');
+  const urlNoteBoard = searchParams.get('noteBoard');
   const [tree, setTree] = useState<NoteTreeItem[]>([]);
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(urlNoteId);
   const [selectedNote, setSelectedNote] = useState<NoteDetail | null>(null);
   const [tags, setTags] = useState<NoteTagInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,6 +93,49 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
     loadBoardNotes();
   }, [loadTree, loadTags, loadBoardNotes]);
 
+  // 새로고침 시 URL의 note ID로 노트 디테일 복원
+  useEffect(() => {
+    if (loading) return;
+    if (!urlNoteId) return;
+    if (selectedNote?.id === urlNoteId) return;
+
+    const targetBoard = urlNoteBoard && urlNoteBoard !== scopeId ? urlNoteBoard : null;
+    let cancelled = false;
+
+    (async () => {
+      setNoteLoading(true);
+      try {
+        if (targetBoard) {
+          const detail = await noteService.getDetail(targetBoard, urlNoteId);
+          if (cancelled) return;
+          setSelectedNoteId(urlNoteId);
+          setSelectedNoteScope({ type: 'board', id: targetBoard });
+          setSelectedNote(detail);
+        } else {
+          const detail = await svc.getDetail(scopeId, urlNoteId);
+          if (cancelled) return;
+          setSelectedNoteId(urlNoteId);
+          setSelectedNoteScope(orgId ? { type: 'org', id: orgId } : { type: 'board', id: boardId || '' });
+          setSelectedNote(detail);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.error('Failed to restore note from URL:', err);
+        const next = new URLSearchParams(searchParams);
+        next.delete('note');
+        next.delete('noteBoard');
+        setSearchParams(next, { replace: true });
+        setSelectedNoteId(null);
+        setSelectedNote(null);
+      } finally {
+        if (!cancelled) setNoteLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, urlNoteId, urlNoteBoard]);
+
   const handleSelectNote = useCallback(async (noteId: string) => {
     if (noteId === selectedNoteId) return;
 
@@ -96,6 +143,10 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
     setSelectedNoteScope(orgId ? { type: 'org', id: orgId } : { type: 'board', id: boardId || '' });
     setNoteLoading(true);
     setMobileSidebarOpen(false);
+    const next = new URLSearchParams(searchParams);
+    next.set('note', noteId);
+    next.delete('noteBoard');
+    setSearchParams(next, { replace: true });
     try {
       const detail = await svc.getDetail(scopeId, noteId);
       setSelectedNote(detail);
@@ -104,7 +155,7 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
     } finally {
       setNoteLoading(false);
     }
-  }, [scopeId, svc, selectedNoteId, orgId, boardId]);
+  }, [scopeId, svc, selectedNoteId, orgId, boardId, searchParams, setSearchParams]);
 
   // Handle selecting a board note from within org view
   const handleSelectBoardNote = useCallback(async (noteId: string, noteBoardId: string) => {
@@ -114,6 +165,10 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
     setSelectedNoteScope({ type: 'board', id: noteBoardId });
     setNoteLoading(true);
     setMobileSidebarOpen(false);
+    const next = new URLSearchParams(searchParams);
+    next.set('note', noteId);
+    next.set('noteBoard', noteBoardId);
+    setSearchParams(next, { replace: true });
     try {
       const detail = await noteService.getDetail(noteBoardId, noteId);
       setSelectedNote(detail);
@@ -122,7 +177,7 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
     } finally {
       setNoteLoading(false);
     }
-  }, [selectedNoteId]);
+  }, [selectedNoteId, searchParams, setSearchParams]);
 
   const handleCreateFolder = useCallback(async (parentId?: string | null) => {
     if (!canEdit) return;
@@ -179,13 +234,16 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
       if (selectedNoteId === noteId) {
         setSelectedNoteId(null);
         setSelectedNote(null);
-  
+        const next = new URLSearchParams(searchParams);
+        next.delete('note');
+        next.delete('noteBoard');
+        setSearchParams(next, { replace: true });
       }
       await loadTree();
     } catch (err) {
       console.error('Failed to delete note:', err);
     }
-  }, [scopeId, svc, selectedNoteId, loadTree]);
+  }, [scopeId, svc, selectedNoteId, loadTree, searchParams, setSearchParams]);
 
   const handleRenameNote = useCallback(async (noteId: string, newTitle: string) => {
     try {
