@@ -2958,7 +2958,13 @@
     "treeView": "树形视图",
     "versionSave": "保存版本",
     "version": "版本",
-    "versionHistory": "版本历史"
+    "versionHistory": "版本历史",
+    "editButton": "编辑",
+    "enterEdit": "进入编辑模式",
+    "exitEdit": "退出编辑",
+    "saveSnapshot": "保存",
+    "viewMode": "阅读模式",
+    "editorsCount": "{{count}}人正在编辑"
   },
   "payment": {
     "error": "支付错误",

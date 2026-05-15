@@ -2958,7 +2958,13 @@
     "treeView": "Chế độ cây",
     "versionSave": "Lưu phiên bản",
     "version": "Phiên bản",
-    "versionHistory": "Lịch sử phiên bản"
+    "versionHistory": "Lịch sử phiên bản",
+    "editButton": "Chỉnh sửa",
+    "enterEdit": "Vào chế độ chỉnh sửa",
+    "exitEdit": "Thoát chỉnh sửa",
+    "saveSnapshot": "Lưu",
+    "viewMode": "Chỉ đọc",
+    "editorsCount": "{{count}} người đang chỉnh sửa"
   },
   "payment": {
     "error": "Lỗi thanh toán",
