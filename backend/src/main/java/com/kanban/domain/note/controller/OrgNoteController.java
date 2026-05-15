@@ -116,6 +116,25 @@ public class OrgNoteController {
         return ResponseEntity.ok(orgNoteService.restoreVersion(orgId, noteId, versionId, principal.getUserId()));
     }
 
+    @DeleteMapping("/{noteId}/versions/{versionId}")
+    public ResponseEntity<Void> deleteVersion(
+            @PathVariable String orgId,
+            @PathVariable String noteId,
+            @PathVariable String versionId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        orgNoteService.deleteVersion(orgId, noteId, versionId, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{noteId}/versions")
+    public ResponseEntity<Void> deleteAllVersions(
+            @PathVariable String orgId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        orgNoteService.deleteAllVersions(orgId, noteId, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
     // ===== Sharing =====
 
     @PostMapping("/{noteId}/share")

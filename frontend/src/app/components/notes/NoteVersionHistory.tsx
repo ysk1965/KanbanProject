@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useEscClose } from "../../hooks/useEscClose";
-import { History, RotateCcw, X, Loader2, Eye } from "lucide-react";
+import { History, RotateCcw, X, Loader2, Eye, Trash2 } from "lucide-react";
 import DOMPurify from "dompurify";
 import { noteService, orgNoteService } from "../../utils/services";
 import { formatDateTime } from "../../utils/dateUtils";
@@ -14,6 +14,7 @@ interface NoteVersionHistoryProps {
   versionCount: number;
   canEdit: boolean;
   onRestore: () => void;
+  onVersionsChanged?: () => void;
 }
 
 export function NoteVersionHistory({
@@ -23,6 +24,7 @@ export function NoteVersionHistory({
   versionCount,
   canEdit,
   onRestore,
+  onVersionsChanged,
 }: NoteVersionHistoryProps) {
   const svc = orgId ? orgNoteService : noteService;
   const scopeId = boardId || orgId || '';
@@ -34,6 +36,8 @@ export function NoteVersionHistory({
     useState<NoteVersionDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [clearingAll, setClearingAll] = useState(false);
 
   const loadVersions = useCallback(async () => {
     setLoading(true);
@@ -92,6 +96,54 @@ export function NoteVersionHistory({
     [scopeId, noteId, onRestore, t, svc],
   );
 
+  const handleDeleteVersion = useCallback(
+    async (versionId: string) => {
+      if (
+        !window.confirm(
+          t("notes.deleteVersionConfirm", "이 버전을 삭제하시겠습니까?"),
+        )
+      )
+        return;
+      setDeletingId(versionId);
+      try {
+        await svc.deleteVersion(scopeId, noteId, versionId);
+        setVersions((prev) => prev.filter((v) => v.id !== versionId));
+        if (selectedVersion?.id === versionId) {
+          setSelectedVersion(null);
+        }
+        onVersionsChanged?.();
+      } catch (err) {
+        console.error("Failed to delete version:", err);
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [scopeId, noteId, svc, t, selectedVersion, onVersionsChanged],
+  );
+
+  const handleClearAll = useCallback(async () => {
+    if (
+      !window.confirm(
+        t(
+          "notes.clearAllVersionsConfirm",
+          "모든 버전 히스토리를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+        ),
+      )
+    )
+      return;
+    setClearingAll(true);
+    try {
+      await svc.deleteAllVersions(scopeId, noteId);
+      setVersions([]);
+      setSelectedVersion(null);
+      onVersionsChanged?.();
+    } catch (err) {
+      console.error("Failed to clear all versions:", err);
+    } finally {
+      setClearingAll(false);
+    }
+  }, [scopeId, noteId, svc, t, onVersionsChanged]);
+
   return (
     <>
       <button
@@ -129,15 +181,33 @@ export function NoteVersionHistory({
                 <History size={14} className="text-bridge-accent" />
                 {t("notes.versionHistory", "버전 히스토리")}
               </h3>
-              <button
-                onClick={() => {
-                  setIsOpen(false);
-                  setSelectedVersion(null);
-                }}
-                className="p-1 text-slate-400 hover:text-foreground hover:bg-foreground/10 rounded"
-              >
-                <X size={14} />
-              </button>
+              <div className="flex items-center gap-1">
+                {canEdit && versions.length > 0 && !selectedVersion && (
+                  <button
+                    onClick={handleClearAll}
+                    disabled={clearingAll}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded disabled:opacity-50 transition-colors"
+                    aria-label={t("notes.clearAllVersions", "비우기")}
+                  >
+                    {clearingAll ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={12} />
+                    )}
+                    <span>{t("notes.clearAllVersions", "비우기")}</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    setSelectedVersion(null);
+                  }}
+                  className="p-1 text-slate-400 hover:text-foreground hover:bg-foreground/10 rounded"
+                  aria-label={t("common.close", "닫기")}
+                >
+                  <X size={14} />
+                </button>
+              </div>
             </div>
 
             {/* Content */}
@@ -166,18 +236,32 @@ export function NoteVersionHistory({
                     </p>
                   </div>
                   {canEdit && (
-                    <button
-                      onClick={() => handleRestore(selectedVersion.id)}
-                      disabled={restoring}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-bridge-accent text-white rounded-lg text-xs font-bold hover:bg-bridge-accent/90 disabled:opacity-50"
-                    >
-                      {restoring ? (
-                        <Loader2 size={10} className="animate-spin" />
-                      ) : (
-                        <RotateCcw size={10} />
-                      )}
-                      {t("notes.restore", "복원")}
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleDeleteVersion(selectedVersion.id)}
+                        disabled={deletingId === selectedVersion.id}
+                        className="flex items-center gap-1 px-2 py-1.5 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg text-xs font-bold disabled:opacity-50 transition-colors"
+                        aria-label={t("notes.deleteVersion", "버전 삭제")}
+                      >
+                        {deletingId === selectedVersion.id ? (
+                          <Loader2 size={10} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={10} />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleRestore(selectedVersion.id)}
+                        disabled={restoring}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-bridge-accent text-white rounded-lg text-xs font-bold hover:bg-bridge-accent/90 disabled:opacity-50"
+                      >
+                        {restoring ? (
+                          <Loader2 size={10} className="animate-spin" />
+                        ) : (
+                          <RotateCcw size={10} />
+                        )}
+                        {t("notes.restore", "복원")}
+                      </button>
+                    </div>
                   )}
                 </div>
                 <div className="flex-1 overflow-y-auto p-4">
@@ -199,28 +283,49 @@ export function NoteVersionHistory({
                 ) : (
                   <div className="p-2 space-y-0.5">
                     {versions.map((version) => (
-                      <button
+                      <div
                         key={version.id}
-                        onClick={() => handleViewVersion(version.id)}
-                        className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-foreground/5 transition-colors group"
+                        className="relative rounded-lg hover:bg-foreground/5 transition-colors group"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-foreground">
-                            v{version.version_number}
-                          </span>
-                          <Eye
-                            size={12}
-                            className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                          />
-                        </div>
-                        <p className="text-xs text-slate-400 mt-0.5 truncate">
-                          {version.title}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          {version.created_by?.name} ·{" "}
-                          {formatDateTime(version.created_at)}
-                        </p>
-                      </button>
+                        <button
+                          onClick={() => handleViewVersion(version.id)}
+                          className="w-full text-left px-3 py-2.5"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-foreground">
+                              v{version.version_number}
+                            </span>
+                            <Eye
+                              size={12}
+                              className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            />
+                          </div>
+                          <p className="text-xs text-slate-400 mt-0.5 truncate pr-6">
+                            {version.title}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {version.created_by?.name} ·{" "}
+                            {formatDateTime(version.created_at)}
+                          </p>
+                        </button>
+                        {canEdit && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteVersion(version.id);
+                            }}
+                            disabled={deletingId === version.id}
+                            className="absolute bottom-2 right-2 p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
+                            aria-label={t("notes.deleteVersion", "버전 삭제")}
+                          >
+                            {deletingId === version.id ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={12} />
+                            )}
+                          </button>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}

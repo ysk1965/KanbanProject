@@ -1,6 +1,7 @@
 package com.kanban.global.controller;
 
 import com.kanban.global.service.FileUploadService;
+import com.kanban.global.util.MediaUtils;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/files")
@@ -56,6 +58,22 @@ public class FileController {
                 "tempKey", result.getTempKey(),
                 "previewUrl", result.getUrl()
         ));
+    }
+
+    /**
+     * 노트 전용 파일 업로드 — 영구 경로에 바로 저장 (temp 경유 없음)
+     */
+    @PostMapping("/upload-note")
+    public ResponseEntity<?> uploadNoteFile(
+            @RequestPart("file") MultipartFile file,
+            @RequestParam("boardId") String boardId) {
+        fileUploadService.validateFile(file);
+
+        String extension = MediaUtils.getExtension(file.getOriginalFilename());
+        String key = String.format("notes/%s/%s%s", boardId, UUID.randomUUID(), extension);
+        String url = fileUploadService.uploadDirect(file, key);
+
+        return ResponseEntity.ok(Map.of("url", url));
     }
 
     @Getter
