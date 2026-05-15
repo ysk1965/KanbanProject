@@ -423,8 +423,10 @@ function CollabNoteEditor({
         },
       },
       uploadFile: async (file: File) => {
-        const scopeId = boardId || orgId || "";
-        const result = await fileAPI.uploadNote(file, scopeId);
+        const result = await fileAPI.uploadNote(
+          file,
+          boardId ? { boardId } : { organizationId: orgId! },
+        );
         return result.url;
       },
       tables: {
@@ -1273,8 +1275,10 @@ function FallbackNoteEditor({
   const editor = useCreateBlockNote({
     schema,
     uploadFile: async (file: File) => {
-      const scopeId = boardId || orgId || "";
-      const result = await fileAPI.uploadNote(file, scopeId);
+      const result = await fileAPI.uploadNote(
+        file,
+        boardId ? { boardId } : { organizationId: orgId! },
+      );
       return result.url;
     },
     tables: {

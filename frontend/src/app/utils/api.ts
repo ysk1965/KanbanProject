@@ -1925,13 +1925,18 @@ export const fileAPI = {
 
   uploadNote: async (
     file: File,
-    boardId: string,
+    scope: { boardId: string } | { organizationId: string },
   ): Promise<{ url: string }> => {
     const formData = new FormData();
     formData.append("file", file);
 
+    const param =
+      "boardId" in scope
+        ? `boardId=${encodeURIComponent(scope.boardId)}`
+        : `organizationId=${encodeURIComponent(scope.organizationId)}`;
+
     const response = await authenticatedFetch(
-      `${API_BASE_URL}/files/upload-note?boardId=${encodeURIComponent(boardId)}`,
+      `${API_BASE_URL}/files/upload-note?${param}`,
       { method: "POST", body: formData },
     );
 
