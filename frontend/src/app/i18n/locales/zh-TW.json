@@ -3959,7 +3959,22 @@
     "exitEdit": "結束編輯",
     "saveSnapshot": "儲存",
     "viewMode": "閱讀模式",
-    "editorsCount": "{{count}} 人正在編輯"
+    "editorsCount": "{{count}} 人正在編輯",
+    "trash": {
+      "title": "回收筒",
+      "empty": "回收筒是空的",
+      "noMatches": "找不到結果",
+      "searchPlaceholder": "依標題、刪除者搜尋...",
+      "restore": "還原",
+      "permanentDelete": "永久刪除",
+      "emptyAll": "清空回收筒",
+      "autoDeleteNotice": "30天後自動永久刪除。",
+      "withChildren": "含子項目",
+      "permanentDeleteConfirmTitle": "永久刪除？",
+      "permanentDeleteConfirm": "「{{title}}」及所有子項目、留言、版本將立即刪除，無法復原。",
+      "emptyAllConfirmTitle": "清空回收筒？",
+      "emptyAllConfirm": "回收筒中的全部 {{count}} 個項目將被永久刪除，無法復原。"
+    }
   },
   "listViewGroupBy": "分組",
   "listViewSortBy": "排序",

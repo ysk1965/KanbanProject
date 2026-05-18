@@ -45,8 +45,13 @@ public class NoteCollabService {
         repository.save(collabState);
     }
 
+    /**
+     * Idempotent — silently no-op if no draft row exists. Spring Data JPA's
+     * default deleteById throws EmptyResultDataAccessException on a missing
+     * row, which would 500 the "폐기" UX on a double-click or race.
+     */
     @Transactional
     public void deleteState(String noteId) {
-        repository.deleteById(noteId);
+        repository.findById(noteId).ifPresent(repository::delete);
     }
 }

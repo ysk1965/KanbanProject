@@ -2966,7 +2966,22 @@
     "exitEdit": "Thoát chỉnh sửa",
     "saveSnapshot": "Lưu",
     "viewMode": "Chỉ đọc",
-    "editorsCount": "{{count}} người đang chỉnh sửa"
+    "editorsCount": "{{count}} người đang chỉnh sửa",
+    "trash": {
+      "title": "Thùng rác",
+      "empty": "Thùng rác trống",
+      "noMatches": "Không có kết quả",
+      "searchPlaceholder": "Tìm theo tiêu đề, người xóa...",
+      "restore": "Khôi phục",
+      "permanentDelete": "Xóa vĩnh viễn",
+      "emptyAll": "Làm sạch thùng rác",
+      "autoDeleteNotice": "Tự động xóa vĩnh viễn sau 30 ngày.",
+      "withChildren": "Có mục con",
+      "permanentDeleteConfirmTitle": "Xóa vĩnh viễn?",
+      "permanentDeleteConfirm": "\"{{title}}\" và tất cả các mục con, bình luận, phiên bản sẽ bị xóa ngay lập tức và không thể khôi phục.",
+      "emptyAllConfirmTitle": "Làm sạch thùng rác?",
+      "emptyAllConfirm": "Tất cả {{count}} mục trong thùng rác sẽ bị xóa vĩnh viễn. Không thể hoàn tác."
+    }
   },
   "payment": {
     "error": "Lỗi thanh toán",

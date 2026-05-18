@@ -2966,7 +2966,22 @@
     "exitEdit": "संपादन समाप्त",
     "saveSnapshot": "सहेजें",
     "viewMode": "पठन मोड",
-    "editorsCount": "{{count}} संपादन कर रहे हैं"
+    "editorsCount": "{{count}} संपादन कर रहे हैं",
+    "trash": {
+      "title": "ट्रैश",
+      "empty": "ट्रैश खाली है",
+      "noMatches": "कोई परिणाम नहीं मिला",
+      "searchPlaceholder": "शीर्षक/लेखक से खोजें...",
+      "restore": "पुनर्स्थापित करें",
+      "permanentDelete": "स्थायी रूप से हटाएं",
+      "emptyAll": "ट्रैश खाली करें",
+      "autoDeleteNotice": "30 दिनों बाद स्वचालित रूप से स्थायी हटा दिए जाएंगे।",
+      "withChildren": "उप-आइटम सहित",
+      "permanentDeleteConfirmTitle": "स्थायी रूप से हटाएं?",
+      "permanentDeleteConfirm": "\"{{title}}\" और इसके सभी उप-आइटम, टिप्पणियाँ और संस्करण तुरंत हटा दिए जाएंगे। इसे पूर्ववत नहीं किया जा सकता।",
+      "emptyAllConfirmTitle": "ट्रैश खाली करें?",
+      "emptyAllConfirm": "ट्रैश के सभी {{count}} आइटम स्थायी रूप से हटा दिए जाएंगे। इसे पूर्ववत नहीं किया जा सकता।"
+    }
   },
   "payment": {
     "error": "भुगतान त्रुटि",

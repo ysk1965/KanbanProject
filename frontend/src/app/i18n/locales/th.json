@@ -2966,7 +2966,22 @@
     "exitEdit": "ออกจากการแก้ไข",
     "saveSnapshot": "บันทึก",
     "viewMode": "โหมดอ่าน",
-    "editorsCount": "{{count}} คนกำลังแก้ไข"
+    "editorsCount": "{{count}} คนกำลังแก้ไข",
+    "trash": {
+      "title": "ถังขยะ",
+      "empty": "ถังขยะว่างเปล่า",
+      "noMatches": "ไม่พบผลลัพธ์",
+      "searchPlaceholder": "ค้นหาตามชื่อหรือผู้ลบ...",
+      "restore": "กู้คืน",
+      "permanentDelete": "ลบถาวร",
+      "emptyAll": "เทถังขยะ",
+      "autoDeleteNotice": "จะถูกลบถาวรอัตโนมัติหลัง 30 วัน",
+      "withChildren": "รวมรายการย่อย",
+      "permanentDeleteConfirmTitle": "ลบถาวรหรือไม่?",
+      "permanentDeleteConfirm": "\"{{title}}\" และรายการย่อย ความคิดเห็น และเวอร์ชันทั้งหมดจะถูกลบทันทีและไม่สามารถกู้คืนได้",
+      "emptyAllConfirmTitle": "เทถังขยะหรือไม่?",
+      "emptyAllConfirm": "รายการทั้งหมด {{count}} รายการในถังขยะจะถูกลบถาวร ไม่สามารถยกเลิกได้"
+    }
   },
   "payment": {
     "error": "ข้อผิดพลาดการชำระเงิน",
