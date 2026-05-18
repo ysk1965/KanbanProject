@@ -437,6 +437,7 @@ public class OrgNoteService {
         organizationService.getOrgMemberOrThrow(orgId, userId);
         getNoteOrThrow(orgId, noteId);
         noteCollabService.deleteState(noteId);
+        eventPublisher.publishEvent(new NoteDraftDiscardedEvent(noteId));
     }
 
     // ===== Tags =====

@@ -2966,7 +2966,22 @@
     "exitEdit": "Sair da edição",
     "saveSnapshot": "Salvar",
     "viewMode": "Modo leitura",
-    "editorsCount": "{{count}} editando"
+    "editorsCount": "{{count}} editando",
+    "trash": {
+      "title": "Lixeira",
+      "empty": "A lixeira está vazia",
+      "noMatches": "Nenhum resultado encontrado",
+      "searchPlaceholder": "Pesquisar por título ou autor...",
+      "restore": "Restaurar",
+      "permanentDelete": "Excluir permanentemente",
+      "emptyAll": "Esvaziar lixeira",
+      "autoDeleteNotice": "Os itens serão excluídos permanentemente após 30 dias.",
+      "withChildren": "Inclui subitens",
+      "permanentDeleteConfirmTitle": "Excluir permanentemente?",
+      "permanentDeleteConfirm": "\"{{title}}\" e todos os seus subitens, comentários e versões serão excluídos imediatamente. Isso não pode ser desfeito.",
+      "emptyAllConfirmTitle": "Esvaziar a lixeira?",
+      "emptyAllConfirm": "Todos os {{count}} itens da lixeira serão excluídos permanentemente. Isso não pode ser desfeito."
+    }
   },
   "payment": {
     "error": "Erro no pagamento",

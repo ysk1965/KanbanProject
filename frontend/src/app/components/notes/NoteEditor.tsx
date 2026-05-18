@@ -122,11 +122,23 @@ function hasNestedListHtml(html: string): boolean {
   return doc.querySelectorAll("li > ul, li > ol").length > 0;
 }
 
-// blocksToHTMLLossy() wraps list item content in <p> tags: <li><p>text</p></li>.
-// When tryParseHTMLToBlocks() parses this back, ProseMirror sees a block element
-// (<p>) inside bulletListItem (which expects inline* content), causing it to split
-// into an empty list item + separate paragraph — showing a "List" label in view mode.
-// Fix: unwrap single <p> children inside <li> so content becomes direct inline text.
+// List item HTML cleanup before tryParseHTMLToBlocks. Two patterns are unwrapped:
+//
+// 1. blocksToHTMLLossy: <li><p>text</p></li>
+//    ProseMirror sees the inner <p> as a block inside bulletListItem (which
+//    expects inline*) and splits it into an empty list item + separate paragraph
+//    — visible as a "List" placeholder in view mode.
+//
+// 2. blocksToFullHTML (legacy data from commit c6a23ae):
+//    <div data-content-type="bulletListItem|numberedListItem|checkListItem">
+//      <p class="bn-inline-content">text</p>
+//    </div>
+//    BulletListItem's parseHTML has a priority-300 rule for `<p>` whose parent
+//    has data-content-type=...ListItem, so the inner <p> ALSO becomes a list
+//    item. Result: empty parent list item + nested child holding the text.
+//
+// Fix: in both cases, unwrap the inner <p> so its children attach directly to
+// the list container as inline content.
 function unwrapListItemParagraphs(html: string): string {
   if (!html) return html;
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -137,6 +149,19 @@ function unwrapListItemParagraphs(html: string): string {
     }
     p.remove();
   });
+  doc
+    .querySelectorAll(
+      'div[data-content-type="bulletListItem"] > p,' +
+        'div[data-content-type="numberedListItem"] > p,' +
+        'div[data-content-type="checkListItem"] > p',
+    )
+    .forEach((p) => {
+      const container = p.parentElement!;
+      while (p.firstChild) {
+        container.insertBefore(p.firstChild, p);
+      }
+      p.remove();
+    });
   return doc.body.innerHTML;
 }
 
@@ -744,11 +769,15 @@ function CollabNoteEditor({
     setHasChanges(true);
   }, [mode]);
 
-  // Get HTML content from current editor state. blocksToFullHTML preserves
-  // custom block props/IDs (Callout/Toggle/Embed/Mention/etc.) so view ↔ edit
-  // round-trip stays lossless; blocksToHTMLLossy was dropping that metadata.
+  // Get HTML content from current editor state.
+  // Use blocksToHTMLLossy (external format) — it is the only round-trip-safe
+  // format. blocksToFullHTML (internal format) is documented as SSR-only and
+  // does NOT round-trip through tryParseHTMLToBlocks: its
+  // <div data-content-type="bulletListItem"><p>...</p></div> structure makes
+  // the inner <p> match bulletListItem's priority-300 parse rule, producing an
+  // empty parent list item + nested child on read.
   const getContentHTML = useCallback(async (): Promise<string> => {
-    return await editor.blocksToFullHTML(editor.document);
+    return await editor.blocksToHTMLLossy(editor.document);
   }, [editor]);
 
   // Save current state as a published snapshot: persist Yjs state + write
@@ -1521,10 +1550,10 @@ function FallbackNoteEditor({
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasChanges]);
 
-  // Mirror CollabNoteEditor.getContentHTML — full HTML preserves custom block
-  // metadata for lossless round-trip on view mode.
+  // Mirror CollabNoteEditor.getContentHTML — see notes there on why
+  // blocksToHTMLLossy is the round-trip-safe format (not blocksToFullHTML).
   const getContentHTML = useCallback(async (): Promise<string> => {
-    return await editor.blocksToFullHTML(editor.document);
+    return await editor.blocksToHTMLLossy(editor.document);
   }, [editor]);
 
   const handleSave = useCallback(async () => {

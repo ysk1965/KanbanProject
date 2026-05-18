@@ -36,6 +36,11 @@ import { Embed } from "../components/notes/blocks/Embed";
 import { ColumnLayout, Column } from "../components/notes/blocks/ColumnLayout";
 import { Mention } from "../components/notes/blocks/Mention";
 
+// Mirror of NoteEditor.unwrapListItemParagraphs — handles both blocksToHTMLLossy
+// (<li><p>...</p></li>) and legacy blocksToFullHTML
+// (<div data-content-type="...ListItem"><p>...</p></div>) so that
+// tryParseHTMLToBlocks does not produce empty parent list items + nested
+// children. See NoteEditor.tsx for the full explanation.
 function unwrapListItemParagraphs(html: string): string {
   if (!html) return html;
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -46,6 +51,19 @@ function unwrapListItemParagraphs(html: string): string {
     }
     p.remove();
   });
+  doc
+    .querySelectorAll(
+      'div[data-content-type="bulletListItem"] > p,' +
+        'div[data-content-type="numberedListItem"] > p,' +
+        'div[data-content-type="checkListItem"] > p',
+    )
+    .forEach((p) => {
+      const container = p.parentElement!;
+      while (p.firstChild) {
+        container.insertBefore(p.firstChild, p);
+      }
+      p.remove();
+    });
   return doc.body.innerHTML;
 }
 
