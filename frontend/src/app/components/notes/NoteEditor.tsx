@@ -782,21 +782,28 @@ function CollabNoteEditor({
         },
         true,
       );
-      // Sync viewEditor with the just-saved HTML before switching to view
-      // mode. Relying on the note.content prop useEffect causes a race where
-      // BlockNoteView mounts before the async parse finishes, showing the
-      // previous snapshot until the next refresh.
+      // Sync both editors with the just-saved HTML BEFORE switching to view
+      // mode. Two races we are eliminating:
+      //   1) viewEditor: relying on the note.content prop useEffect causes a
+      //      race where BlockNoteView mounts before the async parse finishes,
+      //      showing the previous snapshot until the next refresh.
+      //   2) edit `editor` (Yjs-bound): without resetting the local Y.Doc to
+      //      the published HTML, re-entering EDIT mode (or a fresh ws reconnect
+      //      after refresh) hydrates from a stale draft. Backend now deletes
+      //      the collab state row in NoteService.updateNote, but the local
+      //      Y.Doc still holds the pre-save shape — reset it here to match.
       try {
-        if (html?.trim()) {
-          const blocks = await viewEditor.tryParseHTMLToBlocks(
-            unwrapListItemParagraphs(html),
-          );
-          viewEditor.replaceBlocks(viewEditor.document, blocks);
-        } else {
-          viewEditor.replaceBlocks(viewEditor.document, []);
-        }
+        const blocks = html?.trim()
+          ? await viewEditor.tryParseHTMLToBlocks(unwrapListItemParagraphs(html))
+          : [];
+        viewEditor.replaceBlocks(viewEditor.document, blocks);
+        const editBlocks = html?.trim()
+          ? await editor.tryParseHTMLToBlocks(unwrapListItemParagraphs(html))
+          : [];
+        editor.replaceBlocks(editor.document, editBlocks);
+        initialContentLoaded.current = true;
       } catch (err) {
-        console.error("Failed to sync view editor after save:", err);
+        console.error("Failed to sync editors after save:", err);
       }
       setHasChanges(false);
       setMode("view");
@@ -814,6 +821,7 @@ function CollabNoteEditor({
     title,
     note.tags,
     viewEditor,
+    editor,
   ]);
 
   const handleEnterEdit = useCallback(() => {
