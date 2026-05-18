@@ -13,12 +13,9 @@ import {
   Loader2,
   Tag as TagIcon,
   Sparkles,
-  Share2,
-  Link2,
   Check,
   X,
   MessageSquare,
-  History,
   Cloud,
   CloudUpload,
   CloudOff,
@@ -205,7 +202,6 @@ interface NoteEditorProps {
     createVersion?: boolean,
   ) => void;
   onTagsChange: () => void;
-  onDirtyChange?: (isDirty: boolean) => void;
   onNoteUpdate?: (note: NoteDetail) => void;
   collaboration: CollaborationState | null;
   currentUserName: string;
@@ -221,7 +217,6 @@ export function NoteEditor({
   canEdit,
   onSave,
   onTagsChange,
-  onDirtyChange,
   onNoteUpdate,
   collaboration,
   currentUserName,
@@ -269,7 +264,6 @@ export function NoteEditor({
           canEdit={canEdit}
           onSave={onSave}
           onTagsChange={onTagsChange}
-          onDirtyChange={onDirtyChange}
           onNoteUpdate={onNoteUpdate}
           collaboration={collaboration}
           currentUserName={currentUserName}
@@ -279,28 +273,17 @@ export function NoteEditor({
     );
   }
 
-  if (collaboration) {
+  // collaboration이 아직 준비 안 됐으면 스피너 — 협업이 항상 활성화돼야 정상 동작.
+  if (!collaboration) {
     return (
-      <CollabNoteEditor
-        boardId={boardId}
-        orgId={orgId}
-        note={note}
-        tags={tags}
-        canEdit={canEdit}
-        onSave={onSave}
-        onTagsChange={onTagsChange}
-        onDirtyChange={onDirtyChange}
-        onNoteUpdate={onNoteUpdate}
-        collaboration={collaboration}
-        currentUserName={currentUserName}
-        currentUserColor={currentUserColor}
-      />
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-bridge-accent" />
+      </div>
     );
   }
 
-  // Fallback: non-collaborative mode (shouldn't normally happen)
   return (
-    <FallbackNoteEditor
+    <CollabNoteEditor
       boardId={boardId}
       orgId={orgId}
       note={note}
@@ -308,7 +291,10 @@ export function NoteEditor({
       canEdit={canEdit}
       onSave={onSave}
       onTagsChange={onTagsChange}
-      onDirtyChange={onDirtyChange}
+      onNoteUpdate={onNoteUpdate}
+      collaboration={collaboration}
+      currentUserName={currentUserName}
+      currentUserColor={currentUserColor}
     />
   );
 }
@@ -329,7 +315,6 @@ interface CollabEditorProps {
     createVersion?: boolean,
   ) => void;
   onTagsChange: () => void;
-  onDirtyChange?: (isDirty: boolean) => void;
   onNoteUpdate?: (note: NoteDetail) => void;
   collaboration: CollaborationState;
   currentUserName: string;
@@ -344,7 +329,6 @@ function CollabNoteEditor({
   canEdit,
   onSave,
   onTagsChange,
-  onDirtyChange,
   onNoteUpdate,
   collaboration,
   currentUserName,
@@ -549,8 +533,13 @@ function CollabNoteEditor({
           );
           editor.replaceBlocks(editor.document, blocks);
           initialContentLoaded.current = true;
-          // Persist the Yjs state so next time it loads from collab
-          collaboration.provider.sendFullState();
+          // Intentionally do NOT sendFullState here. Hydrating the Y.Doc from
+          // the published HTML is purely a local view of the current state —
+          // persisting it would create a draft row whose content equals the
+          // published snapshot, which then trips hasUnpublishedDraft (timestamp
+          // comparison) and resurrects the banner after a discard. The first
+          // real user edit will trigger the 1.5s debounce sendFullState and
+          // legitimately establish a draft from that point.
         } catch (err) {
           console.error(
             "Failed to load initial HTML content into collab editor:",
@@ -746,10 +735,6 @@ function CollabNoteEditor({
     return () => clearTimeout(timer);
   }, [hasChanges]);
 
-  useEffect(() => {
-    onDirtyChange?.(false);
-  }, [onDirtyChange]);
-
   const handleTitleChange = (newTitle: string) => {
     if (mode !== "edit") return;
     setTitle(newTitle);
@@ -845,9 +830,15 @@ function CollabNoteEditor({
     setHasChanges(false);
   }, [collaboration.provider]);
 
-  // Discard the server-side draft (note_collab_states row). Next edit-mode
-  // entry will rehydrate from notes.content. Warns if anyone is currently
-  // editing — they'd just re-persist their in-memory state on the next debounce.
+  // Discard the unpublished draft so EDIT mode reflects the published snapshot
+  // again. Three things must happen for the discard to "stick":
+  //   1) server-side note_collab_states row deleted (handled by backend)
+  //   2) ws room's in-memory storedState cleared via NoteDraftDiscardedEvent
+  //   3) THIS client's local Y.Doc reset to the published HTML — otherwise the
+  //      next edit-mode entry would re-persist the stale in-memory state on
+  //      the 1.5s debounce, resurrecting the draft.
+  // Other connected EDIT clients still hold their own Y.Doc copy; we surface a
+  // warning so the user understands their writes will win.
   const handleDiscardDraft = useCallback(async () => {
     const editorsActive = collaboration.connectedUsers.some((u) => u.mode === "edit");
     const warn = editorsActive
@@ -869,11 +860,29 @@ function CollabNoteEditor({
         : orgId
           ? await orgNoteService.getDetail(orgId, note.id)
           : null;
+      // Reset the local Y.Doc to the freshly-published HTML so EDIT == VIEW.
+      // readOnly is true in view mode, so this replaceBlocks does NOT broadcast.
+      if (editor) {
+        const html = updated?.content ?? note.content ?? "";
+        try {
+          if (html.trim()) {
+            const blocks = await editor.tryParseHTMLToBlocks(
+              unwrapListItemParagraphs(html),
+            );
+            editor.replaceBlocks(editor.document, blocks);
+          } else {
+            editor.replaceBlocks(editor.document, []);
+          }
+          initialContentLoaded.current = true;
+        } catch (err) {
+          console.error("Failed to reset local Y.Doc after discard:", err);
+        }
+      }
       if (updated) onNoteUpdate?.(updated);
     } catch (err) {
       console.error("Failed to discard draft:", err);
     }
-  }, [boardId, orgId, note.id, onNoteUpdate, collaboration.connectedUsers, t]);
+  }, [boardId, orgId, note.id, note.content, onNoteUpdate, collaboration.connectedUsers, editor, t]);
 
   // Keyboard shortcut: Ctrl/Cmd+S (Edit mode only)
   useEffect(() => {
@@ -1228,12 +1237,14 @@ function CollabNoteEditor({
         >
           {mode === "view" ? (
             <BlockNoteView
+              key={`view-${note.id}-${note.updated_at}`}
               editor={viewEditor}
               theme={isDark ? "dark" : "light"}
               editable={false}
             />
           ) : (
             <BlockNoteView
+              key={`edit-${note.id}`}
               editor={editor}
               theme={isDark ? "dark" : "light"}
               editable={canEdit && mode === "edit"}
@@ -1328,520 +1339,6 @@ function CollabNoteEditor({
             orgId={orgId}
             noteId={note.id}
             currentUserId={currentUser.id}
-            canEdit={canEdit}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
- * Fallback Editor (non-collaborative, original behavior)
- * ============================================================ */
-
-interface FallbackEditorProps {
-  boardId?: string;
-  orgId?: string;
-  note: NoteDetail;
-  tags: NoteTagInfo[];
-  canEdit: boolean;
-  onSave: (
-    noteId: string,
-    data: { title?: string; content?: string; tagIds?: string[] },
-    createVersion?: boolean,
-  ) => void;
-  onTagsChange: () => void;
-  onDirtyChange?: (isDirty: boolean) => void;
-}
-
-const AUTO_SAVE_DELAY = 30_000;
-
-function FallbackNoteEditor({
-  boardId,
-  orgId,
-  note,
-  tags,
-  canEdit,
-  onSave,
-  onTagsChange,
-  onDirtyChange,
-}: FallbackEditorProps) {
-  const { t } = useTranslation();
-  const { currentUser: fallbackCurrentUser } = useAuth();
-  const { isDark } = useTheme();
-  const [title, setTitle] = useState(note.title);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [autoSaved, setAutoSaved] = useState(false);
-  const [mode, setMode] = useState<"view" | "edit">("view");
-  const noteIdRef = useRef(note.id);
-  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    setMode("view");
-  }, [note.id]);
-
-  const editor = useCreateBlockNote({
-    schema,
-    uploadFile: async (file: File) => {
-      const result = await fileAPI.uploadNote(
-        file,
-        boardId ? { boardId } : { organizationId: orgId! },
-      );
-      return result.url;
-    },
-    tables: {
-      cellBackgroundColor: true,
-      cellTextColor: true,
-      headers: true,
-      splitCells: true,
-    },
-    pasteHandler: ({
-      event,
-      editor: e,
-      defaultPasteHandler,
-    }: {
-      event: ClipboardEvent;
-      editor: any;
-      defaultPasteHandler: () => boolean;
-    }) => {
-      const bnHtml = event.clipboardData?.getData("blocknote/html");
-      if (bnHtml) {
-        e.pasteHTML(bnHtml, true);
-        return true;
-      }
-      const html = event.clipboardData?.getData("text/html");
-      if (html && hasNestedListHtml(html)) {
-        e.pasteHTML(html);
-        return true;
-      }
-      if (html) {
-        e.pasteHTML(collapseInterBlockWhitespace(html));
-        return true;
-      }
-      return defaultPasteHandler();
-    },
-  } as any);
-
-  // Read-only editor that mirrors the last-saved snapshot. Used while the user
-  // is in View mode so unsaved edits in `editor` don't bleed into the display.
-  const viewEditor = useCreateBlockNote({ schema } as any);
-
-  useEffect(() => {
-    if (!viewEditor) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        if (!note.content?.trim()) {
-          if (!cancelled) viewEditor.replaceBlocks(viewEditor.document, []);
-          return;
-        }
-        const blocks = await viewEditor.tryParseHTMLToBlocks(
-          unwrapListItemParagraphs(note.content),
-        );
-        if (!cancelled) viewEditor.replaceBlocks(viewEditor.document, blocks);
-      } catch (err) {
-        console.error(
-          "Failed to load snapshot content into fallback view editor:",
-          err,
-        );
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [viewEditor, note.content]);
-
-  const slashMenuItems = useMemo(
-    () => [...getDefaultReactSlashMenuItems(editor)],
-    [editor],
-  );
-
-  const membersCache = useRef<MemberResponse[] | null>(null);
-  const getMentionItems = useCallback(
-    async (query: string) => {
-      if (!membersCache.current) {
-        try {
-          const data = await memberAPI.getMembers(boardId);
-          membersCache.current = data.members;
-        } catch {
-          membersCache.current = [];
-        }
-      }
-      const items = (membersCache.current || []).map((m) => ({
-        title: m.user.name,
-        onItemClick: () => {
-          editor.insertInlineContent([
-            { type: "mention" as any, props: { user: m.user.name } },
-            " ",
-          ]);
-        },
-        aliases: [m.user.email],
-        group: "Members",
-        icon: m.user.profile_image ? (
-          <img
-            src={m.user.profile_image}
-            alt={m.user.name || "프로필"}
-            className="bn-mention-avatar"
-          />
-        ) : (
-          <span className="bn-mention-avatar-fallback">
-            {m.user.name.charAt(0)}
-          </span>
-        ),
-      }));
-      return filterSuggestionItems(items, query);
-    },
-    [boardId, editor],
-  );
-
-  useEffect(() => {
-    if (note.id !== noteIdRef.current) {
-      noteIdRef.current = note.id;
-      setTitle(note.title);
-      setHasChanges(false);
-      setAutoSaved(false);
-      const loadContent = async () => {
-        if (!note.content?.trim()) {
-          editor.replaceBlocks(editor.document, []);
-          return;
-        }
-        try {
-          const blocks = await editor.tryParseHTMLToBlocks(
-            unwrapListItemParagraphs(note.content),
-          );
-          editor.replaceBlocks(editor.document, blocks);
-        } catch (err) {
-          console.error("Failed to load note content:", err);
-        }
-      };
-      loadContent();
-    }
-  }, [note.id, note.title, note.content, editor]);
-
-  const initialLoadDone = useRef(false);
-  useEffect(() => {
-    if (initialLoadDone.current) return;
-    initialLoadDone.current = true;
-    if (!note.content?.trim()) return;
-    const loadInitial = async () => {
-      try {
-        const blocks = await editor.tryParseHTMLToBlocks(
-          unwrapListItemParagraphs(note.content!),
-        );
-        editor.replaceBlocks(editor.document, blocks);
-      } catch (err) {
-        console.error("Failed to load initial content:", err);
-      }
-    };
-    loadInitial();
-  }, [editor, note.content]);
-
-  useEffect(() => {
-    onDirtyChange?.(hasChanges);
-  }, [hasChanges, onDirtyChange]);
-
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasChanges) e.preventDefault();
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [hasChanges]);
-
-  // Mirror CollabNoteEditor.getContentHTML — see notes there on why
-  // blocksToHTMLLossy is the round-trip-safe format (not blocksToFullHTML).
-  const getContentHTML = useCallback(async (): Promise<string> => {
-    return await editor.blocksToHTMLLossy(editor.document);
-  }, [editor]);
-
-  const handleSave = useCallback(async () => {
-    if (!canEdit) return;
-    setSaving(true);
-    try {
-      if (hasChanges) {
-        const html = await getContentHTML();
-        await onSave(
-          note.id,
-          {
-            title: title !== note.title ? title : undefined,
-            content: html,
-            tagIds: note.tags.map((t) => t.id),
-          },
-          true,
-        );
-        // Sync viewEditor with just-saved HTML before switching to view mode
-        // to avoid the stale-snapshot flash while note.content prop propagates.
-        try {
-          if (html?.trim()) {
-            const blocks = await viewEditor.tryParseHTMLToBlocks(
-              unwrapListItemParagraphs(html),
-            );
-            viewEditor.replaceBlocks(viewEditor.document, blocks);
-          } else {
-            viewEditor.replaceBlocks(viewEditor.document, []);
-          }
-        } catch (err) {
-          console.error("Failed to sync view editor after save:", err);
-        }
-        setHasChanges(false);
-        setAutoSaved(false);
-      }
-      setMode("view");
-    } finally {
-      setSaving(false);
-    }
-  }, [
-    hasChanges,
-    canEdit,
-    getContentHTML,
-    onSave,
-    note.id,
-    note.title,
-    title,
-    note.tags,
-    viewEditor,
-  ]);
-
-  const handleAutoSave = useCallback(async () => {
-    if (!hasChanges || !canEdit) return;
-    try {
-      const html = await getContentHTML();
-      await onSave(
-        note.id,
-        {
-          title: title !== note.title ? title : undefined,
-          content: html,
-          tagIds: note.tags.map((t) => t.id),
-        },
-        false,
-      );
-      setHasChanges(false);
-      setAutoSaved(true);
-    } catch {
-      /* Silently fail */
-    }
-  }, [
-    hasChanges,
-    canEdit,
-    getContentHTML,
-    onSave,
-    note.id,
-    note.title,
-    title,
-    note.tags,
-  ]);
-
-  useEffect(() => {
-    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    if (hasChanges && canEdit) {
-      autoSaveTimerRef.current = setTimeout(() => {
-        handleAutoSave();
-      }, AUTO_SAVE_DELAY);
-    }
-    return () => {
-      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    };
-  }, [hasChanges, canEdit, handleAutoSave]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-        e.preventDefault();
-        handleSave();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSave]);
-
-  const handleExitEdit = useCallback(async () => {
-    if (hasChanges) {
-      await handleAutoSave();
-    }
-    setMode("view");
-  }, [hasChanges, handleAutoSave]);
-
-  return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-4 sm:px-6 py-3 border-b border-foreground/5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:justify-between">
-        <div className="flex-1 min-w-0">
-          <input
-            value={title}
-            onChange={(e) => {
-              if (mode !== "edit") return;
-              setTitle(e.target.value);
-              setHasChanges(true);
-              setAutoSaved(false);
-            }}
-            className="w-full bg-transparent text-lg font-bold text-foreground focus:outline-none placeholder-slate-600"
-            placeholder={t("notes.titlePlaceholder", "제목을 입력하세요")}
-            readOnly={mode !== "edit" || !canEdit}
-          />
-          <div className="flex items-center gap-3 mt-1">
-            <span className="text-xs text-slate-500 flex items-center gap-1 whitespace-nowrap">
-              <Clock size={10} />
-              {formatDateTime(note.updated_at)}
-              {note.updated_by && ` · ${note.updated_by.name}`}
-            </span>
-            {mode === "view" ? (
-              <span className="text-xs text-slate-500 flex items-center gap-1">
-                <Eye size={10} />
-                {t("notes.viewMode", "읽기 모드")}
-              </span>
-            ) : (
-              autoSaved && (
-                <span className="text-xs text-emerald-500/70">
-                  {t("notes.autoSaved", "자동 저장됨")}
-                </span>
-              )
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
-          {mode === "edit" && (
-            <NoteTagManager
-              boardId={boardId}
-              orgId={orgId}
-              noteId={note.id}
-              noteTags={note.tags}
-              allTags={tags}
-              canEdit={canEdit}
-              onSave={(tagIds) => onSave(note.id, { tagIds })}
-              onTagsChange={onTagsChange}
-            />
-          )}
-          <NoteVersionHistory
-            boardId={boardId}
-            orgId={orgId}
-            noteId={note.id}
-            noteType={note.type}
-            currentTitle={note.title}
-            currentContent={note.content}
-            versionCount={note.version_count}
-            canEdit={canEdit && mode === "edit"}
-            onRestore={async () => {
-              let updated;
-              if (boardId) {
-                const { noteService } = await import("../../utils/services");
-                updated = await noteService.getDetail(boardId, note.id);
-              } else if (orgId) {
-                const { orgNoteService } = await import("../../utils/services");
-                updated = await orgNoteService.getDetail(orgId, note.id);
-              }
-              if (updated) {
-                if (updated.content?.trim()) {
-                  try {
-                    const blocks = await editor.tryParseHTMLToBlocks(
-                      unwrapListItemParagraphs(updated.content),
-                    );
-                    editor.replaceBlocks(editor.document, blocks);
-                  } catch (err) {
-                    console.error("Failed to restore content:", err);
-                  }
-                } else {
-                  editor.replaceBlocks(editor.document, []);
-                }
-                setTitle(updated.title);
-                setHasChanges(false);
-                setAutoSaved(false);
-                onNoteUpdate?.(updated);
-              }
-            }}
-            onVersionsChanged={async () => {
-              if (boardId) {
-                const { noteService } = await import("../../utils/services");
-                const updated = await noteService.getDetail(boardId, note.id);
-                onNoteUpdate?.(updated);
-              } else if (orgId) {
-                const { orgNoteService } = await import("../../utils/services");
-                const updated = await orgNoteService.getDetail(orgId, note.id);
-                onNoteUpdate?.(updated);
-              }
-            }}
-          />
-          {canEdit && mode === "view" && (
-            <button
-              onClick={() => setMode("edit")}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ml-1 bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20"
-            >
-              <Pencil size={12} />
-              <span className="hidden sm:inline">
-                {t("notes.editButton", "편집")}
-              </span>
-            </button>
-          )}
-          {canEdit && mode === "edit" && (
-            <>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ml-1 bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20 disabled:opacity-60"
-              >
-                {saving ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : (
-                  <Save size={12} />
-                )}
-                <span className="hidden sm:inline">
-                  {t("notes.saveSnapshot", "저장")}
-                </span>
-              </button>
-              <button
-                onClick={handleExitEdit}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-foreground/5 text-slate-400 hover:text-foreground hover:bg-foreground/10"
-              >
-                <DoorOpen size={12} />
-                <span className="hidden sm:inline">
-                  {t("notes.exitEdit", "편집 종료")}
-                </span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="min-h-[60vh]" onCopy={handleEditorCopy}>
-          {mode === "view" ? (
-            <BlockNoteView
-              editor={viewEditor}
-              theme={isDark ? "dark" : "light"}
-              editable={false}
-            />
-          ) : (
-            <BlockNoteView
-              editor={editor}
-              theme={isDark ? "dark" : "light"}
-              editable={canEdit && mode === "edit"}
-              onChange={() => {
-                if (mode !== "edit") return;
-                setHasChanges(true);
-                setAutoSaved(false);
-              }}
-            >
-              <SuggestionMenuController
-                triggerCharacter="/"
-                getItems={async (query) =>
-                  filterSuggestionItems(slashMenuItems, query)
-                }
-              />
-              <SuggestionMenuController
-                triggerCharacter="@"
-                getItems={getMentionItems}
-              />
-              <TableHandlesController />
-            </BlockNoteView>
-          )}
-        </div>
-
-        {/* Bottom Confluence-style Comments Panel */}
-        {fallbackCurrentUser && (
-          <NoteBottomComments
-            boardId={boardId}
-            orgId={orgId}
-            noteId={note.id}
-            currentUserId={fallbackCurrentUser.id}
             canEdit={canEdit}
           />
         )}

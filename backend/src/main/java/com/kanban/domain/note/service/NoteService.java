@@ -13,6 +13,9 @@ import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -146,6 +149,11 @@ public class NoteService {
         return NoteResponse.Detail.of(note, tags, 0);
     }
 
+    // 동시 명시 저장으로 note_versions(note_id, version_number) UNIQUE 충돌 시 재시도.
+    // 트랜잭션 경계가 메서드 단위라 새 트랜잭션에서 max+1이 다시 계산됨.
+    @Retryable(retryFor = DataIntegrityViolationException.class,
+               maxAttempts = 3,
+               backoff = @Backoff(delay = 50, multiplier = 2.0))
     @Transactional
     public NoteResponse.Detail updateNote(String boardId, String noteId, String userId,
                                            NoteRequest.Update request, boolean createVersion) {
@@ -344,6 +352,9 @@ public class NoteService {
         return NoteResponse.VersionDetail.of(version);
     }
 
+    @Retryable(retryFor = DataIntegrityViolationException.class,
+               maxAttempts = 3,
+               backoff = @Backoff(delay = 50, multiplier = 2.0))
     @Transactional
     public NoteResponse.Detail restoreVersion(String boardId, String noteId, String versionId, String userId) {
         boardService.checkMemberOrAbove(boardId, userId);
@@ -469,6 +480,21 @@ public class NoteService {
 
         Note note = getNoteOrThrow(boardId, noteId);
         note.disableShare();
+
+        List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
+        int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
+        return NoteResponse.Detail.of(note, tags, versionCount);
+    }
+
+    @Transactional
+    public NoteResponse.Detail rotateShareToken(String boardId, String noteId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Note note = getNoteOrThrow(boardId, noteId);
+        if (note.isFolder()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "폴더는 공유할 수 없습니다");
+        }
+        note.rotateShareToken();
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);

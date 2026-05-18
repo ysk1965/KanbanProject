@@ -5730,6 +5730,12 @@ export const noteAPI = {
     );
   },
 
+  rotateShareToken: async (boardId: string, noteId: string) => {
+    return apiClient.post<NoteDetail>(
+      `/boards/${boardId}/notes/${noteId}/share/rotate`,
+    );
+  },
+
   // ===== Trash =====
 
   getTrash: async (boardId: string) => {
@@ -5906,6 +5912,12 @@ export const orgNoteAPI = {
   disableShare: async (orgId: string, noteId: string) => {
     return apiClient.delete<NoteDetail>(
       `/organizations/${orgId}/notes/${noteId}/share`,
+    );
+  },
+
+  rotateShareToken: async (orgId: string, noteId: string) => {
+    return apiClient.post<NoteDetail>(
+      `/organizations/${orgId}/notes/${noteId}/share/rotate`,
     );
   },
 
