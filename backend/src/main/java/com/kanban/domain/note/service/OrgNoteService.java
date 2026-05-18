@@ -253,11 +253,18 @@ public class OrgNoteService {
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
 
+        // 정식 저장으로 새 발행본이 만들어졌으면 stale Yjs draft를 함께 폐기한다.
+        // 그렇지 않으면 다음 ws joiner가 이전 시점의 storedState로 hydration 되어
+        // 편집 모드 진입 시 발행본보다 오래된 화면이 잠깐 보이는 race를 유발한다.
         if (publishedNewSnapshot) {
+            noteCollabService.deleteState(noteId);
+            eventPublisher.publishEvent(new NoteDraftDiscardedEvent(noteId));
             eventPublisher.publishEvent(new NoteSnapshotSavedEvent(noteId));
         }
 
-        return NoteResponse.Detail.of(note, tags, versionCount);
+        boolean hasDraft = !publishedNewSnapshot
+                && noteCollabService.hasUnpublishedDraft(noteId, note.getUpdatedAt());
+        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft);
     }
 
     @Transactional
