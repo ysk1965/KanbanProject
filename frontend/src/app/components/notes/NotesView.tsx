@@ -52,12 +52,21 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
   const userName = currentUser?.name || 'Anonymous';
   const userColor = useMemo(() => getAssigneeHex(userName), [userName]);
 
+  // Bumped after draft discard to force a fresh Y.Doc/provider/editor so the
+  // initial-content useEffect in NoteEditor cleanly re-hydrates from the
+  // published snapshot. See NoteEditor.handleDiscardDraft.
+  const [collabResetCounter, setCollabResetCounter] = useState(0);
+  const handleCollabReset = useCallback(() => {
+    setCollabResetCounter(v => v + 1);
+  }, []);
+
   // Real-time collaboration for the selected note
   const collaboration = useCollaboration({
     noteId: selectedNoteId || '',
     userName,
     userColor,
     enabled: !!selectedNoteId && (selectedNote?.type === 'DOCUMENT' || selectedNote?.type === 'BOARD'),
+    resetCounter: collabResetCounter,
   });
 
   const loadTree = useCallback(async () => {
@@ -456,6 +465,7 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
               onTagsChange={loadTags}
 
               onNoteUpdate={(updated) => setSelectedNote(updated)}
+              onCollabReset={handleCollabReset}
               collaboration={collaboration}
               currentUserName={userName}
               currentUserColor={userColor}

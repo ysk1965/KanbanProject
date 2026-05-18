@@ -23,6 +23,11 @@ interface UseCollaborationOptions {
   userName: string;
   userColor?: string;
   enabled?: boolean;
+  // Bump to force-recreate Y.Doc + provider (e.g. after draft discard). The
+  // existing collab session is torn down (provider destroy, doc destroy) and a
+  // fresh one is created, so consumers can rely on a clean slate without
+  // remounting the parent component.
+  resetCounter?: number;
 }
 
 export function useCollaboration({
@@ -30,19 +35,20 @@ export function useCollaboration({
   userName,
   userColor,
   enabled = true,
+  resetCounter = 0,
 }: UseCollaborationOptions): CollaborationState | null {
   const [status, setStatus] = useState<CollabStatus>('disconnected');
   const [connectedUsers, setConnectedUsers] = useState<CollabUser[]>([]);
   const color = useMemo(() => userColor || getAssigneeHex(userName), [userName, userColor]);
 
-  // Stable doc + provider per noteId
+  // Stable doc + provider per noteId (+ resetCounter)
   const collab = useMemo(() => {
     if (!enabled || !noteId || !userName) return null;
     const doc = new Y.Doc();
     const provider = new CollabProvider(noteId, doc, { name: userName, color });
     const fragment = doc.getXmlFragment('document-store');
     return { doc, provider, fragment };
-  }, [noteId, userName, color, enabled]);
+  }, [noteId, userName, color, enabled, resetCounter]);
 
   useEffect(() => {
     if (!collab) return;
