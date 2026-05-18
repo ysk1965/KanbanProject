@@ -26,3 +26,14 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+declare module "node-htmldiff" {
+  function htmldiff(
+    before: string,
+    after: string,
+    className?: string,
+    dataPrefix?: string,
+    atomicTags?: string,
+  ): string;
+  export default htmldiff;
+}

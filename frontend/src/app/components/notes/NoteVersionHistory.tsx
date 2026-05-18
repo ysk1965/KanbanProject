@@ -1,16 +1,36 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 import { useEscClose } from "../../hooks/useEscClose";
-import { History, RotateCcw, X, Loader2, Eye, Trash2 } from "lucide-react";
+import {
+  History,
+  RotateCcw,
+  X,
+  Loader2,
+  Eye,
+  Trash2,
+  GitCompare,
+  FileText,
+} from "lucide-react";
 import DOMPurify from "dompurify";
 import { noteService, orgNoteService } from "../../utils/services";
 import { formatDateTime } from "../../utils/dateUtils";
+import { useTheme } from "../../contexts/ThemeContext";
+import { NoteVersionDiffView } from "./NoteVersionDiffView";
+import { DIFF_COLORS } from "../../utils/excalidrawDiff";
 import type { NoteVersionInfo, NoteVersionDetail } from "../../utils/api";
+
+const ExcalidrawLazy = lazy(async () => {
+  const mod = await import("@excalidraw/excalidraw");
+  return { default: mod.Excalidraw };
+});
 
 interface NoteVersionHistoryProps {
   boardId?: string;
   orgId?: string;
   noteId: string;
+  noteType: string;
+  currentTitle: string;
+  currentContent: string | null | undefined;
   versionCount: number;
   canEdit: boolean;
   onRestore: () => void;
@@ -21,19 +41,26 @@ export function NoteVersionHistory({
   boardId,
   orgId,
   noteId,
+  noteType,
+  currentTitle,
+  currentContent,
   versionCount,
   canEdit,
   onRestore,
   onVersionsChanged,
 }: NoteVersionHistoryProps) {
   const svc = orgId ? orgNoteService : noteService;
-  const scopeId = boardId || orgId || '';
+  const scopeId = boardId || orgId || "";
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
-  useEscClose(isOpen, () => { setIsOpen(false); setSelectedVersion(null); });
+  useEscClose(isOpen, () => {
+    setIsOpen(false);
+    setSelectedVersion(null);
+  });
   const [versions, setVersions] = useState<NoteVersionInfo[]>([]);
   const [selectedVersion, setSelectedVersion] =
     useState<NoteVersionDetail | null>(null);
+  const [diffMode, setDiffMode] = useState(true);
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -60,12 +87,9 @@ export function NoteVersionHistory({
   const handleViewVersion = useCallback(
     async (versionId: string) => {
       try {
-        const detail = await svc.getVersionDetail(
-          scopeId,
-          noteId,
-          versionId,
-        );
+        const detail = await svc.getVersionDetail(scopeId, noteId, versionId);
         setSelectedVersion(detail);
+        setDiffMode(true);
       } catch (err) {
         console.error("Failed to load version detail:", err);
       }
@@ -144,6 +168,11 @@ export function NoteVersionHistory({
     }
   }, [scopeId, noteId, svc, t, onVersionsChanged]);
 
+  // Panel width — wider when showing detail (need room for diff)
+  const panelWidthClass = selectedVersion
+    ? "w-full sm:w-[min(960px,95vw)]"
+    : "w-full sm:w-96";
+
   return (
     <>
       <button
@@ -155,9 +184,7 @@ export function NoteVersionHistory({
           {t("notes.versionHistory", "버전")}
         </span>
         {versionCount > 0 && (
-          <span className="text-bridge-accent font-medium">
-            {versionCount}
-          </span>
+          <span className="text-bridge-accent font-medium">{versionCount}</span>
         )}
       </button>
 
@@ -174,12 +201,16 @@ export function NoteVersionHistory({
           />
 
           {/* Panel */}
-          <div className="absolute right-0 top-0 bottom-0 w-96 bg-bridge-obsidian border-l border-foreground/10 shadow-2xl flex flex-col">
+          <div
+            className={`absolute right-0 top-0 bottom-0 ${panelWidthClass} bg-bridge-obsidian border-l border-foreground/10 shadow-2xl flex flex-col`}
+          >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-foreground/5">
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <History size={14} className="text-bridge-accent" />
-                {t("notes.versionHistory", "버전 히스토리")}
+                {selectedVersion
+                  ? `v${selectedVersion.version_number} → ${t("notes.diff.current", "현재")}`
+                  : t("notes.versionHistory", "버전 히스토리")}
               </h3>
               <div className="flex items-center gap-1">
                 {canEdit && versions.length > 0 && !selectedVersion && (
@@ -218,15 +249,15 @@ export function NoteVersionHistory({
             ) : selectedVersion ? (
               /* Version Detail View */
               <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="px-4 py-3 border-b border-foreground/5 flex items-center justify-between">
-                  <div>
+                <div className="px-4 py-3 border-b border-foreground/5 flex items-center justify-between flex-wrap gap-2">
+                  <div className="min-w-0">
                     <button
                       onClick={() => setSelectedVersion(null)}
                       className="text-xs text-bridge-accent hover:underline"
                     >
                       ← {t("notes.backToList", "목록으로")}
                     </button>
-                    <p className="text-xs font-medium text-foreground mt-1">
+                    <p className="text-xs font-medium text-foreground mt-1 truncate">
                       v{selectedVersion.version_number} ·{" "}
                       {selectedVersion.title}
                     </p>
@@ -235,43 +266,109 @@ export function NoteVersionHistory({
                       {formatDateTime(selectedVersion.created_at)}
                     </p>
                   </div>
-                  {canEdit && (
-                    <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1">
+                    {/* Diff / Original toggle */}
+                    <div className="flex items-center bg-foreground/5 rounded-lg p-0.5">
                       <button
-                        onClick={() => handleDeleteVersion(selectedVersion.id)}
-                        disabled={deletingId === selectedVersion.id}
-                        className="flex items-center gap-1 px-2 py-1.5 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg text-xs font-bold disabled:opacity-50 transition-colors"
-                        aria-label={t("notes.deleteVersion", "버전 삭제")}
+                        onClick={() => setDiffMode(true)}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                          diffMode
+                            ? "bg-bridge-accent text-white"
+                            : "text-slate-400 hover:text-foreground"
+                        }`}
+                        title={t("notes.diff.showDiff", "변경 사항 보기")}
                       >
-                        {deletingId === selectedVersion.id ? (
-                          <Loader2 size={10} className="animate-spin" />
-                        ) : (
-                          <Trash2 size={10} />
-                        )}
+                        <GitCompare size={10} />
+                        <span className="hidden md:inline">
+                          {t("notes.diff.diffLabel", "변경")}
+                        </span>
                       </button>
                       <button
-                        onClick={() => handleRestore(selectedVersion.id)}
-                        disabled={restoring}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-bridge-accent text-white rounded-lg text-xs font-bold hover:bg-bridge-accent/90 disabled:opacity-50"
+                        onClick={() => setDiffMode(false)}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                          !diffMode
+                            ? "bg-bridge-accent text-white"
+                            : "text-slate-400 hover:text-foreground"
+                        }`}
+                        title={t("notes.diff.showOriginal", "원본 보기")}
                       >
-                        {restoring ? (
-                          <Loader2 size={10} className="animate-spin" />
-                        ) : (
-                          <RotateCcw size={10} />
-                        )}
-                        {t("notes.restore", "복원")}
+                        <FileText size={10} />
+                        <span className="hidden md:inline">
+                          {t("notes.diff.originalLabel", "원본")}
+                        </span>
                       </button>
                     </div>
-                  )}
+                    {canEdit && (
+                      <>
+                        <button
+                          onClick={() =>
+                            handleDeleteVersion(selectedVersion.id)
+                          }
+                          disabled={deletingId === selectedVersion.id}
+                          className="flex items-center gap-1 px-2 py-1.5 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg text-xs font-bold disabled:opacity-50 transition-colors"
+                          aria-label={t("notes.deleteVersion", "버전 삭제")}
+                        >
+                          {deletingId === selectedVersion.id ? (
+                            <Loader2 size={10} className="animate-spin" />
+                          ) : (
+                            <Trash2 size={10} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleRestore(selectedVersion.id)}
+                          disabled={restoring}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-bridge-accent text-white rounded-lg text-xs font-bold hover:bg-bridge-accent/90 disabled:opacity-50"
+                        >
+                          {restoring ? (
+                            <Loader2 size={10} className="animate-spin" />
+                          ) : (
+                            <RotateCcw size={10} />
+                          )}
+                          {t("notes.restore", "복원")}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4">
-                  <div
-                    className="prose prose-invert prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(selectedVersion.content || ""),
-                    }}
+
+                {/* Legend bar — only in diff mode */}
+                {diffMode && noteType !== "BOARD" && (
+                  <div className="px-4 py-2 border-b border-foreground/5 flex items-center gap-3 text-xs flex-wrap">
+                    <span className="text-slate-500 font-bold">
+                      {t("notes.diff.key", "범례")}:
+                    </span>
+                    <span className="note-diff">
+                      <ins>{t("notes.diff.legendAdded", "추가된 내용")}</ins>
+                    </span>
+                    <span className="note-diff">
+                      <del>{t("notes.diff.legendRemoved", "삭제된 내용")}</del>
+                    </span>
+                  </div>
+                )}
+
+                {/* Detail body */}
+                {diffMode ? (
+                  <NoteVersionDiffView
+                    noteType={noteType}
+                    previousTitle={selectedVersion.title}
+                    currentTitle={currentTitle}
+                    previousContent={selectedVersion.content}
+                    currentContent={currentContent}
                   />
-                </div>
+                ) : noteType === "BOARD" ? (
+                  <BoardOriginalView content={selectedVersion.content} />
+                ) : (
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <div
+                      className="prose prose-invert prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{
+                        __html: DOMPurify.sanitize(
+                          selectedVersion.content || "",
+                        ),
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             ) : (
               /* Version List */
@@ -337,3 +434,62 @@ export function NoteVersionHistory({
     </>
   );
 }
+
+function BoardOriginalView({
+  content,
+}: {
+  content: string | null | undefined;
+}) {
+  const { isDark } = useTheme();
+  const bgColor = isDark ? "#1e1e1e" : "#ffffff";
+
+  let parsed: any = null;
+  try {
+    parsed = content ? JSON.parse(content) : null;
+  } catch {
+    /* ignore */
+  }
+
+  const initialData = parsed
+    ? {
+        elements: Array.isArray(parsed.elements) ? parsed.elements : [],
+        appState: {
+          ...(parsed.appState || {}),
+          viewBackgroundColor: bgColor,
+        },
+        files: parsed.files || {},
+      }
+    : { elements: [], appState: { viewBackgroundColor: bgColor }, files: {} };
+
+  return (
+    <div className="flex-1 relative">
+      <Suspense
+        fallback={
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+          </div>
+        }
+      >
+        <ExcalidrawLazy
+          initialData={initialData}
+          viewModeEnabled
+          theme={isDark ? "dark" : "light"}
+          UIOptions={{
+            canvasActions: {
+              changeViewBackgroundColor: false,
+              clearCanvas: false,
+              export: false,
+              loadScene: false,
+              saveToActiveFile: false,
+              toggleTheme: false,
+              saveAsImage: false,
+            },
+          }}
+        />
+      </Suspense>
+    </div>
+  );
+}
+
+// Keep import to avoid tree-shaking warning when not used inline
+export { DIFF_COLORS };

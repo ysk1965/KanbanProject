@@ -79,6 +79,13 @@ public class Note {
     @Builder.Default
     private Boolean isDeleted = false;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "deleted_by_id")
+    private User deletedBy;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -125,8 +132,16 @@ public class Note {
         this.position = position;
     }
 
-    public void softDelete() {
+    public void softDelete(User actor) {
         this.isDeleted = true;
+        this.deletedAt = LocalDateTime.now(ZoneOffset.UTC);
+        this.deletedBy = actor;
+    }
+
+    public void restore() {
+        this.isDeleted = false;
+        this.deletedAt = null;
+        this.deletedBy = null;
     }
 
     public String enableShare() {

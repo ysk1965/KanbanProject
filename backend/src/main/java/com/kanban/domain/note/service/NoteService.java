@@ -29,6 +29,10 @@ public class NoteService {
     private final NoteTagRepository noteTagRepository;
     private final NoteTagMappingRepository noteTagMappingRepository;
     private final NoteVersionRepository noteVersionRepository;
+    private final NoteCommentRepository noteCommentRepository;
+    private final NoteCommentReactionRepository noteCommentReactionRepository;
+    private final NoteCollabStateRepository noteCollabStateRepository;
+    private final NoteCollabService noteCollabService;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
@@ -89,8 +93,9 @@ public class NoteService {
         Note note = getNoteOrThrow(boardId, noteId);
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
+        boolean hasDraft = noteCollabService.hasUnpublishedDraft(noteId, note.getUpdatedAt());
 
-        return NoteResponse.Detail.of(note, tags, versionCount);
+        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft);
     }
 
     @Transactional
@@ -201,9 +206,84 @@ public class NoteService {
         boardService.checkMemberOrAbove(boardId, userId);
 
         Note note = getNoteOrThrow(boardId, noteId);
+        User actor = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // Soft delete: also delete children recursively
-        softDeleteRecursive(note);
+        softDeleteRecursive(note, actor);
+    }
+
+    // ===== Trash =====
+
+    public List<NoteResponse.TrashItem> getTrash(String boardId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+        validateNoteAccess(boardId);
+
+        List<Note> trash = noteRepository.findTrashByBoardId(boardId);
+        Set<String> trashIds = trash.stream().map(Note::getId).collect(Collectors.toSet());
+        // 휴지통 내에서 자식을 가진 노트 ID
+        Set<String> parentsInTrash = trash.stream()
+                .filter(n -> n.getParent() != null && trashIds.contains(n.getParent().getId()))
+                .map(n -> n.getParent().getId())
+                .collect(Collectors.toSet());
+
+        return trash.stream()
+                .map(n -> NoteResponse.TrashItem.of(n, parentsInTrash.contains(n.getId())))
+                .toList();
+    }
+
+    @Transactional
+    public NoteResponse.Detail restoreNote(String boardId, String noteId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Note note = noteRepository.findByIdAndBoardId(noteId, boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_NOT_FOUND));
+        if (!Boolean.TRUE.equals(note.getIsDeleted())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "이미 복구된 노트입니다");
+        }
+
+        // 부모가 죽었으면 루트로 이동 (깊이 0)
+        Note parent = note.getParent();
+        if (parent == null || Boolean.TRUE.equals(parent.getIsDeleted())) {
+            int rootPos = noteRepository.findNextRootPosition(boardId);
+            note.moveTo(null, rootPos);
+        }
+        // 자기 + 자식 노트 재귀 복구 (자식 isDeleted=true만)
+        restoreRecursive(note);
+
+        List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
+        int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
+        return NoteResponse.Detail.of(note, tags, versionCount);
+    }
+
+    @Transactional
+    public void permanentDeleteNote(String boardId, String noteId, String userId) {
+        boardService.checkAdminOrAbove(boardId, userId);
+
+        Note note = noteRepository.findByIdAndBoardId(noteId, boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_NOT_FOUND));
+        if (!Boolean.TRUE.equals(note.getIsDeleted())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "휴지통의 노트만 영구 삭제할 수 있습니다");
+        }
+        hardDeleteRecursive(note);
+    }
+
+    @Transactional
+    public int emptyTrash(String boardId, String userId) {
+        boardService.checkAdminOrAbove(boardId, userId);
+
+        List<Note> trash = noteRepository.findAllTrashByBoardId(boardId);
+        if (trash.isEmpty()) return 0;
+
+        // 휴지통 내 부모가 휴지통에 없는 노트(=서브트리 루트)만 처리, 자식은 hardDeleteRecursive 가 cascade
+        Set<String> trashIds = trash.stream().map(Note::getId).collect(Collectors.toSet());
+        List<Note> roots = trash.stream()
+                .filter(n -> n.getParent() == null || !trashIds.contains(n.getParent().getId()))
+                .toList();
+        for (Note root : roots) {
+            hardDeleteRecursive(root);
+        }
+        return trash.size();
     }
 
     @Transactional
@@ -305,6 +385,20 @@ public class NoteService {
         getNoteOrThrow(boardId, noteId);
 
         noteVersionRepository.deleteAllByNoteId(noteId);
+    }
+
+    /**
+     * Discard the unpublished collab draft. Next edit-mode entry will rehydrate
+     * the editor from notes.content (the last published snapshot). Caller is
+     * responsible for ensuring no one is actively editing — a remaining edit
+     * session will immediately re-persist its in-memory Yjs state via the
+     * 1.5s debounce.
+     */
+    @Transactional
+    public void discardDraft(String boardId, String noteId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+        getNoteOrThrow(boardId, noteId);
+        noteCollabService.deleteState(noteId);
     }
 
     // ===== Tags =====
@@ -446,12 +540,37 @@ public class NoteService {
         }
     }
 
-    private void softDeleteRecursive(Note note) {
-        note.softDelete();
+    private void softDeleteRecursive(Note note, User actor) {
+        note.softDelete(actor);
         List<Note> children = noteRepository.findChildrenByParentId(note.getId());
         for (Note child : children) {
-            softDeleteRecursive(child);
+            softDeleteRecursive(child, actor);
         }
+    }
+
+    private void restoreRecursive(Note note) {
+        note.restore();
+        List<Note> children = noteRepository.findAllChildrenIncludingDeleted(note.getId());
+        for (Note child : children) {
+            if (!Boolean.TRUE.equals(child.getIsDeleted())) continue;
+            // 부모를 따라 깊이 재계산
+            child.moveTo(note, child.getPosition());
+            restoreRecursive(child);
+        }
+    }
+
+    private void hardDeleteRecursive(Note note) {
+        List<Note> children = noteRepository.findAllChildrenIncludingDeleted(note.getId());
+        for (Note child : children) {
+            hardDeleteRecursive(child);
+        }
+        // 종속 데이터 삭제 (reactions → comments → mappings → versions → collab → note)
+        noteCommentReactionRepository.deleteByNoteId(note.getId());
+        noteCommentRepository.deleteByNoteId(note.getId());
+        noteTagMappingRepository.deleteAllByNoteId(note.getId());
+        noteVersionRepository.deleteAllByNoteId(note.getId());
+        noteCollabStateRepository.deleteById(note.getId());
+        noteRepository.delete(note);
     }
 
     private boolean isDescendant(String ancestorId, String targetId) {

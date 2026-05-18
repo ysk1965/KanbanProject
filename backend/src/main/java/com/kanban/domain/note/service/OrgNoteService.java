@@ -8,6 +8,7 @@ import com.kanban.domain.note.*;
 import com.kanban.domain.note.dto.NoteRequest;
 import com.kanban.domain.note.dto.NoteResponse;
 import com.kanban.domain.organization.Organization;
+import com.kanban.domain.organization.OrganizationMember;
 import com.kanban.domain.organization.repository.OrganizationRepository;
 import com.kanban.domain.organization.service.OrganizationService;
 import com.kanban.domain.user.User;
@@ -33,6 +34,10 @@ public class OrgNoteService {
     private final NoteTagRepository noteTagRepository;
     private final NoteTagMappingRepository noteTagMappingRepository;
     private final NoteVersionRepository noteVersionRepository;
+    private final NoteCommentRepository noteCommentRepository;
+    private final NoteCommentReactionRepository noteCommentReactionRepository;
+    private final NoteCollabStateRepository noteCollabStateRepository;
+    private final NoteCollabService noteCollabService;
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final OrganizationService organizationService;
@@ -146,8 +151,9 @@ public class OrgNoteService {
         Note note = getNoteOrThrow(orgId, noteId);
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
+        boolean hasDraft = noteCollabService.hasUnpublishedDraft(noteId, note.getUpdatedAt());
 
-        return NoteResponse.Detail.of(note, tags, versionCount);
+        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft);
     }
 
     @Transactional
@@ -251,7 +257,83 @@ public class OrgNoteService {
     public void deleteNote(String orgId, String noteId, String userId) {
         organizationService.getOrgMemberOrThrow(orgId, userId);
         Note note = getNoteOrThrow(orgId, noteId);
-        softDeleteRecursive(note);
+        User actor = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        softDeleteRecursive(note, actor);
+    }
+
+    // ===== Trash =====
+
+    public List<NoteResponse.TrashItem> getTrash(String orgId, String userId) {
+        organizationService.getOrgMemberOrThrow(orgId, userId);
+
+        List<Note> trash = noteRepository.findTrashByOrganizationId(orgId);
+        Set<String> trashIds = trash.stream().map(Note::getId).collect(Collectors.toSet());
+        Set<String> parentsInTrash = trash.stream()
+                .filter(n -> n.getParent() != null && trashIds.contains(n.getParent().getId()))
+                .map(n -> n.getParent().getId())
+                .collect(Collectors.toSet());
+
+        return trash.stream()
+                .map(n -> NoteResponse.TrashItem.of(n, parentsInTrash.contains(n.getId())))
+                .toList();
+    }
+
+    @Transactional
+    public NoteResponse.Detail restoreNote(String orgId, String noteId, String userId) {
+        organizationService.getOrgMemberOrThrow(orgId, userId);
+
+        Note note = noteRepository.findByIdAndOrganizationId(noteId, orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_NOT_FOUND));
+        if (!Boolean.TRUE.equals(note.getIsDeleted())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "이미 복구된 노트입니다");
+        }
+
+        Note parent = note.getParent();
+        if (parent == null || Boolean.TRUE.equals(parent.getIsDeleted())) {
+            int rootPos = noteRepository.findNextRootPositionByOrganizationId(orgId);
+            note.moveTo(null, rootPos);
+        }
+        restoreRecursive(note);
+
+        List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
+        int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
+        return NoteResponse.Detail.of(note, tags, versionCount);
+    }
+
+    @Transactional
+    public void permanentDeleteNote(String orgId, String noteId, String userId) {
+        OrganizationMember member = organizationService.getOrgMemberOrThrow(orgId, userId);
+        if (!member.isAdminOrAbove()) {
+            throw new BusinessException(ErrorCode.ORG_ACCESS_DENIED);
+        }
+
+        Note note = noteRepository.findByIdAndOrganizationId(noteId, orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_NOT_FOUND));
+        if (!Boolean.TRUE.equals(note.getIsDeleted())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "휴지통의 노트만 영구 삭제할 수 있습니다");
+        }
+        hardDeleteRecursive(note);
+    }
+
+    @Transactional
+    public int emptyTrash(String orgId, String userId) {
+        OrganizationMember member = organizationService.getOrgMemberOrThrow(orgId, userId);
+        if (!member.isAdminOrAbove()) {
+            throw new BusinessException(ErrorCode.ORG_ACCESS_DENIED);
+        }
+
+        List<Note> trash = noteRepository.findAllTrashByOrganizationId(orgId);
+        if (trash.isEmpty()) return 0;
+
+        Set<String> trashIds = trash.stream().map(Note::getId).collect(Collectors.toSet());
+        List<Note> roots = trash.stream()
+                .filter(n -> n.getParent() == null || !trashIds.contains(n.getParent().getId()))
+                .toList();
+        for (Note root : roots) {
+            hardDeleteRecursive(root);
+        }
+        return trash.size();
     }
 
     @Transactional
@@ -347,6 +429,14 @@ public class OrgNoteService {
         getNoteOrThrow(orgId, noteId);
 
         noteVersionRepository.deleteAllByNoteId(noteId);
+    }
+
+    /** See {@link NoteService#discardDraft} — org-scope mirror. */
+    @Transactional
+    public void discardDraft(String orgId, String noteId, String userId) {
+        organizationService.getOrgMemberOrThrow(orgId, userId);
+        getNoteOrThrow(orgId, noteId);
+        noteCollabService.deleteState(noteId);
     }
 
     // ===== Tags =====
@@ -482,12 +572,35 @@ public class OrgNoteService {
         }
     }
 
-    private void softDeleteRecursive(Note note) {
-        note.softDelete();
+    private void softDeleteRecursive(Note note, User actor) {
+        note.softDelete(actor);
         List<Note> children = noteRepository.findChildrenByParentId(note.getId());
         for (Note child : children) {
-            softDeleteRecursive(child);
+            softDeleteRecursive(child, actor);
         }
+    }
+
+    private void restoreRecursive(Note note) {
+        note.restore();
+        List<Note> children = noteRepository.findAllChildrenIncludingDeleted(note.getId());
+        for (Note child : children) {
+            if (!Boolean.TRUE.equals(child.getIsDeleted())) continue;
+            child.moveTo(note, child.getPosition());
+            restoreRecursive(child);
+        }
+    }
+
+    private void hardDeleteRecursive(Note note) {
+        List<Note> children = noteRepository.findAllChildrenIncludingDeleted(note.getId());
+        for (Note child : children) {
+            hardDeleteRecursive(child);
+        }
+        noteCommentReactionRepository.deleteByNoteId(note.getId());
+        noteCommentRepository.deleteByNoteId(note.getId());
+        noteTagMappingRepository.deleteAllByNoteId(note.getId());
+        noteVersionRepository.deleteAllByNoteId(note.getId());
+        noteCollabStateRepository.deleteById(note.getId());
+        noteRepository.delete(note);
     }
 
     private boolean isDescendant(String ancestorId, String targetId) {

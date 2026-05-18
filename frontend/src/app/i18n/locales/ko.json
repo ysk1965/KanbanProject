@@ -3160,6 +3160,21 @@
     "noVersions": "저장된 버전이 없습니다",
     "savedVersion": "버전 {{version}} 저장됨",
     "restoredVersion": "버전 {{version}}에서 복원됨",
+    "diff": {
+      "current": "현재",
+      "diffLabel": "변경",
+      "originalLabel": "원본",
+      "showDiff": "변경 사항 보기",
+      "showOriginal": "원본 보기",
+      "titleChanged": "제목 변경",
+      "noChanges": "변경 사항이 없습니다",
+      "key": "범례",
+      "legendAdded": "추가된 내용",
+      "legendRemoved": "삭제된 내용",
+      "added": "추가",
+      "removed": "삭제",
+      "modified": "변경"
+    },
     "tags": "태그",
     "addTag": "태그 추가",
     "createTag": "새 태그 만들기",
@@ -3210,7 +3225,22 @@
     "shareNotAvailable": "문서를 볼 수 없습니다",
     "shareNotAvailableDesc": "이 공유 링크는 만료되었거나 문서가 삭제되었습니다.",
     "shareGoHome": "홈으로 이동",
-    "boardNotes": "보드 노트"
+    "boardNotes": "보드 노트",
+    "trash": {
+      "title": "휴지통",
+      "empty": "휴지통이 비어 있습니다",
+      "noMatches": "검색 결과가 없습니다",
+      "searchPlaceholder": "제목·삭제자로 검색...",
+      "restore": "복구",
+      "permanentDelete": "영구 삭제",
+      "emptyAll": "전체 비우기",
+      "autoDeleteNotice": "30일 후 자동으로 영구 삭제됩니다.",
+      "withChildren": "하위 포함",
+      "permanentDeleteConfirmTitle": "영구 삭제할까요?",
+      "permanentDeleteConfirm": "\"{{title}}\"와 모든 하위 항목, 댓글, 버전이 즉시 삭제되며 되돌릴 수 없습니다.",
+      "emptyAllConfirmTitle": "휴지통을 비울까요?",
+      "emptyAllConfirm": "휴지통의 모든 항목({{count}}개)이 영구 삭제됩니다. 되돌릴 수 없습니다."
+    }
   },
   "ai_credits": {
     "title": "AI 크레딧",
