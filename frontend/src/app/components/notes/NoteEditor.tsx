@@ -203,6 +203,10 @@ interface NoteEditorProps {
   ) => void;
   onTagsChange: () => void;
   onNoteUpdate?: (note: NoteDetail) => void;
+  // Triggers a fresh Y.Doc/provider/editor in the parent useCollaboration.
+  // Used by draft discard to guarantee a clean local state regardless of
+  // the previous editor's mount/destroy lifecycle.
+  onCollabReset?: () => void;
   collaboration: CollaborationState | null;
   currentUserName: string;
   currentUserColor: string;
@@ -218,6 +222,7 @@ export function NoteEditor({
   onSave,
   onTagsChange,
   onNoteUpdate,
+  onCollabReset,
   collaboration,
   currentUserName,
   currentUserColor,
@@ -292,6 +297,7 @@ export function NoteEditor({
       onSave={onSave}
       onTagsChange={onTagsChange}
       onNoteUpdate={onNoteUpdate}
+      onCollabReset={onCollabReset}
       collaboration={collaboration}
       currentUserName={currentUserName}
       currentUserColor={currentUserColor}
@@ -316,6 +322,7 @@ interface CollabEditorProps {
   ) => void;
   onTagsChange: () => void;
   onNoteUpdate?: (note: NoteDetail) => void;
+  onCollabReset?: () => void;
   collaboration: CollaborationState;
   currentUserName: string;
   currentUserColor: string;
@@ -330,6 +337,7 @@ function CollabNoteEditor({
   onSave,
   onTagsChange,
   onNoteUpdate,
+  onCollabReset,
   collaboration,
   currentUserName,
   currentUserColor,
@@ -842,9 +850,17 @@ function CollabNoteEditor({
   // again. Three things must happen for the discard to "stick":
   //   1) server-side note_collab_states row deleted (handled by backend)
   //   2) ws room's in-memory storedState cleared via NoteDraftDiscardedEvent
-  //   3) THIS client's local Y.Doc reset to the published HTML — otherwise the
-  //      next edit-mode entry would re-persist the stale in-memory state on
-  //      the 1.5s debounce, resurrecting the draft.
+  //   3) THIS client's local Y.Doc reset — we do this by recreating the entire
+  //      Y.Doc / provider / editor stack via onCollabReset. Mutating the
+  //      existing Yjs-bound `editor` with replaceBlocks is unreliable here
+  //      because in VIEW mode the editor's ProseMirror EditorView is either
+  //      never mounted (no prior EDIT entry) or already destroyed (after an
+  //      EDIT → VIEW transition), so dispatched transactions hit a dangling
+  //      view and the y-prosemirror binding cannot translate them cleanly to
+  //      Y.Doc ops, leaving Y.Doc + editor._state diverged. The next EDIT
+  //      entry then renders an empty or inconsistent doc.
+  //   After the reset, the fresh Y.Doc is empty and the initial-content
+  //   useEffect (line ~508) re-hydrates the editor from note.content.
   // Other connected EDIT clients still hold their own Y.Doc copy; we surface a
   // warning so the user understands their writes will win.
   const handleDiscardDraft = useCallback(async () => {
@@ -868,29 +884,21 @@ function CollabNoteEditor({
         : orgId
           ? await orgNoteService.getDetail(orgId, note.id)
           : null;
-      // Reset the local Y.Doc to the freshly-published HTML so EDIT == VIEW.
-      // readOnly is true in view mode, so this replaceBlocks does NOT broadcast.
-      if (editor) {
-        const html = updated?.content ?? note.content ?? "";
-        try {
-          if (html.trim()) {
-            const blocks = await editor.tryParseHTMLToBlocks(
-              unwrapListItemParagraphs(html),
-            );
-            editor.replaceBlocks(editor.document, blocks);
-          } else {
-            editor.replaceBlocks(editor.document, []);
-          }
-          initialContentLoaded.current = true;
-        } catch (err) {
-          console.error("Failed to reset local Y.Doc after discard:", err);
-        }
-      }
       if (updated) onNoteUpdate?.(updated);
+      // Reset hydration refs so the initial-content useEffect re-runs against
+      // the new editor instance. Without this, the early-return at the top of
+      // that effect (initialContentLoaded.current === true from the previous
+      // session) skips re-hydration and EDIT stays empty.
+      initialContentLoaded.current = false;
+      isInitializedRef.current = false;
+      // Force-rebuild Y.Doc + provider + editor. Must run AFTER onNoteUpdate so
+      // the freshly-fetched note.content is available to the initial-content
+      // useEffect when the new editor mounts.
+      onCollabReset?.();
     } catch (err) {
       console.error("Failed to discard draft:", err);
     }
-  }, [boardId, orgId, note.id, note.content, onNoteUpdate, collaboration.connectedUsers, editor, t]);
+  }, [boardId, orgId, note.id, onNoteUpdate, onCollabReset, collaboration.connectedUsers, t]);
 
   // Keyboard shortcut: Ctrl/Cmd+S (Edit mode only)
   useEffect(() => {
