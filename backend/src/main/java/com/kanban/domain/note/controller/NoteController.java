@@ -205,6 +205,15 @@ public class NoteController {
         return ResponseEntity.ok(detail);
     }
 
+    @PostMapping("/{noteId}/share/rotate")
+    public ResponseEntity<NoteResponse.Detail> rotateShareToken(
+            @PathVariable String boardId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        NoteResponse.Detail detail = noteService.rotateShareToken(boardId, noteId, principal.getUserId());
+        return ResponseEntity.ok(detail);
+    }
+
     // ===== AI Organize =====
 
     @PostMapping("/{noteId}/ai-organize")

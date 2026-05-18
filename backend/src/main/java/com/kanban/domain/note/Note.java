@@ -157,6 +157,13 @@ public class Note {
         this.shareToken = null;
     }
 
+    /** 공유를 끄지 않고 토큰만 교체. 기존 토큰을 가진 사용자는 즉시 차단된다. */
+    public String rotateShareToken() {
+        this.isShared = true;
+        this.shareToken = UUID.randomUUID().toString();
+        return this.shareToken;
+    }
+
     public void updateAiSuggestions(String aiSuggestions) {
         this.aiSuggestions = aiSuggestions;
     }

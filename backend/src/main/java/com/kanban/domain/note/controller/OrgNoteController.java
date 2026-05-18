@@ -195,4 +195,12 @@ public class OrgNoteController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(orgNoteService.disableShare(orgId, noteId, principal.getUserId()));
     }
+
+    @PostMapping("/{noteId}/share/rotate")
+    public ResponseEntity<NoteResponse.Detail> rotateShareToken(
+            @PathVariable String orgId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(orgNoteService.rotateShareToken(orgId, noteId, principal.getUserId()));
+    }
 }
