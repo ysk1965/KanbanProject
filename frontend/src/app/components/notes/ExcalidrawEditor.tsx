@@ -69,7 +69,6 @@ interface ExcalidrawEditorProps {
     createVersion?: boolean,
   ) => void;
   onTagsChange: () => void;
-  onDirtyChange?: (isDirty: boolean) => void;
   onNoteUpdate?: (note: NoteDetail) => void;
   collaboration: CollaborationState | null;
   currentUserName: string;
@@ -84,7 +83,6 @@ export default function ExcalidrawEditor({
   canEdit,
   onSave,
   onTagsChange,
-  onDirtyChange,
   onNoteUpdate,
   collaboration,
   currentUserName,
@@ -231,10 +229,6 @@ export default function ExcalidrawEditor({
         : {}),
     });
   }, [isDark]);
-
-  useEffect(() => {
-    onDirtyChange?.(hasChanges);
-  }, [hasChanges, onDirtyChange]);
 
   const handleTitleChange = (newTitle: string) => {
     if (mode !== "edit") return;

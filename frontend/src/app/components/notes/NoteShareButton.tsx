@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Share2, Link2, Check, Globe, X } from 'lucide-react';
+import { Share2, Link2, Check, Globe, X, RotateCw } from 'lucide-react';
 import { noteAPI, orgNoteAPI } from '../../utils/api';
 import type { NoteDetail } from '../../utils/api';
 
@@ -54,6 +54,28 @@ export function NoteShareButton({ boardId, orgId, note, canEdit, onNoteUpdate }:
       onNoteUpdate?.(updated);
     } catch (err) {
       console.error('Failed to toggle share:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRotateToken = async () => {
+    if (!canEdit || !isShared) return;
+    const ok = window.confirm(
+      t(
+        'notes.shareRotateConfirm',
+        '기존 공유 링크를 즉시 무효화하고 새 링크를 발급합니다. 계속할까요?',
+      ),
+    );
+    if (!ok) return;
+    setLoading(true);
+    try {
+      const api = isOrg ? orgNoteAPI : noteAPI;
+      const updated = await api.rotateShareToken(scopeId, note.id);
+      onNoteUpdate?.(updated);
+      setCopied(false);
+    } catch (err) {
+      console.error('Failed to rotate share token:', err);
     } finally {
       setLoading(false);
     }
@@ -165,6 +187,19 @@ export function NoteShareButton({ boardId, orgId, note, canEdit, onNoteUpdate }:
                     {copied ? t('notes.shareCopied', '복사됨') : t('notes.shareCopy', '복사')}
                   </button>
                 </div>
+
+                <button
+                  onClick={handleRotateToken}
+                  disabled={loading || !canEdit}
+                  className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-foreground transition-colors disabled:opacity-50"
+                  title={t(
+                    'notes.shareRotateDesc',
+                    '기존 링크가 유출됐다면 새 링크를 발급해 즉시 차단할 수 있습니다',
+                  )}
+                >
+                  <RotateCw size={11} />
+                  {t('notes.shareRotate', '링크 재발급')}
+                </button>
               </div>
             )}
           </div>
