@@ -92,6 +92,40 @@ public class NoteController {
         return ResponseEntity.ok(moved);
     }
 
+    // ===== Trash =====
+
+    @GetMapping("/trash")
+    public ResponseEntity<List<NoteResponse.TrashItem>> getTrash(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(noteService.getTrash(boardId, principal.getUserId()));
+    }
+
+    @PostMapping("/{noteId}/restore")
+    public ResponseEntity<NoteResponse.Detail> restoreNote(
+            @PathVariable String boardId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(noteService.restoreNote(boardId, noteId, principal.getUserId()));
+    }
+
+    @DeleteMapping("/{noteId}/permanent")
+    public ResponseEntity<Map<String, String>> permanentDeleteNote(
+            @PathVariable String boardId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        noteService.permanentDeleteNote(boardId, noteId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("message", "노트가 영구 삭제되었습니다"));
+    }
+
+    @DeleteMapping("/trash")
+    public ResponseEntity<Map<String, Object>> emptyTrash(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        int deleted = noteService.emptyTrash(boardId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("deleted_count", deleted));
+    }
+
     // ===== Versions =====
 
     @GetMapping("/{noteId}/versions")
@@ -139,6 +173,15 @@ public class NoteController {
             @PathVariable String noteId,
             @AuthenticationPrincipal UserPrincipal principal) {
         noteService.deleteAllVersions(boardId, noteId, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{noteId}/draft")
+    public ResponseEntity<Void> discardDraft(
+            @PathVariable String boardId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        noteService.discardDraft(boardId, noteId, principal.getUserId());
         return ResponseEntity.noContent().build();
     }
 

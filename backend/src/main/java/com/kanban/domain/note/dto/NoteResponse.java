@@ -67,8 +67,13 @@ public class NoteResponse {
         private String aiContentSnapshot;
         private Boolean isShared;
         private String shareToken;
+        private boolean hasUnpublishedDraft;
 
         public static Detail of(Note note, List<TagInfo> tags, int versionCount) {
+            return of(note, tags, versionCount, false);
+        }
+
+        public static Detail of(Note note, List<TagInfo> tags, int versionCount, boolean hasUnpublishedDraft) {
             return Detail.builder()
                     .id(note.getId())
                     .parentId(note.getParent() != null ? note.getParent().getId() : null)
@@ -87,6 +92,7 @@ public class NoteResponse {
                     .aiContentSnapshot(note.getAiContentSnapshot())
                     .isShared(note.getIsShared())
                     .shareToken(note.getShareToken())
+                    .hasUnpublishedDraft(hasUnpublishedDraft)
                     .build();
         }
     }
@@ -219,6 +225,39 @@ public class NoteResponse {
                     .noteCount(noteCount)
                     .userRole(userRole)
                     .tree(tree)
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class TrashItem {
+        private String id;
+        private String type;
+        private String title;
+        private String parentId;
+        private String parentTitle;
+        private boolean parentDeleted;
+        private boolean hasChildren;
+        private UserInfo deletedBy;
+        private LocalDateTime deletedAt;
+        private LocalDateTime createdAt;
+
+        public static TrashItem of(Note note, boolean hasChildren) {
+            Note parent = note.getParent();
+            boolean parentDeleted = parent != null && Boolean.TRUE.equals(parent.getIsDeleted());
+            return TrashItem.builder()
+                    .id(note.getId())
+                    .type(note.getType().name())
+                    .title(note.getTitle())
+                    .parentId(parent != null ? parent.getId() : null)
+                    .parentTitle(parent != null ? parent.getTitle() : null)
+                    .parentDeleted(parentDeleted)
+                    .hasChildren(hasChildren)
+                    .deletedBy(UserInfo.of(note.getDeletedBy()))
+                    .deletedAt(note.getDeletedAt())
+                    .createdAt(note.getCreatedAt())
                     .build();
         }
     }

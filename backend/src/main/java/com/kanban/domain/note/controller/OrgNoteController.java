@@ -88,6 +88,40 @@ public class OrgNoteController {
         return ResponseEntity.ok(orgNoteService.moveNote(orgId, noteId, principal.getUserId(), request));
     }
 
+    // ===== Trash =====
+
+    @GetMapping("/trash")
+    public ResponseEntity<List<NoteResponse.TrashItem>> getTrash(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(orgNoteService.getTrash(orgId, principal.getUserId()));
+    }
+
+    @PostMapping("/{noteId}/restore")
+    public ResponseEntity<NoteResponse.Detail> restoreNote(
+            @PathVariable String orgId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(orgNoteService.restoreNote(orgId, noteId, principal.getUserId()));
+    }
+
+    @DeleteMapping("/{noteId}/permanent")
+    public ResponseEntity<Map<String, String>> permanentDeleteNote(
+            @PathVariable String orgId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        orgNoteService.permanentDeleteNote(orgId, noteId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("message", "노트가 영구 삭제되었습니다"));
+    }
+
+    @DeleteMapping("/trash")
+    public ResponseEntity<Map<String, Object>> emptyTrash(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        int deleted = orgNoteService.emptyTrash(orgId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("deleted_count", deleted));
+    }
+
     // ===== Versions =====
 
     @GetMapping("/{noteId}/versions")
@@ -132,6 +166,15 @@ public class OrgNoteController {
             @PathVariable String noteId,
             @AuthenticationPrincipal UserPrincipal principal) {
         orgNoteService.deleteAllVersions(orgId, noteId, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{noteId}/draft")
+    public ResponseEntity<Void> discardDraft(
+            @PathVariable String orgId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        orgNoteService.discardDraft(orgId, noteId, principal.getUserId());
         return ResponseEntity.noContent().build();
     }
 

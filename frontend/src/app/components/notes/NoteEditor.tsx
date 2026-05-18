@@ -423,8 +423,10 @@ function CollabNoteEditor({
         },
       },
       uploadFile: async (file: File) => {
-        const scopeId = boardId || orgId || "";
-        const result = await fileAPI.uploadNote(file, scopeId);
+        const result = await fileAPI.uploadNote(
+          file,
+          boardId ? { boardId } : { organizationId: orgId! },
+        );
         return result.url;
       },
       tables: {
@@ -742,9 +744,11 @@ function CollabNoteEditor({
     setHasChanges(true);
   }, [mode]);
 
-  // Get HTML content from current editor state
+  // Get HTML content from current editor state. blocksToFullHTML preserves
+  // custom block props/IDs (Callout/Toggle/Embed/Mention/etc.) so view ↔ edit
+  // round-trip stays lossless; blocksToHTMLLossy was dropping that metadata.
   const getContentHTML = useCallback(async (): Promise<string> => {
-    return await editor.blocksToHTMLLossy(editor.document);
+    return await editor.blocksToFullHTML(editor.document);
   }, [editor]);
 
   // Save current state as a published snapshot: persist Yjs state + write
@@ -764,6 +768,22 @@ function CollabNoteEditor({
         },
         true,
       );
+      // Sync viewEditor with the just-saved HTML before switching to view
+      // mode. Relying on the note.content prop useEffect causes a race where
+      // BlockNoteView mounts before the async parse finishes, showing the
+      // previous snapshot until the next refresh.
+      try {
+        if (html?.trim()) {
+          const blocks = await viewEditor.tryParseHTMLToBlocks(
+            unwrapListItemParagraphs(html),
+          );
+          viewEditor.replaceBlocks(viewEditor.document, blocks);
+        } else {
+          viewEditor.replaceBlocks(viewEditor.document, []);
+        }
+      } catch (err) {
+        console.error("Failed to sync view editor after save:", err);
+      }
       setHasChanges(false);
       setMode("view");
     } finally {
@@ -779,6 +799,7 @@ function CollabNoteEditor({
     note.title,
     title,
     note.tags,
+    viewEditor,
   ]);
 
   const handleEnterEdit = useCallback(() => {
@@ -794,6 +815,36 @@ function CollabNoteEditor({
     setMode("view");
     setHasChanges(false);
   }, [collaboration.provider]);
+
+  // Discard the server-side draft (note_collab_states row). Next edit-mode
+  // entry will rehydrate from notes.content. Warns if anyone is currently
+  // editing — they'd just re-persist their in-memory state on the next debounce.
+  const handleDiscardDraft = useCallback(async () => {
+    const editorsActive = collaboration.connectedUsers.some((u) => u.mode === "edit");
+    const warn = editorsActive
+      ? t(
+          "notes.unpublishedDraft.confirmDiscardWithEditors",
+          "다른 사용자가 편집 중이라 폐기가 곧바로 되돌아올 수 있어요. 그래도 진행할까요?",
+        )
+      : t(
+          "notes.unpublishedDraft.confirmDiscard",
+          "미발행 수정 내용을 폐기할까요? 되돌릴 수 없어요.",
+        );
+    if (!window.confirm(warn)) return;
+    try {
+      if (boardId) await noteAPI.discardDraft(boardId, note.id);
+      else if (orgId) await orgNoteAPI.discardDraft(orgId, note.id);
+      const { noteService, orgNoteService } = await import("../../utils/services");
+      const updated = boardId
+        ? await noteService.getDetail(boardId, note.id)
+        : orgId
+          ? await orgNoteService.getDetail(orgId, note.id)
+          : null;
+      if (updated) onNoteUpdate?.(updated);
+    } catch (err) {
+      console.error("Failed to discard draft:", err);
+    }
+  }, [boardId, orgId, note.id, onNoteUpdate, collaboration.connectedUsers, t]);
 
   // Keyboard shortcut: Ctrl/Cmd+S (Edit mode only)
   useEffect(() => {
@@ -1006,6 +1057,9 @@ function CollabNoteEditor({
             boardId={boardId}
             orgId={orgId}
             noteId={note.id}
+            noteType={note.type}
+            currentTitle={note.title}
+            currentContent={note.content}
             versionCount={note.version_count}
             canEdit={canEdit && mode === "edit"}
             onRestore={async () => {
@@ -1102,6 +1156,35 @@ function CollabNoteEditor({
       <div className="flex-1 overflow-y-auto p-4">
         {/* Block comment indicator CSS */}
         {blockIndicatorStyle && <style>{blockIndicatorStyle}</style>}
+
+        {/* Unpublished draft banner — view mode + member can edit + server reports a fresher draft */}
+        {mode === "view" && canEdit && note.has_unpublished_draft && (
+          <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-bridge-accent/20 bg-bridge-accent/10 px-4 py-2.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <CloudUpload size={14} className="text-bridge-accent flex-shrink-0" />
+              <span className="text-xs text-foreground truncate">
+                {t(
+                  "notes.unpublishedDraft.banner",
+                  "미발행 수정이 있어요. 저장하지 않은 변경이 보존되어 있습니다.",
+                )}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={handleEnterEdit}
+                className="px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors"
+              >
+                {t("notes.unpublishedDraft.continueEdit", "이어서 편집")}
+              </button>
+              <button
+                onClick={handleDiscardDraft}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+              >
+                {t("notes.unpublishedDraft.discard", "폐기")}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Editor with block hover overlay */}
         <div
@@ -1273,8 +1356,10 @@ function FallbackNoteEditor({
   const editor = useCreateBlockNote({
     schema,
     uploadFile: async (file: File) => {
-      const scopeId = boardId || orgId || "";
-      const result = await fileAPI.uploadNote(file, scopeId);
+      const result = await fileAPI.uploadNote(
+        file,
+        boardId ? { boardId } : { organizationId: orgId! },
+      );
       return result.url;
     },
     tables: {
@@ -1436,8 +1521,10 @@ function FallbackNoteEditor({
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasChanges]);
 
+  // Mirror CollabNoteEditor.getContentHTML — full HTML preserves custom block
+  // metadata for lossless round-trip on view mode.
   const getContentHTML = useCallback(async (): Promise<string> => {
-    return await editor.blocksToHTMLLossy(editor.document);
+    return await editor.blocksToFullHTML(editor.document);
   }, [editor]);
 
   const handleSave = useCallback(async () => {
@@ -1455,6 +1542,20 @@ function FallbackNoteEditor({
           },
           true,
         );
+        // Sync viewEditor with just-saved HTML before switching to view mode
+        // to avoid the stale-snapshot flash while note.content prop propagates.
+        try {
+          if (html?.trim()) {
+            const blocks = await viewEditor.tryParseHTMLToBlocks(
+              unwrapListItemParagraphs(html),
+            );
+            viewEditor.replaceBlocks(viewEditor.document, blocks);
+          } else {
+            viewEditor.replaceBlocks(viewEditor.document, []);
+          }
+        } catch (err) {
+          console.error("Failed to sync view editor after save:", err);
+        }
         setHasChanges(false);
         setAutoSaved(false);
       }
@@ -1471,6 +1572,7 @@ function FallbackNoteEditor({
     note.title,
     title,
     note.tags,
+    viewEditor,
   ]);
 
   const handleAutoSave = useCallback(async () => {
@@ -1585,6 +1687,9 @@ function FallbackNoteEditor({
             boardId={boardId}
             orgId={orgId}
             noteId={note.id}
+            noteType={note.type}
+            currentTitle={note.title}
+            currentContent={note.content}
             versionCount={note.version_count}
             canEdit={canEdit && mode === "edit"}
             onRestore={async () => {

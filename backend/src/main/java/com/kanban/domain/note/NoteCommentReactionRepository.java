@@ -27,4 +27,8 @@ public interface NoteCommentReactionRepository extends JpaRepository<NoteComment
     @Modifying
     @Query("DELETE FROM NoteCommentReaction r WHERE r.noteComment.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
+
+    @Modifying
+    @Query("DELETE FROM NoteCommentReaction r WHERE r.noteComment.note.id = :noteId")
+    void deleteByNoteId(@Param("noteId") String noteId);
 }

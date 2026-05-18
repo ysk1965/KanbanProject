@@ -30,6 +30,7 @@ export class CollabProvider {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private shouldConnect = true;
   private autoSaveTimer: ReturnType<typeof setInterval> | null = null;
+  private fullStatePersistTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempt = 0;
   private readOnly = false;
 
@@ -37,6 +38,11 @@ export class CollabProvider {
   private static readonly RECONNECT_MAX_DELAY = 30_000;
   private static readonly RECONNECT_JITTER_MAX = 1000;
   private static readonly AUTO_SAVE_INTERVAL = 30_000;
+  // MSG_SYNC_UPDATE is relay-only on the server; storedState is only refreshed
+  // by MSG_SYNC_FULL. Without this debounce the server's persisted draft only
+  // advances every 30s, so a hard disconnect between heartbeats can lose the
+  // latest edits.
+  private static readonly FULL_STATE_DEBOUNCE = 1500;
 
   constructor(noteId: string, doc: Y.Doc, user: { name: string; color: string }) {
     this.noteId = noteId;
@@ -119,6 +125,7 @@ export class CollabProvider {
   disconnect(): void {
     this.shouldConnect = false;
     this.stopAutoSave();
+    this.stopFullStatePersist();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -174,6 +181,7 @@ export class CollabProvider {
     this.readOnly = readOnly;
     if (readOnly) {
       this.stopAutoSave();
+      this.stopFullStatePersist();
     } else if (this.status === 'connected') {
       this.startAutoSave();
     }
@@ -191,6 +199,7 @@ export class CollabProvider {
     if (origin === 'remote') return;
     if (this.readOnly) return;
     this.send(MSG_SYNC_UPDATE, update);
+    this.scheduleFullStatePersist();
   };
 
   private handleAwarenessUpdate = ({ added, updated, removed }: {
@@ -233,6 +242,21 @@ export class CollabProvider {
     if (this.autoSaveTimer) {
       clearInterval(this.autoSaveTimer);
       this.autoSaveTimer = null;
+    }
+  }
+
+  private scheduleFullStatePersist(): void {
+    if (this.fullStatePersistTimer) clearTimeout(this.fullStatePersistTimer);
+    this.fullStatePersistTimer = setTimeout(() => {
+      this.fullStatePersistTimer = null;
+      this.sendFullState();
+    }, CollabProvider.FULL_STATE_DEBOUNCE);
+  }
+
+  private stopFullStatePersist(): void {
+    if (this.fullStatePersistTimer) {
+      clearTimeout(this.fullStatePersistTimer);
+      this.fullStatePersistTimer = null;
     }
   }
 

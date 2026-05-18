@@ -947,3 +947,46 @@ html {
     scroll-behavior: auto !important;
   }
 }
+
+/* =============================================
+   Note Version Diff — htmldiff output styling
+   ============================================= */
+.note-diff ins,
+.note-diff ins * {
+  background-color: rgba(16, 185, 129, 0.18);
+  color: #10b981;
+  text-decoration: none;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
+.light .note-diff ins,
+.light .note-diff ins * {
+  background-color: rgba(16, 185, 129, 0.22);
+  color: #047857;
+}
+
+.note-diff del,
+.note-diff del * {
+  background-color: rgba(239, 68, 68, 0.18);
+  color: #ef4444;
+  text-decoration: line-through;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
+.light .note-diff del,
+.light .note-diff del * {
+  background-color: rgba(239, 68, 68, 0.22);
+  color: #b91c1c;
+}
+
+.note-diff img[data-diff-node="del"],
+.note-diff img[data-diff-node="ins"] {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.note-diff img[data-diff-node="del"] {
+  opacity: 0.4;
+}

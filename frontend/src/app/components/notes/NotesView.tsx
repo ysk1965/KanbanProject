@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FileText, FolderPlus, FilePlus, PenTool, Search, List, FolderTree, Loader2, Menu } from 'lucide-react';
+import { FileText, FolderPlus, FilePlus, PenTool, Search, List, FolderTree, Loader2, Menu, Trash2 } from 'lucide-react';
 import { NoteTreeSidebar } from './NoteTreeSidebar';
 import { NoteEditor } from './NoteEditor';
 import { NoteListView } from './NoteListView';
+import { NoteTrashModal } from './NoteTrashModal';
 import { noteService, orgNoteService } from '../../utils/services';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCollaboration } from '../../hooks/useCollaboration';
@@ -37,6 +38,7 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
   const [boardNoteSections, setBoardNoteSections] = useState<BoardNoteSection[]>([]);
   // Track which scope the selected note belongs to (org notes vs board notes)
   const [selectedNoteScope, setSelectedNoteScope] = useState<{ type: 'org' | 'board'; id: string } | null>(null);
+  const [trashOpen, setTrashOpen] = useState(false);
   // Determine scope
   const scopeId = boardId || orgId || '';
   const scopeType = orgId ? 'org' : 'board';
@@ -44,6 +46,8 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
 
   const isViewer = currentUserRole === 'viewer';
   const canEdit = !isViewer;
+  const normalizedRole = currentUserRole?.toLowerCase();
+  const canManageTrash = normalizedRole === 'admin' || normalizedRole === 'owner';
 
   const userName = currentUser?.name || 'Anonymous';
   const userColor = useMemo(() => getAssigneeHex(userName), [userName]);
@@ -387,6 +391,19 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
           />
         )}
       </div>
+
+      {/* Trash entry */}
+      {canEdit && (
+        <div className="border-t border-foreground/5 p-2 flex-shrink-0">
+          <button
+            onClick={() => setTrashOpen(true)}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+          >
+            <Trash2 size={14} />
+            <span className="flex-1 text-left">{t('notes.trash.title', '휴지통')}</span>
+          </button>
+        </div>
+      )}
     </>
   );
 
@@ -404,6 +421,16 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
           {sidebarContent}
         </SheetContent>
       </Sheet>
+
+      {/* Trash Modal */}
+      <NoteTrashModal
+        open={trashOpen}
+        onClose={() => setTrashOpen(false)}
+        scopeType={scopeType}
+        scopeId={scopeId}
+        canPermanentDelete={canManageTrash}
+        onChanged={() => { loadTree(); if (orgId) loadBoardNotes(); }}
+      />
 
       {/* Right Content - Editor */}
       <div className="flex-1 flex flex-col overflow-hidden bg-bridge-dark">

@@ -124,9 +124,8 @@ export default function ExcalidrawEditor({
     return collaboration.provider.onSnapshotUpdated(async () => {
       if (mode !== "view") return;
       try {
-        const { noteService, orgNoteService } = await import(
-          "../../utils/services"
-        );
+        const { noteService, orgNoteService } =
+          await import("../../utils/services");
         const updated = boardId
           ? await noteService.getDetail(boardId, note.id)
           : orgId
@@ -521,7 +520,16 @@ export default function ExcalidrawEditor({
     } finally {
       setSaving(false);
     }
-  }, [canEdit, mode, onSave, note.id, note.title, note.tags, title, collaboration]);
+  }, [
+    canEdit,
+    mode,
+    onSave,
+    note.id,
+    note.title,
+    note.tags,
+    title,
+    collaboration,
+  ]);
 
   const handleEnterEdit = useCallback(() => {
     if (!canEdit) return;
@@ -707,6 +715,9 @@ export default function ExcalidrawEditor({
             boardId={boardId}
             orgId={orgId}
             noteId={note.id}
+            noteType={note.type}
+            currentTitle={note.title}
+            currentContent={note.content}
             versionCount={note.version_count}
             canEdit={canEdit && mode === "edit"}
             onRestore={async () => {
@@ -856,7 +867,10 @@ export default function ExcalidrawEditor({
             <span className="text-xs font-bold text-foreground">
               {t("notes.comments", "댓글")}
             </span>
-            <IconButton onClick={() => setShowComments(false)} aria-label="댓글 닫기">
+            <IconButton
+              onClick={() => setShowComments(false)}
+              aria-label="댓글 닫기"
+            >
               <ChevronDown />
             </IconButton>
           </div>
