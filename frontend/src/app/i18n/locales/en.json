@@ -3224,7 +3224,22 @@
     "shareNotAvailable": "Document unavailable",
     "shareNotAvailableDesc": "This shared link has expired or the document has been deleted.",
     "shareGoHome": "Go to Home",
-    "boardNotes": "Board Notes"
+    "boardNotes": "Board Notes",
+    "trash": {
+      "title": "Trash",
+      "empty": "Trash is empty",
+      "noMatches": "No results found",
+      "searchPlaceholder": "Search by title or author...",
+      "restore": "Restore",
+      "permanentDelete": "Delete permanently",
+      "emptyAll": "Empty trash",
+      "autoDeleteNotice": "Items will be permanently deleted after 30 days.",
+      "withChildren": "incl. children",
+      "permanentDeleteConfirmTitle": "Permanently delete?",
+      "permanentDeleteConfirm": "\"{{title}}\" and all its descendants, comments, and versions will be deleted immediately. This cannot be undone.",
+      "emptyAllConfirmTitle": "Empty the trash?",
+      "emptyAllConfirm": "All {{count}} items in the trash will be permanently deleted. This cannot be undone."
+    }
   },
   "ai_credits": {
     "title": "AI Credits",

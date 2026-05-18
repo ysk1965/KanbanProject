@@ -399,6 +399,7 @@ public class NoteService {
         boardService.checkMemberOrAbove(boardId, userId);
         getNoteOrThrow(boardId, noteId);
         noteCollabService.deleteState(noteId);
+        eventPublisher.publishEvent(new NoteDraftDiscardedEvent(noteId));
     }
 
     // ===== Tags =====

@@ -2966,7 +2966,22 @@
     "exitEdit": "編集を終了",
     "saveSnapshot": "保存",
     "viewMode": "閲覧モード",
-    "editorsCount": "{{count}}人が編集中"
+    "editorsCount": "{{count}}人が編集中",
+    "trash": {
+      "title": "ゴミ箱",
+      "empty": "ゴミ箱は空です",
+      "noMatches": "検索結果がありません",
+      "searchPlaceholder": "タイトル・削除者で検索...",
+      "restore": "復元",
+      "permanentDelete": "完全に削除",
+      "emptyAll": "ゴミ箱を空にする",
+      "autoDeleteNotice": "30日後に自動的に完全削除されます。",
+      "withChildren": "下位を含む",
+      "permanentDeleteConfirmTitle": "完全に削除しますか？",
+      "permanentDeleteConfirm": "\"{{title}}\"とすべての下位項目、コメント、バージョンが即座に削除され、元に戻せません。",
+      "emptyAllConfirmTitle": "ゴミ箱を空にしますか？",
+      "emptyAllConfirm": "ゴミ箱のすべての項目({{count}}個)が完全に削除されます。元に戻せません。"
+    }
   },
   "payment": {
     "error": "決済エラー",

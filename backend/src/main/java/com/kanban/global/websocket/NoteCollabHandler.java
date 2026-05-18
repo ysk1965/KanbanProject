@@ -1,5 +1,6 @@
 package com.kanban.global.websocket;
 
+import com.kanban.domain.note.NoteDraftDiscardedEvent;
 import com.kanban.domain.note.NoteSnapshotSavedEvent;
 import com.kanban.domain.note.service.NoteCollabService;
 import com.kanban.global.security.JwtProvider;
@@ -196,6 +197,21 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
      * persists a manual save: View clients react by refetching note content.
      * Also relayed across instances via Redis so multi-pod deployments work.
      */
+    /**
+     * When a user discards the draft, clear the room's in-memory storedState.
+     * Otherwise the next ws joiner would still be hydrated from the stale
+     * cached state and the draft would visibly "resurrect" — even though the
+     * DB row was deleted, hasUnpublishedDraft would flip back to true the
+     * moment any edit-mode client touched the doc and triggered sendFullState.
+     */
+    @EventListener
+    public void onNoteDraftDiscarded(NoteDraftDiscardedEvent event) {
+        Room room = rooms.get(event.noteId());
+        if (room != null) {
+            room.storedState = null;
+        }
+    }
+
     @EventListener
     public void onNoteSnapshotSaved(NoteSnapshotSavedEvent event) {
         String noteId = event.noteId();

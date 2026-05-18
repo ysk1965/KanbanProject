@@ -2966,7 +2966,22 @@
     "exitEdit": "退出编辑",
     "saveSnapshot": "保存",
     "viewMode": "阅读模式",
-    "editorsCount": "{{count}}人正在编辑"
+    "editorsCount": "{{count}}人正在编辑",
+    "trash": {
+      "title": "回收站",
+      "empty": "回收站为空",
+      "noMatches": "未找到结果",
+      "searchPlaceholder": "按标题、删除者搜索...",
+      "restore": "恢复",
+      "permanentDelete": "永久删除",
+      "emptyAll": "清空回收站",
+      "autoDeleteNotice": "30天后自动永久删除。",
+      "withChildren": "包含子项",
+      "permanentDeleteConfirmTitle": "永久删除？",
+      "permanentDeleteConfirm": "\"{{title}}\"及其所有子项、评论、版本将立即删除，无法恢复。",
+      "emptyAllConfirmTitle": "清空回收站？",
+      "emptyAllConfirm": "回收站中的所有 {{count}} 项将被永久删除。此操作无法撤销。"
+    }
   },
   "payment": {
     "error": "支付错误",
