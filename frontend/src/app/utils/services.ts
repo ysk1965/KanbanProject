@@ -2898,6 +2898,19 @@ export const noteService = {
   disableShare: async (boardId: string, noteId: string) => {
     return await noteAPI.disableShare(boardId, noteId);
   },
+
+  getTrash: async (boardId: string) => {
+    return await noteAPI.getTrash(boardId);
+  },
+  restoreFromTrash: async (boardId: string, noteId: string) => {
+    return await noteAPI.restoreFromTrash(boardId, noteId);
+  },
+  permanentDelete: async (boardId: string, noteId: string) => {
+    return await noteAPI.permanentDelete(boardId, noteId);
+  },
+  emptyTrash: async (boardId: string) => {
+    return await noteAPI.emptyTrash(boardId);
+  },
 };
 
 // ========================================
@@ -3041,6 +3054,18 @@ export const orgNoteService = {
   },
   disableShare: async (orgId: string, noteId: string) => {
     return await orgNoteAPI.disableShare(orgId, noteId);
+  },
+  getTrash: async (orgId: string) => {
+    return await orgNoteAPI.getTrash(orgId);
+  },
+  restoreFromTrash: async (orgId: string, noteId: string) => {
+    return await orgNoteAPI.restoreFromTrash(orgId, noteId);
+  },
+  permanentDelete: async (orgId: string, noteId: string) => {
+    return await orgNoteAPI.permanentDelete(orgId, noteId);
+  },
+  emptyTrash: async (orgId: string) => {
+    return await orgNoteAPI.emptyTrash(orgId);
   },
 };
 

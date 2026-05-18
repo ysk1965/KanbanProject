@@ -5392,6 +5392,7 @@ export interface NoteDetail {
   ai_content_snapshot: string | null;
   is_shared: boolean;
   share_token: string | null;
+  has_unpublished_draft: boolean;
 }
 
 export interface SharedNote {
@@ -5434,6 +5435,19 @@ export interface NoteTagInfo {
   id: string;
   name: string;
   color: string;
+}
+
+export interface NoteTrashItem {
+  id: string;
+  type: 'FOLDER' | 'DOCUMENT' | 'BOARD';
+  title: string;
+  parent_id: string | null;
+  parent_title: string | null;
+  parent_deleted: boolean;
+  has_children: boolean;
+  deleted_by: NoteUserInfo | null;
+  deleted_at: string | null;
+  created_at: string;
 }
 
 export interface NoteUserInfo {
@@ -5662,6 +5676,12 @@ export const noteAPI = {
     );
   },
 
+  discardDraft: async (boardId: string, noteId: string) => {
+    return apiClient.delete<void>(
+      `/boards/${boardId}/notes/${noteId}/draft`,
+    );
+  },
+
   getTags: async (boardId: string) => {
     return apiClient.get<NoteTagInfo[]>(`/boards/${boardId}/note-tags`);
   },
@@ -5707,6 +5727,30 @@ export const noteAPI = {
   disableShare: async (boardId: string, noteId: string) => {
     return apiClient.delete<NoteDetail>(
       `/boards/${boardId}/notes/${noteId}/share`,
+    );
+  },
+
+  // ===== Trash =====
+
+  getTrash: async (boardId: string) => {
+    return apiClient.get<NoteTrashItem[]>(`/boards/${boardId}/notes/trash`);
+  },
+
+  restoreFromTrash: async (boardId: string, noteId: string) => {
+    return apiClient.post<NoteDetail>(
+      `/boards/${boardId}/notes/${noteId}/restore`,
+    );
+  },
+
+  permanentDelete: async (boardId: string, noteId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/notes/${noteId}/permanent`,
+    );
+  },
+
+  emptyTrash: async (boardId: string) => {
+    return apiClient.delete<{ deleted_count: number }>(
+      `/boards/${boardId}/notes/trash`,
     );
   },
 };
@@ -5833,6 +5877,12 @@ export const orgNoteAPI = {
     );
   },
 
+  discardDraft: async (orgId: string, noteId: string) => {
+    return apiClient.delete<void>(
+      `/organizations/${orgId}/notes/${noteId}/draft`,
+    );
+  },
+
   getTags: async (orgId: string) => {
     return apiClient.get<NoteTagInfo[]>(`/organizations/${orgId}/note-tags`);
   },
@@ -5856,6 +5906,30 @@ export const orgNoteAPI = {
   disableShare: async (orgId: string, noteId: string) => {
     return apiClient.delete<NoteDetail>(
       `/organizations/${orgId}/notes/${noteId}/share`,
+    );
+  },
+
+  // ===== Trash =====
+
+  getTrash: async (orgId: string) => {
+    return apiClient.get<NoteTrashItem[]>(`/organizations/${orgId}/notes/trash`);
+  },
+
+  restoreFromTrash: async (orgId: string, noteId: string) => {
+    return apiClient.post<NoteDetail>(
+      `/organizations/${orgId}/notes/${noteId}/restore`,
+    );
+  },
+
+  permanentDelete: async (orgId: string, noteId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/organizations/${orgId}/notes/${noteId}/permanent`,
+    );
+  },
+
+  emptyTrash: async (orgId: string) => {
+    return apiClient.delete<{ deleted_count: number }>(
+      `/organizations/${orgId}/notes/trash`,
     );
   },
 };
