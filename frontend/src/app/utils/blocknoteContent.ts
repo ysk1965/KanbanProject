@@ -93,6 +93,10 @@ interface HtmlExportEditor extends MinimalEditor {
   blocksToHTMLLossy: (blocks?: any) => Promise<string>;
 }
 
+interface MarkdownExportEditor extends MinimalEditor {
+  blocksToMarkdownLossy: (blocks?: any) => Promise<string>;
+}
+
 /**
  * Normalize stored content (JSON or HTML) to HTML using a temporary editor.
  * Used by the version diff/preview views, which feed HTML into htmldiff/DOMPurify.
@@ -116,4 +120,35 @@ export async function contentToHtml(
     }
   }
   return content;
+}
+
+/**
+ * Normalize stored content to Markdown. JSON path uses blocksToMarkdownLossy
+ * directly; HTML path round-trips through tryParseHTMLToBlocks first. Used by
+ * the "Copy as Markdown" action.
+ */
+export async function contentToMarkdown(
+  editor: MarkdownExportEditor,
+  content: string | null | undefined,
+): Promise<string> {
+  if (!content?.trim()) return "";
+  if (isBlockNoteJson(content)) {
+    try {
+      const blocks = JSON.parse(content);
+      if (Array.isArray(blocks)) {
+        editor.replaceBlocks(editor.document, blocks);
+        return await editor.blocksToMarkdownLossy(editor.document);
+      }
+    } catch (err) {
+      console.error("contentToMarkdown: JSON parse failed:", err);
+    }
+  }
+  try {
+    const blocks = await editor.tryParseHTMLToBlocks(content);
+    editor.replaceBlocks(editor.document, blocks);
+    return await editor.blocksToMarkdownLossy(editor.document);
+  } catch (err) {
+    console.error("contentToMarkdown: HTML parse failed:", err);
+    return "";
+  }
 }
