@@ -26,6 +26,8 @@ export class CollabProvider {
   private wsUrl: string;
   private statusListeners = new Set<(status: CollabStatus) => void>();
   private snapshotListeners = new Set<() => void>();
+  private syncedListeners = new Set<() => void>();
+  private hasSynced = false;
   private status: CollabStatus = 'disconnected';
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private shouldConnect = true;
@@ -89,7 +91,9 @@ export class CollabProvider {
 
     this.ws.onmessage = (event) => {
       const data = new Uint8Array(event.data as ArrayBuffer);
-      if (data.length < 2) return;
+      // A bare MSG_SYNC_FULL (1 byte, no payload) is the server's "initial sync
+      // done, no stored state yet" signal — still valid, fire onSynced below.
+      if (data.length < 1) return;
 
       const msgType = data[0];
       const payload = data.slice(1);
@@ -97,7 +101,13 @@ export class CollabProvider {
       switch (msgType) {
         case MSG_SYNC_FULL:
         case MSG_SYNC_UPDATE:
-          Y.applyUpdate(this.doc, payload, 'remote');
+          if (payload.length > 0) {
+            Y.applyUpdate(this.doc, payload, 'remote');
+          }
+          if (msgType === MSG_SYNC_FULL && !this.hasSynced) {
+            this.hasSynced = true;
+            this.syncedListeners.forEach((l) => l());
+          }
           break;
         case MSG_AWARENESS:
           awarenessProtocol.applyAwarenessUpdate(this.awareness, payload, this);
@@ -151,6 +161,7 @@ export class CollabProvider {
     this.awareness.destroy();
     this.statusListeners.clear();
     this.snapshotListeners.clear();
+    this.syncedListeners.clear();
   }
 
   onStatusChange(listener: (status: CollabStatus) => void): () => void {
@@ -162,6 +173,22 @@ export class CollabProvider {
   onSnapshotUpdated(listener: () => void): () => void {
     this.snapshotListeners.add(listener);
     return () => this.snapshotListeners.delete(listener);
+  }
+
+  /**
+   * Fires once the initial server sync is complete. If sync already happened
+   * before the listener was added, fires immediately on the next microtask so
+   * late subscribers don't miss it. Used to safely decide whether to hydrate
+   * the Y.Doc from the published snapshot (only when sync confirms Yjs is
+   * truly empty, not when our timer guesses too early).
+   */
+  onSynced(listener: () => void): () => void {
+    if (this.hasSynced) {
+      Promise.resolve().then(listener);
+    } else {
+      this.syncedListeners.add(listener);
+    }
+    return () => this.syncedListeners.delete(listener);
   }
 
   /** Send full Y.Doc state for server-side persistence */
