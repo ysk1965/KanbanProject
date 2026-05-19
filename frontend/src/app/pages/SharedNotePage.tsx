@@ -275,8 +275,8 @@ export function SharedNotePage() {
           </Suspense>
         ) : (
           <div
-            className="shared-note-viewer bn-container bn-shadcn"
-            data-theme={isDark ? "dark" : "light"}
+            className={`shared-note-viewer bn-container bn-shadcn ${isDark ? "dark" : "light"}`}
+            data-color-scheme={isDark ? "dark" : "light"}
             style={
               {
                 "--bn-colors-editor-background": "transparent",
