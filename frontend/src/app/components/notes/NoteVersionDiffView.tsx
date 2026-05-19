@@ -1,10 +1,13 @@
-import { useMemo, useRef, useEffect, Suspense, lazy } from "react";
+import { useMemo, useRef, useEffect, useState, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 import DOMPurify from "dompurify";
 import { Loader2 } from "lucide-react";
 import htmldiff from "node-htmldiff";
+import { useCreateBlockNote } from "@blocknote/react";
 import { useTheme } from "../../contexts/ThemeContext";
 import { computeSceneDiff, DIFF_COLORS } from "../../utils/excalidrawDiff";
+import { contentToHtml } from "../../utils/blocknoteContent";
+import { noteSchema } from "./blocks/schema";
 
 const ExcalidrawLazy = lazy(async () => {
   const mod = await import("@excalidraw/excalidraw");
@@ -84,22 +87,43 @@ function DocumentDiffBody({
   currentContent: string | null | undefined;
 }) {
   const { t } = useTranslation();
+  // Throwaway BlockNote editor used purely to convert stored JSON to HTML for
+  // htmldiff. Live for the lifetime of this diff view. Created once with the
+  // full note schema so custom blocks (Callout, Embed, etc.) resolve.
+  const converter = useCreateBlockNote({ schema: noteSchema } as any);
+  const [prevHtml, setPrevHtml] = useState<string>("");
+  const [currHtml, setCurrHtml] = useState<string>("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // Convert sequentially so the single converter editor is not racing
+      // against itself.
+      const p = await contentToHtml(converter as any, previousContent);
+      if (cancelled) return;
+      const c = await contentToHtml(converter as any, currentContent);
+      if (cancelled) return;
+      setPrevHtml(p);
+      setCurrHtml(c);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [previousContent, currentContent, converter]);
+
   const html = useMemo(() => {
-    const prev = previousContent || "";
-    const curr = currentContent || "";
     try {
-      const diffed = htmldiff(prev, curr);
+      const diffed = htmldiff(prevHtml, currHtml);
       return DOMPurify.sanitize(diffed, {
         ADD_TAGS: ["ins", "del"],
         ADD_ATTR: ["data-diff-node", "data-operation-index"],
       });
     } catch {
-      return DOMPurify.sanitize(curr);
+      return DOMPurify.sanitize(currHtml);
     }
-  }, [previousContent, currentContent]);
+  }, [prevHtml, currHtml]);
 
-  const hasDiff =
-    (previousContent || "") !== (currentContent || "") || !!titleDiffHtml;
+  const hasDiff = prevHtml !== currHtml || !!titleDiffHtml;
 
   return (
     <div className="flex-1 overflow-y-auto p-4 note-diff">
