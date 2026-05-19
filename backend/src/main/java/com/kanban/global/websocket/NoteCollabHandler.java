@@ -107,13 +107,19 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
         });
         room.sessions.put(session.getId(), session);
 
-        // Send stored state to the newly connected client
-        if (room.storedState != null && room.storedState.length > 0) {
-            byte[] msg = new byte[1 + room.storedState.length];
-            msg[0] = MSG_SYNC_FULL;
-            System.arraycopy(room.storedState, 0, msg, 1, room.storedState.length);
-            session.sendMessage(new BinaryMessage(msg));
+        // Always send a MSG_SYNC_FULL on connect so the client has an unambiguous
+        // "initial sync done" signal. Without this, brand-new notes (no stored
+        // state) leave the client guessing via an arbitrary timer — which races
+        // with user typing and causes the first keystroke to be overwritten when
+        // we hydrate from the published snapshot. An empty payload is safe:
+        // Y.applyUpdate on a zero-length array is a no-op.
+        byte[] state = room.storedState != null ? room.storedState : new byte[0];
+        byte[] msg = new byte[1 + state.length];
+        msg[0] = MSG_SYNC_FULL;
+        if (state.length > 0) {
+            System.arraycopy(state, 0, msg, 1, state.length);
         }
+        session.sendMessage(new BinaryMessage(msg));
 
         log.debug("Collab connected: noteId={}, userId={}, sessions={}", noteId, userId, room.sessions.size());
     }

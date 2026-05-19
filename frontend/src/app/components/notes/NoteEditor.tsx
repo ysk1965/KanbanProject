@@ -67,6 +67,7 @@ import {
   contentToHtml,
   contentToMarkdown,
   unwrapListItemParagraphs,
+  stripEmptyParagraphs,
 } from "../../utils/blocknoteContent";
 import DOMPurify from "dompurify";
 import type {
@@ -243,7 +244,11 @@ function CollabNoteEditor({
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
-  const isInitializedRef = useRef(false);
+  // Surgical gate: true only during the synchronous replaceBlocks() call that
+  // hydrates the editor from the published snapshot. handleEditorChange uses
+  // this to ignore the onChange that hydration fires, without freezing user
+  // input for an arbitrary timer window the way the old isInitializedRef did.
+  const hydratingRef = useRef(false);
   const titleSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync collab readOnly + awareness mode field whenever local mode changes.
@@ -381,7 +386,17 @@ function CollabNoteEditor({
         }
         const html = data.getData("text/html");
         if (!html) return defaultPasteHandler();
-        const cleaned = unwrapListItemParagraphs(html);
+        // Two passes before handing to pasteHTML:
+        //   1) unwrapListItemParagraphs — Word/Google Docs/Notion/our own
+        //      blocksToHTMLLossy emit <li><p>…</p></li>, which BlockNote parses
+        //      as "empty parent list item + child paragraph", leaving a stray
+        //      '목록' placeholder.
+        //   2) stripEmptyParagraphs — same sources also pad with <p></p> /
+        //      <p><br></p> / <p>&nbsp;</p> which become blank blocks and show
+        //      up as trailing empty lines after paste. Eat them here.
+        // Both fire in the BlockNote default path too (pasteHTML), so the only
+        // path losing the cleanup would be skipping our handler entirely.
+        const cleaned = stripEmptyParagraphs(unwrapListItemParagraphs(html));
         if (cleaned === html) return defaultPasteHandler();
         e.pasteHTML(cleaned);
         return true;
@@ -416,48 +431,48 @@ function CollabNoteEditor({
     };
   }, [viewConverter, note.content]);
 
-  // When Yjs document is empty but note has HTML content (e.g. created via saveToNote),
-  // initialize the editor from the HTML content
+  // Hydrate the Y.Doc from the published snapshot exactly once, when the
+  // initial server sync completes AND the Yjs state is still empty. This
+  // replaces an arbitrary 500ms setTimeout that raced with user typing: any
+  // keystroke before the timer fired would be either lost (overwritten by the
+  // late replaceBlocks) or block hydration (the empty check failed because the
+  // doc now contained a stray character). The server now always emits
+  // MSG_SYNC_FULL on connect (even with empty stored state), so provider's
+  // onSynced fires reliably for every note.
   const initialContentLoaded = useRef(false);
   useEffect(() => {
-    if (!editor) return;
-
-    // Mark editor as initialized after Yjs sync completes (delay to skip initial onChange events)
-    const initTimer = setTimeout(() => {
-      isInitializedRef.current = true;
-    }, 800);
-
-    if (!note.content?.trim() || initialContentLoaded.current) {
-      return () => clearTimeout(initTimer);
-    }
-
-    // Wait a tick for the Yjs provider to sync initial state
-    const timer = setTimeout(async () => {
-      // Check if the Yjs fragment is still empty (no collab state from server)
+    if (!editor || !collaboration) return;
+    let cancelled = false;
+    const unsubscribe = collaboration.provider.onSynced(async () => {
+      if (cancelled || initialContentLoaded.current) return;
       const doc = editor.document;
       const isEmpty =
         doc.length === 1 &&
         doc[0].type === "paragraph" &&
         (!doc[0].content || doc[0].content.length === 0);
-
-      if (isEmpty && note.content?.trim()) {
+      if (!isEmpty || !note.content?.trim()) {
+        initialContentLoaded.current = true;
+        return;
+      }
+      hydratingRef.current = true;
+      try {
         const ok = await loadIntoEditor(editor, note.content);
         if (ok) initialContentLoaded.current = true;
         // Intentionally do NOT sendFullState here. Hydrating the Y.Doc from the
         // published snapshot is purely a local view of the current state —
         // persisting it would create a draft row whose content equals the
-        // published snapshot, which then trips hasUnpublishedDraft (timestamp
-        // comparison) and resurrects the banner after a discard. The first real
-        // user edit will trigger the 1.5s debounce sendFullState and legitimately
-        // establish a draft from that point.
+        // published snapshot, which then trips hasUnpublishedDraft and
+        // resurrects the banner after a discard. The first real user edit
+        // triggers sendFullState via the doc update debounce.
+      } finally {
+        hydratingRef.current = false;
       }
-    }, 500);
-
+    });
     return () => {
-      clearTimeout(timer);
-      clearTimeout(initTimer);
+      cancelled = true;
+      unsubscribe();
     };
-  }, [editor, note.content, collaboration.provider]);
+  }, [editor, note.content, collaboration]);
 
   // Cleanup title save timer on unmount or note change
   useEffect(() => {
@@ -471,7 +486,7 @@ function CollabNoteEditor({
     setTitle(note.title);
     setHasChanges(false);
     initialContentLoaded.current = false;
-    isInitializedRef.current = false;
+    hydratingRef.current = false;
 
     // Reset AI state
     setAiData(null);
@@ -671,7 +686,7 @@ function CollabNoteEditor({
   };
 
   const handleEditorChange = useCallback(() => {
-    if (!isInitializedRef.current) return;
+    if (hydratingRef.current) return;
     if (mode !== "edit") return;
     setHasChanges(true);
   }, [mode]);
@@ -807,7 +822,7 @@ function CollabNoteEditor({
       // that effect (initialContentLoaded.current === true from the previous
       // session) skips re-hydration and EDIT stays empty.
       initialContentLoaded.current = false;
-      isInitializedRef.current = false;
+      hydratingRef.current = false;
       // Force-rebuild Y.Doc + provider + editor. Must run AFTER onNoteUpdate so
       // the freshly-fetched note.content is available to the initial-content
       // useEffect when the new editor mounts.
