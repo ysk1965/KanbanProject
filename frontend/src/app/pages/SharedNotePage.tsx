@@ -9,6 +9,8 @@ import {
   AlertCircle,
   ArrowLeft,
   Loader2,
+  FileDown,
+  Check,
 } from "lucide-react";
 
 import "@excalidraw/excalidraw/index.css";
@@ -24,7 +26,7 @@ import { publicNoteAPI, resolveFileUrl } from "../utils/api";
 import type { SharedNote } from "../utils/api";
 import { formatDateTime } from "../utils/dateUtils";
 import { noteSchema as schema } from "../components/notes/blocks/schema";
-import { contentToHtml } from "../utils/blocknoteContent";
+import { contentToHtml, contentToMarkdown } from "../utils/blocknoteContent";
 
 function useSystemTheme() {
   const [isDark, setIsDark] = useState(
@@ -47,6 +49,7 @@ export function SharedNotePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [renderedHtml, setRenderedHtml] = useState<string>("");
+  const [markdownCopied, setMarkdownCopied] = useState(false);
 
   // Apply theme class to html element for CSS variables (bridge-dark, bridge-obsidian, etc.)
   useEffect(() => {
@@ -104,6 +107,18 @@ export function SharedNotePage() {
     };
   }, [note, converter]);
 
+  const handleCopyMarkdown = async () => {
+    if (!note?.content) return;
+    try {
+      const md = await contentToMarkdown(converter as any, note.content);
+      await navigator.clipboard.writeText(md);
+      setMarkdownCopied(true);
+      window.setTimeout(() => setMarkdownCopied(false), 1500);
+    } catch (err) {
+      console.error("Failed to copy markdown:", err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
@@ -157,9 +172,25 @@ export function SharedNotePage() {
             <img src="/BridgeSpotsIcon.png" alt="BRIDGE" className="h-6 w-6" />
             <span className="text-sm font-bold text-foreground">BRIDGE</span>
           </Link>
-          <div className="flex items-center gap-2 text-xs tracking-[0.3em] uppercase text-slate-500">
-            <FileText size={12} />
-            {t("notes.shareReadOnly", "READ ONLY")}
+          <div className="flex items-center gap-3">
+            {note.type !== "BOARD" && (
+              <button
+                onClick={handleCopyMarkdown}
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                title={t("notes.copyMarkdown", "Markdown으로 복사")}
+              >
+                {markdownCopied ? <Check size={12} /> : <FileDown size={12} />}
+                <span className="hidden sm:inline">
+                  {markdownCopied
+                    ? t("notes.copied", "복사됨")
+                    : t("notes.copyMarkdownShort", "Markdown")}
+                </span>
+              </button>
+            )}
+            <div className="flex items-center gap-2 text-xs tracking-[0.3em] uppercase text-slate-500">
+              <FileText size={12} />
+              {t("notes.shareReadOnly", "READ ONLY")}
+            </div>
           </div>
         </div>
       </header>
