@@ -23,16 +23,17 @@ import {
   Eye,
   DoorOpen,
   Users,
+  Info,
+  ChevronRight,
+  Minus,
+  ListTree,
+  Link2,
+  Columns2,
+  Columns3,
 } from "lucide-react";
 
 const ExcalidrawEditor = React.lazy(() => import("./ExcalidrawEditor"));
-import {
-  BlockNoteSchema,
-  defaultBlockSpecs,
-  defaultInlineContentSpecs,
-  filterSuggestionItems,
-  insertOrUpdateBlock,
-} from "@blocknote/core";
+import { filterSuggestionItems, insertOrUpdateBlock } from "@blocknote/core";
 import {
   useCreateBlockNote,
   SuggestionMenuController,
@@ -48,21 +49,27 @@ import { NoteAIInlineSection } from "./NoteAIInlineSection";
 import { NoteCommentSidebar } from "./NoteCommentSidebar";
 import { CollabPresence } from "./CollabPresence";
 import { useAuth } from "../../contexts/AuthContext";
-import { Callout } from "./blocks/Callout";
-import { Toggle } from "./blocks/Toggle";
-import { Divider } from "./blocks/Divider";
-import { TableOfContents } from "./blocks/TableOfContents";
-import { Embed } from "./blocks/Embed";
-import { ColumnLayout, Column } from "./blocks/ColumnLayout";
-import { Mention } from "./blocks/Mention";
+import { noteSchema as schema } from "./blocks/schema";
 import { formatDateTime } from "../../utils/dateUtils";
 import { useTheme } from "../../contexts/ThemeContext";
-import { fileAPI, noteAPI, memberAPI, orgNoteAPI } from "../../utils/api";
+import {
+  fileAPI,
+  noteAPI,
+  memberAPI,
+  orgNoteAPI,
+  resolveFileUrl,
+} from "../../utils/api";
+import { blockNoteDictionary } from "../../utils/blocknoteLocale";
+import {
+  loadIntoEditor,
+  serializeForSave,
+  contentToHtml,
+} from "../../utils/blocknoteContent";
+import DOMPurify from "dompurify";
 import type {
   NoteDetail,
   NoteTagInfo,
   NoteAISuggestionResponse,
-  MemberResponse,
 } from "../../utils/api";
 import { NoteShareButton } from "./NoteShareButton";
 import { NoteBottomComments } from "./NoteBottomComments";
@@ -119,49 +126,6 @@ function hasNestedListHtml(html: string): boolean {
   return doc.querySelectorAll("li > ul, li > ol").length > 0;
 }
 
-// List item HTML cleanup before tryParseHTMLToBlocks. Two patterns are unwrapped:
-//
-// 1. blocksToHTMLLossy: <li><p>text</p></li>
-//    ProseMirror sees the inner <p> as a block inside bulletListItem (which
-//    expects inline*) and splits it into an empty list item + separate paragraph
-//    — visible as a "List" placeholder in view mode.
-//
-// 2. blocksToFullHTML (legacy data from commit c6a23ae):
-//    <div data-content-type="bulletListItem|numberedListItem|checkListItem">
-//      <p class="bn-inline-content">text</p>
-//    </div>
-//    BulletListItem's parseHTML has a priority-300 rule for `<p>` whose parent
-//    has data-content-type=...ListItem, so the inner <p> ALSO becomes a list
-//    item. Result: empty parent list item + nested child holding the text.
-//
-// Fix: in both cases, unwrap the inner <p> so its children attach directly to
-// the list container as inline content.
-function unwrapListItemParagraphs(html: string): string {
-  if (!html) return html;
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  doc.querySelectorAll("li > p").forEach((p) => {
-    const li = p.parentElement!;
-    while (p.firstChild) {
-      li.insertBefore(p.firstChild, p);
-    }
-    p.remove();
-  });
-  doc
-    .querySelectorAll(
-      'div[data-content-type="bulletListItem"] > p,' +
-        'div[data-content-type="numberedListItem"] > p,' +
-        'div[data-content-type="checkListItem"] > p',
-    )
-    .forEach((p) => {
-      const container = p.parentElement!;
-      while (p.firstChild) {
-        container.insertBefore(p.firstChild, p);
-      }
-      p.remove();
-    });
-  return doc.body.innerHTML;
-}
-
 // 블록 레벨 닫는 태그와 다음 블록 여는 태그 사이의 whitespace/개행을 제거.
 // BlockNote externalHTML(`<p>X</p>\n<p>Y</p>`)을 paste 할 때 ProseMirror DOMParser가
 // 사이 공백을 빈 문단 블록으로 만드는 현상 방지. 인라인 태그 사이 공백은 건드리지 않음.
@@ -171,23 +135,6 @@ function collapseInterBlockWhitespace(html: string): string {
     "$1",
   );
 }
-
-const schema = BlockNoteSchema.create({
-  blockSpecs: {
-    ...defaultBlockSpecs,
-    callout: Callout,
-    toggle: Toggle,
-    divider: Divider,
-    tableOfContents: TableOfContents,
-    embed: Embed,
-    columnLayout: ColumnLayout,
-    column: Column,
-  },
-  inlineContentSpecs: {
-    ...defaultInlineContentSpecs,
-    mention: Mention,
-  },
-});
 
 interface NoteEditorProps {
   boardId?: string;
@@ -342,9 +289,13 @@ function CollabNoteEditor({
   currentUserName,
   currentUserColor,
 }: CollabEditorProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { currentUser } = useAuth();
   const { isDark } = useTheme();
+  const dictionary = useMemo(
+    () => blockNoteDictionary(i18n.language),
+    [i18n.language],
+  );
   const [title, setTitle] = useState(note.title);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -431,6 +382,12 @@ function CollabNoteEditor({
   const editor = useCreateBlockNote(
     {
       schema,
+      dictionary,
+      trailingBlock: true,
+      tabBehavior: "prefer-indent",
+      animations: true,
+      defaultStyles: true,
+      resolveFileUrl: async (url: string) => resolveFileUrl(url),
       collaboration: {
         provider: collaboration.provider,
         fragment: collaboration.fragment,
@@ -481,34 +438,31 @@ function CollabNoteEditor({
     [collaboration.fragment],
   );
 
-  // Separate BlockNote instance for VIEW mode. This editor is NOT bound to
-  // Yjs, so live edits from other Edit-mode users never bleed into a
-  // viewer's screen — they only see the last published snapshot (notes.content).
-  // Switching back to Edit mode mounts the Yjs-bound `editor` above, which
-  // still holds the live (possibly unsaved) state.
-  const viewEditor = useCreateBlockNote({ schema } as any);
+  // VIEW mode renders the published snapshot as static HTML rather than
+  // mounting a second BlockNoteView. This:
+  //   1) Preserves the snapshot-isolation invariant: viewers see only the last
+  //      published `notes.content`, never live unpublished Yjs state from other
+  //      Edit-mode peers.
+  //   2) Avoids a full ProseMirror DOM tree + React subtree on every render —
+  //      cheaper memory + faster initial paint on heavy notes.
+  // The `viewConverter` editor is a throwaway used solely for JSON→HTML
+  // serialization; it does not mount via BlockNoteView.
+  const viewConverter = useCreateBlockNote({
+    schema,
+    resolveFileUrl: async (url: string) => resolveFileUrl(url),
+  } as any);
+  const [viewHtml, setViewHtml] = useState<string>("");
 
   useEffect(() => {
-    if (!viewEditor) return;
     let cancelled = false;
     (async () => {
-      try {
-        if (!note.content?.trim()) {
-          if (!cancelled) viewEditor.replaceBlocks(viewEditor.document, []);
-          return;
-        }
-        const blocks = await viewEditor.tryParseHTMLToBlocks(
-          unwrapListItemParagraphs(note.content),
-        );
-        if (!cancelled) viewEditor.replaceBlocks(viewEditor.document, blocks);
-      } catch (err) {
-        console.error("Failed to load snapshot content into view editor:", err);
-      }
+      const html = await contentToHtml(viewConverter as any, note.content);
+      if (!cancelled) setViewHtml(html);
     })();
     return () => {
       cancelled = true;
     };
-  }, [viewEditor, note.content]);
+  }, [viewConverter, note.content]);
 
   // When Yjs document is empty but note has HTML content (e.g. created via saveToNote),
   // initialize the editor from the HTML content
@@ -535,25 +489,15 @@ function CollabNoteEditor({
         (!doc[0].content || doc[0].content.length === 0);
 
       if (isEmpty && note.content?.trim()) {
-        try {
-          const blocks = await editor.tryParseHTMLToBlocks(
-            unwrapListItemParagraphs(note.content),
-          );
-          editor.replaceBlocks(editor.document, blocks);
-          initialContentLoaded.current = true;
-          // Intentionally do NOT sendFullState here. Hydrating the Y.Doc from
-          // the published HTML is purely a local view of the current state —
-          // persisting it would create a draft row whose content equals the
-          // published snapshot, which then trips hasUnpublishedDraft (timestamp
-          // comparison) and resurrects the banner after a discard. The first
-          // real user edit will trigger the 1.5s debounce sendFullState and
-          // legitimately establish a draft from that point.
-        } catch (err) {
-          console.error(
-            "Failed to load initial HTML content into collab editor:",
-            err,
-          );
-        }
+        const ok = await loadIntoEditor(editor, note.content);
+        if (ok) initialContentLoaded.current = true;
+        // Intentionally do NOT sendFullState here. Hydrating the Y.Doc from the
+        // published snapshot is purely a local view of the current state —
+        // persisting it would create a draft row whose content equals the
+        // published snapshot, which then trips hasUnpublishedDraft (timestamp
+        // comparison) and resurrects the banner after a discard. The first real
+        // user edit will trigger the 1.5s debounce sendFullState and legitimately
+        // establish a draft from that point.
       }
     }, 500);
 
@@ -604,7 +548,7 @@ function CollabNoteEditor({
           insertOrUpdateBlock(editor, { type: "callout" as any }),
         aliases: ["callout", "panel", "info", "warning", "notice"],
         group: "Custom blocks",
-        icon: <span style={{ fontSize: "14px", lineHeight: 1 }}>{"ℹ️"}</span>,
+        icon: <Info size={16} />,
       },
       {
         title: "Toggle List",
@@ -613,7 +557,7 @@ function CollabNoteEditor({
           insertOrUpdateBlock(editor, { type: "toggle" as any }),
         aliases: ["toggle", "collapsible", "dropdown", "accordion"],
         group: "Custom blocks",
-        icon: <span style={{ fontSize: "14px", lineHeight: 1 }}>{"▶"}</span>,
+        icon: <ChevronRight size={16} />,
       },
       {
         title: "Divider",
@@ -622,7 +566,7 @@ function CollabNoteEditor({
           insertOrUpdateBlock(editor, { type: "divider" as any }),
         aliases: ["divider", "separator", "hr", "line"],
         group: "Custom blocks",
-        icon: <span style={{ fontSize: "14px", lineHeight: 1 }}>{"—"}</span>,
+        icon: <Minus size={16} />,
       },
       {
         title: "Table of Contents",
@@ -631,7 +575,7 @@ function CollabNoteEditor({
           insertOrUpdateBlock(editor, { type: "tableOfContents" as any }),
         aliases: ["toc", "table of contents", "outline", "index"],
         group: "Custom blocks",
-        icon: <span style={{ fontSize: "14px", lineHeight: 1 }}>{"📑"}</span>,
+        icon: <ListTree size={16} />,
       },
       {
         title: "Embed",
@@ -647,7 +591,7 @@ function CollabNoteEditor({
           "iframe",
         ],
         group: "Custom blocks",
-        icon: <span style={{ fontSize: "14px", lineHeight: 1 }}>{"🔗"}</span>,
+        icon: <Link2 size={16} />,
       },
       {
         title: "2 Columns",
@@ -669,7 +613,7 @@ function CollabNoteEditor({
           "side by side",
         ],
         group: "Advanced",
-        icon: <span style={{ fontSize: "14px", lineHeight: 1 }}>{"▥"}</span>,
+        icon: <Columns2 size={16} />,
       },
       {
         title: "3 Columns",
@@ -686,24 +630,44 @@ function CollabNoteEditor({
           }),
         aliases: ["3columns", "three columns", "triple"],
         group: "Advanced",
-        icon: <span style={{ fontSize: "14px", lineHeight: 1 }}>{"▦"}</span>,
+        icon: <Columns3 size={16} />,
       },
     ],
     [editor],
   );
 
-  // @mention: lazy-fetch board/org members
-  const scopeId = boardId || orgId || "";
-  const membersCache = useRef<MemberResponse[] | null>(null);
+  // @mention: lazy-fetch members from whichever scope the note belongs to.
+  // Normalised shape: { id, name, email, profile_image }.
+  type MentionMember = {
+    id: string;
+    name: string;
+    email: string;
+    profile_image: string | null;
+  };
+  const membersCache = useRef<MentionMember[] | null>(null);
   const getMentionItems = useCallback(
     async (query: string) => {
       if (!membersCache.current) {
         try {
           if (boardId) {
             const data = await memberAPI.getMembers(boardId);
-            membersCache.current = data.members;
+            membersCache.current = data.members.map((m) => ({
+              id: m.user.id,
+              name: m.user.name,
+              email: m.user.email,
+              profile_image: m.user.profile_image ?? null,
+            }));
+          } else if (orgId) {
+            // Page large enough to cover typical org rosters; backend caps further.
+            const { organizationAPI } = await import("../../utils/api");
+            const page = await organizationAPI.getMembers(orgId, { size: 500 });
+            membersCache.current = page.content.map((m) => ({
+              id: m.user.id,
+              name: m.user.name,
+              email: m.user.email,
+              profile_image: m.user.profile_image ?? null,
+            }));
           } else {
-            // For org notes, members will be fetched differently if needed
             membersCache.current = [];
           }
         } catch {
@@ -711,30 +675,28 @@ function CollabNoteEditor({
         }
       }
       const items = (membersCache.current || []).map((m) => ({
-        title: m.user.name,
+        title: m.name,
         onItemClick: () => {
           editor.insertInlineContent([
-            { type: "mention" as any, props: { user: m.user.name } },
+            { type: "mention" as any, props: { user: m.name } },
             " ",
           ]);
         },
-        aliases: [m.user.email],
+        aliases: [m.email],
         group: "Members",
-        icon: m.user.profile_image ? (
+        icon: m.profile_image ? (
           <img
-            src={m.user.profile_image}
-            alt={m.user.name || "프로필"}
+            src={m.profile_image}
+            alt={m.name || "프로필"}
             className="bn-mention-avatar"
           />
         ) : (
-          <span className="bn-mention-avatar-fallback">
-            {m.user.name.charAt(0)}
-          </span>
+          <span className="bn-mention-avatar-fallback">{m.name.charAt(0)}</span>
         ),
       }));
       return filterSuggestionItems(items, query);
     },
-    [boardId, editor],
+    [boardId, orgId, editor],
   );
 
   useEffect(() => {
@@ -762,57 +724,38 @@ function CollabNoteEditor({
     setHasChanges(true);
   }, [mode]);
 
-  // Get HTML content from current editor state.
-  // Use blocksToHTMLLossy (external format) — it is the only round-trip-safe
-  // format. blocksToFullHTML (internal format) is documented as SSR-only and
-  // does NOT round-trip through tryParseHTMLToBlocks: its
-  // <div data-content-type="bulletListItem"><p>...</p></div> structure makes
-  // the inner <p> match bulletListItem's priority-300 parse rule, producing an
-  // empty parent list item + nested child on read.
-  const getContentHTML = useCallback(async (): Promise<string> => {
-    return await editor.blocksToHTMLLossy(editor.document);
-  }, [editor]);
-
   // Save current state as a published snapshot: persist Yjs state + write
   // notes.content + create a NoteVersion row. This is what View users see.
+  //
+  // Storage format is BlockNote JSON (Block[]). JSON is lossless, round-trip
+  // safe, and preserves custom-block props (Callout type, Embed url, etc.) that
+  // blocksToHTMLLossy used to drop or corrupt on re-parse. The backend remains
+  // format-agnostic — content is opaque to it (AI consumers detect JSON by
+  // leading '[' and walk the block tree instead of stripping HTML).
+  const getContentForSave = useCallback((): string => {
+    return serializeForSave(editor);
+  }, [editor]);
+
   const handleSave = useCallback(async () => {
     if (!canEdit || mode !== "edit") return;
     setSaving(true);
     try {
       collaboration.provider.sendFullState();
-      const html = await getContentHTML();
+      const json = getContentForSave();
       await onSave(
         note.id,
         {
           title: title !== note.title ? title : undefined,
-          content: html,
+          content: json,
           tagIds: note.tags.map((t) => t.id),
         },
         true,
       );
-      // Sync both editors with the just-saved HTML BEFORE switching to view
-      // mode. Two races we are eliminating:
-      //   1) viewEditor: relying on the note.content prop useEffect causes a
-      //      race where BlockNoteView mounts before the async parse finishes,
-      //      showing the previous snapshot until the next refresh.
-      //   2) edit `editor` (Yjs-bound): without resetting the local Y.Doc to
-      //      the published HTML, re-entering EDIT mode (or a fresh ws reconnect
-      //      after refresh) hydrates from a stale draft. Backend now deletes
-      //      the collab state row in NoteService.updateNote, but the local
-      //      Y.Doc still holds the pre-save shape — reset it here to match.
-      try {
-        const blocks = html?.trim()
-          ? await viewEditor.tryParseHTMLToBlocks(unwrapListItemParagraphs(html))
-          : [];
-        viewEditor.replaceBlocks(viewEditor.document, blocks);
-        const editBlocks = html?.trim()
-          ? await editor.tryParseHTMLToBlocks(unwrapListItemParagraphs(html))
-          : [];
-        editor.replaceBlocks(editor.document, editBlocks);
-        initialContentLoaded.current = true;
-      } catch (err) {
-        console.error("Failed to sync editors after save:", err);
-      }
+      // Update VIEW mode's static HTML preview immediately so the snapshot
+      // shows without waiting for the note.content prop useEffect.
+      const html = await contentToHtml(viewConverter as any, json);
+      setViewHtml(html);
+      initialContentLoaded.current = true;
       setHasChanges(false);
       setMode("view");
     } finally {
@@ -822,14 +765,13 @@ function CollabNoteEditor({
     canEdit,
     mode,
     collaboration.provider,
-    getContentHTML,
+    getContentForSave,
     onSave,
     note.id,
     note.title,
     title,
     note.tags,
-    viewEditor,
-    editor,
+    viewConverter,
   ]);
 
   const handleEnterEdit = useCallback(() => {
@@ -864,7 +806,9 @@ function CollabNoteEditor({
   // Other connected EDIT clients still hold their own Y.Doc copy; we surface a
   // warning so the user understands their writes will win.
   const handleDiscardDraft = useCallback(async () => {
-    const editorsActive = collaboration.connectedUsers.some((u) => u.mode === "edit");
+    const editorsActive = collaboration.connectedUsers.some(
+      (u) => u.mode === "edit",
+    );
     const warn = editorsActive
       ? t(
           "notes.unpublishedDraft.confirmDiscardWithEditors",
@@ -878,7 +822,8 @@ function CollabNoteEditor({
     try {
       if (boardId) await noteAPI.discardDraft(boardId, note.id);
       else if (orgId) await orgNoteAPI.discardDraft(orgId, note.id);
-      const { noteService, orgNoteService } = await import("../../utils/services");
+      const { noteService, orgNoteService } =
+        await import("../../utils/services");
       const updated = boardId
         ? await noteService.getDetail(boardId, note.id)
         : orgId
@@ -898,7 +843,15 @@ function CollabNoteEditor({
     } catch (err) {
       console.error("Failed to discard draft:", err);
     }
-  }, [boardId, orgId, note.id, onNoteUpdate, onCollabReset, collaboration.connectedUsers, t]);
+  }, [
+    boardId,
+    orgId,
+    note.id,
+    onNoteUpdate,
+    onCollabReset,
+    collaboration.connectedUsers,
+    t,
+  ]);
 
   // Keyboard shortcut: Ctrl/Cmd+S (Edit mode only)
   useEffect(() => {
@@ -1215,7 +1168,10 @@ function CollabNoteEditor({
         {mode === "view" && canEdit && note.has_unpublished_draft && (
           <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-bridge-accent/20 bg-bridge-accent/10 px-4 py-2.5">
             <div className="flex items-center gap-2 min-w-0">
-              <CloudUpload size={14} className="text-bridge-accent flex-shrink-0" />
+              <CloudUpload
+                size={14}
+                className="text-bridge-accent flex-shrink-0"
+              />
               <span className="text-xs text-foreground truncate">
                 {t(
                   "notes.unpublishedDraft.banner",
@@ -1252,11 +1208,29 @@ function CollabNoteEditor({
           onCopy={handleEditorCopy}
         >
           {mode === "view" ? (
-            <BlockNoteView
+            <div
               key={`view-${note.id}-${note.updated_at}`}
-              editor={viewEditor}
-              theme={isDark ? "dark" : "light"}
-              editable={false}
+              className="bn-container bn-shadcn note-view-render"
+              data-theme={isDark ? "dark" : "light"}
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(viewHtml, {
+                  ADD_TAGS: ["iframe", "details", "summary"],
+                  ADD_ATTR: [
+                    "data-block-type",
+                    "data-callout-type",
+                    "data-content-type",
+                    "data-url",
+                    "data-columns",
+                    "data-id",
+                    "allow",
+                    "allowfullscreen",
+                    "frameborder",
+                    "open",
+                    "target",
+                    "rel",
+                  ],
+                }),
+              }}
             />
           ) : (
             <BlockNoteView

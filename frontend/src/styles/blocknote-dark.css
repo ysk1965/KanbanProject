@@ -574,6 +574,30 @@ table:hover [data-table-handle],
   min-height: 1em;
 }
 
+/* Replace the old JS DOM hacks: when a Toggle is closed, hide its nested
+   block group. The :has() selector keeps the rule local — we never reach
+   outside the block's own .bn-block-outer container. */
+.bn-block-outer:has(
+    > .bn-block > .bn-block-content > .bn-toggle[data-open="false"]
+  )
+  > .bn-block-group {
+  display: none;
+}
+
+/* When a ColumnLayout block is present, lay its sibling block-group out
+   as flex columns. Each child column auto-grows. */
+.bn-block-outer:has(> .bn-block > .bn-block-content > .bn-column-layout)
+  > .bn-block-group {
+  display: flex;
+  gap: 12px;
+}
+.bn-block-outer:has(> .bn-block > .bn-block-content > .bn-column-layout)
+  > .bn-block-group
+  > .bn-block-outer {
+  flex: 1;
+  min-width: 0;
+}
+
 /* --- @Mention Inline --- */
 .bn-mention {
   display: inline-flex;

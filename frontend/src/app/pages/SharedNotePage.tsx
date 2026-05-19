@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import DOMPurify from "dompurify";
 import {
   FileText,
   Clock,
@@ -16,56 +17,14 @@ const ExcalidrawLazy = React.lazy(async () => {
   const mod = await import("@excalidraw/excalidraw");
   return { default: mod.Excalidraw };
 });
-import {
-  BlockNoteSchema,
-  defaultBlockSpecs,
-  defaultInlineContentSpecs,
-} from "@blocknote/core";
 import { useCreateBlockNote } from "@blocknote/react";
-import { BlockNoteView } from "@blocknote/shadcn";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
-import { publicNoteAPI } from "../utils/api";
+import { publicNoteAPI, resolveFileUrl } from "../utils/api";
 import type { SharedNote } from "../utils/api";
 import { formatDateTime } from "../utils/dateUtils";
-import { Callout } from "../components/notes/blocks/Callout";
-import { Toggle } from "../components/notes/blocks/Toggle";
-import { Divider } from "../components/notes/blocks/Divider";
-import { TableOfContents } from "../components/notes/blocks/TableOfContents";
-import { Embed } from "../components/notes/blocks/Embed";
-import { ColumnLayout, Column } from "../components/notes/blocks/ColumnLayout";
-import { Mention } from "../components/notes/blocks/Mention";
-
-// Mirror of NoteEditor.unwrapListItemParagraphs — handles both blocksToHTMLLossy
-// (<li><p>...</p></li>) and legacy blocksToFullHTML
-// (<div data-content-type="...ListItem"><p>...</p></div>) so that
-// tryParseHTMLToBlocks does not produce empty parent list items + nested
-// children. See NoteEditor.tsx for the full explanation.
-function unwrapListItemParagraphs(html: string): string {
-  if (!html) return html;
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  doc.querySelectorAll("li > p").forEach((p) => {
-    const li = p.parentElement!;
-    while (p.firstChild) {
-      li.insertBefore(p.firstChild, p);
-    }
-    p.remove();
-  });
-  doc
-    .querySelectorAll(
-      'div[data-content-type="bulletListItem"] > p,' +
-        'div[data-content-type="numberedListItem"] > p,' +
-        'div[data-content-type="checkListItem"] > p',
-    )
-    .forEach((p) => {
-      const container = p.parentElement!;
-      while (p.firstChild) {
-        container.insertBefore(p.firstChild, p);
-      }
-      p.remove();
-    });
-  return doc.body.innerHTML;
-}
+import { noteSchema as schema } from "../components/notes/blocks/schema";
+import { contentToHtml } from "../utils/blocknoteContent";
 
 function useSystemTheme() {
   const [isDark, setIsDark] = useState(
@@ -80,23 +39,6 @@ function useSystemTheme() {
   return isDark;
 }
 
-const schema = BlockNoteSchema.create({
-  blockSpecs: {
-    ...defaultBlockSpecs,
-    callout: Callout,
-    toggle: Toggle,
-    divider: Divider,
-    tableOfContents: TableOfContents,
-    embed: Embed,
-    columnLayout: ColumnLayout,
-    column: Column,
-  },
-  inlineContentSpecs: {
-    ...defaultInlineContentSpecs,
-    mention: Mention,
-  },
-});
-
 export function SharedNotePage() {
   const { shareToken } = useParams<{ shareToken: string }>();
   const { t } = useTranslation();
@@ -104,6 +46,7 @@ export function SharedNotePage() {
   const [note, setNote] = useState<SharedNote | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [renderedHtml, setRenderedHtml] = useState<string>("");
 
   // Apply theme class to html element for CSS variables (bridge-dark, bridge-obsidian, etc.)
   useEffect(() => {
@@ -115,14 +58,13 @@ export function SharedNotePage() {
     };
   }, [isDark]);
 
-  const editor = useCreateBlockNote({
+  // Throwaway converter editor — used solely to normalize stored content
+  // (JSON or legacy HTML) into HTML for static rendering. No BlockNoteView,
+  // no editing surface, so the page payload is much smaller than a full
+  // BlockNote mount.
+  const converter = useCreateBlockNote({
     schema,
-    tables: {
-      cellBackgroundColor: true,
-      cellTextColor: true,
-      headers: true,
-      splitCells: true,
-    },
+    resolveFileUrl: async (url: string) => resolveFileUrl(url),
   } as any);
 
   useEffect(() => {
@@ -146,24 +88,21 @@ export function SharedNotePage() {
     loadNote();
   }, [shareToken, t]);
 
-  // Load content into editor when note arrives (skip BOARD type - it uses Excalidraw, not BlockNote)
+  // Convert content to HTML when note arrives (skip BOARD type - it uses Excalidraw, not BlockNote)
   useEffect(() => {
-    if (!note?.content?.trim() || !editor) return;
-    if (note.type === "BOARD") return;
-
-    const loadContent = async () => {
-      try {
-        const blocks = await editor.tryParseHTMLToBlocks(
-          unwrapListItemParagraphs(note.content!),
-        );
-        editor.replaceBlocks(editor.document, blocks);
-      } catch (err) {
-        console.error("Failed to parse shared note content:", err);
-      }
+    if (!note?.content?.trim() || note.type === "BOARD") {
+      setRenderedHtml("");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const html = await contentToHtml(converter as any, note.content);
+      if (!cancelled) setRenderedHtml(html);
+    })();
+    return () => {
+      cancelled = true;
     };
-
-    loadContent();
-  }, [note, editor]);
+  }, [note, converter]);
 
   if (loading) {
     return (
@@ -305,19 +244,33 @@ export function SharedNotePage() {
           </Suspense>
         ) : (
           <div
-            className="shared-note-viewer"
+            className="shared-note-viewer bn-container bn-shadcn"
+            data-theme={isDark ? "dark" : "light"}
             style={
               {
                 "--bn-colors-editor-background": "transparent",
               } as React.CSSProperties
             }
-          >
-            <BlockNoteView
-              editor={editor}
-              theme={isDark ? "dark" : "light"}
-              editable={false}
-            />
-          </div>
+            dangerouslySetInnerHTML={{
+              __html: DOMPurify.sanitize(renderedHtml, {
+                ADD_TAGS: ["iframe", "details", "summary"],
+                ADD_ATTR: [
+                  "data-block-type",
+                  "data-callout-type",
+                  "data-content-type",
+                  "data-url",
+                  "data-columns",
+                  "data-id",
+                  "allow",
+                  "allowfullscreen",
+                  "frameborder",
+                  "open",
+                  "target",
+                  "rel",
+                ],
+              }),
+            }}
+          />
         )}
       </main>
 
