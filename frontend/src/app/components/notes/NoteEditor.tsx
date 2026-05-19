@@ -66,6 +66,7 @@ import {
   serializeForSave,
   contentToHtml,
   contentToMarkdown,
+  unwrapListItemParagraphs,
 } from "../../utils/blocknoteContent";
 import DOMPurify from "dompurify";
 import type {
@@ -351,16 +352,43 @@ function CollabNoteEditor({
         headers: true,
         splitCells: true,
       },
+      // Narrow paste guard: only normalize <li><p>…</p></li> markup before
+      // delegating to BlockNote's default pipeline. This fixes round-trip from
+      // our static VIEW HTML *and* external sources (Notion/Word/Google Docs)
+      // that emit the same pattern, which otherwise yields empty parent list
+      // items with the text nested one level deeper. All other MIME types
+      // (blocknote/html, text/markdown, text/plain, Files) fall through to the
+      // default handler — no inter-block whitespace tampering, so the blank-line
+      // regression that motivated e5f4628 does not return.
+      pasteHandler: ({
+        event,
+        editor: e,
+        defaultPasteHandler,
+      }: {
+        event: ClipboardEvent;
+        editor: any;
+        defaultPasteHandler: () => boolean;
+      }) => {
+        const data = event.clipboardData;
+        if (!data) return defaultPasteHandler();
+        // If a higher-priority MIME is present, let the default handler win.
+        if (
+          data.getData("vscode-editor-data") ||
+          data.getData("blocknote/html") ||
+          data.getData("text/markdown")
+        ) {
+          return defaultPasteHandler();
+        }
+        const html = data.getData("text/html");
+        if (!html) return defaultPasteHandler();
+        const cleaned = unwrapListItemParagraphs(html);
+        if (cleaned === html) return defaultPasteHandler();
+        e.pasteHTML(cleaned);
+        return true;
+      },
     } as any,
     [collaboration.fragment],
   );
-  // No custom pasteHandler: BlockNote 0.28's defaultPasteHandler already
-  // handles vscode-editor-data → blocknote/html → text/markdown → text/html →
-  // text/plain → Files in priority order. Our previous handler called
-  // editor.pasteHTML(...) directly, which bypassed the default's whitespace
-  // and list normalization — that's the source of stray blank lines users
-  // were seeing on paste from external apps. See:
-  // https://www.blocknotejs.org/docs/getting-started/shadcn
 
   // VIEW mode renders the published snapshot as static HTML rather than
   // mounting a second BlockNoteView. This:
