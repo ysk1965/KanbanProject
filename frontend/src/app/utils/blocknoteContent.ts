@@ -13,7 +13,7 @@ export function isBlockNoteJson(content: string | null | undefined): boolean {
 // (<li><p>...</p></li>) and legacy blocksToFullHTML
 // (<div data-content-type="...ListItem"><p>...</p></div>) so that
 // tryParseHTMLToBlocks does not produce empty parent list items + nested children.
-function unwrapListItemParagraphs(html: string): string {
+export function unwrapListItemParagraphs(html: string): string {
   if (!html) return html;
   const doc = new DOMParser().parseFromString(html, "text/html");
   doc.querySelectorAll("li > p").forEach((p) => {
@@ -102,6 +102,11 @@ interface MarkdownExportEditor extends MinimalEditor {
  * Used by the version diff/preview views, which feed HTML into htmldiff/DOMPurify.
  * The editor instance is provided by the caller (so the throw-away cost is paid
  * once per diff session, not per call).
+ *
+ * Output is run through unwrapListItemParagraphs so that text copied from the
+ * static view and pasted back into an editor round-trips cleanly — without this,
+ * blocksToHTMLLossy's <li><p>…</p></li> structure makes BlockNote's paste parser
+ * emit empty parent list items with the text nested as a child block.
  */
 export async function contentToHtml(
   editor: HtmlExportEditor,
@@ -113,13 +118,14 @@ export async function contentToHtml(
       const blocks = JSON.parse(content);
       if (Array.isArray(blocks)) {
         editor.replaceBlocks(editor.document, blocks);
-        return await editor.blocksToHTMLLossy(editor.document);
+        const html = await editor.blocksToHTMLLossy(editor.document);
+        return unwrapListItemParagraphs(html);
       }
     } catch (err) {
       console.error("contentToHtml: JSON parse failed:", err);
     }
   }
-  return content;
+  return unwrapListItemParagraphs(content);
 }
 
 /**
