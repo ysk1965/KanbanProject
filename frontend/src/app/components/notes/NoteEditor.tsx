@@ -1253,8 +1253,8 @@ function CollabNoteEditor({
           {mode === "view" ? (
             <div
               key={`view-${note.id}-${note.updated_at}`}
-              className="bn-container bn-shadcn note-view-render"
-              data-theme={isDark ? "dark" : "light"}
+              className={`bn-container bn-shadcn note-view-render ${isDark ? "dark" : "light"}`}
+              data-color-scheme={isDark ? "dark" : "light"}
               dangerouslySetInnerHTML={{
                 __html: DOMPurify.sanitize(viewHtml, {
                   ADD_TAGS: ["iframe", "details", "summary"],
