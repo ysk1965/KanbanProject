@@ -30,6 +30,7 @@ import {
   Link2,
   Columns2,
   Columns3,
+  FileDown,
 } from "lucide-react";
 
 const ExcalidrawEditor = React.lazy(() => import("./ExcalidrawEditor"));
@@ -64,6 +65,7 @@ import {
   loadIntoEditor,
   serializeForSave,
   contentToHtml,
+  contentToMarkdown,
 } from "../../utils/blocknoteContent";
 import DOMPurify from "dompurify";
 import type {
@@ -423,6 +425,14 @@ function CollabNoteEditor({
           e.pasteHTML(bnHtml, true);
           return true;
         }
+        // Explicit markdown payload (Notion, iA Writer, Bear, some IDEs).
+        // pasteMarkdown is async — fire-and-forget because the editor API
+        // mutates state itself; we just need to short-circuit the handler.
+        const md = event.clipboardData?.getData("text/markdown");
+        if (md) {
+          void e.pasteMarkdown(md);
+          return true;
+        }
         const html = event.clipboardData?.getData("text/html");
         if (html && hasNestedListHtml(html)) {
           e.pasteHTML(html);
@@ -779,6 +789,26 @@ function CollabNoteEditor({
     setMode("edit");
   }, [canEdit]);
 
+  // Copy current note as Markdown. EDIT mode sources from the live Yjs-bound
+  // editor (includes unpublished changes); VIEW mode sources from the
+  // published snapshot via the throwaway viewConverter editor.
+  const [markdownCopied, setMarkdownCopied] = useState(false);
+  const handleCopyMarkdown = useCallback(async () => {
+    try {
+      let md: string;
+      if (mode === "edit") {
+        md = await editor.blocksToMarkdownLossy(editor.document);
+      } else {
+        md = await contentToMarkdown(viewConverter as any, note.content);
+      }
+      await navigator.clipboard.writeText(md);
+      setMarkdownCopied(true);
+      window.setTimeout(() => setMarkdownCopied(false), 1500);
+    } catch (err) {
+      console.error("Failed to copy markdown:", err);
+    }
+  }, [mode, editor, viewConverter, note.content]);
+
   // Leave edit mode without publishing. Yjs state remains on the server so the
   // next editor picks up where we left off; View users keep seeing the last
   // published snapshot until someone hits Save.
@@ -1043,6 +1073,19 @@ function CollabNoteEditor({
             <MessageSquare size={14} />
             <span className="hidden lg:inline">
               {t("notes.comment.title", "댓글")}
+            </span>
+          </button>
+
+          <button
+            onClick={handleCopyMarkdown}
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors text-slate-400 hover:text-foreground hover:bg-foreground/5"
+            title={t("notes.copyMarkdown", "Markdown으로 복사")}
+          >
+            {markdownCopied ? <Check size={14} /> : <FileDown size={14} />}
+            <span className="hidden lg:inline">
+              {markdownCopied
+                ? t("notes.copied", "복사됨")
+                : t("notes.copyMarkdownShort", "Markdown")}
             </span>
           </button>
 
