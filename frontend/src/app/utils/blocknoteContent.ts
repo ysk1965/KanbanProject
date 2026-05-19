@@ -39,6 +39,24 @@ export function unwrapListItemParagraphs(html: string): string {
   return doc.body.innerHTML;
 }
 
+// Word, Google Docs, Notion, and most browser-rendered HTML emit padding
+// "empty" paragraphs — `<p></p>`, `<p><br></p>`, `<p>&nbsp;</p>` — that look
+// like nothing but become blank blocks once BlockNote's tryParseHTMLToBlocks
+// converts them. Strip them before paste so external paste doesn't leave a
+// trail of empty blocks. Whitespace-only text nodes also count as empty.
+export function stripEmptyParagraphs(html: string): string {
+  if (!html) return html;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.body.querySelectorAll("p").forEach((p) => {
+    if (p.textContent?.trim()) return;
+    const onlyBr = p.children.length === 1 && p.children[0].tagName === "BR";
+    if (p.childNodes.length === 0 || onlyBr) {
+      p.remove();
+    }
+  });
+  return doc.body.innerHTML;
+}
+
 // Editor interface kept loose to dodge BlockNote's heavy generic parameters at
 // call sites. The methods we use are stable across 0.28.x.
 interface MinimalEditor {
