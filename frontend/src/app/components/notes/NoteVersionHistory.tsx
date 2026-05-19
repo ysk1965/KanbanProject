@@ -12,12 +12,15 @@ import {
   FileText,
 } from "lucide-react";
 import DOMPurify from "dompurify";
+import { useCreateBlockNote } from "@blocknote/react";
 import { noteService, orgNoteService } from "../../utils/services";
 import { formatDateTime } from "../../utils/dateUtils";
 import { useTheme } from "../../contexts/ThemeContext";
 import { NoteVersionDiffView } from "./NoteVersionDiffView";
 import { DIFF_COLORS } from "../../utils/excalidrawDiff";
 import type { NoteVersionInfo, NoteVersionDetail } from "../../utils/api";
+import { contentToHtml } from "../../utils/blocknoteContent";
+import { noteSchema } from "./blocks/schema";
 
 const ExcalidrawLazy = lazy(async () => {
   const mod = await import("@excalidraw/excalidraw");
@@ -358,16 +361,7 @@ export function NoteVersionHistory({
                 ) : noteType === "BOARD" ? (
                   <BoardOriginalView content={selectedVersion.content} />
                 ) : (
-                  <div className="flex-1 overflow-y-auto p-4">
-                    <div
-                      className="prose prose-invert prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{
-                        __html: DOMPurify.sanitize(
-                          selectedVersion.content || "",
-                        ),
-                      }}
-                    />
-                  </div>
+                  <DocumentVersionPreview content={selectedVersion.content} />
                 )}
               </div>
             ) : (
@@ -432,6 +426,38 @@ export function NoteVersionHistory({
         </div>
       )}
     </>
+  );
+}
+
+function DocumentVersionPreview({
+  content,
+}: {
+  content: string | null | undefined;
+}) {
+  // Throwaway BlockNote editor used only to normalize stored content (JSON or
+  // legacy HTML) to HTML for the read-only preview. The editor lives for the
+  // lifetime of the version drawer, not per-render.
+  const converter = useCreateBlockNote({ schema: noteSchema } as any);
+  const [html, setHtml] = useState<string>("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const rendered = await contentToHtml(converter as any, content);
+      if (!cancelled) setHtml(rendered);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [content, converter]);
+
+  return (
+    <div className="flex-1 overflow-y-auto p-4">
+      <div
+        className="prose prose-invert prose-sm max-w-none"
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
+      />
+    </div>
   );
 }
 

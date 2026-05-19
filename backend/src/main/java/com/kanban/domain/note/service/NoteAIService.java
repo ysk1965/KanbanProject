@@ -93,13 +93,14 @@ public class NoteAIService {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "화이트보드에는 AI 정리를 사용할 수 없습니다");
         }
 
-        String htmlContent = note.getContent();
-        if (htmlContent == null || htmlContent.isBlank()) {
+        String rawContent = note.getContent();
+        if (rawContent == null || rawContent.isBlank()) {
             throw new BusinessException(ErrorCode.AI_NOTE_CONTENT_EMPTY);
         }
 
-        // Strip HTML tags to extract plain text for AI
-        String plainText = stripHtml(htmlContent);
+        // Notes are stored either as BlockNote JSON (starts with '[') or legacy HTML.
+        // Both must collapse to plain text before going to the LLM.
+        String plainText = extractPlainText(rawContent);
         if (plainText.isBlank()) {
             throw new BusinessException(ErrorCode.AI_NOTE_CONTENT_EMPTY);
         }
@@ -139,7 +140,7 @@ public class NoteAIService {
         try {
             String suggestionsJson = objectMapper.writeValueAsString(suggestions);
             note.updateAiSuggestions(suggestionsJson);
-            note.updateAiContentSnapshot(htmlContent);
+            note.updateAiContentSnapshot(rawContent);
         } catch (JsonProcessingException e) {
             log.warn("Failed to serialize AI suggestions for note: {}", noteId, e);
         }
@@ -253,7 +254,64 @@ public class NoteAIService {
                 .build();
     }
 
-    // ===== HTML to Plain Text =====
+    // ===== Content → Plain Text =====
+
+    /**
+     * Note content is stored as either BlockNote JSON ({@code [{ ... }]}) or legacy HTML.
+     * Detect by leading char and delegate. JSON arrays always start with '['; serialized
+     * HTML from BlockNote's {@code blocksToHTMLLossy} starts with '<'.
+     */
+    String extractPlainText(String content) {
+        if (content == null) return "";
+        String trimmed = content.stripLeading();
+        if (trimmed.startsWith("[")) {
+            return stripBlockNoteJson(trimmed);
+        }
+        return stripHtml(content);
+    }
+
+    /** Walk BlockNote {@code Block[]} JSON and concatenate visible text. */
+    String stripBlockNoteJson(String json) {
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            StringBuilder sb = new StringBuilder();
+            appendBlocks(root, sb);
+            return sb.toString().replaceAll("\\n{3,}", "\n\n").trim();
+        } catch (Exception e) {
+            log.debug("Failed to parse BlockNote JSON, falling back to raw: {}", e.getMessage());
+            // If parsing fails the safest fallback is to strip braces/brackets so we
+            // do not feed structural noise to the LLM.
+            return json.replaceAll("[\\[\\]{}\"]", " ").replaceAll("\\s+", " ").trim();
+        }
+    }
+
+    private void appendBlocks(JsonNode blocks, StringBuilder sb) {
+        if (blocks == null || !blocks.isArray()) return;
+        for (JsonNode block : blocks) {
+            appendInline(block.get("content"), sb);
+            sb.append('\n');
+            appendBlocks(block.get("children"), sb);
+        }
+    }
+
+    private void appendInline(JsonNode inline, StringBuilder sb) {
+        if (inline == null) return;
+        if (inline.isArray()) {
+            for (JsonNode node : inline) appendInline(node, sb);
+            return;
+        }
+        String type = inline.path("type").asText("");
+        if ("text".equals(type)) {
+            sb.append(inline.path("text").asText(""));
+        } else if ("link".equals(type)) {
+            appendInline(inline.get("content"), sb);
+        } else if ("mention".equals(type)) {
+            String user = inline.path("props").path("user").asText("");
+            if (!user.isEmpty()) sb.append('@').append(user);
+        } else if (inline.has("text")) {
+            sb.append(inline.path("text").asText(""));
+        }
+    }
 
     static String stripHtml(String html) {
         if (html == null) return "";
