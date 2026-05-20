@@ -39,6 +39,19 @@ export function unwrapListItemParagraphs(html: string): string {
   return doc.body.innerHTML;
 }
 
+// Whitespace (newlines, indentation) between block-level closing/opening tags
+// becomes empty paragraph blocks once BlockNote's tryParseHTMLToBlocks reads
+// it. BlockNote's own copy serializer formats with newlines between blocks too,
+// so this affects internal note→note paste (blocknote/html, raw=true) just as
+// much as external paste (text/html). Inline whitespace inside text is left
+// alone — we only target whitespace BETWEEN block tags.
+export function collapseInterBlockWhitespace(html: string): string {
+  return html.replace(
+    /(<\/(?:p|div|h[1-6]|ul|ol|li|blockquote|pre|table|tr|thead|tbody)>)\s+(?=<(?:p|div|h[1-6]|ul|ol|li|blockquote|pre|table|tr|thead|tbody)\b)/gi,
+    "$1",
+  );
+}
+
 // Word, Google Docs, Notion, and most browser-rendered HTML emit padding
 // "empty" paragraphs — `<p></p>`, `<p><br></p>`, `<p>&nbsp;</p>` — that look
 // like nothing but become blank blocks once BlockNote's tryParseHTMLToBlocks
