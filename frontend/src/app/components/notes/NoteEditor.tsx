@@ -68,6 +68,7 @@ import {
   contentToMarkdown,
   unwrapListItemParagraphs,
   stripEmptyParagraphs,
+  collapseInterBlockWhitespace,
 } from "../../utils/blocknoteContent";
 import DOMPurify from "dompurify";
 import type {
@@ -376,27 +377,43 @@ function CollabNoteEditor({
       }) => {
         const data = event.clipboardData;
         if (!data) return defaultPasteHandler();
-        // If a higher-priority MIME is present, let the default handler win.
+        // VS Code, plain markdown, and Files MIMEs go straight to default.
         if (
           data.getData("vscode-editor-data") ||
-          data.getData("blocknote/html") ||
           data.getData("text/markdown")
         ) {
           return defaultPasteHandler();
         }
+        // Three-pass cleanup applied to both internal (blocknote/html, raw=true)
+        // and external (text/html) HTML — both routes call tryParseHTMLToBlocks
+        // under the hood, and both inherit the same parser quirks:
+        //   1) unwrapListItemParagraphs — strips <li><p>…</p></li> down to
+        //      <li>…</li> so BlockNote does not create an empty parent list
+        //      item with a nested paragraph child (the '목록' placeholder bug).
+        //   2) stripEmptyParagraphs — drops <p></p> / <p><br></p> /
+        //      <p>&nbsp;</p> emitted by Word, Google Docs, Notion, and our own
+        //      blocksToHTMLLossy, which otherwise materialize as blank blocks.
+        //   3) collapseInterBlockWhitespace — eats the newlines / indentation
+        //      BlockNote's own serializer puts BETWEEN block tags. Without
+        //      this, internal note→note paste re-imports each block separated
+        //      by a real empty paragraph block (the "every block becomes its
+        //      own line" symptom).
+        const cleanHtml = (raw: string): string =>
+          collapseInterBlockWhitespace(
+            stripEmptyParagraphs(unwrapListItemParagraphs(raw)),
+          );
+
+        const bnHtml = data.getData("blocknote/html");
+        if (bnHtml) {
+          const cleaned = cleanHtml(bnHtml);
+          if (cleaned === bnHtml) return defaultPasteHandler();
+          // raw=true preserves BlockNote's own structure markers.
+          e.pasteHTML(cleaned, true);
+          return true;
+        }
         const html = data.getData("text/html");
         if (!html) return defaultPasteHandler();
-        // Two passes before handing to pasteHTML:
-        //   1) unwrapListItemParagraphs — Word/Google Docs/Notion/our own
-        //      blocksToHTMLLossy emit <li><p>…</p></li>, which BlockNote parses
-        //      as "empty parent list item + child paragraph", leaving a stray
-        //      '목록' placeholder.
-        //   2) stripEmptyParagraphs — same sources also pad with <p></p> /
-        //      <p><br></p> / <p>&nbsp;</p> which become blank blocks and show
-        //      up as trailing empty lines after paste. Eat them here.
-        // Both fire in the BlockNote default path too (pasteHTML), so the only
-        // path losing the cleanup would be skipping our handler entirely.
-        const cleaned = stripEmptyParagraphs(unwrapListItemParagraphs(html));
+        const cleaned = cleanHtml(html);
         if (cleaned === html) return defaultPasteHandler();
         e.pasteHTML(cleaned);
         return true;
