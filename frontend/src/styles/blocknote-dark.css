@@ -1085,6 +1085,14 @@ table:hover [data-table-handle],
   margin: 0.25rem 0;
 }
 
+/* blocksToHTMLLossy 는 빈 단락에 trailing <br> 를 넣지 않아 라인 박스가
+   생성되지 않고 높이 0 으로 접힘. 에디트 모드에서 보이는 한 줄 공백을
+   뷰/공유 모드에서도 유지하기 위해 라인 하이트만큼의 min-height 부여. */
+.note-view-render p:empty,
+.shared-note-viewer p:empty {
+  min-height: 1.7em;
+}
+
 /* Bullet / numbered lists — preflight removes list-style; restore it
    and add nested indentation so deeper levels read as a hierarchy. */
 .note-view-render ul,
