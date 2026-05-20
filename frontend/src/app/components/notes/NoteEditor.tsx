@@ -252,6 +252,13 @@ function CollabNoteEditor({
   const hydratingRef = useRef(false);
   const titleSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Mirror of `mode` for use inside long-lived callbacks (provider.onSynced)
+  // that subscribe once and must not re-subscribe on every mode flip.
+  const modeRef = useRef<"view" | "edit">(mode);
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
   // Sync collab readOnly + awareness mode field whenever local mode changes.
   // View clients never broadcast doc updates, never auto-save, and surface
   // themselves to peers as readers rather than editors.
@@ -471,6 +478,16 @@ function CollabNoteEditor({
         initialContentLoaded.current = true;
         return;
       }
+      // Skip hydration while in VIEW mode — BlockNoteView is not mounted, so
+      // editor.replaceBlocks() dispatches a PM transaction without an
+      // EditorView. y-prosemirror's sync plugin only translates PM
+      // transactions into Y.Doc ops via its view-bound `update` callback, so
+      // a view-less replaceBlocks leaves tiptap state populated but the Y.Doc
+      // still empty. When the user later enters EDIT mode, the freshly-
+      // mounted view runs `_forceRerender` which rebuilds PM from the empty
+      // Y.Doc — wiping the hydrated content and showing a blank editor.
+      // The edit-mode hydration effect below re-runs once the view is up.
+      if (modeRef.current !== "edit") return;
       hydratingRef.current = true;
       try {
         const ok = await loadIntoEditor(editor, note.content);
@@ -490,6 +507,36 @@ function CollabNoteEditor({
       unsubscribe();
     };
   }, [editor, note.content, collaboration]);
+
+  // Edit-mode hydration: re-run the empty-Y.Doc check once BlockNoteView has
+  // actually mounted. Required for the "discard from VIEW → enter EDIT" path,
+  // where the initial-content useEffect above skips itself (no view yet) and
+  // would otherwise leave the editor blank. rAF defers to after React commits
+  // the BlockNoteView so y-prosemirror's view callback has attached its
+  // EditorView reference — only then does replaceBlocks() propagate to Y.Doc.
+  useEffect(() => {
+    if (mode !== "edit" || !editor || !note.content?.trim()) return;
+    if (initialContentLoaded.current || hydratingRef.current) return;
+    const raf = requestAnimationFrame(async () => {
+      const doc = editor.document;
+      const isEmpty =
+        doc.length === 1 &&
+        doc[0].type === "paragraph" &&
+        (!doc[0].content || doc[0].content.length === 0);
+      if (!isEmpty) {
+        initialContentLoaded.current = true;
+        return;
+      }
+      hydratingRef.current = true;
+      try {
+        const ok = await loadIntoEditor(editor, note.content);
+        if (ok) initialContentLoaded.current = true;
+      } finally {
+        hydratingRef.current = false;
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [mode, editor, note.content]);
 
   // Cleanup title save timer on unmount or note change
   useEffect(() => {
