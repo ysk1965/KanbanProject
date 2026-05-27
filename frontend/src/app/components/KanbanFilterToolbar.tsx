@@ -14,6 +14,7 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  RefreshCw,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
@@ -103,6 +104,37 @@ export const KanbanFilterToolbar = forwardRef<
     await boardResourceAPI.deleteResource(boardId, resourceId);
     setContextMenu(null);
     await fetchResources();
+  };
+
+  const handleFaviconError = useCallback((e: React.SyntheticEvent<HTMLImageElement>, url: string) => {
+    const img = e.target as HTMLImageElement;
+    try {
+      const host = new URL(url).hostname;
+      const fallback = img.dataset.fallback;
+      if (!fallback) {
+        img.dataset.fallback = '1';
+        img.src = `https://icons.duckduckgo.com/ip3/${host}.ico`;
+      } else if (fallback === '1') {
+        img.dataset.fallback = '2';
+        img.src = `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${host}&size=32`;
+      } else {
+        img.style.display = 'none';
+        img.nextElementSibling?.classList.remove('hidden');
+      }
+    } catch {
+      img.style.display = 'none';
+      img.nextElementSibling?.classList.remove('hidden');
+    }
+  }, []);
+
+  const handleRefreshFavicons = async () => {
+    try {
+      const res = await boardResourceAPI.refreshFavicons(boardId);
+      setResources(res.resources || []);
+      setContextMenu(null);
+    } catch {
+      // silently fail
+    }
   };
 
   const handleResourceContextMenu = (e: React.MouseEvent, resource: BoardResource) => {
@@ -511,10 +543,7 @@ export const KanbanFilterToolbar = forwardRef<
                       src={resource.favicon_url}
                       alt=""
                       className="w-3.5 h-3.5 rounded-sm"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                      }}
+                      onError={(e) => handleFaviconError(e, resource.url)}
                     />
                   ) : null}
                   <ExternalLink size={12} className={resource.favicon_url ? 'hidden' : 'text-slate-400'} />
@@ -575,6 +604,14 @@ export const KanbanFilterToolbar = forwardRef<
             <Pencil size={13} />
             {t('boardResource.editResource')}
           </button>
+          <button
+            onClick={handleRefreshFavicons}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-foreground/5 transition-colors"
+          >
+            <RefreshCw size={13} />
+            {t('boardResource.refreshFavicons', '아이콘 새로고침')}
+          </button>
+          <div className="h-px bg-foreground/[0.08] my-0.5" />
           <button
             onClick={() => {
               if (window.confirm(t('boardResource.deleteConfirm'))) {

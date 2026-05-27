@@ -59,6 +59,15 @@ public class BoardResourceController {
         return ResponseEntity.ok(Map.of("message", "리소스가 삭제되었습니다"));
     }
 
+    @PostMapping("/refresh-favicons")
+    public ResponseEntity<BoardResourceResponse.ListResponse> refreshFavicons(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        BoardResourceResponse.ListResponse response =
+                boardResourceService.refreshFavicons(boardId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/reorder")
     public ResponseEntity<BoardResourceResponse.ListResponse> reorderResources(
             @PathVariable String boardId,

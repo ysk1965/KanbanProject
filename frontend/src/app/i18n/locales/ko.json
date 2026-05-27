@@ -1115,7 +1115,8 @@
     "collapse": "리소스 바 접기",
     "expand": "리소스 바 펼치기",
     "noResources": "공유된 리소스가 없습니다",
-    "addFirst": "첫 번째 리소스를 추가해보세요"
+    "addFirst": "첫 번째 리소스를 추가해보세요",
+    "refreshFavicons": "아이콘 새로고침"
   },
   "discordBot": {
     "title": "Discord Bot",
