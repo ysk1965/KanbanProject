@@ -1114,7 +1114,8 @@
     "collapse": "Collapse resource bar",
     "expand": "Expand resource bar",
     "noResources": "No shared resources",
-    "addFirst": "Add your first resource"
+    "addFirst": "Add your first resource",
+    "refreshFavicons": "Refresh icons"
   },
   "discordBot": {
     "title": "Discord Bot",

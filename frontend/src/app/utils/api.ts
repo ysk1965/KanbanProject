@@ -2127,6 +2127,12 @@ export const boardResourceAPI = {
       { resource_ids: resourceIds },
     );
   },
+
+  refreshFavicons: async (boardId: string) => {
+    return apiClient.post<BoardResourceListResponse>(
+      `/boards/${boardId}/resources/refresh-favicons`,
+    );
+  },
 };
 
 export const customEmojiAPI = {
