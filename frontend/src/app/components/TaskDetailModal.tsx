@@ -134,6 +134,7 @@ interface TaskDetailModalProps {
   wsChecklistEvent?: BoardWebSocketEvent | null;
   onOpenFeature?: (featureId: string) => void;
   onChecklistSync?: (taskId: string, items: ChecklistItem[]) => void;
+  highlightChecklistItemId?: string | null;
 }
 
 export function TaskDetailModal({
@@ -164,6 +165,7 @@ export function TaskDetailModal({
   wsChecklistEvent,
   onOpenFeature,
   onChecklistSync,
+  highlightChecklistItemId,
 }: TaskDetailModalProps) {
   const { t } = useTranslation();
   const { isRestricted } = useAuth();
@@ -204,6 +206,13 @@ export function TaskDetailModal({
   // 체크리스트 담당자 필터 (모달 로컬, 임시) — 빈 배열이면 필터 미적용
   // '__no_assignee__' 토큰은 미할당 항목을 의미
   const [filterAssigneeIds, setFilterAssigneeIds] = useState<string[]>([]);
+  const highlightChecklistRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (highlightChecklistItemId && highlightChecklistRef.current) {
+      highlightChecklistRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightChecklistItemId, checklistItems]);
 
   useEffect(() => {
     if (task && open) {
@@ -1332,6 +1341,8 @@ export function TaskDetailModal({
                           dragDisabled={isChecklistFilterActive}
                           isPersonal={isPersonal}
                           preloadedTimeBlocks={checklistTimeBlocksMap[item.id]}
+                          isHighlighted={highlightChecklistItemId === item.id}
+                          highlightRef={highlightChecklistItemId === item.id ? highlightChecklistRef : undefined}
                         />
                       ))}
                     </SortableContext>
@@ -1848,6 +1859,8 @@ function SortableChecklistItemRow(props: {
   dragDisabled?: boolean;
   isPersonal?: boolean;
   preloadedTimeBlocks?: ScheduleBlockDetailResponse[];
+  isHighlighted?: boolean;
+  highlightRef?: React.Ref<HTMLDivElement>;
 }) {
   const dragEnabled = !!props.canEdit && !props.dragDisabled;
   const {
@@ -1869,8 +1882,15 @@ function SortableChecklistItemRow(props: {
     zIndex: isDragging ? 10 : undefined,
   };
 
+  const mergedRef = (node: HTMLDivElement) => {
+    setNodeRef(node);
+    if (props.highlightRef && typeof props.highlightRef === 'object' && props.highlightRef !== null) {
+      (props.highlightRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    }
+  };
+
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div ref={mergedRef} style={style} {...attributes}>
       <ChecklistItemRow
         {...props}
         dragHandleProps={dragEnabled ? listeners : undefined}
@@ -1893,6 +1913,7 @@ function ChecklistItemRow({
   isPersonal = false,
   dragHandleProps,
   preloadedTimeBlocks,
+  isHighlighted = false,
 }: {
   item: ChecklistItem;
   onToggle: () => void;
@@ -1906,6 +1927,7 @@ function ChecklistItemRow({
   isPersonal?: boolean;
   dragHandleProps?: React.HTMLAttributes<HTMLElement>;
   preloadedTimeBlocks?: ScheduleBlockDetailResponse[];
+  isHighlighted?: boolean;
 }) {
   const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
@@ -1971,7 +1993,7 @@ function ChecklistItemRow({
 
   return (
     <>
-      <div className="group flex items-center gap-2 p-2 rounded hover:bg-foreground/5 border border-transparent hover:border-foreground/10">
+      <div className={`group flex items-center gap-2 p-2 rounded hover:bg-foreground/5 border ${isHighlighted ? "bg-purple-500/20 border-purple-500/50" : "border-transparent hover:border-foreground/10"}`}>
         {/* 드래그 핸들 */}
         {dragHandleProps && (
           <span
@@ -2027,6 +2049,11 @@ function ChecklistItemRow({
               onClick={() => canEdit && setIsEditing(true)}
             >
               {item.title}
+              {isHighlighted && (
+                <span className="ml-2 text-xs text-purple-400 inline-block">
+                  ({t("scheduleDetail.current")})
+                </span>
+              )}
             </div>
           )}
         </div>
