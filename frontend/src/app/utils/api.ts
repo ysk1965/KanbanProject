@@ -5688,6 +5688,18 @@ export const noteAPI = {
     );
   },
 
+  restoreDraft: async (boardId: string, noteId: string) => {
+    return apiClient.post<void>(
+      `/boards/${boardId}/notes/${noteId}/draft/restore`,
+    );
+  },
+
+  hasArchivedDraft: async (boardId: string, noteId: string) => {
+    return apiClient.get<{ available: boolean }>(
+      `/boards/${boardId}/notes/${noteId}/draft/archived`,
+    );
+  },
+
   getTags: async (boardId: string) => {
     return apiClient.get<NoteTagInfo[]>(`/boards/${boardId}/note-tags`);
   },
@@ -5892,6 +5904,18 @@ export const orgNoteAPI = {
   discardDraft: async (orgId: string, noteId: string) => {
     return apiClient.delete<void>(
       `/organizations/${orgId}/notes/${noteId}/draft`,
+    );
+  },
+
+  restoreDraft: async (orgId: string, noteId: string) => {
+    return apiClient.post<void>(
+      `/organizations/${orgId}/notes/${noteId}/draft/restore`,
+    );
+  },
+
+  hasArchivedDraft: async (orgId: string, noteId: string) => {
+    return apiClient.get<{ available: boolean }>(
+      `/organizations/${orgId}/notes/${noteId}/draft/archived`,
     );
   },
 

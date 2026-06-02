@@ -185,6 +185,26 @@ public class NoteController {
         return ResponseEntity.noContent().build();
     }
 
+    /** Restore a previously discarded draft (되돌리기). */
+    @PostMapping("/{noteId}/draft/restore")
+    public ResponseEntity<Void> restoreDraft(
+            @PathVariable String boardId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        noteService.restoreDraft(boardId, noteId, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Whether a restorable discarded draft exists for this note. */
+    @GetMapping("/{noteId}/draft/archived")
+    public ResponseEntity<Map<String, Boolean>> hasArchivedDraft(
+            @PathVariable String boardId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        boolean available = noteService.hasArchivedDraft(boardId, noteId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("available", available));
+    }
+
     // ===== Sharing =====
 
     @PostMapping("/{noteId}/share")
