@@ -46,7 +46,7 @@ interface ScheduleDetailPanelProps {
   onDelete: () => void;
   onUpdate: () => void;
   onChecklistToggle: () => void;
-  onViewTask?: (taskId: string) => void;
+  onViewTask?: (taskId: string, checklistItemId?: string) => void;
   onViewFeature?: (featureId: string) => void;
   onViewMeeting?: (meetingId: string, date?: Date) => void;
 }
@@ -935,7 +935,7 @@ export function ScheduleDetailPanel({
                 ? "cursor-pointer hover:bg-foreground/5 transition-colors"
                 : ""
             }`}
-            onClick={() => task && onViewTask && onViewTask(task.id)}
+            onClick={() => task && onViewTask && onViewTask(task.id, checklist?.id)}
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">

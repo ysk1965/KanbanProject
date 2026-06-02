@@ -24,7 +24,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Native WebSocket handler for Yjs-based real-time note collaboration.
@@ -57,6 +60,16 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
 
     private static final String REDIS_CHANNEL_PREFIX = "ws-collab:";
 
+    /**
+     * Per-room cap on the reconnect replay buffer. The buffer holds a sliding
+     * window of the most recent incremental updates (FIFO-evicted past this cap);
+     * a briefly disconnected client replays it to catch up. A client gone longer
+     * than this window's worth of edits falls back to storedState, kept fresh by
+     * the 30s auto-save. 4MB covers a very long recent edit run while bounding
+     * per-room memory across many concurrent notes.
+     */
+    private static final long MAX_PENDING_BYTES = 4L * 1024 * 1024;
+
     private final Map<String, Room> rooms = new ConcurrentHashMap<>();
     private final Map<String, MessageListener> redisListeners = new ConcurrentHashMap<>();
 
@@ -78,6 +91,18 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
         final String noteId;
         final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
         volatile byte[] storedState;
+        /**
+         * Sliding window of recent incremental MSG_SYNC_UPDATE frames (leading type
+         * byte included). Replayed to a (re)connecting client right after its
+         * MSG_SYNC_FULL so it can never permanently miss edits that arrived while its
+         * socket was briefly down. FIFO-evicted past {@link #MAX_PENDING_BYTES}; only
+         * fully cleared on draft discard. Deliberately NOT cleared on every snapshot
+         * (a laggard client's snapshot omits peers' latest increments). Yjs update
+         * application is idempotent and order-independent, so replaying a frame the
+         * client already has is harmless.
+         */
+        final Queue<byte[]> pendingUpdates = new ConcurrentLinkedQueue<>();
+        final AtomicLong pendingBytes = new AtomicLong(0);
 
         Room(String noteId) {
             this.noteId = noteId;
@@ -119,9 +144,20 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
         if (state.length > 0) {
             System.arraycopy(state, 0, msg, 1, state.length);
         }
-        session.sendMessage(new BinaryMessage(msg));
+        // Send the snapshot and the post-snapshot increments as one atomic burst
+        // (synchronized on the session, like every other send) so a concurrent
+        // live relay cannot interleave a frame between them. Replaying the buffered
+        // updates here is what lets a reconnecting client recover edits it dropped
+        // while offline — the root cause of two EDIT clients diverging permanently.
+        synchronized (session) {
+            session.sendMessage(new BinaryMessage(msg));
+            for (byte[] frame : room.pendingUpdates) {
+                session.sendMessage(new BinaryMessage(frame));
+            }
+        }
 
-        log.debug("Collab connected: noteId={}, userId={}, sessions={}", noteId, userId, room.sessions.size());
+        log.debug("Collab connected: noteId={}, userId={}, sessions={}, replayed={}",
+                noteId, userId, room.sessions.size(), room.pendingUpdates.size());
     }
 
     @Override
@@ -141,17 +177,30 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
 
         switch (msgType) {
             case MSG_SYNC_FULL -> {
-                // Full state snapshot from client → persist
+                // Full state snapshot from client → persist. We deliberately do NOT
+                // clear the replay buffer here. A snapshot from a LAGGARD client (one
+                // momentarily behind that hasn't applied a peer's latest increments —
+                // e.g. an idle EDIT client whose 30s auto-save fires) does not contain
+                // those increments, so clearing would discard the very edits a
+                // reconnecting client still needs. Replaying a superseded increment is
+                // harmless (Yjs apply is idempotent + order-independent), so we keep
+                // them; the FIFO cap in bufferUpdate bounds memory.
                 byte[] state = new byte[data.length - 1];
                 System.arraycopy(data, 1, state, 0, state.length);
                 room.storedState = state;
                 noteCollabService.saveState(noteId, state);
                 log.debug("Collab state persisted: noteId={}, size={}", noteId, state.length);
             }
-            case MSG_SYNC_UPDATE, MSG_AWARENESS -> {
-                // Relay to local peers
+            case MSG_SYNC_UPDATE -> {
+                // Buffer for reconnect replay, then relay to local peers + other instances.
+                bufferUpdate(room, data);
                 relayToOthers(room, session.getId(), data);
-                // Relay to other instances via Redis
+                publishToRedis(noteId, session.getId(), data);
+            }
+            case MSG_AWARENESS -> {
+                // Awareness is ephemeral presence — relay but never buffer/replay
+                // (replaying stale cursors would resurrect ghosts of departed peers).
+                relayToOthers(room, session.getId(), data);
                 publishToRedis(noteId, session.getId(), data);
             }
             default -> log.warn("Unknown collab message type: {}", msgType);
@@ -215,6 +264,9 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
         Room room = rooms.get(event.noteId());
         if (room != null) {
             room.storedState = null;
+            // Drop buffered increments too, else replaying them would resurrect the
+            // just-discarded draft for the next (re)connecting client.
+            clearPending(room);
         }
     }
 
@@ -272,6 +324,13 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
                     Room room = rooms.get(noteId);
                     if (room == null) return;
 
+                    // Increments from other pods must also enter THIS instance's
+                    // replay buffer, otherwise a client reconnecting here would miss
+                    // edits made by a peer pinned to a different backend instance.
+                    if (binaryData.length > 0 && binaryData[0] == MSG_SYNC_UPDATE) {
+                        bufferUpdate(room, binaryData);
+                    }
+
                     BinaryMessage msg = new BinaryMessage(binaryData);
                     room.sessions.forEach((sessionId, ws) -> {
                         if (ws.isOpen()) {
@@ -302,6 +361,35 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
                 log.debug("Redis unsubscribed from collab channel: {}", REDIS_CHANNEL_PREFIX + noteId);
             }
         });
+    }
+
+    // --- Reconnect replay buffer ---
+
+    /**
+     * Append an incremental update frame (leading MSG_SYNC_UPDATE byte included) to
+     * the room's replay buffer, then FIFO-evict the oldest frames while over
+     * {@link #MAX_PENDING_BYTES}. A client gone longer than the retained window
+     * falls back to storedState — never worse than the pre-fix behavior.
+     */
+    private void bufferUpdate(Room room, byte[] frame) {
+        room.pendingUpdates.add(frame);
+        long total = room.pendingBytes.addAndGet(frame.length);
+        // FIFO-evict the OLDEST frames while over the cap so the buffer keeps a
+        // sliding window of the most RECENT increments — exactly what a briefly
+        // disconnected client is most likely missing. Dropping the newest instead
+        // (a wholesale clear) would throw away the freshest edits, the opposite of
+        // useful. Evicting oldest-first also means a delete frame is never kept
+        // while its older add frame is gone, so replay can't resurrect deleted text.
+        while (total > MAX_PENDING_BYTES) {
+            byte[] evicted = room.pendingUpdates.poll();
+            if (evicted == null) break;
+            total = room.pendingBytes.addAndGet(-evicted.length);
+        }
+    }
+
+    private void clearPending(Room room) {
+        room.pendingUpdates.clear();
+        room.pendingBytes.set(0);
     }
 
     // --- Local relay ---

@@ -533,6 +533,7 @@ export function KanbanBoardPage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isFeatureModalOpen, setIsFeatureModalOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [highlightChecklistItemId, setHighlightChecklistItemId] = useState<string | null>(null);
   const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
   const [meetingRefreshKey, setMeetingRefreshKey] = useState(0);
   const [meetingNavigateDate, setMeetingNavigateDate] = useState<Date | null>(
@@ -3686,7 +3687,8 @@ export function KanbanBoardPage() {
                   }
                   handleViewModeChange("meeting");
                 }}
-                onViewTask={async (taskId) => {
+                onViewTask={async (taskId, checklistItemId) => {
+                  setHighlightChecklistItemId(checklistItemId || null);
                   const task = tasks.find((t) => t.id === taskId);
                   if (task) {
                     handleTaskClick(task);
@@ -4231,9 +4233,11 @@ export function KanbanBoardPage() {
           // Task Modal
           selectedTask={selectedTask}
           isTaskModalOpen={isTaskModalOpen}
+          highlightChecklistItemId={highlightChecklistItemId}
           onCloseTask={() => {
             setIsTaskModalOpen(false);
             setSelectedTask(null);
+            setHighlightChecklistItemId(null);
           }}
           onUpdateTask={(updates) =>
             selectedTask && handleUpdateTask(selectedTask.id, updates)

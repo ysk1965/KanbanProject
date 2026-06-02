@@ -68,6 +68,7 @@ interface BoardModalManagerProps {
   // Task Modal
   selectedTask: Task | null;
   isTaskModalOpen: boolean;
+  highlightChecklistItemId?: string | null;
   onCloseTask: () => void;
   onUpdateTask: (updates: Partial<Task>) => void;
   onDeleteTask: (taskId: string) => void;
@@ -380,6 +381,7 @@ export function BoardModalManager(props: BoardModalManagerProps) {
           wsChecklistEvent={props.wsChecklistEvent}
           onOpenFeature={props.onOpenFeature}
           onChecklistSync={props.onChecklistSync}
+          highlightChecklistItemId={props.highlightChecklistItemId}
         />
       </ModalErrorBoundary>
 
