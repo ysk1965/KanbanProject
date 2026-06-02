@@ -55,7 +55,7 @@ interface DailyScheduleViewProps {
   organizationId?: string | null;
   memberColorMap?: Record<string, string | null>;
   onViewFeature?: (featureId: string) => void;
-  onViewTask?: (taskId: string) => void;
+  onViewTask?: (taskId: string, checklistItemId?: string) => void;
   onViewMeeting?: (meetingId: string, date?: Date) => void;
   refreshTrigger?: number;
   wsChecklistEvent?: BoardWebSocketEvent | null;
