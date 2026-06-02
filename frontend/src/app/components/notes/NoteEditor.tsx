@@ -31,6 +31,7 @@ import {
   Columns2,
   Columns3,
   FileDown,
+  RotateCcw,
 } from "lucide-react";
 
 const ExcalidrawEditor = React.lazy(() => import("./ExcalidrawEditor"));
@@ -245,6 +246,9 @@ function CollabNoteEditor({
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
+  // Whether a discarded draft is archived and restorable (되돌리기). Only ever
+  // true in VIEW mode with no live unpublished draft.
+  const [hasDiscardedDraft, setHasDiscardedDraft] = useState(false);
   // Surgical gate: true only during the synchronous replaceBlocks() call that
   // hydrates the editor from the published snapshot. handleEditorChange uses
   // this to ignore the onChange that hydration fires, without freezing user
@@ -296,6 +300,31 @@ function CollabNoteEditor({
       }
     });
   }, [collaboration, mode, note.id, boardId, orgId, onNoteUpdate]);
+
+  // In VIEW mode, ask the server whether a restorable discarded draft exists so
+  // we can offer 되돌리기. Only meaningful when there's no live unpublished draft.
+  useEffect(() => {
+    let cancelled = false;
+    if (mode !== "view" || !canEdit || note.has_unpublished_draft) {
+      setHasDiscardedDraft(false);
+      return;
+    }
+    (async () => {
+      try {
+        const res = boardId
+          ? await noteAPI.hasArchivedDraft(boardId, note.id)
+          : orgId
+            ? await orgNoteAPI.hasArchivedDraft(orgId, note.id)
+            : null;
+        if (!cancelled) setHasDiscardedDraft(!!res?.available);
+      } catch {
+        if (!cancelled) setHasDiscardedDraft(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, canEdit, note.has_unpublished_draft, note.id, boardId, orgId]);
 
   const editorPeers = useMemo(
     () => collaboration.connectedUsers.filter((u) => u.mode === "edit"),
@@ -857,19 +886,30 @@ function CollabNoteEditor({
   // Other connected EDIT clients still hold their own Y.Doc copy; we surface a
   // warning so the user understands their writes will win.
   const handleDiscardDraft = useCallback(async () => {
-    const editorsActive = collaboration.connectedUsers.some(
+    // BLOCK (not just warn) while others are actively editing: the draft is a
+    // single shared row, so discarding it mid-edit destroys their work and the
+    // outcome is non-deterministic (their next sync resurrects or forks it).
+    const activeEditors = collaboration.connectedUsers.filter(
       (u) => u.mode === "edit",
-    );
-    const warn = editorsActive
-      ? t(
-          "notes.unpublishedDraft.confirmDiscardWithEditors",
-          "다른 사용자가 편집 중이라 폐기가 곧바로 되돌아올 수 있어요. 그래도 진행할까요?",
-        )
-      : t(
+    ).length;
+    if (activeEditors > 0) {
+      window.alert(
+        t(
+          "notes.unpublishedDraft.blockDiscardWithEditors",
+          "다른 사용자가 편집 중이라 폐기할 수 없어요. 모두 편집을 마친 뒤 다시 시도해 주세요.",
+        ),
+      );
+      return;
+    }
+    if (
+      !window.confirm(
+        t(
           "notes.unpublishedDraft.confirmDiscard",
-          "미발행 수정 내용을 폐기할까요? 되돌릴 수 없어요.",
-        );
-    if (!window.confirm(warn)) return;
+          "이 노트의 미발행 수정 내용을 폐기할까요? 폐기해도 ‘되돌리기’로 복구할 수 있어요.",
+        ),
+      )
+    )
+      return;
     try {
       if (boardId) await noteAPI.discardDraft(boardId, note.id);
       else if (orgId) await orgNoteAPI.discardDraft(orgId, note.id);
@@ -881,6 +921,8 @@ function CollabNoteEditor({
           ? await orgNoteService.getDetail(orgId, note.id)
           : null;
       if (updated) onNoteUpdate?.(updated);
+      // A restorable archive now exists — surface 되돌리기 immediately.
+      setHasDiscardedDraft(true);
       // Reset hydration refs so the initial-content useEffect re-runs against
       // the new editor instance. Without this, the early-return at the top of
       // that effect (initialContentLoaded.current === true from the previous
@@ -903,6 +945,31 @@ function CollabNoteEditor({
     collaboration.connectedUsers,
     t,
   ]);
+
+  // Restore a previously discarded draft (되돌리기). The server moves the
+  // archived Yjs state back into the live collab row and reloads the room, so we
+  // rebuild the local Y.Doc/provider; the next EDIT entry shows the restored draft.
+  const handleRestoreDraft = useCallback(async () => {
+    try {
+      if (boardId) await noteAPI.restoreDraft(boardId, note.id);
+      else if (orgId) await orgNoteAPI.restoreDraft(orgId, note.id);
+      else return;
+      const { noteService, orgNoteService } =
+        await import("../../utils/services");
+      const updated = boardId
+        ? await noteService.getDetail(boardId, note.id)
+        : orgId
+          ? await orgNoteService.getDetail(orgId, note.id)
+          : null;
+      if (updated) onNoteUpdate?.(updated);
+      setHasDiscardedDraft(false);
+      initialContentLoaded.current = false;
+      hydratingRef.current = false;
+      onCollabReset?.();
+    } catch (err) {
+      console.error("Failed to restore draft:", err);
+    }
+  }, [boardId, orgId, note.id, onNoteUpdate, onCollabReset]);
 
   // Keyboard shortcut: Ctrl/Cmd+S (Edit mode only)
   useEffect(() => {
@@ -1259,6 +1326,35 @@ function CollabNoteEditor({
             </div>
           </div>
         )}
+
+        {/* Restore discarded draft banner — view mode + member can edit + an archived discard exists */}
+        {mode === "view" &&
+          canEdit &&
+          !note.has_unpublished_draft &&
+          hasDiscardedDraft && (
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <RotateCcw
+                  size={14}
+                  className="text-amber-500 flex-shrink-0"
+                />
+                <span className="text-xs text-foreground truncate">
+                  {t(
+                    "notes.unpublishedDraft.discardedBanner",
+                    "폐기된 미발행 초안이 있어요. 되돌릴 수 있습니다.",
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={handleRestoreDraft}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-amber-500 hover:bg-amber-500/90 transition-colors"
+                >
+                  {t("notes.unpublishedDraft.restore", "되돌리기")}
+                </button>
+              </div>
+            </div>
+          )}
 
         {/* Editor with block hover overlay */}
         <div

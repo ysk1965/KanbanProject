@@ -35,6 +35,7 @@ public class NoteService {
     private final NoteCommentRepository noteCommentRepository;
     private final NoteCommentReactionRepository noteCommentReactionRepository;
     private final NoteCollabStateRepository noteCollabStateRepository;
+    private final NoteDraftArchiveRepository noteDraftArchiveRepository;
     private final NoteCollabService noteCollabService;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
@@ -417,8 +418,31 @@ public class NoteService {
     public void discardDraft(String boardId, String noteId, String userId) {
         boardService.checkMemberOrAbove(boardId, userId);
         getNoteOrThrow(boardId, noteId);
-        noteCollabService.deleteState(noteId);
+        // Archive-before-delete so the discard is recoverable (되돌리기).
+        noteCollabService.discardDraft(noteId, userId);
         eventPublisher.publishEvent(new NoteDraftDiscardedEvent(noteId));
+    }
+
+    /**
+     * Restore a previously discarded draft (되돌리기). No-op if nothing to restore
+     * or a live draft already exists. On success the room reloads the restored
+     * state so re-entering EDIT shows it.
+     */
+    @Transactional
+    public void restoreDraft(String boardId, String noteId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+        getNoteOrThrow(boardId, noteId);
+        if (noteCollabService.restoreDraft(noteId)) {
+            eventPublisher.publishEvent(new NoteDraftRestoredEvent(noteId));
+        }
+    }
+
+    /** Whether a restorable discarded draft exists for this note. */
+    @Transactional(readOnly = true)
+    public boolean hasArchivedDraft(String boardId, String noteId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+        getNoteOrThrow(boardId, noteId);
+        return noteCollabService.hasArchivedDraft(noteId);
     }
 
     // ===== Tags =====
@@ -605,6 +629,7 @@ public class NoteService {
         noteTagMappingRepository.deleteAllByNoteId(note.getId());
         noteVersionRepository.deleteAllByNoteId(note.getId());
         noteCollabStateRepository.deleteById(note.getId());
+        noteDraftArchiveRepository.deleteById(note.getId());
         noteRepository.delete(note);
     }
 

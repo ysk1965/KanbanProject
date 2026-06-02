@@ -1,6 +1,7 @@
 package com.kanban.global.websocket;
 
 import com.kanban.domain.note.NoteDraftDiscardedEvent;
+import com.kanban.domain.note.NoteDraftRestoredEvent;
 import com.kanban.domain.note.NoteSnapshotSavedEvent;
 import com.kanban.domain.note.service.NoteCollabService;
 import com.kanban.global.security.JwtProvider;
@@ -266,6 +267,21 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
             room.storedState = null;
             // Drop buffered increments too, else replaying them would resurrect the
             // just-discarded draft for the next (re)connecting client.
+            clearPending(room);
+        }
+    }
+
+    /**
+     * When a discarded draft is restored, reload the room's in-memory state from
+     * the restored DB row so a client that re-enters EDIT (after onCollabReset)
+     * receives the restored draft as MSG_SYNC_FULL. Buffered increments from the
+     * pre-restore (empty) state are dropped to avoid mixing.
+     */
+    @EventListener
+    public void onNoteDraftRestored(NoteDraftRestoredEvent event) {
+        Room room = rooms.get(event.noteId());
+        if (room != null) {
+            room.storedState = noteCollabService.loadState(event.noteId()).orElse(null);
             clearPending(room);
         }
     }
