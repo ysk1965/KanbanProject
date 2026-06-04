@@ -53,13 +53,13 @@ output "frontend_cloudfront_distribution_id" {
 
 # Route 53 Outputs
 output "route53_zone_id" {
-  description = "Route 53 hosted zone ID"
-  value       = var.domain_name != "" ? module.route53[0].zone_id : null
+  description = "Route 53 hosted zone ID (created in this account, or looked up cross-account)"
+  value       = var.domain_name != "" ? local.primary_zone_id : null
 }
 
 output "route53_name_servers" {
-  description = "Route 53 name servers (configure these in your domain registrar)"
-  value       = var.domain_name != "" ? module.route53[0].name_servers : null
+  description = "Route 53 name servers — only set when the zone is CREATED in this account (dns_account_role_arn empty). Null under Pattern A (zone stays in the legacy account, NS unchanged)."
+  value       = one(module.route53[*].name_servers)
 }
 
 # ACM Certificate Outputs

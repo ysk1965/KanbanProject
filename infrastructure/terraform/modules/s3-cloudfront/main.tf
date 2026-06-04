@@ -2,7 +2,7 @@
 
 # S3 Bucket for Frontend
 resource "aws_s3_bucket" "frontend" {
-  bucket = "${var.project_name}-${var.environment}-frontend"
+  bucket = var.bucket_name != "" ? var.bucket_name : "${var.project_name}-${var.environment}-frontend"
 
   tags = {
     Name        = "${var.project_name}-${var.environment}-frontend"

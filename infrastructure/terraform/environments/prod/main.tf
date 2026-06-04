@@ -65,6 +65,30 @@ provider "aws" {
   }
 }
 
+# Provider for Route53 DNS records — optionally assumes a role in ANOTHER AWS
+# account so the hosted zone can stay in the legacy account during/after an
+# account migration (Pattern A). Empty dns_account_role_arn = this account.
+provider "aws" {
+  alias  = "dns"
+  region = var.aws_region
+
+  dynamic "assume_role" {
+    for_each = var.dns_account_role_arn != "" ? [1] : []
+    content {
+      role_arn     = var.dns_account_role_arn
+      session_name = "${var.project_name}-${var.environment}-route53"
+    }
+  }
+
+  default_tags {
+    tags = {
+      Project     = var.project_name
+      Environment = var.environment
+      ManagedBy   = "terraform"
+    }
+  }
+}
+
 # VPC Module - No NAT Gateway for Phase 1 cost savings
 module "vpc" {
   source = "../../modules/vpc"
@@ -93,11 +117,17 @@ module "rds" {
   environment       = var.environment
   subnet_ids        = module.vpc.private_subnet_ids
   security_group_id = module.security_groups.rds_security_group_id
-  master_password   = var.db_password
+  master_password   = local.secret.db_password
 
   instance_class          = "db.t4g.micro"  # Phase 1: Cost-effective
   allocated_storage       = 20
   backup_retention_period = 3               # Prod: 3-day backup (vs dev 1-day)
+
+  # Cross-account migration: CMK-encrypted restore + clean terraform import
+  engine_version      = var.rds_engine_version
+  kms_key_id          = var.rds_kms_key_id
+  deletion_protection = var.rds_deletion_protection
+  snapshot_identifier = var.rds_snapshot_identifier
 }
 
 # Infrastructure Scheduler - Off-peak shutdown (KST 01:00~09:00)
@@ -133,6 +163,42 @@ module "elasticache" {
 }
 
 # Elastic Beanstalk Module - Phase 1: Public Subnet, min 1 instance
+# ─── App secrets: SSM SecureString source-of-truth ───
+# use_ssm_secrets=true → read from SSM (${var.ssm_secret_prefix}/<key>); false → legacy tfvars/TF_VAR.
+# Pulls raw secrets out of tfvars/CI and separates dev/prod, with no app change.
+# Reads whatever is seeded under the prefix (tolerant of partial seeding).
+data "aws_ssm_parameters_by_path" "app_secrets" {
+  count           = var.use_ssm_secrets ? 1 : 0
+  path            = var.ssm_secret_prefix
+  with_decryption = true
+}
+
+locals {
+  # name (/kanban/<env>/<key>) → value, only for params that actually exist in SSM
+  ssm_map = var.use_ssm_secrets ? zipmap(
+    [for n in data.aws_ssm_parameters_by_path.app_secrets[0].names : basename(n)],
+    data.aws_ssm_parameters_by_path.app_secrets[0].values
+  ) : {}
+
+  # SSM value if seeded, else fall back to the var (tfvars/CI). Per-key tolerant.
+  secret = {
+    db_password                = lookup(local.ssm_map, "db_password", var.db_password)
+    jwt_secret                 = lookup(local.ssm_map, "jwt_secret", var.jwt_secret)
+    claude_api_key             = lookup(local.ssm_map, "claude_api_key", var.claude_api_key)
+    openai_api_key             = lookup(local.ssm_map, "openai_api_key", var.openai_api_key)
+    openai_admin_key           = lookup(local.ssm_map, "openai_admin_key", var.openai_admin_key)
+    mail_username              = lookup(local.ssm_map, "mail_username", var.mail_username)
+    mail_password              = lookup(local.ssm_map, "mail_password", var.mail_password)
+    polar_api_key              = lookup(local.ssm_map, "polar_api_key", var.polar_api_key)
+    polar_webhook_secret       = lookup(local.ssm_map, "polar_webhook_secret", var.polar_webhook_secret)
+    discord_client_secret      = lookup(local.ssm_map, "discord_client_secret", var.discord_client_secret)
+    discord_bot_token          = lookup(local.ssm_map, "discord_bot_token", var.discord_bot_token)
+    slack_client_secret        = lookup(local.ssm_map, "slack_client_secret", var.slack_client_secret)
+    slack_signing_secret       = lookup(local.ssm_map, "slack_signing_secret", var.slack_signing_secret)
+    slack_token_encryption_key = lookup(local.ssm_map, "slack_token_encryption_key", var.slack_token_encryption_key)
+  }
+}
+
 module "elastic_beanstalk" {
   source = "../../modules/elastic-beanstalk"
 
@@ -152,25 +218,26 @@ module "elastic_beanstalk" {
   spring_profile = "prod"
   database_url   = module.rds.jdbc_url
   db_username    = "kanban_admin"
-  db_password    = var.db_password
+  db_password    = local.secret.db_password
   redis_host     = module.elasticache.redis_endpoint
   redis_port     = "6379"
-  jwt_secret     = var.jwt_secret
-  claude_api_key   = var.claude_api_key
-  openai_api_key   = var.openai_api_key
-  openai_admin_key = var.openai_admin_key
-  mail_username    = var.mail_username
-  mail_password   = var.mail_password
+  jwt_secret     = local.secret.jwt_secret
+  claude_api_key   = local.secret.claude_api_key
+  openai_api_key   = local.secret.openai_api_key
+  openai_admin_key = local.secret.openai_admin_key
+  mail_username    = local.secret.mail_username
+  mail_password   = local.secret.mail_password
   google_client_id = var.google_client_id
   frontend_url   = var.domain_name != "" ? "https://${var.domain_name}" : module.s3_cloudfront.cloudfront_url
 
   ssl_certificate_arn = var.domain_name != "" ? module.acm_certificate_alb[0].validated_certificate_arn : ""
 
   cloudfront_domain = aws_cloudfront_distribution.attachments.domain_name
+  s3_bucket         = var.attachments_bucket_name
 
   # Polar.sh Payment
-  polar_api_key               = var.polar_api_key
-  polar_webhook_secret        = var.polar_webhook_secret
+  polar_api_key               = local.secret.polar_api_key
+  polar_webhook_secret        = local.secret.polar_webhook_secret
   polar_org_id                = var.polar_org_id
   polar_product_board_monthly = var.polar_product_board_monthly
   polar_product_board_yearly  = var.polar_product_board_yearly
@@ -182,15 +249,15 @@ module "elastic_beanstalk" {
 
   # Discord Integration
   discord_client_id     = var.discord_client_id
-  discord_client_secret = var.discord_client_secret
-  discord_bot_token     = var.discord_bot_token
+  discord_client_secret = local.secret.discord_client_secret
+  discord_bot_token     = local.secret.discord_bot_token
   discord_redirect_uri  = var.discord_redirect_uri
 
   # Slack App Integration
   slack_client_id            = var.slack_client_id
-  slack_client_secret        = var.slack_client_secret
-  slack_signing_secret       = var.slack_signing_secret
-  slack_token_encryption_key = var.slack_token_encryption_key
+  slack_client_secret        = local.secret.slack_client_secret
+  slack_signing_secret       = local.secret.slack_signing_secret
+  slack_token_encryption_key = local.secret.slack_token_encryption_key
   slack_redirect_uri         = var.slack_redirect_uri
   slack_user_redirect_uri    = var.slack_user_redirect_uri
 
@@ -223,9 +290,13 @@ module "acm_certificate" {
   subject_alternative_names = ["*.${var.domain_name}"]
 }
 
-# Route 53 Hosted Zone
+# ─── Route 53 Hosted Zone ───
+# Pattern A — the hosted zone may live in a DIFFERENT (legacy) AWS account:
+#   dns_account_role_arn == ""  → create & manage the zone in THIS account
+#   dns_account_role_arn != ""  → zone stays in the other account; we only look
+#                                 it up and write records via the aws.dns provider
 module "route53" {
-  count  = var.domain_name != "" ? 1 : 0
+  count  = var.domain_name != "" && var.dns_account_role_arn == "" ? 1 : 0
   source = "../../modules/route53"
 
   project_name = var.project_name
@@ -233,8 +304,22 @@ module "route53" {
   domain_name  = var.domain_name
 }
 
+# Cross-account: look up the existing hosted zone in the legacy account
+data "aws_route53_zone" "primary" {
+  count    = var.domain_name != "" && var.dns_account_role_arn != "" ? 1 : 0
+  provider = aws.dns
+  name     = var.domain_name
+}
+
+locals {
+  # Resolves to the in-account zone OR the cross-account zone, whichever applies
+  primary_zone_id = var.dns_account_role_arn != "" ? one(data.aws_route53_zone.primary[*].zone_id) : one(module.route53[*].zone_id)
+}
+
 # ACM Certificate Validation Records (ALB - ap-northeast-2)
 resource "aws_route53_record" "cert_validation_alb" {
+  provider = aws.dns
+
   for_each = var.domain_name != "" ? {
     for dvo in module.acm_certificate_alb[0].domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
@@ -248,11 +333,13 @@ resource "aws_route53_record" "cert_validation_alb" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  zone_id         = module.route53[0].zone_id
+  zone_id         = local.primary_zone_id
 }
 
 # ACM Certificate Validation Records (CloudFront - us-east-1)
 resource "aws_route53_record" "cert_validation" {
+  provider = aws.dns
+
   for_each = var.domain_name != "" ? {
     for dvo in module.acm_certificate[0].domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
@@ -266,16 +353,18 @@ resource "aws_route53_record" "cert_validation" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  zone_id         = module.route53[0].zone_id
+  zone_id         = local.primary_zone_id
 }
 
 # Frontend Domain Records
 resource "aws_route53_record" "frontend_root" {
-  count = var.domain_name != "" ? 1 : 0
+  provider = aws.dns
+  count    = var.domain_name != "" ? 1 : 0
 
-  zone_id = module.route53[0].zone_id
-  name    = var.domain_name
-  type    = "A"
+  zone_id = local.primary_zone_id
+  name            = var.domain_name
+  type            = "A"
+  allow_overwrite = true
 
   alias {
     name                   = module.s3_cloudfront.cloudfront_domain_name
@@ -287,11 +376,13 @@ resource "aws_route53_record" "frontend_root" {
 }
 
 resource "aws_route53_record" "frontend_www" {
-  count = var.domain_name != "" ? 1 : 0
+  provider = aws.dns
+  count    = var.domain_name != "" ? 1 : 0
 
-  zone_id = module.route53[0].zone_id
-  name    = "www.${var.domain_name}"
-  type    = "A"
+  zone_id = local.primary_zone_id
+  name            = "www.${var.domain_name}"
+  type            = "A"
+  allow_overwrite = true
 
   alias {
     name                   = module.s3_cloudfront.cloudfront_domain_name
@@ -305,7 +396,7 @@ resource "aws_route53_record" "frontend_www" {
 # ─── S3 Attachments CloudFront ───
 
 data "aws_s3_bucket" "attachments" {
-  bucket = "bridge-kanban-attachments"
+  bucket = var.attachments_bucket_name
 }
 
 # NOTE: S3 Lifecycle & Intelligent-Tiering은 dev 환경에서 관리 (동일 버킷 공유)
@@ -496,11 +587,13 @@ resource "aws_s3_bucket_policy" "attachments" {
 
 # Backend API Domain Record
 resource "aws_route53_record" "backend_api" {
-  count = var.domain_name != "" ? 1 : 0
+  provider = aws.dns
+  count    = var.domain_name != "" ? 1 : 0
 
-  zone_id = module.route53[0].zone_id
-  name    = "api.${var.domain_name}"
-  type    = "A"
+  zone_id = local.primary_zone_id
+  name            = "api.${var.domain_name}"
+  type            = "A"
+  allow_overwrite = true
 
   alias {
     name                   = module.elastic_beanstalk.alb_dns_name
@@ -514,6 +607,8 @@ resource "aws_route53_record" "backend_api" {
 # S3 + CloudFront Module
 module "s3_cloudfront" {
   source = "../../modules/s3-cloudfront"
+
+  bucket_name = var.frontend_bucket_name
 
   project_name        = var.project_name
   environment         = var.environment

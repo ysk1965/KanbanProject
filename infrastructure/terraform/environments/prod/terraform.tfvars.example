@@ -7,6 +7,23 @@ project_name = "kanban"
 environment  = "prod"
 vpc_cidr     = "10.1.0.0/16"
 
+# --- DNS (custom domain) ---
+# domain_name = "bridgespots.com"
+#
+# Cross-account DNS (Pattern A): keep the Route53 hosted zone in another (legacy)
+# AWS account and manage its records from here by assuming a role in that account.
+# Create the role with infrastructure/terraform/bootstrap/route53-cross-account
+# (applied in the OLD account), then put its ARN here. Empty = manage the zone in THIS account.
+# dns_account_role_arn = "arn:aws:iam::OLD_ACCOUNT_ID:role/kanban-route53-cross-account"
+
+# --- RDS (account migration) ---
+# Pin engine version to the SOURCE instance's ACTUAL version before restoring.
+# rds_engine_version      = "15.10"
+# New-account CMK so the cross-account-restored DB matches on `terraform import`:
+# rds_kms_key_id          = "arn:aws:kms:ap-northeast-2:259151461692:key/<cmk-id>"
+# Protect the live DB (recommended once it holds real data):
+# rds_deletion_protection = true
+
 # Sensitive values - NEVER commit these
 # Use environment variables or AWS Secrets Manager for production
 #

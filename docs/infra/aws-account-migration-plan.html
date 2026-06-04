@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BRIDGE — AWS 계정 이전 시각화</title>
+<style>
+  :root{
+    --bg:#0f1320; --bg2:#151b28; --card:#1a2233; --surface:#1e2a42;
+    --border:#2c3a55; --border-soft:#222c40;
+    --accent:#6366f1; --accent2:#2dd4bf; --teal:#2dd4bf;
+    --txt:#e7ecf5; --muted:#94a3b8; --dim:#64748b;
+    --green:#34d399; --amber:#fbbf24; --red:#f87171; --blue:#60a5fa; --rose:#fb7185;
+    --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:radial-gradient(1200px 700px at 80% -10%,#1b2540 0%,var(--bg) 55%);
+    color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo',Pretendard,sans-serif;
+    line-height:1.65; padding-bottom:80px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+
+  /* ===== Header ===== */
+  header{padding:64px 0 40px;text-align:center}
+  .badge{display:inline-block;font-family:var(--mono);font-size:12px;letter-spacing:.18em;
+    color:var(--accent2);border:1px solid var(--border);padding:6px 14px;border-radius:999px;
+    background:rgba(45,212,191,.06);margin-bottom:22px;text-transform:uppercase}
+  h1{font-size:clamp(28px,4vw,44px);font-weight:800;letter-spacing:-.02em;line-height:1.15}
+  h1 .grad{background:linear-gradient(100deg,#818cf8,#2dd4bf);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--muted);margin-top:16px;font-size:16px}
+  .meta{margin-top:24px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .chip{font-family:var(--mono);font-size:12px;color:var(--muted);background:var(--bg2);
+    border:1px solid var(--border-soft);padding:6px 12px;border-radius:8px}
+  .chip b{color:var(--txt);font-weight:600}
+
+  /* ===== Section ===== */
+  section{margin-top:56px}
+  .s-head{display:flex;align-items:center;gap:14px;margin-bottom:24px}
+  .s-num{font-family:var(--mono);font-size:13px;color:var(--accent2);
+    border:1px solid var(--border);border-radius:8px;padding:4px 10px;flex:none}
+  .s-head h2{font-size:22px;font-weight:700;letter-spacing:-.01em}
+  .s-head p{color:var(--dim);font-size:13px;margin-left:auto;text-align:right}
+
+  /* ===== Summary cards ===== */
+  .grid{display:grid;gap:16px}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:880px){.g4,.g3,.g2{grid-template-columns:1fr 1fr}}
+  @media(max-width:560px){.g4,.g3,.g2{grid-template-columns:1fr}}
+  .card{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--border-soft);
+    border-radius:16px;padding:20px;position:relative;overflow:hidden}
+  .card .k{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
+  .card .v{font-size:30px;font-weight:800;margin-top:8px;letter-spacing:-.02em}
+  .card .d{color:var(--muted);font-size:13px;margin-top:8px}
+  .card.accent{border-color:rgba(99,102,241,.4)}
+  .card.accent .v{color:#a5b4fc}
+  .card.teal .v{color:var(--teal)}
+  .card.amber .v{color:var(--amber)}
+  .card.red .v{color:var(--red)}
+
+  /* ===== Architecture before/after ===== */
+  .arch{display:grid;grid-template-columns:1fr 64px 1fr;gap:0;align-items:stretch}
+  @media(max-width:880px){.arch{grid-template-columns:1fr}}
+  .acct{background:var(--bg2);border:1px solid var(--border-soft);border-radius:16px;padding:22px}
+  .acct.old{border-color:rgba(248,113,113,.25)}
+  .acct.new{border-color:rgba(52,211,153,.3)}
+  .acct h3{font-size:15px;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .acct .id{font-family:var(--mono);font-size:12px;color:var(--dim);margin-bottom:16px}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+  .dot.r{background:var(--red)} .dot.g{background:var(--green)}
+  .res{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border-soft);font-size:13px}
+  .res:first-of-type{border-top:none}
+  .res .ico{width:26px;height:26px;border-radius:7px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:13px;flex:none}
+  .res .name{flex:1}
+  .res .tag{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:5px}
+  .tag.move{background:rgba(251,191,36,.14);color:var(--amber)}
+  .tag.new{background:rgba(52,211,153,.14);color:var(--green)}
+  .tag.keep{background:rgba(96,165,250,.14);color:var(--blue)}
+  .tag.kill{background:rgba(248,113,113,.14);color:var(--red)}
+  .arrow{display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:30px}
+  @media(max-width:880px){.arrow{transform:rotate(90deg);padding:8px 0}}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:16px;font-size:12px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+  /* ===== Timeline ===== */
+  .tl{position:relative;padding-left:40px}
+  .tl::before{content:'';position:absolute;left:15px;top:8px;bottom:8px;width:2px;
+    background:linear-gradient(180deg,var(--accent),var(--accent2))}
+  .ph{position:relative;margin-bottom:18px}
+  .ph::before{content:'';position:absolute;left:-32px;top:22px;width:14px;height:14px;border-radius:50%;
+    background:var(--bg);border:3px solid var(--accent);z-index:2}
+  .ph.cut::before{border-color:var(--amber);box-shadow:0 0 0 4px rgba(251,191,36,.15)}
+  .ph-card{background:var(--card);border:1px solid var(--border-soft);border-radius:14px;overflow:hidden;
+    transition:border-color .2s}
+  .ph-card:hover{border-color:var(--border)}
+  .ph-top{display:flex;align-items:center;gap:14px;padding:16px 20px;cursor:pointer;user-select:none}
+  .ph-top .pn{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent2);
+    background:rgba(99,102,241,.1);border:1px solid var(--border);padding:5px 11px;border-radius:8px;flex:none}
+  .ph.cut .pn{color:var(--amber);background:rgba(251,191,36,.1)}
+  .ph-top .pt{font-weight:700;font-size:15px;flex:1}
+  .ph-top .pw{font-family:var(--mono);font-size:12px;color:var(--dim);flex:none}
+  .ph-top .caret{color:var(--dim);transition:transform .25s;flex:none;font-size:12px}
+  .ph-card.open .caret{transform:rotate(90deg)}
+  .ph-body{max-height:0;overflow:hidden;transition:max-height .35s ease}
+  .ph-card.open .ph-body{max-height:600px}
+  .ph-inner{padding:4px 20px 18px 20px;border-top:1px solid var(--border-soft)}
+  .ph-inner ol{list-style:none;counter-reset:step;margin-top:14px}
+  .ph-inner li{counter-increment:step;position:relative;padding:7px 0 7px 32px;font-size:13.5px;color:var(--muted)}
+  .ph-inner li::before{content:counter(step);position:absolute;left:0;top:7px;width:20px;height:20px;
+    font-family:var(--mono);font-size:11px;color:var(--accent2);background:var(--surface);
+    border-radius:6px;display:flex;align-items:center;justify-content:center}
+  .ph-inner li b{color:var(--txt);font-weight:600}
+  .cut-banner{background:rgba(251,191,36,.08);border:1px dashed rgba(251,191,36,.4);
+    border-radius:10px;padding:10px 14px;margin:14px 0 4px;font-size:12.5px;color:var(--amber);
+    display:flex;align-items:center;gap:8px}
+
+  /* ===== Resource strategy ===== */
+  .rtable{background:var(--bg2);border:1px solid var(--border-soft);border-radius:14px;overflow:hidden}
+  .rrow{display:grid;grid-template-columns:160px 1fr 110px;gap:14px;padding:14px 18px;
+    border-top:1px solid var(--border-soft);align-items:center;font-size:13.5px}
+  .rrow:first-child{border-top:none;background:var(--card);font-family:var(--mono);font-size:11px;
+    color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
+  .rrow .rname{font-weight:600;display:flex;align-items:center;gap:9px}
+  .rrow .ric{width:24px;height:24px;border-radius:6px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:12px;flex:none}
+  .rrow .rdesc{color:var(--muted);font-size:12.5px}
+  @media(max-width:680px){.rrow{grid-template-columns:1fr;gap:4px}.rrow:first-child{display:none}}
+  .pill{justify-self:start;font-family:var(--mono);font-size:10.5px;padding:3px 9px;border-radius:6px;white-space:nowrap}
+
+  /* ===== Downtime bar ===== */
+  .dt{background:var(--bg2);border:1px solid var(--border-soft);border-radius:14px;padding:22px}
+  .dtbar{display:flex;height:46px;border-radius:10px;overflow:hidden;margin:16px 0 10px;font-size:11px;font-weight:600}
+  .dtseg{display:flex;align-items:center;justify-content:center;color:#0f1320;text-align:center;padding:0 6px}
+  .dtseg.live{background:linear-gradient(90deg,#34d399,#10b981);flex:5}
+  .dtseg.freeze{background:linear-gradient(90deg,#fbbf24,#f59e0b);flex:3}
+  .dtseg.live2{background:linear-gradient(90deg,#34d399,#10b981);flex:5}
+  .dtlabels{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+  .note{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:13px;color:var(--muted)}
+  .note .ni{color:var(--amber);flex:none}
+
+  /* ===== Risk ===== */
+  .risk{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;background:var(--bg2);
+    border:1px solid var(--border-soft);border-radius:12px;font-size:13px}
+  .sev{font-family:var(--mono);font-size:10px;font-weight:700;padding:4px 9px;border-radius:6px;flex:none;margin-top:1px}
+  .sev.h{background:rgba(248,113,113,.15);color:var(--red)}
+  .sev.m{background:rgba(251,191,36,.15);color:var(--amber)}
+  .sev.l{background:rgba(52,211,153,.15);color:var(--green)}
+  .risk .rt{color:var(--txt);font-weight:600;margin-bottom:3px}
+  .risk .rm{color:var(--dim);font-size:12.5px}
+
+  footer{margin-top:64px;text-align:center;color:var(--dim);font-size:12.5px;
+    border-top:1px solid var(--border-soft);padding-top:28px}
+  footer code{font-family:var(--mono);color:var(--muted)}
+  .hl{color:var(--amber);font-weight:600}
+  .hl2{color:var(--accent2);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="badge">AWS Account Migration · Runbook</span>
+    <h1>BRIDGE 인프라 <span class="grad">AWS 계정 이전</span><br>완료까지의 전체 흐름</h1>
+    <p class="sub">현재 계정 <b style="color:var(--txt)">997286396624</b> → 신규 계정 · 리전 <b style="color:var(--txt)">ap-northeast-2</b> 유지 · 도메인 <b style="color:var(--txt)">bridgespots.com</b> 유지</p>
+    <div class="meta">
+      <span class="chip">전략 <b>Pattern A (Route53 크로스계정)</b></span>
+      <span class="chip">예상 다운타임 <b>30~60분</b></span>
+      <span class="chip">실 운영 스택 <b>dev</b></span>
+      <span class="chip">작성 <b>2026-06-01</b></span>
+    </div>
+  </header>
+
+  <!-- ===== 0. 핵심 결론 ===== -->
+  <section>
+    <div class="s-head"><span class="s-num">00</span><h2>한눈에 보는 결론</h2>
+      <p>이전 난이도를 결정하는 4가지 축</p></div>
+    <div class="grid g4">
+      <div class="card accent"><div class="k">비가역 자산</div><div class="v">RDS</div>
+        <div class="d"><code>kanban-dev-db</code> — CMK 재암호화 후 스냅샷/복원. 유일하게 데이터를 가진 자산.</div></div>
+      <div class="card teal"><div class="k">전역 이름 충돌</div><div class="v">S3 ×4</div>
+        <div class="d">첨부·프론트 버킷·state 버킷. 전역 유일 → 새 이름 + 객체 복사.</div></div>
+      <div class="card amber"><div class="k">재발급 필요</div><div class="v">ACM + DNS</div>
+        <div class="d">인증서 재발급(DNS 검증) + Route53 크로스계정 레코드 교체.</div></div>
+      <div class="card red"><div class="k">재주입 대상</div><div class="v">~40개</div>
+        <div class="d">비밀값/식별자. 이전 기회에 로테이션 + SSM 이관 + OIDC 전환.</div></div>
+    </div>
+    <div class="grid g3" style="margin-top:16px">
+      <div class="card"><div class="k">✓ 코드 이식성</div><div class="v" style="font-size:18px;color:var(--green)">높음</div>
+        <div class="d">12자리 계정 ID 하드코딩 0건. ARN은 모두 관리형 정책 또는 <code>${var}</code>.</div></div>
+      <div class="card"><div class="k">⚠ 정정된 전제 (P0)</div><div class="v" style="font-size:18px;color:var(--amber)">prod ≠ Aurora</div>
+        <div class="d">실제 prod는 <code>rds-simple</code> (db.t4g.micro, 단일 AZ). 표준 스냅샷/복원 경로 사용.</div></div>
+      <div class="card"><div class="k">의도된 동작</div><div class="v" style="font-size:18px;color:var(--blue)">전체 재로그인</div>
+        <div class="d"><code>jwt_secret</code> 로테이션으로 전 사용자 1회 강제 재로그인.</div></div>
+    </div>
+  </section>
+
+  <!-- ===== 1. Before / After ===== -->
+  <section>
+    <div class="s-head"><span class="s-num">01</span><h2>이전 전후 아키텍처</h2>
+      <p>리소스별 처리: 이동 · 신규 · 유지 · 폐기</p></div>
+    <div class="arch">
+      <div class="acct old">
+        <h3><span class="dot r"></span> 구 계정</h3>
+        <div class="id">997286396624 · ap-northeast-2</div>
+        <div class="res"><span class="ico">🗄️</span><span class="name">RDS <code>kanban-dev-db</code></span><span class="tag move">스냅샷</span></div>
+        <div class="res"><span class="ico">📦</span><span class="name">S3 첨부/프론트 버킷</span><span class="tag move">sync</span></div>
+        <div class="res"><span class="ico">🌐</span><span class="name">Route53 영역</span><span class="tag keep">유지</span></div>
+        <div class="res"><span class="ico">🔐</span><span class="name">ACM 인증서</span><span class="tag kill">폐기</span></div>
+        <div class="res"><span class="ico">⚙️</span><span class="name">EB · Redis · CloudFront</span><span class="tag kill">폐기</span></div>
+        <div class="res"><span class="ico">🔑</span><span class="name">정적 IAM 키</span><span class="tag kill">폐기</span></div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="acct new">
+        <h3><span class="dot g"></span> 신 계정</h3>
+        <div class="id">신규 · ap-northeast-2</div>
+        <div class="res"><span class="ico">🗄️</span><span class="name">RDS (복원 + CMK 암호화)</span><span class="tag new">신규</span></div>
+        <div class="res"><span class="ico">📦</span><span class="name">S3 (새 이름 + 객체 복사)</span><span class="tag new">신규</span></div>
+        <div class="res"><span class="ico">🌐</span><span class="name">Route53 레코드 (크로스계정)</span><span class="tag keep">aws.dns</span></div>
+        <div class="res"><span class="ico">🔐</span><span class="name">ACM 인증서 (재발급)</span><span class="tag new">신규</span></div>
+        <div class="res"><span class="ico">⚙️</span><span class="name">EB · Redis(빈) · CloudFront</span><span class="tag new">신규</span></div>
+        <div class="res"><span class="ico">🔑</span><span class="name">GitHub OIDC + 스코프 역할</span><span class="tag new">신규</span></div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--amber)"></i> 이동 (데이터 운반)</span>
+      <span><i style="background:var(--green)"></i> 신규 생성</span>
+      <span><i style="background:var(--blue)"></i> 구 계정 유지 (Pattern A)</span>
+      <span><i style="background:var(--red)"></i> 검증 후 폐기 (Phase 6)</span>
+    </div>
+  </section>
+
+  <!-- ===== 2. Runbook Timeline ===== -->
+  <section>
+    <div class="s-head"><span class="s-num">02</span><h2>단계별 런북 — Phase 0 → 6</h2>
+      <p>카드를 클릭하면 세부 작업이 펼쳐집니다</p></div>
+    <div class="tl">
+
+      <div class="ph">
+        <div class="ph-card">
+          <div class="ph-top"><span class="pn">P0</span><span class="pt">사전 결정</span><span class="pw">T-2주</span><span class="caret">▶</span></div>
+          <div class="ph-body"><div class="ph-inner"><ol>
+            <li><b>타깃 리전 확정</b> (ap-northeast-2 유지) — 변경 시 Java 하드코딩 4곳 수정</li>
+            <li><b>prod Terraform state 위치 확정·백업</b> (로컬이면 최우선 리스크)</li>
+            <li>도메인 전략 결정 (<b>Pattern A 채택</b>), <code>milkyway.pe.kr</code> 동반 이전</li>
+            <li>개선 확정: Multi-AZ, NAT+private subnet, 비밀 분리, OIDC, SSM 이관</li>
+            <li>3rd-party 콘솔 화이트리스트 목록화 (Google/Discord/Slack/Polar/Toss)</li>
+            <li>DB의 절대 S3/CloudFront URL 저장분 감사</li>
+          </ol></div></div>
+        </div>
+      </div>
+
+      <div class="ph">
+        <div class="ph-card">
+          <div class="ph-top"><span class="pn">P1</span><span class="pt">새 계정 부트스트랩 & 쿼터</span><span class="pw">T-10일</span><span class="caret">▶</span></div>
+          <div class="ph-body"><div class="ph-inner"><ol>
+            <li><b>서비스 쿼터 증설 조기 신청</b> (EC2 vCPU, EIP, VPC, RDS, CloudFront)</li>
+            <li>리전 가용성 확인 (EB solution stack, postgres 15.10, redis7, t4g)</li>
+            <li>SCP가 리전/IAM/TF 리소스를 막지 않는지 확인</li>
+            <li><b>새 state 버킷 + 잠금 테이블</b> 사전 생성 (<code>bootstrap/state-backend</code>)</li>
+            <li><b>RDS용 CMK 생성</b> → TF <code>kms_key_id</code>에 미리 기입</li>
+            <li><b>GitHub OIDC 설정</b> + 최소권한 IAM 역할</li>
+            <li>비밀값 <b>SSM SecureString</b>로 이관 + dev/prod 분리된 신규 값 생성</li>
+          </ol></div></div>
+        </div>
+      </div>
+
+      <div class="ph">
+        <div class="ph-card">
+          <div class="ph-top"><span class="pn">P2</span><span class="pt">무중단 스테이트리스 스탠드업</span><span class="pw">T-5일</span><span class="caret">▶</span></div>
+          <div class="ph-body"><div class="ph-inner"><ol>
+            <li>backend를 새 state 버킷으로 → <code>terraform init -reconfigure</code> (클린)</li>
+            <li><b>apply 스테이트리스</b>: VPC, SG, ElastiCache(빈), EB(빈), CloudFront, 프론트 버킷</li>
+            <li><b>DNS Pattern A</b>: 구 계정에 크로스계정 role 적용 → <code>dns_account_role_arn</code> 주입</li>
+            <li><b>ACM 발급</b> — 검증 CNAME을 구 계정 기존 영역(이미 권한)에 기록 → 즉시 통과</li>
+            <li>새 첨부 버킷 생성 → ARCHIVE 객체 복원(3~5h) → 초기 <code>aws s3 sync</code></li>
+            <li>컷오버 24~48h 전: 구 영역 레코드 TTL을 60s로 하향</li>
+            <li><b>CloudWatch 알람 추가</b> (RDS/EB/Lambda) — 현재 전무</li>
+          </ol></div></div>
+        </div>
+      </div>
+
+      <div class="ph cut">
+        <div class="ph-card open">
+          <div class="ph-top"><span class="pn">P3</span><span class="pt">데이터 이전 — 컷오버 윈도우</span><span class="pw">쓰기 동결</span><span class="caret">▶</span></div>
+          <div class="ph-body"><div class="ph-inner">
+            <div class="cut-banner">⏸ 쓰기 동결 시작 — 여기서부터 다운타임(30~60분)이 발생합니다</div>
+            <ol>
+            <li>유지보수 모드 / 구 EB ASG → 0 (쓰기 중단). <b>구 infra-scheduler 비활성</b></li>
+            <li>첨부 버킷 <b>최종 델타 sync</b></li>
+            <li>구 <code>kanban-dev-db</code> <b>최종 스냅샷</b> → CMK 재암호화 → 공유 → 새 계정 copy → restore → <code>import</code></li>
+            <li><code>engine_version=15.10</code> 고정 + <code>auto_minor_version_upgrade=false</code> · <b>행수/체크섬 검증</b></li>
+            <li>(선택) <code>db_password</code> 로테이션 후 SSM·EB 동시 갱신</li>
+            <li>새 EB → 복원 DB + 새 Redis + 새 첨부 버킷 지정 → 배포 → <b>jwt_secret 로테이션</b> → health 체크</li>
+            <li>Redis 데이터 이관 <b>금지</b> (신규 빈 클러스터, DB에서 자동 복구)</li>
+          </ol></div></div>
+        </div>
+      </div>
+
+      <div class="ph cut">
+        <div class="ph-card">
+          <div class="ph-top"><span class="pn">P4</span><span class="pt">DNS 컷오버 & 프론트 배포</span><span class="pw">~60초 롤백</span><span class="caret">▶</span></div>
+          <div class="ph-body"><div class="ph-inner"><ol>
+            <li><b>NS 재위임 없음</b> (Pattern A) — apex/www/api alias 레코드를 새 CloudFront/ALB로 교체(TTL 60s) → 구 계정 state에서 <code>state rm</code></li>
+            <li>프론트 CI 배포 + CloudFront <code>/*</code> 무효화 (GitHub vars 선갱신)</li>
+            <li>ACM 검증 완료(ISSUED) + EB HTTPS 리스너·보조 인증서 부착 확인</li>
+          </ol></div></div>
+        </div>
+      </div>
+
+      <div class="ph">
+        <div class="ph-card">
+          <div class="ph-top"><span class="pn">P5</span><span class="pt">컷오버 후 검증</span><span class="pw">서비스 재개</span><span class="caret">▶</span></div>
+          <div class="ph-body"><div class="ph-inner"><ol>
+            <li>GitHub Secrets/Variables 갱신 (OIDC ARN, API_URL, CloudFront ID, RDS id, 비밀)</li>
+            <li><b>E2E 스모크</b>: OAuth 로그인 · 파일 업/다운 · WebSocket 동기화 · FCM 푸시 · 결제 웹훅</li>
+            <li>CloudWatch 로그/메트릭/모니터링 Slack + 신규 알람 확인</li>
+            <li>비용 할당 태그 활성화</li>
+            <li>infra-scheduler 동작 확인 + prod RDS 야간 정지 적용 여부 결정</li>
+          </ol></div></div>
+        </div>
+      </div>
+
+      <div class="ph">
+        <div class="ph-card">
+          <div class="ph-top"><span class="pn">P6</span><span class="pt">구 계정 폐기</span><span class="pw">1~2주 후</span><span class="caret">▶</span></div>
+          <div class="ph-body"><div class="ph-inner"><ol>
+            <li>검증 완료까지 구 계정 read-only 유지 (DB 무손상, deletion_protection on)</li>
+            <li>최종 스냅샷 보관 후 구 DB 삭제 → 첨부/프론트 버킷·CloudFront·EB·state 삭제 (전역 이름 회수)</li>
+            <li><b>구 CI IAM 키·임시 admin 폐기</b>, 잔존 공유 비밀 로테이션</li>
+            <li>디스크 잔여 산출물(<code>deploy.zip</code>, <code>.jar</code>)·<code>.env</code>·<code>tfvars</code> 정리</li>
+          </ol>
+          <div class="note"><span class="ni">ℹ</span><span><b>구 계정은 완전 폐기하지 않음</b> — Route53 영역(≈$0.5/월) + 크로스계정 IAM 역할 1개는 상시 유지(Pattern A 결정사항).</span></div>
+          </div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ===== 3. Downtime ===== -->
+  <section>
+    <div class="s-head"><span class="s-num">03</span><h2>다운타임 타임라인</h2>
+      <p>Phase 3~4 컷오버 윈도우</p></div>
+    <div class="dt">
+      <div class="dtbar">
+        <div class="dtseg live">서비스 정상 (P0~P2 무중단 준비)</div>
+        <div class="dtseg freeze">쓰기 동결 30~60분<br>DB 스냅샷·복원·DNS 컷오버</div>
+        <div class="dtseg live2">서비스 재개 (P5 검증)</div>
+      </div>
+      <div class="dtlabels"><span>← 평상 운영</span><span>컷오버 윈도우</span><span>신 계정 운영 →</span></div>
+      <div class="note"><span class="ni">⚠</span><span><b class="hl">전체 사용자 1회 강제 재로그인</b> — jwt_secret 로테이션에 의한 의도된 동작.</span></div>
+      <div class="note"><span class="ni">↩</span><span><b class="hl2">~60초 내 롤백 가능</b> — Pattern A로 alias 레코드(TTL 60s)만 교체하므로 NS 재위임 대기·48h TTL이 전부 불필요.</span></div>
+    </div>
+  </section>
+
+  <!-- ===== 4. Resource strategy ===== -->
+  <section>
+    <div class="s-head"><span class="s-num">04</span><h2>리소스별 이전 전략</h2>
+      <p>섹션 4 요약</p></div>
+    <div class="rtable">
+      <div class="rrow"><span>리소스</span><span>전략</span><span>처리</span></div>
+      <div class="rrow"><span class="rname"><span class="ric">🗄️</span>RDS</span>
+        <span class="rdesc">CMK 재암호화 → 스냅샷 공유 → 복원 → import. 20GB면 pg_dump/restore도 실용적</span>
+        <span class="pill tag move">이동</span></div>
+      <div class="rrow"><span class="rname"><span class="ric">📦</span>S3 첨부</span>
+        <span class="rdesc">새 이름 생성 → 교차계정 read → sync. ARCHIVE 객체 사전 복원, temp/ 제외, 절대 URL 감사</span>
+        <span class="pill tag move">이동</span></div>
+      <div class="rrow"><span class="rname"><span class="ric">📦</span>S3 프론트</span>
+        <span class="rdesc">CI 재배포로 복구 가능 — 이름 충돌만 주의</span>
+        <span class="pill tag new">재배포</span></div>
+      <div class="rrow"><span class="rname"><span class="ric">⚡</span>ElastiCache</span>
+        <span class="rdesc">데이터 비영속 → 빈 클러스터 신규 생성. 콜드 캐시·WS는 DB에서 자동 복구</span>
+        <span class="pill tag new">신규(빈)</span></div>
+      <div class="rrow"><span class="rname"><span class="ric">🔐</span>CloudFront+ACM</span>
+        <span class="rdesc">인증서 재발급(이전 불가) + 배포 재생성. 보조 도메인 재부착</span>
+        <span class="pill tag new">재발급</span></div>
+      <div class="rrow"><span class="rname"><span class="ric">🌐</span>Route53</span>
+        <span class="rdesc">Pattern A — 영역 구 계정 유지, aws.dns로 레코드만 크로스계정 관리, state rm으로 소유권 이양</span>
+        <span class="pill tag keep">구계정 유지</span></div>
+      <div class="rrow"><span class="rname"><span class="ric">🔑</span>비밀값</span>
+        <span class="rdesc">jwt 로테이션(전체 재로그인) + dev/prod 분리 + SSM/Secrets Manager 이관</span>
+        <span class="pill tag move">로테이션</span></div>
+    </div>
+  </section>
+
+  <!-- ===== 5. Risks ===== -->
+  <section>
+    <div class="s-head"><span class="s-num">05</span><h2>핵심 위험 (Risk Register)</h2>
+      <p>High → Medium</p></div>
+    <div class="grid g2">
+      <div class="risk"><span class="sev h">HIGH</span><div><div class="rt">R1 · dev RDS 데이터 손실</div><div class="rm">단일 AZ·비공유 기본 KMS → CMK 재암호화 경로, 행수 검증, 구 인스턴스 deletion_protection 활성·보존</div></div></div>
+      <div class="risk"><span class="sev h">HIGH</span><div><div class="rt">R2 · "prod=Aurora" 오설계</div><div class="rm">실제 rds-simple → aws_db_instance 스냅샷/복원, 스케줄러 정지 고려, 버전 고정</div></div></div>
+      <div class="risk"><span class="sev h">HIGH</span><div><div class="rt">R3 · CI 정적 키 단일 인증</div><div class="rm">OIDC+스코프 역할, plan/dispatch로 정책 검증, Phase 6 키 폐기</div></div></div>
+      <div class="risk"><span class="sev l">LOW</span><div><div class="rt">R4 · DNS 컷오버 (대폭 완화)</div><div class="rm">Pattern A로 영역 유지 → alias만 TTL 60s 교체, ~60초 롤백</div></div></div>
+      <div class="risk"><span class="sev m">MED</span><div><div class="rt">R5 · 전역 S3 이름 충돌</div><div class="rm">새 이름, env/data/코드 절대 URL 갱신, Phase 6 이름 회수</div></div></div>
+      <div class="risk"><span class="sev m">MED</span><div><div class="rt">R8 · EB egress IP 변경</div><div class="rm">웹훅·OAuth 콘솔 화이트리스트 재검증, IP 화이트리스트면 NAT+고정 EIP</div></div></div>
+      <div class="risk"><span class="sev m">MED</span><div><div class="rt">R10 · WebSocket 스플릿브레인</div><div class="rm">구·신 백엔드 공존 시 Redis pub/sub 분리 → 구 EB ASG→0 선행, STOMP 강제 재연결</div></div></div>
+      <div class="risk"><span class="sev m">MED</span><div><div class="rt">R7 · 평문·동일 비밀 운반</div><div class="rm">컷오버 시 로테이션·분리, SSM 이관, 구 파일 운반 금지</div></div></div>
+    </div>
+  </section>
+
+  <footer>
+    출처: <code>docs/infra/aws-account-migration-plan.md</code> (2026-06-01) · BRIDGE 인프라 이전 분석<br>
+    이 HTML은 계획서의 시각화 요약입니다. 정확한 명령어·근거 파일은 원문 런북을 참조하세요.
+  </footer>
+
+</div>
+
+<script>
+  // 아코디언 토글
+  document.querySelectorAll('.ph-top').forEach(function(top){
+    top.addEventListener('click', function(){
+      top.closest('.ph-card').classList.toggle('open');
+    });
+  });
+</script>
+</body>
+</html>

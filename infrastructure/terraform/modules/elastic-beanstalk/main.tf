@@ -358,6 +358,16 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.frontend_url
   }
 
+  # S3 attachments bucket — only set when provided (else app keeps its own default)
+  dynamic "setting" {
+    for_each = var.s3_bucket != "" ? [1] : []
+    content {
+      namespace = "aws:elasticbeanstalk:application:environment"
+      name      = "S3_BUCKET"
+      value     = var.s3_bucket
+    }
+  }
+
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"
     name      = "CLAUDE_API_KEY"

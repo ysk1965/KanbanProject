@@ -15,15 +15,19 @@ resource "aws_db_subnet_group" "main" {
 
 # RDS Instance
 resource "aws_db_instance" "main" {
-  identifier     = "${var.project_name}-${var.environment}-db"
-  engine         = "postgres"
+  identifier          = "${var.project_name}-${var.environment}-db"
+  snapshot_identifier = var.snapshot_identifier != "" ? var.snapshot_identifier : null
+  engine              = "postgres"
   engine_version = var.engine_version
   instance_class = var.instance_class
+
+  auto_minor_version_upgrade = var.auto_minor_version_upgrade
 
   allocated_storage     = var.allocated_storage
   max_allocated_storage = var.max_allocated_storage
   storage_type          = "gp3"
   storage_encrypted     = true
+  kms_key_id            = var.kms_key_id != "" ? var.kms_key_id : null
 
   db_name  = var.database_name
   username = var.master_username
@@ -39,7 +43,7 @@ resource "aws_db_instance" "main" {
 
   skip_final_snapshot       = var.environment != "prod"
   final_snapshot_identifier = var.environment == "prod" ? "${var.project_name}-${var.environment}-final" : null
-  deletion_protection       = var.environment == "prod"
+  deletion_protection       = var.deletion_protection != null ? var.deletion_protection : var.environment == "prod"
 
   performance_insights_enabled = false  # Cost saving
 

@@ -36,7 +36,7 @@ variable "ec2_security_group_id" {
 variable "solution_stack_name" {
   description = "Elastic Beanstalk solution stack name"
   type        = string
-  default     = "64bit Amazon Linux 2023 v4.8.3 running Corretto 21"
+  default     = "64bit Amazon Linux 2023 v4.12.1 running Corretto 21"
 }
 
 variable "instance_type" {
@@ -156,6 +156,12 @@ variable "ssl_certificate_arn" {
 
 variable "cloudfront_domain" {
   description = "CloudFront domain for S3 attachments bucket (empty to use backend proxy)"
+  type        = string
+  default     = ""
+}
+
+variable "s3_bucket" {
+  description = "S3 attachments bucket name for the app (S3_BUCKET env). Empty = app uses its own configured default."
   type        = string
   default     = ""
 }

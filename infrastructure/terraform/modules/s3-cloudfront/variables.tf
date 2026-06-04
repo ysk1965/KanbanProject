@@ -8,6 +8,12 @@ variable "environment" {
   type        = string
 }
 
+variable "bucket_name" {
+  description = "Override the frontend S3 bucket name (global uniqueness). Empty = {project}-{env}-frontend."
+  type        = string
+  default     = ""
+}
+
 variable "acm_certificate_arn" {
   description = "ACM certificate ARN for custom domain (optional)"
   type        = string
