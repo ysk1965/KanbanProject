@@ -20,12 +20,13 @@ ENV="${1:?usage: seed-ssm-secrets.sh <dev|prod> [kms-key-id]}"
 KMS="${2:-}"
 PREFIX="/kanban/${ENV}"
 
-# Must match local.ssm_secret_keys in environments/<env>/main.tf
+# Must match the keys looked up in local.secret in environments/<env>/main.tf
 KEYS=(
   db_password jwt_secret claude_api_key openai_api_key openai_admin_key
   mail_username mail_password polar_api_key polar_webhook_secret
   discord_client_secret discord_bot_token
   slack_client_secret slack_signing_secret slack_token_encryption_key
+  google_client_secret sentry_dsn
 )
 
 echo "Seeding ${#KEYS[@]} parameters under ${PREFIX} ..."
