@@ -13,7 +13,9 @@ env:
   AWS_REGION: ap-northeast-2
   EB_APPLICATION_NAME: kanban-dev
   EB_ENVIRONMENT_NAME: kanban-dev-env
-  S3_BUCKET_DEV: kanban-dev-frontend
+  S3_BUCKET_DEV: kanban-dev-frontend-259151461692
+  # NOTE: testprod/milkyway frontend bucket not yet migrated to the new account (259151461692).
+  # The testprod deploy steps below will fail until this bucket is created or milkyway is repointed.
   S3_BUCKET_TESTPROD: kanban-testprod-frontend
   JAVA_VERSION: '21'
   NODE_VERSION: '20'

@@ -72,7 +72,7 @@ variable "mail_password" {
 variable "google_client_id" {
   description = "Google OAuth2 client ID"
   type        = string
-  default     = ""
+  default     = "529008418447-slt129ql6e1noruvhat2of5vovke80v3.apps.googleusercontent.com"
 }
 
 variable "google_client_secret" {
@@ -110,19 +110,19 @@ variable "domain_name" {
 variable "attachments_bucket_name" {
   description = "S3 bucket for user attachments (data-source lookup). New account uses a new globally-unique name."
   type        = string
-  default     = "bridge-kanban-attachments"
+  default     = "kanban-attachments-259151461692"
 }
 
 variable "frontend_bucket_name" {
   description = "Override frontend S3 bucket name (global uniqueness). Empty = {project}-{env}-frontend."
   type        = string
-  default     = ""
+  default     = "kanban-dev-frontend-259151461692"
 }
 
 variable "dns_account_role_arn" {
   description = "IAM role ARN to assume for managing Route53 records in ANOTHER AWS account (cross-account DNS / Pattern A). Leave empty to create & manage the hosted zone in THIS account."
   type        = string
-  default     = ""
+  default     = "arn:aws:iam::997286396624:role/kanban-route53-cross-account"
 }
 
 variable "rds_engine_version" {
@@ -152,7 +152,7 @@ variable "rds_deletion_protection" {
 variable "use_ssm_secrets" {
   description = "Read app secrets from SSM SecureString (/kanban/<env>/<key>) instead of tfvars/TF_VAR. Seed SSM first via scripts/seed-ssm-secrets.sh."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "ssm_secret_prefix" {
@@ -164,7 +164,7 @@ variable "ssm_secret_prefix" {
 variable "secondary_domain_name" {
   description = "Secondary domain name (e.g., milkyway.pe.kr) - shares same backend ALB"
   type        = string
-  default     = ""
+  default     = "milkyway.pe.kr"
 }
 
 # Polar.sh Payment
