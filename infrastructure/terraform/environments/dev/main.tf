@@ -278,10 +278,16 @@ module "acm_certificate" {
     aws = aws.us_east_1
   }
 
-  project_name              = var.project_name
-  environment               = var.environment
-  domain_name               = var.domain_name
-  subject_alternative_names = ["*.${var.domain_name}"]
+  project_name = var.project_name
+  environment  = var.environment
+  domain_name  = var.domain_name
+  # Single CloudFront serves BOTH bridgespots.com and milkyway.pe.kr (Host-based
+  # spa_router). One distribution = one viewer cert, so the cert must SAN-cover
+  # both domains. Validation records are routed per-zone in cert_validation below.
+  subject_alternative_names = concat(
+    ["*.${var.domain_name}"],
+    var.secondary_domain_name != "" ? [var.secondary_domain_name, "*.${var.secondary_domain_name}"] : []
+  )
 }
 
 # ─── Route 53 Hosted Zone ───
@@ -319,7 +325,10 @@ module "s3_cloudfront" {
   project_name        = var.project_name
   environment         = var.environment
   acm_certificate_arn = var.domain_name != "" ? module.acm_certificate[0].validated_certificate_arn : ""
-  domain_aliases      = var.domain_name != "" ? [var.domain_name, "www.${var.domain_name}"] : []
+  domain_aliases = var.domain_name != "" ? concat(
+    [var.domain_name, "www.${var.domain_name}"],
+    var.secondary_domain_name != "" ? [var.secondary_domain_name, "www.${var.secondary_domain_name}"] : []
+  ) : []
 
   depends_on = [module.acm_certificate]
 }
@@ -361,7 +370,9 @@ resource "aws_route53_record" "cert_validation" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  zone_id         = local.primary_zone_id
+  # SAN cert covers both domains → route each validation record to its own zone
+  # (milkyway records to the secondary zone, everything else to the primary zone).
+  zone_id = (var.secondary_domain_name != "" && strcontains(each.key, var.secondary_domain_name)) ? data.aws_route53_zone.secondary[0].zone_id : local.primary_zone_id
 }
 
 # Frontend Domain Records
@@ -389,6 +400,49 @@ resource "aws_route53_record" "frontend_www" {
 
   zone_id         = local.primary_zone_id
   name            = "www.${var.domain_name}"
+  type            = "A"
+  allow_overwrite = true
+
+  alias {
+    name                   = module.s3_cloudfront.cloudfront_domain_name
+    zone_id                = module.s3_cloudfront.cloudfront_hosted_zone_id
+    evaluate_target_health = false
+  }
+
+  depends_on = [module.s3_cloudfront]
+}
+
+# ─── Secondary Domain Frontend Records (milkyway.pe.kr → SAME CloudFront) ───
+# milkyway is served by the same distribution/bucket as bridgespots; the
+# spa_router function returns /index.html for non-bridgespots Hosts.
+# allow_overwrite=true repoints the existing milkyway A records (currently the
+# legacy-account CloudFront) onto the new-account distribution on apply.
+# ⚠️ Before apply: remove milkyway aliases from the legacy CF E22U5C46YWKCL7
+# (CloudFront CNAMEs are globally unique) or the alias add will fail.
+resource "aws_route53_record" "frontend_secondary_root" {
+  provider = aws.dns
+  count    = var.secondary_domain_name != "" ? 1 : 0
+
+  zone_id         = data.aws_route53_zone.secondary[0].zone_id
+  name            = var.secondary_domain_name
+  type            = "A"
+  allow_overwrite = true
+
+  alias {
+    name                   = module.s3_cloudfront.cloudfront_domain_name
+    zone_id                = module.s3_cloudfront.cloudfront_hosted_zone_id
+    evaluate_target_health = false
+  }
+
+  depends_on = [module.s3_cloudfront]
+}
+
+resource "aws_route53_record" "frontend_secondary_www" {
+  provider = aws.dns
+  count    = var.secondary_domain_name != "" ? 1 : 0
+
+  zone_id         = data.aws_route53_zone.secondary[0].zone_id
+  name            = "www.${var.secondary_domain_name}"
   type            = "A"
   allow_overwrite = true
 

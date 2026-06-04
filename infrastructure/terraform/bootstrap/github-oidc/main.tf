@@ -179,8 +179,8 @@ resource "aws_iam_role_policy" "deploy" {
         Effect = "Allow"
         Action = ["s3:PutObject", "s3:DeleteObject", "s3:ListBucket", "s3:GetObject", "s3:GetBucketLocation"]
         Resource = [
-          "arn:aws:s3:::kanban-*-frontend",
-          "arn:aws:s3:::kanban-*-frontend/*"
+          "arn:aws:s3:::kanban-*-frontend*",
+          "arn:aws:s3:::kanban-*-frontend*/*"
         ]
       },
       {

@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BRIDGE 인프라 종합 점검 보고서 · 2026-06-04</title>
+<style>
+  :root{
+    --bg:#0d1119; --bg2:#141a26; --card:#161d2b; --card2:#1b2433;
+    --line:rgba(255,255,255,0.08); --line2:rgba(255,255,255,0.13);
+    --txt:#e7ecf4; --muted:#9aa6bd; --dim:#6b7689;
+    --indigo:#6366F1; --teal:#2DD4BF; --indigo2:#818cf8;
+    --crit:#ef4444; --high:#f97316; --med:#eab308; --low:#38bdf8; --info:#7c8aa5;
+    --green:#34d399; --amber:#fbbf24; --red:#f87171;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    background:linear-gradient(180deg,#0b0e15,#0d1119 30%);color:var(--txt);line-height:1.6;font-size:14px;-webkit-font-smoothing:antialiased}
+  a{color:var(--indigo2);text-decoration:none}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 22px}
+
+  /* top nav */
+  nav{position:sticky;top:0;z-index:50;background:rgba(13,17,25,0.86);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;gap:6px;height:54px;overflow-x:auto;white-space:nowrap}
+  nav .brand{font-weight:800;letter-spacing:.5px;margin-right:14px;background:linear-gradient(90deg,var(--indigo2),var(--teal));-webkit-background-clip:text;background-clip:text;color:transparent}
+  nav a{color:var(--muted);font-size:12.5px;font-weight:600;padding:6px 10px;border-radius:8px}
+  nav a:hover{color:var(--txt);background:rgba(255,255,255,0.05)}
+
+  header.hero{padding:46px 0 30px}
+  .hero h1{font-size:30px;font-weight:800;letter-spacing:-.5px;line-height:1.25}
+  .hero h1 .accent{background:linear-gradient(90deg,var(--indigo2),var(--teal));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero .sub{color:var(--muted);margin-top:10px;font-size:14.5px}
+  .hero .meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+  .chip{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted);
+    background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 12px}
+  .chip b{color:var(--txt)}
+  .dot{width:8px;height:8px;border-radius:50%}
+
+  section{padding:30px 0;border-top:1px solid var(--line)}
+  h2{font-size:20px;font-weight:800;letter-spacing:-.3px;display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  h2 .num{font-size:12px;font-weight:700;color:var(--indigo2);background:rgba(99,102,241,.14);border:1px solid rgba(99,102,241,.3);
+    border-radius:7px;padding:2px 8px}
+  .lead{color:var(--muted);margin-bottom:20px;max-width:920px}
+
+  /* KPI cards */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+  .kpi{background:linear-gradient(160deg,var(--card),var(--bg2));border:1px solid var(--line);border-radius:16px;padding:18px}
+  .kpi .v{font-size:27px;font-weight:800;letter-spacing:-1px}
+  .kpi .l{color:var(--muted);font-size:12.5px;margin-top:3px}
+  .kpi .s{font-size:11.5px;color:var(--dim);margin-top:8px}
+  .kpi.acc{border-top:3px solid var(--indigo)}
+  .kpi.warn{border-top:3px solid var(--high)}
+  .kpi.ok{border-top:3px solid var(--green)}
+  .kpi.cost{border-top:3px solid var(--teal)}
+
+  /* exec summary */
+  .exec{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--indigo);border-radius:14px;padding:22px 24px}
+  .exec p{margin-bottom:12px;color:#dde3ee}
+  .exec strong{color:#fff}
+  .exec .tag{color:var(--teal);font-weight:700}
+
+  /* account cards */
+  .accounts{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px}
+  .acct{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;position:relative;overflow:hidden}
+  .acct:before{content:"";position:absolute;inset:0 auto 0 0;width:4px}
+  .acct.new:before{background:var(--indigo)}
+  .acct.legacy:before{background:var(--amber)}
+  .acct.other:before{background:var(--dim)}
+  .acct h3{font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .acct .id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--muted);margin-top:2px}
+  .acct .role{font-size:13px;color:#cfd6e4;margin:12px 0}
+  .acct .st{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:11px;margin-top:6px}
+  .acct .st b{color:var(--txt)}
+  .acct ul{list-style:none;margin-top:10px;display:flex;flex-direction:column;gap:6px}
+  .acct ul li{font-size:12px;color:var(--muted);padding-left:16px;position:relative}
+  .acct ul li:before{content:"▹";position:absolute;left:0;color:var(--indigo2)}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;white-space:nowrap}
+  .b-active{background:rgba(52,211,153,.15);color:#5fe0b0}
+  .b-frozen{background:rgba(124,138,165,.18);color:#aab4c8}
+  .b-orphan{background:rgba(248,113,113,.16);color:#fca5a5}
+  .b-drift{background:rgba(249,115,22,.16);color:#fdba74}
+  .b-code{background:rgba(56,189,248,.15);color:#7dd3fc}
+  .b-unk{background:rgba(124,138,165,.14);color:#9aa6bd}
+
+  /* architecture */
+  .arch{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:8px 8px 18px;overflow-x:auto}
+  .arch-inner{min-width:920px;padding:14px}
+  .layer{display:flex;align-items:stretch;gap:14px;margin:0 0 14px}
+  .layer .lab{flex:0 0 96px;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.7px;
+    display:flex;align-items:center}
+  .layer .cells{flex:1;display:flex;gap:12px;flex-wrap:wrap}
+  .node{background:var(--card2);border:1px solid var(--line2);border-radius:12px;padding:11px 14px;min-width:150px;flex:1}
+  .node .t{font-size:13px;font-weight:700}
+  .node .d{font-size:11px;color:var(--muted);margin-top:3px}
+  .node.idg{border-color:rgba(99,102,241,.45);background:linear-gradient(160deg,rgba(99,102,241,.12),var(--card2))}
+  .node.tl{border-color:rgba(45,212,191,.4);background:linear-gradient(160deg,rgba(45,212,191,.1),var(--card2))}
+  .node.amb{border-color:rgba(251,191,36,.4);background:linear-gradient(160deg,rgba(251,191,36,.1),var(--card2))}
+  .acctframe{border:1.5px dashed var(--line2);border-radius:14px;padding:14px;margin-bottom:14px;position:relative}
+  .acctframe>.cap{position:absolute;top:-10px;left:14px;font-size:11px;font-weight:700;padding:1px 9px;border-radius:6px;background:var(--bg)}
+  .acctframe.new{border-color:rgba(99,102,241,.5)} .acctframe.new>.cap{color:var(--indigo2)}
+  .acctframe.legacy{border-color:rgba(251,191,36,.45)} .acctframe.legacy>.cap{color:var(--amber)}
+  .flowline{text-align:center;color:var(--dim);font-size:16px;margin:-4px 0 8px}
+
+  /* inventory table */
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+  .fbtn{font-size:12px;font-weight:600;color:var(--muted);background:var(--card);border:1px solid var(--line);
+    border-radius:9px;padding:7px 13px;cursor:pointer;transition:.15s}
+  .fbtn:hover{color:var(--txt);border-color:var(--line2)}
+  .fbtn.on{background:rgba(99,102,241,.16);border-color:rgba(99,102,241,.5);color:#c7ccff}
+  .toolbar input{flex:1;min-width:180px;background:var(--card);border:1px solid var(--line);border-radius:9px;
+    padding:8px 12px;color:var(--txt);font-size:13px;outline:none}
+  .toolbar input:focus{border-color:rgba(99,102,241,.5)}
+  .tablewrap{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  thead th{background:var(--bg2);color:var(--muted);font-weight:700;text-align:left;padding:11px 12px;font-size:11.5px;
+    text-transform:uppercase;letter-spacing:.4px;position:sticky;top:54px;z-index:5}
+  tbody td{padding:11px 12px;border-top:1px solid var(--line);vertical-align:top}
+  tbody tr:hover{background:rgba(255,255,255,.025)}
+  .svc{font-weight:700;color:var(--txt);white-space:nowrap}
+  .nm{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:#c8d1e2;word-break:break-all}
+  .how{color:var(--muted);font-size:12px}
+  .cfg{color:var(--dim);font-size:11px;margin-top:3px}
+  .cost{font-weight:700;white-space:nowrap;font-family:ui-monospace,monospace;font-size:12px}
+  .reg{color:var(--dim);font-size:11px;white-space:nowrap}
+  .mtag{font-size:10.5px;color:var(--dim)}
+  .acct-pill{font-size:10px;font-weight:700;border-radius:5px;padding:1px 6px}
+  .ap-knew{background:rgba(99,102,241,.16);color:#b3b9ff}
+  .ap-bmnew{background:rgba(168,85,247,.16);color:#d6b3ff}
+  .ap-legacy{background:rgba(251,191,36,.15);color:#fcd34d}
+  .ap-sg{background:rgba(124,138,165,.15);color:#aab4c8}
+
+  /* cost bars */
+  .costgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+  .costcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
+  .costcard h4{font-size:13px;font-weight:800;display:flex;justify-content:space-between;align-items:baseline}
+  .costcard .tot{font-size:18px;font-weight:800}
+  .costcard .note{font-size:11.5px;color:var(--dim);margin:4px 0 14px}
+  .bar{display:flex;align-items:center;gap:9px;margin-bottom:8px;font-size:11.5px}
+  .bar .nm2{flex:0 0 96px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar .track{flex:1;height:9px;background:rgba(255,255,255,.06);border-radius:6px;overflow:hidden}
+  .bar .fill{height:100%;border-radius:6px}
+  .bar .amt{flex:0 0 50px;text-align:right;font-family:ui-monospace,monospace;color:#cdd5e6}
+  .leak{color:#fca5a5}
+
+  /* drift */
+  .drift{display:flex;flex-direction:column;gap:11px}
+  .dcard{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px 17px;border-left:3px solid var(--med)}
+  .dcard[data-sev=high]{border-left-color:var(--high)}
+  .dcard[data-sev=medium]{border-left-color:var(--med)}
+  .dcard[data-sev=low]{border-left-color:var(--low)}
+  .dcard .dh{display:flex;align-items:center;gap:9px;font-weight:700;font-size:13.5px;margin-bottom:9px}
+  .dcols{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:9px}
+  .dcol{background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+  .dcol .k{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  .dcol.iac .k{color:var(--low)} .dcol.live .k{color:var(--green)}
+  .dcol .vv{font-size:11.5px;color:#cdd5e6}
+  .dcard .imp{font-size:12px;color:var(--muted)}
+  .dcard .imp b{color:#fdba74}
+  @media(max-width:640px){.dcols{grid-template-columns:1fr}}
+
+  /* risks */
+  .risk{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px 17px;margin-bottom:11px;border-left:3px solid var(--med)}
+  .risk[data-sev=high]{border-left-color:var(--high)}
+  .risk[data-sev=medium]{border-left-color:var(--med)}
+  .risk[data-sev=low]{border-left-color:var(--low)}
+  .risk[data-sev=critical]{border-left-color:var(--crit)}
+  .risk .rh{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;margin-bottom:7px}
+  .risk .det{font-size:12.5px;color:var(--muted);margin-bottom:9px}
+  .risk .rec{font-size:12.5px;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;color:#d6deec}
+  .risk .rec:before{content:"권고  ";font-weight:800;color:var(--teal);font-size:11px}
+  .sev{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;border-radius:5px;padding:2px 7px}
+  .sev.high{background:rgba(249,115,22,.18);color:#fdba74}
+  .sev.medium{background:rgba(234,179,8,.16);color:#fde047}
+  .sev.low{background:rgba(56,189,248,.16);color:#7dd3fc}
+  .sev.critical{background:rgba(239,68,68,.18);color:#fca5a5}
+  .sev.info{background:rgba(124,138,165,.16);color:#aab4c8}
+
+  /* checklist */
+  .checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+  .ck{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:17px}
+  .ck h4{font-size:13px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .ck ol{margin-left:17px;display:flex;flex-direction:column;gap:7px}
+  .ck li{font-size:12.5px;color:var(--muted)}
+  .ck li b{color:var(--txt)}
+  .ck .when{font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 7px;margin-left:auto}
+  .when.now{background:rgba(248,113,113,.16);color:#fca5a5}
+  .when.pre{background:rgba(249,115,22,.16);color:#fdba74}
+  .when.after{background:rgba(56,189,248,.15);color:#7dd3fc}
+
+  footer{padding:34px 0 60px;color:var(--dim);font-size:12px;border-top:1px solid var(--line);text-align:center}
+  .hl{color:var(--amber);font-weight:700}
+  .mono{font-family:ui-monospace,monospace}
+  .hidden{display:none!important}
+  @media(max-width:760px){.hero h1{font-size:23px}thead th{position:static}}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <span class="brand">BRIDGE · INFRA AUDIT</span>
+  <a href="#summary">요약</a>
+  <a href="#accounts">계정</a>
+  <a href="#arch">아키텍처</a>
+  <a href="#inventory">리소스 인벤토리</a>
+  <a href="#backend">백엔드 소비</a>
+  <a href="#cost">비용</a>
+  <a href="#drift">드리프트</a>
+  <a href="#risks">리스크</a>
+  <a href="#actions">조치</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <h1>BRIDGE 서비스 <span class="accent">인프라 종합 점검</span> 보고서</h1>
+  <div class="sub">AWS 3개 계정 라이브 스캔(read-only) + Terraform/CI/백엔드 코드 분석 · IaC ↔ 실재 드리프트 대조 · 비용/보안/가용성 리스크 종합</div>
+  <div class="meta">
+    <span class="chip">📅 점검일 <b>2026-06-04</b></span>
+    <span class="chip">🔍 방식 <b>8 에이전트 병렬 + 종합</b></span>
+    <span class="chip">🗂 수집 리소스 <b>119건</b></span>
+    <span class="chip"><span class="dot" style="background:var(--green)"></span> 컷오버 <b>완료(06-02)</b></span>
+    <span class="chip"><span class="dot" style="background:var(--high)"></span> terraform apply <b>미실행</b></span>
+  </div>
+</div></header>
+
+<!-- ===== SUMMARY ===== -->
+<section id="summary"><div class="wrap">
+  <h2><span class="num">01</span> 핵심 요약</h2>
+  <p class="lead">BRIDGE 운영은 <b>신규 계정(259151461692)의 단일 <span class="mono">kanban-dev</span> Elastic Beanstalk 스택</b>이 전부 담당합니다(bridgespots.com + milkyway.pe.kr). 컷오버는 완료되어 EB/RDS/ALB/CloudFront/S3가 Green/Healthy로 가동 중이고 IaC 화해도 코드상 끝났으나, <b>terraform apply는 아직 실행되지 않았습니다.</b></p>
+
+  <div class="kpis" style="margin-bottom:22px">
+    <div class="kpi acc"><div class="v">3</div><div class="l">스캔한 AWS 계정</div><div class="s">신규 · 구(legacy) · 별개(sungrak)</div></div>
+    <div class="kpi cost"><div class="v">$62.45</div><div class="l">구 계정 월 실비용 <span class="mono">(CE 실측)</span></div><div class="s">정리 목표 ~$1 · <span class="leak">~$41 누수 중</span></div></div>
+    <div class="kpi warn"><div class="v">~$180</div><div class="l">신 계정 내 <b>BM 워크로드</b> 월비용</div><div class="s">BRIDGE 무관 · 동일 계정 혼재</div></div>
+    <div class="kpi warn"><div class="v">13</div><div class="l">IaC ↔ 실재 드리프트</div><div class="s">high 5 · medium 6 · low 2</div></div>
+    <div class="kpi warn"><div class="v">7</div><div class="l">High 등급 리스크</div><div class="s">비용·보안·컷오버 미완</div></div>
+    <div class="kpi ok"><div class="v">1/1</div><div class="l">kanban-dev ALB 타깃 healthy</div><div class="s">EB Ready · RDS available</div></div>
+  </div>
+
+  <div class="exec">
+    <p><strong>가장 시급한 3가지.</strong></p>
+    <p><span class="tag">①</span> <strong>구 계정 비용 누수.</strong> Pattern A는 Route53(~$1)만 유지해야 하는데 <b>ALB $17 + RDS $15 + VPC $9 ≈ $41/월</b>이 정리되지 않고 과금 중입니다. 더 위험한 건 <b>milkyway.pe.kr 프론트가 아직 구 계정 CloudFront(<span class="mono">E22U5C46YWKCL7</span>)로 서빙</b>되고 있어, 구 계정을 정리하면 milkyway가 다운된다는 점입니다(컷오버 미완).</p>
+    <p><span class="tag">②</span> <strong>apply 전 차단요인 2건.</strong> SSM에 <span class="mono">sentry_dsn</span>·<span class="mono">google_client_secret</span> 미시딩 + <b>gha-deploy IAM의 S3 권한 ARN(<span class="mono">kanban-*-frontend</span>)이 실제 버킷(<span class="mono">kanban-dev-frontend-259151461692</span>)과 매칭되지 않는 드리프트</b>(코드·라이브 양측 확정).</p>
+    <p><span class="tag">③</span> <strong>보안 위생.</strong> 구·신 계정에 정적 액세스키 6개(구계정 4개 전부 Active)와 OIDC 전환 후에도 GitHub Secrets에 정적 AWS 키 2개가 잔존합니다.</p>
+    <p style="margin-bottom:0"><span class="tag">＋</span> <strong>추가 발견.</strong> 신규 운영 계정에 BRIDGE와 무관한 <b>BM/burgermonster 워크로드</b>(Aurora MySQL 퍼블릭+미암호화, t3.large EC2, valkey, ALB 2개)가 혼재해 ~$180/월을 별도로 쓰며 비용·보안 경계가 섞였습니다. 세 번째 계정 <span class="mono">472888337985</span>(dev_sungrak)는 sungrak/banseok/retreat 교회 프로젝트로 <b>BRIDGE와 완전히 무관</b>합니다.</p>
+  </div>
+</div></section>
+
+<!-- ===== ACCOUNTS ===== -->
+<section id="accounts"><div class="wrap">
+  <h2><span class="num">02</span> AWS 계정 개요 — 어떤 계정을 어떻게 쓰는가</h2>
+  <p class="lead">로컬에 설정된 3개 프로파일을 모두 식별·스캔했습니다. 운영의 무게중심은 <b>신규 계정</b>, DNS만 <b>구 계정</b>(의도된 Pattern A), 세 번째는 <b>별개 프로젝트</b>입니다.</p>
+  <div class="accounts">
+    <div class="acct new">
+      <h3>신규(운영) 계정 <span class="badge b-active">ACTIVE</span></h3>
+      <div class="id">259151461692 · profile <b>new-account</b> · user/terraform-bootstrap</div>
+      <div class="role">BRIDGE 실운영 계정. <b>dev TF 스택</b>이 유일한 운영 환경으로 bridgespots.com(EB+S3/CF) + milkyway.pe.kr(ACM/ALB)을 서빙. Terraform state·OIDC 부트스트랩 적용 완료.</div>
+      <div class="st"><b>상태:</b> 컷오버 완료, EB <span class="mono">kanban-dev-env</span> Ready/Green, ALB 타깃 healthy 1/1, RDS available. terraform apply 미실행.</div>
+      <ul>
+        <li><b>BM/burgermonster 워크로드 혼재</b> — Aurora MySQL(퍼블릭+미암호화), t3.large, valkey, ALB 2개 ≈ $180/월</li>
+        <li>Organization 멤버 계정(payer 159537565961) → <b>Cost Explorer 접근거부</b></li>
+        <li>gha-deploy IAM S3 ARN 드리프트 · SSM 2종 미시딩 (apply 차단)</li>
+        <li>terraform-bootstrap·kjkim 정적키 Active</li>
+        <li>infra_scheduler 실재(EventBridge ENABLED), 스캔 시점 ASG min=1</li>
+      </ul>
+    </div>
+    <div class="acct legacy">
+      <h3>구(legacy) 계정 <span class="badge b-frozen">PARTIAL FROZEN</span></h3>
+      <div class="id">997286396624 · profile <b>default</b> · user/terraform_admin</div>
+      <div class="role">Pattern A로 <b>Route53 호스팅 영역 2개</b>(bridgespots.com, milkyway.pe.kr)만 의도적 유지. 신 계정이 cross-account role(<span class="mono">kanban-route53-cross-account</span>)로 zone 관리. 나머지는 정리 대상.</div>
+      <div class="st"><b>상태:</b> EB 컴퓨트는 frozen(ASG 0/0/0)이나 <b>ALB/RDS/CloudFront/S3가 살아서 과금 중</b> → Pattern A '절반만' 적용.</div>
+      <ul>
+        <li>5월 실측 <b>$62.45/월</b> 중 ~$41(ALB$17+RDS$15+VPC$9)이 미정리 누수</li>
+        <li><b>milkyway.pe.kr이 구 CloudFront E22U5C46YWKCL7로 서빙</b> → 정리 시 다운</li>
+        <li>RDS 6/3·6/4 자동백업 생성 중(가동 확정)</li>
+        <li>정적키 4개(terraform_admin 2, github-actions 2) 전부 Active</li>
+        <li>첨부 16GB 등 마이그레이션 원본 데이터 보존(검증 전 삭제 금지)</li>
+      </ul>
+    </div>
+    <div class="acct other">
+      <h3>별개 프로젝트 계정 <span class="badge b-unk">OUT OF SCOPE</span></h3>
+      <div class="id">472888337985 · profile <b>dev_sungrak</b> · user/dev_1</div>
+      <div class="role"><b>BRIDGE와 무관</b>한 별개 프로젝트(sungrak/banseok/retreat — 교회·리트릿 웹서비스). <b>ECS + ALB + ECR</b> 아키텍처, 자체 Terraform state·CI/CD, 멀티유저(7명).</div>
+      <div class="st"><b>상태:</b> EC2 2대 running, ALB 1개 active, RDS stopped. 비용 실질 $0(크레딧 상쇄). 자원·네이밍·팀·정산 연결점 0.</div>
+      <ul>
+        <li>BRIDGE 계정 이전/감사 범위에서 <b>제외</b></li>
+        <li>단, sgyoo1 로컬 config에 프로파일 등록됨 → 접근 정당성 확인 후 정리 검토</li>
+      </ul>
+    </div>
+  </div>
+</div></section>
+
+<!-- ===== ARCHITECTURE ===== -->
+<section id="arch"><div class="wrap">
+  <h2><span class="num">03</span> 운영 아키텍처 흐름 — 트래픽이 어디로 흐르는가</h2>
+  <p class="lead">사용자 요청이 DNS(구 계정) → CDN/LB(신 계정) → 컴퓨트/DB(신 계정)로 흐릅니다. <span class="hl">⚠️ milkyway 프론트만 아직 구 계정 CloudFront로 빠집니다(컷오버 미완).</span></p>
+  <div class="arch"><div class="arch-inner">
+
+    <div class="acctframe legacy"><span class="cap">구 계정 997286396624 · DNS (Pattern A)</span>
+      <div class="layer"><div class="lab">DNS</div><div class="cells">
+        <div class="node amb"><div class="t">Route53 · bridgespots.com</div><div class="d">apex/www → 신 CF · api → 신 ALB</div></div>
+        <div class="node amb"><div class="t">Route53 · milkyway.pe.kr</div><div class="d">api → 신 ALB · <b>apex/www → 구 CF E22U5C…</b></div></div>
+      </div></div>
+    </div>
+    <div class="flowline">▼ 신 계정으로 위임 (cross-account assume-role)</div>
+
+    <div class="acctframe new"><span class="cap">신규 계정 259151461692 · 운영 워크로드</span>
+      <div class="layer"><div class="lab">Edge / CDN</div><div class="cells">
+        <div class="node idg"><div class="t">CloudFront E3JHJCDEI33NCX</div><div class="d">프론트 CDN · bridgespots.com</div></div>
+        <div class="node idg"><div class="t">CloudFront E1A70R9T3JIWWO</div><div class="d">첨부 CDN · CLOUDFRONT_DOMAIN</div></div>
+        <div class="node tl"><div class="t">ACM ×3</div><div class="d">ALB(bridgespots·milkyway) + CF(us-east-1)</div></div>
+      </div></div>
+      <div class="layer"><div class="lab">Load Bal.</div><div class="cells">
+        <div class="node idg"><div class="t">ALB awseb--AWSEB-ub4Ha827WAup</div><div class="d">443/80 · sticky · TG /actuator/health healthy 1/1</div></div>
+      </div></div>
+      <div class="layer"><div class="lab">Compute</div><div class="cells">
+        <div class="node idg"><div class="t">Elastic Beanstalk · kanban-dev-env</div><div class="d">EC2 t3.small (ASG 1/2) · Corretto21 AL2023 v4.12.1 · Spring Boot</div></div>
+      </div></div>
+      <div class="layer"><div class="lab">Data</div><div class="cells">
+        <div class="node idg"><div class="t">RDS PostgreSQL · kanban-dev-db</div><div class="d">db.t4g.micro · 암호화O · private · 백업 1일</div></div>
+        <div class="node idg"><div class="t">S3 kanban-attachments-…</div><div class="d">첨부(presigned PUT) · CORS · Lifecycle</div></div>
+        <div class="node idg"><div class="t">S3 kanban-dev-frontend-…</div><div class="d">SPA 정적 호스팅(OAC)</div></div>
+        <div class="node" style="border-style:dashed;opacity:.6"><div class="t">ElastiCache (미생성)</div><div class="d">dev=Simple Cache 폴백 (redis_host="")</div></div>
+      </div></div>
+      <div class="layer"><div class="lab">Ops</div><div class="cells">
+        <div class="node tl"><div class="t">Lambda + EventBridge · infra-scheduler</div><div class="d">KST 01:00 정지 / 09:00 기동 (ENABLED)</div></div>
+        <div class="node tl"><div class="t">IAM OIDC · gha-terraform / gha-deploy</div><div class="d">GitHub Actions 키리스 (deploy ARN 드리프트)</div></div>
+        <div class="node tl"><div class="t">SSM · /kanban/dev/*</div><div class="d">db_password, jwt_secret (2종만 시딩)</div></div>
+        <div class="node tl"><div class="t">S3 state + DynamoDB lock</div><div class="d">kanban-terraform-state-… (Versioning ON)</div></div>
+      </div></div>
+    </div>
+
+    <div class="acctframe new" style="border-style:solid;border-color:rgba(168,85,247,.4)"><span class="cap" style="color:#d6b3ff">동일 계정 내 BRIDGE 무관 워크로드 (BM / burgermonster.io)</span>
+      <div class="layer"><div class="lab">BM</div><div class="cells">
+        <div class="node"><div class="t">EC2 t3.large · dev-instance-server</div><div class="d">default VPC · ~$60/월</div></div>
+        <div class="node"><div class="t">Aurora MySQL · dev-server-1</div><div class="d"><span class="leak">퍼블릭 + 미암호화</span> · ~$55/월</div></div>
+        <div class="node"><div class="t">Valkey · dev-cache-001</div><div class="d">~$12/월</div></div>
+        <div class="node"><div class="t">ALB ×2 + CloudFront + Route53</div><div class="d">burgermonster.io · ~$54/월</div></div>
+      </div></div>
+    </div>
+
+  </div></div>
+</div></section>
+
+<!-- ===== INVENTORY ===== -->
+<section id="inventory"><div class="wrap">
+  <h2><span class="num">04</span> 리소스 인벤토리 — 어떤 서비스를 어떤 계정에서 어떻게</h2>
+  <p class="lead">라이브 스캔으로 확인된 실재 리소스입니다. 계정/서비스로 필터링하거나 검색하세요. <span class="mtag">상태: <span class="badge b-active">active</span> <span class="badge b-frozen">frozen</span> <span class="badge b-orphan">orphaned(정리대상)</span> <span class="badge b-drift">drift</span></span></p>
+  <div class="toolbar">
+    <button class="fbtn on" data-f="all">전체</button>
+    <button class="fbtn" data-f="knew">🟦 신규·BRIDGE</button>
+    <button class="fbtn" data-f="bmnew">🟪 신규·BM(무관)</button>
+    <button class="fbtn" data-f="legacy">🟨 구 계정</button>
+    <button class="fbtn" data-f="sg">⬜ sungrak(무관)</button>
+    <input id="q" type="text" placeholder="검색 (서비스·리소스명·용도)…">
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr>
+      <th style="width:118px">서비스 · 계정</th><th>리소스 / 용도</th><th style="width:118px">리전</th><th style="width:88px">상태</th><th style="width:74px">월비용</th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table></div>
+  <p class="mtag" style="margin-top:10px">※ 신 계정 월비용은 Cost Explorer 접근거부로 <b>인스턴스 타입 기반 추정치</b>입니다(payer 159537565961에서만 실측 가능). 구 계정·sungrak은 Cost Explorer 실측값.</p>
+</div></section>
+
+<!-- ===== BACKEND ===== -->
+<section id="backend"><div class="wrap">
+  <h2><span class="num">05</span> 백엔드가 소비하는 AWS — Spring Boot가 호출하는 방식</h2>
+  <p class="lead">백엔드(Java 21 / AWS SDK v2)는 <b>S3·CloudWatch만 직접 호출</b>하고, CloudFront는 URL 조립용, 이메일은 <b>SES가 아닌 Gmail SMTP</b>입니다. 자격증명은 키 하드코딩 없이 <b>인스턴스 역할(DefaultCredentialsProvider)</b>에 의존합니다.</p>
+  <div class="costgrid">
+    <div class="costcard">
+      <h4>S3 <span class="badge b-active">핵심</span></h4>
+      <div class="note">버킷 <span class="mono">${S3_BUCKET}</span> · SDK v2 · 리전 ap-northeast-2 하드코딩</div>
+      <ul class="acct"><li>메인 업로드 = <b>presigned PUT</b>: <span class="mono">temp/{uuid}</span> 10분 만료 → FE가 브라우저에서 S3 직접 PUT → 저장 시 headObject→copyObject(<span class="mono">comments/…</span>)→deleteObject</li><li>customicon/ref·result, 만료 temp 정리(listObjectsV2)</li><li><b>→ 버킷 CORS + 인스턴스역할 s3:PutObject 권한에 절대 의존</b></li></ul>
+    </div>
+    <div class="costcard">
+      <h4>CloudWatch</h4>
+      <div class="note"><span class="mono">CLOUDWATCH_ENABLED</span> 시 활성 (기본 off)</div>
+      <ul class="acct"><li>GetMetricStatistics(5분, AVG)로 EC2(CPU/Net) · RDS(CPU/Conn/Mem/IOPS) 지표 pull</li><li>관리자 모니터링 대시보드 + 임계치 초과 시 Slack/메일 알림</li></ul>
+    </div>
+    <div class="costcard">
+      <h4>CloudFront <span class="badge b-code">URL only</span></h4>
+      <div class="note">SDK 미사용 · <span class="mono">CLOUDFRONT_DOMAIN</span> env</div>
+      <ul class="acct"><li>다운로드 URL 조립: 설정 시 <span class="mono">https://{domain}/{key}</span>, 미설정 시 S3 직링크 폴백</li><li><b>미설정 시 OAC 프라이빗 버킷은 403</b> → env 주입 확인 필요</li></ul>
+    </div>
+    <div class="costcard">
+      <h4>이메일 <span class="badge b-drift">SES 아님</span></h4>
+      <div class="note">JavaMailSender · <span class="mono">smtp.gmail.com</span> 하드코딩</div>
+      <ul class="acct"><li>인증/비번재설정/초대 + 500 에러 알림</li><li>CLAUDE.md의 'SES/SMTP' 표기와 불일치 — <b>SES 미연동</b>으로 인벤토리 정정</li></ul>
+    </div>
+  </div>
+</div></section>
+
+<!-- ===== COST ===== -->
+<section id="cost"><div class="wrap">
+  <h2><span class="num">06</span> 비용 롤업 — 계정별 월 지출</h2>
+  <p class="lead">구 계정·sungrak은 Cost Explorer 실측, 신 계정은 추정입니다(멤버 계정 CE 접근거부).</p>
+  <div class="costgrid">
+    <div class="costcard">
+      <h4><span>구 계정 997286396624 <span class="badge b-orphan">실측</span></span><span class="tot leak">$62.45</span></h4>
+      <div class="note">정리 목표 ~$1 (Route53만) · <b class="leak">~$41/월 누수 중</b> · 2026-05 실측</div>
+      <div class="bar"><span class="nm2 leak">ELB(ALB)</span><span class="track"><span class="fill" style="width:27%;background:var(--red)"></span></span><span class="amt">$17.12</span></div>
+      <div class="bar"><span class="nm2 leak">RDS</span><span class="track"><span class="fill" style="width:24%;background:var(--red)"></span></span><span class="amt">$14.72</span></div>
+      <div class="bar"><span class="nm2">EC2(컷오버전)</span><span class="track"><span class="fill" style="width:21%;background:var(--high)"></span></span><span class="amt">$13.11</span></div>
+      <div class="bar"><span class="nm2 leak">VPC</span><span class="track"><span class="fill" style="width:15%;background:var(--red)"></span></span><span class="amt">$9.15</span></div>
+      <div class="bar"><span class="nm2">Tax</span><span class="track"><span class="fill" style="width:9%;background:var(--dim)"></span></span><span class="amt">$5.68</span></div>
+      <div class="bar"><span class="nm2" style="color:var(--green)">Route53 ✓</span><span class="track"><span class="fill" style="width:2%;background:var(--green)"></span></span><span class="amt">$1.07</span></div>
+      <div class="bar"><span class="nm2">S3 + 기타</span><span class="track"><span class="fill" style="width:3%;background:var(--dim)"></span></span><span class="amt">$1.6</span></div>
+    </div>
+    <div class="costcard">
+      <h4><span>신 계정 259151461692 · kanban <span class="badge b-code">추정</span></span><span class="tot">~$50–65</span></h4>
+      <div class="note">Cost Explorer 접근거부 → 타입 기반 추정 · 야간정지 반영</div>
+      <div class="bar"><span class="nm2">ALB</span><span class="track"><span class="fill" style="width:30%;background:var(--indigo)"></span></span><span class="amt">~$18</span></div>
+      <div class="bar"><span class="nm2">EC2(EB)</span><span class="track"><span class="fill" style="width:25%;background:var(--indigo)"></span></span><span class="amt">~$15</span></div>
+      <div class="bar"><span class="nm2">RDS</span><span class="track"><span class="fill" style="width:22%;background:var(--indigo)"></span></span><span class="amt">~$13</span></div>
+      <div class="bar"><span class="nm2">EIP(연결)</span><span class="track"><span class="fill" style="width:12%;background:var(--indigo2)"></span></span><span class="amt">~$7</span></div>
+      <div class="bar"><span class="nm2">S3+CF</span><span class="track"><span class="fill" style="width:11%;background:var(--indigo2)"></span></span><span class="amt">~$6</span></div>
+    </div>
+    <div class="costcard">
+      <h4><span>신 계정 · BM(무관) <span class="badge b-drift">추정</span></span><span class="tot" style="color:#d6b3ff">~$180</span></h4>
+      <div class="note">BRIDGE와 비용 경계 분리 필요 · Cost Allocation Tag 권장</div>
+      <div class="bar"><span class="nm2">EC2 t3.large</span><span class="track"><span class="fill" style="width:33%;background:#a855f7"></span></span><span class="amt">~$60</span></div>
+      <div class="bar"><span class="nm2">Aurora MySQL</span><span class="track"><span class="fill" style="width:31%;background:#a855f7"></span></span><span class="amt">~$55</span></div>
+      <div class="bar"><span class="nm2">ALB ×2</span><span class="track"><span class="fill" style="width:20%;background:#c084fc"></span></span><span class="amt">~$36</span></div>
+      <div class="bar"><span class="nm2">Valkey</span><span class="track"><span class="fill" style="width:7%;background:#c084fc"></span></span><span class="amt">~$12</span></div>
+      <div class="note" style="margin-top:8px;color:#d6b3ff">⚠️ 같은 계정에 kanban과 혼재 → kanban 청구서가 부풀려 보임</div>
+    </div>
+    <div class="costcard">
+      <h4><span>계정 472888337985 · sungrak <span class="badge b-orphan">실측</span></span><span class="tot" style="color:var(--green)">~$0</span></h4>
+      <div class="note">2026-05 UnblendedCost ≈ −$0.0000137 (크레딧 상쇄)</div>
+      <div class="bar"><span class="nm2">전 서비스</span><span class="track"><span class="fill" style="width:1%;background:var(--dim)"></span></span><span class="amt">≈$0</span></div>
+      <div class="note" style="margin-top:8px">BRIDGE 비용 분석 무관 — 별개 팀 관리</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ===== DRIFT ===== -->
+<section id="drift"><div class="wrap">
+  <h2><span class="num">07</span> 드리프트 — IaC(코드)와 실재의 불일치</h2>
+  <p class="lead">코드가 말하는 것과 실제 AWS가 다른 13건. <b>high 5건</b>은 apply/정리 전에 반드시 해소해야 합니다.</p>
+  <div class="drift" id="driftList"></div>
+</div></section>
+
+<!-- ===== RISKS ===== -->
+<section id="risks"><div class="wrap">
+  <h2><span class="num">08</span> 우선순위 리스크</h2>
+  <p class="lead">보안·가용성·비용·운영 전반. 심각도 순으로 정렬했습니다.</p>
+  <div id="riskList"></div>
+</div></section>
+
+<!-- ===== ACTIONS ===== -->
+<section id="actions"><div class="wrap">
+  <h2><span class="num">09</span> 권고 조치 체크리스트</h2>
+  <p class="lead">시점별로 묶었습니다. <span class="badge b-orphan">즉시</span> = 지금 / <span class="badge b-drift">apply 전</span> = terraform apply 선행 / <span class="badge b-code">apply 후</span> = 점검창·후속.</p>
+  <div class="checks">
+    <div class="ck"><h4>🔴 즉시 <span class="when now">NOW</span></h4><ol>
+      <li><b>milkyway A alias</b>를 신 계정 CloudFront로 전환(구 계정 정리 전 필수) — 안 하면 milkyway 다운</li>
+      <li>GitHub Secrets 정적 AWS 키 2개 소속 확인 → <b>deactivate→delete</b> + <span class="mono">gh secret delete</span></li>
+      <li>BM/burgermonster <b>Aurora MySQL 퍼블릭 액세스 차단</b> + 저장 암호화(소유팀 통보)</li>
+      <li>BM 워크로드 소유 식별 → <b>별도 계정/OU 분리</b> 결정, Project 태그 부여</li>
+    </ol></div>
+    <div class="ck"><h4>🟠 apply 전 <span class="when pre">PRE-APPLY</span></h4><ol>
+      <li>SSM에 <span class="mono">/kanban/dev/sentry_dsn</span>·<span class="mono">google_client_secret</span> SecureString <b>시딩</b></li>
+      <li>gha-deploy IAM S3 Resource를 <span class="mono">kanban-dev-frontend-259151461692</span>(또는 <span class="mono">kanban-*-frontend-*</span>)로 <b>수정</b></li>
+      <li>testprod/milkyway 배포 스텝 결정: 폐기면 deploy-dev.yml에서 제거, 유지면 신 버킷 생성</li>
+      <li>main 머지 = terraform <b>자동 apply(-auto-approve)</b> 트리거됨 → 머지 타이밍·SSM 순서 확정</li>
+      <li>클린 plan 확인 후 점검창에서 apply (milkyway 인증서 수초 깜빡임 감수)</li>
+    </ol></div>
+    <div class="ck"><h4>🔵 apply 후 / 후속 <span class="when after">FOLLOW-UP</span></h4><ol>
+      <li>구 계정 정리(P6): EB 환경 종료(ALB 정리) + RDS 최종 스냅샷 후 삭제 → <b>~$41/월 절감</b></li>
+      <li>구 계정 정적키 4개 비활성화, 신 계정 terraform-bootstrap 키 로테이션/비활성</li>
+      <li>attachments S3 <b>Versioning 활성화</b>(사용자 데이터 복구 수단)</li>
+      <li>RDS 백업보존 1일→3~7일, deletion_protection 활성(안정화 기간)</li>
+      <li>infra_scheduler 야간정지(KST01~09) 가용성 정책 재확인 — dev=실운영</li>
+      <li>prod TF 결정: reference-only면 동결/제거, 사용이면 dev 변경 8항목 동기화</li>
+      <li>관리계정에서 linked-account 필터로 신 계정 <b>실비용 측정</b>(BM 분리)</li>
+    </ol></div>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  BRIDGE 인프라 종합 점검 · 2026-06-04 · read-only 라이브 스캔(변경 0건) + IaC/CI/백엔드 코드 분석<br>
+  Co-Authored-By: Claude Opus 4.8 — 8 에이전트 병렬 오케스트레이션 · 수집 리소스 119건 · 시크릿 값 미디코딩
+</div></footer>
+
+<script>
+const R = [
+  // ===== NEW ACCOUNT — kanban =====
+  {g:"knew",svc:"Elastic Beanstalk",acct:"신규",name:"kanban-dev / kanban-dev-env (e-5gky6gip42)",how:"BRIDGE 백엔드(Spring Boot) 운영 환경. 유일한 운영 워크로드",cfg:"AL2023 Corretto21 v4.12.1 · LoadBalanced · migrate-v1 · env키 46종",reg:"ap-northeast-2",st:"active",cost:"하위계상",m:"terraform"},
+  {g:"knew",svc:"EC2",acct:"신규",name:"i-051f1b75ad2b4536d",how:"kanban-dev EB 백엔드 인스턴스",cfg:"t3.small · running · 10.0.0.244 / 3.39.229.70 · IMDSv1 off",reg:"ap-northeast-2",st:"active",cost:"~$15",m:"EB-managed"},
+  {g:"knew",svc:"Auto Scaling",acct:"신규",name:"ASG …IyzMkBYMtFc5",how:"EB EC2 오토스케일링",cfg:"min1 / max2 / desired1 · 야간 0 흔적 없음(스캔시점)",reg:"ap-northeast-2",st:"active",cost:"-",m:"EB-managed"},
+  {g:"knew",svc:"ALB",acct:"신규",name:"awseb--AWSEB-ub4Ha827WAup",how:"백엔드 트래픽 진입점 · api.* 레코드 타깃",cfg:"443(ACM bridgespots)+80 · TG /actuator/health healthy 1/1 · TLS13",reg:"ap-northeast-2",st:"active",cost:"~$18",m:"EB-managed"},
+  {g:"knew",svc:"RDS PostgreSQL",acct:"신규",name:"kanban-dev-db",how:"운영 DB. 야간 infra_scheduler 정지 대상",cfg:"postgres 15.10 · db.t4g.micro · 20GB gp3 · 암호화O · MultiAZ X · 백업 1일 · private",reg:"ap-northeast-2",st:"active",cost:"~$13",m:"terraform"},
+  {g:"knew",svc:"RDS 스냅샷",acct:"신규",name:"kanban-dev-db-migrate (manual)",how:"컷오버 시점 수동 백업",cfg:"암호화O · 2026-06-02 생성",reg:"ap-northeast-2",st:"active",cost:"~$2",m:"console"},
+  {g:"knew",svc:"VPC",acct:"신규",name:"vpc-037644fe5415c457e (kanban-dev-vpc)",how:"dev 네트워크 (EC2 public subnet 배치)",cfg:"10.0.0.0/16 · public2+private2 · NAT GW 없음",reg:"ap-northeast-2",st:"active",cost:"~$0",m:"terraform"},
+  {g:"knew",svc:"Security Group",acct:"신규",name:"kanban SG 6종 (alb/eb-ec2/rds/redis…)",how:"least-privilege 체인",cfg:"rds 5432←eb-ec2 · redis 6379←eb-ec2 · eb-ec2 5000/8080←alb · alb 80/443←0.0.0.0/0",reg:"ap-northeast-2",st:"active",cost:"-",m:"terraform"},
+  {g:"knew",svc:"ACM",acct:"신규",name:"bridgespots.com (ALB)",how:"EB ALB HTTPS 인증서",cfg:"+*.bridgespots.com · ISSUED · InUse",reg:"ap-northeast-2",st:"active",cost:"$0",m:"terraform"},
+  {g:"knew",svc:"ACM",acct:"신규",name:"milkyway.pe.kr (ALB)",how:"secondary 도메인 ALB 인증서",cfg:"+*.milkyway.pe.kr · ISSUED · NotAfter 2026-12-17",reg:"ap-northeast-2",st:"active",cost:"$0",m:"terraform"},
+  {g:"knew",svc:"ACM",acct:"신규",name:"bridgespots.com (CloudFront)",how:"CloudFront용 인증서 (E3JHJCDEI33NCX)",cfg:"+*.bridgespots.com · ISSUED",reg:"us-east-1",st:"active",cost:"$0",m:"terraform"},
+  {g:"knew",svc:"S3",acct:"신규",name:"kanban-attachments-259151461692",how:"사용자 첨부/노트/아이콘/조직 자산 (presigned PUT 업로드)",cfg:"CORS설정O(PUT/POST/GET/HEAD) · OAC정책 · Lifecycle · Versioning OFF",reg:"ap-northeast-2",st:"active",cost:"~$3",m:"terraform"},
+  {g:"knew",svc:"S3",acct:"신규",name:"kanban-dev-frontend-259151461692",how:"프론트 SPA 정적 호스팅 (bridgespots+milkyway)",cfg:"CORS 없음(정상) · OAC정책 · PublicAccessBlock ALL · Versioning OFF",reg:"ap-northeast-2",st:"active",cost:"<$1",m:"terraform"},
+  {g:"knew",svc:"S3",acct:"신규",name:"kanban-terraform-state-259151461692",how:"Terraform 원격 state",cfg:"Versioning ON · DenyInsecureTransport · PublicAccessBlock ALL",reg:"ap-northeast-2",st:"active",cost:"<$1",m:"terraform"},
+  {g:"knew",svc:"S3",acct:"신규",name:"elasticbeanstalk-ap-northeast-2-259151461692",how:"EB 앱 버전 번들",cfg:"EB 자동 생성",reg:"ap-northeast-2",st:"active",cost:"<$1",m:"EB-managed"},
+  {g:"knew",svc:"CloudFront",acct:"신규",name:"E3JHJCDEI33NCX (d1ogwvsu09sa4i)",how:"프론트 CDN — bridgespots.com 서비스",cfg:"Aliases bridgespots.com/www · OAC · PriceClass_100 · Deployed",reg:"global",st:"active",cost:"~$2",m:"terraform"},
+  {g:"knew",svc:"CloudFront",acct:"신규",name:"E1A70R9T3JIWWO (dcqpx0hqs4v3l)",how:"첨부 CDN — 백엔드 CLOUDFRONT_DOMAIN",cfg:"Alias 없음 · OAC · CF 기본 인증서 · Deployed",reg:"global",st:"active",cost:"~$2",m:"terraform"},
+  {g:"knew",svc:"Route53",acct:"신규",name:"(bridgespots zone 없음)",how:"Pattern A — zone은 구 계정 유지 (정상 확인)",cfg:"신 계정엔 burgermonster.io zone만",reg:"global",st:"active",cost:"$0",m:"-"},
+  {g:"knew",svc:"IAM Role",acct:"신규",name:"kanban-gha-terraform",how:"GitHub Actions Terraform plan/apply (OIDC)",cfg:"Trust=github OIDC · 광범위 와일드카드 권한(IAM은 kanban-* 스코프)",reg:"global",st:"active",cost:"-",m:"terraform"},
+  {g:"knew",svc:"IAM Role",acct:"신규",name:"kanban-gha-deploy",how:"EB 배포 + S3 sync + CF 무효화 (OIDC)",cfg:"⚠ S3 PutObject Resource=kanban-*-frontend → 실버킷 …-259151461692와 불일치",reg:"global",st:"drift",cost:"-",m:"terraform"},
+  {g:"knew",svc:"IAM Role",acct:"신규",name:"kanban-dev-eb-ec2-role / -service-role / -infra-scheduler-role",how:"EB 인스턴스/서비스 + 스케줄러 Lambda 역할",cfg:"인스턴스역할에 첨부버킷 S3 인라인 정책",reg:"global",st:"active",cost:"-",m:"terraform"},
+  {g:"knew",svc:"IAM OIDC",acct:"신규",name:"token.actions.githubusercontent.com",how:"GitHub Actions 키리스 인증 provider",cfg:"gha-terraform/gha-deploy 신뢰 주체",reg:"global",st:"active",cost:"-",m:"terraform"},
+  {g:"knew",svc:"IAM User",acct:"신규",name:"terraform-bootstrap · kjkim · sgyoo",how:"부트스트랩 + 운영자. kjkim은 BM 관련 추정",cfg:"terraform-bootstrap 키 Active(06-02) · kjkim 키 Active(05-06) · sgyoo 키 없음",reg:"global",st:"active",cost:"-",m:"console"},
+  {g:"knew",svc:"SSM Param",acct:"신규",name:"/kanban/dev/db_password · jwt_secret",how:"kanban 시크릿 (TF/EB 참조)",cfg:"SecureString ×2 만 시딩 · sentry_dsn/google_client_secret 미시딩",reg:"ap-northeast-2",st:"active",cost:"$0",m:"console"},
+  {g:"knew",svc:"DynamoDB",acct:"신규",name:"kanban-terraform-lock",how:"Terraform state 잠금",cfg:"on-demand",reg:"ap-northeast-2",st:"active",cost:"~$0",m:"terraform"},
+  {g:"knew",svc:"Lambda",acct:"신규",name:"kanban-dev-infra-scheduler",how:"야간 EB/RDS 정지·기동 자동화",cfg:"python3.12 · 128MB · 60s · 2026-06-02",reg:"ap-northeast-2",st:"active",cost:"~$0",m:"terraform"},
+  {g:"knew",svc:"EventBridge",acct:"신규",name:"kanban-dev-shutdown / -startup",how:"야간 정지/기동 cron 트리거",cfg:"shutdown cron(0 16)=KST01:00 · startup cron(0 0)=KST09:00 · ENABLED",reg:"ap-northeast-2",st:"active",cost:"~$0",m:"terraform"},
+  {g:"knew",svc:"CloudWatch",acct:"신규",name:"EB ScaleUp/ScaleDown 알람",how:"EB 오토스케일링 (NetworkOut High/Low)",cfg:"Low=ALARM(dev 저트래픽, 정상) · EB 자동생성",reg:"ap-northeast-2",st:"active",cost:"~$0",m:"EB-managed"},
+  // ===== NEW ACCOUNT — BM (unrelated) =====
+  {g:"bmnew",svc:"EC2",acct:"신규·BM",name:"dev-instance-server",how:"BM 프로젝트 인스턴스 — BRIDGE 무관",cfg:"t3.large · running · default VPC · 태그 없음",reg:"ap-northeast-2",st:"orphaned",cost:"~$60",m:"console"},
+  {g:"bmnew",svc:"RDS Aurora",acct:"신규·BM",name:"dev-server-1 (Aurora MySQL)",how:"BM DB — BRIDGE 무관",cfg:"aurora-mysql 8.0 · db.t4g.medium · ⚠퍼블릭+미암호화 · MultiAZ X",reg:"ap-northeast-2",st:"orphaned",cost:"~$55",m:"console"},
+  {g:"bmnew",svc:"ElastiCache",acct:"신규·BM",name:"dev-cache-001 (Valkey)",how:"BM 캐시 — default VPC, kanban 도달 불가",cfg:"valkey 8.2.0 · cache.t4g.micro · 1 node",reg:"ap-northeast-2",st:"orphaned",cost:"~$12",m:"console"},
+  {g:"bmnew",svc:"ALB",acct:"신규·BM",name:"ld-bm-dev-server · bm-stage-alb",how:"BM dev/stage 로드밸런서(Fargate 추정)",cfg:"application · internet-facing · default VPC",reg:"ap-northeast-2",st:"orphaned",cost:"~$36",m:"console"},
+  {g:"bmnew",svc:"CloudFront",acct:"신규·BM",name:"E79EO5X1RR779",how:"burgermonster.io 정적 사이트 CDN",cfg:"Alias burgermonster.io · PriceClass_All",reg:"global",st:"orphaned",cost:"~$1",m:"console"},
+  {g:"bmnew",svc:"Route53",acct:"신규·BM",name:"burgermonster.io (Z0443291FV699Q0PIHLD)",how:"BM 공개 호스팅 영역",cfg:"11 records",reg:"global",st:"orphaned",cost:"~$0.5",m:"console"},
+  {g:"bmnew",svc:"S3 / SSM",acct:"신규·BM",name:"burgermonster.io site · /bm/stage/* (17)",how:"BM 정적 자산 + 시크릿",cfg:"kanban 네이밍과 분리됨",reg:"ap-northeast-2",st:"orphaned",cost:"~$1",m:"console"},
+  // ===== LEGACY =====
+  {g:"legacy",svc:"Route53",acct:"구",name:"bridgespots.com (Z001600031MWAX7YIP2BO)",how:"의도된 유지(Pattern A). apex/www→신 CF · api→신 ALB",cfg:"7 records · CallerReference terraform",reg:"global",st:"active",cost:"~$0.5",m:"terraform"},
+  {g:"legacy",svc:"Route53",acct:"구",name:"milkyway.pe.kr (Z04362322QT3T525T8YCY)",how:"⚠ apex/www가 구 CF E22U5C…로 서빙(컷오버 미완)",cfg:"8 records · amplify CallerReference",reg:"global",st:"orphaned",cost:"~$0.5",m:"unknown"},
+  {g:"legacy",svc:"Elastic Beanstalk",acct:"구",name:"kanban-dev-env",how:"구 백엔드 — 컴퓨트 frozen이나 환경 미종료",cfg:"Status=Ready · Health=Grey · EC2 0대",reg:"ap-northeast-2",st:"frozen",cost:"$0+ALB",m:"terraform"},
+  {g:"legacy",svc:"Auto Scaling",acct:"구",name:"awseb ASG (frozen)",how:"구 EB ASG 스케일다운",cfg:"Min/Max/Desired 0/0/0 · instances 0",reg:"ap-northeast-2",st:"frozen",cost:"$0",m:"EB-managed"},
+  {g:"legacy",svc:"RDS PostgreSQL",acct:"구",name:"kanban-dev-db",how:"구 DB — 살아서 매일 자동백업 → 누수",cfg:"db.t4g.micro · postgres 15.10 · available · 6/3·6/4 백업 생성",reg:"ap-northeast-2",st:"orphaned",cost:"~$15",m:"terraform"},
+  {g:"legacy",svc:"ALB",acct:"구",name:"awseb--AWSEB-u9veL9KbEOku",how:"구 EB LB — 타깃 0개인데 active → 시간당 과금",cfg:"State=active · TG 타깃 0 · 2026-02-02 생성",reg:"ap-northeast-2",st:"orphaned",cost:"~$17",m:"EB-managed"},
+  {g:"legacy",svc:"CloudFront",acct:"구",name:"E22U5C46YWKCL7 (d1lh3qblxyq39p)",how:"⚠ milkyway.pe.kr 실서빙 중 — 컷오버 미완 핵심",cfg:"Enabled · Aliases milkyway.pe.kr/www · origin kanban-testprod-frontend.s3",reg:"global",st:"orphaned",cost:"~$0",m:"unknown"},
+  {g:"legacy",svc:"CloudFront",acct:"구",name:"E3C9295UMI1LW7 · E1F85VN1VYI67C",how:"구 dev 프론트 · 구 첨부 CDN (Alias 없음, 미참조)",cfg:"Enabled · Deployed · Aliases []",reg:"global",st:"orphaned",cost:"~$0",m:"terraform"},
+  {g:"legacy",svc:"S3",acct:"구",name:"bridge-kanban-attachments",how:"구 첨부 저장소 — 마이그레이션 원본(검증 전 삭제 금지)",cfg:"~16GB(18.2GB) · 2026-04-22 생성",reg:"ap-northeast-2",st:"orphaned",cost:"~$0.4",m:"terraform"},
+  {g:"legacy",svc:"S3",acct:"구",name:"kanban-testprod-frontend · kanban-dev-frontend",how:"구 프론트 정적호스팅 (testprod=milkyway origin)",cfg:"각 ~1GB · 2026-04-22 생성",reg:"ap-northeast-2",st:"orphaned",cost:"~$0.06",m:"terraform"},
+  {g:"legacy",svc:"S3",acct:"구",name:"kanban-terraform-state",how:"구 계정 tfstate 백엔드",cfg:"2026-04-22",reg:"ap-northeast-2",st:"active",cost:"~$0",m:"terraform"},
+  {g:"legacy",svc:"VPC",acct:"구",name:"VPC 비용 ($9.15)",how:"NAT 없음 확인 → VPC endpoint/데이터전송 등",cfg:"CE상 VPC=$9.15 · EIP 15.164.187.114 연결",reg:"ap-northeast-2",st:"unknown",cost:"~$9",m:"unknown"},
+  {g:"legacy",svc:"IAM Role",acct:"구",name:"kanban-route53-cross-account",how:"Pattern A 핵심 — 신 계정이 zone 관리하도록 AssumeRole",cfg:"Principal=259151461692:root · sts:AssumeRole",reg:"global",st:"active",cost:"$0",m:"terraform"},
+  {g:"legacy",svc:"IAM User",acct:"구",name:"terraform_admin · kanban-github-actions",how:"⚠ frozen 계정에 정적키 4개 전부 Active",cfg:"terraform_admin 2키 · github-actions 2키 (모두 Active)",reg:"global",st:"orphaned",cost:"$0",m:"console"},
+  // ===== SUNGRAK =====
+  {g:"sg",svc:"전체(별개 프로젝트)",acct:"sungrak",name:"sungrak / banseok / retreat (ECS+ALB+ECR)",how:"BRIDGE 무관 교회·리트릿 웹서비스 — 감사 범위 제외",cfg:"EC2 2대 running · ALB 1 · RDS stopped · 자체 TF state·CI/CD · IAM 7명",reg:"ap-northeast-2",st:"orphaned",cost:"~$0",m:"terraform"},
+];
+
+const DRIFT = [
+  {sev:"high",res:"gha-deploy IAM S3 권한 ARN",iac:"Resource = arn:aws:s3:::kanban-*-frontend (github-oidc/main.tf + 라이브 tfstate 양측 확정)",live:"실제 버킷 kanban-dev-frontend-259151461692 — 와일드카드가 '-frontend'로 끝나는 이름만 매칭 → 매칭 실패",imp:"deploy-dev.yml의 프론트 S3 sync가 AccessDenied 가능. EB/CF는 정상이라 BE는 배포되나 FE 동기화 깨짐. apply 전 수정 필수"},
+  {sev:"high",res:"milkyway.pe.kr 프론트 라우팅",iac:"워크로드는 신 계정으로 이전됨 — 신 계정 CF가 milkyway 서빙해야 함",live:"Route53 milkyway apex/www → d1lh3qblxyq39p = 구 계정 CloudFront E22U5C46YWKCL7",imp:"구 계정 정리 시 milkyway 즉시 다운. 삭제 전 반드시 신 계정 CF alias로 전환"},
+  {sev:"high",res:"구 계정 ALB/RDS frozen 여부",iac:"Pattern A = Route53만 유지, 나머지 frozen 예정",live:"ALB(타깃 0개인데 active) + RDS(available, 매일 자동백업)가 살아서 ~$41/월 과금",imp:"Pattern A '절반만' 적용. 데이터 검증 후 EB 환경 종료+RDS 스냅샷 후 삭제 필요"},
+  {sev:"high",res:"SSM /kanban 시크릿 시딩",iac:"apply 전 sentry_dsn·google_client_secret 시딩 필요 (use_ssm_secrets=true 참조)",live:"/kanban/dev에 db_password·jwt_secret 2개만 SecureString 존재",imp:"미시딩 상태 apply 시 SSM data source 참조 실패/빈값 주입 drift. apply 차단요인"},
+  {sev:"high",res:"testprod/milkyway 프론트 S3 버킷",iac:"CI 하드코딩 S3_BUCKET_TESTPROD=kanban-testprod-frontend (계정 접미사 없음, NOTE 주석으로 '실패 예약' 명시)",live:"신 계정에 해당 버킷 없음 · 구 계정에 실재(~1GB, 구 CF origin)",imp:"frontend 경로 변경 시 deploy job이 testprod sync에서 실패 → 전체 워크플로 failure 표기"},
+  {sev:"medium",res:"prod TF 스택 배포 상태",iac:"prod/main.tf 코드 존재(elasticache 활성·backup 3일·VPC 10.1.0.0/16). backend 블록 주석",live:"prod 원격 state 없음 · 어느 계정에도 prod 리소스 미배포 · 2026-02-02 로컬 tfplan만",imp:"prod는 dev보다 뒤처진 스냅샷. main 머지 시 자동 apply(-auto-approve) 트리거 위험. reference-only 결정 필요"},
+  {sev:"medium",res:"Testprod CloudFront ID (CI vars)",iac:"vars.TESTPROD_CLOUDFRONT_DISTRIBUTION_ID=E22U5C46YWKCL7 (2026-02-09, 미갱신)",live:"E22U5C…은 구 계정 CF로 확정 — 신 계정 OIDC role로 무효화 권한 없음",imp:"무효화 step이 AccessDenied 또는 죽을 distribution 대상. milkyway 폐기면 vars 비우기"},
+  {sev:"medium",res:"ElastiCache(dev) 활성 여부",iac:"dev/main.tf elasticache 모듈 주석(redis_host=''→Simple Cache). prod는 활성(미배포)",live:"신 계정에 kanban 전용 Redis 노드 없음. valkey dev-cache-001은 BM_VPC라 도달 불가",imp:"dev가 max=2 스케일아웃 시 WebSocket Pub/Sub 멀티인스턴스 브로드캐스트 비활성 가능"},
+  {sev:"medium",res:"infra_scheduler 야간 정지",iac:"enabled=true · shutdown KST01:00 / startup KST09:00 (EventBridge ENABLED, Lambda 실재)",live:"compute 스캔 시 ASG min=1(야간 0 흔적 없음) — 스캔이 정지창 밖이었던 것으로 추정",imp:"dev=실운영인데 야간 8시간 백엔드/DB 다운 가능. 비즈니스 허용 여부 재확인"},
+  {sev:"medium",res:"GitHub Secrets 정적 AWS 키",iac:"4개 워크플로 모두 OIDC role-to-assume (정적키 미참조)",live:"gh secret: AWS_ACCESS_KEY_ID/SECRET 2개 잔존(2026-02-14, 미참조)",imp:"OIDC 전환 후 폐기 안 된 잔존물. 유출 시 (구 계정이면) 접근 경로. 삭제 필요"},
+  {sev:"medium",res:"미등록 GitHub Secret 참조",iac:"OPENAI_ADMIN_KEY·SENTRY_DSN_FRONTEND·FIREBASE_*·GOOGLE_PLAY_JSON_KEY 워크플로 참조",live:"repo secret list에 없음(org/env 레벨 가능성)",imp:"미정의=빈 문자열 주입 → apply 시 빈값 SSM/EB 기록 또는 모바일 빌드 누락 위험"},
+  {sev:"low",res:"shared/backend.tf",iac:"S3 backend 블록 전부 주석(구 계정 버킷명 안내) — 레거시 잔재",live:"실제 backend는 dev/main.tf 인라인 kanban-terraform-state-259151461692 (라이브 확인)",imp:"기능 영향 없음. 구 버킷명 잔존으로 오인 유발 → 삭제/'템플릿' 명시 권장"},
+  {sev:"low",res:"S3 CORS/EB IAM 핫픽스 (커밋 4dd04df)",iac:"첨부 CORS + EB 인스턴스역할 S3 권한 IaC화 완료",live:"attachments CORS 정상(bridgespots/milkyway/localhost) · OAC 정책 적용 — 일치(화해 성공)",imp:"드리프트 아님. 단 attachments Versioning 비활성은 별개 개선 항목"},
+];
+
+const RISKS = [
+  {sev:"high",t:"구 계정 비용 누수 ~$41/월 (Pattern A 절반만 적용)",d:"구 계정에 ALB(타깃 0개인데 active $17)+RDS(available, 매일 자동백업 $15)+VPC($9)가 정리 안 됨. EB 컴퓨트만 frozen. 완성 시 Route53 ~$1만 나와야 함.",r:"데이터 검증 후 점검창에서 EB 환경 종료(ALB 자동 정리)+RDS 최종 스냅샷 후 삭제+VPC $9 UsageType 분해. terraform destroy 대상 분리. P6에 포함."},
+  {sev:"high",t:"milkyway.pe.kr 프론트가 구 계정 CloudFront로 서빙 — 컷오버 미완",d:"milkyway apex/www A alias가 구 계정 CF E22U5C46YWKCL7(origin kanban-testprod-frontend.s3)을 가리킴. 구 계정 정리 시 즉시 다운. bridgespots는 신 계정 CF로 전환된 정황.",r:"구 계정 삭제 전 반드시 milkyway A alias를 신 계정 CF로 전환. 신 계정에 milkyway용 CF/S3 생성 또는 bridgespots 단일 CF의 추가 alias로 통합 검토."},
+  {sev:"high",t:"gha-deploy IAM S3 권한 ARN이 실제 프론트 버킷과 불일치 (apply 차단 드리프트)",d:"FrontendBuckets Resource=arn:aws:s3:::kanban-*-frontend(/*)가 실버킷 kanban-dev-frontend-259151461692와 매칭 안 됨. 코드+라이브 tfstate 양측 확정.",r:"정책 Resource를 kanban-dev-frontend-259151461692(/*) 또는 kanban-*-frontend-* 패턴으로 수정. 재apply 후 deploy dry-run으로 S3 sync 권한 검증."},
+  {sev:"high",t:"신규 운영 계정에 BRIDGE 무관 BM/burgermonster 워크로드 혼재 (~$180/월, 보안 노출)",d:"t3.large EC2, Aurora MySQL(퍼블릭+미암호화), valkey, ALB 2개, S3/CF/Route53(burgermonster.io)가 콘솔 수동 생성으로 공존. kanban TF state 밖. 비용/보안 경계가 섞임.",r:"소유 식별 후 별도 계정/OU 분리. Aurora 퍼블릭 차단+프라이빗 이전+암호화(소유팀). 모든 리소스 Project 태그+Cost Allocation Tag 활성화."},
+  {sev:"high",t:"EB 환경변수에 50+ 시크릿 평문 주입 (tfstate/콘솔 노출)",d:"elastic-beanstalk 모듈이 JWT/DB/CLAUDE·OPENAI/POLAR·SLACK·DISCORD secret/MAIL 등을 평문 setting으로 인입 → TF state(S3)+EB 콘솔에 평문. 라이브 EB env 46종 키 실재.",r:"use_ssm_secrets=true 전환 완료 후 모듈에서 평문 시크릿 경로 제거. SSM SecureString/Secrets Manager 참조 단일화. state 버킷 접근 감사."},
+  {sev:"high",t:"apply 전 SSM 시크릿 2종(sentry_dsn/google_client_secret) 미시딩",d:"/kanban에 db_password/jwt_secret 2개만 시딩. IaC가 SSM source-of-truth 참조 시 빈값/참조실패 drift. EB env엔 현재 평문값으로 런타임 동작.",r:"apply 직전 /kanban/dev/sentry_dsn·google_client_secret(및 나머지 참조키) SecureString 시딩 후 클린 plan 확인."},
+  {sev:"high",t:"정적 AWS 액세스키 다수 잔존 (구 4 + 신 2 + GitHub Secrets 2)",d:"구 계정 terraform_admin 2+github-actions 2 전부 Active. 신 계정 terraform-bootstrap·kjkim Active. GitHub Secrets AWS 키 2개(미참조 잔존). frozen이어야 할 구 계정에 활성 장수명 키 다수.",r:"GitHub Secrets 키 소속 확인 후 deactivate→delete. 구 계정 github-actions 키 비활성. terraform-bootstrap 키 로테이션/비활성. kjkim 키는 BM 소유 확인."},
+  {sev:"medium",t:"dev=실운영인데 야간 정지 + 백업보존 1일 + deletion_protection 비활성",d:"infra_scheduler가 EB/RDS를 매일 KST01~09 정지(~$10절감)하나 dev가 실운영. kanban-dev-db는 백업 1일+삭제보호 off로 유일 운영 DB치곤 복구 여유·방어 약함.",r:"야간 가용성 비즈니스 허용 여부 재확인. 백업보존 3~7일 상향+deletion_protection 활성(안정화 기간). prod 승격 시 필수."},
+  {sev:"medium",t:"prod TF 미배포 + main 머지 시 자동 apply(-auto-approve) 위험",d:"prod는 dev보다 뒤처진 스냅샷이며 미배포. terraform.yml은 main push 시 dev 기본 apply -auto-approve 자동 실행 → infra 경로 변경 머지 시 점검창 수동 apply 계획과 충돌 가능.",r:"prod 사용 계획 확정. main 머지 타이밍·SSM 시딩 순서 확정. dev environment에 required reviewers 검토. 오래된 tfplan 삭제."},
+  {sev:"medium",t:"attachments/frontend S3 버킷 버전 관리 비활성 (데이터 복구 불가)",d:"kanban-attachments(사용자 데이터 적재)·kanban-dev-frontend 모두 Versioning Suspended. 실수 삭제·덮어쓰기 복구 수단 없음. (state 버킷만 ON)",r:"attachments Versioning 활성화+noncurrent version 만료 lifecycle. TF S3 모듈에 versioning 블록 추가. frontend는 재생성 가능이라 우선순위 낮음."},
+  {sev:"medium",t:"presigned PUT 첨부 업로드가 S3 CORS·인스턴스역할에 절대 의존",d:"백엔드 DefaultCredentialsProvider→인스턴스 역할. 첨부 업로드 메인이 브라우저 직접 PUT. 버킷 CORS 누락 시 브라우저 단 CORS 에러로 실패(백엔드 로그 흔적 없음). 라이브 CORS는 정상 확인.",r:"신 계정 EB 인스턴스 프로파일에 s3:PutObject 등 + cloudwatch:GetMetricStatistics 부여 확인(apply 후 실제 업로드로 검증). CLOUDFRONT_DOMAIN env 주입 확인."},
+  {sev:"medium",t:"github-oidc terraform role 광범위 와일드카드 권한",d:"terraform role이 ec2/rds/s3/elasticache/lambda/kms/dynamodb/ssm 등 18개 서비스 *:* 허용(IAM은 kanban-* 스코프, OIDC sub 제한). kms:*+s3:* 조합은 state/스냅샷 키 접근 포함.",r:"실제 모듈 생성 액션으로 축소(특히 *Delete*, kms:*→Decrypt/Encrypt/CreateGrant). plan은 read-only, apply만 write 부여하는 2-role 패턴 검토."},
+  {sev:"low",t:"전 보안그룹 egress 0.0.0.0/0 + ElastiCache transit 암호화 비활성",d:"alb/eb-ec2/rds/redis SG egress가 전체 개방(데이터 유출 경로). elasticache transit_encryption=false. EB SSHSourceRestriction 0.0.0.0/0(현재 22 규칙 없어 무효). 라이브 inbound는 양호.",r:"RDS/Redis SG egress 제거/제한. 운영 캐시 시 transit 암호화+AUTH. SSHSourceRestriction을 사내 IP/SSM Session Manager로 고정."},
+];
+
+// render inventory
+const rows=document.getElementById('rows');
+const pill={ "신규":"ap-knew","신규·BM":"ap-bmnew","구":"ap-legacy","sungrak":"ap-sg" };
+const stcls={active:"b-active",frozen:"b-frozen",orphaned:"b-orphan",drift:"b-drift",unknown:"b-unk"};
+const stlabel={active:"active",frozen:"frozen",orphaned:"orphaned",drift:"drift",unknown:"unknown"};
+function costColor(c){ if(/leak/.test(c))return''; return ''; }
+function render(){
+  const f=document.querySelector('.fbtn.on').dataset.f;
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  rows.innerHTML='';
+  R.filter(r=>(f==='all'||r.g===f)).filter(r=>{
+    if(!q)return true; return (r.svc+r.name+r.how+r.cfg+r.acct).toLowerCase().includes(q);
+  }).forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><div class="svc">${r.svc}</div><span class="acct-pill ${pill[r.acct]||'ap-sg'}">${r.acct}</span></td>
+      <td><div class="nm">${r.name}</div><div class="how">${r.how}</div><div class="cfg">${r.cfg}</div></td>
+      <td><span class="reg">${r.reg}</span><div class="mtag">${r.m}</div></td>
+      <td><span class="badge ${stcls[r.st]||'b-unk'}">${stlabel[r.st]||r.st}</span></td>
+      <td><span class="cost ${/~\$1[0-9]|~\$[2-9][0-9]|\$1[0-9]/.test(r.cost)&&r.g!=='knew'?'leak':''}">${r.cost}</span></td>`;
+    rows.appendChild(tr);
+  });
+}
+document.querySelectorAll('.fbtn').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.fbtn').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); render();
+});
+document.getElementById('q').oninput=render;
+render();
+
+// render drift
+const dl=document.getElementById('driftList');
+DRIFT.forEach(d=>{
+  const el=document.createElement('div'); el.className='dcard'; el.dataset.sev=d.sev;
+  el.innerHTML=`<div class="dh"><span class="sev ${d.sev}">${d.sev}</span>${d.res}</div>
+    <div class="dcols">
+      <div class="dcol iac"><div class="k">IaC(코드)가 말하길</div><div class="vv">${d.iac}</div></div>
+      <div class="dcol live"><div class="k">라이브(실재)는</div><div class="vv">${d.live}</div></div>
+    </div>
+    <div class="imp"><b>영향 ·</b> ${d.imp}</div>`;
+  dl.appendChild(el);
+});
+
+// render risks
+const rl=document.getElementById('riskList');
+RISKS.forEach(r=>{
+  const el=document.createElement('div'); el.className='risk'; el.dataset.sev=r.sev;
+  el.innerHTML=`<div class="rh"><span class="sev ${r.sev}">${r.sev}</span>${r.t}</div>
+    <div class="det">${r.d}</div><div class="rec">${r.r}</div>`;
+  rl.appendChild(el);
+});
+</script>
+</body>
+</html>
