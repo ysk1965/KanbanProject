@@ -44,6 +44,34 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_logs" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
 }
 
+# Inline policy: 첨부 버킷 S3 접근 (백엔드가 DefaultCredentialsProvider=인스턴스 역할로 putObject/copy/head/delete/list)
+# 관리형 WebTier 정책은 elasticbeanstalk-* 버킷에만 적용되어 첨부 버킷에는 권한이 없다.
+# 미설정 시 putObject가 AccessDenied(S3Exception) → /files/upload 500.
+resource "aws_iam_role_policy" "eb_s3_attachments" {
+  count = var.s3_bucket != "" ? 1 : 0
+  name  = "${var.project_name}-${var.environment}-eb-s3-attachments"
+  role  = aws_iam_role.eb_ec2.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:ListBucket",
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.s3_bucket}",
+          "arn:aws:s3:::${var.s3_bucket}/*",
+        ]
+      }
+    ]
+  })
+}
+
 # Instance Profile
 resource "aws_iam_instance_profile" "eb_ec2" {
   name = "${var.project_name}-${var.environment}-eb-ec2-profile"

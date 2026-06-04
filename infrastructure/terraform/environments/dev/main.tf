@@ -17,7 +17,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "kanban-terraform-state"
+    bucket         = "kanban-terraform-state-259151461692"
     key            = "dev/terraform.tfstate"
     region         = "ap-northeast-2"
     encrypt        = true
@@ -465,6 +465,28 @@ resource "aws_s3_bucket_intelligent_tiering_configuration" "attachments" {
   tiering {
     access_tier = "ARCHIVE_ACCESS"
     days        = 90
+  }
+}
+
+# ─── S3 Bucket CORS (presigned PUT 직접 업로드용 — shared bucket, dev 관리) ───
+# 브라우저가 presigned URL로 버킷에 직접 PUT 하므로 CloudFront response-headers-policy(다운로드 GET용)가 아닌
+# 버킷 레벨 CORS가 필요하다. 미설정 시 cross-origin PUT preflight가 No 'Access-Control-Allow-Origin'으로 차단된다.
+resource "aws_s3_bucket_cors_configuration" "attachments" {
+  bucket = data.aws_s3_bucket.attachments.id
+
+  cors_rule {
+    allowed_origins = [
+      "https://bridgespots.com",
+      "https://www.bridgespots.com",
+      "https://milkyway.pe.kr",
+      "https://www.milkyway.pe.kr",
+      "http://localhost:5173",
+      "http://localhost:5174",
+    ]
+    allowed_methods = ["PUT", "POST", "GET", "HEAD"]
+    allowed_headers = ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 86400
   }
 }
 
