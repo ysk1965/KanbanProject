@@ -1,5 +1,5 @@
-# Deploy to All Environments (Dev + Testprod)
-# Dev = bridgespots.com, Testprod = milkyway.pe.kr
+# Deploy Frontend + Backend (single new-account stack)
+# Frontend bucket + CloudFront serve BOTH bridgespots.com and milkyway.pe.kr
 name: Deploy
 
 on:
@@ -13,8 +13,9 @@ env:
   AWS_REGION: ap-northeast-2
   EB_APPLICATION_NAME: kanban-dev
   EB_ENVIRONMENT_NAME: kanban-dev-env
-  S3_BUCKET_DEV: kanban-dev-frontend
-  S3_BUCKET_TESTPROD: kanban-testprod-frontend
+  S3_BUCKET_DEV: kanban-dev-frontend-259151461692
+  # milkyway.pe.kr is served from the SAME bucket + CloudFront as bridgespots.com
+  # (single distribution, Host-based spa_router). No separate testprod bucket/CF.
   JAVA_VERSION: '21'
   NODE_VERSION: '20'
 
@@ -65,6 +66,10 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.backend == 'true'
 
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -89,8 +94,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ vars.AWS_GHA_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Ensure infrastructure is running
@@ -142,8 +146,6 @@ jobs:
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
         with:
-          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           application_name: ${{ env.EB_APPLICATION_NAME }}
           environment_name: ${{ env.EB_ENVIRONMENT_NAME }}
           version_label: ${{ github.sha }}
@@ -159,6 +161,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.frontend == 'true'
+
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       - name: Checkout
@@ -188,11 +194,10 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ vars.AWS_GHA_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy to S3 (Dev - bridgespots.com)
+      - name: Deploy to S3 (bridgespots.com + milkyway.pe.kr)
         run: |
           # 해시된 에셋: --delete 없이 업로드 (구버전 chunk 유지로 기존 세션 보호)
           aws s3 sync frontend/dist/assets s3://${{ env.S3_BUCKET_DEV }}/assets \
@@ -204,30 +209,11 @@ jobs:
             --exclude "assets/*" \
             --cache-control "no-cache,no-store,must-revalidate"
 
-      - name: Deploy to S3 (Testprod - milkyway.pe.kr)
-        run: |
-          # 해시된 에셋: --delete 없이 업로드 (구버전 chunk 유지로 기존 세션 보호)
-          aws s3 sync frontend/dist/assets s3://${{ env.S3_BUCKET_TESTPROD }}/assets \
-            --cache-control "max-age=31536000,public"
-
-          # 나머지 (HTML, SW, manifest 등) no-cache
-          aws s3 sync frontend/dist s3://${{ env.S3_BUCKET_TESTPROD }} \
-            --delete \
-            --exclude "assets/*" \
-            --cache-control "no-cache,no-store,must-revalidate"
-
-      - name: Invalidate CloudFront (Dev - bridgespots.com)
+      - name: Invalidate CloudFront (bridgespots + milkyway — single distribution)
         if: vars.DEV_CLOUDFRONT_DISTRIBUTION_ID != ''
         run: |
           aws cloudfront create-invalidation \
             --distribution-id ${{ vars.DEV_CLOUDFRONT_DISTRIBUTION_ID }} \
-            --paths "/*"
-
-      - name: Invalidate CloudFront (Testprod - milkyway.pe.kr)
-        if: vars.TESTPROD_CLOUDFRONT_DISTRIBUTION_ID != ''
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id ${{ vars.TESTPROD_CLOUDFRONT_DISTRIBUTION_ID }} \
             --paths "/*"
 
   # Notify deployment status
