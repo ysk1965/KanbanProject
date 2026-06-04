@@ -70,6 +70,8 @@ import {
   unwrapListItemParagraphs,
   stripEmptyParagraphs,
   collapseInterBlockWhitespace,
+  resolvePastedImages,
+  needsImageRewrite,
 } from "../../utils/blocknoteContent";
 import DOMPurify from "dompurify";
 import type {
@@ -363,6 +365,19 @@ function CollabNoteEditor({
     note.ai_content_snapshot,
   );
 
+  // Shared upload handler for both BlockNote's uploadFile config and the paste
+  // handler's image rewriting. Returns an absolute URL from the backend.
+  const uploadNoteFile = useCallback(
+    async (file: File): Promise<string> => {
+      const result = await fileAPI.uploadNote(
+        file,
+        boardId ? { boardId } : { organizationId: orgId! },
+      );
+      return result.url;
+    },
+    [boardId, orgId],
+  );
+
   // Create BlockNote editor with Yjs collaboration
   const editor = useCreateBlockNote(
     {
@@ -381,13 +396,7 @@ function CollabNoteEditor({
           color: currentUserColor,
         },
       },
-      uploadFile: async (file: File) => {
-        const result = await fileAPI.uploadNote(
-          file,
-          boardId ? { boardId } : { organizationId: orgId! },
-        );
-        return result.url;
-      },
+      uploadFile: uploadNoteFile,
       tables: {
         cellBackgroundColor: true,
         cellTextColor: true,
@@ -450,8 +459,21 @@ function CollabNoteEditor({
         const html = data.getData("text/html");
         if (!html) return defaultPasteHandler();
         const cleaned = cleanHtml(html);
-        if (cleaned === html) return defaultPasteHandler();
-        e.pasteHTML(cleaned);
+        // Nothing to clean AND no images to rewrite → delegate to the default
+        // pipeline (avoids the blank-line regression e5f4628 fixed).
+        if (cleaned === html && !needsImageRewrite(cleaned)) {
+          return defaultPasteHandler();
+        }
+        // Rewrite <img> tags so only loadable images survive — data:/blob: get
+        // uploaded to our storage, absolute URLs are kept, dead relative refs
+        // (e.g. "image.png" from Word/web) are dropped. pasteHTML can be called
+        // after the async uploads resolve; return true now to claim the paste.
+        void (async () => {
+          const finalHtml = needsImageRewrite(cleaned)
+            ? await resolvePastedImages(cleaned, uploadNoteFile)
+            : cleaned;
+          e.pasteHTML(finalHtml);
+        })();
         return true;
       },
     } as any,
@@ -1334,10 +1356,7 @@ function CollabNoteEditor({
           hasDiscardedDraft && (
             <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-2.5">
               <div className="flex items-center gap-2 min-w-0">
-                <RotateCcw
-                  size={14}
-                  className="text-amber-500 flex-shrink-0"
-                />
+                <RotateCcw size={14} className="text-amber-500 flex-shrink-0" />
                 <span className="text-xs text-foreground truncate">
                   {t(
                     "notes.unpublishedDraft.discardedBanner",
