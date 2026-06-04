@@ -75,10 +75,36 @@ variable "google_client_id" {
   default     = ""
 }
 
+variable "google_client_secret" {
+  description = "Google OAuth2 client secret (sourced from SSM via local.secret when seeded)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "ai_provider" {
+  description = "AI provider selection (claude | openai)"
+  type        = string
+  default     = "openai"
+}
+
+variable "sentry_dsn" {
+  description = "Sentry DSN for backend error monitoring (sourced from SSM via local.secret when seeded)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "testprod_frontend_url" {
+  description = "Test-prod frontend URL for CORS allow-list"
+  type        = string
+  default     = "https://d1lh3qblxyq39p.cloudfront.net"
+}
+
 variable "domain_name" {
   description = "Domain name (e.g., bridgespots.com)"
   type        = string
-  default     = ""  # Set this to enable custom domain
+  default     = "" # Set this to enable custom domain
 }
 
 variable "attachments_bucket_name" {
