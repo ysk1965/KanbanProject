@@ -5,6 +5,8 @@
 > **분석 범위**: `infrastructure/terraform/**`, `.github/workflows/**`, `backend/` 런타임 설정, 레포지토리 전역 하드코딩 스캔
 > **현재 계정**: `997286396624` (`terraform_admin`), 리전 `ap-northeast-2` (서울) + CloudFront ACM 전용 `us-east-1`
 > **가정**: 별도 명시가 없으면 **리전은 ap-northeast-2 유지**, **도메인은 `bridgespots.com` 유지**
+>
+> **✅ 실행 완료 (2026-06-02)**: 본 계획 기반으로 **`997286396624` → `259151461692`** 이전 컷오버를 실제 수행·라이브 검증 완료(로그인+데이터+HTTPS, 데이터 유실 0). 동기는 **비용**, Route53는 **패턴 A로 구 계정 유지**, 구 서비스는 write-frozen. **실제 실행 기록 · 계획에 없던 함정 · 잔여 마무리는 [§8](#8-실제-실행-기록-2026-06-02-컷오버-완료) 참조** — 다음 이전 시 §8을 먼저 읽을 것.
 
 ---
 
@@ -54,10 +56,10 @@
 | `rds-simple` | `aws_db_instance` PostgreSQL | **db.t4g.micro, gp3 20GB, 15.10, storage_encrypted=true(기본 aws/rds 키)**, prod만 deletion_protection+최종 스냅샷 |
 | `rds` (Aurora) | Aurora Serverless v2 | **미사용** — Phase 2 업그레이드 경로로만 존재 |
 | `elasticache` | Redis 복제 그룹 | redis7, cache.t4g.micro, 1노드, at-rest 암호화 on, transit off, **prod만 사용** |
-| `elastic-beanstalk` | EB App/Env + IAM 역할 2종 + 인스턴스 프로파일 | t3.small, ASG 1~4, 포트 5000, `/actuator/health`, solution stack `64bit Amazon Linux 2023 v4.8.3 running Corretto 21` |
+| `elastic-beanstalk` | EB App/Env + IAM 역할 2종 + 인스턴스 프로파일 | t3.small, ASG 1~4, 포트 5000, `/actuator/health`, solution stack `64bit Amazon Linux 2023 v4.12.1 running Corretto 21` (v4.8.3 폐기로 갱신 — §8.4) + `attachments_bucket_name`/`frontend_bucket_name`/`s3_bucket`(S3_BUCKET)/`snapshot_identifier` 변수 추가 |
 | `s3-cloudfront` | 프론트 S3(`${project}-${env}-frontend`) + CloudFront(OAC) + SPA 라우팅 함수 | CF Function에 `bridgespots.com` 분기 **하드코딩** |
 | `acm-certificate` | ACM 인증서(DNS 검증) | us-east-1(CF)/ap-northeast-2(ALB) 두 곳 |
-| `route53` | **신규 호스팅 영역 생성** | NS 재위임 필요 |
+| `route53` | 호스팅 영역 생성 **또는** 크로스계정 조회(패턴 A) | `dns_account_role_arn` 설정 시 구 계정 영역 유지(NS 재위임 불필요) |
 | `infra-scheduler` | Lambda(py3.12)+EventBridge+SNS+IAM | 야간 EB ASG→0 + RDS 정지, 아침 복원 |
 
 ### 1.3 dev vs prod 차이 (중요)
@@ -70,10 +72,10 @@
 | RDS 백업 보관 | 1일 | 3일 |
 | `spring_profile` | dev | prod |
 | S3 lifecycle/tiering | **dev에서만 관리**(공유 버킷) | (dev가 관리) |
-| 보조 도메인 `milkyway.pe.kr` | **dev에만 존재**(testprod) | 없음 |
+| 보조 도메인 `milkyway.pe.kr` | **dev에만 존재**(testprod 관리 도메인) | 관리 도메인 없음 — 단, CloudFront 첨부 CORS `allowed_origins`에 `https://milkyway.pe.kr`/`www` **하드코딩**(`prod/main.tf:337-340`) |
 | 출력값 민감도 | rds/redis 평문 | rds/redis `sensitive=true` |
 
-> ⚠️ **명명과 실제의 불일치**: "dev" 환경이 사실상 운영 도메인 `bridgespots.com`과 `milkyway.pe.kr`(testprod)을 동시에 서빙한다. 프론트는 `develop` 브랜치 빌드를 `kanban-dev-frontend`·`kanban-testprod-frontend` **두 버킷**에 배포한다. "prod" Terraform 환경은 존재하나 (로컬 state·ElastiCache 활성 등) 실제 가동 여부를 **이전 전 반드시 확인**해야 한다.
+> ⚠️ **명명과 실제의 불일치**: "dev" 환경이 사실상 운영 도메인 `bridgespots.com`과 `milkyway.pe.kr`(testprod)을 동시에 서빙한다. 프론트는 `develop` 브랜치 빌드를 `kanban-dev-frontend`·`kanban-testprod-frontend` **두 버킷**에 배포한다. **"prod" Terraform 환경은 한 번도 apply된 적 없음이 확정됐다**(state·백엔드 메타 부재, 마지막 plan=48개 전부 create, CI apply 기본값=dev). 따라서 **실 운영·이전 대상은 "dev" 스택**, 비가역 자산은 `kanban-dev-db`다 — 아래 4.2·런북은 모두 이 기준이다.
 
 ### 1.4 CI/CD (GitHub Actions 4개)
 
@@ -105,9 +107,9 @@
 |------|------|----------|------|
 | **State** | `kanban-terraform-state`(S3), `kanban-terraform-lock`(DynamoDB) | 전역 유일 / 계정 스코프, **TF로 관리 안 됨(수동 부트스트랩)** | 새 계정에 새 이름으로 사전 생성 |
 | **전역 유일 S3** | `bridge-kanban-attachments`, `kanban-dev-frontend`, `kanban-testprod-frontend` (+ `kanban-prod-frontend`) | S3 이름은 전계정 전역 유일 → **구 계정이 보유 중이면 동일 이름 사용 불가** | 새 이름으로 생성 + 객체 복사 |
-| **데이터(RDS)** | `kanban-dev-db`, `kanban-prod-db` | 인스턴스 자체 + **기본 `aws/rds` KMS 키(교차계정 공유 불가)** | CMK 재암호화 → 공유 → 복원 |
+| **데이터(RDS)** | **`kanban-dev-db`**(실 운영; `kanban-prod-db`는 미배포) | 인스턴스 자체 + **기본 `aws/rds` KMS 키(교차계정 공유 불가)** | CMK 재암호화 → 공유 → 복원 |
 | **인증서(ACM)** | ALB(ap-northeast-2)+CloudFront(us-east-1) | ARN 계정 스코프, 이전 불가 | **재발급**(DNS 검증) |
-| **DNS** | Route53 영역 `bridgespots.com` | 영역 이전 불가 | 새 영역 생성 + **레지스트라 NS 재위임** |
+| **DNS** | Route53 영역 `bridgespots.com` | 영역 이전 불가(계정 스코프) | **패턴 A 채택**: 구 계정에 영역 유지 → 크로스계정 IAM 역할로 레코드만 새 리소스로 교체. NS 재위임·레지스트라 변경 **불필요** |
 | **CI 자격증명** | `AWS_ACCESS_KEY_ID/SECRET` | 구 계정 IAM | 신규 IAM(권장: OIDC 역할) |
 | **CloudFront 배포 ID** | `vars.DEV/TESTPROD_CLOUDFRONT_DISTRIBUTION_ID` | 계정별 ID | 새 배포 ID로 GitHub vars 갱신 |
 | **CloudWatch 차원** | `EC2_INSTANCE_ID`, `RDS_INSTANCE_ID` env | 계정별 리소스 ID | 새 ID로 갱신 |
@@ -133,14 +135,14 @@
 |:--------:|------|------|------|
 | **P0** | prod DB가 Aurora가 아니라 `rds-simple`(표준 단일 AZ) — 문서/계획 전제 오류 | `environments/prod/main.tf:90` | 계획·문서 정정, 표준 인스턴스 스냅샷/복원 경로 사용 |
 | **P0** | `db_password`/`jwt_secret` **평문 tfvars + dev·prod 동일** | `environments/*/terraform.tfvars` | 로테이션 + dev/prod 분리 + SSM/Secrets Manager |
-| **P0** | prod Terraform **state가 로컬일 가능성**(backend 주석 처리) | `environments/prod/main.tf:33-39` | 위치 확인·백업, 새 계정에서 원격 backend로 |
+| **P0** | "prod" 환경은 **미배포 확정**(apply 이력 없음); 실 state는 **dev S3 backend**(구 계정, 원격) | `environments/prod/main.tf:33-39`, `dev/main.tf:19-25` | 실 운영=dev → 이전은 dev 기준. 새 계정에 `bootstrap/state-backend` 적용 후 클린 init |
 | **P0** | CI 정적 키 단일 인증(OIDC 없음), 최소권한 정책 미문서화 | `*.yml` | OIDC 전환 + 최소권한 정책 작성 |
 | **P0** | 첨부 버킷 접근 IAM이 **코드화 안 됨**(수동 드리프트) | `modules/elastic-beanstalk/main.tf` | EB EC2 역할에 S3 정책 명시 |
 | **P1** | git **추적 중** Firebase Android 키 `AIza...RCEZM` | `frontend/android/app/google-services.json:18` | 로테이션/제한 |
 | **P1** | git 추적 문서에 Toss 테스트 키 | `docs/reports/high/TASK-2026-0214-002-security-fixes.md:109-110` | 로테이션·스크럽 |
 | **P1** | 모든 비밀이 **EB 평문 환경변수**(콘솔에서 노출) | `modules/elastic-beanstalk/main.tf` | SSM SecureString 참조로 전환 |
 | **P1** | dev·prod 전부 **단일 AZ / NAT 없음 / public subnet** SPOF | `environments/*/main.tf` | 이전 시 Multi-AZ·NAT·private subnet 검토 |
-| **P2** | 디스크의 라이브 시크릿 파일·대용량 산출물 | `backend/.env`, `frontend/.env.local`, `backend/deploy.zip`(81MB), `deploy/application.jar`(91MB) | 새 계정으로 그대로 운반 금지, 재생성 |
+| **P2** | 디스크의 라이브 시크릿 파일·대용량 산출물 | `backend/.env`, `frontend/.env.local`, `backend/deploy.zip`(81MB), `backend/deploy/application.jar`(91MB) | 새 계정으로 그대로 운반 금지, 재생성 |
 
 > 참고: `backend/.env`·`*.env.local`·`terraform.tfvars`는 `.gitignore`에 걸려 **git에는 커밋되지 않았으나 디스크에 라이브 값**으로 존재한다. 새 환경으로 복사하지 말고 로테이션 후 재발급한다.
 
@@ -159,8 +161,8 @@
   1. 수동 스냅샷 생성 → 2. 소스 계정 **CMK로 `copy-db-snapshot`(재암호화)** → 3. CMK 키 정책에 새 계정 `kms:Decrypt`+`kms:CreateGrant` 부여 + 스냅샷 공유 → 4. 새 계정에서 **새 계정 CMK로 copy** → 5. `restore-db-instance-from-db-snapshot` → 6. `terraform import`.
 - 데이터 20GB 수준이면 **`pg_dump`/`pg_restore`** 도 실용적(KMS 공유 불필요, 버전 관용, 행수 검증 용이).
 - 복원 후 **`engine_version=15.10` 고정 + `auto_minor_version_upgrade=false`** 로 plan 드리프트 방지(현재 미설정 → 기본 true).
-- prod `deletion_protection=true` → **검증 완료 전까지 구 인스턴스 유지(롤백 소스)**.
-- ⚠️ **`infra-scheduler`가 prod RDS를 야간 정지**한다. 새 계정에서 prod 스케줄러 활성 여부를 명시적으로 결정(미결정 시 매일 KST 01:00 prod가 내려감).
+- ⚠️ 실 운영 **dev** RDS는 `deletion_protection=false`(모듈이 prod에만 true 부여) → 이전 전 **구 dev 인스턴스에 deletion_protection 수동 활성** 권장, 검증 완료까지 구 인스턴스 보존(롤백 소스).
+- ⚠️ **`infra-scheduler`가 (실 운영) dev RDS·EC2를 야간 정지**한다(KST 01:00~09:00). 컷오버 윈도우엔 **구 dev 스케줄러 비활성** 필수, 새 계정 스케줄러 활성 여부도 명시 결정.
 
 ### 4.3 S3
 - **`bridge-kanban-attachments`(사용자 업로드, dev·prod 공유, data 소스)**: 전역 이름 충돌 → **새 이름**으로 생성. 구 버킷에 교차계정 read 부여 후 `aws s3 sync`. **Intelligent-Tiering ARCHIVE_ACCESS(90일) 객체는 사전 복원(3~5h)** 후 복사(미복원 시 스킵/실패). `temp/`(1일 만료)는 제외.
@@ -172,17 +174,20 @@
 - 캐시 + WebSocket Pub/Sub 용도로 **데이터 비영속** → **빈 클러스터 신규 생성**, 데이터 이관 불필요. 콜드 캐시·WS 재동기화는 DB에서 자동 복구.
 
 ### 4.5 CloudFront + ACM
-- ACM 인증서는 **이전 불가 → 재발급**(ALB ap-northeast-2 + CloudFront us-east-1, `bridgespots.com`+`*.bridgespots.com`). DNS 검증 레코드는 **새(이전 대상) Route53 영역**에 들어가므로, **새 영역이 권한 영역(authoritative)이 된 후** 검증 완료 → EB/CloudFront `apply`가 이를 소비(순서 의존성).
+- ACM 인증서는 **이전 불가 → 재발급**(ALB ap-northeast-2 + CloudFront us-east-1, `bridgespots.com`+`*.bridgespots.com`). **패턴 A에서는 DNS 검증 CNAME이 구 계정의 (이미 권한 영역인) 기존 영역에 들어가므로** 새 영역이 권한 영역이 될 때까지 기다릴 필요가 없다 → **순서 의존성 제거**, 검증 즉시 통과(`aws.dns` 프로바이더가 크로스계정으로 기록).
 - CloudFront 배포는 **재생성**(새 ID/도메인). 보조 도메인 `milkyway.pe.kr`은 ALB HTTPS 리스너에 `aws_lb_listener_certificate`로 부착 → **재발급·재부착** 필요.
 
-### 4.6 Route53 / 도메인
-- 영역은 **새로 생성**(레코드는 TF가 대부분 재생성). 그 후 **레지스트라에서 NS를 새 영역의 4개 NS로 재위임**(권장: 도메인 등록은 구 계정에 두고 NS만 변경; 풀 도메인 이전은 수일 소요).
-- ⚠️ **레지스트라 NS TTL(보통 172800s=48h)** 이 진짜 long pole — 사전 단축 불가하므로 **양 영역 병행(overlap) 기간**을 둔다. 레코드 TTL은 컷오버 24~48h 전 60s로 낮춘다.
-- `milkyway.pe.kr`은 data 소스(외부 관리 영역) → 새 계정 자격증명으로 접근 가능한지 또는 함께 이전할지 결정(미해결 시 dev plan 실패).
+### 4.6 Route53 / 도메인 — **패턴 A 채택: 영역은 구 계정 유지**
+- **영역(`bridgespots.com`)을 구 계정에 그대로 둔다.** 신 계정 TF는 `aws.dns` 프로바이더(`assume_role`)로 구 계정 영역의 **레코드만 크로스계정 관리**한다. 영역 자체와 레지스트라 NS 위임은 **건드리지 않는다**.
+  - 구현(완료): `environments/{dev,prod}`에 `dns_account_role_arn` 변수 + `aws.dns` 프로바이더 추가, 5개 레코드는 `provider = aws.dns` + `local.primary_zone_id`(빈 ARN→동일계정 생성, ARN 설정→`data.aws_route53_zone.primary` 크로스계정 조회) 사용. 구 계정엔 `infrastructure/terraform/bootstrap/route53-cross-account`로 최소권한 IAM 역할 1개 생성.
+- **이점**: NS 재위임·48h TTL 대기·양 영역 병행이 **전부 불필요**. 컷오버는 alias 레코드 교체(TTL 60s)로 **~60초 내 롤백 가능**. ACM 검증도 (이미 권한인) 구 영역에 CNAME이 들어가 **즉시 통과**(순서 의존성 제거).
+- **소유권 이양(필수)**: 구 계정 state가 같은 레코드를 소유하므로, 신 계정이 기록을 시작한 뒤 **구 계정에서 `terraform state rm`** 으로 레코드 소유권을 내려놓는다(영역 자체는 구 계정 state에 유지). 상세 절차는 부트스트랩 모듈 README 참조.
+- **트레이드오프**: 구 계정 완전 폐기 불가 — Route53 영역(≈$0.5/월) + IAM 역할 1개 잔존(**구 계정 살려두기로 결정됨**).
+- `milkyway.pe.kr`도 **동일 패턴 A**(결정됨): 영역을 구 계정에 유지하고 dev의 secondary 레코드(`cert_validation_secondary_alb`, `backend_api_secondary`)를 `aws.dns`로 크로스계정 관리. 부트스트랩 role의 `zone_names`에 **두 도메인 모두 포함**. .pe.kr 레지스트라 NS 위임은 구 영역 그대로 유지(변경 없음).
 
 ### 4.7 비밀값
 - 컷오버 시 **`jwt_secret` 로테이션**(전 사용자 1회 강제 재로그인, 의도된 동작). `db_password`는 복원 인스턴스가 스냅샷 마스터 PW를 승계 → 필요 시 `modify-db-instance`로 변경 후 SSM·EB 동시 갱신.
-- **dev/prod 분리된 새 값** 생성, 평문 tfvars/EB 환경변수에서 **SSM SecureString/Secrets Manager**로 이관.
+- **dev/prod 분리된 새 값** 생성, 평문 tfvars에서 **SSM SecureString**로 이관 — **구현됨**: `environments/{dev,prod}`에 `use_ssm_secrets` 토글(기본 false=하위호환) + `local.secret` SSM data 소스(`/kanban/<env>/<key>`, 14개 키). 시딩 `infrastructure/terraform/scripts/seed-ssm-secrets.sh`, 가이드 `scripts/README-ssm-secrets.md`. 토글 true 시 terraform이 SSM에서 읽어 EB에 주입(앱 변경 없음) → tfvars/CI에서 원시 비밀 제거. CI terraform 역할에 `ssm:*` 부여됨.
 
 ---
 
@@ -208,23 +213,23 @@
 ### Phase 2 — 무중단 스테이트리스 스탠드업 (T-5일)
 1. backend를 새 state 버킷으로 → `terraform init -reconfigure`(클린, 구 state 마이그레이션 금지).
 2. `terraform apply` 스테이트리스: VPC, SG, ElastiCache(빈), EB(빈), CloudFront, 프론트 버킷(이름 충돌 시 리네임). EB 환경변수(=SSM)에서 외부 비밀 재주입.
-3. **새 Route53 영역** 생성(TF) → NS 4개 캡처(`route53_name_servers`).
-4. **ACM 인증서 발급**(ALB+CloudFront+보조 도메인). 검증은 새 영역이 권한 영역이 된 후 완료(컷오버 시 위임).
+3. **DNS = 패턴 A**: 구 계정에 `bootstrap/route53-cross-account` role 적용 → 신 계정 `dns_account_role_arn`에 ARN 주입. 영역은 구 계정 유지(새로 만들지 않음, NS 캡처 불필요).
+4. **ACM 인증서 발급**(ALB+CloudFront+보조 도메인). 검증 CNAME은 `aws.dns` 프로바이더로 **구 계정 기존 영역**(이미 권한)에 기록 → 즉시 검증 완료(위임 대기 없음).
 5. **새 첨부 버킷** 생성, 구 버킷 교차계정 read 부여, **ARCHIVE 객체 복원(3~5h)** 후 초기 `aws s3 sync`.
 6. 컷오버 24~48h 전: 구 영역 레코드 TTL 60s로 하향.
 7. CloudWatch **알람 추가**(RDS CPU/스토리지/메모리, EB 헬스, 스케줄러 Lambda 오류) — 현재 전무.
 
 ### Phase 3 — 데이터 이전 (컷오버 윈도우, 쓰기 동결)
-1. 유지보수 모드 / 구 prod EB ASG → 0 (쓰기 중단). **구 infra-scheduler 비활성**(충돌 방지).
+1. 유지보수 모드 / 구 **dev** EB ASG → 0 (쓰기 중단). **구 infra-scheduler 비활성**(충돌 방지). → 상세 실행 단계: [`runbooks/rds-dev-db-migration-runbook.md`](runbooks/rds-dev-db-migration-runbook.md).
 2. 첨부 버킷 **최종 델타 sync**.
-3. 구 `kanban-prod-db` **최종 스냅샷** → CMK 재암호화 copy → 공유 → 새 계정 CMK로 copy → restore → `terraform import`.
+3. 구 **`kanban-dev-db`**(실 운영 DB) **최종 스냅샷** → CMK 재암호화 copy → 공유 → 새 계정 CMK로 copy → restore → `terraform import`.
 4. `engine_version=15.10` 고정 + `auto_minor_version_upgrade=false`. **행수/체크섬 검증**.
 5. (선택) `db_password` 로테이션 후 SSM·EB 동시 갱신.
 6. 새 EB를 복원 DB + 새 Redis + 새 첨부 버킷으로 지정 → 백엔드 배포 → **`jwt_secret` 로테이션**(1회 전체 로그아웃) → `api.` `/actuator/health`(포트 5000) 워밍 체크.
 7. Redis 데이터 이관 금지(신규 빈 클러스터).
 
 ### Phase 4 — DNS 컷오버 & 프론트 배포
-1. 레지스트라에서 `bridgespots.com` NS를 새 영역 NS로 재위임. apex/`www`/`api.` 해석 확인.
+1. **NS 재위임 없음**(패턴 A). 신 계정 `terraform apply`로 apex/`www`/`api.` alias 레코드를 **새 CloudFront/ALB로 교체**(TTL 60s) → 구 계정 state에서 해당 레코드 `terraform state rm`(소유권 충돌 방지). 해석 확인 후 문제 시 ~60초 롤백.
 2. 프론트 CI 배포(새 `kanban-*-frontend`) + CloudFront `/*` 무효화(**GitHub vars `DEV/TESTPROD_CLOUDFRONT_DISTRIBUTION_ID` 선갱신**).
 3. ACM 검증 완료(인증서 ISSUED) + EB HTTPS 리스너·보조 인증서 부착 확인.
 
@@ -264,15 +269,73 @@
 
 | # | 위험 | 심각도 | 완화책 |
 |---|------|:------:|--------|
-| R1 | prod RDS 데이터 손실/복원 불가(단일 AZ, 비공유 기본 KMS, prod state 로컬 의심) | **High** | CMK 재암호화 경로, 행수/체크섬 검증, 검증 전 구 인스턴스 보존, prod state 우선 확보 |
+| R1 | 실 운영 **dev** RDS(`kanban-dev-db`) 데이터 손실/복원 불가(단일 AZ, `deletion_protection=false`, 비공유 기본 KMS) | **High** | CMK 재암호화 경로, 행수/체크섬 검증, 이전 전 구 dev 인스턴스 deletion_protection 활성+보존, dev state는 S3 원격(확보됨) |
 | R2 | "prod=Aurora" 잘못된 전제로 마이그레이션 경로 오설계 + 스케줄러 야간 정지 | **High** | `aws_db_instance` 스냅샷/복원 사용, prod 스케줄러 적용 여부 결정, 버전 고정 |
 | R3 | CI 정적 키 단일 인증·최소권한 미문서화, 구 키 유효 잔존 | **High** | OIDC+스코프 역할, plan/dispatch로 정책 검증, Phase 6 키 폐기 |
-| R4 | 레지스트라 NS TTL(48h) 미하향 + 새 영역 비권한 상태에서 ACM 검증 → EB/CF apply 블록 | **Medium** | 48h 전 TTL 60s, 양 영역 병행, 순서 엄수(영역→위임→ACM→apply) |
+| R4 | (패턴 A로 **대폭 완화**) DNS 컷오버 지연/실패·롤백 곤란 | **Low** | **구 계정에 영역 유지**(NS 재위임 없음) → 레코드 alias만 TTL 60s로 교체, ~60초 내 롤백. 구 계정 state에서 레코드 소유권 이양(`state rm`) 후 신 계정이 관리. 잔여 위험: 구 계정 영역/IAM 역할 상시 유지 의존 |
 | R5 | 전역 유일 S3 이름 충돌(`bridge-kanban-attachments`, `kanban-*-frontend`, state) | **Medium** | 새 이름, env/data 소스/워크플로우/코드 절대 URL 갱신, Phase 6에서 구 이름 회수 |
 | R6 | 새 계정 쿼터/플랫폼 버전 미가용으로 standup 중단 | **Medium** | 10일+ 전 쿼터 신청, 리전 가용성 사전 확인, 대체 EB 플랫폼 문자열 준비 |
 | R7 | 평문·동일 비밀 + 라이브 `.env` 그대로 운반 → 누출 전파 | **Medium** | 컷오버 시 로테이션·분리, SSM 이관, 구 파일 운반 금지, 추적 중 Firebase/Toss 키 로테이션 |
 | R8 | 새 EB egress IP 변경으로 웹훅(Polar/Toss/Slack)·OAuth가 구 IP 신뢰에 막힘 | **Medium** | 도메인 유지여도 각 콘솔 화이트리스트 재검증, IP 화이트리스트면 NAT+고정 EIP 등록 |
 | R9 | 전 리소스 단일 AZ/SPOF가 무비판적으로 새 계정에 그대로 이식 | **Low** | Multi-AZ/NAT/엔드포인트 적용 또는 "의도된 비용 절감"으로 명시 문서화 |
+| R10 | DNS 컷오버 중 구·신 백엔드가 잠시 공존 시 **WebSocket/STOMP 브로드캐스트 스플릿브레인**(구 백엔드는 구 Redis, 신 백엔드는 신 Redis pub/sub → 보드 실시간 이벤트가 두 그룹으로 갈림) | **Medium** | 컷오버 시 구 EB ASG→0 선행(쓰기 동결과 동일 창), 클라이언트 STOMP 강제 재연결 유도, 양 백엔드 동시 라이브 시간 최소화. ALB sticky session(EB 모듈 `StickinessEnabled=true`, 3600s)은 affinity는 잡으나 컷오버 재밸런싱 시 쿠키 유실로 라이브 연결이 끊기는 점 인지 |
+
+---
+
+## 8. 실제 실행 기록 (2026-06-02 — 컷오버 완료)
+
+> 본 섹션은 위 계획을 **실제로 실행한 결과**다. 계획대로 된 것은 §5 런북을 따랐고, 여기서는 **계획에 없던 함정과 해결**(다음 이전 시 필수 반영)을 중심으로 기록한다.
+
+### 8.1 결과
+- 구 계정 `997286396624` → 새 계정 `259151461692`, 리전 ap-northeast-2 유지, **패턴 A**(Route53 구 계정 유지).
+- **데이터 유실 0** (RDS 스냅샷 복원 + 첨부 5500개/18.6GB 정확 일치), `bridgespots.com`·`milkyway.pe.kr` 라이브 검증(Google 로그인 + 실데이터 + HTTPS).
+- 동기 **비용** — 컴퓨트/데이터/스토리지는 새 계정, 저비용 Route53만 구 계정 유지. 구 서비스는 write-frozen(EB ASG=0), 구 계정은 살려둠.
+- 실 이전 대상은 **dev 스택**(`kanban-dev-db`). "prod" TF 환경은 미배포(§1.3).
+
+### 8.2 실제 생성 리소스 (새 계정 259151461692)
+
+| 종류 | 이름/ID | 비고 |
+|------|---------|------|
+| TF state | 버킷 `kanban-terraform-state-259151461692` + 잠금 `kanban-terraform-lock` | `bootstrap/state-backend` |
+| 첨부 S3 | `kanban-attachments-259151461692` | 구 `bridge-kanban-attachments` |
+| 프론트 S3 | `kanban-dev-frontend-259151461692` | 구 `kanban-dev-frontend` |
+| CI 역할(OIDC) | `kanban-gha-terraform`, `kanban-gha-deploy` | `bootstrap/github-oidc`. GitHub vars `AWS_GHA_TF_ROLE_ARN`/`AWS_GHA_DEPLOY_ROLE_ARN` 설정됨 |
+| 구 계정 DNS 역할 | `arn:aws:iam::997286396624:role/kanban-route53-cross-account` | `bootstrap/route53-cross-account` (2영역). 신 dev `dns_account_role_arn` |
+| 프론트 CloudFront | `E3JHJCDEI33NCX` (`d1ogwvsu09sa4i.cloudfront.net`) | 구 `E3C9295UMI1LW7`(alias 제거됨) |
+| EB | 앱 `kanban-dev` / 환경 `kanban-dev-env`(`e-5gky6gip42`) | 솔루션스택 v4.12.1 |
+| RDS | `kanban-dev-db` (복원본, PG 15.10, 기본 aws/rds 키) | 빈 인스턴스를 `rds_snapshot_identifier`로 교체 복원 |
+| SSM 비밀 | `/kanban/dev/{db_password,jwt_secret}` | 나머지 12키는 구 EB에서 비어있어 미시딩 |
+
+### 8.3 실행 순서 (실제)
+1. 부트스트랩 3종 apply: state-backend·github-oidc(기존 OIDC provider라 `create_oidc_provider=false`)·route53-cross-account. GitHub 변수 2개 `gh`로 설정.
+2. SSM 시딩(구 EB env에서 추출): db_password·jwt_secret만 실값(나머지 12개는 구 EB도 비어있음). SSM 조회는 `aws_ssm_parameters_by_path`로 **부분-허용**(없으면 var 폴백).
+3. **standup** (`domain_name=''` 필수 — 라이브 DNS 보호): VPC/SG/RDS(빈)/EB/CloudFront/첨부버킷. route53/acm=0 확인.
+4. **RDS**: 쓰기동결(ASG=0, 스케줄러 disable) → 스냅샷 `kanban-dev-db-migrate` → CMK_OLD 재암호화 copy → 새 계정 공유 → 새 계정 copy(alias/aws/rds) → `rds_snapshot_identifier` apply로 빈 RDS 교체 복원.
+5. **첨부/프론트 sync**: 신 버킷 정책에 구 계정 쓰기 임시 grant → `aws s3 sync`(구 default 자격증명). 첨부 18.6GB/5500, 프론트 1.8GB/11159.
+6. **백엔드 배포**: JAR 빌드 → EB `migrate-v1`.
+7. **jwt 로테이션**(SSM v2) → 구 프론트 CloudFront alias 제거 → **DNS flip apply**(ACM 3종 발급+구영역 검증, apex/www/api `allow_overwrite` 덮어쓰기). 17 add / 5 change / **0 destroy**.
+
+### 8.4 ⚠️ 계획에 없던 함정 + 해결 (다음 이전 시 필수)
+
+1. **프론트 버킷도 이름 충돌** — 계획은 첨부(`bridge-kanban-attachments`)만 언급했으나 `kanban-dev-frontend`도 전역 유일 충돌. `s3-cloudfront` 모듈에 `bucket_name` 변수 추가 필요. → **전역 유일 S3는 첨부+프론트 둘 다 파라미터화**.
+2. **EB 솔루션 스택 `v4.8.3` 폐기** — 새 계정/리전에 없음(계획 Phase 1.2 경고대로). `aws elasticbeanstalk list-available-solution-stacks`로 확인 → **v4.12.1**로 모듈 기본값 갱신. (Corretto 21 plain — Tomcat 아님)
+3. **🔴 새 EB에 외부 설정 env 7개 누락 (최대 함정)** — terraform EB 모듈이 관리하지 **않던** env가 구 EB엔 수동/외부로 설정돼 있었음:
+   - **`SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration`** — 없으면 앱이 `localhost:6379` Redis 연결 시도 → `/actuator/health` **DOWN** → **ALB 타깃 unhealthy → 라우팅 안 됨**. dev는 Redis 없음(Simple 캐시)인데 이 제외 설정으로 회피하던 것.
+   - **`GOOGLE_CLIENT_ID`** — 비면 Google 로그인 시 백엔드 `POST /auth/google 401` "invalid token". **이름 비교만으론 못 잡음**(이름은 양쪽 존재, 값만 빈 것) → **값 전수 비교 필수**.
+   - `AI_PROVIDER`, `GOOGLE_CLIENT_SECRET`, `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `TESTPROD_FRONTEND_URL`.
+   - **교훈**: 이전 직후 **구↔신 EB env를 이름+값 전수 비교**(`describe-configuration-settings`)하고 누락/빈값 복사. 계정종속(DATABASE_URL/S3_BUCKET/CLOUDFRONT_DOMAIN/FRONTEND_URL)·의도적(JWT_SECRET 로테이션)은 제외. **이 7개는 EB 모듈에 IaC化**해야 영구.
+4. **route53 크로스계정 역할에 `route53:ListTagsForResource` 필요** — AWS provider가 영역 읽을 때 호출. 초기 부트스트랩 정책에 없어 flip plan이 403 → 추가. (부트스트랩 모듈에 반영됨)
+5. **CloudFront CNAME 전역 유일 충돌** — 새 프론트 CloudFront가 `bridgespots.com` alias를 못 가져감(구 `E3C9295UMI1LW7`이 보유). → **구 분포에서 alias 제거 + 기본 인증서 전환 → 배포완료 대기** 후 flip. (api/milkyway는 ALB라 무관)
+6. **RDS 프라이빗 서브넷** — 노트북에서 직접 접속(pg_dump) 불가 → **스냅샷+CMK 경로**(계획 §4.2 주 경로) 채택. 빈 RDS를 `rds_snapshot_identifier`로 교체 복원(빈 DB라 destroy 안전, import 불필요).
+7. (도구) seed 스크립트 zsh 워드분할 — `for k in $KEYS`(문자열)는 zsh에서 분할 안 됨 → **배열** 사용.
+
+### 8.5 잔여 마무리 (서비스 영향 없음)
+1. **on-disk tfvars 갱신** — 컷오버는 `-var`로 적용됨. dev tfvars에 `domain_name`/`secondary_domain_name`/`dns_account_role_arn`/`use_ssm_secrets=true`/`attachments_bucket_name`/`frontend_bucket_name`/**`google_client_id`** 반영(미반영 시 다음 apply에서 드리프트/누락).
+2. **수동 EB env 7개(§8.4-3) + GOOGLE_CLIENT_ID를 EB 모듈/SSM으로 IaC化**.
+3. **CI 워크플로** — `deploy-dev.yml` 하드코딩(`S3_BUCKET_DEV=kanban-dev-frontend` 등) 새 이름으로 + OIDC 변경(working tree) 커밋. GitHub vars(`DEV_CLOUDFRONT_DISTRIBUTION_ID`=E3JHJCDEI33NCX 등) 갱신.
+4. **새 계정 `infra_scheduler`** 활성(야간 정지) — 운영이면 끌지 결정.
+5. **통합비밀 12개**(CLAUDE/OPENAI/POLAR/DISCORD/SLACK/MAIL) 빈값 = 구 dev와 동일(기능 회귀 없음). 활성화하려면 값 확보 후 SSM 시딩.
+6. **구 계정 정리(1~2주 안정화 후)**: 구 EB/RDS/프론트 버킷·CloudFront 삭제(최종 스냅샷 보관). **Route53 영역·첨부 버킷·DNS IAM 역할은 패턴 A로 유지**.
 
 ---
 

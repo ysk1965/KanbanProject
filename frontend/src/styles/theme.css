@@ -863,6 +863,28 @@ html {
 .plyr-bridge-theme .plyr {
   border-radius: 0.75rem;
   overflow: hidden;
+  /* 세로 영상 크롭 방지: 너비 90vw 강제 대신 실제 영상 크기를 따르되 90vw/90vh로만 캡 */
+  width: auto;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+/* Plyr 기본 16:9 고정 비율 래퍼 무력화 (portrait 영상이 가로 띠로 잘리던 원인) */
+.plyr-bridge-theme .plyr__video-wrapper,
+.plyr-bridge-theme .plyr__video-wrapper--fixed-ratio {
+  height: auto !important;
+  padding-bottom: 0 !important;
+  aspect-ratio: auto !important;
+}
+
+/* 영상 자체를 이미지 분기와 동일하게 object-contain 으로 letterbox */
+.plyr-bridge-theme .plyr video {
+  position: relative;
+  width: auto;
+  height: auto;
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
 }
 
 .plyr-bridge-theme .plyr__controls {

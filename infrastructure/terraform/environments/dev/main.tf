@@ -17,7 +17,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "kanban-terraform-state"
+    bucket         = "kanban-terraform-state-259151461692"
     key            = "dev/terraform.tfstate"
     region         = "ap-northeast-2"
     encrypt        = true
@@ -51,6 +51,30 @@ provider "aws" {
   }
 }
 
+# Provider for Route53 DNS records — optionally assumes a role in ANOTHER AWS
+# account so the hosted zone can stay in the legacy account during/after an
+# account migration (Pattern A). Empty dns_account_role_arn = this account.
+provider "aws" {
+  alias  = "dns"
+  region = var.aws_region
+
+  dynamic "assume_role" {
+    for_each = var.dns_account_role_arn != "" ? [1] : []
+    content {
+      role_arn     = var.dns_account_role_arn
+      session_name = "${var.project_name}-${var.environment}-route53"
+    }
+  }
+
+  default_tags {
+    tags = {
+      Project     = var.project_name
+      Environment = var.environment
+      ManagedBy   = "terraform"
+    }
+  }
+}
+
 # VPC Module - No NAT Gateway for cost savings
 module "vpc" {
   source = "../../modules/vpc"
@@ -58,7 +82,7 @@ module "vpc" {
   project_name       = var.project_name
   environment        = var.environment
   vpc_cidr           = var.vpc_cidr
-  enable_nat_gateway = false  # Cost saving: No NAT Gateway
+  enable_nat_gateway = false # Cost saving: No NAT Gateway
 }
 
 # Security Groups Module
@@ -78,11 +102,17 @@ module "rds" {
   environment       = var.environment
   subnet_ids        = module.vpc.private_subnet_ids
   security_group_id = module.security_groups.rds_security_group_id
-  master_password   = var.db_password
+  master_password   = local.secret.db_password
 
-  instance_class          = "db.t4g.micro"  # Free tier eligible
+  instance_class          = "db.t4g.micro" # Free tier eligible
   allocated_storage       = 20
-  backup_retention_period = 1               # Minimal backup for dev
+  backup_retention_period = 1 # Minimal backup for dev
+
+  # Cross-account migration: CMK-encrypted restore + clean terraform import
+  engine_version      = var.rds_engine_version
+  kms_key_id          = var.rds_kms_key_id
+  deletion_protection = var.rds_deletion_protection
+  snapshot_identifier = var.rds_snapshot_identifier
 }
 
 # Infrastructure Scheduler - Off-peak shutdown (KST 01:00~09:00)
@@ -118,6 +148,44 @@ module "infra_scheduler" {
 # }
 
 # Elastic Beanstalk Module - Public Subnet (no NAT needed)
+# ─── App secrets: SSM SecureString source-of-truth ───
+# use_ssm_secrets=true → read from SSM (${var.ssm_secret_prefix}/<key>); false → legacy tfvars/TF_VAR.
+# Pulls raw secrets out of tfvars/CI and separates dev/prod, with no app change.
+# Reads whatever is seeded under the prefix (tolerant of partial seeding).
+data "aws_ssm_parameters_by_path" "app_secrets" {
+  count           = var.use_ssm_secrets ? 1 : 0
+  path            = var.ssm_secret_prefix
+  with_decryption = true
+}
+
+locals {
+  # name (/kanban/<env>/<key>) → value, only for params that actually exist in SSM
+  ssm_map = var.use_ssm_secrets ? zipmap(
+    [for n in data.aws_ssm_parameters_by_path.app_secrets[0].names : basename(n)],
+    data.aws_ssm_parameters_by_path.app_secrets[0].values
+  ) : {}
+
+  # SSM value if seeded, else fall back to the var (tfvars/CI). Per-key tolerant.
+  secret = {
+    db_password                = lookup(local.ssm_map, "db_password", var.db_password)
+    jwt_secret                 = lookup(local.ssm_map, "jwt_secret", var.jwt_secret)
+    claude_api_key             = lookup(local.ssm_map, "claude_api_key", var.claude_api_key)
+    openai_api_key             = lookup(local.ssm_map, "openai_api_key", var.openai_api_key)
+    openai_admin_key           = lookup(local.ssm_map, "openai_admin_key", var.openai_admin_key)
+    mail_username              = lookup(local.ssm_map, "mail_username", var.mail_username)
+    mail_password              = lookup(local.ssm_map, "mail_password", var.mail_password)
+    polar_api_key              = lookup(local.ssm_map, "polar_api_key", var.polar_api_key)
+    polar_webhook_secret       = lookup(local.ssm_map, "polar_webhook_secret", var.polar_webhook_secret)
+    discord_client_secret      = lookup(local.ssm_map, "discord_client_secret", var.discord_client_secret)
+    discord_bot_token          = lookup(local.ssm_map, "discord_bot_token", var.discord_bot_token)
+    slack_client_secret        = lookup(local.ssm_map, "slack_client_secret", var.slack_client_secret)
+    slack_signing_secret       = lookup(local.ssm_map, "slack_signing_secret", var.slack_signing_secret)
+    slack_token_encryption_key = lookup(local.ssm_map, "slack_token_encryption_key", var.slack_token_encryption_key)
+    google_client_secret       = lookup(local.ssm_map, "google_client_secret", var.google_client_secret)
+    sentry_dsn                 = lookup(local.ssm_map, "sentry_dsn", var.sentry_dsn)
+  }
+}
+
 module "elastic_beanstalk" {
   source = "../../modules/elastic-beanstalk"
 
@@ -125,37 +193,45 @@ module "elastic_beanstalk" {
   environment           = var.environment
   vpc_id                = module.vpc.vpc_id
   public_subnet_ids     = module.vpc.public_subnet_ids
-  private_subnet_ids    = module.vpc.public_subnet_ids  # Use public subnets for EC2 (no NAT)
+  private_subnet_ids    = module.vpc.public_subnet_ids # Use public subnets for EC2 (no NAT)
   alb_security_group_id = module.security_groups.alb_security_group_id
   ec2_security_group_id = module.security_groups.eb_ec2_security_group_id
 
   instance_type       = "t3.small"
   min_instances       = 1
   max_instances       = 2
-  associate_public_ip = "true"  # Public subnet, no NAT
+  associate_public_ip = "true" # Public subnet, no NAT
 
-  spring_profile = "dev"
-  database_url   = module.rds.jdbc_url
-  db_username    = "kanban_admin"
-  db_password    = var.db_password
-  redis_host     = ""
-  redis_port     = ""
-  jwt_secret     = var.jwt_secret
-  claude_api_key   = var.claude_api_key
-  openai_api_key   = var.openai_api_key
-  openai_admin_key = var.openai_admin_key
-  mail_username    = var.mail_username
-  mail_password   = var.mail_password
-  google_client_id = var.google_client_id
-  frontend_url   = var.domain_name != "" ? "https://${var.domain_name}" : module.s3_cloudfront.cloudfront_url
+  spring_profile        = "dev"
+  database_url          = module.rds.jdbc_url
+  db_username           = "kanban_admin"
+  db_password           = local.secret.db_password
+  redis_host            = ""
+  redis_port            = ""
+  jwt_secret            = local.secret.jwt_secret
+  claude_api_key        = local.secret.claude_api_key
+  openai_api_key        = local.secret.openai_api_key
+  openai_admin_key      = local.secret.openai_admin_key
+  mail_username         = local.secret.mail_username
+  mail_password         = local.secret.mail_password
+  google_client_id      = var.google_client_id
+  google_client_secret  = local.secret.google_client_secret
+  frontend_url          = var.domain_name != "" ? "https://${var.domain_name}" : module.s3_cloudfront.cloudfront_url
+  testprod_frontend_url = var.testprod_frontend_url
+
+  # App config / observability
+  ai_provider        = var.ai_provider
+  sentry_dsn         = local.secret.sentry_dsn
+  sentry_environment = var.environment
 
   ssl_certificate_arn = var.domain_name != "" ? module.acm_certificate_alb[0].validated_certificate_arn : ""
 
   cloudfront_domain = aws_cloudfront_distribution.attachments.domain_name
+  s3_bucket         = var.attachments_bucket_name
 
   # Polar.sh Payment
-  polar_api_key               = var.polar_api_key
-  polar_webhook_secret        = var.polar_webhook_secret
+  polar_api_key               = local.secret.polar_api_key
+  polar_webhook_secret        = local.secret.polar_webhook_secret
   polar_org_id                = var.polar_org_id
   polar_product_board_monthly = var.polar_product_board_monthly
   polar_product_board_yearly  = var.polar_product_board_yearly
@@ -167,15 +243,15 @@ module "elastic_beanstalk" {
 
   # Discord Integration
   discord_client_id     = var.discord_client_id
-  discord_client_secret = var.discord_client_secret
-  discord_bot_token     = var.discord_bot_token
+  discord_client_secret = local.secret.discord_client_secret
+  discord_bot_token     = local.secret.discord_bot_token
   discord_redirect_uri  = var.discord_redirect_uri
 
   # Slack App Integration
   slack_client_id            = var.slack_client_id
-  slack_client_secret        = var.slack_client_secret
-  slack_signing_secret       = var.slack_signing_secret
-  slack_token_encryption_key = var.slack_token_encryption_key
+  slack_client_secret        = local.secret.slack_client_secret
+  slack_signing_secret       = local.secret.slack_signing_secret
+  slack_token_encryption_key = local.secret.slack_token_encryption_key
   slack_redirect_uri         = var.slack_redirect_uri
   slack_user_redirect_uri    = var.slack_user_redirect_uri
 
@@ -202,15 +278,25 @@ module "acm_certificate" {
     aws = aws.us_east_1
   }
 
-  project_name              = var.project_name
-  environment               = var.environment
-  domain_name               = var.domain_name
-  subject_alternative_names = ["*.${var.domain_name}"]
+  project_name = var.project_name
+  environment  = var.environment
+  domain_name  = var.domain_name
+  # Single CloudFront serves BOTH bridgespots.com and milkyway.pe.kr (Host-based
+  # spa_router). One distribution = one viewer cert, so the cert must SAN-cover
+  # both domains. Validation records are routed per-zone in cert_validation below.
+  subject_alternative_names = concat(
+    ["*.${var.domain_name}"],
+    var.secondary_domain_name != "" ? [var.secondary_domain_name, "*.${var.secondary_domain_name}"] : []
+  )
 }
 
-# Route 53 Hosted Zone
+# ─── Route 53 Hosted Zone ───
+# Pattern A — the hosted zone may live in a DIFFERENT (legacy) AWS account:
+#   dns_account_role_arn == ""  → create & manage the zone in THIS account
+#   dns_account_role_arn != ""  → zone stays in the other account; we only look
+#                                 it up and write records via the aws.dns provider
 module "route53" {
-  count  = var.domain_name != "" ? 1 : 0
+  count  = var.domain_name != "" && var.dns_account_role_arn == "" ? 1 : 0
   source = "../../modules/route53"
 
   project_name = var.project_name
@@ -218,20 +304,39 @@ module "route53" {
   domain_name  = var.domain_name
 }
 
+# Cross-account: look up the existing hosted zone in the legacy account
+data "aws_route53_zone" "primary" {
+  count    = var.domain_name != "" && var.dns_account_role_arn != "" ? 1 : 0
+  provider = aws.dns
+  name     = var.domain_name
+}
+
+locals {
+  # Resolves to the in-account zone OR the cross-account zone, whichever applies
+  primary_zone_id = var.dns_account_role_arn != "" ? one(data.aws_route53_zone.primary[*].zone_id) : one(module.route53[*].zone_id)
+}
+
 # S3 + CloudFront Module
 module "s3_cloudfront" {
   source = "../../modules/s3-cloudfront"
 
+  bucket_name = var.frontend_bucket_name
+
   project_name        = var.project_name
   environment         = var.environment
   acm_certificate_arn = var.domain_name != "" ? module.acm_certificate[0].validated_certificate_arn : ""
-  domain_aliases      = var.domain_name != "" ? [var.domain_name, "www.${var.domain_name}"] : []
+  domain_aliases = var.domain_name != "" ? concat(
+    [var.domain_name, "www.${var.domain_name}"],
+    var.secondary_domain_name != "" ? [var.secondary_domain_name, "www.${var.secondary_domain_name}"] : []
+  ) : []
 
   depends_on = [module.acm_certificate]
 }
 
 # ACM Certificate Validation Records (ALB - ap-northeast-2)
 resource "aws_route53_record" "cert_validation_alb" {
+  provider = aws.dns
+
   for_each = var.domain_name != "" ? {
     for dvo in module.acm_certificate_alb[0].domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
@@ -245,11 +350,13 @@ resource "aws_route53_record" "cert_validation_alb" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  zone_id         = module.route53[0].zone_id
+  zone_id         = local.primary_zone_id
 }
 
 # ACM Certificate Validation Records (CloudFront - us-east-1)
 resource "aws_route53_record" "cert_validation" {
+  provider = aws.dns
+
   for_each = var.domain_name != "" ? {
     for dvo in module.acm_certificate[0].domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
@@ -263,16 +370,20 @@ resource "aws_route53_record" "cert_validation" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  zone_id         = module.route53[0].zone_id
+  # SAN cert covers both domains → route each validation record to its own zone
+  # (milkyway records to the secondary zone, everything else to the primary zone).
+  zone_id = (var.secondary_domain_name != "" && strcontains(each.key, var.secondary_domain_name)) ? data.aws_route53_zone.secondary[0].zone_id : local.primary_zone_id
 }
 
 # Frontend Domain Records
 resource "aws_route53_record" "frontend_root" {
-  count = var.domain_name != "" ? 1 : 0
+  provider = aws.dns
+  count    = var.domain_name != "" ? 1 : 0
 
-  zone_id = module.route53[0].zone_id
-  name    = var.domain_name
-  type    = "A"
+  zone_id         = local.primary_zone_id
+  name            = var.domain_name
+  type            = "A"
+  allow_overwrite = true
 
   alias {
     name                   = module.s3_cloudfront.cloudfront_domain_name
@@ -284,11 +395,56 @@ resource "aws_route53_record" "frontend_root" {
 }
 
 resource "aws_route53_record" "frontend_www" {
-  count = var.domain_name != "" ? 1 : 0
+  provider = aws.dns
+  count    = var.domain_name != "" ? 1 : 0
 
-  zone_id = module.route53[0].zone_id
-  name    = "www.${var.domain_name}"
-  type    = "A"
+  zone_id         = local.primary_zone_id
+  name            = "www.${var.domain_name}"
+  type            = "A"
+  allow_overwrite = true
+
+  alias {
+    name                   = module.s3_cloudfront.cloudfront_domain_name
+    zone_id                = module.s3_cloudfront.cloudfront_hosted_zone_id
+    evaluate_target_health = false
+  }
+
+  depends_on = [module.s3_cloudfront]
+}
+
+# ─── Secondary Domain Frontend Records (milkyway.pe.kr → SAME CloudFront) ───
+# milkyway is served by the same distribution/bucket as bridgespots; the
+# spa_router function returns /index.html for non-bridgespots Hosts.
+# allow_overwrite=true repoints the existing milkyway A records (currently the
+# legacy-account CloudFront) onto the new-account distribution on apply.
+# ⚠️ Before apply: remove milkyway aliases from the legacy CF E22U5C46YWKCL7
+# (CloudFront CNAMEs are globally unique) or the alias add will fail.
+resource "aws_route53_record" "frontend_secondary_root" {
+  provider = aws.dns
+  count    = var.secondary_domain_name != "" ? 1 : 0
+
+  zone_id         = data.aws_route53_zone.secondary[0].zone_id
+  name            = var.secondary_domain_name
+  type            = "A"
+  allow_overwrite = true
+
+  alias {
+    name                   = module.s3_cloudfront.cloudfront_domain_name
+    zone_id                = module.s3_cloudfront.cloudfront_hosted_zone_id
+    evaluate_target_health = false
+  }
+
+  depends_on = [module.s3_cloudfront]
+}
+
+resource "aws_route53_record" "frontend_secondary_www" {
+  provider = aws.dns
+  count    = var.secondary_domain_name != "" ? 1 : 0
+
+  zone_id         = data.aws_route53_zone.secondary[0].zone_id
+  name            = "www.${var.secondary_domain_name}"
+  type            = "A"
+  allow_overwrite = true
 
   alias {
     name                   = module.s3_cloudfront.cloudfront_domain_name
@@ -302,7 +458,7 @@ resource "aws_route53_record" "frontend_www" {
 # ─── S3 Attachments CloudFront ───
 
 data "aws_s3_bucket" "attachments" {
-  bucket = "bridge-kanban-attachments"
+  bucket = var.attachments_bucket_name
 }
 
 # ─── S3 Lifecycle Rules (shared bucket - managed in dev only) ───
@@ -363,6 +519,28 @@ resource "aws_s3_bucket_intelligent_tiering_configuration" "attachments" {
   tiering {
     access_tier = "ARCHIVE_ACCESS"
     days        = 90
+  }
+}
+
+# ─── S3 Bucket CORS (presigned PUT 직접 업로드용 — shared bucket, dev 관리) ───
+# 브라우저가 presigned URL로 버킷에 직접 PUT 하므로 CloudFront response-headers-policy(다운로드 GET용)가 아닌
+# 버킷 레벨 CORS가 필요하다. 미설정 시 cross-origin PUT preflight가 No 'Access-Control-Allow-Origin'으로 차단된다.
+resource "aws_s3_bucket_cors_configuration" "attachments" {
+  bucket = data.aws_s3_bucket.attachments.id
+
+  cors_rule {
+    allowed_origins = [
+      "https://bridgespots.com",
+      "https://www.bridgespots.com",
+      "https://milkyway.pe.kr",
+      "https://www.milkyway.pe.kr",
+      "http://localhost:5173",
+      "http://localhost:5174",
+    ]
+    allowed_methods = ["PUT", "POST", "GET", "HEAD"]
+    allowed_headers = ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 86400
   }
 }
 
@@ -458,9 +636,9 @@ resource "aws_cloudfront_distribution" "attachments" {
 
     response_headers_policy_id = aws_cloudfront_response_headers_policy.attachments_cors.id
 
-    min_ttl     = 86400     # 1 day minimum
-    default_ttl = 2592000   # 30 days
-    max_ttl     = 31536000  # 1 year
+    min_ttl     = 86400    # 1 day minimum
+    default_ttl = 2592000  # 30 days
+    max_ttl     = 31536000 # 1 year
   }
 
   # 커스텀 아이콘 - 30일 캐시 (immutable)
@@ -482,9 +660,9 @@ resource "aws_cloudfront_distribution" "attachments" {
 
     response_headers_policy_id = aws_cloudfront_response_headers_policy.attachments_cors.id
 
-    min_ttl     = 86400     # 1 day minimum
-    default_ttl = 2592000   # 30 days
-    max_ttl     = 31536000  # 1 year
+    min_ttl     = 86400    # 1 day minimum
+    default_ttl = 2592000  # 30 days
+    max_ttl     = 31536000 # 1 year
   }
 
   # 조직 사진첩 - 30일 캐시 (UUID 기반 immutable 파일)
@@ -506,9 +684,9 @@ resource "aws_cloudfront_distribution" "attachments" {
 
     response_headers_policy_id = aws_cloudfront_response_headers_policy.attachments_cors.id
 
-    min_ttl     = 86400     # 1 day minimum
-    default_ttl = 2592000   # 30 days
-    max_ttl     = 31536000  # 1 year
+    min_ttl     = 86400    # 1 day minimum
+    default_ttl = 2592000  # 30 days
+    max_ttl     = 31536000 # 1 year
   }
 
   restrictions {
@@ -533,8 +711,8 @@ resource "aws_s3_bucket_policy" "attachments" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "AllowCloudFrontAccess"
-        Effect    = "Allow"
+        Sid    = "AllowCloudFrontAccess"
+        Effect = "Allow"
         Principal = {
           Service = "cloudfront.amazonaws.com"
         }
@@ -552,11 +730,13 @@ resource "aws_s3_bucket_policy" "attachments" {
 
 # Backend API Domain Record
 resource "aws_route53_record" "backend_api" {
-  count = var.domain_name != "" ? 1 : 0
+  provider = aws.dns
+  count    = var.domain_name != "" ? 1 : 0
 
-  zone_id = module.route53[0].zone_id
-  name    = "api.${var.domain_name}"
-  type    = "A"
+  zone_id         = local.primary_zone_id
+  name            = "api.${var.domain_name}"
+  type            = "A"
+  allow_overwrite = true
 
   alias {
     name                   = module.elastic_beanstalk.alb_dns_name
@@ -572,8 +752,9 @@ resource "aws_route53_record" "backend_api" {
 
 # Look up existing Route53 hosted zone for secondary domain
 data "aws_route53_zone" "secondary" {
-  count = var.secondary_domain_name != "" ? 1 : 0
-  name  = var.secondary_domain_name
+  count    = var.secondary_domain_name != "" ? 1 : 0
+  provider = aws.dns
+  name     = var.secondary_domain_name
 }
 
 # ACM Certificate for secondary domain (ap-northeast-2 for ALB)
@@ -589,6 +770,8 @@ module "acm_certificate_secondary_alb" {
 
 # ACM Certificate Validation Records for secondary domain
 resource "aws_route53_record" "cert_validation_secondary_alb" {
+  provider = aws.dns
+
   for_each = var.secondary_domain_name != "" ? {
     for dvo in module.acm_certificate_secondary_alb[0].domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
@@ -624,11 +807,13 @@ resource "aws_lb_listener_certificate" "secondary" {
 
 # Backend API Domain Record for secondary domain
 resource "aws_route53_record" "backend_api_secondary" {
-  count = var.secondary_domain_name != "" ? 1 : 0
+  provider = aws.dns
+  count    = var.secondary_domain_name != "" ? 1 : 0
 
-  zone_id = data.aws_route53_zone.secondary[0].zone_id
-  name    = "api.${var.secondary_domain_name}"
-  type    = "A"
+  zone_id         = data.aws_route53_zone.secondary[0].zone_id
+  name            = "api.${var.secondary_domain_name}"
+  type            = "A"
+  allow_overwrite = true
 
   alias {
     name                   = module.elastic_beanstalk.alb_dns_name

@@ -71,3 +71,27 @@ variable "publicly_accessible" {
   type        = bool
   default     = false
 }
+
+variable "kms_key_id" {
+  description = "Customer-managed KMS key ARN/ID for storage encryption. Empty = AWS-managed default aws/rds key. Set to a CMK so snapshots can be shared cross-account (account migration)."
+  type        = string
+  default     = ""
+}
+
+variable "snapshot_identifier" {
+  description = "Restore the instance from this DB snapshot ID/ARN instead of creating empty. Empty = fresh instance. (Account migration: restore the migrated snapshot.)"
+  type        = string
+  default     = ""
+}
+
+variable "auto_minor_version_upgrade" {
+  description = "Allow AWS to auto-apply minor engine upgrades. Keep false to pin the version (avoids plan drift and surprise upgrades during/after migration)."
+  type        = bool
+  default     = false
+}
+
+variable "deletion_protection" {
+  description = "Override deletion protection. null = enabled only for prod (legacy behavior); set true/false to force (recommend true for the live DB)."
+  type        = bool
+  default     = null
+}
