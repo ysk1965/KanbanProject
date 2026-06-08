@@ -767,7 +767,14 @@
       "noItems": "Nenhum item atribuído",
       "completed": "Concluído",
       "collapse": "Recolher",
-      "more": "mais"
+      "more": "mais",
+      "tentative": "Previsto",
+      "promoteToChecklist": "Converter em lista de verificação real"
+    },
+    "taskPicker": {
+      "title": "Alocar trabalho provisório · Selecionar tarefa",
+      "search": "Buscar tarefas...",
+      "empty": "Nenhuma tarefa"
     },
     "panel": {
       "title": "Lista de verificação",

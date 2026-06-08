@@ -433,6 +433,24 @@ export function KanbanBoardPage() {
     refreshMembers,
   } = useBoardDataLoader(boardId);
 
+  // 워크로드 임시 업무 배치용 태스크 목록 (feature 정보 포함, 추가 fetch 없음)
+  const taskPickerList = useMemo(() => {
+    const featureMap = new Map<string, { title: string; color: string }>();
+    (allFeatures.length ? allFeatures : features).forEach((f) =>
+      featureMap.set(f.id, { title: f.title, color: f.color }),
+    );
+    return tasks.map((task) => {
+      const f = featureMap.get(task.feature_id);
+      return {
+        taskId: task.id,
+        taskTitle: task.title,
+        featureId: task.feature_id,
+        featureTitle: f?.title || "",
+        featureColor: f?.color || "#6366F1",
+      };
+    });
+  }, [tasks, allFeatures, features]);
+
   // milestoneIdRef를 최신 값으로 동기화 (WebSocket 핸들러에서 stale closure 방지)
   useEffect(() => {
     milestoneIdRef.current = kanbanSelectedMilestoneId;
@@ -3850,6 +3868,7 @@ export function KanbanBoardPage() {
                     refreshTrigger={scheduleRefreshPanel}
                     onMilestoneClick={handleOpenMilestoneWithCheck}
                     scrollToItem={scrollToItem}
+                    tasks={taskPickerList}
                   />
                 </Suspense>
                 <Suspense fallback={null}>

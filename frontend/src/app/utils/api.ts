@@ -1695,9 +1695,11 @@ export const checklistAPI = {
     taskId: string,
     data: {
       title: string;
-      assignee_id?: string;
+      assignee_id?: string | null;
+      contractor_id?: string | null;
       start_date?: string;
       due_date?: string;
+      is_tentative?: boolean;
     },
   ) => {
     return apiClient.post<ChecklistItemResponse>(
@@ -1736,6 +1738,7 @@ export const checklistAPI = {
       contractor_id?: string | null;
       start_date?: string | null;
       due_date?: string | null;
+      is_tentative?: boolean;
     },
   ) => {
     return apiClient.patch<ChecklistItemResponse>(
@@ -2807,6 +2810,7 @@ export interface BoardChecklistItemResponse {
   } | null;
   start_date: string | null;
   due_date: string | null;
+  tentative?: boolean;
   task: {
     id: string;
     title: string;
@@ -2830,6 +2834,7 @@ export interface AssigneeItemResponse {
   completed: boolean;
   start_date: string | null;
   due_date: string | null;
+  tentative?: boolean; // 임시(예정) 워크로드 항목 여부
   task: {
     id: string;
     title: string;

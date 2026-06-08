@@ -34,6 +34,9 @@ public class ChecklistRequest {
         private LocalDate startDate;
 
         private LocalDate dueDate;
+
+        /** true이면 워크로드에 미리 잡아두는 임시(예정) 항목으로 생성한다. */
+        private Boolean isTentative;
     }
 
     @Getter
@@ -72,6 +75,8 @@ public class ChecklistRequest {
 
         private LocalDate dueDate;
 
+        private Boolean isTentative;
+
         @JsonIgnore
         private boolean titlePresent;
         @JsonIgnore
@@ -82,6 +87,8 @@ public class ChecklistRequest {
         private boolean startDatePresent;
         @JsonIgnore
         private boolean dueDatePresent;
+        @JsonIgnore
+        private boolean isTentativePresent;
 
         public void setTitle(String title) {
             this.title = title;
@@ -108,11 +115,17 @@ public class ChecklistRequest {
             this.dueDatePresent = true;
         }
 
+        public void setIsTentative(Boolean isTentative) {
+            this.isTentative = isTentative;
+            this.isTentativePresent = true;
+        }
+
         public boolean hasTitle() { return titlePresent; }
         public boolean hasAssigneeId() { return assigneeIdPresent; }
         public boolean hasContractorId() { return contractorIdPresent; }
         public boolean hasStartDate() { return startDatePresent; }
         public boolean hasDueDate() { return dueDatePresent; }
+        public boolean hasIsTentative() { return isTentativePresent; }
     }
 
     @Getter

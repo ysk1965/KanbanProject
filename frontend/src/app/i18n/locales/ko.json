@@ -833,7 +833,14 @@
       "collapse": "접기",
       "more": "더 보기",
       "groupByMember": "멤버별",
-      "groupByJobRole": "직군별"
+      "groupByJobRole": "직군별",
+      "tentative": "예정",
+      "promoteToChecklist": "실제 체크리스트로 전환"
+    },
+    "taskPicker": {
+      "title": "임시 업무 배치 · 태스크 선택",
+      "search": "태스크 검색...",
+      "empty": "태스크가 없습니다"
     },
     "panel": {
       "title": "체크리스트",
