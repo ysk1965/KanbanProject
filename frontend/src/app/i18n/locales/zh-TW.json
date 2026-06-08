@@ -743,8 +743,7 @@
     "subTab": {
       "timeblock": "時間區塊",
       "calendar": "日曆",
-      "resource": "工作負載",
-      "planning": "規劃"
+      "resource": "工作負載"
     },
     "calendar": {
       "today": "今天",
@@ -796,91 +795,7 @@
     "blockUnit": "30 分鐘",
     "totalBlockCount": "總區塊數：",
     "endAfterStart": "結束時間必須晚於開始時間。",
-    "minBlocksRequired": "至少需要 4 個區塊。",
-    "planning": {
-      "title": "規劃",
-      "toolbar": {
-        "today": "跳至今天",
-        "legend": "圖例"
-      },
-      "col": {
-        "member": "成員"
-      },
-      "header": {
-        "week": "W{{num}}",
-        "milestone": "里程碑"
-      },
-      "cell": {
-        "placeHint": "+ 拖放排布",
-        "noMilestone": "無里程碑",
-        "expandMore": "+{{count}} 更多"
-      },
-      "load": {
-        "over": "超負荷",
-        "normal": "適中",
-        "under": "較空閒",
-        "unknown": "未設定",
-        "format": "{{actual}}h / {{allocated}}h"
-      },
-      "pool": {
-        "title": "臨時任務池",
-        "quickAdd": "輸入標題…",
-        "hours": "預估工時",
-        "assignee": "負責人",
-        "filter": {
-          "all": "全部",
-          "unplaced": "未排布",
-          "placed": "已排布"
-        },
-        "empty": {
-          "title": "尚無臨時任務",
-          "description": "在上方輸入框中輸入標題和工時，然後按 Enter"
-        }
-      },
-      "card": {
-        "edit": "編輯",
-        "delete": "刪除",
-        "unplace": "移回任務池",
-        "deleted": "卡片已刪除",
-        "undo": "撤銷"
-      },
-      "empty": {
-        "noMilestones": {
-          "title": "尚無里程碑",
-          "description": "建立里程碑後將啟用容量視覺化",
-          "cta": "建立里程碑"
-        },
-        "noMembers": {
-          "title": "尚無成員",
-          "description": "邀請成員加入看板後即可進行資源模擬"
-        }
-      },
-      "warn": {
-        "noAllocations": "尚未設定里程碑分配。請先在里程碑中為每位成員設定分配工時。"
-      },
-      "error": {
-        "placeFailed": "排布失敗，請再試一次。",
-        "invalidWeek": "只能排布至以週一為起始日的週次。"
-      },
-      "legend": {
-        "title": "負荷狀態",
-        "over": "超負荷（超過 capacity × 1.1）",
-        "normal": "適中（capacity × 0.5~1.1）",
-        "under": "較空閒（低於 capacity × 0.5）",
-        "unknown": "capacity 未設定"
-      },
-      "tooltip": {
-        "allocated": "分配: {{hours}}h",
-        "placed": "已排布: {{hours}}h",
-        "diff": "差值: {{diff}}h",
-        "weekRange": "{{start}} ~ {{end}}",
-        "milestone": "里程碑: {{title}}"
-      },
-      "mobile": {
-        "segmentPool": "任務池",
-        "segmentGrid": "網格"
-      }
-    }
+    "minBlocksRequired": "至少需要 4 個區塊。"
   },
   "dailySummary": {
     "summaryButton": "摘要",

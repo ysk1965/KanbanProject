@@ -1723,13 +1723,7 @@ export type BoardEventType =
   | "NOTE_COMMENT_RESOLVED"
   | "NOTE_COMMENT_REACTION_TOGGLED"
   | "PRESENCE_JOINED"
-  | "PRESENCE_LEFT"
-  | "PLANNING_CARD_CREATED"
-  | "PLANNING_CARD_UPDATED"
-  | "PLANNING_CARD_MOVED"
-  | "PLANNING_CARD_DELETED"
-  | "PLANNING_CARDS_REORDERED"
-  | "PLANNING_MILESTONE_REINDEXED";
+  | "PRESENCE_LEFT";
 
 export interface BoardWebSocketEvent {
   type: BoardEventType;
@@ -1846,131 +1840,6 @@ export interface MonitoringAiUsageByBoard {
   output_tokens: number;
   estimated_cost_usd: number;
   call_count: number;
-}
-
-// ========================================
-// Planning Types
-// ========================================
-
-export type PlanningCardStatus = 'OVER' | 'UNDER' | 'NORMAL' | 'UNKNOWN';
-
-export interface PlanningCard {
-  id: string;
-  title: string;
-  description: string | null;
-  assignee: {
-    id: string;
-    name: string;
-    profile_image: string | null;
-  } | null;
-  week_start_date: string | null;       // ISO date (월요일)
-  primary_milestone_id: string | null;
-  estimated_hours: number | null;
-  position: number;
-  color: string | null;
-  created_by: {
-    id: string;
-    name: string;
-    profile_image: string | null;
-  } | null;
-  created_at: string;
-  updated_at: string | null;
-  promoted_task_id: string | null;
-  promoted_at: string | null;
-}
-
-export interface PlanningWeekInfo {
-  start_date: string;      // ISO 월요일
-  iso_week: number;
-  primary_milestone_id: string | null;
-}
-
-export interface PlanningCellSummary {
-  week_start_date: string;
-  assignee_id: string;
-  card_count: number;
-  load_hours: number;
-  capacity_hours: number | null;
-  utilization: number | null;
-  status: PlanningCardStatus;
-}
-
-export interface PlanningRowTotal {
-  assignee_id: string;
-  load_hours: number;
-  capacity_hours: number | null;
-  status: PlanningCardStatus;
-}
-
-export interface PlanningColumnTotal {
-  week_start_date: string;
-  load_hours: number;
-  capacity_hours: number | null;
-  status: PlanningCardStatus;
-}
-
-export interface PlanningPoolSummary {
-  card_count: number;
-  load_hours: number;
-}
-
-export interface PlanningMilestoneInfo {
-  id: string;
-  title: string;
-  start_date: string | null;
-  end_date: string | null;
-  color: string | null;
-  progress_percentage: number;
-}
-
-export interface PlanningMemberInfo {
-  id: string;
-  name: string;
-  profile_image: string | null;
-}
-
-export interface PlanningSummaryResponse {
-  weeks: PlanningWeekInfo[];
-  milestones: PlanningMilestoneInfo[];
-  members: PlanningMemberInfo[];
-  cells: PlanningCellSummary[];
-  row_totals: PlanningRowTotal[];
-  column_totals: PlanningColumnTotal[];
-  pool: PlanningPoolSummary;
-}
-
-export interface PlanningListResponse {
-  cards: PlanningCard[];
-  summary: PlanningSummaryResponse;
-}
-
-export interface PlanningCardCreateRequest {
-  title: string;
-  description?: string | null;
-  assignee_id?: string | null;
-  week_start_date?: string | null;
-  estimated_hours?: number | null;
-  color?: string | null;
-  position?: number;
-}
-
-export interface PlanningCardUpdateRequest {
-  title?: string;
-  description?: string | null;
-  estimated_hours?: number | null;
-  color?: string | null;
-}
-
-export interface PlanningCardMoveRequest {
-  week_start_date: string | null;
-  assignee_id: string | null;
-  position: number;
-}
-
-export interface PlanningReorderRequest {
-  week_start_date: string | null;
-  assignee_id: string | null;
-  card_ids: string[];
 }
 
 export interface MonitoringAiUsageByFeature {
