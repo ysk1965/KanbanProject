@@ -212,7 +212,8 @@ import { useNotificationManager } from "../hooks/useNotificationManager";
 import { KanbanBoardHeader } from "../components/KanbanBoardHeader";
 import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
 import { BoardModalManager } from "../components/BoardModalManager";
-import { BoardViewSwitcher } from "../components/BoardViewSwitcher";
+import { FloatingViewSwitcher } from "../components/FloatingViewSwitcher";
+import { BoardSubTabs } from "../components/BoardSubTabs";
 // BoardResourceBar removed — integrated into KanbanFilterToolbar
 import { BoardListView } from "../components/BoardListView";
 import JoinRequestBanner from "../components/JoinRequestBanner";
@@ -375,7 +376,10 @@ export function KanbanBoardPage() {
     null,
   );
   const [scheduleRefreshPanel, setScheduleRefreshPanel] = useState(0);
-  const [scrollToItem, setScrollToItem] = useState<{ id: string; ts: number } | null>(null);
+  const [scrollToItem, setScrollToItem] = useState<{
+    id: string;
+    ts: number;
+  } | null>(null);
   const [planningRefreshKey, setPlanningRefreshKey] = useState(0);
 
   const getAISubMode = (): "statistics" | "ai_report" => {
@@ -533,7 +537,9 @@ export function KanbanBoardPage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isFeatureModalOpen, setIsFeatureModalOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [highlightChecklistItemId, setHighlightChecklistItemId] = useState<string | null>(null);
+  const [highlightChecklistItemId, setHighlightChecklistItemId] = useState<
+    string | null
+  >(null);
   const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
   const [meetingRefreshKey, setMeetingRefreshKey] = useState(0);
   const [meetingNavigateDate, setMeetingNavigateDate] = useState<Date | null>(
@@ -546,7 +552,9 @@ export function KanbanBoardPage() {
   const [isShareBoardModalOpen, setIsShareBoardModalOpen] = useState(false);
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
   const [isContractorManagerOpen, setIsContractorManagerOpen] = useState(false);
-  const [headerContractors, setHeaderContractors] = useState<BoardContractor[]>([]);
+  const [headerContractors, setHeaderContractors] = useState<BoardContractor[]>(
+    [],
+  );
   const [isTrashOpen, setIsTrashOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [isPremiumBenefitsModalOpen, setIsPremiumBenefitsModalOpen] =
@@ -1127,7 +1135,12 @@ export function KanbanBoardPage() {
           user?: { id?: string };
           assignee_color?: string | null;
           role?: string;
-          job_role?: { id: string; name: string; color?: string | null; icon?: string | null } | null;
+          job_role?: {
+            id: string;
+            name: string;
+            color?: string | null;
+            icon?: string | null;
+          } | null;
         };
         if (memberData?.id) {
           setBoardMembersData((prev) =>
@@ -3080,12 +3093,11 @@ export function KanbanBoardPage() {
           />
         )}
 
-        {/* 보드 서브뷰 전환 바 */}
+        {/* 보드 상단 서브탭 바 (칸반 / 마일스톤) */}
         {BOARD_SUB_MODES.includes(viewMode) && (
-          <BoardViewSwitcher
+          <BoardSubTabs
             viewMode={viewMode}
             onViewModeChange={(mode) => handleViewModeChange(mode)}
-            canAccessGantt={canAccessSchedule}
             canAccessMilestone={canAccessMilestone}
           />
         )}
@@ -3801,7 +3813,9 @@ export function KanbanBoardPage() {
                     milestones={milestones}
                     memberColorMap={memberColorMap}
                     jobRoles={jobRoles}
-                    onOpenContractorManager={() => setIsContractorManagerOpen(true)}
+                    onOpenContractorManager={() =>
+                      setIsContractorManagerOpen(true)
+                    }
                     onViewTask={async (taskId) => {
                       const task = tasks.find((t) => t.id === taskId);
                       if (task) {
@@ -3879,7 +3893,9 @@ export function KanbanBoardPage() {
                     boardId={boardId || ""}
                     onDragStateChange={setPanelDragState}
                     onItemDetailClick={handleChecklistItemDetailClick}
-                    onScheduledItemClick={(item) => setScrollToItem({ id: item.id, ts: Date.now() })}
+                    onScheduledItemClick={(item) =>
+                      setScrollToItem({ id: item.id, ts: Date.now() })
+                    }
                     boardMembers={boardMembersData}
                     onItemAdded={() => setScheduleRefreshPanel((k) => k + 1)}
                     milestones={milestones}
@@ -4135,14 +4151,12 @@ export function KanbanBoardPage() {
               label={t("kanban.viewMeeting", "회의")}
               icon="meeting"
             />
-            {!isRestricted && (
-              <MobileTabButton
-                active={viewMode === "notes"}
-                onClick={() => handleViewModeChange("notes")}
-                label={t("kanban.viewNotes", "노트")}
-                icon="notes"
-              />
-            )}
+            <MobileTabButton
+              active={viewMode === "notes"}
+              onClick={() => handleViewModeChange("notes")}
+              label={t("kanban.viewNotes", "노트")}
+              icon="notes"
+            />
             {!isRestricted && (isAdminOrOwner || (!isViewer && !isTester)) && (
               <MobileTabButton
                 active={viewMode === "statistics" || viewMode === "ai_report"}
@@ -4460,6 +4474,15 @@ export function KanbanBoardPage() {
             : "dev"}
           {beCommit && <> · BE: {beCommit}</>}
         </div>
+
+        {/* 우하단 플로팅 뷰 전환 버튼 (보드 표현 뷰에서만 표시, 마일스톤 제외) */}
+        {BOARD_SUB_MODES.includes(viewMode) && viewMode !== "milestone" && (
+          <FloatingViewSwitcher
+            viewMode={viewMode}
+            onViewModeChange={(mode) => handleViewModeChange(mode)}
+            canAccessGantt={canAccessSchedule}
+          />
+        )}
 
         {boardId && (
           <ContractorManageModal

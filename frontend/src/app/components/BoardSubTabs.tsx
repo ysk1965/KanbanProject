@@ -1,12 +1,5 @@
 import { useTranslation } from "react-i18next";
-import {
-  LayoutGrid,
-  GanttChart,
-  Calendar,
-  List,
-  Flag,
-  Lock,
-} from "lucide-react";
+import { LayoutGrid, Flag, Lock } from "lucide-react";
 
 type ViewMode =
   | "kanban"
@@ -20,32 +13,25 @@ type ViewMode =
   | "ai_report"
   | "list";
 
-interface BoardViewSwitcherProps {
+interface BoardSubTabsProps {
   /** 현재 활성화된 뷰 모드 */
   viewMode: ViewMode;
   /** 뷰 모드 변경 콜백 */
   onViewModeChange: (mode: ViewMode) => void;
-  /** 간트 차트 접근 권한 (프리미엄 기능) */
-  canAccessGantt: boolean;
   /** 마일스톤 접근 권한 (프리미엄 기능) */
   canAccessMilestone: boolean;
 }
 
-interface SubViewItem {
+interface TabItem {
   mode: ViewMode;
   icon: React.ElementType;
   labelKey: string;
   labelFallback: string;
   isPremium: boolean;
-  checkAccess: (
-    props: Pick<
-      BoardViewSwitcherProps,
-      "canAccessGantt" | "canAccessMilestone"
-    >,
-  ) => boolean;
+  checkAccess: (canAccessMilestone: boolean) => boolean;
 }
 
-const SUB_VIEWS: SubViewItem[] = [
+const TABS: TabItem[] = [
   {
     mode: "kanban",
     icon: LayoutGrid,
@@ -55,50 +41,25 @@ const SUB_VIEWS: SubViewItem[] = [
     checkAccess: () => true,
   },
   {
-    mode: "list",
-    icon: List,
-    labelKey: "kanban.viewBoardList",
-    labelFallback: "리스트",
-    isPremium: false,
-    checkAccess: () => true,
-  },
-  {
-    mode: "gantt",
-    icon: GanttChart,
-    labelKey: "kanban.viewBoardGantt",
-    labelFallback: "간트",
-    isPremium: true,
-    checkAccess: ({ canAccessGantt }) => canAccessGantt,
-  },
-  {
-    mode: "calendar",
-    icon: Calendar,
-    labelKey: "kanban.viewBoardCalendar",
-    labelFallback: "캘린더",
-    isPremium: false,
-    checkAccess: () => true,
-  },
-  {
     mode: "milestone",
     icon: Flag,
     labelKey: "kanban.viewBoardMilestone",
     labelFallback: "마일스톤",
     isPremium: true,
-    checkAccess: ({ canAccessMilestone }) => canAccessMilestone,
+    checkAccess: (canAccessMilestone) => canAccessMilestone,
   },
 ];
 
 /**
- * 보드 서브뷰 전환 바 컴포넌트
- * 칸반 / 간트 / 캘린더 / 리스트 / 마일스톤 뷰 간 전환을 제공합니다.
- * 간트·마일스톤은 프리미엄 기능으로 잠금 아이콘이 표시됩니다.
+ * 보드 상단 서브탭 바 (칸반 / 마일스톤)
+ * 리스트·간트·캘린더 등 보드 표현 뷰는 우하단 FloatingViewSwitcher로 분리됨.
+ * 마일스톤은 프리미엄 기능으로 잠금 아이콘이 표시됩니다.
  */
-export function BoardViewSwitcher({
+export function BoardSubTabs({
   viewMode,
   onViewModeChange,
-  canAccessGantt,
   canAccessMilestone,
-}: BoardViewSwitcherProps) {
+}: BoardSubTabsProps) {
   const { t } = useTranslation();
 
   return (
@@ -108,20 +69,10 @@ export function BoardViewSwitcher({
         role="tablist"
         aria-label={t("kanban.viewBoard", "보드 서브뷰")}
       >
-        {SUB_VIEWS.map(
-          ({
-            mode,
-            icon: Icon,
-            labelKey,
-            labelFallback,
-            isPremium,
-            checkAccess,
-          }) => {
+        {TABS.map(
+          ({ mode, icon: Icon, labelKey, labelFallback, isPremium, checkAccess }) => {
             const isActive = viewMode === mode;
-            const hasAccess = checkAccess({
-              canAccessGantt,
-              canAccessMilestone,
-            });
+            const hasAccess = checkAccess(canAccessMilestone);
             const label = t(labelKey, labelFallback);
 
             return (
@@ -142,13 +93,9 @@ export function BoardViewSwitcher({
                 }
               >
                 <Icon size={14} aria-hidden="true" />
-                <span className="hidden md:inline">{label}</span>
+                <span>{label}</span>
                 {isPremium && !hasAccess && (
-                  <Lock
-                    size={10}
-                    className="text-slate-500"
-                    aria-hidden="true"
-                  />
+                  <Lock size={10} className="text-slate-500" aria-hidden="true" />
                 )}
               </button>
             );
@@ -159,4 +106,4 @@ export function BoardViewSwitcher({
   );
 }
 
-BoardViewSwitcher.displayName = "BoardViewSwitcher";
+BoardSubTabs.displayName = "BoardSubTabs";

@@ -142,8 +142,8 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
           return;
         }
 
-        // Board view: 1-5 switch board sub-views
-        if (key <= "5" && BOARD_SUB_MODES.includes(opts.viewMode)) {
+        // Board view: 1=칸반, 2=마일스톤 서브탭 전환
+        if (key <= "2" && BOARD_SUB_MODES.includes(opts.viewMode)) {
           const boardMode = VIEW_MODE_KEY_MAP[key];
           if (boardMode) {
             opts.onViewModeChange(boardMode);
