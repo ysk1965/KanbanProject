@@ -175,6 +175,7 @@ export function TaskDetailModal({
   const [editedTask, setEditedTask] = useState<Task | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [checklistCopied, setChecklistCopied] = useState(false);
   const [showDoneDialog, setShowDoneDialog] = useState(false);
   const [showMoveFeatureDialog, setShowMoveFeatureDialog] = useState(false);
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(
@@ -210,7 +211,10 @@ export function TaskDetailModal({
 
   useEffect(() => {
     if (highlightChecklistItemId && highlightChecklistRef.current) {
-      highlightChecklistRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      highlightChecklistRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
     }
   }, [highlightChecklistItemId, checklistItems]);
 
@@ -438,6 +442,71 @@ export function TaskDetailModal({
     toast.success(t("share.linkCopied"));
     setTimeout(() => setLinkCopied(false), 2000);
   }, [boardId, task, t]);
+
+  // 체크리스트를 메타데이터 포함 텍스트로 복사 (현재 보이는 항목, 표시 순서)
+  const handleCopyChecklistText = useCallback(async () => {
+    const fmtDate = (item: ChecklistItem): string | null => {
+      const endDate =
+        item.completed && item.done_date ? item.done_date : item.due_date;
+      if (item.start_date && endDate)
+        return `${format(new Date(item.start_date), "M/d", { locale: ko })} - ${format(new Date(endDate), "M/d", { locale: ko })}`;
+      if (item.start_date)
+        return `${format(new Date(item.start_date), "M/d", { locale: ko })} ~`;
+      if (endDate)
+        return `~ ${format(new Date(endDate), "M/d", { locale: ko })}`;
+      return null;
+    };
+    const fmtTime = (itemId: string): string | null => {
+      const blocks = checklistTimeBlocksMap[itemId] || [];
+      const total = blocks.reduce(
+        (sum, b) =>
+          sum +
+          Math.round(
+            (new Date(`2000-01-01T${b.end_time}`).getTime() -
+              new Date(`2000-01-01T${b.start_time}`).getTime()) /
+              60000,
+          ),
+        0,
+      );
+      if (total <= 0) return null;
+      const h = Math.floor(total / 60);
+      const m = total % 60;
+      return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${total}m`;
+    };
+
+    const text = visibleChecklistItems
+      .map((item) => {
+        const meta: string[] = [];
+        const d = fmtDate(item);
+        if (d) meta.push(d);
+        const who = item.contractor?.name || item.assignee?.name;
+        if (who) meta.push(who);
+        const tm = fmtTime(item.id);
+        if (tm) meta.push(tm);
+        return meta.length
+          ? `- ${item.title} (${meta.join(", ")})`
+          : `- ${item.title}`;
+      })
+      .join("\n");
+
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setChecklistCopied(true);
+    toast.success(
+      t("task.checklistCopied", {
+        defaultValue: "체크리스트가 복사되었습니다",
+      }),
+    );
+    setTimeout(() => setChecklistCopied(false), 2000);
+  }, [visibleChecklistItems, checklistTimeBlocksMap, t]);
 
   const handleTitleCommit = useCallback(() => {
     if (!editedTask || !initialTask) {
@@ -1252,6 +1321,26 @@ export function TaskDetailModal({
                     )}
                   </div>
                   <div className="flex items-center gap-3">
+                    {visibleChecklistItems.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCopyChecklistText}
+                        className="h-7 px-2 text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                        title={t("task.copyChecklist", {
+                          defaultValue: "체크리스트 복사",
+                        })}
+                        aria-label={t("task.copyChecklist", {
+                          defaultValue: "체크리스트 복사",
+                        })}
+                      >
+                        {checklistCopied ? (
+                          <Check className="h-4 w-4 text-emerald-400" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
                     {isChecklistFilterActive && (
                       <span className="text-xs text-slate-500">
                         {t("task.checklistFilter.showingCount", {
@@ -1342,7 +1431,11 @@ export function TaskDetailModal({
                           isPersonal={isPersonal}
                           preloadedTimeBlocks={checklistTimeBlocksMap[item.id]}
                           isHighlighted={highlightChecklistItemId === item.id}
-                          highlightRef={highlightChecklistItemId === item.id ? highlightChecklistRef : undefined}
+                          highlightRef={
+                            highlightChecklistItemId === item.id
+                              ? highlightChecklistRef
+                              : undefined
+                          }
                         />
                       ))}
                     </SortableContext>
@@ -1884,8 +1977,14 @@ function SortableChecklistItemRow(props: {
 
   const mergedRef = (node: HTMLDivElement) => {
     setNodeRef(node);
-    if (props.highlightRef && typeof props.highlightRef === 'object' && props.highlightRef !== null) {
-      (props.highlightRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    if (
+      props.highlightRef &&
+      typeof props.highlightRef === "object" &&
+      props.highlightRef !== null
+    ) {
+      (
+        props.highlightRef as React.MutableRefObject<HTMLDivElement | null>
+      ).current = node;
     }
   };
 
@@ -1993,7 +2092,9 @@ function ChecklistItemRow({
 
   return (
     <>
-      <div className={`group flex items-center gap-2 p-2 rounded hover:bg-foreground/5 border ${isHighlighted ? "bg-purple-500/20 border-purple-500/50" : "border-transparent hover:border-foreground/10"}`}>
+      <div
+        className={`group flex items-center gap-2 p-2 rounded hover:bg-foreground/5 border ${isHighlighted ? "bg-purple-500/20 border-purple-500/50" : "border-transparent hover:border-foreground/10"}`}
+      >
         {/* 드래그 핸들 */}
         {dragHandleProps && (
           <span
