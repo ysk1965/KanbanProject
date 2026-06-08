@@ -4135,14 +4135,12 @@ export function KanbanBoardPage() {
               label={t("kanban.viewMeeting", "회의")}
               icon="meeting"
             />
-            {!isRestricted && (
-              <MobileTabButton
-                active={viewMode === "notes"}
-                onClick={() => handleViewModeChange("notes")}
-                label={t("kanban.viewNotes", "노트")}
-                icon="notes"
-              />
-            )}
+            <MobileTabButton
+              active={viewMode === "notes"}
+              onClick={() => handleViewModeChange("notes")}
+              label={t("kanban.viewNotes", "노트")}
+              icon="notes"
+            />
             {!isRestricted && (isAdminOrOwner || (!isViewer && !isTester)) && (
               <MobileTabButton
                 active={viewMode === "statistics" || viewMode === "ai_report"}
