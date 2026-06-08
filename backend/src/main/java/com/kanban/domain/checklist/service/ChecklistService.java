@@ -101,6 +101,8 @@ public class ChecklistService {
         Integer maxPosition = checklistItemRepository.findMaxPositionByTaskId(taskId);
         int newPosition = (maxPosition != null) ? maxPosition + 1 : 0;
 
+        boolean tentative = request.getIsTentative() != null && request.getIsTentative();
+
         ChecklistItem item = ChecklistItem.builder()
                 .id(UUID.randomUUID().toString())
                 .task(task)
@@ -109,6 +111,7 @@ public class ChecklistService {
                 .contractor(contractor)
                 .startDate(request.getStartDate())
                 .dueDate(request.getDueDate())
+                .isTentative(tentative)
                 .position(newPosition)
                 .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .build();
@@ -138,6 +141,10 @@ public class ChecklistService {
                 Map.of("task_id", taskId, "item", response));
 
         // 알림 발송: 트랜잭션 커밋 후 실행 (알림 실패가 체크리스트 생성을 롤백하지 않도록)
+        // 임시(예정) 항목은 확정 전 단계이므로 배정 알림을 보내지 않는다.
+        if (tentative) {
+            return response;
+        }
         if (assignee != null) {
             final ChecklistItem savedItem = item;
             final User savedCreator = creator;
@@ -296,6 +303,10 @@ public class ChecklistService {
         }
         if (request.hasDueDate()) {
             item.updateDueDate(request.getDueDate());
+        }
+        // 임시(예정) ↔ 실제 체크리스트 전환. is_tentative=false PATCH = promote.
+        if (request.hasIsTentative()) {
+            item.setIsTentative(request.getIsTentative());
         }
 
         boolean assigneeNewlyAssigned = false;

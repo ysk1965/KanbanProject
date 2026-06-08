@@ -832,7 +832,14 @@
       "collapse": "Collapse",
       "more": "more",
       "groupByMember": "By Member",
-      "groupByJobRole": "By Role"
+      "groupByJobRole": "By Role",
+      "tentative": "Tentative",
+      "promoteToChecklist": "Convert to real checklist"
+    },
+    "taskPicker": {
+      "title": "Place tentative work · Select task",
+      "search": "Search tasks...",
+      "empty": "No tasks"
     },
     "panel": {
       "title": "Checklist",
