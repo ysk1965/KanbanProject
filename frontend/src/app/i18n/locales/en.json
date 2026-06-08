@@ -1497,6 +1497,8 @@
     "moveFeatureTitle": "Move Feature",
     "moveFeatureDesc": "Select a feature to move to.",
     "move": "Move",
+    "copyChecklist": "Copy checklist",
+    "checklistCopied": "Checklist copied",
     "moveChecklistToTask": "Move to another Task",
     "moveChecklistToTaskTitle": "Move Checklist Item",
     "moveChecklistToTaskDesc": "Select a task to move to.",
