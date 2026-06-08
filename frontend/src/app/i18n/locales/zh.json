@@ -1613,7 +1613,8 @@
     "viewBoardGantt": "甘特图",
     "viewBoardCalendar": "日历",
     "viewBoardList": "列表",
-    "viewBoardMilestone": "里程碑"
+    "viewBoardMilestone": "里程碑",
+    "viewSwitcher": "视图"
   },
   "admin": {
     "backToBoards": "返回看板",

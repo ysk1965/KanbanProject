@@ -1613,7 +1613,8 @@
     "viewBoardGantt": "แกนต์",
     "viewBoardCalendar": "ปฏิทิน",
     "viewBoardList": "รายการ",
-    "viewBoardMilestone": "หมุดหมาย"
+    "viewBoardMilestone": "หมุดหมาย",
+    "viewSwitcher": "มุมมอง"
   },
   "admin": {
     "backToBoards": "กลับไปยังบอร์ด",

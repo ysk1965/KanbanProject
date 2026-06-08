@@ -188,9 +188,7 @@ export function KanbanBoardHeader({
       { key: "schedule", action: () => onViewModeChange("schedule") },
       { key: "meeting", action: () => onViewModeChange("meeting") },
     ];
-    if (!isRestricted) {
-      tabs.push({ key: "notes", action: () => onViewModeChange("notes") });
-    }
+    tabs.push({ key: "notes", action: () => onViewModeChange("notes") });
     if (!isRestricted && (isAdminOrOwner || (!isViewer && !isTester))) {
       tabs.push({
         key: "ai",
@@ -405,21 +403,19 @@ export function KanbanBoardHeader({
               </span>
             </button>
 
-            {!isRestricted && (
-              <button
-                onClick={() => onViewModeChange("notes")}
-                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                  viewMode === "notes"
-                    ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-                    : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
-                }`}
-              >
-                <FileText size={14} />
-                <span className="hidden md:inline">
-                  {t("kanban.viewNotes", "노트")}
-                </span>
-              </button>
-            )}
+            <button
+              onClick={() => onViewModeChange("notes")}
+              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+                viewMode === "notes"
+                  ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
+                  : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+              }`}
+            >
+              <FileText size={14} />
+              <span className="hidden md:inline">
+                {t("kanban.viewNotes", "노트")}
+              </span>
+            </button>
 
             {!isRestricted && (isAdminOrOwner || (!isViewer && !isTester)) && (
               <button

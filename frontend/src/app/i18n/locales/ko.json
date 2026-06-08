@@ -1723,7 +1723,8 @@
     "viewBoardGantt": "간트",
     "viewBoardCalendar": "캘린더",
     "viewBoardList": "리스트",
-    "viewBoardMilestone": "마일스톤"
+    "viewBoardMilestone": "마일스톤",
+    "viewSwitcher": "뷰"
   },
   "announcements": {
     "title": "공지사항",

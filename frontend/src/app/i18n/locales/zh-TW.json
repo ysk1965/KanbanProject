@@ -1597,7 +1597,8 @@
     "viewBoardGantt": "甘特圖",
     "viewBoardCalendar": "行事曆",
     "viewBoardList": "列表",
-    "viewBoardMilestone": "里程碑"
+    "viewBoardMilestone": "里程碑",
+    "viewSwitcher": "檢視"
   },
   "admin": {
     "backToBoards": "返回看板",

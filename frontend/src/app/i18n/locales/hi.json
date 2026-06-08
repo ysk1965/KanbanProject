@@ -1613,7 +1613,8 @@
     "viewBoardGantt": "गैंट",
     "viewBoardCalendar": "कैलेंडर",
     "viewBoardList": "सूची",
-    "viewBoardMilestone": "माइलस्टोन"
+    "viewBoardMilestone": "माइलस्टोन",
+    "viewSwitcher": "व्यू"
   },
   "admin": {
     "backToBoards": "बोर्ड पर वापस जाएं",
