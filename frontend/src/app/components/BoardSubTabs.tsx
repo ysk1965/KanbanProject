@@ -70,8 +70,18 @@ export function BoardSubTabs({
         aria-label={t("kanban.viewBoard", "보드 서브뷰")}
       >
         {TABS.map(
-          ({ mode, icon: Icon, labelKey, labelFallback, isPremium, checkAccess }) => {
-            const isActive = viewMode === mode;
+          ({
+            mode,
+            icon: Icon,
+            labelKey,
+            labelFallback,
+            isPremium,
+            checkAccess,
+          }) => {
+            // 칸반 탭은 보드 표현 뷰(리스트/간트/캘린더 포함) 전체에서 활성 유지.
+            // 마일스톤 탭만 milestone 뷰일 때 활성.
+            const isActive =
+              mode === "kanban" ? viewMode !== "milestone" : viewMode === mode;
             const hasAccess = checkAccess(canAccessMilestone);
             const label = t(labelKey, labelFallback);
 
@@ -95,7 +105,11 @@ export function BoardSubTabs({
                 <Icon size={14} aria-hidden="true" />
                 <span>{label}</span>
                 {isPremium && !hasAccess && (
-                  <Lock size={10} className="text-slate-500" aria-hidden="true" />
+                  <Lock
+                    size={10}
+                    className="text-slate-500"
+                    aria-hidden="true"
+                  />
                 )}
               </button>
             );

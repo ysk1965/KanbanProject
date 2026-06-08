@@ -385,13 +385,7 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     PHOTO_UPLOAD_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "P003", "사진 업로드 제한 초과 (최대 20장)"),
     PHOTO_BATCH_DOWNLOAD_LIMIT(HttpStatus.BAD_REQUEST, "P004", "일괄 다운로드 제한 초과 (최대 100장)"),
     PHOTO_SHARE_LINK_NOT_FOUND(HttpStatus.NOT_FOUND, "P005", "공유 링크를 찾을 수 없습니다"),
-    PHOTO_SHARE_LINK_INVALID_TYPE(HttpStatus.BAD_REQUEST, "P006", "유효하지 않은 링크 종류입니다"),
-
-    // Planning
-    PLANNING_CARD_NOT_FOUND(HttpStatus.NOT_FOUND, "PL001", "플래닝 카드를 찾을 수 없습니다"),
-    PLANNING_CARD_BOARD_MISMATCH(HttpStatus.NOT_FOUND, "PL002", "해당 보드의 카드가 아닙니다"),
-    PLANNING_CARD_INVALID_WEEK(HttpStatus.BAD_REQUEST, "PL003", "week_start_date는 월요일이어야 합니다"),
-    PLANNING_CARD_REORDER_MISMATCH(HttpStatus.BAD_REQUEST, "PL004", "정렬 대상 카드가 같은 셀에 있지 않습니다");
+    PHOTO_SHARE_LINK_INVALID_TYPE(HttpStatus.BAD_REQUEST, "P006", "유효하지 않은 링크 종류입니다");
 
     private final HttpStatus status;
     private final String code;

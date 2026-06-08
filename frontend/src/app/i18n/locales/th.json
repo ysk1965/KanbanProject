@@ -752,8 +752,7 @@
     "subTab": {
       "timeblock": "บล็อกเวลา",
       "calendar": "ปฏิทิน",
-      "resource": "ภาระงาน",
-      "planning": "การวางแผน"
+      "resource": "ภาระงาน"
     },
     "calendar": {
       "today": "วันนี้",
@@ -811,91 +810,7 @@
     "breakTime": "เวลาพัก",
     "breakTimeDesc": "เวลาพักจะไม่นับรวมในชั่วโมงทำงาน",
     "effectiveHours": "ทำงานจริง:",
-    "excludingBreak": "(ไม่รวมพัก {{hours}} ชม.)",
-    "planning": {
-      "title": "การวางแผน",
-      "toolbar": {
-        "today": "ไปที่วันนี้",
-        "legend": "คำอธิบายสัญลักษณ์"
-      },
-      "col": {
-        "member": "สมาชิก"
-      },
-      "header": {
-        "week": "W{{num}}",
-        "milestone": "ไมล์สโตน"
-      },
-      "cell": {
-        "placeHint": "+ วางเพื่อจัดวาง",
-        "noMilestone": "ไม่มีไมล์สโตน",
-        "expandMore": "+{{count}} รายการ"
-      },
-      "load": {
-        "over": "งานล้น",
-        "normal": "เหมาะสม",
-        "under": "งานน้อย",
-        "unknown": "ไม่ได้ตั้งค่า",
-        "format": "{{actual}}h / {{allocated}}h"
-      },
-      "pool": {
-        "title": "กลุ่มงานชั่วคราว",
-        "quickAdd": "ป้อนชื่อ…",
-        "hours": "ชั่วโมงโดยประมาณ",
-        "assignee": "ผู้รับผิดชอบ",
-        "filter": {
-          "all": "ทั้งหมด",
-          "unplaced": "ยังไม่ได้จัดวาง",
-          "placed": "จัดวางแล้ว"
-        },
-        "empty": {
-          "title": "ยังไม่มีงานชั่วคราว",
-          "description": "ป้อนชื่อและชั่วโมงในช่องด้านบนแล้วกด Enter"
-        }
-      },
-      "card": {
-        "edit": "แก้ไข",
-        "delete": "ลบ",
-        "unplace": "ย้ายกลับกลุ่ม",
-        "deleted": "ลบการ์ดแล้ว",
-        "undo": "เลิกทำ"
-      },
-      "empty": {
-        "noMilestones": {
-          "title": "ไม่มีไมล์สโตน",
-          "description": "สร้างไมล์สโตนเพื่อเปิดใช้การแสดงผลความจุ",
-          "cta": "สร้างไมล์สโตน"
-        },
-        "noMembers": {
-          "title": "ไม่มีสมาชิก",
-          "description": "เชิญสมาชิกเข้าบอร์ดเพื่อรันการจำลองทรัพยากร"
-        }
-      },
-      "warn": {
-        "noAllocations": "ยังไม่ได้ตั้งค่าการจัดสรรไมล์สโตน กรุณาตั้งค่าชั่วโมงที่จัดสรรให้สมาชิกแต่ละคนในไมล์สโตนก่อน"
-      },
-      "error": {
-        "placeFailed": "การจัดวางล้มเหลว กรุณาลองอีกครั้ง",
-        "invalidWeek": "สามารถจัดวางได้เฉพาะสัปดาห์ที่เริ่มจากวันจันทร์เท่านั้น"
-      },
-      "legend": {
-        "title": "สถานะภาระงาน",
-        "over": "งานล้น (เกิน capacity × 1.1)",
-        "normal": "เหมาะสม (capacity × 0.5~1.1)",
-        "under": "งานน้อย (ต่ำกว่า capacity × 0.5)",
-        "unknown": "ไม่ได้ตั้งค่า capacity"
-      },
-      "tooltip": {
-        "allocated": "จัดสรร: {{hours}}h",
-        "placed": "จัดวาง: {{hours}}h",
-        "diff": "ส่วนต่าง: {{diff}}h",
-        "weekRange": "{{start}} ~ {{end}}",
-        "milestone": "ไมล์สโตน: {{title}}"
-      },
-      "mobile": {
-        "segmentPool": "กลุ่ม",
-        "segmentGrid": "ตาราง"
-      }
-    }
+    "excludingBreak": "(ไม่รวมพัก {{hours}} ชม.)"
   },
   "dailySummary": {
     "summaryButton": "สรุป",
