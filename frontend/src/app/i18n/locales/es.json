@@ -752,8 +752,7 @@
     "subTab": {
       "timeblock": "Bloque de tiempo",
       "calendar": "Calendario",
-      "resource": "Carga de trabajo",
-      "planning": "Planificación"
+      "resource": "Carga de trabajo"
     },
     "calendar": {
       "today": "Hoy",
@@ -811,91 +810,7 @@
     "breakTime": "Hora de descanso",
     "breakTimeDesc": "El tiempo de descanso se excluye de las horas laborales",
     "effectiveHours": "Efectivas:",
-    "excludingBreak": "(sin {{hours}}h de descanso)",
-    "planning": {
-      "title": "Planificación",
-      "toolbar": {
-        "today": "Ir a hoy",
-        "legend": "Leyenda"
-      },
-      "col": {
-        "member": "Miembro"
-      },
-      "header": {
-        "week": "W{{num}}",
-        "milestone": "Hito"
-      },
-      "cell": {
-        "placeHint": "+ Soltar para colocar",
-        "noMilestone": "Sin hito",
-        "expandMore": "+{{count}} más"
-      },
-      "load": {
-        "over": "Sobrecargado",
-        "normal": "Equilibrado",
-        "under": "Infrautilizado",
-        "unknown": "No configurado",
-        "format": "{{actual}}h / {{allocated}}h"
-      },
-      "pool": {
-        "title": "Grupo de tareas pendientes",
-        "quickAdd": "Escribe un título…",
-        "hours": "Horas estimadas",
-        "assignee": "Responsable",
-        "filter": {
-          "all": "Todos",
-          "unplaced": "Sin colocar",
-          "placed": "Colocados"
-        },
-        "empty": {
-          "title": "Aún no hay tareas pendientes",
-          "description": "Escribe un título y las horas en el campo de arriba y pulsa Enter"
-        }
-      },
-      "card": {
-        "edit": "Editar",
-        "delete": "Eliminar",
-        "unplace": "Mover al grupo",
-        "deleted": "Tarjeta eliminada",
-        "undo": "Deshacer"
-      },
-      "empty": {
-        "noMilestones": {
-          "title": "No hay hitos",
-          "description": "Crea un hito para activar la visualización de capacidad",
-          "cta": "Crear hito"
-        },
-        "noMembers": {
-          "title": "No hay miembros",
-          "description": "Invita miembros al tablero para ejecutar simulaciones de recursos"
-        }
-      },
-      "warn": {
-        "noAllocations": "No hay asignaciones de hitos configuradas. Configura primero las horas asignadas por miembro en el hito."
-      },
-      "error": {
-        "placeFailed": "Error al colocar. Por favor, inténtalo de nuevo.",
-        "invalidWeek": "Solo se puede colocar en semanas que comiencen en lunes."
-      },
-      "legend": {
-        "title": "Estado de carga",
-        "over": "Sobrecargado (> capacity × 1.1)",
-        "normal": "Equilibrado (capacity × 0.5~1.1)",
-        "under": "Infrautilizado (< capacity × 0.5)",
-        "unknown": "Capacidad no configurada"
-      },
-      "tooltip": {
-        "allocated": "Asignado: {{hours}}h",
-        "placed": "Colocado: {{hours}}h",
-        "diff": "Diferencia: {{diff}}h",
-        "weekRange": "{{start}} ~ {{end}}",
-        "milestone": "Hito: {{title}}"
-      },
-      "mobile": {
-        "segmentPool": "Grupo",
-        "segmentGrid": "Cuadrícula"
-      }
-    }
+    "excludingBreak": "(sin {{hours}}h de descanso)"
   },
   "dailySummary": {
     "summaryButton": "Resumen",
