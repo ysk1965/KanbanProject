@@ -767,7 +767,14 @@
       "noItems": "No hay elementos asignados",
       "completed": "Completado",
       "collapse": "Contraer",
-      "more": "más"
+      "more": "más",
+      "tentative": "Previsto",
+      "promoteToChecklist": "Convertir en lista de verificación real"
+    },
+    "taskPicker": {
+      "title": "Colocar trabajo tentativo · Seleccionar tarea",
+      "search": "Buscar tareas...",
+      "empty": "No hay tareas"
     },
     "panel": {
       "title": "Lista de verificación",

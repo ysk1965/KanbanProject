@@ -128,7 +128,12 @@ export type BoardType = "TEAM" | "PERSONAL";
 // 구독 관련 타입
 // ========================================
 
-export type SubscriptionStatus = "TRIAL" | "ACTIVE" | "PAST_DUE" | "SUSPENDED" | "CANCELED";
+export type SubscriptionStatus =
+  | "TRIAL"
+  | "ACTIVE"
+  | "PAST_DUE"
+  | "SUSPENDED"
+  | "CANCELED";
 
 export interface Subscription {
   id?: string;
@@ -212,7 +217,7 @@ export interface Board {
   updated_at?: string;
 }
 
-export type JoinRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type JoinRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export interface BoardJoinRequest {
   id: string;
@@ -483,6 +488,7 @@ export interface ChecklistItem {
   start_date: string | null;
   due_date: string | null;
   done_date: string | null;
+  tentative?: boolean; // 임시(예정) 워크로드 항목 여부
   position: number;
   created_at?: string;
   completed_at?: string | null;
@@ -2169,9 +2175,9 @@ export interface OrganizationSimple {
   board_count: number;
   my_role: OrgRole;
   created_at: string;
-  current_plan?: string;          // "FREE" | "TEAM"
-  subscription_status?: string;   // "TRIAL" | "ACTIVE" | "PAST_DUE" | "SUSPENDED" | "CANCELED"
-  trial_ends_at?: string | null;  // ISO8601
+  current_plan?: string; // "FREE" | "TEAM"
+  subscription_status?: string; // "TRIAL" | "ACTIVE" | "PAST_DUE" | "SUSPENDED" | "CANCELED"
+  trial_ends_at?: string | null; // ISO8601
   can_create_org_board?: boolean;
   can_access_hr_features?: boolean;
   hr_system_enabled?: boolean;
@@ -2333,7 +2339,7 @@ export interface OrgMemberHistoryItem {
   effective_end_date: string | null;
   duration_months: number | null;
   description: string | null;
-  source: 'AUTO' | 'MANUAL';
+  source: "AUTO" | "MANUAL";
   created_by_id: string | null;
   created_at: string;
 }
@@ -2575,7 +2581,11 @@ export interface LeaveRequestPageResponse {
 
 // ─── Leave Balance Adjustments ───
 
-export type LeaveAdjustmentType = "GRANT" | "REVOKE" | "MANUAL_ADJUST" | "ANNUAL_INIT";
+export type LeaveAdjustmentType =
+  | "GRANT"
+  | "REVOKE"
+  | "MANUAL_ADJUST"
+  | "ANNUAL_INIT";
 
 export interface LeaveBalanceAdjustmentResponse {
   id: string;
@@ -3034,7 +3044,7 @@ export interface AttendanceTodayMembers {
 
 // Feature #2: 통합 투데이 뷰
 export interface BoardTaskItem {
-  type: 'CHECKLIST' | 'DAILY_CHECKLIST' | 'MEETING';
+  type: "CHECKLIST" | "DAILY_CHECKLIST" | "MEETING";
   checklist_item_id?: string;
   daily_checklist_id?: string;
   meeting_id?: string;
@@ -3065,7 +3075,7 @@ export interface BoardTasksData {
 
 // Feature #3: 크로스 캘린더
 export interface UnifiedCalendarEvent {
-  source: 'MEETING' | 'SCHEDULE_BLOCK' | 'ANNIVERSARY' | 'LEAVE';
+  source: "MEETING" | "SCHEDULE_BLOCK" | "ANNIVERSARY" | "LEAVE";
   board_id?: string;
   board_name?: string;
   org_id?: string;
@@ -3096,7 +3106,7 @@ export interface CelebrationItem {
   member_user_id: string;
   member_name: string;
   member_profile_image?: string | null;
-  type: 'BIRTHDAY' | 'HIRE_ANNIVERSARY';
+  type: "BIRTHDAY" | "HIRE_ANNIVERSARY";
   message_template: string;
   can_send_message: boolean;
   already_sent: boolean;
@@ -3108,7 +3118,7 @@ export interface CelebrationsData {
 
 // Feature #9: AI 다이어리 업무 회고
 export interface BoardCompletedItem {
-  type: 'CHECKLIST_ITEM';
+  type: "CHECKLIST_ITEM";
   title: string;
   task_title: string;
   feature_title?: string;
@@ -3123,7 +3133,7 @@ export interface BoardCompletedGroup {
 
 export interface PersonalCompletedItem {
   title: string;
-  type: 'HABIT' | 'TASK';
+  type: "HABIT" | "TASK";
   completed_at: string;
 }
 
@@ -3223,7 +3233,7 @@ export interface OkrTreeData {
 
 // ===== Org Subscription Types =====
 
-export type OrgPlan = 'FREE' | 'TEAM';
+export type OrgPlan = "FREE" | "TEAM";
 
 export interface OrgSubscription {
   id: string;
@@ -3254,7 +3264,7 @@ export interface OrgSubscription {
   monthly_credits_used?: number;
   total_available_credits?: number;
   credits_reset_date?: string | null;
-  credit_warning_level?: 'LOW' | 'CRITICAL' | 'EXHAUSTED' | null;
+  credit_warning_level?: "LOW" | "CRITICAL" | "EXHAUSTED" | null;
 }
 
 export interface MigrationPreview {
@@ -3267,8 +3277,8 @@ export interface MigrationPreview {
 
 // ===== Photo Gallery (v14.0) =====
 
-export type PhotoShareLinkType = 'VIEW' | 'UPLOAD';
-export type PhotoShareLinkStatus = 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+export type PhotoShareLinkType = "VIEW" | "UPLOAD";
+export type PhotoShareLinkStatus = "ACTIVE" | "EXPIRED" | "REVOKED";
 
 export interface PhotoShareLink {
   id: string;

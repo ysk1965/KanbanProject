@@ -46,6 +46,7 @@ interface CalendarItem {
   id: string;
   title: string;
   completed: boolean;
+  tentative: boolean;
   startDate: string | null;
   dueDate: string | null;
   featureColor: string;
@@ -112,6 +113,7 @@ function flattenToCalendarItems(
     id: item.id,
     title: item.title,
     completed: item.completed,
+    tentative: !!item.tentative,
     startDate: item.start_date,
     dueDate: item.due_date,
     featureColor: item.feature?.color || "#6366F1",
@@ -244,15 +246,17 @@ export function ScheduleCalendarView({
 
   // 직군 필터 (멀티 선택, 빈 Set = 전체)
   const jobRoleFilterKey = `scheduleCalendarJobRoleFilter_${boardId}`;
-  const [selectedJobRoleIds, setSelectedJobRoleIds] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") return new Set();
-    try {
-      const raw = window.localStorage.getItem(jobRoleFilterKey);
-      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
+  const [selectedJobRoleIds, setSelectedJobRoleIds] = useState<Set<string>>(
+    () => {
+      if (typeof window === "undefined") return new Set();
+      try {
+        const raw = window.localStorage.getItem(jobRoleFilterKey);
+        return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+      } catch {
+        return new Set();
+      }
+    },
+  );
   const toggleJobRoleFilter = useCallback(
     (key: string) => {
       setSelectedJobRoleIds((prev) => {
@@ -260,7 +264,10 @@ export function ScheduleCalendarView({
         if (next.has(key)) next.delete(key);
         else next.add(key);
         try {
-          window.localStorage.setItem(jobRoleFilterKey, JSON.stringify([...next]));
+          window.localStorage.setItem(
+            jobRoleFilterKey,
+            JSON.stringify([...next]),
+          );
         } catch {
           /* ignore */
         }
@@ -445,6 +452,7 @@ export function ScheduleCalendarView({
   const renderBar = useCallback(
     (item: CalendarItem, widthPercent: number = 100) => {
       const completedClasses = item.completed ? "opacity-50" : "";
+      const isTentative = item.tentative;
       return (
         <div
           key={item.id}
@@ -452,9 +460,13 @@ export function ScheduleCalendarView({
           tabIndex={0}
           aria-label={`${item.title}${item.completed ? " (completed)" : ""}`}
           className={`h-6 rounded-md px-1.5 flex items-center gap-1 text-xs font-medium
-            text-white truncate cursor-pointer hover:brightness-110 transition-all ${completedClasses}`}
+            truncate cursor-pointer hover:brightness-110 transition-all ${completedClasses}
+            ${isTentative ? "text-foreground border-2 border-dashed" : "text-white"}`}
           style={{
-            backgroundColor: item.featureColor,
+            backgroundColor: isTentative
+              ? `${item.featureColor}26`
+              : item.featureColor,
+            borderColor: isTentative ? item.featureColor : undefined,
             width: `${widthPercent}%`,
           }}
           onClick={(e) => {
@@ -468,7 +480,12 @@ export function ScheduleCalendarView({
             }
           }}
         >
-          {item.assigneeProfileImage && (
+          {isTentative && (
+            <span className="shrink-0 text-xs font-bold text-bridge-accent">
+              {t("schedule.resource.tentative", "예정")}
+            </span>
+          )}
+          {!isTentative && item.assigneeProfileImage && (
             <img
               src={item.assigneeProfileImage}
               alt={item.assigneeName || ""}
@@ -481,7 +498,7 @@ export function ScheduleCalendarView({
         </div>
       );
     },
-    [handleBarClick],
+    [handleBarClick, t],
   );
 
   const renderDot = useCallback(
@@ -507,8 +524,12 @@ export function ScheduleCalendarView({
           }}
         >
           <div
-            className="w-2 h-2 rounded-full shrink-0"
-            style={{ backgroundColor: item.featureColor }}
+            className={`w-2 h-2 rounded-full shrink-0 ${item.tentative ? "border-2 border-dashed" : ""}`}
+            style={
+              item.tentative
+                ? { borderColor: item.featureColor }
+                : { backgroundColor: item.featureColor }
+            }
           />
           <span
             className={`truncate text-foreground ${item.completed ? "line-through" : ""}`}
@@ -578,8 +599,10 @@ export function ScheduleCalendarView({
                       active ? "ring-1" : "opacity-60 hover:opacity-100"
                     }`}
                     style={{
-                      backgroundColor: active ? `${r.color || "#6366F1"}26` : "rgba(255,255,255,0.04)",
-                      color: active ? (r.color || "#6366F1") : "rgb(148 163 184)",
+                      backgroundColor: active
+                        ? `${r.color || "#6366F1"}26`
+                        : "rgba(255,255,255,0.04)",
+                      color: active ? r.color || "#6366F1" : "rgb(148 163 184)",
                       borderColor: r.color || "#6366F1",
                     }}
                   >
@@ -661,10 +684,7 @@ export function ScheduleCalendarView({
           {weeks.map((week, weekIdx) => {
             const segments = barSegmentsByWeek[weekIdx] || [];
             // Compute max row count for this week to size the bar area
-            const maxRow = segments.reduce(
-              (m, s) => Math.max(m, s.row + 1),
-              0,
-            );
+            const maxRow = segments.reduce((m, s) => Math.max(m, s.row + 1), 0);
             const visibleRows = Math.min(maxRow, MAX_VISIBLE_BARS);
             const barAreaHeight = visibleRows * (BAR_HEIGHT + BAR_GAP);
 
@@ -688,8 +708,7 @@ export function ScheduleCalendarView({
 
                   // Count how many multiday bar segments start or pass through this column
                   const cellSegments = segments.filter(
-                    (s) =>
-                      colIdx >= s.startCol && colIdx < s.startCol + s.span,
+                    (s) => colIdx >= s.startCol && colIdx < s.startCol + s.span,
                   );
                   const overflowCount =
                     cellSegments.filter((s) => s.row >= MAX_VISIBLE_BARS)
@@ -776,8 +795,7 @@ export function ScheduleCalendarView({
                       .map((segment) => {
                         const leftPercent = (segment.startCol / 7) * 100;
                         const widthPercent = (segment.span / 7) * 100;
-                        const topPx =
-                          segment.row * (BAR_HEIGHT + BAR_GAP);
+                        const topPx = segment.row * (BAR_HEIGHT + BAR_GAP);
 
                         return (
                           <div

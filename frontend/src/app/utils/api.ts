@@ -101,9 +101,7 @@ const isTokenExpired = (token: string): boolean => {
 
 // 서버 점검 시간 체크 (KST 23:00~08:00)
 const isMaintenanceWindow = (): boolean => {
-  const kstHour = new Date(
-    Date.now() + 9 * 60 * 60 * 1000,
-  ).getUTCHours();
+  const kstHour = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCHours();
   return kstHour >= 23 || kstHour < 8;
 };
 
@@ -120,7 +118,8 @@ class ApiClient {
   private baseURL: string;
   private refreshPromise: Promise<boolean> | null = null;
   // Rate limit 관리: 엔드포인트별 backoff 상태
-  private rateLimitBackoff: Map<string, { until: number; retries: number }> = new Map();
+  private rateLimitBackoff: Map<string, { until: number; retries: number }> =
+    new Map();
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
@@ -132,11 +131,17 @@ class ApiClient {
     skipAuth: boolean = false,
   ): Promise<T> {
     // Rate limit backoff 체크: 이전에 429를 받은 엔드포인트는 backoff 기간 동안 즉시 차단
-    const backoffKey = endpoint.split('?')[0]; // 쿼리 파라미터 제거
+    const backoffKey = endpoint.split("?")[0]; // 쿼리 파라미터 제거
     const backoffState = this.rateLimitBackoff.get(backoffKey);
     if (backoffState && Date.now() < backoffState.until) {
-      console.warn(`⏳ [Rate Limit] ${endpoint} — backoff ${Math.ceil((backoffState.until - Date.now()) / 1000)}s 남음`);
-      throw { code: "R001", message: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", status: 429 } as ApiError;
+      console.warn(
+        `⏳ [Rate Limit] ${endpoint} — backoff ${Math.ceil((backoffState.until - Date.now()) / 1000)}s 남음`,
+      );
+      throw {
+        code: "R001",
+        message: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.",
+        status: 429,
+      } as ApiError;
     }
     const url = `${this.baseURL}${endpoint}`;
 
@@ -204,12 +209,17 @@ class ApiClient {
             until: Date.now() + backoffMs,
             retries,
           });
-          console.warn(`🚫 [Rate Limit] ${endpoint} — ${backoffMs / 1000}s backoff (retry #${retries})`);
+          console.warn(
+            `🚫 [Rate Limit] ${endpoint} — ${backoffMs / 1000}s backoff (retry #${retries})`,
+          );
           // 5회 이상 연속 429이면 backoff 맵 자동 클리어 타이머 설정 (60초 후)
           if (retries >= 5) {
             setTimeout(() => this.rateLimitBackoff.delete(backoffKey), 60000);
           } else {
-            setTimeout(() => this.rateLimitBackoff.delete(backoffKey), backoffMs);
+            setTimeout(
+              () => this.rateLimitBackoff.delete(backoffKey),
+              backoffMs,
+            );
           }
           throw errorData;
         }
@@ -728,7 +738,12 @@ export interface MemberResponse {
   invited_by: { id: string; name: string } | null;
   assignee_color?: string | null;
   display_order?: number | null;
-  job_role?: { id: string; name: string; color?: string | null; icon?: string | null } | null;
+  job_role?: {
+    id: string;
+    name: string;
+    color?: string | null;
+    icon?: string | null;
+  } | null;
 }
 
 export interface JobRoleResponse {
@@ -752,7 +767,12 @@ export interface ContractorInfo {
   color?: string | null;
   manager_member_id?: string | null;
   manager_name?: string | null;
-  job_role?: { id: string; name: string; color?: string | null; icon?: string | null } | null;
+  job_role?: {
+    id: string;
+    name: string;
+    color?: string | null;
+    icon?: string | null;
+  } | null;
 }
 
 export interface ContractorResponse extends ContractorInfo {
@@ -1261,10 +1281,11 @@ export const boardJoinRequestAPI = {
 
 export const blockAPI = {
   getBlocks: async (boardId: string, milestoneId?: string) => {
-    const query = milestoneId ? `?milestoneId=${milestoneId}` : '';
-    return apiClient.get<{ blocks: BlockResponse[]; hidden_blocks?: BlockResponse[] }>(
-      `/boards/${boardId}/blocks${query}`,
-    );
+    const query = milestoneId ? `?milestoneId=${milestoneId}` : "";
+    return apiClient.get<{
+      blocks: BlockResponse[];
+      hidden_blocks?: BlockResponse[];
+    }>(`/boards/${boardId}/blocks${query}`);
   },
 
   createBlock: async (
@@ -1607,19 +1628,36 @@ export interface MentionGroupDetail {
 
 export const mentionGroupAPI = {
   getGroups: async (boardId: string) => {
-    return apiClient.get<{ groups: MentionGroupDetail[] }>(`/boards/${boardId}/mention-groups`);
+    return apiClient.get<{ groups: MentionGroupDetail[] }>(
+      `/boards/${boardId}/mention-groups`,
+    );
   },
 
-  createGroup: async (boardId: string, data: { name: string; member_ids: string[] }) => {
-    return apiClient.post<MentionGroupDetail>(`/boards/${boardId}/mention-groups`, data);
+  createGroup: async (
+    boardId: string,
+    data: { name: string; member_ids: string[] },
+  ) => {
+    return apiClient.post<MentionGroupDetail>(
+      `/boards/${boardId}/mention-groups`,
+      data,
+    );
   },
 
-  updateGroup: async (boardId: string, groupId: string, data: { name: string; member_ids: string[] }) => {
-    return apiClient.put<MentionGroupDetail>(`/boards/${boardId}/mention-groups/${groupId}`, data);
+  updateGroup: async (
+    boardId: string,
+    groupId: string,
+    data: { name: string; member_ids: string[] },
+  ) => {
+    return apiClient.put<MentionGroupDetail>(
+      `/boards/${boardId}/mention-groups/${groupId}`,
+      data,
+    );
   },
 
   deleteGroup: async (boardId: string, groupId: string) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/mention-groups/${groupId}`);
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/mention-groups/${groupId}`,
+    );
   },
 };
 
@@ -1651,9 +1689,11 @@ export const checklistAPI = {
     taskId: string,
     data: {
       title: string;
-      assignee_id?: string;
+      assignee_id?: string | null;
+      contractor_id?: string | null;
       start_date?: string;
       due_date?: string;
+      is_tentative?: boolean;
     },
   ) => {
     return apiClient.post<ChecklistItemResponse>(
@@ -1692,6 +1732,7 @@ export const checklistAPI = {
       contractor_id?: string | null;
       start_date?: string | null;
       due_date?: string | null;
+      is_tentative?: boolean;
     },
   ) => {
     return apiClient.patch<ChecklistItemResponse>(
@@ -1966,7 +2007,12 @@ export const commentAPI = {
   createComment: async (
     boardId: string,
     taskId: string,
-    data: { content: string; mentions?: string[]; fileKeys?: string[]; parentId?: string },
+    data: {
+      content: string;
+      mentions?: string[];
+      fileKeys?: string[];
+      parentId?: string;
+    },
   ) => {
     return apiClient.post<CommentDetailResponse>(
       `/boards/${boardId}/tasks/${taskId}/comments`,
@@ -2227,8 +2273,11 @@ export const memberAPI = {
     );
   },
 
-  getOrgCandidates: async (boardId: string, search?: string): Promise<import("../types").OrgBoardCandidate[]> => {
-    const params = search ? `?search=${encodeURIComponent(search)}` : '';
+  getOrgCandidates: async (
+    boardId: string,
+    search?: string,
+  ): Promise<import("../types").OrgBoardCandidate[]> => {
+    const params = search ? `?search=${encodeURIComponent(search)}` : "";
     return apiClient.get(`/boards/${boardId}/members/org-candidates${params}`);
   },
 
@@ -2252,7 +2301,10 @@ export const jobRoleAPI = {
     boardId: string,
     data: { name: string; color?: string | null; icon?: string | null },
   ) => {
-    return apiClient.post<JobRoleResponse>(`/boards/${boardId}/job-roles`, data);
+    return apiClient.post<JobRoleResponse>(
+      `/boards/${boardId}/job-roles`,
+      data,
+    );
   },
 
   update: async (
@@ -2286,7 +2338,9 @@ export const jobRoleAPI = {
 
 export const contractorAPI = {
   list: async (boardId: string) => {
-    return apiClient.get<ContractorsListResponse>(`/boards/${boardId}/contractors`);
+    return apiClient.get<ContractorsListResponse>(
+      `/boards/${boardId}/contractors`,
+    );
   },
 
   create: async (
@@ -2300,7 +2354,10 @@ export const contractorAPI = {
       end_date?: string | null;
     },
   ) => {
-    return apiClient.post<ContractorResponse>(`/boards/${boardId}/contractors`, data);
+    return apiClient.post<ContractorResponse>(
+      `/boards/${boardId}/contractors`,
+      data,
+    );
   },
 
   update: async (
@@ -2486,10 +2543,7 @@ export const subscriptionAPI = {
     board_id: string;
     additional_seats: number;
   }) => {
-    return apiClient.post<{ checkout_url: string }>(
-      "/checkout/seats",
-      data,
-    );
+    return apiClient.post<{ checkout_url: string }>("/checkout/seats", data);
   },
 
   // Polar Checkout - AI 크레딧 구매
@@ -2750,6 +2804,7 @@ export interface BoardChecklistItemResponse {
   } | null;
   start_date: string | null;
   due_date: string | null;
+  tentative?: boolean;
   task: {
     id: string;
     title: string;
@@ -2773,6 +2828,7 @@ export interface AssigneeItemResponse {
   completed: boolean;
   start_date: string | null;
   due_date: string | null;
+  tentative?: boolean; // 임시(예정) 워크로드 항목 여부
   task: {
     id: string;
     title: string;
@@ -2789,7 +2845,12 @@ export interface AssigneeGroupResponse {
     id: string;
     name: string;
     profile_image: string | null;
-    job_role?: { id: string; name: string; color?: string | null; icon?: string | null } | null;
+    job_role?: {
+      id: string;
+      name: string;
+      color?: string | null;
+      icon?: string | null;
+    } | null;
   };
   items: AssigneeItemResponse[];
 }
@@ -4257,7 +4318,13 @@ export interface AdminOrgSummary {
     profile_image?: string | null;
   };
   plan: "FREE" | "TEAM";
-  subscription_status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "SUSPENDED" | "CANCELED" | null;
+  subscription_status:
+    | "TRIAL"
+    | "ACTIVE"
+    | "PAST_DUE"
+    | "SUSPENDED"
+    | "CANCELED"
+    | null;
   member_count: number;
   board_count: number;
   seat_count: number;
@@ -4666,9 +4733,7 @@ export const adminAPI = {
 
   // 조직 통계
   getOrgStatistics: async () => {
-    return apiClient.get<AdminOrgStatistics>(
-      "/admin/organizations/statistics",
-    );
+    return apiClient.get<AdminOrgStatistics>("/admin/organizations/statistics");
   },
 
   // 통계 조회
@@ -4709,18 +4774,28 @@ export const adminAPI = {
 
   // Churn Analysis
   getRetentionAnalysis: async (weeks: number = 8) => {
-    return apiClient.get<RetentionAnalysis>(`/admin/statistics/churn/retention?weeks=${weeks}`);
+    return apiClient.get<RetentionAnalysis>(
+      `/admin/statistics/churn/retention?weeks=${weeks}`,
+    );
   },
-  getInactiveUsers: async (inactiveDays: number = 14, page: number = 0, size: number = 20) => {
+  getInactiveUsers: async (
+    inactiveDays: number = 14,
+    page: number = 0,
+    size: number = 20,
+  ) => {
     return apiClient.get<InactiveUserList>(
       `/admin/statistics/churn/inactive-users?inactive_days=${inactiveDays}&page=${page}&size=${size}`,
     );
   },
   getTrialDropoutAnalysis: async (days: number = 90) => {
-    return apiClient.get<TrialDropoutAnalysis>(`/admin/statistics/churn/trial-dropout?days=${days}`);
+    return apiClient.get<TrialDropoutAnalysis>(
+      `/admin/statistics/churn/trial-dropout?days=${days}`,
+    );
   },
   getActivityTrends: async (days: number = 90) => {
-    return apiClient.get<ActivityTrends>(`/admin/statistics/churn/activity-trends?days=${days}`);
+    return apiClient.get<ActivityTrends>(
+      `/admin/statistics/churn/activity-trends?days=${days}`,
+    );
   },
 
   // 구독 목록 조회
@@ -4785,11 +4860,16 @@ export const adminAPI = {
 
   // 수익화 토글
   getMonetizationStatus: async () => {
-    return apiClient.get<{ monetization_enabled: boolean }>("/admin/system/monetization");
+    return apiClient.get<{ monetization_enabled: boolean }>(
+      "/admin/system/monetization",
+    );
   },
 
   setMonetizationEnabled: async (enabled: boolean) => {
-    return apiClient.put<{ monetization_enabled: boolean }>("/admin/system/monetization", { monetization_enabled: enabled });
+    return apiClient.put<{ monetization_enabled: boolean }>(
+      "/admin/system/monetization",
+      { monetization_enabled: enabled },
+    );
   },
 
   // 점검 모드
@@ -4889,7 +4969,9 @@ export const systemAPI = {
   },
 
   getMonetizationStatus: async () => {
-    return apiClient.get<{ monetization_enabled: boolean }>("/system/monetization");
+    return apiClient.get<{ monetization_enabled: boolean }>(
+      "/system/monetization",
+    );
   },
 };
 
@@ -5036,7 +5118,8 @@ export const notificationPreferenceAPI = {
       discord_checklist_assigned_enabled: data.discordChecklistAssignedEnabled,
       discord_task_comment_enabled: data.discordTaskCommentEnabled,
       discord_meeting_memo_shared_enabled: data.discordMeetingMemoSharedEnabled,
-      discord_note_comment_mention_enabled: data.discordNoteCommentMentionEnabled,
+      discord_note_comment_mention_enabled:
+        data.discordNoteCommentMentionEnabled,
     });
   },
 };
@@ -5091,7 +5174,7 @@ export const slackWebhookAPI = {
 
 export interface SlackAppInstallation {
   id: string;
-  scope: 'BOARD' | 'ORGANIZATION';
+  scope: "BOARD" | "ORGANIZATION";
   slack_team_id: string;
   slack_team_name: string;
   bot_user_id: string | null;
@@ -5130,34 +5213,51 @@ export interface SlackMemberStatus {
 }
 
 export const slackAppAPI = {
-  getInstallUrl: async (scope: 'BOARD' | 'ORGANIZATION', entityId: string) => {
+  getInstallUrl: async (scope: "BOARD" | "ORGANIZATION", entityId: string) => {
     const origin = encodeURIComponent(window.location.origin);
-    return apiClient.get<{ url: string }>(`/slack/oauth/install?scope=${scope}&entity_id=${entityId}&origin=${origin}`);
+    return apiClient.get<{ url: string }>(
+      `/slack/oauth/install?scope=${scope}&entity_id=${entityId}&origin=${origin}`,
+    );
   },
 
   getStatus: async (boardId: string) => {
-    return apiClient.get<SlackAppInstallation | null>(`/slack/app/status?board_id=${boardId}`);
+    return apiClient.get<SlackAppInstallation | null>(
+      `/slack/app/status?board_id=${boardId}`,
+    );
   },
 
   getOrgStatus: async (orgId: string) => {
-    return apiClient.get<SlackAppInstallation | null>(`/slack/app/status?organization_id=${orgId}`);
+    return apiClient.get<SlackAppInstallation | null>(
+      `/slack/app/status?organization_id=${orgId}`,
+    );
   },
 
   listChannels: async (boardId: string, cursor?: string) => {
-    const params = cursor ? `&cursor=${cursor}` : '';
-    return apiClient.get<SlackChannelList>(`/slack/app/channels?board_id=${boardId}${params}`);
+    const params = cursor ? `&cursor=${cursor}` : "";
+    return apiClient.get<SlackChannelList>(
+      `/slack/app/channels?board_id=${boardId}${params}`,
+    );
   },
 
   listOrgChannels: async (orgId: string, cursor?: string) => {
-    const params = cursor ? `&cursor=${cursor}` : '';
-    return apiClient.get<SlackChannelList>(`/slack/app/channels?organization_id=${orgId}${params}`);
+    const params = cursor ? `&cursor=${cursor}` : "";
+    return apiClient.get<SlackChannelList>(
+      `/slack/app/channels?organization_id=${orgId}${params}`,
+    );
   },
 
-  setDefaultChannel: async (installationId: string, channelId: string, channelName: string) => {
-    return apiClient.put(`/slack/app/channel?installation_id=${installationId}`, {
-      channelId: channelId,
-      channelName: channelName,
-    });
+  setDefaultChannel: async (
+    installationId: string,
+    channelId: string,
+    channelName: string,
+  ) => {
+    return apiClient.put(
+      `/slack/app/channel?installation_id=${installationId}`,
+      {
+        channelId: channelId,
+        channelName: channelName,
+      },
+    );
   },
 
   uninstall: async (installationId: string) => {
@@ -5167,7 +5267,9 @@ export const slackAppAPI = {
   // User link (per-user Slack account linking for DM notifications)
   getUserLinkUrl: async (boardId: string) => {
     const origin = encodeURIComponent(window.location.origin);
-    return apiClient.get<{ url: string }>(`/slack/oauth/user-link?board_id=${boardId}&origin=${origin}`);
+    return apiClient.get<{ url: string }>(
+      `/slack/oauth/user-link?board_id=${boardId}&origin=${origin}`,
+    );
   },
 
   getUserLinkStatus: async () => {
@@ -5179,11 +5281,16 @@ export const slackAppAPI = {
   },
 
   getMemberStatuses: async (boardId: string) => {
-    return apiClient.get<SlackMemberStatus[]>(`/slack/user/statuses?board_id=${boardId}`);
+    return apiClient.get<SlackMemberStatus[]>(
+      `/slack/user/statuses?board_id=${boardId}`,
+    );
   },
 
   testNotification: async (boardId: string) => {
-    return apiClient.post<{ success: boolean; message: string }>(`/slack/app/test?board_id=${boardId}`, {});
+    return apiClient.post<{ success: boolean; message: string }>(
+      `/slack/app/test?board_id=${boardId}`,
+      {},
+    );
   },
 };
 
@@ -5221,10 +5328,7 @@ export interface DiscordTestResult {
 }
 
 export const discordAPI = {
-  getOAuthUrl: async (
-    boardId: string,
-    type: "bot_install" | "user_link",
-  ) => {
+  getOAuthUrl: async (boardId: string, type: "bot_install" | "user_link") => {
     const origin = encodeURIComponent(window.location.origin);
     return apiClient.get<{ oauth_url: string }>(
       `/boards/${boardId}/discord/oauth-url?type=${type}&origin=${origin}`,
@@ -5258,9 +5362,7 @@ export const discordAPI = {
   },
 
   testNotification: async (boardId: string) => {
-    return apiClient.post<DiscordTestResult>(
-      `/boards/${boardId}/discord/test`,
-    );
+    return apiClient.post<DiscordTestResult>(`/boards/${boardId}/discord/test`);
   },
 };
 
@@ -5445,7 +5547,7 @@ export interface NoteTagInfo {
 
 export interface NoteTrashItem {
   id: string;
-  type: 'FOLDER' | 'DOCUMENT' | 'BOARD';
+  type: "FOLDER" | "DOCUMENT" | "BOARD";
   title: string;
   parent_id: string | null;
   parent_title: string | null;
@@ -5666,11 +5768,7 @@ export const noteAPI = {
     );
   },
 
-  deleteVersion: async (
-    boardId: string,
-    noteId: string,
-    versionId: string,
-  ) => {
+  deleteVersion: async (boardId: string, noteId: string, versionId: string) => {
     return apiClient.delete<void>(
       `/boards/${boardId}/notes/${noteId}/versions/${versionId}`,
     );
@@ -5683,9 +5781,7 @@ export const noteAPI = {
   },
 
   discardDraft: async (boardId: string, noteId: string) => {
-    return apiClient.delete<void>(
-      `/boards/${boardId}/notes/${noteId}/draft`,
-    );
+    return apiClient.delete<void>(`/boards/${boardId}/notes/${noteId}/draft`);
   },
 
   restoreDraft: async (boardId: string, noteId: string) => {
@@ -5791,7 +5887,9 @@ export const publicNoteAPI = {
 
 export const orgNoteAPI = {
   getBoardNotes: async (orgId: string) => {
-    return apiClient.get<BoardNoteSection[]>(`/organizations/${orgId}/notes/board-notes`);
+    return apiClient.get<BoardNoteSection[]>(
+      `/organizations/${orgId}/notes/board-notes`,
+    );
   },
 
   getTree: async (orgId: string) => {
@@ -5875,21 +5973,13 @@ export const orgNoteAPI = {
     );
   },
 
-  restoreVersion: async (
-    orgId: string,
-    noteId: string,
-    versionId: string,
-  ) => {
+  restoreVersion: async (orgId: string, noteId: string, versionId: string) => {
     return apiClient.post<NoteDetail>(
       `/organizations/${orgId}/notes/${noteId}/versions/${versionId}/restore`,
     );
   },
 
-  deleteVersion: async (
-    orgId: string,
-    noteId: string,
-    versionId: string,
-  ) => {
+  deleteVersion: async (orgId: string, noteId: string, versionId: string) => {
     return apiClient.delete<void>(
       `/organizations/${orgId}/notes/${noteId}/versions/${versionId}`,
     );
@@ -5924,7 +6014,10 @@ export const orgNoteAPI = {
   },
 
   createTag: async (orgId: string, data: { name: string; color: string }) => {
-    return apiClient.post<NoteTagInfo>(`/organizations/${orgId}/note-tags`, data);
+    return apiClient.post<NoteTagInfo>(
+      `/organizations/${orgId}/note-tags`,
+      data,
+    );
   },
 
   deleteTag: async (orgId: string, tagId: string) => {
@@ -5954,7 +6047,9 @@ export const orgNoteAPI = {
   // ===== Trash =====
 
   getTrash: async (orgId: string) => {
-    return apiClient.get<NoteTrashItem[]>(`/organizations/${orgId}/notes/trash`);
+    return apiClient.get<NoteTrashItem[]>(
+      `/organizations/${orgId}/notes/trash`,
+    );
   },
 
   restoreFromTrash: async (orgId: string, noteId: string) => {
@@ -6020,11 +6115,7 @@ export const orgNoteCommentAPI = {
     );
   },
 
-  toggleResolved: async (
-    orgId: string,
-    noteId: string,
-    commentId: string,
-  ) => {
+  toggleResolved: async (orgId: string, noteId: string, commentId: string) => {
     return apiClient.post<NoteCommentDetail>(
       `/organizations/${orgId}/notes/${noteId}/comments/${commentId}/resolve`,
     );
@@ -6160,7 +6251,10 @@ export const diaryAPI = {
     return apiClient.get(`/diary/list?year=${year}&month=${month}`);
   },
 
-  create: async (diaryDate: string, language?: string): Promise<DiaryDetail> => {
+  create: async (
+    diaryDate: string,
+    language?: string,
+  ): Promise<DiaryDetail> => {
     const params = language ? `?language=${encodeURIComponent(language)}` : "";
     return apiClient.post(`/diary${params}`, { diary_date: diaryDate });
   },
@@ -6525,7 +6619,12 @@ export const organizationAPI = {
   },
   update: async (
     orgId: string,
-    data: { name?: string; description?: string; hr_system_enabled?: boolean; auto_board_access_enabled?: boolean },
+    data: {
+      name?: string;
+      description?: string;
+      hr_system_enabled?: boolean;
+      auto_board_access_enabled?: boolean;
+    },
   ): Promise<import("../types").OrganizationDetail> => {
     return apiClient.put(`/organizations/${orgId}`, data);
   },
@@ -7215,7 +7314,10 @@ export const organizationAPI = {
   cancelClockOut: async (
     orgId: string,
   ): Promise<import("../types").AttendanceRecordDetail> => {
-    return apiClient.post(`/organizations/${orgId}/attendance/cancel-clock-out`, {});
+    return apiClient.post(
+      `/organizations/${orgId}/attendance/cancel-clock-out`,
+      {},
+    );
   },
   getMyAttendanceRecords: async (
     orgId: string,
@@ -7349,14 +7451,24 @@ export const orgAnnouncementAPI = {
   },
   create: async (
     orgId: string,
-    data: { title: string; content?: string; is_pinned?: boolean; file_keys?: string[] },
+    data: {
+      title: string;
+      content?: string;
+      is_pinned?: boolean;
+      file_keys?: string[];
+    },
   ): Promise<import("../types").OrgAnnouncement> => {
     return apiClient.post(`/organizations/${orgId}/announcements`, data);
   },
   update: async (
     orgId: string,
     id: string,
-    data: { title: string; content?: string; keep_attachment_ids?: string[]; new_file_keys?: string[] },
+    data: {
+      title: string;
+      content?: string;
+      keep_attachment_ids?: string[];
+      new_file_keys?: string[];
+    },
   ): Promise<import("../types").OrgAnnouncement> => {
     return apiClient.put(`/organizations/${orgId}/announcements/${id}`, data);
   },
@@ -7705,11 +7817,15 @@ export const personalDashboardAPI = {
     const params = date ? `?date=${date}` : "";
     return apiClient.get(`/personal/dashboard/overview${params}`);
   },
-  getBoardTasks: async (date?: string): Promise<import("../types").BoardTasksData> => {
+  getBoardTasks: async (
+    date?: string,
+  ): Promise<import("../types").BoardTasksData> => {
     const params = date ? `?date=${date}` : "";
     return apiClient.get(`/personal/dashboard/board-tasks${params}`);
   },
-  getCelebrations: async (date?: string): Promise<import("../types").CelebrationsData> => {
+  getCelebrations: async (
+    date?: string,
+  ): Promise<import("../types").CelebrationsData> => {
     const params = date ? `?date=${date}` : "";
     return apiClient.get(`/personal/dashboard/celebrations${params}`);
   },
@@ -7718,8 +7834,13 @@ export const personalDashboardAPI = {
 // ─── Personal Calendar API (v10.0) ───
 
 export const personalCalendarAPI = {
-  getUnifiedCalendar: async (startDate: string, endDate: string): Promise<import("../types").UnifiedCalendarData> => {
-    return apiClient.get(`/personal/calendar/unified?start_date=${startDate}&end_date=${endDate}`);
+  getUnifiedCalendar: async (
+    startDate: string,
+    endDate: string,
+  ): Promise<import("../types").UnifiedCalendarData> => {
+    return apiClient.get(
+      `/personal/calendar/unified?start_date=${startDate}&end_date=${endDate}`,
+    );
   },
 };
 
@@ -7736,14 +7857,20 @@ export const orgSubscriptionAPI = {
     orgId: string,
     data: { billing_cycle: string; seat_count: number },
   ): Promise<import("../types").OrgSubscription> => {
-    return apiClient.post(`/organizations/${orgId}/subscription/activate`, data);
+    return apiClient.post(
+      `/organizations/${orgId}/subscription/activate`,
+      data,
+    );
   },
 
   migratePreview: async (
     orgId: string,
     data: { billing_cycle: string; board_ids: string[] },
   ): Promise<import("../types").MigrationPreview> => {
-    return apiClient.post(`/organizations/${orgId}/subscription/migrate/preview`, data);
+    return apiClient.post(
+      `/organizations/${orgId}/subscription/migrate/preview`,
+      data,
+    );
   },
 
   migrate: async (
@@ -7753,7 +7880,9 @@ export const orgSubscriptionAPI = {
     return apiClient.post(`/organizations/${orgId}/subscription/migrate`, data);
   },
 
-  downgrade: async (orgId: string): Promise<import("../types").OrgSubscription> => {
+  downgrade: async (
+    orgId: string,
+  ): Promise<import("../types").OrgSubscription> => {
     return apiClient.post(`/organizations/${orgId}/subscription/downgrade`);
   },
 
@@ -7827,15 +7956,10 @@ export const orgPhotoAPI = {
   ): Promise<{ share_token: string }> =>
     apiClient.post(`/organizations/${orgId}/photos/gallery-share`, { title }),
 
-  disableGalleryShare: (
-    orgId: string,
-  ): Promise<void> =>
+  disableGalleryShare: (orgId: string): Promise<void> =>
     apiClient.delete(`/organizations/${orgId}/photos/gallery-share`),
 
-  updateGalleryShareTitle: (
-    orgId: string,
-    title: string,
-  ): Promise<void> =>
+  updateGalleryShareTitle: (orgId: string, title: string): Promise<void> =>
     apiClient.patch(`/organizations/${orgId}/photos/gallery-share`, { title }),
 
   getGalleryShareStatus: (
@@ -7844,14 +7968,10 @@ export const orgPhotoAPI = {
     apiClient.get(`/organizations/${orgId}/photos/gallery-share`),
 
   // Gallery-level upload
-  enableGalleryUpload: (
-    orgId: string,
-  ): Promise<{ upload_token: string }> =>
+  enableGalleryUpload: (orgId: string): Promise<{ upload_token: string }> =>
     apiClient.post(`/organizations/${orgId}/photos/gallery-upload`),
 
-  disableGalleryUpload: (
-    orgId: string,
-  ): Promise<void> =>
+  disableGalleryUpload: (orgId: string): Promise<void> =>
     apiClient.delete(`/organizations/${orgId}/photos/gallery-upload`),
 
   getGalleryUploadStatus: (
@@ -7870,7 +7990,9 @@ export const orgPhotoAPI = {
     orgId: string,
     tabId: string,
   ): Promise<import("../types").OrgPhotoTab> =>
-    apiClient.delete(`/organizations/${orgId}/photos/tabs/${tabId}/upload-link`),
+    apiClient.delete(
+      `/organizations/${orgId}/photos/tabs/${tabId}/upload-link`,
+    ),
 
   // Multi share-link management
   listShareLinks: (
@@ -7887,10 +8009,7 @@ export const orgPhotoAPI = {
   ): Promise<import("../types").PhotoShareLink> =>
     apiClient.post(`/organizations/${orgId}/photos/share-links`, payload),
 
-  revokeShareLink: (
-    orgId: string,
-    linkId: string,
-  ): Promise<void> =>
+  revokeShareLink: (orgId: string, linkId: string): Promise<void> =>
     apiClient.delete(`/organizations/${orgId}/photos/share-links/${linkId}`),
 
   // Photo CRUD
@@ -7921,7 +8040,9 @@ export const orgPhotoAPI = {
       },
     );
     if (!response.ok) {
-      const err = await response.json().catch(() => ({ message: "Upload failed" }));
+      const err = await response
+        .json()
+        .catch(() => ({ message: "Upload failed" }));
       throw err;
     }
     return response.json();
@@ -8087,11 +8208,12 @@ export const publicGalleryUploadAPI = {
   ): Promise<import("../types").SharedAlbumSummary> =>
     apiClient.post(`/public/gallery-upload/${uploadToken}/albums`, data, true),
 
-  deleteAlbum: (
-    uploadToken: string,
-    albumId: string,
-  ): Promise<void> =>
-    apiClient.delete(`/public/gallery-upload/${uploadToken}/albums/${albumId}`, undefined, true),
+  deleteAlbum: (uploadToken: string, albumId: string): Promise<void> =>
+    apiClient.delete(
+      `/public/gallery-upload/${uploadToken}/albums/${albumId}`,
+      undefined,
+      true,
+    ),
 
   getAlbumPhotos: (
     uploadToken: string,
@@ -8149,7 +8271,11 @@ export const publicGalleryUploadAPI = {
     albumId: string,
     photoId: string,
   ): Promise<void> =>
-    apiClient.delete(`/public/gallery-upload/${uploadToken}/albums/${albumId}/photos/${photoId}`, undefined, true),
+    apiClient.delete(
+      `/public/gallery-upload/${uploadToken}/albums/${albumId}/photos/${photoId}`,
+      undefined,
+      true,
+    ),
 };
 
 /** @deprecated kept for per-album share backward compat */
@@ -8202,13 +8328,19 @@ export const trashAPI = {
       {},
     ),
 
-  permanentlyDeleteFeature: (boardId: string, featureId: string): Promise<void> =>
+  permanentlyDeleteFeature: (
+    boardId: string,
+    featureId: string,
+  ): Promise<void> =>
     apiClient.delete<void>(`/boards/${boardId}/trash/features/${featureId}`),
 
   permanentlyDeleteTask: (boardId: string, taskId: string): Promise<void> =>
     apiClient.delete<void>(`/boards/${boardId}/trash/tasks/${taskId}`),
 
-  permanentlyDeleteChecklistItem: (boardId: string, itemId: string): Promise<void> =>
+  permanentlyDeleteChecklistItem: (
+    boardId: string,
+    itemId: string,
+  ): Promise<void> =>
     apiClient.delete<void>(
       `/boards/${boardId}/trash/checklist-items/${itemId}`,
     ),

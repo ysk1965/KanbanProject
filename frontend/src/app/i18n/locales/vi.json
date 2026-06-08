@@ -767,7 +767,14 @@
       "noItems": "Không có mục nào được phân công",
       "completed": "Đã hoàn thành",
       "collapse": "Thu gọn",
-      "more": "thêm"
+      "more": "thêm",
+      "tentative": "Dự kiến",
+      "promoteToChecklist": "Chuyển thành danh sách kiểm tra thực tế"
+    },
+    "taskPicker": {
+      "title": "Sắp xếp công việc tạm thời · Chọn nhiệm vụ",
+      "search": "Tìm kiếm nhiệm vụ...",
+      "empty": "Không có nhiệm vụ"
     },
     "panel": {
       "title": "Danh sách kiểm tra",

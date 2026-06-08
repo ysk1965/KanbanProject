@@ -15,6 +15,8 @@ import {
   ChevronDown,
   ChevronUp,
   Briefcase,
+  Trash2,
+  ListChecks,
 } from "lucide-react";
 import { BoardMember } from "../ShareBoardModal";
 import { BoardContractor, JobRole, Milestone } from "../../types";
@@ -25,6 +27,7 @@ import {
   AssigneeItemResponse,
   ChecklistByAssigneeResponse,
 } from "../../utils/api";
+import { TaskPickerPopover, TaskPickerItem } from "./TaskPickerPopover";
 import { getInitials, getAssigneeHex } from "../../utils/assigneeColor";
 import { useHolidays, HolidayInfo } from "../../hooks/useHolidays";
 
@@ -42,6 +45,8 @@ const HEADER_HEIGHT = 48;
 const MIN_BAR_WIDTH = 20;
 /** Maximum number of visible bar lanes before collapsing with "+N more" */
 const MAX_VISIBLE_LANES = 4;
+/** 클릭과 "그리기"를 구분하기 위한 최소 드래그 픽셀 거리 */
+const DRAW_DRAG_THRESHOLD = 6;
 
 // ========================================
 // Types
@@ -68,6 +73,16 @@ interface ScheduleResourceViewProps {
   onMilestoneClick?: (milestone: Milestone) => void;
   /** Scroll to and highlight a specific item (from panel click) */
   scrollToItem?: { id: string; ts: number } | null;
+  /** 보드의 태스크 목록 (임시 업무 배치 시 태스크 선택용) */
+  tasks?: TaskPickerItem[];
+}
+
+/** 빈 행을 드래그해 임시(예정) 바를 그리는 중의 상태 */
+interface DrawState {
+  rowIndex: number;
+  rowId: string;
+  startDayIndex: number;
+  currentDayIndex: number;
 }
 
 interface DragState {
@@ -172,6 +187,7 @@ export function ScheduleResourceView({
   refreshTrigger,
   onMilestoneClick,
   scrollToItem,
+  tasks = [],
 }: ScheduleResourceViewProps) {
   const { t, i18n } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -241,6 +257,24 @@ export function ScheduleResourceView({
   const dragStateRef = useRef<DragState | null>(null);
   // 드래그/리사이즈 후 click 이벤트 방지용 ref
   const wasDraggedRef = useRef(false);
+
+  // ─── 임시(예정) 바 그리기 상태 ───
+  const [drawState, setDrawState] = useState<DrawState | null>(null);
+  const drawStateRef = useRef<DrawState | null>(null);
+  /** 그리기 완료 후 태스크 선택 팝오버 (앵커 좌표 + 확정된 기간/행) */
+  const [pendingTentative, setPendingTentative] = useState<{
+    rowId: string;
+    startDate: string;
+    dueDate: string;
+    anchorX: number;
+    anchorY: number;
+  } | null>(null);
+  /** 임시 바 우클릭 컨텍스트 메뉴 */
+  const [tentativeMenu, setTentativeMenu] = useState<{
+    x: number;
+    y: number;
+    item: AssigneeItemResponse;
+  } | null>(null);
 
   // ─── Timeline range: wide fixed range (12 weeks before + 40 weeks after today) ───
   const { timelineDays, todayIndex, rangeStart, rangeEnd } = useMemo(() => {
@@ -657,7 +691,9 @@ export function ScheduleResourceView({
           (seg) => !collapsedRoleGroups.has(seg.key),
         );
         const allKeys = roleGroupSegments.map((seg) => seg.key);
-        const nextCollapsed = anyExpanded ? new Set(allKeys) : new Set<string>();
+        const nextCollapsed = anyExpanded
+          ? new Set(allKeys)
+          : new Set<string>();
         setCollapsedRoleGroups(nextCollapsed);
         try {
           window.localStorage.setItem(
@@ -675,7 +711,13 @@ export function ScheduleResourceView({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [rows, groupByJobRole, roleGroupSegments, collapsedRoleGroups, collapsedKey]);
+  }, [
+    rows,
+    groupByJobRole,
+    roleGroupSegments,
+    collapsedRoleGroups,
+    collapsedKey,
+  ]);
 
   // ─── Bar position calculations ───
   const getBarPosition = useCallback(
@@ -1039,6 +1081,171 @@ export function ScheduleResourceView({
       document.addEventListener("mouseup", handleMouseUp);
     },
     [boardId, fetchData, rangeStart, rangeEnd, rows],
+  );
+
+  // ─── 임시(예정) 바: 빈 행 영역을 드래그해 그리기 ───
+  const handleDrawStart = useCallback(
+    (e: React.MouseEvent, rowIndex: number, rowId: string) => {
+      if (e.button !== 0) return; // 좌클릭만
+      if (externalDragItem || dragStateRef.current) return; // 다른 드래그 진행 중
+      const target = e.target as HTMLElement;
+      // 바/리사이즈 핸들 위에서 시작하면 무시 (바는 stopPropagation 하지만 방어적으로 한번 더)
+      if (target.closest("[data-bar]") || target.dataset.resizeHandle) return;
+
+      const container = scrollContainerRef.current;
+      const rect = container?.getBoundingClientRect();
+      const scrollLeft = container?.scrollLeft || 0;
+      const startDayIndex = Math.floor(
+        (e.clientX - (rect?.left || 0) - LEFT_COL_WIDTH + scrollLeft) /
+          DAY_WIDTH,
+      );
+      if (startDayIndex < 0 || startDayIndex >= timelineDays.length) return;
+
+      const startClientX = e.clientX;
+      let moved = false;
+      const initial: DrawState = {
+        rowIndex,
+        rowId,
+        startDayIndex,
+        currentDayIndex: startDayIndex,
+      };
+      drawStateRef.current = initial;
+      setDrawState(initial);
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "crosshair";
+
+      const handleMove = (moveEvent: MouseEvent) => {
+        const ds = drawStateRef.current;
+        if (!ds) return;
+        if (Math.abs(moveEvent.clientX - startClientX) >= DRAW_DRAG_THRESHOLD) {
+          moved = true;
+        }
+        const cont = scrollContainerRef.current;
+        const r = cont?.getBoundingClientRect();
+        const sl = cont?.scrollLeft || 0;
+        let dayIndex = Math.floor(
+          (moveEvent.clientX - (r?.left || 0) - LEFT_COL_WIDTH + sl) /
+            DAY_WIDTH,
+        );
+        dayIndex = Math.max(0, Math.min(timelineDays.length - 1, dayIndex));
+        if (dayIndex !== ds.currentDayIndex) {
+          const updated = { ...ds, currentDayIndex: dayIndex };
+          drawStateRef.current = updated;
+          setDrawState(updated);
+        }
+      };
+
+      const handleUp = (upEvent: MouseEvent) => {
+        document.removeEventListener("mousemove", handleMove);
+        document.removeEventListener("mouseup", handleUp);
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+        const ds = drawStateRef.current;
+        drawStateRef.current = null;
+        setDrawState(null);
+        if (!ds || !moved) return; // 단순 클릭이면 무시
+
+        const a = Math.min(ds.startDayIndex, ds.currentDayIndex);
+        const b = Math.max(ds.startDayIndex, ds.currentDayIndex);
+        setPendingTentative({
+          rowId: ds.rowId,
+          startDate: formatDateStr(timelineDays[a]),
+          dueDate: formatDateStr(timelineDays[b]),
+          anchorX: upEvent.clientX,
+          anchorY: upEvent.clientY,
+        });
+      };
+
+      document.addEventListener("mousemove", handleMove);
+      document.addEventListener("mouseup", handleUp);
+    },
+    [externalDragItem, timelineDays],
+  );
+
+  // ─── 임시 항목 생성 (태스크 선택 후) ───
+  const handleCreateTentative = useCallback(
+    async (taskId: string, title: string) => {
+      const pending = pendingTentative;
+      if (!pending) return;
+      setPendingTentative(null);
+      const isContractor = pending.rowId.startsWith("contractor:");
+      const isUnassigned = pending.rowId === "__unassigned__";
+      try {
+        await checklistAPI.addItem(boardId, taskId, {
+          title,
+          start_date: pending.startDate,
+          due_date: pending.dueDate,
+          assignee_id: isContractor || isUnassigned ? null : pending.rowId,
+          contractor_id: isContractor
+            ? pending.rowId.substring("contractor:".length)
+            : null,
+          is_tentative: true,
+        });
+        const result = await boardChecklistAPI.getItemsByAssignee(boardId, {
+          start_date: rangeStart,
+          end_date: rangeEnd,
+        });
+        setData(result);
+      } catch (err) {
+        console.warn("Failed to create tentative item", err);
+        fetchData();
+      }
+    },
+    [pendingTentative, boardId, rangeStart, rangeEnd, fetchData],
+  );
+
+  // ─── 임시 → 실제 체크리스트로 전환 ───
+  const handlePromoteTentative = useCallback(
+    async (item: AssigneeItemResponse) => {
+      setTentativeMenu(null);
+      if (!item.task) return;
+      try {
+        await checklistAPI.patchItem(boardId, item.task.id, item.id, {
+          is_tentative: false,
+        });
+        const result = await boardChecklistAPI.getItemsByAssignee(boardId, {
+          start_date: rangeStart,
+          end_date: rangeEnd,
+        });
+        setData(result);
+      } catch (err) {
+        console.warn("Failed to promote tentative item", err);
+        fetchData();
+      }
+    },
+    [boardId, rangeStart, rangeEnd, fetchData],
+  );
+
+  // ─── 임시 항목 삭제 ───
+  const handleDeleteTentative = useCallback(
+    async (item: AssigneeItemResponse) => {
+      setTentativeMenu(null);
+      if (!item.task) return;
+      try {
+        await checklistAPI.deleteItem(boardId, item.task.id, item.id);
+        setData((prev) => {
+          if (!prev) return prev;
+          const remove = (arr: AssigneeItemResponse[]) =>
+            arr.filter((i) => i.id !== item.id);
+          return {
+            ...prev,
+            assignees: prev.assignees.map((g) => ({
+              ...g,
+              items: remove(g.items),
+            })),
+            contractors: prev.contractors?.map((g) => ({
+              ...g,
+              items: remove(g.items),
+            })),
+            unassigned: remove(prev.unassigned),
+          };
+        });
+      } catch (err) {
+        console.warn("Failed to delete tentative item", err);
+        fetchData();
+      }
+    },
+    [boardId, fetchData],
   );
 
   // ─── External DnD drop handling ───
@@ -1504,7 +1711,11 @@ export function ScheduleResourceView({
                             {t("schedule.resource.contractor", "외주")}
                             {(row.startDate || row.endDate) && (
                               <span className="font-medium normal-case tracking-normal ml-1">
-                                · {row.startDate?.slice(5).replace('-', '.') || '?'}~{row.endDate?.slice(5).replace('-', '.') || '?'}
+                                ·{" "}
+                                {row.startDate?.slice(5).replace("-", ".") ||
+                                  "?"}
+                                ~
+                                {row.endDate?.slice(5).replace("-", ".") || "?"}
                               </span>
                             )}
                           </span>
@@ -1548,6 +1759,7 @@ export function ScheduleResourceView({
                       width: totalTimelineWidth,
                       minHeight: dynamicRowHeight,
                     }}
+                    onMouseDown={(e) => handleDrawStart(e, rowIndex, row.id)}
                     onDragOver={(e) => {
                       const rect =
                         scrollContainerRef.current?.getBoundingClientRect();
@@ -1599,23 +1811,56 @@ export function ScheduleResourceView({
                     })}
 
                     {/* Contract period background bar for contractor rows */}
-                    {row.kind === "contractor" && (row.startDate || row.endDate) && (() => {
-                      const periodPos = getBarPosition(row.startDate || null, row.endDate || null);
-                      if (!periodPos) return null;
-                      return (
-                        <div
-                          className="absolute rounded-lg border-2 border-dashed pointer-events-none"
-                          style={{
-                            left: periodPos.left,
-                            width: periodPos.width,
-                            top: 0,
-                            bottom: 0,
-                            borderColor: `${row.color || '#14b8a6'}40`,
-                            backgroundColor: `${row.color || '#14b8a6'}08`,
-                          }}
-                        />
-                      );
-                    })()}
+                    {row.kind === "contractor" &&
+                      (row.startDate || row.endDate) &&
+                      (() => {
+                        const periodPos = getBarPosition(
+                          row.startDate || null,
+                          row.endDate || null,
+                        );
+                        if (!periodPos) return null;
+                        return (
+                          <div
+                            className="absolute rounded-lg border-2 border-dashed pointer-events-none"
+                            style={{
+                              left: periodPos.left,
+                              width: periodPos.width,
+                              top: 0,
+                              bottom: 0,
+                              borderColor: `${row.color || "#14b8a6"}40`,
+                              backgroundColor: `${row.color || "#14b8a6"}08`,
+                            }}
+                          />
+                        );
+                      })()}
+
+                    {/* 임시(예정) 바 그리기 미리보기 */}
+                    {drawState?.rowIndex === rowIndex &&
+                      (() => {
+                        const a = Math.min(
+                          drawState.startDayIndex,
+                          drawState.currentDayIndex,
+                        );
+                        const b = Math.max(
+                          drawState.startDayIndex,
+                          drawState.currentDayIndex,
+                        );
+                        return (
+                          <div
+                            className="absolute rounded-lg border-2 border-dashed border-bridge-accent bg-bridge-accent/15 pointer-events-none z-20 flex items-center px-2"
+                            style={{
+                              left: a * DAY_WIDTH,
+                              width: (b - a + 1) * DAY_WIDTH,
+                              top: BAR_TOP_OFFSET,
+                              height: BAR_HEIGHT,
+                            }}
+                          >
+                            <span className="text-xs font-bold text-bridge-accent truncate">
+                              {t("schedule.resource.tentative", "예정")}
+                            </span>
+                          </div>
+                        );
+                      })()}
 
                     {/* Checklist item bars */}
                     {itemsWithBars.map(
@@ -1636,12 +1881,15 @@ export function ScheduleResourceView({
                           BAR_TOP_OFFSET + lane * (BAR_HEIGHT + BAR_TOP_OFFSET);
 
                         const isHighlightTarget = highlightedItemId === item.id;
+                        const isTentative = !!item.tentative;
 
                         return (
                           <div
                             key={item.id}
+                            data-bar="true"
                             className={`absolute rounded-lg flex items-center px-2 text-xs font-medium
-                          text-white cursor-pointer hover:brightness-110 hover:shadow-lg transition-all
+                          cursor-pointer hover:brightness-110 hover:shadow-lg transition-all
+                          ${isTentative ? "text-foreground border-2 border-dashed" : "text-white"}
                           ${item.completed ? "opacity-50" : ""}
                           ${
                             isItemDragging
@@ -1657,9 +1905,27 @@ export function ScheduleResourceView({
                               width: pos.width,
                               top: barTop,
                               height: BAR_HEIGHT,
-                              backgroundColor: featureColor,
+                              backgroundColor: isTentative
+                                ? `${featureColor}26`
+                                : featureColor,
+                              borderColor: isTentative
+                                ? featureColor
+                                : undefined,
                             }}
                             onClick={() => handleBarClick(item)}
+                            onContextMenu={
+                              isTentative
+                                ? (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setTentativeMenu({
+                                      x: e.clientX,
+                                      y: e.clientY,
+                                      item,
+                                    });
+                                  }
+                                : undefined
+                            }
                             onMouseDown={(e) => {
                               // Ignore if clicking on resize handles
                               if (
@@ -1686,13 +1952,22 @@ export function ScheduleResourceView({
                               }
                             />
 
+                            {/* 예정 뱃지 */}
+                            {isTentative && (
+                              <span className="shrink-0 mr-1 px-1.5 py-0.5 rounded-full text-xs font-bold bg-bridge-accent/15 text-bridge-accent">
+                                {t("schedule.resource.tentative", "예정")}
+                              </span>
+                            )}
+
                             {/* Content */}
                             <span
                               className={`truncate flex-1 ${item.completed ? "line-through" : ""}`}
                             >
-                              {item.task
-                                ? `${item.task.title} / ${item.title}`
-                                : item.title}
+                              {isTentative
+                                ? item.title
+                                : item.task
+                                  ? `${item.task.title} / ${item.title}`
+                                  : item.title}
                             </span>
                             {item.completed && (
                               <CheckCircle2
@@ -1809,6 +2084,55 @@ export function ScheduleResourceView({
             </span>
           )}
         </div>
+      )}
+
+      {/* ─── 임시 업무 태스크 선택 팝오버 ─── */}
+      {pendingTentative && (
+        <TaskPickerPopover
+          tasks={tasks}
+          x={pendingTentative.anchorX}
+          y={pendingTentative.anchorY}
+          onSelect={handleCreateTentative}
+          onClose={() => setPendingTentative(null)}
+        />
+      )}
+
+      {/* ─── 임시 바 컨텍스트 메뉴 (전환/삭제) ─── */}
+      {tentativeMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setTentativeMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setTentativeMenu(null);
+            }}
+          />
+          <div
+            className="fixed z-50 min-w-[180px] bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5"
+            style={{ left: tentativeMenu.x, top: tentativeMenu.y }}
+          >
+            <button
+              type="button"
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors"
+              onClick={() => handlePromoteTentative(tentativeMenu.item)}
+            >
+              <ListChecks className="w-4 h-4 text-bridge-secondary shrink-0" />
+              {t(
+                "schedule.resource.promoteToChecklist",
+                "실제 체크리스트로 전환",
+              )}
+            </button>
+            <button
+              type="button"
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-400 hover:bg-foreground/5 transition-colors"
+              onClick={() => handleDeleteTentative(tentativeMenu.item)}
+            >
+              <Trash2 className="w-4 h-4 shrink-0" />
+              {t("common.delete", "삭제")}
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
