@@ -1613,7 +1613,8 @@
     "viewBoardGantt": "Gantt",
     "viewBoardCalendar": "Lịch",
     "viewBoardList": "Danh sách",
-    "viewBoardMilestone": "Cột mốc"
+    "viewBoardMilestone": "Cột mốc",
+    "viewSwitcher": "Dạng xem"
   },
   "admin": {
     "backToBoards": "Quay lại bảng",

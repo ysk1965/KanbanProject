@@ -7,7 +7,8 @@ export interface ShortcutDefinition {
   viewContext?: "board" | "schedule" | "statistics";
 }
 
-// Board sub-view shortcuts (shown when on board tab)
+// Board sub-tab shortcuts (shown when on board tab) — 칸반/마일스톤 서브탭 전용
+// 리스트/간트/캘린더는 우하단 FloatingViewSwitcher로 분리되어 단축키 없음
 export const BOARD_SHORTCUTS: ShortcutDefinition[] = [
   {
     id: "viewKanban",
@@ -17,29 +18,8 @@ export const BOARD_SHORTCUTS: ShortcutDefinition[] = [
     viewContext: "board",
   },
   {
-    id: "viewList",
-    keys: ["2"],
-    i18nKey: "keyboardShortcuts.viewList",
-    category: "navigation",
-    viewContext: "board",
-  },
-  {
-    id: "viewGantt",
-    keys: ["3"],
-    i18nKey: "keyboardShortcuts.viewGantt",
-    category: "navigation",
-    viewContext: "board",
-  },
-  {
-    id: "viewCalendar",
-    keys: ["4"],
-    i18nKey: "keyboardShortcuts.viewCalendar",
-    category: "navigation",
-    viewContext: "board",
-  },
-  {
     id: "viewMilestone",
-    keys: ["5"],
+    keys: ["2"],
     i18nKey: "keyboardShortcuts.viewMilestone",
     category: "navigation",
     viewContext: "board",
@@ -204,11 +184,8 @@ export const SHORTCUT_CATEGORIES = [
   "filter",
 ] as const;
 
-// BoardViewSwitcher SUB_VIEWS 순서와 일치
+// 보드 서브탭 단축키 (1: 칸반, 2: 마일스톤) — BOARD_SHORTCUTS와 일치
 export const VIEW_MODE_KEY_MAP: Record<string, string> = {
   "1": "kanban",
-  "2": "list",
-  "3": "gantt",
-  "4": "calendar",
-  "5": "milestone",
+  "2": "milestone",
 };

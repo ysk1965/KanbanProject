@@ -1721,7 +1721,8 @@
     "viewBoardGantt": "Gantt",
     "viewBoardCalendar": "Calendar",
     "viewBoardList": "List",
-    "viewBoardMilestone": "Milestone"
+    "viewBoardMilestone": "Milestone",
+    "viewSwitcher": "Views"
   },
   "announcements": {
     "title": "Announcements",

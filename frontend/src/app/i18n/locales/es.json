@@ -1613,7 +1613,8 @@
     "viewBoardGantt": "Gantt",
     "viewBoardCalendar": "Calendario",
     "viewBoardList": "Lista",
-    "viewBoardMilestone": "Hito"
+    "viewBoardMilestone": "Hito",
+    "viewSwitcher": "Vistas"
   },
   "admin": {
     "backToBoards": "Volver a tableros",
