@@ -1,5 +1,5 @@
-import { useRef, useCallback, memo } from "react";
-import { Block, Task, Tag, Feature, ChecklistItem } from "../types";
+import { useRef, useCallback, useMemo, memo } from "react";
+import { Block, Task, Feature, ChecklistItem } from "../types";
 import { DraggableCard } from "./DraggableCard";
 import { GripVertical, MoreVertical, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -11,7 +11,11 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "./ui/dropdown-menu";
-import { useDragContext } from "../contexts/DragContext";
+import {
+  useTaskDragState,
+  useTaskPlaceholder,
+  useDragActions,
+} from "../contexts/DragContext";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -19,17 +23,12 @@ interface KanbanBlockProps {
   block: Block;
   tasks: Task[];
   features?: Feature[];
-  availableTags?: Tag[];
   onMoveTask: (taskId: string, targetBlock: string, newOrder: number) => void;
   onReorderTask: (taskId: string, blockId: string, newPosition: number) => void;
   onTaskClick?: (task: Task) => void;
-  onEditBlock?: () => void;
-  onDeleteBlock?: () => void;
-  onHideBlock?: () => void;
-  onMoveBlockLeft?: () => void;
-  onMoveBlockRight?: () => void;
-  canMoveLeft?: boolean;
-  canMoveRight?: boolean;
+  onEditBlock?: (block: Block) => void;
+  onDeleteBlock?: (blockId: string) => void;
+  onHideBlock?: (blockId: string) => void;
   boardId?: string | null;
   expandedChecklistTaskIds?: Set<string>;
   onToggleChecklistExpand?: (taskId: string) => void;
@@ -48,7 +47,6 @@ export const KanbanBlock = memo(function KanbanBlock({
   block,
   tasks,
   features,
-  availableTags = [],
   onMoveTask,
   onReorderTask,
   onTaskClick,
@@ -71,8 +69,10 @@ export const KanbanBlock = memo(function KanbanBlock({
   const taskContainerRef = useRef<HTMLDivElement>(null);
   const dragOverThrottleRef = useRef<number>(0);
 
-  const { state, updateTaskPlaceholder, clearTaskPlaceholder, endTaskDrag } =
-    useDragContext();
+  const { draggedTask } = useTaskDragState();
+  const taskPlaceholder = useTaskPlaceholder();
+  const { updateTaskPlaceholder, clearTaskPlaceholder, endTaskDrag } =
+    useDragActions();
 
   // @dnd-kit sortable - TASK 블록은 드래그 비활성화
   const {
@@ -95,10 +95,15 @@ export const KanbanBlock = memo(function KanbanBlock({
   const isCustomBlock = block.type === "CUSTOM";
   const isFixedBlock = block.type === "FIXED";
 
+  // 카드별 features.find() 대신 O(1) 조회 맵
+  const featuresById = useMemo(
+    () => new Map((features ?? []).map((f) => [f.id, f])),
+    [features],
+  );
+
   // 플레이스홀더가 이 블록에 표시되어야 하는지 확인
-  const taskPlaceholderInThisBlock =
-    state.taskPlaceholder?.blockId === block.id;
-  const placeholderIndex = state.taskPlaceholder?.index ?? -1;
+  const taskPlaceholderInThisBlock = taskPlaceholder?.blockId === block.id;
+  const placeholderIndex = taskPlaceholder?.index ?? -1;
 
   // Task 드래그 오버 핸들러 - Y좌표로 플레이스홀더 위치 계산
   const handleTaskDragOver = useCallback(
@@ -115,7 +120,6 @@ export const KanbanBlock = memo(function KanbanBlock({
       }
       dragOverThrottleRef.current = now;
 
-      const draggedTask = state.draggedTask;
       if (!draggedTask) return;
 
       const container = taskContainerRef.current;
@@ -144,7 +148,7 @@ export const KanbanBlock = memo(function KanbanBlock({
 
       updateTaskPlaceholder(block.id, insertIndex);
     },
-    [state.draggedTask, block.id, tasks.length, updateTaskPlaceholder],
+    [draggedTask, block.id, tasks.length, updateTaskPlaceholder],
   );
 
   // Task 드래그 리브 핸들러 - placeholder는 drop/dragend에서만 정리
@@ -163,7 +167,7 @@ export const KanbanBlock = memo(function KanbanBlock({
       if (!taskId) return;
 
       // 플레이스홀더가 있으면 그 위치로 이동
-      const placeholder = state.taskPlaceholder;
+      const placeholder = taskPlaceholder;
       if (!placeholder || placeholder.blockId !== block.id) {
         // 플레이스홀더가 없거나 다른 블록의 플레이스홀더면, 맨 끝에 추가
         onMoveTask(taskId, block.id, tasks.length);
@@ -203,7 +207,7 @@ export const KanbanBlock = memo(function KanbanBlock({
       endTaskDrag();
     },
     [
-      state.taskPlaceholder,
+      taskPlaceholder,
       block.id,
       tasks,
       onMoveTask,
@@ -341,22 +345,23 @@ export const KanbanBlock = memo(function KanbanBlock({
               className="bg-bridge-surface border-bridge-border"
             >
               <DropdownMenuItem
-                onClick={onEditBlock}
+                onClick={() => onEditBlock?.(block)}
                 className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
               >
                 {t("kanbanBlock.rename")}
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={onEditBlock}
+                onClick={() => onEditBlock?.(block)}
                 className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
               >
                 {t("kanbanBlock.changeColor")}
               </DropdownMenuItem>
-              {onHideBlock && (
+              {/* 마일스톤 선택 중 + 마일스톤 비전속 블록만 숨김 가능 */}
+              {onHideBlock && !block.milestone_id && selectedMilestoneId && (
                 <>
                   <DropdownMenuSeparator className="bg-bridge-border" />
                   <DropdownMenuItem
-                    onClick={onHideBlock}
+                    onClick={() => onHideBlock(block.id)}
                     className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
                   >
                     {t("kanbanBlock.hideInMilestone", "이 마일스톤에서 숨기기")}
@@ -365,7 +370,7 @@ export const KanbanBlock = memo(function KanbanBlock({
               )}
               <DropdownMenuSeparator className="bg-bridge-border" />
               <DropdownMenuItem
-                onClick={onDeleteBlock}
+                onClick={() => onDeleteBlock?.(block.id)}
                 className="text-red-400 hover:bg-red-500/10 hover:text-red-300 text-xs"
               >
                 {t("kanbanBlock.deleteBlock")}
@@ -427,16 +432,17 @@ export const KanbanBlock = memo(function KanbanBlock({
             {/* 플레이스홀더 - 해당 인덱스 전에 표시 */}
             {taskPlaceholderInThisBlock &&
               placeholderIndex === index &&
-              state.draggedTask?.id !== task.id && (
+              draggedTask?.id !== task.id && (
                 <div className="mb-2">{placeholderElement}</div>
               )}
             <DraggableCard
               task={task}
               blockId={block.id}
               index={index}
-              onClick={() => onTaskClick?.(task)}
-              availableTags={availableTags}
-              features={features}
+              onTaskClick={onTaskClick}
+              feature={
+                task.feature_id ? featuresById.get(task.feature_id) : undefined
+              }
               boardId={boardId}
               isChecklistExpanded={expandedChecklistTaskIds?.has(task.id)}
               onToggleChecklistExpand={onToggleChecklistExpand}

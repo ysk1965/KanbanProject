@@ -55,6 +55,76 @@ export const KanbanFilterToolbar = forwardRef<
 ) {
   const { t } = useTranslation();
 
+  // === 검색어 디바운스 ===
+  // 입력은 로컬 state로 즉시 반영하고, 전 보드 필터 연산을 유발하는
+  // filterOptions.keyword 커밋은 200ms 디바운스로 지연
+  const [keywordInput, setKeywordInput] = useState(filterOptions.keyword);
+  const keywordDebounceRef = useRef<number | null>(null);
+  const lastCommittedKeywordRef = useRef(filterOptions.keyword);
+  // 보류 중(미커밋) 입력값 — 언마운트 시 flush용
+  const pendingKeywordRef = useRef<string | null>(null);
+  const filterOptionsRef = useRef(filterOptions);
+  filterOptionsRef.current = filterOptions;
+  const onFilterChangeRef = useRef(onFilterChange);
+  onFilterChangeRef.current = onFilterChange;
+
+  // 외부에서 keyword가 변경된 경우(클리어 버튼, 필터 전체 리셋) 로컬 입력 동기화.
+  // 보류 중인 디바운스가 외부 변경을 다시 덮어쓰지 않도록 함께 취소한다.
+  useEffect(() => {
+    if (filterOptions.keyword !== lastCommittedKeywordRef.current) {
+      if (keywordDebounceRef.current !== null) {
+        window.clearTimeout(keywordDebounceRef.current);
+        keywordDebounceRef.current = null;
+        pendingKeywordRef.current = null;
+      }
+      lastCommittedKeywordRef.current = filterOptions.keyword;
+      setKeywordInput(filterOptions.keyword);
+    }
+  }, [filterOptions.keyword]);
+
+  // 언마운트 시 보류 중인 입력은 버리지 않고 즉시 커밋 (뷰 전환 중 타이핑 유실 방지)
+  useEffect(() => {
+    return () => {
+      if (keywordDebounceRef.current !== null) {
+        window.clearTimeout(keywordDebounceRef.current);
+        keywordDebounceRef.current = null;
+      }
+      if (pendingKeywordRef.current !== null) {
+        const value = pendingKeywordRef.current;
+        pendingKeywordRef.current = null;
+        onFilterChangeRef.current({
+          ...filterOptionsRef.current,
+          keyword: value,
+        });
+      }
+    };
+  }, []);
+
+  const handleKeywordChange = (value: string) => {
+    setKeywordInput(value);
+    if (keywordDebounceRef.current !== null) {
+      window.clearTimeout(keywordDebounceRef.current);
+    }
+    pendingKeywordRef.current = value;
+    keywordDebounceRef.current = window.setTimeout(() => {
+      keywordDebounceRef.current = null;
+      pendingKeywordRef.current = null;
+      lastCommittedKeywordRef.current = value;
+      onFilterChange({ ...filterOptionsRef.current, keyword: value });
+    }, 200);
+  };
+
+  const handleKeywordClear = () => {
+    if (keywordDebounceRef.current !== null) {
+      window.clearTimeout(keywordDebounceRef.current);
+      keywordDebounceRef.current = null;
+    }
+    pendingKeywordRef.current = null;
+    setKeywordInput("");
+    lastCommittedKeywordRef.current = "";
+    onFilterChange({ ...filterOptionsRef.current, keyword: "" });
+  };
+
   // === Resource state (from BoardResourceBar) ===
   const [resources, setResources] = useState<BoardResource[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -161,15 +231,13 @@ export const KanbanFilterToolbar = forwardRef<
             ref={ref}
             type="text"
             placeholder={t("kanban.searchPlaceholder")}
-            value={filterOptions.keyword}
-            onChange={(e) =>
-              onFilterChange({ ...filterOptions, keyword: e.target.value })
-            }
+            value={keywordInput}
+            onChange={(e) => handleKeywordChange(e.target.value)}
             className="w-full bg-bridge-surface-hover border border-bridge-border rounded-lg py-1.5 pl-10 pr-8 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-bridge-secondary/40 focus:border-bridge-secondary/40 transition-all"
           />
-          {filterOptions.keyword && (
+          {keywordInput && (
             <button
-              onClick={() => onFilterChange({ ...filterOptions, keyword: "" })}
+              onClick={handleKeywordClear}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-foreground transition-colors"
             >
               <X size={14} />

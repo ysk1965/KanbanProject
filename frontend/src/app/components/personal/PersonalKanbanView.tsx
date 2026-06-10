@@ -94,7 +94,6 @@ export function PersonalKanbanView({ boardId, onTaskClick, onFeatureClick }: Per
             block={block}
             tasks={getTasksForBlock(block.id)}
             features={features}
-            availableTags={tags}
             boardId={boardId}
             onMoveTask={handleMoveTask}
             onReorderTask={handleReorderTask}

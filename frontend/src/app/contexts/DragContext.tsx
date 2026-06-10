@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+  ReactNode,
+} from 'react';
 import { Task } from '../types';
 
 interface TaskPlaceholder {
@@ -6,84 +13,102 @@ interface TaskPlaceholder {
   index: number;
 }
 
-interface DragState {
-  // Task 드래그 상태
+// 드래그 시작/종료 시에만 변경되는 상태
+interface TaskDragState {
   draggedTask: Task | null;
   sourceBlockId: string | null;
-  taskPlaceholder: TaskPlaceholder | null;
 }
 
-interface DragContextValue {
-  state: DragState;
-  // Task 드래그 액션
+// dragover 중 빈번히 변경되는 상태 — 별도 컨텍스트로 분리해
+// placeholder 이동 시 카드(DraggableCard)가 재렌더되지 않도록 한다
+interface DragActions {
   startTaskDrag: (task: Task, blockId: string) => void;
   updateTaskPlaceholder: (blockId: string, index: number) => void;
   clearTaskPlaceholder: () => void;
   endTaskDrag: () => void;
 }
 
-const initialState: DragState = {
+const initialDragState: TaskDragState = {
   draggedTask: null,
   sourceBlockId: null,
-  taskPlaceholder: null,
 };
 
-const DragContext = createContext<DragContextValue | null>(null);
+const TaskDragStateContext = createContext<TaskDragState | null>(null);
+const PlaceholderContext = createContext<TaskPlaceholder | null | undefined>(
+  undefined,
+);
+const DragActionsContext = createContext<DragActions | null>(null);
 
 export function DragProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<DragState>(initialState);
+  const [dragState, setDragState] = useState<TaskDragState>(initialDragState);
+  const [placeholder, setPlaceholder] = useState<TaskPlaceholder | null>(null);
 
-  // Task 드래그 액션
   const startTaskDrag = useCallback((task: Task, blockId: string) => {
-    setState((prev) => ({
-      ...prev,
-      draggedTask: task,
-      sourceBlockId: blockId,
-    }));
+    setDragState({ draggedTask: task, sourceBlockId: blockId });
   }, []);
 
-  const updateTaskPlaceholder = useCallback((blockId: string, index: number) => {
-    setState((prev) => ({
-      ...prev,
-      taskPlaceholder: { blockId, index },
-    }));
-  }, []);
+  const updateTaskPlaceholder = useCallback(
+    (blockId: string, index: number) => {
+      // 동일 위치면 참조 유지 → 불필요한 재렌더 방지
+      setPlaceholder((prev) =>
+        prev && prev.blockId === blockId && prev.index === index
+          ? prev
+          : { blockId, index },
+      );
+    },
+    [],
+  );
 
   const clearTaskPlaceholder = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      taskPlaceholder: null,
-    }));
+    setPlaceholder(null);
   }, []);
 
   const endTaskDrag = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      draggedTask: null,
-      sourceBlockId: null,
-      taskPlaceholder: null,
-    }));
+    setDragState(initialDragState);
+    setPlaceholder(null);
   }, []);
 
+  const actions = useMemo(
+    () => ({
+      startTaskDrag,
+      updateTaskPlaceholder,
+      clearTaskPlaceholder,
+      endTaskDrag,
+    }),
+    [startTaskDrag, updateTaskPlaceholder, clearTaskPlaceholder, endTaskDrag],
+  );
+
   return (
-    <DragContext.Provider
-      value={{
-        state,
-        startTaskDrag,
-        updateTaskPlaceholder,
-        clearTaskPlaceholder,
-        endTaskDrag,
-      }}
-    >
-      {children}
-    </DragContext.Provider>
+    <DragActionsContext.Provider value={actions}>
+      <TaskDragStateContext.Provider value={dragState}>
+        <PlaceholderContext.Provider value={placeholder}>
+          {children}
+        </PlaceholderContext.Provider>
+      </TaskDragStateContext.Provider>
+    </DragActionsContext.Provider>
   );
 }
 
-export function useDragContext() {
-  const context = useContext(DragContext);
+export function useTaskDragState() {
+  const context = useContext(TaskDragStateContext);
   if (!context) {
-    throw new Error('useDragContext must be used within a DragProvider');
+    throw new Error('useTaskDragState must be used within a DragProvider');
+  }
+  return context;
+}
+
+export function useTaskPlaceholder() {
+  const context = useContext(PlaceholderContext);
+  if (context === undefined) {
+    throw new Error('useTaskPlaceholder must be used within a DragProvider');
+  }
+  return context;
+}
+
+export function useDragActions() {
+  const context = useContext(DragActionsContext);
+  if (!context) {
+    throw new Error('useDragActions must be used within a DragProvider');
   }
   return context;
 }

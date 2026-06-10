@@ -23,8 +23,10 @@ import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,11 +54,24 @@ public class BlockService {
     private final MilestoneBlockConfigRepository milestoneBlockConfigRepository;
     private final MilestoneRepository milestoneRepository;
 
-    @Cacheable(value = "blocks", key = "#boardId + '_' + (#milestoneId != null ? #milestoneId : 'all')", unless = "#result == null")
-    public BlockResponse.ListResponse getBlocks(String boardId, String userId, String milestoneId) {
-        // 뷰어 이상 권한 확인
-        boardService.checkViewerOrAbove(boardId, userId);
+    /** 자기 자신 프록시 — public 메서드에서 @Cacheable 내부 메서드를 호출할 때 AOP 인터셉트 보장용 */
+    @Autowired
+    @Lazy
+    private BlockService self;
 
+    public BlockResponse.ListResponse getBlocks(String boardId, String userId, String milestoneId) {
+        // 뷰어 이상 권한 확인 (컨트롤러 경로 전용 — Facade는 멤버십을 1회 검증 후 internal 직접 호출)
+        boardService.checkViewerOrAbove(boardId, userId);
+        // this.getBlocksInternal()로 직접 호출하면 @Cacheable이 동작하지 않으므로 self 프록시 경유
+        return self.getBlocksInternal(boardId, milestoneId);
+    }
+
+    /**
+     * 권한 검증 없는 내부 조회 (BoardFacadeService처럼 호출 측에서 이미 멤버십을 검증한 경우 사용).
+     * 캐시 이름/키는 기존 getBlocks와 동일 — 컨트롤러/Facade 경로가 같은 캐시 엔트리를 공유한다.
+     */
+    @Cacheable(value = "blocks", key = "#boardId + '_' + (#milestoneId != null ? #milestoneId : 'all')", unless = "#result == null")
+    public BlockResponse.ListResponse getBlocksInternal(String boardId, String milestoneId) {
         if (milestoneId == null) {
             // 마일스톤 필터 없음: 보드의 모든 블록 반환
             List<Block> blocks = blockRepository.findByBoardIdOrderByPositionAsc(boardId);

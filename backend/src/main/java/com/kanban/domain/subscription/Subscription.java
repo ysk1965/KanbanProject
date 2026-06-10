@@ -61,6 +61,9 @@ public class Subscription {
     @Column(name = "current_period_end")
     private LocalDateTime currentPeriodEnd;
 
+    // 주의: 이 컬럼의 DB 값은 결제 이벤트 사이에는 stale할 수 있다.
+    // 조회 경로(getBoardFull 등)는 읽기전용 트랜잭션이라 in-memory 갱신만 하고 flush하지 않으므로,
+    // 이 값을 읽는 코드는 반드시 countBillableMembers()로 재계산 후 사용해야 한다 (SQL 직접 조회 금지).
     @Column(name = "billable_member_count")
     @Builder.Default
     private Integer billableMemberCount = 1;

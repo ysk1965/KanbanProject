@@ -52,6 +52,7 @@ import com.kanban.global.service.FileUploadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
@@ -536,6 +537,24 @@ public class BoardService {
         if (!membership.isOwner()) {
             throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
         }
+    }
+
+    /**
+     * Trial 만료 다운그레이드 영속화 전용 메서드 (BoardFacadeService.getBoardFull에서 호출).
+     *
+     * getBoardFull은 클래스 레벨 @Transactional(readOnly = true)로 동작하므로 그 안에서 변경한
+     * 엔티티는 flush되지 않는다. 기존 트랜잭션에 참여(REQUIRED)하면 그대로 readOnly에 묶이기 때문에,
+     * REQUIRES_NEW로 기존 readOnly 트랜잭션을 잠시 중단하고 독립된 쓰기 트랜잭션에서
+     * 보드를 새로 조회해 동일한 다운그레이드를 적용/커밋한다.
+     * (호출 조건: tier == TRIAL && trialEndsAt 경과 — 보드당 최대 1회 발생하는 드문 경로)
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void persistTrialExpiryDowngrade(String boardId) {
+        boardRepository.findById(boardId).ifPresent(board -> {
+            if (board.checkAndUpdateTierIfTrialExpired()) {
+                log.info("Board tier downgrade persisted (TRIAL → STANDARD): {}", boardId);
+            }
+        });
     }
 
     /**
