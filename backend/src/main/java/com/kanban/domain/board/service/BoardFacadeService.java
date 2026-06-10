@@ -81,8 +81,10 @@ public class BoardFacadeService {
 
     /**
      * 보드 진입 시 필요한 모든 데이터를 한 번에 조회
+     * (클래스 레벨 @Transactional(readOnly = true) 적용 — 순수 읽기 경로.
+     *  유일한 쓰기인 Trial 만료 다운그레이드는 BoardService.persistTrialExpiryDowngrade의
+     *  REQUIRES_NEW 쓰기 트랜잭션으로 분리되어 있다)
      */
-    @Transactional
     public BoardResponse.Full getBoardFull(String boardId, String userId) {
         // 1. 권한 확인 (한 번만)
         Board board = boardRepository.findById(boardId)
@@ -117,7 +119,11 @@ public class BoardFacadeService {
         }
 
         // 2. Trial 만료 체크 (데이터 조회 전 tier 확정)
+        //    in-memory 변경(checkAndUpdateTierIfTrialExpired)은 readOnly 트랜잭션이라 flush되지 않으므로
+        //    응답에 즉시 반영하는 용도이고, 실제 DB 영속화는 REQUIRES_NEW 쓰기 트랜잭션으로 수행한다.
+        //    (tier==TRIAL && trialEndsAt 경과 시에만 호출되는 드문 경로)
         if (board.checkAndUpdateTierIfTrialExpired()) {
+            boardService.persistTrialExpiryDowngrade(boardId);
             log.info("Board tier auto-downgraded to STANDARD: {}", boardId);
         }
 
@@ -150,6 +156,8 @@ public class BoardFacadeService {
         }
 
         // 5. 구독 상세 (billable 멤버 수 동기화)
+        //    NOTE: readOnly 트랜잭션이므로 이 변경은 flush되지 않는다(의도된 동작).
+        //    응답 DTO 계산을 위한 in-memory 동기화이며, 실제 영속화는 멤버 추가/제거 경로에서 수행된다.
         if (subscription != null) {
             subscription.updateBillableMemberCount(memberCount);
         }
