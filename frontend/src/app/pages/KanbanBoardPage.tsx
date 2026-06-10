@@ -212,6 +212,9 @@ import JoinRequestBanner from "../components/JoinRequestBanner";
 
 declare const __FE_COMMIT_HASH__: string;
 
+// memo된 자식에 빈 배열을 안정 참조로 전달 (매 렌더 새 [] 생성 방지)
+const EMPTY_FEATURE_IDS: string[] = [];
+
 export function KanbanBoardPage() {
   const { boardId } = useParams<{ boardId: string }>();
   const navigate = useNavigate();
@@ -2117,25 +2120,36 @@ export function KanbanBoardPage() {
     }
   };
 
-  const handleFeatureClick = (feature: Feature) => {
+  const handleFeatureClick = useCallback((feature: Feature) => {
     setSelectedFeature(feature);
     setIsFeatureModalOpen(true);
-  };
+  }, []);
 
   // Feature 칩 토글
-  const handleToggleFeatureChip = (featureId: string) => {
-    setSelectedFeatureIds((prev) => {
-      if (prev === null) {
-        return features.map((f) => f.id).filter((id) => id !== featureId);
-      }
-      if (prev.includes(featureId)) {
-        const next = prev.filter((id) => id !== featureId);
-        return next;
-      }
-      const next = [...prev, featureId];
-      return next.length === features.length ? null : next;
-    });
-  };
+  const handleToggleFeatureChip = useCallback(
+    (featureId: string) => {
+      setSelectedFeatureIds((prev) => {
+        if (prev === null) {
+          return features.map((f) => f.id).filter((id) => id !== featureId);
+        }
+        if (prev.includes(featureId)) {
+          const next = prev.filter((id) => id !== featureId);
+          return next;
+        }
+        const next = [...prev, featureId];
+        return next.length === features.length ? null : next;
+      });
+    },
+    [features],
+  );
+
+  const handleSelectAllFeatureChips = useCallback(() => {
+    setSelectedFeatureIds((prev) => (prev === null ? [] : null));
+  }, []);
+
+  const handleOpenAddFeatureModal = useCallback(() => {
+    setIsAddFeatureModalOpen(true);
+  }, []);
 
   const handleUpdateFeature = async (updates: Partial<Feature>) => {
     if (!boardId || !updates.id) return;
@@ -3409,14 +3423,12 @@ export function KanbanBoardPage() {
                 {/* Feature 칩 선택 영역 */}
                 <FeatureChipSelector
                   features={filteredFeatures}
-                  selectedFeatureIds={selectedFeatureIds ?? []}
+                  selectedFeatureIds={selectedFeatureIds ?? EMPTY_FEATURE_IDS}
                   isAllSelected={selectedFeatureIds === null}
                   onToggleFeature={handleToggleFeatureChip}
-                  onSelectAll={() =>
-                    setSelectedFeatureIds((prev) => (prev === null ? [] : null))
-                  }
+                  onSelectAll={handleSelectAllFeatureChips}
                   onFeatureInfoClick={handleFeatureClick}
-                  onAddFeature={() => setIsAddFeatureModalOpen(true)}
+                  onAddFeature={handleOpenAddFeatureModal}
                   cascadeFeatureId={cascadeFeatureId}
                 />
 
