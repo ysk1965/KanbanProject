@@ -149,6 +149,7 @@ export function ScheduleDetailPanel({
   >([]);
   const [isLoadingChecklist, setIsLoadingChecklist] = useState(false);
   const currentChecklistRef = useRef<HTMLDivElement>(null);
+  const scrolledForChecklistIdRef = useRef<string | null>(null);
 
   // Meeting 상세 정보
   const [meetingDetail, setMeetingDetail] = useState<MeetingDetail | null>(
@@ -196,9 +197,15 @@ export function ScheduleDetailPanel({
     loadChecklist();
   }, [boardId, task?.id]);
 
-  // 체크리스트 로드 후 현재 아이템으로 스크롤
+  // 체크리스트 로드 후 현재 아이템으로 1회 스크롤 (강제 재정렬 방지)
   useEffect(() => {
-    if (!isLoadingChecklist && allChecklistItems.length > 0 && checklist?.id) {
+    if (
+      !isLoadingChecklist &&
+      allChecklistItems.length > 0 &&
+      checklist?.id &&
+      scrolledForChecklistIdRef.current !== checklist.id
+    ) {
+      scrolledForChecklistIdRef.current = checklist.id;
       requestAnimationFrame(() => {
         currentChecklistRef.current?.scrollIntoView({
           behavior: "smooth",
@@ -935,7 +942,9 @@ export function ScheduleDetailPanel({
                 ? "cursor-pointer hover:bg-foreground/5 transition-colors"
                 : ""
             }`}
-            onClick={() => task && onViewTask && onViewTask(task.id, checklist?.id)}
+            onClick={() =>
+              task && onViewTask && onViewTask(task.id, checklist?.id)
+            }
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
