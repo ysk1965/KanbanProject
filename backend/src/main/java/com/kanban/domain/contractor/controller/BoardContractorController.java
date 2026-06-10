@@ -61,4 +61,38 @@ public class BoardContractorController {
             @Valid @RequestBody BoardContractorRequest.Reorder request) {
         return ResponseEntity.ok(contractorService.reorder(boardId, principal.getUserId(), request));
     }
+
+    // ─── 계약 기간(periods) 관리 (갱신/연장) ───
+
+    @PostMapping("/{contractorId}/periods")
+    public ResponseEntity<BoardContractorResponse.Detail> addPeriod(
+            @PathVariable String boardId,
+            @PathVariable String contractorId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody BoardContractorRequest.PeriodCreate request) {
+        BoardContractorResponse.Detail response =
+                contractorService.addPeriod(boardId, contractorId, principal.getUserId(), request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PutMapping("/{contractorId}/periods/{periodId}")
+    public ResponseEntity<BoardContractorResponse.Detail> updatePeriod(
+            @PathVariable String boardId,
+            @PathVariable String contractorId,
+            @PathVariable String periodId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody BoardContractorRequest.PeriodUpdate request) {
+        return ResponseEntity.ok(
+                contractorService.updatePeriod(boardId, contractorId, periodId, principal.getUserId(), request));
+    }
+
+    @DeleteMapping("/{contractorId}/periods/{periodId}")
+    public ResponseEntity<BoardContractorResponse.Detail> deletePeriod(
+            @PathVariable String boardId,
+            @PathVariable String contractorId,
+            @PathVariable String periodId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(
+                contractorService.deletePeriod(boardId, contractorId, periodId, principal.getUserId()));
+    }
 }

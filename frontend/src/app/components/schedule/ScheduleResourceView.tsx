@@ -510,8 +510,11 @@ export function ScheduleResourceView({
       jobRoleId: string | null;
       jobRoleName: string | null;
       jobRoleColor: string | null;
+      // 대표(현재) 기간 — 라벨 표시용
       startDate?: string | null;
       endDate?: string | null;
+      // 전체 계약 기간 이력 — 타임라인 바 렌더용
+      periods?: { start: string | null; end: string | null }[];
     };
 
     // Filter members to exclude viewers
@@ -572,6 +575,10 @@ export function ScheduleResourceView({
         jobRoleColor: c.job_role?.color || null,
         startDate: c.start_date || null,
         endDate: c.end_date || null,
+        periods: (c.periods || []).map((p) => ({
+          start: p.start_date || null,
+          end: p.end_date || null,
+        })),
       };
       if (c.manager_member_id) {
         const arr = contractorsByManager.get(c.manager_member_id) || [];
@@ -1718,6 +1725,15 @@ export function ScheduleResourceView({
                                 {row.endDate?.slice(5).replace("-", ".") || "?"}
                               </span>
                             )}
+                            {(row.periods?.length ?? 0) > 1 && (
+                              <span className="font-medium normal-case tracking-normal ml-1 text-slate-600">
+                                ·{" "}
+                                {t("schedule.resource.periodCount", {
+                                  count: row.periods!.length,
+                                  defaultValue: "{{count}}개 기간",
+                                })}
+                              </span>
+                            )}
                           </span>
                         )}
                       </div>
@@ -1810,17 +1826,18 @@ export function ScheduleResourceView({
                       );
                     })}
 
-                    {/* Contract period background bar for contractor rows */}
+                    {/* Contract period background bars for contractor rows (기간마다 1개) */}
                     {row.kind === "contractor" &&
-                      (row.startDate || row.endDate) &&
-                      (() => {
+                      (row.periods ?? []).map((p, pi) => {
+                        if (!p.start && !p.end) return null;
                         const periodPos = getBarPosition(
-                          row.startDate || null,
-                          row.endDate || null,
+                          p.start || null,
+                          p.end || null,
                         );
                         if (!periodPos) return null;
                         return (
                           <div
+                            key={`period-${pi}`}
                             className="absolute rounded-lg border-2 border-dashed pointer-events-none"
                             style={{
                               left: periodPos.left,
@@ -1832,7 +1849,7 @@ export function ScheduleResourceView({
                             }}
                           />
                         );
-                      })()}
+                      })}
 
                     {/* 임시(예정) 바 그리기 미리보기 */}
                     {drawState?.rowIndex === rowIndex &&

@@ -42,10 +42,22 @@ public class BoardContractorRequest {
 
         @Size(max = 20, message = "색상 코드는 20자 이내여야 합니다")
         private String color;
+    }
 
+    /** 계약 기간 추가(=갱신/연장). */
+    @Getter
+    @NoArgsConstructor
+    public static class PeriodCreate {
         private LocalDate startDate;
         private LocalDate endDate;
+    }
 
+    /** 계약 기간 수정. clear 플래그로 시작/종료일 개별 비우기. */
+    @Getter
+    @NoArgsConstructor
+    public static class PeriodUpdate {
+        private LocalDate startDate;
+        private LocalDate endDate;
         private boolean clearStartDate;
         private boolean clearEndDate;
     }
