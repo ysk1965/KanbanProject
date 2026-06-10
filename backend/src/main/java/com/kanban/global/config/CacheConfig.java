@@ -86,6 +86,9 @@ public class CacheConfig {
         // Shared Photos 캐시: 3분 (커서 기반 페이지별 캐싱)
         cacheConfigurations.put("sharedPhotos", defaultConfig.entryTtl(Duration.ofMinutes(3)));
 
+        // System Config 캐시: 5분 (MONETIZATION_ENABLED 등 전역 설정 — 변경 시 @CacheEvict로 즉시 무효화)
+        cacheConfigurations.put("systemConfig", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)
                 .withInitialCacheConfigurations(cacheConfigurations)
