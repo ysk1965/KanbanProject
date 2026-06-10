@@ -232,6 +232,8 @@ export function KanbanBoardPage() {
   const urlTaskId = searchParams.get("task");
   const pendingDeepLinkTaskId = useRef<string | null>(urlTaskId);
   const milestoneIdRef = useRef<string>("");
+  // WebSocket 핸들러(useCallback [])에서 최신 tasks 접근용 (stale closure 방지)
+  const tasksRef = useRef<Task[]>([]);
 
   // 버전 정보
   const [beCommit, setBeCommit] = useState<string>("");
@@ -455,6 +457,11 @@ export function KanbanBoardPage() {
   useEffect(() => {
     milestoneIdRef.current = kanbanSelectedMilestoneId;
   }, [kanbanSelectedMilestoneId]);
+
+  // tasksRef를 최신 값으로 동기화 (WebSocket 핸들러에서 stale closure 방지)
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
 
   // URL ?task= 딥링크: 데이터 로딩 완료 후 TaskDetailModal 자동 오픈
   useEffect(() => {
@@ -964,7 +971,6 @@ export function KanbanBoardPage() {
       // Block events
       case "BLOCK_CREATED": {
         const block = data as Block;
-        if (blocks.some((b) => b.id === block.id)) break;
         setBlocks((prev) => {
           if (prev.some((b) => b.id === block.id)) return prev;
           // Done 블록 position을 새 블록 뒤로 밀어서 순서 보장
@@ -1102,7 +1108,9 @@ export function KanbanBoardPage() {
           ),
         );
         // 캐스케이드 펄스: Task의 Feature 칩에 시각적 연결 표시
-        const cascadeTask = tasks.find((t) => t.id === toggleTaskId);
+        const cascadeTask = tasksRef.current.find(
+          (t) => t.id === toggleTaskId,
+        );
         if (cascadeTask?.feature_id) {
           setCascadeFeatureId(cascadeTask.feature_id);
           setTimeout(() => setCascadeFeatureId(null), 1000);
