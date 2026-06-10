@@ -288,12 +288,23 @@ export interface JobRole extends JobRoleInfo {
 // 외주(BoardContractor) 타입
 // ========================================
 
+export interface ContractorPeriod {
+  id: string;
+  start_date?: string | null;
+  end_date?: string | null;
+}
+
 export interface ContractorInfo {
   id: string;
   name: string;
   color?: string | null;
+  // 대표(현재) 기간 — periods 에서 파생, 하위호환 표시용
   start_date?: string | null;
   end_date?: string | null;
+  // 전체 계약 기간 이력 (start_date ASC)
+  periods?: ContractorPeriod[];
+  // 파생 상태: active / upcoming / expired / none
+  status?: 'active' | 'upcoming' | 'expired' | 'none' | string;
   manager_member_id?: string | null;
   manager_name?: string | null;
   job_role?: JobRoleInfo | null;

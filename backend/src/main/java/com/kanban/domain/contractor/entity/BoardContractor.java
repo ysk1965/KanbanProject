@@ -9,6 +9,8 @@ import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -46,11 +48,14 @@ public class BoardContractor {
     @Column(name = "display_order")
     private Integer displayOrder;
 
-    @Column(name = "start_date")
-    private LocalDate startDate;
-
-    @Column(name = "end_date")
-    private LocalDate endDate;
+    /**
+     * 계약 기간 목록 (다중 기간 이력). start_date ASC 정렬.
+     * 외주 삭제 시 기간도 함께 삭제(cascade + orphanRemoval), DB 레벨 ON DELETE CASCADE 와 이중 안전장치.
+     */
+    @OneToMany(mappedBy = "contractor", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("startDate ASC")
+    @Builder.Default
+    private List<BoardContractorPeriod> periods = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -89,9 +94,78 @@ public class BoardContractor {
         this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
-    public void updatePeriod(LocalDate startDate, LocalDate endDate) {
-        this.startDate = startDate;
-        this.endDate = endDate;
+    public void touch() {
         this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    public void addPeriod(BoardContractorPeriod period) {
+        period.assignContractor(this);
+        this.periods.add(period);
+        touch();
+    }
+
+    public void removePeriod(BoardContractorPeriod period) {
+        this.periods.remove(period);
+        touch();
+    }
+
+    // ─── 파생 상태 계산 (저장하지 않음, 오늘 기준) ───
+
+    /** 오늘이 기간 안인지 (null start = 시작 무제한, null end = 종료 무제한). */
+    private static boolean covers(BoardContractorPeriod p, LocalDate today) {
+        boolean afterStart = p.getStartDate() == null || !today.isBefore(p.getStartDate());
+        boolean beforeEnd = p.getEndDate() == null || !today.isAfter(p.getEndDate());
+        return afterStart && beforeEnd;
+    }
+
+    private static boolean isUpcoming(BoardContractorPeriod p, LocalDate today) {
+        return p.getStartDate() != null && today.isBefore(p.getStartDate());
+    }
+
+    /**
+     * 표시용 대표 기간: 오늘 포함 기간 → 없으면 가장 가까운 예정 → 없으면 가장 최근 과거.
+     */
+    public BoardContractorPeriod getCurrentPeriod() {
+        if (periods == null || periods.isEmpty()) return null;
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        BoardContractorPeriod active = null;
+        BoardContractorPeriod nextUpcoming = null;
+        BoardContractorPeriod lastPast = null;
+        for (BoardContractorPeriod p : periods) {
+            if (covers(p, today)) {
+                if (active == null) active = p;
+            } else if (isUpcoming(p, today)) {
+                if (nextUpcoming == null
+                        || p.getStartDate().isBefore(nextUpcoming.getStartDate())) {
+                    nextUpcoming = p;
+                }
+            } else {
+                // 과거(종료됨). 종료일이 가장 늦은 것을 대표로.
+                if (lastPast == null
+                        || (p.getEndDate() != null && lastPast.getEndDate() != null
+                            && p.getEndDate().isAfter(lastPast.getEndDate()))) {
+                    lastPast = p;
+                }
+            }
+        }
+        if (active != null) return active;
+        if (nextUpcoming != null) return nextUpcoming;
+        return lastPast;
+    }
+
+    /** active(활동중) / upcoming(예정) / expired(만료) / none(기간 없음). */
+    public String getDerivedStatus() {
+        if (periods == null || periods.isEmpty()) return "none";
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        boolean hasUpcoming = false;
+        boolean hasPast = false;
+        for (BoardContractorPeriod p : periods) {
+            if (covers(p, today)) return "active";
+            if (isUpcoming(p, today)) hasUpcoming = true;
+            else hasPast = true;
+        }
+        if (hasUpcoming) return "upcoming";
+        if (hasPast) return "expired";
+        return "none";
     }
 }

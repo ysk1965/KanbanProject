@@ -208,15 +208,27 @@ export function TaskDetailModal({
   // '__no_assignee__' 토큰은 미할당 항목을 의미
   const [filterAssigneeIds, setFilterAssigneeIds] = useState<string[]>([]);
   const highlightChecklistRef = useRef<HTMLDivElement>(null);
+  const hasScrolledToHighlightRef = useRef(false);
 
   useEffect(() => {
-    if (highlightChecklistItemId && highlightChecklistRef.current) {
+    // 모달이 닫히면 다음 열림에서 다시 스크롤되도록 플래그 리셋
+    if (!open) {
+      hasScrolledToHighlightRef.current = false;
+      return;
+    }
+    // 열림 세션당 1회만 '(현재)' 항목으로 스크롤 — 이후 체크리스트 변경 시 강제 재정렬 안 함
+    if (
+      !hasScrolledToHighlightRef.current &&
+      highlightChecklistItemId &&
+      highlightChecklistRef.current
+    ) {
+      hasScrolledToHighlightRef.current = true;
       highlightChecklistRef.current.scrollIntoView({
         behavior: "smooth",
         block: "center",
       });
     }
-  }, [highlightChecklistItemId, checklistItems]);
+  }, [highlightChecklistItemId, checklistItems, open]);
 
   useEffect(() => {
     if (task && open) {

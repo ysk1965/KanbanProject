@@ -143,13 +143,28 @@ function flattenToCalendarItems(
 }
 
 /**
- * Compute bar segments for multiday items across a calendar grid.
- * Returns an array of BarSegment for each week-row of the calendar.
+ * Compute bar segments for ALL dated items (single-day and multiday) across the
+ * calendar grid. Single-day items naturally collapse to a 1-column span. Items
+ * are placed into stacking lanes (rows) so nothing overlaps. Returns an array of
+ * BarSegment for each week-row of the calendar.
  */
 function computeBarSegments(
   items: CalendarItem[],
   weeks: Date[][],
 ): BarSegment[][] {
+  // Stable lane order: earliest start first, then longest duration first, then id.
+  // Longer multiday bars settle into top lanes, single-day items cascade below.
+  const sorted = [...items].sort((a, b) => {
+    const aStart = a.startDate || a.dueDate || "";
+    const bStart = b.startDate || b.dueDate || "";
+    if (aStart !== bStart) return aStart < bStart ? -1 : 1;
+    // Same start: longer span first (later end → top lane)
+    const aEnd = a.dueDate || a.startDate || "";
+    const bEnd = b.dueDate || b.startDate || "";
+    if (aEnd !== bEnd) return aEnd > bEnd ? -1 : 1;
+    return a.id < b.id ? -1 : 1;
+  });
+
   return weeks.map((week) => {
     const weekStart = week[0];
     const weekEnd = week[week.length - 1];
@@ -158,7 +173,7 @@ function computeBarSegments(
     // Track occupied rows per column for stacking
     const columnMaxRow: number[] = new Array(7).fill(0);
 
-    for (const item of items) {
+    for (const item of sorted) {
       if (!item.startDate && !item.dueDate) continue;
 
       const itemStart = item.startDate
@@ -195,32 +210,12 @@ function computeBarSegments(
   });
 }
 
-/**
- * Compute dot items: items with only one date set (no range).
- * Returns a Map<dateString, CalendarItem[]>.
- */
-function computeDotItems(items: CalendarItem[]): Map<string, CalendarItem[]> {
-  const map = new Map<string, CalendarItem[]>();
-
-  for (const item of items) {
-    const hasRange = item.startDate && item.dueDate;
-    if (hasRange) continue;
-
-    const dateStr = item.startDate || item.dueDate;
-    if (!dateStr) continue;
-
-    const existing = map.get(dateStr) || [];
-    existing.push(item);
-    map.set(dateStr, existing);
-  }
-
-  return map;
-}
-
 // Maximum visible bars per cell row before "+N more" is shown
 const MAX_VISIBLE_BARS = 3;
 const BAR_HEIGHT = 24; // h-6 = 24px
 const BAR_GAP = 2;
+// Vertical offset where the bar overlay starts (cell padding p-1 = 4px + today badge h-6 = 24px)
+const HEADER_HEIGHT = 28;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -367,22 +362,10 @@ export function ScheduleCalendarView({
     return all;
   }, [data, showCompleted, selectedJobRoleIds]);
 
-  // Items that span multiple days (have both start_date and due_date)
-  const multidayItems = useMemo(
-    () => calendarItems.filter((i) => i.startDate && i.dueDate),
-    [calendarItems],
-  );
-
-  // Items that are dots (only one date)
-  const dotItemsMap = useMemo(
-    () => computeDotItems(calendarItems),
-    [calendarItems],
-  );
-
-  // Bar segments per week row
+  // Bar segments per week row — all dated items (single-day collapse to 1-col bars)
   const barSegmentsByWeek = useMemo(
-    () => computeBarSegments(multidayItems, weeks),
-    [multidayItems, weeks],
+    () => computeBarSegments(calendarItems, weeks),
+    [calendarItems, weeks],
   );
 
   // ------ Navigation ------
@@ -499,47 +482,6 @@ export function ScheduleCalendarView({
       );
     },
     [handleBarClick, t],
-  );
-
-  const renderDot = useCallback(
-    (item: CalendarItem) => {
-      const completedClasses = item.completed ? "opacity-50" : "";
-      return (
-        <div
-          key={item.id}
-          role="button"
-          tabIndex={0}
-          aria-label={`${item.title}${item.completed ? " (completed)" : ""}`}
-          className={`flex items-center gap-1 px-1 py-0.5 rounded text-xs truncate
-            cursor-pointer hover:bg-foreground/5 transition-colors ${completedClasses}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleBarClick(item);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              handleBarClick(item);
-            }
-          }}
-        >
-          <div
-            className={`w-2 h-2 rounded-full shrink-0 ${item.tentative ? "border-2 border-dashed" : ""}`}
-            style={
-              item.tentative
-                ? { borderColor: item.featureColor }
-                : { backgroundColor: item.featureColor }
-            }
-          />
-          <span
-            className={`truncate text-foreground ${item.completed ? "line-through" : ""}`}
-          >
-            {item.title}
-          </span>
-        </div>
-      );
-    },
-    [handleBarClick],
   );
 
   // ------ Loading state ------
@@ -683,10 +625,6 @@ export function ScheduleCalendarView({
         >
           {weeks.map((week, weekIdx) => {
             const segments = barSegmentsByWeek[weekIdx] || [];
-            // Compute max row count for this week to size the bar area
-            const maxRow = segments.reduce((m, s) => Math.max(m, s.row + 1), 0);
-            const visibleRows = Math.min(maxRow, MAX_VISIBLE_BARS);
-            const barAreaHeight = visibleRows * (BAR_HEIGHT + BAR_GAP);
 
             return (
               <div
@@ -699,23 +637,19 @@ export function ScheduleCalendarView({
                   const inMonth = isSameMonth(day, currentMonth);
                   const today = isToday(day);
                   const isDropTarget = dropTargetDate === dateStr;
-                  const dots = dotItemsMap.get(dateStr) || [];
                   const holidays = holidayMap.get(dateStr);
                   const isHoliday = !!holidays && holidays.length > 0;
                   const holidayName = isHoliday
                     ? holidays!.map((h) => h.name).join(", ")
                     : undefined;
 
-                  // Count how many multiday bar segments start or pass through this column
-                  const cellSegments = segments.filter(
-                    (s) => colIdx >= s.startCol && colIdx < s.startCol + s.span,
-                  );
-                  const overflowCount =
-                    cellSegments.filter((s) => s.row >= MAX_VISIBLE_BARS)
-                      .length +
-                    (dots.length > 0 && visibleRows >= MAX_VISIBLE_BARS
-                      ? dots.length
-                      : 0);
+                  // Count hidden segments (row >= MAX_VISIBLE_BARS) overlapping this column
+                  const overflowCount = segments.filter(
+                    (s) =>
+                      colIdx >= s.startCol &&
+                      colIdx < s.startCol + s.span &&
+                      s.row >= MAX_VISIBLE_BARS,
+                  ).length;
 
                   return (
                     <div
@@ -759,18 +693,6 @@ export function ScheduleCalendarView({
                         </span>
                       </div>
 
-                      {/* Dot items (single-date items) */}
-                      <div
-                        className="flex flex-col gap-0.5"
-                        style={{
-                          marginTop: `${barAreaHeight + 2}px`,
-                        }}
-                      >
-                        {dots
-                          .slice(0, MAX_VISIBLE_BARS)
-                          .map((item) => renderDot(item))}
-                      </div>
-
                       {/* Overflow indicator – pinned to bottom */}
                       {overflowCount > 0 && (
                         <div className="absolute bottom-1 right-1 text-xs text-slate-400">
@@ -781,13 +703,12 @@ export function ScheduleCalendarView({
                   );
                 })}
 
-                {/* Multiday bar overlay – spans the full week row */}
-                {barAreaHeight > 0 && (
+                {/* Item bar overlay – spans the full week row (single + multiday) */}
+                {segments.length > 0 && (
                   <div
-                    className="absolute inset-x-0 pointer-events-none"
+                    className="absolute inset-x-0 bottom-0 pointer-events-none overflow-hidden"
                     style={{
-                      top: "28px",
-                      height: `${barAreaHeight}px`,
+                      top: `${HEADER_HEIGHT}px`,
                     }}
                   >
                     {segments
