@@ -25,8 +25,10 @@ import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,10 +58,24 @@ public class MemberService {
     private final OrgMemberRepository orgMemberRepository;
     private final JobRoleRepository jobRoleRepository;
 
-    @Cacheable(value = "members", key = "#boardId", unless = "#result == null")
-    public MemberResponse.ListResponse getMembers(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+    /** 자기 자신 프록시 — public 메서드에서 @Cacheable 내부 메서드를 호출할 때 AOP 인터셉트 보장용 */
+    @Autowired
+    @Lazy
+    private MemberService self;
 
+    public MemberResponse.ListResponse getMembers(String boardId, String userId) {
+        // 뷰어 이상 권한 확인 (컨트롤러 경로 전용 — Facade는 멤버십을 1회 검증 후 internal 직접 호출)
+        boardService.checkViewerOrAbove(boardId, userId);
+        // this.getMembersInternal()로 직접 호출하면 @Cacheable이 동작하지 않으므로 self 프록시 경유
+        return self.getMembersInternal(boardId);
+    }
+
+    /**
+     * 권한 검증 없는 내부 조회 (BoardFacadeService처럼 호출 측에서 이미 멤버십을 검증한 경우 사용).
+     * 캐시 이름/키는 기존 getMembers와 동일 — 컨트롤러/Facade 경로가 같은 캐시 엔트리를 공유한다.
+     */
+    @Cacheable(value = "members", key = "#boardId", unless = "#result == null")
+    public MemberResponse.ListResponse getMembersInternal(String boardId) {
         log.debug("Members loaded from DB for board: {}", boardId);
         List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
         return MemberResponse.ListResponse.of(members);

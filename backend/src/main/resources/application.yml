@@ -225,6 +225,10 @@ spring:
 
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
+    properties:
+      hibernate:
+        # 로컬 전용: 트랜잭션당 쿼리 수/세션 통계 로깅 (성능 측정용)
+        generate_statistics: true
 
   flyway:
     enabled: false
@@ -237,6 +241,10 @@ app:
   file:
     s3-enabled: false
     local-dir: ./uploads
+
+logging:
+  level:
+    org.hibernate.stat: DEBUG
 
 ---
 # Dev Profile (PostgreSQL + Redis)

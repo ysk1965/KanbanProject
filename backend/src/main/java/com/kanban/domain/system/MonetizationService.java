@@ -11,6 +11,8 @@ import com.kanban.domain.subscription.SubscriptionRepository;
 import com.kanban.domain.subscription.SubscriptionStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +30,11 @@ public class MonetizationService {
     private static final String KEY = "MONETIZATION_ENABLED";
     private static final boolean DEFAULT_VALUE = true;
 
+    /**
+     * 시스템 전역 설정이라 요청마다 조회할 필요 없음 — 캐시 (TTL 5분, CacheConfig 참조).
+     * 설정 변경(setMonetizationEnabled) 시 즉시 evict.
+     */
+    @Cacheable(value = "systemConfig")
     @Transactional(readOnly = true)
     public boolean isMonetizationEnabled() {
         return systemConfigRepository.findById(KEY)
@@ -35,6 +42,7 @@ public class MonetizationService {
             .orElse(DEFAULT_VALUE);
     }
 
+    @CacheEvict(value = "systemConfig", allEntries = true)
     @Transactional
     public void setMonetizationEnabled(boolean enabled) {
         SystemConfig config = systemConfigRepository.findById(KEY)
