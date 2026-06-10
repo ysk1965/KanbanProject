@@ -22,13 +22,9 @@ interface KanbanBlockProps {
   onMoveTask: (taskId: string, targetBlock: string, newOrder: number) => void;
   onReorderTask: (taskId: string, blockId: string, newPosition: number) => void;
   onTaskClick?: (task: Task) => void;
-  onEditBlock?: () => void;
-  onDeleteBlock?: () => void;
-  onHideBlock?: () => void;
-  onMoveBlockLeft?: () => void;
-  onMoveBlockRight?: () => void;
-  canMoveLeft?: boolean;
-  canMoveRight?: boolean;
+  onEditBlock?: (block: Block) => void;
+  onDeleteBlock?: (blockId: string) => void;
+  onHideBlock?: (blockId: string) => void;
   boardId?: string | null;
   expandedChecklistTaskIds?: Set<string>;
   onToggleChecklistExpand?: (taskId: string) => void;
@@ -345,22 +341,23 @@ export const KanbanBlock = memo(function KanbanBlock({
               className="bg-bridge-surface border-bridge-border"
             >
               <DropdownMenuItem
-                onClick={onEditBlock}
+                onClick={() => onEditBlock?.(block)}
                 className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
               >
                 {t("kanbanBlock.rename")}
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={onEditBlock}
+                onClick={() => onEditBlock?.(block)}
                 className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
               >
                 {t("kanbanBlock.changeColor")}
               </DropdownMenuItem>
-              {onHideBlock && (
+              {/* 마일스톤 선택 중 + 마일스톤 비전속 블록만 숨김 가능 */}
+              {onHideBlock && !block.milestone_id && selectedMilestoneId && (
                 <>
                   <DropdownMenuSeparator className="bg-bridge-border" />
                   <DropdownMenuItem
-                    onClick={onHideBlock}
+                    onClick={() => onHideBlock(block.id)}
                     className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
                   >
                     {t("kanbanBlock.hideInMilestone", "이 마일스톤에서 숨기기")}
@@ -369,7 +366,7 @@ export const KanbanBlock = memo(function KanbanBlock({
               )}
               <DropdownMenuSeparator className="bg-bridge-border" />
               <DropdownMenuItem
-                onClick={onDeleteBlock}
+                onClick={() => onDeleteBlock?.(block.id)}
                 className="text-red-400 hover:bg-red-500/10 hover:text-red-300 text-xs"
               >
                 {t("kanbanBlock.deleteBlock")}

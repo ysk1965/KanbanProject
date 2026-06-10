@@ -1894,7 +1894,8 @@ export function KanbanBoardPage() {
     }
   };
 
-  const handleDeleteBlock = async (blockId: string) => {
+  const handleDeleteBlock = useCallback(
+    async (blockId: string) => {
     const blockToDelete = blocks.find((b) => b.id === blockId);
     if (!blockToDelete || blockToDelete.type === "FIXED") return;
 
@@ -1926,47 +1927,55 @@ export function KanbanBoardPage() {
         setTasks(previousTasks);
       }
     }
-  };
+    },
+    [blocks, tasks, boardId],
+  );
 
-  const reloadBlocksForMilestone = async (overrideMilestoneId?: string) => {
-    if (!boardId) return;
-    const effectiveMilestoneId =
-      overrideMilestoneId ?? kanbanSelectedMilestoneId;
-    const reloadMilestoneId =
-      effectiveMilestoneId &&
-      effectiveMilestoneId !== "all" &&
-      effectiveMilestoneId !== "none"
-        ? effectiveMilestoneId
-        : undefined;
-    const blockResult = await blockService.getBlocksWithHidden(
-      boardId,
-      reloadMilestoneId,
-    );
-    setBlocks(blockResult.blocks);
-    setHiddenBlocks(blockResult.hiddenBlocks);
-  };
-
-  const handleHideBlock = async (blockId: string) => {
-    if (
-      !boardId ||
-      !kanbanSelectedMilestoneId ||
-      kanbanSelectedMilestoneId === "all" ||
-      kanbanSelectedMilestoneId === "none"
-    )
-      return;
-
-    try {
-      await milestoneBlockAPI.toggleVisibility(
+  const reloadBlocksForMilestone = useCallback(
+    async (overrideMilestoneId?: string) => {
+      if (!boardId) return;
+      const effectiveMilestoneId =
+        overrideMilestoneId ?? kanbanSelectedMilestoneId;
+      const reloadMilestoneId =
+        effectiveMilestoneId &&
+        effectiveMilestoneId !== "all" &&
+        effectiveMilestoneId !== "none"
+          ? effectiveMilestoneId
+          : undefined;
+      const blockResult = await blockService.getBlocksWithHidden(
         boardId,
-        kanbanSelectedMilestoneId,
-        blockId,
-        true,
+        reloadMilestoneId,
       );
-      await reloadBlocksForMilestone();
-    } catch (error) {
-      console.error("Failed to hide block:", error);
-    }
-  };
+      setBlocks(blockResult.blocks);
+      setHiddenBlocks(blockResult.hiddenBlocks);
+    },
+    [boardId, kanbanSelectedMilestoneId],
+  );
+
+  const handleHideBlock = useCallback(
+    async (blockId: string) => {
+      if (
+        !boardId ||
+        !kanbanSelectedMilestoneId ||
+        kanbanSelectedMilestoneId === "all" ||
+        kanbanSelectedMilestoneId === "none"
+      )
+        return;
+
+      try {
+        await milestoneBlockAPI.toggleVisibility(
+          boardId,
+          kanbanSelectedMilestoneId,
+          blockId,
+          true,
+        );
+        await reloadBlocksForMilestone();
+      } catch (error) {
+        console.error("Failed to hide block:", error);
+      }
+    },
+    [boardId, kanbanSelectedMilestoneId, reloadBlocksForMilestone],
+  );
 
   const handleShowBlock = async (blockId: string) => {
     if (
@@ -2015,34 +2024,6 @@ export function KanbanBoardPage() {
       .catch((error) => {
         console.error("Failed to load all blocks for reorder:", error);
       });
-  };
-
-  const handleMoveBlock = (blockId: string, direction: "left" | "right") => {
-    const blockIndex = sortedBlocks.findIndex((b) => b.id === blockId);
-    if (blockIndex === -1) return;
-
-    const block = sortedBlocks[blockIndex];
-    if (block.type === "FIXED") return;
-
-    const swapIndex = direction === "left" ? blockIndex - 1 : blockIndex + 1;
-    if (swapIndex < 0 || swapIndex >= sortedBlocks.length) return;
-
-    const swapBlock = sortedBlocks[swapIndex];
-    if (swapBlock.type === "FIXED") return;
-
-    const updatedBlocks = blocks.map((b) => {
-      if (b.id === block.id) return { ...b, position: swapBlock.position };
-      if (b.id === swapBlock.id) return { ...b, position: block.position };
-      return b;
-    });
-
-    setBlocks(updatedBlocks);
-
-    // 새 순서를 백엔드에 저장
-    const newVisibleOrder = [...sortedBlocks];
-    newVisibleOrder[blockIndex] = sortedBlocks[swapIndex];
-    newVisibleOrder[swapIndex] = sortedBlocks[blockIndex];
-    persistBlockReorder(newVisibleOrder);
   };
 
   // @dnd-kit 블록 드래그 상태
@@ -2612,11 +2593,8 @@ export function KanbanBoardPage() {
     }
   };
 
-  const handleMoveTask = async (
-    taskId: string,
-    targetBlockId: string,
-    newPosition: number,
-  ) => {
+  const handleMoveTask = useCallback(
+    async (taskId: string, targetBlockId: string, newPosition: number) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task || !boardId) return;
 
@@ -2701,7 +2679,9 @@ export function KanbanBoardPage() {
         ),
       );
     }
-  };
+    },
+    [tasks, blocks, features, boardId],
+  );
 
   const handleMoveTaskToFeature = async (
     taskId: string,
@@ -2839,11 +2819,8 @@ export function KanbanBoardPage() {
     }
   };
 
-  const handleReorderTask = async (
-    taskId: string,
-    blockId: string,
-    newPosition: number,
-  ) => {
+  const handleReorderTask = useCallback(
+    async (taskId: string, blockId: string, newPosition: number) => {
     if (!boardId) return;
 
     const task = tasks.find((t) => t.id === taskId);
@@ -2873,20 +2850,25 @@ export function KanbanBoardPage() {
         ),
       );
     }
-  };
+    },
+    [tasks, boardId],
+  );
 
-  const handleToggleChecklistExpand = (taskId: string) => {
-    setExpandedChecklistTaskIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(taskId)) newSet.delete(taskId);
-      else newSet.add(taskId);
-      localStorage.setItem(
-        `expandedChecklist_${boardId}`,
-        JSON.stringify([...newSet]),
-      );
-      return newSet;
-    });
-  };
+  const handleToggleChecklistExpand = useCallback(
+    (taskId: string) => {
+      setExpandedChecklistTaskIds((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(taskId)) newSet.delete(taskId);
+        else newSet.add(taskId);
+        localStorage.setItem(
+          `expandedChecklist_${boardId}`,
+          JSON.stringify([...newSet]),
+        );
+        return newSet;
+      });
+    },
+    [boardId],
+  );
 
   // Feature 칩 선택에 따른 태스크 필터링 여부
   const showFeatureLabel =
@@ -3486,9 +3468,7 @@ export function KanbanBoardPage() {
                               showFeatureLabel={showFeatureLabel}
                               scheduledTaskIds={scheduledTaskIds}
                               onQuickAddTask={
-                                canEdit
-                                  ? (blockId) => setQuickAddBlockId(blockId)
-                                  : undefined
+                                canEdit ? setQuickAddBlockId : undefined
                               }
                               recentlyCompletedTaskIds={
                                 recentlyCompletedTaskIds
@@ -3550,90 +3530,43 @@ export function KanbanBoardPage() {
                               b.fixed_type !== "FEATURE" &&
                               b.fixed_type !== "TASK",
                           )
-                          .map((block) => {
-                            const customBlocks = sortedBlocks.filter(
-                              (b) => b.type === "CUSTOM",
-                            );
-                            const customBlockIndex = customBlocks.findIndex(
-                              (b) => b.id === block.id,
-                            );
-
-                            return (
-                              <KanbanBlock
-                                key={block.id}
-                                block={block}
-                                tasks={blockTasksMap[block.id] || []}
-                                onTaskClick={handleTaskClick}
-                                features={features}
-                                onMoveTask={handleMoveTask}
-                                onReorderTask={handleReorderTask}
-                                onEditBlock={
-                                  block.type === "CUSTOM"
-                                    ? () => setEditingBlock(block)
-                                    : undefined
-                                }
-                                onDeleteBlock={
-                                  block.type === "CUSTOM"
-                                    ? () => handleDeleteBlock(block.id)
-                                    : undefined
-                                }
-                                onHideBlock={
-                                  block.type === "CUSTOM" &&
-                                  !block.milestone_id &&
-                                  kanbanSelectedMilestoneId &&
-                                  kanbanSelectedMilestoneId !== "all" &&
-                                  kanbanSelectedMilestoneId !== "none"
-                                    ? () => handleHideBlock(block.id)
-                                    : undefined
-                                }
-                                selectedMilestoneId={
-                                  kanbanSelectedMilestoneId !== "all" &&
-                                  kanbanSelectedMilestoneId !== "none"
-                                    ? kanbanSelectedMilestoneId
-                                    : undefined
-                                }
-                                onMoveBlockLeft={
-                                  block.type === "CUSTOM" &&
-                                  customBlockIndex > 0
-                                    ? () => handleMoveBlock(block.id, "left")
-                                    : undefined
-                                }
-                                onMoveBlockRight={
-                                  block.type === "CUSTOM" &&
-                                  customBlockIndex < customBlocks.length - 1
-                                    ? () => handleMoveBlock(block.id, "right")
-                                    : undefined
-                                }
-                                canMoveLeft={
-                                  block.type === "CUSTOM" &&
-                                  customBlockIndex > 0
-                                }
-                                canMoveRight={
-                                  block.type === "CUSTOM" &&
-                                  customBlockIndex < customBlocks.length - 1
-                                }
-                                boardId={boardId || ""}
-                                expandedChecklistTaskIds={
-                                  expandedChecklistTaskIds
-                                }
-                                onToggleChecklistExpand={
-                                  handleToggleChecklistExpand
-                                }
-                                checklistDataMap={checklistDataMap}
-                                memberColorMap={memberColorMap}
-                                showFeatureLabel={showFeatureLabel}
-                                scheduledTaskIds={scheduledTaskIds}
-                                onQuickAddTask={
-                                  canEdit
-                                    ? (blockId) => setQuickAddBlockId(blockId)
-                                    : undefined
-                                }
-                                recentlyCompletedTaskIds={
-                                  recentlyCompletedTaskIds
-                                }
-                              />
-                            );
-                          })}
+                          .map((block) => (
+                            <KanbanBlock
+                              key={block.id}
+                              block={block}
+                              tasks={blockTasksMap[block.id] || []}
+                              onTaskClick={handleTaskClick}
+                              features={features}
+                              onMoveTask={handleMoveTask}
+                              onReorderTask={handleReorderTask}
+                              onEditBlock={setEditingBlock}
+                              onDeleteBlock={handleDeleteBlock}
+                              onHideBlock={handleHideBlock}
+                              selectedMilestoneId={
+                                kanbanSelectedMilestoneId !== "all" &&
+                                kanbanSelectedMilestoneId !== "none"
+                                  ? kanbanSelectedMilestoneId
+                                  : undefined
+                              }
+                              boardId={boardId || ""}
+                              expandedChecklistTaskIds={
+                                expandedChecklistTaskIds
+                              }
+                              onToggleChecklistExpand={
+                                handleToggleChecklistExpand
+                              }
+                              checklistDataMap={checklistDataMap}
+                              memberColorMap={memberColorMap}
+                              showFeatureLabel={showFeatureLabel}
+                              scheduledTaskIds={scheduledTaskIds}
+                              onQuickAddTask={
+                                canEdit ? setQuickAddBlockId : undefined
+                              }
+                              recentlyCompletedTaskIds={
+                                recentlyCompletedTaskIds
+                              }
+                            />
+                          ))}
                       </SortableContext>
                     </div>
                     <DragOverlay>
