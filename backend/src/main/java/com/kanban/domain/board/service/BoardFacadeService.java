@@ -175,10 +175,10 @@ public class BoardFacadeService {
         int currentTaskCount = tasksResponse.getTasks().size();
         BoardResponse.Limits limits = BoardResponse.Limits.of(board, currentTaskCount);
 
-        // 7. AI Credits
+        // 7. AI Credits (이미 로드된 board/subscription 엔티티 전달 — 재조회 쿼리 생략)
         AiCreditResponse.CreditInfo aiCredits = null;
         try {
-            aiCredits = aiCreditService.getCredits(boardId);
+            aiCredits = aiCreditService.getCredits(board, subscription);
         } catch (Exception e) {
             log.warn("Failed to load AI credits for board {}: {}", boardId, e.getMessage());
         }
