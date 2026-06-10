@@ -93,6 +93,8 @@ import {
 } from "@dnd-kit/sortable";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { KanbanBlock } from "../components/KanbanBlock";
+import { MilestoneTabBar } from "../components/MilestoneTabBar";
+import { ScheduleSubTabBar } from "../components/ScheduleSubTabBar";
 import { FeatureCard } from "../components/FeatureCard";
 import { FeatureChipSelector } from "../components/FeatureChipSelector";
 import { TrialBanner } from "../components/TrialBanner";
@@ -2727,145 +2729,23 @@ export function KanbanBoardPage() {
         {/* 마일스톤 탭 바 (보드 서브뷰에서 표시, milestone 뷰 제외) */}
         {BOARD_SUB_MODES.includes(viewMode) &&
           viewMode !== "milestone" &&
-          milestones.length > 0 &&
-          (() => {
-            const allMilestoneFeatureIds = new Set(
-              milestones.flatMap((m) => m.features?.map((f) => f.id) || []),
-            );
-            const hasUnassignedFeatures = allFeatures.some(
-              (f) => !allMilestoneFeatureIds.has(f.id),
-            );
-            return (
-              <div className="flex items-center px-3 md:px-6 py-1.5 bg-bridge-dark border-b border-bridge-border gap-2 overflow-x-auto shrink-0">
-                <Flag size={13} className="text-bridge-secondary shrink-0" />
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleKanbanMilestoneSelect("all")}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                      kanbanSelectedMilestoneId === "all"
-                        ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-                        : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
-                    }`}
-                  >
-                    {t("common.all")}
-                  </button>
-                  {hasUnassignedFeatures && (
-                    <button
-                      onClick={() => handleKanbanMilestoneSelect("none")}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                        kanbanSelectedMilestoneId === "none"
-                          ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-                          : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
-                      }`}
-                    >
-                      {t("kanban.unassigned", "미지정")}
-                    </button>
-                  )}
-                  {milestones.map((milestone) => {
-                    const startDate = format(
-                      parseISO(milestone.start_date),
-                      "M/d",
-                    );
-                    const endDate = format(parseISO(milestone.end_date), "M/d");
-                    return (
-                      <button
-                        key={milestone.id}
-                        onClick={() =>
-                          handleKanbanMilestoneSelect(milestone.id)
-                        }
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                          kanbanSelectedMilestoneId === milestone.id
-                            ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-                            : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
-                        }`}
-                      >
-                        <span>{milestone.title}</span>
-                        <span
-                          className={`text-xs font-normal ${kanbanSelectedMilestoneId === milestone.id ? "text-white/70" : "text-zinc-500"}`}
-                        >
-                          {startDate} ~ {endDate}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {kanbanSelectedMilestoneId !== "all" &&
-                  kanbanSelectedMilestoneId !== "none" && (
-                    <button
-                      onClick={() => {
-                        const milestone = milestones.find(
-                          (m) => m.id === kanbanSelectedMilestoneId,
-                        );
-                        if (milestone) handleOpenMilestoneWithCheck(milestone);
-                      }}
-                      className="p-1 text-zinc-400 hover:text-foreground transition-colors shrink-0"
-                      title={t("kanban.editMilestone")}
-                    >
-                      <Pencil size={13} />
-                    </button>
-                  )}
-                <button
-                  onClick={() => handleOpenMilestoneWithCheck()}
-                  className={`p-1 transition-colors shrink-0 ${
-                    !canAccessMilestone
-                      ? "text-zinc-600 hover:text-zinc-500"
-                      : "text-zinc-400 hover:text-foreground"
-                  }`}
-                >
-                  <Plus size={16} />
-                </button>
-              </div>
-            );
-          })()}
+          milestones.length > 0 && (
+            <MilestoneTabBar
+              milestones={milestones}
+              allFeatures={allFeatures}
+              selectedMilestoneId={kanbanSelectedMilestoneId}
+              canAccessMilestone={canAccessMilestone}
+              onSelect={handleKanbanMilestoneSelect}
+              onOpenMilestone={handleOpenMilestoneWithCheck}
+            />
+          )}
 
         {/* 일정 탭 서브탭 바 (타임블록 / 캘린더 / 리소스) */}
         {viewMode === "schedule" && (
-          <div className="flex items-center justify-center py-1.5 bg-kanban-header/50 border-b border-foreground/5">
-            <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-0.5">
-              <button
-                onClick={() => handleScheduleSubTabChange("timeblock")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all ${
-                  scheduleSubTab === "timeblock"
-                    ? "font-medium bg-foreground/10 text-foreground"
-                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
-                }`}
-                aria-label={t("schedule.subTab.timeblock", "Time Block")}
-              >
-                <Clock size={14} />
-                <span className="hidden md:inline">
-                  {t("schedule.subTab.timeblock", "Time Block")}
-                </span>
-              </button>
-              <button
-                onClick={() => handleScheduleSubTabChange("resource")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all ${
-                  scheduleSubTab === "resource"
-                    ? "font-medium bg-foreground/10 text-foreground"
-                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
-                }`}
-                aria-label={t("schedule.subTab.resource", "Resource")}
-              >
-                <Users size={14} />
-                <span className="hidden md:inline">
-                  {t("schedule.subTab.resource", "Resource")}
-                </span>
-              </button>
-              <button
-                onClick={() => handleScheduleSubTabChange("calendar")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all ${
-                  scheduleSubTab === "calendar"
-                    ? "font-medium bg-foreground/10 text-foreground"
-                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
-                }`}
-                aria-label={t("schedule.subTab.calendar", "Calendar")}
-              >
-                <Calendar size={14} />
-                <span className="hidden md:inline">
-                  {t("schedule.subTab.calendar", "Calendar")}
-                </span>
-              </button>
-            </div>
-          </div>
+          <ScheduleSubTabBar
+            activeTab={scheduleSubTab}
+            onChange={handleScheduleSubTabChange}
+          />
         )}
         {(viewMode === "statistics" || viewMode === "ai_report") &&
           isAdminOrOwner &&
