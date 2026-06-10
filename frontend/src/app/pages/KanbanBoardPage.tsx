@@ -646,10 +646,6 @@ export function KanbanBoardPage() {
   const [expandedChecklistTaskIds, setExpandedChecklistTaskIds] = useState<
     Set<string>
   >(new Set());
-  // Feature 서브태스크 펼침 상태
-  const [expandedFeatureIds, setExpandedFeatureIds] = useState<Set<string>>(
-    new Set(),
-  );
   // 방금 Done으로 이동된 태스크 ID (완료 애니메이션용)
   const [recentlyCompletedTaskIds, setRecentlyCompletedTaskIds] = useState<
     Set<string>
@@ -664,26 +660,27 @@ export function KanbanBoardPage() {
         const savedChecklist = localStorage.getItem(
           `expandedChecklist_${boardId}`,
         );
-        const savedFeatures = localStorage.getItem(
-          `expandedFeatures_${boardId}`,
-        );
         if (savedChecklist) {
           const ids = JSON.parse(savedChecklist) as string[];
           setExpandedChecklistTaskIds(
             new Set(ids.filter((id) => tasks.some((t) => t.id === id))),
           );
         }
-        if (savedFeatures) {
-          const ids = JSON.parse(savedFeatures) as string[];
-          setExpandedFeatureIds(
-            new Set(ids.filter((id) => features.some((f) => f.id === id))),
-          );
-        }
       } catch {
         // localStorage 파싱 실패 시 기본값(접힘) 유지
       }
     }
-  }, [isLoading, tasks, features, boardId]);
+  }, [isLoading, tasks, boardId]);
+
+  // 펼침 상태 변경 시 localStorage 저장 (복원 완료 전에는 저장하지 않음)
+  // setState updater 안의 동기 localStorage 쓰기(메인스레드 블로킹 + StrictMode 이중 실행)를 effect로 분리
+  useEffect(() => {
+    if (!initialExpandDone.current || !boardId) return;
+    localStorage.setItem(
+      `expandedChecklist_${boardId}`,
+      JSON.stringify([...expandedChecklistTaskIds]),
+    );
+  }, [expandedChecklistTaskIds, boardId]);
 
   // 키보드 단축키 도움말 모달
   const [isShortcutsHelpOpen, setIsShortcutsHelpOpen] = useState(false);
@@ -777,38 +774,13 @@ export function KanbanBoardPage() {
 
   const handleToggleExpandCollapse = useCallback(() => {
     if (viewMode === "kanban") {
-      setExpandedChecklistTaskIds((prev) => {
-        const isExpanded = prev.size > 0;
-        if (isExpanded) {
-          localStorage.setItem(
-            `expandedChecklist_${boardId}`,
-            JSON.stringify([]),
-          );
-          localStorage.setItem(
-            `expandedFeatures_${boardId}`,
-            JSON.stringify([]),
-          );
-          setExpandedFeatureIds(new Set());
-          return new Set();
-        } else {
-          const allTaskIds = tasks.map((t) => t.id);
-          const allFeatureIds = features.map((f) => f.id);
-          localStorage.setItem(
-            `expandedChecklist_${boardId}`,
-            JSON.stringify(allTaskIds),
-          );
-          localStorage.setItem(
-            `expandedFeatures_${boardId}`,
-            JSON.stringify(allFeatureIds),
-          );
-          setExpandedFeatureIds(new Set(allFeatureIds));
-          return new Set(allTaskIds);
-        }
-      });
+      setExpandedChecklistTaskIds((prev) =>
+        prev.size > 0 ? new Set() : new Set(tasks.map((t) => t.id)),
+      );
     } else {
       window.dispatchEvent(new CustomEvent("bridge:toggleExpandCollapse"));
     }
-  }, [boardId, tasks, features, viewMode]);
+  }, [tasks, viewMode]);
 
   const handleResetFilters = useCallback(() => {
     setFilterOptions({
@@ -2865,21 +2837,14 @@ export function KanbanBoardPage() {
     [tasks, boardId],
   );
 
-  const handleToggleChecklistExpand = useCallback(
-    (taskId: string) => {
-      setExpandedChecklistTaskIds((prev) => {
-        const newSet = new Set(prev);
-        if (newSet.has(taskId)) newSet.delete(taskId);
-        else newSet.add(taskId);
-        localStorage.setItem(
-          `expandedChecklist_${boardId}`,
-          JSON.stringify([...newSet]),
-        );
-        return newSet;
-      });
-    },
-    [boardId],
-  );
+  const handleToggleChecklistExpand = useCallback((taskId: string) => {
+    setExpandedChecklistTaskIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) newSet.delete(taskId);
+      else newSet.add(taskId);
+      return newSet;
+    });
+  }, []);
 
   // Feature 칩 선택에 따른 태스크 필터링 여부
   const showFeatureLabel =
