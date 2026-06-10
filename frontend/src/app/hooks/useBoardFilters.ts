@@ -7,9 +7,7 @@ export function useBoardFilters(
   tasks: Task[],
   blocks: Block[],
   filterOptions: FilterOptions,
-  checklistDataMap: { [taskId: string]: ChecklistItem[] },
-  selectedFeatureIds: string[] | null,
-  scheduledTaskIds: Set<string>
+  checklistDataMap: { [taskId: string]: ChecklistItem[] }
 ) {
   const sortedBlocks = useMemo(() => {
     return [...blocks].sort((a, b) => a.position - b.position);
@@ -89,22 +87,5 @@ export function useBoardFilters(
     });
   }, [tasks, filterOptions, checklistDataMap]);
 
-  const getTasksForBlock = (blockId: string) => {
-    let blockTasks = filteredTasks.filter((task) => task.block_id === blockId);
-    if (selectedFeatureIds !== null) {
-      blockTasks = blockTasks.filter((task) => selectedFeatureIds.includes(task.feature_id));
-    }
-    const block = sortedBlocks.find((b) => b.id === blockId);
-    if (block?.fixed_type === 'TASK' && scheduledTaskIds.size > 0) {
-      return blockTasks.sort((a, b) => {
-        const aScheduled = scheduledTaskIds.has(a.id) ? 0 : 1;
-        const bScheduled = scheduledTaskIds.has(b.id) ? 0 : 1;
-        if (aScheduled !== bScheduled) return aScheduled - bScheduled;
-        return a.position - b.position;
-      });
-    }
-    return blockTasks.sort((a, b) => a.position - b.position);
-  };
-
-  return { filteredFeatures, filteredTasks, sortedBlocks, getTasksForBlock };
+  return { filteredFeatures, filteredTasks, sortedBlocks };
 }

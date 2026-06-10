@@ -737,16 +737,22 @@ export function KanbanBoardPage() {
   );
 
   // ======== 커스텀 Hook: 필터 ========
-  const { filteredFeatures, filteredTasks, sortedBlocks, getTasksForBlock } =
-    useBoardFilters(
-      features,
-      tasks,
-      blocks,
-      filterOptions,
-      checklistDataMap,
-      selectedFeatureIds,
-      scheduledTaskIds,
-    );
+  const { filteredFeatures, filteredTasks, sortedBlocks } = useBoardFilters(
+    features,
+    tasks,
+    blocks,
+    filterOptions,
+    checklistDataMap,
+  );
+
+  // SortableContext 대상 블록 (FEATURE/TASK 고정 블록 제외) — 렌더/드래그에서 공용
+  const sortableBlocks = useMemo(
+    () =>
+      sortedBlocks.filter(
+        (b) => b.fixed_type !== "FEATURE" && b.fixed_type !== "TASK",
+      ),
+    [sortedBlocks],
+  );
 
   // ======== 키보드 단축키 ========
   const isAnyModalOpen =
@@ -2055,9 +2061,6 @@ export function KanbanBoardPage() {
     if (!over || active.id === over.id) return;
 
     // SortableContext에 포함된 블록만 (FEATURE, TASK 제외)
-    const sortableBlocks = sortedBlocks.filter(
-      (b) => b.fixed_type !== "FEATURE" && b.fixed_type !== "TASK",
-    );
     const oldIndex = sortableBlocks.findIndex((b) => b.id === active.id);
     const newIndex = sortableBlocks.findIndex((b) => b.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
@@ -3523,22 +3526,10 @@ export function KanbanBoardPage() {
 
                       {/* 커스텀 블록 + Done (SortableContext 내부) */}
                       <SortableContext
-                        items={sortedBlocks
-                          .filter(
-                            (b) =>
-                              b.fixed_type !== "FEATURE" &&
-                              b.fixed_type !== "TASK",
-                          )
-                          .map((b) => b.id)}
+                        items={sortableBlocks.map((b) => b.id)}
                         strategy={horizontalListSortingStrategy}
                       >
-                        {sortedBlocks
-                          .filter(
-                            (b) =>
-                              b.fixed_type !== "FEATURE" &&
-                              b.fixed_type !== "TASK",
-                          )
-                          .map((block) => (
+                        {sortableBlocks.map((block) => (
                             <KanbanBlock
                               key={block.id}
                               block={block}
