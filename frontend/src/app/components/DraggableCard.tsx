@@ -9,7 +9,7 @@ import {
   Check,
 } from "lucide-react";
 import { checklistAPI } from "../utils/api";
-import { useDragContext } from "../contexts/DragContext";
+import { useTaskDragState, useDragActions } from "../contexts/DragContext";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
 import { useTranslation } from "react-i18next";
 import { CompletionParticles } from "./CompletionParticles";
@@ -111,10 +111,11 @@ export const DraggableCard = memo(function DraggableCard({
   const mouseStartRef = useRef<{ x: number; y: number } | null>(null);
   const wasDraggedRef = useRef(false);
 
-  const { state, startTaskDrag, endTaskDrag } = useDragContext();
+  const { draggedTask } = useTaskDragState();
+  const { startTaskDrag, endTaskDrag } = useDragActions();
 
   // 현재 이 카드가 드래그 중인지 확인
-  const isThisCardDragging = state.draggedTask?.id === task.id;
+  const isThisCardDragging = draggedTask?.id === task.id;
 
   // 마우스 다운 - 시작 위치 기록
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -298,8 +299,7 @@ export const DraggableCard = memo(function DraggableCard({
   }, [task.assignees, checklistItems]);
 
   // 드래그 중인 다른 카드가 있으면 이 카드는 pointer-events: none (이벤트가 블록으로 직접 전달됨)
-  const shouldDisablePointerEvents =
-    state.draggedTask && state.draggedTask.id !== task.id;
+  const shouldDisablePointerEvents = draggedTask && draggedTask.id !== task.id;
 
   return (
     <div

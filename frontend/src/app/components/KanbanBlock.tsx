@@ -11,7 +11,11 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "./ui/dropdown-menu";
-import { useDragContext } from "../contexts/DragContext";
+import {
+  useTaskDragState,
+  useTaskPlaceholder,
+  useDragActions,
+} from "../contexts/DragContext";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -65,8 +69,10 @@ export const KanbanBlock = memo(function KanbanBlock({
   const taskContainerRef = useRef<HTMLDivElement>(null);
   const dragOverThrottleRef = useRef<number>(0);
 
-  const { state, updateTaskPlaceholder, clearTaskPlaceholder, endTaskDrag } =
-    useDragContext();
+  const { draggedTask } = useTaskDragState();
+  const taskPlaceholder = useTaskPlaceholder();
+  const { updateTaskPlaceholder, clearTaskPlaceholder, endTaskDrag } =
+    useDragActions();
 
   // @dnd-kit sortable - TASK 블록은 드래그 비활성화
   const {
@@ -96,9 +102,8 @@ export const KanbanBlock = memo(function KanbanBlock({
   );
 
   // 플레이스홀더가 이 블록에 표시되어야 하는지 확인
-  const taskPlaceholderInThisBlock =
-    state.taskPlaceholder?.blockId === block.id;
-  const placeholderIndex = state.taskPlaceholder?.index ?? -1;
+  const taskPlaceholderInThisBlock = taskPlaceholder?.blockId === block.id;
+  const placeholderIndex = taskPlaceholder?.index ?? -1;
 
   // Task 드래그 오버 핸들러 - Y좌표로 플레이스홀더 위치 계산
   const handleTaskDragOver = useCallback(
@@ -115,7 +120,6 @@ export const KanbanBlock = memo(function KanbanBlock({
       }
       dragOverThrottleRef.current = now;
 
-      const draggedTask = state.draggedTask;
       if (!draggedTask) return;
 
       const container = taskContainerRef.current;
@@ -144,7 +148,7 @@ export const KanbanBlock = memo(function KanbanBlock({
 
       updateTaskPlaceholder(block.id, insertIndex);
     },
-    [state.draggedTask, block.id, tasks.length, updateTaskPlaceholder],
+    [draggedTask, block.id, tasks.length, updateTaskPlaceholder],
   );
 
   // Task 드래그 리브 핸들러 - placeholder는 drop/dragend에서만 정리
@@ -163,7 +167,7 @@ export const KanbanBlock = memo(function KanbanBlock({
       if (!taskId) return;
 
       // 플레이스홀더가 있으면 그 위치로 이동
-      const placeholder = state.taskPlaceholder;
+      const placeholder = taskPlaceholder;
       if (!placeholder || placeholder.blockId !== block.id) {
         // 플레이스홀더가 없거나 다른 블록의 플레이스홀더면, 맨 끝에 추가
         onMoveTask(taskId, block.id, tasks.length);
@@ -203,7 +207,7 @@ export const KanbanBlock = memo(function KanbanBlock({
       endTaskDrag();
     },
     [
-      state.taskPlaceholder,
+      taskPlaceholder,
       block.id,
       tasks,
       onMoveTask,
@@ -428,7 +432,7 @@ export const KanbanBlock = memo(function KanbanBlock({
             {/* 플레이스홀더 - 해당 인덱스 전에 표시 */}
             {taskPlaceholderInThisBlock &&
               placeholderIndex === index &&
-              state.draggedTask?.id !== task.id && (
+              draggedTask?.id !== task.id && (
                 <div className="mb-2">{placeholderElement}</div>
               )}
             <DraggableCard
