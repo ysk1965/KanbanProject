@@ -11,6 +11,27 @@ import {
   memberService,
 } from '../utils/services';
 import { scheduleAPI } from '../utils/api';
+import { boardCache, BoardFullData } from '../utils/boardCache';
+
+// 마일스톤 선택 시 클라이언트 사이드 필터링 (추가 API 호출 제거)
+function filterByMilestone(fullData: BoardFullData): {
+  filteredFeatures: Feature[];
+  finalTasks: Task[];
+} {
+  let filteredFeatures = fullData.features;
+  let finalTasks = fullData.tasks;
+  if (fullData.selected_milestone_id) {
+    const selectedMilestone = fullData.milestones.milestones.find(
+      (m: Milestone) => m.id === fullData.selected_milestone_id
+    );
+    if (selectedMilestone?.features) {
+      const milestoneFeatureIds = new Set(selectedMilestone.features.map((f: { id: string }) => f.id));
+      filteredFeatures = fullData.features.filter((f: Feature) => milestoneFeatureIds.has(f.id));
+      finalTasks = fullData.tasks.filter((t: Task) => milestoneFeatureIds.has(t.feature_id));
+    }
+  }
+  return { filteredFeatures, finalTasks };
+}
 
 function parseChecklistBatch(batchChecklistData: any): { [taskId: string]: ChecklistItem[] } {
   const checklistMap: { [taskId: string]: ChecklistItem[] } = {};
@@ -57,7 +78,73 @@ export function useBoardDataLoader(boardId: string | undefined) {
   const [aiCredits, setAiCredits] = useState<AiCredits | null>(null);
   const [kanbanSelectedMilestoneId, setKanbanSelectedMilestoneId] = useState<string>('all');
 
-  // 메인 데이터 로드
+  // 로드/캐시 공용 하이드레이션 — fullData + 부속 데이터를 상태로 일괄 반영
+  const hydrate = useCallback(
+    (
+      fullData: BoardFullData,
+      blocksResult: { blocks: Block[]; hiddenBlocks: Block[] } | null,
+      checklistMap: { [taskId: string]: ChecklistItem[] },
+      scheduledTaskIdList: string[],
+    ) => {
+      setBoard({
+        id: fullData.id,
+        name: fullData.name,
+        description: fullData.description,
+        owner: fullData.owner,
+        my_role: fullData.my_role,
+        is_starred: fullData.is_starred,
+        member_count: fullData.member_count,
+        subscription: fullData.subscription,
+        selected_milestone_id: fullData.selected_milestone_id,
+        organization_id: fullData.organization_id || null,
+        organization_name: fullData.organization_name || null,
+        is_org_member_viewer: fullData.is_org_member_viewer || false,
+        has_pending_join_request: fullData.has_pending_join_request || false,
+        created_at: fullData.created_at,
+        updated_at: fullData.updated_at,
+      });
+      setTags(fullData.tags);
+      setInviteLinks(fullData.invite_links || []);
+      setSubscription(fullData.subscription_detail);
+      setActivities(fullData.activities.activities);
+      setActivityCursor(fullData.activities.next_cursor || undefined);
+      setHasMoreActivity(fullData.activities.has_more);
+      setMilestones(fullData.milestones.milestones);
+      setTierInfo(fullData.tier_info);
+      setBoardLimits(fullData.limits);
+      setAiCredits(fullData.ai_credits);
+      setAllFeatures(fullData.features);
+      setBoardMembersData(fullData.members.members.map((m) => ({
+        id: m.id,
+        userId: m.user.id,
+        name: m.user.name,
+        email: m.user.email,
+        role: m.role.toLowerCase() as MemberRole,
+        assigneeColor: m.assignee_color || null,
+        jobRole: m.job_role || null,
+      })));
+
+      const { filteredFeatures, finalTasks } = filterByMilestone(fullData);
+      if (fullData.selected_milestone_id) {
+        setKanbanSelectedMilestoneId(fullData.selected_milestone_id);
+      }
+      if (blocksResult) {
+        setBlocks(blocksResult.blocks);
+        setHiddenBlocks(blocksResult.hiddenBlocks);
+      } else {
+        setBlocks(fullData.blocks);
+      }
+
+      // 모든 데이터를 동시에 set → 카드 렌더링 시 checklistDataMap이 이미 존재
+      setFeatures(filteredFeatures);
+      setTasks(finalTasks);
+      setChecklistDataMap(checklistMap);
+      setScheduledTaskIds(new Set(scheduledTaskIdList));
+    },
+    [],
+  );
+
+  // 메인 데이터 로드 (보드 재진입 시 캐시 즉시 페인트 + 백그라운드 재검증)
   useEffect(() => {
     const loadBoardData = async () => {
       if (!boardId) {
@@ -65,73 +152,35 @@ export function useBoardDataLoader(boardId: string | undefined) {
         return;
       }
 
-      try {
+      const cached = boardCache.get(boardId);
+      if (cached) {
+        // 캐시 히트: 즉시 페인트 (스피너 없음), 이후 네트워크 로드로 조용히 보정
+        hydrate(
+          cached.fullData,
+          cached.blocksResult,
+          cached.checklistMap,
+          cached.scheduledTaskIds,
+        );
+        setIsLoading(false);
+      } else {
         setIsLoading(true);
+      }
+
+      try {
         const fullData = await boardService.getBoardFull(boardId);
 
-        setBoard({
-          id: fullData.id,
-          name: fullData.name,
-          description: fullData.description,
-          owner: fullData.owner,
-          my_role: fullData.my_role,
-          is_starred: fullData.is_starred,
-          member_count: fullData.member_count,
-          subscription: fullData.subscription,
-          selected_milestone_id: fullData.selected_milestone_id,
-          organization_id: fullData.organization_id || null,
-          organization_name: fullData.organization_name || null,
-          is_org_member_viewer: fullData.is_org_member_viewer || false,
-          has_pending_join_request: fullData.has_pending_join_request || false,
-          created_at: fullData.created_at,
-          updated_at: fullData.updated_at,
-        });
-        setTags(fullData.tags);
-        setInviteLinks(fullData.invite_links || []);
-        setSubscription(fullData.subscription_detail);
-        setActivities(fullData.activities.activities);
-        setActivityCursor(fullData.activities.next_cursor || undefined);
-        setHasMoreActivity(fullData.activities.has_more);
-        setMilestones(fullData.milestones.milestones);
-        setTierInfo(fullData.tier_info);
-        setBoardLimits(fullData.limits);
-        setAiCredits(fullData.ai_credits);
-        setAllFeatures(fullData.features);
-        setBoardMembersData(fullData.members.members.map((m) => ({
-          id: m.id,
-          userId: m.user.id,
-          name: m.user.name,
-          email: m.user.email,
-          role: m.role.toLowerCase() as MemberRole,
-          assigneeColor: m.assignee_color || null,
-          jobRole: m.job_role || null,
-        })));
-
-        // 마일스톤 선택 시 클라이언트 사이드 필터링 (추가 API 호출 제거)
-        let filteredFeatures = fullData.features;
-        let finalTasks = fullData.tasks;
+        // 마일스톤 선택 시 블록도 필터링 (숨긴 블록 포함)
+        let blocksResult: { blocks: Block[]; hiddenBlocks: Block[] } | null = null;
         if (fullData.selected_milestone_id) {
-          setKanbanSelectedMilestoneId(fullData.selected_milestone_id);
-          const selectedMilestone = fullData.milestones.milestones.find(
-            (m: Milestone) => m.id === fullData.selected_milestone_id
-          );
-          if (selectedMilestone?.features) {
-            const milestoneFeatureIds = new Set(selectedMilestone.features.map((f: { id: string }) => f.id));
-            filteredFeatures = fullData.features.filter((f: Feature) => milestoneFeatureIds.has(f.id));
-            finalTasks = fullData.tasks.filter((t: Task) => milestoneFeatureIds.has(t.feature_id));
-          }
-          // 마일스톤 선택 시 블록도 필터링 (숨긴 블록 포함)
           try {
-            const blockResult = await blockService.getBlocksWithHidden(boardId, fullData.selected_milestone_id);
-            setBlocks(blockResult.blocks);
-            setHiddenBlocks(blockResult.hiddenBlocks);
+            blocksResult = await blockService.getBlocksWithHidden(boardId, fullData.selected_milestone_id);
           } catch {
-            setBlocks(fullData.blocks);
+            blocksResult = null;
           }
-        } else {
-          setBlocks(fullData.blocks);
         }
+
         // 체크리스트 배치 + 스케줄 Task ID를 먼저 로드 (카드 렌더링 전에 데이터 준비)
+        const { finalTasks } = filterByMilestone(fullData);
         const taskIdsWithChecklist = finalTasks
           .filter((t: Task) => (t.checklist_total ?? 0) > 0)
           .map((t: Task) => t.id);
@@ -146,13 +195,16 @@ export function useBoardDataLoader(boardId: string | undefined) {
             .catch((error) => { console.warn('Failed to load scheduled task ids:', error); return { task_ids: [] as string[] }; }),
         ]);
 
-        // 모든 데이터를 동시에 set → 카드 렌더링 시 checklistDataMap이 이미 존재
-        setFeatures(filteredFeatures);
-        setTasks(finalTasks);
-        setChecklistDataMap(batchChecklistMap);
-        setScheduledTaskIds(new Set(scheduledData.task_ids));
+        hydrate(fullData, blocksResult, batchChecklistMap, scheduledData.task_ids);
+        boardCache.set(boardId, {
+          fullData,
+          blocksResult,
+          checklistMap: batchChecklistMap,
+          scheduledTaskIds: scheduledData.task_ids,
+        });
       } catch (error) {
         console.error('Failed to load board data:', error);
+        boardCache.clear(boardId);
         navigate('/boards', { state: { boardLoadFailed: boardId }, replace: true });
       } finally {
         setIsLoading(false);
@@ -160,7 +212,7 @@ export function useBoardDataLoader(boardId: string | undefined) {
     };
 
     loadBoardData();
-  }, [boardId, navigate]);
+  }, [boardId, navigate, hydrate]);
 
   // Feature, Task, Blocks를 milestoneId로 필터링해서 다시 로드
   const reloadFeaturesAndTasks = useCallback(async (milestoneId?: string) => {
