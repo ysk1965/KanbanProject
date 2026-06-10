@@ -36,8 +36,10 @@ import com.kanban.global.websocket.dto.BoardEventType;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -80,10 +82,24 @@ public class FeatureService {
     private final WebSocketEventService webSocketEventService;
     private final EntityManager entityManager;
 
-    @Cacheable(value = "features", key = "#boardId", condition = "#milestoneId == null", unless = "#result == null")
-    public FeatureResponse.ListResponse getFeatures(String boardId, String userId, String milestoneId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+    /** 자기 자신 프록시 — public 메서드에서 @Cacheable 내부 메서드를 호출할 때 AOP 인터셉트 보장용 */
+    @Autowired
+    @Lazy
+    private FeatureService self;
 
+    public FeatureResponse.ListResponse getFeatures(String boardId, String userId, String milestoneId) {
+        // 뷰어 이상 권한 확인 (컨트롤러 경로 전용 — Facade는 멤버십을 1회 검증 후 internal 직접 호출)
+        boardService.checkViewerOrAbove(boardId, userId);
+        // this.getFeaturesInternal()로 직접 호출하면 @Cacheable이 동작하지 않으므로 self 프록시 경유
+        return self.getFeaturesInternal(boardId, milestoneId);
+    }
+
+    /**
+     * 권한 검증 없는 내부 조회 (BoardFacadeService처럼 호출 측에서 이미 멤버십을 검증한 경우 사용).
+     * 캐시 이름/키는 기존 getFeatures와 동일 — 컨트롤러/Facade 경로가 같은 캐시 엔트리를 공유한다.
+     */
+    @Cacheable(value = "features", key = "#boardId", condition = "#milestoneId == null", unless = "#result == null")
+    public FeatureResponse.ListResponse getFeaturesInternal(String boardId, String milestoneId) {
         log.debug("Features loaded from DB for board: {}, milestone: {}", boardId, milestoneId);
         // Fetch Join으로 N+1 방지
         List<Feature> features = featureRepository.findByBoardIdWithFetch(boardId);

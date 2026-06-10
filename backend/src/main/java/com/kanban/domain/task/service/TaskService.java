@@ -81,8 +81,13 @@ public class TaskService {
     private final EntityManager entityManager;
 
     public TaskResponse.ListResponse getTasks(String boardId, String userId, String blockId, String featureId, String milestoneId) {
+        // 뷰어 이상 권한 확인 (컨트롤러 경로 전용 — Facade는 멤버십을 1회 검증 후 internal 직접 호출)
         boardService.checkViewerOrAbove(boardId, userId);
+        return getTasksInternal(boardId, blockId, featureId, milestoneId);
+    }
 
+    /** 권한 검증 없는 내부 조회 (BoardFacadeService처럼 호출 측에서 이미 멤버십을 검증한 경우 사용) */
+    public TaskResponse.ListResponse getTasksInternal(String boardId, String blockId, String featureId, String milestoneId) {
         // Fetch Join으로 N+1 방지
         List<Task> tasks;
         if (blockId != null) {

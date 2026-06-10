@@ -29,8 +29,13 @@ public class ActivityService {
     private final BoardService boardService;
 
     public ActivityResponse.ListResponse getActivities(String boardId, String userId, LocalDateTime cursor, int limit) {
+        // 뷰어 이상 권한 확인 (컨트롤러 경로 전용 — Facade는 멤버십을 1회 검증 후 internal 직접 호출)
         boardService.checkViewerOrAbove(boardId, userId);
+        return getActivitiesInternal(boardId, cursor, limit);
+    }
 
+    /** 권한 검증 없는 내부 조회 (BoardFacadeService처럼 호출 측에서 이미 멤버십을 검증한 경우 사용) */
+    public ActivityResponse.ListResponse getActivitiesInternal(String boardId, LocalDateTime cursor, int limit) {
         List<ActivityLog> logs;
         if (cursor != null) {
             logs = activityLogRepository.findByBoardIdWithCursor(boardId, cursor, PageRequest.of(0, limit + 1));

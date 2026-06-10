@@ -132,16 +132,18 @@ public class BoardFacadeService {
         int memberCount = boardMemberRepository.countBillableMembers(boardId);
         Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
 
-        // 3. 각 서비스에서 데이터 조회 (checkViewerOrAbove가 시스템 ADMIN도 허용)
-        BlockResponse.ListResponse blocksResponse = blockService.getBlocks(boardId, userId, null);
-        FeatureResponse.ListResponse featuresResponse = featureService.getFeatures(boardId, userId, null);
-        TaskResponse.ListResponse tasksResponse = taskService.getTasks(boardId, userId, null, null, null);
-        TagResponse.ListResponse tagsResponse = tagService.getTags(boardId, userId);
-        MemberResponse.ListResponse membersResponse = memberService.getMembers(boardId, userId);
-        ActivityResponse.ListResponse activitiesResponse = activityService.getActivities(boardId, userId, null, DEFAULT_ACTIVITY_LIMIT);
+        // 3. 각 서비스에서 데이터 조회
+        //    멤버십은 위(1)에서 이미 검증했으므로 checkViewerOrAbove를 생략하는 internal 변형을 호출한다
+        //    (서비스당 1회씩 중복되던 권한 확인 쿼리 7건 제거)
+        BlockResponse.ListResponse blocksResponse = blockService.getBlocksInternal(boardId, null);
+        FeatureResponse.ListResponse featuresResponse = featureService.getFeaturesInternal(boardId, null);
+        TaskResponse.ListResponse tasksResponse = taskService.getTasksInternal(boardId, null, null, null);
+        TagResponse.ListResponse tagsResponse = tagService.getTagsInternal(boardId);
+        MemberResponse.ListResponse membersResponse = memberService.getMembersInternal(boardId);
+        ActivityResponse.ListResponse activitiesResponse = activityService.getActivitiesInternal(boardId, null, DEFAULT_ACTIVITY_LIMIT);
         MilestoneResponse.ListResponse milestonesResponse;
         if (board.canAccessMilestone()) {
-            milestonesResponse = milestoneService.getMilestones(boardId, userId);
+            milestonesResponse = milestoneService.getMilestonesInternal(boardId);
         } else {
             milestonesResponse = new MilestoneResponse.ListResponse(List.of());
         }
