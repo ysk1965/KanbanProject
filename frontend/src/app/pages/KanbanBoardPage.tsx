@@ -95,6 +95,7 @@ import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { KanbanBlock } from "../components/KanbanBlock";
 import { MilestoneTabBar } from "../components/MilestoneTabBar";
 import { ScheduleSubTabBar } from "../components/ScheduleSubTabBar";
+import { GanttView } from "../views/GanttView";
 import { FeatureCard } from "../components/FeatureCard";
 import { FeatureChipSelector } from "../components/FeatureChipSelector";
 import { TrialBanner } from "../components/TrialBanner";
@@ -613,11 +614,6 @@ export function KanbanBoardPage() {
     dueDate: [],
   });
 
-  // 태스크 의존성 상태
-  const [taskDependencies, setTaskDependencies] = useState<TaskDependency[]>(
-    [],
-  );
-
   // Feature 칩 선택 상태 (null = 전체, [] = 없음, [ids] = 개별 선택)
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[] | null>(
     null,
@@ -820,16 +816,6 @@ export function KanbanBoardPage() {
       return { ...prev, members: isMyOnly ? [] : [currentUser.name] };
     });
   }, [currentUser]);
-
-  // ======== 태스크 의존성 로드 ========
-  useEffect(() => {
-    if (boardId && viewMode === "gantt") {
-      taskDependencyService
-        .getByBoard(boardId)
-        .then(setTaskDependencies)
-        .catch(() => setTaskDependencies([]));
-    }
-  }, [boardId, viewMode]);
 
   // 마일스톤 컨텍스트 기준 블록 재로드 (WS 핸들러/블록 숨김·표시에서 공용)
   const reloadBlocksForMilestone = useCallback(
@@ -2779,96 +2765,24 @@ export function KanbanBoardPage() {
 
         {/* 뷰 모드에 따른 컨텐츠 렌더링 */}
         {viewMode === "gantt" ? (
-          <main className="flex-1 flex flex-col overflow-hidden">
-            <KanbanFilterToolbar
-              ref={searchInputRef}
-              filterOptions={filterOptions}
-              onFilterChange={setFilterOptions}
-              features={features}
-              tags={tags}
-              boardMembersData={boardMembersData}
-              tasks={tasks}
-              boardId={boardId || ""}
-              canEdit={canEdit}
-            />
-            <WeeklyScheduleView
-              boardId={boardId || ""}
-              features={filteredFeatures}
-              tasks={filteredTasks}
-              milestones={milestones}
-              onViewFeature={(featureId) => {
-                const feature = features.find((f) => f.id === featureId);
-                if (feature) handleFeatureClick(feature);
-              }}
-              onViewTask={(taskId) => {
-                const task = tasks.find((t) => t.id === taskId);
-                if (task) handleTaskClick(task);
-              }}
-              onUpdateTaskDates={async (taskId, startDate, endDate) => {
-                try {
-                  const updatedTask = await taskService.updateTaskDates(
-                    boardId || "",
-                    taskId,
-                    {
-                      start_date: startDate,
-                      end_date: endDate,
-                    },
-                  );
-                  setTasks((prev) =>
-                    prev.map((t) =>
-                      t.id === taskId
-                        ? {
-                            ...t,
-                            start_date: updatedTask.start_date,
-                            due_date: updatedTask.due_date,
-                          }
-                        : t,
-                    ),
-                  );
-                } catch (error) {
-                  console.error("Failed to update task dates:", error);
-                }
-              }}
-              selectedMilestoneId={kanbanSelectedMilestoneId}
-              onSaveBaseline={async () => {
-                try {
-                  await taskService.saveBaseline(boardId || "");
-                  const updatedTasks = await taskService.getTasks(
-                    boardId || "",
-                  );
-                  setTasks(updatedTasks);
-                } catch (error) {
-                  console.error("Failed to save baseline:", error);
-                }
-              }}
-              dependencies={taskDependencies}
-              onCreateDependency={async (predecessorId, successorId) => {
-                try {
-                  const newDep = await taskDependencyService.create(
-                    boardId || "",
-                    predecessorId,
-                    successorId,
-                  );
-                  setTaskDependencies((prev) => [...prev, newDep]);
-                } catch (error) {
-                  console.error("Failed to create dependency:", error);
-                }
-              }}
-              onDeleteDependency={async (dependencyId) => {
-                try {
-                  await taskDependencyService.delete(
-                    boardId || "",
-                    dependencyId,
-                  );
-                  setTaskDependencies((prev) =>
-                    prev.filter((d) => d.id !== dependencyId),
-                  );
-                } catch (error) {
-                  console.error("Failed to delete dependency:", error);
-                }
-              }}
-            />
-          </main>
+          <GanttView
+            boardId={boardId || ""}
+            searchInputRef={searchInputRef}
+            filterOptions={filterOptions}
+            onFilterChange={setFilterOptions}
+            features={features}
+            filteredFeatures={filteredFeatures}
+            tasks={tasks}
+            filteredTasks={filteredTasks}
+            setTasks={setTasks}
+            tags={tags}
+            boardMembersData={boardMembersData}
+            milestones={milestones}
+            selectedMilestoneId={kanbanSelectedMilestoneId}
+            canEdit={canEdit}
+            onFeatureClick={handleFeatureClick}
+            onTaskClick={handleTaskClick}
+          />
         ) : viewMode === "kanban" ? (
           <main className="flex-1 flex flex-col overflow-hidden bg-bridge-dark">
             {features.length === 0 ? (
