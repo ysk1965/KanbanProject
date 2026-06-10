@@ -180,6 +180,7 @@ import { useBoardWebSocket } from "../hooks/useBoardWebSocket";
 import { useBoardWebSocketHandlers } from "../hooks/useBoardWebSocketHandlers";
 import { useBoardDataLoader } from "../hooks/useBoardDataLoader";
 import { useBoardFilters } from "../hooks/useBoardFilters";
+import { useBoardModals } from "../hooks/useBoardModals";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { KeyboardShortcutsModal } from "../components/KeyboardShortcutsModal";
 import { useBoardPermissions } from "../hooks/useBoardPermissions";
@@ -537,11 +538,62 @@ export function KanbanBoardPage() {
     }
   }, [boardId]);
 
-  // 모달 상태
+  // 모달 상태 (open/close 상태는 useBoardModals 훅에서 관리)
+  const {
+    isFeatureModalOpen,
+    setIsFeatureModalOpen,
+    isTaskModalOpen,
+    setIsTaskModalOpen,
+    isAddBlockModalOpen,
+    setIsAddBlockModalOpen,
+    editingBlock,
+    setEditingBlock,
+    isAddFeatureModalOpen,
+    setIsAddFeatureModalOpen,
+    isShareBoardModalOpen,
+    setIsShareBoardModalOpen,
+    isContractorManagerOpen,
+    setIsContractorManagerOpen,
+    isTrashOpen,
+    setIsTrashOpen,
+    isSubscriptionModalOpen,
+    setIsSubscriptionModalOpen,
+    isPremiumBenefitsModalOpen,
+    setIsPremiumBenefitsModalOpen,
+    isInquiryModalOpen,
+    setIsInquiryModalOpen,
+    isActivityLogModalOpen,
+    setIsActivityLogModalOpen,
+    isMilestoneModalOpen,
+    setIsMilestoneModalOpen,
+    isMilestoneOnboardingOpen,
+    setIsMilestoneOnboardingOpen,
+    isUpgradeModalOpen,
+    setIsUpgradeModalOpen,
+    upgradeTrigger,
+    setUpgradeTrigger,
+    seatPurchaseModal,
+    setSeatPurchaseModal,
+    orgSeatLimitModal,
+    setOrgSeatLimitModal,
+    showCreditModal,
+    setShowCreditModal,
+    creditModalMode,
+    setCreditModalMode,
+    quickAddBlockId,
+    setQuickAddBlockId,
+    isQuickAddSubmitting,
+    setIsQuickAddSubmitting,
+    isShortcutsHelpOpen,
+    setIsShortcutsHelpOpen,
+    alertModal,
+    setAlertModal,
+    isAnyModalOpen,
+  } = useBoardModals();
+
+  // 모달에 표시되는 도메인 데이터 상태 (모달 wiring 외부에서도 사용 → 페이지에 유지)
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [isFeatureModalOpen, setIsFeatureModalOpen] = useState(false);
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [highlightChecklistItemId, setHighlightChecklistItemId] = useState<
     string | null
   >(null);
@@ -551,31 +603,17 @@ export function KanbanBoardPage() {
     null,
   );
   const [managementRefreshKey, setManagementRefreshKey] = useState(0);
-  const [isAddBlockModalOpen, setIsAddBlockModalOpen] = useState(false);
-  const [editingBlock, setEditingBlock] = useState<Block | null>(null);
-  const [isAddFeatureModalOpen, setIsAddFeatureModalOpen] = useState(false);
-  const [isShareBoardModalOpen, setIsShareBoardModalOpen] = useState(false);
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
-  const [isContractorManagerOpen, setIsContractorManagerOpen] = useState(false);
   const [headerContractors, setHeaderContractors] = useState<BoardContractor[]>(
     [],
   );
-  const [isTrashOpen, setIsTrashOpen] = useState(false);
-  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
-  const [isPremiumBenefitsModalOpen, setIsPremiumBenefitsModalOpen] =
-    useState(false);
-  const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
-  const [isActivityLogModalOpen, setIsActivityLogModalOpen] = useState(false);
   const [wsCommentEvent, setWsCommentEvent] =
     useState<BoardWebSocketEvent | null>(null);
   const [wsChecklistEvent, setWsChecklistEvent] =
     useState<BoardWebSocketEvent | null>(null);
-  const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(
     null,
   );
-  const [isMilestoneOnboardingOpen, setIsMilestoneOnboardingOpen] =
-    useState(false);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     keyword: "",
     members: [],
@@ -589,41 +627,6 @@ export function KanbanBoardPage() {
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[] | null>(
     null,
   );
-
-  // Tier & Limits 모달 상태
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [upgradeTrigger, setUpgradeTrigger] =
-    useState<UpgradeTrigger>("task_limit");
-  const [seatPurchaseModal, setSeatPurchaseModal] = useState<{
-    open: boolean;
-    seatCount: number;
-    billableMemberCount: number;
-    pendingEmail: string;
-    pendingRole: MemberRole;
-    pendingMemberId?: string;
-  } | null>(null);
-  const [orgSeatLimitModal, setOrgSeatLimitModal] = useState<{
-    open: boolean;
-    orgId: string;
-    seatCount: number;
-    activeMemberCount: number;
-    monthlyPricePerSeat: number;
-    yearlyPricePerSeat: number;
-    isOrgAdmin: boolean;
-    pendingEmail: string;
-    pendingRole: MemberRole;
-    pendingMemberId?: string;
-  } | null>(null);
-
-  // AI Credits 상태
-  const [showCreditModal, setShowCreditModal] = useState(false);
-  const [creditModalMode, setCreditModalMode] = useState<
-    "purchase" | "exhausted"
-  >("purchase");
-
-  // Quick Add Task 모달 상태
-  const [quickAddBlockId, setQuickAddBlockId] = useState<string | null>(null);
-  const [isQuickAddSubmitting, setIsQuickAddSubmitting] = useState(false);
 
   // 캐스케이드 펄스: 체크리스트 → Feature 칩
   const [cascadeFeatureId, setCascadeFeatureId] = useState<string | null>(null);
@@ -668,18 +671,10 @@ export function KanbanBoardPage() {
     );
   }, [expandedChecklistTaskIds, boardId]);
 
-  // 키보드 단축키 도움말 모달
-  const [isShortcutsHelpOpen, setIsShortcutsHelpOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   // AI분석 > 마일스톤 서브탭 (statistics 내부 6개 탭)
   const [statisticsActiveView, setStatisticsActiveView] =
     useState<StatisticsViewType>("overview");
-
-  // Alert Modal 상태
-  const [alertModal, setAlertModal] = useState<{
-    open: boolean;
-    type: "premium" | "permission";
-  }>({ open: false, type: "premium" });
 
   const showAlertModal = (type: "premium" | "permission") => {
     setAlertModal({ open: true, type });
@@ -729,25 +724,7 @@ export function KanbanBoardPage() {
   );
 
   // ======== 키보드 단축키 ========
-  const isAnyModalOpen =
-    isFeatureModalOpen ||
-    isTaskModalOpen ||
-    isAddBlockModalOpen ||
-    isAddFeatureModalOpen ||
-    isShareBoardModalOpen ||
-    isSubscriptionModalOpen ||
-    isPremiumBenefitsModalOpen ||
-    isInquiryModalOpen ||
-    isActivityLogModalOpen ||
-    isMilestoneModalOpen ||
-    isUpgradeModalOpen ||
-    isMilestoneOnboardingOpen ||
-    showCreditModal ||
-    !!quickAddBlockId ||
-    !!seatPurchaseModal ||
-    !!orgSeatLimitModal ||
-    alertModal.open ||
-    isShortcutsHelpOpen;
+  // isAnyModalOpen은 useBoardModals 훅에서 파생
 
   const handleToggleExpandCollapse = useCallback(() => {
     if (viewMode === "kanban") {
