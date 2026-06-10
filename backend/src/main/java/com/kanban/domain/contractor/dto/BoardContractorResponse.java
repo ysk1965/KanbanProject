@@ -1,6 +1,7 @@
 package com.kanban.domain.contractor.dto;
 
 import com.kanban.domain.contractor.entity.BoardContractor;
+import com.kanban.domain.contractor.entity.BoardContractorPeriod;
 import com.kanban.domain.jobrole.dto.JobRoleResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,6 +16,28 @@ import java.util.List;
 
 public class BoardContractorResponse {
 
+    /** 계약 기간 한 건. */
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PeriodInfo implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
+
+        private String id;
+        private LocalDate startDate;
+        private LocalDate endDate;
+
+        public static PeriodInfo of(BoardContractorPeriod p) {
+            return PeriodInfo.builder()
+                    .id(p.getId())
+                    .startDate(p.getStartDate())
+                    .endDate(p.getEndDate())
+                    .build();
+        }
+    }
+
     @Getter
     @Builder
     @NoArgsConstructor
@@ -27,8 +50,13 @@ public class BoardContractorResponse {
         private String name;
         private String color;
         private Integer displayOrder;
+        /** 대표(현재) 기간 — 하위호환 표시용. periods 에서 파생. */
         private LocalDate startDate;
         private LocalDate endDate;
+        /** 전체 계약 기간 이력 (start_date ASC). */
+        private List<PeriodInfo> periods;
+        /** 파생 상태: active / upcoming / expired / none. */
+        private String status;
 
         private String managerMemberId;
         private String managerName;
@@ -47,13 +75,18 @@ public class BoardContractorResponse {
                 managerName = c.getManager().getUser().getName();
                 managerUserId = c.getManager().getUser().getId();
             }
+            BoardContractorPeriod current = c.getCurrentPeriod();
+            List<PeriodInfo> periods = c.getPeriods() == null ? List.of()
+                    : c.getPeriods().stream().map(PeriodInfo::of).toList();
             return Detail.builder()
                     .id(c.getId())
                     .name(c.getName())
                     .color(c.getColor())
                     .displayOrder(c.getDisplayOrder())
-                    .startDate(c.getStartDate())
-                    .endDate(c.getEndDate())
+                    .startDate(current != null ? current.getStartDate() : null)
+                    .endDate(current != null ? current.getEndDate() : null)
+                    .periods(periods)
+                    .status(c.getDerivedStatus())
                     .managerMemberId(managerMemberId)
                     .managerName(managerName)
                     .managerUserId(managerUserId)
@@ -102,12 +135,13 @@ public class BoardContractorResponse {
             if (c.getManager() != null && c.getManager().getUser() != null) {
                 managerName = c.getManager().getUser().getName();
             }
+            BoardContractorPeriod current = c.getCurrentPeriod();
             return ContractorInfo.builder()
                     .id(c.getId())
                     .name(c.getName())
                     .color(c.getColor())
-                    .startDate(c.getStartDate())
-                    .endDate(c.getEndDate())
+                    .startDate(current != null ? current.getStartDate() : null)
+                    .endDate(current != null ? current.getEndDate() : null)
                     .managerMemberId(managerMemberId)
                     .managerName(managerName)
                     .jobRole(JobRoleResponse.JobRoleInfo.of(c.getJobRole()))

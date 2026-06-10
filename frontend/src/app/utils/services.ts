@@ -1228,10 +1228,6 @@ export const contractorService = {
       manager_member_id?: string;
       job_role_id?: string | null;
       color?: string | null;
-      start_date?: string | null;
-      end_date?: string | null;
-      clear_start_date?: boolean;
-      clear_end_date?: boolean;
     },
   ) => contractorAPI.update(boardId, contractorId, payload),
   remove: async (boardId: string, contractorId: string) =>
@@ -1240,6 +1236,28 @@ export const contractorService = {
     const response = await contractorAPI.reorder(boardId, ids);
     return response.contractors;
   },
+  // 계약 기간(갱신/연장)
+  addPeriod: async (
+    boardId: string,
+    contractorId: string,
+    payload: { start_date?: string | null; end_date?: string | null },
+  ) => contractorAPI.addPeriod(boardId, contractorId, payload),
+  updatePeriod: async (
+    boardId: string,
+    contractorId: string,
+    periodId: string,
+    payload: {
+      start_date?: string | null;
+      end_date?: string | null;
+      clear_start_date?: boolean;
+      clear_end_date?: boolean;
+    },
+  ) => contractorAPI.updatePeriod(boardId, contractorId, periodId, payload),
+  deletePeriod: async (
+    boardId: string,
+    contractorId: string,
+    periodId: string,
+  ) => contractorAPI.deletePeriod(boardId, contractorId, periodId),
 };
 
 // ========================================

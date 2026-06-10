@@ -761,10 +761,20 @@ export interface JobRolesListResponse {
 }
 
 // 외주(BoardContractor) 타입
+export interface ContractorPeriod {
+  id: string;
+  start_date?: string | null;
+  end_date?: string | null;
+}
+
 export interface ContractorInfo {
   id: string;
   name: string;
   color?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  periods?: ContractorPeriod[];
+  status?: 'active' | 'upcoming' | 'expired' | 'none' | string;
   manager_member_id?: string | null;
   manager_name?: string | null;
   job_role?: {
@@ -2368,10 +2378,6 @@ export const contractorAPI = {
       manager_member_id?: string;
       job_role_id?: string | null;
       color?: string | null;
-      start_date?: string | null;
-      end_date?: string | null;
-      clear_start_date?: boolean;
-      clear_end_date?: boolean;
     },
   ) => {
     return apiClient.put<ContractorResponse>(
@@ -2390,6 +2396,45 @@ export const contractorAPI = {
     return apiClient.put<ContractorsListResponse>(
       `/boards/${boardId}/contractors/reorder`,
       { ids },
+    );
+  },
+
+  // ─── 계약 기간(periods) — 갱신/연장 ───
+  addPeriod: async (
+    boardId: string,
+    contractorId: string,
+    data: { start_date?: string | null; end_date?: string | null },
+  ) => {
+    return apiClient.post<ContractorResponse>(
+      `/boards/${boardId}/contractors/${contractorId}/periods`,
+      data,
+    );
+  },
+
+  updatePeriod: async (
+    boardId: string,
+    contractorId: string,
+    periodId: string,
+    data: {
+      start_date?: string | null;
+      end_date?: string | null;
+      clear_start_date?: boolean;
+      clear_end_date?: boolean;
+    },
+  ) => {
+    return apiClient.put<ContractorResponse>(
+      `/boards/${boardId}/contractors/${contractorId}/periods/${periodId}`,
+      data,
+    );
+  },
+
+  deletePeriod: async (
+    boardId: string,
+    contractorId: string,
+    periodId: string,
+  ) => {
+    return apiClient.delete<ContractorResponse>(
+      `/boards/${boardId}/contractors/${contractorId}/periods/${periodId}`,
     );
   },
 };

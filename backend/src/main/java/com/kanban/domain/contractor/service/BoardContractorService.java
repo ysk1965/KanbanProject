@@ -8,6 +8,8 @@ import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.contractor.dto.BoardContractorRequest;
 import com.kanban.domain.contractor.dto.BoardContractorResponse;
 import com.kanban.domain.contractor.entity.BoardContractor;
+import com.kanban.domain.contractor.entity.BoardContractorPeriod;
+import com.kanban.domain.contractor.repository.BoardContractorPeriodRepository;
 import com.kanban.domain.contractor.repository.BoardContractorRepository;
 import com.kanban.domain.jobrole.entity.JobRole;
 import com.kanban.domain.jobrole.repository.JobRoleRepository;
@@ -34,6 +36,7 @@ import java.util.Map;
 public class BoardContractorService {
 
     private final BoardContractorRepository contractorRepository;
+    private final BoardContractorPeriodRepository periodRepository;
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
     private final JobRoleRepository jobRoleRepository;
@@ -88,12 +91,20 @@ public class BoardContractorService {
                 .jobRole(jobRole)
                 .name(request.getName())
                 .color(request.getColor())
-                .startDate(request.getStartDate())
-                .endDate(request.getEndDate())
                 .displayOrder(nextOrder)
                 .build();
 
         contractorRepository.save(contractor);
+
+        // 최초 기간이 함께 들어오면 첫 계약 기간으로 생성
+        if (request.getStartDate() != null || request.getEndDate() != null) {
+            validatePeriod(request.getStartDate(), request.getEndDate());
+            contractor.addPeriod(BoardContractorPeriod.builder()
+                    .startDate(request.getStartDate())
+                    .endDate(request.getEndDate())
+                    .build());
+            contractorRepository.saveAndFlush(contractor);
+        }
 
         log.info("Contractor created: {} in board: {} by user: {}", contractor.getId(), boardId, userId);
 
@@ -121,20 +132,7 @@ public class BoardContractorService {
 
         contractor.updateInfo(request.getName(), request.getColor());
 
-        // Update period if provided
-        if (request.getStartDate() != null || request.isClearStartDate()) {
-            LocalDate newStart = request.isClearStartDate() ? null : request.getStartDate();
-            LocalDate newEnd = request.isClearEndDate() ? null : request.getEndDate();
-            contractor.updatePeriod(
-                newStart != null ? newStart : contractor.getStartDate(),
-                newEnd != null ? newEnd : contractor.getEndDate()
-            );
-        } else if (request.getEndDate() != null || request.isClearEndDate()) {
-            contractor.updatePeriod(
-                contractor.getStartDate(),
-                request.isClearEndDate() ? null : request.getEndDate()
-            );
-        }
+        // 기간(periods)은 별도 기간 엔드포인트(addPeriod/updatePeriod/deletePeriod)로 관리
 
         if (request.getManagerMemberId() != null) {
             BoardMember newManager = boardMemberRepository.findById(request.getManagerMemberId())
@@ -179,6 +177,90 @@ public class BoardContractorService {
         log.info("Contractor deleted: {} in board: {} by user: {}", contractorId, boardId, userId);
 
         broadcastUpdate(boardId, userId);
+    }
+
+    // ─── 계약 기간(periods) 관리 ───
+
+    @Transactional
+    public BoardContractorResponse.Detail addPeriod(String boardId, String contractorId, String userId,
+                                                    BoardContractorRequest.PeriodCreate request) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        BoardContractor contractor = contractorRepository.findByIdAndBoardId(contractorId, boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
+        BoardMember requester = boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        ensureCanManage(contractor, requester);
+
+        validatePeriod(request.getStartDate(), request.getEndDate());
+        contractor.addPeriod(BoardContractorPeriod.builder()
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
+                .build());
+        contractorRepository.saveAndFlush(contractor);
+
+        log.info("Contractor period added: contractor={} board={} by user={}", contractorId, boardId, userId);
+
+        broadcastUpdate(boardId, userId);
+        return BoardContractorResponse.Detail.of(contractor);
+    }
+
+    @Transactional
+    public BoardContractorResponse.Detail updatePeriod(String boardId, String contractorId, String periodId,
+                                                       String userId, BoardContractorRequest.PeriodUpdate request) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        BoardContractor contractor = contractorRepository.findByIdAndBoardId(contractorId, boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
+        BoardMember requester = boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        ensureCanManage(contractor, requester);
+
+        BoardContractorPeriod period = periodRepository.findByIdAndContractorId(periodId, contractorId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
+
+        LocalDate newStart = request.isClearStartDate() ? null
+                : (request.getStartDate() != null ? request.getStartDate() : period.getStartDate());
+        LocalDate newEnd = request.isClearEndDate() ? null
+                : (request.getEndDate() != null ? request.getEndDate() : period.getEndDate());
+        validatePeriod(newStart, newEnd);
+        period.updatePeriod(newStart, newEnd);
+        contractor.touch();
+
+        log.info("Contractor period updated: period={} contractor={} board={} by user={}",
+                periodId, contractorId, boardId, userId);
+
+        broadcastUpdate(boardId, userId);
+        return BoardContractorResponse.Detail.of(contractor);
+    }
+
+    @Transactional
+    public BoardContractorResponse.Detail deletePeriod(String boardId, String contractorId, String periodId,
+                                                       String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        BoardContractor contractor = contractorRepository.findByIdAndBoardId(contractorId, boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
+        BoardMember requester = boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        ensureCanManage(contractor, requester);
+
+        BoardContractorPeriod period = periodRepository.findByIdAndContractorId(periodId, contractorId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
+        contractor.removePeriod(period);
+        contractorRepository.saveAndFlush(contractor);
+
+        log.info("Contractor period deleted: period={} contractor={} board={} by user={}",
+                periodId, contractorId, boardId, userId);
+
+        broadcastUpdate(boardId, userId);
+        return BoardContractorResponse.Detail.of(contractor);
+    }
+
+    private void validatePeriod(LocalDate start, LocalDate end) {
+        if (start != null && end != null && end.isBefore(start)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
     }
 
     @Transactional
