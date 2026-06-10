@@ -29,7 +29,6 @@ import com.kanban.domain.subscription.dto.SubscriptionResponse;
 import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.domain.tag.dto.TagResponse;
 import com.kanban.domain.tag.service.TagService;
-import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.task.dto.TaskResponse;
 import com.kanban.domain.task.service.TaskService;
 import com.kanban.domain.board.BoardRole;
@@ -61,7 +60,6 @@ public class BoardFacadeService {
     private final UserBoardStarRepository userBoardStarRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final InviteLinkRepository inviteLinkRepository;
-    private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final OrgMemberRepository orgMemberRepository;
     private final BoardJoinRequestRepository boardJoinRequestRepository;
@@ -170,7 +168,11 @@ public class BoardFacadeService {
         BoardResponse.TierInfo tierInfo = monetizationService.isMonetizationEnabled()
                 ? BoardResponse.TierInfo.of(board)
                 : BoardResponse.TierInfo.allFeaturesEnabled(board);
-        int currentTaskCount = taskRepository.countByBoardId(boardId);
+        // taskRepository.countByBoardId(boardId)와 동등 — COUNT 쿼리 1건 제거:
+        // tasksResponse는 findByBoardIdWithFetch(보드 전체 태스크, 필터 없음) 결과이고
+        // feature/block/board FK가 모두 non-null이라 JOIN FETCH(inner join)로 누락되는 행이 없으며,
+        // @SQLRestriction("deleted_at IS NULL") 소프트 삭제 필터도 두 쿼리에 동일하게 적용된다.
+        int currentTaskCount = tasksResponse.getTasks().size();
         BoardResponse.Limits limits = BoardResponse.Limits.of(board, currentTaskCount);
 
         // 7. AI Credits
