@@ -29,7 +29,6 @@ import com.kanban.domain.subscription.dto.SubscriptionResponse;
 import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.domain.tag.dto.TagResponse;
 import com.kanban.domain.tag.service.TagService;
-import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.task.dto.TaskResponse;
 import com.kanban.domain.task.service.TaskService;
 import com.kanban.domain.board.BoardRole;
@@ -61,7 +60,6 @@ public class BoardFacadeService {
     private final UserBoardStarRepository userBoardStarRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final InviteLinkRepository inviteLinkRepository;
-    private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final OrgMemberRepository orgMemberRepository;
     private final BoardJoinRequestRepository boardJoinRequestRepository;
@@ -81,8 +79,10 @@ public class BoardFacadeService {
 
     /**
      * 보드 진입 시 필요한 모든 데이터를 한 번에 조회
+     * (클래스 레벨 @Transactional(readOnly = true) 적용 — 순수 읽기 경로.
+     *  유일한 쓰기인 Trial 만료 다운그레이드는 BoardService.persistTrialExpiryDowngrade의
+     *  REQUIRES_NEW 쓰기 트랜잭션으로 분리되어 있다)
      */
-    @Transactional
     public BoardResponse.Full getBoardFull(String boardId, String userId) {
         // 1. 권한 확인 (한 번만)
         Board board = boardRepository.findById(boardId)
@@ -117,7 +117,11 @@ public class BoardFacadeService {
         }
 
         // 2. Trial 만료 체크 (데이터 조회 전 tier 확정)
+        //    in-memory 변경(checkAndUpdateTierIfTrialExpired)은 readOnly 트랜잭션이라 flush되지 않으므로
+        //    응답에 즉시 반영하는 용도이고, 실제 DB 영속화는 REQUIRES_NEW 쓰기 트랜잭션으로 수행한다.
+        //    (tier==TRIAL && trialEndsAt 경과 시에만 호출되는 드문 경로)
         if (board.checkAndUpdateTierIfTrialExpired()) {
+            boardService.persistTrialExpiryDowngrade(boardId);
             log.info("Board tier auto-downgraded to STANDARD: {}", boardId);
         }
 
@@ -126,16 +130,18 @@ public class BoardFacadeService {
         int memberCount = boardMemberRepository.countBillableMembers(boardId);
         Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
 
-        // 3. 각 서비스에서 데이터 조회 (checkViewerOrAbove가 시스템 ADMIN도 허용)
-        BlockResponse.ListResponse blocksResponse = blockService.getBlocks(boardId, userId, null);
-        FeatureResponse.ListResponse featuresResponse = featureService.getFeatures(boardId, userId, null);
-        TaskResponse.ListResponse tasksResponse = taskService.getTasks(boardId, userId, null, null, null);
-        TagResponse.ListResponse tagsResponse = tagService.getTags(boardId, userId);
-        MemberResponse.ListResponse membersResponse = memberService.getMembers(boardId, userId);
-        ActivityResponse.ListResponse activitiesResponse = activityService.getActivities(boardId, userId, null, DEFAULT_ACTIVITY_LIMIT);
+        // 3. 각 서비스에서 데이터 조회
+        //    멤버십은 위(1)에서 이미 검증했으므로 checkViewerOrAbove를 생략하는 internal 변형을 호출한다
+        //    (서비스당 1회씩 중복되던 권한 확인 쿼리 7건 제거)
+        BlockResponse.ListResponse blocksResponse = blockService.getBlocksInternal(boardId, null);
+        FeatureResponse.ListResponse featuresResponse = featureService.getFeaturesInternal(boardId, null);
+        TaskResponse.ListResponse tasksResponse = taskService.getTasksInternal(boardId, null, null, null);
+        TagResponse.ListResponse tagsResponse = tagService.getTagsInternal(boardId);
+        MemberResponse.ListResponse membersResponse = memberService.getMembersInternal(boardId);
+        ActivityResponse.ListResponse activitiesResponse = activityService.getActivitiesInternal(boardId, null, DEFAULT_ACTIVITY_LIMIT);
         MilestoneResponse.ListResponse milestonesResponse;
         if (board.canAccessMilestone()) {
-            milestonesResponse = milestoneService.getMilestones(boardId, userId);
+            milestonesResponse = milestoneService.getMilestonesInternal(boardId);
         } else {
             milestonesResponse = new MilestoneResponse.ListResponse(List.of());
         }
@@ -150,6 +156,8 @@ public class BoardFacadeService {
         }
 
         // 5. 구독 상세 (billable 멤버 수 동기화)
+        //    NOTE: readOnly 트랜잭션이므로 이 변경은 flush되지 않는다(의도된 동작).
+        //    응답 DTO 계산을 위한 in-memory 동기화이며, 실제 영속화는 멤버 추가/제거 경로에서 수행된다.
         if (subscription != null) {
             subscription.updateBillableMemberCount(memberCount);
         }
@@ -160,13 +168,20 @@ public class BoardFacadeService {
         BoardResponse.TierInfo tierInfo = monetizationService.isMonetizationEnabled()
                 ? BoardResponse.TierInfo.of(board)
                 : BoardResponse.TierInfo.allFeaturesEnabled(board);
-        int currentTaskCount = taskRepository.countByBoardId(boardId);
+        // taskRepository.countByBoardId(boardId) 대체 — COUNT 쿼리 1건 제거.
+        // tasksResponse는 findByBoardIdWithFetch(보드 전체 태스크, 필터 없음) 결과.
+        // 주의: feature JOIN FETCH에는 Feature의 @SQLRestriction(deleted_at IS NULL)도 적용되므로,
+        // "소프트 삭제된 Feature 밑에 살아있는 Task"가 존재하면 countByBoardId보다 작게 집계된다.
+        // 정상 데이터에서는 deleteFeature가 하위 Task를 함께 소프트 삭제하므로 두 값이 일치하지만,
+        // 서버측 제한 검증(TaskService.validateTaskLimit)은 여전히 countByBoardId를 사용하므로
+        // 불일치 데이터에서는 표시(canCreateTask)와 검증이 어긋날 수 있다.
+        int currentTaskCount = tasksResponse.getTasks().size();
         BoardResponse.Limits limits = BoardResponse.Limits.of(board, currentTaskCount);
 
-        // 7. AI Credits
+        // 7. AI Credits (이미 로드된 board/subscription 엔티티 전달 — 재조회 쿼리 생략)
         AiCreditResponse.CreditInfo aiCredits = null;
         try {
-            aiCredits = aiCreditService.getCredits(boardId);
+            aiCredits = aiCreditService.getCredits(board, subscription);
         } catch (Exception e) {
             log.warn("Failed to load AI credits for board {}: {}", boardId, e.getMessage());
         }

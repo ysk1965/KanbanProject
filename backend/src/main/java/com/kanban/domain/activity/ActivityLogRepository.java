@@ -1,7 +1,7 @@
 package com.kanban.domain.activity;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -12,9 +12,15 @@ import java.util.List;
 
 public interface ActivityLogRepository extends JpaRepository<ActivityLog, String> {
 
-    Page<ActivityLog> findByBoardIdOrderByCreatedAtDesc(String boardId, Pageable pageable);
+    /**
+     * Slice 반환: Page와 달리 숨은 COUNT(*) 쿼리가 발생하지 않는다.
+     * JOIN FETCH a.user: DTO 변환(UserInfo.of) 시 활동 건수만큼 발생하던 User LAZY 로딩 N+1 제거.
+     * (a.user는 nullable=false라 inner join으로도 결과 행이 동일)
+     */
+    @Query("SELECT a FROM ActivityLog a JOIN FETCH a.user WHERE a.board.id = :boardId ORDER BY a.createdAt DESC")
+    Slice<ActivityLog> findByBoardIdOrderByCreatedAtDesc(@Param("boardId") String boardId, Pageable pageable);
 
-    @Query("SELECT a FROM ActivityLog a WHERE a.board.id = :boardId AND a.createdAt < :cursor ORDER BY a.createdAt DESC")
+    @Query("SELECT a FROM ActivityLog a JOIN FETCH a.user WHERE a.board.id = :boardId AND a.createdAt < :cursor ORDER BY a.createdAt DESC")
     List<ActivityLog> findByBoardIdWithCursor(@Param("boardId") String boardId, @Param("cursor") LocalDateTime cursor, Pageable pageable);
 
     @Query("SELECT a FROM ActivityLog a WHERE a.board.id = :boardId AND a.targetType = :targetType AND a.targetId = :targetId ORDER BY a.createdAt DESC")

@@ -1,5 +1,5 @@
-import { useRef, useState, useMemo, useEffect } from "react";
-import { Task, Tag, Feature, ChecklistItem } from "../types";
+import { useRef, useState, useMemo, useEffect, memo } from "react";
+import { Task, Feature, ChecklistItem } from "../types";
 import {
   Calendar,
   Clock,
@@ -9,7 +9,7 @@ import {
   Check,
 } from "lucide-react";
 import { checklistAPI } from "../utils/api";
-import { useDragContext } from "../contexts/DragContext";
+import { useTaskDragState, useDragActions } from "../contexts/DragContext";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
 import { useTranslation } from "react-i18next";
 import { CompletionParticles } from "./CompletionParticles";
@@ -17,13 +17,49 @@ import { CompletionParticles } from "./CompletionParticles";
 // 클릭으로 인정할 최대 이동 거리 (픽셀)
 const CLICK_THRESHOLD = 5;
 
+// 마감일 포맷팅
+const formatDueDate = (dateString: string) => {
+  const date = new Date(dateString);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}. ${month}. ${day}.`;
+};
+
+// 마감일이 임박했는지 확인
+const isOverdue = (dateString: string) => {
+  const dueDate = new Date(dateString);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return dueDate < today;
+};
+
+const isDueSoon = (dateString: string) => {
+  const dueDate = new Date(dateString);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const threeDaysLater = new Date(today);
+  threeDaysLater.setDate(today.getDate() + 3);
+  return dueDate >= today && dueDate <= threeDaysLater;
+};
+
+// Task 이름만 추출 (Feature이름 - Task이름 형식인 경우)
+const getTaskOnlyTitle = (title: string, linkedFeature?: Feature) => {
+  if (linkedFeature && title.includes(" - ")) {
+    const parts = title.split(" - ");
+    if (parts.length > 1) {
+      return parts.slice(1).join(" - "); // Feature이름 이후 부분만 반환
+    }
+  }
+  return title;
+};
+
 interface DraggableCardProps {
   task: Task;
   blockId: string;
   index: number;
-  onClick?: () => void;
-  availableTags?: Tag[];
-  features?: Feature[];
+  onTaskClick?: (task: Task) => void;
+  feature?: Feature;
   boardId?: string | null;
   isChecklistExpanded?: boolean;
   onToggleChecklistExpand?: (taskId: string) => void;
@@ -36,13 +72,12 @@ interface DraggableCardProps {
   justCompleted?: boolean;
 }
 
-export function DraggableCard({
+export const DraggableCard = memo(function DraggableCard({
   task,
   blockId,
   index,
-  onClick,
-  availableTags = [],
-  features = [],
+  onTaskClick,
+  feature,
   boardId,
   isChecklistExpanded = false,
   onToggleChecklistExpand,
@@ -76,10 +111,11 @@ export function DraggableCard({
   const mouseStartRef = useRef<{ x: number; y: number } | null>(null);
   const wasDraggedRef = useRef(false);
 
-  const { state, startTaskDrag, endTaskDrag } = useDragContext();
+  const { draggedTask } = useTaskDragState();
+  const { startTaskDrag, endTaskDrag } = useDragActions();
 
   // 현재 이 카드가 드래그 중인지 확인
-  const isThisCardDragging = state.draggedTask?.id === task.id;
+  const isThisCardDragging = draggedTask?.id === task.id;
 
   // 마우스 다운 - 시작 위치 기록
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -138,7 +174,7 @@ export function DraggableCard({
 
       // threshold 이내면 클릭으로 처리
       if (dx <= CLICK_THRESHOLD && dy <= CLICK_THRESHOLD) {
-        onClick?.();
+        onTaskClick?.(task);
       }
     }
 
@@ -147,49 +183,13 @@ export function DraggableCard({
 
   const taskTags = task.tags || [];
 
-  // 연결된 Feature 찾기 (task has feature_id now)
-  const linkedFeature = features.find((f) => f.id === task.feature_id);
+  // 연결된 Feature (부모에서 featuresById 맵으로 조회 후 전달)
+  const linkedFeature = feature;
 
   // Feature 색상 (기본값: indigo)
   const featureColor = linkedFeature?.color || "#6366F1";
 
-  // Task 이름만 추출 (Feature이름 - Task이름 형식인 경우)
-  const getTaskOnlyTitle = (title: string) => {
-    if (linkedFeature && title.includes(" - ")) {
-      const parts = title.split(" - ");
-      if (parts.length > 1) {
-        return parts.slice(1).join(" - "); // Feature이름 이후 부분만 반환
-      }
-    }
-    return title;
-  };
-  const displayTitle = getTaskOnlyTitle(task.title);
-
-  // 마감일 포맷팅
-  const formatDueDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}. ${month}. ${day}.`;
-  };
-
-  // 마감일이 임박했는지 확인
-  const isOverdue = (dateString: string) => {
-    const dueDate = new Date(dateString);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return dueDate < today;
-  };
-
-  const isDueSoon = (dateString: string) => {
-    const dueDate = new Date(dateString);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const threeDaysLater = new Date(today);
-    threeDaysLater.setDate(today.getDate() + 3);
-    return dueDate >= today && dueDate <= threeDaysLater;
-  };
+  const displayTitle = getTaskOnlyTitle(task.title, linkedFeature);
 
   // 체크리스트 로드 (부모에서 데이터가 전달되지 않은 경우에만 사용)
   const loadChecklist = async () => {
@@ -255,6 +255,12 @@ export function DraggableCard({
   const completedCount = checklistItems.filter((item) => item.completed).length;
   const hasChecklist = (task.checklist_total ?? 0) > 0;
 
+  // position 순 정렬 (state 배열 in-place 변형 방지)
+  const sortedChecklistItems = useMemo(
+    () => [...checklistItems].sort((a, b) => a.position - b.position),
+    [checklistItems],
+  );
+
   // 체크리스트 펼칠 때 데이터가 없으면 자동 로드
   useEffect(() => {
     if (
@@ -293,8 +299,7 @@ export function DraggableCard({
   }, [task.assignees, checklistItems]);
 
   // 드래그 중인 다른 카드가 있으면 이 카드는 pointer-events: none (이벤트가 블록으로 직접 전달됨)
-  const shouldDisablePointerEvents =
-    state.draggedTask && state.draggedTask.id !== task.id;
+  const shouldDisablePointerEvents = draggedTask && draggedTask.id !== task.id;
 
   return (
     <div
@@ -543,9 +548,7 @@ export function DraggableCard({
           {isLoading ? (
             <div className="text-xs text-slate-400">{t("common.loading")}</div>
           ) : (
-            checklistItems
-              .sort((a, b) => a.position - b.position)
-              .map((item) => (
+            sortedChecklistItems.map((item) => (
                 <div
                   key={item.id}
                   className="flex items-center gap-2 py-1 px-1.5 rounded-lg bg-bridge-surface-hover hover:bg-foreground/5 transition-colors"
@@ -604,4 +607,4 @@ export function DraggableCard({
       )}
     </div>
   );
-}
+});

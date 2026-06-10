@@ -248,6 +248,31 @@ public class AiCreditService {
                 .build();
     }
 
+    /**
+     * 이미 로드된 엔티티를 재사용하는 오버로드 (BoardFacadeService용 — Board/Subscription 재조회 생략).
+     * getCredits(boardId)와 동일한 분기/응답: ORG_MANAGED 보드는 조직 크레딧 풀,
+     * 그 외에는 보드 구독 크레딧을 반환하고, 구독이 없으면 SUBSCRIPTION_NOT_FOUND를 던진다.
+     */
+    @Transactional(readOnly = true)
+    public AiCreditResponse.CreditInfo getCredits(Board board, Subscription subscription) {
+        if (board != null && board.getTier() == BoardTier.ORG_MANAGED && board.getOrganization() != null) {
+            return getOrgCredits(board.getOrganization().getId());
+        }
+
+        if (subscription == null) {
+            throw new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND);
+        }
+
+        return AiCreditResponse.CreditInfo.builder()
+                .monthlyCredits(subscription.getMonthlyAiCredits())
+                .monthlyUsed(subscription.getMonthlyCreditsUsed())
+                .purchasedCredits(subscription.getPurchasedCredits())
+                .totalAvailable(subscription.getTotalAvailableCredits())
+                .resetDate(subscription.getCreditsResetDate())
+                .warningLevel(subscription.getWarningLevel())
+                .build();
+    }
+
     @Transactional(readOnly = true)
     public AiCreditResponse.CreditInfo getOrgCredits(String orgId) {
         OrgSubscription orgSub = orgSubscriptionRepository.findByOrganizationId(orgId)

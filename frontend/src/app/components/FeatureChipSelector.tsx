@@ -1,7 +1,7 @@
 import { Feature } from '../types';
 import { Check, Eye, EyeOff, Plus, ListTodo, Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, memo } from 'react';
 import { CompletionParticles } from './CompletionParticles';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { formatDate } from '../utils/dateUtils';
@@ -39,7 +39,7 @@ function useCompletionPulse(progressPercent: number, totalTasks: number) {
   return justCompleted;
 }
 
-function FeatureChip({
+const FeatureChip = memo(function FeatureChip({
   feature,
   isSelected,
   onFeatureInfoClick,
@@ -163,9 +163,9 @@ function FeatureChip({
       </button>
     </div>
   );
-}
+});
 
-export function FeatureChipSelector({
+export const FeatureChipSelector = memo(function FeatureChipSelector({
   features,
   selectedFeatureIds,
   isAllSelected,
@@ -220,4 +220,4 @@ export function FeatureChipSelector({
       </div>
     </div>
   );
-}
+});
