@@ -97,6 +97,7 @@ import { MilestoneTabBar } from "../components/MilestoneTabBar";
 import { ScheduleSubTabBar } from "../components/ScheduleSubTabBar";
 import { GanttView } from "../views/GanttView";
 import { KanbanView } from "../views/KanbanView";
+import { ScheduleView } from "../views/ScheduleView";
 import { FeatureCard } from "../components/FeatureCard";
 import { FeatureChipSelector } from "../components/FeatureChipSelector";
 import { TrialBanner } from "../components/TrialBanner";
@@ -107,7 +108,6 @@ import {
 } from "../components/ShareBoardModal";
 import { NotificationDropdown } from "../components/NotificationDropdown";
 import { UpgradeTrigger } from "../components/UpgradeModal";
-import { DailyScheduleView } from "../components/DailyScheduleView";
 import { MeetingCalendarView } from "../components/MeetingCalendarView";
 import { WeeklyScheduleView } from "../components/WeeklyScheduleView";
 import { CalendarView } from "../components/CalendarView";
@@ -141,28 +141,6 @@ const MilestoneView = lazyWithRetry(
     })),
   "MilestoneView",
 );
-const ScheduleCalendarView = lazyWithRetry(
-  () =>
-    import("../components/schedule/ScheduleCalendarView").then((m) => ({
-      default: m.ScheduleCalendarView,
-    })),
-  "ScheduleCalendarView",
-);
-const ScheduleResourceView = lazyWithRetry(
-  () =>
-    import("../components/schedule/ScheduleResourceView").then((m) => ({
-      default: m.ScheduleResourceView,
-    })),
-  "ScheduleResourceView",
-);
-const ChecklistItemPanel = lazyWithRetry(
-  () =>
-    import("../components/schedule/ChecklistItemPanel").then((m) => ({
-      default: m.ChecklistItemPanel,
-    })),
-  "ChecklistItemPanel",
-);
-import type { PanelDragState } from "../components/schedule/ChecklistItemPanel";
 import { EmptyBoardGuide } from "../components/EmptyBoardGuide";
 import { QuickAddTaskModal } from "../components/QuickAddTaskModal";
 import { BoardTrashView } from "../components/trash/BoardTrashView";
@@ -371,10 +349,6 @@ export function KanbanBoardPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [viewMode, handleScheduleSubTabChange]);
 
-  // ChecklistItemPanel drag state (calendar/resource DnD integration)
-  const [panelDragState, setPanelDragState] = useState<PanelDragState | null>(
-    null,
-  );
   const [scheduleRefreshPanel, setScheduleRefreshPanel] = useState(0);
 
   // 일정 뷰 갱신 신호 게이팅: 소비자(refreshTrigger/key)는 schedule 뷰에서만 마운트되므로
@@ -389,10 +363,6 @@ export function KanbanBoardPage() {
       setScheduleRefreshPanel((prev) => prev + 1);
     }
   }, []);
-  const [scrollToItem, setScrollToItem] = useState<{
-    id: string;
-    ts: number;
-  } | null>(null);
 
   const getAISubMode = (): "statistics" | "ai_report" => {
     const saved = localStorage.getItem(`aiSubMode_${boardId}`);
@@ -1035,6 +1005,8 @@ export function KanbanBoardPage() {
   };
 
   // 뷰 모드 변경 핸들러 (Premium 기능 체크)
+  // stable 콜백(handleNavigateToMeeting)에서 최신 handleViewModeChange 접근용
+  const handleViewModeChangeRef = useRef<(mode: ViewMode) => void>(() => {});
   const handleViewModeChange = (mode: ViewMode) => {
     if (mode === "gantt" && !canAccessSchedule) {
       openUpgradeModal("weekly_schedule");
@@ -1094,6 +1066,7 @@ export function KanbanBoardPage() {
     setViewMode(mode);
     localStorage.setItem(`viewMode_${boardId}`, mode);
   };
+  handleViewModeChangeRef.current = handleViewModeChange;
 
   // ======== 키보드 단축키 훅 ========
   useKeyboardShortcuts({
@@ -1932,6 +1905,51 @@ export function KanbanBoardPage() {
     [tasks, boardId, handleTaskClick],
   );
 
+  // 일정 뷰 콜백 (ScheduleView로 전달)
+  const handleViewFeatureById = useCallback(
+    (featureId: string) => {
+      const feature = features.find((f) => f.id === featureId);
+      if (feature) handleFeatureClick(feature);
+    },
+    [features, handleFeatureClick],
+  );
+
+  const handleNavigateToMeeting = useCallback((date?: Date) => {
+    if (date) {
+      setMeetingNavigateDate(date);
+    }
+    handleViewModeChangeRef.current("meeting");
+  }, []);
+
+  const handleViewTaskById = useCallback(
+    async (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId);
+      if (task) {
+        handleTaskClick(task);
+      } else if (boardId) {
+        try {
+          const fetched = await taskService.getTask(boardId, taskId);
+          handleTaskClick(fetched);
+        } catch (err) {
+          console.warn("Failed to fetch task for schedule view", err);
+        }
+      }
+    },
+    [tasks, boardId, handleTaskClick],
+  );
+
+  const handleViewTaskWithChecklist = useCallback(
+    (taskId: string, checklistItemId?: string) => {
+      setHighlightChecklistItemId(checklistItemId || null);
+      handleViewTaskById(taskId);
+    },
+    [handleViewTaskById],
+  );
+
+  const handleOpenContractorManager = useCallback(() => {
+    setIsContractorManagerOpen(true);
+  }, []);
+
   const handleNotificationClick = (notification: NotificationItem) => {
     if (notification.task_id) {
       const task = tasks.find((t) => t.id === notification.task_id);
@@ -2727,231 +2745,30 @@ export function KanbanBoardPage() {
             onJoinRequestSent={handleJoinRequestSent}
           />
         ) : viewMode === "schedule" ? (
-          <main className="flex-1 flex flex-col overflow-hidden">
-            {scheduleSubTab === "timeblock" ? (
-              <DailyScheduleView
-                boardId={boardId || ""}
-                boardMembers={boardMembersData}
-                organizationId={board?.organization_id}
-                memberColorMap={memberColorMap}
-                onViewFeature={(featureId) => {
-                  const feature = features.find((f) => f.id === featureId);
-                  if (feature) handleFeatureClick(feature);
-                }}
-                onViewMeeting={(_meetingId, date) => {
-                  if (date) {
-                    setMeetingNavigateDate(date);
-                  }
-                  handleViewModeChange("meeting");
-                }}
-                onViewTask={async (taskId, checklistItemId) => {
-                  setHighlightChecklistItemId(checklistItemId || null);
-                  const task = tasks.find((t) => t.id === taskId);
-                  if (task) {
-                    handleTaskClick(task);
-                  } else if (boardId) {
-                    try {
-                      const fetched = await taskService.getTask(
-                        boardId,
-                        taskId,
-                      );
-                      handleTaskClick(fetched);
-                    } catch (err) {
-                      console.warn(
-                        "Failed to fetch task for timeblock view",
-                        err,
-                      );
-                    }
-                  }
-                }}
-                refreshTrigger={scheduleRefreshKey}
-                wsChecklistEvent={wsChecklistEvent}
-                currentUserRole={currentUserRole}
-                initialSubTab={urlTab as "timeblock" | "meeting" | undefined}
-              />
-            ) : scheduleSubTab === "calendar" ? (
-              <div className="flex flex-1 h-full overflow-hidden">
-                <Suspense
-                  fallback={
-                    <div className="flex-1 flex items-center justify-center h-64">
-                      <div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  }
-                >
-                  <ScheduleCalendarView
-                    boardId={boardId || ""}
-                    boardMembers={boardMembersData}
-                    memberColorMap={memberColorMap}
-                    jobRoles={jobRoles}
-                    onViewTask={async (taskId) => {
-                      const task = tasks.find((t) => t.id === taskId);
-                      if (task) {
-                        handleTaskClick(task);
-                      } else if (boardId) {
-                        try {
-                          const fetched = await taskService.getTask(
-                            boardId,
-                            taskId,
-                          );
-                          handleTaskClick(fetched);
-                        } catch (err) {
-                          console.warn(
-                            "Failed to fetch task for calendar view",
-                            err,
-                          );
-                        }
-                      }
-                    }}
-                    onDropChecklist={async (item, targetDate) => {
-                      if (item.task?.id) {
-                        try {
-                          await checklistAPI.updateItem(
-                            boardId!,
-                            item.task.id,
-                            item.id,
-                            {
-                              start_date: targetDate,
-                              due_date: targetDate,
-                            },
-                          );
-                        } catch (err) {
-                          console.warn(
-                            "Failed to drop checklist item on calendar",
-                            err,
-                          );
-                        }
-                      }
-                      notifyScheduleRefresh();
-                    }}
-                    externalDragItem={
-                      panelDragState?.isActive ? panelDragState.item : null
-                    }
-                    refreshTrigger={scheduleRefreshPanel}
-                  />
-                </Suspense>
-                <Suspense fallback={null}>
-                  <ChecklistItemPanel
-                    key={scheduleRefreshPanel}
-                    boardId={boardId || ""}
-                    onDragStateChange={setPanelDragState}
-                    onItemDetailClick={handleChecklistItemDetailClick}
-                    boardMembers={boardMembersData}
-                    onItemAdded={() => notifyScheduleRefresh()}
-                    milestones={milestones}
-                    jobRoles={jobRoles}
-                    memberJobRoleMap={memberJobRoleMap}
-                  />
-                </Suspense>
-              </div>
-            ) : scheduleSubTab === "resource" ? (
-              <div className="flex flex-1 overflow-hidden">
-                <Suspense
-                  fallback={
-                    <div className="flex-1 flex items-center justify-center h-64">
-                      <div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  }
-                >
-                  <ScheduleResourceView
-                    boardId={boardId || ""}
-                    boardMembers={boardMembersData}
-                    milestones={milestones}
-                    memberColorMap={memberColorMap}
-                    jobRoles={jobRoles}
-                    onOpenContractorManager={() =>
-                      setIsContractorManagerOpen(true)
-                    }
-                    onViewTask={async (taskId) => {
-                      const task = tasks.find((t) => t.id === taskId);
-                      if (task) {
-                        handleTaskClick(task);
-                      } else if (boardId) {
-                        try {
-                          const fetched = await taskService.getTask(
-                            boardId,
-                            taskId,
-                          );
-                          handleTaskClick(fetched);
-                        } catch (err) {
-                          console.warn(
-                            "Failed to fetch task for resource view",
-                            err,
-                          );
-                        }
-                      }
-                    }}
-                    onDropChecklist={async (
-                      item,
-                      targetDate,
-                      targetAssigneeId,
-                    ) => {
-                      if (item.task_id) {
-                        try {
-                          // targetAssigneeId 가 "contractor:<id>" 라면 외주 행, 아니면 user 행
-                          const isContractorRow =
-                            typeof targetAssigneeId === "string" &&
-                            targetAssigneeId.startsWith("contractor:");
-                          const payload = isContractorRow
-                            ? {
-                                start_date: targetDate,
-                                due_date: targetDate,
-                                assignee_id: null,
-                                contractor_id: targetAssigneeId!.substring(
-                                  "contractor:".length,
-                                ),
-                              }
-                            : {
-                                start_date: targetDate,
-                                due_date: targetDate,
-                                assignee_id:
-                                  targetAssigneeId === "__unassigned__"
-                                    ? null
-                                    : targetAssigneeId,
-                                contractor_id: null,
-                              };
-                          await checklistAPI.updateItem(
-                            boardId!,
-                            item.task_id,
-                            item.id,
-                            payload,
-                          );
-                        } catch (err) {
-                          console.warn(
-                            "Failed to drop checklist item on resource",
-                            err,
-                          );
-                        }
-                      }
-                      notifyScheduleRefresh();
-                    }}
-                    externalDragItem={
-                      panelDragState?.isActive ? panelDragState.item : null
-                    }
-                    refreshTrigger={scheduleRefreshPanel}
-                    onMilestoneClick={handleOpenMilestoneWithCheck}
-                    scrollToItem={scrollToItem}
-                    tasks={taskPickerList}
-                  />
-                </Suspense>
-                <Suspense fallback={null}>
-                  <ChecklistItemPanel
-                    key={scheduleRefreshPanel}
-                    boardId={boardId || ""}
-                    onDragStateChange={setPanelDragState}
-                    onItemDetailClick={handleChecklistItemDetailClick}
-                    onScheduledItemClick={(item) =>
-                      setScrollToItem({ id: item.id, ts: Date.now() })
-                    }
-                    boardMembers={boardMembersData}
-                    onItemAdded={() => notifyScheduleRefresh()}
-                    milestones={milestones}
-                    jobRoles={jobRoles}
-                    memberJobRoleMap={memberJobRoleMap}
-                  />
-                </Suspense>
-              </div>
-            ) : null}
-          </main>
+          <ScheduleView
+            boardId={boardId || ""}
+            scheduleSubTab={scheduleSubTab}
+            organizationId={board?.organization_id}
+            boardMembersData={boardMembersData}
+            memberColorMap={memberColorMap}
+            jobRoles={jobRoles}
+            memberJobRoleMap={memberJobRoleMap}
+            milestones={milestones}
+            taskPickerList={taskPickerList}
+            scheduleRefreshKey={scheduleRefreshKey}
+            scheduleRefreshPanel={scheduleRefreshPanel}
+            wsChecklistEvent={wsChecklistEvent}
+            currentUserRole={currentUserRole}
+            urlTab={urlTab}
+            notifyScheduleRefresh={notifyScheduleRefresh}
+            onViewFeatureById={handleViewFeatureById}
+            onNavigateToMeeting={handleNavigateToMeeting}
+            onViewTaskWithChecklist={handleViewTaskWithChecklist}
+            onViewTaskById={handleViewTaskById}
+            onItemDetailClick={handleChecklistItemDetailClick}
+            onOpenContractorManager={handleOpenContractorManager}
+            onMilestoneClick={handleOpenMilestoneWithCheck}
+          />
         ) : viewMode === "calendar" ? (
           <main className="flex-1 flex flex-col overflow-hidden">
             <KanbanFilterToolbar
