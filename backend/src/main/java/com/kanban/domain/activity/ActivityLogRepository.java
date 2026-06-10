@@ -20,7 +20,7 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, String
     @Query("SELECT a FROM ActivityLog a JOIN FETCH a.user WHERE a.board.id = :boardId ORDER BY a.createdAt DESC")
     Slice<ActivityLog> findByBoardIdOrderByCreatedAtDesc(@Param("boardId") String boardId, Pageable pageable);
 
-    @Query("SELECT a FROM ActivityLog a WHERE a.board.id = :boardId AND a.createdAt < :cursor ORDER BY a.createdAt DESC")
+    @Query("SELECT a FROM ActivityLog a JOIN FETCH a.user WHERE a.board.id = :boardId AND a.createdAt < :cursor ORDER BY a.createdAt DESC")
     List<ActivityLog> findByBoardIdWithCursor(@Param("boardId") String boardId, @Param("cursor") LocalDateTime cursor, Pageable pageable);
 
     @Query("SELECT a FROM ActivityLog a WHERE a.board.id = :boardId AND a.targetType = :targetType AND a.targetId = :targetId ORDER BY a.createdAt DESC")

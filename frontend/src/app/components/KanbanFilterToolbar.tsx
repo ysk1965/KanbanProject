@@ -61,22 +61,41 @@ export const KanbanFilterToolbar = forwardRef<
   const [keywordInput, setKeywordInput] = useState(filterOptions.keyword);
   const keywordDebounceRef = useRef<number | null>(null);
   const lastCommittedKeywordRef = useRef(filterOptions.keyword);
+  // 보류 중(미커밋) 입력값 — 언마운트 시 flush용
+  const pendingKeywordRef = useRef<string | null>(null);
   const filterOptionsRef = useRef(filterOptions);
   filterOptionsRef.current = filterOptions;
+  const onFilterChangeRef = useRef(onFilterChange);
+  onFilterChangeRef.current = onFilterChange;
 
-  // 외부에서 keyword가 변경된 경우(클리어 버튼, 필터 전체 리셋) 로컬 입력 동기화
+  // 외부에서 keyword가 변경된 경우(클리어 버튼, 필터 전체 리셋) 로컬 입력 동기화.
+  // 보류 중인 디바운스가 외부 변경을 다시 덮어쓰지 않도록 함께 취소한다.
   useEffect(() => {
     if (filterOptions.keyword !== lastCommittedKeywordRef.current) {
+      if (keywordDebounceRef.current !== null) {
+        window.clearTimeout(keywordDebounceRef.current);
+        keywordDebounceRef.current = null;
+        pendingKeywordRef.current = null;
+      }
       lastCommittedKeywordRef.current = filterOptions.keyword;
       setKeywordInput(filterOptions.keyword);
     }
   }, [filterOptions.keyword]);
 
-  // 언마운트 시 보류 중인 디바운스 정리
+  // 언마운트 시 보류 중인 입력은 버리지 않고 즉시 커밋 (뷰 전환 중 타이핑 유실 방지)
   useEffect(() => {
     return () => {
       if (keywordDebounceRef.current !== null) {
         window.clearTimeout(keywordDebounceRef.current);
+        keywordDebounceRef.current = null;
+      }
+      if (pendingKeywordRef.current !== null) {
+        const value = pendingKeywordRef.current;
+        pendingKeywordRef.current = null;
+        onFilterChangeRef.current({
+          ...filterOptionsRef.current,
+          keyword: value,
+        });
       }
     };
   }, []);
@@ -86,8 +105,10 @@ export const KanbanFilterToolbar = forwardRef<
     if (keywordDebounceRef.current !== null) {
       window.clearTimeout(keywordDebounceRef.current);
     }
+    pendingKeywordRef.current = value;
     keywordDebounceRef.current = window.setTimeout(() => {
       keywordDebounceRef.current = null;
+      pendingKeywordRef.current = null;
       lastCommittedKeywordRef.current = value;
       onFilterChange({ ...filterOptionsRef.current, keyword: value });
     }, 200);
@@ -98,6 +119,7 @@ export const KanbanFilterToolbar = forwardRef<
       window.clearTimeout(keywordDebounceRef.current);
       keywordDebounceRef.current = null;
     }
+    pendingKeywordRef.current = null;
     setKeywordInput("");
     lastCommittedKeywordRef.current = "";
     onFilterChange({ ...filterOptionsRef.current, keyword: "" });

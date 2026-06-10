@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Block, Feature, Task, Tag, Board, InviteLink, Subscription, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem, AiCredits } from '../types';
 import { BoardMember as ShareBoardMember, MemberRole } from '../components/ShareBoardModal';
@@ -77,6 +77,12 @@ export function useBoardDataLoader(boardId: string | undefined) {
   const [boardMembersData, setBoardMembersData] = useState<ShareBoardMember[]>([]);
   const [aiCredits, setAiCredits] = useState<AiCredits | null>(null);
   const [kanbanSelectedMilestoneId, setKanbanSelectedMilestoneId] = useState<string>('all');
+
+  // 재검증 시점에 사용자의 현재 마일스톤 선택을 비교하기 위한 최신값 ref
+  const milestoneIdRef = useRef(kanbanSelectedMilestoneId);
+  useEffect(() => {
+    milestoneIdRef.current = kanbanSelectedMilestoneId;
+  }, [kanbanSelectedMilestoneId]);
 
   // 로드/캐시 공용 하이드레이션 — fullData + 부속 데이터를 상태로 일괄 반영
   const hydrate = useCallback(
@@ -195,17 +201,31 @@ export function useBoardDataLoader(boardId: string | undefined) {
             .catch((error) => { console.warn('Failed to load scheduled task ids:', error); return { task_ids: [] as string[] }; }),
         ]);
 
-        hydrate(fullData, blocksResult, batchChecklistMap, scheduledData.task_ids);
         boardCache.set(boardId, {
           fullData,
           blocksResult,
           checklistMap: batchChecklistMap,
           scheduledTaskIds: scheduledData.task_ids,
         });
+
+        // 캐시 페인트 후 재검증인 경우: 사용자가 그 사이 마일스톤을 바꿨거나
+        // 서버 스냅샷의 선택이 현재 상태와 다르면, 늦게 도착한 hydrate가
+        // 사용자의 선택을 되돌리지 않도록 적용을 건너뛴다 (캐시는 위에서 갱신됨).
+        const serverMilestoneId = fullData.selected_milestone_id ?? 'all';
+        if (cached && milestoneIdRef.current !== serverMilestoneId) {
+          return;
+        }
+
+        hydrate(fullData, blocksResult, batchChecklistMap, scheduledData.task_ids);
       } catch (error) {
         console.error('Failed to load board data:', error);
         boardCache.clear(boardId);
-        navigate('/boards', { state: { boardLoadFailed: boardId }, replace: true });
+        if (cached) {
+          // 캐시로 이미 정상 화면을 보여준 상태 — 재검증 실패로 강제 이탈하지 않음
+          console.warn('Board revalidation failed; keeping cached view');
+        } else {
+          navigate('/boards', { state: { boardLoadFailed: boardId }, replace: true });
+        }
       } finally {
         setIsLoading(false);
       }

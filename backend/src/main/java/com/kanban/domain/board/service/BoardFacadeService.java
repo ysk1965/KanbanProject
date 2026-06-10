@@ -168,10 +168,13 @@ public class BoardFacadeService {
         BoardResponse.TierInfo tierInfo = monetizationService.isMonetizationEnabled()
                 ? BoardResponse.TierInfo.of(board)
                 : BoardResponse.TierInfo.allFeaturesEnabled(board);
-        // taskRepository.countByBoardId(boardId)와 동등 — COUNT 쿼리 1건 제거:
-        // tasksResponse는 findByBoardIdWithFetch(보드 전체 태스크, 필터 없음) 결과이고
-        // feature/block/board FK가 모두 non-null이라 JOIN FETCH(inner join)로 누락되는 행이 없으며,
-        // @SQLRestriction("deleted_at IS NULL") 소프트 삭제 필터도 두 쿼리에 동일하게 적용된다.
+        // taskRepository.countByBoardId(boardId) 대체 — COUNT 쿼리 1건 제거.
+        // tasksResponse는 findByBoardIdWithFetch(보드 전체 태스크, 필터 없음) 결과.
+        // 주의: feature JOIN FETCH에는 Feature의 @SQLRestriction(deleted_at IS NULL)도 적용되므로,
+        // "소프트 삭제된 Feature 밑에 살아있는 Task"가 존재하면 countByBoardId보다 작게 집계된다.
+        // 정상 데이터에서는 deleteFeature가 하위 Task를 함께 소프트 삭제하므로 두 값이 일치하지만,
+        // 서버측 제한 검증(TaskService.validateTaskLimit)은 여전히 countByBoardId를 사용하므로
+        // 불일치 데이터에서는 표시(canCreateTask)와 검증이 어긋날 수 있다.
         int currentTaskCount = tasksResponse.getTasks().size();
         BoardResponse.Limits limits = BoardResponse.Limits.of(board, currentTaskCount);
 
