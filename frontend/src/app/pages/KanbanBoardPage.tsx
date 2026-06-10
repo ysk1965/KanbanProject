@@ -3474,7 +3474,6 @@ export function KanbanBoardPage() {
                               features={features}
                               onMoveTask={handleMoveTask}
                               onReorderTask={handleReorderTask}
-                              availableTags={tags}
                               boardId={boardId || ""}
                               expandedChecklistTaskIds={
                                 expandedChecklistTaskIds
@@ -3613,7 +3612,6 @@ export function KanbanBoardPage() {
                                   block.type === "CUSTOM" &&
                                   customBlockIndex < customBlocks.length - 1
                                 }
-                                availableTags={tags}
                                 boardId={boardId || ""}
                                 expandedChecklistTaskIds={
                                   expandedChecklistTaskIds

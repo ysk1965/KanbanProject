@@ -1,5 +1,5 @@
-import { useRef, useCallback, memo } from "react";
-import { Block, Task, Tag, Feature, ChecklistItem } from "../types";
+import { useRef, useCallback, useMemo, memo } from "react";
+import { Block, Task, Feature, ChecklistItem } from "../types";
 import { DraggableCard } from "./DraggableCard";
 import { GripVertical, MoreVertical, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -19,7 +19,6 @@ interface KanbanBlockProps {
   block: Block;
   tasks: Task[];
   features?: Feature[];
-  availableTags?: Tag[];
   onMoveTask: (taskId: string, targetBlock: string, newOrder: number) => void;
   onReorderTask: (taskId: string, blockId: string, newPosition: number) => void;
   onTaskClick?: (task: Task) => void;
@@ -48,7 +47,6 @@ export const KanbanBlock = memo(function KanbanBlock({
   block,
   tasks,
   features,
-  availableTags = [],
   onMoveTask,
   onReorderTask,
   onTaskClick,
@@ -94,6 +92,12 @@ export const KanbanBlock = memo(function KanbanBlock({
 
   const isCustomBlock = block.type === "CUSTOM";
   const isFixedBlock = block.type === "FIXED";
+
+  // 카드별 features.find() 대신 O(1) 조회 맵
+  const featuresById = useMemo(
+    () => new Map((features ?? []).map((f) => [f.id, f])),
+    [features],
+  );
 
   // 플레이스홀더가 이 블록에 표시되어야 하는지 확인
   const taskPlaceholderInThisBlock =
@@ -434,9 +438,10 @@ export const KanbanBlock = memo(function KanbanBlock({
               task={task}
               blockId={block.id}
               index={index}
-              onClick={() => onTaskClick?.(task)}
-              availableTags={availableTags}
-              features={features}
+              onTaskClick={onTaskClick}
+              feature={
+                task.feature_id ? featuresById.get(task.feature_id) : undefined
+              }
               boardId={boardId}
               isChecklistExpanded={expandedChecklistTaskIds?.has(task.id)}
               onToggleChecklistExpand={onToggleChecklistExpand}
