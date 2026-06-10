@@ -368,6 +368,19 @@ export function KanbanBoardPage() {
     null,
   );
   const [scheduleRefreshPanel, setScheduleRefreshPanel] = useState(0);
+
+  // 일정 뷰 갱신 신호 게이팅: 소비자(refreshTrigger/key)는 schedule 뷰에서만 마운트되므로
+  // 다른 뷰에서는 카운터를 올리지 않는다 (WS 이벤트마다 페이지 전체 재렌더 방지).
+  // schedule 뷰 진입 시 컴포넌트가 새로 마운트되며 최신 데이터를 로드하므로 pending 처리 불필요.
+  const viewModeRef = useRef<ViewMode>(viewMode);
+  useEffect(() => {
+    viewModeRef.current = viewMode;
+  }, [viewMode]);
+  const notifyScheduleRefresh = useCallback(() => {
+    if (viewModeRef.current === "schedule") {
+      setScheduleRefreshPanel((prev) => prev + 1);
+    }
+  }, []);
   const [scrollToItem, setScrollToItem] = useState<{
     id: string;
     ts: number;
@@ -826,7 +839,7 @@ export function KanbanBoardPage() {
         setAllFeatures((prev) =>
           prev.some((f) => f.id === feature.id) ? prev : [...prev, feature],
         );
-        setScheduleRefreshPanel((k) => k + 1);
+        notifyScheduleRefresh();
         break;
       }
       case "FEATURE_UPDATED": {
@@ -837,7 +850,7 @@ export function KanbanBoardPage() {
         setAllFeatures((prev) =>
           prev.map((f) => (f.id === feature.id ? feature : f)),
         );
-        setScheduleRefreshPanel((k) => k + 1);
+        notifyScheduleRefresh();
         break;
       }
       case "FEATURE_DELETED": {
@@ -869,7 +882,7 @@ export function KanbanBoardPage() {
         } else {
           setTasks((prev) => prev.filter((t) => t.feature_id !== id));
         }
-        setScheduleRefreshPanel((k) => k + 1);
+        notifyScheduleRefresh();
         break;
       }
       case "FEATURES_REORDERED": {
@@ -898,7 +911,7 @@ export function KanbanBoardPage() {
         setFeatures((prev) =>
           prev.map((f) => (f.id === feature.id ? { ...f, ...feature } : f)),
         );
-        setScheduleRefreshPanel((k) => k + 1);
+        notifyScheduleRefresh();
         break;
       }
       case "TASK_UPDATED": {
@@ -906,7 +919,7 @@ export function KanbanBoardPage() {
         setTasks((prev) =>
           prev.map((t) => (t.id === task.id ? { ...t, ...task } : t)),
         );
-        setScheduleRefreshPanel((k) => k + 1);
+        notifyScheduleRefresh();
         break;
       }
       case "TASK_DELETED": {
@@ -923,7 +936,7 @@ export function KanbanBoardPage() {
         setFeatures((prev) =>
           prev.map((f) => (f.id === feature.id ? { ...f, ...feature } : f)),
         );
-        setScheduleRefreshPanel((k) => k + 1);
+        notifyScheduleRefresh();
         break;
       }
       case "TASK_MOVED": {
@@ -942,7 +955,7 @@ export function KanbanBoardPage() {
         setFeatures((prev) =>
           prev.map((f) => (f.id === feature.id ? { ...f, ...feature } : f)),
         );
-        setScheduleRefreshPanel((k) => k + 1);
+        notifyScheduleRefresh();
         break;
       }
 
@@ -1017,7 +1030,7 @@ export function KanbanBoardPage() {
           ),
         );
         setWsChecklistEvent(event);
-        setScheduleRefreshPanel((k) => k + 1);
+        notifyScheduleRefresh();
         break;
       }
       case "CHECKLIST_UPDATED": {
@@ -1032,7 +1045,7 @@ export function KanbanBoardPage() {
           ),
         }));
         setWsChecklistEvent(event);
-        setScheduleRefreshPanel((k) => k + 1);
+        notifyScheduleRefresh();
         break;
       }
       case "CHECKLIST_DELETED": {
@@ -1057,7 +1070,7 @@ export function KanbanBoardPage() {
           ),
         );
         setWsChecklistEvent(event);
-        setScheduleRefreshPanel((k) => k + 1);
+        notifyScheduleRefresh();
         break;
       }
       case "CHECKLIST_TOGGLED": {
@@ -1095,7 +1108,7 @@ export function KanbanBoardPage() {
         }
 
         setWsChecklistEvent(event);
-        setScheduleRefreshPanel((k) => k + 1);
+        notifyScheduleRefresh();
         break;
       }
 
@@ -2098,7 +2111,7 @@ export function KanbanBoardPage() {
       setAllFeatures([...allFeatures, newFeature]);
       setSelectedFeature(newFeature);
       setIsFeatureModalOpen(true);
-      setScheduleRefreshPanel((k) => k + 1);
+      notifyScheduleRefresh();
     } catch (error) {
       console.error("Failed to create feature:", error);
     }
@@ -2258,7 +2271,7 @@ export function KanbanBoardPage() {
           f.id === featureId ? { ...f, total_tasks: f.total_tasks + 1 } : f,
         ),
       );
-      setScheduleRefreshPanel((k) => k + 1);
+      notifyScheduleRefresh();
     } catch (error: any) {
       console.error("Failed to create task:", error);
     }
@@ -2319,7 +2332,7 @@ export function KanbanBoardPage() {
           f.id === featureId ? { ...f, total_tasks: f.total_tasks + 1 } : f,
         ),
       );
-      setScheduleRefreshPanel((k) => k + 1);
+      notifyScheduleRefresh();
 
       setQuickAddBlockId(null);
     } catch (error) {
@@ -2398,7 +2411,7 @@ export function KanbanBoardPage() {
             : t,
         ),
       );
-      setScheduleRefreshPanel((k) => k + 1);
+      notifyScheduleRefresh();
     } catch (error) {
       console.error("Failed to update task:", error);
     }
@@ -3654,7 +3667,7 @@ export function KanbanBoardPage() {
                           );
                         }
                       }
-                      setScheduleRefreshPanel((k) => k + 1);
+                      notifyScheduleRefresh();
                     }}
                     externalDragItem={
                       panelDragState?.isActive ? panelDragState.item : null
@@ -3669,7 +3682,7 @@ export function KanbanBoardPage() {
                     onDragStateChange={setPanelDragState}
                     onItemDetailClick={handleChecklistItemDetailClick}
                     boardMembers={boardMembersData}
-                    onItemAdded={() => setScheduleRefreshPanel((k) => k + 1)}
+                    onItemAdded={() => notifyScheduleRefresh()}
                     milestones={milestones}
                     jobRoles={jobRoles}
                     memberJobRoleMap={memberJobRoleMap}
@@ -3755,7 +3768,7 @@ export function KanbanBoardPage() {
                           );
                         }
                       }
-                      setScheduleRefreshPanel((k) => k + 1);
+                      notifyScheduleRefresh();
                     }}
                     externalDragItem={
                       panelDragState?.isActive ? panelDragState.item : null
@@ -3776,7 +3789,7 @@ export function KanbanBoardPage() {
                       setScrollToItem({ id: item.id, ts: Date.now() })
                     }
                     boardMembers={boardMembersData}
-                    onItemAdded={() => setScheduleRefreshPanel((k) => k + 1)}
+                    onItemAdded={() => notifyScheduleRefresh()}
                     milestones={milestones}
                     jobRoles={jobRoles}
                     memberJobRoleMap={memberJobRoleMap}
@@ -4156,7 +4169,7 @@ export function KanbanBoardPage() {
               }
               return { ...prev, [taskId]: items };
             });
-            setScheduleRefreshPanel((k) => k + 1);
+            notifyScheduleRefresh();
           }}
           // Tag
           tags={tags}
@@ -4344,7 +4357,7 @@ export function KanbanBoardPage() {
             currentUserId={currentUserId}
             isAdminOrAbove={isAdminOrOwner}
             onChanged={(list) => {
-              setScheduleRefreshPanel((k) => k + 1);
+              notifyScheduleRefresh();
               if (list) setHeaderContractors(list);
             }}
           />
