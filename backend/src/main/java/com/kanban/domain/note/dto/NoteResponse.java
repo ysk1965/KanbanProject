@@ -68,12 +68,19 @@ public class NoteResponse {
         private Boolean isShared;
         private String shareToken;
         private boolean hasUnpublishedDraft;
+        private int likeCount;
+        private boolean liked;
 
         public static Detail of(Note note, List<TagInfo> tags, int versionCount) {
-            return of(note, tags, versionCount, false);
+            return of(note, tags, versionCount, false, 0, false);
         }
 
         public static Detail of(Note note, List<TagInfo> tags, int versionCount, boolean hasUnpublishedDraft) {
+            return of(note, tags, versionCount, hasUnpublishedDraft, 0, false);
+        }
+
+        public static Detail of(Note note, List<TagInfo> tags, int versionCount, boolean hasUnpublishedDraft,
+                                 int likeCount, boolean liked) {
             return Detail.builder()
                     .id(note.getId())
                     .parentId(note.getParent() != null ? note.getParent().getId() : null)
@@ -93,6 +100,8 @@ public class NoteResponse {
                     .isShared(note.getIsShared())
                     .shareToken(note.getShareToken())
                     .hasUnpublishedDraft(hasUnpublishedDraft)
+                    .likeCount(likeCount)
+                    .liked(liked)
                     .build();
         }
     }

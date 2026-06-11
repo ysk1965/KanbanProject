@@ -59,4 +59,14 @@ public class NoteVersion {
                 .createdBy(user)
                 .build();
     }
+
+    public static NoteVersion create(Note note, String title, String content, User user, int versionNumber) {
+        return NoteVersion.builder()
+                .note(note)
+                .title(title)
+                .content(content)
+                .versionNumber(versionNumber)
+                .createdBy(user)
+                .build();
+    }
 }

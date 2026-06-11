@@ -2825,6 +2825,7 @@
     "editThisAndFuture": "この会議と今後の会議を編集"
   },
   "notes": {
+    "moveFailed": "ノートの移動に失敗しました",
     "addTag": "タグを追加",
     "aiAlreadyExists": "適用済み",
     "aiAnalyzing": "AIがノートを分析しています...",

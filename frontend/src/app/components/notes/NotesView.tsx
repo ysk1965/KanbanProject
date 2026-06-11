@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { FileText, FolderPlus, FilePlus, PenTool, Search, List, FolderTree, Loader2, Menu, Trash2 } from 'lucide-react';
 import { NoteTreeSidebar } from './NoteTreeSidebar';
 import { NoteEditor } from './NoteEditor';
@@ -13,11 +14,71 @@ import { getAssigneeHex } from '../../utils/assigneeColor';
 import { Sheet, SheetContent, SheetTitle } from '../ui/sheet';
 import { IconButton } from '../ui/IconButton';
 import type { NoteTreeItem, NoteDetail, NoteListItem, NoteTagInfo, BoardNoteSection } from '../../utils/api';
+import type { BreadcrumbItem } from './NoteEditor';
 
 interface NotesViewProps {
   boardId?: string;
   orgId?: string;
   currentUserRole: string;
+}
+
+/**
+ * 드롭 직후 서버 응답을 기다리지 않고 트리를 즉시 갱신하기 위한 로컬 이동.
+ * position은 이동 항목을 제외한 형제 목록 내 삽입 인덱스 (백엔드 의미론과 동일).
+ */
+function applyLocalMove(
+  tree: NoteTreeItem[],
+  noteId: string,
+  parentId: string | null,
+  position: number,
+): NoteTreeItem[] {
+  let moved: NoteTreeItem | null = null;
+
+  const remove = (items: NoteTreeItem[]): NoteTreeItem[] =>
+    items
+      .filter(item => {
+        if (item.id === noteId) {
+          moved = item;
+          return false;
+        }
+        return true;
+      })
+      .map(item =>
+        item.children && item.children.length > 0
+          ? { ...item, children: remove(item.children) }
+          : item
+      );
+
+  const without = remove(tree);
+  if (!moved) return tree;
+
+  const withDepth = (item: NoteTreeItem, depth: number): NoteTreeItem => ({
+    ...item,
+    depth,
+    children: (item.children || []).map(c => withDepth(c, depth + 1)),
+  });
+
+  if (parentId === null) {
+    const next = [...without];
+    const index = Math.max(0, Math.min(position, next.length));
+    next.splice(index, 0, { ...withDepth(moved, 0), parent_id: null });
+    return next;
+  }
+
+  const insert = (items: NoteTreeItem[]): NoteTreeItem[] =>
+    items.map(item => {
+      if (item.id === parentId) {
+        const children = [...(item.children || [])];
+        const index = Math.max(0, Math.min(position, children.length));
+        children.splice(index, 0, { ...withDepth(moved!, item.depth + 1), parent_id: parentId });
+        return { ...item, children };
+      }
+      return item.children && item.children.length > 0
+        ? { ...item, children: insert(item.children) }
+        : item;
+    });
+
+  return insert(without);
 }
 
 export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
@@ -68,6 +129,27 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
     enabled: !!selectedNoteId && (selectedNote?.type === 'DOCUMENT' || selectedNote?.type === 'BOARD'),
     resetCounter: collabResetCounter,
   });
+
+  const breadcrumbs = useMemo((): BreadcrumbItem[] => {
+    if (!selectedNoteId || tree.length === 0) return [];
+    const flatMap = new Map<string, NoteTreeItem>();
+    function walk(items: NoteTreeItem[]) {
+      for (const item of items) {
+        flatMap.set(item.id, item);
+        if (item.children) walk(item.children);
+      }
+    }
+    walk(tree);
+    const chain: BreadcrumbItem[] = [];
+    let current = flatMap.get(selectedNoteId);
+    while (current?.parent_id) {
+      const parent = flatMap.get(current.parent_id);
+      if (!parent) break;
+      chain.unshift({ id: parent.id, title: parent.title, type: parent.type });
+      current = parent;
+    }
+    return chain;
+  }, [selectedNoteId, tree]);
 
   const loadTree = useCallback(async () => {
     try {
@@ -241,6 +323,26 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
     }
   }, [scopeId, svc, canEdit, loadTree, handleSelectNote, t]);
 
+  const handleDuplicateNote = useCallback(async (noteId: string) => {
+    if (!canEdit) return;
+    try {
+      const detail = await svc.getDetail(scopeId, noteId);
+      const created = await svc.create(scopeId, {
+        title: `${detail.title} (${t('notes.copy', '사본')})`,
+        type: detail.type as 'FOLDER' | 'DOCUMENT' | 'BOARD',
+        parentId: detail.parent_id || null,
+        content: detail.content || undefined,
+        tagIds: detail.tags?.map((tag: NoteTagInfo) => tag.id),
+      });
+      await loadTree();
+      if (created.type !== 'FOLDER') {
+        handleSelectNote(created.id);
+      }
+    } catch (err) {
+      console.error('Failed to duplicate note:', err);
+    }
+  }, [scopeId, svc, canEdit, loadTree, handleSelectNote, t]);
+
   const handleDeleteNote = useCallback(async (noteId: string) => {
     try {
       await svc.delete(scopeId, noteId);
@@ -291,13 +393,17 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
   }, [scopeId, svc, loadTree, loadBoardNotes, selectedNoteScope, orgId]);
 
   const handleMoveNote = useCallback(async (noteId: string, parentId: string | null, position: number) => {
+    // 드롭 즉시 화면에 반영하고, 서버 응답으로 재동기화 (실패 시 리로드로 원복)
+    setTree(prev => applyLocalMove(prev, noteId, parentId, position));
     try {
       await svc.move(scopeId, noteId, { parentId, position });
       await loadTree();
     } catch (err) {
       console.error('Failed to move note:', err);
+      toast.error(t('notes.moveFailed', '노트 이동에 실패했습니다'));
+      await loadTree();
     }
-  }, [scopeId, svc, loadTree]);
+  }, [scopeId, svc, loadTree, t]);
 
   if (loading) {
     return (
@@ -386,6 +492,7 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
             onDelete={handleDeleteNote}
             onRename={handleRenameNote}
             onMove={handleMoveNote}
+            onDuplicate={handleDuplicateNote}
             canEdit={canEdit}
             boardNoteSections={orgId ? boardNoteSections : undefined}
             onSelectBoardNote={orgId ? handleSelectBoardNote : undefined}
@@ -463,12 +570,13 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
                 : canEdit}
               onSave={handleSaveNote}
               onTagsChange={loadTags}
-
               onNoteUpdate={(updated) => setSelectedNote(updated)}
               onCollabReset={handleCollabReset}
               collaboration={collaboration}
               currentUserName={userName}
               currentUserColor={userColor}
+              breadcrumbs={breadcrumbs}
+              onBreadcrumbClick={handleSelectNote}
             />
           </>
         ) : (
