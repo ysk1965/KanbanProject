@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, MoreHorizontal, Pencil, Trash2, FolderPlus, FilePlus, GripVertical, PenTool, LayoutDashboard } from 'lucide-react';
+import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, MoreHorizontal, Pencil, Trash2, FolderPlus, FilePlus, GripVertical, PenTool, LayoutDashboard, Copy } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -17,6 +17,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  MeasuringStrategy,
   type DragStartEvent,
   type DragEndEvent,
   type DragOverEvent,
@@ -34,12 +35,14 @@ interface NoteTreeSidebarProps {
   onDelete: (noteId: string) => void;
   onRename: (noteId: string, newTitle: string) => void;
   onMove: (noteId: string, parentId: string | null, position: number) => void;
+  onDuplicate?: (noteId: string) => void;
   canEdit: boolean;
   boardNoteSections?: BoardNoteSection[];
   onSelectBoardNote?: (noteId: string, boardId: string) => void;
 }
 
-type DropZone = 'before' | 'inside' | 'after';
+// 'inside-first': 펼쳐진 채 자식이 보이는 항목의 아래쪽 드롭 — 첫 자식으로 삽입
+type DropZone = 'before' | 'inside' | 'after' | 'inside-first';
 
 interface DropTargetInfo {
   id: string;
@@ -64,14 +67,35 @@ export function NoteTreeSidebar({
   onDelete,
   onRename,
   onMove,
+  onDuplicate,
   canEdit,
   boardNoteSections,
   onSelectBoardNote,
 }: NoteTreeSidebarProps) {
   const [activeItem, setActiveItem] = useState<NoteTreeItem | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTargetInfo | null>(null);
+  // 기본 전체 펼침 — collapsedIds에 있는 항목만 접힘
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const dropTargetRef = useRef<DropTargetInfo | null>(null);
   const pointerYRef = useRef<number>(0);
+
+  const toggleExpand = useCallback((id: string) => {
+    setCollapsedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const expandItem = useCallback((id: string) => {
+    setCollapsedIds(prev => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -119,6 +143,9 @@ export function NoteTreeSidebar({
     }
   };
 
+  const hasVisibleChildren = (item: NoteTreeItem): boolean =>
+    !!item.children && item.children.length > 0 && !collapsedIds.has(item.id);
+
   const calculateDropZone = (
     overItem: NoteTreeItem,
     rect: { top: number; height: number },
@@ -127,14 +154,22 @@ export function NoteTreeSidebar({
   ): DropZone => {
     const ratio = Math.max(0, Math.min(1, (pointerY - rect.top) / rect.height));
 
+    // 폴더는 inside 영역을 넓게(25~75%), 문서/보드는 끼워넣기(reorder) 우선으로 좁게(40~60%)
+    const isFolder = overItem.type === 'FOLDER';
+    const beforeMax = isFolder ? 0.25 : 0.4;
+    const afterMin = isFolder ? 0.75 : 0.6;
+
     let zone: DropZone;
-    // All items (folders & documents) support inside drop (Notion-style)
-    if (ratio < 0.25) zone = 'before';
-    else if (ratio > 0.75) zone = 'after';
+    if (ratio < beforeMax) zone = 'before';
+    else if (ratio > afterMin) zone = 'after';
     else zone = 'inside';
 
+    // 펼쳐진 채 자식이 보이는 항목의 아래쪽 드롭 = 첫 자식으로 삽입
+    // (표시선이 항목과 첫 자식 사이에 그려지므로 실제 동작도 일치시킴)
+    if (zone === 'after' && hasVisibleChildren(overItem)) zone = 'inside-first';
+
     // Depth validation: prevent nesting if it would exceed max depth
-    if (zone === 'inside') {
+    if (zone === 'inside' || zone === 'inside-first') {
       const maxSubDepth = getMaxSubtreeDepth(draggedItem);
       if (overItem.depth + 1 + maxSubDepth > MAX_DEPTH) {
         zone = ratio < 0.5 ? 'before' : 'after';
@@ -192,7 +227,7 @@ export function NoteTreeSidebar({
     const overId = over.id as string;
 
     if (overId === 'root-drop-zone') {
-      onMove(dragged.id, null, 9999);
+      onMove(dragged.id, null, tree.filter(n => n.id !== dragged.id).length);
       return;
     }
 
@@ -203,25 +238,30 @@ export function NoteTreeSidebar({
 
     const zone = calculateDropZone(targetItem, over.rect, pointerYRef.current, dragged);
 
+    // position은 "드래그 항목을 제외한" 형제 목록 내 삽입 인덱스 (백엔드 의미론과 일치)
     const getSiblings = () =>
-      targetItem.parent_id
+      (targetItem.parent_id
         ? flatMap.get(targetItem.parent_id)?.children || []
-        : tree;
+        : tree
+      ).filter(s => s.id !== dragged.id);
 
     switch (zone) {
       case 'before': {
-        const siblings = getSiblings();
-        const targetIndex = siblings.findIndex(s => s.id === overId);
+        const targetIndex = getSiblings().findIndex(s => s.id === overId);
         onMove(dragged.id, targetItem.parent_id, targetIndex);
         break;
       }
       case 'inside': {
-        onMove(dragged.id, overId, 9999);
+        const childCount = (targetItem.children || []).filter(c => c.id !== dragged.id).length;
+        onMove(dragged.id, overId, childCount);
+        break;
+      }
+      case 'inside-first': {
+        onMove(dragged.id, overId, 0);
         break;
       }
       case 'after': {
-        const siblings = getSiblings();
-        const targetIndex = siblings.findIndex(s => s.id === overId);
+        const targetIndex = getSiblings().findIndex(s => s.id === overId);
         onMove(dragged.id, targetItem.parent_id, targetIndex + 1);
         break;
       }
@@ -250,33 +290,49 @@ export function NoteTreeSidebar({
     );
   }
 
+  const handleDragCancel = () => {
+    setActiveItem(null);
+    setDropTargetBoth(null);
+  };
+
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={pointerWithin}
+      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
-      <RootDropZone isOver={dropTarget?.id === 'root-drop-zone'} canEdit={canEdit}>
-        <div>
-          <SiblingGroup
-            items={filteredTree}
-            parentId={null}
-            selectedNoteId={selectedNoteId}
-            onSelect={onSelect}
-            onCreateFolder={onCreateFolder}
-            onCreateDocument={onCreateDocument}
-            onCreateBoard={onCreateBoard}
-            onDelete={onDelete}
-            onRename={onRename}
-            canEdit={canEdit}
-            depth={0}
-            activeId={activeItem?.id ?? null}
-            dropTarget={dropTarget}
-          />
-        </div>
-      </RootDropZone>
+      <div>
+        <SiblingGroup
+          items={filteredTree}
+          parentId={null}
+          selectedNoteId={selectedNoteId}
+          onSelect={onSelect}
+          onCreateFolder={onCreateFolder}
+          onCreateDocument={onCreateDocument}
+          onCreateBoard={onCreateBoard}
+          onDelete={onDelete}
+          onRename={onRename}
+          onDuplicate={onDuplicate}
+          canEdit={canEdit}
+          depth={0}
+          activeId={activeItem?.id ?? null}
+          dropTarget={dropTarget}
+          collapsedIds={collapsedIds}
+          onToggleExpand={toggleExpand}
+          onAutoExpand={expandItem}
+        />
+      </div>
+
+      {/* 트리 아래 빈 영역 — 루트 맨 끝으로 이동하는 드롭존 */}
+      <RootDropZone
+        isOver={dropTarget?.id === 'root-drop-zone'}
+        canEdit={canEdit}
+        isDragging={!!activeItem}
+      />
 
       <DragOverlay dropAnimation={null}>
         {activeItem && (
@@ -310,7 +366,7 @@ export function NoteTreeSidebar({
 
 function SiblingGroup({
   items, parentId, selectedNoteId, onSelect, onCreateFolder, onCreateDocument, onCreateBoard,
-  onDelete, onRename, canEdit, depth, activeId, dropTarget,
+  onDelete, onRename, onDuplicate, canEdit, depth, activeId, dropTarget, collapsedIds, onToggleExpand, onAutoExpand,
 }: {
   items: NoteTreeItem[];
   parentId: string | null;
@@ -321,10 +377,14 @@ function SiblingGroup({
   onCreateBoard: (parentId?: string | null) => void;
   onDelete: (noteId: string) => void;
   onRename: (noteId: string, newTitle: string) => void;
+  onDuplicate?: (noteId: string) => void;
   canEdit: boolean;
   depth: number;
   activeId: string | null;
   dropTarget: DropTargetInfo | null;
+  collapsedIds: Set<string>;
+  onToggleExpand: (id: string) => void;
+  onAutoExpand: (id: string) => void;
 }) {
   return (
     <>
@@ -339,24 +399,30 @@ function SiblingGroup({
           onCreateBoard={onCreateBoard}
           onDelete={onDelete}
           onRename={onRename}
+          onDuplicate={onDuplicate}
           canEdit={canEdit}
           depth={depth}
           activeId={activeId}
           dropTarget={dropTarget}
+          collapsedIds={collapsedIds}
+          onToggleExpand={onToggleExpand}
+          onAutoExpand={onAutoExpand}
         />
       ))}
     </>
   );
 }
 
-function RootDropZone({ isOver, canEdit, children }: { isOver: boolean; canEdit: boolean; children: React.ReactNode }) {
+function RootDropZone({ isOver, canEdit, isDragging }: { isOver: boolean; canEdit: boolean; isDragging: boolean }) {
   const { setNodeRef } = useDroppable({ id: 'root-drop-zone', disabled: !canEdit });
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-[40px] rounded-lg transition-colors ${isOver ? 'bg-bridge-accent/10 ring-1 ring-bridge-accent/30' : ''}`}
+      className={`rounded-lg transition-all ${isDragging ? 'min-h-[48px]' : 'min-h-[16px]'}`}
     >
-      {children}
+      {isOver && (
+        <div className="h-0.5 rounded-full bg-bridge-accent my-0.5" style={{ marginLeft: 8, marginRight: 8 }} />
+      )}
     </div>
   );
 }
@@ -370,10 +436,14 @@ interface TreeItemComponentProps {
   onCreateBoard: (parentId?: string | null) => void;
   onDelete: (noteId: string) => void;
   onRename: (noteId: string, newTitle: string) => void;
+  onDuplicate?: (noteId: string) => void;
   canEdit: boolean;
   depth: number;
   activeId: string | null;
   dropTarget: DropTargetInfo | null;
+  collapsedIds: Set<string>;
+  onToggleExpand: (id: string) => void;
+  onAutoExpand: (id: string) => void;
 }
 
 function TreeItemComponent({
@@ -385,17 +455,21 @@ function TreeItemComponent({
   onCreateBoard,
   onDelete,
   onRename,
+  onDuplicate,
   canEdit,
   depth,
   activeId,
   dropTarget,
+  collapsedIds,
+  onToggleExpand,
+  onAutoExpand,
 }: TreeItemComponentProps) {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(item.title);
 
+  const expanded = !collapsedIds.has(item.id);
   const isFolder = item.type === 'FOLDER';
   const isSelected = selectedNoteId === item.id;
   const hasChildren = item.children && item.children.length > 0;
@@ -405,14 +479,15 @@ function TreeItemComponent({
   const isBeforeTarget = dropTarget?.id === item.id && dropTarget?.zone === 'before';
   const isInsideTarget = dropTarget?.id === item.id && dropTarget?.zone === 'inside';
   const isAfterTarget = dropTarget?.id === item.id && dropTarget?.zone === 'after';
+  const isInsideFirstTarget = dropTarget?.id === item.id && dropTarget?.zone === 'inside-first';
 
   // Auto-expand collapsed items when dragging over "inside" zone
   useEffect(() => {
     if (isInsideTarget && !expanded) {
-      const timer = setTimeout(() => setExpanded(true), 600);
+      const timer = setTimeout(() => onAutoExpand(item.id), 600);
       return () => clearTimeout(timer);
     }
-  }, [isInsideTarget, expanded]);
+  }, [isInsideTarget, expanded, item.id, onAutoExpand]);
 
   const { attributes, listeners, setNodeRef: setDragRef } = useDraggable({
     id: item.id,
@@ -432,7 +507,7 @@ function TreeItemComponent({
   }, [setDragRef, setDropRef]);
 
   const handleClick = () => {
-    if (hasChildren || isFolder) setExpanded(!expanded);
+    if (hasChildren || isFolder) onToggleExpand(item.id);
     onSelect(item.id);
   };
 
@@ -485,7 +560,7 @@ function TreeItemComponent({
         {/* Expand/Collapse */}
         {(isFolder || hasChildren) ? (
           <button
-            onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+            onClick={(e) => { e.stopPropagation(); onToggleExpand(item.id); }}
             className="flex-shrink-0 p-0.5 hover:bg-foreground/10 rounded"
           >
             {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -545,6 +620,14 @@ function TreeItemComponent({
                 >
                   <Pencil size={14} /> {t('notes.rename', '이름 변경')}
                 </DropdownMenuItem>
+                {onDuplicate && (
+                  <DropdownMenuItem
+                    onClick={() => onDuplicate(item.id)}
+                    className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground cursor-pointer"
+                  >
+                    <Copy size={14} /> {t('notes.duplicate', '복제')}
+                  </DropdownMenuItem>
+                )}
                 {item.depth < MAX_DEPTH && (
                   <>
                     <DropdownMenuItem
@@ -584,8 +667,16 @@ function TreeItemComponent({
         )}
       </div>
 
-      {/* After drop indicator line */}
-      {isAfterTarget && (
+      {/* 'inside-first' indicator — 첫 자식 위치(자식 indent)에 선 표시 */}
+      {isInsideFirstTarget && (
+        <div
+          className="h-0.5 rounded-full bg-bridge-accent my-0.5"
+          style={{ marginLeft: (depth + 1) * 20 + 8, marginRight: 8 }}
+        />
+      )}
+
+      {/* After drop indicator line — 자식이 보이지 않을 때만 행 바로 아래 표시 */}
+      {isAfterTarget && !(expanded && hasChildren) && (
         <div
           className="h-0.5 rounded-full bg-bridge-accent my-0.5"
           style={{ marginLeft: indentPx, marginRight: 8 }}
@@ -605,12 +696,24 @@ function TreeItemComponent({
             onCreateBoard={onCreateBoard}
             onDelete={onDelete}
             onRename={onRename}
+            onDuplicate={onDuplicate}
             canEdit={canEdit}
             depth={depth + 1}
             activeId={activeId}
             dropTarget={dropTarget}
+            collapsedIds={collapsedIds}
+            onToggleExpand={onToggleExpand}
+            onAutoExpand={onAutoExpand}
           />
         </div>
+      )}
+
+      {/* After drop indicator — 펼쳐진 서브트리 뒤로 가는 경우 서브트리 끝에 표시 */}
+      {isAfterTarget && expanded && hasChildren && (
+        <div
+          className="h-0.5 rounded-full bg-bridge-accent my-0.5"
+          style={{ marginLeft: indentPx, marginRight: 8 }}
+        />
       )}
     </div>
   );

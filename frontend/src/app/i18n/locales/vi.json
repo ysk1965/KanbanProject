@@ -2825,6 +2825,7 @@
     "editThisAndFuture": "Chỉnh sửa cuộc họp này và các cuộc họp sau"
   },
   "notes": {
+    "moveFailed": "Di chuyển ghi chú thất bại",
     "addTag": "Thêm thẻ",
     "aiAlreadyExists": "Đã tồn tại",
     "aiAnalyzing": "AI đang phân tích ghi chú của bạn...",

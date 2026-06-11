@@ -37,6 +37,7 @@ public class NoteService {
     private final NoteCollabStateRepository noteCollabStateRepository;
     private final NoteDraftArchiveRepository noteDraftArchiveRepository;
     private final NoteCollabService noteCollabService;
+    private final NoteLikeRepository noteLikeRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
@@ -99,7 +100,33 @@ public class NoteService {
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
         boolean hasDraft = noteCollabService.hasUnpublishedDraft(noteId, note.getUpdatedAt());
 
-        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft);
+        int likeCount = noteLikeRepository.countByNoteId(noteId);
+        boolean liked = noteLikeRepository.existsByNoteIdAndUserId(noteId, userId);
+
+        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft, likeCount, liked);
+    }
+
+    @Transactional
+    public NoteResponse.Detail toggleLike(String boardId, String noteId, String userId) {
+        boardService.checkViewerOrAbove(boardId, userId);
+        Note note = getNoteOrThrow(boardId, noteId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        boolean exists = noteLikeRepository.existsByNoteIdAndUserId(noteId, userId);
+        if (exists) {
+            noteLikeRepository.deleteByNoteIdAndUserId(noteId, userId);
+        } else {
+            noteLikeRepository.save(NoteLike.builder().note(note).user(user).build());
+        }
+
+        List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
+        int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
+        boolean hasDraft = noteCollabService.hasUnpublishedDraft(noteId, note.getUpdatedAt());
+        int likeCount = noteLikeRepository.countByNoteId(noteId);
+        boolean liked = !exists;
+
+        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft, likeCount, liked);
     }
 
     @Transactional
@@ -326,10 +353,24 @@ public class NoteService {
             }
         }
 
-        int position = request.getPosition() != null ? request.getPosition() :
-                (newParent != null ? noteRepository.findNextChildPosition(newParent.getId()) : noteRepository.findNextRootPosition(boardId));
+        // position은 형제 목록 내 삽입 인덱스. 이동 후 형제 전체를 0..n으로 재부여해
+        // 중복/구멍 난 position을 멱등하게 보정한다.
+        List<Note> siblings = (newParent != null)
+                ? noteRepository.findChildrenByParentId(newParent.getId())
+                : noteRepository.findRootsByBoardId(boardId);
+        siblings.removeIf(n -> n.getId().equals(noteId));
 
-        note.moveTo(newParent, position);
+        int index = request.getPosition() != null
+                ? Math.max(0, Math.min(request.getPosition(), siblings.size()))
+                : siblings.size();
+
+        note.moveTo(newParent, index);
+        siblings.add(index, note);
+        for (int i = 0; i < siblings.size(); i++) {
+            if (siblings.get(i).getPosition() != i) {
+                siblings.get(i).updatePosition(i);
+            }
+        }
 
         // Update depth for all descendants
         updateDescendantDepths(note);
@@ -365,7 +406,8 @@ public class NoteService {
                maxAttempts = 3,
                backoff = @Backoff(delay = 50, multiplier = 2.0))
     @Transactional
-    public NoteResponse.Detail restoreVersion(String boardId, String noteId, String versionId, String userId) {
+    public NoteResponse.Detail restoreVersion(String boardId, String noteId, String versionId, String userId,
+                                              NoteRequest.RestoreVersion request) {
         boardService.checkMemberOrAbove(boardId, userId);
 
         Note note = getNoteOrThrow(boardId, noteId);
@@ -375,17 +417,39 @@ public class NoteService {
         NoteVersion version = noteVersionRepository.findByIdAndNoteId(versionId, noteId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_VERSION_NOT_FOUND));
 
-        // Save current state as new version before restoring
-        int nextVersion = noteVersionRepository.findMaxVersionNumber(noteId) + 1;
-        NoteVersion currentSnapshot = NoteVersion.createFrom(note, user, nextVersion);
-        noteVersionRepository.save(currentSnapshot);
+        // Save current state as new version before restoring. The client sends
+        // the live on-screen title/content so unpublished draft edits are
+        // preserved too; fall back to the published snapshot when absent.
+        String snapshotTitle = request != null && request.getCurrentTitle() != null
+                ? request.getCurrentTitle() : note.getTitle();
+        String snapshotContent = request != null && request.getCurrentContent() != null
+                ? request.getCurrentContent() : note.getContent();
+
+        // Skip the snapshot when it would be identical to the version being
+        // restored — restoring the latest version with no screen changes would
+        // otherwise stack duplicate rows.
+        boolean snapshotDiffers = !Objects.equals(snapshotTitle, version.getTitle())
+                || !Objects.equals(snapshotContent, version.getContent());
+        int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
+        if (snapshotDiffers) {
+            versionCount = versionCount + 1;
+            NoteVersion currentSnapshot = NoteVersion.create(note, snapshotTitle, snapshotContent, user, versionCount);
+            noteVersionRepository.save(currentSnapshot);
+        }
 
         // Restore
         note.updateTitle(version.getTitle());
         note.updateContent(version.getContent(), user);
 
+        // 복원본이 새 발행본이 되므로 stale Yjs draft를 폐기한다. 그렇지 않으면
+        // 다음 편집 진입 시 복원 이전 시점의 draft로 hydration 된다.
+        // (updateNote 발행 경로와 동일한 3-스텝)
+        noteCollabService.deleteState(noteId);
+        eventPublisher.publishEvent(new NoteDraftDiscardedEvent(noteId));
+        eventPublisher.publishEvent(new NoteSnapshotSavedEvent(noteId));
+
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
-        return NoteResponse.Detail.of(note, tags, nextVersion);
+        return NoteResponse.Detail.of(note, tags, versionCount, false);
     }
 
     @Transactional
@@ -624,6 +688,7 @@ public class NoteService {
             hardDeleteRecursive(child);
         }
         // 종속 데이터 삭제 (reactions → comments → mappings → versions → collab → note)
+        noteLikeRepository.deleteByNoteId(note.getId());
         noteCommentReactionRepository.deleteByNoteId(note.getId());
         noteCommentRepository.deleteByNoteId(note.getId());
         noteTagMappingRepository.deleteAllByNoteId(note.getId());

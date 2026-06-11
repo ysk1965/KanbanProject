@@ -32,6 +32,8 @@ import {
   Columns3,
   FileDown,
   RotateCcw,
+  Heart,
+  Folder,
 } from "lucide-react";
 
 const ExcalidrawEditor = React.lazy(() => import("./ExcalidrawEditor"));
@@ -76,11 +78,18 @@ import type {
   NoteDetail,
   NoteTagInfo,
   NoteAISuggestionResponse,
+  NoteTreeItem,
 } from "../../utils/api";
 import { NoteShareButton } from "./NoteShareButton";
 import { NoteBottomComments } from "./NoteBottomComments";
 import { IconButton } from "../ui/IconButton";
 import type { CollaborationState } from "../../hooks/useCollaboration";
+
+export interface BreadcrumbItem {
+  id: string;
+  title: string;
+  type: "FOLDER" | "DOCUMENT" | "BOARD";
+}
 
 interface NoteEditorProps {
   boardId?: string;
@@ -96,13 +105,12 @@ interface NoteEditorProps {
   ) => void;
   onTagsChange: () => void;
   onNoteUpdate?: (note: NoteDetail) => void;
-  // Triggers a fresh Y.Doc/provider/editor in the parent useCollaboration.
-  // Used by draft discard to guarantee a clean local state regardless of
-  // the previous editor's mount/destroy lifecycle.
   onCollabReset?: () => void;
   collaboration: CollaborationState | null;
   currentUserName: string;
   currentUserColor: string;
+  breadcrumbs?: BreadcrumbItem[];
+  onBreadcrumbClick?: (noteId: string) => void;
 }
 
 export function NoteEditor({
@@ -119,6 +127,8 @@ export function NoteEditor({
   collaboration,
   currentUserName,
   currentUserColor,
+  breadcrumbs,
+  onBreadcrumbClick,
 }: NoteEditorProps) {
   // Show brief loading while collaboration provider initializes
   if (
@@ -194,6 +204,8 @@ export function NoteEditor({
       collaboration={collaboration}
       currentUserName={currentUserName}
       currentUserColor={currentUserColor}
+      breadcrumbs={breadcrumbs}
+      onBreadcrumbClick={onBreadcrumbClick}
     />
   );
 }
@@ -219,6 +231,8 @@ interface CollabEditorProps {
   collaboration: CollaborationState;
   currentUserName: string;
   currentUserColor: string;
+  breadcrumbs?: BreadcrumbItem[];
+  onBreadcrumbClick?: (noteId: string) => void;
 }
 
 function CollabNoteEditor({
@@ -234,6 +248,8 @@ function CollabNoteEditor({
   collaboration,
   currentUserName,
   currentUserColor,
+  breadcrumbs,
+  onBreadcrumbClick,
 }: CollabEditorProps) {
   const { t, i18n } = useTranslation();
   const { currentUser } = useAuth();
@@ -246,6 +262,10 @@ function CollabNoteEditor({
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
+  // Bumped when the collab stack is force-rebuilt while EDIT stays mounted
+  // (version restore) so BlockNoteView remounts cleanly with the new editor
+  // instead of swapping editor instances on a live view.
+  const [editorGen, setEditorGen] = useState(0);
   // Whether a discarded draft is archived and restorable (되돌리기). Only ever
   // true in VIEW mode with no live unpublished draft.
   const [hasDiscardedDraft, setHasDiscardedDraft] = useState(false);
@@ -567,12 +587,11 @@ function CollabNoteEditor({
     return () => cancelAnimationFrame(raf);
   }, [mode, editor, note.content]);
 
-  // Cleanup title save timer on unmount or note change
   useEffect(() => {
     return () => {
       if (titleSaveTimerRef.current) clearTimeout(titleSaveTimerRef.current);
     };
-  }, [note.id]);
+  }, [note.id, mode]);
 
   // Sync title when note changes
   useEffect(() => {
@@ -863,7 +882,15 @@ function CollabNoteEditor({
   // next editor picks up where we left off; View users keep seeing the last
   // published snapshot until someone hits Save.
   const handleExitEdit = useCallback(() => {
-    collaboration.provider.sendFullState();
+    try {
+      collaboration.provider.sendFullState();
+    } catch (err) {
+      console.error("Failed to persist draft on exit:", err);
+    }
+    if (titleSaveTimerRef.current) {
+      clearTimeout(titleSaveTimerRef.current);
+      titleSaveTimerRef.current = null;
+    }
     setMode("view");
     setHasChanges(false);
   }, [collaboration.provider]);
@@ -1054,6 +1081,28 @@ function CollabNoteEditor({
       {/* Editor Header */}
       <div className="px-4 sm:px-6 py-3 border-b border-foreground/5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:justify-between">
         <div className="flex-1 min-w-0">
+          {breadcrumbs && breadcrumbs.length > 0 && (
+            <nav className="flex items-center gap-1 mb-1 text-xs text-slate-500 overflow-x-auto">
+              {breadcrumbs.map((bc, i) => (
+                <span
+                  key={bc.id}
+                  className="flex items-center gap-1 flex-shrink-0"
+                >
+                  {i > 0 && (
+                    <ChevronRight size={10} className="text-slate-600" />
+                  )}
+                  <button
+                    onClick={() => onBreadcrumbClick?.(bc.id)}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors truncate max-w-[120px]"
+                    title={bc.title}
+                  >
+                    {bc.type === "FOLDER" && <Folder size={10} />}
+                    <span className="truncate">{bc.title}</span>
+                  </button>
+                </span>
+              ))}
+            </nav>
+          )}
           <input
             value={title}
             onChange={(e) => handleTitleChange(e.target.value)}
@@ -1150,6 +1199,38 @@ function CollabNoteEditor({
           />
 
           <button
+            onClick={async () => {
+              try {
+                const svcMod = boardId
+                  ? await import("../../utils/services").then(
+                      (m) => m.noteService,
+                    )
+                  : await import("../../utils/services").then(
+                      (m) => m.orgNoteService,
+                    );
+                const updated = await svcMod.toggleLike(
+                  (boardId || orgId)!,
+                  note.id,
+                );
+                onNoteUpdate?.(updated);
+              } catch {
+                // silently ignore — backend may not support yet
+              }
+            }}
+            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              note.liked
+                ? "text-rose-500 bg-rose-500/10"
+                : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+            }`}
+            title={t("notes.like", "좋아요")}
+          >
+            <Heart size={14} fill={note.liked ? "currentColor" : "none"} />
+            {(note.like_count ?? 0) > 0 && (
+              <span className="hidden lg:inline">{note.like_count}</span>
+            )}
+          </button>
+
+          <button
             onClick={() => setShowComments(!showComments)}
             className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               showComments
@@ -1191,43 +1272,71 @@ function CollabNoteEditor({
               onTagsChange={onTagsChange}
             />
           )}
-          <NoteVersionHistory
-            boardId={boardId}
-            orgId={orgId}
-            noteId={note.id}
-            noteType={note.type}
-            currentTitle={note.title}
-            currentContent={note.content}
-            versionCount={note.version_count}
-            canEdit={canEdit && mode === "edit"}
-            onRestore={async () => {
-              // After restoring, refetch and let the provider sync
-              if (boardId) {
-                const { noteService } = await import("../../utils/services");
-                const updated = await noteService.getDetail(boardId, note.id);
+          {canEdit && mode === "edit" && (
+            <NoteVersionHistory
+              boardId={boardId}
+              orgId={orgId}
+              noteId={note.id}
+              noteType={note.type}
+              currentTitle={note.title}
+              currentContent={note.content}
+              versionCount={note.version_count}
+              canEdit={canEdit}
+              getLiveSnapshot={() => ({
+                title,
+                content: serializeForSave(editor),
+              })}
+              hasOtherEditors={editorPeers.length > 0}
+              onBeforeRestore={() => {
+                // Flip read-only BEFORE the restore request: the collab stack
+                // is torn down right after, and CollabProvider.disconnect()
+                // flushes the full (pre-restore) Y.Doc to the server unless
+                // readOnly — which would resurrect the stale draft the backend
+                // just discarded.
+                collaboration.provider.setReadOnly(true);
+              }}
+              onRestoreFailed={() => {
+                // Restore failed — re-enable syncing for the live edit session.
+                collaboration.provider.setReadOnly(modeRef.current === "view");
+              }}
+              onRestore={async () => {
+                // Refetch the restored note, then rebuild the Y.Doc/provider/
+                // editor stack so the fresh empty doc rehydrates from the
+                // restored note.content (mirrors handleDiscardDraft).
+                const { noteService, orgNoteService } =
+                  await import("../../utils/services");
+                const updated = boardId
+                  ? await noteService.getDetail(boardId, note.id)
+                  : orgId
+                    ? await orgNoteService.getDetail(orgId, note.id)
+                    : null;
+                if (!updated) return;
                 setTitle(updated.title);
                 setHasChanges(false);
                 onNoteUpdate?.(updated);
-              } else if (orgId) {
-                const { orgNoteService } = await import("../../utils/services");
-                const updated = await orgNoteService.getDetail(orgId, note.id);
-                setTitle(updated.title);
-                setHasChanges(false);
-                onNoteUpdate?.(updated);
-              }
-            }}
-            onVersionsChanged={async () => {
-              if (boardId) {
-                const { noteService } = await import("../../utils/services");
-                const updated = await noteService.getDetail(boardId, note.id);
-                onNoteUpdate?.(updated);
-              } else if (orgId) {
-                const { orgNoteService } = await import("../../utils/services");
-                const updated = await orgNoteService.getDetail(orgId, note.id);
-                onNoteUpdate?.(updated);
-              }
-            }}
-          />
+                initialContentLoaded.current = false;
+                hydratingRef.current = false;
+                setEditorGen((g) => g + 1);
+                onCollabReset?.();
+              }}
+              onVersionsChanged={async () => {
+                if (boardId) {
+                  const { noteService } = await import("../../utils/services");
+                  const updated = await noteService.getDetail(boardId, note.id);
+                  onNoteUpdate?.(updated);
+                } else if (orgId) {
+                  const { orgNoteService } = await import(
+                    "../../utils/services"
+                  );
+                  const updated = await orgNoteService.getDetail(
+                    orgId,
+                    note.id,
+                  );
+                  onNoteUpdate?.(updated);
+                }
+              }}
+            />
+          )}
           {mode === "edit" && canEdit && boardId && note.content?.trim() && (
             <button
               onClick={handleAIOrganize}
@@ -1334,10 +1443,7 @@ function CollabNoteEditor({
           hasDiscardedDraft && (
             <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-2.5">
               <div className="flex items-center gap-2 min-w-0">
-                <RotateCcw
-                  size={14}
-                  className="text-amber-500 flex-shrink-0"
-                />
+                <RotateCcw size={14} className="text-amber-500 flex-shrink-0" />
                 <span className="text-xs text-foreground truncate">
                   {t(
                     "notes.unpublishedDraft.discardedBanner",
@@ -1393,7 +1499,7 @@ function CollabNoteEditor({
             />
           ) : (
             <BlockNoteView
-              key={`edit-${note.id}`}
+              key={`edit-${note.id}-${editorGen}`}
               editor={editor}
               theme={isDark ? "dark" : "light"}
               editable={canEdit && mode === "edit"}

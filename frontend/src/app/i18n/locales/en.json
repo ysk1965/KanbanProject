@@ -3058,6 +3058,7 @@
     "featureAiCredits": "AI Credits: {{credits}}/month"
   },
   "notes": {
+    "moveFailed": "Failed to move the note",
     "title": "Notes",
     "treeView": "Tree View",
     "listView": "List View",
@@ -3070,6 +3071,9 @@
     "addBoard": "Add Board",
     "rename": "Rename",
     "confirmDelete": "Are you sure? All sub-items will also be deleted.",
+    "duplicate": "Duplicate",
+    "copy": "Copy",
+    "like": "Like",
     "selectOrCreate": "Select a document or create a new one",
     "createFirstDocument": "Create First Document",
     "folderSelected": "Folder selected",
@@ -3081,6 +3085,7 @@
     "version": "Version",
     "restore": "Restore",
     "restoreConfirm": "Restore this version?",
+    "blockRestoreWithEditors": "Cannot restore while others are editing. Please try again after everyone finishes editing.",
     "noVersions": "No saved versions",
     "savedVersion": "Version {{version}} saved",
     "restoredVersion": "Restored from version {{version}}",
@@ -3097,7 +3102,8 @@
       "legendRemoved": "This was removed",
       "added": "Added",
       "removed": "Removed",
-      "modified": "Modified"
+      "modified": "Modified",
+      "compareToCurrent": "→ Current"
     },
     "tags": "Tags",
     "addTag": "Add Tag",

@@ -2825,6 +2825,7 @@
     "editThisAndFuture": "यह और भविष्य की बैठकें संपादित करें"
   },
   "notes": {
+    "moveFailed": "नोट स्थानांतरित करने में विफल",
     "addTag": "टैग जोड़ें",
     "aiAlreadyExists": "पहले से मौजूद",
     "aiAnalyzing": "AI नोट का विश्लेषण कर रहा है...",

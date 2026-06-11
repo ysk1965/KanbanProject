@@ -705,42 +705,67 @@ export default function ExcalidrawEditor({
               onTagsChange={onTagsChange}
             />
           )}
-          <NoteVersionHistory
-            boardId={boardId}
-            orgId={orgId}
-            noteId={note.id}
-            noteType={note.type}
-            currentTitle={note.title}
-            currentContent={note.content}
-            versionCount={note.version_count}
-            canEdit={canEdit && mode === "edit"}
-            onRestore={async () => {
-              let updated;
-              if (boardId) {
-                const { noteService } = await import("../../utils/services");
-                updated = await noteService.getDetail(boardId, note.id);
-              } else if (orgId) {
-                const { orgNoteService } = await import("../../utils/services");
-                updated = await orgNoteService.getDetail(orgId, note.id);
-              }
-              if (!updated) return;
-              setTitle(updated.title);
-              setHasChanges(false);
-              if (updated.content?.trim() && excalidrawAPIRef.current) {
-                try {
-                  const parsed = JSON.parse(updated.content);
-                  excalidrawAPIRef.current.updateScene({
-                    elements: parsed.elements || [],
-                    ...(CaptureUpdateActionRef
-                      ? { captureUpdate: CaptureUpdateActionRef.NEVER }
-                      : {}),
-                  });
-                } catch {
-                  // ignore
+          {canEdit && mode === "edit" && (
+            <NoteVersionHistory
+              boardId={boardId}
+              orgId={orgId}
+              noteId={note.id}
+              noteType={note.type}
+              currentTitle={note.title}
+              currentContent={note.content}
+              versionCount={note.version_count}
+              canEdit={canEdit}
+              getLiveSnapshot={() => {
+                // Serialize the live canvas (same shape as handleSave) so the
+                // pre-restore snapshot keeps unpublished scene edits.
+                const api = excalidrawAPIRef.current;
+                if (!api) return { title, content: note.content || "" };
+                return {
+                  title,
+                  content: JSON.stringify({
+                    type: "excalidraw",
+                    version: 2,
+                    source: "bridge-notes",
+                    elements: api.getSceneElements(),
+                    appState: {
+                      viewBackgroundColor: api.getAppState().viewBackgroundColor,
+                    },
+                    files: api.getFiles() || {},
+                  }),
+                };
+              }}
+              hasOtherEditors={editorPeers.length > 0}
+              onRestore={async () => {
+                let updated;
+                if (boardId) {
+                  const { noteService } = await import("../../utils/services");
+                  updated = await noteService.getDetail(boardId, note.id);
+                } else if (orgId) {
+                  const { orgNoteService } = await import(
+                    "../../utils/services"
+                  );
+                  updated = await orgNoteService.getDetail(orgId, note.id);
                 }
-              }
-            }}
-          />
+                if (!updated) return;
+                setTitle(updated.title);
+                setHasChanges(false);
+                onNoteUpdate?.(updated);
+                if (updated.content?.trim() && excalidrawAPIRef.current) {
+                  try {
+                    const parsed = JSON.parse(updated.content);
+                    excalidrawAPIRef.current.updateScene({
+                      elements: parsed.elements || [],
+                      ...(CaptureUpdateActionRef
+                        ? { captureUpdate: CaptureUpdateActionRef.NEVER }
+                        : {}),
+                    });
+                  } catch {
+                    // ignore
+                  }
+                }
+              }}
+            />
+          )}
           {mode === "edit" && (
             <button
               onClick={() => setGridEnabled((v) => !v)}

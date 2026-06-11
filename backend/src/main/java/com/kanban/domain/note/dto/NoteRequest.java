@@ -37,6 +37,17 @@ public class NoteRequest {
 
     @Getter
     @NoArgsConstructor
+    public static class RestoreVersion {
+        // 복원 직전 화면의 라이브 내용. 제공되면 미발행 편집분까지 포함해
+        // 복원 전 스냅샷 버전으로 보존한다. 없으면 발행본(note.content) 사용.
+        @Size(max = 200, message = "제목은 200자 이내여야 합니다")
+        private String currentTitle;
+
+        private String currentContent;
+    }
+
+    @Getter
+    @NoArgsConstructor
     public static class Move {
         private String parentId; // null = root
         private Integer position;
