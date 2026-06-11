@@ -38,6 +38,18 @@ interface NoteVersionHistoryProps {
   canEdit: boolean;
   onRestore: () => void;
   onVersionsChanged?: () => void;
+  // Live on-screen title/content (includes unpublished edits). Sent with the
+  // restore request so the pre-restore snapshot captures exactly what the user
+  // saw, not just the last published content.
+  getLiveSnapshot?: () => { title: string; content: string };
+  // Restore destroys the shared Yjs draft — block it while other editors are
+  // active (mirrors the discard-draft guard in NoteEditor).
+  hasOtherEditors?: boolean;
+  // Called right before the restore API request (e.g. to flip the collab
+  // provider read-only so its teardown flush can't resurrect the stale draft),
+  // and on API failure to undo that.
+  onBeforeRestore?: () => void;
+  onRestoreFailed?: () => void;
 }
 
 export function NoteVersionHistory({
@@ -51,6 +63,10 @@ export function NoteVersionHistory({
   canEdit,
   onRestore,
   onVersionsChanged,
+  getLiveSnapshot,
+  hasOtherEditors,
+  onBeforeRestore,
+  onRestoreFailed,
 }: NoteVersionHistoryProps) {
   const svc = orgId ? orgNoteService : noteService;
   const scopeId = boardId || orgId || "";
@@ -63,6 +79,9 @@ export function NoteVersionHistory({
   const [versions, setVersions] = useState<NoteVersionInfo[]>([]);
   const [selectedVersion, setSelectedVersion] =
     useState<NoteVersionDetail | null>(null);
+  const [compareVersion, setCompareVersion] =
+    useState<NoteVersionDetail | null>(null);
+  const [compareMode, setCompareMode] = useState<"current" | "version">("current");
   const [diffMode, setDiffMode] = useState(true);
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -92,6 +111,8 @@ export function NoteVersionHistory({
       try {
         const detail = await svc.getVersionDetail(scopeId, noteId, versionId);
         setSelectedVersion(detail);
+        setCompareVersion(null);
+        setCompareMode("current");
         setDiffMode(true);
       } catch (err) {
         console.error("Failed to load version detail:", err);
@@ -102,6 +123,15 @@ export function NoteVersionHistory({
 
   const handleRestore = useCallback(
     async (versionId: string) => {
+      if (hasOtherEditors) {
+        window.alert(
+          t(
+            "notes.blockRestoreWithEditors",
+            "다른 사용자가 편집 중이라 복원할 수 없어요. 모두 편집을 마친 뒤 다시 시도해 주세요.",
+          ),
+        );
+        return;
+      }
       if (
         !window.confirm(
           t("notes.restoreConfirm", "이 버전으로 복원하시겠습니까?"),
@@ -109,18 +139,38 @@ export function NoteVersionHistory({
       )
         return;
       setRestoring(true);
+      onBeforeRestore?.();
       try {
-        await svc.restoreVersion(scopeId, noteId, versionId);
+        const live = getLiveSnapshot?.();
+        await svc.restoreVersion(
+          scopeId,
+          noteId,
+          versionId,
+          live
+            ? { current_title: live.title, current_content: live.content }
+            : undefined,
+        );
         onRestore();
         setIsOpen(false);
         setSelectedVersion(null);
       } catch (err) {
         console.error("Failed to restore version:", err);
+        onRestoreFailed?.();
       } finally {
         setRestoring(false);
       }
     },
-    [scopeId, noteId, onRestore, t, svc],
+    [
+      scopeId,
+      noteId,
+      onRestore,
+      t,
+      svc,
+      hasOtherEditors,
+      getLiveSnapshot,
+      onBeforeRestore,
+      onRestoreFailed,
+    ],
   );
 
   const handleDeleteVersion = useCallback(
@@ -212,7 +262,9 @@ export function NoteVersionHistory({
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <History size={14} className="text-bridge-accent" />
                 {selectedVersion
-                  ? `v${selectedVersion.version_number} → ${t("notes.diff.current", "현재")}`
+                  ? compareMode === "version" && compareVersion
+                    ? `v${selectedVersion.version_number} → v${compareVersion.version_number}`
+                    : `v${selectedVersion.version_number} → ${t("notes.diff.current", "현재")}`
                   : t("notes.versionHistory", "버전 히스토리")}
               </h3>
               <div className="flex items-center gap-1">
@@ -270,6 +322,38 @@ export function NoteVersionHistory({
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
+                    {/* Compare target selector */}
+                    {versions.length > 1 && (
+                      <select
+                        value={compareMode === "version" && compareVersion ? compareVersion.id : "__current__"}
+                        onChange={async (e) => {
+                          const val = e.target.value;
+                          if (val === "__current__") {
+                            setCompareMode("current");
+                            setCompareVersion(null);
+                          } else {
+                            try {
+                              const detail = await svc.getVersionDetail(scopeId, noteId, val);
+                              setCompareVersion(detail);
+                              setCompareMode("version");
+                              setDiffMode(true);
+                            } catch (err) {
+                              console.error("Failed to load compare version:", err);
+                            }
+                          }
+                        }}
+                        className="bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                      >
+                        <option value="__current__">{t("notes.diff.compareToCurrent", "→ 현재")}</option>
+                        {versions
+                          .filter((v) => v.id !== selectedVersion.id)
+                          .map((v) => (
+                            <option key={v.id} value={v.id}>
+                              → v{v.version_number}
+                            </option>
+                          ))}
+                      </select>
+                    )}
                     {/* Diff / Original toggle */}
                     <div className="flex items-center bg-foreground/5 rounded-lg p-0.5">
                       <button
@@ -354,9 +438,9 @@ export function NoteVersionHistory({
                   <NoteVersionDiffView
                     noteType={noteType}
                     previousTitle={selectedVersion.title}
-                    currentTitle={currentTitle}
+                    currentTitle={compareMode === "version" && compareVersion ? compareVersion.title : currentTitle}
                     previousContent={selectedVersion.content}
-                    currentContent={currentContent}
+                    currentContent={compareMode === "version" && compareVersion ? compareVersion.content : currentContent}
                   />
                 ) : noteType === "BOARD" ? (
                   <BoardOriginalView content={selectedVersion.content} />

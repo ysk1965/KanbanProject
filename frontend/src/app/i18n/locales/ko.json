@@ -3060,6 +3060,7 @@
     "featureAiCredits": "AI 크레딧: {{credits}}/월"
   },
   "notes": {
+    "moveFailed": "노트 이동에 실패했습니다",
     "title": "노트",
     "treeView": "트리 뷰",
     "listView": "리스트 뷰",
@@ -3072,6 +3073,9 @@
     "addBoard": "보드 추가",
     "rename": "이름 변경",
     "confirmDelete": "정말 삭제하시겠습니까? 하위 항목도 모두 삭제됩니다.",
+    "duplicate": "복제",
+    "copy": "사본",
+    "like": "좋아요",
     "selectOrCreate": "문서를 선택하거나 새로 만들어주세요",
     "createFirstDocument": "첫 문서 만들기",
     "folderSelected": "폴더가 선택되었습니다",
@@ -3083,6 +3087,7 @@
     "version": "버전",
     "restore": "복원",
     "restoreConfirm": "이 버전으로 복원하시겠습니까?",
+    "blockRestoreWithEditors": "다른 사용자가 편집 중이라 복원할 수 없어요. 모두 편집을 마친 뒤 다시 시도해 주세요.",
     "noVersions": "저장된 버전이 없습니다",
     "savedVersion": "버전 {{version}} 저장됨",
     "restoredVersion": "버전 {{version}}에서 복원됨",
@@ -3099,7 +3104,8 @@
       "legendRemoved": "삭제된 내용",
       "added": "추가",
       "removed": "삭제",
-      "modified": "변경"
+      "modified": "변경",
+      "compareToCurrent": "→ 현재"
     },
     "tags": "태그",
     "addTag": "태그 추가",

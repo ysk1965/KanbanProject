@@ -152,8 +152,9 @@ public class NoteController {
             @PathVariable String boardId,
             @PathVariable String noteId,
             @PathVariable String versionId,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        NoteResponse.Detail restored = noteService.restoreVersion(boardId, noteId, versionId, principal.getUserId());
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody(required = false) @Valid NoteRequest.RestoreVersion request) {
+        NoteResponse.Detail restored = noteService.restoreVersion(boardId, noteId, versionId, principal.getUserId(), request);
         return ResponseEntity.ok(restored);
     }
 
@@ -256,5 +257,15 @@ public class NoteController {
         NoteAIResponse.ApplyResult response = noteAIService.applySuggestions(
                 boardId, noteId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
+    }
+
+    // ===== Like =====
+
+    @PostMapping("/{noteId}/like/toggle")
+    public ResponseEntity<NoteResponse.Detail> toggleLike(
+            @PathVariable String boardId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(noteService.toggleLike(boardId, noteId, principal.getUserId()));
     }
 }

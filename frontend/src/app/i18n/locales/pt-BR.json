@@ -2825,6 +2825,7 @@
     "editThisAndFuture": "Editar esta e futuras reuniões"
   },
   "notes": {
+    "moveFailed": "Falha ao mover a nota",
     "addTag": "Adicionar tag",
     "aiAlreadyExists": "Já existe",
     "aiAnalyzing": "A IA está analisando sua nota...",

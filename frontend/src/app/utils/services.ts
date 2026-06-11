@@ -2874,8 +2874,9 @@ export const noteService = {
     boardId: string,
     noteId: string,
     versionId: string,
+    liveSnapshot?: { current_title?: string; current_content?: string },
   ) => {
-    return await noteAPI.restoreVersion(boardId, noteId, versionId);
+    return await noteAPI.restoreVersion(boardId, noteId, versionId, liveSnapshot);
   },
 
   deleteVersion: async (
@@ -2908,6 +2909,10 @@ export const noteService = {
 
   disableShare: async (boardId: string, noteId: string) => {
     return await noteAPI.disableShare(boardId, noteId);
+  },
+
+  toggleLike: async (boardId: string, noteId: string) => {
+    return await noteAPI.toggleLike(boardId, noteId);
   },
 
   getTrash: async (boardId: string) => {
@@ -3042,8 +3047,13 @@ export const orgNoteService = {
   getVersionDetail: async (orgId: string, noteId: string, versionId: string) => {
     return await orgNoteAPI.getVersionDetail(orgId, noteId, versionId);
   },
-  restoreVersion: async (orgId: string, noteId: string, versionId: string) => {
-    return await orgNoteAPI.restoreVersion(orgId, noteId, versionId);
+  restoreVersion: async (
+    orgId: string,
+    noteId: string,
+    versionId: string,
+    liveSnapshot?: { current_title?: string; current_content?: string },
+  ) => {
+    return await orgNoteAPI.restoreVersion(orgId, noteId, versionId, liveSnapshot);
   },
   deleteVersion: async (orgId: string, noteId: string, versionId: string) => {
     return await orgNoteAPI.deleteVersion(orgId, noteId, versionId);
@@ -3065,6 +3075,9 @@ export const orgNoteService = {
   },
   disableShare: async (orgId: string, noteId: string) => {
     return await orgNoteAPI.disableShare(orgId, noteId);
+  },
+  toggleLike: async (orgId: string, noteId: string) => {
+    return await orgNoteAPI.toggleLike(orgId, noteId);
   },
   getTrash: async (orgId: string) => {
     return await orgNoteAPI.getTrash(orgId);

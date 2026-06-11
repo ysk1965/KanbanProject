@@ -5552,6 +5552,8 @@ export interface NoteDetail {
   is_shared: boolean;
   share_token: string | null;
   has_unpublished_draft: boolean;
+  like_count: number;
+  liked: boolean;
 }
 
 export interface SharedNote {
@@ -5813,9 +5815,11 @@ export const noteAPI = {
     boardId: string,
     noteId: string,
     versionId: string,
+    liveSnapshot?: { current_title?: string; current_content?: string },
   ) => {
     return apiClient.post<NoteDetail>(
       `/boards/${boardId}/notes/${noteId}/versions/${versionId}/restore`,
+      liveSnapshot,
     );
   },
 
@@ -5898,6 +5902,13 @@ export const noteAPI = {
   rotateShareToken: async (boardId: string, noteId: string) => {
     return apiClient.post<NoteDetail>(
       `/boards/${boardId}/notes/${noteId}/share/rotate`,
+    );
+  },
+
+  // ===== Like =====
+  toggleLike: async (boardId: string, noteId: string) => {
+    return apiClient.post<NoteDetail>(
+      `/boards/${boardId}/notes/${noteId}/like/toggle`,
     );
   },
 
@@ -6024,9 +6035,15 @@ export const orgNoteAPI = {
     );
   },
 
-  restoreVersion: async (orgId: string, noteId: string, versionId: string) => {
+  restoreVersion: async (
+    orgId: string,
+    noteId: string,
+    versionId: string,
+    liveSnapshot?: { current_title?: string; current_content?: string },
+  ) => {
     return apiClient.post<NoteDetail>(
       `/organizations/${orgId}/notes/${noteId}/versions/${versionId}/restore`,
+      liveSnapshot,
     );
   },
 
@@ -6092,6 +6109,13 @@ export const orgNoteAPI = {
   rotateShareToken: async (orgId: string, noteId: string) => {
     return apiClient.post<NoteDetail>(
       `/organizations/${orgId}/notes/${noteId}/share/rotate`,
+    );
+  },
+
+  // ===== Like =====
+  toggleLike: async (orgId: string, noteId: string) => {
+    return apiClient.post<NoteDetail>(
+      `/organizations/${orgId}/notes/${noteId}/like/toggle`,
     );
   },
 

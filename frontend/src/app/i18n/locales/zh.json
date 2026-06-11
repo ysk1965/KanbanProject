@@ -2825,6 +2825,7 @@
     "editThisAndFuture": "编辑此会议及未来会议"
   },
   "notes": {
+    "moveFailed": "移动笔记失败",
     "addTag": "添加标签",
     "aiAlreadyExists": "已存在",
     "aiAnalyzing": "AI正在分析笔记...",

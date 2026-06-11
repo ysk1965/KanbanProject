@@ -3875,6 +3875,7 @@
     }
   },
   "notes": {
+    "moveFailed": "移動筆記失敗",
     "newBoard": "新畫板",
     "addBoard": "新增畫板",
     "editButton": "編輯",

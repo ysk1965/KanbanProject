@@ -146,8 +146,9 @@ public class OrgNoteController {
             @PathVariable String orgId,
             @PathVariable String noteId,
             @PathVariable String versionId,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(orgNoteService.restoreVersion(orgId, noteId, versionId, principal.getUserId()));
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody(required = false) @Valid NoteRequest.RestoreVersion request) {
+        return ResponseEntity.ok(orgNoteService.restoreVersion(orgId, noteId, versionId, principal.getUserId(), request));
     }
 
     @DeleteMapping("/{noteId}/versions/{versionId}")
@@ -222,5 +223,15 @@ public class OrgNoteController {
             @PathVariable String noteId,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(orgNoteService.rotateShareToken(orgId, noteId, principal.getUserId()));
+    }
+
+    // ===== Like =====
+
+    @PostMapping("/{noteId}/like/toggle")
+    public ResponseEntity<NoteResponse.Detail> toggleLike(
+            @PathVariable String orgId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(orgNoteService.toggleLike(orgId, noteId, principal.getUserId()));
     }
 }
