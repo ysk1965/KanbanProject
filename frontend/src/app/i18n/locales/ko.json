@@ -635,6 +635,10 @@
     "statusCompleted": "완료",
     "statusInProgress": "진행중",
     "statusWaiting": "대기",
+    "timeline": {
+      "title": "타임라인",
+      "noDate": "날짜 없음"
+    },
     "benefitGroupTitle": "Feature를 묶어 목표 관리",
     "benefitGroupDesc": "관련 Feature를 하나의 마일스톤으로 그룹화하여 목표별로 관리해요.",
     "benefitTrackTitle": "일정 기반 진행률 추적",

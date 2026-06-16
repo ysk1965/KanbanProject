@@ -21,6 +21,7 @@ import {
 import type { Feature, Task, Milestone, MilestoneFeatureInfo } from "../types";
 import { milestoneService } from "../utils/services";
 import { formatDateShort } from "../utils/dateUtils";
+import { MilestoneTimeline } from "./MilestoneTimeline";
 
 // ========================================
 // Types
@@ -36,6 +37,8 @@ interface MilestoneViewProps {
   onCreateMilestone?: () => void;
   onEditMilestone?: (milestone: Milestone) => void;
   onDeleteMilestone?: (milestoneId: string) => void;
+  /** 있으면 타임라인 막대 드래그로 기간 조정 가능 (편집 권한) */
+  onUpdateMilestoneDates?: (id: string, start: string, end: string) => void;
 }
 
 interface MilestoneDetailCache {
@@ -71,6 +74,57 @@ function ProgressBar({
   );
 }
 
+export type MilestoneStatusKey =
+  | "completed"
+  | "waiting"
+  | "overdue"
+  | "inProgress";
+
+/**
+ * 마일스톤 상태(완료/대기/초과/진행중)와 배지·막대 색상을 한 곳에서 결정.
+ * 배지(MilestoneStatusBadge)와 타임라인 막대(MilestoneTimeline)가 공유한다.
+ */
+export function getMilestoneStatus(
+  startDate: string,
+  endDate: string,
+  progress: number,
+): { key: MilestoneStatusKey; barColor: string; badgeClasses: string } {
+  const now = new Date();
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (progress >= 100) {
+    return {
+      key: "completed",
+      barColor: "bg-green-500",
+      badgeClasses:
+        "bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30",
+    };
+  }
+  if (now < start) {
+    return {
+      key: "waiting",
+      barColor: "bg-slate-400",
+      badgeClasses:
+        "bg-slate-500/20 text-slate-600 dark:text-slate-400 border-slate-500/30",
+    };
+  }
+  if (now > end) {
+    return {
+      key: "overdue",
+      barColor: "bg-red-500",
+      badgeClasses:
+        "bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30",
+    };
+  }
+  return {
+    key: "inProgress",
+    barColor: "bg-bridge-accent",
+    badgeClasses:
+      "bg-bridge-accent/20 text-bridge-accent border-bridge-accent/30",
+  };
+}
+
 function MilestoneStatusBadge({
   startDate,
   endDate,
@@ -81,34 +135,24 @@ function MilestoneStatusBadge({
   progress: number;
 }) {
   const { t } = useTranslation();
-  const now = new Date();
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const { key, badgeClasses } = getMilestoneStatus(
+    startDate,
+    endDate,
+    progress,
+  );
 
-  let label: string;
-  let colorClasses: string;
-
-  if (progress >= 100) {
-    label = t("milestone.statusCompleted");
-    colorClasses =
-      "bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30";
-  } else if (now < start) {
-    label = t("milestone.statusWaiting");
-    colorClasses =
-      "bg-slate-500/20 text-slate-600 dark:text-slate-400 border-slate-500/30";
-  } else if (now > end) {
-    label = t("schedule.overdue", { defaultValue: "Overdue" });
-    colorClasses =
-      "bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30";
-  } else {
-    label = t("milestone.statusInProgress");
-    colorClasses =
-      "bg-bridge-accent/20 text-bridge-accent border-bridge-accent/30";
-  }
+  const label =
+    key === "completed"
+      ? t("milestone.statusCompleted")
+      : key === "waiting"
+        ? t("milestone.statusWaiting")
+        : key === "overdue"
+          ? t("schedule.overdue", { defaultValue: "Overdue" })
+          : t("milestone.statusInProgress");
 
   return (
     <span
-      className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${colorClasses}`}
+      className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${badgeClasses}`}
     >
       {label}
     </span>
@@ -286,6 +330,7 @@ export function MilestoneView({
   onCreateMilestone,
   onEditMilestone,
   onDeleteMilestone,
+  onUpdateMilestoneDates,
 }: MilestoneViewProps) {
   const { t } = useTranslation();
   const reduced = useReducedMotion();
@@ -514,6 +559,17 @@ export function MilestoneView({
           </div>
         </div>
       )}
+
+      {/* 주단위 가로 타임라인 (펼침 상태를 리스트와 공유) */}
+      <MilestoneTimeline
+        milestones={sortedMilestones}
+        features={features}
+        expandedMilestones={expandedMilestones}
+        detailCache={detailCache}
+        onToggle={toggleMilestone}
+        onMilestoneClick={onEditMilestone}
+        onUpdateDates={onUpdateMilestoneDates}
+      />
 
       {sortedMilestones.map((milestone) => {
         const isExpanded = expandedMilestones.has(milestone.id);
