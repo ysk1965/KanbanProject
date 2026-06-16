@@ -634,6 +634,10 @@
     "statusCompleted": "Done",
     "statusInProgress": "In Progress",
     "statusWaiting": "Waiting",
+    "timeline": {
+      "title": "Timeline",
+      "noDate": "No date"
+    },
     "benefitGroupTitle": "Group Features for goal management",
     "benefitGroupDesc": "Group related Features into a single milestone to manage by objectives.",
     "benefitTrackTitle": "Schedule-based progress tracking",

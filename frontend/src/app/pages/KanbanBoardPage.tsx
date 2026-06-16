@@ -801,7 +801,6 @@ export function KanbanBoardPage() {
     tasksRef,
   });
 
-
   const { connectionStatus, onlineUsers } = useBoardWebSocket({
     boardId: boardId || null,
     onEvent: handleWebSocketEvent,
@@ -1482,37 +1481,37 @@ export function KanbanBoardPage() {
 
   const handleDeleteBlock = useCallback(
     async (blockId: string) => {
-    const blockToDelete = blocks.find((b) => b.id === blockId);
-    if (!blockToDelete || blockToDelete.type === "FIXED") return;
+      const blockToDelete = blocks.find((b) => b.id === blockId);
+      if (!blockToDelete || blockToDelete.type === "FIXED") return;
 
-    const previousBlocks = blocks;
-    const previousTasks = tasks;
+      const previousBlocks = blocks;
+      const previousTasks = tasks;
 
-    const updatedTasks = tasks.map((task) =>
-      task.block_id === blockId ? { ...task, block_id: "task" } : task,
-    );
+      const updatedTasks = tasks.map((task) =>
+        task.block_id === blockId ? { ...task, block_id: "task" } : task,
+      );
 
-    const updatedBlocks = blocks
-      .filter((b) => b.id !== blockId)
-      .map((block) => {
-        if (block.position > blockToDelete.position) {
-          return { ...block, position: block.position - 1 };
+      const updatedBlocks = blocks
+        .filter((b) => b.id !== blockId)
+        .map((block) => {
+          if (block.position > blockToDelete.position) {
+            return { ...block, position: block.position - 1 };
+          }
+          return block;
+        });
+
+      setTasks(updatedTasks);
+      setBlocks(updatedBlocks);
+
+      if (boardId) {
+        try {
+          await blockService.deleteBlock(boardId, blockId);
+        } catch (error) {
+          console.error("Failed to delete block:", error);
+          setBlocks(previousBlocks);
+          setTasks(previousTasks);
         }
-        return block;
-      });
-
-    setTasks(updatedTasks);
-    setBlocks(updatedBlocks);
-
-    if (boardId) {
-      try {
-        await blockService.deleteBlock(boardId, blockId);
-      } catch (error) {
-        console.error("Failed to delete block:", error);
-        setBlocks(previousBlocks);
-        setTasks(previousTasks);
       }
-    }
     },
     [blocks, tasks, boardId],
   );
@@ -2151,92 +2150,111 @@ export function KanbanBoardPage() {
     }
   };
 
+  // 타임라인 막대 드래그로 마일스톤 기간(start/end) 조정
+  const handleUpdateMilestoneDates = useCallback(
+    async (id: string, start_date: string, end_date: string) => {
+      if (!boardId) return;
+      try {
+        const updated = await milestoneService.updateMilestone(boardId, id, {
+          start_date,
+          end_date,
+        });
+        setMilestones((prev) =>
+          prev.map((m) => (m.id === id ? { ...m, ...updated } : m)),
+        );
+      } catch (error) {
+        console.error("Failed to update milestone dates:", error);
+      }
+    },
+    [boardId, setMilestones],
+  );
+
   const handleMoveTask = useCallback(
     async (taskId: string, targetBlockId: string, newPosition: number) => {
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task || !boardId) return;
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task || !boardId) return;
 
-    const doneBlock = blocks.find((b) => b.fixed_type === "DONE");
-    const targetBlock = blocks.find((b) => b.id === targetBlockId);
-    const wasInDone = doneBlock?.id === task.block_id;
-    const isMovingToDone = doneBlock?.id === targetBlockId;
-    const isNowCompleted = isMovingToDone;
+      const doneBlock = blocks.find((b) => b.fixed_type === "DONE");
+      const targetBlock = blocks.find((b) => b.id === targetBlockId);
+      const wasInDone = doneBlock?.id === task.block_id;
+      const isMovingToDone = doneBlock?.id === targetBlockId;
+      const isNowCompleted = isMovingToDone;
 
-    // 완료 애니메이션 트리거
-    if (!wasInDone && isMovingToDone) {
-      setRecentlyCompletedTaskIds((prev) => new Set(prev).add(taskId));
-      setTimeout(() => {
-        setRecentlyCompletedTaskIds((prev) => {
-          const next = new Set(prev);
-          next.delete(taskId);
-          return next;
-        });
-      }, 1800);
-    }
-
-    setTasks((prevTasks) =>
-      prevTasks.map((t) =>
-        t.id === taskId
-          ? {
-              ...t,
-              block_id: targetBlockId,
-              block_name: targetBlock?.name,
-              completed: isNowCompleted,
-              position: newPosition,
-            }
-          : t,
-      ),
-    );
-
-    if (wasInDone !== isMovingToDone) {
-      const feature = features.find((f) => f.id === task.feature_id);
-      if (feature) {
-        const newCompletedTasks = isMovingToDone
-          ? Math.min(feature.completed_tasks + 1, feature.total_tasks)
-          : Math.max(feature.completed_tasks - 1, 0);
-
-        setFeatures(
-          features.map((f) =>
-            f.id === feature.id
-              ? {
-                  ...f,
-                  completed_tasks: newCompletedTasks,
-                  progress_percentage:
-                    f.total_tasks > 0
-                      ? Math.round((newCompletedTasks / f.total_tasks) * 100)
-                      : 0,
-                }
-              : f,
-          ),
-        );
+      // 완료 애니메이션 트리거
+      if (!wasInDone && isMovingToDone) {
+        setRecentlyCompletedTaskIds((prev) => new Set(prev).add(taskId));
+        setTimeout(() => {
+          setRecentlyCompletedTaskIds((prev) => {
+            const next = new Set(prev);
+            next.delete(taskId);
+            return next;
+          });
+        }, 1800);
       }
-    }
 
-    try {
-      const movedTask = await taskService.moveTask(
-        boardId,
-        taskId,
-        targetBlockId,
-        newPosition,
-      );
-      setTasks((prevTasks) =>
-        prevTasks.map((t) => (t.id === taskId ? { ...t, ...movedTask } : t)),
-      );
-    } catch (error) {
-      console.error("Failed to move task:", error);
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
           t.id === taskId
             ? {
                 ...t,
-                block_id: task.block_id,
-                completed: task.completed,
-                position: task.position,
+                block_id: targetBlockId,
+                block_name: targetBlock?.name,
+                completed: isNowCompleted,
+                position: newPosition,
               }
             : t,
         ),
       );
-    }
+
+      if (wasInDone !== isMovingToDone) {
+        const feature = features.find((f) => f.id === task.feature_id);
+        if (feature) {
+          const newCompletedTasks = isMovingToDone
+            ? Math.min(feature.completed_tasks + 1, feature.total_tasks)
+            : Math.max(feature.completed_tasks - 1, 0);
+
+          setFeatures(
+            features.map((f) =>
+              f.id === feature.id
+                ? {
+                    ...f,
+                    completed_tasks: newCompletedTasks,
+                    progress_percentage:
+                      f.total_tasks > 0
+                        ? Math.round((newCompletedTasks / f.total_tasks) * 100)
+                        : 0,
+                  }
+                : f,
+            ),
+          );
+        }
+      }
+
+      try {
+        const movedTask = await taskService.moveTask(
+          boardId,
+          taskId,
+          targetBlockId,
+          newPosition,
+        );
+        setTasks((prevTasks) =>
+          prevTasks.map((t) => (t.id === taskId ? { ...t, ...movedTask } : t)),
+        );
+      } catch (error) {
+        console.error("Failed to move task:", error);
+        setTasks((prevTasks) =>
+          prevTasks.map((t) =>
+            t.id === taskId
+              ? {
+                  ...t,
+                  block_id: task.block_id,
+                  completed: task.completed,
+                  position: task.position,
+                }
+              : t,
+          ),
+        );
+      }
     },
     [tasks, blocks, features, boardId],
   );
@@ -2379,35 +2397,35 @@ export function KanbanBoardPage() {
 
   const handleReorderTask = useCallback(
     async (taskId: string, blockId: string, newPosition: number) => {
-    if (!boardId) return;
+      if (!boardId) return;
 
-    const task = tasks.find((t) => t.id === taskId);
-    const originalPosition = task?.position ?? newPosition;
+      const task = tasks.find((t) => t.id === taskId);
+      const originalPosition = task?.position ?? newPosition;
 
-    setTasks((prevTasks) =>
-      prevTasks.map((t) =>
-        t.id === taskId ? { ...t, position: newPosition } : t,
-      ),
-    );
-
-    try {
-      const movedTask = await taskService.moveTask(
-        boardId,
-        taskId,
-        blockId,
-        newPosition,
-      );
-      setTasks((prevTasks) =>
-        prevTasks.map((t) => (t.id === taskId ? { ...t, ...movedTask } : t)),
-      );
-    } catch (error) {
-      console.error("Failed to reorder task:", error);
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
-          t.id === taskId ? { ...t, position: originalPosition } : t,
+          t.id === taskId ? { ...t, position: newPosition } : t,
         ),
       );
-    }
+
+      try {
+        const movedTask = await taskService.moveTask(
+          boardId,
+          taskId,
+          blockId,
+          newPosition,
+        );
+        setTasks((prevTasks) =>
+          prevTasks.map((t) => (t.id === taskId ? { ...t, ...movedTask } : t)),
+        );
+      } catch (error) {
+        console.error("Failed to reorder task:", error);
+        setTasks((prevTasks) =>
+          prevTasks.map((t) =>
+            t.id === taskId ? { ...t, position: originalPosition } : t,
+          ),
+        );
+      }
     },
     [tasks, boardId],
   );
@@ -2881,6 +2899,9 @@ export function KanbanBoardPage() {
                   handleOpenMilestoneWithCheck(milestone)
                 }
                 onDeleteMilestone={handleDeleteMilestone}
+                onUpdateMilestoneDates={
+                  canEdit ? handleUpdateMilestoneDates : undefined
+                }
                 onRefresh={() => {
                   if (boardId) {
                     const milestoneId =
