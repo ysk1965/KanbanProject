@@ -30,10 +30,20 @@ public class DataInitializer implements CommandLineRunner {
 
         if (userRepository.existsByEmail(testEmail)) {
             userRepository.findByEmail(testEmail).ifPresent(user -> {
+                boolean dirty = false;
                 if (user.getSystemRole() != SystemRole.ADMIN) {
                     user.updateSystemRole(SystemRole.ADMIN);
-                    userRepository.save(user);
+                    dirty = true;
                     log.info("Test account system_role updated to ADMIN: {}", testEmail);
+                }
+                // 과거에 미인증 상태로 생성된 테스트 계정도 인증 완료로 보정
+                if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+                    user.verifyEmail();
+                    dirty = true;
+                    log.info("Test account email verified: {}", testEmail);
+                }
+                if (dirty) {
+                    userRepository.save(user);
                 }
             });
             log.info("Test account already exists: {}", testEmail);
