@@ -1793,7 +1793,6 @@ export function KanbanBoardPage() {
     featureId?: string;
     newFeatureTitle?: string;
     taskTitle: string;
-    color?: string;
   }) => {
     if (!boardId || !quickAddBlockId) return;
     setIsQuickAddSubmitting(true);
@@ -1812,11 +1811,11 @@ export function KanbanBoardPage() {
         featureId = newFeature.id;
       }
 
-      // featureId 미지정 시 BE에서 "미분류"(inbox) Feature로 자동 귀속
+      if (!featureId) return;
+
       // Task 생성
       const newTask = await taskService.createTask(boardId, featureId, {
         title: data.taskTitle,
-        color: data.color,
       });
 
       // TASK 블록이 아닌 다른 블록에서 추가한 경우 → 해당 블록으로 이동
@@ -1956,7 +1955,6 @@ export function KanbanBoardPage() {
         start_date: updates.start_date ?? null,
         due_date: updates.due_date ?? null,
         estimated_minutes: updates.estimated_minutes ?? null,
-        color: updates.color ?? undefined,
       });
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
@@ -3051,7 +3049,6 @@ export function KanbanBoardPage() {
           blockName={blocks.find((b) => b.id === quickAddBlockId)?.name}
           onSubmit={handleQuickAddTask}
           isSubmitting={isQuickAddSubmitting}
-          isSimpleMode
         />
 
         {/* 휴지통 */}

@@ -30,6 +30,7 @@ import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { Feature, Task, Tag, Block, ChecklistItem } from "../types";
 import { KanbanBlock } from "../components/KanbanBlock";
 import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
+import { FeatureChipSelector } from "../components/FeatureChipSelector";
 import { EmptyBoardGuide } from "../components/EmptyBoardGuide";
 import JoinRequestBanner from "../components/JoinRequestBanner";
 import { FilterOptions } from "../components/FilterModal";
@@ -41,6 +42,8 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { blockService } from "../utils/services";
+
+const EMPTY_FEATURE_IDS: string[] = [];
 
 interface KanbanViewProps {
   boardId: string;
@@ -250,7 +253,7 @@ export const KanbanView = memo(function KanbanView({
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden bg-bridge-dark">
-      {features.length === 0 && tasks.length === 0 ? (
+      {features.length === 0 ? (
         isOrgMemberViewer ? (
           <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="flex flex-col items-center justify-center min-h-full px-6 py-12">
@@ -302,7 +305,17 @@ export const KanbanView = memo(function KanbanView({
             boardId={boardId}
             canEdit={canEdit}
           />
-          {/* Feature 칩 선택 영역 — Task 중심 구조로 전환되어 숨김 처리됨 */}
+          {/* Feature 칩 선택 영역 */}
+          <FeatureChipSelector
+            features={filteredFeatures}
+            selectedFeatureIds={selectedFeatureIds ?? EMPTY_FEATURE_IDS}
+            isAllSelected={selectedFeatureIds === null}
+            onToggleFeature={onToggleFeatureChip}
+            onSelectAll={onSelectAllFeatureChips}
+            onFeatureInfoClick={onFeatureClick}
+            onAddFeature={onOpenAddFeature}
+            cascadeFeatureId={cascadeFeatureId}
+          />
 
           {/* 칸반 보드 */}
           <div className="flex-1 p-3 md:p-6 overflow-x-auto overflow-y-hidden min-h-0 custom-scrollbar">

@@ -21,8 +21,6 @@ import {
 import { toast } from "sonner";
 import { BoardMember } from "./ShareBoardModal";
 import { MotionModal } from "./ui/MotionModal";
-import { ColorPickerPopover } from "./ui/ColorPickerPopover";
-import { FEATURE_COLORS } from "../constants";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
@@ -412,14 +410,6 @@ export function TaskDetailModal({
     setEditedTask((prev) => (prev ? { ...prev, ...updates } : null));
     autoSaveFields(updates);
   }, [autoSaveFields]);
-
-  const handleColorChange = useCallback(
-    (color: string) => {
-      setEditedTask((prev) => (prev ? { ...prev, color } : null));
-      autoSaveFields({ color });
-    },
-    [autoSaveFields],
-  );
 
   // 체크리스트 드래그 앤 드롭 (hooks must be before early return)
   const checklistSensors = useSensors(
@@ -895,13 +885,10 @@ export function TaskDetailModal({
         overlayClose={true}
         className="sm:max-w-[640px] md:max-w-[900px] lg:max-w-[1100px] xl:max-w-[1280px] 2xl:max-w-[1400px] max-h-[calc(var(--visual-viewport-height,100vh)*0.85)] flex flex-col overflow-hidden bg-bridge-surface p-0"
       >
-        {/* Task color accent line (Task 색 우선 → Feature 색 폴백, 편집 즉시 반영) */}
+        {/* Feature color accent line */}
         <div
           className="h-[3px] w-full flex-shrink-0 rounded-t-lg"
-          style={{
-            backgroundColor:
-              editedTask.color || task.color || task.feature_color,
-          }}
+          style={{ backgroundColor: task.feature_color }}
         />
         <div className="flex flex-col md:grid md:grid-cols-[minmax(0,1fr)_clamp(360px,40%,560px)] flex-1 min-h-0">
           {/* 왼쪽: 기존 태스크 상세 */}
@@ -917,18 +904,6 @@ export function TaskDetailModal({
             <div className="flex-shrink-0 p-4 md:p-6 pb-0 pr-[calc(1rem+5px)] md:pr-[calc(1.5rem+5px)]">
               {/* 피처 & 블록 상태 표시 */}
               <div className="flex items-center gap-2 mb-3 flex-wrap">
-                {/* Task 색상 선택기 */}
-                <ColorPickerPopover
-                  colors={FEATURE_COLORS}
-                  selectedColor={
-                    editedTask.color || task.feature_color || "#6366F1"
-                  }
-                  onColorChange={handleColorChange}
-                  disabled={!canEdit}
-                  triggerShape="circle"
-                  showCustomColor
-                  customColorLabel={t("taskDetail.customColor", "커스텀 색상")}
-                />
                 {/* 피처 뱃지 */}
                 <div className="flex items-center gap-1">
                   <button
