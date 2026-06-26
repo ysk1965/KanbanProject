@@ -48,6 +48,11 @@ public class BoardContractor {
     @Column(name = "display_order")
     private Integer displayOrder;
 
+    /** 워크로드 뷰에서 숨김 여부 (더이상 진행하지 않는 외주 숨기기). 데이터는 보존. */
+    @Column(name = "hidden", nullable = false)
+    @Builder.Default
+    private Boolean hidden = false;
+
     /**
      * 계약 기간 목록 (다중 기간 이력). start_date ASC 정렬.
      * 외주 삭제 시 기간도 함께 삭제(cascade + orphanRemoval), DB 레벨 ON DELETE CASCADE 와 이중 안전장치.
@@ -91,6 +96,11 @@ public class BoardContractor {
 
     public void updateDisplayOrder(Integer displayOrder) {
         this.displayOrder = displayOrder;
+        this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    public void updateHidden(boolean hidden) {
+        this.hidden = hidden;
         this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 

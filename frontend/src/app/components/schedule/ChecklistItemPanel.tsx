@@ -6,6 +6,7 @@ import { JobRole, JobRoleInfo, Milestone } from '../../types';
 import { BoardMember } from '../ShareBoardModal';
 import { ChecklistDragItem } from './ChecklistDragItem';
 import { AddChecklistItemModal } from './AddChecklistItemModal';
+import { getTodayDateString } from '../../utils/dateUtils';
 
 // ─── Public interface consumed by sibling views ──────────────────────────────
 
@@ -191,6 +192,8 @@ export function ChecklistItemPanel({
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
   const [showMilestoneDropdown, setShowMilestoneDropdown] = useState(false);
   const milestoneDropdownRef = useRef<HTMLDivElement>(null);
+  // Apply the "current period" default only once per board (do not override user choice).
+  const didInitMilestoneRef = useRef(false);
 
   // ── 직군 필터 (단일 선택, "__none__" = 미지정) ──
   const jobRoleFilterKey = `checklistPanelJobRoleFilter_${boardId}`;
@@ -270,6 +273,25 @@ export function ChecklistItemPanel({
       .filter((m) => (m.features?.length ?? 0) > 0)
       .sort((a, b) => a.title.localeCompare(b.title));
   }, [milestones]);
+
+  // ── Default to the milestone covering the current date (once per board) ──
+  useEffect(() => {
+    if (didInitMilestoneRef.current) return;
+    if (milestoneOptions.length === 0) return;
+    const today = getTodayDateString();
+    const current = milestoneOptions.find(
+      (m) => m.start_date && m.end_date && m.start_date <= today && today <= m.end_date,
+    );
+    if (current) {
+      setSelectedMilestoneId(current.id);
+    }
+    didInitMilestoneRef.current = true;
+  }, [milestoneOptions]);
+
+  // ── Reset the init flag when switching boards ──
+  useEffect(() => {
+    didInitMilestoneRef.current = false;
+  }, [boardId]);
 
   // ── Selected milestone's feature ids (used to filter items) ──
   const selectedMilestoneFeatureIds = useMemo(() => {

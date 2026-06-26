@@ -50,6 +50,8 @@ public class BoardContractorResponse {
         private String name;
         private String color;
         private Integer displayOrder;
+        /** 워크로드 뷰 숨김 여부. */
+        private Boolean hidden;
         /** 대표(현재) 기간 — 하위호환 표시용. periods 에서 파생. */
         private LocalDate startDate;
         private LocalDate endDate;
@@ -83,6 +85,7 @@ public class BoardContractorResponse {
                     .name(c.getName())
                     .color(c.getColor())
                     .displayOrder(c.getDisplayOrder())
+                    .hidden(c.getHidden())
                     .startDate(current != null ? current.getStartDate() : null)
                     .endDate(current != null ? current.getEndDate() : null)
                     .periods(periods)
