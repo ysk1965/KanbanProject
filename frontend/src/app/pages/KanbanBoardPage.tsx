@@ -427,24 +427,6 @@ export function KanbanBoardPage() {
     refreshMembers,
   } = useBoardDataLoader(boardId);
 
-  // 워크로드 임시 업무 배치용 태스크 목록 (feature 정보 포함, 추가 fetch 없음)
-  const taskPickerList = useMemo(() => {
-    const featureMap = new Map<string, { title: string; color: string }>();
-    (allFeatures.length ? allFeatures : features).forEach((f) =>
-      featureMap.set(f.id, { title: f.title, color: f.color }),
-    );
-    return tasks.map((task) => {
-      const f = featureMap.get(task.feature_id);
-      return {
-        taskId: task.id,
-        taskTitle: task.title,
-        featureId: task.feature_id,
-        featureTitle: f?.title || "",
-        featureColor: f?.color || "#6366F1",
-      };
-    });
-  }, [tasks, allFeatures, features]);
-
   // milestoneIdRef를 최신 값으로 동기화 (WebSocket 핸들러에서 stale closure 방지)
   useEffect(() => {
     milestoneIdRef.current = kanbanSelectedMilestoneId;
@@ -801,7 +783,6 @@ export function KanbanBoardPage() {
     tasksRef,
   });
 
-
   const { connectionStatus, onlineUsers } = useBoardWebSocket({
     boardId: boardId || null,
     onEvent: handleWebSocketEvent,
@@ -968,6 +949,19 @@ export function KanbanBoardPage() {
       if (ms.features) {
         for (const f of ms.features) {
           map[f.id] = (map[f.id] || 0) + 1;
+        }
+      }
+    }
+    return map;
+  }, [milestones]);
+
+  // Feature별 대표(홈) 마일스톤 ID 맵 (MilestoneModal "이어짐" 판별용)
+  const featurePrimaryMilestoneMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const ms of milestones) {
+      if (ms.features) {
+        for (const f of ms.features) {
+          if (f.is_primary) map[f.id] = ms.id;
         }
       }
     }
@@ -1482,37 +1476,37 @@ export function KanbanBoardPage() {
 
   const handleDeleteBlock = useCallback(
     async (blockId: string) => {
-    const blockToDelete = blocks.find((b) => b.id === blockId);
-    if (!blockToDelete || blockToDelete.type === "FIXED") return;
+      const blockToDelete = blocks.find((b) => b.id === blockId);
+      if (!blockToDelete || blockToDelete.type === "FIXED") return;
 
-    const previousBlocks = blocks;
-    const previousTasks = tasks;
+      const previousBlocks = blocks;
+      const previousTasks = tasks;
 
-    const updatedTasks = tasks.map((task) =>
-      task.block_id === blockId ? { ...task, block_id: "task" } : task,
-    );
+      const updatedTasks = tasks.map((task) =>
+        task.block_id === blockId ? { ...task, block_id: "task" } : task,
+      );
 
-    const updatedBlocks = blocks
-      .filter((b) => b.id !== blockId)
-      .map((block) => {
-        if (block.position > blockToDelete.position) {
-          return { ...block, position: block.position - 1 };
+      const updatedBlocks = blocks
+        .filter((b) => b.id !== blockId)
+        .map((block) => {
+          if (block.position > blockToDelete.position) {
+            return { ...block, position: block.position - 1 };
+          }
+          return block;
+        });
+
+      setTasks(updatedTasks);
+      setBlocks(updatedBlocks);
+
+      if (boardId) {
+        try {
+          await blockService.deleteBlock(boardId, blockId);
+        } catch (error) {
+          console.error("Failed to delete block:", error);
+          setBlocks(previousBlocks);
+          setTasks(previousTasks);
         }
-        return block;
-      });
-
-    setTasks(updatedTasks);
-    setBlocks(updatedBlocks);
-
-    if (boardId) {
-      try {
-        await blockService.deleteBlock(boardId, blockId);
-      } catch (error) {
-        console.error("Failed to delete block:", error);
-        setBlocks(previousBlocks);
-        setTasks(previousTasks);
       }
-    }
     },
     [blocks, tasks, boardId],
   );
@@ -1799,6 +1793,7 @@ export function KanbanBoardPage() {
     featureId?: string;
     newFeatureTitle?: string;
     taskTitle: string;
+    color?: string;
   }) => {
     if (!boardId || !quickAddBlockId) return;
     setIsQuickAddSubmitting(true);
@@ -1817,11 +1812,11 @@ export function KanbanBoardPage() {
         featureId = newFeature.id;
       }
 
-      if (!featureId) return;
-
+      // featureId 미지정 시 BE에서 "미분류"(inbox) Feature로 자동 귀속
       // Task 생성
       const newTask = await taskService.createTask(boardId, featureId, {
         title: data.taskTitle,
+        color: data.color,
       });
 
       // TASK 블록이 아닌 다른 블록에서 추가한 경우 → 해당 블록으로 이동
@@ -1961,6 +1956,7 @@ export function KanbanBoardPage() {
         start_date: updates.start_date ?? null,
         due_date: updates.due_date ?? null,
         estimated_minutes: updates.estimated_minutes ?? null,
+        color: updates.color ?? undefined,
       });
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
@@ -2130,6 +2126,34 @@ export function KanbanBoardPage() {
     }
   };
 
+  // 피처의 대표(홈) 마일스톤을 현재 선택된 마일스톤으로 지정
+  const handleSetPrimaryMilestoneFeature = async (featureId: string) => {
+    if (!boardId || !selectedMilestone) return;
+    const prevPrimaryId = featurePrimaryMilestoneMap[featureId];
+    try {
+      await milestoneService.setPrimaryFeature(
+        boardId,
+        selectedMilestone.id,
+        featureId,
+      );
+      // 대표 이동으로 새 대표 + 기존 대표 마일스톤이 모두 영향받으므로 둘 다 갱신
+      const affectedIds = new Set<string>([selectedMilestone.id]);
+      if (prevPrimaryId) affectedIds.add(prevPrimaryId);
+      const refreshed = await Promise.all(
+        [...affectedIds].map((id) =>
+          milestoneService.getMilestone(boardId, id),
+        ),
+      );
+      setMilestones((prev) =>
+        prev.map((m) => refreshed.find((r) => r.id === m.id) || m),
+      );
+      const newSelected = refreshed.find((r) => r.id === selectedMilestone.id);
+      if (newSelected) setSelectedMilestone(newSelected);
+    } catch (error) {
+      console.error("Failed to set primary milestone feature:", error);
+    }
+  };
+
   const handleDeleteMilestone = async (milestoneId: string) => {
     if (!boardId) return;
 
@@ -2151,92 +2175,111 @@ export function KanbanBoardPage() {
     }
   };
 
+  // 타임라인 막대 드래그로 마일스톤 기간(start/end) 조정
+  const handleUpdateMilestoneDates = useCallback(
+    async (id: string, start_date: string, end_date: string) => {
+      if (!boardId) return;
+      try {
+        const updated = await milestoneService.updateMilestone(boardId, id, {
+          start_date,
+          end_date,
+        });
+        setMilestones((prev) =>
+          prev.map((m) => (m.id === id ? { ...m, ...updated } : m)),
+        );
+      } catch (error) {
+        console.error("Failed to update milestone dates:", error);
+      }
+    },
+    [boardId, setMilestones],
+  );
+
   const handleMoveTask = useCallback(
     async (taskId: string, targetBlockId: string, newPosition: number) => {
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task || !boardId) return;
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task || !boardId) return;
 
-    const doneBlock = blocks.find((b) => b.fixed_type === "DONE");
-    const targetBlock = blocks.find((b) => b.id === targetBlockId);
-    const wasInDone = doneBlock?.id === task.block_id;
-    const isMovingToDone = doneBlock?.id === targetBlockId;
-    const isNowCompleted = isMovingToDone;
+      const doneBlock = blocks.find((b) => b.fixed_type === "DONE");
+      const targetBlock = blocks.find((b) => b.id === targetBlockId);
+      const wasInDone = doneBlock?.id === task.block_id;
+      const isMovingToDone = doneBlock?.id === targetBlockId;
+      const isNowCompleted = isMovingToDone;
 
-    // 완료 애니메이션 트리거
-    if (!wasInDone && isMovingToDone) {
-      setRecentlyCompletedTaskIds((prev) => new Set(prev).add(taskId));
-      setTimeout(() => {
-        setRecentlyCompletedTaskIds((prev) => {
-          const next = new Set(prev);
-          next.delete(taskId);
-          return next;
-        });
-      }, 1800);
-    }
-
-    setTasks((prevTasks) =>
-      prevTasks.map((t) =>
-        t.id === taskId
-          ? {
-              ...t,
-              block_id: targetBlockId,
-              block_name: targetBlock?.name,
-              completed: isNowCompleted,
-              position: newPosition,
-            }
-          : t,
-      ),
-    );
-
-    if (wasInDone !== isMovingToDone) {
-      const feature = features.find((f) => f.id === task.feature_id);
-      if (feature) {
-        const newCompletedTasks = isMovingToDone
-          ? Math.min(feature.completed_tasks + 1, feature.total_tasks)
-          : Math.max(feature.completed_tasks - 1, 0);
-
-        setFeatures(
-          features.map((f) =>
-            f.id === feature.id
-              ? {
-                  ...f,
-                  completed_tasks: newCompletedTasks,
-                  progress_percentage:
-                    f.total_tasks > 0
-                      ? Math.round((newCompletedTasks / f.total_tasks) * 100)
-                      : 0,
-                }
-              : f,
-          ),
-        );
+      // 완료 애니메이션 트리거
+      if (!wasInDone && isMovingToDone) {
+        setRecentlyCompletedTaskIds((prev) => new Set(prev).add(taskId));
+        setTimeout(() => {
+          setRecentlyCompletedTaskIds((prev) => {
+            const next = new Set(prev);
+            next.delete(taskId);
+            return next;
+          });
+        }, 1800);
       }
-    }
 
-    try {
-      const movedTask = await taskService.moveTask(
-        boardId,
-        taskId,
-        targetBlockId,
-        newPosition,
-      );
-      setTasks((prevTasks) =>
-        prevTasks.map((t) => (t.id === taskId ? { ...t, ...movedTask } : t)),
-      );
-    } catch (error) {
-      console.error("Failed to move task:", error);
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
           t.id === taskId
             ? {
                 ...t,
-                block_id: task.block_id,
-                completed: task.completed,
-                position: task.position,
+                block_id: targetBlockId,
+                block_name: targetBlock?.name,
+                completed: isNowCompleted,
+                position: newPosition,
               }
             : t,
         ),
       );
-    }
+
+      if (wasInDone !== isMovingToDone) {
+        const feature = features.find((f) => f.id === task.feature_id);
+        if (feature) {
+          const newCompletedTasks = isMovingToDone
+            ? Math.min(feature.completed_tasks + 1, feature.total_tasks)
+            : Math.max(feature.completed_tasks - 1, 0);
+
+          setFeatures(
+            features.map((f) =>
+              f.id === feature.id
+                ? {
+                    ...f,
+                    completed_tasks: newCompletedTasks,
+                    progress_percentage:
+                      f.total_tasks > 0
+                        ? Math.round((newCompletedTasks / f.total_tasks) * 100)
+                        : 0,
+                  }
+                : f,
+            ),
+          );
+        }
+      }
+
+      try {
+        const movedTask = await taskService.moveTask(
+          boardId,
+          taskId,
+          targetBlockId,
+          newPosition,
+        );
+        setTasks((prevTasks) =>
+          prevTasks.map((t) => (t.id === taskId ? { ...t, ...movedTask } : t)),
+        );
+      } catch (error) {
+        console.error("Failed to move task:", error);
+        setTasks((prevTasks) =>
+          prevTasks.map((t) =>
+            t.id === taskId
+              ? {
+                  ...t,
+                  block_id: task.block_id,
+                  completed: task.completed,
+                  position: task.position,
+                }
+              : t,
+          ),
+        );
+      }
     },
     [tasks, blocks, features, boardId],
   );
@@ -2379,35 +2422,35 @@ export function KanbanBoardPage() {
 
   const handleReorderTask = useCallback(
     async (taskId: string, blockId: string, newPosition: number) => {
-    if (!boardId) return;
+      if (!boardId) return;
 
-    const task = tasks.find((t) => t.id === taskId);
-    const originalPosition = task?.position ?? newPosition;
+      const task = tasks.find((t) => t.id === taskId);
+      const originalPosition = task?.position ?? newPosition;
 
-    setTasks((prevTasks) =>
-      prevTasks.map((t) =>
-        t.id === taskId ? { ...t, position: newPosition } : t,
-      ),
-    );
-
-    try {
-      const movedTask = await taskService.moveTask(
-        boardId,
-        taskId,
-        blockId,
-        newPosition,
-      );
-      setTasks((prevTasks) =>
-        prevTasks.map((t) => (t.id === taskId ? { ...t, ...movedTask } : t)),
-      );
-    } catch (error) {
-      console.error("Failed to reorder task:", error);
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
-          t.id === taskId ? { ...t, position: originalPosition } : t,
+          t.id === taskId ? { ...t, position: newPosition } : t,
         ),
       );
-    }
+
+      try {
+        const movedTask = await taskService.moveTask(
+          boardId,
+          taskId,
+          blockId,
+          newPosition,
+        );
+        setTasks((prevTasks) =>
+          prevTasks.map((t) => (t.id === taskId ? { ...t, ...movedTask } : t)),
+        );
+      } catch (error) {
+        console.error("Failed to reorder task:", error);
+        setTasks((prevTasks) =>
+          prevTasks.map((t) =>
+            t.id === taskId ? { ...t, position: originalPosition } : t,
+          ),
+        );
+      }
     },
     [tasks, boardId],
   );
@@ -2731,7 +2774,7 @@ export function KanbanBoardPage() {
             jobRoles={jobRoles}
             memberJobRoleMap={memberJobRoleMap}
             milestones={milestones}
-            taskPickerList={taskPickerList}
+            allFeatures={allFeatures}
             scheduleRefreshKey={scheduleRefreshKey}
             scheduleRefreshPanel={scheduleRefreshPanel}
             wsChecklistEvent={wsChecklistEvent}
@@ -2881,6 +2924,9 @@ export function KanbanBoardPage() {
                   handleOpenMilestoneWithCheck(milestone)
                 }
                 onDeleteMilestone={handleDeleteMilestone}
+                onUpdateMilestoneDates={
+                  canEdit ? handleUpdateMilestoneDates : undefined
+                }
                 onRefresh={() => {
                   if (boardId) {
                     const milestoneId =
@@ -3005,6 +3051,7 @@ export function KanbanBoardPage() {
           blockName={blocks.find((b) => b.id === quickAddBlockId)?.name}
           onSubmit={handleQuickAddTask}
           isSubmitting={isQuickAddSubmitting}
+          isSimpleMode
         />
 
         {/* 휴지통 */}
@@ -3218,6 +3265,8 @@ export function KanbanBoardPage() {
           selectedMilestone={selectedMilestone}
           allFeatures={allFeatures}
           featureMilestoneCountMap={featureMilestoneCountMap}
+          featurePrimaryMilestoneMap={featurePrimaryMilestoneMap}
+          onSetPrimaryMilestoneFeature={handleSetPrimaryMilestoneFeature}
           onSaveMilestone={handleSaveMilestone}
           onDeleteMilestone={handleDeleteMilestone}
           onSelectMilestone={async (ms) => {

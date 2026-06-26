@@ -75,6 +75,7 @@ public enum ErrorCode {
 
     // Feature
     FEATURE_NOT_FOUND(HttpStatus.NOT_FOUND, "F001", "Feature를 찾을 수 없습니다"),
+    CANNOT_MODIFY_INBOX_FEATURE(HttpStatus.BAD_REQUEST, "F002", "미분류 피처는 수정/삭제할 수 없습니다"),
 
     // Task
     TASK_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "Task를 찾을 수 없습니다"),

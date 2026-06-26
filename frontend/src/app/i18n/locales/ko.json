@@ -635,6 +635,10 @@
     "statusCompleted": "완료",
     "statusInProgress": "진행중",
     "statusWaiting": "대기",
+    "timeline": {
+      "title": "타임라인",
+      "noDate": "날짜 없음"
+    },
     "benefitGroupTitle": "Feature를 묶어 목표 관리",
     "benefitGroupDesc": "관련 Feature를 하나의 마일스톤으로 그룹화하여 목표별로 관리해요.",
     "benefitTrackTitle": "일정 기반 진행률 추적",
@@ -648,6 +652,10 @@
     "titlePlaceholder": "마일스톤 제목",
     "descriptionLabel": "설명",
     "descriptionPlaceholder": "마일스톤 설명",
+    "descriptionExpand": "크게 보기",
+    "unsavedTitle": "저장하지 않은 변경사항",
+    "unsavedDesc": "이 마일스톤의 변경사항을 저장할까요? 저장하지 않으면 변경 내용이 사라집니다.",
+    "discardAndMove": "버리고 이동",
     "periodLabel": "기간",
     "selectPeriod": "기간을 선택하세요",
     "linkedFeatures": "연결할 Feature",
@@ -834,13 +842,32 @@
       "more": "더 보기",
       "groupByMember": "멤버별",
       "groupByJobRole": "직군별",
-      "tentative": "예정",
-      "promoteToChecklist": "실제 체크리스트로 전환"
+      "zoomCompact": "좁게",
+      "zoomNarrow": "작게",
+      "zoomDefault": "기본",
+      "zoomWide": "넓게",
+      "zoomExtraWide": "아주 넓게",
+      "zoomIn": "확대",
+      "zoomOut": "축소"
     },
-    "taskPicker": {
-      "title": "임시 업무 배치 · 태스크 선택",
-      "search": "태스크 검색...",
-      "empty": "태스크가 없습니다"
+    "workloadCreate": {
+      "title": "새 업무 추가",
+      "titlePlaceholder": "업무 제목을 입력하세요",
+      "feature": "Feature (선택사항)",
+      "featureNone": "미분류",
+      "featureNew": "새 Feature 만들기",
+      "task": "Task (선택사항)",
+      "taskAuto": "자동 생성",
+      "inboxHint": "미분류에 추가됩니다",
+      "submit": "추가",
+      "cancel": "취소"
+    },
+    "moveToTask": {
+      "title": "태스크 이동",
+      "searchPlaceholder": "태스크 검색...",
+      "currentTask": "현재 태스크",
+      "noTasks": "태스크가 없습니다",
+      "success": "이동 완료"
     },
     "panel": {
       "title": "체크리스트",

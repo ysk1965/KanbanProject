@@ -36,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,21 +82,21 @@ public class MilestoneService {
         // 1회 쿼리로 모든 마일스톤의 features 조회 (N+1 해결)
         List<MilestoneFeature> allMilestoneFeatures = milestoneFeatureRepository.findByBoardIdWithFeatures(boardId);
 
-        // 마일스톤 ID별로 features 그룹핑
-        Map<String, List<Feature>> featuresMap = allMilestoneFeatures.stream()
-                .collect(Collectors.groupingBy(
-                        mf -> mf.getMilestone().getId(),
-                        Collectors.mapping(MilestoneFeature::getFeature, Collectors.toList())
-                ));
+        // 마일스톤 ID별로 링크(피처 + isPrimary) 그룹핑 — 표시용 전체
+        Map<String, List<MilestoneFeature>> linksMap = allMilestoneFeatures.stream()
+                .collect(Collectors.groupingBy(mf -> mf.getMilestone().getId()));
 
-        // 각 마일스톤의 진행률 계산
+        // 각 마일스톤의 진행률 계산 — 대표(primary) 링크 피처만 집계 (중복 제거)
         Map<String, Integer> progressMap = new HashMap<>();
         for (Milestone milestone : milestones) {
-            List<Feature> features = featuresMap.getOrDefault(milestone.getId(), List.of());
-            progressMap.put(milestone.getId(), calculateProgress(features));
+            List<Feature> primaryFeatures = linksMap.getOrDefault(milestone.getId(), List.of()).stream()
+                    .filter(MilestoneFeature::isPrimary)
+                    .map(MilestoneFeature::getFeature)
+                    .toList();
+            progressMap.put(milestone.getId(), calculateProgress(primaryFeatures));
         }
 
-        return MilestoneResponse.ListResponse.of(milestones, featuresMap, progressMap);
+        return MilestoneResponse.ListResponse.of(milestones, linksMap, progressMap);
     }
 
     public MilestoneResponse.Detail getMilestone(String boardId, String milestoneId, String userId) {
@@ -108,10 +109,7 @@ public class MilestoneService {
             throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
         }
 
-        List<Feature> features = milestoneFeatureRepository.findFeaturesByMilestoneId(milestoneId);
-        int progress = calculateProgress(features);
-
-        return MilestoneResponse.Detail.of(milestone, features, progress);
+        return buildDetail(milestone);
     }
 
     @Transactional
@@ -143,22 +141,24 @@ public class MilestoneService {
                 throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
             }
 
+            // 이미 다른 마일스톤에 대표 링크를 가진 피처는 "이어짐"(non-primary)으로 추가
+            Set<String> havingPrimary = new HashSet<>(
+                    milestoneFeatureRepository.findFeatureIdsHavingPrimary(request.getFeatureIds()));
+
             List<MilestoneFeature> links = new ArrayList<>();
             for (Feature feature : featuresToLink) {
                 if (!feature.getBoard().getId().equals(boardId)) {
                     throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
                 }
-                links.add(MilestoneFeature.create(milestone, feature));
+                boolean primary = !havingPrimary.contains(feature.getId());
+                links.add(MilestoneFeature.create(milestone, feature, primary));
             }
             milestoneFeatureRepository.saveAll(links);
         }
 
-        List<Feature> features = milestoneFeatureRepository.findFeaturesByMilestoneId(milestone.getId());
-        int progress = calculateProgress(features);
-
         log.info("Milestone created: {} in board: {} by user: {}", milestone.getId(), boardId, userId);
 
-        return MilestoneResponse.Detail.of(milestone, features, progress);
+        return buildDetail(milestone);
     }
 
     @Transactional
@@ -179,12 +179,9 @@ public class MilestoneService {
                 request.getEndDate()
         );
 
-        List<Feature> features = milestoneFeatureRepository.findFeaturesByMilestoneId(milestoneId);
-        int progress = calculateProgress(features);
-
         log.info("Milestone updated: {} by user: {}", milestoneId, userId);
 
-        return MilestoneResponse.Detail.of(milestone, features, progress);
+        return buildDetail(milestone);
     }
 
     @Transactional
@@ -248,23 +245,25 @@ public class MilestoneService {
 
         if (!newFeatureIds.isEmpty()) {
             List<Feature> featuresToAdd = featureRepository.findAllById(newFeatureIds);
-            List<MilestoneFeature> newLinks = new ArrayList<>();
 
+            // 이미 다른 마일스톤에 대표 링크를 가진 피처는 "이어짐"(non-primary)으로 추가
+            Set<String> havingPrimary = new HashSet<>(
+                    milestoneFeatureRepository.findFeatureIdsHavingPrimary(newFeatureIds));
+
+            List<MilestoneFeature> newLinks = new ArrayList<>();
             for (Feature feature : featuresToAdd) {
                 if (!feature.getBoard().getId().equals(boardId)) {
                     throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
                 }
-                newLinks.add(MilestoneFeature.create(milestone, feature));
+                boolean primary = !havingPrimary.contains(feature.getId());
+                newLinks.add(MilestoneFeature.create(milestone, feature, primary));
             }
             milestoneFeatureRepository.saveAll(newLinks);
         }
 
-        List<Feature> features = milestoneFeatureRepository.findFeaturesByMilestoneId(milestoneId);
-        int progress = calculateProgress(features);
-
         log.info("Features added to milestone: {} by user: {}", milestoneId, userId);
 
-        return MilestoneResponse.Detail.of(milestone, features, progress);
+        return buildDetail(milestone);
     }
 
     @Transactional
@@ -278,9 +277,62 @@ public class MilestoneService {
             throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
         }
 
-        milestoneFeatureRepository.deleteByMilestoneIdAndFeatureId(milestoneId, featureId);
+        MilestoneFeature target = milestoneFeatureRepository
+                .findByMilestoneIdAndFeatureId(milestoneId, featureId).orElse(null);
+        if (target == null) {
+            return;
+        }
+        boolean wasPrimary = target.isPrimary();
+        milestoneFeatureRepository.delete(target);
+
+        // 대표 링크를 제거했고 다른 이어짐 링크가 남아있다면, 가장 이른 마일스톤을 대표로 승격 (불변식 유지).
+        // 삭제를 먼저 flush해야 부분 유니크 인덱스(대표 1개)와 충돌하지 않음.
+        if (wasPrimary) {
+            milestoneFeatureRepository.flush();
+            milestoneFeatureRepository.findByFeatureIdOrderByMilestoneStartDate(featureId).stream()
+                    .findFirst()
+                    .ifPresent(mf -> mf.updatePrimary(true));
+        }
 
         log.info("Feature {} removed from milestone {} by user: {}", featureId, milestoneId, userId);
+    }
+
+    /**
+     * 피처의 대표(홈) 마일스톤을 이 마일스톤으로 변경.
+     * 기존 대표 링크는 이어짐(false)으로 강등하고, 이 (마일스톤, 피처) 링크를 대표(true)로 승격한다.
+     */
+    @Transactional
+    public MilestoneResponse.Detail setPrimaryFeature(String boardId, String milestoneId, String featureId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Milestone milestone = getMilestoneWithBoardCheck(boardId, milestoneId);
+
+        MilestoneFeature target = milestoneFeatureRepository
+                .findByMilestoneIdAndFeatureId(milestoneId, featureId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
+
+        if (!target.isPrimary()) {
+            // 기존 대표 강등을 먼저 flush한 뒤 승격해야 부분 유니크 인덱스(대표 1개)와 충돌하지 않음
+            milestoneFeatureRepository.findByFeatureIdAndIsPrimaryTrue(featureId)
+                    .ifPresent(current -> current.updatePrimary(false));
+            milestoneFeatureRepository.flush();
+            target.updatePrimary(true);
+        }
+
+        log.info("Feature {} primary milestone set to {} by user: {}", featureId, milestoneId, userId);
+
+        return buildDetail(milestone);
+    }
+
+    /** 마일스톤 상세 응답 구성 — 표시용 전체 링크 + 진행률(대표 피처만 집계) */
+    private MilestoneResponse.Detail buildDetail(Milestone milestone) {
+        List<MilestoneFeature> links = milestoneFeatureRepository.findWithFeatureByMilestoneId(milestone.getId());
+        List<Feature> primaryFeatures = links.stream()
+                .filter(MilestoneFeature::isPrimary)
+                .map(MilestoneFeature::getFeature)
+                .toList();
+        int progress = calculateProgress(primaryFeatures);
+        return MilestoneResponse.Detail.of(milestone, links, progress);
     }
 
     @Transactional

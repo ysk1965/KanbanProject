@@ -150,6 +150,8 @@ interface BoardModalManagerProps {
   selectedMilestone: Milestone | null;
   allFeatures: Feature[];
   featureMilestoneCountMap: Record<string, number>;
+  featurePrimaryMilestoneMap: Record<string, string>;
+  onSetPrimaryMilestoneFeature: (featureId: string) => void | Promise<void>;
   onSaveMilestone: (data: any) => void;
   onDeleteMilestone: (id: string) => void;
   onSelectMilestone: (milestone: Milestone | null) => void;
@@ -474,6 +476,8 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         milestones={props.milestones}
         features={props.allFeatures}
         featureMilestoneCountMap={props.featureMilestoneCountMap}
+        featurePrimaryMilestoneMap={props.featurePrimaryMilestoneMap}
+        onSetPrimaryFeature={props.onSetPrimaryMilestoneFeature}
         onSave={props.onSaveMilestone}
         onDelete={props.onDeleteMilestone}
         onSelectMilestone={props.onSelectMilestone}

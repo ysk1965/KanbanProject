@@ -767,14 +767,7 @@
       "noItems": "割り当てられた項目はありません",
       "completed": "完了",
       "collapse": "折りたたむ",
-      "more": "もっと見る",
-      "tentative": "予定",
-      "promoteToChecklist": "実際のチェックリストに変換"
-    },
-    "taskPicker": {
-      "title": "仮業務の配置 · タスク選択",
-      "search": "タスクを検索...",
-      "empty": "タスクがありません"
+      "more": "もっと見る"
     },
     "panel": {
       "title": "チェックリスト",

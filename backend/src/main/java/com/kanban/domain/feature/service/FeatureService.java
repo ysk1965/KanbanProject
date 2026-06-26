@@ -207,6 +207,10 @@ public class FeatureService {
             throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
         }
 
+        if (Boolean.TRUE.equals(feature.getIsInbox())) {
+            throw new BusinessException(ErrorCode.CANNOT_MODIFY_INBOX_FEATURE);
+        }
+
         feature.updateInfo(
                 request.getTitle(),
                 request.getDescription(),
@@ -256,6 +260,10 @@ public class FeatureService {
 
         if (!feature.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
+        }
+
+        if (Boolean.TRUE.equals(feature.getIsInbox())) {
+            throw new BusinessException(ErrorCode.CANNOT_MODIFY_INBOX_FEATURE);
         }
 
         // 활동 로그 기록 (삭제 전에 기록)
