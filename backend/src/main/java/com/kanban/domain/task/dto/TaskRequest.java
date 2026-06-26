@@ -24,9 +24,6 @@ public class TaskRequest {
         private LocalDate dueDate;
 
         private Integer estimatedMinutes;
-
-        @Size(max = 20, message = "색상 코드는 20자 이내여야 합니다")
-        private String color;
     }
 
     @Getter
@@ -42,9 +39,6 @@ public class TaskRequest {
         private LocalDate dueDate;
 
         private Integer estimatedMinutes;
-
-        @Size(max = 20, message = "색상 코드는 20자 이내여야 합니다")
-        private String color;
     }
 
     @Getter

@@ -400,7 +400,6 @@ export interface Task {
   feature_id: string;
   feature_title: string;
   feature_color: string;
-  color?: string | null; // Task 자체 색상 (없으면 feature_color로 폴백)
   block_id: string;
   block_name?: string;
   title: string;
