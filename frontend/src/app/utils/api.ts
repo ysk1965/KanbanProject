@@ -1487,7 +1487,7 @@ export const taskAPI = {
 
   createTask: async (
     boardId: string,
-    featureId: string | undefined,
+    featureId: string,
     data: {
       title: string;
       description?: string;
@@ -1495,14 +1495,12 @@ export const taskAPI = {
       start_date?: string;
       due_date?: string;
       estimated_minutes?: number;
-      color?: string;
     },
   ) => {
-    // featureId 미지정 시 "미분류"(inbox) Feature로 자동 귀속
-    const url = featureId
-      ? `/boards/${boardId}/features/${featureId}/tasks`
-      : `/boards/${boardId}/tasks`;
-    return apiClient.post<TaskResponse>(url, data);
+    return apiClient.post<TaskResponse>(
+      `/boards/${boardId}/features/${featureId}/tasks`,
+      data,
+    );
   },
 
   updateTask: async (
@@ -1515,7 +1513,6 @@ export const taskAPI = {
       start_date?: string | null;
       due_date?: string | null;
       estimated_minutes?: number | null;
-      color?: string;
     },
   ) => {
     return apiClient.put<TaskResponse>(

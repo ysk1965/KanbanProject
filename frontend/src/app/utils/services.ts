@@ -663,7 +663,7 @@ export const taskService = {
 
   createTask: async (
     boardId: string,
-    featureId: string | undefined,
+    featureId: string,
     data: {
       title: string;
       description?: string;
@@ -671,7 +671,6 @@ export const taskService = {
       start_date?: string;
       due_date?: string;
       estimated_minutes?: number;
-      color?: string;
     },
   ): Promise<Task> => {
     try {
@@ -683,19 +682,14 @@ export const taskService = {
         const tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
         const features = loadFromLocalStorage("kanban_features", mockFeatures);
         const blocks = loadFromLocalStorage("kanban_blocks", mockBlocks);
-        // featureId 미지정 시 "미분류"(inbox) Feature로 자동 귀속
-        const feature = featureId
-          ? features.find((f: Feature) => f.id === featureId)
-          : features.find((f: Feature) => f.inbox);
-        const resolvedFeatureId = feature?.id || featureId || "inbox";
+        const feature = features.find((f: Feature) => f.id === featureId);
         const taskBlock = blocks.find((b: Block) => b.fixed_type === "TASK");
 
         const newTask: Task = {
           id: `task-${Date.now()}`,
-          feature_id: resolvedFeatureId,
-          feature_title: feature?.title || "미분류",
-          feature_color: feature?.color || "#64748b",
-          color: data.color || feature?.color || "#6366F1",
+          feature_id: featureId,
+          feature_title: feature?.title || "",
+          feature_color: feature?.color || "#3B82F6",
           block_id: taskBlock?.id || "task-block",
           title: data.title,
           description: data.description,
@@ -704,9 +698,8 @@ export const taskService = {
           due_date: data.due_date || null,
           estimated_minutes: data.estimated_minutes || null,
           completed: false,
-          position: tasks.filter(
-            (t: Task) => t.feature_id === resolvedFeatureId,
-          ).length,
+          position: tasks.filter((t: Task) => t.feature_id === featureId)
+            .length,
           tags: [],
           created_at: nowUTC(),
         };
@@ -728,7 +721,6 @@ export const taskService = {
       start_date?: string | null;
       due_date?: string | null;
       estimated_minutes?: number | null;
-      color?: string;
     },
   ): Promise<Task> => {
     try {
