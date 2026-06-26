@@ -66,9 +66,6 @@ public class Task extends BaseTimeEntity {
     @Column(name = "estimated_minutes")
     private Integer estimatedMinutes;
 
-    @Column(name = "color", length = 20)
-    private String color;
-
     @Column(name = "is_completed", nullable = false)
     @Builder.Default
     private Boolean isCompleted = false;
@@ -111,13 +108,12 @@ public class Task extends BaseTimeEntity {
         return this.deletedAt != null;
     }
 
-    public void updateInfo(String title, String description, LocalDate startDate, LocalDate dueDate, Integer estimatedMinutes, String color) {
+    public void updateInfo(String title, String description, LocalDate startDate, LocalDate dueDate, Integer estimatedMinutes) {
         if (title != null) this.title = title;
         if (description != null) this.description = description;
         this.startDate = startDate;
         this.dueDate = dueDate;
         this.estimatedMinutes = estimatedMinutes;
-        if (color != null) this.color = color;
     }
 
     public void updateDates(LocalDate startDate, LocalDate dueDate) {

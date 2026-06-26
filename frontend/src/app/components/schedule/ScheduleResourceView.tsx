@@ -19,6 +19,7 @@ import {
   ArrowRightLeft,
   ZoomIn,
   ZoomOut,
+  Settings,
 } from "lucide-react";
 import { BoardMember } from "../ShareBoardModal";
 import { BoardContractor, Feature, JobRole, Milestone } from "../../types";
@@ -295,6 +296,30 @@ export function ScheduleResourceView({
     [zoomKey],
   );
 
+  // ─── Settings popover (그룹 기준 / 줌 / 외주 관리) ───
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        settingsRef.current &&
+        !settingsRef.current.contains(e.target as Node)
+      ) {
+        setSettingsOpen(false);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSettingsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, [settingsOpen]);
+
   // Refs for mouse event handlers (avoid stale closure)
   const dragStateRef = useRef<DragState | null>(null);
   // 드래그/리사이즈 후 click 이벤트 방지용 ref
@@ -416,7 +441,8 @@ export function ScheduleResourceView({
     if (!container || prevW === dayWidth) return;
     const viewportCenter = container.scrollLeft + container.clientWidth / 2;
     const centerDayIndex = viewportCenter / prevW;
-    container.scrollLeft = centerDayIndex * dayWidth - container.clientWidth / 2;
+    container.scrollLeft =
+      centerDayIndex * dayWidth - container.clientWidth / 2;
     prevDayWidthRef.current = dayWidth;
   }, [dayWidth]);
 
@@ -1192,8 +1218,7 @@ export function ScheduleResourceView({
         const r = cont?.getBoundingClientRect();
         const sl = cont?.scrollLeft || 0;
         let dayIndex = Math.floor(
-          (moveEvent.clientX - (r?.left || 0) - LEFT_COL_WIDTH + sl) /
-            dayWidth,
+          (moveEvent.clientX - (r?.left || 0) - LEFT_COL_WIDTH + sl) / dayWidth,
         );
         dayIndex = Math.max(0, Math.min(timelineDays.length - 1, dayIndex));
         if (dayIndex !== ds.currentDayIndex) {
@@ -1412,62 +1437,117 @@ export function ScheduleResourceView({
         >
           {/* ─── Header row ─── */}
           <div className="flex sticky top-0 z-20 bg-bridge-obsidian border-b border-foreground/[0.08]">
-            {/* Empty left corner — 직군별 그룹 토글 + 외주 관리 */}
+            {/* Empty left corner — 설정 버튼 (그룹 기준 / 줌 / 외주 관리) */}
             <div
-              className="shrink-0 sticky left-0 z-30 bg-bridge-obsidian border-r border-foreground/[0.08] flex items-center justify-center gap-1 px-2"
+              className="shrink-0 sticky left-0 z-30 bg-bridge-obsidian border-r border-foreground/[0.08] flex items-center justify-between gap-1 px-3"
               style={{ width: LEFT_COL_WIDTH, height: HEADER_HEIGHT }}
             >
-              {jobRoles.length > 0 && (
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400 truncate">
+                {groupByJobRole
+                  ? t("schedule.resource.groupByJobRole", "직군별")
+                  : t("schedule.resource.groupByMember", "멤버별")}
+              </span>
+              <div className="relative shrink-0" ref={settingsRef}>
                 <button
                   type="button"
-                  onClick={() => setGroupByJobRole(!groupByJobRole)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                    groupByJobRole
+                  onClick={() => setSettingsOpen((v) => !v)}
+                  className={`inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all ${
+                    settingsOpen
                       ? "bg-bridge-accent/20 text-bridge-accent"
-                      : "bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                      : "text-slate-400 hover:text-foreground hover:bg-foreground/10"
                   }`}
-                  title={t("schedule.resource.groupByJobRole", "직군별 그룹")}
+                  title={t("schedule.resource.viewSettings", "보기 설정")}
+                  aria-label={t("schedule.resource.viewSettings", "보기 설정")}
                 >
-                  <Briefcase className="w-3.5 h-3.5" />
-                  {groupByJobRole
-                    ? t("schedule.resource.groupByJobRole", "직군별")
-                    : t("schedule.resource.groupByMember", "멤버별")}
+                  <Settings className="w-4 h-4" />
                 </button>
-              )}
-              {onOpenContractorManager && (
-                <button
-                  type="button"
-                  onClick={onOpenContractorManager}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
-                  title={t("contractor.manage", "외주 관리")}
-                >
-                  <Briefcase className="w-3.5 h-3.5 border-l-2 border-dashed pl-0.5" />
-                  {t("contractor.short", "외주")}
-                </button>
-              )}
-              {/* Zoom controls */}
-              <div className="inline-flex items-center gap-0.5 ml-auto">
-                <button
-                  type="button"
-                  onClick={() => setZoomIndex(zoomIndex - 1)}
-                  disabled={zoomIndex <= 0}
-                  className="p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all disabled:opacity-30 disabled:cursor-default"
-                  title={t("schedule.resource.zoomOut", "축소")}
-                >
-                  <ZoomOut className="w-3.5 h-3.5" />
-                </button>
-                <span className="text-xs text-slate-400 font-medium w-10 text-center select-none">
-                  {t(ZOOM_LABEL_KEYS[zoomIndex])}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setZoomIndex(zoomIndex + 1)}
-                  disabled={zoomIndex >= ZOOM_PRESETS.length - 1}
-                  className="p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all disabled:opacity-30 disabled:cursor-default"
-                  title={t("schedule.resource.zoomIn", "확대")}
-                >
-                  <ZoomIn className="w-3.5 h-3.5" />
-                </button>
+
+                {settingsOpen && (
+                  <div className="absolute left-0 top-full mt-1.5 z-50 w-60 bg-bridge-obsidian rounded-xl border border-foreground/10 shadow-2xl overflow-hidden">
+                    <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
+                    <div className="p-3 space-y-3">
+                      {/* 그룹 기준 */}
+                      {jobRoles.length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+                            {t("schedule.resource.groupBy", "그룹 기준")}
+                          </p>
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setGroupByJobRole(false)}
+                              className={`flex-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                !groupByJobRole
+                                  ? "bg-bridge-accent/20 text-bridge-accent"
+                                  : "bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                              }`}
+                            >
+                              <Users className="w-3.5 h-3.5" />
+                              {t("schedule.resource.groupByMember", "멤버별")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setGroupByJobRole(true)}
+                              className={`flex-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                groupByJobRole
+                                  ? "bg-bridge-accent/20 text-bridge-accent"
+                                  : "bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                              }`}
+                            >
+                              <Briefcase className="w-3.5 h-3.5" />
+                              {t("schedule.resource.groupByJobRole", "직군별")}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 줌 (바 너비) */}
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+                          {t("schedule.resource.zoom", "확대/축소")}
+                        </p>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setZoomIndex(zoomIndex - 1)}
+                            disabled={zoomIndex <= 0}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all disabled:opacity-30 disabled:cursor-default"
+                            title={t("schedule.resource.zoomOut", "축소")}
+                          >
+                            <ZoomOut className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="flex-1 text-xs text-foreground font-medium text-center select-none">
+                            {t(ZOOM_LABEL_KEYS[zoomIndex])}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setZoomIndex(zoomIndex + 1)}
+                            disabled={zoomIndex >= ZOOM_PRESETS.length - 1}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all disabled:opacity-30 disabled:cursor-default"
+                            title={t("schedule.resource.zoomIn", "확대")}
+                          >
+                            <ZoomIn className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 외주 관리 */}
+                      {onOpenContractorManager && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSettingsOpen(false);
+                            onOpenContractorManager();
+                          }}
+                          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
+                        >
+                          <Briefcase className="w-3.5 h-3.5" />
+                          {t("contractor.manage", "외주 관리")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1502,17 +1582,19 @@ export function ScheduleResourceView({
                       height: HEADER_HEIGHT,
                     }}
                   >
-                    {dayWidth >= 44 && <span
-                      className={`text-xs ${
-                        isHoliday
-                          ? "text-red-400"
-                          : weekend
-                            ? "text-slate-500"
-                            : "text-slate-400"
-                      }`}
-                    >
-                      {getDayLabel(day, locale)}
-                    </span>}
+                    {dayWidth >= 44 && (
+                      <span
+                        className={`text-xs ${
+                          isHoliday
+                            ? "text-red-400"
+                            : weekend
+                              ? "text-slate-500"
+                              : "text-slate-400"
+                        }`}
+                      >
+                        {getDayLabel(day, locale)}
+                      </span>
+                    )}
                     <span
                       className={`text-xs font-medium ${
                         isToday
@@ -1904,7 +1986,8 @@ export function ScheduleResourceView({
                             }}
                           >
                             <span className="text-xs font-bold text-bridge-accent truncate">
-                              {formatDateStr(timelineDays[a])} ~ {formatDateStr(timelineDays[b])}
+                              {formatDateStr(timelineDays[a])} ~{" "}
+                              {formatDateStr(timelineDays[b])}
                             </span>
                           </div>
                         );
@@ -1993,9 +2076,7 @@ export function ScheduleResourceView({
                             <span
                               className={`truncate flex-1 ${item.completed ? "line-through" : ""}`}
                             >
-                              {item.task
-                                ? `${item.task.title} / ${item.title}`
-                                : item.title}
+                              {item.title}
                             </span>
                             {item.completed && (
                               <CheckCircle2
@@ -2054,9 +2135,7 @@ export function ScheduleResourceView({
                             }}
                           >
                             <span className="truncate">
-                              {draggedItem?.task
-                                ? `${draggedItem.task.title} / ${draggedItem.title}`
-                                : draggedItem?.title || ""}
+                              {draggedItem?.title || ""}
                             </span>
                           </div>
                         );
@@ -2120,10 +2199,21 @@ export function ScheduleResourceView({
         onClose={() => setPendingCreate(null)}
         boardId={boardId}
         features={features}
-        assigneeId={pendingCreate && !pendingCreate.rowId.startsWith('contractor:') && pendingCreate.rowId !== '__unassigned__' ? pendingCreate.rowId : null}
-        contractorId={pendingCreate?.rowId.startsWith('contractor:') ? pendingCreate.rowId.replace('contractor:', '') : null}
-        startDate={pendingCreate?.startDate || ''}
-        dueDate={pendingCreate?.dueDate || ''}
+        milestones={milestones}
+        assigneeId={
+          pendingCreate &&
+          !pendingCreate.rowId.startsWith("contractor:") &&
+          pendingCreate.rowId !== "__unassigned__"
+            ? pendingCreate.rowId
+            : null
+        }
+        contractorId={
+          pendingCreate?.rowId.startsWith("contractor:")
+            ? pendingCreate.rowId.replace("contractor:", "")
+            : null
+        }
+        startDate={pendingCreate?.startDate || ""}
+        dueDate={pendingCreate?.dueDate || ""}
         onCreated={() => {
           setPendingCreate(null);
           fetchData();
@@ -2135,7 +2225,7 @@ export function ScheduleResourceView({
         open={!!moveTarget}
         onClose={() => setMoveTarget(null)}
         boardId={boardId}
-        item={moveTarget || { id: '', title: '', taskId: '', taskTitle: '' }}
+        item={moveTarget || { id: "", title: "", taskId: "", taskTitle: "" }}
         features={features}
         onMoved={() => {
           setMoveTarget(null);
@@ -2175,7 +2265,7 @@ export function ScheduleResourceView({
                 }}
               >
                 <ArrowRightLeft className="w-3.5 h-3.5" />
-                {t('schedule.resource.moveToTask', '태스크 이동')}
+                {t("schedule.resource.moveToTask", "태스크 이동")}
               </button>
             )}
             <button

@@ -2289,22 +2289,30 @@ export function KanbanBoardPage() {
     const task = tasks.find((t) => t.id === taskId);
     if (!task || !boardId) return;
 
-    const oldFeature = features.find((f) => f.id === task.feature_id);
-    const newFeature = features.find((f) => f.id === targetFeatureId);
+    // allFeatures(전 마일스톤)에서 조회 → 다른 마일스톤의 Feature로도 이동 가능
+    const oldFeature = allFeatures.find((f) => f.id === task.feature_id);
+    const newFeature = allFeatures.find((f) => f.id === targetFeatureId);
     if (!oldFeature || !newFeature) return;
 
-    setTasks((prevTasks) =>
-      prevTasks.map((t) =>
-        t.id === taskId
-          ? {
-              ...t,
-              feature_id: targetFeatureId,
-              feature_title: newFeature.title,
-              feature_color: newFeature.color,
-            }
-          : t,
-      ),
-    );
+    // 대상 Feature가 현재 마일스톤 뷰 밖이면(크로스 마일스톤) 현재 목록에서 제거
+    const isCrossMilestone = !features.some((f) => f.id === targetFeatureId);
+
+    if (isCrossMilestone) {
+      setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId));
+    } else {
+      setTasks((prevTasks) =>
+        prevTasks.map((t) =>
+          t.id === taskId
+            ? {
+                ...t,
+                feature_id: targetFeatureId,
+                feature_title: newFeature.title,
+                feature_color: newFeature.color,
+              }
+            : t,
+        ),
+      );
+    }
 
     const oldNewTotal = oldFeature.total_tasks - 1;
     const oldNewCompleted = task.completed
@@ -2361,18 +2369,27 @@ export function KanbanBoardPage() {
       setManagementRefreshKey((prev) => prev + 1);
     } catch (error) {
       console.error("Failed to move task to feature:", error);
-      setTasks((prevTasks) =>
-        prevTasks.map((t) =>
-          t.id === taskId
-            ? {
-                ...t,
-                feature_id: task.feature_id,
-                feature_title: task.feature_title,
-                feature_color: task.feature_color,
-              }
-            : t,
-        ),
-      );
+      if (isCrossMilestone) {
+        // 제거했던 태스크 복원
+        setTasks((prevTasks) =>
+          prevTasks.some((t) => t.id === taskId)
+            ? prevTasks
+            : [...prevTasks, task],
+        );
+      } else {
+        setTasks((prevTasks) =>
+          prevTasks.map((t) =>
+            t.id === taskId
+              ? {
+                  ...t,
+                  feature_id: task.feature_id,
+                  feature_title: task.feature_title,
+                  feature_color: task.feature_color,
+                }
+              : t,
+          ),
+        );
+      }
       setFeatures((prevFeatures) =>
         prevFeatures.map((f) => {
           if (f.id === oldFeature.id) return oldFeature;

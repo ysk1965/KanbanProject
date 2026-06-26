@@ -7,6 +7,7 @@ import {
   User,
   Block,
   Feature,
+  Milestone,
   BoardWebSocketEvent,
   BoardContractor,
   ContractorInfo,
@@ -116,6 +117,8 @@ interface TaskDetailModalProps {
   blocks?: Block[];
   features?: Feature[];
   allTasks?: Task[];
+  milestones?: Milestone[];
+  currentMilestoneId?: string;
   availableTags: Tag[];
   onCreateTag: (name: string, color: string) => Promise<string | undefined>;
   onUpdateTag: (
@@ -150,6 +153,8 @@ export function TaskDetailModal({
   blocks = [],
   features = [],
   allTasks = [],
+  milestones = [],
+  currentMilestoneId,
   availableTags,
   onCreateTag,
   onUpdateTag,
@@ -181,6 +186,10 @@ export function TaskDetailModal({
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(
     null,
   );
+  // Feature 이동: 대상 마일스톤 선택 (기본값 = 현재 Task의 마일스톤)
+  const [moveFeatureMilestoneId, setMoveFeatureMilestoneId] = useState<
+    string | null
+  >(null);
   const [showMoveChecklistDialog, setShowMoveChecklistDialog] = useState(false);
   const [moveChecklistItemId, setMoveChecklistItemId] = useState<string | null>(
     null,
@@ -189,6 +198,21 @@ export function TaskDetailModal({
     string | null
   >(null);
   const [checklistMoveSearch, setChecklistMoveSearch] = useState("");
+  // 체크리스트 이동: 대상 마일스톤 선택 (기본값 = 현재 마일스톤)
+  const [moveTargetMilestoneId, setMoveTargetMilestoneId] = useState<
+    string | null
+  >(null);
+  const [moveMilestoneTasks, setMoveMilestoneTasks] = useState<
+    {
+      id: string;
+      title: string;
+      feature_id: string;
+      feature_title: string;
+      feature_color: string;
+    }[]
+  >([]);
+  const [loadingMoveMilestoneTasks, setLoadingMoveMilestoneTasks] =
+    useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [moveCopyMode, setMoveCopyMode] = useState<"move" | "copy" | null>(
     null,
@@ -550,6 +574,103 @@ export function TaskDetailModal({
     }
     setIsEditingTitle(false);
   }, [initialTask]);
+
+  // 체크리스트 이동 다이얼로그: 현재 마일스톤 기본값 계산
+  const defaultMoveMilestoneId = useMemo(() => {
+    if (milestones.length === 0) return null;
+    if (
+      currentMilestoneId &&
+      currentMilestoneId !== "all" &&
+      milestones.some((m) => m.id === currentMilestoneId)
+    ) {
+      return currentMilestoneId;
+    }
+    const containing = milestones.find((m) =>
+      m.features?.some((f) => f.id === task?.feature_id),
+    );
+    return containing?.id ?? milestones[0].id;
+  }, [milestones, currentMilestoneId, task?.feature_id]);
+
+  // 이동 다이얼로그가 열릴 때 기본 마일스톤 설정
+  useEffect(() => {
+    if (showMoveChecklistDialog) {
+      setMoveTargetMilestoneId((prev) => prev ?? defaultMoveMilestoneId);
+    }
+  }, [showMoveChecklistDialog, defaultMoveMilestoneId]);
+
+  // Feature 이동 다이얼로그가 열릴 때 기본 마일스톤 설정
+  useEffect(() => {
+    if (showMoveFeatureDialog) {
+      setMoveFeatureMilestoneId((prev) => prev ?? defaultMoveMilestoneId);
+    }
+  }, [showMoveFeatureDialog, defaultMoveMilestoneId]);
+
+  // Feature 이동 후보: 마일스톤이 있으면 선택된 마일스톤의 Feature, 없으면 전체
+  const moveFeatureCandidates = useMemo<
+    { id: string; title: string; color: string }[]
+  >(() => {
+    if (milestones.length > 0) {
+      const m = milestones.find((mm) => mm.id === moveFeatureMilestoneId);
+      return (m?.features ?? []).map((f) => ({
+        id: f.id,
+        title: f.title,
+        color: f.color,
+      }));
+    }
+    return features.map((f) => ({ id: f.id, title: f.title, color: f.color }));
+  }, [milestones, moveFeatureMilestoneId, features]);
+
+  // 선택된 마일스톤의 Task 목록 로드 (현재 마일스톤은 이미 로드된 allTasks 재사용)
+  useEffect(() => {
+    if (!showMoveChecklistDialog || !boardId) return;
+    const targetMilestoneId = moveTargetMilestoneId;
+    if (
+      !targetMilestoneId ||
+      (targetMilestoneId === currentMilestoneId && allTasks.length > 0)
+    ) {
+      setMoveMilestoneTasks(
+        allTasks.map((tk) => ({
+          id: tk.id,
+          title: tk.title,
+          feature_id: tk.feature_id,
+          feature_title: tk.feature_title,
+          feature_color: tk.feature_color,
+        })),
+      );
+      return;
+    }
+    let cancelled = false;
+    setLoadingMoveMilestoneTasks(true);
+    taskAPI
+      .getTasks(boardId, { milestone_id: targetMilestoneId })
+      .then((res) => {
+        if (cancelled) return;
+        setMoveMilestoneTasks(
+          (res.tasks ?? []).map((tk) => ({
+            id: tk.id,
+            title: tk.title,
+            feature_id: tk.feature_id,
+            feature_title: tk.feature_title,
+            feature_color: tk.feature_color,
+          })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setMoveMilestoneTasks([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingMoveMilestoneTasks(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    showMoveChecklistDialog,
+    boardId,
+    moveTargetMilestoneId,
+    currentMilestoneId,
+    allTasks,
+  ]);
 
   if (!task || !editedTask) return null;
 
@@ -998,7 +1119,8 @@ export function TaskDetailModal({
                     <TaskHeaderActionsMenu
                       canEdit={!!canEdit}
                       hasMultipleFeatures={
-                        !!onMoveToFeature && features.length > 1
+                        !!onMoveToFeature &&
+                        (features.length > 1 || milestones.length > 1)
                       }
                       onMoveFeature={() => setShowMoveFeatureDialog(true)}
                       onMoveToBoard={() => setMoveCopyMode("move")}
@@ -1428,7 +1550,8 @@ export function TaskDetailModal({
                           }
                           onDelete={() => setChecklistItemToDelete(item.id)}
                           onMoveToTask={
-                            onMoveChecklistToTask && allTasks.length > 1
+                            onMoveChecklistToTask &&
+                            (allTasks.length > 1 || milestones.length > 1)
                               ? () => {
                                   setMoveChecklistItemId(item.id);
                                   setShowMoveChecklistDialog(true);
@@ -1555,6 +1678,7 @@ export function TaskDetailModal({
         onClose={() => {
           setShowMoveFeatureDialog(false);
           setSelectedFeatureId(null);
+          setMoveFeatureMilestoneId(null);
         }}
         className="sm:max-w-sm p-6"
       >
@@ -1564,10 +1688,46 @@ export function TaskDetailModal({
         <p className="text-sm text-slate-400 mt-1">
           {t("task.moveFeatureDesc")}
         </p>
+        {/* 마일스톤 선택 */}
+        {milestones.length > 0 && (
+          <div className="mt-3">
+            <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+              {t("task.moveChecklistMilestoneLabel", "마일스톤")}
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
+              {milestones.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    if (m.id === moveFeatureMilestoneId) return;
+                    setMoveFeatureMilestoneId(m.id);
+                    setSelectedFeatureId(null);
+                  }}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                    moveFeatureMilestoneId === m.id
+                      ? "bg-bridge-accent text-white"
+                      : "bg-foreground/5 text-slate-400 hover:bg-foreground/10"
+                  }`}
+                >
+                  {m.title}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="space-y-2 py-4 max-h-[300px] overflow-y-auto custom-scrollbar">
-          {features
-            .filter((f) => f.id !== task?.feature_id)
-            .map((feature) => (
+          {(() => {
+            const candidates = moveFeatureCandidates.filter(
+              (f) => f.id !== task?.feature_id,
+            );
+            if (candidates.length === 0) {
+              return (
+                <p className="text-xs text-slate-500 text-center py-10">
+                  {t("task.moveFeatureEmpty", "이동할 Feature가 없습니다")}
+                </p>
+              );
+            }
+            return candidates.map((feature) => (
               <button
                 key={feature.id}
                 onClick={() => setSelectedFeatureId(feature.id)}
@@ -1585,7 +1745,8 @@ export function TaskDetailModal({
                   {feature.title}
                 </span>
               </button>
-            ))}
+            ));
+          })()}
         </div>
         <div className="flex justify-end gap-2">
           <Button
@@ -1593,6 +1754,7 @@ export function TaskDetailModal({
             onClick={() => {
               setShowMoveFeatureDialog(false);
               setSelectedFeatureId(null);
+              setMoveFeatureMilestoneId(null);
             }}
             className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
           >
@@ -1605,6 +1767,7 @@ export function TaskDetailModal({
               }
               setShowMoveFeatureDialog(false);
               setSelectedFeatureId(null);
+              setMoveFeatureMilestoneId(null);
               onClose();
             }}
             disabled={!selectedFeatureId}
@@ -1623,6 +1786,7 @@ export function TaskDetailModal({
           setMoveChecklistItemId(null);
           setSelectedTargetTaskId(null);
           setChecklistMoveSearch("");
+          setMoveTargetMilestoneId(null);
         }}
         className="sm:max-w-sm p-6"
       >
@@ -1632,6 +1796,33 @@ export function TaskDetailModal({
         <p className="text-sm text-slate-400 mt-1">
           {t("task.moveChecklistToTaskDesc")}
         </p>
+        {/* 마일스톤 선택 */}
+        {milestones.length > 0 && (
+          <div className="mt-3">
+            <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+              {t("task.moveChecklistMilestoneLabel", "마일스톤")}
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
+              {milestones.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    if (m.id === moveTargetMilestoneId) return;
+                    setMoveTargetMilestoneId(m.id);
+                    setSelectedTargetTaskId(null);
+                  }}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                    moveTargetMilestoneId === m.id
+                      ? "bg-bridge-accent text-white"
+                      : "bg-foreground/5 text-slate-400 hover:bg-foreground/10"
+                  }`}
+                >
+                  {m.title}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <Input
           value={checklistMoveSearch}
           onChange={(e) => setChecklistMoveSearch(e.target.value)}
@@ -1639,42 +1830,57 @@ export function TaskDetailModal({
           className="bg-foreground/5 border-foreground/10 text-foreground placeholder:text-slate-500 text-sm mt-3"
         />
         <div className="space-y-1 py-2 max-h-[250px] overflow-y-auto custom-scrollbar">
-          {allTasks
-            .filter((t) => t.id !== task?.id)
-            .filter(
-              (t) =>
-                !checklistMoveSearch ||
-                t.title
-                  .toLowerCase()
-                  .includes(checklistMoveSearch.toLowerCase()) ||
-                t.feature_title
-                  .toLowerCase()
-                  .includes(checklistMoveSearch.toLowerCase()),
-            )
-            .map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setSelectedTargetTaskId(t.id)}
-                className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all text-left ${
-                  selectedTargetTaskId === t.id
-                    ? "border-bridge-accent bg-bridge-accent/10"
-                    : "border-foreground/10 hover:bg-foreground/5"
-                }`}
-              >
-                <div
-                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: t.feature_color }}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm text-foreground truncate">
-                    {t.title}
+          {loadingMoveMilestoneTasks ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+            </div>
+          ) : (
+            (() => {
+              const filtered = moveMilestoneTasks
+                .filter((mt) => mt.id !== task?.id)
+                .filter(
+                  (mt) =>
+                    !checklistMoveSearch ||
+                    mt.title
+                      .toLowerCase()
+                      .includes(checklistMoveSearch.toLowerCase()) ||
+                    mt.feature_title
+                      .toLowerCase()
+                      .includes(checklistMoveSearch.toLowerCase()),
+                );
+              if (filtered.length === 0) {
+                return (
+                  <p className="text-xs text-slate-500 text-center py-10">
+                    {t("schedule.moveToTask.noTasks", "태스크가 없습니다")}
+                  </p>
+                );
+              }
+              return filtered.map((mt) => (
+                <button
+                  key={mt.id}
+                  onClick={() => setSelectedTargetTaskId(mt.id)}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all text-left ${
+                    selectedTargetTaskId === mt.id
+                      ? "border-bridge-accent bg-bridge-accent/10"
+                      : "border-foreground/10 hover:bg-foreground/5"
+                  }`}
+                >
+                  <div
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: mt.feature_color }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-foreground truncate">
+                      {mt.title}
+                    </div>
+                    <div className="text-xs text-slate-400 truncate">
+                      {mt.feature_title}
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-400 truncate">
-                    {t.feature_title}
-                  </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              ));
+            })()
+          )}
         </div>
         <div className="flex justify-end gap-2">
           <Button
@@ -1684,6 +1890,7 @@ export function TaskDetailModal({
               setMoveChecklistItemId(null);
               setSelectedTargetTaskId(null);
               setChecklistMoveSearch("");
+              setMoveTargetMilestoneId(null);
             }}
             className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
           >
@@ -1722,6 +1929,7 @@ export function TaskDetailModal({
               setMoveChecklistItemId(null);
               setSelectedTargetTaskId(null);
               setChecklistMoveSearch("");
+              setMoveTargetMilestoneId(null);
             }}
             disabled={!selectedTargetTaskId}
             className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
