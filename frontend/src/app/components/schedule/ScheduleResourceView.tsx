@@ -16,10 +16,12 @@ import {
   ChevronUp,
   Briefcase,
   Trash2,
-  ListChecks,
+  ArrowRightLeft,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import { BoardMember } from "../ShareBoardModal";
-import { BoardContractor, JobRole, Milestone } from "../../types";
+import { BoardContractor, Feature, JobRole, Milestone } from "../../types";
 import {
   boardChecklistAPI,
   checklistAPI,
@@ -27,7 +29,8 @@ import {
   AssigneeItemResponse,
   ChecklistByAssigneeResponse,
 } from "../../utils/api";
-import { TaskPickerPopover, TaskPickerItem } from "./TaskPickerPopover";
+import { WorkloadCreateModal } from "./WorkloadCreateModal";
+import { MoveToTaskModal } from "./MoveToTaskModal";
 import { getInitials, getAssigneeHex } from "../../utils/assigneeColor";
 import { useHolidays, HolidayInfo } from "../../hooks/useHolidays";
 
@@ -35,7 +38,16 @@ import { useHolidays, HolidayInfo } from "../../hooks/useHolidays";
 // Constants
 // ========================================
 
-const DAY_WIDTH = 60;
+const ZOOM_PRESETS = [32, 44, 60, 80, 100] as const;
+const DEFAULT_ZOOM_INDEX = 2;
+const ZOOM_LABEL_KEYS = [
+  "schedule.resource.zoomCompact",
+  "schedule.resource.zoomNarrow",
+  "schedule.resource.zoomDefault",
+  "schedule.resource.zoomWide",
+  "schedule.resource.zoomExtraWide",
+] as const;
+
 const ROW_HEIGHT = 80;
 const MILESTONE_ROW_HEIGHT = 48;
 const BAR_HEIGHT = 32;
@@ -73,11 +85,11 @@ interface ScheduleResourceViewProps {
   onMilestoneClick?: (milestone: Milestone) => void;
   /** Scroll to and highlight a specific item (from panel click) */
   scrollToItem?: { id: string; ts: number } | null;
-  /** 보드의 태스크 목록 (임시 업무 배치 시 태스크 선택용) */
-  tasks?: TaskPickerItem[];
+  /** 보드의 Feature 목록 (업무 생성 시 Feature 선택용) */
+  features?: Feature[];
 }
 
-/** 빈 행을 드래그해 임시(예정) 바를 그리는 중의 상태 */
+/** 빈 행을 드래그해 업무 생성 바를 그리는 중의 상태 */
 interface DrawState {
   rowIndex: number;
   rowId: string;
@@ -187,7 +199,7 @@ export function ScheduleResourceView({
   refreshTrigger,
   onMilestoneClick,
   scrollToItem,
-  tasks = [],
+  features = [],
 }: ScheduleResourceViewProps) {
   const { t, i18n } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -253,24 +265,61 @@ export function ScheduleResourceView({
     },
     [collapsedKey],
   );
+  // ─── Zoom level state ───
+  const zoomKey = `scheduleResourceZoom_${boardId}`;
+  const [zoomIndex, setZoomIndexState] = useState<number>(() => {
+    if (typeof window === "undefined") return DEFAULT_ZOOM_INDEX;
+    try {
+      const raw = window.localStorage.getItem(zoomKey);
+      if (raw !== null) {
+        const parsed = Number(raw);
+        if (parsed >= 0 && parsed < ZOOM_PRESETS.length) return parsed;
+      }
+    } catch {
+      /* ignore */
+    }
+    return DEFAULT_ZOOM_INDEX;
+  });
+  const dayWidth = ZOOM_PRESETS[zoomIndex];
+  const prevDayWidthRef = useRef(dayWidth);
+  const setZoomIndex = useCallback(
+    (next: number) => {
+      const clamped = Math.max(0, Math.min(ZOOM_PRESETS.length - 1, next));
+      setZoomIndexState(clamped);
+      try {
+        window.localStorage.setItem(zoomKey, String(clamped));
+      } catch {
+        /* ignore */
+      }
+    },
+    [zoomKey],
+  );
+
   // Refs for mouse event handlers (avoid stale closure)
   const dragStateRef = useRef<DragState | null>(null);
   // 드래그/리사이즈 후 click 이벤트 방지용 ref
   const wasDraggedRef = useRef(false);
 
-  // ─── 임시(예정) 바 그리기 상태 ───
+  // ─── 업무 생성 바 그리기 상태 ───
   const [drawState, setDrawState] = useState<DrawState | null>(null);
   const drawStateRef = useRef<DrawState | null>(null);
-  /** 그리기 완료 후 태스크 선택 팝오버 (앵커 좌표 + 확정된 기간/행) */
-  const [pendingTentative, setPendingTentative] = useState<{
+  /** 그리기 완료 후 업무 생성 모달 (확정된 기간/행) */
+  const [pendingCreate, setPendingCreate] = useState<{
     rowId: string;
     startDate: string;
     dueDate: string;
     anchorX: number;
     anchorY: number;
   } | null>(null);
-  /** 임시 바 우클릭 컨텍스트 메뉴 */
-  const [tentativeMenu, setTentativeMenu] = useState<{
+  /** 태스크 이동 모달 대상 */
+  const [moveTarget, setMoveTarget] = useState<{
+    id: string;
+    title: string;
+    taskId: string;
+    taskTitle: string;
+  } | null>(null);
+  /** 바 우클릭 컨텍스트 메뉴 */
+  const [barContextMenu, setBarContextMenu] = useState<{
     x: number;
     y: number;
     item: AssigneeItemResponse;
@@ -354,10 +403,22 @@ export function ScheduleResourceView({
   // Scroll to today on mount
   useEffect(() => {
     if (!loading && scrollContainerRef.current && todayIndex >= 0) {
-      const scrollTo = todayIndex * DAY_WIDTH - 7 * DAY_WIDTH;
+      const scrollTo = todayIndex * dayWidth - 7 * dayWidth;
       scrollContainerRef.current.scrollLeft = Math.max(0, scrollTo);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, todayIndex]);
+
+  // Preserve scroll center when zoom changes
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    const prevW = prevDayWidthRef.current;
+    if (!container || prevW === dayWidth) return;
+    const viewportCenter = container.scrollLeft + container.clientWidth / 2;
+    const centerDayIndex = viewportCenter / prevW;
+    container.scrollLeft = centerDayIndex * dayWidth - container.clientWidth / 2;
+    prevDayWidthRef.current = dayWidth;
+  }, [dayWidth]);
 
   // ─── External DnD drop tracking (from ChecklistItemPanel) ───
   const externalDropRef = useRef<{ rowId: string; dayIndex: number } | null>(
@@ -403,7 +464,7 @@ export function ScheduleResourceView({
         const scrollLeft = container.scrollLeft;
         dayIndex = Math.floor(
           (e.clientX - containerRect.left - LEFT_COL_WIDTH + scrollLeft) /
-            DAY_WIDTH,
+            dayWidth,
         );
       }
 
@@ -736,15 +797,15 @@ export function ScheduleResourceView({
       const startDayIndex = diffDays(rangeStart, effectiveStart);
       const endDayIndex = diffDays(rangeStart, effectiveEnd);
 
-      const left = startDayIndex * DAY_WIDTH;
+      const left = startDayIndex * dayWidth;
       const width = Math.max(
-        (endDayIndex - startDayIndex + 1) * DAY_WIDTH,
+        (endDayIndex - startDayIndex + 1) * dayWidth,
         MIN_BAR_WIDTH,
       );
 
       return { left, width, startDayIndex, endDayIndex };
     },
-    [rangeStart],
+    [rangeStart, dayWidth],
   );
 
   // ─── Scroll to a specific item (triggered by panel click) ───
@@ -857,7 +918,7 @@ export function ScheduleResourceView({
       const scrollLeft = container?.scrollLeft || 0;
       const cursorContentX =
         e.clientX - (containerRect?.left || 0) - LEFT_COL_WIDTH + scrollLeft;
-      const initialCursorDayIndex = Math.floor(cursorContentX / DAY_WIDTH);
+      const initialCursorDayIndex = Math.floor(cursorContentX / dayWidth);
 
       const rowId = rows[assigneeIndex]?.id || null;
       const initialAssigneeId =
@@ -893,7 +954,7 @@ export function ScheduleResourceView({
         const sl = cont?.scrollLeft || 0;
         const contentX =
           moveEvent.clientX - (rect?.left || 0) - LEFT_COL_WIDTH + sl;
-        const currentDayIndex = Math.floor(contentX / DAY_WIDTH);
+        const currentDayIndex = Math.floor(contentX / dayWidth);
         const deltaDays = currentDayIndex - ds.initialCursorDayIndex;
 
         // Y-axis: detect target row for cross-row reassignment (move only)
@@ -1090,7 +1151,7 @@ export function ScheduleResourceView({
     [boardId, fetchData, rangeStart, rangeEnd, rows],
   );
 
-  // ─── 임시(예정) 바: 빈 행 영역을 드래그해 그리기 ───
+  // ─── 업무 생성 바: 빈 행 영역을 드래그해 그리기 ───
   const handleDrawStart = useCallback(
     (e: React.MouseEvent, rowIndex: number, rowId: string) => {
       if (e.button !== 0) return; // 좌클릭만
@@ -1104,7 +1165,7 @@ export function ScheduleResourceView({
       const scrollLeft = container?.scrollLeft || 0;
       const startDayIndex = Math.floor(
         (e.clientX - (rect?.left || 0) - LEFT_COL_WIDTH + scrollLeft) /
-          DAY_WIDTH,
+          dayWidth,
       );
       if (startDayIndex < 0 || startDayIndex >= timelineDays.length) return;
 
@@ -1132,7 +1193,7 @@ export function ScheduleResourceView({
         const sl = cont?.scrollLeft || 0;
         let dayIndex = Math.floor(
           (moveEvent.clientX - (r?.left || 0) - LEFT_COL_WIDTH + sl) /
-            DAY_WIDTH,
+            dayWidth,
         );
         dayIndex = Math.max(0, Math.min(timelineDays.length - 1, dayIndex));
         if (dayIndex !== ds.currentDayIndex) {
@@ -1154,7 +1215,7 @@ export function ScheduleResourceView({
 
         const a = Math.min(ds.startDayIndex, ds.currentDayIndex);
         const b = Math.max(ds.startDayIndex, ds.currentDayIndex);
-        setPendingTentative({
+        setPendingCreate({
           rowId: ds.rowId,
           startDate: formatDateStr(timelineDays[a]),
           dueDate: formatDateStr(timelineDays[b]),
@@ -1169,64 +1230,10 @@ export function ScheduleResourceView({
     [externalDragItem, timelineDays],
   );
 
-  // ─── 임시 항목 생성 (태스크 선택 후) ───
-  const handleCreateTentative = useCallback(
-    async (taskId: string, title: string) => {
-      const pending = pendingTentative;
-      if (!pending) return;
-      setPendingTentative(null);
-      const isContractor = pending.rowId.startsWith("contractor:");
-      const isUnassigned = pending.rowId === "__unassigned__";
-      try {
-        await checklistAPI.addItem(boardId, taskId, {
-          title,
-          start_date: pending.startDate,
-          due_date: pending.dueDate,
-          assignee_id: isContractor || isUnassigned ? null : pending.rowId,
-          contractor_id: isContractor
-            ? pending.rowId.substring("contractor:".length)
-            : null,
-          is_tentative: true,
-        });
-        const result = await boardChecklistAPI.getItemsByAssignee(boardId, {
-          start_date: rangeStart,
-          end_date: rangeEnd,
-        });
-        setData(result);
-      } catch (err) {
-        console.warn("Failed to create tentative item", err);
-        fetchData();
-      }
-    },
-    [pendingTentative, boardId, rangeStart, rangeEnd, fetchData],
-  );
-
-  // ─── 임시 → 실제 체크리스트로 전환 ───
-  const handlePromoteTentative = useCallback(
+  // ─── 바 삭제 (체크리스트) ───
+  const handleDeleteBarItem = useCallback(
     async (item: AssigneeItemResponse) => {
-      setTentativeMenu(null);
-      if (!item.task) return;
-      try {
-        await checklistAPI.patchItem(boardId, item.task.id, item.id, {
-          is_tentative: false,
-        });
-        const result = await boardChecklistAPI.getItemsByAssignee(boardId, {
-          start_date: rangeStart,
-          end_date: rangeEnd,
-        });
-        setData(result);
-      } catch (err) {
-        console.warn("Failed to promote tentative item", err);
-        fetchData();
-      }
-    },
-    [boardId, rangeStart, rangeEnd, fetchData],
-  );
-
-  // ─── 임시 항목 삭제 ───
-  const handleDeleteTentative = useCallback(
-    async (item: AssigneeItemResponse) => {
-      setTentativeMenu(null);
+      setBarContextMenu(null);
       if (!item.task) return;
       try {
         await checklistAPI.deleteItem(boardId, item.task.id, item.id);
@@ -1248,7 +1255,7 @@ export function ScheduleResourceView({
           };
         });
       } catch (err) {
-        console.warn("Failed to delete tentative item", err);
+        console.warn("Failed to delete bar item", err);
         fetchData();
       }
     },
@@ -1385,7 +1392,7 @@ export function ScheduleResourceView({
     );
   }
 
-  const totalTimelineWidth = timelineDays.length * DAY_WIDTH;
+  const totalTimelineWidth = timelineDays.length * dayWidth;
   const totalContentHeight =
     (milestoneBarData.length > 0 ? MILESTONE_ROW_HEIGHT : 0) +
     rows.length * ROW_HEIGHT;
@@ -1438,6 +1445,30 @@ export function ScheduleResourceView({
                   {t("contractor.short", "외주")}
                 </button>
               )}
+              {/* Zoom controls */}
+              <div className="inline-flex items-center gap-0.5 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => setZoomIndex(zoomIndex - 1)}
+                  disabled={zoomIndex <= 0}
+                  className="p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all disabled:opacity-30 disabled:cursor-default"
+                  title={t("schedule.resource.zoomOut", "축소")}
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-xs text-slate-400 font-medium w-10 text-center select-none">
+                  {t(ZOOM_LABEL_KEYS[zoomIndex])}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setZoomIndex(zoomIndex + 1)}
+                  disabled={zoomIndex >= ZOOM_PRESETS.length - 1}
+                  className="p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all disabled:opacity-30 disabled:cursor-default"
+                  title={t("schedule.resource.zoomIn", "확대")}
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
             {/* Day headers — drag to scroll */}
@@ -1466,12 +1497,12 @@ export function ScheduleResourceView({
                       ${isHoliday ? "bg-red-500/[0.04]" : weekend ? "bg-foreground/[0.02]" : ""}
                       ${isToday ? "bg-bridge-accent/5" : ""}`}
                     style={{
-                      left: idx * DAY_WIDTH,
-                      width: DAY_WIDTH,
+                      left: idx * dayWidth,
+                      width: dayWidth,
                       height: HEADER_HEIGHT,
                     }}
                   >
-                    <span
+                    {dayWidth >= 44 && <span
                       className={`text-xs ${
                         isHoliday
                           ? "text-red-400"
@@ -1481,7 +1512,7 @@ export function ScheduleResourceView({
                       }`}
                     >
                       {getDayLabel(day, locale)}
-                    </span>
+                    </span>}
                     <span
                       className={`text-xs font-medium ${
                         isToday
@@ -1540,7 +1571,7 @@ export function ScheduleResourceView({
                       className={`absolute top-0 bottom-0 ${
                         isHoliday ? "bg-red-500/[0.04]" : "bg-foreground/[0.02]"
                       }`}
-                      style={{ left: idx * DAY_WIDTH, width: DAY_WIDTH }}
+                      style={{ left: idx * dayWidth, width: dayWidth }}
                     />
                   );
                 })}
@@ -1570,7 +1601,7 @@ export function ScheduleResourceView({
                 {todayIndex >= 0 && (
                   <div
                     className="absolute top-0 bottom-0 w-px bg-red-400 z-10"
-                    style={{ left: todayIndex * DAY_WIDTH + DAY_WIDTH / 2 }}
+                    style={{ left: todayIndex * dayWidth + dayWidth / 2 }}
                   />
                 )}
               </div>
@@ -1786,7 +1817,7 @@ export function ScheduleResourceView({
                           (rect?.left || 0) -
                           LEFT_COL_WIDTH +
                           scrollLeft) /
-                          DAY_WIDTH,
+                          dayWidth,
                       );
                       handleDragOver(e, rowIndex, di);
                     }}
@@ -1801,7 +1832,7 @@ export function ScheduleResourceView({
                           (rect?.left || 0) -
                           LEFT_COL_WIDTH +
                           scrollLeft) /
-                          DAY_WIDTH,
+                          dayWidth,
                       );
                       handleDrop(e, row.id, dayIndex);
                     }}
@@ -1821,7 +1852,7 @@ export function ScheduleResourceView({
                           className={`absolute top-0 bottom-0 border-r border-foreground/[0.04]
                           ${isHoliday ? "bg-red-500/[0.04]" : weekend ? "bg-foreground/[0.02]" : ""}
                           ${isHighlighted ? "bg-bridge-accent/10 ring-2 ring-bridge-accent/30 ring-inset" : ""}`}
-                          style={{ left: idx * DAY_WIDTH, width: DAY_WIDTH }}
+                          style={{ left: idx * dayWidth, width: dayWidth }}
                         />
                       );
                     })}
@@ -1851,7 +1882,7 @@ export function ScheduleResourceView({
                         );
                       })}
 
-                    {/* 임시(예정) 바 그리기 미리보기 */}
+                    {/* 업무 생성 바 그리기 미리보기 */}
                     {drawState?.rowIndex === rowIndex &&
                       (() => {
                         const a = Math.min(
@@ -1866,14 +1897,14 @@ export function ScheduleResourceView({
                           <div
                             className="absolute rounded-lg border-2 border-dashed border-bridge-accent bg-bridge-accent/15 pointer-events-none z-20 flex items-center px-2"
                             style={{
-                              left: a * DAY_WIDTH,
-                              width: (b - a + 1) * DAY_WIDTH,
+                              left: a * dayWidth,
+                              width: (b - a + 1) * dayWidth,
                               top: BAR_TOP_OFFSET,
                               height: BAR_HEIGHT,
                             }}
                           >
                             <span className="text-xs font-bold text-bridge-accent truncate">
-                              {t("schedule.resource.tentative", "예정")}
+                              {formatDateStr(timelineDays[a])} ~ {formatDateStr(timelineDays[b])}
                             </span>
                           </div>
                         );
@@ -1898,15 +1929,13 @@ export function ScheduleResourceView({
                           BAR_TOP_OFFSET + lane * (BAR_HEIGHT + BAR_TOP_OFFSET);
 
                         const isHighlightTarget = highlightedItemId === item.id;
-                        const isTentative = !!item.tentative;
 
                         return (
                           <div
                             key={item.id}
                             data-bar="true"
                             className={`absolute rounded-lg flex items-center px-2 text-xs font-medium
-                          cursor-pointer hover:brightness-110 hover:shadow-lg transition-all
-                          ${isTentative ? "text-foreground border-2 border-dashed" : "text-white"}
+                          cursor-pointer hover:brightness-110 hover:shadow-lg transition-all text-white
                           ${item.completed ? "opacity-50" : ""}
                           ${
                             isItemDragging
@@ -1922,27 +1951,18 @@ export function ScheduleResourceView({
                               width: pos.width,
                               top: barTop,
                               height: BAR_HEIGHT,
-                              backgroundColor: isTentative
-                                ? `${featureColor}26`
-                                : featureColor,
-                              borderColor: isTentative
-                                ? featureColor
-                                : undefined,
+                              backgroundColor: featureColor,
                             }}
                             onClick={() => handleBarClick(item)}
-                            onContextMenu={
-                              isTentative
-                                ? (e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setTentativeMenu({
-                                      x: e.clientX,
-                                      y: e.clientY,
-                                      item,
-                                    });
-                                  }
-                                : undefined
-                            }
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setBarContextMenu({
+                                x: e.clientX,
+                                y: e.clientY,
+                                item,
+                              });
+                            }}
                             onMouseDown={(e) => {
                               // Ignore if clicking on resize handles
                               if (
@@ -1969,22 +1989,13 @@ export function ScheduleResourceView({
                               }
                             />
 
-                            {/* 예정 뱃지 */}
-                            {isTentative && (
-                              <span className="shrink-0 mr-1 px-1.5 py-0.5 rounded-full text-xs font-bold bg-bridge-accent/15 text-bridge-accent">
-                                {t("schedule.resource.tentative", "예정")}
-                              </span>
-                            )}
-
                             {/* Content */}
                             <span
                               className={`truncate flex-1 ${item.completed ? "line-through" : ""}`}
                             >
-                              {isTentative
-                                ? item.title
-                                : item.task
-                                  ? `${item.task.title} / ${item.title}`
-                                  : item.title}
+                              {item.task
+                                ? `${item.task.title} / ${item.title}`
+                                : item.title}
                             </span>
                             {item.completed && (
                               <CheckCircle2
@@ -2056,7 +2067,7 @@ export function ScheduleResourceView({
                       <div
                         className="absolute top-0 bottom-0 w-px bg-red-400 z-10 pointer-events-none"
                         style={{
-                          left: todayIndex * DAY_WIDTH + DAY_WIDTH / 2,
+                          left: todayIndex * dayWidth + dayWidth / 2,
                           borderLeft: "1px dashed",
                           borderColor: "rgb(248 113 113)",
                           width: 0,
@@ -2103,47 +2114,74 @@ export function ScheduleResourceView({
         </div>
       )}
 
-      {/* ─── 임시 업무 태스크 선택 팝오버 ─── */}
-      {pendingTentative && (
-        <TaskPickerPopover
-          tasks={tasks}
-          x={pendingTentative.anchorX}
-          y={pendingTentative.anchorY}
-          onSelect={handleCreateTentative}
-          onClose={() => setPendingTentative(null)}
-        />
-      )}
+      {/* ─── 업무 생성 모달 ─── */}
+      <WorkloadCreateModal
+        open={!!pendingCreate}
+        onClose={() => setPendingCreate(null)}
+        boardId={boardId}
+        features={features}
+        assigneeId={pendingCreate && !pendingCreate.rowId.startsWith('contractor:') && pendingCreate.rowId !== '__unassigned__' ? pendingCreate.rowId : null}
+        contractorId={pendingCreate?.rowId.startsWith('contractor:') ? pendingCreate.rowId.replace('contractor:', '') : null}
+        startDate={pendingCreate?.startDate || ''}
+        dueDate={pendingCreate?.dueDate || ''}
+        onCreated={() => {
+          setPendingCreate(null);
+          fetchData();
+        }}
+      />
 
-      {/* ─── 임시 바 컨텍스트 메뉴 (전환/삭제) ─── */}
-      {tentativeMenu && (
+      {/* ─── 태스크 이동 모달 ─── */}
+      <MoveToTaskModal
+        open={!!moveTarget}
+        onClose={() => setMoveTarget(null)}
+        boardId={boardId}
+        item={moveTarget || { id: '', title: '', taskId: '', taskTitle: '' }}
+        features={features}
+        onMoved={() => {
+          setMoveTarget(null);
+          fetchData();
+        }}
+      />
+
+      {/* ─── 바 우클릭 컨텍스트 메뉴 ─── */}
+      {barContextMenu && (
         <>
           <div
             className="fixed inset-0 z-40"
-            onClick={() => setTentativeMenu(null)}
+            onClick={() => setBarContextMenu(null)}
             onContextMenu={(e) => {
               e.preventDefault();
-              setTentativeMenu(null);
+              setBarContextMenu(null);
             }}
           />
           <div
             className="fixed z-50 min-w-[180px] bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5"
-            style={{ left: tentativeMenu.x, top: tentativeMenu.y }}
+            style={{ left: barContextMenu.x, top: barContextMenu.y }}
           >
-            <button
-              type="button"
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors"
-              onClick={() => handlePromoteTentative(tentativeMenu.item)}
-            >
-              <ListChecks className="w-4 h-4 text-bridge-secondary shrink-0" />
-              {t(
-                "schedule.resource.promoteToChecklist",
-                "실제 체크리스트로 전환",
-              )}
-            </button>
+            {barContextMenu.item.task && (
+              <button
+                type="button"
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors"
+                onClick={() => {
+                  if (barContextMenu.item.task) {
+                    setMoveTarget({
+                      id: barContextMenu.item.id,
+                      title: barContextMenu.item.title,
+                      taskId: barContextMenu.item.task.id,
+                      taskTitle: barContextMenu.item.task.title,
+                    });
+                  }
+                  setBarContextMenu(null);
+                }}
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5" />
+                {t('schedule.resource.moveToTask', '태스크 이동')}
+              </button>
+            )}
             <button
               type="button"
               className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-400 hover:bg-foreground/5 transition-colors"
-              onClick={() => handleDeleteTentative(tentativeMenu.item)}
+              onClick={() => handleDeleteBarItem(barContextMenu.item)}
             >
               <Trash2 className="w-4 h-4 shrink-0" />
               {t("common.delete", "삭제")}

@@ -305,7 +305,10 @@ export const boardService = {
 // ========================================
 
 export const blockService = {
-  getBlocks: async (boardId: string, milestoneId?: string): Promise<Block[]> => {
+  getBlocks: async (
+    boardId: string,
+    milestoneId?: string,
+  ): Promise<Block[]> => {
     try {
       const response = await blockAPI.getBlocks(boardId, milestoneId);
       return response.blocks;
@@ -318,7 +321,10 @@ export const blockService = {
     }
   },
 
-  getBlocksWithHidden: async (boardId: string, milestoneId?: string): Promise<{ blocks: Block[]; hiddenBlocks: Block[] }> => {
+  getBlocksWithHidden: async (
+    boardId: string,
+    milestoneId?: string,
+  ): Promise<{ blocks: Block[]; hiddenBlocks: Block[] }> => {
     try {
       const response = await blockAPI.getBlocks(boardId, milestoneId);
       return {
@@ -328,7 +334,10 @@ export const blockService = {
     } catch (error) {
       console.warn("API failed for getBlocksWithHidden", error);
       if (USE_MOCK_ON_ERROR) {
-        return { blocks: loadFromLocalStorage("kanban_blocks", mockBlocks), hiddenBlocks: [] };
+        return {
+          blocks: loadFromLocalStorage("kanban_blocks", mockBlocks),
+          hiddenBlocks: [],
+        };
       }
       throw error;
     }
@@ -654,7 +663,7 @@ export const taskService = {
 
   createTask: async (
     boardId: string,
-    featureId: string,
+    featureId: string | undefined,
     data: {
       title: string;
       description?: string;
@@ -662,6 +671,7 @@ export const taskService = {
       start_date?: string;
       due_date?: string;
       estimated_minutes?: number;
+      color?: string;
     },
   ): Promise<Task> => {
     try {
@@ -673,14 +683,19 @@ export const taskService = {
         const tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
         const features = loadFromLocalStorage("kanban_features", mockFeatures);
         const blocks = loadFromLocalStorage("kanban_blocks", mockBlocks);
-        const feature = features.find((f: Feature) => f.id === featureId);
+        // featureId 미지정 시 "미분류"(inbox) Feature로 자동 귀속
+        const feature = featureId
+          ? features.find((f: Feature) => f.id === featureId)
+          : features.find((f: Feature) => f.inbox);
+        const resolvedFeatureId = feature?.id || featureId || "inbox";
         const taskBlock = blocks.find((b: Block) => b.fixed_type === "TASK");
 
         const newTask: Task = {
           id: `task-${Date.now()}`,
-          feature_id: featureId,
-          feature_title: feature?.title || "",
-          feature_color: feature?.color || "#3B82F6",
+          feature_id: resolvedFeatureId,
+          feature_title: feature?.title || "미분류",
+          feature_color: feature?.color || "#64748b",
+          color: data.color || feature?.color || "#6366F1",
           block_id: taskBlock?.id || "task-block",
           title: data.title,
           description: data.description,
@@ -689,8 +704,9 @@ export const taskService = {
           due_date: data.due_date || null,
           estimated_minutes: data.estimated_minutes || null,
           completed: false,
-          position: tasks.filter((t: Task) => t.feature_id === featureId)
-            .length,
+          position: tasks.filter(
+            (t: Task) => t.feature_id === resolvedFeatureId,
+          ).length,
           tags: [],
           created_at: nowUTC(),
         };
@@ -712,6 +728,7 @@ export const taskService = {
       start_date?: string | null;
       due_date?: string | null;
       estimated_minutes?: number | null;
+      color?: string;
     },
   ): Promise<Task> => {
     try {
@@ -1928,6 +1945,30 @@ export const milestoneService = {
     }
   },
 
+  setPrimaryFeature: async (
+    boardId: string,
+    milestoneId: string,
+    featureId: string,
+  ): Promise<Milestone> => {
+    const m = await milestoneAPI.setPrimaryFeature(
+      boardId,
+      milestoneId,
+      featureId,
+    );
+    return {
+      id: m.id,
+      title: m.title,
+      description: m.description,
+      start_date: m.start_date,
+      end_date: m.end_date,
+      feature_count: m.feature_count,
+      progress_percentage: m.progress_percentage,
+      features: m.features,
+      created_by: m.created_by,
+      created_at: m.created_at,
+    };
+  },
+
   removeFeature: async (
     boardId: string,
     milestoneId: string,
@@ -2555,13 +2596,21 @@ export const adminService = {
   },
 
   // Churn Analysis
-  getRetentionAnalysis: async (weeks: number = 8): Promise<RetentionAnalysis> => {
+  getRetentionAnalysis: async (
+    weeks: number = 8,
+  ): Promise<RetentionAnalysis> => {
     return await adminAPI.getRetentionAnalysis(weeks);
   },
-  getInactiveUsers: async (inactiveDays: number = 14, page: number = 0, size: number = 20): Promise<InactiveUserList> => {
+  getInactiveUsers: async (
+    inactiveDays: number = 14,
+    page: number = 0,
+    size: number = 20,
+  ): Promise<InactiveUserList> => {
     return await adminAPI.getInactiveUsers(inactiveDays, page, size);
   },
-  getTrialDropoutAnalysis: async (days: number = 90): Promise<TrialDropoutAnalysis> => {
+  getTrialDropoutAnalysis: async (
+    days: number = 90,
+  ): Promise<TrialDropoutAnalysis> => {
     return await adminAPI.getTrialDropoutAnalysis(days);
   },
   getActivityTrends: async (days: number = 90): Promise<ActivityTrends> => {
@@ -2705,11 +2754,15 @@ export const adminService = {
   },
 
   // 수익화 토글
-  getMonetizationStatus: async (): Promise<{ monetization_enabled: boolean }> => {
+  getMonetizationStatus: async (): Promise<{
+    monetization_enabled: boolean;
+  }> => {
     return await adminAPI.getMonetizationStatus();
   },
 
-  setMonetizationEnabled: async (enabled: boolean): Promise<{ monetization_enabled: boolean }> => {
+  setMonetizationEnabled: async (
+    enabled: boolean,
+  ): Promise<{ monetization_enabled: boolean }> => {
     return await adminAPI.setMonetizationEnabled(enabled);
   },
 
@@ -2752,7 +2805,9 @@ export const adminService = {
 // System Service (공개 API)
 // ========================================
 
-export const getMonetizationStatus = async (): Promise<{ monetization_enabled: boolean }> => {
+export const getMonetizationStatus = async (): Promise<{
+  monetization_enabled: boolean;
+}> => {
   return await systemAPI.getMonetizationStatus();
 };
 
@@ -2795,7 +2850,9 @@ export const systemService = {
     return await systemAPI.getActiveAnnouncements();
   },
 
-  getMonetizationStatus: async (): Promise<{ monetization_enabled: boolean }> => {
+  getMonetizationStatus: async (): Promise<{
+    monetization_enabled: boolean;
+  }> => {
     return await systemAPI.getMonetizationStatus();
   },
 };
@@ -2876,14 +2933,15 @@ export const noteService = {
     versionId: string,
     liveSnapshot?: { current_title?: string; current_content?: string },
   ) => {
-    return await noteAPI.restoreVersion(boardId, noteId, versionId, liveSnapshot);
+    return await noteAPI.restoreVersion(
+      boardId,
+      noteId,
+      versionId,
+      liveSnapshot,
+    );
   },
 
-  deleteVersion: async (
-    boardId: string,
-    noteId: string,
-    versionId: string,
-  ) => {
+  deleteVersion: async (boardId: string, noteId: string, versionId: string) => {
     return await noteAPI.deleteVersion(boardId, noteId, versionId);
   },
 
@@ -3044,7 +3102,11 @@ export const orgNoteService = {
   getVersions: async (orgId: string, noteId: string) => {
     return await orgNoteAPI.getVersions(orgId, noteId);
   },
-  getVersionDetail: async (orgId: string, noteId: string, versionId: string) => {
+  getVersionDetail: async (
+    orgId: string,
+    noteId: string,
+    versionId: string,
+  ) => {
     return await orgNoteAPI.getVersionDetail(orgId, noteId, versionId);
   },
   restoreVersion: async (
@@ -3053,7 +3115,12 @@ export const orgNoteService = {
     versionId: string,
     liveSnapshot?: { current_title?: string; current_content?: string },
   ) => {
-    return await orgNoteAPI.restoreVersion(orgId, noteId, versionId, liveSnapshot);
+    return await orgNoteAPI.restoreVersion(
+      orgId,
+      noteId,
+      versionId,
+      liveSnapshot,
+    );
   },
   deleteVersion: async (orgId: string, noteId: string, versionId: string) => {
     return await orgNoteAPI.deleteVersion(orgId, noteId, versionId);
@@ -3115,7 +3182,12 @@ export const orgNoteCommentService = {
     commentId: string,
     data: { content: string; mentions?: string[] },
   ) => {
-    return await orgNoteCommentAPI.updateComment(orgId, noteId, commentId, data);
+    return await orgNoteCommentAPI.updateComment(
+      orgId,
+      noteId,
+      commentId,
+      data,
+    );
   },
   deleteComment: async (orgId: string, noteId: string, commentId: string) => {
     return await orgNoteCommentAPI.deleteComment(orgId, noteId, commentId);
@@ -3123,8 +3195,18 @@ export const orgNoteCommentService = {
   toggleResolved: async (orgId: string, noteId: string, commentId: string) => {
     return await orgNoteCommentAPI.toggleResolved(orgId, noteId, commentId);
   },
-  toggleReaction: async (orgId: string, noteId: string, commentId: string, emoji: string) => {
-    return await orgNoteCommentAPI.toggleReaction(orgId, noteId, commentId, emoji);
+  toggleReaction: async (
+    orgId: string,
+    noteId: string,
+    commentId: string,
+    emoji: string,
+  ) => {
+    return await orgNoteCommentAPI.toggleReaction(
+      orgId,
+      noteId,
+      commentId,
+      emoji,
+    );
   },
 };
 
@@ -3347,7 +3429,10 @@ export const diaryService = {
     return diaryAPI.getList(year, month);
   },
 
-  create: async (diaryDate: string, language?: string): Promise<DiaryDetail> => {
+  create: async (
+    diaryDate: string,
+    language?: string,
+  ): Promise<DiaryDetail> => {
     return diaryAPI.create(diaryDate, language);
   },
 
@@ -3523,7 +3608,8 @@ export const organizationService = {
   // Member History
   getMemberHistory: organizationAPI.getMemberHistory,
   createMemberHistory: organizationAPI.createMemberHistory,
-  updateMemberHistoryDescription: organizationAPI.updateMemberHistoryDescription,
+  updateMemberHistoryDescription:
+    organizationAPI.updateMemberHistoryDescription,
   deleteMemberHistory: organizationAPI.deleteMemberHistory,
 
   // Boards
@@ -3654,54 +3740,138 @@ export const okrService = {
   // Cycles
   getCycles: (orgId: string) =>
     apiClient.get<OkrCycle[]>(`/organizations/${orgId}/okr/cycles`),
-  createCycle: (orgId: string, data: { name: string; cycle_type: string; start_date: string; end_date: string }) =>
-    apiClient.post<OkrCycle>(`/organizations/${orgId}/okr/cycles`, data),
-  updateCycle: (orgId: string, cycleId: string, data: { name?: string; cycle_type?: string; start_date?: string; end_date?: string; status?: string }) =>
-    apiClient.put<OkrCycle>(`/organizations/${orgId}/okr/cycles/${cycleId}`, data),
+  createCycle: (
+    orgId: string,
+    data: {
+      name: string;
+      cycle_type: string;
+      start_date: string;
+      end_date: string;
+    },
+  ) => apiClient.post<OkrCycle>(`/organizations/${orgId}/okr/cycles`, data),
+  updateCycle: (
+    orgId: string,
+    cycleId: string,
+    data: {
+      name?: string;
+      cycle_type?: string;
+      start_date?: string;
+      end_date?: string;
+      status?: string;
+    },
+  ) =>
+    apiClient.put<OkrCycle>(
+      `/organizations/${orgId}/okr/cycles/${cycleId}`,
+      data,
+    ),
   deleteCycle: (orgId: string, cycleId: string) =>
     apiClient.delete<void>(`/organizations/${orgId}/okr/cycles/${cycleId}`),
 
   // Tree (full tree query)
   getTree: (orgId: string, cycleId: string) =>
-    apiClient.get<OkrTreeData>(`/organizations/${orgId}/okr/cycles/${cycleId}/tree`),
+    apiClient.get<OkrTreeData>(
+      `/organizations/${orgId}/okr/cycles/${cycleId}/tree`,
+    ),
 
   // Objectives
-  createObjective: (orgId: string, cycleId: string, data: {
-    title: string; description?: string; level: string;
-    department_id?: string; owner_id?: string; parent_objective_id?: string;
-  }) =>
-    apiClient.post<OkrObjective>(`/organizations/${orgId}/okr/cycles/${cycleId}/objectives`, data),
-  updateObjective: (orgId: string, objectiveId: string, data: {
-    title?: string; description?: string; level?: string;
-    department_id?: string; owner_id?: string; parent_objective_id?: string;
-  }) =>
-    apiClient.put<OkrObjective>(`/organizations/${orgId}/okr/objectives/${objectiveId}`, data),
+  createObjective: (
+    orgId: string,
+    cycleId: string,
+    data: {
+      title: string;
+      description?: string;
+      level: string;
+      department_id?: string;
+      owner_id?: string;
+      parent_objective_id?: string;
+    },
+  ) =>
+    apiClient.post<OkrObjective>(
+      `/organizations/${orgId}/okr/cycles/${cycleId}/objectives`,
+      data,
+    ),
+  updateObjective: (
+    orgId: string,
+    objectiveId: string,
+    data: {
+      title?: string;
+      description?: string;
+      level?: string;
+      department_id?: string;
+      owner_id?: string;
+      parent_objective_id?: string;
+    },
+  ) =>
+    apiClient.put<OkrObjective>(
+      `/organizations/${orgId}/okr/objectives/${objectiveId}`,
+      data,
+    ),
   deleteObjective: (orgId: string, objectiveId: string) =>
-    apiClient.delete<void>(`/organizations/${orgId}/okr/objectives/${objectiveId}`),
+    apiClient.delete<void>(
+      `/organizations/${orgId}/okr/objectives/${objectiveId}`,
+    ),
 
   // Key Results
-  createKeyResult: (orgId: string, objectiveId: string, data: {
-    title: string; description?: string; metric_type: string;
-    start_value: number; target_value: number; current_value?: number;
-    unit?: string; owner_id?: string; weight?: number; linked_board_id?: string;
-  }) =>
-    apiClient.post<OkrKeyResult>(`/organizations/${orgId}/okr/objectives/${objectiveId}/key-results`, data),
-  updateKeyResult: (orgId: string, krId: string, data: {
-    title?: string; description?: string; metric_type?: string;
-    start_value?: number; target_value?: number; unit?: string;
-    owner_id?: string; weight?: number; linked_board_id?: string;
-  }) =>
-    apiClient.put<OkrKeyResult>(`/organizations/${orgId}/okr/key-results/${krId}`, data),
+  createKeyResult: (
+    orgId: string,
+    objectiveId: string,
+    data: {
+      title: string;
+      description?: string;
+      metric_type: string;
+      start_value: number;
+      target_value: number;
+      current_value?: number;
+      unit?: string;
+      owner_id?: string;
+      weight?: number;
+      linked_board_id?: string;
+    },
+  ) =>
+    apiClient.post<OkrKeyResult>(
+      `/organizations/${orgId}/okr/objectives/${objectiveId}/key-results`,
+      data,
+    ),
+  updateKeyResult: (
+    orgId: string,
+    krId: string,
+    data: {
+      title?: string;
+      description?: string;
+      metric_type?: string;
+      start_value?: number;
+      target_value?: number;
+      unit?: string;
+      owner_id?: string;
+      weight?: number;
+      linked_board_id?: string;
+    },
+  ) =>
+    apiClient.put<OkrKeyResult>(
+      `/organizations/${orgId}/okr/key-results/${krId}`,
+      data,
+    ),
   deleteKeyResult: (orgId: string, krId: string) =>
     apiClient.delete<void>(`/organizations/${orgId}/okr/key-results/${krId}`),
 
   // Check-ins
   getCheckIns: (orgId: string, krId: string) =>
-    apiClient.get<OkrCheckIn[]>(`/organizations/${orgId}/okr/key-results/${krId}/checkins`),
-  createCheckIn: (orgId: string, krId: string, data: {
-    new_value: number; confidence: string; note?: string;
-  }) =>
-    apiClient.post<OkrCheckIn>(`/organizations/${orgId}/okr/key-results/${krId}/checkins`, data),
+    apiClient.get<OkrCheckIn[]>(
+      `/organizations/${orgId}/okr/key-results/${krId}/checkins`,
+    ),
+  createCheckIn: (
+    orgId: string,
+    krId: string,
+    data: {
+      new_value: number;
+      confidence: string;
+      note?: string;
+    },
+  ) =>
+    apiClient.post<OkrCheckIn>(
+      `/organizations/${orgId}/okr/key-results/${krId}/checkins`,
+      data,
+    ),
 };
 
 // ─── Org Subscription Service ───

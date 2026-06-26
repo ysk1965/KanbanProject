@@ -6,7 +6,9 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface MilestoneFeatureRepository extends JpaRepository<MilestoneFeature, String> {
 
@@ -16,6 +18,28 @@ public interface MilestoneFeatureRepository extends JpaRepository<MilestoneFeatu
 
     @Query("SELECT mf.feature FROM MilestoneFeature mf WHERE mf.milestone.id = :milestoneId")
     List<Feature> findFeaturesByMilestoneId(@Param("milestoneId") String milestoneId);
+
+    /** 진행률 집계용 — 대표(primary) 링크 피처만 조회 */
+    @Query("SELECT mf.feature FROM MilestoneFeature mf WHERE mf.milestone.id = :milestoneId AND mf.isPrimary = true")
+    List<Feature> findPrimaryFeaturesByMilestoneId(@Param("milestoneId") String milestoneId);
+
+    /** 마일스톤 + isPrimary 동시 조회 (detail 응답 매핑용, feature fetch join) */
+    @Query("SELECT mf FROM MilestoneFeature mf JOIN FETCH mf.feature WHERE mf.milestone.id = :milestoneId")
+    List<MilestoneFeature> findWithFeatureByMilestoneId(@Param("milestoneId") String milestoneId);
+
+    /** 이미 어딘가에 대표 링크를 가진 피처 ID 집합 (신규 링크 primary 판정용) */
+    @Query("SELECT mf.feature.id FROM MilestoneFeature mf WHERE mf.feature.id IN :featureIds AND mf.isPrimary = true")
+    List<String> findFeatureIdsHavingPrimary(@Param("featureIds") Collection<String> featureIds);
+
+    /** 특정 피처의 현재 대표 링크 (대표 강등/승격용) */
+    Optional<MilestoneFeature> findByFeatureIdAndIsPrimaryTrue(String featureId);
+
+    Optional<MilestoneFeature> findByMilestoneIdAndFeatureId(String milestoneId, String featureId);
+
+    /** 남은 이어짐 링크 중 대표 승격 후보 (마일스톤 시작일 빠른 순) */
+    @Query("SELECT mf FROM MilestoneFeature mf JOIN mf.milestone m " +
+           "WHERE mf.feature.id = :featureId ORDER BY m.startDate ASC, mf.id ASC")
+    List<MilestoneFeature> findByFeatureIdOrderByMilestoneStartDate(@Param("featureId") String featureId);
 
     @Query("SELECT mf.feature.id FROM MilestoneFeature mf WHERE mf.milestone.id = :milestoneId")
     List<String> findFeatureIdsByMilestoneId(@Param("milestoneId") String milestoneId);

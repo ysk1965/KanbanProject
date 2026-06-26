@@ -16,6 +16,7 @@ import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
+import com.kanban.domain.feature.service.InboxFeatureService;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
 import com.kanban.domain.notification.NotificationRepository;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
@@ -64,6 +65,7 @@ public class TaskService {
     private final TaskTagRepository taskTagRepository;
     private final ChecklistItemRepository checklistItemRepository;
     private final FeatureRepository featureRepository;
+    private final InboxFeatureService inboxFeatureService;
     private final BlockRepository blockRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
@@ -79,6 +81,20 @@ public class TaskService {
     private final FileUploadService fileUploadService;
     private final WebSocketEventService webSocketEventService;
     private final EntityManager entityManager;
+
+    // 새 Task 기본 색상 팔레트 (FE constants/index.ts FEATURE_COLORS와 동일)
+    private static final String[] TASK_COLORS = {
+            "#8B5CF6", "#3B82F6", "#10B981", "#F59E0B", "#EF4444",
+            "#EC4899", "#14B8A6", "#F97316", "#6366F1", "#84CC16"
+    };
+
+    /** 색상 미지정 시 팔레트에서 랜덤 부여 (모든 생성 경로에서 Task가 색을 갖도록 보장) */
+    private String resolveTaskColor(String requested) {
+        if (requested != null && !requested.isBlank()) {
+            return requested;
+        }
+        return TASK_COLORS[java.util.concurrent.ThreadLocalRandom.current().nextInt(TASK_COLORS.length)];
+    }
 
     public TaskResponse.ListResponse getTasks(String boardId, String userId, String blockId, String featureId, String milestoneId) {
         // 뷰어 이상 권한 확인 (컨트롤러 경로 전용 — Facade는 멤버십을 1회 검증 후 internal 직접 호출)
@@ -156,11 +172,17 @@ public class TaskService {
         // Standard 보드의 Task 제한 확인
         validateTaskLimit(board);
 
-        Feature feature = featureRepository.findById(featureId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
+        // featureId 미지정 시 "미분류"(inbox) Feature로 자동 귀속
+        Feature feature;
+        if (featureId != null && !featureId.isBlank()) {
+            feature = featureRepository.findById(featureId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
 
-        if (!feature.getBoard().getId().equals(boardId)) {
-            throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
+            if (!feature.getBoard().getId().equals(boardId)) {
+                throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
+            }
+        } else {
+            feature = inboxFeatureService.getOrCreateInboxFeature(boardId, userId);
         }
 
         // Task 블록 찾기 (새 Task는 Task 블록에 생성)
@@ -186,6 +208,7 @@ public class TaskService {
                 .startDate(request.getStartDate())
                 .dueDate(request.getDueDate())
                 .estimatedMinutes(request.getEstimatedMinutes())
+                .color(resolveTaskColor(request.getColor()))
                 .position(newPosition)
                 .createdBy(creator)
                 .build();
@@ -233,7 +256,8 @@ public class TaskService {
                 request.getDescription(),
                 request.getStartDate(),
                 request.getDueDate(),
-                request.getEstimatedMinutes()
+                request.getEstimatedMinutes(),
+                request.getColor()
         );
 
         User updater = userRepository.findById(userId)

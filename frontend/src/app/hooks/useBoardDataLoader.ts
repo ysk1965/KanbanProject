@@ -1,7 +1,24 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Block, Feature, Task, Tag, Board, InviteLink, Subscription, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem, AiCredits } from '../types';
-import { BoardMember as ShareBoardMember, MemberRole } from '../components/ShareBoardModal';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Block,
+  Feature,
+  Task,
+  Tag,
+  Board,
+  InviteLink,
+  Subscription,
+  ActivityLog,
+  Milestone,
+  BoardTierInfo,
+  BoardLimits,
+  ChecklistItem,
+  AiCredits,
+} from "../types";
+import {
+  BoardMember as ShareBoardMember,
+  MemberRole,
+} from "../components/ShareBoardModal";
 import {
   boardService,
   blockService,
@@ -9,9 +26,9 @@ import {
   taskService,
   checklistService,
   memberService,
-} from '../utils/services';
-import { scheduleAPI } from '../utils/api';
-import { boardCache, BoardFullData } from '../utils/boardCache';
+} from "../utils/services";
+import { scheduleAPI } from "../utils/api";
+import { boardCache, BoardFullData } from "../utils/boardCache";
 
 // 마일스톤 선택 시 클라이언트 사이드 필터링 (추가 API 호출 제거)
 function filterByMilestone(fullData: BoardFullData): {
@@ -22,18 +39,26 @@ function filterByMilestone(fullData: BoardFullData): {
   let finalTasks = fullData.tasks;
   if (fullData.selected_milestone_id) {
     const selectedMilestone = fullData.milestones.milestones.find(
-      (m: Milestone) => m.id === fullData.selected_milestone_id
+      (m: Milestone) => m.id === fullData.selected_milestone_id,
     );
     if (selectedMilestone?.features) {
-      const milestoneFeatureIds = new Set(selectedMilestone.features.map((f: { id: string }) => f.id));
-      filteredFeatures = fullData.features.filter((f: Feature) => milestoneFeatureIds.has(f.id));
-      finalTasks = fullData.tasks.filter((t: Task) => milestoneFeatureIds.has(t.feature_id));
+      const milestoneFeatureIds = new Set(
+        selectedMilestone.features.map((f: { id: string }) => f.id),
+      );
+      filteredFeatures = fullData.features.filter((f: Feature) =>
+        milestoneFeatureIds.has(f.id),
+      );
+      finalTasks = fullData.tasks.filter((t: Task) =>
+        milestoneFeatureIds.has(t.feature_id),
+      );
     }
   }
   return { filteredFeatures, finalTasks };
 }
 
-function parseChecklistBatch(batchChecklistData: any): { [taskId: string]: ChecklistItem[] } {
+function parseChecklistBatch(batchChecklistData: any): {
+  [taskId: string]: ChecklistItem[];
+} {
   const checklistMap: { [taskId: string]: ChecklistItem[] } = {};
   const checklists = (batchChecklistData as any).checklists || [];
   checklists.forEach((group: any) => {
@@ -45,7 +70,9 @@ function parseChecklistBatch(batchChecklistData: any): { [taskId: string]: Check
         completed: item.completed,
         position: item.position,
         due_date: item.due_date,
-        assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name } : null,
+        assignee: item.assignee
+          ? { id: item.assignee.id, name: item.assignee.name }
+          : null,
       }));
     }
   });
@@ -70,13 +97,20 @@ export function useBoardDataLoader(boardId: string | undefined) {
   const [hasMoreActivity, setHasMoreActivity] = useState(false);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [checklistDataMap, setChecklistDataMap] = useState<{ [taskId: string]: ChecklistItem[] }>({});
-  const [scheduledTaskIds, setScheduledTaskIds] = useState<Set<string>>(new Set());
+  const [checklistDataMap, setChecklistDataMap] = useState<{
+    [taskId: string]: ChecklistItem[];
+  }>({});
+  const [scheduledTaskIds, setScheduledTaskIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [tierInfo, setTierInfo] = useState<BoardTierInfo | null>(null);
   const [boardLimits, setBoardLimits] = useState<BoardLimits | null>(null);
-  const [boardMembersData, setBoardMembersData] = useState<ShareBoardMember[]>([]);
+  const [boardMembersData, setBoardMembersData] = useState<ShareBoardMember[]>(
+    [],
+  );
   const [aiCredits, setAiCredits] = useState<AiCredits | null>(null);
-  const [kanbanSelectedMilestoneId, setKanbanSelectedMilestoneId] = useState<string>('all');
+  const [kanbanSelectedMilestoneId, setKanbanSelectedMilestoneId] =
+    useState<string>("all");
 
   // 재검증 시점에 사용자의 현재 마일스톤 선택을 비교하기 위한 최신값 ref
   const milestoneIdRef = useRef(kanbanSelectedMilestoneId);
@@ -120,15 +154,17 @@ export function useBoardDataLoader(boardId: string | undefined) {
       setBoardLimits(fullData.limits);
       setAiCredits(fullData.ai_credits);
       setAllFeatures(fullData.features);
-      setBoardMembersData(fullData.members.members.map((m) => ({
-        id: m.id,
-        userId: m.user.id,
-        name: m.user.name,
-        email: m.user.email,
-        role: m.role.toLowerCase() as MemberRole,
-        assigneeColor: m.assignee_color || null,
-        jobRole: m.job_role || null,
-      })));
+      setBoardMembersData(
+        fullData.members.members.map((m) => ({
+          id: m.id,
+          userId: m.user.id,
+          name: m.user.name,
+          email: m.user.email,
+          role: m.role.toLowerCase() as MemberRole,
+          assigneeColor: m.assignee_color || null,
+          jobRole: m.job_role || null,
+        })),
+      );
 
       const { filteredFeatures, finalTasks } = filterByMilestone(fullData);
       if (fullData.selected_milestone_id) {
@@ -142,7 +178,8 @@ export function useBoardDataLoader(boardId: string | undefined) {
       }
 
       // 모든 데이터를 동시에 set → 카드 렌더링 시 checklistDataMap이 이미 존재
-      setFeatures(filteredFeatures);
+      // "미분류"(inbox) Feature는 표시용 목록에서 제외 (allFeatures에는 포함 유지)
+      setFeatures(filteredFeatures.filter((f) => !f.inbox));
       setTasks(finalTasks);
       setChecklistDataMap(checklistMap);
       setScheduledTaskIds(new Set(scheduledTaskIdList));
@@ -154,7 +191,7 @@ export function useBoardDataLoader(boardId: string | undefined) {
   useEffect(() => {
     const loadBoardData = async () => {
       if (!boardId) {
-        navigate('/boards');
+        navigate("/boards");
         return;
       }
 
@@ -176,10 +213,14 @@ export function useBoardDataLoader(boardId: string | undefined) {
         const fullData = await boardService.getBoardFull(boardId);
 
         // 마일스톤 선택 시 블록도 필터링 (숨긴 블록 포함)
-        let blocksResult: { blocks: Block[]; hiddenBlocks: Block[] } | null = null;
+        let blocksResult: { blocks: Block[]; hiddenBlocks: Block[] } | null =
+          null;
         if (fullData.selected_milestone_id) {
           try {
-            blocksResult = await blockService.getBlocksWithHidden(boardId, fullData.selected_milestone_id);
+            blocksResult = await blockService.getBlocksWithHidden(
+              boardId,
+              fullData.selected_milestone_id,
+            );
           } catch {
             blocksResult = null;
           }
@@ -193,12 +234,18 @@ export function useBoardDataLoader(boardId: string | undefined) {
 
         const [batchChecklistMap, scheduledData] = await Promise.all([
           taskIdsWithChecklist.length > 0
-            ? checklistService.getBatchChecklists(boardId, taskIdsWithChecklist)
+            ? checklistService
+                .getBatchChecklists(boardId, taskIdsWithChecklist)
                 .then(parseChecklistBatch)
-                .catch((error) => { console.warn('Failed to load batch checklists:', error); return {} as { [taskId: string]: ChecklistItem[] }; })
+                .catch((error) => {
+                  console.warn("Failed to load batch checklists:", error);
+                  return {} as { [taskId: string]: ChecklistItem[] };
+                })
             : Promise.resolve({} as { [taskId: string]: ChecklistItem[] }),
-          scheduleAPI.getScheduledTaskIds(boardId)
-            .catch((error) => { console.warn('Failed to load scheduled task ids:', error); return { task_ids: [] as string[] }; }),
+          scheduleAPI.getScheduledTaskIds(boardId).catch((error) => {
+            console.warn("Failed to load scheduled task ids:", error);
+            return { task_ids: [] as string[] };
+          }),
         ]);
 
         boardCache.set(boardId, {
@@ -211,20 +258,28 @@ export function useBoardDataLoader(boardId: string | undefined) {
         // 캐시 페인트 후 재검증인 경우: 사용자가 그 사이 마일스톤을 바꿨거나
         // 서버 스냅샷의 선택이 현재 상태와 다르면, 늦게 도착한 hydrate가
         // 사용자의 선택을 되돌리지 않도록 적용을 건너뛴다 (캐시는 위에서 갱신됨).
-        const serverMilestoneId = fullData.selected_milestone_id ?? 'all';
+        const serverMilestoneId = fullData.selected_milestone_id ?? "all";
         if (cached && milestoneIdRef.current !== serverMilestoneId) {
           return;
         }
 
-        hydrate(fullData, blocksResult, batchChecklistMap, scheduledData.task_ids);
+        hydrate(
+          fullData,
+          blocksResult,
+          batchChecklistMap,
+          scheduledData.task_ids,
+        );
       } catch (error) {
-        console.error('Failed to load board data:', error);
+        console.error("Failed to load board data:", error);
         boardCache.clear(boardId);
         if (cached) {
           // 캐시로 이미 정상 화면을 보여준 상태 — 재검증 실패로 강제 이탈하지 않음
-          console.warn('Board revalidation failed; keeping cached view');
+          console.warn("Board revalidation failed; keeping cached view");
         } else {
-          navigate('/boards', { state: { boardLoadFailed: boardId }, replace: true });
+          navigate("/boards", {
+            state: { boardLoadFailed: boardId },
+            replace: true,
+          });
         }
       } finally {
         setIsLoading(false);
@@ -235,81 +290,116 @@ export function useBoardDataLoader(boardId: string | undefined) {
   }, [boardId, navigate, hydrate]);
 
   // Feature, Task, Blocks를 milestoneId로 필터링해서 다시 로드
-  const reloadFeaturesAndTasks = useCallback(async (milestoneId?: string) => {
-    if (!boardId) return;
-    try {
-      const [featuresData, tasksData, blockResult] = await Promise.all([
-        featureService.getFeatures(boardId, milestoneId),
-        taskService.getTasks(boardId, milestoneId ? { milestone_id: milestoneId } : undefined),
-        blockService.getBlocksWithHidden(boardId, milestoneId),
-      ]);
-      const taskIdsWithChecklist = tasksData
-        .filter((t: Task) => (t.checklist_total ?? 0) > 0)
-        .map((t: Task) => t.id);
+  const reloadFeaturesAndTasks = useCallback(
+    async (milestoneId?: string) => {
+      if (!boardId) return;
+      try {
+        const [featuresData, tasksData, blockResult] = await Promise.all([
+          featureService.getFeatures(boardId, milestoneId),
+          taskService.getTasks(
+            boardId,
+            milestoneId ? { milestone_id: milestoneId } : undefined,
+          ),
+          blockService.getBlocksWithHidden(boardId, milestoneId),
+        ]);
+        const taskIdsWithChecklist = tasksData
+          .filter((t: Task) => (t.checklist_total ?? 0) > 0)
+          .map((t: Task) => t.id);
 
-      const [batchChecklistMap, scheduledData] = await Promise.all([
-        taskIdsWithChecklist.length > 0
-          ? checklistService.getBatchChecklists(boardId, taskIdsWithChecklist)
-              .then(parseChecklistBatch)
-              .catch((error) => { console.warn('Failed to load batch checklists:', error); return {} as { [taskId: string]: ChecklistItem[] }; })
-          : Promise.resolve({} as { [taskId: string]: ChecklistItem[] }),
-        scheduleAPI.getScheduledTaskIds(boardId)
-          .catch((error) => { console.warn('Failed to load scheduled task ids:', error); return { task_ids: [] as string[] }; }),
-      ]);
+        const [batchChecklistMap, scheduledData] = await Promise.all([
+          taskIdsWithChecklist.length > 0
+            ? checklistService
+                .getBatchChecklists(boardId, taskIdsWithChecklist)
+                .then(parseChecklistBatch)
+                .catch((error) => {
+                  console.warn("Failed to load batch checklists:", error);
+                  return {} as { [taskId: string]: ChecklistItem[] };
+                })
+            : Promise.resolve({} as { [taskId: string]: ChecklistItem[] }),
+          scheduleAPI.getScheduledTaskIds(boardId).catch((error) => {
+            console.warn("Failed to load scheduled task ids:", error);
+            return { task_ids: [] as string[] };
+          }),
+        ]);
 
-      setFeatures(featuresData);
-      setTasks(tasksData);
-      setBlocks(blockResult.blocks);
-      setHiddenBlocks(blockResult.hiddenBlocks);
-      setChecklistDataMap(batchChecklistMap);
-      setScheduledTaskIds(new Set(scheduledData.task_ids));
-    } catch (error) {
-      console.error('Failed to reload features and tasks:', error);
-    }
-  }, [boardId]);
+        // "미분류"(inbox) Feature는 표시용 목록에서 제외
+        setFeatures(featuresData.filter((f) => !f.inbox));
+        setTasks(tasksData);
+        setBlocks(blockResult.blocks);
+        setHiddenBlocks(blockResult.hiddenBlocks);
+        setChecklistDataMap(batchChecklistMap);
+        setScheduledTaskIds(new Set(scheduledData.task_ids));
+      } catch (error) {
+        console.error("Failed to reload features and tasks:", error);
+      }
+    },
+    [boardId],
+  );
 
   // ShareBoardModal 멤버 새로고침 함수
   const refreshMembers = useCallback(async () => {
     if (!boardId) return;
     try {
       const membersData = await memberService.getMembers(boardId);
-      setBoardMembersData(membersData.members.map((m) => ({
-        id: m.id,
-        userId: m.user.id,
-        name: m.user.name,
-        email: m.user.email,
-        role: m.role.toLowerCase() as MemberRole,
-        assigneeColor: m.assignee_color,
-        jobRole: m.job_role || null,
-      })));
+      setBoardMembersData(
+        membersData.members.map((m) => ({
+          id: m.id,
+          userId: m.user.id,
+          name: m.user.name,
+          email: m.user.email,
+          role: m.role.toLowerCase() as MemberRole,
+          assigneeColor: m.assignee_color,
+          jobRole: m.job_role || null,
+        })),
+      );
     } catch (error) {
-      console.error('Failed to refresh members:', error);
+      console.error("Failed to refresh members:", error);
     }
   }, [boardId]);
 
   return {
     // Data
-    board, setBoard,
-    blocks, setBlocks,
-    hiddenBlocks, setHiddenBlocks,
-    features, setFeatures,
-    allFeatures, setAllFeatures,
-    tasks, setTasks,
-    tags, setTags,
-    inviteLinks, setInviteLinks,
-    subscription, setSubscription,
-    activities, setActivities,
-    activityCursor, setActivityCursor,
-    hasMoreActivity, setHasMoreActivity,
-    milestones, setMilestones,
+    board,
+    setBoard,
+    blocks,
+    setBlocks,
+    hiddenBlocks,
+    setHiddenBlocks,
+    features,
+    setFeatures,
+    allFeatures,
+    setAllFeatures,
+    tasks,
+    setTasks,
+    tags,
+    setTags,
+    inviteLinks,
+    setInviteLinks,
+    subscription,
+    setSubscription,
+    activities,
+    setActivities,
+    activityCursor,
+    setActivityCursor,
+    hasMoreActivity,
+    setHasMoreActivity,
+    milestones,
+    setMilestones,
     isLoading,
-    checklistDataMap, setChecklistDataMap,
-    scheduledTaskIds, setScheduledTaskIds,
-    tierInfo, setTierInfo,
-    boardLimits, setBoardLimits,
-    boardMembersData, setBoardMembersData,
-    aiCredits, setAiCredits,
-    kanbanSelectedMilestoneId, setKanbanSelectedMilestoneId,
+    checklistDataMap,
+    setChecklistDataMap,
+    scheduledTaskIds,
+    setScheduledTaskIds,
+    tierInfo,
+    setTierInfo,
+    boardLimits,
+    setBoardLimits,
+    boardMembersData,
+    setBoardMembersData,
+    aiCredits,
+    setAiCredits,
+    kanbanSelectedMilestoneId,
+    setKanbanSelectedMilestoneId,
     // Actions
     reloadFeaturesAndTasks,
     refreshMembers,

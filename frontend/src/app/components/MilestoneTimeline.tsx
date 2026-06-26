@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, FileText } from "lucide-react";
 import {
@@ -28,6 +28,7 @@ const FEATURE_ROW_HEIGHT = 30;
 const BAR_HEIGHT = 22;
 const FEATURE_BAR_HEIGHT = 14;
 const WEEK_OPTS = { weekStartsOn: 1 as const }; // 월요일 시작
+const TODAY_SCROLL_MARGIN = 120; // 초기 스크롤 시 오늘 왼쪽 여백
 
 // ========================================
 // Types
@@ -61,6 +62,27 @@ interface MilestoneTimelineProps {
   onUpdateDates?: (id: string, start: string, end: string) => void;
 }
 
+// 좌측 컬럼과 우측 트랙을 같은 순서/높이로 렌더하기 위한 평면 행 모델
+type TimelineRow =
+  | {
+      kind: "milestone";
+      milestone: Milestone;
+      hasDates: boolean;
+      status: ReturnType<typeof getMilestoneStatus> | null;
+      barOffset: number;
+      barDuration: number;
+      isExpanded: boolean;
+    }
+  | {
+      kind: "feature";
+      key: string;
+      fi: MilestoneFeatureInfo;
+      hasFeatDates: boolean;
+      fOffset: number;
+      fDuration: number;
+      isContinuation: boolean;
+    };
+
 // ========================================
 // Helpers
 // ========================================
@@ -88,6 +110,10 @@ export function MilestoneTimeline({
 }: MilestoneTimelineProps) {
   const { t } = useTranslation();
   const [drag, setDrag] = useState<DragState | null>(null);
+  const [pan, setPan] = useState<{ startX: number; startLeft: number } | null>(
+    null,
+  );
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const canDrag = !!onUpdateDates;
 
@@ -120,6 +146,13 @@ export function MilestoneTimeline({
       weeks: eachWeekOfInterval({ start, end }, WEEK_OPTS),
     };
   }, [milestones]);
+
+  // 초기 진입 시 오늘 위치로 가로 스크롤
+  useEffect(() => {
+    if (!scrollRef.current || totalDays === 0) return;
+    const todayPx = differenceInDays(new Date(), rangeStart) * DAY_WIDTH;
+    scrollRef.current.scrollLeft = Math.max(0, todayPx - TODAY_SCROLL_MARGIN);
+  }, [rangeStart, totalDays]);
 
   // 드래그 중 처리 (live preview + mouseup 커밋)
   useEffect(() => {
@@ -176,6 +209,32 @@ export function MilestoneTimeline({
     };
   }, [drag, rangeStart, onUpdateDates]);
 
+  // 날짜 영역(빈 트랙/헤더)을 잡고 끌어 가로 스크롤 (막대는 mousedown에서 전파 차단 → 충돌 없음)
+  useEffect(() => {
+    if (!pan) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!scrollRef.current) return;
+      scrollRef.current.scrollLeft = pan.startLeft - (e.clientX - pan.startX);
+    };
+    const handleMouseUp = () => {
+      document.body.style.cursor = "";
+      setPan(null);
+    };
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [pan]);
+
+  const handlePanStart = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    e.preventDefault();
+    document.body.style.cursor = "grabbing";
+    setPan({ startX: e.clientX, startLeft: scrollRef.current.scrollLeft });
+  };
+
   const startDrag = (
     e: React.MouseEvent,
     milestone: Milestone,
@@ -202,32 +261,150 @@ export function MilestoneTimeline({
   const todayOffset = differenceInDays(new Date(), rangeStart);
   const showToday = todayOffset >= 0 && todayOffset < totalDays;
 
+  // 좌측/우측 공통 행 목록 구성
+  const rows: TimelineRow[] = [];
+  for (const milestone of milestones) {
+    const hasDates = !!(milestone.start_date && milestone.end_date);
+    const status = hasDates
+      ? getMilestoneStatus(
+          milestone.start_date,
+          milestone.end_date,
+          milestone.progress_percentage,
+        )
+      : null;
+    const barOffset = hasDates
+      ? differenceInDays(parseLocalDate(milestone.start_date), rangeStart)
+      : 0;
+    const barDuration = hasDates
+      ? differenceInDays(
+          parseLocalDate(milestone.end_date),
+          parseLocalDate(milestone.start_date),
+        ) + 1
+      : 0;
+    const isExpanded = expandedMilestones.has(milestone.id);
+    rows.push({
+      kind: "milestone",
+      milestone,
+      hasDates,
+      status,
+      barOffset,
+      barDuration,
+      isExpanded,
+    });
+
+    if (isExpanded) {
+      const cached = detailCache[milestone.id];
+      const milestoneFeatures = cached?.features ?? milestone.features ?? [];
+      for (const fi of milestoneFeatures) {
+        const feat = featureMap.get(fi.id);
+        const fStart = feat?.start_date
+          ? parseLocalDate(feat.start_date)
+          : null;
+        const fEnd = feat?.due_date ? parseLocalDate(feat.due_date) : null;
+        const hasFeatDates = !!(fStart && fEnd);
+        rows.push({
+          kind: "feature",
+          key: `${milestone.id}:${fi.id}`,
+          fi,
+          hasFeatDates,
+          fOffset: hasFeatDates ? differenceInDays(fStart!, rangeStart) : 0,
+          fDuration: hasFeatDates ? differenceInDays(fEnd!, fStart!) + 1 : 0,
+          isContinuation: fi.is_primary === false,
+        });
+      }
+    }
+  }
+
+  const TodayLine = () =>
+    showToday ? (
+      <div
+        className="absolute top-0 bottom-0 w-px bg-bridge-secondary/40 pointer-events-none"
+        style={{ left: todayOffset * DAY_WIDTH }}
+      />
+    ) : null;
+
   return (
     <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
-      <div className="overflow-x-auto custom-scrollbar">
-        <div style={{ width: LEFT_COL_WIDTH + timelineWidth }}>
-          {/* Header: week columns */}
+      <div className="flex">
+        {/* 좌측 고정 컬럼 (가로 스크롤되지 않음) */}
+        <div
+          className="flex-shrink-0 border-r border-foreground/[0.08]"
+          style={{ width: LEFT_COL_WIDTH }}
+        >
+          {/* 코너 */}
           <div
-            className="flex sticky top-0 z-20 bg-bridge-obsidian border-b border-foreground/[0.08]"
+            className="flex items-center px-4 border-b border-foreground/[0.08]"
             style={{ height: HEADER_HEIGHT }}
           >
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              {t("milestone.timeline.title", { defaultValue: "타임라인" })}
+            </span>
+          </div>
+
+          {rows.map((row) =>
+            row.kind === "milestone" ? (
+              <button
+                key={row.milestone.id}
+                onClick={() => onToggle(row.milestone.id)}
+                className="w-full flex items-center gap-1.5 px-3 border-b border-foreground/[0.05] hover:bg-foreground/[0.03] transition-colors text-left"
+                style={{ height: ROW_HEIGHT }}
+              >
+                <ChevronRight
+                  className={`h-3.5 w-3.5 flex-shrink-0 text-muted-foreground transition-transform ${
+                    row.isExpanded ? "rotate-90" : ""
+                  }`}
+                />
+                <span className="text-xs font-bold text-foreground truncate flex-1">
+                  {row.milestone.title}
+                </span>
+                <span className="text-xs text-slate-500 tabular-nums flex-shrink-0">
+                  {Math.round(row.milestone.progress_percentage)}%
+                </span>
+              </button>
+            ) : (
+              <div
+                key={row.key}
+                className="flex items-center gap-1.5 pl-9 pr-3 border-b border-foreground/[0.04] bg-foreground/[0.015]"
+                style={{ height: FEATURE_ROW_HEIGHT }}
+              >
+                <span
+                  className="h-2 w-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: row.fi.color }}
+                />
+                <span className="text-xs text-slate-400 truncate">
+                  {row.fi.title}
+                </span>
+                {row.isContinuation && (
+                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary flex-shrink-0">
+                    {t("milestone.continuationBadge", {
+                      defaultValue: "이어짐",
+                    })}
+                  </span>
+                )}
+              </div>
+            ),
+          )}
+        </div>
+
+        {/* 우측 가로 스크롤 영역 (자체 좌측 경계에서 클리핑 → 막대가 좌측 컬럼 침범 불가) */}
+        <div
+          ref={scrollRef}
+          onMouseDown={handlePanStart}
+          className="flex-1 overflow-x-auto custom-scrollbar cursor-grab active:cursor-grabbing select-none"
+        >
+          <div style={{ width: timelineWidth }}>
+            {/* 헤더: 주 컬럼 */}
             <div
-              className="sticky left-0 z-10 flex items-center px-4 bg-bridge-obsidian border-r border-foreground/[0.08]"
-              style={{ width: LEFT_COL_WIDTH, minWidth: LEFT_COL_WIDTH }}
+              className="relative border-b border-foreground/[0.08]"
+              style={{ height: HEADER_HEIGHT }}
             >
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                {t("milestone.timeline.title", { defaultValue: "타임라인" })}
-              </span>
-            </div>
-            <div className="relative flex" style={{ width: timelineWidth }}>
               {weeks.map((week) => {
                 const offset = differenceInDays(week, rangeStart);
                 return (
                   <div
                     key={week.toISOString()}
-                    className="flex items-center justify-start px-2 text-xs text-slate-500 border-r border-foreground/[0.05]"
+                    className="absolute flex items-center px-2 text-xs text-slate-500 border-r border-foreground/[0.05]"
                     style={{
-                      position: "absolute",
                       left: offset * DAY_WIDTH,
                       width: WEEK_WIDTH,
                       height: "100%",
@@ -238,201 +415,94 @@ export function MilestoneTimeline({
                 );
               })}
             </div>
-          </div>
 
-          {/* Milestone rows */}
-          {milestones.map((milestone) => {
-            const hasDates = !!(milestone.start_date && milestone.end_date);
-            const isExpanded = expandedMilestones.has(milestone.id);
-            const cached = detailCache[milestone.id];
-            const milestoneFeatures =
-              cached?.features ?? milestone.features ?? [];
-
-            const status = hasDates
-              ? getMilestoneStatus(
-                  milestone.start_date,
-                  milestone.end_date,
-                  milestone.progress_percentage,
-                )
-              : null;
-
-            const barOffset = hasDates
-              ? differenceInDays(
-                  parseLocalDate(milestone.start_date),
-                  rangeStart,
-                )
-              : 0;
-            const barDuration = hasDates
-              ? differenceInDays(
-                  parseLocalDate(milestone.end_date),
-                  parseLocalDate(milestone.start_date),
-                ) + 1
-              : 0;
-
-            return (
-              <div key={milestone.id}>
-                {/* Milestone row */}
+            {/* 트랙 */}
+            {rows.map((row) =>
+              row.kind === "milestone" ? (
                 <div
-                  className="flex border-b border-foreground/[0.05]"
+                  key={row.milestone.id}
+                  className="relative border-b border-foreground/[0.05]"
                   style={{ height: ROW_HEIGHT }}
                 >
-                  {/* Left fixed cell */}
-                  <button
-                    onClick={() => onToggle(milestone.id)}
-                    className="sticky left-0 z-10 flex items-center gap-1.5 px-3 bg-bridge-obsidian border-r border-foreground/[0.08] hover:bg-foreground/[0.03] transition-colors text-left"
-                    style={{ width: LEFT_COL_WIDTH, minWidth: LEFT_COL_WIDTH }}
-                  >
-                    <ChevronRight
-                      className={`h-3.5 w-3.5 flex-shrink-0 text-muted-foreground transition-transform ${
-                        isExpanded ? "rotate-90" : ""
+                  <TodayLine />
+                  {row.hasDates && row.status && (
+                    <div
+                      data-milestone-bar={row.milestone.id}
+                      onMouseDown={(e) => startDrag(e, row.milestone, "move")}
+                      onClick={(e) => {
+                        if (drag?.moved) return;
+                        e.stopPropagation();
+                        onMilestoneClick?.(row.milestone);
+                      }}
+                      className={`group absolute rounded-md ${row.status.barColor} flex items-center px-2 shadow-sm ${
+                        canDrag ? "cursor-grab" : "cursor-pointer"
                       }`}
-                    />
-                    <span className="text-xs font-bold text-foreground truncate flex-1">
-                      {milestone.title}
-                    </span>
-                    <span className="text-xs text-slate-500 tabular-nums flex-shrink-0">
-                      {Math.round(milestone.progress_percentage)}%
-                    </span>
-                  </button>
-
-                  {/* Timeline area */}
-                  <div className="relative" style={{ width: timelineWidth }}>
-                    {showToday && (
-                      <div
-                        className="absolute top-0 bottom-0 w-px bg-bridge-secondary/40 z-0 pointer-events-none"
-                        style={{ left: todayOffset * DAY_WIDTH }}
-                      />
-                    )}
-                    {hasDates && status && (
-                      <div
-                        data-milestone-bar={milestone.id}
-                        onMouseDown={(e) => startDrag(e, milestone, "move")}
-                        onClick={(e) => {
-                          // 드래그 직후 클릭 억제
-                          if (drag?.moved) return;
-                          e.stopPropagation();
-                          onMilestoneClick?.(milestone);
-                        }}
-                        className={`group absolute rounded-md ${status.barColor} flex items-center px-2 shadow-sm ${
-                          canDrag ? "cursor-grab" : "cursor-pointer"
-                        }`}
-                        style={{
-                          left: barOffset * DAY_WIDTH,
-                          width: barDuration * DAY_WIDTH,
-                          height: BAR_HEIGHT,
-                          top: (ROW_HEIGHT - BAR_HEIGHT) / 2,
-                        }}
-                        title={`${milestone.title} (${milestone.start_date} ~ ${milestone.end_date})`}
-                      >
-                        {/* Resize handles */}
-                        {canDrag && (
-                          <>
-                            <div
-                              onMouseDown={(e) =>
-                                startDrag(e, milestone, "left")
-                              }
-                              className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize rounded-l-md opacity-0 group-hover:opacity-100 bg-black/20"
-                            />
-                            <div
-                              onMouseDown={(e) =>
-                                startDrag(e, milestone, "right")
-                              }
-                              className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize rounded-r-md opacity-0 group-hover:opacity-100 bg-black/20"
-                            />
-                          </>
-                        )}
-                        <span className="text-xs font-bold text-white truncate pointer-events-none">
-                          {milestone.title}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Feature sub-rows (expanded) */}
-                {isExpanded &&
-                  milestoneFeatures.map((fi) => {
-                    const feat = featureMap.get(fi.id);
-                    const fStart = feat?.start_date
-                      ? parseLocalDate(feat.start_date)
-                      : null;
-                    const fEnd = feat?.due_date
-                      ? parseLocalDate(feat.due_date)
-                      : null;
-                    const hasFeatDates = !!(fStart && fEnd);
-
-                    const fOffset = hasFeatDates
-                      ? differenceInDays(fStart, rangeStart)
-                      : 0;
-                    const fDuration = hasFeatDates
-                      ? differenceInDays(fEnd, fStart) + 1
-                      : 0;
-
-                    return (
-                      <div
-                        key={fi.id}
-                        className="flex border-b border-foreground/[0.04] bg-foreground/[0.015]"
-                        style={{ height: FEATURE_ROW_HEIGHT }}
-                      >
-                        <div
-                          className="sticky left-0 z-10 flex items-center gap-1.5 pl-9 pr-3 bg-bridge-obsidian border-r border-foreground/[0.08]"
-                          style={{
-                            width: LEFT_COL_WIDTH,
-                            minWidth: LEFT_COL_WIDTH,
-                          }}
-                        >
-                          <span
-                            className="h-2 w-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: fi.color }}
+                      style={{
+                        left: row.barOffset * DAY_WIDTH,
+                        width: row.barDuration * DAY_WIDTH,
+                        height: BAR_HEIGHT,
+                        top: (ROW_HEIGHT - BAR_HEIGHT) / 2,
+                      }}
+                      title={`${row.milestone.title} (${row.milestone.start_date} ~ ${row.milestone.end_date})`}
+                    >
+                      {canDrag && (
+                        <>
+                          <div
+                            onMouseDown={(e) =>
+                              startDrag(e, row.milestone, "left")
+                            }
+                            className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize rounded-l-md opacity-0 group-hover:opacity-100 bg-black/20"
                           />
-                          <span className="text-xs text-slate-400 truncate">
-                            {fi.title}
-                          </span>
-                        </div>
-                        <div
-                          className="relative"
-                          style={{ width: timelineWidth }}
-                        >
-                          {showToday && (
-                            <div
-                              className="absolute top-0 bottom-0 w-px bg-bridge-secondary/40 z-0 pointer-events-none"
-                              style={{ left: todayOffset * DAY_WIDTH }}
-                            />
-                          )}
-                          {hasFeatDates ? (
-                            <div
-                              className="absolute rounded border border-dashed border-foreground/20"
-                              style={{
-                                left: fOffset * DAY_WIDTH,
-                                width: fDuration * DAY_WIDTH,
-                                height: FEATURE_BAR_HEIGHT,
-                                top:
-                                  (FEATURE_ROW_HEIGHT - FEATURE_BAR_HEIGHT) / 2,
-                                backgroundColor: `${fi.color}55`,
-                              }}
-                              title={fi.title}
-                            />
-                          ) : (
-                            <span
-                              className="absolute flex items-center gap-1 text-xs text-slate-600"
-                              style={{
-                                left: 8,
-                                top: (FEATURE_ROW_HEIGHT - 16) / 2,
-                              }}
-                            >
-                              <FileText className="h-3 w-3" />
-                              {t("milestone.timeline.noDate", {
-                                defaultValue: "날짜 없음",
-                              })}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            );
-          })}
+                          <div
+                            onMouseDown={(e) =>
+                              startDrag(e, row.milestone, "right")
+                            }
+                            className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize rounded-r-md opacity-0 group-hover:opacity-100 bg-black/20"
+                          />
+                        </>
+                      )}
+                      <span className="text-xs font-bold text-white truncate pointer-events-none">
+                        {row.milestone.title}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div
+                  key={row.key}
+                  className="relative border-b border-foreground/[0.04] bg-foreground/[0.015]"
+                  style={{ height: FEATURE_ROW_HEIGHT }}
+                >
+                  <TodayLine />
+                  {row.hasFeatDates ? (
+                    <div
+                      className="absolute rounded border border-dashed border-foreground/20"
+                      style={{
+                        left: row.fOffset * DAY_WIDTH,
+                        width: row.fDuration * DAY_WIDTH,
+                        height: FEATURE_BAR_HEIGHT,
+                        top: (FEATURE_ROW_HEIGHT - FEATURE_BAR_HEIGHT) / 2,
+                        // 이어짐(non-primary)은 더 옅게 표시해 대표 막대와 구분
+                        backgroundColor: `${row.fi.color}${row.isContinuation ? "2b" : "55"}`,
+                        opacity: row.isContinuation ? 0.7 : 1,
+                      }}
+                      title={row.fi.title}
+                    />
+                  ) : (
+                    <span
+                      className="absolute flex items-center gap-1 text-xs text-slate-600"
+                      style={{ left: 8, top: (FEATURE_ROW_HEIGHT - 16) / 2 }}
+                    >
+                      <FileText className="h-3 w-3" />
+                      {t("milestone.timeline.noDate", {
+                        defaultValue: "날짜 없음",
+                      })}
+                    </span>
+                  )}
+                </div>
+              ),
+            )}
+          </div>
         </div>
       </div>
     </div>

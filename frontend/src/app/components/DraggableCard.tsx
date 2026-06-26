@@ -186,8 +186,11 @@ export const DraggableCard = memo(function DraggableCard({
   // 연결된 Feature (부모에서 featuresById 맵으로 조회 후 전달)
   const linkedFeature = feature;
 
-  // Feature 색상 (기본값: indigo)
+  // Feature 색상 (Feature 뱃지 전용)
   const featureColor = linkedFeature?.color || "#6366F1";
+
+  // 카드 색상: Task 자체 색상 우선 → Feature 색 → 기본 indigo 폴백
+  const cardColor = task.color || linkedFeature?.color || "#6366F1";
 
   const displayTitle = getTaskOnlyTitle(task.title, linkedFeature);
 
@@ -337,10 +340,10 @@ export const DraggableCard = memo(function DraggableCard({
         <div className="absolute top-0 inset-x-0 h-[1.5px] rounded-t-xl bg-gradient-to-r from-transparent via-bridge-accent/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       )}
 
-      {/* 좌측 컬러 바 */}
+      {/* 좌측 컬러 바 (Task 색상) */}
       <div
         className="absolute top-0 left-0 bottom-0 w-1"
-        style={{ backgroundColor: featureColor }}
+        style={{ backgroundColor: cardColor }}
       />
 
       {/* 완료 체크 배지 */}
@@ -385,7 +388,7 @@ export const DraggableCard = memo(function DraggableCard({
             <div className="flex items-center gap-1.5 min-w-0">
               <div
                 className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: featureColor }}
+                style={{ backgroundColor: cardColor }}
                 title={linkedFeature.title}
               />
               <h4 className="font-bold text-foreground text-xs leading-snug group-hover:text-bridge-secondary transition-colors truncate">
@@ -398,7 +401,7 @@ export const DraggableCard = memo(function DraggableCard({
             <div
               className="w-1.5 h-1.5 rounded-full flex-shrink-0"
               style={{
-                backgroundColor: task.completed ? "#22c55e" : featureColor,
+                backgroundColor: task.completed ? "#22c55e" : cardColor,
               }}
             />
             <h4 className="font-bold text-foreground text-xs leading-snug group-hover:text-bridge-secondary transition-colors truncate">

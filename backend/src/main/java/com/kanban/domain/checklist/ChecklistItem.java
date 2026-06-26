@@ -5,7 +5,6 @@ import com.kanban.domain.task.Task;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDate;
@@ -57,16 +56,6 @@ public class ChecklistItem {
 
     @Column(name = "done_date")
     private LocalDate doneDate;
-
-    /**
-     * 임시(예정) 업무 플래그.
-     * true이면 세부 체크리스트가 확정되기 전 워크로드에 미리 잡아둔 "예정" 항목으로,
-     * 워크로드/캘린더(by-assignee) 조회에만 노출되고 태스크 카운트·진행률·통계·리포트에는 집계되지 않는다.
-     */
-    @Column(name = "is_tentative", nullable = false)
-    @ColumnDefault("false")
-    @Builder.Default
-    private Boolean isTentative = false;
 
     @Column(name = "position", nullable = false)
     @Builder.Default
@@ -177,12 +166,4 @@ public class ChecklistItem {
         }
     }
 
-    public void setIsTentative(Boolean isTentative) {
-        this.isTentative = (isTentative != null && isTentative);
-    }
-
-    /** 임시(예정) 항목을 실제 체크리스트 항목으로 전환한다. */
-    public void promote() {
-        this.isTentative = false;
-    }
 }

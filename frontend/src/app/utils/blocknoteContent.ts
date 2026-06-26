@@ -164,6 +164,63 @@ export async function resolvePastedImages(
   return doc.body.innerHTML;
 }
 
+// Plain-text paste goes through BlockNote's default handler, which turns every
+// line into a paragraph block — list markers ("- ", "* ", "• ", "1. ") are kept
+// as literal text. Detect those markers and build list HTML so pasted plain
+// text becomes real list item blocks. Returns null when no marker is found, so
+// the caller falls through to the default handler.
+const BULLET_LINE = /^[-*•]\s+(.+)$/;
+const NUMBERED_LINE = /^\d+[.)]\s+(.+)$/;
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+export function plainTextListToHtml(text: string): string | null {
+  if (!text?.trim()) return null;
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  const hasListLine = lines.some((line) => {
+    const trimmed = line.trim();
+    return BULLET_LINE.test(trimmed) || NUMBERED_LINE.test(trimmed);
+  });
+  if (!hasListLine) return null;
+
+  const out: string[] = [];
+  let openList: "ul" | "ol" | null = null;
+  const closeList = () => {
+    if (openList) {
+      out.push(`</${openList}>`);
+      openList = null;
+    }
+  };
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) {
+      closeList();
+      continue;
+    }
+    const bullet = line.match(BULLET_LINE);
+    const numbered = bullet ? null : line.match(NUMBERED_LINE);
+    const tag = bullet ? "ul" : numbered ? "ol" : null;
+    if (tag) {
+      if (openList !== tag) {
+        closeList();
+        out.push(`<${tag}>`);
+        openList = tag;
+      }
+      out.push(`<li>${escapeHtml((bullet ?? numbered)![1])}</li>`);
+    } else {
+      closeList();
+      out.push(`<p>${escapeHtml(line)}</p>`);
+    }
+  }
+  closeList();
+  return out.join("");
+}
+
 // Editor interface kept loose to dodge BlockNote's heavy generic parameters at
 // call sites. The methods we use are stable across 0.28.x.
 interface MinimalEditor {

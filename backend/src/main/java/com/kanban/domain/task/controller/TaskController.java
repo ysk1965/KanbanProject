@@ -50,6 +50,16 @@ public class TaskController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    /** Feature 미지정 Task 생성 — "미분류"(inbox) Feature로 자동 귀속된다. */
+    @PostMapping("/tasks")
+    public ResponseEntity<TaskResponse.Detail> createTaskWithoutFeature(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody TaskRequest.Create request) {
+        TaskResponse.Detail response = taskService.createTask(boardId, null, principal.getUserId(), request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     @PutMapping("/tasks/{taskId}")
     public ResponseEntity<TaskResponse.Detail> updateTask(
             @PathVariable String boardId,

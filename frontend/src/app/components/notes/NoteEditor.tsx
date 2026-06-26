@@ -74,6 +74,7 @@ import {
   collapseInterBlockWhitespace,
   resolvePastedImages,
   needsImageRewrite,
+  plainTextListToHtml,
 } from "../../utils/blocknoteContent";
 import DOMPurify from "dompurify";
 import type {
@@ -427,10 +428,11 @@ function CollabNoteEditor({
       // delegating to BlockNote's default pipeline. This fixes round-trip from
       // our static VIEW HTML *and* external sources (Notion/Word/Google Docs)
       // that emit the same pattern, which otherwise yields empty parent list
-      // items with the text nested one level deeper. All other MIME types
-      // (blocknote/html, text/markdown, text/plain, Files) fall through to the
-      // default handler — no inter-block whitespace tampering, so the blank-line
-      // regression that motivated e5f4628 does not return.
+      // items with the text nested one level deeper. Plain text containing
+      // list markers ("- ", "1. ") is converted to list HTML; all other MIME
+      // types (text/markdown, Files) fall through to the default handler — no
+      // inter-block whitespace tampering, so the blank-line regression that
+      // motivated e5f4628 does not return.
       pasteHandler: ({
         event,
         editor: e,
@@ -477,7 +479,17 @@ function CollabNoteEditor({
           return true;
         }
         const html = data.getData("text/html");
-        if (!html) return defaultPasteHandler();
+        if (!html) {
+          // Plain text only: lines starting with "- " / "* " / "1. " would all
+          // become paragraph blocks with the marker as literal text. Convert
+          // them to list HTML so they paste as real list item blocks.
+          const listHtml = plainTextListToHtml(data.getData("text/plain"));
+          if (listHtml) {
+            e.pasteHTML(listHtml);
+            return true;
+          }
+          return defaultPasteHandler();
+        }
         const cleaned = cleanHtml(html);
         // Nothing to clean AND no images to rewrite → delegate to the default
         // pipeline (avoids the blank-line regression e5f4628 fixed).

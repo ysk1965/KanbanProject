@@ -87,6 +87,10 @@ public class Feature extends BaseTimeEntity {
     @Column(name = "deleted_by", length = 36)
     private String deletedBy;
 
+    @Column(name = "is_inbox", nullable = false)
+    @Builder.Default
+    private Boolean isInbox = false;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {

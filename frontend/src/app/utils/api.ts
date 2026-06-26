@@ -705,6 +705,7 @@ export interface MilestoneFeatureInfoResponse {
   total_tasks: number;
   completed_tasks: number;
   progress_percentage: number;
+  is_primary: boolean;
 }
 
 export interface MilestoneSimpleResponse {
@@ -780,7 +781,7 @@ export interface ContractorInfo {
   start_date?: string | null;
   end_date?: string | null;
   periods?: ContractorPeriod[];
-  status?: 'active' | 'upcoming' | 'expired' | 'none' | string;
+  status?: "active" | "upcoming" | "expired" | "none" | string;
   manager_member_id?: string | null;
   manager_name?: string | null;
   job_role?: {
@@ -1492,7 +1493,7 @@ export const taskAPI = {
 
   createTask: async (
     boardId: string,
-    featureId: string,
+    featureId: string | undefined,
     data: {
       title: string;
       description?: string;
@@ -1500,12 +1501,14 @@ export const taskAPI = {
       start_date?: string;
       due_date?: string;
       estimated_minutes?: number;
+      color?: string;
     },
   ) => {
-    return apiClient.post<TaskResponse>(
-      `/boards/${boardId}/features/${featureId}/tasks`,
-      data,
-    );
+    // featureId 미지정 시 "미분류"(inbox) Feature로 자동 귀속
+    const url = featureId
+      ? `/boards/${boardId}/features/${featureId}/tasks`
+      : `/boards/${boardId}/tasks`;
+    return apiClient.post<TaskResponse>(url, data);
   },
 
   updateTask: async (
@@ -1518,6 +1521,7 @@ export const taskAPI = {
       start_date?: string | null;
       due_date?: string | null;
       estimated_minutes?: number | null;
+      color?: string;
     },
   ) => {
     return apiClient.put<TaskResponse>(
@@ -1709,7 +1713,6 @@ export const checklistAPI = {
       contractor_id?: string | null;
       start_date?: string;
       due_date?: string;
-      is_tentative?: boolean;
     },
   ) => {
     return apiClient.post<ChecklistItemResponse>(
@@ -1748,7 +1751,6 @@ export const checklistAPI = {
       contractor_id?: string | null;
       start_date?: string | null;
       due_date?: string | null;
-      is_tentative?: boolean;
     },
   ) => {
     return apiClient.patch<ChecklistItemResponse>(
@@ -2855,7 +2857,6 @@ export interface BoardChecklistItemResponse {
   } | null;
   start_date: string | null;
   due_date: string | null;
-  tentative?: boolean;
   task: {
     id: string;
     title: string;
@@ -2879,7 +2880,6 @@ export interface AssigneeItemResponse {
   completed: boolean;
   start_date: string | null;
   due_date: string | null;
-  tentative?: boolean; // 임시(예정) 워크로드 항목 여부
   task: {
     id: string;
     title: string;
@@ -3308,6 +3308,25 @@ export const boardChecklistAPI = {
       `/boards/${boardId}/checklist-items/by-assignee${queryString ? `?${queryString}` : ""}`,
     );
   },
+
+  createFromWorkload: async (
+    boardId: string,
+    data: {
+      title: string;
+      assignee_id?: string | null;
+      contractor_id?: string | null;
+      start_date?: string;
+      due_date?: string;
+      feature_id?: string | null;
+      task_id?: string | null;
+      new_feature_title?: string | null;
+    },
+  ) => {
+    return apiClient.post<ChecklistItemResponse>(
+      `/boards/${boardId}/checklist-items/from-workload`,
+      data,
+    );
+  },
 };
 
 // ========================================
@@ -3412,6 +3431,17 @@ export const milestoneAPI = {
   ) => {
     return apiClient.delete<{ message: string }>(
       `/boards/${boardId}/milestones/${milestoneId}/features/${featureId}`,
+    );
+  },
+
+  setPrimaryFeature: async (
+    boardId: string,
+    milestoneId: string,
+    featureId: string,
+  ) => {
+    return apiClient.put<MilestoneDetailResponse>(
+      `/boards/${boardId}/milestones/${milestoneId}/features/${featureId}/primary`,
+      {},
     );
   },
 

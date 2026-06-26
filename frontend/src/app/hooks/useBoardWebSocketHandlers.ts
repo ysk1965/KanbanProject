@@ -83,9 +83,12 @@ export function useBoardWebSocketHandlers(
       // Feature events
       case "FEATURE_CREATED": {
         const feature = data as Feature;
-        setFeatures((prev) =>
-          prev.some((f) => f.id === feature.id) ? prev : [...prev, feature],
-        );
+        // "미분류"(inbox) Feature는 표시용 목록에서 제외 (allFeatures에는 포함)
+        if (!feature.inbox) {
+          setFeatures((prev) =>
+            prev.some((f) => f.id === feature.id) ? prev : [...prev, feature],
+          );
+        }
         setAllFeatures((prev) =>
           prev.some((f) => f.id === feature.id) ? prev : [...prev, feature],
         );
@@ -138,7 +141,8 @@ export function useBoardWebSocketHandlers(
       case "FEATURES_REORDERED": {
         const { features } = data as { features: Feature[] };
         if (Array.isArray(features)) {
-          setFeatures(features);
+          // "미분류"(inbox) Feature는 표시용 목록에서 제외
+          setFeatures(features.filter((f) => !f.inbox));
           setAllFeatures(features);
         }
         break;
@@ -349,9 +353,7 @@ export function useBoardWebSocketHandlers(
           ),
         );
         // 캐스케이드 펄스: Task의 Feature 칩에 시각적 연결 표시
-        const cascadeTask = tasksRef.current.find(
-          (t) => t.id === toggleTaskId,
-        );
+        const cascadeTask = tasksRef.current.find((t) => t.id === toggleTaskId);
         if (cascadeTask?.feature_id) {
           setCascadeFeatureId(cascadeTask.feature_id);
           setTimeout(() => setCascadeFeatureId(null), 1000);

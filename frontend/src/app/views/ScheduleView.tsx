@@ -1,5 +1,6 @@
 import { Suspense, useState } from "react";
 import {
+  Feature,
   Milestone,
   JobRole,
   JobRoleInfo,
@@ -34,14 +35,6 @@ const ChecklistItemPanel = lazyWithRetry(
   "ChecklistItemPanel",
 );
 
-interface TaskPickerItem {
-  taskId: string;
-  taskTitle: string;
-  featureId: string;
-  featureTitle: string;
-  featureColor: string;
-}
-
 interface ScheduleViewProps {
   boardId: string;
   scheduleSubTab: ScheduleSubTab;
@@ -51,7 +44,7 @@ interface ScheduleViewProps {
   jobRoles: JobRole[];
   memberJobRoleMap: Record<string, JobRoleInfo | null>;
   milestones: Milestone[];
-  taskPickerList: TaskPickerItem[];
+  allFeatures: Feature[];
   scheduleRefreshKey: number;
   scheduleRefreshPanel: number;
   wsChecklistEvent: BoardWebSocketEvent | null;
@@ -77,7 +70,7 @@ export function ScheduleView({
   jobRoles,
   memberJobRoleMap,
   milestones,
-  taskPickerList,
+  allFeatures,
   scheduleRefreshKey,
   scheduleRefreshPanel,
   wsChecklistEvent,
@@ -244,7 +237,7 @@ export function ScheduleView({
               refreshTrigger={scheduleRefreshPanel}
               onMilestoneClick={onMilestoneClick}
               scrollToItem={scrollToItem}
-              tasks={taskPickerList}
+              features={allFeatures}
             />
           </Suspense>
           <Suspense fallback={null}>

@@ -22,6 +22,7 @@ public class TaskResponse {
         private String featureId;
         private String featureTitle;
         private String featureColor;
+        private String color;
         private String blockId;
         private String blockName;
         private String title;
@@ -44,6 +45,7 @@ public class TaskResponse {
                     .featureId(task.getFeature().getId())
                     .featureTitle(task.getFeature().getTitle())
                     .featureColor(task.getFeature().getColor())
+                    .color(task.getColor())
                     .blockId(task.getBlock().getId())
                     .blockName(task.getBlock().getName())
                     .title(task.getTitle())
@@ -71,6 +73,7 @@ public class TaskResponse {
         private String featureId;
         private String featureTitle;
         private String featureColor;
+        private String color;
         private String blockId;
         private String blockName;
         private String title;
@@ -94,6 +97,7 @@ public class TaskResponse {
                     .featureId(task.getFeature().getId())
                     .featureTitle(task.getFeature().getTitle())
                     .featureColor(task.getFeature().getColor())
+                    .color(task.getColor())
                     .blockId(task.getBlock().getId())
                     .blockName(task.getBlock().getName())
                     .title(task.getTitle())
