@@ -15,16 +15,23 @@ import { MotionModal } from "../ui/MotionModal";
 
 const NEW_FEATURE_SENTINEL = "__new__";
 
-// Approximate max menu height (matches `max-h-[200px]`) used for flip detection.
-const MENU_MAX_HEIGHT = 200;
+// Preferred max menu height; the actual cap shrinks to fit available space.
+const MENU_MAX_HEIGHT = 360;
+// Min usable height before we'd rather flip to the larger side.
+const MENU_MIN_HEIGHT = 160;
+// Viewport gap kept between the menu edge and the window edge.
+const MENU_VIEWPORT_GAP = 16;
 
 // Fixed position for a portaled dropdown menu, anchored to its trigger button.
 // When there isn't enough room below, the menu flips up via `bottom`.
+// `maxHeight` is sized to the available space so long lists scroll instead of
+// overflowing the viewport.
 type MenuPos = {
   left: number;
   width: number;
   top?: number;
   bottom?: number;
+  maxHeight: number;
 };
 
 // Compute a fixed-position anchor from the trigger button's viewport rect.
@@ -33,17 +40,21 @@ function computeMenuPos(btn: HTMLButtonElement | null): MenuPos | null {
   const rect = btn.getBoundingClientRect();
   const spaceBelow = window.innerHeight - rect.bottom;
   const spaceAbove = rect.top;
-  const openUp = spaceBelow < MENU_MAX_HEIGHT + 8 && spaceAbove > spaceBelow;
+  const openUp = spaceBelow < MENU_MIN_HEIGHT && spaceAbove > spaceBelow;
+  const available = (openUp ? spaceAbove : spaceBelow) - MENU_VIEWPORT_GAP;
+  const maxHeight = Math.max(MENU_MIN_HEIGHT, Math.min(MENU_MAX_HEIGHT, available));
   return openUp
     ? {
         left: rect.left,
         width: rect.width,
         bottom: window.innerHeight - rect.top + 4,
+        maxHeight,
       }
     : {
         left: rect.left,
         width: rect.width,
         top: rect.bottom + 4,
+        maxHeight,
       };
 }
 
@@ -293,7 +304,19 @@ export function WorkloadCreateModal({
   useEffect(() => {
     if (!showMilestoneDropdown && !showFeatureDropdown && !showTaskDropdown)
       return;
-    const close = () => {
+    // Only close on *background* scroll. Scrolling inside a portaled menu (it
+    // has its own overflow-y-auto) also fires this capture-phase listener — if
+    // we closed there, the menu could never be scrolled.
+    const close = (e?: Event) => {
+      const target = e?.target as Node | undefined;
+      if (
+        target &&
+        (milestoneMenuRef.current?.contains(target) ||
+          featureMenuRef.current?.contains(target) ||
+          taskMenuRef.current?.contains(target))
+      ) {
+        return;
+      }
       setShowMilestoneDropdown(false);
       setShowFeatureDropdown(false);
       setShowTaskDropdown(false);
@@ -455,10 +478,11 @@ export function WorkloadCreateModal({
                     width: milestoneMenuPos.width,
                     top: milestoneMenuPos.top,
                     bottom: milestoneMenuPos.bottom,
+                    maxHeight: milestoneMenuPos.maxHeight,
                     zIndex: 9999,
                   }}
                   className="bg-bridge-obsidian border border-foreground/[0.08] rounded-xl shadow-xl
-                  max-h-[200px] overflow-y-auto custom-scrollbar py-1"
+                  overflow-y-auto custom-scrollbar py-1"
                 >
                   {/* All (no milestone filter) option */}
                   <button
@@ -557,10 +581,11 @@ export function WorkloadCreateModal({
                   width: featureMenuPos.width,
                   top: featureMenuPos.top,
                   bottom: featureMenuPos.bottom,
+                  maxHeight: featureMenuPos.maxHeight,
                   zIndex: 9999,
                 }}
                 className="bg-bridge-obsidian border border-foreground/[0.08] rounded-xl shadow-xl
-                max-h-[200px] overflow-y-auto custom-scrollbar py-1"
+                overflow-y-auto custom-scrollbar py-1"
               >
                 {/* None option */}
                 <button
@@ -724,10 +749,11 @@ export function WorkloadCreateModal({
                         width: taskMenuPos.width,
                         top: taskMenuPos.top,
                         bottom: taskMenuPos.bottom,
+                        maxHeight: taskMenuPos.maxHeight,
                         zIndex: 9999,
                       }}
                       className="bg-bridge-obsidian border border-foreground/[0.08] rounded-xl shadow-xl
-                    max-h-[200px] overflow-y-auto custom-scrollbar py-1"
+                    overflow-y-auto custom-scrollbar py-1"
                     >
                       {/* Auto-create option */}
                       <button

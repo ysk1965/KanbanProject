@@ -62,6 +62,13 @@ public class BoardContractorRequest {
         private boolean clearEndDate;
     }
 
+    /** 워크로드 뷰 숨김/표시 토글. */
+    @Getter
+    @NoArgsConstructor
+    public static class Visibility {
+        private boolean hidden;
+    }
+
     @Getter
     @NoArgsConstructor
     public static class Reorder {

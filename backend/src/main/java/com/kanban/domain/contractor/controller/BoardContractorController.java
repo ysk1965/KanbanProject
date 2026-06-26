@@ -54,6 +54,15 @@ public class BoardContractorController {
         return ResponseEntity.ok(Map.of("message", "외주가 삭제되었습니다"));
     }
 
+    @PutMapping("/{contractorId}/visibility")
+    public ResponseEntity<BoardContractorResponse.Detail> setVisibility(
+            @PathVariable String boardId,
+            @PathVariable String contractorId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody BoardContractorRequest.Visibility request) {
+        return ResponseEntity.ok(contractorService.setHidden(boardId, contractorId, principal.getUserId(), request));
+    }
+
     @PutMapping("/reorder")
     public ResponseEntity<BoardContractorResponse.ListResponse> reorder(
             @PathVariable String boardId,

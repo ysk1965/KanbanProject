@@ -308,6 +308,8 @@ export interface ContractorInfo {
   manager_member_id?: string | null;
   manager_name?: string | null;
   job_role?: JobRoleInfo | null;
+  // 워크로드 뷰 숨김 여부 (더이상 진행하지 않는 외주)
+  hidden?: boolean;
 }
 
 export interface BoardContractor extends ContractorInfo {
