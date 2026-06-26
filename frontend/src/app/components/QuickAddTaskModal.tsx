@@ -2,8 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, CheckCircle2, ChevronDown, Plus, Layers, Zap } from 'lucide-react';
 import { MotionModal } from './ui/MotionModal';
-import { ColorPickerPopover } from './ui/ColorPickerPopover';
-import { FEATURE_COLORS, getRandomFeatureColor } from '../constants';
 import type { Feature } from '../types';
 
 interface QuickAddTaskModalProps {
@@ -15,7 +13,6 @@ interface QuickAddTaskModalProps {
     featureId?: string;
     newFeatureTitle?: string;
     taskTitle: string;
-    color?: string;
   }) => void;
   isSubmitting?: boolean;
   /** Simple mode: title-only input with continuous adding */
@@ -39,7 +36,6 @@ export function QuickAddTaskModal({
   const [isCreatingFeature, setIsCreatingFeature] = useState(false);
   const [newFeatureTitle, setNewFeatureTitle] = useState('');
   const [taskTitle, setTaskTitle] = useState('');
-  const [selectedColor, setSelectedColor] = useState<string>(FEATURE_COLORS[8]);
   const [addedCount, setAddedCount] = useState(0);
   const taskTitleRef = useRef<HTMLInputElement>(null);
   const featureTitleRef = useRef<HTMLInputElement>(null);
@@ -51,7 +47,6 @@ export function QuickAddTaskModal({
       setIsCreatingFeature(features.length === 0);
       setNewFeatureTitle('');
       setTaskTitle('');
-      setSelectedColor(getRandomFeatureColor());
       setAddedCount(0);
     }
   }, [open, features]);
@@ -93,15 +88,12 @@ export function QuickAddTaskModal({
   const handleSubmit = () => {
     if (!canSubmit) return;
     if (isSimpleMode) {
-      // Feature 미지정 → BE에서 "미분류"(inbox) Feature로 자동 귀속
       onSubmit({
-        featureId: undefined,
+        featureId: features.length > 0 ? features[0].id : undefined,
         taskTitle: taskTitle.trim(),
-        color: selectedColor,
       });
-      // Clear for next input (continuous adding) — 다음 카드는 새 랜덤 색상
+      // Clear for next input (continuous adding)
       setTaskTitle('');
-      setSelectedColor(getRandomFeatureColor());
       setAddedCount((c) => c + 1);
       onAdded?.();
       setTimeout(() => taskTitleRef.current?.focus(), 50);
@@ -110,7 +102,6 @@ export function QuickAddTaskModal({
         featureId: isCreatingFeature ? undefined : selectedFeatureId,
         newFeatureTitle: isCreatingFeature ? newFeatureTitle.trim() : undefined,
         taskTitle: taskTitle.trim(),
-        color: selectedColor,
       });
     }
   };
@@ -163,18 +154,9 @@ export function QuickAddTaskModal({
             />
 
             <div className="flex items-center justify-between mt-3">
-              <div className="flex items-center gap-2">
-                <ColorPickerPopover
-                  colors={FEATURE_COLORS}
-                  selectedColor={selectedColor}
-                  onColorChange={setSelectedColor}
-                  triggerSize="sm"
-                  showCustomColor
-                />
-                <span className="text-xs text-slate-500">
-                  {blockName && `→ ${blockName}`}
-                </span>
-              </div>
+              <span className="text-xs text-slate-500">
+                {blockName && `→ ${blockName}`}
+              </span>
               <button
                 onClick={handleSubmit}
                 disabled={!canSubmitSimple}
