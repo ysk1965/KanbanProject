@@ -2391,6 +2391,13 @@ export const contractorAPI = {
     );
   },
 
+  setHidden: async (boardId: string, contractorId: string, hidden: boolean) => {
+    return apiClient.put<ContractorResponse>(
+      `/boards/${boardId}/contractors/${contractorId}/visibility`,
+      { hidden },
+    );
+  },
+
   reorder: async (boardId: string, ids: string[]) => {
     return apiClient.put<ContractorsListResponse>(
       `/boards/${boardId}/contractors/reorder`,

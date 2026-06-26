@@ -10,6 +10,8 @@ import {
   Briefcase,
   Calendar,
   RotateCw,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { MotionModal } from "./ui/MotionModal";
 import { IconButton } from "./ui/IconButton";
@@ -327,6 +329,16 @@ export function ContractorManageModal({
     }
   };
 
+  const handleToggleHidden = async (c: BoardContractor) => {
+    setError(null);
+    try {
+      await contractorService.setHidden(boardId, c.id, !c.hidden);
+      await reload();
+    } catch (e: any) {
+      setError(e?.message || "Failed to change visibility");
+    }
+  };
+
   // ─── periods (갱신/연장) ───
   const openAddPeriod = (c: BoardContractor) => {
     setAddingPeriodFor(c.id);
@@ -400,6 +412,15 @@ export function ContractorManageModal({
       setError(e?.message || "Failed to delete period");
     }
   };
+
+  // 숨긴 외주는 목록 하단으로 정렬 (활동중 외주를 위로)
+  const orderedContractors = useMemo(
+    () =>
+      [...contractors].sort(
+        (a, b) => Number(!!a.hidden) - Number(!!b.hidden),
+      ),
+    [contractors],
+  );
 
   // 일반 멤버: 본인만 manager 선택지로
   const managerOptions = isAdminOrAbove
@@ -558,7 +579,7 @@ export function ContractorManageModal({
           </div>
         ) : (
           <ul className="space-y-1.5">
-            {contractors.map((c) => {
+            {orderedContractors.map((c) => {
               const isEditing = editingId === c.id;
               const canEdit = canEditContractor(c);
               const periods = c.periods || [];
@@ -567,7 +588,7 @@ export function ContractorManageModal({
               return (
                 <li
                   key={c.id}
-                  className="px-2 py-2 rounded-lg bg-foreground/[0.03] border border-foreground/[0.08] hover:border-foreground/[0.12] transition-colors"
+                  className={`px-2 py-2 rounded-lg bg-foreground/[0.03] border border-foreground/[0.08] hover:border-foreground/[0.12] transition-colors ${c.hidden && !isEditing ? "opacity-60" : ""}`}
                 >
                   <div className="flex items-center gap-2">
                     <span
@@ -679,6 +700,12 @@ export function ContractorManageModal({
                                 {dday && <span className="ml-0.5">{dday}</span>}
                               </span>
                             )}
+                            {c.hidden && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-bold bg-slate-500/15 text-slate-500">
+                                <EyeOff className="w-3 h-3" />
+                                {t("contractor.hidden", "숨김")}
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-slate-500 truncate">
                             {c.manager_name ||
@@ -686,6 +713,19 @@ export function ContractorManageModal({
                             {c.job_role?.name ? ` · ${c.job_role.name}` : ""}
                           </div>
                         </button>
+                        {canEdit && (
+                          <IconButton
+                            aria-label={
+                              c.hidden
+                                ? t("contractor.show", "표시")
+                                : t("contractor.hide", "숨기기")
+                            }
+                            onClick={() => handleToggleHidden(c)}
+                            size="sm"
+                          >
+                            {c.hidden ? <Eye /> : <EyeOff />}
+                          </IconButton>
+                        )}
                         {canEdit && (
                           <IconButton
                             aria-label={t("common.delete", "삭제")}

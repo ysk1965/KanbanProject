@@ -179,6 +179,26 @@ public class BoardContractorService {
         broadcastUpdate(boardId, userId);
     }
 
+    @Transactional
+    public BoardContractorResponse.Detail setHidden(String boardId, String contractorId, String userId,
+                                                    BoardContractorRequest.Visibility request) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        BoardContractor contractor = contractorRepository.findByIdAndBoardId(contractorId, boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
+        BoardMember requester = boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        ensureCanManage(contractor, requester);
+
+        contractor.updateHidden(request.isHidden());
+
+        log.info("Contractor visibility changed: contractor={} hidden={} board={} by user={}",
+                contractorId, request.isHidden(), boardId, userId);
+
+        broadcastUpdate(boardId, userId);
+        return BoardContractorResponse.Detail.of(contractor);
+    }
+
     // ─── 계약 기간(periods) 관리 ───
 
     @Transactional

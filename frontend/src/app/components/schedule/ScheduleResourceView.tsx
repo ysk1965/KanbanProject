@@ -216,6 +216,15 @@ export function ScheduleResourceView({
   );
   /** Track which member rows are expanded (showing all lanes) */
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  /**
+   * 현재 가로 스크롤로 보이는 day-index 범위.
+   * `+N 더 보기`(collapse) 판정·카운트·행 높이를 가시 영역 기준으로 계산하기 위함.
+   * null이면 측정 전 → 전체 타임라인 기준 폴백.
+   */
+  const [visibleDayRange, setVisibleDayRange] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
   /** Highlighted item id for scroll-to flash effect */
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(
     null,
@@ -446,6 +455,42 @@ export function ScheduleResourceView({
     prevDayWidthRef.current = dayWidth;
   }, [dayWidth]);
 
+  // ─── 가시 day-index 범위 측정 (스크롤/줌/리사이즈 시 갱신) ───
+  const measureVisibleRange = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const scrollLeft = container.scrollLeft;
+    const innerWidth = Math.max(0, container.clientWidth - LEFT_COL_WIDTH);
+    const start = Math.floor(scrollLeft / dayWidth);
+    const end = Math.ceil((scrollLeft + innerWidth) / dayWidth);
+    setVisibleDayRange((prev) =>
+      prev && prev.start === start && prev.end === end ? prev : { start, end },
+    );
+  }, [dayWidth]);
+
+  // onScroll 핸들러 (rAF 쓰로틀)
+  const scrollRafRef = useRef<number | null>(null);
+  const handleTimelineScroll = useCallback(() => {
+    if (scrollRafRef.current != null) return;
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = null;
+      measureVisibleRange();
+    });
+  }, [measureVisibleRange]);
+
+  // 마운트/줌 변경 시 측정 + 윈도우 리사이즈 대응
+  useEffect(() => {
+    measureVisibleRange();
+    window.addEventListener("resize", measureVisibleRange);
+    return () => {
+      window.removeEventListener("resize", measureVisibleRange);
+      if (scrollRafRef.current != null) {
+        cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = null;
+      }
+    };
+  }, [measureVisibleRange, loading]);
+
   // ─── External DnD drop tracking (from ChecklistItemPanel) ───
   const externalDropRef = useRef<{ rowId: string; dayIndex: number } | null>(
     null,
@@ -647,7 +692,9 @@ export function ScheduleResourceView({
 
     const contractorsByManager = new Map<string, Row[]>();
     const orphanContractors: Row[] = [];
-    contractors.forEach((c) => {
+    // 숨긴 외주는 워크로드 뷰에서 제외 (데이터는 보존, 외주 관리 모달에서 복원 가능)
+    const visibleContractors = contractors.filter((c) => !c.hidden);
+    visibleContractors.forEach((c) => {
       const row: Row = {
         kind: "contractor",
         id: `contractor:${c.id}`,
@@ -1427,6 +1474,7 @@ export function ScheduleResourceView({
       {/* Main scrollable container */}
       <div
         ref={scrollContainerRef}
+        onScroll={handleTimelineScroll}
         className="flex-1 overflow-auto custom-scrollbar"
       >
         <div
@@ -1763,14 +1811,30 @@ export function ScheduleResourceView({
               })),
             );
 
-            const maxLane = Math.max(0, ...Object.values(barLanes));
             const isExpanded = expandedRows.has(row.id);
-            const needsCollapse = maxLane >= MAX_VISIBLE_LANES;
+            // collapse 판정·카운트·행 높이는 "현재 가시 날짜 범위"에 걸치는 바 기준.
+            // 레인(barLanes)은 전역 유지 → 스크롤 시 바 세로 위치가 튀지 않음.
+            // visibleDayRange가 아직 없으면(측정 전) 전체 바 기준으로 폴백.
+            const vr = visibleDayRange;
+            const visibleBars = vr
+              ? itemsWithBars.filter(
+                  (d) =>
+                    d.pos!.startDayIndex <= vr.end &&
+                    d.pos!.endDayIndex >= vr.start,
+                )
+              : itemsWithBars;
+            const visibleMaxLaneRaw = Math.max(
+              0,
+              ...visibleBars.map((d) => barLanes[d.item.id] || 0),
+            );
+            const needsCollapse = visibleMaxLaneRaw >= MAX_VISIBLE_LANES;
             const visibleMaxLane =
-              !isExpanded && needsCollapse ? MAX_VISIBLE_LANES - 1 : maxLane;
+              !isExpanded && needsCollapse
+                ? MAX_VISIBLE_LANES - 1
+                : visibleMaxLaneRaw;
             const hiddenCount =
               needsCollapse && !isExpanded
-                ? itemsWithBars.filter(
+                ? visibleBars.filter(
                     (d) => (barLanes[d.item.id] || 0) >= MAX_VISIBLE_LANES,
                   ).length
                 : 0;

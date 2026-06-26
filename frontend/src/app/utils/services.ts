@@ -1241,6 +1241,8 @@ export const contractorService = {
   ) => contractorAPI.update(boardId, contractorId, payload),
   remove: async (boardId: string, contractorId: string) =>
     contractorAPI.remove(boardId, contractorId),
+  setHidden: async (boardId: string, contractorId: string, hidden: boolean) =>
+    contractorAPI.setHidden(boardId, contractorId, hidden),
   reorder: async (boardId: string, ids: string[]) => {
     const response = await contractorAPI.reorder(boardId, ids);
     return response.contractors;
