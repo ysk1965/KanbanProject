@@ -2291,6 +2291,7 @@ export function ScheduleResourceView({
         boardId={boardId}
         item={moveTarget || { id: "", title: "", taskId: "", taskTitle: "" }}
         features={features}
+        milestones={milestones}
         onMoved={() => {
           setMoveTarget(null);
           fetchData();
