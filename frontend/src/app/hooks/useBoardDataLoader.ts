@@ -178,8 +178,7 @@ export function useBoardDataLoader(boardId: string | undefined) {
       }
 
       // 모든 데이터를 동시에 set → 카드 렌더링 시 checklistDataMap이 이미 존재
-      // "미분류"(inbox) Feature는 표시용 목록에서 제외 (allFeatures에는 포함 유지)
-      setFeatures(filteredFeatures.filter((f) => !f.inbox));
+      setFeatures(filteredFeatures);
       setTasks(finalTasks);
       setChecklistDataMap(checklistMap);
       setScheduledTaskIds(new Set(scheduledTaskIdList));
@@ -322,8 +321,7 @@ export function useBoardDataLoader(boardId: string | undefined) {
           }),
         ]);
 
-        // "미분류"(inbox) Feature는 표시용 목록에서 제외
-        setFeatures(featuresData.filter((f) => !f.inbox));
+        setFeatures(featuresData);
         setTasks(tasksData);
         setBlocks(blockResult.blocks);
         setHiddenBlocks(blockResult.hiddenBlocks);

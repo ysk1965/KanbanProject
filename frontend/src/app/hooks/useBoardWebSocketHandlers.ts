@@ -83,12 +83,9 @@ export function useBoardWebSocketHandlers(
       // Feature events
       case "FEATURE_CREATED": {
         const feature = data as Feature;
-        // "미분류"(inbox) Feature는 표시용 목록에서 제외 (allFeatures에는 포함)
-        if (!feature.inbox) {
-          setFeatures((prev) =>
-            prev.some((f) => f.id === feature.id) ? prev : [...prev, feature],
-          );
-        }
+        setFeatures((prev) =>
+          prev.some((f) => f.id === feature.id) ? prev : [...prev, feature],
+        );
         setAllFeatures((prev) =>
           prev.some((f) => f.id === feature.id) ? prev : [...prev, feature],
         );
@@ -141,8 +138,7 @@ export function useBoardWebSocketHandlers(
       case "FEATURES_REORDERED": {
         const { features } = data as { features: Feature[] };
         if (Array.isArray(features)) {
-          // "미분류"(inbox) Feature는 표시용 목록에서 제외
-          setFeatures(features.filter((f) => !f.inbox));
+          setFeatures(features);
           setAllFeatures(features);
         }
         break;
