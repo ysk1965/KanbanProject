@@ -2,8 +2,10 @@ package com.kanban.domain.checklist.controller;
 
 import com.kanban.domain.checklist.dto.ChecklistBatchRequest;
 import com.kanban.domain.checklist.dto.ChecklistBatchResponse;
+import com.kanban.domain.checklist.dto.ChecklistRequest;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
 import com.kanban.domain.checklist.service.ChecklistService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import com.kanban.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +48,18 @@ public class BoardChecklistController {
             @AuthenticationPrincipal UserPrincipal principal) {
         ChecklistResponse.ByAssigneeResponse response = checklistService.getChecklistItemsByAssignee(
                 boardId, principal.getUserId(), startDate, endDate);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/from-workload")
+    public ResponseEntity<ChecklistResponse.Detail> createFromWorkload(
+            @PathVariable String boardId,
+            @Valid @RequestBody ChecklistRequest.CreateFromWorkload request,
+            @AuthenticationPrincipal UserPrincipal principal,
+            HttpServletRequest httpRequest) {
+        String originUrl = httpRequest.getHeader("Origin");
+        ChecklistResponse.Detail response = checklistService.createChecklistItemFromWorkload(
+                boardId, principal.getUserId(), request, originUrl);
         return ResponseEntity.ok(response);
     }
 

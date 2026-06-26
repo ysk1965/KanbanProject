@@ -758,14 +758,7 @@
       "noItems": "沒有已分配的項目",
       "completed": "已完成",
       "collapse": "收起",
-      "more": "更多",
-      "tentative": "預定",
-      "promoteToChecklist": "轉換為實際清單"
-    },
-    "taskPicker": {
-      "title": "臨時工作安排 · 選擇任務",
-      "search": "搜尋任務...",
-      "empty": "沒有任務"
+      "more": "更多"
     },
     "panel": {
       "title": "清單",

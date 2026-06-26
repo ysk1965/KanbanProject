@@ -3,6 +3,7 @@ package com.kanban.domain.milestone.dto;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneAllocation;
+import com.kanban.domain.milestone.MilestoneFeature;
 import com.kanban.domain.user.User;
 import com.kanban.global.util.UtilizationStatus;
 import lombok.AllArgsConstructor;
@@ -57,8 +58,8 @@ public class MilestoneResponse {
         private CreatorInfo createdBy;
         private LocalDateTime createdAt;
 
-        public static DetailSimple of(Milestone milestone, List<Feature> features, int progressPercentage) {
-            List<FeatureInfo> featureInfos = features.stream()
+        public static DetailSimple of(Milestone milestone, List<MilestoneFeature> links, int progressPercentage) {
+            List<FeatureInfo> featureInfos = links.stream()
                     .map(FeatureInfo::of)
                     .toList();
 
@@ -68,7 +69,7 @@ public class MilestoneResponse {
                     .description(milestone.getDescription())
                     .startDate(milestone.getStartDate())
                     .endDate(milestone.getEndDate())
-                    .featureCount(features.size())
+                    .featureCount(links.size())
                     .progressPercentage(progressPercentage)
                     .features(featureInfos)
                     .createdBy(CreatorInfo.of(milestone.getCreatedBy()))
@@ -92,8 +93,8 @@ public class MilestoneResponse {
         private CreatorInfo createdBy;
         private LocalDateTime createdAt;
 
-        public static Detail of(Milestone milestone, List<Feature> features, int progressPercentage) {
-            List<FeatureInfo> featureInfos = features.stream()
+        public static Detail of(Milestone milestone, List<MilestoneFeature> links, int progressPercentage) {
+            List<FeatureInfo> featureInfos = links.stream()
                     .map(FeatureInfo::of)
                     .toList();
 
@@ -103,7 +104,7 @@ public class MilestoneResponse {
                     .description(milestone.getDescription())
                     .startDate(milestone.getStartDate())
                     .endDate(milestone.getEndDate())
-                    .featureCount(features.size())
+                    .featureCount(links.size())
                     .progressPercentage(progressPercentage)
                     .features(featureInfos)
                     .createdBy(CreatorInfo.of(milestone.getCreatedBy()))
@@ -122,12 +123,12 @@ public class MilestoneResponse {
          * N+1 문제 해결을 위해 features를 포함한 상세 응답 생성
          */
         public static ListResponse of(List<Milestone> milestones,
-                                      java.util.Map<String, List<Feature>> featuresMap,
+                                      java.util.Map<String, List<MilestoneFeature>> linksMap,
                                       java.util.Map<String, Integer> progressMap) {
             List<DetailSimple> detailList = milestones.stream()
                     .map(m -> DetailSimple.of(
                             m,
-                            featuresMap.getOrDefault(m.getId(), List.of()),
+                            linksMap.getOrDefault(m.getId(), List.of()),
                             progressMap.getOrDefault(m.getId(), 0)
                     ))
                     .toList();
@@ -145,8 +146,10 @@ public class MilestoneResponse {
         private int totalTasks;
         private int completedTasks;
         private int progressPercentage;
+        private boolean isPrimary;
 
-        public static FeatureInfo of(Feature feature) {
+        public static FeatureInfo of(MilestoneFeature link) {
+            Feature feature = link.getFeature();
             return FeatureInfo.builder()
                     .id(feature.getId())
                     .title(feature.getTitle())
@@ -154,6 +157,7 @@ public class MilestoneResponse {
                     .totalTasks(feature.getTotalTasks())
                     .completedTasks(feature.getCompletedTasks())
                     .progressPercentage(feature.getProgressPercentage())
+                    .isPrimary(link.isPrimary())
                     .build();
         }
     }

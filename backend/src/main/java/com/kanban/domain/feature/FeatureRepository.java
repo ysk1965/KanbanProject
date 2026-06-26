@@ -32,6 +32,9 @@ public interface FeatureRepository extends JpaRepository<Feature, String> {
 
     int countByBoardId(String boardId);
 
+    @Query("SELECT f FROM Feature f WHERE f.board.id = :boardId AND f.isInbox = true")
+    Optional<Feature> findByBoardIdAndIsInboxTrue(@Param("boardId") String boardId);
+
     @Modifying
     @Query(value = "DELETE FROM features WHERE board_id = :boardId", nativeQuery = true)
     void deleteByBoardId(@Param("boardId") String boardId);

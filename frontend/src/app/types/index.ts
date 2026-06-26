@@ -304,7 +304,7 @@ export interface ContractorInfo {
   // 전체 계약 기간 이력 (start_date ASC)
   periods?: ContractorPeriod[];
   // 파생 상태: active / upcoming / expired / none
-  status?: 'active' | 'upcoming' | 'expired' | 'none' | string;
+  status?: "active" | "upcoming" | "expired" | "none" | string;
   manager_member_id?: string | null;
   manager_name?: string | null;
   job_role?: JobRoleInfo | null;
@@ -377,6 +377,7 @@ export interface Feature {
   progress_percentage: number;
   position: number;
   tags: Tag[];
+  inbox?: boolean;
   created_by?: { id: string; name: string };
   created_at?: string;
   updated_at?: string;
@@ -399,6 +400,7 @@ export interface Task {
   feature_id: string;
   feature_title: string;
   feature_color: string;
+  color?: string | null; // Task 자체 색상 (없으면 feature_color로 폴백)
   block_id: string;
   block_name?: string;
   title: string;
@@ -445,6 +447,7 @@ export interface MilestoneFeatureInfo {
   total_tasks: number;
   completed_tasks: number;
   progress_percentage: number;
+  is_primary: boolean;
 }
 
 export interface Milestone {
@@ -499,7 +502,6 @@ export interface ChecklistItem {
   start_date: string | null;
   due_date: string | null;
   done_date: string | null;
-  tentative?: boolean; // 임시(예정) 워크로드 항목 여부
   position: number;
   created_at?: string;
   completed_at?: string | null;

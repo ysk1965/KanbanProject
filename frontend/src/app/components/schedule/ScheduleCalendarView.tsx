@@ -46,7 +46,6 @@ interface CalendarItem {
   id: string;
   title: string;
   completed: boolean;
-  tentative: boolean;
   startDate: string | null;
   dueDate: string | null;
   featureColor: string;
@@ -113,7 +112,6 @@ function flattenToCalendarItems(
     id: item.id,
     title: item.title,
     completed: item.completed,
-    tentative: !!item.tentative,
     startDate: item.start_date,
     dueDate: item.due_date,
     featureColor: item.feature?.color || "#6366F1",
@@ -435,7 +433,6 @@ export function ScheduleCalendarView({
   const renderBar = useCallback(
     (item: CalendarItem, widthPercent: number = 100) => {
       const completedClasses = item.completed ? "opacity-50" : "";
-      const isTentative = item.tentative;
       return (
         <div
           key={item.id}
@@ -443,13 +440,9 @@ export function ScheduleCalendarView({
           tabIndex={0}
           aria-label={`${item.title}${item.completed ? " (completed)" : ""}`}
           className={`h-6 rounded-md px-1.5 flex items-center gap-1 text-xs font-medium
-            truncate cursor-pointer hover:brightness-110 transition-all ${completedClasses}
-            ${isTentative ? "text-foreground border-2 border-dashed" : "text-white"}`}
+            truncate cursor-pointer hover:brightness-110 transition-all ${completedClasses} text-white`}
           style={{
-            backgroundColor: isTentative
-              ? `${item.featureColor}26`
-              : item.featureColor,
-            borderColor: isTentative ? item.featureColor : undefined,
+            backgroundColor: item.featureColor,
             width: `${widthPercent}%`,
           }}
           onClick={(e) => {
@@ -463,12 +456,7 @@ export function ScheduleCalendarView({
             }
           }}
         >
-          {isTentative && (
-            <span className="shrink-0 text-xs font-bold text-bridge-accent">
-              {t("schedule.resource.tentative", "예정")}
-            </span>
-          )}
-          {!isTentative && item.assigneeProfileImage && (
+          {item.assigneeProfileImage && (
             <img
               src={item.assigneeProfileImage}
               alt={item.assigneeName || ""}
@@ -481,7 +469,7 @@ export function ScheduleCalendarView({
         </div>
       );
     },
-    [handleBarClick, t],
+    [handleBarClick],
   );
 
   // ------ Loading state ------

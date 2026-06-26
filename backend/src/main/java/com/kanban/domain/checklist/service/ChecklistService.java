@@ -6,6 +6,7 @@ import com.kanban.domain.activity.service.ActivityService;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
+import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
@@ -13,8 +14,14 @@ import com.kanban.domain.checklist.dto.ChecklistBatchRequest;
 import com.kanban.domain.checklist.dto.ChecklistBatchResponse;
 import com.kanban.domain.checklist.dto.ChecklistRequest;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
+import com.kanban.domain.block.Block;
+import com.kanban.domain.block.BlockRepository;
+import com.kanban.domain.block.FixedBlockType;
 import com.kanban.domain.contractor.entity.BoardContractor;
 import com.kanban.domain.contractor.repository.BoardContractorRepository;
+import com.kanban.domain.feature.Feature;
+import com.kanban.domain.feature.FeatureRepository;
+import com.kanban.domain.feature.service.InboxFeatureService;
 import com.kanban.domain.jobrole.dto.JobRoleResponse;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.integration.discord.service.DiscordNotificationService;
@@ -54,7 +61,11 @@ public class ChecklistService {
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final BoardMemberRepository boardMemberRepository;
+    private final BoardRepository boardRepository;
     private final BoardContractorRepository contractorRepository;
+    private final FeatureRepository featureRepository;
+    private final BlockRepository blockRepository;
+    private final InboxFeatureService inboxFeatureService;
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final DailyChecklistRepository dailyChecklistRepository;
     private final ActivityService activityService;
@@ -101,8 +112,6 @@ public class ChecklistService {
         Integer maxPosition = checklistItemRepository.findMaxPositionByTaskId(taskId);
         int newPosition = (maxPosition != null) ? maxPosition + 1 : 0;
 
-        boolean tentative = request.getIsTentative() != null && request.getIsTentative();
-
         ChecklistItem item = ChecklistItem.builder()
                 .id(UUID.randomUUID().toString())
                 .task(task)
@@ -111,7 +120,6 @@ public class ChecklistService {
                 .contractor(contractor)
                 .startDate(request.getStartDate())
                 .dueDate(request.getDueDate())
-                .isTentative(tentative)
                 .position(newPosition)
                 .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .build();
@@ -141,10 +149,6 @@ public class ChecklistService {
                 Map.of("task_id", taskId, "item", response));
 
         // 알림 발송: 트랜잭션 커밋 후 실행 (알림 실패가 체크리스트 생성을 롤백하지 않도록)
-        // 임시(예정) 항목은 확정 전 단계이므로 배정 알림을 보내지 않는다.
-        if (tentative) {
-            return response;
-        }
         if (assignee != null) {
             final ChecklistItem savedItem = item;
             final User savedCreator = creator;
@@ -303,10 +307,6 @@ public class ChecklistService {
         }
         if (request.hasDueDate()) {
             item.updateDueDate(request.getDueDate());
-        }
-        // 임시(예정) ↔ 실제 체크리스트 전환. is_tentative=false PATCH = promote.
-        if (request.hasIsTentative()) {
-            item.setIsTentative(request.getIsTentative());
         }
 
         boolean assigneeNewlyAssigned = false;
@@ -471,6 +471,161 @@ public class ChecklistService {
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_TOGGLED, userId, user.getName(),
                 Map.of("task_id", taskId, "item", response));
         return response;
+    }
+
+    @Transactional
+    public ChecklistResponse.Detail createChecklistItemFromWorkload(String boardId, String userId, ChecklistRequest.CreateFromWorkload request, String originUrl) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Task targetTask = resolveTargetTask(boardId, userId, request);
+
+        User assignee = null;
+        BoardContractor contractor = null;
+        if (request.getAssigneeId() != null) {
+            assignee = userRepository.findById(request.getAssigneeId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        } else if (request.getContractorId() != null) {
+            contractor = contractorRepository.findByIdAndBoardId(request.getContractorId(), boardId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
+        }
+
+        Integer maxPosition = checklistItemRepository.findMaxPositionByTaskId(targetTask.getId());
+        int newPosition = (maxPosition != null) ? maxPosition + 1 : 0;
+
+        ChecklistItem item = ChecklistItem.builder()
+                .id(java.util.UUID.randomUUID().toString())
+                .task(targetTask)
+                .title(request.getTitle())
+                .assignee(assignee)
+                .contractor(contractor)
+                .startDate(request.getStartDate())
+                .dueDate(request.getDueDate())
+                .position(newPosition)
+                .createdAt(LocalDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        checklistItemRepository.save(item);
+
+        User creator = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        activityService.logActivity(
+                targetTask.getBoard(), creator,
+                ActivityAction.CHECKLIST_CREATED, TargetType.CHECKLIST, item.getId(),
+                Map.of("checklistTitle", item.getTitle(), "taskTitle", targetTask.getTitle()));
+
+        log.info("Checklist item created from workload: {} in task: {} by user: {}", item.getId(), targetTask.getId(), userId);
+
+        ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_CREATED, userId, creator.getName(),
+                Map.of("task_id", targetTask.getId(), "item", response));
+
+        if (assignee != null) {
+            final ChecklistItem savedItem = item;
+            final User savedCreator = creator;
+            final Board savedBoard = targetTask.getBoard();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        notificationService.createChecklistAssignedNotification(savedItem, savedCreator, savedBoard);
+                    } catch (Exception e) {
+                        log.warn("Failed to create checklist assigned notification for item: {}", savedItem.getId(), e);
+                    }
+                    slackNotificationService.sendChecklistAssignedNotification(savedItem, savedCreator, savedBoard, originUrl);
+                    discordNotificationService.sendChecklistAssignedNotification(savedItem, savedCreator, savedBoard, originUrl);
+                }
+            });
+        } else if (contractor != null) {
+            final ChecklistItem savedItem = item;
+            final User savedCreator = creator;
+            final Board savedBoard = targetTask.getBoard();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        notificationService.createContractorChecklistAssignedNotification(savedItem, savedCreator, savedBoard);
+                    } catch (Exception e) {
+                        log.warn("Failed to create contractor notification for item: {}", savedItem.getId(), e);
+                    }
+                }
+            });
+        }
+
+        return response;
+    }
+
+    private Task resolveTargetTask(String boardId, String userId, ChecklistRequest.CreateFromWorkload request) {
+        if (request.getTaskId() != null) {
+            Task task = taskRepository.findById(request.getTaskId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+            if (!task.getBoard().getId().equals(boardId)) {
+                throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+            }
+            return task;
+        }
+
+        Feature feature;
+        if (request.getFeatureId() != null) {
+            feature = featureRepository.findById(request.getFeatureId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
+            if (!feature.getBoard().getId().equals(boardId)) {
+                throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
+            }
+        } else if (request.getNewFeatureTitle() != null && !request.getNewFeatureTitle().isBlank()) {
+            feature = createInlineFeature(boardId, userId, request.getNewFeatureTitle());
+        } else {
+            return inboxFeatureService.getOrCreateInboxTask(boardId, userId);
+        }
+
+        return createInlineTask(boardId, userId, feature, request.getTitle());
+    }
+
+    private Feature createInlineFeature(String boardId, String userId, String title) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        User creator = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        Integer maxPos = featureRepository.findMaxPositionByBoardId(boardId);
+        int newPos = (maxPos != null) ? maxPos + 1 : 0;
+
+        Feature feature = Feature.builder()
+                .board(board)
+                .title(title)
+                .color("#6366F1")
+                .position(newPos)
+                .createdBy(creator)
+                .build();
+        featureRepository.save(feature);
+
+        return feature;
+    }
+
+    private Task createInlineTask(String boardId, String userId, Feature feature, String title) {
+        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
+
+        Integer maxPosition = taskRepository.findMaxPositionByBlockId(taskBlock.getId());
+        int newPosition = (maxPosition != null) ? maxPosition + 1 : 0;
+
+        User creator = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        Task task = Task.builder()
+                .feature(feature)
+                .board(feature.getBoard())
+                .block(taskBlock)
+                .title(title)
+                .position(newPosition)
+                .createdBy(creator)
+                .build();
+        taskRepository.save(task);
+
+        feature.incrementTotalTasks();
+
+        return task;
     }
 
     @Transactional

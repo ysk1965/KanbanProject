@@ -651,6 +651,10 @@
     "titlePlaceholder": "Milestone title",
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "Milestone description",
+    "descriptionExpand": "Expand",
+    "unsavedTitle": "Unsaved changes",
+    "unsavedDesc": "Save changes to this milestone? Unsaved changes will be lost.",
+    "discardAndMove": "Discard & move",
     "periodLabel": "Period",
     "selectPeriod": "Select a period",
     "linkedFeatures": "Linked Features",
@@ -837,13 +841,32 @@
       "more": "more",
       "groupByMember": "By Member",
       "groupByJobRole": "By Role",
-      "tentative": "Tentative",
-      "promoteToChecklist": "Convert to real checklist"
+      "zoomCompact": "Compact",
+      "zoomNarrow": "Narrow",
+      "zoomDefault": "Default",
+      "zoomWide": "Wide",
+      "zoomExtraWide": "Extra Wide",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out"
     },
-    "taskPicker": {
-      "title": "Place tentative work · Select task",
-      "search": "Search tasks...",
-      "empty": "No tasks"
+    "workloadCreate": {
+      "title": "Add new work",
+      "titlePlaceholder": "Enter work title",
+      "feature": "Feature (optional)",
+      "featureNone": "Unassigned",
+      "featureNew": "Create new Feature",
+      "task": "Task (optional)",
+      "taskAuto": "Auto-create",
+      "inboxHint": "Will be added to inbox",
+      "submit": "Add",
+      "cancel": "Cancel"
+    },
+    "moveToTask": {
+      "title": "Move to Task",
+      "searchPlaceholder": "Search tasks...",
+      "currentTask": "Current task",
+      "noTasks": "No tasks available",
+      "success": "Moved successfully"
     },
     "panel": {
       "title": "Checklist",

@@ -37,6 +37,7 @@ public class FeatureResponse {
         private int progressPercentage;
         private Integer position;
         private List<TagInfo> tags;
+        private boolean inbox;
 
         public static Simple of(Feature feature, List<Tag> tags) {
             return Simple.builder()
@@ -53,6 +54,7 @@ public class FeatureResponse {
                     .progressPercentage(feature.getProgressPercentage())
                     .position(feature.getPosition())
                     .tags(tags != null ? tags.stream().map(TagInfo::of).toList() : List.of())
+                    .inbox(Boolean.TRUE.equals(feature.getIsInbox()))
                     .build();
         }
     }
@@ -78,6 +80,7 @@ public class FeatureResponse {
         private int progressPercentage;
         private Integer position;
         private List<TagInfo> tags;
+        private boolean inbox;
         private CreatorInfo createdBy;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
@@ -99,6 +102,7 @@ public class FeatureResponse {
                     .progressPercentage(feature.getProgressPercentage())
                     .position(feature.getPosition())
                     .tags(tags != null ? tags.stream().map(TagInfo::of).toList() : List.of())
+                    .inbox(Boolean.TRUE.equals(feature.getIsInbox()))
                     .createdBy(CreatorInfo.of(feature))
                     .createdAt(feature.getCreatedAt())
                     .updatedAt(feature.getUpdatedAt())

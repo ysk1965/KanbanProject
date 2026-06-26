@@ -427,24 +427,6 @@ export function KanbanBoardPage() {
     refreshMembers,
   } = useBoardDataLoader(boardId);
 
-  // 워크로드 임시 업무 배치용 태스크 목록 (feature 정보 포함, 추가 fetch 없음)
-  const taskPickerList = useMemo(() => {
-    const featureMap = new Map<string, { title: string; color: string }>();
-    (allFeatures.length ? allFeatures : features).forEach((f) =>
-      featureMap.set(f.id, { title: f.title, color: f.color }),
-    );
-    return tasks.map((task) => {
-      const f = featureMap.get(task.feature_id);
-      return {
-        taskId: task.id,
-        taskTitle: task.title,
-        featureId: task.feature_id,
-        featureTitle: f?.title || "",
-        featureColor: f?.color || "#6366F1",
-      };
-    });
-  }, [tasks, allFeatures, features]);
-
   // milestoneIdRef를 최신 값으로 동기화 (WebSocket 핸들러에서 stale closure 방지)
   useEffect(() => {
     milestoneIdRef.current = kanbanSelectedMilestoneId;
@@ -967,6 +949,19 @@ export function KanbanBoardPage() {
       if (ms.features) {
         for (const f of ms.features) {
           map[f.id] = (map[f.id] || 0) + 1;
+        }
+      }
+    }
+    return map;
+  }, [milestones]);
+
+  // Feature별 대표(홈) 마일스톤 ID 맵 (MilestoneModal "이어짐" 판별용)
+  const featurePrimaryMilestoneMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const ms of milestones) {
+      if (ms.features) {
+        for (const f of ms.features) {
+          if (f.is_primary) map[f.id] = ms.id;
         }
       }
     }
@@ -1798,6 +1793,7 @@ export function KanbanBoardPage() {
     featureId?: string;
     newFeatureTitle?: string;
     taskTitle: string;
+    color?: string;
   }) => {
     if (!boardId || !quickAddBlockId) return;
     setIsQuickAddSubmitting(true);
@@ -1816,11 +1812,11 @@ export function KanbanBoardPage() {
         featureId = newFeature.id;
       }
 
-      if (!featureId) return;
-
+      // featureId 미지정 시 BE에서 "미분류"(inbox) Feature로 자동 귀속
       // Task 생성
       const newTask = await taskService.createTask(boardId, featureId, {
         title: data.taskTitle,
+        color: data.color,
       });
 
       // TASK 블록이 아닌 다른 블록에서 추가한 경우 → 해당 블록으로 이동
@@ -1960,6 +1956,7 @@ export function KanbanBoardPage() {
         start_date: updates.start_date ?? null,
         due_date: updates.due_date ?? null,
         estimated_minutes: updates.estimated_minutes ?? null,
+        color: updates.color ?? undefined,
       });
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
@@ -2126,6 +2123,34 @@ export function KanbanBoardPage() {
     } catch (error) {
       console.error("Failed to save milestone:", error);
       throw error;
+    }
+  };
+
+  // 피처의 대표(홈) 마일스톤을 현재 선택된 마일스톤으로 지정
+  const handleSetPrimaryMilestoneFeature = async (featureId: string) => {
+    if (!boardId || !selectedMilestone) return;
+    const prevPrimaryId = featurePrimaryMilestoneMap[featureId];
+    try {
+      await milestoneService.setPrimaryFeature(
+        boardId,
+        selectedMilestone.id,
+        featureId,
+      );
+      // 대표 이동으로 새 대표 + 기존 대표 마일스톤이 모두 영향받으므로 둘 다 갱신
+      const affectedIds = new Set<string>([selectedMilestone.id]);
+      if (prevPrimaryId) affectedIds.add(prevPrimaryId);
+      const refreshed = await Promise.all(
+        [...affectedIds].map((id) =>
+          milestoneService.getMilestone(boardId, id),
+        ),
+      );
+      setMilestones((prev) =>
+        prev.map((m) => refreshed.find((r) => r.id === m.id) || m),
+      );
+      const newSelected = refreshed.find((r) => r.id === selectedMilestone.id);
+      if (newSelected) setSelectedMilestone(newSelected);
+    } catch (error) {
+      console.error("Failed to set primary milestone feature:", error);
     }
   };
 
@@ -2749,7 +2774,7 @@ export function KanbanBoardPage() {
             jobRoles={jobRoles}
             memberJobRoleMap={memberJobRoleMap}
             milestones={milestones}
-            taskPickerList={taskPickerList}
+            allFeatures={allFeatures}
             scheduleRefreshKey={scheduleRefreshKey}
             scheduleRefreshPanel={scheduleRefreshPanel}
             wsChecklistEvent={wsChecklistEvent}
@@ -3026,6 +3051,7 @@ export function KanbanBoardPage() {
           blockName={blocks.find((b) => b.id === quickAddBlockId)?.name}
           onSubmit={handleQuickAddTask}
           isSubmitting={isQuickAddSubmitting}
+          isSimpleMode
         />
 
         {/* 휴지통 */}
@@ -3239,6 +3265,8 @@ export function KanbanBoardPage() {
           selectedMilestone={selectedMilestone}
           allFeatures={allFeatures}
           featureMilestoneCountMap={featureMilestoneCountMap}
+          featurePrimaryMilestoneMap={featurePrimaryMilestoneMap}
+          onSetPrimaryMilestoneFeature={handleSetPrimaryMilestoneFeature}
           onSaveMilestone={handleSaveMilestone}
           onDeleteMilestone={handleDeleteMilestone}
           onSelectMilestone={async (ms) => {

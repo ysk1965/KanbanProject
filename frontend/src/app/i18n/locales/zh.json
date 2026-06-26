@@ -767,14 +767,7 @@
       "noItems": "没有已分配的项目",
       "completed": "已完成",
       "collapse": "收起",
-      "more": "更多",
-      "tentative": "预定",
-      "promoteToChecklist": "转换为实际清单"
-    },
-    "taskPicker": {
-      "title": "临时任务安排 · 选择任务",
-      "search": "搜索任务...",
-      "empty": "暂无任务"
+      "more": "更多"
     },
     "panel": {
       "title": "清单",

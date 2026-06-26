@@ -33,7 +33,6 @@ public class ChecklistResponse {
         private LocalDate startDate;
         private LocalDate dueDate;
         private LocalDate doneDate;
-        private boolean tentative;
         private Integer position;
         private LocalDateTime createdAt;
         private LocalDateTime completedAt;
@@ -48,7 +47,6 @@ public class ChecklistResponse {
                     .startDate(item.getStartDate())
                     .dueDate(item.getDueDate())
                     .doneDate(item.getDoneDate())
-                    .tentative(item.getIsTentative())
                     .position(item.getPosition())
                     .createdAt(item.getCreatedAt())
                     .completedAt(item.getCompletedAt())
@@ -126,7 +124,6 @@ public class ChecklistResponse {
         private BoardContractorResponse.ContractorInfo contractor;
         private LocalDate startDate;
         private LocalDate dueDate;
-        private boolean tentative;
         private TaskInfo task;
         private FeatureInfo feature;
 
@@ -142,7 +139,6 @@ public class ChecklistResponse {
                     .contractor(BoardContractorResponse.ContractorInfo.of(item.getContractor()))
                     .startDate(item.getStartDate())
                     .dueDate(item.getDueDate())
-                    .tentative(item.getIsTentative())
                     .task(task != null ? TaskInfo.of(task) : null)
                     .feature(feature != null ? FeatureInfo.of(feature) : null)
                     .build();
@@ -319,7 +315,6 @@ public class ChecklistResponse {
         private boolean completed;
         private LocalDate startDate;
         private LocalDate dueDate;
-        private boolean tentative;
         private TaskInfo task;
         private FeatureInfo feature;
 
@@ -333,7 +328,6 @@ public class ChecklistResponse {
                     .completed(item.getIsCompleted())
                     .startDate(item.getStartDate())
                     .dueDate(item.getDueDate())
-                    .tentative(item.getIsTentative())
                     .task(task != null ? TaskInfo.of(task) : null)
                     .feature(feature != null ? FeatureInfo.of(feature) : null)
                     .build();

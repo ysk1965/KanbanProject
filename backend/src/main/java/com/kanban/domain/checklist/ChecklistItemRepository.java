@@ -16,43 +16,40 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     @Query(value = "DELETE FROM checklist_items WHERE task_id IN (SELECT id FROM tasks WHERE board_id = :boardId)", nativeQuery = true)
     void deleteAllByBoardId(@Param("boardId") String boardId);
 
-    // 임시(예정) 항목은 제외 — 태스크 상세 체크리스트 목록 (워크로드/캘린더 by-assignee 조회만 포함)
-    @Query("SELECT c FROM ChecklistItem c WHERE c.task.id = :taskId AND c.isTentative = false ORDER BY c.position ASC")
+    @Query("SELECT c FROM ChecklistItem c WHERE c.task.id = :taskId ORDER BY c.position ASC")
     List<ChecklistItem> findByTaskIdOrderByPositionAsc(@Param("taskId") String taskId);
 
-    // 다음 position 계산은 임시 항목 포함 (행 충돌 방지)
     @Query("SELECT MAX(c.position) FROM ChecklistItem c WHERE c.task.id = :taskId")
     Integer findMaxPositionByTaskId(@Param("taskId") String taskId);
 
-    // 태스크 카운트 — 임시 항목 제외
-    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.id = :taskId AND c.isTentative = false")
+    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.id = :taskId")
     int countByTaskId(@Param("taskId") String taskId);
 
-    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.id = :taskId AND c.isCompleted = true AND c.isTentative = false")
+    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.id = :taskId AND c.isCompleted = true")
     int countByTaskIdAndIsCompletedTrue(@Param("taskId") String taskId);
 
     @Modifying
     @Query(value = "DELETE FROM checklist_items WHERE task_id = :taskId", nativeQuery = true)
     void deleteByTaskId(@Param("taskId") String taskId);
 
-    @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.isTentative = false ORDER BY c.task.id, c.position")
+    @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId ORDER BY c.task.id, c.position")
     List<ChecklistItem> findByBoardId(@Param("boardId") String boardId);
 
     @Query("SELECT c FROM ChecklistItem c " +
            "JOIN FETCH c.task t " +
            "LEFT JOIN FETCH c.assignee " +
-           "WHERE t.board.id = :boardId AND c.isTentative = false ORDER BY t.id, c.position")
+           "WHERE t.board.id = :boardId ORDER BY t.id, c.position")
     List<ChecklistItem> findByBoardIdWithTask(@Param("boardId") String boardId);
 
-    @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.assignee.id = :assigneeId AND c.isTentative = false ORDER BY c.task.id, c.position")
+    @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.assignee.id = :assigneeId ORDER BY c.task.id, c.position")
     List<ChecklistItem> findByBoardIdAndAssigneeId(@Param("boardId") String boardId, @Param("assigneeId") String assigneeId);
 
-    @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.isTentative = false AND c.id NOT IN " +
+    @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.id NOT IN " +
            "(SELECT sb.checklistItem.id FROM ScheduleBlock sb WHERE sb.checklistItem IS NOT NULL) " +
            "ORDER BY c.task.id, c.position")
     List<ChecklistItem> findUnscheduledByBoardId(@Param("boardId") String boardId);
 
-    @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.assignee.id = :assigneeId AND c.isTentative = false AND c.id NOT IN " +
+    @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.assignee.id = :assigneeId AND c.id NOT IN " +
            "(SELECT sb.checklistItem.id FROM ScheduleBlock sb WHERE sb.checklistItem IS NOT NULL) " +
            "ORDER BY c.task.id, c.position")
     List<ChecklistItem> findUnscheduledByBoardIdAndAssigneeId(@Param("boardId") String boardId, @Param("assigneeId") String assigneeId);
@@ -65,7 +62,6 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
      */
     @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId " +
            "AND c.isCompleted = false " +
-           "AND c.isTentative = false " +
            "AND c.createdAt < :thresholdDate " +
            "ORDER BY c.createdAt ASC")
     List<ChecklistItem> findStuckChecklists(@Param("boardId") String boardId,
@@ -77,7 +73,6 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId " +
            "AND c.assignee.id = :assigneeId " +
            "AND c.isCompleted = false " +
-           "AND c.isTentative = false " +
            "AND c.createdAt < :thresholdDate " +
            "ORDER BY c.createdAt ASC")
     List<ChecklistItem> findStuckChecklistsByAssignee(@Param("boardId") String boardId,
@@ -87,25 +82,25 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     /**
      * 특정 Task의 체크리스트 완료 현황
      */
-    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.id = :taskId AND c.isCompleted = true AND c.isTentative = false")
+    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.id = :taskId AND c.isCompleted = true")
     int countCompletedByTaskId(@Param("taskId") String taskId);
 
     /**
      * 특정 담당자의 보드 내 전체 체크리스트 수
      */
-    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.assignee.id = :assigneeId AND c.isTentative = false")
+    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.assignee.id = :assigneeId")
     int countByBoardIdAndAssigneeId(@Param("boardId") String boardId, @Param("assigneeId") String assigneeId);
 
     /**
      * 특정 담당자의 보드 내 완료 체크리스트 수
      */
-    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.assignee.id = :assigneeId AND c.isCompleted = true AND c.isTentative = false")
+    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.assignee.id = :assigneeId AND c.isCompleted = true")
     int countCompletedByBoardIdAndAssigneeId(@Param("boardId") String boardId, @Param("assigneeId") String assigneeId);
 
     /**
      * 보드 내 전체 체크리스트 수
      */
-    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.isTentative = false")
+    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.board.id = :boardId")
     long countByTaskBoardId(@Param("boardId") String boardId);
 
     /**
@@ -114,11 +109,11 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     @Query("SELECT c FROM ChecklistItem c " +
            "JOIN FETCH c.task t " +
            "LEFT JOIN FETCH c.assignee " +
-           "WHERE t.id IN :taskIds AND c.isTentative = false " +
+           "WHERE t.id IN :taskIds " +
            "ORDER BY t.id, c.position")
     List<ChecklistItem> findByTaskIdIn(@Param("taskIds") List<String> taskIds);
 
-    @Query("SELECT DISTINCT c.assignee.id FROM ChecklistItem c WHERE c.task.id = :taskId AND c.assignee IS NOT NULL AND c.isTentative = false")
+    @Query("SELECT DISTINCT c.assignee.id FROM ChecklistItem c WHERE c.task.id = :taskId AND c.assignee IS NOT NULL")
     List<String> findDistinctAssigneeIdsByTaskId(@Param("taskId") String taskId);
 
     @Modifying
@@ -201,7 +196,7 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
      * 특정 담당자의 조직 보드들에서 기간 내 완료한 체크리스트 수
      */
     @Query("SELECT COUNT(ci) FROM ChecklistItem ci JOIN ci.task t WHERE t.board.id IN :boardIds " +
-           "AND ci.assignee.id = :assigneeId AND ci.isCompleted = true AND ci.isTentative = false " +
+           "AND ci.assignee.id = :assigneeId AND ci.isCompleted = true " +
            "AND ci.completedAt BETWEEN :startDateTime AND :endDateTime")
     long countCompletedByAssigneeAndBoardIds(@Param("assigneeId") String assigneeId,
                                               @Param("boardIds") List<String> boardIds,
@@ -217,7 +212,7 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
            "JOIN FETCH ci.task t " +
            "JOIN FETCH t.board " +
            "JOIN FETCH t.feature " +
-           "WHERE ci.assignee.id = :assigneeId AND t.board.id IN :boardIds AND ci.isCompleted = false AND ci.isTentative = false " +
+           "WHERE ci.assignee.id = :assigneeId AND t.board.id IN :boardIds AND ci.isCompleted = false " +
            "ORDER BY t.board.id, t.id, ci.position")
     List<ChecklistItem> findByAssigneeIdAndBoardIdInAndNotCompleted(
             @Param("assigneeId") String assigneeId,
@@ -231,7 +226,7 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
            "JOIN FETCH t.board " +
            "JOIN FETCH t.feature " +
            "WHERE ci.assignee.id = :assigneeId AND t.board.id IN :boardIds " +
-           "AND ci.isCompleted = true AND ci.isTentative = false AND ci.completedAt BETWEEN :startDateTime AND :endDateTime " +
+           "AND ci.isCompleted = true AND ci.completedAt BETWEEN :startDateTime AND :endDateTime " +
            "ORDER BY ci.completedAt DESC")
     List<ChecklistItem> findCompletedByAssigneeAndBoardIdsAndDateRange(
             @Param("assigneeId") String assigneeId,

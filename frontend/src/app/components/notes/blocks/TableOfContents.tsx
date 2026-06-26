@@ -50,12 +50,7 @@ export const TableOfContents = createReactBlockSpec(
       useEffect(() => {
         const update = () => setHeadings(findHeadings(editor.document));
         update();
-
-        const tiptap = (editor as any)._tiptapEditor;
-        if (tiptap) {
-          tiptap.on('update', update);
-          return () => tiptap.off('update', update);
-        }
+        return editor.onChange(update);
       }, [editor]);
 
       if (headings.length === 0) {
