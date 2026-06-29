@@ -127,8 +127,42 @@ jobs:
               --auto-scaling-group-name "$ASG_NAME" \
               --min-size 1 --max-size 2 --desired-capacity 1
 
-            echo "Waiting for RDS and EB to become available (~3 min)..."
-            sleep 180
+            # A blind sleep raced the wake-up: beanstalk-deploy could start an
+            # environment update before the freshly-launched instance/platform
+            # was ready, intermittently failing the bundle pull with a transient
+            # "s3:GetObjectAcl" error and leaving the env on the old version.
+            # Poll the real readiness signals instead.
+            echo "Waiting for RDS to become available..."
+            aws rds wait db-instance-available \
+              --db-instance-identifier kanban-dev-db || true
+
+            echo "Waiting for an EB instance to reach InService and the env to be Ready..."
+            READY=0
+            for i in $(seq 1 40); do
+              IN_SERVICE=$(aws autoscaling describe-auto-scaling-groups \
+                --auto-scaling-group-names "$ASG_NAME" \
+                --query "length(AutoScalingGroups[0].Instances[?LifecycleState=='InService'])" \
+                --output text 2>/dev/null || echo "0")
+              STATUS=$(aws elasticbeanstalk describe-environments \
+                --environment-names ${{ env.EB_ENVIRONMENT_NAME }} \
+                --query 'Environments[0].Status' --output text 2>/dev/null || echo "")
+              echo "  [$i] EB status=$STATUS, InService instances=$IN_SERVICE"
+              if [ "$STATUS" == "Ready" ] && [ "$IN_SERVICE" -ge 1 ]; then
+                READY=1
+                break
+              fi
+              sleep 15
+            done
+
+            if [ "$READY" -ne 1 ]; then
+              echo "::error::EB environment did not become ready in time after wake-up"
+              exit 1
+            fi
+
+            # Brief settle so the EB platform/agent on the new instance is fully
+            # initialized before the application-version deployment starts.
+            echo "EB is ready. Settling for 30s before deploy..."
+            sleep 30
           else
             echo "Infrastructure is running (desired=$DESIRED). Proceeding with deploy."
           fi
