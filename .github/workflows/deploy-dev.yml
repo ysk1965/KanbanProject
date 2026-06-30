@@ -178,23 +178,55 @@ jobs:
           cd deploy && zip -r ../deploy.zip .
 
       - name: Deploy to Elastic Beanstalk
-        uses: einaregilsson/beanstalk-deploy@v22
-        with:
-          # beanstalk-deploy reads its own credential inputs (not the ambient
-          # OIDC chain like the AWS CLI). Pass the temporary creds that
-          # configure-aws-credentials exported — incl. the session token, which
-          # the action signs as x-amz-security-token.
-          aws_access_key: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws_secret_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws_session_token: ${{ env.AWS_SESSION_TOKEN }}
-          application_name: ${{ env.EB_APPLICATION_NAME }}
-          environment_name: ${{ env.EB_ENVIRONMENT_NAME }}
-          version_label: ${{ github.sha }}
-          region: ${{ env.AWS_REGION }}
-          deployment_package: backend/deploy.zip
-          wait_for_deployment: true
-          wait_for_environment_recovery: 120
-          use_existing_version_if_available: true
+        # Native AWS CLI deploy instead of einaregilsson/beanstalk-deploy.
+        # That action calls s3:GetObjectAcl on the uploaded bundle, which fails
+        # for the GHA deploy role on the new-account EB bucket and leaves the env
+        # stranded on the old version (the new API endpoints then 404). The CLI
+        # path — s3 cp -> create-application-version -> update-environment -> wait —
+        # never reads the object ACL, so it sidesteps the failure entirely.
+        run: |
+          set -euo pipefail
+          APP="${{ env.EB_APPLICATION_NAME }}"
+          ENV_NAME="${{ env.EB_ENVIRONMENT_NAME }}"
+          SHA="${{ github.sha }}"
+          BUCKET=$(aws elasticbeanstalk create-storage-location --query S3Bucket --output text)
+          KEY="${APP}/${SHA}.zip"
+
+          echo "Uploading bundle to s3://${BUCKET}/${KEY}"
+          aws s3 cp backend/deploy.zip "s3://${BUCKET}/${KEY}"
+
+          # Re-run safe: reuse the application version if it already exists.
+          EXISTING=$(aws elasticbeanstalk describe-application-versions \
+            --application-name "$APP" --version-labels "$SHA" \
+            --query 'ApplicationVersions[0].VersionLabel' --output text 2>/dev/null || echo "None")
+          if [ "$EXISTING" == "$SHA" ]; then
+            echo "Application version $SHA already exists, reusing it."
+          else
+            echo "Creating application version $SHA"
+            aws elasticbeanstalk create-application-version \
+              --application-name "$APP" --version-label "$SHA" \
+              --source-bundle S3Bucket="$BUCKET",S3Key="$KEY" \
+              --no-process
+          fi
+
+          echo "Deploying version $SHA to $ENV_NAME"
+          aws elasticbeanstalk update-environment \
+            --environment-name "$ENV_NAME" --version-label "$SHA"
+
+          echo "Waiting for environment update to complete..."
+          aws elasticbeanstalk wait environment-updated --environment-names "$ENV_NAME"
+
+          DEPLOYED=$(aws elasticbeanstalk describe-environments \
+            --environment-names "$ENV_NAME" \
+            --query 'Environments[0].VersionLabel' --output text)
+          HEALTH=$(aws elasticbeanstalk describe-environments \
+            --environment-names "$ENV_NAME" \
+            --query 'Environments[0].Health' --output text)
+          echo "Environment is on version ${DEPLOYED}, Health: ${HEALTH}"
+          if [ "$DEPLOYED" != "$SHA" ]; then
+            echo "::error::Environment landed on ${DEPLOYED}, expected ${SHA}"
+            exit 1
+          fi
 
   # Deploy Frontend to S3 (Dev + Testprod)
   deploy-frontend:
