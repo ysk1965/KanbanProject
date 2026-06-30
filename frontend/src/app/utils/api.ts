@@ -547,6 +547,7 @@ export interface BlockResponse {
   fixed_type: "FEATURE" | "TASK" | "DONE" | null;
   color: string | null;
   position: number;
+  show_progress_bar?: boolean;
   milestone_id?: string | null;
   milestone_title?: string | null;
 }
