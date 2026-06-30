@@ -17,6 +17,7 @@ import {
   Briefcase,
   Trash2,
   ArrowRightLeft,
+  Highlighter,
   ZoomIn,
   ZoomOut,
   Settings,
@@ -88,6 +89,10 @@ interface ScheduleResourceViewProps {
   scrollToItem?: { id: string; ts: number } | null;
   /** 보드의 Feature 목록 (업무 생성 시 Feature 선택용) */
   features?: Feature[];
+  /** 하이라이트된 태스크 id — 같은 태스크의 바를 강조 */
+  highlightedTaskId?: string | null;
+  /** 바 우클릭 메뉴에서 하이라이트 토글 */
+  onToggleHighlight?: (taskId: string) => void;
 }
 
 /** 빈 행을 드래그해 업무 생성 바를 그리는 중의 상태 */
@@ -201,6 +206,8 @@ export function ScheduleResourceView({
   onMilestoneClick,
   scrollToItem,
   features = [],
+  highlightedTaskId = null,
+  onToggleHighlight,
 }: ScheduleResourceViewProps) {
   const { t, i18n } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -2076,6 +2083,9 @@ export function ScheduleResourceView({
                           BAR_TOP_OFFSET + lane * (BAR_HEIGHT + BAR_TOP_OFFSET);
 
                         const isHighlightTarget = highlightedItemId === item.id;
+                        const isTaskHighlighted =
+                          !!highlightedTaskId &&
+                          item.task?.id === highlightedTaskId;
 
                         return (
                           <div
@@ -2092,7 +2102,8 @@ export function ScheduleResourceView({
                                 : "z-20 shadow-2xl ring-2 ring-white/30"
                               : ""
                           }
-                          ${isHighlightTarget ? "z-30 ring-2 ring-white/70 shadow-[0_0_16px_rgba(255,255,255,0.4)] animate-pulse" : ""}`}
+                          ${isHighlightTarget ? "z-30 ring-2 ring-white/70 shadow-[0_0_16px_rgba(255,255,255,0.4)] animate-pulse" : ""}
+                          ${isTaskHighlighted && !isHighlightTarget ? "z-20 ring-2 ring-bridge-accent shadow-[0_0_16px_rgba(99,102,241,0.5)]" : ""}`}
                             style={{
                               left: pos.left,
                               width: pos.width,
@@ -2331,6 +2342,23 @@ export function ScheduleResourceView({
               >
                 <ArrowRightLeft className="w-3.5 h-3.5" />
                 {t("schedule.resource.moveToTask", "태스크 이동")}
+              </button>
+            )}
+            {barContextMenu.item.task && onToggleHighlight && (
+              <button
+                type="button"
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors"
+                onClick={() => {
+                  if (barContextMenu.item.task) {
+                    onToggleHighlight(barContextMenu.item.task.id);
+                  }
+                  setBarContextMenu(null);
+                }}
+              >
+                <Highlighter className="w-3.5 h-3.5" />
+                {highlightedTaskId === barContextMenu.item.task.id
+                  ? t("schedule.resource.unhighlight", "하이라이트 해제")
+                  : t("schedule.resource.highlight", "하이라이트")}
               </button>
             )}
             <button

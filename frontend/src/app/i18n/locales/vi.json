@@ -767,7 +767,9 @@
       "noItems": "Không có mục nào được phân công",
       "completed": "Đã hoàn thành",
       "collapse": "Thu gọn",
-      "more": "thêm"
+      "more": "thêm",
+      "highlight": "Đánh dấu",
+      "unhighlight": "Bỏ đánh dấu"
     },
     "panel": {
       "title": "Danh sách kiểm tra",
@@ -1528,6 +1530,7 @@
     "viewBoardGantt": "Gantt",
     "viewBoardCalendar": "Lịch",
     "viewBoardList": "Danh sách",
+    "viewBoardMindMap": "Sơ đồ tư duy",
     "viewBoardMilestone": "Cột mốc",
     "viewSwitcher": "Dạng xem"
   },

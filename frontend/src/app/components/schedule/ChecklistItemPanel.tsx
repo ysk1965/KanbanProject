@@ -1,12 +1,23 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { PanelRightClose, Search, ChevronDown, ChevronRight, Loader2, Filter, X, Plus, Briefcase, Columns3 } from 'lucide-react';
-import { AssigneeItemResponse, boardChecklistAPI } from '../../utils/api';
-import { JobRole, JobRoleInfo, Milestone } from '../../types';
-import { BoardMember } from '../ShareBoardModal';
-import { ChecklistDragItem } from './ChecklistDragItem';
-import { AddChecklistItemModal } from './AddChecklistItemModal';
-import { getTodayDateString } from '../../utils/dateUtils';
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  PanelRightClose,
+  Search,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  Filter,
+  X,
+  Plus,
+  Briefcase,
+  Columns3,
+} from "lucide-react";
+import { AssigneeItemResponse, boardChecklistAPI } from "../../utils/api";
+import { JobRole, JobRoleInfo, Milestone } from "../../types";
+import { BoardMember } from "../ShareBoardModal";
+import { ChecklistDragItem } from "./ChecklistDragItem";
+import { AddChecklistItemModal } from "./AddChecklistItemModal";
+import { getTodayDateString } from "../../utils/dateUtils";
 
 // ─── Public interface consumed by sibling views ──────────────────────────────
 
@@ -48,11 +59,13 @@ interface ChecklistItemPanelProps {
   jobRoles?: JobRole[];
   /** userId → JobRoleInfo 매핑 — 항목의 assignee를 직군에 매칭 */
   memberJobRoleMap?: Record<string, JobRoleInfo | null>;
+  /** 워크로드 바에서 하이라이트된 태스크 id — 같은 태스크의 항목을 강조 */
+  highlightedTaskId?: string | null;
 }
 
 // ─── Feature group types ──────────────────────────────────────────────────────
 
-const NO_FEATURE_KEY = '__no_feature__';
+const NO_FEATURE_KEY = "__no_feature__";
 
 interface FeatureGroup {
   key: string;
@@ -65,7 +78,10 @@ interface FeatureGroup {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function groupItemsByFeature(items: AssigneeItemResponse[], noFeatureLabel: string): FeatureGroup[] {
+function groupItemsByFeature(
+  items: AssigneeItemResponse[],
+  noFeatureLabel: string,
+): FeatureGroup[] {
   const map = new Map<string, FeatureGroup>();
   for (const item of items) {
     const key = item.feature?.id ?? NO_FEATURE_KEY;
@@ -136,18 +152,21 @@ function FeatureGroupSection({
             aria-hidden="true"
           />
         ) : (
-          <span className="w-2 h-2 rounded-full shrink-0 bg-foreground/20" aria-hidden="true" />
+          <span
+            className="w-2 h-2 rounded-full shrink-0 bg-foreground/20"
+            aria-hidden="true"
+          />
         )}
-        <span className="font-bold text-xs text-foreground truncate">{group.title}</span>
-        <span className="ml-auto text-xs font-bold text-slate-500">{group.items.length}</span>
+        <span className="font-bold text-xs text-foreground truncate">
+          {group.title}
+        </span>
+        <span className="ml-auto text-xs font-bold text-slate-500">
+          {group.items.length}
+        </span>
       </button>
 
       {/* Items */}
-      {isOpen && (
-        <div className="space-y-1 mt-1">
-          {children}
-        </div>
-      )}
+      {isOpen && <div className="space-y-1 mt-1">{children}</div>}
     </div>
   );
 }
@@ -171,6 +190,7 @@ export function ChecklistItemPanel({
   milestones = [],
   jobRoles = [],
   memberJobRoleMap = {},
+  highlightedTaskId = null,
 }: ChecklistItemPanelProps) {
   const { t } = useTranslation();
 
@@ -186,10 +206,12 @@ export function ChecklistItemPanel({
   const [error, setError] = useState<string | null>(null);
 
   // ── Search ──
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   // ── Milestone filter (narrows visible features to those in selected milestone) ──
-  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(
+    null,
+  );
   const [showMilestoneDropdown, setShowMilestoneDropdown] = useState(false);
   const milestoneDropdownRef = useRef<HTMLDivElement>(null);
   // Apply the "current period" default only once per board (do not override user choice).
@@ -197,10 +219,12 @@ export function ChecklistItemPanel({
 
   // ── 직군 필터 (단일 선택, "__none__" = 미지정) ──
   const jobRoleFilterKey = `checklistPanelJobRoleFilter_${boardId}`;
-  const [selectedJobRoleId, setSelectedJobRoleId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return window.localStorage.getItem(jobRoleFilterKey);
-  });
+  const [selectedJobRoleId, setSelectedJobRoleId] = useState<string | null>(
+    () => {
+      if (typeof window === "undefined") return null;
+      return window.localStorage.getItem(jobRoleFilterKey);
+    },
+  );
   const [showJobRoleDropdown, setShowJobRoleDropdown] = useState(false);
   const jobRoleDropdownRef = useRef<HTMLDivElement>(null);
   const updateJobRoleFilter = useCallback(
@@ -238,7 +262,9 @@ export function ChecklistItemPanel({
   );
 
   // ── Feature group collapse state (collapsed feature ids) ──
-  const [collapsedFeatureKeys, setCollapsedFeatureKeys] = useState<Set<string>>(new Set());
+  const [collapsedFeatureKeys, setCollapsedFeatureKeys] = useState<Set<string>>(
+    new Set(),
+  );
 
   // ── Scroll container ref (to preserve scroll position on item removal) ──
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -256,8 +282,8 @@ export function ChecklistItemPanel({
       const response = await boardChecklistAPI.getItems(boardId);
       setItems(response.items);
     } catch (err) {
-      console.error('ChecklistItemPanel: failed to load items', err);
-      setError(t('common.error'));
+      console.error("ChecklistItemPanel: failed to load items", err);
+      setError(t("common.error"));
     } finally {
       setIsLoading(false);
     }
@@ -277,15 +303,15 @@ export function ChecklistItemPanel({
   // ── ESC to cancel drag ──
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && dragStateRef.current) {
+      if (e.key === "Escape" && dragStateRef.current) {
         dragStateRef.current = null;
         setDragState(null);
-        document.body.style.userSelect = '';
-        document.body.style.cursor = '';
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
       }
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   // ── Milestone options (only milestones that have features) ──
@@ -301,7 +327,11 @@ export function ChecklistItemPanel({
     if (milestoneOptions.length === 0) return;
     const today = getTodayDateString();
     const current = milestoneOptions.find(
-      (m) => m.start_date && m.end_date && m.start_date <= today && today <= m.end_date,
+      (m) =>
+        m.start_date &&
+        m.end_date &&
+        m.start_date <= today &&
+        today <= m.end_date,
     );
     if (current) {
       setSelectedMilestoneId(current.id);
@@ -324,7 +354,10 @@ export function ChecklistItemPanel({
 
   // ── Reset milestone filter if its milestone disappears ──
   useEffect(() => {
-    if (selectedMilestoneId && !milestones.some((m) => m.id === selectedMilestoneId)) {
+    if (
+      selectedMilestoneId &&
+      !milestones.some((m) => m.id === selectedMilestoneId)
+    ) {
       setSelectedMilestoneId(null);
     }
   }, [milestones, selectedMilestoneId]);
@@ -333,17 +366,23 @@ export function ChecklistItemPanel({
   useEffect(() => {
     if (!showMilestoneDropdown) return;
     const handleClick = (e: MouseEvent) => {
-      if (milestoneDropdownRef.current && !milestoneDropdownRef.current.contains(e.target as Node)) {
+      if (
+        milestoneDropdownRef.current &&
+        !milestoneDropdownRef.current.contains(e.target as Node)
+      ) {
         setShowMilestoneDropdown(false);
       }
     };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, [showMilestoneDropdown]);
 
   // ── Block filter options (derived from loaded items' parent-task blocks) ──
   const blockOptions = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; color: string | null; position: number }>();
+    const map = new Map<
+      string,
+      { id: string; name: string; color: string | null; position: number }
+    >();
     for (const item of items) {
       const block = item.block;
       if (block && !map.has(block.id)) {
@@ -363,7 +402,11 @@ export function ChecklistItemPanel({
 
   // ── Reset block filter if the selected block no longer has any items ──
   useEffect(() => {
-    if (selectedBlockId && blockOptions.length > 0 && !blockOptions.some((b) => b.id === selectedBlockId)) {
+    if (
+      selectedBlockId &&
+      blockOptions.length > 0 &&
+      !blockOptions.some((b) => b.id === selectedBlockId)
+    ) {
       updateBlockFilter(null);
     }
   }, [blockOptions, selectedBlockId, updateBlockFilter]);
@@ -372,12 +415,15 @@ export function ChecklistItemPanel({
   useEffect(() => {
     if (!showBlockDropdown) return;
     const handleClick = (e: MouseEvent) => {
-      if (blockDropdownRef.current && !blockDropdownRef.current.contains(e.target as Node)) {
+      if (
+        blockDropdownRef.current &&
+        !blockDropdownRef.current.contains(e.target as Node)
+      ) {
         setShowBlockDropdown(false);
       }
     };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, [showBlockDropdown]);
 
   // ── Toggle a feature group ──
@@ -411,7 +457,7 @@ export function ChecklistItemPanel({
       };
 
       dragStateRef.current = initialState;
-      document.body.style.userSelect = 'none';
+      document.body.style.userSelect = "none";
 
       const handleMouseMove = (moveEvent: MouseEvent) => {
         const current = dragStateRef.current;
@@ -433,15 +479,15 @@ export function ChecklistItemPanel({
 
         // Update cursor
         if (isActive) {
-          document.body.style.cursor = 'grabbing';
+          document.body.style.cursor = "grabbing";
         }
       };
 
       const handleMouseUp = () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-        document.body.style.userSelect = '';
-        document.body.style.cursor = '';
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
 
         const finalState = dragStateRef.current;
         dragStateRef.current = null;
@@ -454,7 +500,7 @@ export function ChecklistItemPanel({
             finalState.currentX,
             finalState.currentY,
           );
-          const dropCell = dropTarget?.closest('[data-drop-target]');
+          const dropCell = dropTarget?.closest("[data-drop-target]");
 
           if (dropCell) {
             // Signal to parent; the parent handles API call and refresh
@@ -473,8 +519,8 @@ export function ChecklistItemPanel({
         }
       };
 
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
     },
     [onItemDropped],
   );
@@ -484,12 +530,15 @@ export function ChecklistItemPanel({
     let result = items;
     if (selectedMilestoneFeatureIds) {
       result = result.filter(
-        (item) => item.feature && selectedMilestoneFeatureIds.has(item.feature.id),
+        (item) =>
+          item.feature && selectedMilestoneFeatureIds.has(item.feature.id),
       );
     }
     if (selectedJobRoleId) {
       result = result.filter((item) => {
-        const assigneeId = (item as unknown as { assignee?: { id: string } | null }).assignee?.id;
+        const assigneeId = (
+          item as unknown as { assignee?: { id: string } | null }
+        ).assignee?.id;
         const role = assigneeId ? memberJobRoleMap[assigneeId] : null;
         const key = role?.id || "__none__";
         return key === selectedJobRoleId;
@@ -503,9 +552,16 @@ export function ChecklistItemPanel({
       result = result.filter((item) => item.title.toLowerCase().includes(q));
     }
     return result;
-  }, [items, selectedMilestoneFeatureIds, searchQuery, selectedJobRoleId, selectedBlockId, memberJobRoleMap]);
+  }, [
+    items,
+    selectedMilestoneFeatureIds,
+    searchQuery,
+    selectedJobRoleId,
+    selectedBlockId,
+    memberJobRoleMap,
+  ]);
 
-  const noFeatureLabel = t('schedule.panel.noFeature', '피처 없음');
+  const noFeatureLabel = t("schedule.panel.noFeature", "피처 없음");
   const featureGroups = useMemo(
     () => groupItemsByFeature(filteredItems, noFeatureLabel),
     [filteredItems, noFeatureLabel],
@@ -517,16 +573,16 @@ export function ChecklistItemPanel({
       <div className="relative border-l border-foreground/[0.08] bg-bridge-obsidian">
         <button
           onClick={() => setIsOpen(true)}
-          aria-label={t('schedule.panel.title', 'Checklist')}
+          aria-label={t("schedule.panel.title", "Checklist")}
           className="flex flex-col items-center justify-center w-8 h-full py-4 gap-2
             text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
         >
           <Search size={14} aria-hidden="true" />
           <span
             className="text-xs font-bold uppercase tracking-widest"
-            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
           >
-            {t('schedule.panel.title', 'Checklist')}
+            {t("schedule.panel.title", "Checklist")}
           </span>
         </button>
       </div>
@@ -540,17 +596,17 @@ export function ChecklistItemPanel({
         className="w-[280px] border-l border-foreground/[0.08] bg-bridge-obsidian
           flex flex-col overflow-hidden shrink-0"
         role="complementary"
-        aria-label={t('schedule.panel.title', 'Checklist')}
+        aria-label={t("schedule.panel.title", "Checklist")}
       >
         {/* Panel header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-foreground/[0.08]">
           <span className="text-[13px] font-bold text-foreground">
-            {t('schedule.panel.title', 'Checklist')}
+            {t("schedule.panel.title", "Checklist")}
           </span>
           <div className="flex items-center gap-0.5">
             <button
               onClick={() => setShowAddModal(true)}
-              aria-label={t('schedule.panel.addItem', 'Add checklist item')}
+              aria-label={t("schedule.panel.addItem", "Add checklist item")}
               className="p-1 rounded-lg text-slate-500 hover:text-foreground
                 hover:bg-foreground/5 transition-colors"
             >
@@ -558,11 +614,11 @@ export function ChecklistItemPanel({
             </button>
             <button
               onClick={() => setIsOpen(false)}
-              aria-label={t('common.close', 'Close')}
+              aria-label={t("common.close", "Close")}
               className="p-1 rounded-lg text-slate-500 hover:text-foreground
                 hover:bg-foreground/5 transition-colors"
             >
-            <PanelRightClose size={16} aria-hidden="true" />
+              <PanelRightClose size={16} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -579,8 +635,8 @@ export function ChecklistItemPanel({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('schedule.panel.search', 'Search...')}
-              aria-label={t('schedule.panel.search', 'Search...')}
+              placeholder={t("schedule.panel.search", "Search...")}
+              aria-label={t("schedule.panel.search", "Search...")}
               className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg
                 py-1.5 pl-7 pr-3 text-xs text-foreground placeholder-slate-500
                 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
@@ -590,7 +646,10 @@ export function ChecklistItemPanel({
 
         {/* 직군 필터 */}
         {jobRoles.length > 0 && (
-          <div className="px-3 py-1.5 border-b border-foreground/[0.08]" ref={jobRoleDropdownRef}>
+          <div
+            className="px-3 py-1.5 border-b border-foreground/[0.08]"
+            ref={jobRoleDropdownRef}
+          >
             {selectedJobRoleId ? (
               <button
                 onClick={() => updateJobRoleFilter(null)}
@@ -615,8 +674,13 @@ export function ChecklistItemPanel({
                     text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                 >
                   <Briefcase size={12} />
-                  <span>{t("schedule.panel.filterJobRole", "직군별 필터")}</span>
-                  <ChevronDown size={10} className={`transition-transform ${showJobRoleDropdown ? "rotate-180" : ""}`} />
+                  <span>
+                    {t("schedule.panel.filterJobRole", "직군별 필터")}
+                  </span>
+                  <ChevronDown
+                    size={10}
+                    className={`transition-transform ${showJobRoleDropdown ? "rotate-180" : ""}`}
+                  />
                 </button>
                 {showJobRoleDropdown && (
                   <div
@@ -661,7 +725,10 @@ export function ChecklistItemPanel({
 
         {/* 블록 필터 */}
         {blockOptions.length > 0 && (
-          <div className="px-3 py-1.5 border-b border-foreground/[0.08]" ref={blockDropdownRef}>
+          <div
+            className="px-3 py-1.5 border-b border-foreground/[0.08]"
+            ref={blockDropdownRef}
+          >
             {selectedBlockId ? (
               <button
                 onClick={() => updateBlockFilter(null)}
@@ -685,7 +752,10 @@ export function ChecklistItemPanel({
                 >
                   <Columns3 size={12} />
                   <span>{t("schedule.panel.filterBlock", "블록별 필터")}</span>
-                  <ChevronDown size={10} className={`transition-transform ${showBlockDropdown ? "rotate-180" : ""}`} />
+                  <ChevronDown
+                    size={10}
+                    className={`transition-transform ${showBlockDropdown ? "rotate-180" : ""}`}
+                  />
                 </button>
                 {showBlockDropdown && (
                   <div
@@ -719,7 +789,10 @@ export function ChecklistItemPanel({
 
         {/* Milestone filter */}
         {milestoneOptions.length > 0 && (
-          <div className="px-3 py-1.5 border-b border-foreground/[0.08]" ref={milestoneDropdownRef}>
+          <div
+            className="px-3 py-1.5 border-b border-foreground/[0.08]"
+            ref={milestoneDropdownRef}
+          >
             {selectedMilestoneId ? (
               // Active filter chip
               <button
@@ -729,8 +802,12 @@ export function ChecklistItemPanel({
                   hover:bg-bridge-accent/15 transition-colors"
               >
                 {(() => {
-                  const ms = milestoneOptions.find((m) => m.id === selectedMilestoneId);
-                  return ms ? <span className="truncate">{ms.title}</span> : null;
+                  const ms = milestoneOptions.find(
+                    (m) => m.id === selectedMilestoneId,
+                  );
+                  return ms ? (
+                    <span className="truncate">{ms.title}</span>
+                  ) : null;
                 })()}
                 <X size={12} className="shrink-0 ml-0.5" />
               </button>
@@ -743,15 +820,22 @@ export function ChecklistItemPanel({
                     text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                 >
                   <Filter size={12} />
-                  <span>{t('schedule.panel.filterMilestone', '마일스톤별 필터')}</span>
-                  <ChevronDown size={10} className={`transition-transform ${showMilestoneDropdown ? 'rotate-180' : ''}`} />
+                  <span>
+                    {t("schedule.panel.filterMilestone", "마일스톤별 필터")}
+                  </span>
+                  <ChevronDown
+                    size={10}
+                    className={`transition-transform ${showMilestoneDropdown ? "rotate-180" : ""}`}
+                  />
                 </button>
 
                 {/* Dropdown */}
                 {showMilestoneDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 z-30
+                  <div
+                    className="absolute top-full left-0 right-0 mt-1 z-30
                     bg-bridge-obsidian border border-foreground/[0.08] rounded-lg shadow-xl
-                    max-h-[200px] overflow-y-auto custom-scrollbar py-1">
+                    max-h-[200px] overflow-y-auto custom-scrollbar py-1"
+                  >
                     {milestoneOptions.map((milestone) => (
                       <button
                         key={milestone.id}
@@ -776,19 +860,25 @@ export function ChecklistItemPanel({
         )}
 
         {/* Scrollable item list */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar px-3 py-2 space-y-3">
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto custom-scrollbar px-3 py-2 space-y-3"
+        >
           {isLoading && (
             <div className="flex items-center justify-center py-8 text-slate-500">
-              <Loader2 size={18} className="animate-spin mr-2 text-bridge-accent" aria-hidden="true" />
-              <span className="text-xs">{t('common.loading', 'Loading...')}</span>
+              <Loader2
+                size={18}
+                className="animate-spin mr-2 text-bridge-accent"
+                aria-hidden="true"
+              />
+              <span className="text-xs">
+                {t("common.loading", "Loading...")}
+              </span>
             </div>
           )}
 
           {!isLoading && error && (
-            <div
-              role="alert"
-              className="text-xs text-red-400 text-center py-4"
-            >
+            <div role="alert" className="text-xs text-red-400 text-center py-4">
               {error}
             </div>
           )}
@@ -797,8 +887,11 @@ export function ChecklistItemPanel({
             <div className="text-center py-8">
               <p className="text-xs text-slate-500">
                 {searchQuery
-                  ? t('common.noData', 'No data available')
-                  : t('schedule.panel.noUnscheduled', 'All items are scheduled')}
+                  ? t("common.noData", "No data available")
+                  : t(
+                      "schedule.panel.noUnscheduled",
+                      "All items are scheduled",
+                    )}
               </p>
             </div>
           )}
@@ -819,8 +912,14 @@ export function ChecklistItemPanel({
                         key={item.id}
                         item={item}
                         assignee={null}
-                        isDragging={dragState?.item.id === item.id && dragState.isActive}
+                        isDragging={
+                          dragState?.item.id === item.id && dragState.isActive
+                        }
                         isScheduled={scheduled}
+                        isHighlighted={
+                          !!highlightedTaskId &&
+                          item.task?.id === highlightedTaskId
+                        }
                         onMouseDown={handleItemMouseDown}
                         onDetailClick={onItemDetailClick}
                         onScheduledClick={() => onScheduledItemClick?.(item)}
@@ -836,7 +935,8 @@ export function ChecklistItemPanel({
         {/* Drag hint footer */}
         <div className="px-4 py-3 border-t border-foreground/[0.08]">
           <p className="text-xs text-slate-600 text-center leading-relaxed">
-            💡 {t('schedule.panel.dragHint', 'Drag to place on calendar/resource')}
+            💡{" "}
+            {t("schedule.panel.dragHint", "Drag to place on calendar/resource")}
           </p>
         </div>
       </div>
@@ -867,7 +967,7 @@ export function ChecklistItemPanel({
             <span className="text-xs text-slate-500 truncate block pl-1 mt-0.5">
               {[dragState.item.feature?.title, dragState.item.task?.title]
                 .filter(Boolean)
-                .join(' > ')}
+                .join(" > ")}
             </span>
           )}
         </div>
@@ -889,4 +989,4 @@ export function ChecklistItemPanel({
   );
 }
 
-ChecklistItemPanel.displayName = 'ChecklistItemPanel';
+ChecklistItemPanel.displayName = "ChecklistItemPanel";

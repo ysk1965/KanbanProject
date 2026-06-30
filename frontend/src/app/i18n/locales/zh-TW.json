@@ -758,7 +758,9 @@
       "noItems": "沒有已分配的項目",
       "completed": "已完成",
       "collapse": "收起",
-      "more": "更多"
+      "more": "更多",
+      "highlight": "醒目標示",
+      "unhighlight": "取消醒目標示"
     },
     "panel": {
       "title": "清單",
@@ -1512,6 +1514,7 @@
     "viewBoardGantt": "甘特圖",
     "viewBoardCalendar": "行事曆",
     "viewBoardList": "列表",
+    "viewBoardMindMap": "心智圖",
     "viewBoardMilestone": "里程碑",
     "viewSwitcher": "檢視"
   },

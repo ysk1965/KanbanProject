@@ -40,7 +40,8 @@ type ViewMode =
   | "notes"
   | "statistics"
   | "ai_report"
-  | "list";
+  | "list"
+  | "mindmap";
 
 // 보드 서브뷰 그룹 (보드 탭에 속하는 ViewMode 집합)
 const BOARD_SUB_MODES: ViewMode[] = [
@@ -48,6 +49,7 @@ const BOARD_SUB_MODES: ViewMode[] = [
   "gantt",
   "calendar",
   "list",
+  "mindmap",
   "milestone",
 ];
 import { DragProvider } from "../contexts/DragContext";
@@ -140,6 +142,13 @@ const MilestoneView = lazyWithRetry(
       default: m.MilestoneView,
     })),
   "MilestoneView",
+);
+const MindMapView = lazyWithRetry(
+  () =>
+    import("../views/MindMapView").then((m) => ({
+      default: m.MindMapView,
+    })),
+  "MindMapView",
 );
 import { EmptyBoardGuide } from "../components/EmptyBoardGuide";
 import { QuickAddTaskModal } from "../components/QuickAddTaskModal";
@@ -296,11 +305,7 @@ export function KanbanBoardPage() {
 
   // 보드 서브뷰 모드 기억 헬퍼 (칸반/간트/캘린더/리스트/마일스톤)
   const getBoardSubMode = ():
-    | "kanban"
-    | "gantt"
-    | "calendar"
-    | "list"
-    | "milestone" => {
+    "kanban" | "gantt" | "calendar" | "list" | "milestone" => {
     const saved = localStorage.getItem(`boardSubMode_${boardId}`);
     if (saved === "gantt") return "gantt";
     if (saved === "calendar") return "calendar";
@@ -3008,6 +3013,24 @@ export function KanbanBoardPage() {
                 if (task) handleTaskClick(task);
               }}
             />
+          </main>
+        ) : viewMode === "mindmap" ? (
+          <main className="flex-1 flex flex-col overflow-hidden">
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-64">
+                  <div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" />
+                </div>
+              }
+            >
+              <MindMapView
+                boardId={boardId || ""}
+                features={filteredFeatures}
+                canEdit={canEdit}
+                memberColorMap={memberColorMap}
+                onFeatureClick={handleFeatureClick}
+              />
+            </Suspense>
           </main>
         ) : null}
 
