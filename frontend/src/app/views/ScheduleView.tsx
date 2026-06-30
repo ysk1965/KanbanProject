@@ -188,8 +188,8 @@ export function ScheduleView({
               memberColorMap={memberColorMap}
               jobRoles={jobRoles}
               onOpenContractorManager={onOpenContractorManager}
-              onViewTask={async (taskId) => {
-                onViewTaskById(taskId);
+              onViewTask={async (taskId, checklistItemId) => {
+                onViewTaskWithChecklist(taskId, checklistItemId);
               }}
               onDropChecklist={async (item, targetDate, targetAssigneeId) => {
                 if (item.task_id) {

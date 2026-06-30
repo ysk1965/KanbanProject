@@ -1788,7 +1788,7 @@ export function TaskDetailModal({
           setChecklistMoveSearch("");
           setMoveTargetMilestoneId(null);
         }}
-        className="sm:max-w-sm p-6"
+        className="sm:max-w-lg p-6"
       >
         <h3 className="text-lg font-bold text-foreground">
           {t("task.moveChecklistToTaskTitle")}
@@ -1829,7 +1829,7 @@ export function TaskDetailModal({
           placeholder={t("common.search")}
           className="bg-foreground/5 border-foreground/10 text-foreground placeholder:text-slate-500 text-sm mt-3"
         />
-        <div className="space-y-1 py-2 max-h-[250px] overflow-y-auto custom-scrollbar">
+        <div className="space-y-1 py-2 max-h-[420px] overflow-y-auto custom-scrollbar">
           {loadingMoveMilestoneTasks ? (
             <div className="flex items-center justify-center py-10">
               <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
