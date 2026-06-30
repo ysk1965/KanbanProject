@@ -767,7 +767,9 @@
       "noItems": "Nenhum item atribuído",
       "completed": "Concluído",
       "collapse": "Recolher",
-      "more": "mais"
+      "more": "mais",
+      "highlight": "Destacar",
+      "unhighlight": "Remover destaque"
     },
     "panel": {
       "title": "Lista de verificação",
@@ -1528,6 +1530,7 @@
     "viewBoardGantt": "Gantt",
     "viewBoardCalendar": "Calendário",
     "viewBoardList": "Lista",
+    "viewBoardMindMap": "Mapa mental",
     "viewBoardMilestone": "Marco",
     "viewSwitcher": "Visualizações"
   },

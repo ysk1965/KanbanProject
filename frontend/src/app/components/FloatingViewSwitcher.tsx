@@ -5,6 +5,7 @@ import {
   GanttChart,
   Calendar,
   List,
+  Network,
   Lock,
   Check,
   ChevronDown,
@@ -21,7 +22,8 @@ type ViewMode =
   | "notes"
   | "statistics"
   | "ai_report"
-  | "list";
+  | "list"
+  | "mindmap";
 
 interface FloatingViewSwitcherProps {
   /** 현재 활성화된 뷰 모드 */
@@ -72,6 +74,14 @@ const BOARD_VIEWS: BoardViewItem[] = [
     icon: Calendar,
     labelKey: "kanban.viewBoardCalendar",
     labelFallback: "캘린더",
+    isPremium: false,
+    checkAccess: () => true,
+  },
+  {
+    mode: "mindmap",
+    icon: Network,
+    labelKey: "kanban.viewBoardMindMap",
+    labelFallback: "마인드맵",
     isPremium: false,
     checkAccess: () => true,
   },
@@ -129,7 +139,14 @@ export function FloatingViewSwitcher({
         className="w-52 p-1.5 bg-bridge-obsidian border-foreground/[0.08] shadow-2xl rounded-xl"
       >
         {BOARD_VIEWS.map(
-          ({ mode, icon: Icon, labelKey, labelFallback, isPremium, checkAccess }) => {
+          ({
+            mode,
+            icon: Icon,
+            labelKey,
+            labelFallback,
+            isPremium,
+            checkAccess,
+          }) => {
             const isActive = viewMode === mode;
             const hasAccess = checkAccess(canAccessGantt);
             const label = t(labelKey, labelFallback);
@@ -159,7 +176,11 @@ export function FloatingViewSwitcher({
                 <span className="flex-1 text-left">{label}</span>
                 {isActive && <Check size={14} aria-hidden="true" />}
                 {isPremium && !hasAccess && (
-                  <Lock size={12} className="text-slate-500" aria-hidden="true" />
+                  <Lock
+                    size={12}
+                    className="text-slate-500"
+                    aria-hidden="true"
+                  />
                 )}
               </button>
             );

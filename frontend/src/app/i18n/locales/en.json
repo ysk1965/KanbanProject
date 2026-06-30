@@ -74,7 +74,17 @@
       "title": "Orchestrate\ncollaboration flow",
       "titleLine1": "Two pillars,",
       "titleLine2": "one platform",
-      "kanban": {
+      "mindmap": {
+    "addMemo": "Add memo",
+    "newMemo": "New memo",
+    "unplacedFeatures": "Unplaced features",
+    "dragToPlace": "Drag onto the canvas",
+    "allPlaced": "All features placed",
+    "readOnly": "Read only",
+    "empty": "Drag a feature from the left or add a memo to start",
+    "emptyReadOnly": "No mind map yet"
+  },
+  "kanban": {
         "title": "Practice-driven Kanban",
         "desc": "Build your team's unique workflow on top of the 'Feature - Task - Done' structure. The most practical collaboration interface, built with real PM insights."
       },
@@ -850,7 +860,9 @@
       "zoomOut": "Zoom out",
       "viewSettings": "View settings",
       "groupBy": "Group by",
-      "zoom": "Zoom"
+      "zoom": "Zoom",
+      "highlight": "Highlight",
+      "unhighlight": "Remove highlight"
     },
     "workloadCreate": {
       "title": "Add new work",
@@ -1679,6 +1691,7 @@
     "viewBoardGantt": "Gantt",
     "viewBoardCalendar": "Calendar",
     "viewBoardList": "List",
+    "viewBoardMindMap": "Mind Map",
     "viewBoardMilestone": "Milestone",
     "viewSwitcher": "Views"
   },

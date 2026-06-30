@@ -767,7 +767,9 @@
       "noItems": "没有已分配的项目",
       "completed": "已完成",
       "collapse": "收起",
-      "more": "更多"
+      "more": "更多",
+      "highlight": "高亮",
+      "unhighlight": "取消高亮"
     },
     "panel": {
       "title": "清单",
@@ -1528,6 +1530,7 @@
     "viewBoardGantt": "甘特图",
     "viewBoardCalendar": "日历",
     "viewBoardList": "列表",
+    "viewBoardMindMap": "思维导图",
     "viewBoardMilestone": "里程碑",
     "viewSwitcher": "视图"
   },

@@ -93,6 +93,10 @@ export function ScheduleView({
     id: string;
     ts: number;
   } | null>(null);
+  // 워크로드 바 우클릭 → 같은 태스크의 체크리스트 항목 하이라이트 (단일 태스크)
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(
+    null,
+  );
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
@@ -238,6 +242,12 @@ export function ScheduleView({
               onMilestoneClick={onMilestoneClick}
               scrollToItem={scrollToItem}
               features={allFeatures}
+              highlightedTaskId={highlightedTaskId}
+              onToggleHighlight={(taskId) =>
+                setHighlightedTaskId((prev) =>
+                  prev === taskId ? null : taskId,
+                )
+              }
             />
           </Suspense>
           <Suspense fallback={null}>
@@ -254,6 +264,7 @@ export function ScheduleView({
               milestones={milestones}
               jobRoles={jobRoles}
               memberJobRoleMap={memberJobRoleMap}
+              highlightedTaskId={highlightedTaskId}
             />
           </Suspense>
         </div>

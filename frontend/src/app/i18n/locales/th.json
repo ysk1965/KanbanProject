@@ -767,7 +767,9 @@
       "noItems": "ไม่มีรายการที่มอบหมาย",
       "completed": "เสร็จสิ้น",
       "collapse": "ยุบ",
-      "more": "เพิ่มเติม"
+      "more": "เพิ่มเติม",
+      "highlight": "ไฮไลต์",
+      "unhighlight": "ยกเลิกไฮไลต์"
     },
     "panel": {
       "title": "รายการตรวจสอบ",
@@ -1528,6 +1530,7 @@
     "viewBoardGantt": "แกนต์",
     "viewBoardCalendar": "ปฏิทิน",
     "viewBoardList": "รายการ",
+    "viewBoardMindMap": "มายด์แมป",
     "viewBoardMilestone": "หมุดหมาย",
     "viewSwitcher": "มุมมอง"
   },
