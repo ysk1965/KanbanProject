@@ -1474,6 +1474,27 @@ export function KanbanBoardPage() {
     }
   };
 
+  const handleToggleBlockProgressBar = async (
+    blockId: string,
+    enabled: boolean,
+  ) => {
+    if (!boardId) return;
+    const previousBlocks = blocks;
+    setBlocks((prev) =>
+      prev.map((b) =>
+        b.id === blockId ? { ...b, show_progress_bar: enabled } : b,
+      ),
+    );
+    try {
+      await blockService.updateBlock(boardId, blockId, {
+        show_progress_bar: enabled,
+      });
+    } catch (error) {
+      console.error("Failed to toggle progress bar:", error);
+      setBlocks(previousBlocks);
+    }
+  };
+
   const handleDeleteBlock = useCallback(
     async (blockId: string) => {
       const blockToDelete = blocks.find((b) => b.id === blockId);
@@ -2773,6 +2794,7 @@ export function KanbanBoardPage() {
             onReorderTask={handleReorderTask}
             onEditBlock={setEditingBlock}
             onDeleteBlock={handleDeleteBlock}
+            onToggleProgressBar={handleToggleBlockProgressBar}
             onHideBlock={handleHideBlock}
             onShowBlock={handleShowBlock}
             onToggleChecklistExpand={handleToggleChecklistExpand}

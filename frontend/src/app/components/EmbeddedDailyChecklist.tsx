@@ -1,9 +1,9 @@
-import { useState, useCallback, useRef, useLayoutEffect } from 'react';
-import { Plus, ChevronDown, ChevronUp } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { DailyChecklistItem as DailyChecklistItemType } from '../types';
-import { DailyChecklistItem } from './DailyChecklistItem';
-import { dailyChecklistAPI } from '../utils/api';
+import { useState, useCallback, useRef, useLayoutEffect } from "react";
+import { Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { DailyChecklistItem as DailyChecklistItemType } from "../types";
+import { DailyChecklistItem } from "./DailyChecklistItem";
+import { dailyChecklistAPI } from "../utils/api";
 import {
   DndContext,
   closestCenter,
@@ -12,14 +12,17 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-} from '@dnd-kit/core';
-import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
+} from "@dnd-kit/core";
+import {
+  restrictToVerticalAxis,
+  restrictToParentElement,
+} from "@dnd-kit/modifiers";
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
+} from "@dnd-kit/sortable";
 
 interface EmbeddedDailyChecklistProps {
   boardId: string;
@@ -27,7 +30,12 @@ interface EmbeddedDailyChecklistProps {
   isViewer: boolean;
   isExpanded: boolean;
   onToggleExpand: () => void;
-  onToggle: (itemId: string, checklistItemId: string, taskId: string, newCompleted: boolean) => Promise<void>;
+  onToggle: (
+    itemId: string,
+    checklistItemId: string,
+    taskId: string,
+    newCompleted: boolean,
+  ) => Promise<void>;
   onRefresh: () => void;
   onAddClick: () => void;
 }
@@ -43,7 +51,11 @@ export function EmbeddedDailyChecklist({
   onAddClick,
 }: EmbeddedDailyChecklistProps) {
   const { t } = useTranslation();
-  const [localItems, setLocalItems] = useState<DailyChecklistItemType[]>(items);
+  // 워크로드 날짜 범위 기반 가상 항목은 DnD/삭제 대상에서 분리
+  const realItems = items.filter((i) => !i.isVirtual);
+  const virtualItems = items.filter((i) => i.isVirtual);
+  const [localItems, setLocalItems] =
+    useState<DailyChecklistItemType[]>(realItems);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollTopRef = useRef<number>(0);
 
@@ -61,9 +73,9 @@ export function EmbeddedDailyChecklist({
     }
   });
 
-  // Sync with parent prop
-  if (JSON.stringify(items) !== JSON.stringify(localItems)) {
-    setLocalItems(items);
+  // Sync with parent prop (실제 항목만 로컬 DnD 상태에 반영)
+  if (JSON.stringify(realItems) !== JSON.stringify(localItems)) {
+    setLocalItems(realItems);
   }
 
   const sensors = useSensors(
@@ -72,11 +84,12 @@ export function EmbeddedDailyChecklist({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
-  const completedCount = localItems.filter((i) => i.completed).length;
-  const totalCount = localItems.length;
+  const combinedItems = [...localItems, ...virtualItems];
+  const completedCount = combinedItems.filter((i) => i.completed).length;
+  const totalCount = combinedItems.length;
 
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
@@ -99,7 +112,7 @@ export function EmbeddedDailyChecklist({
         setLocalItems(localItems);
       }
     },
-    [boardId, localItems, onRefresh]
+    [boardId, localItems, onRefresh],
   );
 
   const handleRemoveItem = useCallback(
@@ -108,10 +121,10 @@ export function EmbeddedDailyChecklist({
         await dailyChecklistAPI.removeItem(boardId, itemId);
         onRefresh();
       } catch (error) {
-        console.error('Failed to remove item:', error);
+        console.error("Failed to remove item:", error);
       }
     },
-    [boardId, onRefresh]
+    [boardId, onRefresh],
   );
 
   const handleToggleItem = useCallback(
@@ -120,17 +133,43 @@ export function EmbeddedDailyChecklist({
       const newCompleted = !item.completed;
       // Optimistic local update
       setLocalItems((prev) =>
-        prev.map((i) => (i.id === item.id ? { ...i, completed: newCompleted } : i))
+        prev.map((i) =>
+          i.id === item.id ? { ...i, completed: newCompleted } : i,
+        ),
       );
       try {
-        await onToggle(item.id, item.checklist_item_id, item.task.id, newCompleted);
+        await onToggle(
+          item.id,
+          item.checklist_item_id,
+          item.task.id,
+          newCompleted,
+        );
       } catch {
         setLocalItems((prev) =>
-          prev.map((i) => (i.id === item.id ? { ...i, completed: !newCompleted } : i))
+          prev.map((i) =>
+            i.id === item.id ? { ...i, completed: !newCompleted } : i,
+          ),
         );
       }
     },
-    [onToggle]
+    [onToggle],
+  );
+
+  const renderItem = (item: DailyChecklistItemType, draggable: boolean) => (
+    <DailyChecklistItem
+      key={item.id}
+      item={item}
+      isReadOnly={isViewer}
+      isDraggable={draggable && !item.isVirtual}
+      canRemove={!item.isVirtual}
+      compact
+      onRemove={item.isVirtual ? () => {} : () => handleRemoveItem(item.id)}
+      onToggle={
+        item.checklist_item_id && item.task?.id
+          ? () => handleToggleItem(item)
+          : undefined
+      }
+    />
   );
 
   // Header row (always visible)
@@ -145,17 +184,17 @@ export function EmbeddedDailyChecklist({
         ) : (
           <ChevronDown className="h-3 w-3 flex-shrink-0" />
         )}
-        <span className="truncate">{t('dailySchedule.todayChecklist')}</span>
+        <span className="truncate">{t("dailySchedule.todayChecklist")}</span>
       </button>
       <div className="flex items-center gap-1 flex-shrink-0">
         <span
           className={`font-medium ${
             totalCount > 0 && completedCount === totalCount
-              ? 'text-green-400'
-              : 'text-bridge-accent'
+              ? "text-green-400"
+              : "text-bridge-accent"
           }`}
         >
-          {totalCount > 0 ? `${completedCount}/${totalCount}` : '0'}
+          {totalCount > 0 ? `${completedCount}/${totalCount}` : "0"}
         </span>
         {!isViewer && (
           <button
@@ -180,27 +219,15 @@ export function EmbeddedDailyChecklist({
       <div className="space-y-1">
         {header}
         <div className="space-y-1 mt-1">
-          {localItems.slice(0, 4).map((item) => (
-            <DailyChecklistItem
-              key={item.id}
-              item={item}
-              isReadOnly={isViewer}
-              isDraggable={false}
-              compact
-              onRemove={() => handleRemoveItem(item.id)}
-              onToggle={
-                item.checklist_item_id && item.task?.id
-                  ? () => handleToggleItem(item)
-                  : undefined
-              }
-            />
-          ))}
-          {localItems.length > 4 && (
+          {combinedItems.slice(0, 4).map((item) => renderItem(item, false))}
+          {combinedItems.length > 4 && (
             <button
               onClick={onToggleExpand}
               className="text-xs text-slate-400 hover:text-foreground pl-2 transition-colors"
             >
-              {t('dailySchedule.moreItems', { count: localItems.length - 4 })}
+              {t("dailySchedule.moreItems", {
+                count: combinedItems.length - 4,
+              })}
             </button>
           )}
         </div>
@@ -212,7 +239,11 @@ export function EmbeddedDailyChecklist({
   return (
     <div className="space-y-1">
       {header}
-      <div ref={scrollRef} onScroll={handleScroll} className="space-y-1 mt-1 max-h-[300px] overflow-y-auto">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="space-y-1 mt-1 max-h-[300px] overflow-y-auto"
+      >
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -223,23 +254,11 @@ export function EmbeddedDailyChecklist({
             items={localItems.map((item) => item.id)}
             strategy={verticalListSortingStrategy}
           >
-            {localItems.map((item) => (
-              <DailyChecklistItem
-                key={item.id}
-                item={item}
-                isReadOnly={isViewer}
-                isDraggable={!isViewer}
-                compact
-                onRemove={() => handleRemoveItem(item.id)}
-                onToggle={
-                  item.checklist_item_id && item.task?.id
-                    ? () => handleToggleItem(item)
-                    : undefined
-                }
-              />
-            ))}
+            {localItems.map((item) => renderItem(item, !isViewer))}
           </SortableContext>
         </DndContext>
+        {/* 워크로드 날짜 범위 기반 가상 항목 (순서변경/삭제 불가) */}
+        {virtualItems.map((item) => renderItem(item, false))}
       </div>
     </div>
   );

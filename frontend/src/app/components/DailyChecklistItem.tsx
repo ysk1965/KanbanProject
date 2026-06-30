@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Check, X, GripVertical } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { DailyChecklistItem as DailyChecklistItemType } from '../types';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { useState } from "react";
+import { Check, X, GripVertical } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { DailyChecklistItem as DailyChecklistItemType } from "../types";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface DailyChecklistItemProps {
   item: DailyChecklistItemType;
@@ -12,6 +12,7 @@ interface DailyChecklistItemProps {
   onToggle?: () => void;
   isDraggable?: boolean;
   compact?: boolean;
+  canRemove?: boolean;
 }
 
 export function DailyChecklistItem({
@@ -21,11 +22,14 @@ export function DailyChecklistItem({
   onToggle,
   isDraggable = true,
   compact = false,
+  canRemove = true,
 }: DailyChecklistItemProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
-  const [optimisticCompleted, setOptimisticCompleted] = useState(item.completed);
+  const [optimisticCompleted, setOptimisticCompleted] = useState(
+    item.completed,
+  );
 
   // Sync optimistic state with prop
   if (optimisticCompleted !== item.completed && !isToggling) {
@@ -73,15 +77,17 @@ export function DailyChecklistItem({
     }
   };
 
-  const featureColor = item.feature?.color || '#6366f1';
+  const featureColor = item.feature?.color || "#6366f1";
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative ${compact ? 'rounded-lg' : 'rounded-xl'} border border-bridge-border bg-foreground/5 overflow-hidden transition-all ${
-        isDragging ? 'shadow-2xl ring-2 ring-bridge-accent' : 'hover:border-bridge-border'
-      } ${optimisticCompleted ? 'opacity-60' : ''}`}
+      className={`group relative ${compact ? "rounded-lg" : "rounded-xl"} border border-bridge-border bg-foreground/5 overflow-hidden transition-all ${
+        isDragging
+          ? "shadow-2xl ring-2 ring-bridge-accent"
+          : "hover:border-bridge-border"
+      } ${optimisticCompleted ? "opacity-60" : ""}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -91,7 +97,9 @@ export function DailyChecklistItem({
         style={{ backgroundColor: featureColor }}
       />
 
-      <div className={`flex items-start ${compact ? 'gap-1.5 pl-3 pr-2 py-1.5' : 'gap-3 pl-4 pr-3 py-3'}`}>
+      <div
+        className={`flex items-start ${compact ? "gap-1.5 pl-3 pr-2 py-1.5" : "gap-3 pl-4 pr-3 py-3"}`}
+      >
         {/* 드래그 핸들 */}
         {isDraggable && !isReadOnly && (
           <div
@@ -99,7 +107,7 @@ export function DailyChecklistItem({
             {...listeners}
             className="flex-shrink-0 cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-200 transition-colors pt-0.5"
           >
-            <GripVertical className={compact ? 'h-3 w-3' : 'h-4 w-4'} />
+            <GripVertical className={compact ? "h-3 w-3" : "h-4 w-4"} />
           </div>
         )}
 
@@ -108,20 +116,28 @@ export function DailyChecklistItem({
           type="button"
           onClick={handleToggle}
           disabled={isReadOnly || !onToggle || isToggling}
-          className={`flex-shrink-0 ${compact ? 'w-4 h-4 rounded' : 'w-5 h-5 rounded-md'} border mt-0.5 flex items-center justify-center transition-colors ${
+          className={`flex-shrink-0 ${compact ? "w-4 h-4 rounded" : "w-5 h-5 rounded-md"} border mt-0.5 flex items-center justify-center transition-colors ${
             optimisticCompleted
-              ? 'bg-green-500 border-green-500'
-              : 'border-bridge-border bg-foreground/5 hover:border-foreground/40'
-          } ${!isReadOnly && onToggle ? 'cursor-pointer' : 'cursor-default'}`}
+              ? "bg-green-500 border-green-500"
+              : "border-bridge-border bg-foreground/5 hover:border-foreground/40"
+          } ${!isReadOnly && onToggle ? "cursor-pointer" : "cursor-default"}`}
         >
-          {optimisticCompleted && <Check className={compact ? 'h-2.5 w-2.5 text-white' : 'h-3 w-3 text-white'} />}
+          {optimisticCompleted && (
+            <Check
+              className={
+                compact ? "h-2.5 w-2.5 text-white" : "h-3 w-3 text-white"
+              }
+            />
+          )}
         </button>
 
         {/* 내용 */}
         <div className="flex-1 min-w-0">
           <p
-            className={`${compact ? 'text-xs' : 'text-sm'} font-medium ${
-              optimisticCompleted ? 'text-slate-400 line-through' : 'text-foreground'
+            className={`${compact ? "text-xs" : "text-sm"} font-medium ${
+              optimisticCompleted
+                ? "text-slate-400 line-through"
+                : "text-foreground"
             } truncate`}
           >
             {item.title}
@@ -129,7 +145,9 @@ export function DailyChecklistItem({
 
           {/* Task 정보 */}
           {item.task && (
-            <p className={`${compact ? 'text-xs' : 'text-xs'} text-slate-400 mt-0.5 truncate`}>
+            <p
+              className={`${compact ? "text-xs" : "text-xs"} text-slate-400 mt-0.5 truncate`}
+            >
               {item.task.title}
             </p>
           )}
@@ -149,14 +167,14 @@ export function DailyChecklistItem({
         </div>
 
         {/* 삭제 버튼 (hover 시 표시) */}
-        {!isReadOnly && isHovered && (
+        {!isReadOnly && canRemove && isHovered && (
           <button
             onClick={handleRemove}
             disabled={isRemoving}
-            className={`flex-shrink-0 ${compact ? 'p-0.5' : 'p-1.5'} rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors`}
+            className={`flex-shrink-0 ${compact ? "p-0.5" : "p-1.5"} rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors`}
             aria-label="삭제"
           >
-            <X className={compact ? 'h-3 w-3' : 'h-4 w-4'} />
+            <X className={compact ? "h-3 w-3" : "h-4 w-4"} />
           </button>
         )}
       </div>

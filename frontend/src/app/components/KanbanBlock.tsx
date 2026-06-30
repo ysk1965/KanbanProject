@@ -1,7 +1,7 @@
 import { useRef, useCallback, useMemo, memo } from "react";
 import { Block, Task, Feature, ChecklistItem } from "../types";
 import { DraggableCard } from "./DraggableCard";
-import { GripVertical, MoreVertical, Plus } from "lucide-react";
+import { GripVertical, MoreVertical, Plus, BarChart2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
 import {
@@ -28,6 +28,7 @@ interface KanbanBlockProps {
   onTaskClick?: (task: Task) => void;
   onEditBlock?: (block: Block) => void;
   onDeleteBlock?: (blockId: string) => void;
+  onToggleProgressBar?: (blockId: string, enabled: boolean) => void;
   onHideBlock?: (blockId: string) => void;
   boardId?: string | null;
   expandedChecklistTaskIds?: Set<string>;
@@ -41,6 +42,8 @@ interface KanbanBlockProps {
   isPersonal?: boolean;
   recentlyCompletedTaskIds?: Set<string>;
   selectedMilestoneId?: string;
+  // 담당자 필터 (선택된 멤버 이름 배열)
+  assigneeFilter?: string[];
 }
 
 export const KanbanBlock = memo(function KanbanBlock({
@@ -52,6 +55,7 @@ export const KanbanBlock = memo(function KanbanBlock({
   onTaskClick,
   onEditBlock,
   onDeleteBlock,
+  onToggleProgressBar,
   onHideBlock,
   boardId,
   expandedChecklistTaskIds,
@@ -64,6 +68,7 @@ export const KanbanBlock = memo(function KanbanBlock({
   isPersonal = false,
   recentlyCompletedTaskIds,
   selectedMilestoneId,
+  assigneeFilter,
 }: KanbanBlockProps) {
   const { t } = useTranslation();
   const taskContainerRef = useRef<HTMLDivElement>(null);
@@ -356,6 +361,17 @@ export const KanbanBlock = memo(function KanbanBlock({
               >
                 {t("kanbanBlock.changeColor")}
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  onToggleProgressBar?.(block.id, !block.show_progress_bar)
+                }
+                className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
+              >
+                <BarChart2 className="h-3.5 w-3.5 mr-2" />
+                {block.show_progress_bar
+                  ? t("kanbanBlock.disableProgressBar", "프로그레스바 끄기")
+                  : t("kanbanBlock.enableProgressBar", "프로그레스바 켜기")}
+              </DropdownMenuItem>
               {/* 마일스톤 선택 중 + 마일스톤 비전속 블록만 숨김 가능 */}
               {onHideBlock && !block.milestone_id && selectedMilestoneId && (
                 <>
@@ -379,6 +395,33 @@ export const KanbanBlock = memo(function KanbanBlock({
           </DropdownMenu>
         )}
       </div>
+
+      {/* 프로그레스바: 블록 내 태스크들의 체크리스트 완료 비율 */}
+      {block.show_progress_bar &&
+        (() => {
+          const total = tasks.reduce(
+            (sum, t) => sum + (t.checklist_total ?? 0),
+            0,
+          );
+          const done = tasks.reduce(
+            (sum, t) => sum + (t.checklist_completed ?? 0),
+            0,
+          );
+          const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+          return (
+            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-bridge-border">
+              <div className="flex-1 h-1.5 bg-slate-600 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-bridge-accent rounded-full transition-all duration-300"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <span className="text-xs font-medium text-slate-400">
+                {done}/{total} ({pct}%)
+              </span>
+            </div>
+          );
+        })()}
 
       {/* 카드 리스트 */}
       <div
@@ -452,6 +495,7 @@ export const KanbanBlock = memo(function KanbanBlock({
               isScheduled={scheduledTaskIds?.has(task.id)}
               hideAssignees={isPersonal}
               justCompleted={recentlyCompletedTaskIds?.has(task.id)}
+              assigneeFilter={assigneeFilter}
             />
           </div>
         ))}

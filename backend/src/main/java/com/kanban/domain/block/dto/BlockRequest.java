@@ -31,6 +31,8 @@ public class BlockRequest {
 
         @Size(max = 20, message = "색상 코드는 20자 이내여야 합니다")
         private String color;
+
+        private Boolean showProgressBar;
     }
 
     @Getter

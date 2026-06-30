@@ -377,7 +377,7 @@ export const blockService = {
   updateBlock: async (
     boardId: string,
     blockId: string,
-    data: { name?: string; color?: string },
+    data: { name?: string; color?: string; show_progress_bar?: boolean },
   ): Promise<Block> => {
     try {
       const block = await blockAPI.updateBlock(boardId, blockId, data);

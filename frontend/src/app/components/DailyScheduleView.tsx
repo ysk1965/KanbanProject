@@ -41,13 +41,18 @@ import {
   scheduleAPI,
   dailyChecklistAPI,
   checklistAPI,
+  boardChecklistAPI,
   ScheduleBlockInfo,
   ScheduleColumnInfo,
   ScheduleSettingsResponse,
   DailyChecklistColumnResponse,
 } from "../utils/api";
 import { getInitials, getAssigneeHex } from "../utils/assigneeColor";
-import { BoardWebSocketEvent, ChecklistItem } from "../types";
+import {
+  BoardWebSocketEvent,
+  ChecklistItem,
+  DailyChecklistItem as DailyChecklistItemType,
+} from "../types";
 
 interface DailyScheduleViewProps {
   boardId: string;
@@ -133,7 +138,8 @@ export function DailyScheduleView({
     const handler = () => {
       setExpandedChecklists((prev) => {
         const allMemberIds = activeMembers.map((m) => m.userId);
-        const allExpanded = allMemberIds.length > 0 && allMemberIds.every((id) => prev.has(id));
+        const allExpanded =
+          allMemberIds.length > 0 && allMemberIds.every((id) => prev.has(id));
         if (allExpanded) {
           return new Set<string>();
         } else {
@@ -142,7 +148,8 @@ export function DailyScheduleView({
       });
     };
     window.addEventListener("bridge:toggleExpandCollapse", handler);
-    return () => window.removeEventListener("bridge:toggleExpandCollapse", handler);
+    return () =>
+      window.removeEventListener("bridge:toggleExpandCollapse", handler);
   }, [activeMembers]);
 
   const [viewMode, setViewMode] = useState<ScheduleViewMode>("day");
@@ -162,6 +169,11 @@ export function DailyScheduleView({
   const [dailyChecklists, setDailyChecklists] = useState<
     DailyChecklistColumnResponse[]
   >([]);
+
+  // 워크로드 날짜 범위 기반 가상 체크리스트 (userId → 항목, DB 미저장)
+  const [virtualChecklists, setVirtualChecklists] = useState<
+    Map<string, DailyChecklistItemType[]>
+  >(new Map());
 
   // 드래그 선택 상태
   const [dragState, setDragState] = useState<{
@@ -282,7 +294,43 @@ export function DailyScheduleView({
         setOverlayMeetings(
           (response.meetings || []).filter((m) => m.start_time && m.end_time),
         );
+
+        // 워크로드(리소스 뷰)와 동일 기준: start_date~due_date 범위가 해당 날짜에
+        // 걸치는 체크리스트 항목을 담당자별 "오늘의 체크리스트"에 가상 표시
+        try {
+          const byAssignee = await boardChecklistAPI.getItemsByAssignee(
+            boardId,
+            { start_date: dateStr, end_date: dateStr },
+          );
+          const virtualMap = new Map<string, DailyChecklistItemType[]>();
+          (byAssignee.assignees || []).forEach((group) => {
+            const userId = group.assignee.id;
+            const items: DailyChecklistItemType[] = group.items.map((it) => ({
+              id: `virtual-${it.id}`,
+              checklist_item_id: it.id,
+              title: it.title,
+              assignee: {
+                id: userId,
+                name: group.assignee.name,
+                profile_image: group.assignee.profile_image,
+              },
+              assigned_date: dateStr,
+              position: 0,
+              completed: it.completed,
+              task: it.task,
+              feature: it.feature,
+              created_at: "",
+              isVirtual: true,
+            }));
+            virtualMap.set(userId, items);
+          });
+          setVirtualChecklists(virtualMap);
+        } catch (e) {
+          console.error("Failed to load workload checklist items:", e);
+          setVirtualChecklists(new Map());
+        }
       } else {
+        setVirtualChecklists(new Map());
         // 주 단위: 통합 API로 7일치 데이터 1회 로드 (기존 7회 → 1회)
         const startDateStr = format(weekDays[0], "yyyy-MM-dd");
         const endDateStr = format(weekDays[weekDays.length - 1], "yyyy-MM-dd");
@@ -354,6 +402,21 @@ export function DailyScheduleView({
           ),
         })),
       );
+      // 가상 체크리스트(워크로드 파생) 완료 상태 업데이트
+      setVirtualChecklists((prev) => {
+        const next = new Map(prev);
+        next.forEach((list, uid) => {
+          next.set(
+            uid,
+            list.map((i) =>
+              i.checklist_item_id === item.id
+                ? { ...i, completed: item.completed }
+                : i,
+            ),
+          );
+        });
+        return next;
+      });
     }
   }, [wsChecklistEvent]);
 
@@ -1298,16 +1361,21 @@ export function DailyScheduleView({
                             <span
                               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0"
                               style={{
-                                backgroundColor: `${member.jobRole.color || '#6366F1'}26`,
-                                color: member.jobRole.color || '#6366F1',
+                                backgroundColor: `${member.jobRole.color || "#6366F1"}26`,
+                                color: member.jobRole.color || "#6366F1",
                               }}
-                              title={t('jobRole.title')}
+                              title={t("jobRole.title")}
                             >
                               <span
                                 className="w-1.5 h-1.5 rounded-full"
-                                style={{ backgroundColor: member.jobRole.color || '#6366F1' }}
+                                style={{
+                                  backgroundColor:
+                                    member.jobRole.color || "#6366F1",
+                                }}
                               />
-                              <span className="truncate max-w-[80px]">{member.jobRole.name}</span>
+                              <span className="truncate max-w-[80px]">
+                                {member.jobRole.name}
+                              </span>
                             </span>
                           )}
                           <button
@@ -1337,7 +1405,21 @@ export function DailyScheduleView({
                   const memberChecklist = dailyChecklists.find(
                     (c) => c.user.id === member.userId,
                   );
-                  const items = memberChecklist?.items || [];
+                  const realItems = memberChecklist?.items || [];
+                  // 이미 오늘의 체크리스트에 담긴 항목은 가상 항목에서 제외 (중복 방지)
+                  const realChecklistItemIds = new Set(
+                    realItems
+                      .map((i) => i.checklist_item_id)
+                      .filter(Boolean) as string[],
+                  );
+                  const memberVirtual = (
+                    virtualChecklists.get(member.userId) || []
+                  ).filter(
+                    (v) =>
+                      !v.checklist_item_id ||
+                      !realChecklistItemIds.has(v.checklist_item_id),
+                  );
+                  const items = [...realItems, ...memberVirtual];
 
                   return (
                     <div
@@ -1375,6 +1457,21 @@ export function DailyScheduleView({
                               ),
                             })),
                           );
+                          // 낙관적 업데이트 - 가상 체크리스트(워크로드 파생)
+                          setVirtualChecklists((prev) => {
+                            const next = new Map(prev);
+                            next.forEach((list, uid) => {
+                              next.set(
+                                uid,
+                                list.map((i) =>
+                                  i.checklist_item_id === checklistItemId
+                                    ? { ...i, completed: newCompleted }
+                                    : i,
+                                ),
+                              );
+                            });
+                            return next;
+                          });
                           // 낙관적 업데이트 - 스케줄 블록
                           setColumns((prev) =>
                             prev.map((col) => ({
@@ -1411,6 +1508,20 @@ export function DailyScheduleView({
                                 ),
                               })),
                             );
+                            setVirtualChecklists((prev) => {
+                              const next = new Map(prev);
+                              next.forEach((list, uid) => {
+                                next.set(
+                                  uid,
+                                  list.map((i) =>
+                                    i.checklist_item_id === checklistItemId
+                                      ? { ...i, completed: !newCompleted }
+                                      : i,
+                                  ),
+                                );
+                              });
+                              return next;
+                            });
                             setColumns((prev) =>
                               prev.map((col) => ({
                                 ...col,
@@ -1737,16 +1848,21 @@ export function DailyScheduleView({
                             <span
                               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0"
                               style={{
-                                backgroundColor: `${member.jobRole.color || '#6366F1'}26`,
-                                color: member.jobRole.color || '#6366F1',
+                                backgroundColor: `${member.jobRole.color || "#6366F1"}26`,
+                                color: member.jobRole.color || "#6366F1",
                               }}
-                              title={t('jobRole.title')}
+                              title={t("jobRole.title")}
                             >
                               <span
                                 className="w-1.5 h-1.5 rounded-full"
-                                style={{ backgroundColor: member.jobRole.color || '#6366F1' }}
+                                style={{
+                                  backgroundColor:
+                                    member.jobRole.color || "#6366F1",
+                                }}
                               />
-                              <span className="truncate max-w-[60px]">{member.jobRole.name}</span>
+                              <span className="truncate max-w-[60px]">
+                                {member.jobRole.name}
+                              </span>
                             </span>
                           )}
                           <button

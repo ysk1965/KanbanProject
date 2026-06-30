@@ -83,6 +83,7 @@ interface KanbanViewProps {
   onReorderTask: (taskId: string, blockId: string, newPosition: number) => void;
   onEditBlock: (block: Block) => void;
   onDeleteBlock: (blockId: string) => void;
+  onToggleProgressBar: (blockId: string, enabled: boolean) => void;
   onHideBlock: (blockId: string) => void;
   onShowBlock: (blockId: string) => void;
   onToggleChecklistExpand: (taskId: string) => void;
@@ -127,6 +128,7 @@ export const KanbanView = memo(function KanbanView({
   onReorderTask,
   onEditBlock,
   onDeleteBlock,
+  onToggleProgressBar,
   onHideBlock,
   onShowBlock,
   onToggleChecklistExpand,
@@ -346,6 +348,7 @@ export const KanbanView = memo(function KanbanView({
                       scheduledTaskIds={scheduledTaskIds}
                       onQuickAddTask={canEdit ? onQuickAddTask : undefined}
                       recentlyCompletedTaskIds={recentlyCompletedTaskIds}
+                      assigneeFilter={filterOptions.members}
                     />
                     <div className="flex flex-col gap-2 mt-4 self-start">
                       <button
@@ -401,6 +404,7 @@ export const KanbanView = memo(function KanbanView({
                       onReorderTask={onReorderTask}
                       onEditBlock={onEditBlock}
                       onDeleteBlock={onDeleteBlock}
+                      onToggleProgressBar={onToggleProgressBar}
                       onHideBlock={onHideBlock}
                       selectedMilestoneId={
                         selectedMilestoneId !== "all" &&
@@ -417,6 +421,7 @@ export const KanbanView = memo(function KanbanView({
                       scheduledTaskIds={scheduledTaskIds}
                       onQuickAddTask={canEdit ? onQuickAddTask : undefined}
                       recentlyCompletedTaskIds={recentlyCompletedTaskIds}
+                      assigneeFilter={filterOptions.members}
                     />
                   ))}
                 </SortableContext>
