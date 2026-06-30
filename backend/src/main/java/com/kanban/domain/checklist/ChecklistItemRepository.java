@@ -32,7 +32,12 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     @Query(value = "DELETE FROM checklist_items WHERE task_id = :taskId", nativeQuery = true)
     void deleteByTaskId(@Param("taskId") String taskId);
 
-    @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId ORDER BY c.task.id, c.position")
+    @Query("SELECT c FROM ChecklistItem c " +
+           "JOIN FETCH c.task t " +
+           "JOIN FETCH t.feature " +
+           "JOIN FETCH t.block " +
+           "LEFT JOIN FETCH c.assignee " +
+           "WHERE t.board.id = :boardId ORDER BY t.id, c.position")
     List<ChecklistItem> findByBoardId(@Param("boardId") String boardId);
 
     @Query("SELECT c FROM ChecklistItem c " +
@@ -180,6 +185,7 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     @Query("SELECT c FROM ChecklistItem c " +
            "JOIN FETCH c.task t " +
            "JOIN FETCH t.feature f " +
+           "JOIN FETCH t.block b " +
            "LEFT JOIN FETCH c.assignee a " +
            "WHERE t.board.id = :boardId " +
            "AND (CAST(:startDate AS date) IS NULL OR c.dueDate >= :startDate OR c.startDate >= :startDate) " +

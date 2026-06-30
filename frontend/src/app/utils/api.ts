@@ -16,8 +16,7 @@ const BACKEND_ORIGIN = (() => {
 
 // S3 직접 URL → CloudFront 리라이트
 const CLOUDFRONT_DOMAIN = import.meta.env.VITE_CLOUDFRONT_DOMAIN as
-  | string
-  | undefined;
+  string | undefined;
 const S3_DIRECT_URL_RE = /^https:\/\/[\w.-]+\.s3\.[\w.-]+\.amazonaws\.com\//;
 
 /**
@@ -1309,7 +1308,7 @@ export const blockAPI = {
   updateBlock: async (
     boardId: string,
     blockId: string,
-    data: { name?: string; color?: string },
+    data: { name?: string; color?: string; show_progress_bar?: boolean },
   ) => {
     return apiClient.put<BlockResponse>(
       `/boards/${boardId}/blocks/${blockId}`,
@@ -2864,6 +2863,12 @@ export interface BoardChecklistItemResponse {
     title: string;
     color: string;
   } | null;
+  block?: {
+    id: string;
+    name: string;
+    color: string | null;
+    position: number | null;
+  } | null;
 }
 
 export interface BoardChecklistResponse {
@@ -2886,6 +2891,12 @@ export interface AssigneeItemResponse {
     id: string;
     title: string;
     color: string;
+  } | null;
+  block?: {
+    id: string;
+    name: string;
+    color: string | null;
+    position: number | null;
   } | null;
 }
 
@@ -3555,6 +3566,7 @@ export interface DailyChecklistItemResponse {
     color: string;
   } | null;
   created_at: string;
+  isVirtual?: boolean; // 워크로드 날짜 범위 기반 가상 항목 (DB 미저장)
 }
 
 export interface DailyChecklistColumnResponse {
@@ -4398,12 +4410,7 @@ export interface AdminOrgSummary {
   };
   plan: "FREE" | "TEAM";
   subscription_status:
-    | "TRIAL"
-    | "ACTIVE"
-    | "PAST_DUE"
-    | "SUSPENDED"
-    | "CANCELED"
-    | null;
+    "TRIAL" | "ACTIVE" | "PAST_DUE" | "SUSPENDED" | "CANCELED" | null;
   member_count: number;
   board_count: number;
   seat_count: number;

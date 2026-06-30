@@ -882,6 +882,7 @@
       "filterFeature": "Filter by feature",
       "filterMilestone": "Filter by milestone",
       "filterJobRole": "Filter by job role",
+      "filterBlock": "Filter by block",
       "noFeature": "No feature",
       "addItem": "Add checklist item",
       "selectFeature": "Feature",
@@ -1833,6 +1834,8 @@
     "dragToMove": "Drag to move block",
     "rename": "Rename",
     "changeColor": "Change color",
+    "enableProgressBar": "Show progress bar",
+    "disableProgressBar": "Hide progress bar",
     "hideInMilestone": "Hide in this milestone",
     "deleteBlock": "Delete block"
   },

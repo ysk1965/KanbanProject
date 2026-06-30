@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PanelRightClose, Search, ChevronDown, ChevronRight, Loader2, Filter, X, Plus, Briefcase } from 'lucide-react';
+import { PanelRightClose, Search, ChevronDown, ChevronRight, Loader2, Filter, X, Plus, Briefcase, Columns3 } from 'lucide-react';
 import { AssigneeItemResponse, boardChecklistAPI } from '../../utils/api';
 import { JobRole, JobRoleInfo, Milestone } from '../../types';
 import { BoardMember } from '../ShareBoardModal';
@@ -216,6 +216,27 @@ export function ChecklistItemPanel({
     [jobRoleFilterKey],
   );
 
+  // ── 블록 필터 (단일 선택, 항목의 상위 Task가 속한 칸반 블록 기준) ──
+  const blockFilterKey = `checklistPanelBlockFilter_${boardId}`;
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(blockFilterKey);
+  });
+  const [showBlockDropdown, setShowBlockDropdown] = useState(false);
+  const blockDropdownRef = useRef<HTMLDivElement>(null);
+  const updateBlockFilter = useCallback(
+    (id: string | null) => {
+      setSelectedBlockId(id);
+      try {
+        if (id) window.localStorage.setItem(blockFilterKey, id);
+        else window.localStorage.removeItem(blockFilterKey);
+      } catch {
+        /* ignore */
+      }
+    },
+    [blockFilterKey],
+  );
+
   // ── Feature group collapse state (collapsed feature ids) ──
   const [collapsedFeatureKeys, setCollapsedFeatureKeys] = useState<Set<string>>(new Set());
 
@@ -319,6 +340,45 @@ export function ChecklistItemPanel({
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showMilestoneDropdown]);
+
+  // ── Block filter options (derived from loaded items' parent-task blocks) ──
+  const blockOptions = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; color: string | null; position: number }>();
+    for (const item of items) {
+      const block = item.block;
+      if (block && !map.has(block.id)) {
+        map.set(block.id, {
+          id: block.id,
+          name: block.name,
+          color: block.color ?? null,
+          position: block.position ?? 0,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.position !== b.position) return a.position - b.position;
+      return a.name.localeCompare(b.name);
+    });
+  }, [items]);
+
+  // ── Reset block filter if the selected block no longer has any items ──
+  useEffect(() => {
+    if (selectedBlockId && blockOptions.length > 0 && !blockOptions.some((b) => b.id === selectedBlockId)) {
+      updateBlockFilter(null);
+    }
+  }, [blockOptions, selectedBlockId, updateBlockFilter]);
+
+  // ── Close block dropdown on outside click ──
+  useEffect(() => {
+    if (!showBlockDropdown) return;
+    const handleClick = (e: MouseEvent) => {
+      if (blockDropdownRef.current && !blockDropdownRef.current.contains(e.target as Node)) {
+        setShowBlockDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showBlockDropdown]);
 
   // ── Toggle a feature group ──
   const toggleFeatureGroup = useCallback((key: string) => {
@@ -435,12 +495,15 @@ export function ChecklistItemPanel({
         return key === selectedJobRoleId;
       });
     }
+    if (selectedBlockId) {
+      result = result.filter((item) => item.block?.id === selectedBlockId);
+    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter((item) => item.title.toLowerCase().includes(q));
     }
     return result;
-  }, [items, selectedMilestoneFeatureIds, searchQuery, selectedJobRoleId, memberJobRoleMap]);
+  }, [items, selectedMilestoneFeatureIds, searchQuery, selectedJobRoleId, selectedBlockId, memberJobRoleMap]);
 
   const noFeatureLabel = t('schedule.panel.noFeature', '피처 없음');
   const featureGroups = useMemo(
@@ -589,6 +652,64 @@ export function ChecklistItemPanel({
                       <span className="w-2 h-2 rounded-full shrink-0 bg-slate-500" />
                       {t("jobRole.unassigned", "미지정")}
                     </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 블록 필터 */}
+        {blockOptions.length > 0 && (
+          <div className="px-3 py-1.5 border-b border-foreground/[0.08]" ref={blockDropdownRef}>
+            {selectedBlockId ? (
+              <button
+                onClick={() => updateBlockFilter(null)}
+                className="inline-flex items-center gap-1.5 max-w-full px-2 py-1 rounded-lg
+                  bg-bridge-accent/10 text-bridge-accent text-xs font-medium
+                  hover:bg-bridge-accent/15 transition-colors"
+              >
+                <Columns3 size={12} />
+                {(() => {
+                  const b = blockOptions.find((x) => x.id === selectedBlockId);
+                  return b ? <span className="truncate">{b.name}</span> : null;
+                })()}
+                <X size={12} className="shrink-0 ml-0.5" />
+              </button>
+            ) : (
+              <div className="relative">
+                <button
+                  onClick={() => setShowBlockDropdown((p) => !p)}
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg
+                    text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                >
+                  <Columns3 size={12} />
+                  <span>{t("schedule.panel.filterBlock", "블록별 필터")}</span>
+                  <ChevronDown size={10} className={`transition-transform ${showBlockDropdown ? "rotate-180" : ""}`} />
+                </button>
+                {showBlockDropdown && (
+                  <div
+                    className="absolute top-full left-0 right-0 mt-1 z-30
+                    bg-bridge-obsidian border border-foreground/[0.08] rounded-lg shadow-xl
+                    max-h-[240px] overflow-y-auto custom-scrollbar py-1"
+                  >
+                    {blockOptions.map((block) => (
+                      <button
+                        key={block.id}
+                        onClick={() => {
+                          updateBlockFilter(block.id);
+                          setShowBlockDropdown(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs
+                          text-foreground hover:bg-foreground/5 transition-colors"
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: block.color || "#6366F1" }}
+                        />
+                        <span className="truncate">{block.name}</span>
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>

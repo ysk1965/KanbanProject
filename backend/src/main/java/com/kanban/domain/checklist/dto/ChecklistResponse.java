@@ -1,5 +1,6 @@
 package com.kanban.domain.checklist.dto;
 
+import com.kanban.domain.block.Block;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.contractor.dto.BoardContractorResponse;
 import com.kanban.domain.contractor.entity.BoardContractor;
@@ -126,10 +127,12 @@ public class ChecklistResponse {
         private LocalDate dueDate;
         private TaskInfo task;
         private FeatureInfo feature;
+        private BlockInfo block;
 
         public static BoardItem of(ChecklistItem item) {
             Task task = item.getTask();
             Feature feature = task != null ? task.getFeature() : null;
+            Block block = task != null ? task.getBlock() : null;
 
             return BoardItem.builder()
                     .id(item.getId())
@@ -141,6 +144,7 @@ public class ChecklistResponse {
                     .dueDate(item.getDueDate())
                     .task(task != null ? TaskInfo.of(task) : null)
                     .feature(feature != null ? FeatureInfo.of(feature) : null)
+                    .block(BlockInfo.of(block))
                     .build();
         }
     }
@@ -173,6 +177,28 @@ public class ChecklistResponse {
                     .id(feature.getId())
                     .title(feature.getTitle())
                     .color(feature.getColor())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class BlockInfo {
+        private String id;
+        private String name;
+        private String color;
+        private Integer position;
+
+        public static BlockInfo of(Block block) {
+            if (block == null) {
+                return null;
+            }
+            return BlockInfo.builder()
+                    .id(block.getId())
+                    .name(block.getName())
+                    .color(block.getColor())
+                    .position(block.getPosition())
                     .build();
         }
     }
@@ -317,10 +343,12 @@ public class ChecklistResponse {
         private LocalDate dueDate;
         private TaskInfo task;
         private FeatureInfo feature;
+        private BlockInfo block;
 
         public static AssigneeItemResponse of(ChecklistItem item) {
             Task task = item.getTask();
             Feature feature = task != null ? task.getFeature() : null;
+            Block block = task != null ? task.getBlock() : null;
 
             return AssigneeItemResponse.builder()
                     .id(item.getId())
@@ -330,6 +358,7 @@ public class ChecklistResponse {
                     .dueDate(item.getDueDate())
                     .task(task != null ? TaskInfo.of(task) : null)
                     .feature(feature != null ? FeatureInfo.of(feature) : null)
+                    .block(BlockInfo.of(block))
                     .build();
         }
     }

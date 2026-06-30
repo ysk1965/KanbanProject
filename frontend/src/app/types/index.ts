@@ -129,11 +129,7 @@ export type BoardType = "TEAM" | "PERSONAL";
 // ========================================
 
 export type SubscriptionStatus =
-  | "TRIAL"
-  | "ACTIVE"
-  | "PAST_DUE"
-  | "SUSPENDED"
-  | "CANCELED";
+  "TRIAL" | "ACTIVE" | "PAST_DUE" | "SUSPENDED" | "CANCELED";
 
 export interface Subscription {
   id?: string;
@@ -333,6 +329,7 @@ export interface Block {
   fixed_type: FixedBlockType;
   color: string | null;
   position: number;
+  show_progress_bar?: boolean;
   milestone_id?: string | null;
   milestone_title?: string | null;
 }
@@ -662,9 +659,7 @@ export interface ActivityLog {
 // ========================================
 
 export type NotificationType =
-  | "COMMENT_MENTION"
-  | "CHECKLIST_ASSIGNED"
-  | "TASK_COMMENT";
+  "COMMENT_MENTION" | "CHECKLIST_ASSIGNED" | "TASK_COMMENT";
 
 export interface NotificationItem {
   id: string;
@@ -1280,6 +1275,7 @@ export interface DailyChecklistItem {
     color: string;
   } | null;
   created_at: string;
+  isVirtual?: boolean; // 워크로드 날짜 범위 기반 가상 항목 (DB 미저장, 순서변경/삭제 불가)
 }
 
 /**
@@ -2596,10 +2592,7 @@ export interface LeaveRequestPageResponse {
 // ─── Leave Balance Adjustments ───
 
 export type LeaveAdjustmentType =
-  | "GRANT"
-  | "REVOKE"
-  | "MANUAL_ADJUST"
-  | "ANNUAL_INIT";
+  "GRANT" | "REVOKE" | "MANUAL_ADJUST" | "ANNUAL_INIT";
 
 export interface LeaveBalanceAdjustmentResponse {
   id: string;
@@ -2925,12 +2918,7 @@ export interface OneOnOneOpenActionItem {
 // ─── Organization Attendance & Time Tracking ───
 
 export type AttendanceStatus =
-  | "PRESENT"
-  | "ABSENT"
-  | "ON_LEAVE"
-  | "HALF_DAY"
-  | "WEEKEND"
-  | "HOLIDAY";
+  "PRESENT" | "ABSENT" | "ON_LEAVE" | "HALF_DAY" | "WEEKEND" | "HOLIDAY";
 
 export interface AttendanceRecordDetail {
   id: string;
