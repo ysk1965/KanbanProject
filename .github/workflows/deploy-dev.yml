@@ -179,21 +179,26 @@ jobs:
 
       - name: Deploy to Elastic Beanstalk
         # Native AWS CLI deploy instead of einaregilsson/beanstalk-deploy.
-        # That action calls s3:GetObjectAcl on the uploaded bundle, which fails
-        # for the GHA deploy role on the new-account EB bucket and leaves the env
-        # stranded on the old version (the new API endpoints then 404). The CLI
-        # path — s3 cp -> create-application-version -> update-environment -> wait —
-        # never reads the object ACL, so it sidesteps the failure entirely.
+        #
+        # EB intermittently fails the application-version deploy with a transient
+        # "s3:GetObjectAcl" AccessDenied while pulling the bundle (most often right
+        # after the bundle upload or when the instance was just woken/churned),
+        # leaving the env stranded on the old version — the new API then 404s.
+        # The action made this worse (its own client-side GetObjectAcl check) and
+        # gave no retry. Here we: upload the bundle, register the version, then
+        # retry update-environment until the env *actually* lands on our version,
+        # with a settle delay before each wait (a bare `wait environment-updated`
+        # can return immediately if Status hasn't flipped to Updating yet).
         run: |
-          set -euo pipefail
+          set -uo pipefail
           APP="${{ env.EB_APPLICATION_NAME }}"
           ENV_NAME="${{ env.EB_ENVIRONMENT_NAME }}"
           SHA="${{ github.sha }}"
-          BUCKET=$(aws elasticbeanstalk create-storage-location --query S3Bucket --output text)
+          BUCKET=$(aws elasticbeanstalk create-storage-location --query S3Bucket --output text) || exit 1
           KEY="${APP}/${SHA}.zip"
 
           echo "Uploading bundle to s3://${BUCKET}/${KEY}"
-          aws s3 cp backend/deploy.zip "s3://${BUCKET}/${KEY}"
+          aws s3 cp backend/deploy.zip "s3://${BUCKET}/${KEY}" || exit 1
 
           # Re-run safe: reuse the application version if it already exists.
           EXISTING=$(aws elasticbeanstalk describe-application-versions \
@@ -206,25 +211,55 @@ jobs:
             aws elasticbeanstalk create-application-version \
               --application-name "$APP" --version-label "$SHA" \
               --source-bundle S3Bucket="$BUCKET",S3Key="$KEY" \
-              --no-process
+              --no-process || exit 1
+            # Brief settle for S3 read-after-write before EB pulls the object.
+            sleep 10
           fi
 
-          echo "Deploying version $SHA to $ENV_NAME"
-          aws elasticbeanstalk update-environment \
-            --environment-name "$ENV_NAME" --version-label "$SHA"
+          deploy_ok=0
+          for attempt in 1 2 3 4; do
+            echo "::group::Deploy attempt ${attempt}: update-environment -> ${SHA}"
+            aws elasticbeanstalk update-environment \
+              --environment-name "$ENV_NAME" --version-label "$SHA" >/dev/null \
+              || { echo "update-environment call failed; retrying"; echo "::endgroup::"; sleep 30; continue; }
 
-          echo "Waiting for environment update to complete..."
-          aws elasticbeanstalk wait environment-updated --environment-names "$ENV_NAME"
+            # Let Status transition to Updating before waiting (avoids premature return).
+            sleep 25
+            aws elasticbeanstalk wait environment-updated --environment-names "$ENV_NAME" || true
 
-          DEPLOYED=$(aws elasticbeanstalk describe-environments \
-            --environment-names "$ENV_NAME" \
-            --query 'Environments[0].VersionLabel' --output text)
-          HEALTH=$(aws elasticbeanstalk describe-environments \
-            --environment-names "$ENV_NAME" \
-            --query 'Environments[0].Health' --output text)
-          echo "Environment is on version ${DEPLOYED}, Health: ${HEALTH}"
-          if [ "$DEPLOYED" != "$SHA" ]; then
-            echo "::error::Environment landed on ${DEPLOYED}, expected ${SHA}"
+            DEPLOYED=$(aws elasticbeanstalk describe-environments \
+              --environment-names "$ENV_NAME" \
+              --query 'Environments[0].VersionLabel' --output text)
+            HEALTH=$(aws elasticbeanstalk describe-environments \
+              --environment-names "$ENV_NAME" \
+              --query 'Environments[0].Health' --output text)
+            echo "After attempt ${attempt}: version=${DEPLOYED} health=${HEALTH}"
+            echo "::endgroup::"
+
+            if [ "$DEPLOYED" == "$SHA" ]; then deploy_ok=1; break; fi
+            echo "Version did not land (likely transient EB S3 error). Retrying in 30s..."
+            sleep 30
+          done
+
+          if [ "$deploy_ok" -ne 1 ]; then
+            echo "::error::Deployment did not land on ${SHA} after retries"
+            aws elasticbeanstalk describe-events --environment-name "$ENV_NAME" \
+              --max-items 12 --query "Events[*].[EventDate,Severity,Message]" --output text || true
+            exit 1
+          fi
+
+          # Wait out any transient post-deploy health dip before declaring success.
+          for i in $(seq 1 12); do
+            HEALTH=$(aws elasticbeanstalk describe-environments \
+              --environment-names "$ENV_NAME" \
+              --query 'Environments[0].Health' --output text)
+            echo "  post-deploy health check [$i]: ${HEALTH}"
+            [ "$HEALTH" == "Green" ] && break
+            sleep 15
+          done
+          echo "Deployed ${SHA} (final health: ${HEALTH})"
+          if [ "$HEALTH" == "Red" ]; then
+            echo "::error::Environment is Red after deploying ${SHA}"
             exit 1
           fi
 
