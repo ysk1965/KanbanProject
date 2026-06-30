@@ -73,7 +73,7 @@ interface ScheduleResourceViewProps {
   jobRoles?: JobRole[];
   /** 외주 관리 모달을 여는 핸들러 (없으면 버튼 미표시) */
   onOpenContractorManager?: () => void;
-  onViewTask?: (taskId: string) => void;
+  onViewTask?: (taskId: string, checklistItemId?: string) => void;
   onDropChecklist?: (
     item: { id: string; task_id: string },
     targetDate: string,
@@ -946,7 +946,7 @@ export function ScheduleResourceView({
         return;
       }
       if (item.task && onViewTask) {
-        onViewTask(item.task.id);
+        onViewTask(item.task.id, item.id);
       }
     },
     [onViewTask],
@@ -1213,7 +1213,7 @@ export function ScheduleResourceView({
             setData(result);
           } catch (err) {
             console.warn("Failed to update checklist item", err);
-            fetchData();
+            fetchData(true);
           }
         }
       };
@@ -1328,7 +1328,7 @@ export function ScheduleResourceView({
         });
       } catch (err) {
         console.warn("Failed to delete bar item", err);
-        fetchData();
+        fetchData(true);
       }
     },
     [boardId, fetchData],
@@ -2280,7 +2280,7 @@ export function ScheduleResourceView({
         dueDate={pendingCreate?.dueDate || ""}
         onCreated={() => {
           setPendingCreate(null);
-          fetchData();
+          fetchData(true);
         }}
       />
 
@@ -2294,7 +2294,7 @@ export function ScheduleResourceView({
         milestones={milestones}
         onMoved={() => {
           setMoveTarget(null);
-          fetchData();
+          fetchData(true);
         }}
       />
 
