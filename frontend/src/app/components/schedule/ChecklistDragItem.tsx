@@ -13,6 +13,7 @@ interface ChecklistDragItemProps {
   } | null;
   isDragging?: boolean;
   isScheduled?: boolean;
+  isHighlighted?: boolean;
   onMouseDown: (e: React.MouseEvent, item: AssigneeItemResponse) => void;
   onDetailClick?: (item: AssigneeItemResponse) => void;
   onScheduledClick?: () => void;
@@ -33,6 +34,7 @@ export function ChecklistDragItem({
   assignee,
   isDragging = false,
   isScheduled = false,
+  isHighlighted = false,
   onMouseDown,
   onDetailClick,
   onScheduledClick,
@@ -67,9 +69,12 @@ export function ChecklistDragItem({
 
   return (
     <div
-      className={`relative flex items-stretch rounded-lg border border-foreground/[0.08]
+      className={`relative flex items-stretch rounded-lg border
         bg-bridge-dark overflow-hidden select-none
-        hover:border-foreground/[0.12] transition-all group
+        transition-all group
+        ${isHighlighted
+          ? 'border-bridge-accent/50 ring-2 ring-bridge-accent/70 bg-bridge-accent/5'
+          : 'border-foreground/[0.08] hover:border-foreground/[0.12]'}
         ${isScheduled
           ? 'opacity-40 cursor-pointer hover:opacity-60'
           : `cursor-grab ${isDragging ? 'opacity-50' : 'opacity-100'}`}`}

@@ -1463,6 +1463,20 @@ export const featureAPI = {
 };
 
 // ========================================
+// 마인드맵 API (보드당 1건)
+// ========================================
+import type { MindMapDocument } from "../types";
+
+export const mindMapAPI = {
+  get: async (boardId: string) => {
+    return apiClient.get<MindMapDocument>(`/boards/${boardId}/mindmap`);
+  },
+  save: async (boardId: string, doc: MindMapDocument) => {
+    return apiClient.put<MindMapDocument>(`/boards/${boardId}/mindmap`, doc);
+  },
+};
+
+// ========================================
 // Task API
 // ========================================
 

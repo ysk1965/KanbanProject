@@ -11,7 +11,8 @@ type ViewMode =
   | "notes"
   | "statistics"
   | "ai_report"
-  | "list";
+  | "list"
+  | "mindmap";
 
 interface BoardSubTabsProps {
   /** 현재 활성화된 뷰 모드 */

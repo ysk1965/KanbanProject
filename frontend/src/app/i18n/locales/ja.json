@@ -767,7 +767,9 @@
       "noItems": "割り当てられた項目はありません",
       "completed": "完了",
       "collapse": "折りたたむ",
-      "more": "もっと見る"
+      "more": "もっと見る",
+      "highlight": "ハイライト",
+      "unhighlight": "ハイライト解除"
     },
     "panel": {
       "title": "チェックリスト",
@@ -1528,6 +1530,7 @@
     "viewBoardGantt": "ガント",
     "viewBoardCalendar": "カレンダー",
     "viewBoardList": "リスト",
+    "viewBoardMindMap": "マインドマップ",
     "viewBoardMilestone": "マイルストーン",
     "viewSwitcher": "ビュー"
   },

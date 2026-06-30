@@ -767,7 +767,9 @@
       "noItems": "कोई आइटम नियत नहीं है",
       "completed": "पूर्ण",
       "collapse": "संक्षिप्त करें",
-      "more": "और"
+      "more": "और",
+      "highlight": "हाइलाइट करें",
+      "unhighlight": "हाइलाइट हटाएं"
     },
     "panel": {
       "title": "चेकलिस्ट",
@@ -1528,6 +1530,7 @@
     "viewBoardGantt": "गैंट",
     "viewBoardCalendar": "कैलेंडर",
     "viewBoardList": "सूची",
+    "viewBoardMindMap": "माइंड मैप",
     "viewBoardMilestone": "माइलस्टोन",
     "viewSwitcher": "व्यू"
   },

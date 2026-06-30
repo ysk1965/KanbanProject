@@ -391,6 +391,38 @@ export interface FeatureDeleteRequest {
 }
 
 // ========================================
+// 마인드맵 타입 (보드당 1건 — nodes + edges JSON 문서)
+// ========================================
+
+/**
+ * 마인드맵 노드.
+ * - kind="feature": 실제 Feature 노드. feature_id + 좌표만 저장하고, 제목/색/진행률은 렌더 시 features에서 live 조회.
+ * - kind="memo": 자유 메모 노드. label/color를 자체 저장.
+ */
+export interface MindMapNode {
+  id: string;
+  kind: "feature" | "memo";
+  x: number;
+  y: number;
+  feature_id?: string;
+  label?: string;
+  color?: string;
+  width?: number;
+  height?: number;
+}
+
+export interface MindMapEdge {
+  id: string;
+  source: string;
+  target: string;
+}
+
+export interface MindMapDocument {
+  nodes: MindMapNode[];
+  edges: MindMapEdge[];
+}
+
+// ========================================
 // Task 타입
 // ========================================
 

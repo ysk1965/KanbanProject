@@ -75,7 +75,17 @@
       "title": "협업의 흐름을\n정밀하게 조율하다",
       "titleLine1": "두 개의 축,",
       "titleLine2": "하나의 플랫폼",
-      "kanban": {
+      "mindmap": {
+    "addMemo": "메모 추가",
+    "newMemo": "새 메모",
+    "unplacedFeatures": "미배치 피쳐",
+    "dragToPlace": "캔버스로 드래그해 배치",
+    "allPlaced": "모든 피쳐가 배치됨",
+    "readOnly": "읽기 전용",
+    "empty": "왼쪽 피쳐를 드래그하거나 메모를 추가해 시작하세요",
+    "emptyReadOnly": "아직 마인드맵이 없습니다"
+  },
+  "kanban": {
         "title": "실무 중심 칸반 설계",
         "desc": "'Feature - Task - Done' 구조 위에 팀만의 워크플로우를 자유롭게 얹으세요. 현직 PM들의 통찰을 녹여낸 가장 실용적인 협업 인터페이스입니다."
       },
@@ -851,7 +861,9 @@
       "zoomOut": "축소",
       "viewSettings": "보기 설정",
       "groupBy": "그룹 기준",
-      "zoom": "확대/축소"
+      "zoom": "확대/축소",
+      "highlight": "하이라이트",
+      "unhighlight": "하이라이트 해제"
     },
     "workloadCreate": {
       "title": "새 업무 추가",
@@ -1681,6 +1693,7 @@
     "viewBoardGantt": "간트",
     "viewBoardCalendar": "캘린더",
     "viewBoardList": "리스트",
+    "viewBoardMindMap": "마인드맵",
     "viewBoardMilestone": "마일스톤",
     "viewSwitcher": "뷰"
   },
