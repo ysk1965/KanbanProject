@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo, useEffect, memo } from "react";
+import { useRef, useState, useMemo, useCallback, useEffect, memo } from "react";
 import { Task, Feature, ChecklistItem } from "../types";
 import {
   Calendar,
@@ -70,6 +70,8 @@ interface DraggableCardProps {
   isScheduled?: boolean;
   hideAssignees?: boolean;
   justCompleted?: boolean;
+  // 담당자 필터 (선택된 멤버 이름 배열, '__no_members__' = 미지정)
+  assigneeFilter?: string[];
 }
 
 export const DraggableCard = memo(function DraggableCard({
@@ -87,6 +89,7 @@ export const DraggableCard = memo(function DraggableCard({
   isScheduled = false,
   hideAssignees = false,
   justCompleted = false,
+  assigneeFilter,
 }: DraggableCardProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
@@ -252,13 +255,43 @@ export const DraggableCard = memo(function DraggableCard({
     }
   };
 
-  const completedCount = checklistItems.filter((item) => item.completed).length;
-  const hasChecklist = (task.checklist_total ?? 0) > 0;
+  // 담당자 필터가 활성화되어 있는지 + 매칭 헬퍼
+  const isAssigneeFiltered = (assigneeFilter?.length ?? 0) > 0;
+  const matchesAssigneeFilter = useCallback(
+    (item: ChecklistItem) => {
+      if (!assigneeFilter || assigneeFilter.length === 0) return true;
+      const hasNoAssigneeFilter = assigneeFilter.includes("__no_members__");
+      const memberNames = assigneeFilter.filter((m) => m !== "__no_members__");
+      const name = item.assignee?.name;
+      const matchesNoAssignee = hasNoAssigneeFilter && !name;
+      const matchesMember =
+        !!name && memberNames.length > 0 && memberNames.includes(name);
+      return matchesNoAssignee || matchesMember;
+    },
+    [assigneeFilter],
+  );
+
+  // 필터 적용된 체크리스트 (담당자 필터 활성 시 해당 담당자 항목만)
+  const visibleChecklistItems = useMemo(
+    () =>
+      isAssigneeFiltered
+        ? checklistItems.filter(matchesAssigneeFilter)
+        : checklistItems,
+    [checklistItems, isAssigneeFiltered, matchesAssigneeFilter],
+  );
+
+  const completedCount = visibleChecklistItems.filter(
+    (item) => item.completed,
+  ).length;
+  const totalCount = visibleChecklistItems.length;
+  const hasChecklist = isAssigneeFiltered
+    ? totalCount > 0
+    : (task.checklist_total ?? 0) > 0;
 
   // position 순 정렬 (state 배열 in-place 변형 방지)
   const sortedChecklistItems = useMemo(
-    () => [...checklistItems].sort((a, b) => a.position - b.position),
-    [checklistItems],
+    () => [...visibleChecklistItems].sort((a, b) => a.position - b.position),
+    [visibleChecklistItems],
   );
 
   // 체크리스트 펼칠 때 데이터가 없으면 자동 로드
@@ -474,12 +507,12 @@ export const DraggableCard = memo(function DraggableCard({
               <div className="flex items-center gap-2">
                 <div className="w-12 h-1 bg-slate-600 rounded-full overflow-hidden">
                   <div
-                    className={`h-full bg-indigo-500 rounded-full transition-all duration-300 ${cascadePulse ? 'cascade-pulse' : ''}`}
+                    className={`h-full bg-indigo-500 rounded-full transition-all duration-300 ${cascadePulse ? "cascade-pulse" : ""}`}
                     style={{
                       width: `${
-                        hasLoaded
-                          ? checklistItems.length > 0
-                            ? (completedCount / checklistItems.length) * 100
+                        isAssigneeFiltered || hasLoaded
+                          ? totalCount > 0
+                            ? (completedCount / totalCount) * 100
                             : 0
                           : (task.checklist_total ?? 0) > 0
                             ? ((task.checklist_completed ?? 0) /
@@ -491,8 +524,8 @@ export const DraggableCard = memo(function DraggableCard({
                   />
                 </div>
                 <span className="text-xs font-medium text-foreground/80">
-                  {hasLoaded
-                    ? `${completedCount}/${checklistItems.length}`
+                  {isAssigneeFiltered || hasLoaded
+                    ? `${completedCount}/${totalCount}`
                     : `${task.checklist_completed ?? 0}/${task.checklist_total ?? 0}`}
                 </span>
               </div>
@@ -549,59 +582,59 @@ export const DraggableCard = memo(function DraggableCard({
             <div className="text-xs text-slate-400">{t("common.loading")}</div>
           ) : (
             sortedChecklistItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-2 py-1 px-1.5 rounded-lg bg-bridge-surface-hover hover:bg-foreground/5 transition-colors"
+                onClick={(e) => handleToggleItem(e, item.id)}
+              >
                 <div
-                  key={item.id}
-                  className="flex items-center gap-2 py-1 px-1.5 rounded-lg bg-bridge-surface-hover hover:bg-foreground/5 transition-colors"
-                  onClick={(e) => handleToggleItem(e, item.id)}
+                  className={`w-3.5 h-3.5 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
+                    item.completed
+                      ? "bg-green-500 border-green-500"
+                      : "bg-transparent border-slate-500 hover:border-slate-400"
+                  }`}
                 >
-                  <div
-                    className={`w-3.5 h-3.5 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
-                      item.completed
-                        ? "bg-green-500 border-green-500"
-                        : "bg-transparent border-slate-500 hover:border-slate-400"
-                    }`}
-                  >
-                    {item.completed && (
-                      <svg
-                        className="w-2.5 h-2.5 text-white"
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <span
-                    className={`text-xs flex-1 ${
-                      item.completed
-                        ? "text-slate-400 line-through"
-                        : "text-foreground/80"
-                    }`}
-                  >
-                    {item.title}
-                  </span>
-                  {item.assignee && (
-                    <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 border border-foreground/[0.08] whitespace-nowrap overflow-hidden"
-                      style={{
-                        backgroundColor: getAssigneeHex(
-                          item.assignee.name,
-                          item.assignee?.id
-                            ? memberColorMap?.[item.assignee.id]
-                            : undefined,
-                        ),
-                      }}
-                      title={item.assignee.name}
+                  {item.completed && (
+                    <svg
+                      className="w-2.5 h-2.5 text-white"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
                     >
-                      {getInitials(item.assignee.name)}
-                    </div>
+                      <path d="M5 13l4 4L19 7" />
+                    </svg>
                   )}
                 </div>
-              ))
+                <span
+                  className={`text-xs flex-1 ${
+                    item.completed
+                      ? "text-slate-400 line-through"
+                      : "text-foreground/80"
+                  }`}
+                >
+                  {item.title}
+                </span>
+                {item.assignee && (
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 border border-foreground/[0.08] whitespace-nowrap overflow-hidden"
+                    style={{
+                      backgroundColor: getAssigneeHex(
+                        item.assignee.name,
+                        item.assignee?.id
+                          ? memberColorMap?.[item.assignee.id]
+                          : undefined,
+                      ),
+                    }}
+                    title={item.assignee.name}
+                  >
+                    {getInitials(item.assignee.name)}
+                  </div>
+                )}
+              </div>
+            ))
           )}
         </div>
       )}

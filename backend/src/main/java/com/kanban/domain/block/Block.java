@@ -40,6 +40,10 @@ public class Block {
     @Column(name = "position", nullable = false)
     private Integer position;
 
+    @Column(name = "show_progress_bar", nullable = false)
+    @Builder.Default
+    private Boolean showProgressBar = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "milestone_id")
     private Milestone milestone;
@@ -51,13 +55,16 @@ public class Block {
         }
     }
 
-    public void updateInfo(String name, String color) {
+    public void updateInfo(String name, String color, Boolean showProgressBar) {
         if (this.type == BlockType.CUSTOM) {
             if (name != null) {
                 this.name = name;
             }
             if (color != null) {
                 this.color = color;
+            }
+            if (showProgressBar != null) {
+                this.showProgressBar = showProgressBar;
             }
         }
     }

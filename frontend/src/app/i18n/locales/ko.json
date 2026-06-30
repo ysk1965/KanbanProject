@@ -883,6 +883,7 @@
       "filterFeature": "피쳐별 필터",
       "filterMilestone": "마일스톤별 필터",
       "filterJobRole": "직군별 필터",
+      "filterBlock": "블록별 필터",
       "noFeature": "피처 없음",
       "addItem": "체크리스트 항목 추가",
       "selectFeature": "피처",
@@ -1835,6 +1836,8 @@
     "dragToMove": "드래그하여 블록 이동",
     "rename": "이름 변경",
     "changeColor": "색상 변경",
+    "enableProgressBar": "프로그레스바 켜기",
+    "disableProgressBar": "프로그레스바 끄기",
     "hideInMilestone": "이 마일스톤에서 숨기기",
     "deleteBlock": "블록 삭제"
   },

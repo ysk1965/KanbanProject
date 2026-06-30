@@ -27,6 +27,7 @@ public class BlockResponse {
         private FixedBlockType fixedType;
         private String color;
         private Integer position;
+        private Boolean showProgressBar;
         private String milestoneId;
         private String milestoneTitle;
 
@@ -38,6 +39,7 @@ public class BlockResponse {
                     .fixedType(block.getFixedType())
                     .color(block.getColor())
                     .position(block.getPosition())
+                    .showProgressBar(block.getShowProgressBar())
                     .milestoneId(block.getMilestone() != null ? block.getMilestone().getId() : null)
                     .milestoneTitle(block.getMilestone() != null ? block.getMilestone().getTitle() : null)
                     .build();

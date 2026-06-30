@@ -176,7 +176,7 @@ public class BlockService {
             throw new BusinessException(ErrorCode.BLOCK_CANNOT_MODIFY_FIXED);
         }
 
-        block.updateInfo(request.getName(), request.getColor());
+        block.updateInfo(request.getName(), request.getColor(), request.getShowProgressBar());
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
