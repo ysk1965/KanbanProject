@@ -1531,6 +1531,7 @@
     "viewBoardCalendar": "कैलेंडर",
     "viewBoardList": "सूची",
     "viewBoardMindMap": "माइंड मैप",
+    "viewBoardMiniKanban": "मिनी कानबन",
     "viewBoardMilestone": "माइलस्टोन",
     "viewSwitcher": "व्यू"
   },
@@ -4103,5 +4104,18 @@
       "emptied": "ट्रैश खाली कर दिया गया",
       "emptyFailed": "ट्रैश खाली करने में विफल"
     }
+  },
+  "mindmap": {
+    "addMemo": "मेमो जोड़ें",
+    "newMemo": "नया मेमो",
+    "unplacedFeatures": "अनप्लेस्ड फ़ीचर",
+    "dragToPlace": "रखने के लिए कैनवास पर खींचें",
+    "allPlaced": "सभी फ़ीचर रखे गए",
+    "readOnly": "केवल पढ़ने के लिए",
+    "empty": "शुरू करने के लिए बाईं ओर से कोई फ़ीचर खींचें या मेमो जोड़ें",
+    "emptyReadOnly": "अभी तक कोई माइंड मैप नहीं",
+    "filterAll": "सभी",
+    "filterNoMilestone": "कोई माइलस्टोन नहीं",
+    "noFilteredFeatures": "इस माइलस्टोन के लिए कोई अनप्लेस्ड फ़ीचर नहीं"
   }
 }

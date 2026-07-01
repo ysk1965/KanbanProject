@@ -1465,7 +1465,7 @@ export const featureAPI = {
 // ========================================
 // 마인드맵 API (보드당 1건)
 // ========================================
-import type { MindMapDocument } from "../types";
+import type { MindMapDocument, MiniKanbanDocument } from "../types";
 
 export const mindMapAPI = {
   get: async (boardId: string) => {
@@ -1473,6 +1473,21 @@ export const mindMapAPI = {
   },
   save: async (boardId: string, doc: MindMapDocument) => {
     return apiClient.put<MindMapDocument>(`/boards/${boardId}/mindmap`, doc);
+  },
+};
+
+// ========================================
+// 미니 칸반 레이아웃 API (보드당 1건)
+// ========================================
+export const miniKanbanAPI = {
+  get: async (boardId: string) => {
+    return apiClient.get<MiniKanbanDocument>(`/boards/${boardId}/mini-kanban`);
+  },
+  save: async (boardId: string, doc: MiniKanbanDocument) => {
+    return apiClient.put<MiniKanbanDocument>(
+      `/boards/${boardId}/mini-kanban`,
+      doc,
+    );
   },
 };
 

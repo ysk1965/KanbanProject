@@ -1531,6 +1531,7 @@
     "viewBoardCalendar": "Calendário",
     "viewBoardList": "Lista",
     "viewBoardMindMap": "Mapa mental",
+    "viewBoardMiniKanban": "Mini Kanban",
     "viewBoardMilestone": "Marco",
     "viewSwitcher": "Visualizações"
   },
@@ -4103,5 +4104,18 @@
       "emptied": "Lixeira esvaziada",
       "emptyFailed": "Falha ao esvaziar a lixeira"
     }
+  },
+  "mindmap": {
+    "addMemo": "Adicionar nota",
+    "newMemo": "Nova nota",
+    "unplacedFeatures": "Recursos não posicionados",
+    "dragToPlace": "Arraste para o canvas para posicionar",
+    "allPlaced": "Todos os recursos posicionados",
+    "readOnly": "Somente leitura",
+    "empty": "Arraste um recurso da esquerda ou adicione uma nota para começar",
+    "emptyReadOnly": "Ainda não há mapa mental",
+    "filterAll": "Todos",
+    "filterNoMilestone": "Sem marco",
+    "noFilteredFeatures": "Nenhum recurso não posicionado para este marco"
   }
 }
