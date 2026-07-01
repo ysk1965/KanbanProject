@@ -2188,13 +2188,15 @@
   },
   "kanbanBlock": {
     "recentDone": {
-      "toggle": "ดูรายการที่เสร็จล่าสุด",
-      "todayDelta": "วันนี้ +{{count}}",
-      "empty": "ยังไม่มีรายการที่เสร็จ",
-      "period": {
-        "today": "วันนี้",
-        "week": "7 วันล่าสุด",
-        "all": "ทั้งหมด"
+      "title": "ความคืบหน้า",
+      "toggle": "ดูความคืบหน้า",
+      "todayDelta": "{{count}}",
+      "empty": "ไม่มีรายการ",
+      "tab": {
+        "todayDone": "เสร็จวันนี้",
+        "inProgress": "กำลังทำ",
+        "earlierDone": "เสร็จก่อนหน้า",
+        "notStarted": "ยังไม่เริ่ม"
       }
     },
     "dropHere": "วางที่นี่",

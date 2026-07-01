@@ -1845,13 +1845,15 @@
   },
   "kanbanBlock": {
     "recentDone": {
-      "toggle": "View recently completed",
-      "todayDelta": "+{{count}} today",
-      "empty": "No completed items",
-      "period": {
-        "today": "Today",
-        "week": "Last 7 days",
-        "all": "All"
+      "title": "Progress",
+      "toggle": "View progress",
+      "todayDelta": "{{count}}",
+      "empty": "No items",
+      "tab": {
+        "todayDone": "Done today",
+        "inProgress": "In progress",
+        "earlierDone": "Done earlier",
+        "notStarted": "Not started"
       }
     },
     "dropHere": "Drop here",

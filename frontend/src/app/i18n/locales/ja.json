@@ -2188,13 +2188,15 @@
   },
   "kanbanBlock": {
     "recentDone": {
-      "toggle": "最近の完了項目を表示",
-      "todayDelta": "本日 +{{count}}",
-      "empty": "完了した項目がありません",
-      "period": {
-        "today": "今日",
-        "week": "過去7日間",
-        "all": "すべて"
+      "title": "進捗状況",
+      "toggle": "進捗を表示",
+      "todayDelta": "{{count}}",
+      "empty": "項目がありません",
+      "tab": {
+        "todayDone": "今日完了",
+        "inProgress": "進行中",
+        "earlierDone": "完了済み",
+        "notStarted": "未着手"
       }
     },
     "dropHere": "ここにドロップ",

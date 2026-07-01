@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>최근 완료 모달 — 미리보기</title>
+<style>
+  :root {
+    --bridge-dark: #191f2d;
+    --bridge-obsidian: #151B28;
+    --bridge-accent: #6366F1;
+    --bridge-secondary: #2DD4BF;
+    --bridge-border: #384d6e;
+    --foreground: #e8eaf0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bridge-dark);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    /* 오버레이 느낌 (blur+dim) */
+    position: relative;
+  }
+  /* dim + blur overlay 시뮬레이션 */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.3);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  /* ── Modal (sm:max-w-lg = 512px) ── */
+  .modal {
+    position: relative;
+    width: 100%; max-width: 512px;
+    background: var(--bridge-obsidian);
+    border-radius: 16px;
+    border: 1px solid rgba(232,234,240,0.10);
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7);
+    max-height: 90vh; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .modal::before { /* top shimmer */
+    content: ""; position: absolute; inset-inline: 0; top: 0; height: 1px;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.15), transparent);
+    border-radius: 16px 16px 0 0; pointer-events: none;
+  }
+  /* accent line */
+  .accent {
+    height: 2px;
+    background: linear-gradient(to right, rgba(99,102,241,0.6), rgba(45,212,191,0.4), transparent);
+  }
+  /* ── Header ── */
+  .header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid rgba(232,234,240,0.08);
+  }
+  .header .ico { width: 16px; height: 16px; color: var(--bridge-secondary); flex-shrink: 0; }
+  .header h3 { font-size: 14px; font-weight: 700; color: var(--foreground); }
+  .header .blk { font-size: 12px; color: #64748b; }
+  .header .close {
+    margin-left: auto; color: #94a3b8; background: none; border: none;
+    border-radius: 8px; padding: 6px; cursor: pointer; display: flex;
+    transition: all .15s;
+  }
+  .header .close:hover { color: var(--foreground); background: rgba(232,234,240,0.05); }
+  .header .close svg { width: 16px; height: 16px; }
+  /* ── Progress summary ── */
+  .progress {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(232,234,240,0.08);
+  }
+  .p-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+  .p-pct { font-size: 26px; font-weight: 700; color: var(--foreground); letter-spacing: -0.02em; }
+  .p-frac { font-size: 13px; color: #94a3b8; }
+  .p-delta {
+    margin-left: auto; font-size: 12px; font-weight: 700;
+    padding: 3px 10px; border-radius: 999px;
+    background: rgba(45,212,191,0.15); color: var(--bridge-secondary);
+  }
+  .p-bar {
+    height: 8px; background: #334155; border-radius: 999px;
+    position: relative; overflow: hidden;
+  }
+  .p-fill { position: absolute; left: 0; top: 0; height: 100%; background: var(--bridge-accent); }
+  .p-fill-recent { position: absolute; top: 0; height: 100%; background: var(--bridge-secondary); box-shadow: 0 0 8px var(--bridge-secondary); }
+  .p-fill-prog { position: absolute; top: 0; height: 100%; background: #F59E0B; }
+  .p-legend { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
+  .p-legend .lg { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #94a3b8; }
+  .p-legend .dot { width: 8px; height: 8px; border-radius: 2px; }
+
+  /* ── Body ── */
+  .body { padding: 16px 20px 20px; overflow-y: auto; }
+  .tabs { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+  .tab {
+    font-size: 12px; padding: 4px 12px; border-radius: 999px; border: none;
+    cursor: pointer; transition: all .15s;
+    background: rgba(232,234,240,0.03); color: #64748b;
+  }
+  .tab:hover { color: #cbd5e1; }
+  .tab.active { background: rgba(45,212,191,0.15); color: var(--bridge-secondary); font-weight: 700; }
+  .count { margin-left: auto; font-size: 12px; color: #64748b; }
+  .list { display: flex; flex-direction: column; gap: 4px; max-height: 60vh; overflow-y: auto; }
+  .item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 12px; border-radius: 12px;
+    background: rgba(232,234,240,0.03);
+    border: 1px solid rgba(232,234,240,0.06);
+    cursor: pointer; transition: background .15s; text-align: left;
+    width: 100%; font-family: inherit;
+  }
+  .item:hover { background: rgba(232,234,240,0.06); }
+  .item .chk {
+    margin-top: 2px; width: 20px; height: 20px; border-radius: 50%;
+    background: rgba(16,185,129,0.15);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .item .chk svg { width: 12px; height: 12px; color: #10b981; }
+  .item .txt { min-width: 0; flex: 1; }
+  .item .title { font-size: 14px; font-weight: 500; color: var(--foreground); word-break: break-word; line-height: 1.35; }
+  .item .meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; min-width: 0; }
+  .item .task { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .sep { color: #3a4658; font-size: 12px; }
+  /* 담당자 칩 — 아바타 배경은 그 담당자의 색:
+     getAssigneeHex(name, memberColorMap[assignee.id])
+     · memberColorMap에 담당자 색(assignee_color)이 있으면 그 색
+     · 없으면 이름 해시 6색 fallback
+     아래 색상들은 각 멤버의 배정 색 예시 */
+  .assignee { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; }
+  .avatar {
+    width: 18px; height: 18px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0;
+  }
+  .assignee .nm { font-size: 12px; color: #94a3b8; white-space: nowrap; }
+  .item .time { font-size: 12px; color: #64748b; flex-shrink: 0; margin-top: 2px; white-space: nowrap; }
+
+  .caption { position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    color: #64748b; font-size: 12px; z-index: 10; }
+</style>
+</head>
+<body>
+  <div class="caption">▲ 미리보기 · 담당자 아바타는 각 멤버의 배정 색(memberColorMap → getAssigneeHex), 없으면 6색 fallback</div>
+  <div class="overlay">
+    <div class="modal">
+      <div class="accent"></div>
+
+      <!-- Header -->
+      <div class="header">
+        <!-- check icon -->
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <h3>진행 현황</h3>
+        <span class="blk">· Sprint Progress</span>
+        <button class="close" aria-label="닫기">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <!-- Progress summary -->
+      <div class="progress">
+        <div class="p-top">
+          <span class="p-pct">58%</span>
+          <span class="p-frac">40 / 69</span>
+          <span class="p-delta">▲ 오늘 +12</span>
+        </div>
+        <!-- 4색 스택 바: 기존완료(accent) / 오늘완료(secondary) / 진행중(amber) / 미완료(트랙) -->
+        <div class="p-bar">
+          <div class="p-fill" style="width:40.6%"></div>
+          <div class="p-fill-recent" style="left:40.6%; width:17.4%"></div>
+          <div class="p-fill-prog" style="left:58%; width:21.7%"></div>
+        </div>
+        <div class="p-legend">
+          <span class="lg"><span class="dot" style="background:var(--bridge-secondary)"></span>오늘 완료 12</span>
+          <span class="lg"><span class="dot" style="background:#F59E0B"></span>진행 중 15</span>
+          <span class="lg"><span class="dot" style="background:var(--bridge-accent)"></span>기존 완료 28</span>
+          <span class="lg"><span class="dot" style="background:#334155"></span>미완료 14</span>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="body">
+        <div class="tabs">
+          <button class="tab active">오늘 완료 12</button>
+          <button class="tab">진행 중 15</button>
+          <button class="tab">기존 완료 28</button>
+          <button class="tab">미완료 14</button>
+        </div>
+
+        <div class="list">
+          <button class="item">
+            <span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
+            <div class="txt">
+              <div class="title">길잡이, 보스 처치 공통 연출 및 기능 수정</div>
+              <div class="meta">
+                <span class="task">텍틱스 모드</span>
+                <span class="sep">·</span>
+                <span class="assignee"><span class="avatar" style="background:#6366F1">유</span><span class="nm">유상건</span></span>
+              </div>
+            </div>
+            <span class="time">23분 전</span>
+          </button>
+
+          <button class="item">
+            <span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
+            <div class="txt">
+              <div class="title">버그 리포트 (Sprint1) — 재현 스텝 정리</div>
+              <div class="meta">
+                <span class="task">텍틱스 모드</span>
+                <span class="sep">·</span>
+                <span class="assignee"><span class="avatar" style="background:#8B5CF6">최</span><span class="nm">최진흥</span></span>
+              </div>
+            </div>
+            <span class="time">약 1시간 전</span>
+          </button>
+
+          <button class="item">
+            <span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
+            <div class="txt">
+              <div class="title">몬스터 스폰 밸런싱 1차</div>
+              <div class="meta">
+                <span class="task">버그 리포트 (Sprint1)</span>
+                <span class="sep">·</span>
+                <span class="assignee"><span class="avatar" style="background:#14B8A6">박</span><span class="nm">박영준</span></span>
+              </div>
+            </div>
+            <span class="time">약 1시간 전</span>
+          </button>
+
+          <button class="item">
+            <span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
+            <div class="txt">
+              <div class="title">기타 작업 (Sprint1) 공통 리소스 교체</div>
+              <div class="meta">
+                <span class="task">기타 작업</span>
+                <span class="sep">·</span>
+                <span class="assignee"><span class="avatar" style="background:#F43F5E">신</span><span class="nm">신성은</span></span>
+              </div>
+            </div>
+            <span class="time">약 4시간 전</span>
+          </button>
+
+          <button class="item">
+            <span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
+            <div class="txt">
+              <div class="title">UI 텍스트 길잡이 문구 최종 검수 및 반영</div>
+              <div class="meta">
+                <span class="task">텍틱스 길잡이</span>
+                <span class="sep">·</span>
+                <span class="assignee"><span class="avatar" style="background:#6366F1">유</span><span class="nm">유상건</span></span>
+              </div>
+            </div>
+            <span class="time">약 4시간 전</span>
+          </button>
+
+          <!-- 담당자 미지정 예시 -->
+          <button class="item">
+            <span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
+            <div class="txt">
+              <div class="title">사운드 리소스 임포트</div>
+              <div class="meta">
+                <span class="task">텍틱스 모드</span>
+                <span class="sep">·</span>
+                <span class="assignee"><span class="avatar" style="background:#475569">?</span><span class="nm" style="color:#64748b">미지정</span></span>
+              </div>
+            </div>
+            <span class="time">약 5시간 전</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

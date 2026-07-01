@@ -1,8 +1,23 @@
 import { useRef, useCallback, useMemo, useState, memo } from "react";
 import { Block, Task, Feature, ChecklistItem } from "../types";
 import { DraggableCard } from "./DraggableCard";
-import { GripVertical, MoreVertical, Plus, BarChart2, Check } from "lucide-react";
-import { parseUTCDate, formatRelativeTime } from "../utils/dateUtils";
+import {
+  GripVertical,
+  MoreVertical,
+  Plus,
+  BarChart2,
+  Check,
+  X,
+  Clock,
+  Circle,
+} from "lucide-react";
+import {
+  parseUTCDate,
+  formatRelativeTime,
+  getTodayDateString,
+} from "../utils/dateUtils";
+import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
+import { MotionModal } from "./ui/MotionModal";
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
 import {
@@ -107,26 +122,23 @@ export const KanbanBlock = memo(function KanbanBlock({
     [features],
   );
 
-  // 최근 완료 체크리스트 (진행률 바 연계) — completed_at DESC 정렬
+  // 체크리스트 진행 현황 모달 (진행률 바 연계)
   const [recentDoneOpen, setRecentDoneOpen] = useState(false);
-  const [recentDonePeriod, setRecentDonePeriod] = useState<
-    "today" | "week" | "all"
-  >("today");
+  const [recentDoneTab, setRecentDoneTab] = useState<
+    "todayDone" | "inProgress" | "earlierDone" | "notStarted"
+  >("todayDone");
   // 완료 시각 소스: completed_at(정확) 우선, 없으면 done_date(과거 데이터 폴백, day 단위)
   const doneTs = (i: ChecklistItem) =>
     parseUTCDate(i.completed_at ?? i.done_date)?.getTime() ?? 0;
-  const recentCompletions = useMemo(() => {
+  // 블록 안 전체 체크리스트 항목 (task 동봉) — 상태 분류의 단일 소스
+  const allChecklistItems = useMemo(() => {
     if (!checklistDataMap) return [] as { item: ChecklistItem; task: Task }[];
     const acc: { item: ChecklistItem; task: Task }[] = [];
     for (const task of tasks) {
       const items = checklistDataMap[task.id];
       if (!items) continue;
-      for (const item of items) {
-        if (item.completed && (item.completed_at || item.done_date))
-          acc.push({ item, task });
-      }
+      for (const item of items) acc.push({ item, task });
     }
-    acc.sort((a, b) => doneTs(b.item) - doneTs(a.item));
     return acc;
   }, [checklistDataMap, tasks]);
 
@@ -420,72 +432,105 @@ export const KanbanBlock = memo(function KanbanBlock({
         )}
       </div>
 
-      {/* 프로그레스바: 블록 내 태스크들의 체크리스트 완료 비율 */}
+      {/* 프로그레스바: 블록 내 태스크들의 체크리스트 진행 현황 */}
       {block.show_progress_bar &&
         (() => {
-          const total = tasks.reduce(
-            (sum, t) => sum + (t.checklist_total ?? 0),
-            0,
-          );
-          const done = tasks.reduce(
-            (sum, t) => sum + (t.checklist_completed ?? 0),
-            0,
-          );
-          const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-
-          // 기간 경계 (클라이언트 TZ, 매 렌더 계산 → 자정 넘겨도 정확)
+          // 오늘 경계 (완료 시각 비교용 ms) + 오늘 날짜 문자열 (기간 비교용)
           const now = new Date();
           const startToday = new Date(
             now.getFullYear(),
             now.getMonth(),
             now.getDate(),
           ).getTime();
-          const startWeek = startToday - 6 * 86400000;
+          const todayStr = getTodayDateString();
 
-          // A: 오늘 완료 델타
-          const deltaToday = recentCompletions.filter(
-            (r) => doneTs(r.item) >= startToday,
-          ).length;
+          // 4개 상태로 분류: 오늘 완료 / 진행 중 / 기존 완료 / 미완료
+          const bTodayDone: { item: ChecklistItem; task: Task }[] = [];
+          const bEarlierDone: { item: ChecklistItem; task: Task }[] = [];
+          const bInProgress: { item: ChecklistItem; task: Task }[] = [];
+          const bNotStarted: { item: ChecklistItem; task: Task }[] = [];
+          for (const rc of allChecklistItems) {
+            const it = rc.item;
+            if (it.completed) {
+              if ((it.completed_at || it.done_date) && doneTs(it) >= startToday)
+                bTodayDone.push(rc);
+              else bEarlierDone.push(rc);
+            } else {
+              // 진행 중 = 기간(start~due)이 오늘과 겹치는 미완료 항목
+              const s = it.start_date;
+              const d = it.due_date;
+              const hasDate = !!(s || d);
+              const afterStart = !s || s <= todayStr;
+              const beforeDue = !d || todayStr <= d;
+              if (hasDate && afterStart && beforeDue) bInProgress.push(rc);
+              else bNotStarted.push(rc);
+            }
+          }
+          bTodayDone.sort((a, b) => doneTs(b.item) - doneTs(a.item));
+          bEarlierDone.sort((a, b) => doneTs(b.item) - doneTs(a.item));
+          const byDue = (
+            a: { item: ChecklistItem },
+            b: { item: ChecklistItem },
+          ) =>
+            (a.item.due_date ?? "9999-99-99").localeCompare(
+              b.item.due_date ?? "9999-99-99",
+            );
+          bInProgress.sort(byDue);
+          bNotStarted.sort(byDue);
 
-          // C: 바에서 "최근(오늘) 완료" 구간을 secondary로 분리
-          const doneBase = Math.max(0, done - deltaToday);
-          const basePct = total > 0 ? (doneBase / total) * 100 : 0;
-          const recentPct =
-            total > 0
-              ? Math.min(100 - basePct, (deltaToday / total) * 100)
-              : 0;
+          const nToday = bTodayDone.length;
+          const nEarlier = bEarlierDone.length;
+          const nProg = bInProgress.length;
+          const nNot = bNotStarted.length;
+          const total = allChecklistItems.length;
+          const done = nToday + nEarlier;
+          const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+          const denom = total || 1;
+          const segEarlier = (nEarlier / denom) * 100;
+          const segToday = (nToday / denom) * 100;
+          const segProg = (nProg / denom) * 100;
 
-          // B: 팝오버용 기간 필터 목록
-          const bound =
-            recentDonePeriod === "today"
-              ? startToday
-              : recentDonePeriod === "week"
-                ? startWeek
-                : -Infinity;
-          const filteredRecent = recentCompletions.filter(
-            (r) => doneTs(r.item) >= bound,
-          );
+          const buckets = {
+            todayDone: bTodayDone,
+            inProgress: bInProgress,
+            earlierDone: bEarlierDone,
+            notStarted: bNotStarted,
+          } as const;
+          const counts = {
+            todayDone: nToday,
+            inProgress: nProg,
+            earlierDone: nEarlier,
+            notStarted: nNot,
+          } as const;
+          const list = buckets[recentDoneTab];
+
+          const TABS = [
+            "todayDone",
+            "inProgress",
+            "earlierDone",
+            "notStarted",
+          ] as const;
 
           return (
-            <div className="border-b border-bridge-border">
+            <>
               <button
                 type="button"
-                onClick={() => setRecentDoneOpen((o) => !o)}
-                aria-expanded={recentDoneOpen}
+                onClick={() => setRecentDoneOpen(true)}
+                aria-haspopup="dialog"
                 aria-label={t("kanbanBlock.recentDone.toggle")}
-                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-foreground/5 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-1.5 border-b border-bridge-border hover:bg-foreground/5 transition-colors"
               >
                 <div className="flex-1 h-1.5 bg-slate-600 rounded-full overflow-hidden relative">
                   <div
                     className="absolute left-0 top-0 h-full bg-bridge-accent rounded-full transition-all duration-300"
-                    style={{ width: `${basePct}%` }}
+                    style={{ width: `${segEarlier}%` }}
                   />
-                  {recentPct > 0 && (
+                  {segToday > 0 && (
                     <div
                       className="absolute top-0 h-full bg-bridge-secondary rounded-full transition-all duration-300"
                       style={{
-                        left: `${basePct}%`,
-                        width: `${recentPct}%`,
+                        left: `${segEarlier}%`,
+                        width: `${segToday}%`,
                         boxShadow: "0 0 8px var(--bridge-secondary)",
                       }}
                     />
@@ -494,61 +539,206 @@ export const KanbanBlock = memo(function KanbanBlock({
                 <span className="text-xs font-medium text-slate-400">
                   {done}/{total} ({pct}%)
                 </span>
-                {deltaToday > 0 && (
+                {nToday > 0 && (
                   <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0">
-                    ▲ {t("kanbanBlock.recentDone.todayDelta", { count: deltaToday })}
+                    ▲ {t("kanbanBlock.recentDone.todayDelta", { count: nToday })}
                   </span>
                 )}
               </button>
 
-              {recentDoneOpen && (
-                <div className="px-3 pb-2">
-                  <div className="flex items-center gap-1 py-1.5">
-                    {(["today", "week", "all"] as const).map((p) => (
+              <MotionModal
+                open={recentDoneOpen}
+                onClose={() => setRecentDoneOpen(false)}
+                accentColor
+                aria-label={t("kanbanBlock.recentDone.title")}
+                className="sm:max-w-lg"
+              >
+                {/* Header */}
+                <div className="flex items-center gap-2 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+                  <Check className="w-4 h-4 text-bridge-secondary shrink-0" />
+                  <h3 className="text-sm font-bold text-foreground truncate">
+                    {t("kanbanBlock.recentDone.title")}
+                  </h3>
+                  <span className="text-xs text-slate-500 truncate min-w-0">
+                    · {block.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setRecentDoneOpen(false)}
+                    aria-label={t("common.close")}
+                    className="ml-auto text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg p-1.5 transition-colors shrink-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Progress summary */}
+                <div className="px-5 py-4 border-b border-foreground/[0.08]">
+                  <div className="flex items-baseline gap-2 mb-2.5">
+                    <span className="text-2xl font-bold text-foreground tracking-tight">
+                      {pct}%
+                    </span>
+                    <span className="text-sm text-slate-400">
+                      {done} / {total}
+                    </span>
+                    {nToday > 0 && (
+                      <span className="ml-auto text-xs font-bold px-2.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+                        ▲{" "}
+                        {t("kanbanBlock.recentDone.todayDelta", {
+                          count: nToday,
+                        })}
+                      </span>
+                    )}
+                  </div>
+                  {/* 4색 스택 바: 기존완료 / 오늘완료 / 진행중 / 미완료(트랙) */}
+                  <div className="h-2 bg-slate-600 rounded-full overflow-hidden relative">
+                    <div
+                      className="absolute left-0 top-0 h-full bg-bridge-accent"
+                      style={{ width: `${segEarlier}%` }}
+                    />
+                    <div
+                      className="absolute top-0 h-full bg-bridge-secondary"
+                      style={{ left: `${segEarlier}%`, width: `${segToday}%` }}
+                    />
+                    <div
+                      className="absolute top-0 h-full bg-amber-500"
+                      style={{
+                        left: `${segEarlier + segToday}%`,
+                        width: `${segProg}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-x-3.5 gap-y-1.5 mt-2.5 flex-wrap">
+                    <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                      <span className="w-2 h-2 rounded-sm bg-bridge-secondary" />
+                      {t("kanbanBlock.recentDone.tab.todayDone")} {nToday}
+                    </span>
+                    <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                      <span className="w-2 h-2 rounded-sm bg-amber-500" />
+                      {t("kanbanBlock.recentDone.tab.inProgress")} {nProg}
+                    </span>
+                    <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                      <span className="w-2 h-2 rounded-sm bg-bridge-accent" />
+                      {t("kanbanBlock.recentDone.tab.earlierDone")} {nEarlier}
+                    </span>
+                    <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                      <span className="w-2 h-2 rounded-sm bg-slate-600" />
+                      {t("kanbanBlock.recentDone.tab.notStarted")} {nNot}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="px-5 pb-5 pt-4">
+                  <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                    {TABS.map((tab) => (
                       <button
-                        key={p}
+                        key={tab}
                         type="button"
-                        onClick={() => setRecentDonePeriod(p)}
-                        className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
-                          recentDonePeriod === p
+                        onClick={() => setRecentDoneTab(tab)}
+                        className={`text-xs px-3 py-1 rounded-full transition-colors ${
+                          recentDoneTab === tab
                             ? "bg-bridge-secondary/15 text-bridge-secondary font-bold"
-                            : "text-slate-500 hover:text-slate-300"
+                            : "text-slate-500 hover:text-slate-300 bg-foreground/[0.03]"
                         }`}
                       >
-                        {t(`kanbanBlock.recentDone.period.${p}`)}
+                        {t(`kanbanBlock.recentDone.tab.${tab}`)} {counts[tab]}
                       </button>
                     ))}
                   </div>
-                  {filteredRecent.length === 0 ? (
-                    <div className="text-xs text-slate-600 py-2 text-center">
+
+                  {list.length === 0 ? (
+                    <div className="text-sm text-slate-500 py-12 text-center">
                       {t("kanbanBlock.recentDone.empty")}
                     </div>
                   ) : (
-                    <div className="space-y-0.5 max-h-48 overflow-y-auto custom-scrollbar">
-                      {filteredRecent.slice(0, 30).map(({ item, task }) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => onTaskClick?.(task)}
-                          className="w-full flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-foreground/5 transition-colors text-left"
-                        >
-                          <Check className="w-3 h-3 text-emerald-500 shrink-0" />
-                          <span className="text-xs text-foreground truncate flex-1">
-                            {item.title}
-                          </span>
-                          <span className="text-xs text-slate-600 shrink-0 truncate max-w-[38%]">
-                            {task.title}
-                          </span>
-                          <span className="text-xs text-slate-500 shrink-0">
-                            {formatRelativeTime(item.completed_at ?? item.done_date)}
-                          </span>
-                        </button>
-                      ))}
+                    <div className="space-y-1 max-h-[60dvh] overflow-y-auto custom-scrollbar">
+                      {list.slice(0, 100).map(({ item, task }) => {
+                        const isDone = item.completed;
+                        const isProg = recentDoneTab === "inProgress";
+                        const rightLabel = isDone
+                          ? formatRelativeTime(item.completed_at ?? item.done_date)
+                          : item.due_date
+                            ? `~ ${item.due_date}`
+                            : item.start_date
+                              ? `${item.start_date} ~`
+                              : "";
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              onTaskClick?.(task);
+                              setRecentDoneOpen(false);
+                            }}
+                            className="w-full flex items-start gap-3 px-3 py-2.5 rounded-xl bg-foreground/[0.03] hover:bg-foreground/[0.06] border border-foreground/[0.06] transition-colors text-left"
+                          >
+                            <span
+                              className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                                isDone
+                                  ? "bg-emerald-500/15"
+                                  : isProg
+                                    ? "bg-amber-500/15"
+                                    : "bg-slate-500/15"
+                              }`}
+                            >
+                              {isDone ? (
+                                <Check className="w-3 h-3 text-emerald-500" />
+                              ) : isProg ? (
+                                <Clock className="w-3 h-3 text-amber-500" />
+                              ) : (
+                                <Circle className="w-3 h-3 text-slate-400" />
+                              )}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm text-foreground font-medium break-words">
+                                {item.title}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-1 min-w-0">
+                                <span className="text-xs text-slate-500 truncate">
+                                  {task.title}
+                                </span>
+                                {item.assignee && (
+                                  <>
+                                    <span className="text-xs text-slate-600 shrink-0">
+                                      ·
+                                    </span>
+                                    <span className="flex items-center gap-1 shrink-0">
+                                      <span
+                                        className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white border border-foreground/[0.08] overflow-hidden"
+                                        style={{
+                                          backgroundColor: getAssigneeHex(
+                                            item.assignee.name,
+                                            item.assignee.id
+                                              ? memberColorMap?.[
+                                                  item.assignee.id
+                                                ]
+                                              : undefined,
+                                          ),
+                                        }}
+                                        title={item.assignee.name}
+                                      >
+                                        {getInitials(item.assignee.name)}
+                                      </span>
+                                      <span className="text-xs text-slate-400">
+                                        {item.assignee.name}
+                                      </span>
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-xs text-slate-500 shrink-0 mt-0.5">
+                              {rightLabel}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
+              </MotionModal>
+            </>
           );
         })()}
 
