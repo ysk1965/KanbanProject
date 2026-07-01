@@ -89,7 +89,7 @@ public class NoteAIService {
             throw new BusinessException(ErrorCode.NOTE_NOT_FOUND);
         }
 
-        if (note.isBoard() || note.isFlow()) {
+        if (note.isBoard()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "화이트보드에는 AI 정리를 사용할 수 없습니다");
         }
 

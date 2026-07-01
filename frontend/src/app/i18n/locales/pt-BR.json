@@ -2921,11 +2921,6 @@
       "permanentDeleteConfirm": "\"{{title}}\" e todos os seus subitens, comentários e versões serão excluídos imediatamente. Isso não pode ser desfeito.",
       "emptyAllConfirmTitle": "Esvaziar a lixeira?",
       "emptyAllConfirm": "Todos os {{count}} itens da lixeira serão excluídos permanentemente. Isso não pode ser desfeito."
-    },
-    "newFlow": "Novo fluxo",
-    "addFlow": "Adicionar fluxo",
-    "diff": {
-      "flowNoPreview": "Fluxos não oferecem comparação visual. Você pode restaurar esta versão com Reverter."
     }
   },
   "payment": {
@@ -4143,17 +4138,5 @@
     "filterNoMilestone": "Sem marco",
     "noFilteredFeatures": "Nenhum recurso não posicionado para este marco",
     "excludeFeature": "Remover do mapa mental"
-  },
-  "flow": {
-    "newMemo": "Nota",
-    "handTool": "Ferramenta mão",
-    "pointerTool": "Ferramenta seleção",
-    "addText": "Texto",
-    "addSticky": "Nota adesiva",
-    "addShape": "Forma",
-    "addImage": "Imagem",
-    "addVideo": "Vídeo",
-    "empty": "Adicione um nó pela barra de ferramentas para começar",
-    "emptyReadOnly": "Este fluxo está vazio"
   }
 }

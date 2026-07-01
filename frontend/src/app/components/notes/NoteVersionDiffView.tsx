@@ -67,30 +67,6 @@ export function NoteVersionDiffView({
     );
   }
 
-  if (noteType === "FLOW") {
-    return (
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {titleDiffHtml && (
-          <div className="px-4 py-2 border-b border-foreground/5 text-xs text-slate-500">
-            <span className="mr-2">
-              {t("notes.diff.titleChanged", "제목 변경")}:
-            </span>
-            <span
-              className="note-diff inline"
-              dangerouslySetInnerHTML={{ __html: titleDiffHtml }}
-            />
-          </div>
-        )}
-        <div className="flex-1 flex items-center justify-center p-8 text-sm text-slate-500 text-center">
-          {t(
-            "notes.diff.flowNoPreview",
-            "플로우는 시각 비교를 지원하지 않습니다. 되돌리기로 해당 버전을 복원할 수 있어요.",
-          )}
-        </div>
-      </div>
-    );
-  }
-
   // DOCUMENT (and any HTML-based type)
   return (
     <DocumentDiffBody

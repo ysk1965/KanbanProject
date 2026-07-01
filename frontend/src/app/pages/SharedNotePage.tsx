@@ -19,10 +19,6 @@ const ExcalidrawLazy = React.lazy(async () => {
   const mod = await import("@excalidraw/excalidraw");
   return { default: mod.Excalidraw };
 });
-const FlowReadOnlyLazy = React.lazy(async () => {
-  const mod = await import("../components/notes/FlowEditor");
-  return { default: mod.FlowReadOnly };
-});
 import { useCreateBlockNote } from "@blocknote/react";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
@@ -109,11 +105,7 @@ export function SharedNotePage() {
 
   // Convert content to HTML when note arrives (skip BOARD type - it uses Excalidraw, not BlockNote)
   useEffect(() => {
-    if (
-      !note?.content?.trim() ||
-      note.type === "BOARD" ||
-      note.type === "FLOW"
-    ) {
+    if (!note?.content?.trim() || note.type === "BOARD") {
       setRenderedHtml("");
       return;
     }
@@ -193,7 +185,7 @@ export function SharedNotePage() {
             <span className="text-sm font-bold text-foreground">BRIDGE</span>
           </Link>
           <div className="flex items-center gap-3">
-            {note.type !== "BOARD" && note.type !== "FLOW" && (
+            {note.type !== "BOARD" && (
               <button
                 onClick={handleCopyMarkdown}
                 className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
@@ -291,22 +283,6 @@ export function SharedNotePage() {
                   },
                 }}
               />
-            </div>
-          </Suspense>
-        ) : note.type === "FLOW" ? (
-          <Suspense
-            fallback={
-              <div
-                className="flex items-center justify-center min-h-[60vh]"
-                role="status"
-                aria-label="로딩 중"
-              >
-                <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
-              </div>
-            }
-          >
-            <div className="w-full min-h-[60vh] h-[75vh]">
-              <FlowReadOnlyLazy content={note.content} isDark={isDark} />
             </div>
           </Suspense>
         ) : (

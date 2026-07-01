@@ -46,9 +46,7 @@ type ViewMode =
   | "notes"
   | "statistics"
   | "ai_report"
-  | "list"
-  | "mindmap"
-  | "minikanban";
+  | "list";
 
 // 보드 서브뷰 그룹 (보드 탭에 속하는 ViewMode 집합)
 const BOARD_SUB_MODES: ViewMode[] = [
@@ -56,8 +54,6 @@ const BOARD_SUB_MODES: ViewMode[] = [
   "gantt",
   "calendar",
   "list",
-  "mindmap",
-  "minikanban",
   "milestone",
 ];
 
