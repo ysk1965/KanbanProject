@@ -2187,6 +2187,16 @@
     "addItem": "+ Agregar elemento"
   },
   "kanbanBlock": {
+    "recentDone": {
+      "toggle": "Ver completados recientes",
+      "todayDelta": "+{{count}} hoy",
+      "empty": "Sin elementos completados",
+      "period": {
+        "today": "Hoy",
+        "week": "Últimos 7 días",
+        "all": "Todo"
+      }
+    },
     "dropHere": "Soltar aquí",
     "dragToMove": "Arrastra para mover el bloque",
     "rename": "Renombrar",

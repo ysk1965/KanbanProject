@@ -18,6 +18,7 @@ import {
   Handle,
   NodeResizer,
   Position,
+  SelectionMode,
   addEdge,
   useNodesState,
   useEdgesState,
@@ -34,7 +35,9 @@ import {
   ChevronRight,
   Circle,
   EyeOff,
+  Hand,
   Loader2,
+  MousePointer2,
   Plus,
   StickyNote,
   X,
@@ -122,7 +125,11 @@ interface MindMapCtx {
   renameMemo: (id: string, label: string) => void;
   recolorMemo: (id: string) => void;
   deleteNode: (id: string) => void;
-  openFeatureMenu: (e: React.MouseEvent, nodeId: string, feature: Feature) => void;
+  openFeatureMenu: (
+    e: React.MouseEvent,
+    nodeId: string,
+    feature: Feature,
+  ) => void;
 }
 const MindMapContext = createContext<MindMapCtx | null>(null);
 const useMindMap = () => {
@@ -546,6 +553,10 @@ function MindMapCanvas({
   const { t } = useTranslation();
   const { screenToFlowPosition } = useReactFlow();
   const [addFeatureOpen, setAddFeatureOpen] = useState(false);
+  // 캔버스 상호작용 모드: hand=좌드래그로 팬(기본), pointer=좌드래그로 박스 다중선택
+  const [interactionMode, setInteractionMode] = useState<"hand" | "pointer">(
+    "hand",
+  );
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(
@@ -779,6 +790,27 @@ function MindMapCanvas({
     };
   }, [featureMenu]);
 
+  // 단축키: h=손 도구(팬), v=선택 도구(박스 다중선택). 입력/편집 중엔 무시.
+  useEffect(() => {
+    if (!canEdit) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable)
+      )
+        return;
+      const key = e.key.toLowerCase();
+      if (key === "h") setInteractionMode("hand");
+      else if (key === "v") setInteractionMode("pointer");
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [canEdit]);
+
   // Feature 펼치기/접기 (펼침 상태는 문서에 저장 — canEdit일 때 autosave)
   const toggleExpand = useCallback((featureId: string) => {
     setExpandedFeatures((prev) => {
@@ -804,24 +836,23 @@ function MindMapCanvas({
     [features, placedFeatureIds],
   );
 
-  // 미배치 트레이 마일스톤 필터 옵션 (idx 오름차순, 유니크) + "미배정" 존재 여부
+  // 미배치 트레이 마일스톤 필터 옵션 = 보드 전체 마일스톤 (배치 여부와 무관하게 항상 노출)
+  // idx는 milestones 배열 순서 = featureMilestonesMap/노드 칩의 색상 매핑과 동일
   const msMap = featureMilestonesMap ?? {};
-  const { milestoneOptions, hasNoMilestone } = useMemo(() => {
-    const seen = new Map<string, FeatureMilestoneRef>();
-    let anyNone = false;
-    for (const f of unplaced) {
-      const list = msMap[f.id];
-      if (!list || list.length === 0) {
-        anyNone = true;
-        continue;
-      }
-      for (const ms of list) if (!seen.has(ms.id)) seen.set(ms.id, ms);
-    }
-    return {
-      milestoneOptions: [...seen.values()].sort((a, b) => a.idx - b.idx),
-      hasNoMilestone: anyNone,
-    };
-  }, [unplaced, msMap]);
+  const milestoneOptions = useMemo<FeatureMilestoneRef[]>(
+    () =>
+      (milestones ?? []).map((ms, idx) => ({
+        id: ms.id,
+        title: ms.title,
+        idx,
+      })),
+    [milestones],
+  );
+  // "마일스톤 없음"은 미배정 미배치 피처가 있을 때만 노출
+  const hasNoMilestone = useMemo(
+    () => unplaced.some((f) => !msMap[f.id]?.length),
+    [unplaced, msMap],
+  );
 
   // 선택된 필터가 더 이상 유효하지 않으면 전체로 리셋
   useEffect(() => {
@@ -1093,7 +1124,9 @@ function MindMapCanvas({
 
         {/* 캔버스 */}
         <div
-          className="flex-1 relative"
+          className={`flex-1 relative ${
+            interactionMode === "pointer" ? "mm-pointer" : ""
+          }`}
           onDrop={onDrop}
           onDragOver={onDragOver}
         >
@@ -1105,6 +1138,35 @@ function MindMapCanvas({
             </span>
             {canEdit ? (
               <>
+                {/* 손/선택 도구 토글 (H / V) */}
+                <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/5 border border-foreground/10">
+                  <button
+                    type="button"
+                    onClick={() => setInteractionMode("hand")}
+                    aria-label={t("mindmap.handTool", "손 도구") + " (H)"}
+                    title={t("mindmap.handTool", "손 도구") + " (H)"}
+                    className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
+                      interactionMode === "hand"
+                        ? "bg-bridge-accent text-white"
+                        : "text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                    }`}
+                  >
+                    <Hand className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInteractionMode("pointer")}
+                    aria-label={t("mindmap.pointerTool", "선택 도구") + " (V)"}
+                    title={t("mindmap.pointerTool", "선택 도구") + " (V)"}
+                    className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
+                      interactionMode === "pointer"
+                        ? "bg-bridge-accent text-white"
+                        : "text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                    }`}
+                  >
+                    <MousePointer2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
                 {onCreateFeature && (
                   <button
                     type="button"
@@ -1159,6 +1221,9 @@ function MindMapCanvas({
             nodesDraggable={canEdit}
             nodesConnectable={canEdit}
             elementsSelectable={canEdit}
+            panOnDrag={interactionMode === "hand" ? true : [1, 2]}
+            selectionOnDrag={canEdit && interactionMode === "pointer"}
+            selectionMode={SelectionMode.Partial}
             deleteKeyCode={canEdit ? ["Backspace", "Delete"] : null}
             defaultEdgeOptions={{
               style: { stroke: "rgba(148,163,184,0.5)", strokeWidth: 2 },
@@ -1193,6 +1258,8 @@ function MindMapCanvas({
           width:9px;height:9px;background:#6366F1;border:2px solid #151B28;opacity:0;transition:opacity .15s;
         }
         .react-flow .react-flow__node:hover .mm-handle{opacity:1}
+        /* 선택 도구(pointer) 모드 — 빈 캔버스에서 crosshair 커서 */
+        .mm-pointer .react-flow__pane{cursor:crosshair}
         /* 엣지 호버 — 선택 가능 힌트 */
         .react-flow__edge:hover .react-flow__edge-path{
           stroke:rgba(99,102,241,0.7)!important;cursor:pointer;

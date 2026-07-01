@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>최근 완료 체크리스트 × 블록 진행률 — 설계 아이디어</title>
+<style>
+  :root {
+    --dark: #191f2d; --obsidian: #151B28; --surface: #1e2a42;
+    --accent: #6366F1; --secondary: #2DD4BF; --border: #384d6e;
+    --muted: #94a3b8; --hint: #64748b;
+    --amber: #f59e0b; --emerald: #10b981; --rose: #f43f5e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--dark); color: #e8eaf0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Apple SD Gothic Neo", sans-serif;
+    line-height: 1.65; padding: 40px 20px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 27px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 8px; }
+  h2 { font-size: 20px; font-weight: 700; margin: 46px 0 14px; padding-bottom: 8px;
+       border-bottom: 1px solid rgba(255,255,255,0.08); }
+  h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; color: #fff; }
+  p, li { color: #cbd5e1; font-size: 14px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 4px; }
+  code { background: rgba(99,102,241,0.14); color: #a5b4fc; padding: 1px 6px;
+         border-radius: 6px; font-size: 12.5px; font-family: "SF Mono", Menlo, monospace; }
+  pre { background: var(--obsidian); border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px; padding: 16px; overflow-x: auto; font-size: 12.5px;
+        font-family: "SF Mono", Menlo, monospace; color: #cbd5e1; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 9px;
+           border-radius: 999px; margin-left: 8px; vertical-align: middle; }
+  .b-rec { background: rgba(45,212,191,0.16); color: #5eead4; }
+  .b-easy { background: rgba(16,185,129,0.16); color: #6ee7b7; }
+  .b-mid { background: rgba(245,158,11,0.16); color: #fcd34d; }
+  .b-hard { background: rgba(244,63,94,0.16); color: #fda4af; }
+  .card { background: var(--obsidian); border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 16px; padding: 22px 24px; margin: 16px 0; }
+  .card.rec { border-color: rgba(45,212,191,0.4); box-shadow: 0 0 32px rgba(45,212,191,0.08); }
+  .accent-line { height: 2px; border-radius: 2px; margin: 0 0 20px;
+    background: linear-gradient(to right, rgba(99,102,241,0.7), rgba(45,212,191,0.4), transparent); }
+  .pro { color: #6ee7b7; } .con { color: #fda4af; }
+  ul.tight { margin: 6px 0; padding-left: 20px; }
+  ul.tight li { margin: 3px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.07); vertical-align: top; }
+  th { color: var(--muted); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .kbox { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 12px 14px; }
+  .kbox b { color: #fff; font-size: 13px; }
+  .note { border-left: 3px solid var(--amber); padding: 6px 14px; margin: 12px 0;
+          background: rgba(245,158,11,0.06); border-radius: 0 8px 8px 0; color: #fde68a; font-size: 13px; }
+  .key { border-left: 3px solid var(--secondary); padding: 8px 14px; margin: 12px 0;
+         background: rgba(45,212,191,0.06); border-radius: 0 8px 8px 0; color: #99f6e4; font-size: 13.5px; }
+  .foot { color: var(--hint); font-size: 12px; margin-top: 40px; text-align: center; }
+
+  /* --- 블록 목업 --- */
+  .blockmock { background: #10151f; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+               padding: 0; margin: 14px 0; max-width: 360px; overflow: hidden; }
+  .bm-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; }
+  .bm-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .bm-title { font-weight: 700; font-size: 13px; color: #fff; }
+  .bm-cnt { font-size: 11px; color: var(--muted); background: rgba(255,255,255,0.06); padding: 1px 8px; border-radius: 999px; }
+  .bm-prog { display: flex; align-items: center; gap: 8px; padding: 4px 14px 12px; }
+  .bm-bar { flex: 1; height: 6px; background: #334155; border-radius: 999px; overflow: hidden; position: relative; }
+  .bm-fill { height: 100%; background: var(--accent); border-radius: 999px; }
+  .bm-fill-recent { height: 100%; background: var(--secondary); border-radius: 999px; box-shadow: 0 0 8px var(--secondary); }
+  .bm-pct { font-size: 11px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .bm-delta { font-size: 10.5px; font-weight: 700; color: #5eead4; background: rgba(45,212,191,0.15); padding: 1px 7px; border-radius: 999px; }
+  .pop { background: #1a2130; border: 1px solid rgba(45,212,191,0.3); border-radius: 12px; padding: 10px 12px; margin: 4px 14px 12px; }
+  .pop .ph { font-size: 10.5px; font-weight: 700; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .pop .row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
+  .pop .chk { color: var(--emerald); font-size: 11px; }
+  .pop .meta { color: var(--hint); font-size: 10.5px; margin-left: auto; }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="accent-line"></div>
+  <h1>최근 완료 체크리스트 × 블록 진행률</h1>
+  <p class="sub">블록 헤더의 진행률 바(예: 41/68 · 60%)와 "최근 완료된 체크리스트"를 하나로 엮는 설계</p>
+  <p class="sub" style="color:var(--hint)">BRIDGE · Board 도메인 · 2026-07-01 (rev.2 — 블록 진행률 연계)</p>
+
+  <!-- ============ 0. 연결 인사이트 ============ -->
+  <h2>0. 핵심 인사이트 — 진행률 바를 "움직인 것"이 곧 최근 완료</h2>
+  <div class="card">
+    <p>블록 진행률 바는 이미 <b>그 블록 안 모든 태스크의 체크리스트 완료 합계</b>입니다
+       (<code>KanbanBlock.tsx</code> — <code>Σ checklist_completed / Σ checklist_total</code>).
+       즉 <b>"최근 완료된 체크리스트" = 이 바를 방금 앞으로 민 항목들</b>. 둘은 원래 같은 데이터입니다.</p>
+    <div class="key">🔑 <b>백엔드 거의 불필요.</b> 프론트가 이미 <code>checklistDataMap</code>
+      (<code>{ [taskId]: ChecklistItem[] }</code>)로 블록 안 모든 체크리스트 항목을
+      <code>completed_at</code> 포함해 메모리에 들고 있음 → <b>블록 단위 "최근 완료"는 클라이언트에서 바로 파생 가능</b>
+      (별도 API 0개로 1차 버전 가능).</div>
+    <table>
+      <tr><th>이미 있는 것</th><th>설명</th></tr>
+      <tr><td><code>completed_at</code> (UTC)</td><td>항목별 완료 시각 — 저장·API·FE타입 노출 완료</td></tr>
+      <tr><td>블록 진행률 바</td><td><code>done/total (pct%)</code> 집계·렌더 완료</td></tr>
+      <tr><td><code>checklistDataMap</code></td><td>블록 안 전체 항목이 FE 메모리에 로드됨</td></tr>
+    </table>
+    <div class="note">정렬·"오늘/어제" 판정은 <b><code>completed_at</code>(UTC)</b> 기준 + FE <code>dateUtils</code>로 클라이언트 TZ 변환. <code>done_date</code>는 서버 로컬 TZ라 경계 오차 위험 → 최근순엔 쓰지 않음.</div>
+  </div>
+
+  <!-- ============ 1. 블록 연계 UX ============ -->
+  <h2>1. 진행률 바와 엮는 UX — 4안</h2>
+
+  <!-- A -->
+  <div class="card rec">
+    <h3>안 A. 진행률 바 옆 "최근 완료 델타" 뱃지 <span class="badge b-rec">추천·1차</span> <span class="badge b-easy">FE only</span></h3>
+    <p><code>41/68 (60%)</code> 옆에 최근 완료 증가분을 뱃지로. "이 블록이 방금 얼마나 전진했나"를 한눈에.</p>
+    <div class="blockmock">
+      <div class="bm-head"><span class="bm-dot"></span><span class="bm-title">Sprint Progress</span><span class="bm-cnt">6</span></div>
+      <div class="bm-prog">
+        <div class="bm-bar"><div class="bm-fill" style="width:60%"></div></div>
+        <span class="bm-pct">41/68 (60%)</span>
+        <span class="bm-delta">▲ 오늘 +5</span>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="kbox"><b class="pro">장점</b><ul class="tight"><li>가장 저비용 — <code>checklistDataMap</code>에서 <code>completed_at ≥ 오늘0시</code> 개수만 세면 끝</li><li>기존 바에 자연스럽게 얹힘, 학습 불필요</li><li>기간 토글(오늘/이번 주) 쉽게 확장</li></ul></div>
+      <div class="kbox"><b class="con">단점</b><ul class="tight"><li>"무엇을" 끝냈는지 상세는 안 보임 → 안 B와 세트</li></ul></div>
+    </div>
+  </div>
+
+  <!-- B -->
+  <div class="card rec">
+    <h3>안 B. 진행률 바 클릭 → "이 블록 최근 완료" 팝오버 <span class="badge b-rec">추천·세트</span> <span class="badge b-easy">FE only</span></h3>
+    <p>바(또는 델타 뱃지) 클릭 시 아래로 펼쳐지는 팝오버 — 그 블록에서 최근 완료된 항목 리스트. 항목 클릭 시 태스크 상세로 점프.</p>
+    <div class="blockmock">
+      <div class="bm-head"><span class="bm-dot"></span><span class="bm-title">Sprint Progress</span><span class="bm-cnt">6</span></div>
+      <div class="bm-prog">
+        <div class="bm-bar"><div class="bm-fill" style="width:60%"></div></div>
+        <span class="bm-pct">41/68 (60%)</span>
+        <span class="bm-delta">▲ +5</span>
+      </div>
+      <div class="pop">
+        <div class="ph">최근 완료 · 오늘</div>
+        <div class="row"><span class="chk">✔</span> 텍틱스 제약 검증 <span class="meta">텍틱스 길잡이 · 14:32</span></div>
+        <div class="row"><span class="chk">✔</span> 보스 처치 연출 <span class="meta">공통 수정 · 11:07</span></div>
+        <div class="row"><span class="chk">✔</span> 기사 고용 UI <span class="meta">텍틱스 기사고용 · 09:40</span></div>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="kbox"><b class="pro">장점</b><ul class="tight"><li>진행률 숫자 → 근거(무엇을 끝냄)로 자연스러운 드릴다운</li><li>블록 문맥 안에서 완결 — 별도 화면 이동 없음</li><li>A와 합치면 "얼마나 + 무엇을" 완성</li></ul></div>
+      <div class="kbox"><b class="con">단점</b><ul class="tight"><li>블록 카드 세로 공간을 잠깐 차지 (팝오버라 토글로 해소)</li></ul></div>
+    </div>
+  </div>
+
+  <!-- C -->
+  <div class="card">
+    <h3>안 C. 바 자체에 "최근 완료 구간" 하이라이트 <span class="badge b-mid">Medium</span></h3>
+    <p>진행률 바의 선두 끝에서 <b>최근 완료분만 틸색(secondary)으로</b> 구분 표시 — "이만큼이 최근에 채워졌다"를 바 위에 직접 시각화.</p>
+    <div class="blockmock">
+      <div class="bm-head"><span class="bm-dot"></span><span class="bm-title">Sprint Progress</span><span class="bm-cnt">6</span></div>
+      <div class="bm-prog">
+        <div class="bm-bar">
+          <div class="bm-fill" style="width:52%; position:absolute; left:0;"></div>
+          <div class="bm-fill-recent" style="width:8%; position:absolute; left:52%;"></div>
+        </div>
+        <span class="bm-pct">41/68 (60%)</span>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="kbox"><b class="pro">장점</b><ul class="tight"><li>추가 UI 요소 없이 바 하나로 "속도감" 전달</li><li>가장 직관적 — 눈이 자연히 최근분을 인지</li></ul></div>
+      <div class="kbox"><b class="con">단점</b><ul class="tight"><li>색만으로는 "무엇을/언제"는 못 줌 (툴팁 필요)</li><li>미묘한 구간이라 작은 화면에서 인지 약함</li></ul></div>
+    </div>
+  </div>
+
+  <!-- D -->
+  <div class="card">
+    <h3>안 D. 보드 전체 "최근 완료" 드로어 — 블록별 그룹 <span class="badge b-mid">Medium</span></h3>
+    <p>헤더에서 여는 전역 드로어. 단, 리스트를 <b>블록별로 그룹핑</b>하고 각 그룹에 미니 진행률 바를 얹어 "어느 블록이 얼마나 전진 중인지"를 함께 보여줌 (블록 진행률과 동일 언어).</p>
+    <div class="grid">
+      <div class="kbox"><b class="pro">장점</b><ul class="tight"><li>여러 블록을 한 화면에서 비교</li><li>보드 전체 "완료 속도" 조망 — 리더 관점</li><li>기간·담당자 필터 확장 여지</li></ul></div>
+      <div class="kbox"><b class="con">단점</b><ul class="tight"><li>전역 = 보드 전 항목 필요 → <b>BE 엔드포인트 1개</b> 권장 (칸반 미열람 블록 포함 위해)</li><li>A/B보다 구현량 큼</li></ul></div>
+    </div>
+  </div>
+
+  <!-- ============ 2. 데이터/구현 ============ -->
+  <h2>2. 구현 — 2단계 로드맵</h2>
+  <div class="card rec">
+    <h3>1단계 · 블록 로컬 (BE 0개) <span class="badge b-easy">반나절</span></h3>
+    <p>안 A + B를 <code>KanbanBlock.tsx</code> 안에서 <code>checklistDataMap</code>만으로 파생.</p>
+    <pre>// 블록 안 모든 항목을 평탄화 → 최근 완료만
+const recent = tasks
+  .flatMap(t => (checklistDataMap?.[t.id] ?? [])
+    .filter(c => c.is_completed && c.completed_at)
+    .map(c => ({ ...c, taskTitle: t.title })))
+  .filter(c => new Date(c.completed_at) >= startOfToday())   // dateUtils
+  .sort((a,b) => +new Date(b.completed_at) - +new Date(a.completed_at));
+
+const deltaToday = recent.length;        // → 안 A 뱃지
+// recent.slice(0, 5)                     // → 안 B 팝오버</pre>
+    <ul class="tight">
+      <li>진행률 바 렌더 블록(<code>KanbanBlock.tsx:400~424</code>)에 뱃지 + 클릭 팝오버 추가</li>
+      <li>기간 기준 <code>startOfToday()</code>/<code>startOfWeek()</code>은 <code>dateUtils</code>(클라이언트 TZ)로</li>
+      <li>항목 클릭 → 기존 태스크 상세 모달 오픈 핸들러 재사용</li>
+      <li>i18n <code>block.recentDone.*</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>2단계 · 보드 전역 드로어 (안 D) <span class="badge b-mid">추가 하루</span></h3>
+    <pre>GET /api/v1/boards/{boardId}/checklist-items/recently-completed
+    ?since=&lt;iso&gt;&limit=30&cursor=&lt;completed_at&gt;&group_by=block</pre>
+    <ul class="tight">
+      <li>리포지토리: 기존 <code>findCompletedByAssigneeAndBoardIdsAndDateRange</code> 패턴 복제 →
+          <code>WHERE t.board.id=:boardId AND c.isCompleted=true AND c.completedAt&gt;=:since ORDER BY c.completedAt DESC</code></li>
+      <li><b>JOIN FETCH</b> task/feature/<b>block</b>/assignee (N+1 방지) → 응답에 <code>block_id/block_name</code> 포함해 FE 그룹핑</li>
+      <li>커서 페이지네이션(<code>completed_at</code> 기준) + 권한 <code>Board.Viewer+</code></li>
+      <li><b>실시간</b>: <code>useBoardWebSocket</code>이 이미 체크리스트 토글 이벤트 브로드캐스트 → 델타/피드 즉시 갱신 (폴링 불필요)</li>
+      <li>JSON은 <b>snake_case</b> 필수 (<code>completed_at</code>, <code>block_name</code>)</li>
+    </ul>
+  </div>
+
+  <!-- ============ 3. 추천 ============ -->
+  <h2>3. 추천</h2>
+  <div class="card rec">
+    <p style="margin-top:0"><b>안 A(델타 뱃지) + 안 B(클릭 팝오버) 세트를 1차로.</b>
+      데이터가 이미 블록 안에 있으니 <b>백엔드 0개, FE만 반나절</b>. 진행률 바라는 기존 맥락에 정확히 얹혀
+      "이 블록이 얼마나 / 무엇을 최근에 끝냈나"를 한 흐름으로 답함.</p>
+    <p style="margin-bottom:0"><b>필요해지면</b> 안 D(전역 드로어, 블록별 그룹 + 미니 바)로 확장 — "보드 전체 완료 속도" 조망. 안 C(바 하이라이트)는 취향이면 A와 병행 가능한 시각 옵션.</p>
+  </div>
+
+  <h2>4. 결정할 것</h2>
+  <div class="card">
+    <ul class="tight">
+      <li><b>"최근" 기준</b>: 오늘? 이번 주? 최근 N개? → 뱃지에 기간 토글 두면 유연</li>
+      <li><b>범위</b>: 1차는 블록 로컬(열람 중인 데이터)만으로 충분. 전역 필요 시 2단계</li>
+      <li><b>뱃지 표현</b>: <code>▲ 오늘 +5</code>(증가분) vs <code>오늘 5개 완료</code> — 어느 쪽이 직관적?</li>
+      <li><b>클릭 대상</b>: 진행률 바 전체 클릭 vs 델타 뱃지만 클릭</li>
+    </ul>
+  </div>
+
+  <div class="foot">BRIDGE · 최근 완료 체크리스트 × 블록 진행률 · 구현 전 논의용</div>
+</div>
+</body>
+</html>

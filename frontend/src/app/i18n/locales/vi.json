@@ -2187,6 +2187,16 @@
     "addItem": "+ Them muc"
   },
   "kanbanBlock": {
+    "recentDone": {
+      "toggle": "Xem mục hoàn thành gần đây",
+      "todayDelta": "+{{count}} hôm nay",
+      "empty": "Chưa có mục hoàn thành",
+      "period": {
+        "today": "Hôm nay",
+        "week": "7 ngày qua",
+        "all": "Tất cả"
+      }
+    },
     "dropHere": "Tha vao day",
     "dragToMove": "Keo de di chuyen khoi",
     "rename": "Doi ten",
