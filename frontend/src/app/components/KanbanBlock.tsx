@@ -1,7 +1,8 @@
-import { useRef, useCallback, useMemo, memo } from "react";
+import { useRef, useCallback, useMemo, useState, memo } from "react";
 import { Block, Task, Feature, ChecklistItem } from "../types";
 import { DraggableCard } from "./DraggableCard";
-import { GripVertical, MoreVertical, Plus, BarChart2 } from "lucide-react";
+import { GripVertical, MoreVertical, Plus, BarChart2, Check } from "lucide-react";
+import { parseUTCDate, formatRelativeTime } from "../utils/dateUtils";
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
 import {
@@ -105,6 +106,29 @@ export const KanbanBlock = memo(function KanbanBlock({
     () => new Map((features ?? []).map((f) => [f.id, f])),
     [features],
   );
+
+  // 최근 완료 체크리스트 (진행률 바 연계) — completed_at DESC 정렬
+  const [recentDoneOpen, setRecentDoneOpen] = useState(false);
+  const [recentDonePeriod, setRecentDonePeriod] = useState<
+    "today" | "week" | "all"
+  >("today");
+  const recentCompletions = useMemo(() => {
+    if (!checklistDataMap) return [] as { item: ChecklistItem; task: Task }[];
+    const acc: { item: ChecklistItem; task: Task }[] = [];
+    for (const task of tasks) {
+      const items = checklistDataMap[task.id];
+      if (!items) continue;
+      for (const item of items) {
+        if (item.completed && item.completed_at) acc.push({ item, task });
+      }
+    }
+    acc.sort(
+      (a, b) =>
+        (parseUTCDate(b.item.completed_at)?.getTime() ?? 0) -
+        (parseUTCDate(a.item.completed_at)?.getTime() ?? 0),
+    );
+    return acc;
+  }, [checklistDataMap, tasks]);
 
   // 플레이스홀더가 이 블록에 표시되어야 하는지 확인
   const taskPlaceholderInThisBlock = taskPlaceholder?.blockId === block.id;
@@ -408,17 +432,124 @@ export const KanbanBlock = memo(function KanbanBlock({
             0,
           );
           const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+          // 기간 경계 (클라이언트 TZ, 매 렌더 계산 → 자정 넘겨도 정확)
+          const now = new Date();
+          const startToday = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+          ).getTime();
+          const startWeek = startToday - 6 * 86400000;
+          const tsOf = (i: ChecklistItem) =>
+            parseUTCDate(i.completed_at)?.getTime() ?? 0;
+
+          // A: 오늘 완료 델타
+          const deltaToday = recentCompletions.filter(
+            (r) => tsOf(r.item) >= startToday,
+          ).length;
+
+          // C: 바에서 "최근(오늘) 완료" 구간을 secondary로 분리
+          const doneBase = Math.max(0, done - deltaToday);
+          const basePct = total > 0 ? (doneBase / total) * 100 : 0;
+          const recentPct =
+            total > 0
+              ? Math.min(100 - basePct, (deltaToday / total) * 100)
+              : 0;
+
+          // B: 팝오버용 기간 필터 목록
+          const bound =
+            recentDonePeriod === "today"
+              ? startToday
+              : recentDonePeriod === "week"
+                ? startWeek
+                : -Infinity;
+          const filteredRecent = recentCompletions.filter(
+            (r) => tsOf(r.item) >= bound,
+          );
+
           return (
-            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-bridge-border">
-              <div className="flex-1 h-1.5 bg-slate-600 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-bridge-accent rounded-full transition-all duration-300"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <span className="text-xs font-medium text-slate-400">
-                {done}/{total} ({pct}%)
-              </span>
+            <div className="border-b border-bridge-border">
+              <button
+                type="button"
+                onClick={() => setRecentDoneOpen((o) => !o)}
+                aria-expanded={recentDoneOpen}
+                aria-label={t("kanbanBlock.recentDone.toggle")}
+                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-foreground/5 transition-colors"
+              >
+                <div className="flex-1 h-1.5 bg-slate-600 rounded-full overflow-hidden relative">
+                  <div
+                    className="absolute left-0 top-0 h-full bg-bridge-accent rounded-full transition-all duration-300"
+                    style={{ width: `${basePct}%` }}
+                  />
+                  {recentPct > 0 && (
+                    <div
+                      className="absolute top-0 h-full bg-bridge-secondary rounded-full transition-all duration-300"
+                      style={{
+                        left: `${basePct}%`,
+                        width: `${recentPct}%`,
+                        boxShadow: "0 0 8px var(--bridge-secondary)",
+                      }}
+                    />
+                  )}
+                </div>
+                <span className="text-xs font-medium text-slate-400">
+                  {done}/{total} ({pct}%)
+                </span>
+                {deltaToday > 0 && (
+                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0">
+                    ▲ {t("kanbanBlock.recentDone.todayDelta", { count: deltaToday })}
+                  </span>
+                )}
+              </button>
+
+              {recentDoneOpen && (
+                <div className="px-3 pb-2">
+                  <div className="flex items-center gap-1 py-1.5">
+                    {(["today", "week", "all"] as const).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setRecentDonePeriod(p)}
+                        className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
+                          recentDonePeriod === p
+                            ? "bg-bridge-secondary/15 text-bridge-secondary font-bold"
+                            : "text-slate-500 hover:text-slate-300"
+                        }`}
+                      >
+                        {t(`kanbanBlock.recentDone.period.${p}`)}
+                      </button>
+                    ))}
+                  </div>
+                  {filteredRecent.length === 0 ? (
+                    <div className="text-xs text-slate-600 py-2 text-center">
+                      {t("kanbanBlock.recentDone.empty")}
+                    </div>
+                  ) : (
+                    <div className="space-y-0.5 max-h-48 overflow-y-auto custom-scrollbar">
+                      {filteredRecent.slice(0, 30).map(({ item, task }) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => onTaskClick?.(task)}
+                          className="w-full flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-foreground/5 transition-colors text-left"
+                        >
+                          <Check className="w-3 h-3 text-emerald-500 shrink-0" />
+                          <span className="text-xs text-foreground truncate flex-1">
+                            {item.title}
+                          </span>
+                          <span className="text-xs text-slate-600 shrink-0 truncate max-w-[38%]">
+                            {task.title}
+                          </span>
+                          <span className="text-xs text-slate-500 shrink-0">
+                            {formatRelativeTime(item.completed_at)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })()}

@@ -2187,6 +2187,16 @@
     "addItem": "+ เพิ่มรายการ"
   },
   "kanbanBlock": {
+    "recentDone": {
+      "toggle": "ดูรายการที่เสร็จล่าสุด",
+      "todayDelta": "วันนี้ +{{count}}",
+      "empty": "ยังไม่มีรายการที่เสร็จ",
+      "period": {
+        "today": "วันนี้",
+        "week": "7 วันล่าสุด",
+        "all": "ทั้งหมด"
+      }
+    },
     "dropHere": "วางที่นี่",
     "dragToMove": "ลากเพื่อย้าย Block",
     "rename": "เปลี่ยนชื่อ",

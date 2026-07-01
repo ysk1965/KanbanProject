@@ -2187,6 +2187,16 @@
     "addItem": "+ Adicionar item"
   },
   "kanbanBlock": {
+    "recentDone": {
+      "toggle": "Ver concluídos recentes",
+      "todayDelta": "+{{count}} hoje",
+      "empty": "Nenhum item concluído",
+      "period": {
+        "today": "Hoje",
+        "week": "Últimos 7 dias",
+        "all": "Tudo"
+      }
+    },
     "dropHere": "Solte aqui",
     "dragToMove": "Arraste para mover o bloco",
     "rename": "Renomear",

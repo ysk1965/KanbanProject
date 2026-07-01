@@ -78,7 +78,10 @@ const TASK_NODE_W = 440;
 const HUB_Y = 0;
 const FIRST_TASK_Y = 130;
 const TASK_GAP_Y = 300;
-const MOVE_SNAP_THRESHOLD = 260; // 태스크를 다른 레인으로 옮겼다고 판단하는 x 거리
+// 블록 이동 판정 (실수 방지: 최소 드래그 + 타깃 근접 + 히스테리시스)
+const MOVE_SNAP_THRESHOLD = 150; // 타깃 hub x에 이만큼 근접해야 이동 후보
+const MIN_DRAG_DISTANCE = 160; // 드래그 시작점에서 이만큼 이동해야 재배정 판정 시작
+const MOVE_HYSTERESIS = 140; // 타깃 hub가 현재 블록 hub보다 x기준 최소 이만큼 더 가까워야 이동
 
 // ────────────────────────────────────────────────────────────
 // Context: 노드가 live 데이터를 읽는다 (node.data엔 참조 id만)
@@ -89,6 +92,7 @@ interface MiniKanbanCtx {
   tasksByBlock: Map<string, Task[]>;
   checklistByTask: Record<string, ChecklistItem[]>;
   collapsedBlocks: Set<string>;
+  dropTargetBlockId: string | null;
   memberColorMap: Record<string, string | null>;
   today: string;
   canEdit: boolean;
@@ -107,12 +111,18 @@ const useMiniKanban = () => {
 // 블록 hub 노드
 // ────────────────────────────────────────────────────────────
 const BlockHubNode = memo(function BlockHubNode({ data }: NodeProps) {
-  const { blocksById, tasksByBlock, collapsedBlocks, toggleCollapse } =
-    useMiniKanban();
+  const {
+    blocksById,
+    tasksByBlock,
+    collapsedBlocks,
+    dropTargetBlockId,
+    toggleCollapse,
+  } = useMiniKanban();
   const blockId = (data as { block_id: string }).block_id;
   const block = blocksById.get(blockId);
   const count = tasksByBlock.get(blockId)?.length ?? 0;
   const collapsed = collapsedBlocks.has(blockId);
+  const isDropTarget = dropTargetBlockId === blockId;
 
   if (!block) {
     return (
@@ -127,7 +137,11 @@ const BlockHubNode = memo(function BlockHubNode({ data }: NodeProps) {
 
   return (
     <div
-      className="rounded-2xl border border-bridge-border bg-bridge-obsidian shadow-lg"
+      className={`rounded-2xl border bg-bridge-obsidian shadow-lg transition-shadow ${
+        isDropTarget
+          ? "border-bridge-accent ring-2 ring-bridge-accent shadow-[0_0_24px_rgba(99,102,241,0.35)]"
+          : "border-bridge-border"
+      }`}
       style={{ width: 200 }}
     >
       <Handle type="source" position={Position.Bottom} isConnectable={false} className="!opacity-0" />
@@ -467,14 +481,20 @@ function MiniKanbanCanvas({
   const [positions, setPositions] = useState<PosMap>({});
   const [collapsedBlocks, setCollapsedBlocks] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  // 드래그 중 이동 대상 블록 (하이라이트용, 직렬화 대상 아님)
+  const [dropTargetBlockId, setDropTargetBlockId] = useState<string | null>(null);
 
   const loadedRef = useRef(false);
   const lastSavedRef = useRef<string>("");
   const latestDocRef = useRef<string>("");
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
 
-  // 태스크 hub 대상 블록 (FEATURE 블록 제외 — 태스크가 배정되지 않음)
+  // 태스크 hub 대상 블록 (FEATURE·TASK 고정 블록 제외)
   const hubBlocks = useMemo(
-    () => blocks.filter((b) => b.fixed_type !== "FEATURE"),
+    () =>
+      blocks.filter(
+        (b) => b.fixed_type !== "FEATURE" && b.fixed_type !== "TASK",
+      ),
     [blocks],
   );
 
@@ -633,40 +653,90 @@ function MiniKanbanCanvas({
     });
   }, []);
 
-  // 태스크 노드를 다른 블록 레인으로 옮기면 실제 이동
-  const onNodeDragStop = useCallback(
-    (_e: React.MouseEvent, node: Node) => {
-      if (!canEdit || !node.id.startsWith("task__")) return;
-      const taskId = node.id.slice(6);
-      const task = tasksById.get(taskId);
-      if (!task) return;
-      // 가장 가까운 블록 hub 레인 찾기
-      let nearestBlockId: string | null = null;
-      let nearestDist = Infinity;
+  // 드래그 중/종료 시 이동 대상 블록 판정 (실수 방지: 최소 드래그 + 근접 + 히스테리시스)
+  const computeDropTarget = useCallback(
+    (node: Node): string | null => {
+      if (!node.id.startsWith("task__")) return null;
+      const start = dragStartRef.current;
+      if (!start) return null;
+      // 시작점 대비 충분히 이동해야 재배정 후보
+      const dragDist = Math.hypot(
+        node.position.x - start.x,
+        node.position.y - start.y,
+      );
+      if (dragDist < MIN_DRAG_DISTANCE) return null;
+      const task = tasksById.get(node.id.slice(6));
+      if (!task) return null;
+      // 현재 블록 hub까지 x거리
+      const curIdx = hubBlocks.findIndex((b) => b.id === task.block_id);
+      const curHubX =
+        positions[`block__${task.block_id}`]?.x ??
+        (curIdx >= 0 ? curIdx * LANE_W : node.position.x);
+      const curDist = Math.abs(node.position.x - curHubX);
+      // 자기 블록 제외 최근접 hub
+      let bestId: string | null = null;
+      let bestDist = Infinity;
       hubBlocks.forEach((block, bIdx) => {
-        const hubX =
-          positions[`block__${block.id}`]?.x ?? bIdx * LANE_W;
+        if (block.id === task.block_id) return;
+        const hubX = positions[`block__${block.id}`]?.x ?? bIdx * LANE_W;
         const dist = Math.abs(node.position.x - hubX);
-        if (dist < nearestDist) {
-          nearestDist = dist;
-          nearestBlockId = block.id;
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestId = block.id;
         }
       });
       if (
-        nearestBlockId &&
-        nearestDist < MOVE_SNAP_THRESHOLD &&
-        nearestBlockId !== task.block_id
+        bestId &&
+        bestDist < MOVE_SNAP_THRESHOLD &&
+        bestDist + MOVE_HYSTERESIS < curDist
       ) {
+        return bestId;
+      }
+      return null;
+    },
+    [hubBlocks, positions, tasksById],
+  );
+
+  const onNodeDragStart = useCallback(
+    (_e: React.MouseEvent, node: Node) => {
+      if (!canEdit || !node.id.startsWith("task__")) return;
+      dragStartRef.current = { x: node.position.x, y: node.position.y };
+    },
+    [canEdit],
+  );
+
+  const onNodeDrag = useCallback(
+    (_e: React.MouseEvent, node: Node) => {
+      if (!canEdit || !node.id.startsWith("task__")) return;
+      const target = computeDropTarget(node);
+      setDropTargetBlockId((prev) => (prev === target ? prev : target));
+    },
+    [canEdit, computeDropTarget],
+  );
+
+  // 태스크 노드를 다른 블록 레인으로 옮기면 실제 이동
+  const onNodeDragStop = useCallback(
+    (_e: React.MouseEvent, node: Node) => {
+      if (!canEdit || !node.id.startsWith("task__")) {
+        dragStartRef.current = null;
+        setDropTargetBlockId(null);
+        return;
+      }
+      const taskId = node.id.slice(6);
+      const target = computeDropTarget(node);
+      if (target) {
         // 새 레인에서 자동 재배치되도록 저장 좌표 제거
         setPositions((prev) => {
           const n = { ...prev };
           delete n[`task__${taskId}`];
           return n;
         });
-        onMoveTask(taskId, nearestBlockId);
+        onMoveTask(taskId, target);
       }
+      dragStartRef.current = null;
+      setDropTargetBlockId(null);
     },
-    [canEdit, hubBlocks, positions, tasksById, onMoveTask],
+    [canEdit, computeDropTarget, onMoveTask],
   );
 
   const toggleCollapse = useCallback((blockId: string) => {
@@ -705,6 +775,7 @@ function MiniKanbanCanvas({
       tasksByBlock,
       checklistByTask,
       collapsedBlocks,
+      dropTargetBlockId,
       memberColorMap,
       today,
       canEdit,
@@ -718,6 +789,7 @@ function MiniKanbanCanvas({
       tasksByBlock,
       checklistByTask,
       collapsedBlocks,
+      dropTargetBlockId,
       memberColorMap,
       today,
       canEdit,
@@ -766,7 +838,10 @@ function MiniKanbanCanvas({
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
+          onNodeDragStart={onNodeDragStart}
+          onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
+          nodeDragThreshold={8}
           nodeTypes={nodeTypes}
           colorMode="dark"
           fitView

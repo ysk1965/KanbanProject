@@ -2187,6 +2187,16 @@
     "addItem": "+ アイテムを追加"
   },
   "kanbanBlock": {
+    "recentDone": {
+      "toggle": "最近の完了項目を表示",
+      "todayDelta": "本日 +{{count}}",
+      "empty": "完了した項目がありません",
+      "period": {
+        "today": "今日",
+        "week": "過去7日間",
+        "all": "すべて"
+      }
+    },
     "dropHere": "ここにドロップ",
     "dragToMove": "ドラッグして Block を移動",
     "rename": "名前を変更",
