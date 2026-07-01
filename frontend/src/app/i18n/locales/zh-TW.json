@@ -3914,11 +3914,6 @@
       "permanentDeleteConfirm": "「{{title}}」及所有子項目、留言、版本將立即刪除，無法復原。",
       "emptyAllConfirmTitle": "清空回收筒？",
       "emptyAllConfirm": "回收筒中的全部 {{count}} 個項目將被永久刪除，無法復原。"
-    },
-    "newFlow": "新增流程圖",
-    "addFlow": "新增流程圖",
-    "diff": {
-      "flowNoPreview": "流程圖不支援視覺化比較。您可以透過還原復原此版本。"
     }
   },
   "listViewGroupBy": "分組",
@@ -4018,17 +4013,5 @@
     "filterNoMilestone": "無里程碑",
     "noFilteredFeatures": "此里程碑沒有未放置的功能",
     "excludeFeature": "從心智圖中移除"
-  },
-  "flow": {
-    "newMemo": "便籤",
-    "handTool": "抓手工具",
-    "pointerTool": "選取工具",
-    "addText": "文字",
-    "addSticky": "便籤",
-    "addShape": "圖形",
-    "addImage": "圖片",
-    "addVideo": "影片",
-    "empty": "從頂部工具列新增節點以開始",
-    "emptyReadOnly": "此流程圖為空"
   }
 }

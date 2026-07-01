@@ -419,7 +419,7 @@ export function NoteVersionHistory({
                 </div>
 
                 {/* Legend bar — only in diff mode */}
-                {diffMode && noteType !== "BOARD" && noteType !== "FLOW" && (
+                {diffMode && noteType !== "BOARD" && (
                   <div className="px-4 py-2 border-b border-foreground/5 flex items-center gap-3 text-xs flex-wrap">
                     <span className="text-slate-500 font-bold">
                       {t("notes.diff.key", "범례")}:
@@ -444,13 +444,6 @@ export function NoteVersionHistory({
                   />
                 ) : noteType === "BOARD" ? (
                   <BoardOriginalView content={selectedVersion.content} />
-                ) : noteType === "FLOW" ? (
-                  <div className="flex-1 flex items-center justify-center p-8 text-sm text-slate-500 text-center">
-                    {t(
-                      "notes.diff.flowNoPreview",
-                      "플로우는 시각 비교를 지원하지 않습니다. 되돌리기로 해당 버전을 복원할 수 있어요.",
-                    )}
-                  </div>
                 ) : (
                   <DocumentVersionPreview content={selectedVersion.content} />
                 )}

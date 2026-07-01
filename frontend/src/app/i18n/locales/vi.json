@@ -2921,11 +2921,6 @@
       "permanentDeleteConfirm": "\"{{title}}\" và tất cả các mục con, bình luận, phiên bản sẽ bị xóa ngay lập tức và không thể khôi phục.",
       "emptyAllConfirmTitle": "Làm sạch thùng rác?",
       "emptyAllConfirm": "Tất cả {{count}} mục trong thùng rác sẽ bị xóa vĩnh viễn. Không thể hoàn tác."
-    },
-    "newFlow": "Sơ đồ mới",
-    "addFlow": "Thêm sơ đồ",
-    "diff": {
-      "flowNoPreview": "Sơ đồ không hỗ trợ so sánh trực quan. Bạn có thể khôi phục phiên bản này bằng Hoàn tác."
     }
   },
   "payment": {
@@ -4634,17 +4629,5 @@
     "filterNoMilestone": "Không có mốc",
     "noFilteredFeatures": "Không có tính năng chưa đặt cho mốc này",
     "excludeFeature": "Xóa khỏi sơ đồ tư duy"
-  },
-  "flow": {
-    "newMemo": "Ghi chú",
-    "handTool": "Công cụ tay",
-    "pointerTool": "Công cụ chọn",
-    "addText": "Văn bản",
-    "addSticky": "Ghi chú",
-    "addShape": "Hình khối",
-    "addImage": "Hình ảnh",
-    "addVideo": "Video",
-    "empty": "Thêm một nút từ thanh công cụ để bắt đầu",
-    "emptyReadOnly": "Sơ đồ này đang trống"
   }
 }

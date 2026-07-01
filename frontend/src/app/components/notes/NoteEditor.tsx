@@ -37,7 +37,6 @@ import {
 } from "lucide-react";
 
 const ExcalidrawEditor = React.lazy(() => import("./ExcalidrawEditor"));
-const FlowEditor = React.lazy(() => import("./FlowEditor"));
 import { filterSuggestionItems, insertOrUpdateBlock } from "@blocknote/core";
 import {
   useCreateBlockNote,
@@ -92,7 +91,7 @@ import type { CollaborationState } from "../../hooks/useCollaboration";
 export interface BreadcrumbItem {
   id: string;
   title: string;
-  type: "FOLDER" | "DOCUMENT" | "BOARD" | "FLOW";
+  type: "FOLDER" | "DOCUMENT" | "BOARD";
 }
 
 interface NoteEditorProps {
@@ -169,32 +168,6 @@ export function NoteEditor({
         }
       >
         <ExcalidrawEditor
-          boardId={boardId}
-          orgId={orgId}
-          note={note}
-          tags={tags}
-          canEdit={canEdit}
-          onSave={onSave}
-          onTagsChange={onTagsChange}
-          onNoteUpdate={onNoteUpdate}
-          collaboration={collaboration}
-          currentUserName={currentUserName}
-          currentUserColor={currentUserColor}
-        />
-      </Suspense>
-    );
-  }
-
-  if (note.type === "FLOW") {
-    return (
-      <Suspense
-        fallback={
-          <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
-          </div>
-        }
-      >
-        <FlowEditor
           boardId={boardId}
           orgId={orgId}
           note={note}
@@ -1402,8 +1375,9 @@ function CollabNoteEditor({
                   const updated = await noteService.getDetail(boardId, note.id);
                   onNoteUpdate?.(updated);
                 } else if (orgId) {
-                  const { orgNoteService } =
-                    await import("../../utils/services");
+                  const { orgNoteService } = await import(
+                    "../../utils/services"
+                  );
                   const updated = await orgNoteService.getDetail(
                     orgId,
                     note.id,

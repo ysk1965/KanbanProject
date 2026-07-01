@@ -1478,14 +1478,14 @@ export function TaskDetailModal({
                                   return (
                                     <div
                                       key={a.id}
-                                      className={`w-6 h-6 flex-shrink-0 rounded-full ${color.bg} flex items-center justify-center text-xs leading-none text-white border-2 border-bridge-obsidian whitespace-nowrap overflow-hidden ${i > 0 ? "-ml-2" : ""}`}
+                                      className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white border-2 border-bridge-obsidian ${i > 0 ? "-ml-2" : ""}`}
                                       style={
                                         !color.bg
                                           ? { backgroundColor: color.hex }
                                           : undefined
                                       }
                                     >
-                                      {getInitials(a.name).charAt(0)}
+                                      {getInitials(a.name)}
                                     </div>
                                   );
                                 })}
@@ -1554,7 +1554,7 @@ export function TaskDetailModal({
                                   }`}
                                 >
                                   <div
-                                    className={`w-6 h-6 flex-shrink-0 rounded-full ${color.bg} flex items-center justify-center text-xs text-white whitespace-nowrap overflow-hidden`}
+                                    className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white`}
                                     style={
                                       !color.bg
                                         ? { backgroundColor: color.hex }
@@ -1665,10 +1665,9 @@ export function TaskDetailModal({
               </div>
             </div>
 
-            {/* 체크리스트 섹션 */}
-            <div className="flex-1 min-h-0 flex flex-col px-4 md:px-6">
-              {/* 고정 CheckList 헤더 */}
-              <div className="mt-6 pt-6 border-t border-foreground/10 flex-shrink-0">
+            {/* 체크리스트 섹션 — 스크롤 영역 */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 px-4 md:px-6 pb-10">
+              <div className="mt-6 pt-6 border-t border-foreground/10">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <CheckSquare
@@ -1773,10 +1772,7 @@ export function TaskDetailModal({
                     </span>
                   </div>
                 </div>
-              </div>
 
-              {/* 스크롤되는 콘텐츠 */}
-              <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 pb-10">
                 {/* 체크리스트 항목들 */}
                 <div className="space-y-2">
                   {checklistItems.length === 0 && (

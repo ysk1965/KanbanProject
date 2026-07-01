@@ -2874,7 +2874,7 @@ export const noteService = {
     boardId: string,
     data: {
       title: string;
-      type: "FOLDER" | "DOCUMENT" | "BOARD" | "FLOW";
+      type: "FOLDER" | "DOCUMENT" | "BOARD";
       parentId?: string | null;
       content?: string;
       tagIds?: string[];
@@ -3069,7 +3069,7 @@ export const orgNoteService = {
     orgId: string,
     data: {
       title: string;
-      type: "FOLDER" | "DOCUMENT" | "BOARD" | "FLOW";
+      type: "FOLDER" | "DOCUMENT" | "BOARD";
       parentId?: string | null;
       content?: string;
       tagIds?: string[];

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, MoreHorizontal, Pencil, Trash2, FolderPlus, FilePlus, GripVertical, PenTool, Workflow, LayoutDashboard, Copy } from 'lucide-react';
+import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, MoreHorizontal, Pencil, Trash2, FolderPlus, FilePlus, GripVertical, PenTool, LayoutDashboard, Copy } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -32,7 +32,6 @@ interface NoteTreeSidebarProps {
   onCreateFolder: (parentId?: string | null) => void;
   onCreateDocument: (parentId?: string | null) => void;
   onCreateBoard: (parentId?: string | null) => void;
-  onCreateFlow: (parentId?: string | null) => void;
   onDelete: (noteId: string) => void;
   onRename: (noteId: string, newTitle: string) => void;
   onMove: (noteId: string, parentId: string | null, position: number) => void;
@@ -65,7 +64,6 @@ export function NoteTreeSidebar({
   onCreateFolder,
   onCreateDocument,
   onCreateBoard,
-  onCreateFlow,
   onDelete,
   onRename,
   onMove,
@@ -316,7 +314,6 @@ export function NoteTreeSidebar({
           onCreateFolder={onCreateFolder}
           onCreateDocument={onCreateDocument}
           onCreateBoard={onCreateBoard}
-          onCreateFlow={onCreateFlow}
           onDelete={onDelete}
           onRename={onRename}
           onDuplicate={onDuplicate}
@@ -344,8 +341,6 @@ export function NoteTreeSidebar({
               <Folder size={18} className="text-bridge-accent" />
             ) : activeItem.type === 'BOARD' ? (
               <PenTool size={18} className="text-bridge-secondary" />
-            ) : activeItem.type === 'FLOW' ? (
-              <Workflow size={18} className="text-bridge-accent" />
             ) : (
               <FileText size={18} className="text-slate-400" />
             )}
@@ -380,7 +375,6 @@ function SiblingGroup({
   onCreateFolder: (parentId?: string | null) => void;
   onCreateDocument: (parentId?: string | null) => void;
   onCreateBoard: (parentId?: string | null) => void;
-  onCreateFlow: (parentId?: string | null) => void;
   onDelete: (noteId: string) => void;
   onRename: (noteId: string, newTitle: string) => void;
   onDuplicate?: (noteId: string) => void;
@@ -403,7 +397,6 @@ function SiblingGroup({
           onCreateFolder={onCreateFolder}
           onCreateDocument={onCreateDocument}
           onCreateBoard={onCreateBoard}
-          onCreateFlow={onCreateFlow}
           onDelete={onDelete}
           onRename={onRename}
           onDuplicate={onDuplicate}
@@ -441,7 +434,6 @@ interface TreeItemComponentProps {
   onCreateFolder: (parentId?: string | null) => void;
   onCreateDocument: (parentId?: string | null) => void;
   onCreateBoard: (parentId?: string | null) => void;
-  onCreateFlow: (parentId?: string | null) => void;
   onDelete: (noteId: string) => void;
   onRename: (noteId: string, newTitle: string) => void;
   onDuplicate?: (noteId: string) => void;
@@ -461,7 +453,6 @@ function TreeItemComponent({
   onCreateFolder,
   onCreateDocument,
   onCreateBoard,
-  onCreateFlow,
   onDelete,
   onRename,
   onDuplicate,
@@ -583,8 +574,6 @@ function TreeItemComponent({
           expanded ? <FolderOpen size={18} className="flex-shrink-0 text-bridge-accent" /> : <Folder size={18} className="flex-shrink-0 text-bridge-accent" />
         ) : item.type === 'BOARD' ? (
           <PenTool size={18} className="flex-shrink-0 text-bridge-secondary" />
-        ) : item.type === 'FLOW' ? (
-          <Workflow size={18} className="flex-shrink-0 text-bridge-accent" />
         ) : (
           <FileText size={18} className="flex-shrink-0 text-slate-400" />
         )}
@@ -654,12 +643,6 @@ function TreeItemComponent({
                       <PenTool size={14} /> {t('notes.addBoard', '보드 추가')}
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={() => onCreateFlow(item.id)}
-                      className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground cursor-pointer"
-                    >
-                      <Workflow size={14} /> {t('notes.addFlow', '플로우 추가')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
                       onClick={() => onCreateFolder(item.id)}
                       className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground cursor-pointer"
                     >
@@ -711,7 +694,6 @@ function TreeItemComponent({
             onCreateFolder={onCreateFolder}
             onCreateDocument={onCreateDocument}
             onCreateBoard={onCreateBoard}
-          onCreateFlow={onCreateFlow}
             onDelete={onDelete}
             onRename={onRename}
             onDuplicate={onDuplicate}
@@ -843,8 +825,6 @@ function ReadOnlyTreeItem({
           expanded ? <FolderOpen size={16} className="flex-shrink-0 text-bridge-accent" /> : <Folder size={16} className="flex-shrink-0 text-bridge-accent" />
         ) : item.type === 'BOARD' ? (
           <PenTool size={16} className="flex-shrink-0 text-bridge-secondary" />
-        ) : item.type === 'FLOW' ? (
-          <Workflow size={16} className="flex-shrink-0 text-bridge-accent" />
         ) : (
           <FileText size={16} className="flex-shrink-0 text-slate-400" />
         )}

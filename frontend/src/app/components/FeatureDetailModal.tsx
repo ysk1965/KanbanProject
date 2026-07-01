@@ -492,14 +492,14 @@ export function FeatureDetailModal({
                             return (
                               <div
                                 key={a.id}
-                                className={`w-6 h-6 flex-shrink-0 rounded-full ${color.bg} flex items-center justify-center text-xs leading-none text-white border-2 border-bridge-obsidian whitespace-nowrap overflow-hidden ${i > 0 ? "-ml-2" : ""}`}
+                                className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white border-2 border-bridge-obsidian ${i > 0 ? "-ml-2" : ""}`}
                                 style={
                                   !color.bg
                                     ? { backgroundColor: color.hex }
                                     : undefined
                                 }
                               >
-                                {getInitials(a.name).charAt(0)}
+                                {getInitials(a.name)}
                               </div>
                             );
                           })}
@@ -529,7 +529,7 @@ export function FeatureDetailModal({
                               className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
                             >
                               <div
-                                className={`w-6 h-6 flex-shrink-0 rounded-full ${color.bg} flex items-center justify-center text-xs text-white whitespace-nowrap overflow-hidden`}
+                                className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white`}
                                 style={
                                   !color.bg
                                     ? { backgroundColor: color.hex }
@@ -848,12 +848,10 @@ export function FeatureDetailModal({
                           style={{ color: undefined }}
                         >
                           →{" "}
-                          {getTaskMilestoneTitle(task.milestone_id) ? (
+                          {getTaskMilestoneTitle(task.milestone_id) && (
                             <span className="text-bridge-accent">
                               {getTaskMilestoneTitle(task.milestone_id)} ·{" "}
                             </span>
-                          ) : (
-                            <span className="text-slate-500">미배치 · </span>
                           )}
                           {getBlockName(task.block_id).toUpperCase()}
                         </span>
