@@ -2188,13 +2188,15 @@
   },
   "kanbanBlock": {
     "recentDone": {
-      "toggle": "हाल ही में पूर्ण देखें",
-      "todayDelta": "आज +{{count}}",
-      "empty": "कोई पूर्ण आइटम नहीं",
-      "period": {
-        "today": "आज",
-        "week": "पिछले 7 दिन",
-        "all": "सभी"
+      "title": "प्रगति",
+      "toggle": "प्रगति देखें",
+      "todayDelta": "{{count}}",
+      "empty": "कोई आइटम नहीं",
+      "tab": {
+        "todayDone": "आज पूर्ण",
+        "inProgress": "चालू",
+        "earlierDone": "पहले पूर्ण",
+        "notStarted": "शुरू नहीं"
       }
     },
     "dropHere": "यहाँ छोड़ें",

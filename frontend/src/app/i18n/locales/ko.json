@@ -1847,13 +1847,15 @@
   },
   "kanbanBlock": {
     "recentDone": {
-      "toggle": "최근 완료 항목 보기",
-      "todayDelta": "오늘 +{{count}}",
-      "empty": "완료된 항목이 없어요",
-      "period": {
-        "today": "오늘",
-        "week": "최근 7일",
-        "all": "전체"
+      "title": "진행 현황",
+      "toggle": "진행 현황 보기",
+      "todayDelta": "{{count}}",
+      "empty": "항목이 없어요",
+      "tab": {
+        "todayDone": "오늘 완료",
+        "inProgress": "진행 중",
+        "earlierDone": "기존 완료",
+        "notStarted": "미완료"
       }
     },
     "dropHere": "여기에 놓기",

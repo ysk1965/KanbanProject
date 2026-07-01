@@ -2188,13 +2188,15 @@
   },
   "kanbanBlock": {
     "recentDone": {
-      "toggle": "Xem mục hoàn thành gần đây",
-      "todayDelta": "+{{count}} hôm nay",
-      "empty": "Chưa có mục hoàn thành",
-      "period": {
-        "today": "Hôm nay",
-        "week": "7 ngày qua",
-        "all": "Tất cả"
+      "title": "Tiến độ",
+      "toggle": "Xem tiến độ",
+      "todayDelta": "{{count}}",
+      "empty": "Không có mục",
+      "tab": {
+        "todayDone": "Xong hôm nay",
+        "inProgress": "Đang làm",
+        "earlierDone": "Đã xong",
+        "notStarted": "Chưa làm"
       }
     },
     "dropHere": "Tha vao day",
