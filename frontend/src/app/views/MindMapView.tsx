@@ -16,6 +16,7 @@ import {
   Controls,
   MiniMap,
   Handle,
+  NodeResizer,
   Position,
   addEdge,
   useNodesState,
@@ -27,17 +28,37 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Loader2, StickyNote, Trash2, X } from "lucide-react";
-import type { Feature, MindMapDocument, MindMapNode } from "../types";
+import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  Loader2,
+  StickyNote,
+  Trash2,
+  X,
+} from "lucide-react";
+import type { Feature, MindMapDocument, MindMapNode, Task } from "../types";
 import { mindMapAPI } from "../utils/api";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
+
+// 피쳐가 속한 마일스톤 정보 (마인드맵 노드 칩 표시용)
+export interface FeatureMilestoneRef {
+  id: string;
+  title: string;
+  idx: number;
+}
 
 interface MindMapViewProps {
   boardId: string;
   features: Feature[];
+  tasks: Task[];
+  /** feature_id → 소속 마일스톤 목록 (없으면 칩 미표시) */
+  featureMilestonesMap?: Record<string, FeatureMilestoneRef[]>;
   canEdit: boolean;
   memberColorMap: Record<string, string | null>;
   onFeatureClick: (feature: Feature) => void;
+  onTaskClick: (task: Task) => void;
 }
 
 // 메모 노드 기본 색상 팔레트
@@ -50,6 +71,18 @@ const MEMO_COLORS = [
   "#10b981",
 ];
 
+// 마일스톤 칩 색상 팔레트 (마일스톤 순서 idx 기준 — 일관된 색상 매핑)
+const MILESTONE_COLORS = [
+  "#6366F1",
+  "#2DD4BF",
+  "#f59e0b",
+  "#a855f7",
+  "#f43f5e",
+  "#10b981",
+  "#0ea5e9",
+  "#ec4899",
+];
+
 const HANDLE_SIDES: Position[] = [
   Position.Top,
   Position.Right,
@@ -57,15 +90,27 @@ const HANDLE_SIDES: Position[] = [
   Position.Left,
 ];
 
+// 파생 Task 노드 레이아웃 상수 (펼친 Feature 아래로 세로 스택)
+const TASK_NODE_WIDTH = 180;
+const TASK_NODE_HEIGHT = 40;
+const TASK_NODE_GAP = 8;
+// Feature 노드 하단으로부터 첫 Task까지의 오프셋 (Feature 노드 높이 근사치)
+const TASK_STACK_OFFSET_Y = 96;
+
 // ────────────────────────────────────────────────────────────
 // Context: 노드가 live 데이터(featuresById)와 핸들러를 읽는다.
 // (featuresById는 node.data에 넣지 않아 autosave 트리거에서 분리)
 // ────────────────────────────────────────────────────────────
 interface MindMapCtx {
   featuresById: Map<string, Feature>;
+  featureMilestonesMap: Record<string, FeatureMilestoneRef[]>;
+  tasksByFeature: Map<string, Task[]>;
+  expandedFeatures: Set<string>;
   memberColorMap: Record<string, string | null>;
   canEdit: boolean;
   onFeatureClick: (feature: Feature) => void;
+  onTaskClick: (task: Task) => void;
+  toggleExpand: (featureId: string) => void;
   renameMemo: (id: string, label: string) => void;
   recolorMemo: (id: string) => void;
   deleteNode: (id: string) => void;
@@ -107,10 +152,21 @@ function NodeHandles({ canEdit }: { canEdit: boolean }) {
 // Feature 노드 — feature_id로 live 조회
 // ────────────────────────────────────────────────────────────
 const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
-  const { featuresById, memberColorMap, canEdit, onFeatureClick } =
-    useMindMap();
+  const {
+    featuresById,
+    featureMilestonesMap,
+    tasksByFeature,
+    expandedFeatures,
+    memberColorMap,
+    canEdit,
+    onFeatureClick,
+    toggleExpand,
+  } = useMindMap();
   const featureId = (data as { feature_id: string }).feature_id;
   const feature = featuresById.get(featureId);
+  const milestones = featureMilestonesMap[featureId] || [];
+  const taskCount = tasksByFeature.get(featureId)?.length ?? 0;
+  const expanded = expandedFeatures.has(featureId);
 
   if (!feature) {
     return (
@@ -165,6 +221,89 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
             </span>
           )}
         </div>
+        {milestones.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {milestones.map((ms) => {
+              const msColor =
+                MILESTONE_COLORS[ms.idx % MILESTONE_COLORS.length];
+              return (
+                <span
+                  key={ms.id}
+                  className="inline-flex items-center gap-1 max-w-full px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                  style={{
+                    color: msColor,
+                    backgroundColor: `${msColor}26`,
+                  }}
+                  title={ms.title}
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ backgroundColor: msColor }}
+                  />
+                  <span className="truncate">{ms.title}</span>
+                </span>
+              );
+            })}
+          </div>
+        )}
+        {taskCount > 0 && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleExpand(featureId);
+            }}
+            className="mt-2 flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-bridge-accent transition-colors"
+            title={expanded ? "Task 접기" : "Task 펼치기"}
+          >
+            {expanded ? (
+              <ChevronDown className="w-3 h-3" />
+            ) : (
+              <ChevronRight className="w-3 h-3" />
+            )}
+            <span>Task {taskCount}</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+});
+
+// ────────────────────────────────────────────────────────────
+// Task 노드 — 펼친 Feature 아래에 파생 표시 (문서에 저장되지 않음)
+// ────────────────────────────────────────────────────────────
+const TaskNode = memo(function TaskNode({ data }: NodeProps) {
+  const { canEdit, onTaskClick } = useMindMap();
+  const task = (data as { task: Task }).task;
+  const completed = task.completed;
+  const checklistTotal = task.checklist_total ?? 0;
+  const checklistDone = task.checklist_completed ?? 0;
+
+  return (
+    <div
+      className="group relative rounded-lg border border-foreground/10 bg-bridge-dark px-2.5 py-2 shadow-md cursor-pointer transition-colors hover:border-bridge-accent/60"
+      style={{ width: TASK_NODE_WIDTH, height: TASK_NODE_HEIGHT }}
+      onClick={() => onTaskClick(task)}
+    >
+      <NodeHandles canEdit={canEdit} />
+      <div className="flex items-center gap-2 h-full">
+        {completed ? (
+          <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+        ) : (
+          <Circle className="w-3.5 h-3.5 shrink-0 text-slate-500" />
+        )}
+        <span
+          className={`flex-1 text-[11px] font-medium leading-tight line-clamp-2 ${
+            completed ? "text-slate-500 line-through" : "text-foreground"
+          }`}
+        >
+          {task.title}
+        </span>
+        {checklistTotal > 0 && (
+          <span className="text-[9px] font-bold text-slate-500 shrink-0">
+            {checklistDone}/{checklistTotal}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -173,7 +312,7 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
 // ────────────────────────────────────────────────────────────
 // 메모 노드 — label/color 자체 저장, 더블클릭 rename
 // ────────────────────────────────────────────────────────────
-const MemoNode = memo(function MemoNode({ id, data }: NodeProps) {
+const MemoNode = memo(function MemoNode({ id, data, selected }: NodeProps) {
   const { canEdit, renameMemo, recolorMemo, deleteNode } = useMindMap();
   const label = (data as { label?: string }).label || "";
   const color = (data as { color?: string }).color || "#6366F1";
@@ -189,7 +328,7 @@ const MemoNode = memo(function MemoNode({ id, data }: NodeProps) {
 
   return (
     <div
-      className="group relative rounded-xl border-[1.5px] border-dashed px-3.5 py-2.5 text-xs font-bold shadow-md"
+      className="group relative w-full h-full rounded-xl border-[1.5px] border-dashed px-3.5 py-2.5 text-xs font-bold shadow-md"
       style={{ borderColor: color, color, background: "rgba(30,42,66,0.55)" }}
       onDoubleClick={() => {
         if (!canEdit) return;
@@ -197,6 +336,13 @@ const MemoNode = memo(function MemoNode({ id, data }: NodeProps) {
         setEditing(true);
       }}
     >
+      <NodeResizer
+        isVisible={canEdit && !!selected}
+        minWidth={120}
+        minHeight={44}
+        color={color}
+        handleClassName="!w-2 !h-2 !rounded-sm"
+      />
       <NodeHandles canEdit={canEdit} />
       {editing ? (
         <input
@@ -211,13 +357,13 @@ const MemoNode = memo(function MemoNode({ id, data }: NodeProps) {
               setEditing(false);
             }
           }}
-          className="bg-transparent outline-none text-foreground w-32"
+          className="bg-transparent outline-none text-foreground w-full"
         />
       ) : (
-        <div className="flex items-center gap-2">
+        <div className="flex items-start gap-2">
           <button
             type="button"
-            className="w-2.5 h-2.5 rounded-[3px] shrink-0"
+            className="w-2.5 h-2.5 mt-0.5 rounded-[3px] shrink-0"
             style={{ backgroundColor: color }}
             onClick={(e) => {
               e.stopPropagation();
@@ -225,7 +371,9 @@ const MemoNode = memo(function MemoNode({ id, data }: NodeProps) {
             }}
             title="색상 변경"
           />
-          <span className="text-foreground">{label || "메모"}</span>
+          <span className="flex-1 text-foreground break-words whitespace-pre-wrap">
+            {label || "메모"}
+          </span>
           {canEdit && (
             <button
               type="button"
@@ -245,11 +393,17 @@ const MemoNode = memo(function MemoNode({ id, data }: NodeProps) {
   );
 });
 
-const nodeTypes = { feature: FeatureNode, memo: MemoNode };
+const nodeTypes = { feature: FeatureNode, memo: MemoNode, task: TaskNode };
 
 // 직렬화: RF nodes/edges → 저장 문서
-function serialize(nodes: Node[], edges: Edge[]): MindMapDocument {
+// nodes/edges에는 저장 대상(feature/memo)만 전달한다 (파생 Task 노드 제외).
+function serialize(
+  nodes: Node[],
+  edges: Edge[],
+  expandedFeatures: Set<string>,
+): MindMapDocument {
   return {
+    expanded_features: [...expandedFeatures],
     nodes: nodes.map((n) => {
       const base = {
         id: n.id,
@@ -262,6 +416,8 @@ function serialize(nodes: Node[], edges: Edge[]): MindMapDocument {
           kind: "memo" as const,
           label: (n.data as { label?: string }).label || "",
           color: (n.data as { color?: string }).color || "#6366F1",
+          ...(n.width ? { width: Math.round(n.width) } : {}),
+          ...(n.height ? { height: Math.round(n.height) } : {}),
         };
       }
       return {
@@ -270,7 +426,13 @@ function serialize(nodes: Node[], edges: Edge[]): MindMapDocument {
         feature_id: (n.data as { feature_id: string }).feature_id,
       };
     }),
-    edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target })),
+    edges: edges.map((e) => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      source_handle: e.sourceHandle ?? null,
+      target_handle: e.targetHandle ?? null,
+    })),
   };
 }
 
@@ -278,7 +440,7 @@ function serialize(nodes: Node[], edges: Edge[]): MindMapDocument {
 function deserialize(
   doc: MindMapDocument,
   featuresById: Map<string, Feature>,
-): { nodes: Node[]; edges: Edge[] } {
+): { nodes: Node[]; edges: Edge[]; expandedFeatures: Set<string> } {
   const validNodes: Node[] = [];
   const keptIds = new Set<string>();
   for (const n of doc.nodes || []) {
@@ -295,6 +457,8 @@ function deserialize(
         id: n.id,
         type: "memo",
         position: { x: n.x, y: n.y },
+        ...(n.width ? { width: n.width } : {}),
+        ...(n.height ? { height: n.height } : {}),
         data: { label: n.label || "", color: n.color || "#6366F1" },
       });
     }
@@ -302,8 +466,18 @@ function deserialize(
   }
   const validEdges: Edge[] = (doc.edges || [])
     .filter((e) => keptIds.has(e.source) && keptIds.has(e.target))
-    .map((e) => ({ id: e.id, source: e.source, target: e.target }));
-  return { nodes: validNodes, edges: validEdges };
+    .map((e) => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      sourceHandle: e.source_handle ?? undefined,
+      targetHandle: e.target_handle ?? undefined,
+    }));
+  // 펼침 상태: 존재하는 Feature id만 유지 (삭제된 피쳐 prune)
+  const expandedFeatures = new Set<string>(
+    (doc.expanded_features || []).filter((fid) => featuresById.has(fid)),
+  );
+  return { nodes: validNodes, edges: validEdges, expandedFeatures };
 }
 
 // ────────────────────────────────────────────────────────────
@@ -312,14 +486,20 @@ function deserialize(
 function MindMapCanvas({
   boardId,
   features,
+  tasks,
+  featureMilestonesMap,
   canEdit,
   memberColorMap,
   onFeatureClick,
+  onTaskClick,
 }: MindMapViewProps) {
   const { t } = useTranslation();
   const { screenToFlowPosition } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(
+    new Set(),
+  );
   const [loading, setLoading] = useState(true);
 
   const loadedRef = useRef(false);
@@ -332,6 +512,18 @@ function MindMapCanvas({
     return map;
   }, [features]);
 
+  // feature_id → Task[] (position 정렬)
+  const tasksByFeature = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    tasks.forEach((task) => {
+      const arr = map.get(task.feature_id);
+      if (arr) arr.push(task);
+      else map.set(task.feature_id, [task]);
+    });
+    map.forEach((arr) => arr.sort((a, b) => a.position - b.position));
+    return map;
+  }, [tasks]);
+
   // 최초 로드
   useEffect(() => {
     let cancelled = false;
@@ -341,13 +533,15 @@ function MindMapCanvas({
       .get(boardId)
       .then((doc) => {
         if (cancelled) return;
-        const { nodes: n, edges: e } = deserialize(
-          doc || { nodes: [], edges: [] },
-          featuresById,
-        );
+        const {
+          nodes: n,
+          edges: e,
+          expandedFeatures: exp,
+        } = deserialize(doc || { nodes: [], edges: [] }, featuresById);
         setNodes(n);
         setEdges(e);
-        const json = JSON.stringify(serialize(n, e));
+        setExpandedFeatures(exp);
+        const json = JSON.stringify(serialize(n, e, exp));
         lastSavedRef.current = json;
         latestDocRef.current = json;
       })
@@ -373,7 +567,7 @@ function MindMapCanvas({
   // 디바운스 autosave
   useEffect(() => {
     if (!loadedRef.current || !canEdit) return;
-    const doc = serialize(nodes, edges);
+    const doc = serialize(nodes, edges, expandedFeatures);
     const json = JSON.stringify(doc);
     latestDocRef.current = json;
     if (json === lastSavedRef.current) return;
@@ -386,7 +580,7 @@ function MindMapCanvas({
         .catch(() => {});
     }, 1000);
     return () => clearTimeout(timer);
-  }, [nodes, edges, canEdit, boardId]);
+  }, [nodes, edges, expandedFeatures, canEdit, boardId]);
 
   // 언마운트 시 미저장분 flush
   useEffect(() => {
@@ -424,6 +618,8 @@ function MindMapCanvas({
         id,
         type: "memo",
         position: pos,
+        width: 180,
+        height: 64,
         data: { label: t("mindmap.newMemo", "새 메모"), color: "#6366F1" },
       },
     ]);
@@ -463,6 +659,16 @@ function MindMapCanvas({
     [setNodes, setEdges],
   );
 
+  // Feature 펼치기/접기 (펼침 상태는 문서에 저장 — canEdit일 때 autosave)
+  const toggleExpand = useCallback((featureId: string) => {
+    setExpandedFeatures((prev) => {
+      const next = new Set(prev);
+      if (next.has(featureId)) next.delete(featureId);
+      else next.add(featureId);
+      return next;
+    });
+  }, []);
+
   // 미배치 피쳐 = features − 캔버스에 올라간 feature_id
   const placedFeatureIds = useMemo(() => {
     const s = new Set<string>();
@@ -476,6 +682,61 @@ function MindMapCanvas({
   const unplaced = useMemo(
     () => features.filter((f) => !placedFeatureIds.has(f.id)),
     [features, placedFeatureIds],
+  );
+
+  // 파생 Task 노드/엣지 — 펼친 Feature 노드 아래로 세로 스택.
+  // 저장 문서(nodes/edges)에 포함하지 않고 렌더 시에만 결합한다.
+  // Feature 노드를 드래그하면 live 위치에서 재계산되어 Task가 따라 이동한다.
+  const { taskNodes, taskEdges } = useMemo(() => {
+    const tNodes: Node[] = [];
+    const tEdges: Edge[] = [];
+    if (expandedFeatures.size === 0) return { taskNodes: tNodes, taskEdges: tEdges };
+    for (const fNode of nodes) {
+      if (fNode.type !== "feature") continue;
+      const featureId = (fNode.data as { feature_id: string }).feature_id;
+      if (!expandedFeatures.has(featureId)) continue;
+      const featureTasks = tasksByFeature.get(featureId);
+      if (!featureTasks || featureTasks.length === 0) continue;
+      featureTasks.forEach((task, i) => {
+        const nodeId = `task__${fNode.id}__${task.id}`;
+        tNodes.push({
+          id: nodeId,
+          type: "task",
+          position: {
+            x: fNode.position.x,
+            y:
+              fNode.position.y +
+              TASK_STACK_OFFSET_Y +
+              i * (TASK_NODE_HEIGHT + TASK_NODE_GAP),
+          },
+          data: { task },
+          draggable: false,
+          connectable: false,
+          selectable: false,
+        });
+        tEdges.push({
+          id: `taske__${fNode.id}__${task.id}`,
+          source: fNode.id,
+          target: nodeId,
+          sourceHandle: `s-${Position.Bottom}`,
+          targetHandle: `t-${Position.Top}`,
+          style: { stroke: "rgba(99,102,241,0.35)", strokeWidth: 1.5 },
+          selectable: false,
+          deletable: false,
+        });
+      });
+    }
+    return { taskNodes: tNodes, taskEdges: tEdges };
+  }, [nodes, expandedFeatures, tasksByFeature]);
+
+  // ReactFlow에 전달할 결합 노드/엣지 (저장 대상 + 파생 Task)
+  const displayNodes = useMemo(
+    () => (taskNodes.length ? [...nodes, ...taskNodes] : nodes),
+    [nodes, taskNodes],
+  );
+  const displayEdges = useMemo(
+    () => (taskEdges.length ? [...edges, ...taskEdges] : edges),
+    [edges, taskEdges],
   );
 
   // 트레이 → 캔버스 드롭
@@ -512,18 +773,28 @@ function MindMapCanvas({
   const ctxValue = useMemo<MindMapCtx>(
     () => ({
       featuresById,
+      featureMilestonesMap: featureMilestonesMap ?? {},
+      tasksByFeature,
+      expandedFeatures,
       memberColorMap,
       canEdit,
       onFeatureClick,
+      onTaskClick,
+      toggleExpand,
       renameMemo,
       recolorMemo,
       deleteNode,
     }),
     [
       featuresById,
+      featureMilestonesMap,
+      tasksByFeature,
+      expandedFeatures,
       memberColorMap,
       canEdit,
       onFeatureClick,
+      onTaskClick,
+      toggleExpand,
       renameMemo,
       recolorMemo,
       deleteNode,
@@ -629,8 +900,8 @@ function MindMapCanvas({
           )}
 
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={displayNodes}
+            edges={displayEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}

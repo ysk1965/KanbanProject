@@ -4,6 +4,7 @@ import com.kanban.domain.block.Block;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.common.BaseTimeEntity;
 import com.kanban.domain.feature.Feature;
+import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -44,6 +45,14 @@ public class Task extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "block_id", nullable = false)
     private Block block;
+
+    /**
+     * 이 태스크가 배정된 마일스톤. nullable — 피처가 어떤 마일스톤에도 속하지 않으면 null.
+     * 불변식: 값이 있으면 항상 이 태스크의 피처가 연결된 마일스톤 중 하나여야 한다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "milestone_id")
+    private Milestone milestone;
 
     @Column(name = "title", nullable = false, length = 200)
     private String title;
@@ -160,6 +169,15 @@ public class Task extends BaseTimeEntity {
         if (this.isCompleted) {
             newFeature.incrementCompletedTasks();
         }
+
+        // 기존 마일스톤은 새 피처에 유효하지 않을 수 있으므로 해제.
+        // 서비스에서 새 피처의 대표 마일스톤으로 재설정한다 (불변식 유지).
+        this.milestone = null;
+    }
+
+    /** 태스크를 마일스톤에 배정 (null 허용 — 마일스톤 미지정) */
+    public void assignMilestone(Milestone milestone) {
+        this.milestone = milestone;
     }
 
     public void moveToBoard(Board newBoard, Block newBlock, Feature newFeature, int newPosition) {

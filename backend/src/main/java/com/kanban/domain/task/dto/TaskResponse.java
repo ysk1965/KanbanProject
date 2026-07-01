@@ -24,6 +24,7 @@ public class TaskResponse {
         private String featureColor;
         private String blockId;
         private String blockName;
+        private String milestoneId;
         private String title;
         private String description;
         private LocalDate startDate;
@@ -46,6 +47,7 @@ public class TaskResponse {
                     .featureColor(task.getFeature().getColor())
                     .blockId(task.getBlock().getId())
                     .blockName(task.getBlock().getName())
+                    .milestoneId(task.getMilestone() != null ? task.getMilestone().getId() : null)
                     .title(task.getTitle())
                     .description(task.getDescription())
                     .startDate(task.getStartDate())
@@ -73,6 +75,7 @@ public class TaskResponse {
         private String featureColor;
         private String blockId;
         private String blockName;
+        private String milestoneId;
         private String title;
         private String description;
         private LocalDate startDate;
@@ -96,6 +99,7 @@ public class TaskResponse {
                     .featureColor(task.getFeature().getColor())
                     .blockId(task.getBlock().getId())
                     .blockName(task.getBlock().getName())
+                    .milestoneId(task.getMilestone() != null ? task.getMilestone().getId() : null)
                     .title(task.getTitle())
                     .description(task.getDescription())
                     .startDate(task.getStartDate())
