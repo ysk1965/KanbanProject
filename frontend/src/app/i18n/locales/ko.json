@@ -76,16 +76,16 @@
       "titleLine1": "두 개의 축,",
       "titleLine2": "하나의 플랫폼",
       "mindmap": {
-    "addMemo": "메모 추가",
-    "newMemo": "새 메모",
-    "unplacedFeatures": "미배치 피쳐",
-    "dragToPlace": "캔버스로 드래그해 배치",
-    "allPlaced": "모든 피쳐가 배치됨",
-    "readOnly": "읽기 전용",
-    "empty": "왼쪽 피쳐를 드래그하거나 메모를 추가해 시작하세요",
-    "emptyReadOnly": "아직 마인드맵이 없습니다"
-  },
-  "kanban": {
+        "addMemo": "메모 추가",
+        "newMemo": "새 메모",
+        "unplacedFeatures": "미배치 피쳐",
+        "dragToPlace": "캔버스로 드래그해 배치",
+        "allPlaced": "모든 피쳐가 배치됨",
+        "readOnly": "읽기 전용",
+        "empty": "왼쪽 피쳐를 드래그하거나 메모를 추가해 시작하세요",
+        "emptyReadOnly": "아직 마인드맵이 없습니다"
+      },
+      "kanban": {
         "title": "실무 중심 칸반 설계",
         "desc": "'Feature - Task - Done' 구조 위에 팀만의 워크플로우를 자유롭게 얹으세요. 현직 PM들의 통찰을 녹여낸 가장 실용적인 협업 인터페이스입니다."
       },
@@ -1694,6 +1694,7 @@
     "viewBoardCalendar": "캘린더",
     "viewBoardList": "리스트",
     "viewBoardMindMap": "마인드맵",
+    "viewBoardMiniKanban": "미니 칸반",
     "viewBoardMilestone": "마일스톤",
     "viewSwitcher": "뷰"
   },
@@ -4692,5 +4693,22 @@
       "emptied": "휴지통을 비웠습니다",
       "emptyFailed": "휴지통 비우기에 실패했습니다"
     }
+  },
+  "mindmap": {
+    "addMemo": "메모 추가",
+    "newMemo": "새 메모",
+    "unplacedFeatures": "미배치 피쳐",
+    "dragToPlace": "캔버스로 드래그해 배치",
+    "allPlaced": "모든 피쳐가 배치됨",
+    "readOnly": "읽기 전용",
+    "empty": "왼쪽 피쳐를 드래그하거나 메모를 추가해 시작하세요",
+    "emptyReadOnly": "아직 마인드맵이 없습니다",
+    "filterAll": "전체",
+    "filterNoMilestone": "마일스톤 없음",
+    "noFilteredFeatures": "해당 마일스톤의 미배치 피쳐 없음"
+  },
+  "minikanban": {
+    "hint": "카드를 TODO·DOING·DONE으로 드래그, 태스크를 다른 블록으로 이동",
+    "empty": "표시할 블록/태스크가 없습니다"
   }
 }

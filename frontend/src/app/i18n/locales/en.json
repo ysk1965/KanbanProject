@@ -75,16 +75,16 @@
       "titleLine1": "Two pillars,",
       "titleLine2": "one platform",
       "mindmap": {
-    "addMemo": "Add memo",
-    "newMemo": "New memo",
-    "unplacedFeatures": "Unplaced features",
-    "dragToPlace": "Drag onto the canvas",
-    "allPlaced": "All features placed",
-    "readOnly": "Read only",
-    "empty": "Drag a feature from the left or add a memo to start",
-    "emptyReadOnly": "No mind map yet"
-  },
-  "kanban": {
+        "addMemo": "Add memo",
+        "newMemo": "New memo",
+        "unplacedFeatures": "Unplaced features",
+        "dragToPlace": "Drag onto the canvas",
+        "allPlaced": "All features placed",
+        "readOnly": "Read only",
+        "empty": "Drag a feature from the left or add a memo to start",
+        "emptyReadOnly": "No mind map yet"
+      },
+      "kanban": {
         "title": "Practice-driven Kanban",
         "desc": "Build your team's unique workflow on top of the 'Feature - Task - Done' structure. The most practical collaboration interface, built with real PM insights."
       },
@@ -1692,6 +1692,7 @@
     "viewBoardCalendar": "Calendar",
     "viewBoardList": "List",
     "viewBoardMindMap": "Mind Map",
+    "viewBoardMiniKanban": "Mini Kanban",
     "viewBoardMilestone": "Milestone",
     "viewSwitcher": "Views"
   },
@@ -4671,5 +4672,22 @@
       "emptied": "Trash emptied",
       "emptyFailed": "Failed to empty trash"
     }
+  },
+  "mindmap": {
+    "addMemo": "Add memo",
+    "newMemo": "New memo",
+    "unplacedFeatures": "Unplaced features",
+    "dragToPlace": "Drag onto the canvas",
+    "allPlaced": "All features placed",
+    "readOnly": "Read only",
+    "empty": "Drag a feature from the left or add a memo to begin",
+    "emptyReadOnly": "No mind map yet",
+    "filterAll": "All",
+    "filterNoMilestone": "No milestone",
+    "noFilteredFeatures": "No unplaced features for this milestone"
+  },
+  "minikanban": {
+    "hint": "Drag cards across TODO·DOING·DONE, move tasks to another block",
+    "empty": "No blocks or tasks to show"
   }
 }

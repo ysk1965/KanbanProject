@@ -1531,6 +1531,7 @@
     "viewBoardCalendar": "日历",
     "viewBoardList": "列表",
     "viewBoardMindMap": "思维导图",
+    "viewBoardMiniKanban": "迷你看板",
     "viewBoardMilestone": "里程碑",
     "viewSwitcher": "视图"
   },
@@ -4103,5 +4104,18 @@
       "emptied": "回收站已清空",
       "emptyFailed": "清空回收站失败"
     }
+  },
+  "mindmap": {
+    "addMemo": "添加备注",
+    "newMemo": "新建备注",
+    "unplacedFeatures": "未放置的功能",
+    "dragToPlace": "拖到画布上放置",
+    "allPlaced": "所有功能已放置",
+    "readOnly": "只读",
+    "empty": "从左侧拖动功能或添加备注开始",
+    "emptyReadOnly": "还没有思维导图",
+    "filterAll": "全部",
+    "filterNoMilestone": "无里程碑",
+    "noFilteredFeatures": "该里程碑没有未放置的功能"
   }
 }

@@ -69,7 +69,9 @@ function parseChecklistBatch(batchChecklistData: any): {
         title: item.title,
         completed: item.completed,
         position: item.position,
-        due_date: item.due_date,
+        start_date: item.start_date ?? null,
+        due_date: item.due_date ?? null,
+        done_date: item.done_date ?? null,
         assignee: item.assignee
           ? { id: item.assignee.id, name: item.assignee.name }
           : null,

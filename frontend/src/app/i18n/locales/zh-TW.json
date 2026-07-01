@@ -1515,6 +1515,7 @@
     "viewBoardCalendar": "行事曆",
     "viewBoardList": "列表",
     "viewBoardMindMap": "心智圖",
+    "viewBoardMiniKanban": "迷你看板",
     "viewBoardMilestone": "里程碑",
     "viewSwitcher": "檢視"
   },
@@ -3978,5 +3979,18 @@
       "emptied": "回收筒已清空",
       "emptyFailed": "清空回收筒失敗"
     }
+  },
+  "mindmap": {
+    "addMemo": "新增備註",
+    "newMemo": "新增備註",
+    "unplacedFeatures": "未放置的功能",
+    "dragToPlace": "拖到畫布上放置",
+    "allPlaced": "所有功能已放置",
+    "readOnly": "唯讀",
+    "empty": "從左側拖動功能或新增備註開始",
+    "emptyReadOnly": "還沒有心智圖",
+    "filterAll": "全部",
+    "filterNoMilestone": "無里程碑",
+    "noFilteredFeatures": "此里程碑沒有未放置的功能"
   }
 }

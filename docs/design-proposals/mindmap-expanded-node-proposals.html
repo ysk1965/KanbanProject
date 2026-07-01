@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mind Map - Expanded Feature Node Design Proposals</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #0f1219;
+    color: #e8e8e8;
+    padding: 40px 20px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    background: linear-gradient(90deg, #6366F1, #2DD4BF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .subtitle {
+    text-align: center;
+    font-size: 14px;
+    color: #64748b;
+    margin-bottom: 48px;
+  }
+
+  .proposals {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 40px;
+  }
+
+  .proposal-card {
+    background: #151b28;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 28px;
+    position: relative;
+  }
+
+  .proposal-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    border-radius: 20px 20px 0 0;
+    background: linear-gradient(90deg, #6366F1 0%, #2DD4BF 50%, transparent 100%);
+  }
+
+  .proposal-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+
+  .proposal-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: #6366F1;
+    color: white;
+    font-weight: 700;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .proposal-title {
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .proposal-desc {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+
+  .proposal-tags {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+
+  .tag-pro { background: rgba(45,212,191,0.15); color: #2DD4BF; }
+  .tag-con { background: rgba(244,63,94,0.15); color: #f43f5e; }
+  .tag-info { background: rgba(99,102,241,0.15); color: #6366F1; }
+
+  .canvas {
+    background: #191f2d;
+    border-radius: 16px;
+    padding: 32px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 400px;
+  }
+
+  /* ===== CURRENT (A) ===== */
+  .current-feature {
+    width: 180px;
+    background: #151B28;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 10px 12px;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .current-feature .color-bar {
+    position: absolute;
+    left: 0; top: 12px; bottom: 12px;
+    width: 4px;
+    border-radius: 999px;
+    background: #6366F1;
+  }
+
+  .current-feature .title {
+    font-size: 13px;
+    font-weight: 700;
+    padding-left: 10px;
+    margin-bottom: 8px;
+  }
+
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .progress-bar {
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #6366F1, #2DD4BF);
+  }
+
+  .progress-text {
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+  }
+
+  .milestone-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .milestone-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .task-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    margin-top: 8px;
+  }
+
+  .task-node {
+    width: 180px;
+    height: 40px;
+    background: #191f2d;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    cursor: pointer;
+  }
+
+  .task-circle {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1.5px solid #64748b;
+    flex-shrink: 0;
+  }
+
+  .task-circle.done {
+    border-color: #2DD4BF;
+    background: #2DD4BF;
+    position: relative;
+  }
+
+  .task-circle.done::after {
+    content: '✓';
+    position: absolute;
+    top: -1px; left: 1.5px;
+    font-size: 9px;
+    color: white;
+  }
+
+  .task-title {
+    flex: 1;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .task-title.done {
+    color: #64748b;
+    text-decoration: line-through;
+  }
+
+  .checklist-ratio {
+    font-size: 9px;
+    font-weight: 700;
+    color: #64748b;
+    flex-shrink: 0;
+  }
+
+  .edge-line {
+    width: 2px;
+    height: 16px;
+    background: rgba(255,255,255,0.08);
+    margin: 0 auto;
+  }
+
+  /* ===== PROPOSAL B: Card-Embedded ===== */
+  .b-feature {
+    width: 220px;
+    background: #151B28;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .b-feature .color-bar {
+    position: absolute;
+    left: 0; top: 12px; bottom: 12px;
+    width: 4px;
+    border-radius: 999px;
+    background: #6366F1;
+  }
+
+  .b-header {
+    padding: 10px 14px 8px;
+  }
+
+  .b-header .title {
+    font-size: 13px;
+    font-weight: 700;
+    padding-left: 10px;
+    margin-bottom: 8px;
+  }
+
+  .b-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 10px;
+  }
+
+  .b-milestone-row {
+    padding: 4px 14px 0 24px;
+  }
+
+  .b-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+    margin: 8px 14px;
+  }
+
+  .b-task-list {
+    padding: 0 10px 10px;
+  }
+
+  .b-task {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    transition: background 0.15s;
+  }
+
+  .b-task:hover {
+    background: rgba(255,255,255,0.04);
+  }
+
+  .b-task + .b-task {
+    margin-top: 2px;
+  }
+
+  .b-task .task-title {
+    font-size: 11px;
+  }
+
+  .b-checklist {
+    font-size: 9px;
+    font-weight: 700;
+    color: #64748b;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.05);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  .b-task-count {
+    font-size: 10px;
+    color: #64748b;
+    font-weight: 700;
+    padding: 4px 14px 8px 24px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* ===== PROPOSAL C: Timeline ===== */
+  .c-feature {
+    width: 240px;
+    background: #151B28;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .c-feature .color-bar {
+    position: absolute;
+    left: 0; top: 12px; bottom: 12px;
+    width: 4px;
+    border-radius: 999px;
+    background: #6366F1;
+  }
+
+  .c-header {
+    padding: 10px 14px 8px;
+  }
+
+  .c-header .title {
+    font-size: 13px;
+    font-weight: 700;
+    padding-left: 10px;
+    margin-bottom: 8px;
+  }
+
+  .c-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 10px;
+    margin-bottom: 4px;
+  }
+
+  .c-due {
+    font-size: 10px;
+    color: #f59e0b;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .c-timeline-section {
+    padding: 0 14px 12px;
+  }
+
+  .c-timeline-item {
+    display: flex;
+    gap: 10px;
+    position: relative;
+  }
+
+  .c-timeline-track {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 16px;
+    flex-shrink: 0;
+  }
+
+  .c-timeline-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid #64748b;
+    flex-shrink: 0;
+    background: #151B28;
+    z-index: 1;
+  }
+
+  .c-timeline-dot.done {
+    border-color: #2DD4BF;
+    background: #2DD4BF;
+  }
+
+  .c-timeline-dot.active {
+    border-color: #6366F1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.2);
+  }
+
+  .c-timeline-line {
+    flex: 1;
+    width: 2px;
+    background: rgba(255,255,255,0.08);
+    min-height: 12px;
+  }
+
+  .c-timeline-content {
+    padding: 0 0 12px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .c-timeline-title {
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .c-timeline-title.done {
+    color: #64748b;
+    text-decoration: line-through;
+  }
+
+  .c-timeline-sub {
+    font-size: 9px;
+    color: #64748b;
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .c-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+    margin: 8px 14px;
+  }
+
+  /* ===== PROPOSAL D: Compact Rows ===== */
+  .d-feature {
+    width: 200px;
+    background: #151B28;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .d-feature .top-accent {
+    height: 3px;
+    background: linear-gradient(90deg, #6366F1, #2DD4BF);
+  }
+
+  .d-header {
+    padding: 10px 14px 6px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .d-header .title {
+    font-size: 13px;
+    font-weight: 700;
+    flex: 1;
+  }
+
+  .d-progress-ring {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .d-progress-ring svg {
+    transform: rotate(-90deg);
+  }
+
+  .d-progress-ring .pct {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 8px;
+    font-weight: 700;
+    color: #94a3b8;
+  }
+
+  .d-meta {
+    padding: 0 14px 8px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .d-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+    margin: 0 14px;
+  }
+
+  .d-task-list {
+    padding: 6px 10px 10px;
+  }
+
+  .d-task {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 6px;
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+
+  .d-task:hover {
+    background: rgba(255,255,255,0.04);
+  }
+
+  .d-task + .d-task {
+    margin-top: 1px;
+  }
+
+  .d-task-check {
+    width: 12px;
+    height: 12px;
+    border-radius: 4px;
+    border: 1.5px solid #64748b;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .d-task-check.done {
+    border-color: #2DD4BF;
+    background: #2DD4BF;
+  }
+
+  .d-task-check.done::after {
+    content: '✓';
+    font-size: 8px;
+    color: white;
+    line-height: 1;
+  }
+
+  .d-task .task-title {
+    font-size: 11px;
+  }
+
+  .d-task-meta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .d-task-due {
+    font-size: 9px;
+    color: #f59e0b;
+    font-weight: 700;
+  }
+
+  /* ===== PROPOSAL E: Side Panel ===== */
+  .e-wrapper {
+    display: flex;
+    gap: 0;
+    align-items: flex-start;
+  }
+
+  .e-feature {
+    width: 180px;
+    background: #151B28;
+    border: 1px solid rgba(99,102,241,0.4);
+    border-right: none;
+    border-radius: 16px 0 0 16px;
+    padding: 10px 12px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .e-feature .color-bar {
+    position: absolute;
+    left: 0; top: 12px; bottom: 12px;
+    width: 4px;
+    border-radius: 999px;
+    background: #6366F1;
+  }
+
+  .e-feature .title {
+    font-size: 13px;
+    font-weight: 700;
+    padding-left: 10px;
+    margin-bottom: 8px;
+  }
+
+  .e-panel {
+    width: 180px;
+    background: #1a2236;
+    border: 1px solid rgba(99,102,241,0.25);
+    border-left: 1px solid rgba(255,255,255,0.06);
+    border-radius: 0 16px 16px 0;
+    padding: 8px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .e-panel-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    padding: 0 4px 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .e-task {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 6px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.04);
+    transition: all 0.15s;
+  }
+
+  .e-task:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(99,102,241,0.3);
+  }
+
+  .e-task + .e-task {
+    margin-top: 2px;
+  }
+
+  .e-task .task-title {
+    font-size: 11px;
+  }
+
+  /* ===== PROPOSAL F: Kanban-Mini ===== */
+  .f-feature {
+    width: 280px;
+    background: #151B28;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .f-feature .color-bar {
+    position: absolute;
+    left: 0; top: 12px; bottom: 12px;
+    width: 4px;
+    border-radius: 999px;
+    background: #6366F1;
+  }
+
+  .f-header {
+    padding: 10px 14px 8px;
+  }
+
+  .f-header .title {
+    font-size: 13px;
+    font-weight: 700;
+    padding-left: 10px;
+    margin-bottom: 8px;
+  }
+
+  .f-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+    margin: 0 14px;
+  }
+
+  .f-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    padding: 6px 8px 10px;
+  }
+
+  .f-col {
+    padding: 4px;
+  }
+
+  .f-col + .f-col {
+    border-left: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .f-col-title {
+    font-size: 9px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0 4px 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .f-col-count {
+    background: rgba(255,255,255,0.08);
+    padding: 0 4px;
+    border-radius: 4px;
+    font-size: 9px;
+    color: #94a3b8;
+  }
+
+  .f-task-mini {
+    padding: 4px 6px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 500;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.04);
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .f-task-mini.done {
+    color: #64748b;
+    text-decoration: line-through;
+    background: rgba(45,212,191,0.05);
+    border-color: rgba(45,212,191,0.1);
+  }
+
+  /* ===== Shared ===== */
+  .avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .section-divider {
+    text-align: center;
+    margin: 60px 0 40px;
+    font-size: 12px;
+    color: #475569;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    position: relative;
+  }
+
+  .section-divider::before,
+  .section-divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: calc(50% - 80px);
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+  }
+
+  .section-divider::before { left: 0; }
+  .section-divider::after { right: 0; }
+
+  .comparison-note {
+    max-width: 800px;
+    margin: 60px auto 0;
+    background: rgba(99,102,241,0.08);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 16px;
+    padding: 24px;
+  }
+
+  .comparison-note h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #6366F1;
+    margin-bottom: 12px;
+  }
+
+  .comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .comparison-table th {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    color: #94a3b8;
+    font-weight: 700;
+    font-size: 11px;
+  }
+
+  .comparison-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: #cbd5e1;
+  }
+
+  .comparison-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .star { color: #f59e0b; }
+  .check { color: #2DD4BF; }
+  .cross { color: #64748b; }
+</style>
+</head>
+<body>
+
+<h1>Mind Map — Expanded Feature Node</h1>
+<p class="subtitle">펼침 디자인 개선 안 6종 비교 (A: 현행 / B~F: 제안)</p>
+
+<div class="proposals">
+
+  <!-- ===== A: CURRENT ===== -->
+  <div class="proposal-card">
+    <div class="proposal-header">
+      <div class="proposal-number">A</div>
+      <div class="proposal-title">현행 디자인 (Current)</div>
+    </div>
+    <p class="proposal-desc">
+      피처 노드 아래 별도 TaskNode 카드가 엣지로 연결되는 구조.<br>
+      노드 간격이 넓어 화면 점유가 크고, 태스크 컨텍스트가 분리됨.
+    </p>
+    <div class="proposal-tags">
+      <span class="tag tag-con">화면 점유 큼</span>
+      <span class="tag tag-con">컨텍스트 분리</span>
+      <span class="tag tag-info">기존 구조</span>
+    </div>
+
+    <div class="canvas">
+      <div class="current-feature">
+        <div class="color-bar"></div>
+        <div class="title">기타 작업</div>
+        <div class="progress-row">
+          <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
+          <span class="progress-text">0%</span>
+        </div>
+        <div>
+          <span class="milestone-badge" style="color:#a855f7; background:rgba(168,85,247,0.15);">
+            <span class="milestone-dot" style="background:#a855f7"></span>
+            4차 마일스톤
+          </span>
+        </div>
+        <div class="task-toggle">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5l3 3 3-3"/></svg>
+          Task 3
+        </div>
+      </div>
+
+      <div class="edge-line"></div>
+
+      <div class="task-node">
+        <div class="task-circle done"></div>
+        <span class="task-title done">API 연동</span>
+        <span class="checklist-ratio">3/3</span>
+      </div>
+
+      <div class="edge-line"></div>
+
+      <div class="task-node">
+        <div class="task-circle"></div>
+        <span class="task-title">UI 구현</span>
+        <span class="checklist-ratio">1/5</span>
+      </div>
+
+      <div class="edge-line"></div>
+
+      <div class="task-node">
+        <div class="task-circle"></div>
+        <span class="task-title">테스트 작성</span>
+        <span class="checklist-ratio">0/4</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== B: Card-Embedded ===== -->
+  <div class="proposal-card">
+    <div class="proposal-header">
+      <div class="proposal-number">B</div>
+      <div class="proposal-title">Card-Embedded (인라인 확장)</div>
+    </div>
+    <p class="proposal-desc">
+      피처 카드 내부에 태스크 리스트를 직접 임베드.<br>
+      별도 노드 없이 카드가 아래로 확장되어 컨텍스트 유지 + 공간 절약.
+    </p>
+    <div class="proposal-tags">
+      <span class="tag tag-pro">공간 절약 40%</span>
+      <span class="tag tag-pro">컨텍스트 유지</span>
+      <span class="tag tag-info">구현 난이도 낮음</span>
+    </div>
+
+    <div class="canvas">
+      <div class="b-feature">
+        <div class="color-bar"></div>
+        <div class="b-header">
+          <div class="title">기타 작업</div>
+          <div class="b-progress-row">
+            <div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:33%"></div></div>
+            <span class="progress-text">33%</span>
+            <div class="avatar" style="background:#6366F1;">유</div>
+          </div>
+        </div>
+        <div class="b-milestone-row">
+          <span class="milestone-badge" style="color:#a855f7; background:rgba(168,85,247,0.15);">
+            <span class="milestone-dot" style="background:#a855f7"></span>
+            4차 마일스톤
+          </span>
+        </div>
+        <div class="b-divider"></div>
+        <div class="b-task-count">
+          <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5l2 2 2-2"/></svg>
+          Tasks · 1/3 완료
+        </div>
+        <div class="b-task-list">
+          <div class="b-task">
+            <div class="task-circle done" style="width:12px;height:12px;"></div>
+            <span class="task-title done">API 연동</span>
+            <span class="b-checklist">3/3</span>
+          </div>
+          <div class="b-task">
+            <div class="task-circle" style="width:12px;height:12px;border-width:1.5px;"></div>
+            <span class="task-title">UI 구현</span>
+            <span class="b-checklist">1/5</span>
+          </div>
+          <div class="b-task">
+            <div class="task-circle" style="width:12px;height:12px;border-width:1.5px;"></div>
+            <span class="task-title">테스트 작성</span>
+            <span class="b-checklist">0/4</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== C: Timeline ===== -->
+  <div class="proposal-card">
+    <div class="proposal-header">
+      <div class="proposal-number">C</div>
+      <div class="proposal-title">Timeline (타임라인 뷰)</div>
+    </div>
+    <p class="proposal-desc">
+      세로 타임라인으로 태스크 진행 흐름을 시각화.<br>
+      완료/진행 중/대기 상태가 한눈에 보이며 마감일 표시.
+    </p>
+    <div class="proposal-tags">
+      <span class="tag tag-pro">진행 흐름 시각화</span>
+      <span class="tag tag-pro">상태 직관적</span>
+      <span class="tag tag-con">폭 넓어짐 (240px)</span>
+    </div>
+
+    <div class="canvas">
+      <div class="c-feature">
+        <div class="color-bar"></div>
+        <div class="c-header">
+          <div class="title">기타 작업</div>
+          <div class="c-meta-row">
+            <div class="progress-bar" style="flex:1;max-width:100px"><div class="progress-fill" style="width:33%"></div></div>
+            <span class="progress-text">33%</span>
+            <span class="c-due">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+              ~07/05
+            </span>
+          </div>
+          <div style="padding-left:10px;margin-top:4px">
+            <span class="milestone-badge" style="color:#a855f7; background:rgba(168,85,247,0.15);">
+              <span class="milestone-dot" style="background:#a855f7"></span>
+              4차 마일스톤
+            </span>
+          </div>
+        </div>
+        <div class="c-divider"></div>
+        <div class="c-timeline-section">
+          <!-- Task 1: Done -->
+          <div class="c-timeline-item">
+            <div class="c-timeline-track">
+              <div class="c-timeline-dot done"></div>
+              <div class="c-timeline-line"></div>
+            </div>
+            <div class="c-timeline-content">
+              <div class="c-timeline-title done">API 연동</div>
+              <div class="c-timeline-sub">
+                <span>✓ 3/3 완료</span>
+                <span>06/28</span>
+              </div>
+            </div>
+          </div>
+          <!-- Task 2: Active -->
+          <div class="c-timeline-item">
+            <div class="c-timeline-track">
+              <div class="c-timeline-dot active"></div>
+              <div class="c-timeline-line"></div>
+            </div>
+            <div class="c-timeline-content">
+              <div class="c-timeline-title">UI 구현</div>
+              <div class="c-timeline-sub">
+                <span>☐ 1/5 진행 중</span>
+                <span style="color:#f59e0b">~07/02</span>
+              </div>
+            </div>
+          </div>
+          <!-- Task 3: Pending -->
+          <div class="c-timeline-item">
+            <div class="c-timeline-track">
+              <div class="c-timeline-dot"></div>
+            </div>
+            <div class="c-timeline-content">
+              <div class="c-timeline-title" style="color:#94a3b8">테스트 작성</div>
+              <div class="c-timeline-sub">
+                <span>☐ 0/4 대기</span>
+                <span>~07/05</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== D: Compact + Ring ===== -->
+  <div class="proposal-card">
+    <div class="proposal-header">
+      <div class="proposal-number">D</div>
+      <div class="proposal-title">Compact Ring (링 게이지 + 체크리스트)</div>
+    </div>
+    <p class="proposal-desc">
+      원형 프로그레스 링으로 진행률 표시, 태스크는 체크리스트 스타일.<br>
+      Rounded checkbox로 완료 토글 가능한 인터랙티브 디자인.
+    </p>
+    <div class="proposal-tags">
+      <span class="tag tag-pro">시각적 임팩트</span>
+      <span class="tag tag-pro">인터랙티브</span>
+      <span class="tag tag-info">마감일 표시</span>
+    </div>
+
+    <div class="canvas">
+      <div class="d-feature">
+        <div class="top-accent"></div>
+        <div class="d-header">
+          <div class="title">기타 작업</div>
+          <div class="d-progress-ring">
+            <svg width="32" height="32" viewBox="0 0 32 32">
+              <circle cx="16" cy="16" r="13" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
+              <circle cx="16" cy="16" r="13" fill="none" stroke="url(#grad)" stroke-width="3" stroke-dasharray="81.68" stroke-dashoffset="54.45" stroke-linecap="round"/>
+              <defs><linearGradient id="grad"><stop offset="0%" stop-color="#6366F1"/><stop offset="100%" stop-color="#2DD4BF"/></linearGradient></defs>
+            </svg>
+            <span class="pct">33%</span>
+          </div>
+        </div>
+        <div class="d-meta">
+          <span class="milestone-badge" style="color:#a855f7; background:rgba(168,85,247,0.15);">
+            <span class="milestone-dot" style="background:#a855f7"></span>
+            4차 마일스톤
+          </span>
+          <span class="milestone-badge" style="color:#64748b; background:rgba(255,255,255,0.06);">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            ~07/05
+          </span>
+        </div>
+        <div class="d-divider"></div>
+        <div class="d-task-list">
+          <div class="d-task">
+            <div class="d-task-check done"></div>
+            <span class="task-title done">API 연동</span>
+            <div class="d-task-meta">
+              <span class="b-checklist" style="background:rgba(45,212,191,0.1);color:#2DD4BF;">3/3</span>
+            </div>
+          </div>
+          <div class="d-task">
+            <div class="d-task-check"></div>
+            <span class="task-title">UI 구현</span>
+            <div class="d-task-meta">
+              <span class="d-task-due">07/02</span>
+              <span class="b-checklist">1/5</span>
+            </div>
+          </div>
+          <div class="d-task">
+            <div class="d-task-check"></div>
+            <span class="task-title">테스트 작성</span>
+            <div class="d-task-meta">
+              <span class="b-checklist">0/4</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== E: Side Panel ===== -->
+  <div class="proposal-card">
+    <div class="proposal-header">
+      <div class="proposal-number">E</div>
+      <div class="proposal-title">Side Panel (우측 확장 패널)</div>
+    </div>
+    <p class="proposal-desc">
+      피처 노드 오른쪽에 태스크 패널이 슬라이드 확장.<br>
+      세로 공간 절약 + 피처 노드의 기존 크기를 유지.
+    </p>
+    <div class="proposal-tags">
+      <span class="tag tag-pro">세로 공간 절약</span>
+      <span class="tag tag-pro">노드 크기 유지</span>
+      <span class="tag tag-con">가로 확장</span>
+    </div>
+
+    <div class="canvas">
+      <div class="e-wrapper">
+        <div class="e-feature">
+          <div class="color-bar"></div>
+          <div class="title">기타 작업</div>
+          <div class="progress-row">
+            <div class="progress-bar"><div class="progress-fill" style="width:33%"></div></div>
+            <span class="progress-text">33%</span>
+            <div class="avatar" style="background:#6366F1;">유</div>
+          </div>
+          <div style="margin-top:8px">
+            <span class="milestone-badge" style="color:#a855f7; background:rgba(168,85,247,0.15);">
+              <span class="milestone-dot" style="background:#a855f7"></span>
+              4차 마일스톤
+            </span>
+          </div>
+        </div>
+        <div class="e-panel">
+          <div class="e-panel-title">
+            Tasks
+            <span style="font-size:9px;color:#94a3b8">1/3</span>
+          </div>
+          <div class="e-task">
+            <div class="task-circle done" style="width:11px;height:11px;"></div>
+            <span class="task-title done" style="font-size:10px">API 연동</span>
+            <span class="b-checklist" style="font-size:8px">3/3</span>
+          </div>
+          <div class="e-task">
+            <div class="task-circle" style="width:11px;height:11px;border-width:1.5px"></div>
+            <span class="task-title" style="font-size:10px">UI 구현</span>
+            <span class="b-checklist" style="font-size:8px">1/5</span>
+          </div>
+          <div class="e-task">
+            <div class="task-circle" style="width:11px;height:11px;border-width:1.5px"></div>
+            <span class="task-title" style="font-size:10px">테스트 작성</span>
+            <span class="b-checklist" style="font-size:8px">0/4</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== F: Kanban-Mini ===== -->
+  <div class="proposal-card">
+    <div class="proposal-header">
+      <div class="proposal-number">F</div>
+      <div class="proposal-title">Kanban-Mini (미니 칸반 보드)</div>
+    </div>
+    <p class="proposal-desc">
+      피처 내부에 "진행 중 / 완료" 2컬럼 미니 칸반을 표시.<br>
+      칸반보드의 축소판으로 상태별 분류를 한눈에 파악.
+    </p>
+    <div class="proposal-tags">
+      <span class="tag tag-pro">상태별 분류</span>
+      <span class="tag tag-pro">익숙한 칸반 UX</span>
+      <span class="tag tag-con">폭 넓어짐 (280px)</span>
+    </div>
+
+    <div class="canvas">
+      <div class="f-feature">
+        <div class="color-bar"></div>
+        <div class="f-header">
+          <div class="title">기타 작업</div>
+          <div style="padding-left:10px;display:flex;align-items:center;gap:8px;">
+            <div class="progress-bar" style="flex:1;max-width:140px"><div class="progress-fill" style="width:33%"></div></div>
+            <span class="progress-text">33%</span>
+            <div class="avatar" style="background:#6366F1;width:18px;height:18px;font-size:9px;">유</div>
+          </div>
+          <div style="padding-left:10px;margin-top:6px">
+            <span class="milestone-badge" style="color:#a855f7; background:rgba(168,85,247,0.15);">
+              <span class="milestone-dot" style="background:#a855f7"></span>
+              4차 마일스톤
+            </span>
+          </div>
+        </div>
+        <div class="f-divider"></div>
+        <div class="f-columns">
+          <div class="f-col">
+            <div class="f-col-title">
+              <span style="color:#6366F1">●</span> 진행 중
+              <span class="f-col-count">2</span>
+            </div>
+            <div class="f-task-mini">UI 구현</div>
+            <div class="f-task-mini">테스트 작성</div>
+          </div>
+          <div class="f-col">
+            <div class="f-col-title">
+              <span style="color:#2DD4BF">●</span> 완료
+              <span class="f-col-count">1</span>
+            </div>
+            <div class="f-task-mini done">API 연동</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Comparison Table -->
+<div class="comparison-note">
+  <h3>비교 요약</h3>
+  <table class="comparison-table">
+    <thead>
+      <tr>
+        <th>안</th>
+        <th>카드 폭</th>
+        <th>세로 공간</th>
+        <th>컨텍스트 유지</th>
+        <th>상태 시각화</th>
+        <th>구현 난이도</th>
+        <th>추천</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>A 현행</strong></td>
+        <td>180px</td>
+        <td class="cross">높음 (분리 노드)</td>
+        <td class="cross">낮음</td>
+        <td class="cross">기본</td>
+        <td>-</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><strong>B Card-Embedded</strong></td>
+        <td>220px</td>
+        <td class="check">낮음</td>
+        <td class="check">높음</td>
+        <td>기본</td>
+        <td class="check">낮음</td>
+        <td class="star">&#9733; 추천</td>
+      </tr>
+      <tr>
+        <td><strong>C Timeline</strong></td>
+        <td>240px</td>
+        <td>보통</td>
+        <td class="check">높음</td>
+        <td class="check">우수</td>
+        <td>보통</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><strong>D Compact Ring</strong></td>
+        <td>200px</td>
+        <td class="check">낮음</td>
+        <td class="check">높음</td>
+        <td class="check">우수</td>
+        <td>보통</td>
+        <td class="star">&#9733; 추천</td>
+      </tr>
+      <tr>
+        <td><strong>E Side Panel</strong></td>
+        <td>360px (합계)</td>
+        <td class="check">낮음</td>
+        <td class="check">높음</td>
+        <td>기본</td>
+        <td>높음</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><strong>F Kanban-Mini</strong></td>
+        <td>280px</td>
+        <td class="check">낮음</td>
+        <td class="check">높음</td>
+        <td class="check">우수</td>
+        <td>보통</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top:16px; font-size:12px; color:#94a3b8; line-height:1.6;">
+    <strong style="color:#6366F1">B (Card-Embedded)</strong>: 구현이 가장 단순하면서도 공간 절약 효과가 큼. 빠른 적용에 적합.<br>
+    <strong style="color:#6366F1">D (Compact Ring)</strong>: 시각적 차별화 + 정보 밀도 모두 우수. 프로그레스 링이 한눈에 진행률 전달.<br>
+    <strong>혼합 추천</strong>: D의 링 게이지 + B의 인라인 태스크 리스트 조합이 가장 이상적.
+  </div>
+</div>
+
+</body>
+</html>

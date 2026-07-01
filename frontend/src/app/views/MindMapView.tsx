@@ -35,10 +35,9 @@ import {
   Circle,
   Loader2,
   StickyNote,
-  Trash2,
   X,
 } from "lucide-react";
-import type { Feature, MindMapDocument, MindMapNode, Task } from "../types";
+import type { Feature, MindMapDocument, Task } from "../types";
 import { mindMapAPI } from "../utils/api";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
 
@@ -90,12 +89,8 @@ const HANDLE_SIDES: Position[] = [
   Position.Left,
 ];
 
-// 파생 Task 노드 레이아웃 상수 (펼친 Feature 아래로 세로 스택)
-const TASK_NODE_WIDTH = 180;
-const TASK_NODE_HEIGHT = 40;
-const TASK_NODE_GAP = 8;
-// Feature 노드 하단으로부터 첫 Task까지의 오프셋 (Feature 노드 높이 근사치)
-const TASK_STACK_OFFSET_Y = 96;
+// Feature 노드 폭 (접힘/펼침 공용)
+const FEATURE_NODE_WIDTH = 220;
 
 // ────────────────────────────────────────────────────────────
 // Context: 노드가 live 데이터(featuresById)와 핸들러를 읽는다.
@@ -160,12 +155,15 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
     memberColorMap,
     canEdit,
     onFeatureClick,
+    onTaskClick,
     toggleExpand,
   } = useMindMap();
   const featureId = (data as { feature_id: string }).feature_id;
   const feature = featuresById.get(featureId);
   const milestones = featureMilestonesMap[featureId] || [];
-  const taskCount = tasksByFeature.get(featureId)?.length ?? 0;
+  const featureTasks = tasksByFeature.get(featureId) ?? [];
+  const taskCount = featureTasks.length;
+  const doneCount = featureTasks.filter((t) => t.completed).length;
   const expanded = expandedFeatures.has(featureId);
 
   if (!feature) {
@@ -183,7 +181,8 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
 
   return (
     <div
-      className="group relative w-[180px] rounded-2xl border border-foreground/10 bg-bridge-obsidian px-3 py-2.5 shadow-lg cursor-pointer transition-colors hover:border-bridge-accent/60"
+      className="group relative rounded-2xl border border-foreground/10 bg-bridge-obsidian shadow-lg cursor-pointer transition-colors hover:border-bridge-accent/60"
+      style={{ width: FEATURE_NODE_WIDTH }}
       onClick={() => onFeatureClick(feature)}
     >
       <NodeHandles canEdit={canEdit} />
@@ -191,7 +190,8 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
         className="absolute left-0 top-3 bottom-3 w-1 rounded-full"
         style={{ backgroundColor: color }}
       />
-      <div className="pl-2.5">
+      {/* Header */}
+      <div className="px-3 pt-2.5 pb-2 pl-4">
         <div className="text-[13px] font-bold text-foreground leading-snug line-clamp-2">
           {feature.title}
         </div>
@@ -246,14 +246,18 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
             })}
           </div>
         )}
-        {taskCount > 0 && (
+      </div>
+      {/* Inline task list (Card-Embedded) */}
+      {taskCount > 0 && (
+        <>
+          <div className="mx-3 h-px bg-foreground/[0.06]" />
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               toggleExpand(featureId);
             }}
-            className="mt-2 flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-bridge-accent transition-colors"
+            className="w-full flex items-center gap-1 px-4 py-1.5 text-[10px] font-bold text-slate-400 hover:text-bridge-accent transition-colors"
             title={expanded ? "Task 접기" : "Task 펼치기"}
           >
             {expanded ? (
@@ -261,50 +265,56 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
             ) : (
               <ChevronRight className="w-3 h-3" />
             )}
-            <span>Task {taskCount}</span>
+            <span>
+              Tasks · {doneCount}/{taskCount}
+            </span>
           </button>
-        )}
-      </div>
-    </div>
-  );
-});
-
-// ────────────────────────────────────────────────────────────
-// Task 노드 — 펼친 Feature 아래에 파생 표시 (문서에 저장되지 않음)
-// ────────────────────────────────────────────────────────────
-const TaskNode = memo(function TaskNode({ data }: NodeProps) {
-  const { canEdit, onTaskClick } = useMindMap();
-  const task = (data as { task: Task }).task;
-  const completed = task.completed;
-  const checklistTotal = task.checklist_total ?? 0;
-  const checklistDone = task.checklist_completed ?? 0;
-
-  return (
-    <div
-      className="group relative rounded-lg border border-foreground/10 bg-bridge-dark px-2.5 py-2 shadow-md cursor-pointer transition-colors hover:border-bridge-accent/60"
-      style={{ width: TASK_NODE_WIDTH, height: TASK_NODE_HEIGHT }}
-      onClick={() => onTaskClick(task)}
-    >
-      <NodeHandles canEdit={canEdit} />
-      <div className="flex items-center gap-2 h-full">
-        {completed ? (
-          <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
-        ) : (
-          <Circle className="w-3.5 h-3.5 shrink-0 text-slate-500" />
-        )}
-        <span
-          className={`flex-1 text-[11px] font-medium leading-tight line-clamp-2 ${
-            completed ? "text-slate-500 line-through" : "text-foreground"
-          }`}
-        >
-          {task.title}
-        </span>
-        {checklistTotal > 0 && (
-          <span className="text-[9px] font-bold text-slate-500 shrink-0">
-            {checklistDone}/{checklistTotal}
-          </span>
-        )}
-      </div>
+          {expanded && (
+            <div className="px-2.5 pb-2.5">
+              {featureTasks.map((task) => {
+                const clTotal = task.checklist_total ?? 0;
+                const clDone = task.checklist_completed ?? 0;
+                return (
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-2 px-2 py-[5px] rounded-lg hover:bg-foreground/[0.04] transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTaskClick(task);
+                    }}
+                  >
+                    {task.completed ? (
+                      <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-400" />
+                    ) : (
+                      <Circle className="w-3 h-3 shrink-0 text-slate-500" />
+                    )}
+                    <span
+                      className={`flex-1 text-[11px] font-medium leading-tight line-clamp-1 ${
+                        task.completed
+                          ? "text-slate-500 line-through"
+                          : "text-foreground"
+                      }`}
+                    >
+                      {task.title}
+                    </span>
+                    {clTotal > 0 && (
+                      <span
+                        className={`text-[9px] font-bold shrink-0 px-1.5 py-0.5 rounded ${
+                          clDone === clTotal
+                            ? "bg-emerald-500/10 text-emerald-400"
+                            : "bg-foreground/[0.05] text-slate-500"
+                        }`}
+                      >
+                        {clDone}/{clTotal}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 });
@@ -312,12 +322,28 @@ const TaskNode = memo(function TaskNode({ data }: NodeProps) {
 // ────────────────────────────────────────────────────────────
 // 메모 노드 — label/color 자체 저장, 더블클릭 rename
 // ────────────────────────────────────────────────────────────
-const MemoNode = memo(function MemoNode({ id, data, selected }: NodeProps) {
+const MEMO_BASE_W = 180;
+const MEMO_BASE_H = 64;
+const MEMO_BASE_FONT = 12;
+
+const MemoNode = memo(function MemoNode({
+  id,
+  data,
+  selected,
+  width,
+  height,
+}: NodeProps) {
   const { canEdit, renameMemo, recolorMemo, deleteNode } = useMindMap();
   const label = (data as { label?: string }).label || "";
   const color = (data as { color?: string }).color || "#6366F1";
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(label);
+
+  // 노드 크기에 비례해 폰트 스케일 — 작은 축 기준(넘침 방지), 12px 미만으로는 축소하지 않음
+  const w = width ?? MEMO_BASE_W;
+  const h = height ?? MEMO_BASE_H;
+  const scale = Math.max(1, Math.min(w / MEMO_BASE_W, h / MEMO_BASE_H));
+  const fontSize = Math.round(MEMO_BASE_FONT * scale);
 
   const commit = () => {
     setEditing(false);
@@ -344,56 +370,62 @@ const MemoNode = memo(function MemoNode({ id, data, selected }: NodeProps) {
         handleClassName="!w-2 !h-2 !rounded-sm"
       />
       <NodeHandles canEdit={canEdit} />
-      {editing ? (
-        <input
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commit();
-            if (e.key === "Escape") {
-              setDraft(label);
-              setEditing(false);
-            }
+      {/* 색상 변경 점 — 좌상단 코너 */}
+      <button
+        type="button"
+        className="absolute top-1.5 left-1.5 w-2.5 h-2.5 rounded-[3px] shrink-0 z-10"
+        style={{ backgroundColor: color }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (canEdit) recolorMemo(id);
+        }}
+        title="색상 변경"
+      />
+      {/* 삭제 X — 우상단 코너 */}
+      {canEdit && !editing && (
+        <button
+          type="button"
+          className="absolute top-1.5 right-1.5 z-10 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-400 transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation();
+            deleteNode(id);
           }}
-          className="bg-transparent outline-none text-foreground w-full"
-        />
-      ) : (
-        <div className="flex items-start gap-2">
-          <button
-            type="button"
-            className="w-2.5 h-2.5 mt-0.5 rounded-[3px] shrink-0"
-            style={{ backgroundColor: color }}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (canEdit) recolorMemo(id);
+          title="삭제"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      )}
+      <div className="flex items-center justify-center w-full h-full text-center">
+        {editing ? (
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commit();
+              if (e.key === "Escape") {
+                setDraft(label);
+                setEditing(false);
+              }
             }}
-            title="색상 변경"
+            style={{ fontSize }}
+            className="bg-transparent outline-none text-foreground w-full text-center"
           />
-          <span className="flex-1 text-foreground break-words whitespace-pre-wrap">
+        ) : (
+          <span
+            className="text-foreground break-words whitespace-pre-wrap leading-snug"
+            style={{ fontSize }}
+          >
             {label || "메모"}
           </span>
-          {canEdit && (
-            <button
-              type="button"
-              className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-400 transition-opacity"
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteNode(id);
-              }}
-              title="삭제"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 });
 
-const nodeTypes = { feature: FeatureNode, memo: MemoNode, task: TaskNode };
+const nodeTypes = { feature: FeatureNode, memo: MemoNode };
 
 // 직렬화: RF nodes/edges → 저장 문서
 // nodes/edges에는 저장 대상(feature/memo)만 전달한다 (파생 Task 노드 제외).
@@ -501,6 +533,8 @@ function MindMapCanvas({
     new Set(),
   );
   const [loading, setLoading] = useState(true);
+  // 미배치 트레이 마일스톤 필터. null=전체, "__none__"=마일스톤 미배정
+  const [milestoneFilter, setMilestoneFilter] = useState<string | null>(null);
 
   const loadedRef = useRef(false);
   const lastSavedRef = useRef<string>("");
@@ -684,60 +718,42 @@ function MindMapCanvas({
     [features, placedFeatureIds],
   );
 
-  // 파생 Task 노드/엣지 — 펼친 Feature 노드 아래로 세로 스택.
-  // 저장 문서(nodes/edges)에 포함하지 않고 렌더 시에만 결합한다.
-  // Feature 노드를 드래그하면 live 위치에서 재계산되어 Task가 따라 이동한다.
-  const { taskNodes, taskEdges } = useMemo(() => {
-    const tNodes: Node[] = [];
-    const tEdges: Edge[] = [];
-    if (expandedFeatures.size === 0) return { taskNodes: tNodes, taskEdges: tEdges };
-    for (const fNode of nodes) {
-      if (fNode.type !== "feature") continue;
-      const featureId = (fNode.data as { feature_id: string }).feature_id;
-      if (!expandedFeatures.has(featureId)) continue;
-      const featureTasks = tasksByFeature.get(featureId);
-      if (!featureTasks || featureTasks.length === 0) continue;
-      featureTasks.forEach((task, i) => {
-        const nodeId = `task__${fNode.id}__${task.id}`;
-        tNodes.push({
-          id: nodeId,
-          type: "task",
-          position: {
-            x: fNode.position.x,
-            y:
-              fNode.position.y +
-              TASK_STACK_OFFSET_Y +
-              i * (TASK_NODE_HEIGHT + TASK_NODE_GAP),
-          },
-          data: { task },
-          draggable: false,
-          connectable: false,
-          selectable: false,
-        });
-        tEdges.push({
-          id: `taske__${fNode.id}__${task.id}`,
-          source: fNode.id,
-          target: nodeId,
-          sourceHandle: `s-${Position.Bottom}`,
-          targetHandle: `t-${Position.Top}`,
-          style: { stroke: "rgba(99,102,241,0.35)", strokeWidth: 1.5 },
-          selectable: false,
-          deletable: false,
-        });
-      });
+  // 미배치 트레이 마일스톤 필터 옵션 (idx 오름차순, 유니크) + "미배정" 존재 여부
+  const msMap = featureMilestonesMap ?? {};
+  const { milestoneOptions, hasNoMilestone } = useMemo(() => {
+    const seen = new Map<string, FeatureMilestoneRef>();
+    let anyNone = false;
+    for (const f of unplaced) {
+      const list = msMap[f.id];
+      if (!list || list.length === 0) {
+        anyNone = true;
+        continue;
+      }
+      for (const ms of list) if (!seen.has(ms.id)) seen.set(ms.id, ms);
     }
-    return { taskNodes: tNodes, taskEdges: tEdges };
-  }, [nodes, expandedFeatures, tasksByFeature]);
+    return {
+      milestoneOptions: [...seen.values()].sort((a, b) => a.idx - b.idx),
+      hasNoMilestone: anyNone,
+    };
+  }, [unplaced, msMap]);
 
-  // ReactFlow에 전달할 결합 노드/엣지 (저장 대상 + 파생 Task)
-  const displayNodes = useMemo(
-    () => (taskNodes.length ? [...nodes, ...taskNodes] : nodes),
-    [nodes, taskNodes],
-  );
-  const displayEdges = useMemo(
-    () => (taskEdges.length ? [...edges, ...taskEdges] : edges),
-    [edges, taskEdges],
-  );
+  // 선택된 필터가 더 이상 유효하지 않으면 전체로 리셋
+  useEffect(() => {
+    if (milestoneFilter === null || milestoneFilter === "__none__") return;
+    if (!milestoneOptions.some((m) => m.id === milestoneFilter))
+      setMilestoneFilter(null);
+  }, [milestoneFilter, milestoneOptions]);
+
+  const filterActive = milestoneOptions.length > 0 || hasNoMilestone;
+
+  const visibleUnplaced = useMemo(() => {
+    if (milestoneFilter === null) return unplaced;
+    if (milestoneFilter === "__none__")
+      return unplaced.filter((f) => !(msMap[f.id]?.length));
+    return unplaced.filter((f) =>
+      msMap[f.id]?.some((m) => m.id === milestoneFilter),
+    );
+  }, [unplaced, milestoneFilter, msMap]);
 
   // 트레이 → 캔버스 드롭
   const onDrop = useCallback(
@@ -823,13 +839,74 @@ function MindMapCanvas({
                 {t("mindmap.dragToPlace", "캔버스로 드래그해 배치")}
               </div>
             </div>
+            {filterActive && (
+              <div className="px-2.5 py-2 border-b border-foreground/[0.06] flex flex-wrap gap-1">
+                <button
+                  type="button"
+                  onClick={() => setMilestoneFilter(null)}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                    milestoneFilter === null
+                      ? "bg-bridge-accent/20 text-bridge-accent"
+                      : "bg-foreground/[0.04] text-slate-400 hover:text-foreground"
+                  }`}
+                >
+                  {t("mindmap.filterAll", "전체")}
+                </button>
+                {milestoneOptions.map((ms) => {
+                  const msColor =
+                    MILESTONE_COLORS[ms.idx % MILESTONE_COLORS.length];
+                  const active = milestoneFilter === ms.id;
+                  return (
+                    <button
+                      key={ms.id}
+                      type="button"
+                      onClick={() => setMilestoneFilter(ms.id)}
+                      title={ms.title}
+                      className="inline-flex items-center gap-1 max-w-full px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors"
+                      style={{
+                        color: active ? msColor : undefined,
+                        backgroundColor: active ? `${msColor}26` : undefined,
+                      }}
+                    >
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: msColor }}
+                      />
+                      <span
+                        className={`truncate ${active ? "" : "text-slate-400"}`}
+                      >
+                        {ms.title}
+                      </span>
+                    </button>
+                  );
+                })}
+                {hasNoMilestone && (
+                  <button
+                    type="button"
+                    onClick={() => setMilestoneFilter("__none__")}
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                      milestoneFilter === "__none__"
+                        ? "bg-slate-500/20 text-slate-300"
+                        : "bg-foreground/[0.04] text-slate-400 hover:text-foreground"
+                    }`}
+                  >
+                    {t("mindmap.filterNoMilestone", "마일스톤 없음")}
+                  </button>
+                )}
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-2.5 flex flex-col gap-2">
-              {unplaced.length === 0 ? (
+              {visibleUnplaced.length === 0 ? (
                 <div className="text-[11px] text-slate-600 text-center py-6">
-                  {t("mindmap.allPlaced", "모든 피쳐가 배치됨")}
+                  {unplaced.length === 0
+                    ? t("mindmap.allPlaced", "모든 피쳐가 배치됨")
+                    : t(
+                        "mindmap.noFilteredFeatures",
+                        "해당 마일스톤의 미배치 피쳐 없음",
+                      )}
                 </div>
               ) : (
-                unplaced.map((f) => (
+                visibleUnplaced.map((f) => (
                   <div
                     key={f.id}
                     draggable
@@ -900,8 +977,8 @@ function MindMapCanvas({
           )}
 
           <ReactFlow
-            nodes={displayNodes}
-            edges={displayEdges}
+            nodes={nodes}
+            edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
@@ -914,6 +991,7 @@ function MindMapCanvas({
             deleteKeyCode={canEdit ? ["Backspace", "Delete"] : null}
             defaultEdgeOptions={{
               style: { stroke: "rgba(148,163,184,0.5)", strokeWidth: 2 },
+              interactionWidth: 20,
             }}
             proOptions={{ hideAttribution: true }}
           >
@@ -944,6 +1022,19 @@ function MindMapCanvas({
           width:9px;height:9px;background:#6366F1;border:2px solid #151B28;opacity:0;transition:opacity .15s;
         }
         .react-flow .react-flow__node:hover .mm-handle{opacity:1}
+        /* 엣지 호버 — 선택 가능 힌트 */
+        .react-flow__edge:hover .react-flow__edge-path{
+          stroke:rgba(99,102,241,0.7)!important;cursor:pointer;
+        }
+        /* 선택된 엣지 — bridge-accent 강조 + 굵기 + 글로우 + 흐르는 대시 */
+        .react-flow__edge.selected .react-flow__edge-path,
+        .react-flow__edge:focus .react-flow__edge-path,
+        .react-flow__edge:focus-visible .react-flow__edge-path{
+          stroke:#6366F1!important;stroke-width:3!important;
+          filter:drop-shadow(0 0 5px rgba(99,102,241,0.75));
+          stroke-dasharray:6 4;animation:mm-edge-dash .6s linear infinite;
+        }
+        @keyframes mm-edge-dash{to{stroke-dashoffset:-10}}
       `}</style>
     </MindMapContext.Provider>
   );

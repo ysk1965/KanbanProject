@@ -41,7 +41,8 @@ type ViewMode =
   | "statistics"
   | "ai_report"
   | "list"
-  | "mindmap";
+  | "mindmap"
+  | "minikanban";
 
 // 보드 서브뷰 그룹 (보드 탭에 속하는 ViewMode 집합)
 const BOARD_SUB_MODES: ViewMode[] = [
@@ -50,6 +51,7 @@ const BOARD_SUB_MODES: ViewMode[] = [
   "calendar",
   "list",
   "mindmap",
+  "minikanban",
   "milestone",
 ];
 import { DragProvider } from "../contexts/DragContext";
@@ -149,6 +151,13 @@ const MindMapView = lazyWithRetry(
       default: m.MindMapView,
     })),
   "MindMapView",
+);
+const MiniKanbanView = lazyWithRetry(
+  () =>
+    import("../views/MiniKanbanView").then((m) => ({
+      default: m.MiniKanbanView,
+    })),
+  "MiniKanbanView",
 );
 import { EmptyBoardGuide } from "../components/EmptyBoardGuide";
 import { QuickAddTaskModal } from "../components/QuickAddTaskModal";
@@ -305,12 +314,20 @@ export function KanbanBoardPage() {
 
   // 보드 서브뷰 모드 기억 헬퍼 (칸반/간트/캘린더/리스트/마일스톤)
   const getBoardSubMode = ():
-    "kanban" | "gantt" | "calendar" | "list" | "milestone" => {
+    | "kanban"
+    | "gantt"
+    | "calendar"
+    | "list"
+    | "milestone"
+    | "mindmap"
+    | "minikanban" => {
     const saved = localStorage.getItem(`boardSubMode_${boardId}`);
     if (saved === "gantt") return "gantt";
     if (saved === "calendar") return "calendar";
     if (saved === "list") return "list";
     if (saved === "milestone") return "milestone";
+    if (saved === "mindmap") return "mindmap";
+    if (saved === "minikanban") return "minikanban";
     return "kanban";
   };
   // 일정 탭 서브모드 (타임블록 / 캘린더 / 리소스)
@@ -2327,6 +2344,75 @@ export function KanbanBoardPage() {
     [tasks, blocks, features, boardId],
   );
 
+  // ── 미니 칸반 뷰 핸들러 ──
+  // 태스크 노드를 다른 블록 레인으로 이동 (block_id 변경, 대상 블록 끝에 append)
+  const handleMiniMoveTask = useCallback(
+    (taskId: string, targetBlockId: string) => {
+      const count = tasks.filter((t) => t.block_id === targetBlockId).length;
+      handleMoveTask(taskId, targetBlockId, count);
+    },
+    [tasks, handleMoveTask],
+  );
+
+  // 체크리스트 항목 날짜 패치 (TODO↔DOING 전환용 start_date 조정) — 옵티미스틱 + WS 재동기화
+  const handleMiniPatchChecklist = useCallback(
+    (
+      taskId: string,
+      itemId: string,
+      patch: { start_date?: string | null },
+    ) => {
+      if (!boardId) return;
+      setChecklistDataMap((prev) => {
+        const items = prev[taskId];
+        if (!items) return prev;
+        return {
+          ...prev,
+          [taskId]: items.map((it) =>
+            it.id === itemId
+              ? {
+                  ...it,
+                  ...("start_date" in patch
+                    ? { start_date: patch.start_date ?? null }
+                    : {}),
+                }
+              : it,
+          ),
+        };
+      });
+      checklistAPI
+        .patchItem(boardId, taskId, itemId, patch)
+        .catch((e) => console.error("mini kanban patch checklist failed", e));
+    },
+    [boardId, setChecklistDataMap],
+  );
+
+  // 체크리스트 완료 토글 (DONE 이동/복귀) — 옵티미스틱 + WS 재동기화(done_date는 서버 반영)
+  const handleMiniToggleChecklist = useCallback(
+    (taskId: string, itemId: string) => {
+      if (!boardId) return;
+      setChecklistDataMap((prev) => {
+        const items = prev[taskId];
+        if (!items) return prev;
+        return {
+          ...prev,
+          [taskId]: items.map((it) =>
+            it.id === itemId
+              ? {
+                  ...it,
+                  completed: !it.completed,
+                  done_date: !it.completed ? it.done_date : null,
+                }
+              : it,
+          ),
+        };
+      });
+      checklistAPI
+        .toggleItem(boardId, taskId, itemId)
+        .catch((e) => console.error("mini kanban toggle checklist failed", e));
+    },
+    [boardId, setChecklistDataMap],
+  );
+
   const handleMoveTaskToFeature = async (
     taskId: string,
     targetFeatureId: string,
@@ -2707,6 +2793,7 @@ export function KanbanBoardPage() {
         {BOARD_SUB_MODES.includes(viewMode) &&
           viewMode !== "milestone" &&
           viewMode !== "mindmap" &&
+          viewMode !== "minikanban" &&
           milestones.length > 0 && (
             <div className="border-b border-foreground/[0.08]" />
           )}
@@ -2715,6 +2802,7 @@ export function KanbanBoardPage() {
         {BOARD_SUB_MODES.includes(viewMode) &&
           viewMode !== "milestone" &&
           viewMode !== "mindmap" &&
+          viewMode !== "minikanban" &&
           milestones.length > 0 && (
             <MilestoneTabBar
               milestones={milestones}
@@ -3053,6 +3141,29 @@ export function KanbanBoardPage() {
                 memberColorMap={memberColorMap}
                 onFeatureClick={handleFeatureClick}
                 onTaskClick={handleTaskClick}
+              />
+            </Suspense>
+          </main>
+        ) : viewMode === "minikanban" ? (
+          <main className="flex-1 flex flex-col overflow-hidden">
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-64">
+                  <div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" />
+                </div>
+              }
+            >
+              <MiniKanbanView
+                boardId={boardId || ""}
+                blocks={blocks}
+                tasks={tasks}
+                checklistByTask={checklistDataMap}
+                canEdit={canEdit}
+                memberColorMap={memberColorMap}
+                onTaskClick={handleTaskClick}
+                onMoveTask={handleMiniMoveTask}
+                onPatchChecklist={handleMiniPatchChecklist}
+                onToggleChecklist={handleMiniToggleChecklist}
               />
             </Suspense>
           </main>
@@ -3422,7 +3533,8 @@ export function KanbanBoardPage() {
         {/* 우하단 플로팅 뷰 전환 버튼 (보드 표현 뷰에서만 표시, 마일스톤·마인드맵 제외) */}
         {BOARD_SUB_MODES.includes(viewMode) &&
           viewMode !== "milestone" &&
-          viewMode !== "mindmap" && (
+          viewMode !== "mindmap" &&
+          viewMode !== "minikanban" && (
             <FloatingViewSwitcher
               viewMode={viewMode}
               onViewModeChange={(mode) => handleViewModeChange(mode)}

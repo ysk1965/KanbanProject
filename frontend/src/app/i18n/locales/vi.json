@@ -1531,6 +1531,7 @@
     "viewBoardCalendar": "Lịch",
     "viewBoardList": "Danh sách",
     "viewBoardMindMap": "Sơ đồ tư duy",
+    "viewBoardMiniKanban": "Kanban Mini",
     "viewBoardMilestone": "Cột mốc",
     "viewSwitcher": "Dạng xem"
   },
@@ -4594,5 +4595,18 @@
       "emptied": "Đã dọn thùng rác",
       "emptyFailed": "Dọn thùng rác thất bại"
     }
+  },
+  "mindmap": {
+    "addMemo": "Thêm ghi chú",
+    "newMemo": "Ghi chú mới",
+    "unplacedFeatures": "Tính năng chưa đặt",
+    "dragToPlace": "Kéo vào canvas để đặt",
+    "allPlaced": "Đã đặt tất cả tính năng",
+    "readOnly": "Chỉ đọc",
+    "empty": "Kéo một tính năng từ bên trái hoặc thêm ghi chú để bắt đầu",
+    "emptyReadOnly": "Chưa có sơ đồ tư duy",
+    "filterAll": "Tất cả",
+    "filterNoMilestone": "Không có mốc",
+    "noFilteredFeatures": "Không có tính năng chưa đặt cho mốc này"
   }
 }

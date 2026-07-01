@@ -22,7 +22,8 @@ type ViewMode =
   | "statistics"
   | "ai_report"
   | "list"
-  | "mindmap";
+  | "mindmap"
+  | "minikanban";
 
 interface FloatingViewSwitcherProps {
   /** 현재 활성화된 뷰 모드 */

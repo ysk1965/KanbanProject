@@ -1531,6 +1531,7 @@
     "viewBoardCalendar": "カレンダー",
     "viewBoardList": "リスト",
     "viewBoardMindMap": "マインドマップ",
+    "viewBoardMiniKanban": "ミニカンバン",
     "viewBoardMilestone": "マイルストーン",
     "viewSwitcher": "ビュー"
   },
@@ -4103,5 +4104,18 @@
       "emptied": "ゴミ箱を空にしました",
       "emptyFailed": "ゴミ箱を空にできませんでした"
     }
+  },
+  "mindmap": {
+    "addMemo": "メモを追加",
+    "newMemo": "新しいメモ",
+    "unplacedFeatures": "未配置のフィーチャー",
+    "dragToPlace": "キャンバスにドラッグして配置",
+    "allPlaced": "すべてのフィーチャーを配置済み",
+    "readOnly": "読み取り専用",
+    "empty": "左のフィーチャーをドラッグするかメモを追加して開始",
+    "emptyReadOnly": "まだマインドマップがありません",
+    "filterAll": "すべて",
+    "filterNoMilestone": "マイルストーンなし",
+    "noFilteredFeatures": "このマイルストーンに未配置のフィーチャーはありません"
   }
 }
