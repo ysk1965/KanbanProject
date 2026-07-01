@@ -1,0 +1,1523 @@
+import {
+  createContext,
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useTranslation } from "react-i18next";
+import {
+  ReactFlow,
+  ReactFlowProvider,
+  Background,
+  Controls,
+  MiniMap,
+  Handle,
+  NodeResizer,
+  Position,
+  SelectionMode,
+  addEdge,
+  useNodesState,
+  useEdgesState,
+  useReactFlow,
+  type Node,
+  type Edge,
+  type Connection,
+  type NodeProps,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import {
+  Clock,
+  Hand,
+  Image as ImageIcon,
+  Loader2,
+  MousePointer2,
+  Pencil,
+  Save,
+  Play,
+  Square,
+  StickyNote,
+  Type,
+  Video as VideoIcon,
+  Eye,
+  DoorOpen,
+  MessageSquare,
+  ChevronDown,
+  Tag as TagIcon,
+  Users,
+  X,
+} from "lucide-react";
+import * as Y from "yjs";
+import { NoteShareButton } from "./NoteShareButton";
+import { NoteVersionHistory } from "./NoteVersionHistory";
+import { NoteTagManager } from "./NoteTagManager";
+import { NoteBottomComments } from "./NoteBottomComments";
+import { CollabPresence } from "./CollabPresence";
+import { IconButton } from "../ui/IconButton";
+import { useAuth } from "../../contexts/AuthContext";
+import { formatDateTime } from "../../utils/dateUtils";
+import { fileAPI } from "../../utils/api";
+import type { NoteDetail, NoteTagInfo } from "../../utils/api";
+import type { CollaborationState } from "../../hooks/useCollaboration";
+
+// ────────────────────────────────────────────────────────────
+// 저장 스키마 (note.content JSON)
+//   { type: "bridge-flow", version: 1, nodes: [...], edges: [...] }
+// 노드 kind: text | sticky | shape | image | video
+// ────────────────────────────────────────────────────────────
+type FlowNodeKind = "text" | "sticky" | "shape" | "image" | "video";
+
+interface StoredFlowNode {
+  id: string;
+  kind: FlowNodeKind;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  data: Record<string, unknown>;
+}
+interface StoredFlowEdge {
+  id: string;
+  source: string;
+  target: string;
+  source_handle?: string | null;
+  target_handle?: string | null;
+  label?: string | null;
+}
+interface FlowDocument {
+  type?: string;
+  version?: number;
+  nodes: StoredFlowNode[];
+  edges: StoredFlowEdge[];
+}
+
+const NODE_COLORS = [
+  "#6366F1",
+  "#2DD4BF",
+  "#f43f5e",
+  "#f59e0b",
+  "#a855f7",
+  "#10b981",
+];
+
+const SHAPE_CYCLE = ["rectangle", "ellipse", "diamond"] as const;
+type ShapeKind = (typeof SHAPE_CYCLE)[number];
+
+const HANDLE_SIDES: Position[] = [
+  Position.Top,
+  Position.Right,
+  Position.Bottom,
+  Position.Left,
+];
+
+// ────────────────────────────────────────────────────────────
+// Context — 노드가 편집 핸들러/권한을 읽는다
+// ────────────────────────────────────────────────────────────
+interface FlowCtx {
+  canEdit: boolean;
+  updateNodeData: (id: string, patch: Record<string, unknown>) => void;
+  recolorNode: (id: string) => void;
+  cycleShape: (id: string) => void;
+  deleteNode: (id: string) => void;
+}
+const FlowContext = createContext<FlowCtx | null>(null);
+const useFlow = () => {
+  const ctx = useContext(FlowContext);
+  if (!ctx) throw new Error("FlowContext missing");
+  return ctx;
+};
+
+function NodeHandles({ canEdit }: { canEdit: boolean }) {
+  return (
+    <>
+      {HANDLE_SIDES.map((pos) => (
+        <span key={pos}>
+          <Handle
+            type="target"
+            position={pos}
+            id={`t-${pos}`}
+            isConnectable={canEdit}
+            className="fl-handle"
+          />
+          <Handle
+            type="source"
+            position={pos}
+            id={`s-${pos}`}
+            isConnectable={canEdit}
+            className="fl-handle"
+          />
+        </span>
+      ))}
+    </>
+  );
+}
+
+// 삭제 X 버튼 (hover 시 노출)
+function DeleteBtn({ id }: { id: string }) {
+  const { canEdit, deleteNode } = useFlow();
+  if (!canEdit) return null;
+  return (
+    <button
+      type="button"
+      className="absolute -top-2 -right-2 z-20 w-5 h-5 rounded-full bg-bridge-obsidian border border-foreground/15 flex items-center justify-center opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-400 transition-opacity"
+      onClick={(e) => {
+        e.stopPropagation();
+        deleteNode(id);
+      }}
+      title="삭제"
+    >
+      <X className="w-3 h-3" />
+    </button>
+  );
+}
+
+// ── 텍스트 노드 ────────────────────────────────────────────
+const TextNode = memo(function TextNode({ id, data, selected }: NodeProps) {
+  const { canEdit, updateNodeData, recolorNode } = useFlow();
+  const title = (data as { title?: string }).title || "";
+  const body = (data as { body?: string }).body || "";
+  const color = (data as { color?: string }).color || "#6366F1";
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(title);
+  const [draftBody, setDraftBody] = useState(body);
+
+  const commit = () => {
+    setEditing(false);
+    updateNodeData(id, { title: draftTitle.trim(), body: draftBody.trim() });
+  };
+
+  return (
+    <div
+      className="group relative w-full h-full rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-lg px-3.5 py-3"
+      style={{ minWidth: 180 }}
+      onDoubleClick={() => {
+        if (!canEdit) return;
+        setDraftTitle(title);
+        setDraftBody(body);
+        setEditing(true);
+      }}
+    >
+      <NodeResizer
+        isVisible={canEdit && !!selected}
+        minWidth={160}
+        minHeight={70}
+        color={color}
+        handleClassName="!w-2 !h-2 !rounded-sm"
+      />
+      <NodeHandles canEdit={canEdit} />
+      <DeleteBtn id={id} />
+      <span
+        className="absolute left-0 top-3 bottom-3 w-1 rounded-full"
+        style={{ backgroundColor: color }}
+      />
+      {canEdit && (
+        <button
+          type="button"
+          className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-[3px] z-10"
+          style={{ backgroundColor: color }}
+          onClick={(e) => {
+            e.stopPropagation();
+            recolorNode(id);
+          }}
+          title="색상 변경"
+        />
+      )}
+      {editing ? (
+        <div className="pl-2 flex flex-col gap-1.5">
+          <input
+            autoFocus
+            value={draftTitle}
+            onChange={(e) => setDraftTitle(e.target.value)}
+            placeholder="제목"
+            className="bg-transparent outline-none text-[13px] font-bold text-foreground"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setEditing(false);
+            }}
+          />
+          <textarea
+            value={draftBody}
+            onChange={(e) => setDraftBody(e.target.value)}
+            placeholder="내용"
+            rows={3}
+            className="bg-transparent outline-none resize-none text-xs text-slate-300 custom-scrollbar"
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setEditing(false);
+            }}
+          />
+        </div>
+      ) : (
+        <div className="pl-2">
+          <div className="text-[13px] font-bold text-foreground leading-snug">
+            {title || (canEdit ? "더블클릭해 편집" : "제목 없음")}
+          </div>
+          {body && (
+            <div className="mt-1 text-xs text-slate-400 whitespace-pre-wrap leading-relaxed">
+              {body}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
+
+// ── 스티키 노드 ────────────────────────────────────────────
+const StickyNode = memo(function StickyNode({ id, data, selected }: NodeProps) {
+  const { canEdit, updateNodeData, recolorNode } = useFlow();
+  const body = (data as { body?: string }).body || "";
+  const color = (data as { color?: string }).color || "#f59e0b";
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(body);
+
+  const commit = () => {
+    setEditing(false);
+    updateNodeData(id, { body: draft.trim() });
+  };
+
+  return (
+    <div
+      className="group relative w-full h-full rounded-xl border-[1.5px] px-3 py-2.5 shadow-md"
+      style={{
+        borderColor: `${color}80`,
+        background: `${color}1f`,
+        minWidth: 140,
+        minHeight: 60,
+      }}
+      onDoubleClick={() => {
+        if (!canEdit) return;
+        setDraft(body);
+        setEditing(true);
+      }}
+    >
+      <NodeResizer
+        isVisible={canEdit && !!selected}
+        minWidth={120}
+        minHeight={52}
+        color={color}
+        handleClassName="!w-2 !h-2 !rounded-sm"
+      />
+      <NodeHandles canEdit={canEdit} />
+      <DeleteBtn id={id} />
+      <button
+        type="button"
+        className="absolute top-1.5 left-1.5 w-2.5 h-2.5 rounded-full z-10"
+        style={{ backgroundColor: color }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (canEdit) recolorNode(id);
+        }}
+        title="색상 변경"
+      />
+      <div className="flex items-center justify-center w-full h-full pt-2">
+        {editing ? (
+          <textarea
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            rows={2}
+            className="bg-transparent outline-none resize-none text-xs font-medium text-center w-full text-foreground"
+            style={{ color }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setEditing(false);
+            }}
+          />
+        ) : (
+          <span
+            className="text-xs font-medium text-center whitespace-pre-wrap break-words leading-snug"
+            style={{ color }}
+          >
+            {body || "메모"}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+});
+
+// ── 도형 노드 ──────────────────────────────────────────────
+const ShapeNode = memo(function ShapeNode({ id, data, selected }: NodeProps) {
+  const { canEdit, updateNodeData, recolorNode, cycleShape } = useFlow();
+  const shape = ((data as { shape?: ShapeKind }).shape ||
+    "rectangle") as ShapeKind;
+  const label = (data as { label?: string }).label || "";
+  const color = (data as { color?: string }).color || "#6366F1";
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(label);
+
+  const commit = () => {
+    setEditing(false);
+    updateNodeData(id, { label: draft.trim() });
+  };
+
+  const radius =
+    shape === "ellipse" ? "9999px" : shape === "diamond" ? "8px" : "10px";
+  const rotate = shape === "diamond" ? "rotate(45deg)" : "none";
+
+  return (
+    <div
+      className="group relative w-full h-full"
+      style={{ minWidth: 120, minHeight: 80 }}
+      onDoubleClick={() => {
+        if (!canEdit) return;
+        setDraft(label);
+        setEditing(true);
+      }}
+    >
+      <NodeResizer
+        isVisible={canEdit && !!selected}
+        minWidth={80}
+        minHeight={60}
+        color={color}
+        handleClassName="!w-2 !h-2 !rounded-sm"
+      />
+      <NodeHandles canEdit={canEdit} />
+      <DeleteBtn id={id} />
+      {/* 도형 배경 */}
+      <div
+        className="absolute inset-0 border-2"
+        style={{
+          borderColor: color,
+          background: `${color}1a`,
+          borderRadius: radius,
+          transform: rotate,
+        }}
+      />
+      {canEdit && (
+        <>
+          <button
+            type="button"
+            className="absolute top-1 left-1 w-2.5 h-2.5 rounded-[3px] z-10"
+            style={{ backgroundColor: color }}
+            onClick={(e) => {
+              e.stopPropagation();
+              recolorNode(id);
+            }}
+            title="색상 변경"
+          />
+          <button
+            type="button"
+            className="absolute top-1 right-1 z-10 text-[9px] font-bold px-1 rounded bg-foreground/10 text-slate-300 hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              cycleShape(id);
+            }}
+            title="도형 변경"
+          >
+            ◇
+          </button>
+        </>
+      )}
+      {/* 라벨 */}
+      <div className="absolute inset-0 flex items-center justify-center px-3">
+        {editing ? (
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            className="bg-transparent outline-none text-xs font-bold text-center w-full text-foreground"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commit();
+              if (e.key === "Escape") setEditing(false);
+            }}
+          />
+        ) : (
+          <span className="text-xs font-bold text-center text-foreground break-words leading-snug">
+            {label}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+});
+
+// ── 이미지 노드 ────────────────────────────────────────────
+const ImageNode = memo(function ImageNode({ id, data, selected }: NodeProps) {
+  const { canEdit } = useFlow();
+  const url = (data as { url?: string }).url || "";
+  const caption = (data as { caption?: string }).caption || "";
+  return (
+    <div
+      className="group relative w-full h-full rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-lg overflow-hidden"
+      style={{ minWidth: 120, minHeight: 90 }}
+    >
+      <NodeResizer
+        isVisible={canEdit && !!selected}
+        minWidth={100}
+        minHeight={80}
+        keepAspectRatio
+        color="#6366F1"
+        handleClassName="!w-2 !h-2 !rounded-sm"
+      />
+      <NodeHandles canEdit={canEdit} />
+      <DeleteBtn id={id} />
+      {url ? (
+        <img
+          src={url}
+          alt={caption || "image"}
+          className="w-full h-full object-cover pointer-events-none select-none"
+          draggable={false}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-slate-500">
+          <ImageIcon className="w-6 h-6" />
+        </div>
+      )}
+      {caption && (
+        <div className="absolute bottom-0 inset-x-0 px-2 py-1 text-[11px] text-white bg-black/50 truncate">
+          {caption}
+        </div>
+      )}
+    </div>
+  );
+});
+
+// ── 영상 노드 ──────────────────────────────────────────────
+const VideoNode = memo(function VideoNode({ id, data, selected }: NodeProps) {
+  const { canEdit } = useFlow();
+  const url = (data as { url?: string }).url || "";
+  const caption = (data as { caption?: string }).caption || "";
+  return (
+    <div
+      className="group relative w-full h-full rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-lg overflow-hidden"
+      style={{ minWidth: 160, minHeight: 100 }}
+    >
+      <NodeResizer
+        isVisible={canEdit && !!selected}
+        minWidth={140}
+        minHeight={90}
+        color="#f472b6"
+        handleClassName="!w-2 !h-2 !rounded-sm"
+      />
+      <NodeHandles canEdit={canEdit} />
+      <DeleteBtn id={id} />
+      {url ? (
+        <video
+          src={url}
+          controls
+          className="w-full h-full object-contain bg-black"
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-slate-500">
+          <Play className="w-6 h-6" />
+        </div>
+      )}
+      {caption && (
+        <div className="px-2 py-1 text-[11px] text-slate-400 truncate">
+          {caption}
+        </div>
+      )}
+    </div>
+  );
+});
+
+const nodeTypes = {
+  text: TextNode,
+  sticky: StickyNode,
+  shape: ShapeNode,
+  image: ImageNode,
+  video: VideoNode,
+};
+
+// ── (de)serialize ──────────────────────────────────────────
+function rfNodeToStored(n: Node): StoredFlowNode {
+  return {
+    id: n.id,
+    kind: (n.type as FlowNodeKind) || "text",
+    x: Math.round(n.position.x),
+    y: Math.round(n.position.y),
+    ...(n.width ? { width: Math.round(n.width) } : {}),
+    ...(n.height ? { height: Math.round(n.height) } : {}),
+    data: { ...(n.data as Record<string, unknown>) },
+  };
+}
+
+function storedToRFNode(s: StoredFlowNode): Node {
+  return {
+    id: s.id,
+    type: s.kind,
+    position: { x: s.x, y: s.y },
+    ...(s.width ? { width: s.width } : {}),
+    ...(s.height ? { height: s.height } : {}),
+    data: s.data || {},
+  };
+}
+
+function rfEdgeToStored(e: Edge): StoredFlowEdge {
+  return {
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    source_handle: e.sourceHandle ?? null,
+    target_handle: e.targetHandle ?? null,
+    label: typeof e.label === "string" ? e.label : null,
+  };
+}
+
+function storedToRFEdge(s: StoredFlowEdge): Edge {
+  return {
+    id: s.id,
+    source: s.source,
+    target: s.target,
+    sourceHandle: s.source_handle ?? undefined,
+    targetHandle: s.target_handle ?? undefined,
+    ...(s.label ? { label: s.label } : {}),
+  };
+}
+
+function serialize(nodes: Node[], edges: Edge[]): FlowDocument {
+  return {
+    type: "bridge-flow",
+    version: 1,
+    nodes: nodes.map(rfNodeToStored),
+    edges: edges.map(rfEdgeToStored),
+  };
+}
+
+// Y.Map(flow-nodes/flow-edges) → RF nodes/edges (orphan edge prune 포함)
+function fromYMaps(
+  yNodes: Y.Map<unknown>,
+  yEdges: Y.Map<unknown>,
+): { nodes: Node[]; edges: Edge[] } {
+  const nodes: Node[] = [];
+  yNodes.forEach((v) => {
+    if (v) nodes.push(storedToRFNode(v as StoredFlowNode));
+  });
+  const ids = new Set(nodes.map((n) => n.id));
+  const edges: Edge[] = [];
+  yEdges.forEach((v) => {
+    const se = v as StoredFlowEdge;
+    if (se && ids.has(se.source) && ids.has(se.target))
+      edges.push(storedToRFEdge(se));
+  });
+  return { nodes, edges };
+}
+
+function deserialize(content: string | null): { nodes: Node[]; edges: Edge[] } {
+  if (!content?.trim()) return { nodes: [], edges: [] };
+  let doc: FlowDocument;
+  try {
+    doc = JSON.parse(content);
+  } catch {
+    return { nodes: [], edges: [] };
+  }
+  const nodes: Node[] = (doc.nodes || []).map(storedToRFNode);
+  const ids = new Set(nodes.map((n) => n.id));
+  const edges: Edge[] = (doc.edges || [])
+    .filter((e) => ids.has(e.source) && ids.has(e.target))
+    .map(storedToRFEdge);
+  return { nodes, edges };
+}
+
+interface FlowEditorProps {
+  boardId?: string;
+  orgId?: string;
+  note: NoteDetail;
+  tags: NoteTagInfo[];
+  canEdit: boolean;
+  onSave: (
+    noteId: string,
+    data: { title?: string; content?: string; tagIds?: string[] },
+    createVersion?: boolean,
+  ) => void;
+  onTagsChange: () => void;
+  onNoteUpdate?: (note: NoteDetail) => void;
+  collaboration: CollaborationState | null;
+  currentUserName: string;
+  currentUserColor: string;
+}
+
+// ────────────────────────────────────────────────────────────
+// 내부 캔버스
+// ────────────────────────────────────────────────────────────
+function FlowCanvas({
+  boardId,
+  orgId,
+  note,
+  tags,
+  canEdit,
+  onSave,
+  onTagsChange,
+  onNoteUpdate,
+  collaboration,
+  currentUserName,
+  currentUserColor,
+}: FlowEditorProps) {
+  const { t } = useTranslation();
+  const { currentUser } = useAuth();
+  const { screenToFlowPosition } = useReactFlow();
+
+  const [title, setTitle] = useState(note.title);
+  const [mode, setMode] = useState<"view" | "edit">("view");
+  const [saving, setSaving] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [interactionMode, setInteractionMode] = useState<"hand" | "pointer">(
+    "hand",
+  );
+
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingMediaRef = useRef<"image" | "video" | null>(null);
+
+  // Yjs 라이브 협업 refs (Excalidraw 노트의 옵저버 패턴 이식)
+  const yNodesRef = useRef<Y.Map<unknown> | null>(null);
+  const yEdgesRef = useRef<Y.Map<unknown> | null>(null);
+  const isRemoteUpdateRef = useRef(false);
+  const isLocalUpdateRef = useRef(false);
+  const modeRef = useRef<"view" | "edit">(mode);
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
+  // 편집/읽기 모드에 맞춰 collab readOnly + awareness 동기화
+  useEffect(() => {
+    if (!collaboration) return;
+    collaboration.provider.setReadOnly(mode === "view");
+    collaboration.provider.awareness.setLocalStateField("mode", mode);
+  }, [mode, collaboration]);
+
+  const editorPeers = collaboration
+    ? collaboration.connectedUsers.filter((u) => u.mode === "edit")
+    : [];
+
+  // note.id 변경 시 초기화 + 스냅샷 로드
+  useEffect(() => {
+    setTitle(note.title);
+    setMode("view");
+    const { nodes: n, edges: e } = deserialize(note.content);
+    setNodes(n);
+    setEdges(e);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note.id]);
+
+  // view 모드에서 스냅샷(note.content)이 갱신되면 반영
+  useEffect(() => {
+    if (mode !== "view") return;
+    const { nodes: n, edges: e } = deserialize(note.content);
+    setNodes(n);
+    setEdges(e);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note.content, mode]);
+
+  // 다른 편집자가 스냅샷을 발행하면 view 클라이언트는 재조회 (Excalidraw와 동일)
+  useEffect(() => {
+    if (!collaboration) return;
+    return collaboration.provider.onSnapshotUpdated(async () => {
+      if (modeRef.current !== "view") return;
+      try {
+        const { noteService, orgNoteService } = await import(
+          "../../utils/services"
+        );
+        const updated = boardId
+          ? await noteService.getDetail(boardId, note.id)
+          : orgId
+            ? await orgNoteService.getDetail(orgId, note.id)
+            : null;
+        if (!updated) return;
+        onNoteUpdate?.(updated);
+        setTitle(updated.title);
+        const { nodes: n, edges: e } = deserialize(updated.content);
+        setNodes(n);
+        setEdges(e);
+      } catch (err) {
+        console.error("Flow snapshot refetch failed:", err);
+      }
+    });
+  }, [collaboration, note.id, boardId, orgId, onNoteUpdate, setNodes, setEdges]);
+
+  // Yjs 옵저버: 원격 변경 → 캔버스 재구성 (편집 모드에서만)
+  useEffect(() => {
+    if (!collaboration) {
+      yNodesRef.current = null;
+      yEdgesRef.current = null;
+      return;
+    }
+    const yNodes = collaboration.doc.getMap<unknown>("flow-nodes");
+    const yEdges = collaboration.doc.getMap<unknown>("flow-edges");
+    yNodesRef.current = yNodes;
+    yEdgesRef.current = yEdges;
+
+    const applyRemote = () => {
+      if (isLocalUpdateRef.current) return;
+      if (modeRef.current !== "edit") return;
+      isRemoteUpdateRef.current = true;
+      const { nodes: n, edges: e } = fromYMaps(yNodes, yEdges);
+      setNodes(n);
+      setEdges(e);
+      requestAnimationFrame(() => {
+        isRemoteUpdateRef.current = false;
+      });
+    };
+
+    yNodes.observe(applyRemote);
+    yEdges.observe(applyRemote);
+    // 편집 모드로 이미 들어온 상태에서 재구독되면 즉시 반영
+    if (modeRef.current === "edit" && (yNodes.size > 0 || yEdges.size > 0)) {
+      applyRemote();
+    }
+    return () => {
+      yNodes.unobserve(applyRemote);
+      yEdges.unobserve(applyRemote);
+    };
+  }, [collaboration, note.id, setNodes, setEdges]);
+
+  // 편집 진입 시 서버에 남은 미발행 드래프트(Yjs)가 있으면 로드
+  useEffect(() => {
+    if (mode !== "edit") return;
+    const yNodes = yNodesRef.current;
+    const yEdges = yEdgesRef.current;
+    if (!yNodes || !yEdges) return;
+    if (yNodes.size === 0 && yEdges.size === 0) return; // 드래프트 없음 → 스냅샷 유지
+    isRemoteUpdateRef.current = true;
+    const { nodes: n, edges: e } = fromYMaps(yNodes, yEdges);
+    setNodes(n);
+    setEdges(e);
+    requestAnimationFrame(() => {
+      isRemoteUpdateRef.current = false;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
+
+  // 로컬 변경 → Yjs 반영 (편집 모드). JSON diff로 불필요한 write/echo 방지.
+  useEffect(() => {
+    if (!collaboration) return;
+    if (mode !== "edit") return;
+    if (isRemoteUpdateRef.current) return;
+    const yNodes = yNodesRef.current;
+    const yEdges = yEdgesRef.current;
+    if (!yNodes || !yEdges) return;
+    isLocalUpdateRef.current = true;
+    collaboration.doc.transact(() => {
+      const nodeIds = new Set<string>();
+      for (const n of nodes) {
+        const s = rfNodeToStored(n);
+        nodeIds.add(s.id);
+        const existing = yNodes.get(s.id);
+        if (!existing || JSON.stringify(existing) !== JSON.stringify(s))
+          yNodes.set(s.id, s);
+      }
+      const nodeDel: string[] = [];
+      yNodes.forEach((_v, k) => {
+        if (!nodeIds.has(k)) nodeDel.push(k);
+      });
+      nodeDel.forEach((k) => yNodes.delete(k));
+
+      const edgeIds = new Set<string>();
+      for (const e of edges) {
+        const s = rfEdgeToStored(e);
+        edgeIds.add(s.id);
+        const existing = yEdges.get(s.id);
+        if (!existing || JSON.stringify(existing) !== JSON.stringify(s))
+          yEdges.set(s.id, s);
+      }
+      const edgeDel: string[] = [];
+      yEdges.forEach((_v, k) => {
+        if (!edgeIds.has(k)) edgeDel.push(k);
+      });
+      edgeDel.forEach((k) => yEdges.delete(k));
+    });
+    isLocalUpdateRef.current = false;
+  }, [nodes, edges, mode, collaboration]);
+
+  const updateNodeData = useCallback(
+    (id: string, patch: Record<string, unknown>) => {
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === id ? { ...n, data: { ...n.data, ...patch } } : n,
+        ),
+      );
+    },
+    [setNodes],
+  );
+
+  const recolorNode = useCallback(
+    (id: string) => {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== id) return n;
+          const cur = (n.data as { color?: string }).color || NODE_COLORS[0];
+          const next =
+            NODE_COLORS[(NODE_COLORS.indexOf(cur) + 1) % NODE_COLORS.length];
+          return { ...n, data: { ...n.data, color: next } };
+        }),
+      );
+    },
+    [setNodes],
+  );
+
+  const cycleShape = useCallback(
+    (id: string) => {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== id) return n;
+          const cur = ((n.data as { shape?: ShapeKind }).shape ||
+            "rectangle") as ShapeKind;
+          const next =
+            SHAPE_CYCLE[(SHAPE_CYCLE.indexOf(cur) + 1) % SHAPE_CYCLE.length];
+          return { ...n, data: { ...n.data, shape: next } };
+        }),
+      );
+    },
+    [setNodes],
+  );
+
+  const deleteNode = useCallback(
+    (id: string) => {
+      setNodes((nds) => nds.filter((n) => n.id !== id));
+      setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+    },
+    [setNodes, setEdges],
+  );
+
+  const onConnect = useCallback(
+    (conn: Connection) => {
+      if (!canEdit) return;
+      setEdges((eds) => addEdge({ ...conn, id: crypto.randomUUID() }, eds));
+    },
+    [canEdit, setEdges],
+  );
+
+  // 뷰포트 중앙 좌표
+  const centerPos = useCallback(
+    () =>
+      screenToFlowPosition({
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+      }),
+    [screenToFlowPosition],
+  );
+
+  const addNode = useCallback(
+    (
+      type: FlowNodeKind,
+      data: Record<string, unknown>,
+      size?: {
+        width: number;
+        height: number;
+      },
+    ) => {
+      const pos = centerPos();
+      setNodes((nds) => [
+        ...nds,
+        {
+          id: crypto.randomUUID(),
+          type,
+          position: pos,
+          ...(size ? { width: size.width, height: size.height } : {}),
+          data,
+        },
+      ]);
+    },
+    [centerPos, setNodes],
+  );
+
+  const addText = useCallback(
+    () =>
+      addNode(
+        "text",
+        { title: "", body: "", color: "#6366F1" },
+        { width: 200, height: 90 },
+      ),
+    [addNode],
+  );
+  const addSticky = useCallback(
+    () =>
+      addNode(
+        "sticky",
+        { body: t("flow.newMemo", "메모"), color: "#f59e0b" },
+        { width: 150, height: 64 },
+      ),
+    [addNode, t],
+  );
+  const addShape = useCallback(
+    () =>
+      addNode(
+        "shape",
+        { shape: "rectangle", label: "", color: "#6366F1" },
+        { width: 140, height: 90 },
+      ),
+    [addNode],
+  );
+
+  // 이미지/영상 업로드 → URL → 노드 생성
+  const triggerMedia = useCallback((kind: "image" | "video") => {
+    pendingMediaRef.current = kind;
+    if (fileInputRef.current) {
+      fileInputRef.current.accept = kind === "image" ? "image/*" : "video/*";
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  }, []);
+
+  const handleFileSelected = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      const kind = pendingMediaRef.current;
+      pendingMediaRef.current = null;
+      if (!file || !kind) return;
+      try {
+        const scope = boardId ? { boardId } : { organizationId: orgId! };
+        const { url } = await fileAPI.uploadNote(file, scope);
+        if (kind === "image") {
+          addNode(
+            "image",
+            { url, caption: file.name },
+            { width: 200, height: 150 },
+          );
+        } else {
+          addNode(
+            "video",
+            { url, caption: file.name },
+            { width: 240, height: 150 },
+          );
+        }
+      } catch (err) {
+        console.error("Flow media upload failed:", err);
+      }
+    },
+    [addNode, boardId, orgId],
+  );
+
+  // 저장 (스냅샷 발행 + 버전 생성)
+  const handleSave = useCallback(async () => {
+    if (!canEdit || mode !== "edit") return;
+    setSaving(true);
+    try {
+      const content = JSON.stringify(serialize(nodes, edges));
+      await onSave(
+        note.id,
+        {
+          title: title !== note.title ? title : undefined,
+          content,
+          tagIds: note.tags.map((tg) => tg.id),
+        },
+        true,
+      );
+      if (collaboration) collaboration.provider.sendFullState();
+      setMode("view");
+    } finally {
+      setSaving(false);
+    }
+  }, [
+    canEdit,
+    mode,
+    nodes,
+    edges,
+    onSave,
+    note.id,
+    note.title,
+    note.tags,
+    title,
+    collaboration,
+  ]);
+
+  const handleEnterEdit = useCallback(() => {
+    if (!canEdit) return;
+    setMode("edit");
+  }, [canEdit]);
+
+  const handleExitEdit = useCallback(() => {
+    // 미발행 드래프트(Yjs)를 서버에 보존 — 다음 편집자가 이어서 편집
+    if (collaboration) collaboration.provider.sendFullState();
+    // 화면은 발행 스냅샷으로 되돌림 (view 모드 표시용)
+    const { nodes: n, edges: e } = deserialize(note.content);
+    setNodes(n);
+    setEdges(e);
+    setTitle(note.title);
+    setMode("view");
+  }, [collaboration, note.content, note.title, setNodes, setEdges]);
+
+  // 단축키: H=손, V=선택, Cmd/Ctrl+S=저장
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+        return;
+      }
+      if (!canEdit || mode !== "edit") return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable)
+      )
+        return;
+      if (e.code === "KeyH") setInteractionMode("hand");
+      else if (e.code === "KeyV") setInteractionMode("pointer");
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [canEdit, mode, handleSave]);
+
+  const ctxValue = useMemo<FlowCtx>(
+    () => ({
+      canEdit: canEdit && mode === "edit",
+      updateNodeData,
+      recolorNode,
+      cycleShape,
+      deleteNode,
+    }),
+    [canEdit, mode, updateNodeData, recolorNode, cycleShape, deleteNode],
+  );
+
+  const editable = canEdit && mode === "edit";
+
+  return (
+    <FlowContext.Provider value={ctxValue}>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-3 py-1.5 border-b border-foreground/[0.08] bg-bridge-obsidian flex-shrink-0 gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <input
+              value={title}
+              onChange={(e) => {
+                if (mode === "edit") setTitle(e.target.value);
+              }}
+              className="bg-transparent text-sm font-bold text-foreground focus:outline-none placeholder-slate-500 min-w-0 flex-1"
+              placeholder={t("notes.titlePlaceholder", "제목을 입력하세요")}
+              readOnly={mode !== "edit" || !canEdit}
+            />
+            {note.tags.length > 0 && (
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {note.tags.slice(0, 2).map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-bold"
+                    style={{
+                      backgroundColor: `${tag.color}20`,
+                      color: tag.color,
+                    }}
+                  >
+                    <TagIcon size={7} />
+                    {tag.name}
+                  </span>
+                ))}
+              </div>
+            )}
+            <span className="text-xs text-slate-500 flex items-center gap-1 whitespace-nowrap flex-shrink-0 hidden sm:flex">
+              <Clock size={9} />
+              {formatDateTime(note.updated_at)}
+            </span>
+            {mode === "view" && editorPeers.length > 0 && (
+              <span className="text-xs flex items-center gap-1 text-emerald-500 flex-shrink-0">
+                <Users size={9} />
+                {t("notes.editorsCount", {
+                  count: editorPeers.length,
+                  defaultValue: "{{count}}명 편집 중",
+                })}
+              </span>
+            )}
+            {mode === "view" && editorPeers.length === 0 && (
+              <span className="text-xs flex items-center gap-1 text-slate-500 flex-shrink-0 hidden sm:flex">
+                <Eye size={9} />
+                {t("notes.viewMode", "읽기 모드")}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {collaboration && mode === "edit" && (
+              <CollabPresence
+                status={collaboration.status}
+                connectedUsers={editorPeers}
+                currentUserName={currentUserName}
+                currentUserColor={currentUserColor}
+              />
+            )}
+            <NoteShareButton
+              boardId={boardId}
+              orgId={orgId}
+              note={note}
+              canEdit={canEdit}
+              onNoteUpdate={onNoteUpdate}
+            />
+            {mode === "edit" && (
+              <NoteTagManager
+                boardId={boardId}
+                orgId={orgId}
+                noteId={note.id}
+                noteTags={note.tags}
+                allTags={tags}
+                canEdit={canEdit}
+                onSave={(tagIds) => onSave(note.id, { tagIds })}
+                onTagsChange={onTagsChange}
+              />
+            )}
+            {canEdit && mode === "edit" && (
+              <NoteVersionHistory
+                boardId={boardId}
+                orgId={orgId}
+                noteId={note.id}
+                noteType={note.type}
+                currentTitle={note.title}
+                currentContent={note.content}
+                versionCount={note.version_count}
+                canEdit={canEdit}
+                getLiveSnapshot={() => ({
+                  title,
+                  content: JSON.stringify(serialize(nodes, edges)),
+                })}
+                onRestore={async () => {
+                  let updated;
+                  if (boardId) {
+                    const { noteService } =
+                      await import("../../utils/services");
+                    updated = await noteService.getDetail(boardId, note.id);
+                  } else if (orgId) {
+                    const { orgNoteService } =
+                      await import("../../utils/services");
+                    updated = await orgNoteService.getDetail(orgId, note.id);
+                  }
+                  if (!updated) return;
+                  setTitle(updated.title);
+                  onNoteUpdate?.(updated);
+                  const { nodes: n, edges: e } = deserialize(updated.content);
+                  setNodes(n);
+                  setEdges(e);
+                }}
+              />
+            )}
+            {currentUser && (
+              <button
+                onClick={() => setShowComments(!showComments)}
+                aria-label={t("notes.comments", "댓글")}
+                className={`p-1.5 rounded-lg text-xs transition-colors ${
+                  showComments
+                    ? "text-bridge-accent bg-bridge-accent/10"
+                    : "text-slate-500 hover:text-foreground hover:bg-foreground/5"
+                }`}
+                title={t("notes.comments", "댓글")}
+              >
+                <MessageSquare size={14} />
+              </button>
+            )}
+            {canEdit && mode === "view" && (
+              <button
+                onClick={handleEnterEdit}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20"
+              >
+                <Pencil size={12} />
+                <span className="hidden sm:inline">
+                  {t("notes.editButton", "편집")}
+                </span>
+              </button>
+            )}
+            {canEdit && mode === "edit" && (
+              <>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20 disabled:opacity-60"
+                >
+                  {saving ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <Save size={12} />
+                  )}
+                  <span className="hidden lg:inline">
+                    {t("notes.saveSnapshot", "저장")}
+                  </span>
+                </button>
+                <button
+                  onClick={handleExitEdit}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all bg-foreground/5 text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                >
+                  <DoorOpen size={12} />
+                  <span className="hidden lg:inline">
+                    {t("notes.exitEdit", "편집 종료")}
+                  </span>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Canvas */}
+        <div
+          className={`flex-1 relative ${
+            interactionMode === "pointer" ? "fl-pointer" : ""
+          }`}
+        >
+          {/* 팔레트 툴바 (편집 모드) */}
+          {editable && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 bg-bridge-obsidian/85 backdrop-blur-md border border-foreground/[0.08] rounded-2xl px-2 py-1.5 shadow-2xl">
+              <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/5 border border-foreground/10">
+                <button
+                  type="button"
+                  onClick={() => setInteractionMode("hand")}
+                  aria-label={t("flow.handTool", "손 도구") + " (H)"}
+                  title={t("flow.handTool", "손 도구") + " (H)"}
+                  className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
+                    interactionMode === "hand"
+                      ? "bg-bridge-accent text-white"
+                      : "text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                  }`}
+                >
+                  <Hand className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInteractionMode("pointer")}
+                  aria-label={t("flow.pointerTool", "선택 도구") + " (V)"}
+                  title={t("flow.pointerTool", "선택 도구") + " (V)"}
+                  className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
+                    interactionMode === "pointer"
+                      ? "bg-bridge-accent text-white"
+                      : "text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                  }`}
+                >
+                  <MousePointer2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="w-px h-5 bg-foreground/10" />
+              <PaletteBtn
+                onClick={addText}
+                icon={<Type className="w-3.5 h-3.5" />}
+                label={t("flow.addText", "텍스트")}
+              />
+              <PaletteBtn
+                onClick={addSticky}
+                icon={<StickyNote className="w-3.5 h-3.5" />}
+                label={t("flow.addSticky", "스티키")}
+              />
+              <PaletteBtn
+                onClick={addShape}
+                icon={<Square className="w-3.5 h-3.5" />}
+                label={t("flow.addShape", "도형")}
+              />
+              <PaletteBtn
+                onClick={() => triggerMedia("image")}
+                icon={<ImageIcon className="w-3.5 h-3.5" />}
+                label={t("flow.addImage", "이미지")}
+              />
+              <PaletteBtn
+                onClick={() => triggerMedia("video")}
+                icon={<VideoIcon className="w-3.5 h-3.5" />}
+                label={t("flow.addVideo", "영상")}
+              />
+            </div>
+          )}
+
+          {nodes.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+              <div className="text-center text-slate-500">
+                <StickyNote className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <div className="text-sm">
+                  {editable
+                    ? t(
+                        "flow.empty",
+                        "상단 팔레트에서 노드를 추가해 시작하세요",
+                      )
+                    : t("flow.emptyReadOnly", "아직 플로우가 비어 있습니다")}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={nodeTypes}
+            colorMode="dark"
+            fitView
+            nodesDraggable={editable}
+            nodesConnectable={editable}
+            elementsSelectable={editable}
+            panOnDrag={interactionMode === "hand" ? true : [1, 2]}
+            selectionOnDrag={editable && interactionMode === "pointer"}
+            selectionMode={SelectionMode.Partial}
+            deleteKeyCode={editable ? ["Backspace", "Delete"] : null}
+            defaultEdgeOptions={{
+              markerEnd: { type: "arrowclosed" as any, color: "#6366F1" },
+              style: { stroke: "#6366F1", strokeWidth: 2 },
+              interactionWidth: 20,
+            }}
+            proOptions={{ hideAttribution: true }}
+          >
+            <Background gap={24} color="rgba(255,255,255,0.07)" />
+            <Controls
+              showInteractive={false}
+              className="!bg-bridge-obsidian/90 !border !border-foreground/[0.08] !rounded-lg"
+            />
+            <MiniMap
+              pannable
+              zoomable
+              className="!bg-bridge-dark/90 !border !border-foreground/[0.08] !rounded-lg"
+              nodeColor={(n) =>
+                (n.data as { color?: string }).color ||
+                (n.type === "video" ? "#f472b6" : "#6366F1")
+              }
+              maskColor="rgba(13,17,26,0.6)"
+            />
+          </ReactFlow>
+        </div>
+
+        {/* Comments */}
+        {currentUser && showComments && (
+          <div className="border-t border-foreground/[0.08] bg-bridge-obsidian flex-shrink-0">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-foreground/[0.08]">
+              <span className="text-xs font-bold text-foreground">
+                {t("notes.comments", "댓글")}
+              </span>
+              <IconButton
+                onClick={() => setShowComments(false)}
+                aria-label="댓글 닫기"
+              >
+                <ChevronDown />
+              </IconButton>
+            </div>
+            <div className="max-h-48 overflow-y-auto custom-scrollbar">
+              <NoteBottomComments
+                boardId={boardId}
+                orgId={orgId}
+                noteId={note.id}
+                currentUserId={currentUser.id}
+                canEdit={canEdit}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 미디어 업로드용 숨김 input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleFileSelected}
+      />
+
+      <style>{`
+        .react-flow__handle.fl-handle{
+          width:9px;height:9px;background:#6366F1;border:2px solid #151B28;opacity:0;transition:opacity .15s;
+        }
+        .react-flow .react-flow__node:hover .fl-handle{opacity:1}
+        .fl-pointer .react-flow__pane{cursor:crosshair}
+        .react-flow__edge:hover .react-flow__edge-path{
+          stroke:rgba(99,102,241,0.85)!important;cursor:pointer;
+        }
+        .react-flow__edge.selected .react-flow__edge-path{
+          stroke:#2DD4BF!important;stroke-width:3!important;
+          filter:drop-shadow(0 0 5px rgba(45,212,191,0.75));
+        }
+      `}</style>
+    </FlowContext.Provider>
+  );
+}
+
+function PaletteBtn({
+  onClick,
+  icon,
+  label,
+}: {
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="flex items-center gap-1 text-xs font-bold px-2 py-1.5 rounded-lg text-slate-300 hover:text-foreground hover:bg-foreground/10 transition-colors"
+      title={label}
+    >
+      {icon}
+      <span className="hidden md:inline">{label}</span>
+    </button>
+  );
+}
+
+export default function FlowEditor(props: FlowEditorProps) {
+  return (
+    <ReactFlowProvider>
+      <FlowCanvas {...props} />
+    </ReactFlowProvider>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// 읽기 전용 뷰 (공유 페이지 등) — note.content 스냅샷을 그대로 렌더
+// ────────────────────────────────────────────────────────────
+function FlowReadOnlyCanvas({
+  content,
+  isDark = true,
+}: {
+  content: string | null;
+  isDark?: boolean;
+}) {
+  const { nodes, edges } = useMemo(() => deserialize(content), [content]);
+  const ctx = useMemo<FlowCtx>(
+    () => ({
+      canEdit: false,
+      updateNodeData: () => {},
+      recolorNode: () => {},
+      cycleShape: () => {},
+      deleteNode: () => {},
+    }),
+    [],
+  );
+  return (
+    <FlowContext.Provider value={ctx}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        colorMode={isDark ? "dark" : "light"}
+        fitView
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        panOnDrag
+        zoomOnScroll
+        proOptions={{ hideAttribution: true }}
+        defaultEdgeOptions={{
+          markerEnd: { type: "arrowclosed" as any, color: "#6366F1" },
+          style: { stroke: "#6366F1", strokeWidth: 2 },
+        }}
+      >
+        <Background gap={24} color="rgba(255,255,255,0.07)" />
+        <Controls
+          showInteractive={false}
+          className="!bg-bridge-obsidian/90 !border !border-foreground/[0.08] !rounded-lg"
+        />
+        <MiniMap
+          pannable
+          zoomable
+          className="!bg-bridge-dark/90 !border !border-foreground/[0.08] !rounded-lg"
+          nodeColor={(n) =>
+            (n.data as { color?: string }).color ||
+            (n.type === "video" ? "#f472b6" : "#6366F1")
+          }
+          maskColor="rgba(13,17,26,0.6)"
+        />
+      </ReactFlow>
+    </FlowContext.Provider>
+  );
+}
+
+export function FlowReadOnly({
+  content,
+  isDark = true,
+}: {
+  content: string | null;
+  isDark?: boolean;
+}) {
+  return (
+    <ReactFlowProvider>
+      <FlowReadOnlyCanvas content={content} isDark={isDark} />
+    </ReactFlowProvider>
+  );
+}

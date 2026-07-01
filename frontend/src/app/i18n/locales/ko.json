@@ -3176,7 +3176,8 @@
       "added": "추가",
       "removed": "삭제",
       "modified": "변경",
-      "compareToCurrent": "→ 현재"
+      "compareToCurrent": "→ 현재",
+      "flowNoPreview": "플로우는 시각 비교를 지원하지 않습니다. 되돌리기로 해당 버전을 복원할 수 있어요."
     },
     "tags": "태그",
     "addTag": "태그 추가",
@@ -3243,7 +3244,9 @@
       "permanentDeleteConfirm": "\"{{title}}\"와 모든 하위 항목, 댓글, 버전이 즉시 삭제되며 되돌릴 수 없습니다.",
       "emptyAllConfirmTitle": "휴지통을 비울까요?",
       "emptyAllConfirm": "휴지통의 모든 항목({{count}}개)이 영구 삭제됩니다. 되돌릴 수 없습니다."
-    }
+    },
+    "newFlow": "새 플로우",
+    "addFlow": "플로우 추가"
   },
   "ai_credits": {
     "title": "AI 크레딧",
@@ -4733,5 +4736,17 @@
   "minikanban": {
     "hint": "카드를 TODO·DOING·DONE으로 드래그, 태스크를 다른 블록으로 이동",
     "empty": "표시할 블록/태스크가 없습니다"
+  },
+  "flow": {
+    "newMemo": "메모",
+    "handTool": "손 도구",
+    "pointerTool": "선택 도구",
+    "addText": "텍스트",
+    "addSticky": "스티키",
+    "addShape": "도형",
+    "addImage": "이미지",
+    "addVideo": "영상",
+    "empty": "상단 팔레트에서 노드를 추가해 시작하세요",
+    "emptyReadOnly": "아직 플로우가 비어 있습니다"
   }
 }
