@@ -2188,13 +2188,15 @@
   },
   "kanbanBlock": {
     "recentDone": {
-      "toggle": "查看最近完成",
-      "todayDelta": "今日 +{{count}}",
-      "empty": "暂无已完成项目",
-      "period": {
-        "today": "今天",
-        "week": "近7天",
-        "all": "全部"
+      "title": "进度概览",
+      "toggle": "查看进度",
+      "todayDelta": "{{count}}",
+      "empty": "暂无项目",
+      "tab": {
+        "todayDone": "今日完成",
+        "inProgress": "进行中",
+        "earlierDone": "之前完成",
+        "notStarted": "未开始"
       }
     },
     "dropHere": "放在此处",

@@ -2188,13 +2188,15 @@
   },
   "kanbanBlock": {
     "recentDone": {
-      "toggle": "Ver completados recientes",
-      "todayDelta": "+{{count}} hoy",
-      "empty": "Sin elementos completados",
-      "period": {
-        "today": "Hoy",
-        "week": "Últimos 7 días",
-        "all": "Todo"
+      "title": "Progreso",
+      "toggle": "Ver progreso",
+      "todayDelta": "{{count}}",
+      "empty": "Sin elementos",
+      "tab": {
+        "todayDone": "Hoy",
+        "inProgress": "En curso",
+        "earlierDone": "Completado",
+        "notStarted": "Sin empezar"
       }
     },
     "dropHere": "Soltar aquí",
