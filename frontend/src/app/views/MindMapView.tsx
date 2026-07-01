@@ -33,6 +33,7 @@ import {
   ChevronDown,
   ChevronRight,
   Circle,
+  EyeOff,
   Loader2,
   Plus,
   StickyNote,
@@ -121,6 +122,7 @@ interface MindMapCtx {
   renameMemo: (id: string, label: string) => void;
   recolorMemo: (id: string) => void;
   deleteNode: (id: string) => void;
+  openFeatureMenu: (e: React.MouseEvent, nodeId: string, feature: Feature) => void;
 }
 const MindMapContext = createContext<MindMapCtx | null>(null);
 const useMindMap = () => {
@@ -158,7 +160,7 @@ function NodeHandles({ canEdit }: { canEdit: boolean }) {
 // ────────────────────────────────────────────────────────────
 // Feature 노드 — feature_id로 live 조회
 // ────────────────────────────────────────────────────────────
-const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
+const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
   const {
     featuresById,
     featureMilestonesMap,
@@ -169,6 +171,7 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
     onFeatureClick,
     onTaskClick,
     toggleExpand,
+    openFeatureMenu,
   } = useMindMap();
   const featureId = (data as { feature_id: string }).feature_id;
   const feature = featuresById.get(featureId);
@@ -196,6 +199,7 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
       className="group relative rounded-2xl border border-foreground/10 bg-bridge-obsidian shadow-lg cursor-pointer transition-colors hover:border-bridge-accent/60"
       style={{ width: FEATURE_NODE_WIDTH }}
       onClick={() => onFeatureClick(feature)}
+      onContextMenu={(e) => openFeatureMenu(e, id, feature)}
     >
       <NodeHandles canEdit={canEdit} />
       <span
@@ -552,6 +556,13 @@ function MindMapCanvas({
   const [milestoneFilter, setMilestoneFilter] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
+  // Feature 노드 우클릭 컨텍스트 메뉴
+  const [featureMenu, setFeatureMenu] = useState<{
+    nodeId: string;
+    title: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const loadedRef = useRef(false);
   const lastSavedRef = useRef<string>("");
@@ -739,6 +750,35 @@ function MindMapCanvas({
     [setNodes, setEdges],
   );
 
+  // Feature 노드 우클릭 → 컨텍스트 메뉴 오픈 (뷰포트 경계 보정)
+  const openFeatureMenu = useCallback(
+    (e: React.MouseEvent, nodeId: string, feature: Feature) => {
+      if (!canEdit) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const menuW = 200;
+      const menuH = 52;
+      const x =
+        e.clientX + menuW > window.innerWidth ? e.clientX - menuW : e.clientX;
+      const y =
+        e.clientY + menuH > window.innerHeight ? e.clientY - menuH : e.clientY;
+      setFeatureMenu({ nodeId, title: feature.title, x, y });
+    },
+    [canEdit],
+  );
+
+  // 컨텍스트 메뉴 외부 클릭/스크롤 시 닫기
+  useEffect(() => {
+    if (!featureMenu) return;
+    const close = () => setFeatureMenu(null);
+    document.addEventListener("mousedown", close);
+    window.addEventListener("wheel", close, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", close);
+      window.removeEventListener("wheel", close);
+    };
+  }, [featureMenu]);
+
   // Feature 펼치기/접기 (펼침 상태는 문서에 저장 — canEdit일 때 autosave)
   const toggleExpand = useCallback((featureId: string) => {
     setExpandedFeatures((prev) => {
@@ -857,6 +897,7 @@ function MindMapCanvas({
       renameMemo,
       recolorMemo,
       deleteNode,
+      openFeatureMenu,
     }),
     [
       featuresById,
@@ -871,6 +912,7 @@ function MindMapCanvas({
       renameMemo,
       recolorMemo,
       deleteNode,
+      openFeatureMenu,
     ],
   );
 
@@ -1165,6 +1207,32 @@ function MindMapCanvas({
         }
         @keyframes mm-edge-dash{to{stroke-dashoffset:-10}}
       `}</style>
+      {/* Feature 노드 우클릭 컨텍스트 메뉴 */}
+      {featureMenu && (
+        <div
+          className="fixed z-50 min-w-[200px] py-1 rounded-xl bg-bridge-obsidian border border-foreground/10 shadow-2xl"
+          style={{ left: featureMenu.x, top: featureMenu.y }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <div className="px-3 pt-2 pb-1.5 border-b border-foreground/[0.06]">
+            <div className="text-xs font-bold text-foreground line-clamp-1">
+              {featureMenu.title}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              deleteNode(featureMenu.nodeId);
+              setFeatureMenu(null);
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-400 hover:text-rose-400 hover:bg-foreground/[0.05] transition-colors"
+          >
+            <EyeOff className="w-3.5 h-3.5 shrink-0" />
+            <span>{t("mindmap.excludeFeature", "마인드맵에서 제외")}</span>
+          </button>
+        </div>
+      )}
       {onCreateFeature && (
         <AddFeatureModal
           open={addFeatureOpen}

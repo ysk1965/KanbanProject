@@ -4608,6 +4608,7 @@
     "emptyReadOnly": "Chưa có sơ đồ tư duy",
     "filterAll": "Tất cả",
     "filterNoMilestone": "Không có mốc",
-    "noFilteredFeatures": "Không có tính năng chưa đặt cho mốc này"
+    "noFilteredFeatures": "Không có tính năng chưa đặt cho mốc này",
+    "excludeFeature": "Xóa khỏi sơ đồ tư duy"
   }
 }

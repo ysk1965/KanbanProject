@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { LayoutGrid, Flag, Network, Columns3, Lock } from "lucide-react";
+import { LayoutGrid, Flag, Network, Lock } from "lucide-react";
 
 type ViewMode =
   | "kanban"
@@ -58,19 +58,11 @@ const TABS: TabItem[] = [
     isPremium: false,
     checkAccess: () => true,
   },
-  {
-    mode: "minikanban",
-    icon: Columns3,
-    labelKey: "kanban.viewBoardMiniKanban",
-    labelFallback: "미니 칸반",
-    isPremium: false,
-    checkAccess: () => true,
-  },
 ];
 
 /**
- * 보드 상단 서브탭 바 (칸반 / 마일스톤)
- * 리스트·간트·캘린더 등 보드 표현 뷰는 우하단 FloatingViewSwitcher로 분리됨.
+ * 보드 상단 서브탭 바 (칸반 / 마일스톤 / 마인드맵)
+ * 리스트·간트·캘린더·미니 칸반 등 보드 표현 뷰는 우하단 FloatingViewSwitcher로 분리됨.
  * 마일스톤은 프리미엄 기능으로 잠금 아이콘이 표시됩니다.
  */
 export function BoardSubTabs({
@@ -96,13 +88,11 @@ export function BoardSubTabs({
             isPremium,
             checkAccess,
           }) => {
-            // 칸반 탭은 보드 표현 뷰(리스트/간트/캘린더 포함) 전체에서 활성 유지.
+            // 칸반 탭은 보드 표현 뷰(리스트/간트/캘린더/미니 칸반 포함) 전체에서 활성 유지.
             // 마일스톤·마인드맵 탭은 각 뷰일 때만 활성.
             const isActive =
               mode === "kanban"
-                ? viewMode !== "milestone" &&
-                  viewMode !== "mindmap" &&
-                  viewMode !== "minikanban"
+                ? viewMode !== "milestone" && viewMode !== "mindmap"
                 : viewMode === mode;
             const hasAccess = checkAccess(canAccessMilestone);
             const label = t(labelKey, labelFallback);

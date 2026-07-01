@@ -4685,7 +4685,8 @@
     "emptyReadOnly": "No mind map yet",
     "filterAll": "All",
     "filterNoMilestone": "No milestone",
-    "noFilteredFeatures": "No unplaced features for this milestone"
+    "noFilteredFeatures": "No unplaced features for this milestone",
+    "excludeFeature": "Remove from mind map"
   },
   "minikanban": {
     "hint": "Drag cards across TODO·DOING·DONE, move tasks to another block",

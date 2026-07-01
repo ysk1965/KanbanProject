@@ -4117,6 +4117,7 @@
     "emptyReadOnly": "还没有思维导图",
     "filterAll": "全部",
     "filterNoMilestone": "无里程碑",
-    "noFilteredFeatures": "该里程碑没有未放置的功能"
+    "noFilteredFeatures": "该里程碑没有未放置的功能",
+    "excludeFeature": "从思维导图中移除"
   }
 }

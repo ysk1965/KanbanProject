@@ -4117,6 +4117,7 @@
     "emptyReadOnly": "Ainda não há mapa mental",
     "filterAll": "Todos",
     "filterNoMilestone": "Sem marco",
-    "noFilteredFeatures": "Nenhum recurso não posicionado para este marco"
+    "noFilteredFeatures": "Nenhum recurso não posicionado para este marco",
+    "excludeFeature": "Remover do mapa mental"
   }
 }
