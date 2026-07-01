@@ -3174,7 +3174,8 @@
       "added": "Added",
       "removed": "Removed",
       "modified": "Modified",
-      "compareToCurrent": "→ Current"
+      "compareToCurrent": "→ Current",
+      "flowNoPreview": "Flows don't support visual comparison. You can restore this version with Revert."
     },
     "tags": "Tags",
     "addTag": "Add Tag",
@@ -3242,7 +3243,9 @@
       "permanentDeleteConfirm": "\"{{title}}\" and all its descendants, comments, and versions will be deleted immediately. This cannot be undone.",
       "emptyAllConfirmTitle": "Empty the trash?",
       "emptyAllConfirm": "All {{count}} items in the trash will be permanently deleted. This cannot be undone."
-    }
+    },
+    "newFlow": "New Flow",
+    "addFlow": "Add Flow"
   },
   "ai_credits": {
     "title": "AI Credits",
@@ -4712,5 +4715,17 @@
   "minikanban": {
     "hint": "Drag cards across TODO·DOING·DONE, move tasks to another block",
     "empty": "No blocks or tasks to show"
+  },
+  "flow": {
+    "newMemo": "Memo",
+    "handTool": "Hand tool",
+    "pointerTool": "Select tool",
+    "addText": "Text",
+    "addSticky": "Sticky",
+    "addShape": "Shape",
+    "addImage": "Image",
+    "addVideo": "Video",
+    "empty": "Add a node from the toolbar to get started",
+    "emptyReadOnly": "This flow is empty"
   }
 }

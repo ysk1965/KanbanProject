@@ -2921,6 +2921,11 @@
       "permanentDeleteConfirm": "\"{{title}}\"及其所有子项、评论、版本将立即删除，无法恢复。",
       "emptyAllConfirmTitle": "清空回收站？",
       "emptyAllConfirm": "回收站中的所有 {{count}} 项将被永久删除。此操作无法撤销。"
+    },
+    "newFlow": "新建流程图",
+    "addFlow": "添加流程图",
+    "diff": {
+      "flowNoPreview": "流程图不支持可视化比较。您可以通过还原恢复此版本。"
     }
   },
   "payment": {
@@ -4138,5 +4143,17 @@
     "filterNoMilestone": "无里程碑",
     "noFilteredFeatures": "该里程碑没有未放置的功能",
     "excludeFeature": "从思维导图中移除"
+  },
+  "flow": {
+    "newMemo": "便签",
+    "handTool": "抓手工具",
+    "pointerTool": "选择工具",
+    "addText": "文本",
+    "addSticky": "便签",
+    "addShape": "图形",
+    "addImage": "图片",
+    "addVideo": "视频",
+    "empty": "从顶部工具栏添加节点以开始",
+    "emptyReadOnly": "此流程图为空"
   }
 }

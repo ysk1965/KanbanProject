@@ -2403,6 +2403,19 @@ export function KanbanBoardPage() {
         ),
       );
 
+      // 상세 모달이 같은 태스크를 열고 있으면 브레드크럼 블록 라벨도 즉시 갱신
+      setSelectedTask((prev) =>
+        prev && prev.id === taskId
+          ? {
+              ...prev,
+              block_id: targetBlockId,
+              block_name: targetBlock?.name,
+              completed: isNowCompleted,
+              position: newPosition,
+            }
+          : prev,
+      );
+
       if (wasInDone !== isMovingToDone) {
         const feature = features.find((f) => f.id === task.feature_id);
         if (feature) {
@@ -2437,6 +2450,9 @@ export function KanbanBoardPage() {
         setTasks((prevTasks) =>
           prevTasks.map((t) => (t.id === taskId ? { ...t, ...movedTask } : t)),
         );
+        setSelectedTask((prev) =>
+          prev && prev.id === taskId ? { ...prev, ...movedTask } : prev,
+        );
       } catch (error) {
         console.error("Failed to move task:", error);
         setTasks((prevTasks) =>
@@ -2445,11 +2461,23 @@ export function KanbanBoardPage() {
               ? {
                   ...t,
                   block_id: task.block_id,
+                  block_name: task.block_name,
                   completed: task.completed,
                   position: task.position,
                 }
               : t,
           ),
+        );
+        setSelectedTask((prev) =>
+          prev && prev.id === taskId
+            ? {
+                ...prev,
+                block_id: task.block_id,
+                block_name: task.block_name,
+                completed: task.completed,
+                position: task.position,
+              }
+            : prev,
         );
       }
     },
