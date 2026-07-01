@@ -497,6 +497,7 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         feature={props.selectedFeature}
         tasks={props.featureTasks}
         blocks={props.blocks}
+        milestones={props.milestones}
         open={props.isFeatureModalOpen}
         onClose={props.onCloseFeature}
         onAddSubtask={props.onAddSubtask}

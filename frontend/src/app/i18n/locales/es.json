@@ -4599,6 +4599,7 @@
   "mindmap": {
     "addMemo": "Añadir nota",
     "newMemo": "Nueva nota",
+    "addFeature": "Añadir función",
     "unplacedFeatures": "Funciones sin ubicar",
     "dragToPlace": "Arrastra al lienzo para ubicar",
     "allPlaced": "Todas las funciones ubicadas",

@@ -34,12 +34,14 @@ import {
   ChevronRight,
   Circle,
   Loader2,
+  Plus,
   StickyNote,
   X,
 } from "lucide-react";
-import type { Feature, MindMapDocument, Task } from "../types";
+import type { Feature, Milestone, MindMapDocument, Task } from "../types";
 import { mindMapAPI } from "../utils/api";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
+import { AddFeatureModal } from "../components/AddFeatureModal";
 
 // 피쳐가 속한 마일스톤 정보 (마인드맵 노드 칩 표시용)
 export interface FeatureMilestoneRef {
@@ -56,8 +58,18 @@ interface MindMapViewProps {
   featureMilestonesMap?: Record<string, FeatureMilestoneRef[]>;
   canEdit: boolean;
   memberColorMap: Record<string, string | null>;
+  /** 보드 마일스톤 목록 (피처 추가 시 선택용) */
+  milestones?: Milestone[];
   onFeatureClick: (feature: Feature) => void;
   onTaskClick: (task: Task) => void;
+  /** 마인드맵에서 새 피처 생성 (생성된 Feature 반환 시 캔버스에 노드 배치) */
+  onCreateFeature?: (data: {
+    title: string;
+    description?: string;
+    startDate?: string;
+    dueDate?: string;
+    milestoneId?: string;
+  }) => Promise<Feature | null>;
 }
 
 // 메모 노드 기본 색상 팔레트
@@ -522,11 +534,14 @@ function MindMapCanvas({
   featureMilestonesMap,
   canEdit,
   memberColorMap,
+  milestones,
   onFeatureClick,
   onTaskClick,
+  onCreateFeature,
 }: MindMapViewProps) {
   const { t } = useTranslation();
   const { screenToFlowPosition } = useReactFlow();
+  const [addFeatureOpen, setAddFeatureOpen] = useState(false);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(
@@ -535,6 +550,8 @@ function MindMapCanvas({
   const [loading, setLoading] = useState(true);
   // 미배치 트레이 마일스톤 필터. null=전체, "__none__"=마일스톤 미배정
   const [milestoneFilter, setMilestoneFilter] = useState<string | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
 
   const loadedRef = useRef(false);
   const lastSavedRef = useRef<string>("");
@@ -659,6 +676,35 @@ function MindMapCanvas({
     ]);
   }, [canEdit, screenToFlowPosition, setNodes, t]);
 
+  // 새 피처 생성 후 뷰포트 중앙에 노드 배치
+  const handleCreateFeature = useCallback(
+    async (data: {
+      title: string;
+      description?: string;
+      startDate?: string;
+      dueDate?: string;
+      milestoneId?: string;
+    }) => {
+      if (!onCreateFeature) return;
+      const feature = await onCreateFeature(data);
+      if (!feature) return;
+      const pos = screenToFlowPosition({
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+      });
+      setNodes((nds) => [
+        ...nds,
+        {
+          id: crypto.randomUUID(),
+          type: "feature",
+          position: pos,
+          data: { feature_id: feature.id },
+        },
+      ]);
+    },
+    [onCreateFeature, screenToFlowPosition, setNodes],
+  );
+
   const renameMemo = useCallback(
     (id: string, label: string) => {
       setNodes((nds) =>
@@ -744,12 +790,23 @@ function MindMapCanvas({
       setMilestoneFilter(null);
   }, [milestoneFilter, milestoneOptions]);
 
+  // 드롭다운 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!filterOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node))
+        setFilterOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [filterOpen]);
+
   const filterActive = milestoneOptions.length > 0 || hasNoMilestone;
 
   const visibleUnplaced = useMemo(() => {
     if (milestoneFilter === null) return unplaced;
     if (milestoneFilter === "__none__")
-      return unplaced.filter((f) => !(msMap[f.id]?.length));
+      return unplaced.filter((f) => !msMap[f.id]?.length);
     return unplaced.filter((f) =>
       msMap[f.id]?.some((m) => m.id === milestoneFilter),
     );
@@ -839,62 +896,122 @@ function MindMapCanvas({
                 {t("mindmap.dragToPlace", "캔버스로 드래그해 배치")}
               </div>
             </div>
-            {filterActive && (
-              <div className="px-2.5 py-2 border-b border-foreground/[0.06] flex flex-wrap gap-1">
-                <button
-                  type="button"
-                  onClick={() => setMilestoneFilter(null)}
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
-                    milestoneFilter === null
-                      ? "bg-bridge-accent/20 text-bridge-accent"
-                      : "bg-foreground/[0.04] text-slate-400 hover:text-foreground"
-                  }`}
-                >
-                  {t("mindmap.filterAll", "전체")}
-                </button>
-                {milestoneOptions.map((ms) => {
-                  const msColor =
-                    MILESTONE_COLORS[ms.idx % MILESTONE_COLORS.length];
-                  const active = milestoneFilter === ms.id;
-                  return (
-                    <button
-                      key={ms.id}
-                      type="button"
-                      onClick={() => setMilestoneFilter(ms.id)}
-                      title={ms.title}
-                      className="inline-flex items-center gap-1 max-w-full px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors"
-                      style={{
-                        color: active ? msColor : undefined,
-                        backgroundColor: active ? `${msColor}26` : undefined,
-                      }}
-                    >
-                      <span
-                        className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: msColor }}
-                      />
-                      <span
-                        className={`truncate ${active ? "" : "text-slate-400"}`}
+            {filterActive &&
+              (() => {
+                // 현재 선택된 필터의 표시 라벨/색상 계산
+                const selected =
+                  milestoneFilter && milestoneFilter !== "__none__"
+                    ? milestoneOptions.find((m) => m.id === milestoneFilter)
+                    : null;
+                const selectedColor = selected
+                  ? MILESTONE_COLORS[selected.idx % MILESTONE_COLORS.length]
+                  : null;
+                const label =
+                  milestoneFilter === null
+                    ? t("mindmap.filterAll", "전체")
+                    : milestoneFilter === "__none__"
+                      ? t("mindmap.filterNoMilestone", "마일스톤 없음")
+                      : (selected?.title ?? t("mindmap.filterAll", "전체"));
+                return (
+                  <div className="px-2.5 py-2 border-b border-foreground/[0.06]">
+                    <div className="relative" ref={filterRef}>
+                      <button
+                        type="button"
+                        onClick={() => setFilterOpen((o) => !o)}
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 text-[11px] font-bold text-foreground hover:bg-foreground/[0.07] transition-colors"
                       >
-                        {ms.title}
-                      </span>
-                    </button>
-                  );
-                })}
-                {hasNoMilestone && (
-                  <button
-                    type="button"
-                    onClick={() => setMilestoneFilter("__none__")}
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
-                      milestoneFilter === "__none__"
-                        ? "bg-slate-500/20 text-slate-300"
-                        : "bg-foreground/[0.04] text-slate-400 hover:text-foreground"
-                    }`}
-                  >
-                    {t("mindmap.filterNoMilestone", "마일스톤 없음")}
-                  </button>
-                )}
-              </div>
-            )}
+                        {selectedColor && (
+                          <span
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{ backgroundColor: selectedColor }}
+                          />
+                        )}
+                        <span className="truncate flex-1 text-left">
+                          {label}
+                        </span>
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform ${
+                            filterOpen ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+                      {filterOpen && (
+                        <div className="absolute z-20 top-full left-0 right-0 mt-1 py-1 rounded-lg bg-bridge-obsidian border border-foreground/10 shadow-2xl max-h-64 overflow-y-auto custom-scrollbar">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMilestoneFilter(null);
+                              setFilterOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold text-left transition-colors hover:bg-foreground/[0.06] ${
+                              milestoneFilter === null
+                                ? "text-bridge-accent"
+                                : "text-slate-400"
+                            }`}
+                          >
+                            <span className="w-1.5 h-1.5 shrink-0" />
+                            <span className="truncate">
+                              {t("mindmap.filterAll", "전체")}
+                            </span>
+                          </button>
+                          {milestoneOptions.map((ms) => {
+                            const msColor =
+                              MILESTONE_COLORS[
+                                ms.idx % MILESTONE_COLORS.length
+                              ];
+                            const active = milestoneFilter === ms.id;
+                            return (
+                              <button
+                                key={ms.id}
+                                type="button"
+                                onClick={() => {
+                                  setMilestoneFilter(ms.id);
+                                  setFilterOpen(false);
+                                }}
+                                title={ms.title}
+                                className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold text-left transition-colors hover:bg-foreground/[0.06]"
+                                style={{ color: active ? msColor : undefined }}
+                              >
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                                  style={{ backgroundColor: msColor }}
+                                />
+                                <span
+                                  className={`truncate ${active ? "" : "text-slate-400"}`}
+                                >
+                                  {ms.title}
+                                </span>
+                              </button>
+                            );
+                          })}
+                          {hasNoMilestone && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMilestoneFilter("__none__");
+                                setFilterOpen(false);
+                              }}
+                              className={`w-full flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold text-left transition-colors hover:bg-foreground/[0.06] ${
+                                milestoneFilter === "__none__"
+                                  ? "text-slate-200"
+                                  : "text-slate-400"
+                              }`}
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-slate-500" />
+                              <span className="truncate">
+                                {t(
+                                  "mindmap.filterNoMilestone",
+                                  "마일스톤 없음",
+                                )}
+                              </span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-2.5 flex flex-col gap-2">
               {visibleUnplaced.length === 0 ? (
                 <div className="text-[11px] text-slate-600 text-center py-6">
@@ -945,14 +1062,26 @@ function MindMapCanvas({
               {t("kanban.viewBoardMindMap", "마인드맵")}
             </span>
             {canEdit ? (
-              <button
-                type="button"
-                onClick={addMemo}
-                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-bridge-accent text-white hover:bg-bridge-accent/90 transition-colors"
-              >
-                <StickyNote className="w-3.5 h-3.5" />
-                {t("mindmap.addMemo", "메모 추가")}
-              </button>
+              <>
+                {onCreateFeature && (
+                  <button
+                    type="button"
+                    onClick={() => setAddFeatureOpen(true)}
+                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    {t("mindmap.addFeature", "피처 추가")}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={addMemo}
+                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-bridge-accent text-white hover:bg-bridge-accent/90 transition-colors"
+                >
+                  <StickyNote className="w-3.5 h-3.5" />
+                  {t("mindmap.addMemo", "메모 추가")}
+                </button>
+              </>
             ) : (
               <span className="text-xs text-slate-500 px-2">
                 {t("mindmap.readOnly", "읽기 전용")}
@@ -1036,6 +1165,14 @@ function MindMapCanvas({
         }
         @keyframes mm-edge-dash{to{stroke-dashoffset:-10}}
       `}</style>
+      {onCreateFeature && (
+        <AddFeatureModal
+          open={addFeatureOpen}
+          onClose={() => setAddFeatureOpen(false)}
+          onAdd={handleCreateFeature}
+          milestones={milestones}
+        />
+      )}
     </MindMapContext.Provider>
   );
 }

@@ -4697,6 +4697,7 @@
   "mindmap": {
     "addMemo": "메모 추가",
     "newMemo": "새 메모",
+    "addFeature": "피처 추가",
     "unplacedFeatures": "미배치 피쳐",
     "dragToPlace": "캔버스로 드래그해 배치",
     "allPlaced": "모든 피쳐가 배치됨",

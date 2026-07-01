@@ -4108,6 +4108,7 @@
   "mindmap": {
     "addMemo": "मेमो जोड़ें",
     "newMemo": "नया मेमो",
+    "addFeature": "फ़ीचर जोड़ें",
     "unplacedFeatures": "अनप्लेस्ड फ़ीचर",
     "dragToPlace": "रखने के लिए कैनवास पर खींचें",
     "allPlaced": "सभी फ़ीचर रखे गए",

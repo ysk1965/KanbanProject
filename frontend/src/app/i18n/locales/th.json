@@ -4599,6 +4599,7 @@
   "mindmap": {
     "addMemo": "เพิ่มบันทึก",
     "newMemo": "บันทึกใหม่",
+    "addFeature": "เพิ่มฟีเจอร์",
     "unplacedFeatures": "ฟีเจอร์ที่ยังไม่ได้วาง",
     "dragToPlace": "ลากไปวางบนแคนวาส",
     "allPlaced": "วางฟีเจอร์ทั้งหมดแล้ว",
