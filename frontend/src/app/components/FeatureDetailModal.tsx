@@ -34,6 +34,7 @@ import { TagPickerPopover } from "./TagPickerPopover";
 import { featureAPI, taskAPI } from "../utils/api";
 import { FeatureAIDecomposeModal } from "./FeatureAIDecomposeModal";
 import { useAuth } from "../contexts/AuthContext";
+import { getAssigneeClasses, getInitials } from "../utils/assigneeColor";
 
 interface FeatureDetailModalProps {
   feature: Feature | null;
@@ -344,7 +345,245 @@ export function FeatureDetailModal({
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-6 pb-10 custom-scrollbar">
-          <div className="space-y-5">
+          <div className="space-y-3">
+            {/* 인라인 메타바: 기간 · 담당자(서브태스크 집계) · 태그 */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* 기간 칩 */}
+              {(() => {
+                const hasDate = !!(
+                  editedFeature.start_date || editedFeature.due_date
+                );
+                const dateLabel = hasDate ? (
+                  <span>
+                    {editedFeature.start_date
+                      ? format(new Date(editedFeature.start_date), "M.d", {
+                          locale: ko,
+                        })
+                      : "?"}
+                    {" ~ "}
+                    {editedFeature.due_date
+                      ? format(new Date(editedFeature.due_date), "M.d", {
+                          locale: ko,
+                        })
+                      : "?"}
+                  </span>
+                ) : (
+                  <span>{t("featureDetail.selectDateRange")}</span>
+                );
+                const chipClass = `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-colors ${
+                  hasDate
+                    ? "bg-bridge-accent/[0.12] border-bridge-accent/35 text-foreground hover:bg-bridge-accent/20"
+                    : "bg-foreground/[0.04] border-foreground/10 text-slate-400 hover:bg-foreground/10"
+                }`;
+                const chipInner = (
+                  <>
+                    <CalendarIcon
+                      className={`h-3.5 w-3.5 ${hasDate ? "text-bridge-accent" : "text-slate-400"}`}
+                    />
+                    {dateLabel}
+                  </>
+                );
+                if (!canEdit) {
+                  return (
+                    <div className={`${chipClass} cursor-default`}>
+                      {chipInner}
+                    </div>
+                  );
+                }
+                return (
+                  <Popover
+                    open={dateCalendarOpen}
+                    onOpenChange={setDateCalendarOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <button type="button" className={chipClass}>
+                        {chipInner}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-auto p-0 bg-bridge-obsidian border-foreground/10"
+                      align="start"
+                    >
+                      <Calendar
+                        mode="range"
+                        selected={
+                          editedFeature.start_date || editedFeature.due_date
+                            ? {
+                                from: editedFeature.start_date
+                                  ? new Date(editedFeature.start_date)
+                                  : undefined,
+                                to: editedFeature.due_date
+                                  ? new Date(editedFeature.due_date)
+                                  : undefined,
+                              }
+                            : undefined
+                        }
+                        onSelect={(range: DateRange | undefined) => {
+                          updateEditedFeature({
+                            start_date: range?.from
+                              ? format(range.from, "yyyy-MM-dd")
+                              : null,
+                            due_date: range?.to
+                              ? format(range.to, "yyyy-MM-dd")
+                              : null,
+                          });
+                        }}
+                        numberOfMonths={2}
+                        locale={ko}
+                        className="bg-bridge-obsidian text-foreground"
+                      />
+                      {hasDate && (
+                        <div className="p-2 border-t border-foreground/10 flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="flex-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            onClick={() =>
+                              updateEditedFeature({
+                                start_date: null,
+                                due_date: null,
+                              })
+                            }
+                          >
+                            {t("featureDetail.removeDate")}
+                          </Button>
+                          {editedFeature.start_date &&
+                            editedFeature.due_date && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="flex-1 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 font-bold"
+                                onClick={() => setDateCalendarOpen(false)}
+                              >
+                                {t("common.confirm", "확인")}
+                              </Button>
+                            )}
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                );
+              })()}
+
+              {/* 담당자 칩 (서브태스크 담당자 집계, 읽기 전용) */}
+              {(() => {
+                const uniqueAssignees = tasks
+                  .flatMap((tk) => tk.assignees || [])
+                  .reduce(
+                    (acc, a) => {
+                      if (a && !acc.find((x) => x.id === a.id)) acc.push(a);
+                      return acc;
+                    },
+                    [] as Array<{ id: string; name: string }>,
+                  );
+
+                if (uniqueAssignees.length === 0) return null;
+
+                return (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs border bg-foreground/[0.04] border-foreground/10 text-foreground hover:bg-foreground/10 transition-colors"
+                      >
+                        <div className="flex items-center">
+                          {uniqueAssignees.slice(0, 4).map((a, i) => {
+                            const color = getAssigneeClasses(a.name);
+                            return (
+                              <div
+                                key={a.id}
+                                className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white border-2 border-bridge-obsidian ${i > 0 ? "-ml-2" : ""}`}
+                                style={
+                                  !color.bg
+                                    ? { backgroundColor: color.hex }
+                                    : undefined
+                                }
+                              >
+                                {getInitials(a.name)}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <span className="text-slate-400">
+                          {t("task.assigneeCount", {
+                            count: uniqueAssignees.length,
+                            defaultValue: "담당 {{count}}명",
+                          })}
+                        </span>
+                        <ChevronDown className="w-3 h-3 opacity-60" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="start"
+                      className="w-64 p-2 bg-bridge-obsidian border-foreground/10"
+                    >
+                      <div className="px-1 pb-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+                        {t("task.assignee")}
+                      </div>
+                      <div className="flex flex-col gap-1 max-h-64 overflow-y-auto custom-scrollbar">
+                        {uniqueAssignees.map((a) => {
+                          const color = getAssigneeClasses(a.name);
+                          return (
+                            <div
+                              key={a.id}
+                              className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
+                            >
+                              <div
+                                className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white`}
+                                style={
+                                  !color.bg
+                                    ? { backgroundColor: color.hex }
+                                    : undefined
+                                }
+                              >
+                                {getInitials(a.name)}
+                              </div>
+                              <span className="text-sm text-foreground truncate">
+                                {a.name}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                );
+              })()}
+
+              {/* 태그 칩 */}
+              {featureTags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="text-xs font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5"
+                  style={{
+                    backgroundColor: `${tag.color}15`,
+                    borderColor: `${tag.color}44`,
+                    color: tag.color,
+                  }}
+                >
+                  {tag.name}
+                  {canEdit && (
+                    <button
+                      onClick={() => handleRemoveTag(tag.id)}
+                      className="hover:opacity-80"
+                    >
+                      <X size={10} />
+                    </button>
+                  )}
+                </span>
+              ))}
+              {canEdit && (
+                <TagPickerPopover
+                  selectedTagIds={featureTags.map((t) => t.id)}
+                  availableTags={availableTags}
+                  onToggleTag={handleToggleTag}
+                  onCreateTag={onCreateTag}
+                  onUpdateTag={onUpdateTag}
+                  onDeleteTag={onDeleteTag}
+                />
+              )}
+            </div>
+
             {/* Description Section */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
@@ -361,187 +600,9 @@ export function FeatureDetailModal({
                   updateEditedFeature({ description: e.target.value })
                 }
                 readOnly={!canEdit}
-                rows={5}
+                rows={7}
                 className={`bg-bridge-dark/50 border-bridge-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? "cursor-default" : ""}`}
               />
-            </div>
-
-            {/* Date Range Section */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4 text-slate-400" />
-                <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                  {t("featureDetail.dateRange")}
-                </Label>
-              </div>
-              {canEdit ? (
-                <Popover
-                  open={dateCalendarOpen}
-                  onOpenChange={setDateCalendarOpen}
-                >
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full h-10 justify-start text-left font-normal bg-bridge-dark/50 border-bridge-border/30 text-foreground hover:bg-bridge-dark/70 hover:text-foreground"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
-                      {editedFeature.start_date || editedFeature.due_date ? (
-                        <span>
-                          {editedFeature.start_date
-                            ? format(
-                                new Date(editedFeature.start_date),
-                                "yyyy. MM. dd.",
-                                { locale: ko },
-                              )
-                            : "?"}
-                          {" ~ "}
-                          {editedFeature.due_date
-                            ? format(
-                                new Date(editedFeature.due_date),
-                                "yyyy. MM. dd.",
-                                { locale: ko },
-                              )
-                            : "?"}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400">
-                          {t("featureDetail.selectDateRange")}
-                        </span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-auto p-0 bg-bridge-obsidian border-foreground/10"
-                    align="start"
-                  >
-                    <Calendar
-                      mode="range"
-                      selected={
-                        editedFeature.start_date || editedFeature.due_date
-                          ? {
-                              from: editedFeature.start_date
-                                ? new Date(editedFeature.start_date)
-                                : undefined,
-                              to: editedFeature.due_date
-                                ? new Date(editedFeature.due_date)
-                                : undefined,
-                            }
-                          : undefined
-                      }
-                      onSelect={(range: DateRange | undefined) => {
-                        updateEditedFeature({
-                          start_date: range?.from
-                            ? format(range.from, "yyyy-MM-dd")
-                            : null,
-                          due_date: range?.to
-                            ? format(range.to, "yyyy-MM-dd")
-                            : null,
-                        });
-                      }}
-                      numberOfMonths={2}
-                      locale={ko}
-                      className="bg-bridge-obsidian text-foreground"
-                    />
-                    {(editedFeature.start_date || editedFeature.due_date) && (
-                      <div className="p-2 border-t border-foreground/10 flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="flex-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                          onClick={() =>
-                            updateEditedFeature({
-                              start_date: null,
-                              due_date: null,
-                            })
-                          }
-                        >
-                          {t("featureDetail.removeDate")}
-                        </Button>
-                        {editedFeature.start_date && editedFeature.due_date && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="flex-1 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 font-bold"
-                            onClick={() => setDateCalendarOpen(false)}
-                          >
-                            {t("common.confirm", "확인")}
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </PopoverContent>
-                </Popover>
-              ) : (
-                <div className="w-full h-10 flex items-center bg-bridge-dark/50 border border-bridge-border/30 rounded-md px-3 text-foreground opacity-70">
-                  <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
-                  {editedFeature.start_date || editedFeature.due_date ? (
-                    <span>
-                      {editedFeature.start_date
-                        ? format(
-                            new Date(editedFeature.start_date),
-                            "yyyy. MM. dd.",
-                            { locale: ko },
-                          )
-                        : "?"}
-                      {" ~ "}
-                      {editedFeature.due_date
-                        ? format(
-                            new Date(editedFeature.due_date),
-                            "yyyy. MM. dd.",
-                            { locale: ko },
-                          )
-                        : "?"}
-                    </span>
-                  ) : (
-                    <span className="text-slate-400">
-                      {t("featureDetail.noDate")}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Tags Section */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Tags className="h-4 w-4 text-slate-400" />
-                <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                  {t("featureDetail.tags")}
-                </Label>
-              </div>
-              <div className="flex flex-wrap gap-2 items-center">
-                {featureTags.map((tag) => (
-                  <span
-                    key={tag.id}
-                    className="text-xs font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5"
-                    style={{
-                      backgroundColor: `${tag.color}15`,
-                      borderColor: `${tag.color}44`,
-                      color: tag.color,
-                    }}
-                  >
-                    {tag.name}
-                    {canEdit && (
-                      <button
-                        onClick={() => handleRemoveTag(tag.id)}
-                        className="hover:opacity-80"
-                      >
-                        <X size={10} />
-                      </button>
-                    )}
-                  </span>
-                ))}
-                {canEdit && (
-                  <TagPickerPopover
-                    selectedTagIds={featureTags.map((t) => t.id)}
-                    availableTags={availableTags}
-                    onToggleTag={handleToggleTag}
-                    onCreateTag={onCreateTag}
-                    onUpdateTag={onUpdateTag}
-                    onDeleteTag={onDeleteTag}
-                  />
-                )}
-              </div>
             </div>
 
             {/* Subtask Module */}

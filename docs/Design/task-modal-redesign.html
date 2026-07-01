@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TaskDetailModal 레이아웃 개편안</title>
+<style>
+  :root {
+    --bridge-dark: #191f2d;
+    --bridge-obsidian: #151b28;
+    --bridge-surface: #1e2a42;
+    --bridge-accent: #6366f1;
+    --bridge-secondary: #2dd4bf;
+    --bridge-border: #384d6e;
+    --fg: #eef1f6;
+    --fg-dim: #94a3b8;   /* slate-400 */
+    --fg-hint: #64748b;  /* slate-500 */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d1119;
+    color: var(--fg);
+    font-family: -apple-system, "Pretendard", "Apple SD Gothic Neo", system-ui, sans-serif;
+    padding: 40px 24px 80px;
+    line-height: 1.5;
+  }
+  .page-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .page-sub { color: var(--fg-dim); font-size: 14px; margin-bottom: 36px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 28px;
+    align-items: start;
+    max-width: 1500px;
+    margin: 0 auto;
+  }
+  .col-head { margin-bottom: 12px; }
+  .col-head .badge {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; padding: 3px 9px; border-radius: 999px;
+  }
+  .badge.now { background: rgba(239,68,68,.15); color: #f87171; }
+  .badge.opt { background: rgba(99,102,241,.18); color: #a5b4fc; }
+  .col-head h2 { font-size: 15px; font-weight: 700; margin-top: 8px; }
+  .col-head p { font-size: 12.5px; color: var(--fg-dim); margin-top: 4px; }
+
+  /* ---- modal shell ---- */
+  .modal {
+    background: var(--bridge-obsidian);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0,0,0,.5);
+  }
+  .accent-line { height: 2px; background: linear-gradient(90deg, rgba(99,102,241,.6), rgba(45,212,191,.4), transparent); }
+  .modal-body { padding: 20px 26px 26px; }
+
+  /* breadcrumb + title */
+  .crumbs { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 12px; }
+  .crumb {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 500; padding: 4px 10px; border-radius: 999px;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); color: var(--fg);
+  }
+  .crumb .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--bridge-accent); }
+  .crumb .ico { color: var(--bridge-accent); font-size: 12px; }
+  .chev { color: var(--fg-hint); font-size: 12px; }
+  .title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .title-row h1 { font-size: 19px; font-weight: 700; }
+  .title-actions { display: flex; gap: 6px; color: var(--fg-dim); }
+  .title-actions span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; cursor: pointer; }
+  .title-actions span:hover { background: rgba(255,255,255,.06); }
+
+  .section-label {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--fg-dim); margin-bottom: 8px;
+  }
+  .desc-box {
+    background: rgba(0,0,0,.25); border: 1px solid rgba(56,77,110,.3);
+    border-radius: 10px; padding: 12px 14px; font-size: 13.5px; color: #cbd5e1; min-height: 72px;
+  }
+  .desc-box a { color: #93c5fd; }
+
+  /* avatars */
+  .av { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .c-rose { background: #f43f5e; } .c-indigo { background: #6366f1; } .c-purple { background: #a855f7; }
+  .c-teal { background: #14b8a6; } .c-dark { background: #1f2937; }
+
+  /* ============ CURRENT (기존) ============ */
+  .cur .block { margin-bottom: 20px; }
+  .cur .date-field {
+    display: flex; align-items: center; gap: 8px; height: 40px;
+    background: rgba(0,0,0,.25); border: 1px solid rgba(56,77,110,.3);
+    border-radius: 8px; padding: 0 12px; font-size: 13.5px; color: var(--fg-dim);
+  }
+  .cur .assignee-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cur .assignee-btn {
+    display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+    border: 1px solid rgba(255,255,255,.1); border-radius: 10px; font-size: 13px;
+  }
+  .cur .tag-add {
+    font-size: 12px; padding: 5px 12px; border-radius: 999px;
+    border: 1px dashed rgba(255,255,255,.2); color: var(--fg-dim);
+  }
+
+  /* ============ OPTION A — 컴팩트 프로퍼티 행 ============ */
+  .propgrid { border: 1px solid rgba(255,255,255,.07); border-radius: 12px; overflow: hidden; }
+  .prop {
+    display: grid; grid-template-columns: 116px 1fr; align-items: center;
+    gap: 12px; padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,.05);
+    min-height: 44px;
+  }
+  .prop:last-child { border-bottom: 0; }
+  .prop:hover { background: rgba(255,255,255,.025); }
+  .prop .k {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 600; color: var(--fg-dim);
+  }
+  .prop .v { font-size: 13px; color: var(--fg); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+    padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.08);
+  }
+  .pill.date { color: var(--fg); }
+  .av-stack { display: flex; align-items: center; }
+  .av-stack .av { margin-left: -7px; border: 2px solid var(--bridge-obsidian); }
+  .av-stack .av:first-child { margin-left: 0; }
+  .av-more { font-size: 12px; color: var(--fg-dim); margin-left: 8px; }
+  .tag {
+    font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+    border: 1px solid;
+  }
+  .tag.add { border: 1px dashed rgba(255,255,255,.2); color: var(--fg-dim); font-weight: 500; cursor: pointer; }
+  .v.empty { color: var(--fg-hint); font-size: 13px; }
+
+  /* ============ OPTION B — 2열 그리드 + 인라인 메타바 ============ */
+  .metabar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 10px 0 2px;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px;
+    padding: 6px 12px; border-radius: 10px;
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); color: var(--fg);
+    cursor: pointer;
+  }
+  .chip:hover { background: rgba(255,255,255,.08); }
+  .chip .ico { color: var(--fg-dim); font-size: 13px; }
+  .chip.accent .ico { color: var(--bridge-accent); }
+  .chip .sep { width: 1px; height: 14px; background: rgba(255,255,255,.12); }
+  .divider { height: 1px; background: rgba(255,255,255,.07); margin: 16px 0; }
+
+  .note { font-size: 12px; color: var(--fg-dim); margin-top: 12px; padding-left: 2px; }
+  .note b { color: #c7d2fe; }
+  .checklist-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.08);
+  }
+  .checklist-head .lbl { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; }
+  .checklist-head .lbl .ic { color: var(--bridge-accent); }
+  .progress { display: flex; align-items: center; gap: 10px; }
+  .bar { width: 90px; height: 6px; border-radius: 999px; background: rgba(255,255,255,.1); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 58%; background: var(--bridge-accent); }
+  .pct { font-size: 13px; font-weight: 700; color: var(--bridge-accent); }
+
+  .footnote { max-width: 1500px; margin: 40px auto 0; font-size: 13px; color: var(--fg-dim); }
+  .footnote h3 { color: var(--fg); font-size: 15px; margin-bottom: 10px; }
+  .footnote ul { padding-left: 20px; }
+  .footnote li { margin-bottom: 7px; }
+  .footnote code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+</style>
+</head>
+<body>
+  <div class="page-title">TaskDetailModal 상단 레이아웃 개편안</div>
+  <div class="page-sub">설명 · 기간 · 담당자 · 태그가 세로로 크게 쌓여 공간을 낭비하는 문제 → 메타 정보를 압축·정돈</div>
+
+  <div class="grid">
+
+    <!-- ===================== 기존 ===================== -->
+    <div>
+      <div class="col-head">
+        <span class="badge now">현재</span>
+        <h2>세로 스택 (as-is)</h2>
+        <p>설명/기간/담당자/태그가 각각 풀-width 라벨 블록으로 쌓임. 담당자 버튼이 특히 큼.</p>
+      </div>
+      <div class="modal cur">
+        <div class="accent-line"></div>
+        <div class="modal-body">
+          <div class="crumbs">
+            <span class="crumb"><span class="dot"></span>텍틱스 모드</span>
+            <span class="chev">›</span>
+            <span class="crumb"><span class="ico">◎</span>4차 마일스톤</span>
+            <span class="chev">›</span>
+            <span class="crumb"><span class="ico">▤</span>Sprint Progress</span>
+          </div>
+          <div class="title-row">
+            <h1>길잡이, 보스 처치 공통 연출 및 기능 수정</h1>
+            <div class="title-actions"><span>🔗</span><span>⋯</span></div>
+          </div>
+
+          <div class="block">
+            <div class="section-label">📄 설명</div>
+            <div class="desc-box">
+              길잡이 : https://cookapps.atlassian.net/wiki/…/SA<br /><br />
+              보스처치 보상 : https://cookapps.atlassian.net/wiki/…/SA
+            </div>
+          </div>
+
+          <div class="block">
+            <div class="section-label">📅 기간</div>
+            <div class="date-field">📅 날짜를 선택하세요</div>
+          </div>
+
+          <div class="block">
+            <div class="section-label">👥 담당자</div>
+            <div class="assignee-btns">
+              <span class="assignee-btn"><span class="av c-rose">우혁</span> 노우혁</span>
+              <span class="assignee-btn"><span class="av c-indigo">효림</span> 김효림</span>
+              <span class="assignee-btn"><span class="av c-purple">진웅</span> 박진웅</span>
+              <span class="assignee-btn"><span class="av c-indigo">준태</span> 민준태</span>
+              <span class="assignee-btn"><span class="av c-dark">규현</span> 김규현</span>
+            </div>
+          </div>
+
+          <div class="block">
+            <div class="section-label">🏷 태그</div>
+            <span class="tag-add">＋ 태그 추가</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 옵션 A ===================== -->
+    <div>
+      <div class="col-head">
+        <span class="badge opt">옵션 A · 추천</span>
+        <h2>컴팩트 프로퍼티 행 (Notion/Linear 방식)</h2>
+        <p>기간·담당자·태그를 라벨-좌 / 값-우 밀집 행으로. 세로 높이 ~60% 절감, 스캔성 향상.</p>
+      </div>
+      <div class="modal">
+        <div class="accent-line"></div>
+        <div class="modal-body">
+          <div class="crumbs">
+            <span class="crumb"><span class="dot"></span>텍틱스 모드</span>
+            <span class="chev">›</span>
+            <span class="crumb"><span class="ico">◎</span>4차 마일스톤</span>
+            <span class="chev">›</span>
+            <span class="crumb"><span class="ico">▤</span>Sprint Progress</span>
+          </div>
+          <div class="title-row">
+            <h1>길잡이, 보스 처치 공통 연출 및 기능 수정</h1>
+            <div class="title-actions"><span>🔗</span><span>⋯</span></div>
+          </div>
+
+          <div class="section-label" style="margin-bottom:8px;">📄 설명</div>
+          <div class="desc-box" style="margin-bottom:16px;">
+            길잡이 : https://cookapps.atlassian.net/wiki/…/SA<br /><br />
+            보스처치 보상 : https://cookapps.atlassian.net/wiki/…/SA
+          </div>
+
+          <div class="propgrid">
+            <div class="prop">
+              <div class="k">📅 기간</div>
+              <div class="v empty">날짜를 선택하세요</div>
+            </div>
+            <div class="prop">
+              <div class="k">👥 담당자</div>
+              <div class="v">
+                <span class="av-stack">
+                  <span class="av c-rose">우혁</span>
+                  <span class="av c-indigo">효림</span>
+                  <span class="av c-purple">진웅</span>
+                  <span class="av c-indigo">준태</span>
+                  <span class="av c-dark">규현</span>
+                </span>
+                <span class="av-more">노우혁 외 4명 · 클릭해 필터</span>
+              </div>
+            </div>
+            <div class="prop">
+              <div class="k">🏷 태그</div>
+              <div class="v"><span class="tag add">＋ 태그 추가</span></div>
+            </div>
+          </div>
+
+          <div class="checklist-head">
+            <div class="lbl"><span class="ic">☑</span> CheckList</div>
+            <div class="progress"><span>리스트 / 보드</span><span class="bar"><i></i></span><span class="pct">58%</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="note">
+        담당자는 <b>겹친 아바타 스택</b>으로 압축(호버·클릭 시 필터 유지). 값이 없는 행은 옅게 표시해 시각 소음↓.
+      </div>
+    </div>
+
+    <!-- ===================== 옵션 B ===================== -->
+    <div>
+      <div class="col-head">
+        <span class="badge opt">옵션 B</span>
+        <h2>인라인 메타바 (한 줄 칩)</h2>
+        <p>기간·담당자·태그를 제목 아래 한 줄 칩 바로. 가장 밀집. 정보량 적은 태스크에 최적.</p>
+      </div>
+      <div class="modal">
+        <div class="accent-line"></div>
+        <div class="modal-body">
+          <div class="crumbs">
+            <span class="crumb"><span class="dot"></span>텍틱스 모드</span>
+            <span class="chev">›</span>
+            <span class="crumb"><span class="ico">◎</span>4차 마일스톤</span>
+            <span class="chev">›</span>
+            <span class="crumb"><span class="ico">▤</span>Sprint Progress</span>
+          </div>
+          <div class="title-row">
+            <h1>길잡이, 보스 처치 공통 연출 및 기능 수정</h1>
+            <div class="title-actions"><span>🔗</span><span>⋯</span></div>
+          </div>
+
+          <div class="metabar">
+            <span class="chip accent"><span class="ico">📅</span> 날짜 선택</span>
+            <span class="chip">
+              <span class="av-stack">
+                <span class="av c-rose" style="width:22px;height:22px;">우</span>
+                <span class="av c-indigo" style="width:22px;height:22px;">효</span>
+                <span class="av c-purple" style="width:22px;height:22px;">진</span>
+                <span class="av c-indigo" style="width:22px;height:22px;">준</span>
+                <span class="av c-dark" style="width:22px;height:22px;">규</span>
+              </span>
+              <span style="color:var(--fg-dim);">5명</span>
+            </span>
+            <span class="chip"><span class="ico">🏷</span> 태그 추가</span>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="section-label">📄 설명</div>
+          <div class="desc-box">
+            길잡이 : https://cookapps.atlassian.net/wiki/…/SA<br /><br />
+            보스처치 보상 : https://cookapps.atlassian.net/wiki/…/SA
+          </div>
+
+          <div class="checklist-head">
+            <div class="lbl"><span class="ic">☑</span> CheckList</div>
+            <div class="progress"><span>리스트 / 보드</span><span class="bar"><i></i></span><span class="pct">58%</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="note">
+        가장 컴팩트하지만 담당자가 많으면 <b>이름 노출이 줄어듦</b>. 클릭 시 팝오버로 전체 목록/필터 표시.
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footnote">
+    <h3>정리 · 권장</h3>
+    <ul>
+      <li><b>옵션 A (컴팩트 프로퍼티 행)</b> 를 추천합니다. 기존 정보 구조(라벨+값)를 유지하면서 세로 공간만 크게 줄여 위험이 낮고, 담당자 필터 등 기존 인터랙션을 그대로 살릴 수 있습니다.</li>
+      <li>담당자는 개별 버튼(<code>px-3 py-2</code> 큰 박스) → <b>겹친 아바타 스택</b> + 요약 텍스트로 교체. 필터 토글은 아바타 클릭으로 유지.</li>
+      <li>기간/태그가 비어 있을 때는 값 영역을 <code>text-slate-500</code> 로 옅게 처리해 "빈 큰 필드"의 시각 부담 제거.</li>
+      <li>구현 위치: <code>TaskDetailModal.tsx</code> 1341~1617 (기간/담당자/태그 3개 블록)을 <code>.propgrid</code> 구조로 치환. 설명 섹션(1321~1339)·체크리스트(1620~)는 유지.</li>
+      <li>디자인 토큰 준수: 카드 <code>rounded-2xl</code>, 행 구분선 <code>border-foreground/[0.08]</code>, 라벨 <code>text-xs font-bold ... text-slate-400</code>.</li>
+    </ul>
+  </div>
+</body>
+</html>

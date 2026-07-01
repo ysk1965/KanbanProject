@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>마일스톤 관리 — 최종 설계안 · BRIDGE</title>
+<style>
+  :root {
+    --dark: #191f2d; --obsidian: #151b28; --surface: #1e2a42; --border: #384d6e;
+    --accent: #6366f1; --secondary: #2dd4bf; --fg: #e8ecf4; --muted: #93a0b8; --dim: #64748b;
+    --amber: #f59e0b; --rose: #f43f5e; --emerald: #10b981; --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Noto Sans KR", sans-serif; background: var(--dark); color: var(--fg); line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px 120px; }
+
+  header.hero { padding: 76px 24px 56px; background: radial-gradient(900px 420px at 12% -10%, rgba(99,102,241,0.24), transparent 60%), radial-gradient(720px 400px at 92% 0%, rgba(45,212,191,0.16), transparent 60%), var(--obsidian); border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .hero-inner { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  .eyebrow { display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color: var(--secondary); margin-bottom:20px; padding:6px 12px; border-radius:999px; background: rgba(45,212,191,0.1); border:1px solid rgba(45,212,191,0.25); }
+  h1 { font-size:42px; font-weight:800; letter-spacing:-0.02em; line-height:1.14; margin-bottom:18px; }
+  h1 .grad { background: linear-gradient(100deg, var(--accent), var(--secondary)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .lede { font-size:17px; color: var(--muted); max-width:720px; }
+  .meta-row { margin-top:28px; display:flex; flex-wrap:wrap; gap:10px; }
+  .chip { font-size:12px; color: var(--muted); padding:6px 12px; border-radius:999px; background: rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); }
+  .chip b { color: var(--fg); font-weight:600; }
+
+  section { margin-top:64px; }
+  .kicker { font-size:12px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color: var(--accent); margin-bottom:10px; }
+  h2 { font-size:27px; font-weight:800; letter-spacing:-0.01em; margin-bottom:12px; }
+  h2 .n { display:inline-grid; place-items:center; width:34px; height:34px; border-radius:10px; background: linear-gradient(135deg, var(--accent), #4f46e5); color:#fff; font-size:16px; margin-right:12px; vertical-align:2px; }
+  .sec-lede { color: var(--muted); font-size:15px; max-width:760px; margin-bottom:28px; }
+  h3 { font-size:18px; font-weight:700; margin:32px 0 12px; }
+
+  .card { background: var(--obsidian); border:1px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding:24px; }
+  .card + .card { margin-top:16px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  @media (max-width:780px){ .grid2,.grid3{ grid-template-columns:1fr; } }
+
+  code { font-family:"SF Mono",ui-monospace,Menlo,monospace; font-size:12.5px; background: rgba(99,102,241,0.14); color:#c7cbff; padding:1.5px 6px; border-radius:5px; }
+  ul.clean { list-style:none; }
+  ul.clean li { position:relative; padding-left:22px; margin:7px 0; font-size:14px; color:var(--muted); }
+  ul.clean li::before { content:""; position:absolute; left:4px; top:9px; width:6px; height:6px; border-radius:999px; background:var(--accent); }
+  ul.clean li b { color:var(--fg); font-weight:600; }
+
+  /* Mental model banner */
+  .model {
+    text-align:center; padding:36px 28px; border-radius:var(--radius);
+    background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(45,212,191,0.08)); border:1px solid rgba(99,102,241,0.3);
+  }
+  .model .q { font-size:13px; letter-spacing:0.1em; text-transform:uppercase; color:var(--secondary); margin-bottom:10px; }
+  .model .s { font-size:26px; font-weight:800; letter-spacing:-0.01em; line-height:1.35; }
+  .model .s em { font-style:normal; background: linear-gradient(100deg,var(--accent),var(--secondary)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .model .sub { margin-top:12px; font-size:14px; color:var(--muted); }
+
+  /* Decision table */
+  table.dec { width:100%; border-collapse:collapse; font-size:14px; }
+  table.dec th, table.dec td { padding:14px 16px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.07); vertical-align:top; }
+  table.dec th { font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--dim); font-weight:700; }
+  table.dec td.q { font-weight:700; color:var(--fg); width:26%; }
+  table.dec td.a { color:var(--fg); width:30%; }
+  table.dec td.a b { color:var(--secondary); }
+  table.dec td.why { color:var(--muted); font-size:13px; }
+  table.dec tr:last-child td { border-bottom:none; }
+
+  /* Mockup */
+  .mock { background:var(--dark); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,0.45); }
+  .mock-topline { height:3px; background: linear-gradient(90deg, rgba(99,102,241,0.7), rgba(45,212,191,0.4), transparent); }
+  .mock-head { display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid rgba(255,255,255,0.07); }
+  .mock-head .dot { width:22px; height:22px; border-radius:7px; background: linear-gradient(135deg,var(--accent),#4f46e5); }
+  .mock-head .title { font-size:15px; font-weight:700; }
+  .mock-head .spacer { flex:1; }
+  .mock-body { padding:16px 18px; }
+  .btn-primary { font-size:12px; font-weight:700; color:#fff; background:var(--accent); padding:7px 13px; border-radius:9px; }
+
+  .badge { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .b-accent { background:rgba(99,102,241,0.16); color:#a5b0ff; }
+  .b-teal { background:rgba(45,212,191,0.16); color:#6ee7d5; }
+  .b-amber { background:rgba(245,158,11,0.18); color:#fbbf77; }
+  .b-slate { background:rgba(148,163,184,0.14); color:var(--muted); }
+
+  /* compact timeline strip */
+  .tstrip { display:flex; gap:6px; padding:12px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:12px; margin-bottom:14px; overflow:hidden; }
+  .tbar { position:relative; height:34px; border-radius:8px; display:flex; align-items:center; padding:0 12px; font-size:12px; font-weight:700; color:#fff; white-space:nowrap; }
+
+  /* matrix */
+  table.matrix { width:100%; border-collapse:separate; border-spacing:0; font-size:13px; }
+  table.matrix th, table.matrix td { padding:11px 12px; text-align:center; border-bottom:1px solid rgba(255,255,255,0.07); border-right:1px solid rgba(255,255,255,0.05); }
+  table.matrix th { background:var(--surface); font-weight:700; color:var(--fg); }
+  table.matrix th:first-child, table.matrix td:first-child { text-align:left; }
+  table.matrix td.feat { font-weight:600; background:rgba(255,255,255,0.02); }
+  table.matrix .cell { cursor:pointer; }
+  table.matrix .on { background:rgba(99,102,241,0.13); color:#c7cbff; font-weight:700; }
+  table.matrix .primary { background:rgba(99,102,241,0.22); color:#dfe2ff; font-weight:800; box-shadow: inset 0 0 0 1.5px rgba(99,102,241,0.5); }
+  table.matrix .off { color:var(--dim); }
+  table.matrix .unassigned { background:rgba(245,158,11,0.14); color:#fbbf77; font-weight:700; }
+  table.matrix .tot { background:rgba(0,0,0,0.22); color:var(--muted); }
+  table.matrix tr.sumrow td { background:rgba(45,212,191,0.06); font-weight:700; color:var(--fg); border-bottom:none; }
+  table.matrix .pin { display:inline-grid; place-items:center; width:17px; height:17px; border-radius:999px; background:var(--secondary); color:#04211d; font-size:10px; font-weight:800; margin-left:6px; vertical-align:1px; }
+
+  .legend { margin-top:16px; display:grid; grid-template-columns:1fr 1fr; gap:10px 24px; }
+  @media (max-width:780px){ .legend{ grid-template-columns:1fr; } }
+  .legend .li { display:flex; gap:10px; font-size:13px; color:var(--muted); }
+  .legend .li .pin { flex-shrink:0; display:inline-grid; place-items:center; width:20px; height:20px; border-radius:999px; background:var(--secondary); color:#04211d; font-size:11px; font-weight:800; }
+  .legend .li b { color:var(--fg); font-weight:600; }
+
+  /* slide-over panel mock */
+  .panel-task { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:10px; margin-top:8px; }
+  .msel { font-size:11px; padding:3px 9px; border-radius:7px; border:1px solid var(--border); background:rgba(99,102,241,0.1); color:#a5b0ff; font-weight:600; }
+  .msel.other { background:rgba(45,212,191,0.12); color:#6ee7d5; border-color:rgba(45,212,191,0.3); }
+
+  /* before/after */
+  .ba { display:grid; grid-template-columns:1fr 1fr; gap:0; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,0.08); }
+  @media (max-width:780px){ .ba{ grid-template-columns:1fr; } }
+  .ba .col { padding:22px; }
+  .ba .before { background:linear-gradient(180deg, rgba(244,63,94,0.05), transparent); }
+  .ba .after { background:linear-gradient(180deg, rgba(16,185,129,0.06), transparent); border-left:1px solid rgba(255,255,255,0.08); }
+  .ba h4 { font-size:14px; letter-spacing:0.06em; text-transform:uppercase; margin-bottom:14px; }
+  .ba .before h4 { color:var(--rose); }
+  .ba .after h4 { color:var(--emerald); }
+  .ba ul { list-style:none; }
+  .ba li { font-size:13.5px; color:var(--muted); padding:7px 0 7px 22px; position:relative; }
+  .ba .before li::before { content:"✕"; position:absolute; left:0; color:var(--rose); font-size:11px; top:9px; }
+  .ba .after li::before { content:"✓"; position:absolute; left:0; color:var(--emerald); font-weight:700; top:8px; }
+  .ba li b { color:var(--fg); font-weight:600; }
+
+  .step { display:flex; gap:16px; padding:16px 0; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .step:last-child { border-bottom:none; }
+  .step .ph { flex-shrink:0; width:60px; }
+  .step .ph .p { font-size:12px; font-weight:800; color:var(--accent); letter-spacing:0.08em; }
+  .step .ph .t { font-size:11px; color:var(--dim); }
+  .step .body h4 { font-size:15px; margin-bottom:4px; }
+  .step .body p { font-size:13.5px; color:var(--muted); }
+  .step .body .files { margin-top:6px; font-size:12px; color:var(--dim); }
+
+  .callout { margin-top:20px; padding:18px 20px; border-radius:12px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); font-size:14px; color:#cdd2ff; }
+  .callout b { color:#fff; }
+  footer { margin-top:80px; padding-top:24px; border-top:1px solid rgba(255,255,255,0.07); font-size:13px; color:var(--dim); text-align:center; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">◆ Final Design · Milestone Management</span>
+    <h1>마일스톤 관리<br /><span class="grad">최종 설계안</span></h1>
+    <p class="lede">
+      분석에서 내린 결정을 하나의 화면으로 통합한 확정본입니다. 핵심은 단 하나 —
+      <b>"마일스톤은 태스크에 붙는 기간 태그"</b>라는 단일 정신 모델. 이 문장에서 오버뷰·배정·생성 플로우가 모두 파생됩니다.
+    </p>
+    <div class="meta-row">
+      <span class="chip"><b>홈</b> · 피처 × 마일스톤 매트릭스</span>
+      <span class="chip"><b>배정</b> · 셀 → 태스크 슬라이드오버</span>
+      <span class="chip"><b>공통은 원클릭</b> · 분리는 예외 덮어쓰기</span>
+      <span class="chip"><b>작성일</b> · 2026-07-01</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== 1. 단일 모델 + 결정 ===== -->
+  <section>
+    <div class="kicker">The Answer</div>
+    <h2><span class="n">1</span>하나의 모델, 확정된 결정</h2>
+
+    <div class="model">
+      <div class="q">Single Mental Model</div>
+      <div class="s">마일스톤은 <em>태스크에 붙는 기간 태그</em>다.<br />피처는 그 태스크들의 <em>기본 태그(default)</em>를 정해줄 뿐.</div>
+      <div class="sub">→ 오버뷰 = 태그 매트릭스 · 배정 = 태그 바꾸기 · 생성 = 새 태그/새 그룹. 세 가지가 한 문장에서 나옵니다.</div>
+    </div>
+
+    <h3>열린 질문(Q1~Q5)에 대한 최종 판단</h3>
+    <div class="card" style="padding:8px 24px">
+      <table class="dec">
+        <thead><tr><th>결정 사항</th><th>최종안</th><th>이유</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="q">진입 오버뷰</td>
+            <td class="a"><b>매트릭스</b> (홈)</td>
+            <td class="why">"피처가 여러 마일스톤에 걸침"을 한 장으로 보여주는 유일한 형태. 마일스톤 6개 초과 시 가로 스크롤 + 컬럼 고정.</td>
+          </tr>
+          <tr>
+            <td class="q">is_primary 재정의</td>
+            <td class="a"><b>피처의 기본 마일스톤</b></td>
+            <td class="why">새 태스크가 상속 → 생성 마찰 제거. 모호했던 "대표"가 실제 기능을 얻음. 매트릭스에서 굵은 셀로 표시.</td>
+          </tr>
+          <tr>
+            <td class="q">피처 생성 시 지정</td>
+            <td class="a"><b>기본 마일스톤 필드 노출</b> (선택)</td>
+            <td class="why">활성 마일스톤(<code>selectedMilestoneId</code>)을 기본값 선제안. 비워두면 "미배정"으로 안전하게 시작.</td>
+          </tr>
+          <tr>
+            <td class="q">스마트 채우기 기준</td>
+            <td class="a"><b>기간 겹침</b> 우선</td>
+            <td class="why">마일스톤이 날짜를 가지므로 태스크 due date 겹침이 가장 정확. "활성 피처"는 보조 제안.</td>
+          </tr>
+          <tr>
+            <td class="q">진행률 정의</td>
+            <td class="a"><b>태스크 스코프 유지</b></td>
+            <td class="why">기존 로직 유지하되, 항상 "이 마일스톤 기준" 라벨 + 피처 전체를 나란히 표기해 혼동 제거.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== 2. 최종 홈 화면 ===== -->
+  <section>
+    <div class="kicker">Home Screen</div>
+    <h2><span class="n">2</span>최종 홈 — 매트릭스</h2>
+    <p class="sec-lede">관리 진입 시 보이는 단 하나의 홈. 상단 컴팩트 타임라인 + 피처×마일스톤 매트릭스. 셀을 누르면 태스크 배정 패널이 열립니다.</p>
+
+    <div class="mock">
+      <div class="mock-topline"></div>
+      <div class="mock-head">
+        <div class="dot"></div>
+        <div class="title">마일스톤 관리</div>
+        <div class="spacer"></div>
+        <span class="btn-primary">＋ 새 마일스톤</span>
+      </div>
+      <div class="mock-body">
+
+        <!-- compact timeline -->
+        <div class="tstrip">
+          <div class="tbar" style="width:38%; background:linear-gradient(90deg,#6366f1,#4f46e5)">v1.0 출시 · 55%</div>
+          <div class="tbar" style="width:30%; background:linear-gradient(90deg,#2dd4bf,#14b8a6)">v1.1 안정화 · 40%</div>
+          <div class="tbar" style="width:22%; background:rgba(255,255,255,0.08); color:var(--muted)">v1.2 백로그</div>
+        </div>
+
+        <!-- matrix -->
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th>Feature ↓ / Milestone →</th>
+              <th>v1.0 출시<br /><span style="font-weight:400;font-size:11px;color:var(--muted)">7/1~7/14</span></th>
+              <th>v1.1 안정화<br /><span style="font-weight:400;font-size:11px;color:var(--muted)">7/15~7/28</span></th>
+              <th style="background:rgba(245,158,11,0.1)">미배정</th>
+              <th class="tot" style="background:rgba(0,0,0,0.28)">피처 전체 <span class="pin">4</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="feat">🟣 결제 연동 <span class="pin">3</span></td>
+              <td class="cell primary">● 3</td>
+              <td class="cell on">2</td>
+              <td class="cell off">0</td>
+              <td class="tot">3/5 · 60%</td>
+            </tr>
+            <tr>
+              <td class="feat">🔵 대시보드 UI</td>
+              <td class="cell primary">● 4</td>
+              <td class="cell off">—</td>
+              <td class="cell unassigned">1</td>
+              <td class="tot">2/5 · 40%</td>
+            </tr>
+            <tr>
+              <td class="feat">🟢 알림 시스템</td>
+              <td class="cell off">—</td>
+              <td class="cell primary">● 3</td>
+              <td class="cell off">—</td>
+              <td class="tot">1/3 · 33%</td>
+            </tr>
+            <tr class="sumrow">
+              <td style="color:var(--secondary)">마일스톤 합계 <span class="pin">2</span></td>
+              <td>7 · 55%</td>
+              <td>5 · 40%</td>
+              <td style="color:#fbbf77">1 <span class="pin">5</span></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p style="font-size:11.5px;color:var(--dim);margin-top:12px">● 굵은 셀 = 그 피처의 <b>기본 마일스톤</b> (새 태스크가 상속). 일반 셀 = 태스크가 개별 배정된 곳(=분리).</p>
+      </div>
+    </div>
+
+    <!-- legend / anatomy -->
+    <div class="card" style="margin-top:16px">
+      <h3 style="margin-top:0">화면 해부</h3>
+      <div class="legend">
+        <div class="li"><span class="pin">1</span><div><b>기본 마일스톤 (● 굵은 셀)</b> — 피처마다 하나. 새 태스크가 여기로 상속돼 생성 마찰이 없음.</div></div>
+        <div class="li"><span class="pin">2</span><div><b>마일스톤 합계</b> — 태스크 스코프 진행률. "이 마일스톤 기준"이라는 맥락이 열 자체로 명확.</div></div>
+        <div class="li"><span class="pin">3</span><div><b>셀/행 카운트</b> — 그 교차점의 태스크 수. 클릭 시 배정 패널(§3). 행 헤더 = 피처 전체 요약.</div></div>
+        <div class="li"><span class="pin">4</span><div><b>피처 전체 열</b> — 마일스톤에 상관없는 피처 본연의 진행률. 합계와 나란히 보여 ③ 혼동 제거.</div></div>
+        <div class="li"><span class="pin">5</span><div><b>미배정</b> — 어느 마일스톤에도 없는 태스크. 뱃지로 드러나 일이 조용히 사라지지 않는 안전망.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 3. 태스크 배정 패널 ===== -->
+  <section>
+    <div class="kicker">Drill-down</div>
+    <h2><span class="n">3</span>셀 클릭 → 태스크 배정</h2>
+    <p class="sec-lede">교차점(피처 × 마일스톤)을 누르면 우측 슬라이드오버. 이 피처의 <b>모든 태스크</b>를 보여주고, 칩으로 마일스톤을 바꿉니다. 여기서 <code>task.milestone_id</code>를 직접 편집 — "대표/이어짐" 조작은 없습니다.</p>
+
+    <div class="mock">
+      <div class="mock-topline"></div>
+      <div class="mock-head">
+        <div class="dot" style="background:linear-gradient(135deg,#a855f7,#6366f1)"></div>
+        <div class="title">결제 연동 <span style="color:var(--dim);font-weight:400">→</span> v1.0 출시</div>
+        <div class="spacer"></div>
+        <span class="badge b-teal">이 마일스톤 3 · 66%</span>
+      </div>
+      <div class="mock-body">
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <span class="badge b-accent">기본 마일스톤: v1.0</span>
+          <span class="badge b-slate">전체 태스크 5</span>
+        </div>
+
+        <div class="panel-task" style="background:var(--obsidian);border:1px solid rgba(255,255,255,0.07)">
+          <span style="color:var(--emerald)">✔</span><span style="flex:1;font-size:13px">PG사 API 연동</span><span class="msel">v1.0 ▾</span>
+        </div>
+        <div class="panel-task" style="background:var(--obsidian);border:1px solid rgba(255,255,255,0.07)">
+          <span style="color:var(--emerald)">✔</span><span style="flex:1;font-size:13px">결제 취소 로직</span><span class="msel">v1.0 ▾</span>
+        </div>
+        <div class="panel-task" style="background:var(--obsidian);border:1px solid rgba(255,255,255,0.07)">
+          <span style="color:var(--dim)">○</span><span style="flex:1;font-size:13px">영수증 발행</span><span class="msel">v1.0 ▾</span>
+        </div>
+        <div class="panel-task" style="background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.1)">
+          <span style="color:var(--dim)">○</span><span style="flex:1;font-size:13px;color:var(--muted)">정기결제 스케줄러</span><span class="msel other">v1.1 ▾</span>
+        </div>
+        <div class="panel-task" style="background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.1)">
+          <span style="color:var(--dim)">○</span><span style="flex:1;font-size:13px;color:var(--muted)">환불 정책 문서화</span><span class="msel other">v1.1 ▾</span>
+        </div>
+
+        <p style="font-size:12px;color:var(--dim);margin-top:14px">→ 위 2개는 v1.0, 아래 2개는 칩으로 v1.1로 옮겨져 <b>분리(split)</b>가 발생한 상태. 매트릭스 "결제 연동" 행의 <code>v1.0=3, v1.1=2</code>가 이 화면의 결과입니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 4. 생성 플로우 ===== -->
+  <section>
+    <div class="kicker">Creation</div>
+    <h2><span class="n">4</span>생성 플로우 (통합)</h2>
+    <p class="sec-lede">두 생성 모두 <b>"공통 케이스는 원클릭, 분리는 예외"</b> 원리를 따릅니다.</p>
+
+    <div class="grid2">
+      <div class="card">
+        <span class="badge b-accent" style="margin-bottom:12px">마일스톤 생성 = 새 컬럼</span>
+        <div class="step" style="padding-top:0"><div class="ph"><div class="p">1</div></div><div class="body"><h4>제목 + 기간</h4><p>2필드만 받고 즉시 생성.</p></div></div>
+        <div class="step"><div class="ph"><div class="p">2</div></div><div class="body"><h4>새 컬럼 하이라이트</h4><p>매트릭스에 즉시 등장 + 스크롤.</p></div></div>
+        <div class="step"><div class="ph"><div class="p">3</div></div><div class="body"><h4>기간 겹침 스마트 채우기</h4><p>"이 기간에 걸치는 태스크 N개" 일괄 추가.</p></div></div>
+        <div class="step"><div class="ph"><div class="p">4</div></div><div class="body"><h4>셀로 수동 보완</h4><p>진행률·합계 실시간 갱신.</p></div></div>
+      </div>
+
+      <div class="card">
+        <span class="badge b-teal" style="margin-bottom:12px">피처 생성 = 새 행</span>
+        <div class="step" style="padding-top:0"><div class="ph"><div class="p">1</div></div><div class="body"><h4>칸반에서 피처 생성</h4><p>기존 유지. "기본 마일스톤" 필드(선택) 노출.</p></div></div>
+        <div class="step"><div class="ph"><div class="p">2</div></div><div class="body"><h4>기본값 선제안</h4><p>활성 마일스톤을 후보로. 비우면 미배정.</p></div></div>
+        <div class="step"><div class="ph"><div class="p">3</div></div><div class="body"><h4>새 태스크 자동 상속</h4><p>기본 마일스톤으로 채워짐 → 배정 마찰 0.</p></div></div>
+        <div class="step"><div class="ph"><div class="p">4</div></div><div class="body"><h4>미배정은 뱃지 + 행 원클릭</h4><p>"전체를 [마일스톤]에 →"로 일괄 배정.</p></div></div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <b>결과</b> — 사용자는 대부분 "피처 만들 때 마일스톤 한 번 고르고 끝". 태스크마다 배정하는 일은 <b>분리가 필요한 예외</b>에서만 발생합니다.
+    </div>
+  </section>
+
+  <!-- ===== 5. Before / After ===== -->
+  <section>
+    <div class="kicker">Impact</div>
+    <h2><span class="n">5</span>무엇이 바뀌나</h2>
+    <div class="ba">
+      <div class="col before">
+        <h4>현재</h4>
+        <ul>
+          <li>피처 <b>체크박스 링크</b>와 태스크 배정, <b>두 모델이 충돌</b></li>
+          <li>"대표/이어짐" — <b>기능 없는</b> 개념을 학습해야 함</li>
+          <li>같은 피처가 화면마다 <b>다른 진행률</b>로 보임</li>
+          <li>태스크 분리를 관리 UI에서 <b>못 함</b> (태스크 열어야)</li>
+          <li>모달·뷰·타임라인 <b>3개 은유</b> 재학습</li>
+          <li>새 마일스톤 = 빈 껍데기, 채우는 안내 없음</li>
+        </ul>
+      </div>
+      <div class="col after">
+        <h4>최종안</h4>
+        <ul>
+          <li>진실은 태스크 하나 — <b>매트릭스 = 단일 소스</b></li>
+          <li>"대표" = <b>기본 마일스톤</b>, 새 태스크 상속이라는 실기능</li>
+          <li>합계 vs 피처 전체를 <b>나란히</b> 라벨링, 혼동 제거</li>
+          <li>셀 클릭 한 번으로 <b>태스크 분리 직접 조정</b></li>
+          <li>매트릭스 하나의 은유로 <b>홈·배정·생성 통일</b></li>
+          <li>새 마일스톤 = <b>기간 기반 스마트 채우기</b>로 즉시 유용</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 6. 구현 메모 ===== -->
+  <section>
+    <div class="kicker">Build Notes</div>
+    <h2><span class="n">6</span>구현 메모</h2>
+    <div class="card">
+      <ul class="clean" style="margin:0">
+        <li><b>재사용</b> — 매트릭스 셀 수치는 기존 <code>countByMilestoneAndFeature</code> 집계 그대로. 새 백엔드 없이 프론트 조립 가능.</li>
+        <li><b>신규 컴포넌트</b> — <code>MilestoneMatrix.tsx</code>(홈) + 태스크 배정 슬라이드오버. 기존 <code>MilestoneTimeline</code>은 상단 스트립으로 컴팩트화해 재활용.</li>
+        <li><b>백엔드 최소 변경</b> — <code>is_primary</code>의 <b>의미</b>를 "기본 마일스톤"으로 정착(값 자체 스키마 동일). 서브태스크 생성 시 피처의 기본 마일스톤 상속 로직 추가.</li>
+        <li><b>신규 쿼리 1개</b> — 마일스톤 기간과 겹치는 미배정/후보 태스크 조회(스마트 채우기용).</li>
+        <li><b>점진 적용</b> — P1 정합성 라벨 → P2 매트릭스 홈 → P3 상속·배정 패널 → P4 레거시 체크박스 링크 제거. (상세는 분석서 §7 참조)</li>
+      </ul>
+      <div class="callout" style="margin-top:18px">
+        탐색 과정과 대안 비교, 문제 진단 전문은 <b>같은 폴더의 <code>milestone-manage-redesign.html</code></b>(분석서)에 있습니다. 이 문서는 그 결론만 담은 확정본입니다.
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    BRIDGE · 마일스톤 관리 최종 설계안 · "마일스톤 = 태스크의 기간 태그, 피처는 기본 태그" 단일 모델<br />
+    홈=매트릭스 · 배정=셀 슬라이드오버 · 생성=공통 원클릭/분리 예외
+  </footer>
+
+</div>
+</body>
+</html>
