@@ -1440,6 +1440,13 @@
     "addAssigneeToChecklist": "Synced with checklist assignees",
     "checklistContractorBadge": "External",
     "contractorSection": "External contractors",
+    "checklistView": {
+      "list": "List",
+      "board": "Board",
+      "todo": "TODO",
+      "doing": "DOING",
+      "done": "DONE"
+    },
     "checklistFilter": {
       "unassigned": "Unassigned",
       "showingCount": "Showing {{visible}} / {{total}}"

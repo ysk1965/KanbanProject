@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Task 팝업 상단 경로 표현 개선안 (수정판)</title>
+<style>
+  :root {
+    --bridge-dark: #191f2d;
+    --bridge-obsidian: #151B28;
+    --bridge-accent: #6366F1;
+    --bridge-secondary: #2DD4BF;
+    --fg: #e8eaf0;
+    --slate-400: #94a3b8;
+    --slate-500: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Pretendard", "Noto Sans KR", sans-serif;
+    background: #0d111a; color: var(--fg);
+    padding: 40px 24px 80px; line-height: 1.5;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .sub { color: var(--slate-400); font-size: 13px; margin-bottom: 12px; }
+  .hier {
+    font-size: 12px; color: var(--slate-400); margin-bottom: 34px;
+    background: rgba(255,255,255,0.03); border-radius: 10px; padding: 14px 16px;
+    font-family: ui-monospace, monospace; white-space: pre; line-height: 1.7;
+  }
+  .hier b { color: var(--fg); }
+
+  .case {
+    margin-bottom: 30px; background: var(--bridge-obsidian);
+    border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden;
+  }
+  .case-head {
+    padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .tag { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+    background: rgba(99,102,241,0.15); color: #a5b4fc; letter-spacing: .3px; }
+  .tag.now { background: rgba(239,68,68,0.14); color: #fca5a5; }
+  .tag.reco { background: rgba(45,212,191,0.15); color: #5eead4; }
+  .case-title { font-size: 14px; font-weight: 700; }
+  .case-desc { font-size: 12px; color: var(--slate-500); margin-left: auto; }
+  .case-body { padding: 22px 20px; background: var(--bridge-dark); }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 11px; border-radius: 999px; font-size: 13px; font-weight: 500;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+    color: var(--fg); cursor: pointer; transition: all .15s;
+  }
+  .pill:hover { background: rgba(255,255,255,0.09); }
+  .caret { opacity: .5; font-size: 10px; margin-left: 2px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink:0; }
+  .dot.indigo { background: var(--bridge-accent); }
+  .dot.teal { background: var(--bridge-secondary); }
+  .dot.amber { background: #f59e0b; }
+  .ico { width:13px; height:13px; stroke: currentColor; fill:none; stroke-width:2; }
+
+  .asis { display: flex; align-items: center; gap: 8px; }
+
+  /* 경로형 */
+  .crumb { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .chev { color: var(--slate-500); font-size: 13px; padding: 0 1px; user-select:none; }
+  .lvl-root, .lvl-mid {
+    background: transparent; border-color: transparent; color: var(--slate-400);
+  }
+  .lvl-root:hover, .lvl-mid:hover { background: rgba(255,255,255,0.05); }
+  .lvl-leaf {
+    background: rgba(99,102,241,0.14); border-color: rgba(99,102,241,0.35);
+    color: #c7cbff; font-weight: 700;
+  }
+
+  /* 팝업 프리뷰 (경로 + 제목) */
+  .preview { max-width: 520px; }
+  .pv-title { font-size: 22px; font-weight: 700; margin-top: 12px; }
+  .pv-sub { font-size: 12px; color: var(--slate-500); margin-top: 4px; }
+
+  .note {
+    margin-top: 14px; font-size: 12px; color: var(--slate-400);
+    padding: 10px 12px; background: rgba(255,255,255,0.03);
+    border-left: 2px solid var(--bridge-accent); border-radius: 4px;
+  }
+  .legend { font-size: 12px; color: var(--slate-500); margin-top: 36px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Task 팝업 상단 · 경로 표현 개선안 <span style="font-size:13px;color:var(--slate-500)">(계층 수정판)</span></h1>
+  <p class="sub">올바른 포함 관계 — 넓은 개념에서 현재 태스크로 좁혀 내려감</p>
+  <div class="hier"><b>피쳐</b> (가장 큰 개념 · 여러 마일스톤에 걸침 M:N)
+  └─ <b>마일스톤</b> (4차 마일스톤)
+       └─ <b>블록</b> (Sprint Progress · milestone_id 보유 가능)
+            └─ <b>태스크</b> (텍틱스 길잡이) ← 지금 이 팝업</div>
+
+  <!-- AS-IS -->
+  <div class="case">
+    <div class="case-head">
+      <span class="tag now">현재 (AS-IS)</span>
+      <span class="case-title">피쳐 · 블록 · 마일스톤 (동등 나열)</span>
+      <span class="case-desc">순서가 포함관계와 불일치</span>
+    </div>
+    <div class="case-body">
+      <div class="asis">
+        <span class="pill"><span class="dot indigo"></span>텍틱스 모드<span class="caret">▾</span></span>
+        <span class="pill"><span class="dot teal"></span>Sprint Progress<span class="caret">▾</span></span>
+        <span class="pill"><span class="dot amber"></span>4차 마일스톤<span class="caret">▾</span></span>
+      </div>
+      <div class="note">블록(Sprint Progress)이 마일스톤(4차)에 속하는데, 블록이 마일스톤보다 앞에 나와 포함관계가 역전돼 보임.</div>
+    </div>
+  </div>
+
+  <!-- 추천안 -->
+  <div class="case">
+    <div class="case-head">
+      <span class="tag reco">추천</span>
+      <span class="case-title">경로형 브레드크럼 · 피쳐 › 마일스톤 › 블록</span>
+      <span class="case-desc">넓은 개념 → 태스크</span>
+    </div>
+    <div class="case-body preview">
+      <div class="crumb">
+        <span class="pill lvl-root"><span class="dot indigo"></span>텍틱스 모드<span class="caret">▾</span></span>
+        <span class="chev">›</span>
+        <span class="pill lvl-mid"><span class="dot amber"></span>4차 마일스톤<span class="caret">▾</span></span>
+        <span class="chev">›</span>
+        <span class="pill lvl-mid"><span class="dot teal"></span>Sprint Progress<span class="caret">▾</span></span>
+      </div>
+      <div class="pv-title">텍틱스 길잡이</div>
+      <div class="pv-sub">↑ 경로의 끝(leaf)은 팝업 제목인 태스크 그 자체</div>
+      <div class="note">피쳐→마일스톤→블록 순으로 좁혀지고, 실제 대상(태스크)은 제목으로 크게. 세 pill은 그대로 드롭다운 편집 유지.</div>
+    </div>
+  </div>
+
+  <!-- 대안: leaf 강조형 -->
+  <div class="case">
+    <div class="case-head">
+      <span class="tag">대안</span>
+      <span class="case-title">현재 위치(블록) 강조형</span>
+      <span class="case-desc">상위는 흐리게, 태스크가 속한 블록만 인디고</span>
+    </div>
+    <div class="case-body">
+      <div class="crumb">
+        <span class="pill lvl-root"><span class="dot indigo"></span>텍틱스 모드<span class="caret">▾</span></span>
+        <span class="chev">›</span>
+        <span class="pill lvl-mid"><span class="dot amber"></span>4차 마일스톤<span class="caret">▾</span></span>
+        <span class="chev">›</span>
+        <span class="pill lvl-leaf"><span class="dot teal"></span>Sprint Progress<span class="caret">▾</span></span>
+      </div>
+      <div class="note">"이 태스크가 지금 어느 블록(단계)에 있나"를 강조하고 싶을 때. 블록은 워크플로 상태라 자주 바뀌므로 시선 유도에 유리.</div>
+    </div>
+  </div>
+
+  <!-- 보드전역 블록 케이스 -->
+  <div class="case">
+    <div class="case-head">
+      <span class="tag">엣지케이스</span>
+      <span class="case-title">마일스톤 미배정 / 보드 전역 블록</span>
+      <span class="case-desc">누락 단계는 건너뜀</span>
+    </div>
+    <div class="case-body">
+      <div class="crumb">
+        <span class="pill lvl-root"><span class="dot indigo"></span>텍틱스 모드<span class="caret">▾</span></span>
+        <span class="chev">›</span>
+        <span class="pill lvl-mid" style="color:var(--slate-500)"><span class="dot" style="background:var(--slate-500)"></span>마일스톤 없음<span class="caret">▾</span></span>
+        <span class="chev">›</span>
+        <span class="pill lvl-mid"><span class="dot teal"></span>Task<span class="caret">▾</span></span>
+      </div>
+      <div class="note">마일스톤 미배정(Task는 milestone_id nullable) 또는 보드전역 블록일 때도 순서·자리 유지 → 레이아웃 흔들림 없음. "마일스톤 없음"은 슬레이트 톤으로 약하게.</div>
+    </div>
+  </div>
+
+  <p class="legend">🔵 피쳐 &nbsp;·&nbsp; 🟡 마일스톤 &nbsp;·&nbsp; 🟢 블록 &nbsp;—&nbsp; 태스크는 팝업 제목</p>
+</div>
+</body>
+</html>
