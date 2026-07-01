@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>마일스톤 관리 UX 개선 분석서 — BRIDGE</title>
+<style>
+  :root {
+    --dark: #191f2d;
+    --obsidian: #151b28;
+    --surface: #1e2a42;
+    --border: #384d6e;
+    --accent: #6366f1;
+    --secondary: #2dd4bf;
+    --fg: #e8ecf4;
+    --muted: #93a0b8;
+    --dim: #64748b;
+    --amber: #f59e0b;
+    --rose: #f43f5e;
+    --emerald: #10b981;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Noto Sans KR", sans-serif;
+    background: var(--dark);
+    color: var(--fg);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px 120px; }
+
+  /* Header */
+  header.hero {
+    padding: 72px 24px 56px;
+    background:
+      radial-gradient(900px 400px at 15% -10%, rgba(99,102,241,0.22), transparent 60%),
+      radial-gradient(700px 380px at 90% 0%, rgba(45,212,191,0.14), transparent 60%),
+      var(--obsidian);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .hero-inner { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--secondary); margin-bottom: 20px;
+    padding: 6px 12px; border-radius: 999px;
+    background: rgba(45,212,191,0.1); border: 1px solid rgba(45,212,191,0.25);
+  }
+  h1 { font-size: 40px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 18px; }
+  h1 .grad {
+    background: linear-gradient(100deg, var(--accent), var(--secondary));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .lede { font-size: 17px; color: var(--muted); max-width: 720px; }
+  .meta-row { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip {
+    font-size: 12px; color: var(--muted); padding: 6px 12px; border-radius: 999px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  }
+  .chip b { color: var(--fg); font-weight: 600; }
+
+  /* Sections */
+  section { margin-top: 64px; }
+  .kicker {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 10px;
+  }
+  h2 { font-size: 27px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 12px; }
+  h2 .n {
+    display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), #4f46e5); color: #fff;
+    font-size: 16px; margin-right: 12px; vertical-align: 2px;
+  }
+  .sec-lede { color: var(--muted); font-size: 15px; max-width: 760px; margin-bottom: 28px; }
+  h3 { font-size: 18px; font-weight: 700; margin: 32px 0 12px; }
+
+  /* Cards */
+  .card {
+    background: var(--obsidian); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: var(--radius); padding: 24px;
+  }
+  .card + .card { margin-top: 16px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 780px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+
+  /* Problem cards */
+  .prob {
+    border-left: 3px solid var(--rose);
+    background: linear-gradient(90deg, rgba(244,63,94,0.06), transparent 70%), var(--obsidian);
+  }
+  .prob .tag {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+    color: var(--rose); background: rgba(244,63,94,0.12); padding: 3px 9px; border-radius: 6px;
+    margin-bottom: 10px;
+  }
+  .prob h4 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .prob p { font-size: 14px; color: var(--muted); }
+  .prob .ex {
+    margin-top: 12px; font-size: 13px; color: var(--dim);
+    padding: 10px 12px; background: rgba(0,0,0,0.25); border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .prob .ex b { color: var(--amber); }
+
+  /* Principle / fix cards */
+  .fix { border-left: 3px solid var(--emerald); background: linear-gradient(90deg, rgba(16,185,129,0.06), transparent 70%), var(--obsidian); }
+  .fix .tag { color: var(--emerald); background: rgba(16,185,129,0.12); }
+
+  ul.clean { list-style: none; }
+  ul.clean li { position: relative; padding-left: 22px; margin: 7px 0; font-size: 14px; color: var(--muted); }
+  ul.clean li::before { content: ""; position: absolute; left: 4px; top: 9px; width: 6px; height: 6px; border-radius: 999px; background: var(--accent); }
+  ul.clean li b { color: var(--fg); font-weight: 600; }
+
+  code {
+    font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12.5px;
+    background: rgba(99,102,241,0.14); color: #c7cbff; padding: 1.5px 6px; border-radius: 5px;
+  }
+
+  /* Data model diagram */
+  .flowbox { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; }
+  .node {
+    flex: 1; min-width: 150px; text-align: center; padding: 18px 14px; border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1); background: var(--surface);
+  }
+  .node .lbl { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+  .node .name { font-size: 16px; font-weight: 700; margin: 4px 0 6px; }
+  .node .desc { font-size: 12px; color: var(--muted); }
+  .arrow { display: grid; place-items: center; padding: 0 10px; color: var(--dim); font-size: 12px; min-width: 90px; text-align:center;}
+  .arrow small { display:block; color: var(--secondary); font-size: 11px; margin-top: 2px;}
+  @media (max-width: 780px) { .arrow { transform: rotate(90deg); padding: 8px 0; } }
+
+  /* Mockups */
+  .mock {
+    background: var(--dark); border: 1px solid var(--border); border-radius: 14px;
+    overflow: hidden; margin-top: 8px; box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+  }
+  .mock-topline { height: 3px; background: linear-gradient(90deg, rgba(99,102,241,0.7), rgba(45,212,191,0.4), transparent); }
+  .mock-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+  .mock-head .dot { width: 20px; height: 20px; border-radius: 6px; background: linear-gradient(135deg,var(--accent),#4f46e5); }
+  .mock-head .title { font-size: 14px; font-weight: 700; }
+  .mock-head .spacer { flex: 1; }
+  .mock-body { padding: 16px 18px; }
+  .badge { display: inline-flex; align-items:center; gap:4px; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .b-accent { background: rgba(99,102,241,0.16); color: #a5b0ff; }
+  .b-teal { background: rgba(45,212,191,0.16); color: #6ee7d5; }
+  .b-amber { background: rgba(245,158,11,0.18); color: #fbbf77; }
+  .b-slate { background: rgba(148,163,184,0.14); color: var(--muted); }
+
+  .task-pill { display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 10px; border-radius:8px; background: var(--surface); border:1px solid rgba(255,255,255,0.08); }
+  .msel { font-size:11px; padding:2px 8px; border-radius:6px; border:1px solid var(--border); background: rgba(99,102,241,0.1); color:#a5b0ff; }
+
+  /* Matrix */
+  table.matrix { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.matrix th, table.matrix td { padding: 10px 12px; text-align: center; border: 1px solid rgba(255,255,255,0.07); }
+  table.matrix th { background: var(--surface); font-weight: 700; color: var(--fg); }
+  table.matrix td.feat { text-align: left; font-weight: 600; background: rgba(255,255,255,0.02); }
+  table.matrix .cell-on { background: rgba(99,102,241,0.14); color: #c7cbff; font-weight: 700; }
+  table.matrix .cell-off { color: var(--dim); }
+
+  /* option compare */
+  .opt { position: relative; }
+  .opt.rec { border: 1.5px solid var(--secondary); box-shadow: 0 0 0 4px rgba(45,212,191,0.08); }
+  .opt .rec-flag { position: absolute; top: -11px; left: 20px; font-size: 11px; font-weight: 700; color: #04211d; background: var(--secondary); padding: 3px 12px; border-radius: 999px; }
+  .opt h4 { font-size: 17px; margin-bottom: 4px; }
+  .opt .sub { font-size: 12.5px; color: var(--dim); margin-bottom: 14px; }
+  .pm { font-size: 13px; }
+  .pm .pro { color: #7ee0cf; }
+  .pm .con { color: #f7a5b2; }
+  .pm .row { display: flex; gap: 8px; margin: 5px 0; align-items: baseline; }
+  .pm .row span:first-child { flex-shrink: 0; font-weight: 700; }
+
+  /* steps */
+  .step { display: flex; gap: 16px; padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .step:last-child { border-bottom: none; }
+  .step .ph { flex-shrink: 0; width: 66px; }
+  .step .ph .p { font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: 0.08em; }
+  .step .ph .t { font-size: 11px; color: var(--dim); }
+  .step .body h4 { font-size: 15px; margin-bottom: 4px; }
+  .step .body p { font-size: 13.5px; color: var(--muted); }
+  .step .body .files { margin-top: 6px; font-size: 12px; color: var(--dim); }
+
+  .callout {
+    margin-top: 20px; padding: 18px 20px; border-radius: 12px;
+    background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.25);
+    font-size: 14px; color: #cdd2ff;
+  }
+  .callout b { color: #fff; }
+
+  .q { display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px dashed rgba(255,255,255,0.08); }
+  .q:last-child { border: none; }
+  .q .mark { color: var(--amber); font-weight: 800; flex-shrink: 0; }
+  .q p { font-size: 14px; color: var(--muted); }
+  .q p b { color: var(--fg); }
+
+  footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.07); font-size: 13px; color: var(--dim); text-align: center; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">◆ UX Analysis · Milestone Management</span>
+    <h1>마일스톤 관리 팝업<br /><span class="grad">개념 정합성 · 레이아웃 개선 분석서</span></h1>
+    <p class="lede">
+      "피처가 핵심이고, 마일스톤은 피처 안의 태스크 단위로 나뉘어 하나의 피처가 여러 마일스톤에 중복으로 들어갈 수 있다" —
+      이 모델은 강력하지만, 현재 UI는 <b>피처 단위 할당</b>과 <b>태스크 단위 할당</b>이라는 두 개의 정신 모델이 겹쳐 있어 혼란을 만듭니다.
+      이 문서는 혼란의 근원을 진단하고, 태스크 단위 진실을 그대로 드러내는 방향으로 재설계안을 제안합니다.
+    </p>
+    <div class="meta-row">
+      <span class="chip"><b>대상</b> · MilestoneModal · MilestoneView · MilestoneTimeline</span>
+      <span class="chip"><b>모델</b> · task.milestone_id (진실) + milestone_features (표시)</span>
+      <span class="chip"><b>작성일</b> · 2026-07-01</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ 1. 현재 구조 ============ -->
+  <section>
+    <div class="kicker">Current State</div>
+    <h2><span class="n">1</span>지금의 구조</h2>
+    <p class="sec-lede">
+      먼저 데이터 모델과 3개의 화면이 각각 어떤 "언어"로 관계를 표현하는지 정리합니다. 문제의 뿌리는 여기서 시작됩니다.
+    </p>
+
+    <h3>데이터 모델 — 진실은 태스크에 있다</h3>
+    <div class="card">
+      <div class="flowbox">
+        <div class="node">
+          <div class="lbl">Core</div>
+          <div class="name">Feature</div>
+          <div class="desc">칸반의 핵심 단위. 카드 생성은 여기서만.</div>
+        </div>
+        <div class="arrow">has many →<small>서브태스크</small></div>
+        <div class="node" style="border-color: rgba(45,212,191,0.4)">
+          <div class="lbl" style="color:var(--secondary)">Source of Truth</div>
+          <div class="name">Task</div>
+          <div class="desc"><code>task.milestone_id</code><br />태스크마다 마일스톤 0~1개</div>
+        </div>
+        <div class="arrow">grouped by →<small>집계</small></div>
+        <div class="node">
+          <div class="lbl">Goal</div>
+          <div class="name">Milestone</div>
+          <div class="desc">기간(start~end) 목표. 태스크들의 묶음.</div>
+        </div>
+      </div>
+      <div style="margin-top:18px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.06)">
+        <ul class="clean">
+          <li><b>태스크 단위 배정</b>이 진실입니다 — <code>task.milestone_id</code>. 한 피처의 태스크 A는 마일스톤 A, 태스크 B는 마일스톤 B로 갈 수 있습니다.</li>
+          <li>따로 <b><code>milestone_features</code> 조인 테이블</b>이 존재합니다 — 피처↔마일스톤 링크 + <code>is_primary</code> 플래그. <b>표시·타임라인 전용</b>의 파생 데이터입니다.</li>
+          <li>진행률/태스크 카운트는 <code>countByMilestoneAndFeature</code> 로 <b>마일스톤 범위로 스코핑</b>됩니다. → 같은 피처가 마일스톤마다 다른 진행률을 가집니다.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>3개의 화면 — 3개의 서로 다른 은유</h3>
+    <div class="grid3">
+      <div class="card">
+        <span class="badge b-accent">MilestoneModal</span>
+        <h4 style="font-size:15px;margin:10px 0 6px">피처 체크박스</h4>
+        <p style="font-size:13px;color:var(--muted)">좌: 마일스톤 목록(w-56) · 우: 편집 폼. 하단에 <b>피처 체크박스 리스트</b>로 링크. "대표 / 이어짐 / 대표로 지정" 뱃지가 각 행에 밀집.</p>
+      </div>
+      <div class="card">
+        <span class="badge b-teal">MilestoneView</span>
+        <h4 style="font-size:15px;margin:10px 0 6px">피처 카드 그룹</h4>
+        <p style="font-size:13px;color:var(--muted)">마일스톤별 접이식 카드. 펼치면 <b>가로 스크롤 피처 카드</b>. 각 카드는 그 마일스톤에 속한 태스크 3개까지 + 마일스톤 범위 진행률.</p>
+      </div>
+      <div class="card">
+        <span class="badge b-slate">MilestoneTimeline</span>
+        <h4 style="font-size:15px;margin:10px 0 6px">간트 바</h4>
+        <p style="font-size:13px;color:var(--muted)">마일스톤 바 + 그 아래 피처 바(드래그 리사이즈). <code>is_primary=false</code>면 점선·저투명 "이어짐" 처리.</p>
+      </div>
+    </div>
+    <div class="callout">
+      핵심: <b>실제 배정은 태스크 단위</b>인데, 관리 화면 3개 중 태스크를 직접 다루는 곳이 하나도 없습니다.
+      태스크→마일스톤 배정은 오직 <b>TaskDetailModal 안쪽 드롭다운</b>에서만 가능합니다. 정작 "어떤 태스크가 어느 마일스톤에" 라는 결정이 관리 UI에서 보이지 않습니다.
+    </div>
+  </section>
+
+  <!-- ============ 2. 문제 진단 ============ -->
+  <section>
+    <div class="kicker">Diagnosis</div>
+    <h2><span class="n">2</span>혼란의 근원 6가지</h2>
+    <p class="sec-lede">
+      "레이아웃이 애매하다"는 체감의 실제 원인은 대부분 <b>개념 모델의 이중성</b>에서 비롯됩니다. 시각적 문제와 구조적 문제를 분리해 짚습니다.
+    </p>
+
+    <div class="grid2">
+      <div class="card prob">
+        <span class="tag">구조 · 핵심</span>
+        <h4>① 두 개의 배정 모델이 겹친다</h4>
+        <p>같은 관계를 <b>피처 링크(체크박스)</b>와 <b>태스크 배정(<code>milestone_id</code>)</b> 두 곳에서 관리합니다. 모달에서 피처를 체크하면 그 피처의 태스크들에 어떤 일이 일어나는지 예측이 안 됩니다.</p>
+        <div class="ex">예: 마일스톤에서 피처 링크를 <b>해제</b>하면 → 그 피처의 해당 마일스톤 태스크가 <b>orphan</b> 처리됨. 사용자는 체크 하나 껐을 뿐인데 태스크 배정이 사라짐.</div>
+      </div>
+
+      <div class="card prob">
+        <span class="tag">개념 · 인지부하</span>
+        <h4>② "대표 / 이어짐" 개념의 부담</h4>
+        <p>피처가 여러 마일스톤에 걸치니 어느 하나를 "대표(primary)"로 정해야 합니다. 사용자는 이 개념을 배워야 하고, "대표로 지정"이 <b>무엇을 바꾸는지</b> 불명확합니다(사실상 타임라인 바 스타일 + 소유 마일스톤).</p>
+        <div class="ex">"대표"를 바꿔도 태스크 배정·진행률은 그대로. <b>기능적 효과가 거의 없는데</b> UI 노출 비중은 큼.</div>
+      </div>
+
+      <div class="card prob">
+        <span class="tag">데이터 · 불일치 체감</span>
+        <h4>③ 같은 피처, 다른 진행률</h4>
+        <p>피처 카드가 마일스톤마다 복제되고, 각기 <b>마일스톤 범위 진행률</b>을 보여줍니다. 칸반에서 보던 그 피처의 전체 진행률과 숫자가 안 맞아 "어느 게 맞지?" 하게 됩니다.</p>
+        <div class="ex">피처 "결제연동": 마일스톤 A에서 <b>2/3 (66%)</b>, 마일스톤 B에서 <b>1/2 (50%)</b>, 칸반 카드에선 <b>3/5 (60%)</b>. 셋 다 맞지만 설명이 없음.</div>
+      </div>
+
+      <div class="card prob">
+        <span class="tag">구조 · 사각지대</span>
+        <h4>④ 태스크 분리가 관리 UI에 없다</h4>
+        <p>정작 "태스크 A→A, 태스크 B→B"라는 <b>분리 결정</b>을 관리 모달/뷰에서 할 수 없습니다. 각 태스크를 열어 드롭다운으로만 가능. 핵심 액션이 가장 깊은 곳에 숨어 있습니다.</p>
+        <div class="ex">피처를 두 마일스톤에 걸치려면 → 태스크를 하나씩 열어 배정. 관리 화면에선 "왜 이 피처가 두 곳에 있지?"만 보이고 조정 불가.</div>
+      </div>
+
+      <div class="card prob">
+        <span class="tag">일관성</span>
+        <h4>⑤ 3화면 3은유</h4>
+        <p>모달=체크박스, 뷰=피처카드, 타임라인=간트바. 하나의 정신 모델로 이어지지 않아 화면을 옮길 때마다 재학습이 필요합니다.</p>
+        <div class="ex">모달에서 "링크"한 것이 뷰에서 "카드"로, 타임라인에서 "바"로 변신. 같은 행위의 결과인지 직관적으로 안 이어짐.</div>
+      </div>
+
+      <div class="card prob">
+        <span class="tag">레이아웃 · 시각</span>
+        <h4>⑥ 모달 우측 폼의 밀집</h4>
+        <p>피처 링크 행 하나에 체크박스 + 색점 + 제목 + "대표" + "이어짐" + "대표로 지정" 버튼 + N개 카운트가 다 들어가 시각적으로 시끄럽습니다. 좌측 w-56 목록도 좁습니다.</p>
+        <div class="ex">한 행에 최대 <b>6개 요소</b>가 경합. 정작 중요한 "이 마일스톤에 무엇이 얼마나" 정보는 묻힘.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. 설계 원칙 ============ -->
+  <section>
+    <div class="kicker">Principles</div>
+    <h2><span class="n">3</span>재설계 원칙</h2>
+    <p class="sec-lede">모든 개선안은 아래 4가지 원칙을 만족해야 합니다.</p>
+    <div class="grid2">
+      <div class="card fix">
+        <span class="tag">원칙 1</span>
+        <h4 style="font-size:16px;margin-bottom:6px">태스크를 일급 시민으로</h4>
+        <p style="font-size:14px;color:var(--muted)">배정의 진실이 태스크라면, UI도 태스크를 직접 보여주고 조작하게 한다. 피처는 <b>그룹 헤더</b>로 강등하되 여전히 시각적 핵심.</p>
+      </div>
+      <div class="card fix">
+        <span class="tag">원칙 2</span>
+        <h4 style="font-size:16px;margin-bottom:6px">"대표"에 진짜 역할을 준다</h4>
+        <p style="font-size:14px;color:var(--muted)">모호한 표시용 플래그였던 <code>is_primary</code>를 피처의 <b>"기본 마일스톤"</b>으로 재정의. 새 태스크가 이곳을 <b>상속</b>하고, 태스크별로 덮어쓰면 그게 곧 분리(split). 개념이 사라지는 대신 명확한 기능(=생성 마찰 제거)을 얻는다.</p>
+      </div>
+      <div class="card fix">
+        <span class="tag">원칙 3</span>
+        <h4 style="font-size:16px;margin-bottom:6px">숫자에 스코프 라벨을</h4>
+        <p style="font-size:14px;color:var(--muted)">마일스톤 범위 진행률에는 항상 "이 마일스톤 기준" 맥락을 붙인다. 피처 전체 진행률과 나란히 보여 혼동을 없앤다.</p>
+      </div>
+      <div class="card fix">
+        <span class="tag">원칙 4</span>
+        <h4 style="font-size:16px;margin-bottom:6px">하나의 은유로 통일</h4>
+        <p style="font-size:14px;color:var(--muted)">"마일스톤은 태스크에 붙는 <b>기간 태그</b>"라는 단일 은유. 관리·뷰·타임라인이 모두 이 문장에서 파생되게 한다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4. 개선 방향 ============ -->
+  <section>
+    <div class="kicker">Options</div>
+    <h2><span class="n">4</span>개선 방향 3안</h2>
+    <p class="sec-lede">태스크 단위 진실을 유지한 채(사용자 의도 존중) 관리 UX를 정리하는 3가지 접근을 비교합니다.</p>
+
+    <div class="grid3">
+      <div class="card opt">
+        <h4>A. 피처 그룹 + 태스크 배정</h4>
+        <div class="sub">모달 재구성</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">모달 우측을 "피처 아코디언 → 태스크 행 + 마일스톤 칩" 구조로. 태스크를 직접 이 마일스톤에 넣고 뺀다.</p>
+        <div class="pm">
+          <div class="row"><span class="pro">+</span><span>진실(태스크)을 그대로 조작</span></div>
+          <div class="row"><span class="pro">+</span><span>"대표/이어짐" 제거 가능</span></div>
+          <div class="row"><span class="con">−</span><span>태스크 많으면 목록 길어짐</span></div>
+        </div>
+      </div>
+
+      <div class="card opt rec">
+        <span class="rec-flag">★ 추천</span>
+        <h4>B. 매트릭스 + 태스크 배정</h4>
+        <div class="sub">A안 + 피처×마일스톤 오버뷰</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">관리 진입 시 <b>피처 × 마일스톤 매트릭스</b>로 "무엇이 어디에 몇 개" 한눈에. 셀 클릭 → 그 교차점의 태스크 배정 패널.</p>
+        <div class="pm">
+          <div class="row"><span class="pro">+</span><span>중복 배정을 <b>한 장</b>으로 이해</span></div>
+          <div class="row"><span class="pro">+</span><span>A안의 태스크 조작 그대로 계승</span></div>
+          <div class="row"><span class="pro">+</span><span>혼란 근원 ①③④를 동시 해결</span></div>
+          <div class="row"><span class="con">−</span><span>마일스톤 많으면 가로 스크롤</span></div>
+        </div>
+      </div>
+
+      <div class="card opt">
+        <h4>C. 칸반식 태스크 이동</h4>
+        <div class="sub">마일스톤 = 컬럼</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">마일스톤을 컬럼으로 두고 태스크 카드를 드래그해 배정. "미배정" 컬럼 포함.</p>
+        <div class="pm">
+          <div class="row"><span class="pro">+</span><span>드래그 직관성 최고</span></div>
+          <div class="row"><span class="con">−</span><span>피처 그룹핑이 약해짐</span></div>
+          <div class="row"><span class="con">−</span><span>미니칸반 뷰와 역할 중복</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <b>추천: B안 (매트릭스 + 태스크 배정)</b> — "하나의 피처가 여러 마일스톤에 중복으로 들어가는" 바로 그 개념을
+      <b>매트릭스 한 장</b>으로 자연스럽게 보여주고, 셀을 열면 태스크 단위로 정확히 조정하게 합니다.
+      혼란의 근원 ①(이중 모델) ③(다른 진행률) ④(사각지대)를 동시에 해소합니다.
+    </div>
+  </section>
+
+  <!-- ============ 5. 추천안 목업 ============ -->
+  <section>
+    <div class="kicker">Proposed Design · Option B</div>
+    <h2><span class="n">5</span>추천안 레이아웃 목업</h2>
+    <p class="sec-lede">저해상도 개념 목업입니다. 실제 컬러/컴포넌트는 BRIDGE 토큰(<code>bridge-obsidian</code>, <code>MotionModal</code> 등)을 따릅니다.</p>
+
+    <h3>5-1. 진입: 피처 × 마일스톤 매트릭스 (오버뷰)</h3>
+    <div class="mock">
+      <div class="mock-topline"></div>
+      <div class="mock-head">
+        <div class="dot"></div>
+        <div class="title">마일스톤 관리</div>
+        <span class="badge b-slate">오버뷰</span>
+        <span class="badge b-accent">태스크 배정</span>
+        <div class="spacer"></div>
+        <span style="font-size:12px;color:var(--dim)">+ 새 마일스톤</span>
+      </div>
+      <div class="mock-body">
+        <p style="font-size:12px;color:var(--dim);margin-bottom:12px">셀의 숫자 = 그 피처의 태스크가 해당 마일스톤에 몇 개 배정됐는지. 클릭하면 태스크 단위 배정 패널이 열립니다.</p>
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th style="text-align:left">Feature ↓ / Milestone →</th>
+              <th>v1.0 출시<br /><span style="font-weight:400;font-size:11px;color:var(--muted)">7/1~7/14</span></th>
+              <th>v1.1 안정화<br /><span style="font-weight:400;font-size:11px;color:var(--muted)">7/15~7/28</span></th>
+              <th>미배정</th>
+              <th style="background:rgba(0,0,0,0.2)">피처 전체</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="feat">🟣 결제 연동</td>
+              <td class="cell-on">3</td>
+              <td class="cell-on">2</td>
+              <td class="cell-off">0</td>
+              <td style="color:var(--muted)">3/5 · 60%</td>
+            </tr>
+            <tr>
+              <td class="feat">🔵 대시보드 UI</td>
+              <td class="cell-on">4</td>
+              <td class="cell-off">—</td>
+              <td class="cell-off">1</td>
+              <td style="color:var(--muted)">2/5 · 40%</td>
+            </tr>
+            <tr>
+              <td class="feat">🟢 알림 시스템</td>
+              <td class="cell-off">—</td>
+              <td class="cell-on">3</td>
+              <td class="cell-off">—</td>
+              <td style="color:var(--muted)">1/3 · 33%</td>
+            </tr>
+            <tr style="background:rgba(99,102,241,0.05)">
+              <td class="feat" style="color:var(--secondary)">마일스톤 합계</td>
+              <td style="color:var(--fg);font-weight:700">7 태스크 · 55%</td>
+              <td style="color:var(--fg);font-weight:700">5 태스크 · 40%</td>
+              <td style="color:var(--dim)">2 태스크</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="font-size:12px;color:var(--dim);margin-top:12px">→ "결제 연동"이 <b>v1.0에 3개, v1.1에 2개</b> 걸쳐 있다는 중복 배정이 한 줄로 명확. ③의 "다른 진행률"도 마일스톤 합계 vs 피처 전체가 <b>나란히</b> 보여 오해가 사라짐.</p>
+      </div>
+    </div>
+
+    <h3>5-2. 셀 클릭 → 태스크 배정 패널 (교차점 편집)</h3>
+    <div class="mock">
+      <div class="mock-topline"></div>
+      <div class="mock-head">
+        <div class="dot" style="background:linear-gradient(135deg,#a855f7,#6366f1)"></div>
+        <div class="title">결제 연동 <span style="color:var(--dim);font-weight:400">→</span> v1.0 출시</div>
+        <div class="spacer"></div>
+        <span class="badge b-teal">이 마일스톤 3 · 66%</span>
+      </div>
+      <div class="mock-body">
+        <p style="font-size:12px;color:var(--dim);margin-bottom:12px">이 피처의 <b>모든 태스크</b>를 보여주고, 각 태스크를 이 마일스톤에 넣거나(체크) 다른 마일스톤으로 옮깁니다(칩). "대표/이어짐" 없이 태스크 배정 자체가 곧 진실.</p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--obsidian);border:1px solid rgba(255,255,255,0.07);border-radius:10px">
+            <span style="color:var(--emerald)">✔</span>
+            <span style="flex:1;font-size:13px">PG사 API 연동</span>
+            <span class="msel">v1.0 출시 ▾</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--obsidian);border:1px solid rgba(255,255,255,0.07);border-radius:10px">
+            <span style="color:var(--emerald)">✔</span>
+            <span style="flex:1;font-size:13px">결제 취소 로직</span>
+            <span class="msel">v1.0 출시 ▾</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--obsidian);border:1px solid rgba(255,255,255,0.07);border-radius:10px">
+            <span style="color:var(--dim)">○</span>
+            <span style="flex:1;font-size:13px">영수증 발행</span>
+            <span class="msel">v1.0 출시 ▾</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.1);border-radius:10px">
+            <span style="color:var(--dim)">○</span>
+            <span style="flex:1;font-size:13px;color:var(--muted)">정기결제 스케줄러</span>
+            <span class="msel" style="background:rgba(45,212,191,0.12);color:#6ee7d5;border-color:rgba(45,212,191,0.3)">v1.1 안정화 ▾</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.1);border-radius:10px">
+            <span style="color:var(--dim)">○</span>
+            <span style="flex:1;font-size:13px;color:var(--muted)">환불 정책 문서화</span>
+            <span class="msel" style="background:rgba(45,212,191,0.12);color:#6ee7d5;border-color:rgba(45,212,191,0.3)">v1.1 안정화 ▾</span>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--dim);margin-top:14px">→ "태스크 A→A, 태스크 B→B" 분리(④의 사각지대)를 <b>바로 이 화면</b>에서 처리. 칩 드롭다운으로 마일스톤 이동 = <code>task.milestone_id</code> 직접 수정.</p>
+      </div>
+    </div>
+
+    <h3>5-3. 마일스톤 상세 (기존 MilestoneView 개선)</h3>
+    <div class="card" style="margin-top:8px">
+      <ul class="clean">
+        <li>피처 카드의 진행률 숫자 옆에 <b>"이 마일스톤 기준"</b> 마이크로 라벨 추가 → ③ 해소.</li>
+        <li>여러 마일스톤에 걸친 피처의 <span class="badge b-amber" style="vertical-align:1px">▲ 2</span> 뱃지는 유지하되, 클릭 시 <b>"어느 마일스톤에 몇 개"</b> 팝오버로 설명.</li>
+        <li>타임라인의 점선 "이어짐" 바는 유지(시각적으로 유용) — 단 <code>is_primary</code>를 자동 파생값으로 바꿔 사용자가 "대표 지정"을 하지 않게 함 → ② 해소.</li>
+        <li>모달 좌측 목록 폭 <code>w-56 → w-64</code>, 우측 폼 상단 정보 밀도 완화(뱃지·버튼 재배치) → ⑥ 해소.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 6. 생성 플로우 ============ -->
+  <section>
+    <div class="kicker">Creation Flows</div>
+    <h2><span class="n">6</span>생성 플로우 설계</h2>
+    <p class="sec-lede">
+      매트릭스 모델의 진짜 강점은 <b>생성이 곧 그리드에 즉시 보인다</b>는 것 — 마일스톤을 만들면 <b>새 컬럼</b>이, 피처를 만들면 <b>새 행</b>이 생깁니다.
+      관건은 "새로 만든 뒤 태스크를 매번 일일이 배정해야 하나?"라는 마찰을 없애는 것입니다.
+    </p>
+
+    <!-- 핵심 개념: 기본 마일스톤 상속 -->
+    <div class="card" style="border:1.5px solid rgba(45,212,191,0.35); background:linear-gradient(120deg, rgba(45,212,191,0.07), transparent 60%), var(--obsidian)">
+      <span class="badge b-teal" style="margin-bottom:10px">핵심 메커니즘</span>
+      <h3 style="margin:0 0 10px; font-size:19px">피처의 "기본 마일스톤" 상속</h3>
+      <p style="font-size:14px; color:var(--muted); margin-bottom:16px">
+        현실에서 <b>대부분의 피처는 하나의 마일스톤에 속합니다.</b> 여러 마일스톤에 걸치는 "분리"는 예외입니다.
+        그래서 <b>공통 케이스(피처 전체 → 한 마일스톤)를 원클릭</b>으로, <b>분리는 예외적으로 덮어쓰기</b>로 처리하는 게 최적입니다.
+      </p>
+      <div class="flowbox">
+        <div class="node">
+          <div class="lbl">Feature</div>
+          <div class="name" style="font-size:15px">기본 마일스톤 = v1.0</div>
+          <div class="desc"><code>is_primary</code> 재정의</div>
+        </div>
+        <div class="arrow">새 태스크 →<small>자동 상속</small></div>
+        <div class="node" style="border-color:rgba(45,212,191,0.4)">
+          <div class="lbl" style="color:var(--secondary)">New Task</div>
+          <div class="name" style="font-size:15px">milestone = v1.0</div>
+          <div class="desc">배정 없이도 채워짐</div>
+        </div>
+        <div class="arrow">칩으로 →<small>덮어쓰기</small></div>
+        <div class="node">
+          <div class="lbl">Exception</div>
+          <div class="name" style="font-size:15px">이 태스크만 v1.1</div>
+          <div class="desc">= 분리(split) 발생</div>
+        </div>
+      </div>
+      <p style="font-size:13px; color:var(--dim); margin-top:14px">
+        → 이렇게 하면 "대표(primary)"가 <b>실제 기능(새 태스크의 기본값)</b>을 갖게 되어 혼란 근원 ②가 해소되고,
+        생성 시마다 태스크를 손대야 하는 마찰이 사라집니다.
+      </p>
+    </div>
+
+    <!-- 6-1 마일스톤 생성 -->
+    <h3>6-1. 마일스톤 생성 = 새 컬럼 채우기</h3>
+    <p class="sec-lede" style="margin-bottom:16px">
+      빈 마일스톤은 쓸모가 없으므로, 생성 직후 <b>자연스럽게 채우도록 유도</b>하되 강제하지 않습니다.
+      마일스톤은 <b>기간</b>을 가지므로 이를 이용한 <b>스마트 추천</b>이 강력합니다.
+    </p>
+    <div class="card" style="margin-bottom:16px">
+      <div class="step" style="padding-top:0">
+        <div class="ph"><div class="p">1</div><div class="t">최소 입력</div></div>
+        <div class="body"><h4>제목 + 기간, 딱 2개</h4><p>인라인 폼으로 <b>제목·기간(범위 캘린더)</b>만 받고 즉시 생성. 설명·연결은 나중에. 진입 장벽을 최소화.</p></div>
+      </div>
+      <div class="step">
+        <div class="ph"><div class="p">2</div><div class="t">즉시 가시화</div></div>
+        <div class="body"><h4>매트릭스에 새 컬럼 등장 + 하이라이트</h4><p>생성과 동시에 컬럼이 나타나고 해당 위치로 스크롤·강조(펄스). "무엇이 만들어졌는지" 즉각 인지.</p></div>
+      </div>
+      <div class="step">
+        <div class="ph"><div class="p">3</div><div class="t">스마트 채우기</div></div>
+        <div class="body"><h4>기간이 겹치는 작업 자동 추천</h4><p>빈 컬럼 empty-state에서 <b>"기간(7/1~7/14)에 걸치는 태스크 N개 추천"</b> → 체크해서 일괄 배정. 마일스톤 날짜 기반이라 정확도 높음.</p></div>
+      </div>
+      <div class="step">
+        <div class="ph"><div class="p">4</div><div class="t">수동 보완</div></div>
+        <div class="body"><h4>셀 클릭으로 직접 배정</h4><p>추천이 아쉬우면 매트릭스 셀을 눌러 태스크 배정 패널(§5-2)에서 직접 조정. 진행률·합계 실시간 갱신.</p></div>
+      </div>
+    </div>
+
+    <!-- 빈 컬럼 empty state 목업 -->
+    <div class="mock">
+      <div class="mock-topline"></div>
+      <div class="mock-head">
+        <div class="dot"></div>
+        <div class="title">마일스톤 관리</div>
+        <div class="spacer"></div>
+        <span style="font-size:12px;color:var(--secondary)">✓ "v1.1 안정화" 생성됨</span>
+      </div>
+      <div class="mock-body">
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th style="text-align:left">Feature ↓ / Milestone →</th>
+              <th>v1.0 출시</th>
+              <th style="background:rgba(45,212,191,0.15); border-color:rgba(45,212,191,0.4)">✨ v1.1 안정화<br /><span style="font-weight:400;font-size:11px;color:#6ee7d5">7/15~7/28 · 신규</span></th>
+              <th style="background:rgba(0,0,0,0.2)">피처 전체</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="feat">🟣 결제 연동</td>
+              <td class="cell-on">5</td>
+              <td class="cell-off" style="background:rgba(45,212,191,0.04)">—</td>
+              <td style="color:var(--muted)">3/5</td>
+            </tr>
+            <tr>
+              <td class="feat">🔵 대시보드 UI</td>
+              <td class="cell-on">4</td>
+              <td class="cell-off" style="background:rgba(45,212,191,0.04)">—</td>
+              <td style="color:var(--muted)">2/5</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:14px; padding:16px; border:1px dashed rgba(45,212,191,0.35); border-radius:12px; background:rgba(45,212,191,0.05); text-align:center">
+          <p style="font-size:14px; font-weight:600; margin-bottom:4px">이 마일스톤은 아직 비어 있어요</p>
+          <p style="font-size:12px; color:var(--muted); margin-bottom:12px">기간(7/15~7/28)에 걸치는 태스크 <b style="color:#6ee7d5">6개</b>를 찾았어요</p>
+          <span class="badge b-teal" style="padding:7px 14px; font-size:12px">＋ 추천 작업 일괄 추가</span>
+          <span class="badge b-slate" style="padding:7px 14px; font-size:12px; margin-left:8px">셀 클릭해 직접 배정</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6-2 피처 생성 -->
+    <h3>6-2. 피처 생성 = 새 행 + 미배정 안전망</h3>
+    <p class="sec-lede" style="margin-bottom:16px">
+      피처는 <b>칸반 Feature 블록</b>에서 태어납니다(기존 유지) — 마일스톤 매니저가 아닙니다.
+      따라서 새 피처의 태스크는 어딘가로 <b>흘러가야</b> 하고, 여기서 두 개의 편의 장치가 작동합니다.
+    </p>
+    <div class="grid2" style="margin-bottom:16px">
+      <div class="card fix">
+        <span class="tag">장치 1</span>
+        <h4 style="font-size:16px;margin-bottom:6px">생성 시 "기본 마일스톤" 선택(옵션)</h4>
+        <p style="font-size:14px;color:var(--muted)">피처 생성/편집에 <b>기본 마일스톤</b> 필드를 둔다. 지정하면 이후 서브태스크가 자동 상속 → 매트릭스에서 그 셀이 <b>대표(굵게)</b>로 표시. 미지정도 허용.</p>
+      </div>
+      <div class="card fix">
+        <span class="tag">장치 2</span>
+        <h4 style="font-size:16px;margin-bottom:6px">"미배정" 컬럼 = 놓친 일의 안전망</h4>
+        <p style="font-size:14px;color:var(--muted)">기본 마일스톤 없이 만든 피처의 태스크는 <b>미배정</b>에 모여 <b>뱃지로 가시화</b>. 일이 조용히 사라지지 않고, 나중에 배정하도록 드러난다.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <ul class="clean" style="margin:0">
+        <li><b>행 단위 원클릭 배정</b> — 새 행 헤더의 "미배정 N" 뱃지 옆에 <b>"전체를 [마일스톤]에"</b> 퀵액션. 공통 케이스(피처 하나 → 마일스톤 하나)를 한 번에.</li>
+        <li><b>스마트 기본값 후보</b> — 보드에 활성 마일스톤(<code>selectedMilestoneId</code>)이 있으면 그것을, 없으면 피처 기간과 겹치는 마일스톤을 기본 마일스톤 후보로 <b>선제안</b>.</li>
+        <li><b>분리는 자연 발생</b> — 개별 태스크를 칩으로 다른 마일스톤에 옮기는 순간 새 셀이 채워지며 split이 그리드에 즉시 나타남.</li>
+      </ul>
+    </div>
+
+    <!-- 새 행 목업 -->
+    <div class="mock">
+      <div class="mock-topline"></div>
+      <div class="mock-head">
+        <div class="dot" style="background:linear-gradient(135deg,#22c55e,#10b981)"></div>
+        <div class="title">마일스톤 관리</div>
+        <div class="spacer"></div>
+        <span style="font-size:12px;color:#7ee0cf">✓ 칸반에서 "알림 시스템" 피처 생성됨</span>
+      </div>
+      <div class="mock-body">
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th style="text-align:left">Feature ↓ / Milestone →</th>
+              <th>v1.0 출시</th>
+              <th>v1.1 안정화</th>
+              <th style="background:rgba(245,158,11,0.12)">미배정</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="feat">🟣 결제 연동</td>
+              <td class="cell-on">5</td>
+              <td class="cell-off">—</td>
+              <td class="cell-off">0</td>
+            </tr>
+            <tr style="background:rgba(34,197,94,0.06)">
+              <td class="feat" style="border-left:2px solid #22c55e">🟢 알림 시스템 <span style="font-size:11px;color:#7ee0cf">신규</span></td>
+              <td class="cell-off">—</td>
+              <td class="cell-off">—</td>
+              <td style="background:rgba(245,158,11,0.14); color:#fbbf77; font-weight:700">3</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:14px; display:flex; align-items:center; gap:10px; padding:12px 16px; border:1px solid rgba(245,158,11,0.3); border-radius:12px; background:rgba(245,158,11,0.06)">
+          <span class="badge b-amber">⚠ 미배정 3</span>
+          <span style="font-size:13px; color:var(--muted); flex:1">"알림 시스템"의 태스크 3개가 아직 어느 마일스톤에도 없어요</span>
+          <span class="badge b-accent" style="padding:6px 12px">전체를 <b>v1.1 안정화</b>에 →</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:20px">
+      <b>요약</b> — 마일스톤 생성은 "빈 컬럼 → 기간 기반 스마트 채우기", 피처 생성은 "새 행 → 기본 마일스톤 상속 + 미배정 안전망 + 행 원클릭 배정".
+      두 플로우 모두 <b>공통 케이스는 원클릭, 분리는 예외적 덮어쓰기</b>라는 하나의 원리를 따릅니다.
+    </div>
+  </section>
+
+  <!-- ============ 7. 실행 계획 ============ -->
+  <section>
+    <div class="kicker">Rollout</div>
+    <h2><span class="n">7</span>단계별 실행 계획</h2>
+    <p class="sec-lede">위험을 낮추기 위해 "정보 정합성 → 신규 오버뷰 → 개념 단순화" 순으로 점진 적용합니다.</p>
+
+    <div class="card">
+      <div class="step">
+        <div class="ph"><div class="p">P1</div><div class="t">Quick win</div></div>
+        <div class="body">
+          <h4>정보 정합성 패치 (프론트 전용)</h4>
+          <p>피처 카드 진행률에 "이 마일스톤 기준" 라벨 추가, 멀티 마일스톤 뱃지 클릭 시 분포 팝오버, 모달 밀집도 완화.</p>
+          <div class="files">MilestoneView.tsx · MilestoneModal.tsx · i18n <code>milestone.*</code></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="ph"><div class="p">P2</div><div class="t">신규</div></div>
+        <div class="body">
+          <h4>피처×마일스톤 매트릭스 오버뷰</h4>
+          <p>관리 진입점에 매트릭스 탭 신설. 셀 = <code>countByMilestoneAndFeature</code> 재사용(기존 집계 그대로). 셀 클릭 → 태스크 배정 패널.</p>
+          <div class="files">신규 MilestoneMatrix.tsx · 기존 milestone 집계 API 재사용</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="ph"><div class="p">P3</div><div class="t">개념 단순화</div></div>
+        <div class="body">
+          <h4>태스크 배정 패널 + "기본 마일스톤" 상속</h4>
+          <p>교차점 태스크 배정 UI로 <code>task.milestone_id</code> 직접 편집. <code>is_primary</code>를 피처의 <b>기본 마일스톤</b>으로 재정의 — 새 서브태스크가 상속. 피처 생성/편집에 기본 마일스톤 필드, 마일스톤 생성엔 기간 기반 스마트 채우기 추가.</p>
+          <div class="files">TaskDetail·서브태스크 생성 로직(상속) · MilestoneService(is_primary 의미 재정의) · 신규 스마트추천 쿼리(기간 겹침)</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="ph"><div class="p">P4</div><div class="t">정리</div></div>
+        <div class="body">
+          <h4>레거시 피처 체크박스 링크 제거</h4>
+          <p>매트릭스/태스크 배정이 안정화되면 모달의 피처 체크박스 링크 방식을 걷어내 이중 모델(①)을 완전히 종결.</p>
+          <div class="files">MilestoneModal 링크 섹션 제거 · addFeatures/removeFeature는 태스크 배정의 파생으로</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 7. 결정 필요 ============ -->
+  <section>
+    <div class="kicker">Open Questions</div>
+    <h2><span class="n">8</span>결정이 필요한 지점</h2>
+    <div class="card">
+      <div class="q"><span class="mark">Q1</span><p><b>매트릭스 vs 아코디언</b> — 진입 오버뷰를 매트릭스(B안)로 갈지, 심플하게 피처 아코디언(A안)만으로 갈지. 마일스톤 개수가 보통 몇 개까지 쓰이나요? (5개 초과면 매트릭스 가로 스크롤 고려)</p></div>
+      <div class="q"><span class="mark">Q2</span><p><b>기본 마일스톤 상속 채택</b> — <code>is_primary</code>를 "피처의 기본 마일스톤(새 태스크 상속)"으로 재정의하는 데 동의하나요? 아니면 자동 파생+숨김이 더 나은가요? (생성 마찰 vs 개념 노출의 트레이드오프)</p></div>
+      <div class="q"><span class="mark">Q3</span><p><b>피처 생성 시 마일스톤 지정</b> — 칸반에서 피처 만들 때 기본 마일스톤 필드를 <b>노출</b>할지(선택), 아니면 항상 미배정으로 시작하고 매트릭스에서만 배정할지.</p></div>
+      <div class="q"><span class="mark">Q4</span><p><b>스마트 채우기 기준</b> — 마일스톤 생성 시 추천을 "기간 겹침(태스크 due date)"으로 할지, "활성 피처"로 할지, 둘 다 제공할지.</p></div>
+      <div class="q"><span class="mark">Q5</span><p><b>진행률 정의</b> — 마일스톤 진행률을 "그 마일스톤에 속한 태스크만"으로 계속 볼지, "걸친 피처들의 전체"로 볼지. 현재는 전자(태스크 스코프)입니다.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    BRIDGE · 마일스톤 관리 UX 개선 분석서 · 개념 정합성 우선 · 태스크 단위 진실 유지<br />
+    다음 단계: 위 <b>결정 필요 지점(Q1~Q5)</b> 확정 후 P1 Quick-win부터 구현 착수
+  </footer>
+
+</div>
+</body>
+</html>

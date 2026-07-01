@@ -17,11 +17,18 @@ import {
   Trash2,
   ChevronsUpDown,
   ChevronsDownUp,
+  Table2,
+  LayoutList,
+  Columns3,
 } from "lucide-react";
 import type { Feature, Task, Milestone, MilestoneFeatureInfo } from "../types";
 import { milestoneService } from "../utils/services";
 import { formatDateShort } from "../utils/dateUtils";
 import { MilestoneTimeline } from "./MilestoneTimeline";
+import { MilestoneMatrix } from "./MilestoneMatrix";
+import { MilestoneBoard } from "./MilestoneBoard";
+
+type MilestoneViewMode = "board" | "matrix" | "cards";
 
 // ========================================
 // Types
@@ -39,6 +46,11 @@ interface MilestoneViewProps {
   onDeleteMilestone?: (milestoneId: string) => void;
   /** 있으면 타임라인 막대 드래그로 기간 조정 가능 (편집 권한) */
   onUpdateMilestoneDates?: (id: string, start: string, end: string) => void;
+  /** 보드 뷰: 피처 카드 드래그 시 소스 태스크들을 타겟 마일스톤(null=미배정)으로 재배정 */
+  onMoveTasksMilestone?: (
+    taskIds: string[],
+    targetMilestoneId: string | null,
+  ) => void;
 }
 
 interface MilestoneDetailCache {
@@ -335,6 +347,7 @@ export function MilestoneView({
   onEditMilestone,
   onDeleteMilestone,
   onUpdateMilestoneDates,
+  onMoveTasksMilestone,
 }: MilestoneViewProps) {
   const { t } = useTranslation();
   const reduced = useReducedMotion();
@@ -343,6 +356,27 @@ export function MilestoneView({
     new Set(),
   );
   const [detailCache, setDetailCache] = useState<MilestoneDetailCache>({});
+
+  // 뷰 모드: 보드(홈) · 매트릭스(격자) · 카드. 보드별 localStorage 영속화.
+  const viewModeKey = `milestoneViewMode_${boardId}`;
+  const [viewMode, setViewMode] = useState<MilestoneViewMode>(() => {
+    if (typeof window === "undefined") return "board";
+    const saved = localStorage.getItem(viewModeKey);
+    return saved === "matrix" || saved === "cards" || saved === "board"
+      ? (saved as MilestoneViewMode)
+      : "board";
+  });
+  const changeViewMode = useCallback(
+    (mode: MilestoneViewMode) => {
+      setViewMode(mode);
+      try {
+        localStorage.setItem(viewModeKey, mode);
+      } catch {
+        /* ignore */
+      }
+    },
+    [viewModeKey],
+  );
 
   const toggleMilestone = useCallback(
     async (milestoneId: string) => {
@@ -530,29 +564,79 @@ export function MilestoneView({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {/* 모두 펼치기/닫기 */}
-            <div className="flex items-center gap-1">
+            {/* 뷰 토글: 보드 · 매트릭스 · 카드 */}
+            <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/5 border border-foreground/[0.08]">
               <button
-                onClick={handleExpandAll}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
-                title={t("kanban.expandAll", { defaultValue: "모두 펼치기" })}
+                onClick={() => changeViewMode("board")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
+                  viewMode === "board"
+                    ? "bg-bridge-accent text-white font-bold"
+                    : "text-slate-400 hover:text-foreground"
+                }`}
+                title={t("milestone.viewBoard", { defaultValue: "보드" })}
               >
-                <ChevronsUpDown className="h-3.5 w-3.5" />
+                <Columns3 className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">
-                  {t("kanban.expand", { defaultValue: "펼치기" })}
+                  {t("milestone.viewBoard", { defaultValue: "보드" })}
                 </span>
               </button>
               <button
-                onClick={handleCollapseAll}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
-                title={t("kanban.collapseAll", { defaultValue: "모두 닫기" })}
+                onClick={() => changeViewMode("matrix")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
+                  viewMode === "matrix"
+                    ? "bg-bridge-accent text-white font-bold"
+                    : "text-slate-400 hover:text-foreground"
+                }`}
+                title={t("milestone.matrix.title", {
+                  defaultValue: "피처 × 마일스톤",
+                })}
               >
-                <ChevronsDownUp className="h-3.5 w-3.5" />
+                <Table2 className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">
-                  {t("kanban.collapse", { defaultValue: "닫기" })}
+                  {t("milestone.viewMatrix", { defaultValue: "매트릭스" })}
+                </span>
+              </button>
+              <button
+                onClick={() => changeViewMode("cards")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
+                  viewMode === "cards"
+                    ? "bg-bridge-accent text-white font-bold"
+                    : "text-slate-400 hover:text-foreground"
+                }`}
+                title={t("milestone.viewCards", { defaultValue: "카드" })}
+              >
+                <LayoutList className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">
+                  {t("milestone.viewCards", { defaultValue: "카드" })}
                 </span>
               </button>
             </div>
+
+            {/* 모두 펼치기/닫기 (카드 모드 전용) */}
+            {viewMode === "cards" && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleExpandAll}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+                  title={t("kanban.expandAll", { defaultValue: "모두 펼치기" })}
+                >
+                  <ChevronsUpDown className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">
+                    {t("kanban.expand", { defaultValue: "펼치기" })}
+                  </span>
+                </button>
+                <button
+                  onClick={handleCollapseAll}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+                  title={t("kanban.collapseAll", { defaultValue: "모두 닫기" })}
+                >
+                  <ChevronsDownUp className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">
+                    {t("kanban.collapse", { defaultValue: "닫기" })}
+                  </span>
+                </button>
+              </div>
+            )}
             <button
               onClick={onCreateMilestone}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.2)] transition-all"
@@ -564,18 +648,36 @@ export function MilestoneView({
         </div>
       )}
 
-      {/* 주단위 가로 타임라인 (펼침 상태를 리스트와 공유) */}
-      <MilestoneTimeline
-        milestones={sortedMilestones}
-        features={features}
-        expandedMilestones={expandedMilestones}
-        detailCache={detailCache}
-        onToggle={toggleMilestone}
-        onMilestoneClick={onEditMilestone}
-        onUpdateDates={onUpdateMilestoneDates}
-      />
+      {viewMode === "board" ? (
+        <MilestoneBoard
+          features={features}
+          tasks={tasks}
+          milestones={milestones}
+          onFeatureClick={onFeatureClick}
+          onCreateMilestone={onCreateMilestone}
+          onMoveTasksMilestone={onMoveTasksMilestone}
+        />
+      ) : viewMode === "matrix" ? (
+        <MilestoneMatrix
+          features={features}
+          tasks={tasks}
+          milestones={milestones}
+          onFeatureClick={onFeatureClick}
+        />
+      ) : (
+        <>
+          {/* 주단위 가로 타임라인 (펼침 상태를 리스트와 공유) */}
+          <MilestoneTimeline
+            milestones={sortedMilestones}
+            features={features}
+            expandedMilestones={expandedMilestones}
+            detailCache={detailCache}
+            onToggle={toggleMilestone}
+            onMilestoneClick={onEditMilestone}
+            onUpdateDates={onUpdateMilestoneDates}
+          />
 
-      {sortedMilestones.map((milestone) => {
+          {sortedMilestones.map((milestone) => {
         const isExpanded = expandedMilestones.has(milestone.id);
         const cached = detailCache[milestone.id];
         const milestoneFeatures = cached?.features || milestone.features || [];
@@ -749,6 +851,8 @@ export function MilestoneView({
           </motion.div>
         );
       })}
+        </>
+      )}
     </div>
   );
 }

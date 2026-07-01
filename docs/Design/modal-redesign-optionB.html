@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Task / Feature 모달 개편안 — 옵션 B 통일</title>
+<style>
+  :root {
+    --bridge-obsidian: #151b28;
+    --bridge-accent: #6366f1;
+    --bridge-secondary: #2dd4bf;
+    --fg: #eef1f6;
+    --fg-dim: #94a3b8;
+    --fg-hint: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d1119; color: var(--fg);
+    font-family: -apple-system, "Pretendard", "Apple SD Gothic Neo", system-ui, sans-serif;
+    padding: 40px 24px 80px; line-height: 1.5;
+  }
+  .page-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .page-sub { color: var(--fg-dim); font-size: 14px; margin-bottom: 36px; }
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+    gap: 28px; align-items: start; max-width: 1400px; margin: 0 auto;
+  }
+  .col-head { margin-bottom: 12px; }
+  .col-head .badge {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; padding: 3px 9px; border-radius: 999px;
+  }
+  .badge.task { background: rgba(99,102,241,.18); color: #a5b4fc; }
+  .badge.feat { background: rgba(45,212,191,.18); color: #5eead4; }
+  .col-head h2 { font-size: 15px; font-weight: 700; margin-top: 8px; }
+  .col-head p { font-size: 12.5px; color: var(--fg-dim); margin-top: 4px; }
+
+  .modal {
+    background: var(--bridge-obsidian); border: 1px solid rgba(255,255,255,.08);
+    border-radius: 18px; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.5);
+  }
+  .accent-line { height: 2px; }
+  .accent-task { background: linear-gradient(90deg, rgba(99,102,241,.6), rgba(45,212,191,.4), transparent); }
+  .accent-feat { background: linear-gradient(90deg, rgba(45,212,191,.7), rgba(99,102,241,.4), transparent); }
+  .modal-body { padding: 20px 26px 26px; }
+
+  .crumbs { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 12px; }
+  .crumb {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 500;
+    padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.08); color: var(--fg);
+  }
+  .crumb .ico { color: var(--bridge-accent); font-size: 12px; }
+  .chev { color: var(--fg-hint); font-size: 12px; }
+
+  .title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .title-left { display: flex; align-items: center; gap: 10px; }
+  .feat-dot { width: 26px; height: 26px; border-radius: 50%; background: var(--bridge-secondary); flex-shrink: 0; }
+  .title-row h1 { font-size: 19px; font-weight: 700; }
+  .title-actions { display: flex; gap: 6px; color: var(--fg-dim); }
+  .title-actions span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; cursor: pointer; }
+  .title-actions span:hover { background: rgba(255,255,255,.06); }
+  .title-actions .del:hover { color: #f87171; background: rgba(239,68,68,.12); }
+
+  /* ===== 인라인 메타바 (옵션 B 핵심) ===== */
+  .metabar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 0 4px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px;
+    padding: 6px 12px; border-radius: 10px; background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08); color: var(--fg); cursor: pointer;
+  }
+  .chip:hover { background: rgba(255,255,255,.08); }
+  .chip .ico { color: var(--fg-dim); font-size: 13px; }
+  .chip.accent .ico { color: var(--bridge-accent); }
+  .chip.filled { background: rgba(99,102,241,.12); border-color: rgba(99,102,241,.35); }
+  .chip.filled .ico { color: var(--bridge-accent); }
+
+  .av-stack { display: flex; align-items: center; }
+  .av { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff; }
+  .av-stack .av { margin-left: -6px; border: 2px solid var(--bridge-obsidian); }
+  .av-stack .av:first-child { margin-left: 0; }
+  .c-rose { background: #f43f5e; } .c-indigo { background: #6366f1; } .c-purple { background: #a855f7; }
+  .c-teal { background: #14b8a6; } .c-dark { background: #1f2937; } .c-amber { background: #f59e0b; }
+  .tag-chip { font-size: 11.5px; font-weight: 700; padding: 4px 9px; border-radius: 999px; border: 1px solid; }
+
+  .divider { height: 1px; background: rgba(255,255,255,.07); margin: 16px 0; }
+  .section-label {
+    display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--fg-dim); margin-bottom: 8px;
+  }
+  .desc-box {
+    background: rgba(0,0,0,.25); border: 1px solid rgba(56,77,110,.3); border-radius: 10px;
+    padding: 12px 14px; font-size: 13.5px; color: #cbd5e1; min-height: 68px;
+  }
+  .desc-box.empty { color: var(--fg-hint); }
+
+  .list-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.08);
+  }
+  .list-head .lbl { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; }
+  .list-head .lbl .ic { color: var(--bridge-secondary); }
+  .progress { display: flex; align-items: center; gap: 10px; }
+  .bar { width: 90px; height: 6px; border-radius: 999px; background: rgba(255,255,255,.1); overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--bridge-accent); }
+  .pct { font-size: 13px; font-weight: 700; }
+
+  .row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; margin-top: 10px; border-radius: 10px;
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); font-size: 13.5px;
+  }
+  .row .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bridge-secondary); display: inline-block; margin-right: 10px; }
+  .row .meta { font-size: 12px; color: var(--bridge-accent); }
+  .add-row { display: flex; gap: 8px; margin-top: 12px; }
+  .add-row input {
+    flex: 1; background: rgba(0,0,0,.25); border: 1px solid rgba(56,77,110,.3); border-radius: 10px;
+    padding: 10px 12px; color: var(--fg); font-size: 13px;
+  }
+  .add-row .add-btn {
+    padding: 0 18px; border-radius: 10px; background: rgba(45,212,191,.12);
+    border: 1px solid rgba(45,212,191,.35); color: var(--bridge-secondary); font-size: 13px; font-weight: 700;
+  }
+
+  .footnote { max-width: 1400px; margin: 40px auto 0; font-size: 13px; color: var(--fg-dim); }
+  .footnote h3 { color: var(--fg); font-size: 15px; margin-bottom: 10px; }
+  .footnote ul { padding-left: 20px; }
+  .footnote li { margin-bottom: 8px; }
+  .footnote code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+  .footnote b { color: #c7d2fe; }
+</style>
+</head>
+<body>
+  <div class="page-title">Task / Feature 모달 통일 개편 — 옵션 B (인라인 메타바)</div>
+  <div class="page-sub">제목 아래 한 줄 칩 바로 메타 압축 → 두 모달 동일 패턴. Feature는 담당자 없이 기간·태그만.</div>
+
+  <div class="grid">
+
+    <!-- ===================== TASK 모달 ===================== -->
+    <div>
+      <div class="col-head">
+        <span class="badge task">Task 모달</span>
+        <h2>기간 · 담당자 · 태그 → 메타바</h2>
+        <p>담당자는 겹친 아바타 칩(클릭 시 팝오버로 전체 목록/필터).</p>
+      </div>
+      <div class="modal">
+        <div class="accent-line accent-task"></div>
+        <div class="modal-body">
+          <div class="crumbs">
+            <span class="crumb">● 텍틱스 모드</span>
+            <span class="chev">›</span>
+            <span class="crumb"><span class="ico">◎</span>4차 마일스톤</span>
+            <span class="chev">›</span>
+            <span class="crumb"><span class="ico">▤</span>Sprint Progress</span>
+          </div>
+          <div class="title-row">
+            <div class="title-left"><h1>길잡이, 보스 처치 공통 연출 및 기능 수정</h1></div>
+            <div class="title-actions"><span>🔗</span><span>⋯</span></div>
+          </div>
+
+          <div class="metabar">
+            <span class="chip accent"><span class="ico">📅</span> 날짜 선택</span>
+            <span class="chip">
+              <span class="av-stack">
+                <span class="av c-rose">우</span><span class="av c-indigo">효</span>
+                <span class="av c-purple">진</span><span class="av c-indigo">준</span>
+                <span class="av c-dark">규</span>
+              </span>
+              <span style="color:var(--fg-dim);">담당 5명</span>
+            </span>
+            <span class="chip"><span class="ico">🏷</span> 태그 추가</span>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="section-label">📄 설명</div>
+          <div class="desc-box">
+            길잡이 : https://cookapps.atlassian.net/wiki/…/SA<br /><br />
+            보스처치 보상 : https://cookapps.atlassian.net/wiki/…/SA
+          </div>
+
+          <div class="list-head">
+            <div class="lbl"><span class="ic">☑</span> CheckList</div>
+            <div class="progress"><span style="font-size:12px;color:var(--fg-dim);">리스트 / 보드</span><span class="bar"><i style="width:58%;background:var(--bridge-accent);"></i></span><span class="pct" style="color:var(--bridge-accent);">58%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== FEATURE 모달 ===================== -->
+    <div>
+      <div class="col-head">
+        <span class="badge feat">Feature 모달</span>
+        <h2>기간 · 태그 → 메타바 (담당자 없음)</h2>
+        <p>Task와 동일 패턴. 담당자 칩만 빠져 자연스럽게 더 짧아짐.</p>
+      </div>
+      <div class="modal">
+        <div class="accent-line accent-feat"></div>
+        <div class="modal-body">
+          <div class="title-row">
+            <div class="title-left">
+              <span class="feat-dot"></span>
+              <h1>시련 던전</h1>
+            </div>
+            <div class="title-actions"><span class="del">🗑</span><span>✕</span></div>
+          </div>
+
+          <div class="metabar">
+            <span class="chip accent"><span class="ico">📅</span> 시작일 ~ 종료일</span>
+            <span class="chip"><span class="ico">🏷</span> 태그 추가</span>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="section-label">📄 설명</div>
+          <div class="desc-box empty">FEATURE 설명을 입력하세요…</div>
+
+          <div class="list-head">
+            <div class="lbl"><span class="ic">▤</span> 서브태스크 리스트</div>
+            <div class="progress"><span class="bar"><i style="width:0%;"></i></span><span class="pct" style="color:var(--fg-dim);">0%</span></div>
+          </div>
+
+          <div class="row">
+            <span><span class="dot"></span>시련던전 아웃게임</span>
+            <span class="meta">→ 4차 마일스톤 · TASK</span>
+          </div>
+          <div class="row">
+            <span><span class="dot"></span>시련던전 인게임</span>
+            <span class="meta">→ 4차 마일스톤 · TASK</span>
+          </div>
+          <div class="add-row">
+            <input placeholder="새 서브태스크 추가…" />
+            <span class="add-btn">ADD</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== 채워진 상태 예시 ===================== -->
+  <div class="grid" style="margin-top:28px;">
+    <div>
+      <div class="col-head"><span class="badge task">Task · 값 채워진 상태</span><h2>기간/태그가 있을 때</h2><p>칩이 "채워진" 스타일로 바뀌어 데이터 유무가 한눈에.</p></div>
+      <div class="modal">
+        <div class="accent-line accent-task"></div>
+        <div class="modal-body">
+          <div class="title-row"><div class="title-left"><h1>기사 뺏기 연출</h1></div><div class="title-actions"><span>🔗</span><span>⋯</span></div></div>
+          <div class="metabar">
+            <span class="chip filled"><span class="ico">📅</span> 6.25 ~ 6.30</span>
+            <span class="chip">
+              <span class="av-stack"><span class="av c-rose">우</span></span>
+              <span style="color:var(--fg-dim);">노우혁</span>
+            </span>
+            <span class="chip" style="padding:5px 10px;">
+              <span class="tag-chip" style="background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.4);color:#a5b4fc;">연출</span>
+              <span class="tag-chip" style="background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.4);color:#fbbf24;">긴급</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="col-head"><span class="badge feat">Feature · 값 채워진 상태</span><h2>기간/태그가 있을 때</h2><p>동일 규칙. 태그는 실제 색 칩으로 표시.</p></div>
+      <div class="modal">
+        <div class="accent-line accent-feat"></div>
+        <div class="modal-body">
+          <div class="title-row"><div class="title-left"><span class="feat-dot"></span><h1>시련 던전</h1></div><div class="title-actions"><span class="del">🗑</span><span>✕</span></div></div>
+          <div class="metabar">
+            <span class="chip filled"><span class="ico">📅</span> 7.1 ~ 7.15</span>
+            <span class="chip" style="padding:5px 10px;">
+              <span class="tag-chip" style="background:rgba(45,212,191,.15);border-color:rgba(45,212,191,.4);color:#5eead4;">인게임</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    <h3>정리</h3>
+    <ul>
+      <li><b>두 모달 동일 패턴</b>: 제목 바로 아래 <code>.metabar</code> 한 줄 칩. Task는 <code>기간 · 담당자 · 태그</code>, Feature는 <code>기간 · 태그</code> (Feature엔 담당자 개념 없음).</li>
+      <li><b>빈 값 vs 채워진 값</b>: 비어 있으면 옅은 기본 칩("날짜 선택"/"태그 추가"), 값이 있으면 <code>filled</code> 스타일(accent 배경)로 전환 → 데이터 유무를 색으로 구분.</li>
+      <li><b>담당자</b>(Task 전용): 겹친 아바타 스택 + "담당 N명". 칩 클릭 시 팝오버로 전체 목록·필터 토글 노출 (기존 필터 로직 그대로 재사용).</li>
+      <li>구현: <code>TaskDetailModal.tsx</code> 1341~1617 / <code>FeatureDetailModal.tsx</code> 369~540 의 세로 블록을 각각 <code>.metabar</code> 로 치환. 설명 섹션은 메타바 아래로 이동.</li>
+      <li>토큰 준수: 칩 <code>rounded-lg</code>, 태그 <code>rounded-full</code>, 구분선 <code>border-foreground/[0.08]</code>, 라벨 <code>text-xs font-bold ... text-slate-400</code>.</li>
+    </ul>
+  </div>
+</body>
+</html>

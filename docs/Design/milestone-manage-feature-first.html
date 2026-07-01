@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>마일스톤 관리 — 피처 우선(보드) 방안 · BRIDGE</title>
+<style>
+  :root {
+    --dark: #191f2d; --obsidian: #151b28; --surface: #1e2a42; --border: #384d6e;
+    --accent: #6366f1; --secondary: #2dd4bf; --fg: #e8ecf4; --muted: #93a0b8; --dim: #64748b;
+    --amber: #f59e0b; --rose: #f43f5e; --emerald: #10b981; --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Noto Sans KR", sans-serif; background: var(--dark); color: var(--fg); line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px 120px; }
+
+  header.hero { padding: 76px 24px 56px; background: radial-gradient(900px 420px at 12% -10%, rgba(45,212,191,0.20), transparent 60%), radial-gradient(720px 400px at 92% 0%, rgba(99,102,241,0.18), transparent 60%), var(--obsidian); border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .hero-inner { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  .eyebrow { display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color: var(--secondary); margin-bottom:20px; padding:6px 12px; border-radius:999px; background: rgba(45,212,191,0.1); border:1px solid rgba(45,212,191,0.25); }
+  h1 { font-size:42px; font-weight:800; letter-spacing:-0.02em; line-height:1.14; margin-bottom:18px; }
+  h1 .grad { background: linear-gradient(100deg, var(--secondary), var(--accent)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .lede { font-size:17px; color: var(--muted); max-width:740px; }
+  .lede b { color: var(--fg); font-weight:600; }
+  .meta-row { margin-top:28px; display:flex; flex-wrap:wrap; gap:10px; }
+  .chip { font-size:12px; color: var(--muted); padding:6px 12px; border-radius:999px; background: rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); }
+  .chip b { color: var(--fg); font-weight:600; }
+
+  section { margin-top:64px; }
+  .kicker { font-size:12px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color: var(--accent); margin-bottom:10px; }
+  h2 { font-size:27px; font-weight:800; letter-spacing:-0.01em; margin-bottom:12px; }
+  h2 .n { display:inline-grid; place-items:center; width:34px; height:34px; border-radius:10px; background: linear-gradient(135deg, var(--secondary), #14b8a6); color:#04211d; font-size:16px; margin-right:12px; vertical-align:2px; }
+  .sec-lede { color: var(--muted); font-size:15px; max-width:780px; margin-bottom:28px; }
+  h3 { font-size:18px; font-weight:700; margin:32px 0 12px; }
+
+  .card { background: var(--obsidian); border:1px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding:24px; }
+  .card + .card { margin-top:16px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:780px){ .grid2{ grid-template-columns:1fr; } }
+
+  code { font-family:"SF Mono",ui-monospace,Menlo,monospace; font-size:12.5px; background: rgba(99,102,241,0.14); color:#c7cbff; padding:1.5px 6px; border-radius:5px; }
+  ul.clean { list-style:none; }
+  ul.clean li { position:relative; padding-left:22px; margin:7px 0; font-size:14px; color:var(--muted); }
+  ul.clean li::before { content:""; position:absolute; left:4px; top:9px; width:6px; height:6px; border-radius:999px; background:var(--secondary); }
+  ul.clean li b { color:var(--fg); font-weight:600; }
+
+  /* Mental model banner */
+  .model { text-align:center; padding:36px 28px; border-radius:var(--radius); background: linear-gradient(135deg, rgba(45,212,191,0.12), rgba(99,102,241,0.08)); border:1px solid rgba(45,212,191,0.3); }
+  .model .q { font-size:13px; letter-spacing:0.1em; text-transform:uppercase; color:var(--secondary); margin-bottom:10px; }
+  .model .s { font-size:26px; font-weight:800; letter-spacing:-0.01em; line-height:1.35; }
+  .model .s em { font-style:normal; background: linear-gradient(100deg,var(--secondary),var(--accent)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .model .sub { margin-top:12px; font-size:14px; color:var(--muted); }
+
+  /* 80/20 split visual */
+  .split { display:grid; grid-template-columns:83fr 17fr; gap:10px; margin:8px 0 4px; }
+  @media (max-width:600px){ .split{ grid-template-columns:1fr; } }
+  .split .seg { border-radius:12px; padding:18px 20px; }
+  .split .common { background:linear-gradient(135deg, rgba(16,185,129,0.16), rgba(16,185,129,0.05)); border:1px solid rgba(16,185,129,0.3); }
+  .split .rare { background:linear-gradient(135deg, rgba(245,158,11,0.16), rgba(245,158,11,0.05)); border:1px solid rgba(245,158,11,0.3); }
+  .split .pct { font-size:30px; font-weight:800; letter-spacing:-0.02em; }
+  .split .common .pct { color:#6ee7c4; }
+  .split .rare .pct { color:#fbbf77; }
+  .split .lbl { font-size:13px; color:var(--muted); margin-top:4px; }
+  .split .lbl b { color:var(--fg); font-weight:600; }
+
+  /* Decision table */
+  table.dec { width:100%; border-collapse:collapse; font-size:14px; }
+  table.dec th, table.dec td { padding:14px 16px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.07); vertical-align:top; }
+  table.dec th { font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--dim); font-weight:700; }
+  table.dec td.q { font-weight:700; color:var(--fg); width:26%; }
+  table.dec td.a { color:var(--fg); width:30%; }
+  table.dec td.a b { color:var(--secondary); }
+  table.dec td.why { color:var(--muted); font-size:13px; }
+  table.dec tr:last-child td { border-bottom:none; }
+
+  /* Mockup */
+  .mock { background:var(--dark); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,0.45); }
+  .mock-topline { height:3px; background: linear-gradient(90deg, rgba(45,212,191,0.7), rgba(99,102,241,0.4), transparent); }
+  .mock-head { display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid rgba(255,255,255,0.07); }
+  .mock-head .dot { width:22px; height:22px; border-radius:7px; background: linear-gradient(135deg,var(--secondary),#14b8a6); }
+  .mock-head .title { font-size:15px; font-weight:700; }
+  .mock-head .spacer { flex:1; }
+  .mock-body { padding:16px 18px; }
+  .btn-primary { font-size:12px; font-weight:700; color:#04211d; background:var(--secondary); padding:7px 13px; border-radius:9px; }
+
+  .badge { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .b-accent { background:rgba(99,102,241,0.16); color:#a5b0ff; }
+  .b-teal { background:rgba(45,212,191,0.16); color:#6ee7d5; }
+  .b-amber { background:rgba(245,158,11,0.18); color:#fbbf77; }
+  .b-slate { background:rgba(148,163,184,0.14); color:var(--muted); }
+
+  /* Milestone board */
+  .board { display:grid; grid-template-columns:1fr 1fr 0.8fr; gap:12px; }
+  @media (max-width:780px){ .board{ grid-template-columns:1fr; } }
+  .col { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:10px; min-height:180px; }
+  .col-head { display:flex; align-items:center; justify-content:space-between; padding:4px 6px 10px; }
+  .col-head .name { font-size:13px; font-weight:700; }
+  .col-head .date { font-size:11px; color:var(--dim); font-weight:400; }
+  .col-head .cnt { font-size:11px; color:var(--muted); }
+  .col-accent { height:3px; border-radius:999px; margin:0 4px 10px; }
+  .col.unassigned { background:rgba(245,158,11,0.05); border:1px dashed rgba(245,158,11,0.28); }
+
+  .fcard { background:var(--obsidian); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:11px 12px; margin-bottom:9px; cursor:grab; }
+  .fcard:last-child { margin-bottom:0; }
+  .fcard .ft { font-size:13px; font-weight:600; display:flex; align-items:center; gap:7px; }
+  .fcard .pr { margin-top:8px; height:5px; border-radius:999px; background:rgba(255,255,255,0.08); overflow:hidden; }
+  .fcard .pr > span { display:block; height:100%; border-radius:999px; }
+  .fcard .meta { margin-top:7px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:11px; color:var(--muted); }
+  .fcard.ghost { background:rgba(255,255,255,0.015); border:1px dashed rgba(99,102,241,0.3); opacity:0.9; }
+  .fcard.ghost .ft { color:var(--muted); font-weight:500; }
+  .tag-split { font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px; background:rgba(99,102,241,0.16); color:#a5b0ff; display:inline-flex; align-items:center; gap:3px; }
+  .tag-warn { font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px; background:rgba(245,158,11,0.16); color:#fbbf77; }
+  .drophint { border:1.5px dashed rgba(45,212,191,0.5); border-radius:10px; padding:14px; text-align:center; font-size:11.5px; color:#6ee7d5; background:rgba(45,212,191,0.05); }
+
+  /* slide-over task list */
+  .panel-task { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:10px; margin-top:8px; }
+  .msel { font-size:11px; padding:3px 9px; border-radius:7px; border:1px solid var(--border); background:rgba(99,102,241,0.1); color:#a5b0ff; font-weight:600; }
+  .msel.other { background:rgba(45,212,191,0.12); color:#6ee7d5; border-color:rgba(45,212,191,0.3); }
+  .msel.inherit { background:rgba(148,163,184,0.1); color:var(--muted); border-color:rgba(148,163,184,0.25); }
+
+  /* comparison */
+  table.cmp { width:100%; border-collapse:separate; border-spacing:0; font-size:13.5px; }
+  table.cmp th, table.cmp td { padding:13px 14px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.07); vertical-align:top; }
+  table.cmp th { background:var(--surface); font-weight:700; color:var(--fg); font-size:13px; }
+  table.cmp th:first-child { border-top-left-radius:10px; }
+  table.cmp th:last-child { border-top-right-radius:10px; }
+  table.cmp td.dim { color:var(--dim); font-weight:700; width:24%; }
+  table.cmp .win { color:#6ee7c4; font-weight:600; }
+  table.cmp .lose { color:var(--muted); }
+  table.cmp td b { color:var(--fg); }
+
+  /* before/after */
+  .ba { display:grid; grid-template-columns:1fr 1fr; gap:0; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,0.08); }
+  @media (max-width:780px){ .ba{ grid-template-columns:1fr; } }
+  .ba .colb { padding:22px; }
+  .ba .matrix { background:linear-gradient(180deg, rgba(99,102,241,0.06), transparent); }
+  .ba .boardc { background:linear-gradient(180deg, rgba(45,212,191,0.07), transparent); border-left:1px solid rgba(255,255,255,0.08); }
+  .ba h4 { font-size:14px; letter-spacing:0.04em; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .ba .matrix h4 { color:#a5b0ff; }
+  .ba .boardc h4 { color:#6ee7d5; }
+  .ba ul { list-style:none; }
+  .ba li { font-size:13.5px; color:var(--muted); padding:7px 0 7px 22px; position:relative; }
+  .ba li::before { content:"→"; position:absolute; left:0; top:7px; font-size:12px; }
+  .ba .matrix li::before { color:var(--accent); }
+  .ba .boardc li::before { color:var(--emerald); }
+  .ba li b { color:var(--fg); font-weight:600; }
+
+  .step { display:flex; gap:16px; padding:16px 0; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .step:last-child { border-bottom:none; }
+  .step .ph { flex-shrink:0; width:38px; }
+  .step .ph .p { display:inline-grid; place-items:center; width:28px; height:28px; border-radius:8px; background:rgba(45,212,191,0.14); color:#6ee7d5; font-size:13px; font-weight:800; }
+  .step .body h4 { font-size:15px; margin-bottom:4px; }
+  .step .body p { font-size:13.5px; color:var(--muted); }
+
+  .callout { margin-top:20px; padding:18px 20px; border-radius:12px; background:rgba(45,212,191,0.08); border:1px solid rgba(45,212,191,0.25); font-size:14px; color:#cdeee7; }
+  .callout b { color:#fff; }
+  .callout.rec { background:rgba(99,102,241,0.1); border-color:rgba(99,102,241,0.35); color:#dfe2ff; }
+
+  footer { margin-top:80px; padding-top:24px; border-top:1px solid rgba(255,255,255,0.07); font-size:13px; color:var(--dim); text-align:center; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">◆ Alternative · Feature-First (Board)</span>
+    <h1>마일스톤 관리<br /><span class="grad">피처 우선 · 보드 방안</span></h1>
+    <p class="lede">
+      "어떤 피처가 여러 마일스톤에 걸치는 일은 그렇게 많지 않다" — 이 한 문장에서 출발한 대안입니다.
+      드문 경우를 위해 화면 전체를 매트릭스로 만드는 대신, <b>흔한 경우(피처 하나 = 마일스톤 하나)를 원클릭으로</b> 만들고
+      <b>걸침은 예외적인 갈래(split)로 접어둡니다</b>. 백엔드 변경은 사실상 없습니다.
+    </p>
+    <div class="meta-row">
+      <span class="chip"><b>홈</b> · 마일스톤 = 컬럼, 피처 = 카드</span>
+      <span class="chip"><b>배정</b> · 카드 드래그 한 번</span>
+      <span class="chip"><b>걸침</b> · 카드 갈래 배지 + 유령 카드</span>
+      <span class="chip"><b>작성일</b> · 2026-07-01</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== 1. 80/20 reframe ===== -->
+  <section>
+    <div class="kicker">The Reframe</div>
+    <h2><span class="n">1</span>흔한 경우 vs 드문 경우</h2>
+    <p class="sec-lede">최종안(매트릭스)은 옳지만, 그것이 최적화하는 대상은 <b>"피처가 여러 마일스톤에 걸침"</b>이라는 소수 케이스입니다. 실제 사용 분포가 아래라면, 무게중심을 옮기는 게 맞습니다.</p>
+
+    <div class="card">
+      <div class="split">
+        <div class="seg common">
+          <div class="pct">≈ 83%</div>
+          <div class="lbl"><b>피처 하나 = 마일스톤 하나.</b> 이 릴리스에 이 기능이 들어간다. 끝.</div>
+        </div>
+        <div class="seg rare">
+          <div class="pct">≈ 17%</div>
+          <div class="lbl"><b>걸침(split).</b> 일부 태스크만 다음 릴리스로 밀린다.</div>
+        </div>
+      </div>
+      <p style="font-size:12.5px;color:var(--dim);margin-top:14px">
+        매트릭스는 이 17%를 <b>한눈에</b> 보여주려고 100%의 화면을 2차원 격자로 만듭니다. 셀 단위 편집, "기본 마일스톤 → 상속"이라는 개념 학습이 모두 그 17%를 위한 비용입니다.
+        걸침이 정말 드물다면 — 그 비용은 83%에게 과합니다.
+      </p>
+    </div>
+
+    <h3>같은 열린 질문(Q1~Q5), 다른 무게중심의 답</h3>
+    <div class="card" style="padding:8px 24px">
+      <table class="dec">
+        <thead><tr><th>결정 사항</th><th>이 방안</th><th>이유</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="q">진입 오버뷰</td>
+            <td class="a"><b>마일스톤 보드</b> (컬럼 = 마일스톤, 카드 = 피처)</td>
+            <td class="why">Trello식 컬럼. 83%는 카드가 한 컬럼에 깔끔히 들어감. 팀이 이미 아는 은유라 학습 0.</td>
+          </tr>
+          <tr>
+            <td class="q">배정의 기본 단위</td>
+            <td class="a"><b>피처 단위</b> (드래그 = 마일스톤 이동)</td>
+            <td class="why">카드를 컬럼으로 끌면 그 피처의 (오버라이드되지 않은) 모든 태스크가 따라 이동. 원클릭.</td>
+          </tr>
+          <tr>
+            <td class="q">걸침(split) 처리</td>
+            <td class="a"><b>예외 액션</b> — 카드 갈래 배지 + 유령 카드</td>
+            <td class="why">걸친 피처만 <code>⑂ 2 → v1.1</code> 배지 + 다음 컬럼에 흐린 유령 카드로 등장. 정보는 유지, 격자는 불필요.</td>
+          </tr>
+          <tr>
+            <td class="q">태스크 단위 조정</td>
+            <td class="a"><b>드릴다운에서만</b> (카드 클릭)</td>
+            <td class="why">태스크별 마일스톤 칩은 카드를 열었을 때만 노출. 평소엔 숨어 화면이 조용함.</td>
+          </tr>
+          <tr>
+            <td class="q">진행률 정의</td>
+            <td class="a"><b>피처 전체가 기본</b>, 걸침 시 컬럼별 병기</td>
+            <td class="why">83%는 피처=마일스톤이라 진행률이 하나로 일치 → 혼동 자체가 없음. 걸친 카드만 "이 마일스톤 n/m" 보조 표기.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== 2. Model ===== -->
+  <section>
+    <div class="kicker">The Model</div>
+    <h2><span class="n">2</span>하나의 모델 — 피처가 마일스톤을 가진다</h2>
+
+    <div class="model">
+      <div class="q">Single Mental Model</div>
+      <div class="s">마일스톤은 <em>피처가 속하는 릴리스</em>다.<br />태스크는 기본적으로 피처를 <em>따라가고</em>, 필요할 때만 갈라진다.</div>
+      <div class="sub">→ 홈 = 릴리스별 피처 보드 · 배정 = 카드 드래그 · 걸침 = 몇몇 태스크만 오버라이드. 흔한 경우가 짧은 문장 안에 있습니다.</div>
+    </div>
+
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <span class="badge b-teal" style="margin-bottom:10px">저장 구조는 그대로</span>
+        <p style="font-size:14px;color:var(--muted)">
+          진실의 원천은 여전히 <code>task.milestone_id</code>입니다. 다만 <b>피처의 마일스톤</b> = "그 피처 태스크들이 기본으로 갖는 값(= 기존 기본 마일스톤)".
+          태스크가 그 값을 따르면 <b>상속</b>, 다르면 <b>오버라이드(=걸침)</b>. 스키마·집계 쿼리 변경 없음.
+        </p>
+      </div>
+      <div class="card">
+        <span class="badge b-accent" style="margin-bottom:10px">달라지는 것은 "리드"</span>
+        <p style="font-size:14px;color:var(--muted)">
+          매트릭스는 셀(태스크 교차점)을 <b>리드</b>로 삼습니다. 이 방안은 카드(피처)를 <b>리드</b>로 삼고, 태스크 편집을 드릴다운으로 밀어넣습니다.
+          같은 데이터, 다른 진입 표면 — 그래서 최종안과 <b>공존·전환</b>이 쉽습니다.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 3. Home board ===== -->
+  <section>
+    <div class="kicker">Home Screen</div>
+    <h2><span class="n">3</span>최종 홈 — 마일스톤 보드</h2>
+    <p class="sec-lede">컬럼 = 마일스톤, 카드 = 피처. 카드를 다른 컬럼으로 끌면 그 피처의 마일스톤이 바뀝니다. 대부분의 카드는 한 컬럼에 얌전히 들어갑니다.</p>
+
+    <div class="mock">
+      <div class="mock-topline"></div>
+      <div class="mock-head">
+        <div class="dot"></div>
+        <div class="title">마일스톤 관리</div>
+        <div class="spacer"></div>
+        <span class="btn-primary">＋ 새 마일스톤</span>
+      </div>
+      <div class="mock-body">
+        <div class="board">
+
+          <!-- v1.0 -->
+          <div class="col">
+            <div class="col-accent" style="background:linear-gradient(90deg,#6366f1,#4f46e5)"></div>
+            <div class="col-head">
+              <div><div class="name">v1.0 출시</div><div class="date">7/1 ~ 7/14</div></div>
+              <div class="cnt">2 · 55%</div>
+            </div>
+            <div class="fcard">
+              <div class="ft">🟣 결제 연동</div>
+              <div class="pr"><span style="width:60%;background:var(--accent)"></span></div>
+              <div class="meta"><span>3/5 · 60%</span><span class="tag-split">⑂ 2 → v1.1</span></div>
+            </div>
+            <div class="fcard">
+              <div class="ft">🔵 대시보드 UI</div>
+              <div class="pr"><span style="width:40%;background:var(--accent)"></span></div>
+              <div class="meta"><span>2/5 · 40%</span><span class="tag-warn">⚠ 1 미배정</span></div>
+            </div>
+          </div>
+
+          <!-- v1.1 -->
+          <div class="col">
+            <div class="col-accent" style="background:linear-gradient(90deg,#2dd4bf,#14b8a6)"></div>
+            <div class="col-head">
+              <div><div class="name">v1.1 안정화</div><div class="date">7/15 ~ 7/28</div></div>
+              <div class="cnt">1 · 40%</div>
+            </div>
+            <div class="fcard">
+              <div class="ft">🟢 알림 시스템</div>
+              <div class="pr"><span style="width:33%;background:var(--secondary)"></span></div>
+              <div class="meta"><span>1/3 · 33%</span></div>
+            </div>
+            <div class="fcard ghost">
+              <div class="ft">🟣 결제 연동 <span class="badge b-accent" style="font-size:10px">갈래</span></div>
+              <div class="meta"><span>이 마일스톤 태스크 2개 · 정기결제, 환불정책</span></div>
+            </div>
+          </div>
+
+          <!-- unassigned -->
+          <div class="col unassigned">
+            <div class="col-head">
+              <div><div class="name" style="color:#fbbf77">미배정</div><div class="date">아직 릴리스 없음</div></div>
+              <div class="cnt">1</div>
+            </div>
+            <div class="fcard" style="border-color:rgba(245,158,11,0.3)">
+              <div class="ft" style="color:#fbbf77">◻ (대시보드 UI · 태스크 1)</div>
+              <div class="meta"><span>피처 카드는 v1.0에, 태스크 1개만 미배정</span></div>
+            </div>
+            <div class="drophint" style="margin-top:9px">여기로 끌면 배정 해제</div>
+          </div>
+
+        </div>
+
+        <p style="font-size:11.5px;color:var(--dim);margin-top:14px">
+          <b>결제 연동</b>은 v1.0 컬럼에 살지만 태스크 2개가 v1.1로 갈라져 <code>⑂ 2 → v1.1</code> 배지 + v1.1에 <b>유령 카드</b>로 비칩니다.
+          걸침 정보는 그대로 보이되, 격자 없이 카드 한 장에 담깁니다.
+        </p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 style="margin-top:0">이 화면이 지키는 3가지</h3>
+      <ul class="clean" style="margin:0">
+        <li><b>흔한 경우는 조용하다</b> — 걸치지 않은 카드엔 배지도 유령도 없음. 한 컬럼 = 한 릴리스의 정직한 목록.</li>
+        <li><b>드문 경우도 사라지지 않는다</b> — 갈래 배지 + 유령 카드가 걸침을 드러내고, 미배정은 전용 컬럼으로 안전망.</li>
+        <li><b>이동은 물리적이다</b> — 드래그 = 마일스톤 변경. "대표/이어짐" 같은 추상 조작을 배울 필요 없음.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===== 4. Split drill-down ===== -->
+  <section>
+    <div class="kicker">The Exception</div>
+    <h2><span class="n">4</span>걸침이 필요할 때 — 카드 열기</h2>
+    <p class="sec-lede">17%의 경우에만 들어오는 화면입니다. 카드를 클릭하면 태스크 목록이 열리고, 밀어낼 태스크의 마일스톤만 칩으로 바꿉니다. 나머지는 <b>상속</b> 그대로 둡니다.</p>
+
+    <div class="mock">
+      <div class="mock-topline"></div>
+      <div class="mock-head">
+        <div class="dot" style="background:linear-gradient(135deg,#a855f7,#6366f1)"></div>
+        <div class="title">결제 연동</div>
+        <div class="spacer"></div>
+        <span class="badge b-accent">피처 마일스톤: v1.0</span>
+      </div>
+      <div class="mock-body">
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <span class="badge b-teal">전체 태스크 5</span>
+          <span class="badge b-slate">상속 3 · 갈래 2</span>
+        </div>
+
+        <div class="panel-task" style="background:var(--obsidian);border:1px solid rgba(255,255,255,0.07)">
+          <span style="color:var(--emerald)">✔</span><span style="flex:1;font-size:13px">PG사 API 연동</span><span class="msel inherit">v1.0 (상속)</span>
+        </div>
+        <div class="panel-task" style="background:var(--obsidian);border:1px solid rgba(255,255,255,0.07)">
+          <span style="color:var(--emerald)">✔</span><span style="flex:1;font-size:13px">결제 취소 로직</span><span class="msel inherit">v1.0 (상속)</span>
+        </div>
+        <div class="panel-task" style="background:var(--obsidian);border:1px solid rgba(255,255,255,0.07)">
+          <span style="color:var(--dim)">○</span><span style="flex:1;font-size:13px">영수증 발행</span><span class="msel inherit">v1.0 (상속)</span>
+        </div>
+        <div class="panel-task" style="background:rgba(45,212,191,0.04);border:1px dashed rgba(45,212,191,0.3)">
+          <span style="color:var(--dim)">○</span><span style="flex:1;font-size:13px;color:var(--muted)">정기결제 스케줄러</span><span class="msel other">v1.1 ▾</span>
+        </div>
+        <div class="panel-task" style="background:rgba(45,212,191,0.04);border:1px dashed rgba(45,212,191,0.3)">
+          <span style="color:var(--dim)">○</span><span style="flex:1;font-size:13px;color:var(--muted)">환불 정책 문서화</span><span class="msel other">v1.1 ▾</span>
+        </div>
+
+        <p style="font-size:12px;color:var(--dim);margin-top:14px">
+          기본은 전부 <b>"v1.0 (상속)"</b> — 손댈 게 없습니다. 아래 2개만 <code>v1.1</code>로 바꿔 걸침을 만들었고, 이게 홈의 <code>⑂ 2 → v1.1</code> 배지가 됩니다.
+          <b>"피처 마일스톤" 자체를 바꾸면 상속 3개가 통째로 따라 이동</b>합니다(= 홈에서 카드 드래그와 동일).
+        </p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <b>핵심 차이</b> — 최종안 슬라이드오버는 태스크마다 칩을 <b>매번</b> 만나게 합니다(모두 개별 값처럼 보임).
+      이 방안은 대부분을 <b>"(상속)"</b>으로 눌러두어, 실제로 갈라진 것만 눈에 띄게 합니다. 편집 대상이 5개 → 2개로 줄어듭니다.
+    </div>
+  </section>
+
+  <!-- ===== 5. Interactions ===== -->
+  <section>
+    <div class="kicker">Interactions</div>
+    <h2><span class="n">5</span>세 가지 동작이 전부</h2>
+    <div class="card">
+      <div class="step">
+        <div class="ph"><span class="p">1</span></div>
+        <div class="body"><h4>카드를 컬럼으로 드래그</h4><p>피처 마일스톤 변경. 상속 태스크 일괄 이동. 갈래(오버라이드) 태스크는 자기 자리 유지 → 유령 카드로 남음.</p></div>
+      </div>
+      <div class="step">
+        <div class="ph"><span class="p">2</span></div>
+        <div class="body"><h4>카드를 클릭</h4><p>드릴다운. 태스크별 칩으로 소수만 갈라내기(= split). 흔한 경우엔 열 일조차 없음.</p></div>
+      </div>
+      <div class="step">
+        <div class="ph"><span class="p">3</span></div>
+        <div class="body"><h4>＋ 새 마일스톤 = 새 컬럼</h4><p>제목 + 기간 2필드. 생성 즉시 컬럼 등장. 기간 겹치는 피처를 "이 릴리스로 옮길까요?" 제안(스마트 채우기).</p></div>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:16px">
+      <b>피처 생성 시</b> — 칸반에서 피처를 만들 때 활성 마일스톤을 기본값으로 선제안(비우면 미배정). 새 태스크는 피처 마일스톤을 상속 → 배정 마찰 0. <span style="color:#fff">최종안과 동일한 원리</span>이며, 단지 홈 표면만 보드입니다.
+    </div>
+  </section>
+
+  <!-- ===== 6. Comparison + recommendation ===== -->
+  <section>
+    <div class="kicker">Board vs Matrix</div>
+    <h2><span class="n">6</span>솔직한 비교 — 언제 무엇이 이기나</h2>
+    <p class="sec-lede">이 방안이 항상 옳은 건 아닙니다. 걸침 빈도가 무게추입니다.</p>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="cmp">
+        <thead>
+          <tr><th style="width:24%">기준</th><th>피처 우선 · 보드 (이 방안)</th><th>태스크 우선 · 매트릭스 (최종안)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="dim">흔한 경우(1:1) 마찰</td><td class="win">카드 한 컬럼 · 배지 없음 · 원클릭</td><td class="lose">셀 격자를 늘 마주함 · 상속 개념 학습</td></tr>
+          <tr><td class="dim">걸침 가시성</td><td class="lose">배지 + 유령 카드 (요약형)</td><td class="win">격자 한 장으로 <b>완전한</b> 걸침 지도</td></tr>
+          <tr><td class="dim">배정 조작</td><td class="win">드래그(물리적, 학습 0)</td><td class="lose">셀 클릭 → 슬라이드오버</td></tr>
+          <tr><td class="dim">마일스톤 6개+ 다수</td><td class="lose">컬럼 가로 스크롤(무겁지 않음)</td><td class="lose">격자 가로 스크롤 + 컬럼 고정 필요</td></tr>
+          <tr><td class="dim">"이 릴리스에 뭐가 들어가지?"</td><td class="win">컬럼 하나 = 답</td><td class="lose">열 하나를 세로로 읽어야</td></tr>
+          <tr><td class="dim">"이 피처 어디까지 걸쳤지?"</td><td class="lose">카드 열어야 완전히 보임</td><td class="win">행 하나 = 답</td></tr>
+          <tr><td class="dim">구현 델타 / 백엔드</td><td class="win">보드 컴포넌트 1개 · BE 변경 0</td><td class="lose">매트릭스 + 슬라이드오버 · BE 변경 0</td></tr>
+          <tr><td class="dim">기존 팀 은유</td><td class="win">칸반 컬럼 = 이미 앎</td><td class="lose">새 매트릭스 은유 재학습</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout rec" style="margin-top:20px">
+      <b>권고</b> — 걸침이 실제로 드물다는 관찰이 맞다면(≈17% 이하), <b>보드를 기본 홈으로</b> 채택하는 것을 추천합니다.
+      매트릭스는 버리지 말고 <b>"격자 보기" 토글</b>로 남겨두세요 — 릴리스 계획 회의처럼 걸침 지도를 통째로 봐야 할 때만 켜는 보조 뷰.
+      둘은 같은 <code>task.milestone_id</code>를 읽으므로 <b>한 데이터, 두 렌즈</b>로 무료로 공존합니다. 흔한 경우엔 보드, 계획할 땐 매트릭스.
+    </div>
+  </section>
+
+  <!-- ===== 7. Before/after vs final ===== -->
+  <section>
+    <div class="kicker">What Changes vs 최종안</div>
+    <h2><span class="n">7</span>최종안에서 무엇을 옮기나</h2>
+    <div class="ba">
+      <div class="colb matrix">
+        <h4>◧ 최종안(매트릭스)의 전제</h4>
+        <ul>
+          <li>화면 = <b>2D 격자</b>, 셀이 리드</li>
+          <li>걸침을 <b>항상</b> 정면에 보여줌 (17%를 위해 100% 격자)</li>
+          <li>"기본 마일스톤 → 상속" <b>개념을 먼저</b> 이해해야 함</li>
+          <li>태스크 칩이 <b>매번</b> 노출 (모두 개별처럼)</li>
+          <li>진행률: 합계 vs 피처 전체를 <b>나란히 설명</b>해 혼동 방어</li>
+        </ul>
+      </div>
+      <div class="colb boardc">
+        <h4>◨ 보드 방안의 전환</h4>
+        <ul>
+          <li>화면 = <b>릴리스 컬럼</b>, 카드가 리드</li>
+          <li>걸침은 <b>배지+유령</b>으로 접음 (필요할 때만 매트릭스 토글)</li>
+          <li>드래그로 <b>바로 씀</b>, 상속은 "(상속)" 칩으로 뒤에서 작동</li>
+          <li>태스크 칩은 <b>드릴다운에서만</b>, 갈래만 강조</li>
+          <li>진행률: 1:1이라 <b>애초에 하나</b>, 걸친 카드만 보조 표기</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 8. Build notes ===== -->
+  <section>
+    <div class="kicker">Build Notes</div>
+    <h2><span class="n">8</span>구현 메모</h2>
+    <div class="card">
+      <ul class="clean" style="margin:0">
+        <li><b>백엔드 변경 0</b> — <code>task.milestone_id</code> + 피처 기본 마일스톤(<code>is_primary</code>) 그대로. 집계도 기존 <code>countByMilestoneAndFeature</code> 재사용.</li>
+        <li><b>신규 컴포넌트 1개</b> — <code>MilestoneBoard.tsx</code>(컬럼=마일스톤, 카드=피처, @dnd-kit 드래그). 갈래 배지·유령 카드는 셀 카운트에서 파생.</li>
+        <li><b>드릴다운 재사용</b> — 최종안의 태스크 배정 슬라이드오버를 그대로 씀. 차이는 "(상속)" 기본 표기 + 갈래만 강조.</li>
+        <li><b>매트릭스는 토글로 보존</b> — <code>MilestoneMatrix.tsx</code>를 폐기하지 않고 "격자 보기" 보조 뷰로. <code>viewMode: 'board' | 'matrix'</code> 하나 추가.</li>
+        <li><b>스마트 채우기 동일</b> — 새 마일스톤 생성 시 기간 겹침 후보 제안 쿼리 1개(최종안과 공유).</li>
+        <li><b>점진 적용</b> — P1 보드 홈 + 드래그 배정 → P2 갈래 배지/유령 → P3 매트릭스 토글 → P4 레거시 체크박스 링크 제거.</li>
+      </ul>
+      <div class="callout" style="margin-top:18px">
+        같은 폴더의 <b><code>milestone-manage-final.html</code></b>(매트릭스 확정본)과 <b><code>milestone-manage-redesign.html</code></b>(분석서)의 결정을 그대로 상속하되,
+        <b>홈 표면만 보드로 바꾼</b> 것이 이 문서입니다. 데이터·개념은 동일, 리드하는 표면만 다릅니다.
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    BRIDGE · 마일스톤 관리 피처 우선(보드) 방안 · "마일스톤 = 피처가 속하는 릴리스, 태스크는 따라가되 필요할 때만 갈라짐"<br />
+    홈=릴리스 컬럼 보드 · 배정=카드 드래그 · 걸침=갈래 배지+유령 카드 · 계획 시엔 매트릭스 토글
+  </footer>
+
+</div>
+</body>
+</html>

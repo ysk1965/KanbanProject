@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   DndContext,
@@ -12,7 +12,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { Clock, Wrench } from "lucide-react";
+import { Clock, Wrench, Trash2, Plus, X } from "lucide-react";
 import { format } from "date-fns";
 import type { ChecklistItem, BoardContractor } from "../types";
 import type { BoardMember } from "./ShareBoardModal";
@@ -36,6 +36,10 @@ interface ChecklistStatusBoardProps {
   onToggle: (itemId: string) => void;
   /** 열 이동 (원자적 처리 — 완료 토글 + start_date 패치 조합) */
   onMoveColumn: (item: ChecklistItem, target: ChecklistColumn) => void;
+  /** 항목 삭제 (확인 다이얼로그 트리거) */
+  onDelete: (itemId: string) => void;
+  /** TODO 컬럼 빠른 추가 (제목만 → start_date 없음 → TODO 유지) */
+  onQuickAdd: (title: string) => void;
 }
 
 const COLUMN_META: {
@@ -105,6 +109,7 @@ function BoardCard({
   timeBlocksMap,
   today,
   onToggle,
+  onDelete,
   dragging = false,
 }: {
   item: ChecklistItem;
@@ -113,6 +118,7 @@ function BoardCard({
   timeBlocksMap: Record<string, ScheduleBlockDetailResponse[]>;
   today: string;
   onToggle: (itemId: string) => void;
+  onDelete?: (itemId: string) => void;
   dragging?: boolean;
 }) {
   const memberData = item.assignee
@@ -130,8 +136,8 @@ function BoardCard({
     <div
       className={`group rounded-lg border p-2.5 transition-colors ${
         dragging
-          ? "bg-bridge-surface border-bridge-accent/50 shadow-xl"
-          : "bg-bridge-obsidian border-foreground/[0.08] hover:border-foreground/[0.14]"
+          ? "bg-bridge-surface border-bridge-accent/60 shadow-xl"
+          : "bg-bridge-surface border-foreground/[0.10] hover:border-foreground/[0.20]"
       }`}
     >
       <div className="flex items-start gap-2">
@@ -170,6 +176,17 @@ function BoardCard({
         >
           {item.title}
         </p>
+        {/* 삭제 버튼 (호버 시 노출) */}
+        {canEdit && onDelete && !dragging && (
+          <button
+            onClick={() => onDelete(item.id)}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label="삭제"
+            className="flex-shrink-0 -mt-0.5 -mr-0.5 p-1 rounded text-slate-500 opacity-0 group-hover:opacity-100 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* 메타 */}
@@ -220,6 +237,7 @@ function DraggableCard(props: {
   timeBlocksMap: Record<string, ScheduleBlockDetailResponse[]>;
   today: string;
   onToggle: (itemId: string) => void;
+  onDelete: (itemId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: props.item.id,
@@ -247,6 +265,8 @@ function Column({
   timeBlocksMap,
   today,
   onToggle,
+  onDelete,
+  onQuickAdd,
 }: {
   meta: (typeof COLUMN_META)[number];
   label: string;
@@ -256,15 +276,36 @@ function Column({
   timeBlocksMap: Record<string, ScheduleBlockDetailResponse[]>;
   today: string;
   onToggle: (itemId: string) => void;
+  onDelete: (itemId: string) => void;
+  /** todo 컬럼에만 전달 */
+  onQuickAdd?: (title: string) => void;
 }) {
+  const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({ id: `col-${meta.key}` });
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const submitAdd = () => {
+    const title = draft.trim();
+    if (title && onQuickAdd) onQuickAdd(title);
+    setDraft("");
+    // 연속 추가를 위해 입력창 유지
+    inputRef.current?.focus();
+  };
+
+  const startAdding = () => {
+    setAdding(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
   return (
     <div
       ref={setNodeRef}
       className={`flex flex-col rounded-xl border p-2.5 min-h-[180px] transition-colors ${
         isOver
-          ? `bg-foreground/[0.04] border-transparent ring-2 ${meta.ring}`
-          : "bg-foreground/[0.02] border-foreground/[0.06]"
+          ? `bg-foreground/[0.05] border-transparent ring-2 ${meta.ring}`
+          : "bg-foreground/[0.03] border-foreground/[0.08]"
       }`}
     >
       <div className="flex items-center justify-between mb-2.5 px-1">
@@ -274,10 +315,56 @@ function Column({
           <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
           {label}
         </span>
-        <span className="text-[11px] font-bold text-slate-500 bg-foreground/5 px-2 py-0.5 rounded-full">
-          {items.length}
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="text-[11px] font-bold text-slate-500 bg-foreground/5 px-2 py-0.5 rounded-full">
+            {items.length}
+          </span>
+          {onQuickAdd && canEdit && (
+            <button
+              onClick={adding ? () => setAdding(false) : startAdding}
+              aria-label={t("task.addChecklistItem", {
+                defaultValue: "체크리스트 항목 추가",
+              })}
+              className={`p-0.5 rounded transition-colors ${
+                adding
+                  ? "text-slate-400 hover:text-foreground"
+                  : "text-slate-400 hover:text-bridge-accent hover:bg-bridge-accent/10"
+              }`}
+            >
+              {adding ? (
+                <X className="w-3.5 h-3.5" />
+              ) : (
+                <Plus className="w-4 h-4" />
+              )}
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* 빠른 추가 입력 (todo 컬럼) */}
+      {onQuickAdd && canEdit && adding && (
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
+            if (e.key === "Enter") submitAdd();
+            else if (e.key === "Escape") {
+              setDraft("");
+              setAdding(false);
+            }
+          }}
+          onBlur={() => {
+            if (!draft.trim()) setAdding(false);
+          }}
+          placeholder={t("task.checklistItemPlaceholder", {
+            defaultValue: "항목 입력...",
+          })}
+          className="w-full mb-2 bg-foreground/[0.04] border border-foreground/10 rounded-lg py-1.5 px-2.5 text-[13px] text-foreground placeholder-slate-500 outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+        />
+      )}
+
       <div className="flex-1 space-y-2">
         {items.map((item) => (
           <DraggableCard
@@ -288,6 +375,7 @@ function Column({
             timeBlocksMap={timeBlocksMap}
             today={today}
             onToggle={onToggle}
+            onDelete={onDelete}
           />
         ))}
       </div>
@@ -302,6 +390,8 @@ export function ChecklistStatusBoard({
   timeBlocksMap,
   onToggle,
   onMoveColumn,
+  onDelete,
+  onQuickAdd,
 }: ChecklistStatusBoardProps) {
   const { t } = useTranslation();
   const today = getTodayDateString();
@@ -373,6 +463,8 @@ export function ChecklistStatusBoard({
             timeBlocksMap={timeBlocksMap}
             today={today}
             onToggle={onToggle}
+            onDelete={onDelete}
+            onQuickAdd={meta.key === "todo" ? onQuickAdd : undefined}
           />
         ))}
       </div>
