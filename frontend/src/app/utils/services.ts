@@ -671,6 +671,7 @@ export const taskService = {
       start_date?: string;
       due_date?: string;
       estimated_minutes?: number;
+      milestone_id?: string | null;
     },
   ): Promise<Task> => {
     try {
@@ -721,6 +722,7 @@ export const taskService = {
       start_date?: string | null;
       due_date?: string | null;
       estimated_minutes?: number | null;
+      milestone_id?: string | null;
     },
   ): Promise<Task> => {
     try {

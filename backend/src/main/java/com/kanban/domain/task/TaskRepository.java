@@ -25,6 +25,7 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "JOIN FETCH t.block " +
            "JOIN FETCH t.board " +
            "LEFT JOIN FETCH t.createdBy " +
+           "LEFT JOIN FETCH t.milestone " +
            "WHERE t.board.id = :boardId ORDER BY t.position ASC")
     List<Task> findByBoardIdWithFetch(@Param("boardId") String boardId);
 
@@ -33,6 +34,7 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "JOIN FETCH t.block " +
            "JOIN FETCH t.board " +
            "LEFT JOIN FETCH t.createdBy " +
+           "LEFT JOIN FETCH t.milestone " +
            "WHERE t.block.id = :blockId ORDER BY t.position ASC")
     List<Task> findByBlockIdWithFetch(@Param("blockId") String blockId);
 
@@ -41,6 +43,7 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "JOIN FETCH t.block " +
            "JOIN FETCH t.board " +
            "LEFT JOIN FETCH t.createdBy " +
+           "LEFT JOIN FETCH t.milestone " +
            "WHERE t.feature.id = :featureId ORDER BY t.position ASC")
     List<Task> findByFeatureIdWithFetch(@Param("featureId") String featureId);
 
@@ -97,6 +100,24 @@ public interface TaskRepository extends JpaRepository<Task, String> {
      */
     @Query("SELECT t FROM Task t WHERE t.feature.id IN :featureIds ORDER BY t.position ASC")
     List<Task> findByFeatureIds(@Param("featureIds") List<String> featureIds);
+
+    /**
+     * 보드의 (마일스톤, 피처)별 태스크 수 집계 — 마일스톤 진행률 + 마일스톤-스코프 피처 카운트용.
+     * 반환: [milestoneId, featureId, totalCount(Long), completedCount(Long)]
+     */
+    @Query("SELECT t.milestone.id, t.feature.id, COUNT(t), " +
+           "SUM(CASE WHEN t.isCompleted = true THEN 1L ELSE 0L END) " +
+           "FROM Task t WHERE t.board.id = :boardId AND t.milestone.id IS NOT NULL " +
+           "GROUP BY t.milestone.id, t.feature.id")
+    List<Object[]> countByMilestoneAndFeature(@Param("boardId") String boardId);
+
+    /** 마일스톤 삭제 시 해당 마일스톤 태스크의 배정 해제 */
+    @Modifying
+    @Query("UPDATE Task t SET t.milestone = null WHERE t.milestone.id = :milestoneId")
+    int clearMilestoneByMilestoneId(@Param("milestoneId") String milestoneId);
+
+    /** 피처-마일스톤 링크 제거 시 재배정용 — 특정 피처의 특정 마일스톤 태스크 조회 */
+    List<Task> findByFeatureIdAndMilestoneId(String featureId, String milestoneId);
 
     /**
      * 특정 Feature들에 속한 미완료 Task 수 조회

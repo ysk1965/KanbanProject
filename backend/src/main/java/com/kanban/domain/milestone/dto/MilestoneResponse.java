@@ -13,6 +13,7 @@ import lombok.Getter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 public class MilestoneResponse {
 
@@ -58,9 +59,13 @@ public class MilestoneResponse {
         private CreatorInfo createdBy;
         private LocalDateTime createdAt;
 
-        public static DetailSimple of(Milestone milestone, List<MilestoneFeature> links, int progressPercentage) {
+        public static DetailSimple of(Milestone milestone, List<MilestoneFeature> links, int progressPercentage,
+                                      Map<String, int[]> featureCounts) {
             List<FeatureInfo> featureInfos = links.stream()
-                    .map(FeatureInfo::of)
+                    .map(link -> {
+                        int[] c = featureCounts.getOrDefault(link.getFeature().getId(), new int[]{0, 0});
+                        return FeatureInfo.of(link, c[0], c[1]);
+                    })
                     .toList();
 
             return DetailSimple.builder()
@@ -93,9 +98,13 @@ public class MilestoneResponse {
         private CreatorInfo createdBy;
         private LocalDateTime createdAt;
 
-        public static Detail of(Milestone milestone, List<MilestoneFeature> links, int progressPercentage) {
+        public static Detail of(Milestone milestone, List<MilestoneFeature> links, int progressPercentage,
+                                Map<String, int[]> featureCounts) {
             List<FeatureInfo> featureInfos = links.stream()
-                    .map(FeatureInfo::of)
+                    .map(link -> {
+                        int[] c = featureCounts.getOrDefault(link.getFeature().getId(), new int[]{0, 0});
+                        return FeatureInfo.of(link, c[0], c[1]);
+                    })
                     .toList();
 
             return Detail.builder()
@@ -123,13 +132,15 @@ public class MilestoneResponse {
          * N+1 문제 해결을 위해 features를 포함한 상세 응답 생성
          */
         public static ListResponse of(List<Milestone> milestones,
-                                      java.util.Map<String, List<MilestoneFeature>> linksMap,
-                                      java.util.Map<String, Integer> progressMap) {
+                                      Map<String, List<MilestoneFeature>> linksMap,
+                                      Map<String, Integer> progressMap,
+                                      Map<String, Map<String, int[]>> countsMap) {
             List<DetailSimple> detailList = milestones.stream()
                     .map(m -> DetailSimple.of(
                             m,
                             linksMap.getOrDefault(m.getId(), List.of()),
-                            progressMap.getOrDefault(m.getId(), 0)
+                            progressMap.getOrDefault(m.getId(), 0),
+                            countsMap.getOrDefault(m.getId(), Map.of())
                     ))
                     .toList();
             return new ListResponse(detailList);
@@ -148,15 +159,20 @@ public class MilestoneResponse {
         private int progressPercentage;
         private boolean isPrimary;
 
-        public static FeatureInfo of(MilestoneFeature link) {
+        /**
+         * 마일스톤-스코프 카운트로 FeatureInfo 생성.
+         * total/completed는 "이 마일스톤에 배정된 이 피처의 태스크" 기준 (피처 전역 카운트 아님).
+         */
+        public static FeatureInfo of(MilestoneFeature link, int totalTasks, int completedTasks) {
             Feature feature = link.getFeature();
+            int pct = totalTasks == 0 ? 0 : (int) Math.round((double) completedTasks / totalTasks * 100);
             return FeatureInfo.builder()
                     .id(feature.getId())
                     .title(feature.getTitle())
                     .color(feature.getColor())
-                    .totalTasks(feature.getTotalTasks())
-                    .completedTasks(feature.getCompletedTasks())
-                    .progressPercentage(feature.getProgressPercentage())
+                    .totalTasks(totalTasks)
+                    .completedTasks(completedTasks)
+                    .progressPercentage(pct)
                     .isPrimary(link.isPrimary())
                     .build();
         }

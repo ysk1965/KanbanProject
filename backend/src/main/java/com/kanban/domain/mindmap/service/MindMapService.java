@@ -38,6 +38,7 @@ public class MindMapService {
                 .orElseGet(() -> MindMapResponse.builder()
                         .nodes(new ArrayList<>())
                         .edges(new ArrayList<>())
+                        .expandedFeatures(new ArrayList<>())
                         .build());
     }
 
@@ -60,8 +61,10 @@ public class MindMapService {
         ObjectNode root = objectMapper.createObjectNode();
         ArrayNode nodes = root.putArray("nodes");
         ArrayNode edges = root.putArray("edges");
+        ArrayNode expandedFeatures = root.putArray("expanded_features");
         if (request.getNodes() != null) request.getNodes().forEach(nodes::add);
         if (request.getEdges() != null) request.getEdges().forEach(edges::add);
+        if (request.getExpandedFeatures() != null) request.getExpandedFeatures().forEach(expandedFeatures::add);
         try {
             return objectMapper.writeValueAsString(root);
         } catch (Exception e) {
@@ -73,6 +76,7 @@ public class MindMapService {
     private MindMapResponse toResponse(BoardMindMap mindMap) {
         List<JsonNode> nodes = new ArrayList<>();
         List<JsonNode> edges = new ArrayList<>();
+        List<String> expandedFeatures = new ArrayList<>();
         if (mindMap.getData() != null && !mindMap.getData().isBlank()) {
             try {
                 JsonNode root = objectMapper.readTree(mindMap.getData());
@@ -82,10 +86,15 @@ public class MindMapService {
                 if (root.has("edges") && root.get("edges").isArray()) {
                     root.get("edges").forEach(edges::add);
                 }
+                if (root.has("expanded_features") && root.get("expanded_features").isArray()) {
+                    root.get("expanded_features").forEach(n -> {
+                        if (n.isTextual()) expandedFeatures.add(n.asText());
+                    });
+                }
             } catch (Exception e) {
                 log.warn("Failed to parse stored mindmap data for board {}", mindMap.getBoardId(), e);
             }
         }
-        return MindMapResponse.builder().nodes(nodes).edges(edges).build();
+        return MindMapResponse.builder().nodes(nodes).edges(edges).expandedFeatures(expandedFeatures).build();
     }
 }

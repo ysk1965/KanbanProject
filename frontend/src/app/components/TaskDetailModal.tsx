@@ -52,6 +52,7 @@ import {
   Undo2,
   ChevronDown,
   ChevronRight,
+  Target,
   Loader2,
   MessageSquare,
   Lightbulb,
@@ -231,6 +232,7 @@ export function TaskDetailModal({
   // 체크리스트 담당자 필터 (모달 로컬, 임시) — 빈 배열이면 필터 미적용
   // '__no_assignee__' 토큰은 미할당 항목을 의미
   const [filterAssigneeIds, setFilterAssigneeIds] = useState<string[]>([]);
+  const [milestonePickerOpen, setMilestonePickerOpen] = useState(false);
   const highlightChecklistRef = useRef<HTMLDivElement>(null);
   const hasScrolledToHighlightRef = useRef(false);
 
@@ -393,6 +395,19 @@ export function TaskDetailModal({
     (updates: Partial<Task>) => {
       onUpdate(updates);
       setInitialTask((prev) => (prev ? { ...prev, ...updates } : null));
+    },
+    [onUpdate],
+  );
+
+  // 태스크 마일스톤 배정 (""=해제). 피처가 미연결 마일스톤이면 백엔드가 자동 연결.
+  const handleAssignMilestone = useCallback(
+    (milestoneId: string) => {
+      setMilestonePickerOpen(false);
+      const nextId = milestoneId === "" ? null : milestoneId;
+      setEditedTask((prev) =>
+        prev ? { ...prev, milestone_id: nextId } : prev,
+      );
+      onUpdate({ milestone_id: milestoneId === "" ? "" : milestoneId });
     },
     [onUpdate],
   );
@@ -1063,6 +1078,65 @@ export function TaskDetailModal({
                     onSelectDone={() => setShowDoneDialog(true)}
                   />
                 )}
+                {/* 마일스톤 배정 */}
+                {milestones.length > 0 &&
+                  (() => {
+                    const currentMs = milestones.find(
+                      (m) => m.id === editedTask.milestone_id,
+                    );
+                    return (
+                      <Popover
+                        open={milestonePickerOpen}
+                        onOpenChange={setMilestonePickerOpen}
+                      >
+                        <PopoverTrigger asChild>
+                          <button
+                            disabled={!canEdit}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-foreground/10 bg-foreground/5 text-foreground hover:bg-foreground/10 transition-colors disabled:cursor-default disabled:hover:bg-foreground/5"
+                          >
+                            <Target className="w-3 h-3 text-bridge-accent" />
+                            {currentMs
+                              ? currentMs.title
+                              : t("milestone.none", "마일스톤 없음")}
+                            {canEdit && (
+                              <ChevronDown className="w-3 h-3 opacity-60" />
+                            )}
+                          </button>
+                        </PopoverTrigger>
+                        {canEdit && (
+                          <PopoverContent
+                            align="start"
+                            className="w-56 p-1 max-h-72 overflow-y-auto custom-scrollbar"
+                          >
+                            <button
+                              onClick={() => handleAssignMilestone("")}
+                              className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-foreground/10 ${
+                                !editedTask.milestone_id
+                                  ? "text-bridge-accent font-bold"
+                                  : "text-foreground"
+                              }`}
+                            >
+                              {t("milestone.none", "마일스톤 없음")}
+                            </button>
+                            {milestones.map((m) => (
+                              <button
+                                key={m.id}
+                                onClick={() => handleAssignMilestone(m.id)}
+                                className={`w-full flex items-center gap-1.5 text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-foreground/10 ${
+                                  editedTask.milestone_id === m.id
+                                    ? "text-bridge-accent font-bold"
+                                    : "text-foreground"
+                                }`}
+                              >
+                                <Target className="w-3 h-3 flex-shrink-0 text-bridge-accent" />
+                                <span className="truncate">{m.title}</span>
+                              </button>
+                            ))}
+                          </PopoverContent>
+                        )}
+                      </Popover>
+                    );
+                  })()}
               </div>
               <div>
                 <div className="flex items-center justify-between">
