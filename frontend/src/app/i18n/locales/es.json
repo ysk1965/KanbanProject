@@ -2921,11 +2921,6 @@
       "permanentDeleteConfirm": "\"{{title}}\" y todos sus elementos secundarios, comentarios y versiones se eliminarán de inmediato. Esto no se puede deshacer.",
       "emptyAllConfirmTitle": "¿Vaciar la papelera?",
       "emptyAllConfirm": "Se eliminarán permanentemente los {{count}} elementos de la papelera. Esto no se puede deshacer."
-    },
-    "newFlow": "Nuevo flujo",
-    "addFlow": "Añadir flujo",
-    "diff": {
-      "flowNoPreview": "Los flujos no admiten comparación visual. Puedes restaurar esta versión con Deshacer."
     }
   },
   "payment": {
@@ -4634,17 +4629,5 @@
     "filterNoMilestone": "Sin hito",
     "noFilteredFeatures": "No hay funciones sin ubicar para este hito",
     "excludeFeature": "Quitar del mapa mental"
-  },
-  "flow": {
-    "newMemo": "Nota",
-    "handTool": "Herramienta mano",
-    "pointerTool": "Herramienta selección",
-    "addText": "Texto",
-    "addSticky": "Nota adhesiva",
-    "addShape": "Forma",
-    "addImage": "Imagen",
-    "addVideo": "Vídeo",
-    "empty": "Añade un nodo desde la barra de herramientas para empezar",
-    "emptyReadOnly": "Este flujo está vacío"
   }
 }

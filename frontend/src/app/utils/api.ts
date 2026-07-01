@@ -5578,7 +5578,7 @@ export const reportAPI = {
 export interface NoteTreeItem {
   id: string;
   parent_id: string | null;
-  type: "FOLDER" | "DOCUMENT" | "BOARD" | "FLOW";
+  type: "FOLDER" | "DOCUMENT" | "BOARD";
   title: string;
   position: number;
   depth: number;
@@ -5601,7 +5601,7 @@ export interface BoardNoteSection {
 export interface NoteDetail {
   id: string;
   parent_id: string | null;
-  type: "FOLDER" | "DOCUMENT" | "BOARD" | "FLOW";
+  type: "FOLDER" | "DOCUMENT" | "BOARD";
   title: string;
   content: string | null;
   position: number;
@@ -5624,7 +5624,7 @@ export interface NoteDetail {
 export interface SharedNote {
   title: string;
   content: string | null;
-  type: "FOLDER" | "DOCUMENT" | "BOARD" | "FLOW";
+  type: "FOLDER" | "DOCUMENT" | "BOARD";
   tags: NoteTagInfo[];
   author_name: string;
   updated_at: string;
@@ -5665,7 +5665,7 @@ export interface NoteTagInfo {
 
 export interface NoteTrashItem {
   id: string;
-  type: "FOLDER" | "DOCUMENT" | "BOARD" | "FLOW";
+  type: "FOLDER" | "DOCUMENT" | "BOARD";
   title: string;
   parent_id: string | null;
   parent_title: string | null;
@@ -5811,7 +5811,7 @@ export const noteAPI = {
     boardId: string,
     data: {
       title: string;
-      type: "FOLDER" | "DOCUMENT" | "BOARD" | "FLOW";
+      type: "FOLDER" | "DOCUMENT" | "BOARD";
       parentId?: string | null;
       content?: string;
       tagIds?: string[];
@@ -6035,7 +6035,7 @@ export const orgNoteAPI = {
     orgId: string,
     data: {
       title: string;
-      type: "FOLDER" | "DOCUMENT" | "BOARD" | "FLOW";
+      type: "FOLDER" | "DOCUMENT" | "BOARD";
       parentId?: string | null;
       content?: string;
       tagIds?: string[];
