@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Feature, Task, Tag } from "../types";
+import { Feature, Task, Tag, Milestone } from "../types";
 import { FEATURE_COLORS } from "../constants";
 import {
   X,
@@ -39,6 +39,7 @@ interface FeatureDetailModalProps {
   feature: Feature | null;
   tasks: Task[];
   blocks: Array<{ id: string; name: string }>;
+  milestones: Milestone[];
   open: boolean;
   onClose: () => void;
   onAddSubtask: (title: string) => void;
@@ -66,6 +67,7 @@ export function FeatureDetailModal({
   feature,
   tasks,
   blocks,
+  milestones,
   open,
   onClose,
   onAddSubtask,
@@ -247,6 +249,11 @@ export function FeatureDetailModal({
   const getBlockName = (blockId: string) => {
     return blocks.find((b) => b.id === blockId)?.name || blockId;
   };
+
+  const getTaskMilestoneTitle = (milestoneId?: string | null) =>
+    milestoneId
+      ? milestones.find((m) => m.id === milestoneId)?.title
+      : undefined;
 
   const featureTags = editedFeature.tags || [];
   const selectedColor = editedFeature.color || "#8B5CF6";
@@ -779,7 +786,13 @@ export function FeatureDetailModal({
                           className="tracking-widest transition-colors"
                           style={{ color: undefined }}
                         >
-                          → {getBlockName(task.block_id).toUpperCase()}
+                          →{" "}
+                          {getTaskMilestoneTitle(task.milestone_id) && (
+                            <span className="text-bridge-accent">
+                              {getTaskMilestoneTitle(task.milestone_id)} ·{" "}
+                            </span>
+                          )}
+                          {getBlockName(task.block_id).toUpperCase()}
                         </span>
                       </div>
                     </div>

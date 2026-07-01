@@ -4599,6 +4599,7 @@
   "mindmap": {
     "addMemo": "Thêm ghi chú",
     "newMemo": "Ghi chú mới",
+    "addFeature": "Thêm tính năng",
     "unplacedFeatures": "Tính năng chưa đặt",
     "dragToPlace": "Kéo vào canvas để đặt",
     "allPlaced": "Đã đặt tất cả tính năng",

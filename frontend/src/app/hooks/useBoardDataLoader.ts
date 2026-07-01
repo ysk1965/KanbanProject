@@ -31,31 +31,6 @@ import { scheduleAPI } from "../utils/api";
 import { boardCache, BoardFullData } from "../utils/boardCache";
 
 // 마일스톤 선택 시 클라이언트 사이드 필터링 (추가 API 호출 제거)
-function filterByMilestone(fullData: BoardFullData): {
-  filteredFeatures: Feature[];
-  finalTasks: Task[];
-} {
-  let filteredFeatures = fullData.features;
-  let finalTasks = fullData.tasks;
-  if (fullData.selected_milestone_id) {
-    const selectedMilestone = fullData.milestones.milestones.find(
-      (m: Milestone) => m.id === fullData.selected_milestone_id,
-    );
-    if (selectedMilestone?.features) {
-      const milestoneFeatureIds = new Set(
-        selectedMilestone.features.map((f: { id: string }) => f.id),
-      );
-      filteredFeatures = fullData.features.filter((f: Feature) =>
-        milestoneFeatureIds.has(f.id),
-      );
-      finalTasks = fullData.tasks.filter((t: Task) =>
-        milestoneFeatureIds.has(t.feature_id),
-      );
-    }
-  }
-  return { filteredFeatures, finalTasks };
-}
-
 function parseChecklistBatch(batchChecklistData: any): {
   [taskId: string]: ChecklistItem[];
 } {
@@ -88,6 +63,8 @@ export function useBoardDataLoader(boardId: string | undefined) {
   const [board, setBoard] = useState<Board | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [hiddenBlocks, setHiddenBlocks] = useState<Block[]>([]);
+  // 마일스톤 필터와 무관한 전체 블록 (미니칸반 등 독립 서브탭 전용)
+  const [allBlocks, setAllBlocks] = useState<Block[]>([]);
   const [features, setFeatures] = useState<Feature[]>([]);
   const [allFeatures, setAllFeatures] = useState<Feature[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -168,20 +145,24 @@ export function useBoardDataLoader(boardId: string | undefined) {
         })),
       );
 
-      const { filteredFeatures, finalTasks } = filterByMilestone(fullData);
       if (fullData.selected_milestone_id) {
         setKanbanSelectedMilestoneId(fullData.selected_milestone_id);
       }
+      // 칸반 계열 뷰용 블록(마일스톤 필터 반영). 마일스톤 미선택 시 전체와 동일.
       if (blocksResult) {
         setBlocks(blocksResult.blocks);
         setHiddenBlocks(blocksResult.hiddenBlocks);
       } else {
         setBlocks(fullData.blocks);
+        setHiddenBlocks([]);
       }
+      // 독립 서브탭용 전체 블록 (마일스톤 필터와 무관)
+      setAllBlocks(fullData.blocks);
 
+      // 단일 소스 = 전체(full). 마일스톤 필터는 KanbanBoardPage에서 파생 계산.
       // 모든 데이터를 동시에 set → 카드 렌더링 시 checklistDataMap이 이미 존재
-      setFeatures(filteredFeatures);
-      setTasks(finalTasks);
+      setFeatures(fullData.features);
+      setTasks(fullData.tasks);
       setChecklistDataMap(checklistMap);
       setScheduledTaskIds(new Set(scheduledTaskIdList));
     },
@@ -228,8 +209,8 @@ export function useBoardDataLoader(boardId: string | undefined) {
         }
 
         // 체크리스트 배치 + 스케줄 Task ID를 먼저 로드 (카드 렌더링 전에 데이터 준비)
-        const { finalTasks } = filterByMilestone(fullData);
-        const taskIdsWithChecklist = finalTasks
+        // 단일 소스: 전체 태스크의 체크리스트를 로드 (독립 서브탭도 전체 데이터 사용)
+        const taskIdsWithChecklist = fullData.tasks
           .filter((t: Task) => (t.checklist_total ?? 0) > 0)
           .map((t: Task) => t.id);
 
@@ -290,19 +271,22 @@ export function useBoardDataLoader(boardId: string | undefined) {
     loadBoardData();
   }, [boardId, navigate, hydrate]);
 
-  // Feature, Task, Blocks를 milestoneId로 필터링해서 다시 로드
+  // Feature/Task는 항상 전체(full)로 재조회 (단일 소스). blocks만 milestoneId로 필터링.
+  // milestoneId는 칸반 계열 블록 표시(숨김/마일스톤 전용 블록)에만 사용된다.
   const reloadFeaturesAndTasks = useCallback(
     async (milestoneId?: string) => {
       if (!boardId) return;
       try {
-        const [featuresData, tasksData, blockResult] = await Promise.all([
-          featureService.getFeatures(boardId, milestoneId),
-          taskService.getTasks(
-            boardId,
-            milestoneId ? { milestone_id: milestoneId } : undefined,
-          ),
-          blockService.getBlocksWithHidden(boardId, milestoneId),
-        ]);
+        const [featuresData, tasksData, blockResult, allBlockResult] =
+          await Promise.all([
+            featureService.getFeatures(boardId),
+            taskService.getTasks(boardId),
+            blockService.getBlocksWithHidden(boardId, milestoneId),
+            // 독립 서브탭용 전체 블록. milestoneId 미선택 시 동일 캐시라 저렴.
+            milestoneId
+              ? blockService.getBlocksWithHidden(boardId, undefined)
+              : null,
+          ]);
         const taskIdsWithChecklist = tasksData
           .filter((t: Task) => (t.checklist_total ?? 0) > 0)
           .map((t: Task) => t.id);
@@ -324,9 +308,11 @@ export function useBoardDataLoader(boardId: string | undefined) {
         ]);
 
         setFeatures(featuresData);
+        setAllFeatures(featuresData);
         setTasks(tasksData);
         setBlocks(blockResult.blocks);
         setHiddenBlocks(blockResult.hiddenBlocks);
+        setAllBlocks((allBlockResult ?? blockResult).blocks);
         setChecklistDataMap(batchChecklistMap);
         setScheduledTaskIds(new Set(scheduledData.task_ids));
       } catch (error) {
@@ -365,6 +351,8 @@ export function useBoardDataLoader(boardId: string | undefined) {
     setBlocks,
     hiddenBlocks,
     setHiddenBlocks,
+    allBlocks,
+    setAllBlocks,
     features,
     setFeatures,
     allFeatures,
