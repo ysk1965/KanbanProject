@@ -4608,6 +4608,7 @@
     "emptyReadOnly": "ยังไม่มีมายด์แมป",
     "filterAll": "ทั้งหมด",
     "filterNoMilestone": "ไม่มีไมล์สโตน",
-    "noFilteredFeatures": "ไม่มีฟีเจอร์ที่ยังไม่ได้วางสำหรับไมล์สโตนนี้"
+    "noFilteredFeatures": "ไม่มีฟีเจอร์ที่ยังไม่ได้วางสำหรับไมล์สโตนนี้",
+    "excludeFeature": "นำออกจากมายด์แมป"
   }
 }

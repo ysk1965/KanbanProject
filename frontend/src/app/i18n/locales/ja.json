@@ -4117,6 +4117,7 @@
     "emptyReadOnly": "まだマインドマップがありません",
     "filterAll": "すべて",
     "filterNoMilestone": "マイルストーンなし",
-    "noFilteredFeatures": "このマイルストーンに未配置のフィーチャーはありません"
+    "noFilteredFeatures": "このマイルストーンに未配置のフィーチャーはありません",
+    "excludeFeature": "マインドマップから除外"
   }
 }

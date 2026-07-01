@@ -4117,6 +4117,7 @@
     "emptyReadOnly": "अभी तक कोई माइंड मैप नहीं",
     "filterAll": "सभी",
     "filterNoMilestone": "कोई माइलस्टोन नहीं",
-    "noFilteredFeatures": "इस माइलस्टोन के लिए कोई अनप्लेस्ड फ़ीचर नहीं"
+    "noFilteredFeatures": "इस माइलस्टोन के लिए कोई अनप्लेस्ड फ़ीचर नहीं",
+    "excludeFeature": "माइंड मैप से हटाएं"
   }
 }

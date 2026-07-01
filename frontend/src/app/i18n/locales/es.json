@@ -4608,6 +4608,7 @@
     "emptyReadOnly": "Aún no hay mapa mental",
     "filterAll": "Todos",
     "filterNoMilestone": "Sin hito",
-    "noFilteredFeatures": "No hay funciones sin ubicar para este hito"
+    "noFilteredFeatures": "No hay funciones sin ubicar para este hito",
+    "excludeFeature": "Quitar del mapa mental"
   }
 }

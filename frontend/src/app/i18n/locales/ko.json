@@ -4706,7 +4706,8 @@
     "emptyReadOnly": "아직 마인드맵이 없습니다",
     "filterAll": "전체",
     "filterNoMilestone": "마일스톤 없음",
-    "noFilteredFeatures": "해당 마일스톤의 미배치 피쳐 없음"
+    "noFilteredFeatures": "해당 마일스톤의 미배치 피쳐 없음",
+    "excludeFeature": "마인드맵에서 제외"
   },
   "minikanban": {
     "hint": "카드를 TODO·DOING·DONE으로 드래그, 태스크를 다른 블록으로 이동",

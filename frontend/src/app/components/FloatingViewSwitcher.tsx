@@ -5,6 +5,7 @@ import {
   GanttChart,
   Calendar,
   List,
+  Columns3,
   Lock,
   Check,
   ChevronDown,
@@ -43,7 +44,7 @@ interface BoardViewItem {
   checkAccess: (canAccessGantt: boolean) => boolean;
 }
 
-/** 보드 표현 뷰 (칸반/리스트/간트/캘린더) — 같은 데이터를 다르게 보여주는 그룹 */
+/** 보드 표현 뷰 (칸반/리스트/간트/캘린더/미니 칸반) — 같은 데이터를 다르게 보여주는 그룹 */
 const BOARD_VIEWS: BoardViewItem[] = [
   {
     mode: "kanban",
@@ -77,12 +78,20 @@ const BOARD_VIEWS: BoardViewItem[] = [
     isPremium: false,
     checkAccess: () => true,
   },
+  {
+    mode: "minikanban",
+    icon: Columns3,
+    labelKey: "kanban.viewBoardMiniKanban",
+    labelFallback: "미니 칸반",
+    isPremium: false,
+    checkAccess: () => true,
+  },
 ];
 
 /**
  * 우하단 고정 "뷰" 전환 버튼 (Trello식)
- * 클릭하면 위로 메뉴가 펼쳐지며 칸반/리스트/간트/캘린더(보드 표현) 사이를 전환합니다.
- * 마일스톤은 상단 서브탭으로 분리되어 이 메뉴에는 포함되지 않습니다.
+ * 클릭하면 위로 메뉴가 펼쳐지며 칸반/리스트/간트/캘린더/미니 칸반(보드 표현) 사이를 전환합니다.
+ * 마일스톤·마인드맵은 상단 서브탭으로 분리되어 이 메뉴에는 포함되지 않습니다.
  * 간트는 프리미엄 기능으로 잠금 아이콘이 표시됩니다.
  */
 export function FloatingViewSwitcher({
