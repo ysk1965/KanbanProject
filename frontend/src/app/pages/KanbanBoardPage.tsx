@@ -2858,7 +2858,6 @@ export function KanbanBoardPage() {
         {BOARD_SUB_MODES.includes(viewMode) &&
           viewMode !== "milestone" &&
           viewMode !== "mindmap" &&
-          viewMode !== "minikanban" &&
           milestones.length > 0 && (
             <div className="border-b border-foreground/[0.08]" />
           )}
@@ -2867,7 +2866,6 @@ export function KanbanBoardPage() {
         {BOARD_SUB_MODES.includes(viewMode) &&
           viewMode !== "milestone" &&
           viewMode !== "mindmap" &&
-          viewMode !== "minikanban" &&
           milestones.length > 0 && (
             <MilestoneTabBar
               milestones={milestones}
@@ -3222,8 +3220,8 @@ export function KanbanBoardPage() {
             >
               <MiniKanbanView
                 boardId={boardId || ""}
-                blocks={allBlocks}
-                tasks={tasks}
+                blocks={blocks}
+                tasks={kanbanTasks}
                 checklistByTask={checklistDataMap}
                 canEdit={canEdit}
                 memberColorMap={memberColorMap}
@@ -3600,8 +3598,7 @@ export function KanbanBoardPage() {
         {/* 우하단 플로팅 뷰 전환 버튼 (보드 표현 뷰에서만 표시, 마일스톤·마인드맵 제외) */}
         {BOARD_SUB_MODES.includes(viewMode) &&
           viewMode !== "milestone" &&
-          viewMode !== "mindmap" &&
-          viewMode !== "minikanban" && (
+          viewMode !== "mindmap" && (
             <FloatingViewSwitcher
               viewMode={viewMode}
               onViewModeChange={(mode) => handleViewModeChange(mode)}
