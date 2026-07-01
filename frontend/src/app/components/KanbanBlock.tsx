@@ -112,6 +112,9 @@ export const KanbanBlock = memo(function KanbanBlock({
   const [recentDonePeriod, setRecentDonePeriod] = useState<
     "today" | "week" | "all"
   >("today");
+  // 완료 시각 소스: completed_at(정확) 우선, 없으면 done_date(과거 데이터 폴백, day 단위)
+  const doneTs = (i: ChecklistItem) =>
+    parseUTCDate(i.completed_at ?? i.done_date)?.getTime() ?? 0;
   const recentCompletions = useMemo(() => {
     if (!checklistDataMap) return [] as { item: ChecklistItem; task: Task }[];
     const acc: { item: ChecklistItem; task: Task }[] = [];
@@ -119,14 +122,11 @@ export const KanbanBlock = memo(function KanbanBlock({
       const items = checklistDataMap[task.id];
       if (!items) continue;
       for (const item of items) {
-        if (item.completed && item.completed_at) acc.push({ item, task });
+        if (item.completed && (item.completed_at || item.done_date))
+          acc.push({ item, task });
       }
     }
-    acc.sort(
-      (a, b) =>
-        (parseUTCDate(b.item.completed_at)?.getTime() ?? 0) -
-        (parseUTCDate(a.item.completed_at)?.getTime() ?? 0),
-    );
+    acc.sort((a, b) => doneTs(b.item) - doneTs(a.item));
     return acc;
   }, [checklistDataMap, tasks]);
 
@@ -441,12 +441,10 @@ export const KanbanBlock = memo(function KanbanBlock({
             now.getDate(),
           ).getTime();
           const startWeek = startToday - 6 * 86400000;
-          const tsOf = (i: ChecklistItem) =>
-            parseUTCDate(i.completed_at)?.getTime() ?? 0;
 
           // A: 오늘 완료 델타
           const deltaToday = recentCompletions.filter(
-            (r) => tsOf(r.item) >= startToday,
+            (r) => doneTs(r.item) >= startToday,
           ).length;
 
           // C: 바에서 "최근(오늘) 완료" 구간을 secondary로 분리
@@ -465,7 +463,7 @@ export const KanbanBlock = memo(function KanbanBlock({
                 ? startWeek
                 : -Infinity;
           const filteredRecent = recentCompletions.filter(
-            (r) => tsOf(r.item) >= bound,
+            (r) => doneTs(r.item) >= bound,
           );
 
           return (
@@ -542,7 +540,7 @@ export const KanbanBlock = memo(function KanbanBlock({
                             {task.title}
                           </span>
                           <span className="text-xs text-slate-500 shrink-0">
-                            {formatRelativeTime(item.completed_at)}
+                            {formatRelativeTime(item.completed_at ?? item.done_date)}
                           </span>
                         </button>
                       ))}
