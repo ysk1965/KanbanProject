@@ -1844,6 +1844,16 @@
     "addItem": "+ Add item"
   },
   "kanbanBlock": {
+    "recentDone": {
+      "toggle": "View recently completed",
+      "todayDelta": "+{{count}} today",
+      "empty": "No completed items",
+      "period": {
+        "today": "Today",
+        "week": "Last 7 days",
+        "all": "All"
+      }
+    },
     "dropHere": "Drop here",
     "dragToMove": "Drag to move block",
     "rename": "Rename",
@@ -4677,6 +4687,8 @@
     "addMemo": "Add memo",
     "newMemo": "New memo",
     "addFeature": "Add Feature",
+    "handTool": "Hand tool",
+    "pointerTool": "Select tool",
     "unplacedFeatures": "Unplaced features",
     "dragToPlace": "Drag onto the canvas",
     "allPlaced": "All features placed",

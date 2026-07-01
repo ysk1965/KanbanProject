@@ -1846,6 +1846,16 @@
     "addItem": "+ 추가하기"
   },
   "kanbanBlock": {
+    "recentDone": {
+      "toggle": "최근 완료 항목 보기",
+      "todayDelta": "오늘 +{{count}}",
+      "empty": "완료된 항목이 없어요",
+      "period": {
+        "today": "오늘",
+        "week": "최근 7일",
+        "all": "전체"
+      }
+    },
     "dropHere": "여기에 놓기",
     "dragToMove": "드래그하여 블록 이동",
     "rename": "이름 변경",
@@ -4698,6 +4708,8 @@
     "addMemo": "메모 추가",
     "newMemo": "새 메모",
     "addFeature": "피처 추가",
+    "handTool": "손 도구",
+    "pointerTool": "선택 도구",
     "unplacedFeatures": "미배치 피쳐",
     "dragToPlace": "캔버스로 드래그해 배치",
     "allPlaced": "모든 피쳐가 배치됨",

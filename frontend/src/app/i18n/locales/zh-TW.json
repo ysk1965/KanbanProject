@@ -2145,6 +2145,16 @@
     "addItem": "+ 新增項目"
   },
   "kanbanBlock": {
+    "recentDone": {
+      "toggle": "查看最近完成",
+      "todayDelta": "今日 +{{count}}",
+      "empty": "尚無已完成項目",
+      "period": {
+        "today": "今天",
+        "week": "近7天",
+        "all": "全部"
+      }
+    },
     "dropHere": "放在此處",
     "dragToMove": "拖曳以移動 Block",
     "rename": "重新命名",

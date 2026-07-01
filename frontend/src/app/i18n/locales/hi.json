@@ -2187,6 +2187,16 @@
     "addItem": "+ आइटम जोड़ें"
   },
   "kanbanBlock": {
+    "recentDone": {
+      "toggle": "हाल ही में पूर्ण देखें",
+      "todayDelta": "आज +{{count}}",
+      "empty": "कोई पूर्ण आइटम नहीं",
+      "period": {
+        "today": "आज",
+        "week": "पिछले 7 दिन",
+        "all": "सभी"
+      }
+    },
     "dropHere": "यहाँ छोड़ें",
     "dragToMove": "Block ले जाने के लिए खींचें",
     "rename": "नाम बदलें",
