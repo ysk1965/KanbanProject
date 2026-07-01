@@ -415,11 +415,15 @@ export interface MindMapEdge {
   id: string;
   source: string;
   target: string;
+  source_handle?: string | null;
+  target_handle?: string | null;
 }
 
 export interface MindMapDocument {
   nodes: MindMapNode[];
   edges: MindMapEdge[];
+  /** 펼쳐진(하위 Task 노드를 노출 중인) Feature id 목록 */
+  expanded_features?: string[];
 }
 
 // ========================================
@@ -433,6 +437,8 @@ export interface Task {
   feature_color: string;
   block_id: string;
   block_name?: string;
+  /** 이 태스크가 배정된 마일스톤 (피처가 마일스톤에 속하지 않으면 null) */
+  milestone_id?: string | null;
   title: string;
   description?: string;
   // v7.0: Task.assignee 제거 - ChecklistItem.assignee로 대체

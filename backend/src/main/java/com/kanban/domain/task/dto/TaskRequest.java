@@ -24,6 +24,9 @@ public class TaskRequest {
         private LocalDate dueDate;
 
         private Integer estimatedMinutes;
+
+        /** 배정할 마일스톤 ID (선택). 없으면 피처의 대표 마일스톤으로 설정된다. */
+        private String milestoneId;
     }
 
     @Getter
@@ -39,6 +42,12 @@ public class TaskRequest {
         private LocalDate dueDate;
 
         private Integer estimatedMinutes;
+
+        /**
+         * 배정할 마일스톤 ID. 전달되면 마일스톤을 재배정한다.
+         * 빈 문자열("")이면 마일스톤 해제(null). null(미전달)이면 변경하지 않는다.
+         */
+        private String milestoneId;
     }
 
     @Getter

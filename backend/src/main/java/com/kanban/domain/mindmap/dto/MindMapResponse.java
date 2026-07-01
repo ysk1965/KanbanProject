@@ -13,4 +13,6 @@ import java.util.List;
 public class MindMapResponse {
     private List<JsonNode> nodes;
     private List<JsonNode> edges;
+    /** 펼쳐진 Feature id 목록 */
+    private List<String> expandedFeatures;
 }

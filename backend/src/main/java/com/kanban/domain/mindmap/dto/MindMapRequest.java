@@ -20,5 +20,7 @@ public class MindMapRequest {
     public static class Save {
         private List<JsonNode> nodes = new ArrayList<>();
         private List<JsonNode> edges = new ArrayList<>();
+        /** 펼쳐진 Feature id 목록 (마인드맵에서 Task 노드를 노출 중인 Feature) */
+        private List<String> expandedFeatures = new ArrayList<>();
     }
 }

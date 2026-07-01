@@ -20,6 +20,7 @@ import com.kanban.domain.milestone.dto.MilestoneRequest;
 import com.kanban.domain.milestone.dto.MilestoneResponse;
 import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
+import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
@@ -76,7 +77,7 @@ public class MilestoneService {
         List<Milestone> milestones = milestoneRepository.findByBoardIdWithDetailsOrderByStartDateAsc(boardId);
 
         if (milestones.isEmpty()) {
-            return MilestoneResponse.ListResponse.of(milestones, Map.of(), Map.of());
+            return MilestoneResponse.ListResponse.of(milestones, Map.of(), Map.of(), Map.of());
         }
 
         // 1회 쿼리로 모든 마일스톤의 features 조회 (N+1 해결)
@@ -86,17 +87,16 @@ public class MilestoneService {
         Map<String, List<MilestoneFeature>> linksMap = allMilestoneFeatures.stream()
                 .collect(Collectors.groupingBy(mf -> mf.getMilestone().getId()));
 
-        // 각 마일스톤의 진행률 계산 — 대표(primary) 링크 피처만 집계 (중복 제거)
+        // (마일스톤, 피처)별 태스크 카운트 1회 집계 — 진행률 + 피처별 카운트 공용
+        Map<String, Map<String, int[]>> countsMap = taskCountsByMilestoneFeature(boardId);
+
+        // 각 마일스톤의 진행률 계산 — 그 마일스톤에 배정된 태스크 기준
         Map<String, Integer> progressMap = new HashMap<>();
         for (Milestone milestone : milestones) {
-            List<Feature> primaryFeatures = linksMap.getOrDefault(milestone.getId(), List.of()).stream()
-                    .filter(MilestoneFeature::isPrimary)
-                    .map(MilestoneFeature::getFeature)
-                    .toList();
-            progressMap.put(milestone.getId(), calculateProgress(primaryFeatures));
+            progressMap.put(milestone.getId(), progressFromCounts(countsMap.get(milestone.getId())));
         }
 
-        return MilestoneResponse.ListResponse.of(milestones, linksMap, progressMap);
+        return MilestoneResponse.ListResponse.of(milestones, linksMap, progressMap, countsMap);
     }
 
     public MilestoneResponse.Detail getMilestone(String boardId, String milestoneId, String userId) {
@@ -195,6 +195,9 @@ public class MilestoneService {
             throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
         }
 
+        // 이 마일스톤에 배정된 태스크의 배정 해제 (FK는 ON DELETE SET NULL이지만 영속성 컨텍스트 일관성 위해 명시)
+        taskRepository.clearMilestoneByMilestoneId(milestoneId);
+
         // 관련 데이터 삭제 (FK 의존성 순서: leaf → parent)
         milestoneAllocationRepository.deleteByMilestoneId(milestoneId);
         milestoneFeatureRepository.deleteByMilestoneId(milestoneId);
@@ -284,17 +287,31 @@ public class MilestoneService {
         }
         boolean wasPrimary = target.isPrimary();
         milestoneFeatureRepository.delete(target);
+        milestoneFeatureRepository.flush();
 
         // 대표 링크를 제거했고 다른 이어짐 링크가 남아있다면, 가장 이른 마일스톤을 대표로 승격 (불변식 유지).
         // 삭제를 먼저 flush해야 부분 유니크 인덱스(대표 1개)와 충돌하지 않음.
+        Milestone newPrimary;
         if (wasPrimary) {
-            milestoneFeatureRepository.flush();
-            milestoneFeatureRepository.findByFeatureIdOrderByMilestoneStartDate(featureId).stream()
-                    .findFirst()
-                    .ifPresent(mf -> mf.updatePrimary(true));
+            MilestoneFeature promoted = milestoneFeatureRepository.findByFeatureIdOrderByMilestoneStartDate(featureId)
+                    .stream().findFirst().orElse(null);
+            if (promoted != null) {
+                promoted.updatePrimary(true);
+            }
+            newPrimary = promoted != null ? promoted.getMilestone() : null;
+        } else {
+            newPrimary = milestoneFeatureRepository.findByFeatureIdAndIsPrimaryTrue(featureId)
+                    .map(MilestoneFeature::getMilestone).orElse(null);
         }
 
-        log.info("Feature {} removed from milestone {} by user: {}", featureId, milestoneId, userId);
+        // 제거된 마일스톤에 배정돼 있던 이 피처의 태스크를 새 대표 마일스톤(없으면 null)으로 재배정 (불변식 유지)
+        List<Task> orphanTasks = taskRepository.findByFeatureIdAndMilestoneId(featureId, milestoneId);
+        for (Task tk : orphanTasks) {
+            tk.assignMilestone(newPrimary);
+        }
+
+        log.info("Feature {} removed from milestone {} by user: {} ({} tasks reassigned)",
+                featureId, milestoneId, userId, orphanTasks.size());
     }
 
     /**
@@ -324,15 +341,13 @@ public class MilestoneService {
         return buildDetail(milestone);
     }
 
-    /** 마일스톤 상세 응답 구성 — 표시용 전체 링크 + 진행률(대표 피처만 집계) */
+    /** 마일스톤 상세 응답 구성 — 표시용 전체 링크 + 진행률/피처 카운트(태스크 단위, 이 마일스톤 스코프) */
     private MilestoneResponse.Detail buildDetail(Milestone milestone) {
         List<MilestoneFeature> links = milestoneFeatureRepository.findWithFeatureByMilestoneId(milestone.getId());
-        List<Feature> primaryFeatures = links.stream()
-                .filter(MilestoneFeature::isPrimary)
-                .map(MilestoneFeature::getFeature)
-                .toList();
-        int progress = calculateProgress(primaryFeatures);
-        return MilestoneResponse.Detail.of(milestone, links, progress);
+        Map<String, int[]> featureCounts = taskCountsByMilestoneFeature(milestone.getBoard().getId())
+                .getOrDefault(milestone.getId(), Map.of());
+        int progress = progressFromCounts(featureCounts);
+        return MilestoneResponse.Detail.of(milestone, links, progress, featureCounts);
     }
 
     @Transactional
@@ -375,24 +390,38 @@ public class MilestoneService {
                 Map.of("blockId", blockId, "milestoneId", milestoneId, "hidden", hidden));
     }
 
-    private int calculateProgress(List<Feature> features) {
-        if (features.isEmpty()) {
+    /**
+     * 보드의 (마일스톤, 피처)별 태스크 카운트 집계.
+     * 반환: milestoneId → (featureId → [total, completed])
+     */
+    private Map<String, Map<String, int[]>> taskCountsByMilestoneFeature(String boardId) {
+        Map<String, Map<String, int[]>> result = new HashMap<>();
+        for (Object[] row : taskRepository.countByMilestoneAndFeature(boardId)) {
+            String milestoneId = (String) row[0];
+            String featureId = (String) row[1];
+            int total = ((Number) row[2]).intValue();
+            int completed = ((Number) row[3]).intValue();
+            result.computeIfAbsent(milestoneId, k -> new HashMap<>())
+                    .put(featureId, new int[]{total, completed});
+        }
+        return result;
+    }
+
+    /** 마일스톤의 피처별 카운트 맵에서 진행률(%) 산출 */
+    private int progressFromCounts(Map<String, int[]> featureCounts) {
+        if (featureCounts == null || featureCounts.isEmpty()) {
             return 0;
         }
-
-        int totalTasks = 0;
-        int completedTasks = 0;
-
-        for (Feature feature : features) {
-            totalTasks += feature.getTotalTasks();
-            completedTasks += feature.getCompletedTasks();
+        int total = 0;
+        int completed = 0;
+        for (int[] c : featureCounts.values()) {
+            total += c[0];
+            completed += c[1];
         }
-
-        if (totalTasks == 0) {
+        if (total == 0) {
             return 0;
         }
-
-        return (int) Math.round((double) completedTasks / totalTasks * 100);
+        return (int) Math.round((double) completed / total * 100);
     }
 
     // ==================== Allocation Methods ====================

@@ -973,6 +973,19 @@ export function KanbanBoardPage() {
     return map;
   }, [milestones]);
 
+  // Feature별 소속 마일스톤 목록 맵 (마인드맵 노드 칩 표시용)
+  // 한 피쳐가 여러 마일스톤에 속할 수 있어 배열, idx는 색상 매핑용(마일스톤 순서)
+  const featureMilestonesMap = useMemo(() => {
+    const map: Record<string, { id: string; title: string; idx: number }[]> =
+      {};
+    milestones.forEach((ms, idx) => {
+      ms.features?.forEach((f) => {
+        (map[f.id] ||= []).push({ id: ms.id, title: ms.title, idx });
+      });
+    });
+    return map;
+  }, [milestones]);
+
   // Upgrade Modal 열기 헬퍼
   const openUpgradeModal = (trigger: UpgradeTrigger) => {
     if (hideBilling) return;
@@ -1974,13 +1987,19 @@ export function KanbanBoardPage() {
     }
 
     try {
+      // 마일스톤 변경 시에는 기존 값과 병합해 다른 필드(날짜/설명 등)가 null로 덮이지 않게 한다.
+      const hasMilestone = "milestone_id" in updates;
+      const existing = tasks.find((t) => t.id === taskId);
+      const base = hasMilestone ? { ...existing, ...updates } : updates;
       const updatedTask = await taskService.updateTask(boardId, taskId, {
-        title: updates.title,
-        description: updates.description,
+        title: base.title,
+        description: base.description,
         assignee_id: updates.assignee?.id ?? null,
-        start_date: updates.start_date ?? null,
-        due_date: updates.due_date ?? null,
-        estimated_minutes: updates.estimated_minutes ?? null,
+        start_date: base.start_date ?? null,
+        due_date: base.due_date ?? null,
+        estimated_minutes: base.estimated_minutes ?? null,
+        // ""=해제, 값=배정, undefined=변경 없음
+        milestone_id: hasMilestone ? (updates.milestone_id ?? "") : undefined,
       });
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
@@ -2684,16 +2703,18 @@ export function KanbanBoardPage() {
           />
         )}
 
-        {/* 서브뷰 ↔ 마일스톤 구분선 */}
+        {/* 서브뷰 ↔ 마일스톤 구분선 (마인드맵은 통합 뷰라 마일스톤 필터 제외) */}
         {BOARD_SUB_MODES.includes(viewMode) &&
           viewMode !== "milestone" &&
+          viewMode !== "mindmap" &&
           milestones.length > 0 && (
             <div className="border-b border-foreground/[0.08]" />
           )}
 
-        {/* 마일스톤 탭 바 (보드 서브뷰에서 표시, milestone 뷰 제외) */}
+        {/* 마일스톤 탭 바 (보드 서브뷰에서 표시, milestone·mindmap 뷰 제외) */}
         {BOARD_SUB_MODES.includes(viewMode) &&
           viewMode !== "milestone" &&
+          viewMode !== "mindmap" &&
           milestones.length > 0 && (
             <MilestoneTabBar
               milestones={milestones}
@@ -3025,10 +3046,13 @@ export function KanbanBoardPage() {
             >
               <MindMapView
                 boardId={boardId || ""}
-                features={filteredFeatures}
+                features={allFeatures}
+                tasks={tasks}
+                featureMilestonesMap={featureMilestonesMap}
                 canEdit={canEdit}
                 memberColorMap={memberColorMap}
                 onFeatureClick={handleFeatureClick}
+                onTaskClick={handleTaskClick}
               />
             </Suspense>
           </main>
@@ -3395,14 +3419,16 @@ export function KanbanBoardPage() {
           {beCommit && <> · BE: {beCommit}</>}
         </div>
 
-        {/* 우하단 플로팅 뷰 전환 버튼 (보드 표현 뷰에서만 표시, 마일스톤 제외) */}
-        {BOARD_SUB_MODES.includes(viewMode) && viewMode !== "milestone" && (
-          <FloatingViewSwitcher
-            viewMode={viewMode}
-            onViewModeChange={(mode) => handleViewModeChange(mode)}
-            canAccessGantt={canAccessSchedule}
-          />
-        )}
+        {/* 우하단 플로팅 뷰 전환 버튼 (보드 표현 뷰에서만 표시, 마일스톤·마인드맵 제외) */}
+        {BOARD_SUB_MODES.includes(viewMode) &&
+          viewMode !== "milestone" &&
+          viewMode !== "mindmap" && (
+            <FloatingViewSwitcher
+              viewMode={viewMode}
+              onViewModeChange={(mode) => handleViewModeChange(mode)}
+              canAccessGantt={canAccessSchedule}
+            />
+          )}
 
         {boardId && (
           <ContractorManageModal

@@ -75,10 +75,7 @@ function ProgressBar({
 }
 
 export type MilestoneStatusKey =
-  | "completed"
-  | "waiting"
-  | "overdue"
-  | "inProgress";
+  "completed" | "waiting" | "overdue" | "inProgress";
 
 /**
  * 마일스톤 상태(완료/대기/초과/진행중)와 배지·막대 색상을 한 곳에서 결정.
@@ -214,22 +211,29 @@ function TaskRow({ task }: { task: Task }) {
 function FeatureCard({
   featureInfo,
   tasks,
+  milestoneId,
   onClick,
   milestoneCount,
 }: {
   featureInfo: MilestoneFeatureInfo;
   tasks: Task[];
+  milestoneId: string;
   onClick?: () => void;
   milestoneCount?: number;
 }) {
   const { t } = useTranslation();
 
+  // 이 마일스톤에 배정된 이 피처의 태스크만 표시 (피처가 여러 마일스톤에 걸쳐도 분리)
   const featureTasks = useMemo(
     () =>
       tasks
-        .filter((task) => task.feature_id === featureInfo.id)
+        .filter(
+          (task) =>
+            task.feature_id === featureInfo.id &&
+            task.milestone_id === milestoneId,
+        )
         .sort((a, b) => Number(a.completed) - Number(b.completed)),
-    [tasks, featureInfo.id],
+    [tasks, featureInfo.id, milestoneId],
   );
 
   const progressPct = Math.round(featureInfo.progress_percentage);
@@ -711,6 +715,7 @@ export function MilestoneView({
                               key={featureInfo.id}
                               featureInfo={featureInfo}
                               tasks={tasks}
+                              milestoneId={milestone.id}
                               milestoneCount={multiMilestoneFeatureMap.get(
                                 featureInfo.id,
                               )}

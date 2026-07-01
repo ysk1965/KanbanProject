@@ -16,7 +16,10 @@ import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
+import com.kanban.domain.milestone.Milestone;
+import com.kanban.domain.milestone.MilestoneFeature;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
+import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.notification.NotificationRepository;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.tag.Tag;
@@ -69,6 +72,7 @@ public class TaskService {
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final MilestoneFeatureRepository milestoneFeatureRepository;
+    private final MilestoneRepository milestoneRepository;
     private final ActivityService activityService;
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final DailyChecklistRepository dailyChecklistRepository;
@@ -98,22 +102,16 @@ public class TaskService {
             tasks = taskRepository.findByBoardIdWithFetch(boardId);
         }
 
-        // 마일스톤 필터 적용: 해당 마일스톤에 속한 Feature의 Task만 필터링
+        // 마일스톤 필터 적용: 태스크에 직접 배정된 마일스톤 기준
         if (milestoneId != null && !milestoneId.isEmpty()) {
             if ("none".equals(milestoneId)) {
-                // 마일스톤 미지정 피처의 태스크만 필터링
-                Set<String> allMilestoneFeatureIds = new HashSet<>(
-                        milestoneFeatureRepository.findAllFeatureIdsByBoardId(boardId)
-                );
+                // 마일스톤 미배정 태스크만
                 tasks = tasks.stream()
-                        .filter(t -> !allMilestoneFeatureIds.contains(t.getFeature().getId()))
+                        .filter(t -> t.getMilestone() == null)
                         .collect(Collectors.toList());
             } else {
-                Set<String> milestoneFeatureIds = new HashSet<>(
-                        milestoneFeatureRepository.findFeatureIdsByMilestoneId(milestoneId)
-                );
                 tasks = tasks.stream()
-                        .filter(t -> milestoneFeatureIds.contains(t.getFeature().getId()))
+                        .filter(t -> t.getMilestone() != null && milestoneId.equals(t.getMilestone().getId()))
                         .collect(Collectors.toList());
             }
         }
@@ -177,10 +175,19 @@ public class TaskService {
         Integer maxPosition = taskRepository.findMaxPositionByBlockId(taskBlock.getId());
         int newPosition = (maxPosition != null) ? maxPosition + 1 : 0;
 
+        // 마일스톤 결정: 명시 요청이 있으면 그것(필요 시 피처 자동 연결), 없으면 피처의 대표 마일스톤
+        Milestone milestone;
+        if (request.getMilestoneId() != null && !request.getMilestoneId().isEmpty()) {
+            milestone = resolveAndLinkMilestone(board, feature, request.getMilestoneId());
+        } else {
+            milestone = featurePrimaryMilestone(feature.getId());
+        }
+
         Task task = Task.builder()
                 .feature(feature)
                 .board(board)
                 .block(taskBlock)
+                .milestone(milestone)
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .startDate(request.getStartDate())
@@ -235,6 +242,14 @@ public class TaskService {
                 request.getDueDate(),
                 request.getEstimatedMinutes()
         );
+
+        // 마일스톤 재배정: null(미전달)이면 변경 없음, ""이면 해제, 값이면 배정(필요 시 피처 자동 연결)
+        if (request.getMilestoneId() != null) {
+            Milestone milestone = request.getMilestoneId().isEmpty()
+                    ? null
+                    : resolveAndLinkMilestone(task.getBoard(), task.getFeature(), request.getMilestoneId());
+            task.assignMilestone(milestone);
+        }
 
         User updater = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -465,6 +480,9 @@ public class TaskService {
         String oldFeatureTitle = task.getFeature().getTitle();
         task.moveToFeature(targetFeature);
 
+        // 피처 이동으로 해제된 마일스톤을 새 피처의 대표 마일스톤으로 재설정 (불변식 유지)
+        task.assignMilestone(featurePrimaryMilestone(targetFeature.getId()));
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
@@ -599,6 +617,30 @@ public class TaskService {
                 "completed_tasks", feature.getCompletedTasks(),
                 "progress_percentage", feature.getProgressPercentage()
         );
+    }
+
+    /** 피처의 대표(primary) 마일스톤 (없으면 null) */
+    private Milestone featurePrimaryMilestone(String featureId) {
+        return milestoneFeatureRepository.findByFeatureIdAndIsPrimaryTrue(featureId)
+                .map(MilestoneFeature::getMilestone)
+                .orElse(null);
+    }
+
+    /**
+     * 마일스톤을 로드·검증하고, 피처가 아직 연결돼 있지 않으면 자동으로 연결(continuation)한다.
+     * 피처가 이미 대표 마일스톤을 가지면 non-primary로, 없으면 primary로 링크.
+     */
+    private Milestone resolveAndLinkMilestone(Board board, Feature feature, String milestoneId) {
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
+        if (!milestone.getBoard().getId().equals(board.getId())) {
+            throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
+        }
+        if (milestoneFeatureRepository.findByMilestoneIdAndFeatureId(milestone.getId(), feature.getId()).isEmpty()) {
+            boolean hasPrimary = milestoneFeatureRepository.findByFeatureIdAndIsPrimaryTrue(feature.getId()).isPresent();
+            milestoneFeatureRepository.save(MilestoneFeature.create(milestone, feature, !hasPrimary));
+        }
+        return milestone;
     }
 
     private void validateTaskLimit(Board board) {
