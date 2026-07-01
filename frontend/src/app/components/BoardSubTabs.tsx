@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { LayoutGrid, Flag, Network, Lock } from "lucide-react";
+import { LayoutGrid, Flag, Network, Columns3, Lock } from "lucide-react";
 
 type ViewMode =
   | "kanban"
@@ -12,7 +12,8 @@ type ViewMode =
   | "statistics"
   | "ai_report"
   | "list"
-  | "mindmap";
+  | "mindmap"
+  | "minikanban";
 
 interface BoardSubTabsProps {
   /** 현재 활성화된 뷰 모드 */
@@ -57,6 +58,14 @@ const TABS: TabItem[] = [
     isPremium: false,
     checkAccess: () => true,
   },
+  {
+    mode: "minikanban",
+    icon: Columns3,
+    labelKey: "kanban.viewBoardMiniKanban",
+    labelFallback: "미니 칸반",
+    isPremium: false,
+    checkAccess: () => true,
+  },
 ];
 
 /**
@@ -91,7 +100,9 @@ export function BoardSubTabs({
             // 마일스톤·마인드맵 탭은 각 뷰일 때만 활성.
             const isActive =
               mode === "kanban"
-                ? viewMode !== "milestone" && viewMode !== "mindmap"
+                ? viewMode !== "milestone" &&
+                  viewMode !== "mindmap" &&
+                  viewMode !== "minikanban"
                 : viewMode === mode;
             const hasAccess = checkAccess(canAccessMilestone);
             const label = t(labelKey, labelFallback);

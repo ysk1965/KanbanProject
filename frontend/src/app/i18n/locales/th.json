@@ -1531,6 +1531,7 @@
     "viewBoardCalendar": "ปฏิทิน",
     "viewBoardList": "รายการ",
     "viewBoardMindMap": "มายด์แมป",
+    "viewBoardMiniKanban": "มินิคัมบัง",
     "viewBoardMilestone": "หมุดหมาย",
     "viewSwitcher": "มุมมอง"
   },
@@ -4594,5 +4595,18 @@
       "emptied": "เทถังขยะแล้ว",
       "emptyFailed": "เทถังขยะล้มเหลว"
     }
+  },
+  "mindmap": {
+    "addMemo": "เพิ่มบันทึก",
+    "newMemo": "บันทึกใหม่",
+    "unplacedFeatures": "ฟีเจอร์ที่ยังไม่ได้วาง",
+    "dragToPlace": "ลากไปวางบนแคนวาส",
+    "allPlaced": "วางฟีเจอร์ทั้งหมดแล้ว",
+    "readOnly": "อ่านอย่างเดียว",
+    "empty": "ลากฟีเจอร์จากด้านซ้ายหรือเพิ่มบันทึกเพื่อเริ่มต้น",
+    "emptyReadOnly": "ยังไม่มีมายด์แมป",
+    "filterAll": "ทั้งหมด",
+    "filterNoMilestone": "ไม่มีไมล์สโตน",
+    "noFilteredFeatures": "ไม่มีฟีเจอร์ที่ยังไม่ได้วางสำหรับไมล์สโตนนี้"
   }
 }

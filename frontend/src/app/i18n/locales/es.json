@@ -1531,6 +1531,7 @@
     "viewBoardCalendar": "Calendario",
     "viewBoardList": "Lista",
     "viewBoardMindMap": "Mapa mental",
+    "viewBoardMiniKanban": "Mini Kanban",
     "viewBoardMilestone": "Hito",
     "viewSwitcher": "Vistas"
   },
@@ -4594,5 +4595,18 @@
       "emptied": "Papelera vaciada",
       "emptyFailed": "Error al vaciar la papelera"
     }
+  },
+  "mindmap": {
+    "addMemo": "Añadir nota",
+    "newMemo": "Nueva nota",
+    "unplacedFeatures": "Funciones sin ubicar",
+    "dragToPlace": "Arrastra al lienzo para ubicar",
+    "allPlaced": "Todas las funciones ubicadas",
+    "readOnly": "Solo lectura",
+    "empty": "Arrastra una función desde la izquierda o añade una nota para empezar",
+    "emptyReadOnly": "Aún no hay mapa mental",
+    "filterAll": "Todos",
+    "filterNoMilestone": "Sin hito",
+    "noFilteredFeatures": "No hay funciones sin ubicar para este hito"
   }
 }

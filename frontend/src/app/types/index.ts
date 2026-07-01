@@ -427,6 +427,31 @@ export interface MindMapDocument {
 }
 
 // ========================================
+// 미니 칸반 타입 (보드당 1건 — 캔버스 노드 좌표 JSON 문서)
+// ========================================
+
+/**
+ * 미니 칸반 노드.
+ * - kind="block": 블록 hub 노드. block_id + 좌표만 저장. 이름/색/태스크는 렌더 시 라이브 조회.
+ * - kind="task": 태스크 노드(3열 미니 칸반). task_id + 좌표만 저장.
+ *   태스크/체크리스트/진행률은 렌더 시 라이브 조회하고, TODO/DOING/DONE 3열은 날짜로 파생한다.
+ */
+export interface MiniKanbanNode {
+  id: string;
+  kind: "block" | "task";
+  x: number;
+  y: number;
+  block_id?: string;
+  task_id?: string;
+}
+
+export interface MiniKanbanDocument {
+  nodes: MiniKanbanNode[];
+  /** 접힌(파생 태스크 노드를 숨긴) 블록 hub id 목록 */
+  collapsed_blocks?: string[];
+}
+
+// ========================================
 // Task 타입
 // ========================================
 
