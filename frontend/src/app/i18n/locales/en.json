@@ -4676,6 +4676,7 @@
   "mindmap": {
     "addMemo": "Add memo",
     "newMemo": "New memo",
+    "addFeature": "Add Feature",
     "unplacedFeatures": "Unplaced features",
     "dragToPlace": "Drag onto the canvas",
     "allPlaced": "All features placed",

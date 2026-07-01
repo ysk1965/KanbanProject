@@ -3983,6 +3983,7 @@
   "mindmap": {
     "addMemo": "新增備註",
     "newMemo": "新增備註",
+    "addFeature": "新增功能",
     "unplacedFeatures": "未放置的功能",
     "dragToPlace": "拖到畫布上放置",
     "allPlaced": "所有功能已放置",

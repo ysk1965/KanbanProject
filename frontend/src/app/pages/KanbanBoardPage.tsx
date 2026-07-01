@@ -410,6 +410,8 @@ export function KanbanBoardPage() {
     setBlocks,
     hiddenBlocks,
     setHiddenBlocks,
+    allBlocks,
+    setAllBlocks,
     features,
     setFeatures,
     allFeatures,
@@ -718,10 +720,35 @@ export function KanbanBoardPage() {
     isInquiryModalOpen,
   );
 
+  // ======== 마일스톤 파생 필터 (칸반 계열 뷰 전용) ========
+  // features/tasks는 전체(full) 단일 소스. 마일스톤 필터는 여기서 파생 계산해
+  // 칸반/리스트/간트/캘린더에만 적용한다. (독립 서브탭은 전체 데이터를 사용)
+  // 서버 semantics 일치: features=마일스톤 멤버십, tasks=task.milestone_id 기준.
+  const kanbanFeatures = useMemo(() => {
+    const mid = kanbanSelectedMilestoneId;
+    if (!mid || mid === "all") return features;
+    if (mid === "none") {
+      const assigned = new Set<string>();
+      milestones.forEach((m) => m.features?.forEach((f) => assigned.add(f.id)));
+      return features.filter((f) => !assigned.has(f.id));
+    }
+    const ids = new Set(
+      (milestones.find((m) => m.id === mid)?.features ?? []).map((f) => f.id),
+    );
+    return features.filter((f) => ids.has(f.id));
+  }, [features, milestones, kanbanSelectedMilestoneId]);
+
+  const kanbanTasks = useMemo(() => {
+    const mid = kanbanSelectedMilestoneId;
+    if (!mid || mid === "all") return tasks;
+    if (mid === "none") return tasks.filter((t) => !t.milestone_id);
+    return tasks.filter((t) => t.milestone_id === mid);
+  }, [tasks, kanbanSelectedMilestoneId]);
+
   // ======== 커스텀 Hook: 필터 ========
   const { filteredFeatures, filteredTasks, sortedBlocks } = useBoardFilters(
-    features,
-    tasks,
+    kanbanFeatures,
+    kanbanTasks,
     blocks,
     filterOptions,
     checklistDataMap,
@@ -778,8 +805,19 @@ export function KanbanBoardPage() {
       );
       setBlocks(blockResult.blocks);
       setHiddenBlocks(blockResult.hiddenBlocks);
+      // 독립 서브탭(미니칸반)용 전체 블록도 최신화.
+      // 마일스톤 스코프 조회면 전체 블록은 별도 조회, 아니면 동일 결과 재사용.
+      if (reloadMilestoneId) {
+        const fullBlockResult = await blockService.getBlocksWithHidden(
+          boardId,
+          undefined,
+        );
+        setAllBlocks(fullBlockResult.blocks);
+      } else {
+        setAllBlocks(blockResult.blocks);
+      }
     },
-    [boardId, kanbanSelectedMilestoneId],
+    [boardId, kanbanSelectedMilestoneId, setAllBlocks],
   );
 
   // ======== WebSocket 실시간 동기화 ========
@@ -821,9 +859,11 @@ export function KanbanBoardPage() {
             ? kanbanSelectedMilestoneId
             : undefined;
         reloadFeaturesAndTasks(milestoneId);
+        // reloadFeaturesAndTasks가 마일스톤 스코프 blocks를 설정하므로,
+        // 여기서는 독립 서브탭용 전체 blocks만 최신화한다.
         blockService
           .getBlocks(boardId)
-          .then(setBlocks)
+          .then(setAllBlocks)
           .catch(() => {});
         notificationAPI
           .getUnreadCount(boardId)
@@ -1618,14 +1658,15 @@ export function KanbanBoardPage() {
   );
 
   // Feature 관리
-  const handleAddFeature = async (data: {
+  // 피처 생성 + (선택 시) 마일스톤 연결 + 상태 갱신. 생성된 Feature 반환.
+  const createFeatureCore = async (data: {
     title: string;
     description?: string;
     startDate?: string;
     dueDate?: string;
     milestoneId?: string;
-  }) => {
-    if (!boardId) return;
+  }): Promise<Feature | null> => {
+    if (!boardId) return null;
 
     try {
       const newFeature = await featureService.createFeature(boardId, {
@@ -1655,13 +1696,41 @@ export function KanbanBoardPage() {
 
       setFeatures([...features, newFeature]);
       setAllFeatures([...allFeatures, newFeature]);
-      setSelectedFeature(newFeature);
-      setIsFeatureModalOpen(true);
       notifyScheduleRefresh();
+      return newFeature;
     } catch (error) {
       console.error("Failed to create feature:", error);
+      return null;
     }
   };
+
+  const handleAddFeature = async (data: {
+    title: string;
+    description?: string;
+    startDate?: string;
+    dueDate?: string;
+    milestoneId?: string;
+  }) => {
+    const newFeature = await createFeatureCore(data);
+    if (newFeature) {
+      setSelectedFeature(newFeature);
+      setIsFeatureModalOpen(true);
+    }
+  };
+
+  // 마인드맵에서 피처 생성 (상세 모달을 열지 않고 Feature 반환 → 캔버스에 노드 배치)
+  const handleCreateFeatureFromMindmap = useCallback(
+    (data: {
+      title: string;
+      description?: string;
+      startDate?: string;
+      dueDate?: string;
+      milestoneId?: string;
+    }) => createFeatureCore(data),
+    // createFeatureCore는 매 렌더 재생성되지만 최신 클로저를 참조하므로 의존성 생략
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   const handleFeatureClick = useCallback((feature: Feature) => {
     setSelectedFeature(feature);
@@ -2356,11 +2425,7 @@ export function KanbanBoardPage() {
 
   // 체크리스트 항목 날짜 패치 (TODO↔DOING 전환용 start_date 조정) — 옵티미스틱 + WS 재동기화
   const handleMiniPatchChecklist = useCallback(
-    (
-      taskId: string,
-      itemId: string,
-      patch: { start_date?: string | null },
-    ) => {
+    (taskId: string, itemId: string, patch: { start_date?: string | null }) => {
       if (!boardId) return;
       setChecklistDataMap((prev) => {
         const items = prev[taskId];
@@ -2858,9 +2923,9 @@ export function KanbanBoardPage() {
             searchInputRef={searchInputRef}
             filterOptions={filterOptions}
             onFilterChange={setFilterOptions}
-            features={features}
+            features={kanbanFeatures}
             filteredFeatures={filteredFeatures}
-            tasks={tasks}
+            tasks={kanbanTasks}
             filteredTasks={filteredTasks}
             setTasks={setTasks}
             tags={tags}
@@ -2875,9 +2940,9 @@ export function KanbanBoardPage() {
           <KanbanView
             boardId={boardId || ""}
             searchInputRef={searchInputRef}
-            features={features}
+            features={kanbanFeatures}
             filteredFeatures={filteredFeatures}
-            tasks={tasks}
+            tasks={kanbanTasks}
             filteredTasks={filteredTasks}
             tags={tags}
             boardMembersData={boardMembersData}
@@ -2946,10 +3011,10 @@ export function KanbanBoardPage() {
               ref={searchInputRef}
               filterOptions={filterOptions}
               onFilterChange={setFilterOptions}
-              features={features}
+              features={kanbanFeatures}
               tags={tags}
               boardMembersData={boardMembersData}
-              tasks={tasks}
+              tasks={kanbanTasks}
               boardId={boardId || ""}
               canEdit={canEdit}
             />
@@ -3096,10 +3161,10 @@ export function KanbanBoardPage() {
               ref={searchInputRef}
               filterOptions={filterOptions}
               onFilterChange={setFilterOptions}
-              features={features}
+              features={kanbanFeatures}
               tags={tags}
               boardMembersData={boardMembersData}
-              tasks={tasks}
+              tasks={kanbanTasks}
               boardId={boardId || ""}
               canEdit={canEdit}
             />
@@ -3139,8 +3204,10 @@ export function KanbanBoardPage() {
                 featureMilestonesMap={featureMilestonesMap}
                 canEdit={canEdit}
                 memberColorMap={memberColorMap}
+                milestones={milestones}
                 onFeatureClick={handleFeatureClick}
                 onTaskClick={handleTaskClick}
+                onCreateFeature={handleCreateFeatureFromMindmap}
               />
             </Suspense>
           </main>
@@ -3155,7 +3222,7 @@ export function KanbanBoardPage() {
             >
               <MiniKanbanView
                 boardId={boardId || ""}
-                blocks={blocks}
+                blocks={allBlocks}
                 tasks={tasks}
                 checklistByTask={checklistDataMap}
                 canEdit={canEdit}
@@ -3242,7 +3309,7 @@ export function KanbanBoardPage() {
         <QuickAddTaskModal
           open={!!quickAddBlockId}
           onClose={() => setQuickAddBlockId(null)}
-          features={features}
+          features={kanbanFeatures}
           blockName={blocks.find((b) => b.id === quickAddBlockId)?.name}
           onSubmit={handleQuickAddTask}
           isSubmitting={isQuickAddSubmitting}
