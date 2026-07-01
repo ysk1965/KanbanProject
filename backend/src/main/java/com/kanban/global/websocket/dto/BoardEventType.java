@@ -34,6 +34,7 @@ public enum BoardEventType {
     CHECKLIST_DELETED,
     CHECKLIST_RESTORED,
     CHECKLIST_TOGGLED,
+    CHECKLIST_MOVED,
 
     // Board events
     BOARD_UPDATED,

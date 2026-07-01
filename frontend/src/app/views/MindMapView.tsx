@@ -803,9 +803,9 @@ function MindMapCanvas({
           el.isContentEditable)
       )
         return;
-      const key = e.key.toLowerCase();
-      if (key === "h") setInteractionMode("hand");
-      else if (key === "v") setInteractionMode("pointer");
+      // 물리 키 기준(e.code)으로 판별 — 한글 IME 상태에서도 동작 (e.key는 'ㅗ'/'ㅍ'로 들어옴)
+      if (e.code === "KeyH") setInteractionMode("hand");
+      else if (e.code === "KeyV") setInteractionMode("pointer");
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);

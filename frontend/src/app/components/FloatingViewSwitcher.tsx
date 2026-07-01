@@ -123,7 +123,7 @@ export function FloatingViewSwitcher({
             className="text-bridge-accent"
             aria-hidden="true"
           />
-          <span>{t("kanban.viewSwitcher", "뷰")}</span>
+          <span>{t(active.labelKey, active.labelFallback)}</span>
           <ChevronDown
             size={14}
             aria-hidden="true"

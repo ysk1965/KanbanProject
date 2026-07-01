@@ -29,7 +29,9 @@ import {
   ChevronDown,
   ChevronRight,
   Columns3,
+  Hand,
   Loader2,
+  MousePointer2,
 } from "lucide-react";
 import type { Block, ChecklistItem, Task } from "../types";
 import { miniKanbanAPI } from "../utils/api";
@@ -73,11 +75,11 @@ function isOverdue(item: ChecklistItem, today: string): boolean {
 }
 
 // 레이아웃 상수 (블록 = 세로 레인, 태스크는 레인 아래로 스택)
-const LANE_W = 500;
-const TASK_NODE_W = 440;
+const LANE_W = 680;
+const TASK_NODE_W = 620;
 const HUB_Y = 0;
-const FIRST_TASK_Y = 130;
-const TASK_GAP_Y = 300;
+const FIRST_TASK_Y = 150;
+const TASK_GAP_Y = 420;
 // 블록 이동 판정 (실수 방지: 최소 드래그 + 타깃 근접 + 히스테리시스)
 const MOVE_SNAP_THRESHOLD = 150; // 타깃 hub x에 이만큼 근접해야 이동 후보
 const MIN_DRAG_DISTANCE = 160; // 드래그 시작점에서 이만큼 이동해야 재배정 판정 시작
@@ -127,7 +129,12 @@ const BlockHubNode = memo(function BlockHubNode({ data }: NodeProps) {
   if (!block) {
     return (
       <div className="px-3 py-2 rounded-xl border border-foreground/10 bg-bridge-obsidian text-xs text-slate-500">
-        <Handle type="source" position={Position.Bottom} isConnectable={false} className="!opacity-0" />
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          isConnectable={false}
+          className="!opacity-0"
+        />
         삭제된 블록
       </div>
     );
@@ -144,10 +151,23 @@ const BlockHubNode = memo(function BlockHubNode({ data }: NodeProps) {
       }`}
       style={{ width: 200 }}
     >
-      <Handle type="source" position={Position.Bottom} isConnectable={false} className="!opacity-0" />
-      <Handle type="target" position={Position.Top} isConnectable={false} className="!opacity-0" />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        isConnectable={false}
+        className="!opacity-0"
+      />
+      <Handle
+        type="target"
+        position={Position.Top}
+        isConnectable={false}
+        className="!opacity-0"
+      />
       <div className="flex items-center gap-2 px-3.5 py-3">
-        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+        <span
+          className="w-2 h-2 rounded-full shrink-0"
+          style={{ backgroundColor: color }}
+        />
         <span className="flex-1 text-sm font-bold text-foreground line-clamp-1">
           {block.name}
         </span>
@@ -182,12 +202,35 @@ const BlockHubNode = memo(function BlockHubNode({ data }: NodeProps) {
 // ────────────────────────────────────────────────────────────
 // 미니 칸반 열 (TODO / DOING / DONE)
 // ────────────────────────────────────────────────────────────
-const COLS: { key: Col; label: string; dot: string; text: string; bg: string }[] =
-  [
-    { key: "todo", label: "TODO", dot: "bg-slate-500", text: "text-slate-400", bg: "" },
-    { key: "doing", label: "DOING", dot: "bg-amber-500", text: "text-amber-500", bg: "bg-amber-500/[0.04]" },
-    { key: "done", label: "DONE", dot: "bg-emerald-500", text: "text-emerald-500", bg: "bg-emerald-500/[0.04]" },
-  ];
+const COLS: {
+  key: Col;
+  label: string;
+  dot: string;
+  text: string;
+  bg: string;
+}[] = [
+  {
+    key: "todo",
+    label: "TODO",
+    dot: "bg-slate-500",
+    text: "text-slate-400",
+    bg: "",
+  },
+  {
+    key: "doing",
+    label: "DOING",
+    dot: "bg-amber-500",
+    text: "text-amber-500",
+    bg: "bg-amber-500/[0.04]",
+  },
+  {
+    key: "done",
+    label: "DONE",
+    dot: "bg-emerald-500",
+    text: "text-emerald-500",
+    bg: "bg-emerald-500/[0.04]",
+  },
+];
 
 function ChecklistCard({
   taskId,
@@ -231,7 +274,7 @@ function ChecklistCard({
         e.dataTransfer.effectAllowed = "move";
         onDragStartCard(item.id);
       }}
-      className={`nodrag mb-1.5 rounded-lg border px-2.5 py-1.5 ${
+      className={`nodrag mb-2 rounded-lg border px-3 py-2 ${
         canEdit ? "cursor-grab active:cursor-grabbing" : ""
       } ${
         done
@@ -241,21 +284,21 @@ function ChecklistCard({
     >
       <div className="flex items-center gap-1.5">
         {done ? (
-          <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-400" />
+          <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
         ) : overdue ? (
-          <AlertTriangle className="w-3 h-3 shrink-0 text-rose-400" />
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-400" />
         ) : null}
         <span
-          className={`text-xs font-medium leading-tight line-clamp-2 ${
+          className={`text-sm font-medium leading-snug line-clamp-2 ${
             done ? "text-slate-500 line-through" : "text-foreground"
           }`}
         >
           {item.title}
         </span>
       </div>
-      <div className="mt-1 flex items-center justify-between gap-1">
+      <div className="mt-1.5 flex items-center justify-between gap-1">
         <span
-          className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
             col === "done"
               ? "bg-emerald-500/15 text-emerald-500"
               : overdue
@@ -269,7 +312,7 @@ function ChecklistCard({
         </span>
         {item.assignee && (
           <span
-            className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white shrink-0"
+            className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
             style={{
               backgroundColor: getAssigneeHex(
                 item.assignee.name,
@@ -306,14 +349,23 @@ const TaskNode = memo(function TaskNode({ data }: NodeProps) {
   if (!task) {
     return (
       <div className="px-3 py-2 rounded-xl border border-foreground/10 bg-bridge-obsidian text-xs text-slate-500">
-        <Handle type="target" position={Position.Top} isConnectable={false} className="!opacity-0" />
+        <Handle
+          type="target"
+          position={Position.Top}
+          isConnectable={false}
+          className="!opacity-0"
+        />
         삭제된 태스크
       </div>
     );
   }
 
   const items = checklistByTask[taskId] ?? [];
-  const grouped: Record<Col, ChecklistItem[]> = { todo: [], doing: [], done: [] };
+  const grouped: Record<Col, ChecklistItem[]> = {
+    todo: [],
+    doing: [],
+    done: [],
+  };
   items.forEach((it) => grouped[resolveColumn(it, today)].push(it));
   const total = items.length;
   const doneCount = grouped.done.length;
@@ -334,7 +386,12 @@ const TaskNode = memo(function TaskNode({ data }: NodeProps) {
       className="rounded-2xl border border-foreground/[0.08] bg-bridge-obsidian shadow-xl overflow-hidden"
       style={{ width: TASK_NODE_W }}
     >
-      <Handle type="target" position={Position.Top} isConnectable={false} className="!opacity-0" />
+      <Handle
+        type="target"
+        position={Position.Top}
+        isConnectable={false}
+        className="!opacity-0"
+      />
       {/* Header */}
       <div
         className="flex items-center gap-2 px-4 py-3 border-b border-foreground/[0.08] relative cursor-pointer"
@@ -350,7 +407,10 @@ const TaskNode = memo(function TaskNode({ data }: NodeProps) {
         {task.feature_title && (
           <span
             className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 max-w-[110px] truncate"
-            style={{ color: featureColor, backgroundColor: `${featureColor}26` }}
+            style={{
+              color: featureColor,
+              backgroundColor: `${featureColor}26`,
+            }}
             title={task.feature_title}
           >
             {task.feature_title}
@@ -400,16 +460,18 @@ const TaskNode = memo(function TaskNode({ data }: NodeProps) {
               e.preventDefault();
               handleDrop(c.key);
             }}
-            className={`min-h-[150px] p-2 ${idx < 2 ? "border-r border-foreground/[0.06]" : ""} ${c.bg}`}
+            className={`min-h-[200px] p-2.5 ${idx < 2 ? "border-r border-foreground/[0.06]" : ""} ${c.bg}`}
           >
-            <div className="flex items-center gap-1.5 mb-2 px-0.5">
+            <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
               <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
-              <span className={`text-[10px] font-bold ${c.text}`}>{c.label}</span>
-              <span className="ml-auto text-[9px] font-bold text-slate-400 bg-foreground/[0.06] rounded px-1.5">
+              <span className={`text-[11px] font-bold ${c.text}`}>
+                {c.label}
+              </span>
+              <span className="ml-auto text-[10px] font-bold text-slate-400 bg-foreground/[0.06] rounded px-1.5">
                 {grouped[c.key].length}
               </span>
             </div>
-            <div className="max-h-[220px] overflow-y-auto custom-scrollbar">
+            <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
               {grouped[c.key].map((it) => (
                 <ChecklistCard
                   key={it.id}
@@ -448,11 +510,23 @@ function serialize(
     if (id.startsWith("block__")) {
       const bid = id.slice(7);
       if (!blockIds.has(bid)) continue;
-      nodes.push({ id, kind: "block" as const, x: Math.round(pos.x), y: Math.round(pos.y), block_id: bid });
+      nodes.push({
+        id,
+        kind: "block" as const,
+        x: Math.round(pos.x),
+        y: Math.round(pos.y),
+        block_id: bid,
+      });
     } else if (id.startsWith("task__")) {
       const tid = id.slice(6);
       if (!taskIds.has(tid)) continue;
-      nodes.push({ id, kind: "task" as const, x: Math.round(pos.x), y: Math.round(pos.y), task_id: tid });
+      nodes.push({
+        id,
+        kind: "task" as const,
+        x: Math.round(pos.x),
+        y: Math.round(pos.y),
+        task_id: tid,
+      });
     }
   }
   return {
@@ -479,15 +553,44 @@ function MiniKanbanCanvas({
   const { t } = useTranslation();
   const today = useMemo(() => getTodayDateString(), []);
   const [positions, setPositions] = useState<PosMap>({});
-  const [collapsedBlocks, setCollapsedBlocks] = useState<Set<string>>(new Set());
+  const [collapsedBlocks, setCollapsedBlocks] = useState<Set<string>>(
+    new Set(),
+  );
   const [loading, setLoading] = useState(true);
+  // 캔버스 상호작용 모드: hand=좌드래그로 팬(기본), pointer=좌드래그로 박스 다중선택
+  const [interactionMode, setInteractionMode] = useState<"hand" | "pointer">(
+    "hand",
+  );
   // 드래그 중 이동 대상 블록 (하이라이트용, 직렬화 대상 아님)
-  const [dropTargetBlockId, setDropTargetBlockId] = useState<string | null>(null);
+  const [dropTargetBlockId, setDropTargetBlockId] = useState<string | null>(
+    null,
+  );
 
   const loadedRef = useRef(false);
   const lastSavedRef = useRef<string>("");
   const latestDocRef = useRef<string>("");
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  // 키보드 단축키: H=손 도구(팬), V=선택 도구
+  useEffect(() => {
+    if (!canEdit) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable)
+      )
+        return;
+      // 물리 키 기준(e.code)으로 판별 — 한글 IME 상태에서도 동작 (e.key는 'ㅗ'/'ㅍ'로 들어옴)
+      if (e.code === "KeyH") setInteractionMode("hand");
+      else if (e.code === "KeyV") setInteractionMode("pointer");
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [canEdit]);
 
   // 태스크 hub 대상 블록 (FEATURE·TASK 고정 블록 제외)
   const hubBlocks = useMemo(
@@ -521,7 +624,10 @@ function MiniKanbanCanvas({
     return m;
   }, [tasks]);
 
-  const blockIdSet = useMemo(() => new Set(hubBlocks.map((b) => b.id)), [hubBlocks]);
+  const blockIdSet = useMemo(
+    () => new Set(hubBlocks.map((b) => b.id)),
+    [hubBlocks],
+  );
   const taskIdSet = useMemo(() => new Set(tasks.map((tk) => tk.id)), [tasks]);
 
   // 최초 로드
@@ -535,13 +641,17 @@ function MiniKanbanCanvas({
         if (cancelled) return;
         const pos: PosMap = {};
         (doc?.nodes || []).forEach((n) => {
-          if (n.kind === "block" && n.block_id) pos[`block__${n.block_id}`] = { x: n.x, y: n.y };
-          else if (n.kind === "task" && n.task_id) pos[`task__${n.task_id}`] = { x: n.x, y: n.y };
+          if (n.kind === "block" && n.block_id)
+            pos[`block__${n.block_id}`] = { x: n.x, y: n.y };
+          else if (n.kind === "task" && n.task_id)
+            pos[`task__${n.task_id}`] = { x: n.x, y: n.y };
         });
         const collapsed = new Set(doc?.collapsed_blocks || []);
         setPositions(pos);
         setCollapsedBlocks(collapsed);
-        const json = JSON.stringify(serialize(pos, collapsed, blockIdSet, taskIdSet));
+        const json = JSON.stringify(
+          serialize(pos, collapsed, blockIdSet, taskIdSet),
+        );
         lastSavedRef.current = json;
         latestDocRef.current = json;
       })
@@ -584,7 +694,11 @@ function MiniKanbanCanvas({
   // 언마운트 시 미저장분 flush
   useEffect(() => {
     return () => {
-      if (canEdit && loadedRef.current && latestDocRef.current !== lastSavedRef.current) {
+      if (
+        canEdit &&
+        loadedRef.current &&
+        latestDocRef.current !== lastSavedRef.current
+      ) {
         try {
           const doc = JSON.parse(latestDocRef.current);
           miniKanbanAPI.save(boardId, doc).catch(() => {});
@@ -614,7 +728,10 @@ function MiniKanbanCanvas({
         result.push({
           id: tId,
           type: "taskNode",
-          position: positions[tId] ?? { x: bIdx * LANE_W, y: FIRST_TASK_Y + tIdx * TASK_GAP_Y },
+          position: positions[tId] ?? {
+            x: bIdx * LANE_W,
+            y: FIRST_TASK_Y + tIdx * TASK_GAP_Y,
+          },
           data: { task_id: task.id },
           draggable: canEdit,
         });
@@ -809,16 +926,54 @@ function MiniKanbanCanvas({
 
   return (
     <MiniKanbanContext.Provider value={ctxValue}>
-      <div className="flex-1 relative" style={{ height: "100%" }}>
+      <div
+        className={`flex-1 relative ${
+          interactionMode === "pointer" ? "mk-pointer" : ""
+        }`}
+        style={{ height: "100%" }}
+      >
         {/* 툴바 */}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-bridge-obsidian/85 backdrop-blur-md border border-foreground/[0.08] rounded-2xl px-3 py-1.5 shadow-2xl">
           <span className="text-xs font-bold text-foreground px-1 flex items-center gap-2">
             <Columns3 className="w-3.5 h-3.5 text-bridge-accent" />
             {t("kanban.viewBoardMiniKanban", "미니 칸반")}
           </span>
+          {canEdit && (
+            <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/5 border border-foreground/10">
+              <button
+                type="button"
+                onClick={() => setInteractionMode("hand")}
+                aria-label={t("mindmap.handTool", "손 도구") + " (H)"}
+                title={t("mindmap.handTool", "손 도구") + " (H)"}
+                className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
+                  interactionMode === "hand"
+                    ? "bg-bridge-accent text-white"
+                    : "text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                }`}
+              >
+                <Hand className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setInteractionMode("pointer")}
+                aria-label={t("mindmap.pointerTool", "선택 도구") + " (V)"}
+                title={t("mindmap.pointerTool", "선택 도구") + " (V)"}
+                className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
+                  interactionMode === "pointer"
+                    ? "bg-bridge-accent text-white"
+                    : "text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                }`}
+              >
+                <MousePointer2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
           <span className="text-[11px] text-slate-500">
             {canEdit
-              ? t("minikanban.hint", "카드를 TODO·DOING·DONE으로 드래그, 태스크를 다른 블록으로 이동")
+              ? t(
+                  "minikanban.hint",
+                  "카드를 TODO·DOING·DONE으로 드래그, 태스크를 다른 블록으로 이동",
+                )
               : t("mindmap.readOnly", "읽기 전용")}
           </span>
         </div>
@@ -849,6 +1004,8 @@ function MiniKanbanCanvas({
           nodesDraggable={canEdit}
           nodesConnectable={false}
           elementsSelectable
+          panOnDrag={interactionMode === "hand" ? true : [1, 2]}
+          selectionOnDrag={canEdit && interactionMode === "pointer"}
           deleteKeyCode={null}
           defaultEdgeOptions={{
             style: { stroke: "rgba(148,163,184,0.4)", strokeWidth: 1.5 },
@@ -866,14 +1023,16 @@ function MiniKanbanCanvas({
             className="!bg-bridge-dark/90 !border !border-foreground/[0.08] !rounded-lg"
             nodeColor={(n) =>
               n.type === "blockHub"
-                ? blocksById.get((n.data as { block_id?: string }).block_id || "")
-                    ?.color || "#6366F1"
+                ? blocksById.get(
+                    (n.data as { block_id?: string }).block_id || "",
+                  )?.color || "#6366F1"
                 : tasksById.get((n.data as { task_id?: string }).task_id || "")
                     ?.feature_color || "#2DD4BF"
             }
             maskColor="rgba(13,17,26,0.6)"
           />
         </ReactFlow>
+        <style>{`.mk-pointer .react-flow__pane{cursor:crosshair}`}</style>
       </div>
     </MiniKanbanContext.Provider>
   );
