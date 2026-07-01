@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>노트 FLOW 에디터 — 구현 플랜 & 목업</title>
+<style>
+  :root {
+    --dark: #191f2d;
+    --obsidian: #151B28;
+    --surface: #1e2a42;
+    --accent: #6366F1;
+    --secondary: #2DD4BF;
+    --border: #384d6e;
+    --fg: #e8ecf4;
+    --muted: #8a95ab;
+    --muted2: #5f6b83;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    background: var(--dark);
+    color: var(--fg);
+    line-height: 1.6;
+    padding: 40px 24px 80px;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
+  h1 .tag { font-size: 12px; font-weight: 700; color: var(--secondary); background: rgba(45,212,191,0.12); padding: 3px 10px; border-radius: 999px; vertical-align: middle; margin-left: 10px; }
+  .lead { color: var(--muted); font-size: 15px; margin-bottom: 40px; max-width: 760px; }
+  h2 { font-size: 18px; font-weight: 700; margin: 48px 0 16px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 10px; }
+  h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 8px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 700; }
+  h3 { font-size: 14px; font-weight: 700; margin: 24px 0 10px; color: var(--fg); }
+  p { color: var(--muted); font-size: 14px; margin-bottom: 12px; }
+  code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12.5px; background: rgba(99,102,241,0.14); color: #b9bdff; padding: 1px 6px; border-radius: 5px; }
+
+  /* ---------- MOCKUP ---------- */
+  .mock {
+    background: var(--obsidian);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .accent-line { height: 2px; background: linear-gradient(to right, rgba(99,102,241,0.7), rgba(45,212,191,0.4), transparent); }
+  .mock-top {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.015);
+  }
+  .mock-title { font-weight: 700; font-size: 14px; display:flex; align-items:center; gap:8px; }
+  .pill { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+  .pill.flow { color: var(--secondary); background: rgba(45,212,191,0.14); }
+  .mock-top .spacer { flex: 1; }
+  .mini-btn { font-size: 12px; color: var(--muted); padding: 5px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); }
+  .mini-btn.primary { background: var(--accent); color: #fff; border-color: transparent; font-weight: 700; }
+
+  .mock-body { display: flex; height: 520px; }
+  /* left tray */
+  .tray { width: 190px; border-right: 1px solid rgba(255,255,255,0.06); padding: 14px; background: rgba(0,0,0,0.12); }
+  .tray-label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted2); margin-bottom: 10px; }
+  .palette-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.07); margin-bottom: 8px; font-size: 13px; cursor: grab; background: rgba(255,255,255,0.02); }
+  .palette-item:hover { border-color: rgba(99,102,241,0.5); }
+  .palette-item .ico { width: 26px; height: 26px; border-radius: 7px; display:flex; align-items:center; justify-content:center; font-size: 14px; }
+  .ico.text { background: rgba(99,102,241,0.18); color:#b9bdff; }
+  .ico.image { background: rgba(45,212,191,0.16); color:#7defd6; }
+  .ico.video { background: rgba(244,114,182,0.16); color:#f9a8d4; }
+  .ico.sticky { background: rgba(251,191,36,0.16); color:#fcd34d; }
+  .ico.shape { background: rgba(148,163,184,0.16); color:#cbd5e1; }
+
+  /* canvas */
+  .canvas { flex: 1; position: relative; overflow: hidden;
+    background-color: #10161f;
+    background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .node { position: absolute; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: var(--obsidian); box-shadow: 0 6px 18px rgba(0,0,0,0.35); font-size: 12.5px; }
+  .node .handle { position:absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); border: 2px solid var(--obsidian); }
+  .node .handle.t { top:-5px; left:50%; transform:translateX(-50%);}
+  .node .handle.b { bottom:-5px; left:50%; transform:translateX(-50%);}
+  .node .handle.l { left:-5px; top:50%; transform:translateY(-50%);}
+  .node .handle.r { right:-5px; top:50%; transform:translateY(-50%);}
+
+  .node.text { width: 190px; padding: 12px 14px; }
+  .node.text .nt-title { font-weight: 700; margin-bottom: 4px; font-size: 13px; }
+  .node.text .nt-body { color: var(--muted); font-size: 12px; }
+
+  .node.image { width: 180px; padding: 8px; }
+  .node.image .thumb { height: 96px; border-radius: 8px; background: linear-gradient(135deg,#2DD4BF33,#6366F133); display:flex; align-items:center; justify-content:center; color:#7defd6; font-size: 22px; }
+  .node.image .cap { font-size: 11px; color: var(--muted); margin-top: 6px; padding: 0 2px; }
+
+  .node.video { width: 210px; padding: 8px; }
+  .node.video .thumb { height: 116px; border-radius: 8px; background: linear-gradient(135deg,#f472b633,#6366F133); display:flex; align-items:center; justify-content:center; position: relative; }
+  .node.video .play { width: 42px; height: 42px; border-radius: 50%; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; color:#fff; font-size: 16px; }
+  .node.video .badge { position:absolute; bottom:6px; right:6px; font-size:10px; background:rgba(0,0,0,0.6); padding:2px 6px; border-radius:4px; color:#f9a8d4; }
+  .node.video .cap { font-size: 11px; color: var(--muted); margin-top: 6px; padding: 0 2px; }
+
+  .node.sticky { width: 150px; padding: 12px; background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.35); color:#fde68a; }
+  .node.sticky .st-body { font-size: 12.5px; }
+  .node.sticky .dot { position:absolute; top:8px; left:8px; width:10px;height:10px;border-radius:50%; background:#fbbf24;}
+
+  .node.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .resizer { position:absolute; width:9px;height:9px;background:var(--accent);border:1.5px solid var(--obsidian);border-radius:2px; }
+  .resizer.br { right:-5px; bottom:-5px; cursor:nwse-resize;}
+  .resizer.bl { left:-5px; bottom:-5px;}
+  .resizer.tr { right:-5px; top:-5px;}
+  .resizer.tl { left:-5px; top:-5px;}
+
+  svg.edges { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+
+  .controls { position:absolute; left:14px; bottom:14px; display:flex; flex-direction:column; gap:6px; }
+  .ctrl { width:30px;height:30px;border-radius:8px;background:var(--obsidian);border:1px solid rgba(255,255,255,0.1); display:flex;align-items:center;justify-content:center; font-size:14px; color:var(--muted);}
+  .minimap { position:absolute; right:14px; bottom:14px; width:130px; height:82px; border-radius:8px; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.1); overflow:hidden;}
+  .mm-node { position:absolute; border-radius:2px; background: rgba(99,102,241,0.6); }
+  .toolbar-float { position:absolute; top:14px; left:50%; transform:translateX(-50%); display:flex; gap:4px; background:var(--obsidian); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:5px; box-shadow:0 6px 18px rgba(0,0,0,0.35);}
+  .tool { width:32px;height:32px;border-radius:7px; display:flex;align-items:center;justify-content:center; font-size:15px; color:var(--muted);}
+  .tool.active { background:var(--accent); color:#fff;}
+  .presence { position:absolute; top:16px; right:16px; display:flex; }
+  .avatar { width:26px;height:26px;border-radius:50%; border:2px solid var(--obsidian); display:flex;align-items:center;justify-content:center; font-size:11px; font-weight:700; color:#fff; margin-left:-8px;}
+
+  .caption { text-align:center; color:var(--muted2); font-size:12px; margin-top:12px; }
+
+  /* ---------- tables ---------- */
+  table { width:100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 13px; }
+  th, td { text-align:left; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.07); vertical-align: top; }
+  th { color: var(--muted2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight:700; }
+  td code { white-space: nowrap; }
+  .badge-new { font-size:10px; font-weight:700; color:#7defd6; background:rgba(45,212,191,0.14); padding:2px 7px; border-radius:999px; }
+  .badge-edit { font-size:10px; font-weight:700; color:#fcd34d; background:rgba(251,191,36,0.14); padding:2px 7px; border-radius:999px; }
+
+  /* code block */
+  pre { background: #0d1219; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px 18px; overflow-x:auto; font-family:"SF Mono",ui-monospace,Menlo,monospace; font-size: 12.5px; line-height:1.7; color:#c9d3e5; margin: 8px 0 16px; }
+  pre .k { color:#c084fc; } pre .s { color:#7defd6; } pre .c { color: var(--muted2); } pre .n { color:#fcd34d; }
+
+  /* phases */
+  .phase { display:flex; gap:16px; margin-bottom: 14px; padding: 16px; border:1px solid rgba(255,255,255,0.07); border-radius:12px; background: rgba(255,255,255,0.015); }
+  .phase .p-num { flex-shrink:0; width:30px;height:30px;border-radius:9px; background:rgba(99,102,241,0.15); color:#b9bdff; font-weight:700; display:flex;align-items:center;justify-content:center; font-size:13px;}
+  .phase .p-title { font-weight:700; font-size:14px; margin-bottom:4px; }
+  .phase .p-desc { font-size:13px; color: var(--muted); }
+  .phase .p-est { font-size:11px; color:var(--secondary); font-weight:700; margin-top:6px; }
+
+  .note-box { border-left: 3px solid var(--accent); background: rgba(99,102,241,0.06); padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 16px 0; font-size:13px; color:#c7cdf5; }
+  .note-box.warn { border-color:#fbbf24; background:rgba(251,191,36,0.06); color:#fde3a7; }
+  ul.clean { list-style:none; padding-left:0; }
+  ul.clean li { padding: 6px 0 6px 22px; position:relative; font-size:13.5px; color:var(--muted); border-bottom:1px solid rgba(255,255,255,0.05); }
+  ul.clean li:before { content:"→"; position:absolute; left:0; color:var(--accent); font-weight:700; }
+  ul.clean li b { color: var(--fg); font-weight:600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>노트 FLOW 에디터 <span class="tag">React Flow 기반 신규 노트 타입</span></h1>
+  <p class="lead">
+    기존 Excalidraw <code>BOARD</code>는 그대로 두고, <b>플로우차트·개념도·이미지/영상 임베드·노드 연결</b>에 특화된
+    새 노트 타입 <code>FLOW</code>를 추가합니다. React Flow 세팅은 <b>마인드맵</b>에서, 저장·협업 구조는 <b>Excalidraw 노트</b>에서
+    재활용하는 하이브리드 설계라 마이그레이션 리스크가 0이고 대부분 검증된 코드입니다.
+  </p>
+
+  <!-- ============ MOCKUP ============ -->
+  <h2><span class="num">1</span> 에디터 화면 목업</h2>
+
+  <div class="mock">
+    <div class="accent-line"></div>
+    <div class="mock-top">
+      <div class="mock-title">🔀 새 플로우 <span class="pill flow">FLOW</span></div>
+      <div class="spacer"></div>
+      <span style="font-size:12px;color:var(--muted2)">자동 저장됨 · 방금</span>
+      <div class="mini-btn">공유</div>
+      <div class="mini-btn primary">편집 중</div>
+    </div>
+    <div class="mock-body">
+      <!-- palette tray -->
+      <div class="tray">
+        <div class="tray-label">노드 추가</div>
+        <div class="palette-item"><span class="ico text">T</span> 텍스트</div>
+        <div class="palette-item"><span class="ico image">🖼</span> 이미지</div>
+        <div class="palette-item"><span class="ico video">▶</span> 영상</div>
+        <div class="palette-item"><span class="ico sticky">📌</span> 스티키</div>
+        <div class="palette-item"><span class="ico shape">◇</span> 도형</div>
+        <div class="tray-label" style="margin-top:20px">연결선</div>
+        <div class="palette-item"><span class="ico shape">↗</span> 화살표</div>
+      </div>
+
+      <!-- canvas -->
+      <div class="canvas">
+        <!-- floating toolbar -->
+        <div class="toolbar-float">
+          <div class="tool active" title="선택">↖</div>
+          <div class="tool" title="손(팬)">✋</div>
+          <div class="tool" title="맞춤">⊡</div>
+        </div>
+        <!-- presence -->
+        <div class="presence">
+          <div class="avatar" style="background:#6366F1">SY</div>
+          <div class="avatar" style="background:#2DD4BF">JH</div>
+        </div>
+
+        <!-- edges -->
+        <svg class="edges">
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L8,3 L0,6 Z" fill="#6366F1"/>
+            </marker>
+          </defs>
+          <!-- text -> image -->
+          <path d="M 250 118 C 320 118, 320 150, 385 150" stroke="#6366F1" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+          <!-- text -> video -->
+          <path d="M 160 150 C 160 250, 150 250, 150 300" stroke="#6366F1" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+          <!-- image -> sticky -->
+          <path d="M 565 165 C 630 165, 630 200, 660 210" stroke="#2DD4BF" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+          <!-- video -> sticky -->
+          <path d="M 360 340 C 500 360, 560 300, 655 250" stroke="#6366F1" stroke-width="2" stroke-dasharray="5 4" fill="none" marker-end="url(#arrow)"/>
+        </svg>
+
+        <!-- text node -->
+        <div class="node text" style="left:60px; top:78px;">
+          <span class="handle t"></span><span class="handle b"></span><span class="handle l"></span><span class="handle r"></span>
+          <div class="nt-title">4차 마일스톤 목표</div>
+          <div class="nt-body">협업·노트 기능 안정화 및 성능 개선</div>
+        </div>
+
+        <!-- image node -->
+        <div class="node image selected" style="left:385px; top:100px;">
+          <span class="handle t"></span><span class="handle b"></span><span class="handle l"></span><span class="handle r"></span>
+          <div class="thumb">🖼</div>
+          <div class="cap">와이어프레임_v3.png</div>
+          <span class="resizer br"></span><span class="resizer bl"></span><span class="resizer tr"></span><span class="resizer tl"></span>
+        </div>
+
+        <!-- video node -->
+        <div class="node video" style="left:150px; top:300px;">
+          <span class="handle t"></span><span class="handle b"></span><span class="handle l"></span><span class="handle r"></span>
+          <div class="thumb"><div class="play">▶</div><span class="badge">0:42</span></div>
+          <div class="cap">데모_녹화.mp4 · 재생 가능</div>
+        </div>
+
+        <!-- sticky node -->
+        <div class="node sticky" style="left:660px; top:190px;">
+          <span class="dot"></span>
+          <span class="handle t"></span><span class="handle l"></span>
+          <div class="st-body" style="margin-top:6px">여기 연결 UX<br/>재검토 필요 ⚠️</div>
+        </div>
+
+        <!-- controls -->
+        <div class="controls">
+          <div class="ctrl">＋</div>
+          <div class="ctrl">－</div>
+          <div class="ctrl">⊡</div>
+        </div>
+        <!-- minimap -->
+        <div class="minimap">
+          <div class="mm-node" style="left:10px;top:14px;width:24px;height:12px;"></div>
+          <div class="mm-node" style="left:58px;top:18px;width:22px;height:14px;background:rgba(45,212,191,0.6)"></div>
+          <div class="mm-node" style="left:22px;top:48px;width:26px;height:14px;background:rgba(244,114,182,0.6)"></div>
+          <div class="mm-node" style="left:92px;top:34px;width:16px;height:12px;background:rgba(251,191,36,0.6)"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="caption">▲ 노트 사이드바에서 "새 플로우" 생성 → 텍스트/이미지/영상/스티키/도형 노드를 자유 배치하고 연결선으로 잇는다. 실시간 협업 커서·자동 저장 지원.</div>
+
+  <!-- ============ NODE TYPES ============ -->
+  <h2><span class="num">2</span> 지원 노드 타입</h2>
+  <table>
+    <thead><tr><th>노드 타입</th><th>용도</th><th>node.data 저장 필드</th><th>구현 근거</th></tr></thead>
+    <tbody>
+      <tr><td><code>text</code></td><td>제목+본문 텍스트 박스 (개념·설명)</td><td><code>title, body, color</code></td><td>마인드맵 MemoNode 확장</td></tr>
+      <tr><td><code>image</code></td><td>이미지 임베드 (리사이즈 가능)</td><td><code>url, caption, width, height</code></td><td>fileAPI.uploadNote → CloudFront URL</td></tr>
+      <tr><td><code>video</code></td><td>영상 임베드 (인라인 재생, 52MB)</td><td><code>url, caption, width, height</code></td><td>fileAPI.smartUpload + &lt;video&gt;</td></tr>
+      <tr><td><code>sticky</code></td><td>포스트잇 메모 (색상)</td><td><code>body, color</code></td><td>MemoNode 재사용</td></tr>
+      <tr><td><code>shape</code></td><td>도형(사각/원/다이아) + 라벨</td><td><code>shape, label, color, width, height</code></td><td>NodeResizer 내장</td></tr>
+    </tbody>
+  </table>
+  <p><b>연결선(edge)</b>은 React Flow의 1급 데이터라 노드를 옮기면 자동으로 따라옵니다. 화살표·라벨·색상·점선 스타일 지원.</p>
+
+  <!-- ============ DATA SCHEMA ============ -->
+  <h2><span class="num">3</span> 저장 스키마 (note.content JSON)</h2>
+  <p>Excalidraw <code>BOARD</code>가 <code>note.content</code>(TEXT)에 scene JSON을 넣듯, <code>FLOW</code>도 동일 컬럼에 자체 스키마를 저장합니다. <b>별도 테이블 불필요.</b></p>
+  <pre><span class="c">// note.content 에 저장되는 JSON</span>
+{
+  <span class="s">"type"</span>: <span class="s">"bridge-flow"</span>,
+  <span class="s">"version"</span>: <span class="n">1</span>,
+  <span class="s">"nodes"</span>: [
+    { <span class="s">"id"</span>:<span class="s">"n1"</span>, <span class="s">"kind"</span>:<span class="s">"text"</span>,  <span class="s">"x"</span>:<span class="n">60</span>,  <span class="s">"y"</span>:<span class="n">78</span>,
+      <span class="s">"data"</span>:{ <span class="s">"title"</span>:<span class="s">"4차 마일스톤 목표"</span>, <span class="s">"body"</span>:<span class="s">"..."</span> } },
+    { <span class="s">"id"</span>:<span class="s">"n2"</span>, <span class="s">"kind"</span>:<span class="s">"image"</span>, <span class="s">"x"</span>:<span class="n">385</span>, <span class="s">"y"</span>:<span class="n">100</span>, <span class="s">"width"</span>:<span class="n">180</span>,
+      <span class="s">"data"</span>:{ <span class="s">"url"</span>:<span class="s">"https://cdn.../wire_v3.png"</span>, <span class="s">"caption"</span>:<span class="s">"와이어프레임"</span> } },
+    { <span class="s">"id"</span>:<span class="s">"n3"</span>, <span class="s">"kind"</span>:<span class="s">"video"</span>, <span class="s">"x"</span>:<span class="n">150</span>, <span class="s">"y"</span>:<span class="n">300</span>,
+      <span class="s">"data"</span>:{ <span class="s">"url"</span>:<span class="s">"https://cdn.../demo.mp4"</span> } }
+  ],
+  <span class="s">"edges"</span>: [
+    { <span class="s">"id"</span>:<span class="s">"e1"</span>, <span class="s">"source"</span>:<span class="s">"n1"</span>, <span class="s">"target"</span>:<span class="s">"n2"</span>,
+      <span class="s">"source_handle"</span>:<span class="s">"r"</span>, <span class="s">"target_handle"</span>:<span class="s">"l"</span>, <span class="s">"label"</span>:<span class="s">"참고"</span> }
+  ]
+}</pre>
+  <div class="note-box">
+    <b>협업(Yjs):</b> Excalidraw가 <code>Y.Map("excalidraw-elements")</code>를 쓰듯, FLOW는 <code>Y.Map("flow-nodes")</code> + <code>Y.Map("flow-edges")</code>를 사용합니다. 노드 id를 키로 per-node 저장 → 두 명이 다른 노드를 옮겨도 충돌 없이 머지. 기존 <code>NoteCollabHandler</code>는 내용 불문 릴레이라 <b>백엔드 협업 코드는 손댈 필요 없음.</b>
+  </div>
+
+  <!-- ============ CODE CHANGES ============ -->
+  <h2><span class="num">4</span> 코드 변경 지점</h2>
+
+  <h3>백엔드 <span class="badge-edit">최소 수정</span></h3>
+  <table>
+    <thead><tr><th>파일</th><th>변경</th><th>구분</th></tr></thead>
+    <tbody>
+      <tr><td><code>domain/note/NoteType.java</code></td><td><code>FLOW</code> enum 값 추가</td><td><span class="badge-edit">수정</span></td></tr>
+      <tr><td><code>domain/note/Note.java</code></td><td><code>isFlow()</code> 헬퍼 추가</td><td><span class="badge-edit">수정</span></td></tr>
+      <tr><td><code>note/service/NoteService.java</code> (L162)</td><td>content 저장 조건에 <code>|| type == FLOW</code></td><td><span class="badge-edit">수정</span></td></tr>
+      <tr><td><code>note/NoteRepository.java</code> (L32,L65)</td><td>쿼리 <code>IN ('DOCUMENT','BOARD','FLOW')</code></td><td><span class="badge-edit">수정</span></td></tr>
+      <tr><td><code>db/migration/V{타임스탬프}__add_flow_note_type.sql</code></td><td>CHECK 제약에 <code>FLOW</code> 추가 (멱등)</td><td><span class="badge-new">신규</span></td></tr>
+    </tbody>
+  </table>
+  <div class="note-box warn"><b>Controller/DTO/협업 핸들러 변경 없음</b> — <code>type</code>은 String으로 받고 협업은 내용 불문 릴레이라 그대로 동작.</div>
+
+  <h3>프론트엔드</h3>
+  <table>
+    <thead><tr><th>파일</th><th>변경</th><th>구분</th></tr></thead>
+    <tbody>
+      <tr><td><code>components/notes/FlowEditor.tsx</code></td><td><b>신규 컴포넌트.</b> React Flow + 커스텀 노드 5종 + 팔레트/툴바 + Yjs 바인딩 + 자동저장. 마인드맵 <code>MindMapView</code>에서 ReactFlow 세팅·컨트롤·미니맵·NodeResizer·팬/줌/선택모드를 그대로 복제</td><td><span class="badge-new">신규</span></td></tr>
+      <tr><td><code>components/notes/flow/*Node.tsx</code></td><td>TextNode / ImageNode / VideoNode / StickyNode / ShapeNode</td><td><span class="badge-new">신규</span></td></tr>
+      <tr><td><code>components/notes/NoteEditor.tsx</code> (L159)</td><td><code>type === "FLOW"</code> → <code>&lt;FlowEditor/&gt;</code> 분기 (BOARD 분기 바로 옆)</td><td><span class="badge-edit">수정</span></td></tr>
+      <tr><td><code>components/notes/NoteTreeSidebar.tsx</code></td><td><code>onCreateFlow</code> prop, 아이콘(<code>Workflow</code>/<code>Network</code>), "새 플로우" 메뉴</td><td><span class="badge-edit">수정</span></td></tr>
+      <tr><td><code>utils/api.ts</code></td><td>타입 유니언 <code>"FOLDER"|"DOCUMENT"|"BOARD"</code> → <code>| "FLOW"</code> (2곳)</td><td><span class="badge-edit">수정</span></td></tr>
+      <tr><td><code>pages/SharedNotePage.tsx</code> (L108)</td><td>공유 읽기전용 FLOW 렌더 분기 (nodesDraggable=false)</td><td><span class="badge-edit">수정</span></td></tr>
+      <tr><td><code>hooks/useCollaboration.ts</code></td><td><b>변경 없음</b> — 그대로 재사용 (Y.Doc 하나에 flow-nodes/edges Map만 추가)</td><td>–</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============ PHASES ============ -->
+  <h2><span class="num">5</span> 구현 단계</h2>
+
+  <div class="phase">
+    <div class="p-num">1</div>
+    <div><div class="p-title">백엔드 FLOW 타입 개통</div>
+    <div class="p-desc">NoteType.FLOW 추가 · content 저장 조건 · Repository 쿼리 · 마이그레이션(타임스탬프+멱등 CHECK). 생성→저장→조회가 BOARD와 동일하게 동작하는지 확인.</div>
+    <div class="p-est">◷ 반나절 · 리스크 낮음</div></div>
+  </div>
+  <div class="phase">
+    <div class="p-num">2</div>
+    <div><div class="p-title">FlowEditor 스켈레톤 (읽기·이동만)</div>
+    <div class="p-desc">MindMapView를 복제해 ReactFlow 캔버스·컨트롤·미니맵·팬/줌/선택모드 구성. text·sticky 노드부터. note.content ↔ nodes/edges (de)serialize + 1초 디바운스 자동저장.</div>
+    <div class="p-est">◷ 1.5일 · 마인드맵 코드 70% 재활용</div></div>
+  </div>
+  <div class="phase">
+    <div class="p-num">3</div>
+    <div><div class="p-title">미디어 노드 + 연결선</div>
+    <div class="p-desc">image·video 노드(fileAPI.smartUpload/uploadNote로 업로드→URL, NodeResizer 리사이즈). shape 노드. onConnect 엣지 생성 + 화살표/라벨 스타일. 좌측 팔레트 드래그-투-드롭.</div>
+    <div class="p-est">◷ 2일</div></div>
+  </div>
+  <div class="phase">
+    <div class="p-num">4</div>
+    <div><div class="p-title">실시간 협업 + 공유</div>
+    <div class="p-desc">Y.Map("flow-nodes"/"flow-edges") 바인딩(Excalidraw 옵저버 패턴 이식), 커서/프레즌스, 편집/읽기 모드 전환. SharedNotePage 읽기전용 렌더.</div>
+    <div class="p-est">◷ 1.5일 · Excalidraw 협업 패턴 이식</div></div>
+  </div>
+  <div class="phase">
+    <div class="p-num">5</div>
+    <div><div class="p-title">마감 (i18n · 접근성 · 빌드검증)</div>
+    <div class="p-desc">사이드바 "새 플로우" i18n(10개 언어), aria-label, 모바일 팬/드래그 충돌 점검, <code>npm run build</code> 타입체크.</div>
+    <div class="p-est">◷ 1일</div></div>
+  </div>
+
+  <!-- ============ TRADEOFFS ============ -->
+  <h2><span class="num">6</span> 이 접근의 이점 & 유의점</h2>
+  <ul class="clean">
+    <li><b>마이그레이션 리스크 0</b> — 기존 Excalidraw BOARD는 그대로. FLOW는 별도 타입으로 공존, 데이터 변환 없음.</li>
+    <li><b>대부분 검증된 코드</b> — React Flow 세팅은 마인드맵, 저장·협업은 Excalidraw 노트에서 이식. 신규 위험은 노드 컴포넌트 5종뿐.</li>
+    <li><b>진짜 연결선</b> — edge가 데이터라 노드 이동 시 자동 추적. Excalidraw 화살표보다 우수.</li>
+    <li><b>인터랙티브 미디어</b> — 영상 인라인 재생, 이미지 클릭. 커스텀 노드=React 컴포넌트라 확장 자유.</li>
+    <li><b>번들</b> — React Flow는 이미 로드되는 청크(마인드맵과 공유). Excalidraw(~1.5MB) 대비 추가 부담 없음. lazy 로드 유지.</li>
+    <li style="border:none"><b>유의</b> — 손그림(펜)은 지원 안 함. 자유 스케치가 필요한 사용자를 위해 Excalidraw BOARD는 남겨두는 이유.</li>
+  </ul>
+
+  <p style="margin-top:40px; color:var(--muted2); font-size:12px; text-align:center;">
+    BRIDGE · 노트 FLOW 에디터 구현 플랜 · React Flow(@xyflow/react v12.11.1) 기반 · 예상 공수 ~6.5일
+  </p>
+
+</div>
+</body>
+</html>
