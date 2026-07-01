@@ -213,12 +213,21 @@ export async function contentToHtml(
       console.error("contentToHtml: JSON.parse failed:", err);
     }
     if (Array.isArray(blocks)) {
-      // replaceBlocks can throw if a block fails schema validation; keep it
-      // isolated so we still attempt an export from whatever loaded.
+      // replaceBlocks can throw if a block fails schema validation (usually a
+      // config mismatch between this throwaway editor and the live one). The
+      // editor instance is reused across notes, so on failure we must clear it
+      // to empty — otherwise the export below would emit the PREVIOUS note's
+      // stale blocks and render them under the current note.
       try {
         editor.replaceBlocks(editor.document, blocks);
       } catch (err) {
         console.error("contentToHtml: replaceBlocks failed:", err);
+        try {
+          editor.replaceBlocks(editor.document, []);
+        } catch {
+          /* editor already empty or unusable */
+        }
+        return "";
       }
       // Primary: lossy export (simple HTML tuned for the static .note-view-render
       // CSS + clean copy/paste round-trip). It walks each block's toExternalHTML,

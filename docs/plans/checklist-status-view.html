@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>체크리스트 TODO/DOING/DONE 모드 — 기획 & 목업</title>
+<style>
+  :root{
+    --dark:#191f2d; --obsidian:#151B28; --surface:#1e2a42;
+    --accent:#6366F1; --secondary:#2DD4BF; --border:#384d6e;
+    --fg:#e8ecf4; --muted:#94a3b8; --muted2:#64748b;
+    --todo:#94a3b8; --doing:#f59e0b; --done:#10b981;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--dark);color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+    line-height:1.6;padding:40px 20px}
+  .wrap{max-width:1100px;margin:0 auto}
+  h1{font-size:24px;font-weight:800;letter-spacing:-.5px;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:32px}
+  h2{font-size:18px;font-weight:800;margin:44px 0 16px;display:flex;align-items:center;gap:10px}
+  h2 .tag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:rgba(99,102,241,.15);color:var(--accent)}
+  .card{background:var(--obsidian);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:22px;margin-bottom:16px}
+
+  /* ── 목업 ── */
+  .mock{background:var(--obsidian);border:1px solid rgba(255,255,255,.09);border-radius:18px;padding:20px 22px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .mock-head{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:16px}
+  .mock-title{display:flex;align-items:center;gap:9px;font-weight:800;font-size:16px}
+  .chk-ico{width:20px;height:20px;border-radius:5px;background:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+  .ai-btn{font-size:11px;font-weight:700;color:#fff;background:linear-gradient(90deg,var(--secondary),var(--accent));padding:3px 8px;border-radius:6px}
+  .head-right{display:flex;align-items:center;gap:14px}
+  .prog{width:96px;height:8px;background:rgba(255,255,255,.1);border-radius:999px;overflow:hidden}
+  .prog>div{height:100%;width:77%;background:var(--accent);border-radius:999px}
+  .prog-num{color:var(--accent);font-weight:600;font-size:14px}
+
+  /* toggle */
+  .toggle{display:inline-flex;gap:2px;background:rgba(255,255,255,.05);border-radius:9px;padding:3px}
+  .toggle button{border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:700;
+    padding:5px 12px;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s}
+  .toggle button.on{background:rgba(255,255,255,.1);color:var(--fg)}
+
+  /* columns */
+  .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}
+  .col{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px;min-height:220px}
+  .col-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 2px}
+  .col-name{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;letter-spacing:.4px}
+  .dot{width:8px;height:8px;border-radius:50%}
+  .col-count{font-size:11px;font-weight:700;color:var(--muted2);background:rgba(255,255,255,.05);padding:1px 8px;border-radius:999px}
+  .col.todo .dot{background:var(--todo)} .col.todo .col-name{color:var(--todo)}
+  .col.doing .dot{background:var(--doing)} .col.doing .col-name{color:var(--doing)}
+  .col.done .dot{background:var(--done)} .col.done .col-name{color:var(--done)}
+
+  .item{background:var(--obsidian);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:9px 11px;margin-bottom:8px;cursor:grab}
+  .item:hover{border-color:rgba(255,255,255,.14)}
+  .item .t{font-size:13px;font-weight:600;margin-bottom:6px}
+  .item.done .t{text-decoration:line-through;color:var(--muted2)}
+  .meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+  .date{color:var(--muted2)}
+  .date.over{color:#f43f5e;font-weight:700}
+  .av{width:18px;height:18px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff}
+  .est{color:var(--secondary);font-weight:600}
+  .ck{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--muted2);display:inline-block;vertical-align:middle;margin-right:7px}
+  .ck.on{background:var(--done);border-color:var(--done)}
+
+  /* list mode preview */
+  .listrow{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px}
+  .listrow .t{flex:1;font-weight:600}
+  .listrow.done .t{text-decoration:line-through;color:var(--muted2)}
+
+  /* plan bits */
+  ul{margin:6px 0;padding-left:20px} li{margin:5px 0}
+  code{background:rgba(255,255,255,.07);padding:2px 6px;border-radius:5px;font-size:12.5px;color:#c7d2fe;font-family:ui-monospace,Menlo,monospace}
+  .file{color:var(--secondary);font-weight:700}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.08)}
+  th{color:var(--muted);font-weight:700;font-size:12px}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .p-todo{background:rgba(148,163,184,.15);color:var(--todo)}
+  .p-doing{background:rgba(245,158,11,.15);color:var(--doing)}
+  .p-done{background:rgba(16,185,129,.15);color:var(--done)}
+  .rule{background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.25);border-radius:12px;padding:14px 16px;font-size:13px}
+  .note{color:var(--muted);font-size:12.5px;margin-top:6px}
+  .step{display:flex;gap:12px;margin-bottom:14px}
+  .step .n{flex-shrink:0;width:26px;height:26px;border-radius:8px;background:rgba(99,102,241,.15);color:var(--accent);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+  .step .b b{color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>체크리스트 상태 보드 모드 (TODO / DOING / DONE)</h1>
+  <div class="sub">Task 상세 팝업의 CheckList 섹션에 <b>리스트 모드 ↔ 보드 모드</b> 전환 기능 추가 · 기획 및 목업</div>
+
+  <!-- ══════════ 목업 ══════════ -->
+  <h2>1. 목업 <span class="tag">보드 모드 ON</span></h2>
+  <div class="mock">
+    <div class="mock-head">
+      <div class="mock-title">
+        <span class="chk-ico">✓</span> CheckList <span class="ai-btn">✦ AI</span>
+      </div>
+      <div class="head-right">
+        <!-- 신규 토글 -->
+        <div class="toggle">
+          <button>☰ 리스트</button>
+          <button class="on">▦ 보드</button>
+        </div>
+        <div class="prog"><div></div></div>
+        <span class="prog-num">77%</span>
+      </div>
+    </div>
+
+    <div class="cols">
+      <!-- TODO -->
+      <div class="col todo">
+        <div class="col-head"><span class="col-name"><span class="dot"></span>TODO</span><span class="col-count">2</span></div>
+        <div class="item">
+          <div class="t">버프 아이콘 제작</div>
+          <div class="meta"><span class="ck"></span><span class="date">7/2 예정</span><span class="av" style="background:#6366F1">준</span><span class="est">2h</span></div>
+        </div>
+        <div class="item">
+          <div class="t">UI 프리팹 최종 검수</div>
+          <div class="meta"><span class="ck"></span><span class="date">미정</span><span class="av" style="background:#14B8A6">효</span></div>
+        </div>
+      </div>
+      <!-- DOING -->
+      <div class="col doing">
+        <div class="col-head"><span class="col-name"><span class="dot"></span>DOING</span><span class="col-count">2</span></div>
+        <div class="item">
+          <div class="t">길잡이 효과 발동 토스트 UI</div>
+          <div class="meta"><span class="ck"></span><span class="date">6/30 ~ 7/2</span><span class="av" style="background:#6366F1">준</span><span class="est">3h</span></div>
+        </div>
+        <div class="item">
+          <div class="t">SR등급 애니메이션</div>
+          <div class="meta"><span class="ck"></span><span class="date over">6/29 지남</span><span class="av" style="background:#f43f5e">소</span><span class="est">5h 10m</span></div>
+        </div>
+      </div>
+      <!-- DONE -->
+      <div class="col done">
+        <div class="col-head"><span class="col-name"><span class="dot"></span>DONE</span><span class="col-count">14</span></div>
+        <div class="item done">
+          <div class="t">101_리깅</div>
+          <div class="meta"><span class="ck on">✓</span><span class="date">5/27 완료</span><span class="av" style="background:#f43f5e">소</span></div>
+        </div>
+        <div class="item done">
+          <div class="t">101_애니메이션_IDLE</div>
+          <div class="meta"><span class="ck on">✓</span><span class="date">5/29 완료</span><span class="av" style="background:#f43f5e">소</span></div>
+        </div>
+        <div class="note" style="text-align:center;margin-top:4px">+ 12 더보기</div>
+      </div>
+    </div>
+    <div class="note">💡 카드를 다른 컬럼으로 드래그하면 상태가 바뀝니다 — TODO→DOING: 시작일 오늘, →DONE: 완료 체크, →TODO: 시작일 해제 + 완료 해제</div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px">리스트 모드 (현재 · 기본값 유지)</div>
+    <div class="listrow done"><span class="ck on">✓</span><span class="t">101_리깅</span><span class="date" style="font-size:12px;color:var(--muted2)">5/27–5/27</span><span class="av" style="background:#f43f5e">소</span><span class="est" style="font-size:12px">1h 20m</span></div>
+    <div class="listrow"><span class="ck"></span><span class="t">길잡이 효과 발동 토스트 UI</span><span class="date" style="font-size:12px;color:var(--muted2)">6/30–7/2</span><span class="av" style="background:#6366F1">준</span><span class="est" style="font-size:12px">3h</span></div>
+  </div>
+
+  <!-- ══════════ 상태 파생 규칙 ══════════ -->
+  <h2>2. 상태 파생 규칙 <span class="tag">기존 로직 재사용</span></h2>
+  <div class="card">
+    <p style="margin-top:0">체크리스트 항목에는 상태 필드가 <b>따로 없습니다</b>. <code>completed</code>, <code>start_date</code>, <code>due_date</code> 조합으로 파생합니다. 이미 <span class="file">MiniKanbanView.tsx</span>의 <code>resolveColumn()</code>에 동일 로직이 있어 그대로 재사용합니다.</p>
+    <table>
+      <tr><th>상태</th><th>조건</th><th>UI</th></tr>
+      <tr><td><span class="pill p-done">DONE</span></td><td><code>completed === true</code></td><td>완료(취소선), 완료일 표시</td></tr>
+      <tr><td><span class="pill p-doing">DOING</span></td><td>미완료 &amp; <code>start_date != null &amp;&amp; start_date ≤ 오늘</code></td><td>기간 표시, 마감 지나면 빨강</td></tr>
+      <tr><td><span class="pill p-todo">TODO</span></td><td>그 외 (미완료 &amp; 시작 전/시작일 없음)</td><td>예정일 또는 "미정"</td></tr>
+    </table>
+    <div class="rule" style="margin-top:14px">
+      <b>드래그 이동 시 mutation</b> (MiniKanbanView <code>moveItemToColumn</code> 재사용):<br>
+      • <b>→ DONE</b>: 미완료면 <code>onToggleChecklist</code> 호출<br>
+      • <b>→ DOING</b>: 완료면 완료 해제, <code>patch({ start_date: 오늘 })</code><br>
+      • <b>→ TODO</b>: 완료면 완료 해제, <code>patch({ start_date: null })</code>
+    </div>
+  </div>
+
+  <!-- ══════════ 구현 계획 ══════════ -->
+  <h2>3. 구현 계획 <span class="tag">FE only · 백엔드 변경 없음</span></h2>
+  <div class="card">
+    <div class="step"><div class="n">1</div><div class="b">
+      <b>모드 상태 추가</b> — <span class="file">TaskDetailModal.tsx</span><br>
+      <code>const [checklistViewMode, setChecklistViewMode] = useState&lt;'list'|'board'&gt;('list')</code><br>
+      <span class="note">localStorage <code>checklistViewMode_{taskId}</code> 로 영속화 (선택). 모든 hook은 early-return 위에 선언 — React #310 주의.</span>
+    </div></div>
+
+    <div class="step"><div class="n">2</div><div class="b">
+      <b>토글 UI</b> — 진행률 바 좌측 header-right에 삽입 (목업 위치)<br>
+      <span class="note">KanbanBlock의 탭 버튼 그룹 패턴 재사용: <code>bg-foreground/5</code> pill 컨테이너 + active <code>bg-foreground/10</code>. 아이콘 Lucide <code>List</code> / <code>LayoutGrid</code>. 44px 터치타겟 · aria-label.</span>
+    </div></div>
+
+    <div class="step"><div class="n">3</div><div class="b">
+      <b>상태 파생 유틸 추출</b> — <span class="file">utils/checklistStatus.ts</span> (신규)<br>
+      <span class="note">MiniKanbanView의 <code>resolveColumn(item, today)</code> / <code>isOverdue()</code> 를 공용 유틸로 이동 → MiniKanbanView도 이 유틸을 import 하도록 리팩토링(중복 제거).</span>
+    </div></div>
+
+    <div class="step"><div class="n">4</div><div class="b">
+      <b>보드 뷰 컴포넌트</b> — <span class="file">ChecklistStatusBoard.tsx</span> (신규, TaskDetailModal 하위)<br>
+      <span class="note"><code>visibleChecklistItems</code>를 3컬럼으로 <code>useMemo</code> 그룹핑. 각 카드는 기존 <code>ChecklistItemRow</code>의 표시 정보(제목/기간/담당자/예상시간/체크박스)를 컴팩트하게 렌더. 편집·삭제·담당자 변경은 카드 클릭 시 기존 로직 재사용.</span>
+    </div></div>
+
+    <div class="step"><div class="n">5</div><div class="b">
+      <b>드래그 앤 드롭</b> — @dnd-kit (이미 설치됨)<br>
+      <span class="note">컬럼별 <code>useDroppable</code>, 카드 <code>useDraggable</code>. onDragEnd에서 target 컬럼 판정 → <code>moveItemToColumn</code> 로직으로 <code>handleToggleChecklistItem</code> / <code>handleUpdateChecklistItem({start_date})</code> 호출. 실시간 동기화는 기존 핸들러가 이미 WebSocket 반영.</span>
+    </div></div>
+
+    <div class="step"><div class="n">6</div><div class="b">
+      <b>조건부 렌더링</b> — 섹션 body에서 <code>checklistViewMode === 'board' ? &lt;ChecklistStatusBoard/&gt; : &lt;기존 리스트&gt;</code><br>
+      <span class="note">빈 상태 / AI 추가 / 필터(<code>isChecklistFilterActive</code>) / 진행률(77%)은 두 모드 공통 유지. AddChecklistItemInput은 board 모드에서 TODO 컬럼 하단 또는 섹션 하단에 배치.</span>
+    </div></div>
+
+    <div class="step"><div class="n">7</div><div class="b">
+      <b>i18n</b> — <code>task.checklistView.list</code> / <code>.board</code>, 컬럼 라벨 <code>todo/doing/done</code> (10개 언어)<br>
+      <span class="note">빌드 검증: <code>cd frontend &amp;&amp; npm run build</code></span>
+    </div></div>
+  </div>
+
+  <!-- ══════════ 고려사항 ══════════ -->
+  <h2>4. 결정 필요 / 고려사항</h2>
+  <div class="card">
+    <ul>
+      <li><b>기본 모드</b>: <code>list</code> 유지 권장 (기존 사용성 보존), 사용자별 마지막 선택 기억.</li>
+      <li><b>보드 모드 정렬 기준</b>: DONE 컬럼은 최근 완료순(<code>completed_at</code> desc), DOING은 마감 임박순, TODO는 <code>position</code> 순 제안.</li>
+      <li><b>Viewer(읽기전용)</b>: 드래그 비활성, 보기만 허용 (<code>canEdit</code> 가드 재사용).</li>
+      <li><b>4분류 vs 3분류</b>: KanbanBlock은 오늘완료/기존완료/진행중/미시작 4분류를 씀. 여기서는 요청대로 <b>3컬럼(DONE 통합)</b> 채택 — 카드에 "오늘 완료" 뱃지만 부가.</li>
+      <li><b>DnD 라이브러리 주의</b>: 리스트 모드는 <code>@dnd-kit</code> 세로 정렬, MiniKanban은 커스텀 마우스 이벤트. 보드 모드는 <code>@dnd-kit</code>의 <code>DndContext</code> 재사용이 일관적.</li>
+    </ul>
+  </div>
+
+  <div class="note" style="margin-top:30px;text-align:center">모든 작업은 프론트엔드 한정 · 백엔드/DB/마이그레이션 변경 없음 · 기존 상태 파생·mutation 로직 재사용</div>
+</div>
+</body>
+</html>

@@ -1313,6 +1313,13 @@
     "addAssigneeToChecklist": "Đồng bộ với người phụ trách trong danh sách",
     "checklistContractorBadge": "Thuê ngoài",
     "contractorSection": "Người thuê ngoài",
+    "checklistView": {
+      "list": "Danh sách",
+      "board": "Bảng",
+      "todo": "TODO",
+      "doing": "DOING",
+      "done": "DONE"
+    },
     "checklistFilter": {
       "unassigned": "Chưa phân công",
       "showingCount": "Đang hiển thị {{visible}} / {{total}}"

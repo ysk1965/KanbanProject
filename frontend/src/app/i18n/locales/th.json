@@ -1313,6 +1313,13 @@
     "addAssigneeToChecklist": "ซิงค์กับผู้รับมอบหมายในเช็คลิสต์",
     "checklistContractorBadge": "ภายนอก",
     "contractorSection": "ผู้รับเหมาภายนอก",
+    "checklistView": {
+      "list": "รายการ",
+      "board": "บอร์ด",
+      "todo": "TODO",
+      "doing": "DOING",
+      "done": "DONE"
+    },
     "checklistFilter": {
       "unassigned": "ไม่ได้มอบหมาย",
       "showingCount": "แสดง {{visible}} / {{total}}"

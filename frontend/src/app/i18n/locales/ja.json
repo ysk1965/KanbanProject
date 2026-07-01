@@ -1313,6 +1313,13 @@
     "addAssigneeToChecklist": "チェックリストの担当者と自動連動",
     "checklistContractorBadge": "外注",
     "contractorSection": "外注作業者",
+    "checklistView": {
+      "list": "リスト",
+      "board": "ボード",
+      "todo": "TODO",
+      "doing": "DOING",
+      "done": "DONE"
+    },
     "checklistFilter": {
       "unassigned": "未割り当て",
       "showingCount": "{{visible}} / {{total}} 件表示中"
