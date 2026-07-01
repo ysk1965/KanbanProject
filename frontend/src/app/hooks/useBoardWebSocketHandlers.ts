@@ -323,6 +323,59 @@ export function useBoardWebSocketHandlers(
         notifyScheduleRefresh();
         break;
       }
+      case "CHECKLIST_MOVED": {
+        const {
+          item: movedItem,
+          source_task_id: moveSourceTaskId,
+          target_task_id: moveTargetTaskId,
+        } = data as {
+          item: ChecklistItem;
+          source_task_id: string;
+          target_task_id: string;
+        };
+        setChecklistDataMap((prev) => {
+          const sourceItems = (prev[moveSourceTaskId] || []).filter(
+            (ci) => ci.id !== movedItem.id,
+          );
+          const targetItems = [
+            ...(prev[moveTargetTaskId] || []).filter(
+              (ci) => ci.id !== movedItem.id,
+            ),
+            movedItem,
+          ];
+          return {
+            ...prev,
+            [moveSourceTaskId]: sourceItems,
+            [moveTargetTaskId]: targetItems,
+          };
+        });
+        const moveDelta = movedItem.completed ? 1 : 0;
+        setTasks((prev) =>
+          prev.map((t) => {
+            if (t.id === moveSourceTaskId) {
+              return {
+                ...t,
+                checklist_total: Math.max(0, (t.checklist_total || 0) - 1),
+                checklist_completed: Math.max(
+                  0,
+                  (t.checklist_completed || 0) - moveDelta,
+                ),
+              };
+            }
+            if (t.id === moveTargetTaskId) {
+              return {
+                ...t,
+                checklist_total: (t.checklist_total || 0) + 1,
+                checklist_completed: (t.checklist_completed || 0) + moveDelta,
+              };
+            }
+            return t;
+          }),
+        );
+        setWsChecklistEvent(event);
+        notifyScheduleRefresh();
+        break;
+      }
       case "CHECKLIST_TOGGLED": {
         const { item: toggledItem, task_id: toggleTaskId } = data as {
           item: ChecklistItem;

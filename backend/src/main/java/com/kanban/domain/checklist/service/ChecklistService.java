@@ -675,7 +675,13 @@ public class ChecklistService {
         log.info("Checklist item moved: {} from task {} to task {} by user: {}",
                 itemId, taskId, targetTask.getId(), userId);
 
-        return ChecklistResponse.Detail.of(item);
+        ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_MOVED, userId, user.getName(),
+                Map.of("item", response,
+                        "source_task_id", taskId,
+                        "target_task_id", targetTask.getId()));
+
+        return response;
     }
 
     @Transactional
