@@ -65,9 +65,21 @@ export function SharedNotePage() {
   // (JSON or legacy HTML) into HTML for static rendering. No BlockNoteView,
   // no editing surface, so the page payload is much smaller than a full
   // BlockNote mount.
+  // Block-validation config MUST match the note editor's, or replaceBlocks()
+  // throws on blocks with gated props (e.g. tables with headers / colored
+  // cells), leaving the throwaway doc empty and the shared page blank. Mirror
+  // the editor's `tables` config; collaboration + uploadFile are edit-only.
   const converter = useCreateBlockNote({
     schema,
+    trailingBlock: true,
+    defaultStyles: true,
     resolveFileUrl: async (url: string) => resolveFileUrl(url),
+    tables: {
+      cellBackgroundColor: true,
+      cellTextColor: true,
+      headers: true,
+      splitCells: true,
+    },
   } as any);
 
   useEffect(() => {

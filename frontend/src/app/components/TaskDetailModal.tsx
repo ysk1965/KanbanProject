@@ -65,6 +65,8 @@ import {
   Link,
   Check,
   Wrench,
+  List,
+  LayoutGrid,
 } from "lucide-react";
 import { TaskMoveModal } from "./TaskMoveModal";
 import { TaskAIChecklistModal } from "./TaskAIChecklistModal";
@@ -73,6 +75,11 @@ import { BlockStatusPicker } from "./BlockStatusPicker";
 import { CommentPanel } from "./CommentPanel";
 import { TagPickerPopover } from "./TagPickerPopover";
 import { getAssigneeClasses, getInitials } from "../utils/assigneeColor";
+import { ChecklistStatusBoard } from "./ChecklistStatusBoard";
+import {
+  resolveChecklistColumn,
+  type ChecklistColumn,
+} from "../utils/checklistStatus";
 import { useAuth } from "../contexts/AuthContext";
 import { Progress } from "./ui/progress";
 import { DateRange } from "react-day-picker";
@@ -449,6 +456,28 @@ export function TaskDetailModal({
     setEditedTask((prev) => (prev ? { ...prev, ...updates } : null));
     autoSaveFields(updates);
   }, [autoSaveFields]);
+
+  // 체크리스트 뷰 모드 (리스트 ↔ 상태 보드) — 전역 선호값 유지
+  const [checklistViewMode, setChecklistViewMode] = useState<"list" | "board">(
+    () => {
+      const saved =
+        typeof localStorage !== "undefined"
+          ? localStorage.getItem("checklistViewMode")
+          : null;
+      return saved === "board" ? "board" : "list";
+    },
+  );
+  const handleChecklistViewModeChange = useCallback(
+    (mode: "list" | "board") => {
+      setChecklistViewMode(mode);
+      try {
+        localStorage.setItem("checklistViewMode", mode);
+      } catch {
+        /* ignore */
+      }
+    },
+    [],
+  );
 
   // 체크리스트 드래그 앤 드롭 (hooks must be before early return)
   const checklistSensors = useSensors(
@@ -900,6 +929,84 @@ export function TaskDetailModal({
     }
   };
 
+  // 상태 보드 열 이동 — 완료 토글 + start_date 패치를 한 번에 원자적으로 처리
+  // (개별 핸들러 2회 호출 시 낙관적 setState 충돌 방지)
+  const handleMoveChecklistColumn = async (
+    item: ChecklistItem,
+    target: ChecklistColumn,
+  ) => {
+    if (!boardId || !task || !canEdit) return;
+    const today = getTodayDateString();
+    if (resolveChecklistColumn(item, today) === target) return;
+
+    const prevItems = [...checklistItems];
+    let newCompleted = item.completed;
+    let newStart = item.start_date;
+    let newDone = item.done_date;
+    const apiCalls: Promise<unknown>[] = [];
+
+    if (target === "done") {
+      if (!item.completed) {
+        newCompleted = true;
+        newDone = today;
+        apiCalls.push(checklistAPI.toggleItem(boardId, task.id, item.id));
+      }
+    } else {
+      // todo / doing 공통: 완료 상태면 해제
+      if (item.completed) {
+        newCompleted = false;
+        newDone = null;
+        apiCalls.push(checklistAPI.toggleItem(boardId, task.id, item.id));
+      }
+      const targetStart = target === "doing" ? today : null;
+      if (item.start_date !== targetStart) {
+        newStart = targetStart;
+        apiCalls.push(
+          checklistAPI.patchItem(boardId, task.id, item.id, {
+            start_date: targetStart,
+          }),
+        );
+      }
+    }
+
+    if (apiCalls.length === 0) return;
+
+    // 낙관적 업데이트
+    const newItems = checklistItems.map((ci) =>
+      ci.id === item.id
+        ? {
+            ...ci,
+            completed: newCompleted,
+            done_date: newDone,
+            start_date: newStart,
+          }
+        : ci,
+    );
+    setChecklistItems(newItems);
+    const completedCount = newItems.filter((i) => i.completed).length;
+    onUpdate({
+      checklist_total: newItems.length,
+      checklist_completed: completedCount,
+      checklist_version: Date.now(),
+    });
+    onChecklistSync?.(task.id, newItems);
+
+    try {
+      await Promise.all(apiCalls);
+    } catch (error) {
+      console.error("Failed to move checklist item column:", error);
+      // 롤백
+      setChecklistItems(prevItems);
+      const rolledBack = prevItems.filter((i) => i.completed).length;
+      onUpdate({
+        checklist_total: prevItems.length,
+        checklist_completed: rolledBack,
+        checklist_version: Date.now(),
+      });
+      onChecklistSync?.(task.id, prevItems);
+    }
+  };
+
   const handleDeleteChecklistItem = async (itemId: string) => {
     if (!boardId || !task) return;
 
@@ -1038,105 +1145,109 @@ export function TaskDetailModal({
               <X className="h-4 w-4" />
             </button>
             <div className="flex-shrink-0 p-4 md:p-6 pb-0 pr-[calc(1rem+5px)] md:pr-[calc(1.5rem+5px)]">
-              {/* 피처 & 블록 상태 표시 */}
-              <div className="flex items-center gap-2 mb-3 flex-wrap">
-                {/* 피처 뱃지 */}
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => {
-                      if (onOpenFeature) {
-                        onClose();
-                        onOpenFeature(task.feature_id);
-                      }
-                    }}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${onOpenFeature ? "cursor-pointer hover:brightness-110 hover:shadow-sm" : "cursor-default"}`}
-                    style={{
-                      backgroundColor: `${task.feature_color}20`,
-                      color: task.feature_color,
-                      border: `1px solid ${task.feature_color}40`,
-                    }}
-                  >
-                    <div
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: task.feature_color }}
-                    />
-                    {task.feature_title}
-                  </button>
-                </div>
-                {/* 현재 블록 상태 */}
-                {task.block_id && (
-                  <BlockStatusPicker
-                    blocks={blocks}
-                    currentBlockId={task.block_id}
-                    currentBlockName={task.block_name}
-                    canEdit={!!canEdit && (!!onMoveToBlock || !!onMoveToDone)}
-                    onSelectBlock={(blockId) => {
-                      if (task && onMoveToBlock) {
-                        onMoveToBlock(task.id, blockId);
-                      }
-                    }}
-                    onSelectDone={() => setShowDoneDialog(true)}
+              {/* 경로: 피처 › 마일스톤 › 블록 (넓은 개념 → 현재 태스크) */}
+              <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                {/* 피처 뱃지 (경로 루트) */}
+                <button
+                  onClick={() => {
+                    if (onOpenFeature) {
+                      onClose();
+                      onOpenFeature(task.feature_id);
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${onOpenFeature ? "cursor-pointer hover:brightness-110 hover:shadow-sm" : "cursor-default"}`}
+                  style={{
+                    backgroundColor: `${task.feature_color}20`,
+                    color: task.feature_color,
+                    border: `1px solid ${task.feature_color}40`,
+                  }}
+                >
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: task.feature_color }}
                   />
-                )}
-                {/* 마일스톤 배정 */}
+                  {task.feature_title}
+                </button>
+                {/* 마일스톤 배정 (피처 하위) */}
                 {milestones.length > 0 &&
                   (() => {
                     const currentMs = milestones.find(
                       (m) => m.id === editedTask.milestone_id,
                     );
                     return (
-                      <Popover
-                        open={milestonePickerOpen}
-                        onOpenChange={setMilestonePickerOpen}
-                      >
-                        <PopoverTrigger asChild>
-                          <button
-                            disabled={!canEdit}
-                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-foreground/10 bg-foreground/5 text-foreground hover:bg-foreground/10 transition-colors disabled:cursor-default disabled:hover:bg-foreground/5"
-                          >
-                            <Target className="w-3 h-3 text-bridge-accent" />
-                            {currentMs
-                              ? currentMs.title
-                              : t("milestone.none", "마일스톤 없음")}
-                            {canEdit && (
-                              <ChevronDown className="w-3 h-3 opacity-60" />
-                            )}
-                          </button>
-                        </PopoverTrigger>
-                        {canEdit && (
-                          <PopoverContent
-                            align="start"
-                            className="w-56 p-1 max-h-72 overflow-y-auto custom-scrollbar"
-                          >
+                      <>
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                        <Popover
+                          open={milestonePickerOpen}
+                          onOpenChange={setMilestonePickerOpen}
+                        >
+                          <PopoverTrigger asChild>
                             <button
-                              onClick={() => handleAssignMilestone("")}
-                              className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-foreground/10 ${
-                                !editedTask.milestone_id
-                                  ? "text-bridge-accent font-bold"
-                                  : "text-foreground"
-                              }`}
+                              disabled={!canEdit}
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-foreground/10 bg-foreground/5 text-foreground hover:bg-foreground/10 transition-colors disabled:cursor-default disabled:hover:bg-foreground/5"
                             >
-                              {t("milestone.none", "마일스톤 없음")}
+                              <Target className="w-3 h-3 text-bridge-accent" />
+                              {currentMs
+                                ? currentMs.title
+                                : t("milestone.none", "마일스톤 없음")}
+                              {canEdit && (
+                                <ChevronDown className="w-3 h-3 opacity-60" />
+                              )}
                             </button>
-                            {milestones.map((m) => (
+                          </PopoverTrigger>
+                          {canEdit && (
+                            <PopoverContent
+                              align="start"
+                              className="w-56 p-1 max-h-72 overflow-y-auto custom-scrollbar"
+                            >
                               <button
-                                key={m.id}
-                                onClick={() => handleAssignMilestone(m.id)}
-                                className={`w-full flex items-center gap-1.5 text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-foreground/10 ${
-                                  editedTask.milestone_id === m.id
+                                onClick={() => handleAssignMilestone("")}
+                                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-foreground/10 ${
+                                  !editedTask.milestone_id
                                     ? "text-bridge-accent font-bold"
                                     : "text-foreground"
                                 }`}
                               >
-                                <Target className="w-3 h-3 flex-shrink-0 text-bridge-accent" />
-                                <span className="truncate">{m.title}</span>
+                                {t("milestone.none", "마일스톤 없음")}
                               </button>
-                            ))}
-                          </PopoverContent>
-                        )}
-                      </Popover>
+                              {milestones.map((m) => (
+                                <button
+                                  key={m.id}
+                                  onClick={() => handleAssignMilestone(m.id)}
+                                  className={`w-full flex items-center gap-1.5 text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-foreground/10 ${
+                                    editedTask.milestone_id === m.id
+                                      ? "text-bridge-accent font-bold"
+                                      : "text-foreground"
+                                  }`}
+                                >
+                                  <Target className="w-3 h-3 flex-shrink-0 text-bridge-accent" />
+                                  <span className="truncate">{m.title}</span>
+                                </button>
+                              ))}
+                            </PopoverContent>
+                          )}
+                        </Popover>
+                      </>
                     );
                   })()}
+                {/* 현재 블록 상태 (마일스톤 하위) */}
+                {task.block_id && (
+                  <>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                    <BlockStatusPicker
+                      blocks={blocks}
+                      currentBlockId={task.block_id}
+                      currentBlockName={task.block_name}
+                      canEdit={!!canEdit && (!!onMoveToBlock || !!onMoveToDone)}
+                      onSelectBlock={(blockId) => {
+                        if (task && onMoveToBlock) {
+                          onMoveToBlock(task.id, blockId);
+                        }
+                      }}
+                      onSelectDone={() => setShowDoneDialog(true)}
+                    />
+                  </>
+                )}
               </div>
               <div>
                 <div className="flex items-center justify-between">
@@ -1558,6 +1669,44 @@ export function TaskDetailModal({
                         })}
                       </span>
                     )}
+                    {/* 리스트 ↔ 상태 보드 모드 전환 */}
+                    {checklistItems.length > 0 && (
+                      <div className="flex items-center gap-0.5 bg-foreground/5 rounded-lg p-0.5">
+                        {(
+                          [
+                            {
+                              mode: "list" as const,
+                              icon: List,
+                              label: t("task.checklistView.list", {
+                                defaultValue: "리스트",
+                              }),
+                            },
+                            {
+                              mode: "board" as const,
+                              icon: LayoutGrid,
+                              label: t("task.checklistView.board", {
+                                defaultValue: "보드",
+                              }),
+                            },
+                          ] as const
+                        ).map(({ mode, icon: Icon, label }) => (
+                          <button
+                            key={mode}
+                            onClick={() => handleChecklistViewModeChange(mode)}
+                            aria-label={label}
+                            aria-pressed={checklistViewMode === mode}
+                            className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold transition-colors ${
+                              checklistViewMode === mode
+                                ? "bg-foreground/10 text-foreground"
+                                : "text-slate-400 hover:text-foreground"
+                            }`}
+                          >
+                            <Icon className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div className="w-24 h-2 bg-foreground/10 rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-300"
@@ -1601,54 +1750,69 @@ export function TaskDetailModal({
                       </div>
                     </div>
                   )}
-                  <DndContext
-                    sensors={checklistSensors}
-                    collisionDetection={closestCenter}
-                    modifiers={[
-                      restrictToVerticalAxis,
-                      restrictToParentElement,
-                    ]}
-                    onDragEnd={handleChecklistDragEnd}
-                  >
-                    <SortableContext
-                      items={visibleChecklistItems.map((item) => item.id)}
-                      strategy={verticalListSortingStrategy}
+                  {checklistViewMode === "board" ? (
+                    <ChecklistStatusBoard
+                      items={visibleChecklistItems}
+                      canEdit={canEdit}
+                      boardMembers={boardMembers}
+                      contractors={contractors}
+                      timeBlocksMap={checklistTimeBlocksMap}
+                      featureColor={task.feature_color}
+                      onToggle={handleToggleChecklistItem}
+                      onMoveColumn={handleMoveChecklistColumn}
+                    />
+                  ) : (
+                    <DndContext
+                      sensors={checklistSensors}
+                      collisionDetection={closestCenter}
+                      modifiers={[
+                        restrictToVerticalAxis,
+                        restrictToParentElement,
+                      ]}
+                      onDragEnd={handleChecklistDragEnd}
                     >
-                      {visibleChecklistItems.map((item) => (
-                        <SortableChecklistItemRow
-                          key={item.id}
-                          item={item}
-                          onToggle={() => handleToggleChecklistItem(item.id)}
-                          onUpdate={(updates) =>
-                            handleUpdateChecklistItem(item.id, updates)
-                          }
-                          onDelete={() => setChecklistItemToDelete(item.id)}
-                          onMoveToTask={
-                            onMoveChecklistToTask &&
-                            (allTasks.length > 1 || milestones.length > 1)
-                              ? () => {
-                                  setMoveChecklistItemId(item.id);
-                                  setShowMoveChecklistDialog(true);
-                                }
-                              : undefined
-                          }
-                          boardMembers={boardMembers}
-                          contractors={contractors}
-                          boardId={boardId}
-                          canEdit={canEdit}
-                          dragDisabled={isChecklistFilterActive}
-                          isPersonal={isPersonal}
-                          preloadedTimeBlocks={checklistTimeBlocksMap[item.id]}
-                          isHighlighted={highlightChecklistItemId === item.id}
-                          highlightRef={
-                            highlightChecklistItemId === item.id
-                              ? highlightChecklistRef
-                              : undefined
-                          }
-                        />
-                      ))}
-                    </SortableContext>
-                  </DndContext>
+                      <SortableContext
+                        items={visibleChecklistItems.map((item) => item.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {visibleChecklistItems.map((item) => (
+                          <SortableChecklistItemRow
+                            key={item.id}
+                            item={item}
+                            onToggle={() => handleToggleChecklistItem(item.id)}
+                            onUpdate={(updates) =>
+                              handleUpdateChecklistItem(item.id, updates)
+                            }
+                            onDelete={() => setChecklistItemToDelete(item.id)}
+                            onMoveToTask={
+                              onMoveChecklistToTask &&
+                              (allTasks.length > 1 || milestones.length > 1)
+                                ? () => {
+                                    setMoveChecklistItemId(item.id);
+                                    setShowMoveChecklistDialog(true);
+                                  }
+                                : undefined
+                            }
+                            boardMembers={boardMembers}
+                            contractors={contractors}
+                            boardId={boardId}
+                            canEdit={canEdit}
+                            dragDisabled={isChecklistFilterActive}
+                            isPersonal={isPersonal}
+                            preloadedTimeBlocks={
+                              checklistTimeBlocksMap[item.id]
+                            }
+                            isHighlighted={highlightChecklistItemId === item.id}
+                            highlightRef={
+                              highlightChecklistItemId === item.id
+                                ? highlightChecklistRef
+                                : undefined
+                            }
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
+                  )}
 
                   {/* 새 항목 추가 - Viewer는 추가 불가 */}
                   {canEdit && (

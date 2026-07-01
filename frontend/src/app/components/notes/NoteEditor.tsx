@@ -499,9 +499,25 @@ function CollabNoteEditor({
   //      cheaper memory + faster initial paint on heavy notes.
   // The `viewConverter` editor is a throwaway used solely for JSON→HTML
   // serialization; it does not mount via BlockNoteView.
+  // The converter's block-validation config MUST match the live editor's, or
+  // replaceBlocks() throws on any block whose stored props depend on a gated
+  // feature (e.g. a table with header rows / colored cells). A throw here leaves
+  // the throwaway doc empty, so blocksToHTMLLossy exports nothing and VIEW mode
+  // renders blank — even though the same JSON loads fine in EDIT mode. Mirror
+  // the editor's `tables` config (and trailingBlock/defaultStyles/dictionary)
+  // here; only collaboration + uploadFile are edit-only and intentionally omitted.
   const viewConverter = useCreateBlockNote({
     schema,
+    dictionary,
+    trailingBlock: true,
+    defaultStyles: true,
     resolveFileUrl: async (url: string) => resolveFileUrl(url),
+    tables: {
+      cellBackgroundColor: true,
+      cellTextColor: true,
+      headers: true,
+      splitCells: true,
+    },
   } as any);
   const [viewHtml, setViewHtml] = useState<string>("");
 

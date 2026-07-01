@@ -1441,6 +1441,13 @@
     "addAssigneeToChecklist": "체크리스트 담당자와 자동 연동됩니다",
     "checklistContractorBadge": "외주",
     "contractorSection": "외주 작업자",
+    "checklistView": {
+      "list": "리스트",
+      "board": "보드",
+      "todo": "TODO",
+      "doing": "DOING",
+      "done": "DONE"
+    },
     "checklistFilter": {
       "unassigned": "미할당",
       "showingCount": "{{visible}} / {{total}} 표시 중"

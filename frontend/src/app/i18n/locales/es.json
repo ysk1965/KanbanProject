@@ -1313,6 +1313,13 @@
     "addAssigneeToChecklist": "Sincronizado con asignados del checklist",
     "checklistContractorBadge": "Externo",
     "contractorSection": "Contratistas externos",
+    "checklistView": {
+      "list": "Lista",
+      "board": "Tablero",
+      "todo": "TODO",
+      "doing": "DOING",
+      "done": "DONE"
+    },
     "checklistFilter": {
       "unassigned": "Sin asignar",
       "showingCount": "Mostrando {{visible}} / {{total}}"

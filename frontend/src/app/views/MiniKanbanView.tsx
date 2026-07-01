@@ -37,6 +37,11 @@ import type { Block, ChecklistItem, Task } from "../types";
 import { miniKanbanAPI } from "../utils/api";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
 import { getTodayDateString } from "../utils/dateUtils";
+import {
+  resolveChecklistColumn as resolveColumn,
+  isChecklistOverdue as isOverdue,
+  type ChecklistColumn as Col,
+} from "../utils/checklistStatus";
 
 interface MiniKanbanViewProps {
   boardId: string;
@@ -58,21 +63,7 @@ interface MiniKanbanViewProps {
   onToggleChecklist: (taskId: string, itemId: string) => void;
 }
 
-// ────────────────────────────────────────────────────────────
-// 열 파생 규칙 (저장값 아님 — 오늘 날짜로 매 렌더 계산)
-// ────────────────────────────────────────────────────────────
-type Col = "todo" | "doing" | "done";
-
-function resolveColumn(item: ChecklistItem, today: string): Col {
-  if (item.completed) return "done";
-  if (item.start_date && item.start_date <= today) return "doing"; // 지난 due도 미완료면 DOING 유지
-  return "todo";
-}
-
-// DOING 내 "지연"(마감일 초과) 강조
-function isOverdue(item: ChecklistItem, today: string): boolean {
-  return !item.completed && item.due_date != null && item.due_date < today;
-}
+// 열 파생 규칙 (resolveColumn / isOverdue) 은 utils/checklistStatus 공용 유틸로 이동.
 
 // 레이아웃 상수 (블록 = 세로 레인, 태스크는 레인 아래로 스택)
 const LANE_W = 680;

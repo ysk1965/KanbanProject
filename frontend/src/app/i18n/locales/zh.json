@@ -1313,6 +1313,13 @@
     "addAssigneeToChecklist": "与清单负责人自动同步",
     "checklistContractorBadge": "外包",
     "contractorSection": "外包人员",
+    "checklistView": {
+      "list": "列表",
+      "board": "看板",
+      "todo": "TODO",
+      "doing": "DOING",
+      "done": "DONE"
+    },
     "checklistFilter": {
       "unassigned": "未分配",
       "showingCount": "显示 {{visible}} / {{total}}"
