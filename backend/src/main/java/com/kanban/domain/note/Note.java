@@ -184,6 +184,10 @@ public class Note {
         return this.type == NoteType.BOARD;
     }
 
+    public boolean isFlow() {
+        return this.type == NoteType.FLOW;
+    }
+
     public boolean canHaveChildren() {
         return this.depth < MAX_DEPTH;
     }

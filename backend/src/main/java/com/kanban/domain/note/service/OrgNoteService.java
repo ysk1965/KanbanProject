@@ -217,7 +217,7 @@ public class OrgNoteService {
                 .parent(parent)
                 .type(type)
                 .title(request.getTitle())
-                .content(type == NoteType.DOCUMENT || type == NoteType.BOARD ? request.getContent() : null)
+                .content(type == NoteType.DOCUMENT || type == NoteType.BOARD || type == NoteType.FLOW ? request.getContent() : null)
                 .position(position)
                 .depth(depth)
                 .createdBy(user)

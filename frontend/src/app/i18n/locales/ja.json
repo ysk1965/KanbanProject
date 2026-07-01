@@ -2921,6 +2921,11 @@
       "permanentDeleteConfirm": "\"{{title}}\"とすべての下位項目、コメント、バージョンが即座に削除され、元に戻せません。",
       "emptyAllConfirmTitle": "ゴミ箱を空にしますか？",
       "emptyAllConfirm": "ゴミ箱のすべての項目({{count}}個)が完全に削除されます。元に戻せません。"
+    },
+    "newFlow": "新規フロー",
+    "addFlow": "フローを追加",
+    "diff": {
+      "flowNoPreview": "フローは視覚的な比較に対応していません。元に戻すでこのバージョンを復元できます。"
     }
   },
   "payment": {
@@ -4138,5 +4143,17 @@
     "filterNoMilestone": "マイルストーンなし",
     "noFilteredFeatures": "このマイルストーンに未配置のフィーチャーはありません",
     "excludeFeature": "マインドマップから除外"
+  },
+  "flow": {
+    "newMemo": "メモ",
+    "handTool": "手のツール",
+    "pointerTool": "選択ツール",
+    "addText": "テキスト",
+    "addSticky": "付箋",
+    "addShape": "図形",
+    "addImage": "画像",
+    "addVideo": "動画",
+    "empty": "上部のパレットからノードを追加して始めましょう",
+    "emptyReadOnly": "フローはまだ空です"
   }
 }
