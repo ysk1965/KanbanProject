@@ -541,7 +541,8 @@ export const KanbanBlock = memo(function KanbanBlock({
                 </span>
                 {nToday > 0 && (
                   <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0">
-                    ▲ {t("kanbanBlock.recentDone.todayDelta", { count: nToday })}
+                    ▲{" "}
+                    {t("kanbanBlock.recentDone.todayDelta", { count: nToday })}
                   </span>
                 )}
               </button>
@@ -551,7 +552,7 @@ export const KanbanBlock = memo(function KanbanBlock({
                 onClose={() => setRecentDoneOpen(false)}
                 accentColor
                 aria-label={t("kanbanBlock.recentDone.title")}
-                className="sm:max-w-lg"
+                className="sm:max-w-xl"
               >
                 {/* Header */}
                 <div className="flex items-center gap-2 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
@@ -657,7 +658,9 @@ export const KanbanBlock = memo(function KanbanBlock({
                         const isDone = item.completed;
                         const isProg = recentDoneTab === "inProgress";
                         const rightLabel = isDone
-                          ? formatRelativeTime(item.completed_at ?? item.done_date)
+                          ? formatRelativeTime(
+                              item.completed_at ?? item.done_date,
+                            )
                           : item.due_date
                             ? `~ ${item.due_date}`
                             : item.start_date
@@ -705,7 +708,7 @@ export const KanbanBlock = memo(function KanbanBlock({
                                     </span>
                                     <span className="flex items-center gap-1 shrink-0">
                                       <span
-                                        className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white border border-foreground/[0.08] overflow-hidden"
+                                        className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold leading-none text-white flex-shrink-0 border border-foreground/[0.08] whitespace-nowrap overflow-hidden"
                                         style={{
                                           backgroundColor: getAssigneeHex(
                                             item.assignee.name,

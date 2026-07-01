@@ -2608,23 +2608,54 @@ export function KanbanBoardPage() {
         target_task_id: targetTaskId,
       });
 
-      const movedItem = tasks.find((t) => t.id === sourceTaskId);
-      if (movedItem) {
-        setTasks((prevTasks) =>
-          prevTasks.map((t) => {
-            if (t.id === targetTaskId) {
-              const newTotal = (t.checklist_total || 0) + 1;
-              return {
-                ...t,
-                checklist_total: newTotal,
-                checklist_version: (t.checklist_version || 0) + 1,
-              };
-            }
-            return t;
-          }),
-        );
-      }
+      // checklistDataMap에서 항목을 원본 → 대상 Task로 이동 (보드 즉시 반영)
+      let movedChecklistItem: ChecklistItem | undefined;
+      setChecklistDataMap((prev) => {
+        const sourceItems = prev[sourceTaskId] || [];
+        movedChecklistItem = sourceItems.find((i) => i.id === checklistItemId);
+        if (!movedChecklistItem) return prev;
 
+        const nextSource = sourceItems.filter((i) => i.id !== checklistItemId);
+        const targetItems = prev[targetTaskId] || [];
+        const maxPosition = targetItems.reduce(
+          (max, i) => Math.max(max, i.position ?? 0),
+          -1,
+        );
+        const nextTarget = [
+          ...targetItems,
+          { ...movedChecklistItem, position: maxPosition + 1 },
+        ];
+        return { ...prev, [sourceTaskId]: nextSource, [targetTaskId]: nextTarget };
+      });
+
+      const wasCompleted = movedChecklistItem?.completed ?? false;
+      setTasks((prevTasks) =>
+        prevTasks.map((t) => {
+          if (t.id === sourceTaskId) {
+            return {
+              ...t,
+              checklist_total: Math.max(0, (t.checklist_total || 0) - 1),
+              checklist_completed: wasCompleted
+                ? Math.max(0, (t.checklist_completed || 0) - 1)
+                : t.checklist_completed,
+              checklist_version: (t.checklist_version || 0) + 1,
+            };
+          }
+          if (t.id === targetTaskId) {
+            return {
+              ...t,
+              checklist_total: (t.checklist_total || 0) + 1,
+              checklist_completed: wasCompleted
+                ? (t.checklist_completed || 0) + 1
+                : t.checklist_completed,
+              checklist_version: (t.checklist_version || 0) + 1,
+            };
+          }
+          return t;
+        }),
+      );
+
+      notifyScheduleRefresh();
       setManagementRefreshKey((prev) => prev + 1);
     } catch (error) {
       console.error("Failed to move checklist item:", error);

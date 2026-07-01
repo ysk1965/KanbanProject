@@ -273,6 +273,10 @@ export function serializeForSave(editor: MinimalEditor): string {
 
 interface HtmlExportEditor extends MinimalEditor {
   blocksToHTMLLossy: (blocks?: any) => Promise<string>;
+  // Full HTML uses each block's internal render (toInternalHTML) — the same path
+  // BlockNoteView uses in edit mode — instead of toExternalHTML. Kept as a
+  // fallback for content whose lossy export throws (see contentToHtml).
+  blocksToFullHTML: (blocks?: any) => Promise<string>;
 }
 
 interface MarkdownExportEditor extends MinimalEditor {
@@ -296,15 +300,41 @@ export async function contentToHtml(
 ): Promise<string> {
   if (!content?.trim()) return "";
   if (isBlockNoteJson(content)) {
+    let blocks: unknown = null;
     try {
-      const blocks = JSON.parse(content);
-      if (Array.isArray(blocks)) {
+      blocks = JSON.parse(content);
+    } catch (err) {
+      console.error("contentToHtml: JSON.parse failed:", err);
+    }
+    if (Array.isArray(blocks)) {
+      // replaceBlocks can throw if a block fails schema validation; keep it
+      // isolated so we still attempt an export from whatever loaded.
+      try {
         editor.replaceBlocks(editor.document, blocks);
+      } catch (err) {
+        console.error("contentToHtml: replaceBlocks failed:", err);
+      }
+      // Primary: lossy export (simple HTML tuned for the static .note-view-render
+      // CSS + clean copy/paste round-trip). It walks each block's toExternalHTML,
+      // so one custom block with a throwing toExternalHTML aborts the whole doc.
+      try {
         const html = await editor.blocksToHTMLLossy(editor.document);
         return unwrapListItemParagraphs(html);
+      } catch (err) {
+        console.error(
+          "contentToHtml: blocksToHTMLLossy failed, falling back to full HTML:",
+          err,
+        );
       }
-    } catch (err) {
-      console.error("contentToHtml: JSON parse failed:", err);
+      // Fallback: full HTML uses the same internal render as edit mode's
+      // BlockNoteView, so it survives blocks whose toExternalHTML throws.
+      try {
+        return await editor.blocksToFullHTML(editor.document);
+      } catch (err) {
+        console.error("contentToHtml: blocksToFullHTML failed:", err);
+      }
+      // Never render the raw JSON string as text — better an empty view.
+      return "";
     }
   }
   return unwrapListItemParagraphs(content);
