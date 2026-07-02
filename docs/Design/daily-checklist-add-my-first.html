@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>데일리 체크리스트 추가 — "내 작업 우선" 개선안</title>
+<style>
+  :root {
+    --bridge-dark: #191f2d;
+    --bridge-obsidian: #151B28;
+    --bridge-accent: #6366F1;
+    --bridge-secondary: #2DD4BF;
+    --bridge-surface: #1e2a42;
+    --bridge-border: #384d6e;
+    --fg: rgba(248, 250, 252, 0.98);
+    --slate-400: #94a3b8;
+    --slate-500: #64748b;
+    --slate-600: #475569;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d1117;
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Noto Sans KR", sans-serif;
+    padding: 40px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  /* ─── 설명 배너 ─── */
+  .design-note {
+    max-width: 1180px;
+    width: 100%;
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 16px;
+    padding: 20px 24px;
+  }
+  .design-note h1 { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+  .design-note h1 span { color: var(--bridge-accent); }
+  .design-note ol { margin-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+  .design-note li { font-size: 13px; color: var(--slate-400); line-height: 1.6; }
+  .design-note li b { color: var(--fg); font-weight: 700; }
+
+  /* ─── 모달 프레임 ─── */
+  .modal {
+    width: 100%;
+    max-width: 1180px;
+    background: var(--bridge-obsidian);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 92vh;
+  }
+  .accent-line {
+    height: 2px;
+    background: linear-gradient(to right, rgba(99,102,241,0.6), rgba(45,212,191,0.4), transparent);
+  }
+  .modal-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    padding: 18px 24px 14px;
+    border-bottom: 1px solid rgba(248,250,252,0.08);
+  }
+  .modal-header h2 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+  .modal-header p { font-size: 12px; color: var(--slate-500); margin-top: 3px; }
+  .close-btn {
+    width: 32px; height: 32px; border-radius: 10px; border: none; cursor: pointer;
+    background: transparent; color: var(--slate-400); font-size: 18px;
+  }
+  .close-btn:hover { background: rgba(248,250,252,0.05); color: var(--fg); }
+
+  /* ─── 툴바 ─── */
+  .toolbar {
+    display: flex; gap: 10px; padding: 14px 24px;
+    border-bottom: 1px solid rgba(248,250,252,0.06);
+    align-items: center;
+  }
+  .milestone-select {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(248,250,252,0.03);
+    border: 1px solid rgba(248,250,252,0.1);
+    border-radius: 12px; padding: 9px 14px;
+    font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer;
+  }
+  .milestone-select:hover { border-color: rgba(248,250,252,0.2); }
+  .search-box {
+    flex: 1; display: flex; align-items: center; gap: 8px;
+    background: rgba(248,250,252,0.03);
+    border: 1px solid rgba(248,250,252,0.1);
+    border-radius: 12px; padding: 9px 14px;
+  }
+  .search-box input {
+    flex: 1; background: none; border: none; outline: none;
+    color: var(--fg); font-size: 13px;
+  }
+  .search-box input::placeholder { color: var(--slate-500); }
+  .new-feature-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(248,250,252,0.04); border: 1px solid rgba(248,250,252,0.1);
+    color: var(--fg); border-radius: 12px; padding: 9px 16px;
+    font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap;
+  }
+  .new-feature-btn:hover { background: rgba(248,250,252,0.08); }
+
+  /* ─── 본문 ─── */
+  .modal-body { overflow-y: auto; padding: 20px 24px 28px; }
+  .modal-body::-webkit-scrollbar { width: 8px; }
+  .modal-body::-webkit-scrollbar-thumb { background: rgba(248,250,252,0.12); border-radius: 4px; }
+
+  /* ═══ ① 오늘 내 작업 (히어로) ═══ */
+  .hero {
+    background: linear-gradient(160deg, rgba(99,102,241,0.10), rgba(99,102,241,0.03) 60%);
+    border: 1px solid rgba(99,102,241,0.35);
+    border-radius: 18px;
+    padding: 18px 20px 16px;
+    margin-bottom: 22px;
+    position: relative;
+  }
+  .hero-head {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+  }
+  .hero-head .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--bridge-accent);
+    box-shadow: 0 0 12px rgba(99,102,241,0.8);
+  }
+  .hero-head h3 { font-size: 15px; font-weight: 700; }
+  .hero-head .count-badge {
+    font-size: 12px; font-weight: 700;
+    background: rgba(99,102,241,0.15); color: #a5b4fc;
+    padding: 2px 8px; border-radius: 999px;
+  }
+  .hero-head .spacer { flex: 1; }
+
+  /* 히어로 내부 3열 그리드 */
+  .hero-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    align-items: start;
+  }
+
+  /* 태스크 그룹 (히어로 내부) */
+  .my-task-group {
+    background: rgba(21, 27, 40, 0.6);
+    border: 1px solid rgba(248,250,252,0.06);
+    border-radius: 14px;
+    padding: 12px;
+    align-self: start;
+  }
+  .my-task-path {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--slate-400); margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .my-task-path .block-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .my-task-path .sep { color: var(--slate-600); }
+  .my-task-path .task-name { color: var(--fg); font-weight: 700; }
+  .my-task-path .spacer { flex: 1; }
+
+  /* 즉석 추가 버튼 */
+  .quick-add-btn {
+    width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0;
+    border: 1px solid rgba(248,250,252,0.12);
+    background: rgba(248,250,252,0.04);
+    color: var(--slate-400); font-size: 13px; line-height: 1;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+    transition: all .15s;
+  }
+  .quick-add-btn:hover { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.4); color: #a5b4fc; }
+
+  /* 인라인 추가 폼 */
+  .inline-add-form {
+    display: none; align-items: center; gap: 8px;
+    background: rgba(99,102,241,0.06);
+    border: 1px dashed rgba(99,102,241,0.4);
+    border-radius: 12px; padding: 8px 10px; margin-bottom: 6px;
+  }
+  .inline-add-form.open { display: flex; }
+  .inline-add-form input {
+    flex: 1; background: none; border: none; outline: none;
+    color: var(--fg); font-size: 13px;
+  }
+  .inline-add-form input::placeholder { color: var(--slate-500); }
+  .inline-add-form .confirm {
+    background: var(--bridge-accent); border: none; color: #fff;
+    width: 24px; height: 24px; border-radius: 8px; font-size: 13px;
+    cursor: pointer; flex-shrink: 0;
+  }
+  .new-chip {
+    font-size: 12px; font-weight: 700;
+    background: rgba(45,212,191,0.15); color: var(--bridge-secondary);
+    padding: 2px 8px; border-radius: 999px; flex-shrink: 0;
+  }
+
+  .my-item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--bridge-obsidian);
+    border: 1px solid rgba(248,250,252,0.08);
+    border-left: 3px solid var(--bridge-accent);
+    border-radius: 12px;
+    padding: 11px 14px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .my-item:hover { border-color: rgba(99,102,241,0.5); background: rgba(99,102,241,0.06); }
+  .my-item.selected {
+    background: rgba(99,102,241,0.12);
+    border-color: var(--bridge-accent);
+  }
+  .my-item .checkbox {
+    width: 18px; height: 18px; border-radius: 6px; flex-shrink: 0;
+    border: 1.5px solid rgba(248,250,252,0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: #fff; transition: all .15s;
+  }
+  .my-item.selected .checkbox { background: var(--bridge-accent); border-color: var(--bridge-accent); }
+  .my-item .content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .my-item .title { font-size: 13px; font-weight: 500; }
+  .item-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .date-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; font-weight: 500; color: var(--slate-500);
+  }
+  .date-chip .cal { font-size: 10px; opacity: 0.8; }
+  .dday-chip {
+    font-size: 12px; font-weight: 700;
+    padding: 1px 7px; border-radius: 999px;
+  }
+  .dday-chip.due-soon { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .dday-chip.overdue { background: rgba(244,63,94,0.15); color: #fb7185; }
+  .dday-chip.today { background: rgba(45,212,191,0.15); color: var(--bridge-secondary); }
+  .my-item .me-chip {
+    font-size: 12px; font-weight: 700;
+    background: rgba(99,102,241,0.15); color: #a5b4fc;
+    padding: 2px 8px; border-radius: 999px; flex-shrink: 0;
+  }
+  .my-item.added { opacity: 0.45; cursor: default; border-left-color: var(--bridge-secondary); }
+  .my-item.added .title { text-decoration: line-through; }
+  .my-item .added-chip {
+    font-size: 12px; font-weight: 700;
+    background: rgba(45,212,191,0.15); color: var(--bridge-secondary);
+    padding: 2px 8px; border-radius: 999px; flex-shrink: 0;
+  }
+
+  /* 팀 항목 토글 */
+  .team-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--slate-500);
+    background: none; border: none; cursor: pointer;
+    padding: 4px 6px; margin: 0 0 4px 4px; border-radius: 8px;
+  }
+  .team-toggle:hover { color: var(--slate-400); background: rgba(248,250,252,0.04); }
+  .team-toggle .chev { transition: transform .15s; display: inline-block; font-size: 10px; }
+  .team-toggle.open .chev { transform: rotate(90deg); }
+  .team-items { display: none; padding-left: 8px; }
+  .team-items.open { display: block; }
+  .team-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 14px; margin-bottom: 4px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    opacity: 0.65;
+    transition: all .15s;
+  }
+  .team-item:hover { opacity: 1; background: rgba(248,250,252,0.03); border-color: rgba(248,250,252,0.08); }
+  .team-item .checkbox {
+    width: 16px; height: 16px; border-radius: 5px; flex-shrink: 0;
+    border: 1.5px solid rgba(248,250,252,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: #fff;
+  }
+  .team-item.selected { opacity: 1; background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.35); }
+  .team-item.selected .checkbox { background: var(--bridge-accent); border-color: var(--bridge-accent); }
+  .team-item .title { flex: 1; font-size: 13px; }
+  .assignee-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; color: var(--slate-400); flex-shrink: 0;
+  }
+  .avatar {
+    width: 18px; height: 18px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: #fff; flex-shrink: 0;
+  }
+
+  /* ═══ ② 다른 Task (디밍 + 아코디언) ═══ */
+  .others-section { margin-top: 8px; }
+  .others-head {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  .others-head .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--slate-600); }
+  .others-head h3 { font-size: 14px; font-weight: 700; color: var(--slate-400); }
+  .others-head .count { font-size: 12px; color: var(--slate-600); }
+  .others-head .spacer { flex: 1; }
+  .others-head .expand-all {
+    font-size: 12px; color: var(--slate-500); background: none; border: none; cursor: pointer;
+  }
+  .others-head .expand-all:hover { color: var(--slate-400); }
+
+  .others-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  }
+  .block-accordion {
+    background: rgba(248,250,252,0.02);
+    border: 1px solid rgba(248,250,252,0.06);
+    border-radius: 14px;
+    overflow: hidden;
+    opacity: 0.75;
+    transition: opacity .15s;
+    align-self: start;
+  }
+  .block-accordion:hover, .block-accordion.open { opacity: 1; }
+  .block-acc-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; cursor: pointer; user-select: none;
+  }
+  .block-acc-head:hover { background: rgba(248,250,252,0.03); }
+  .block-acc-head .block-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .block-acc-head .name { flex: 1; font-size: 13px; font-weight: 700; color: var(--slate-400); }
+  .block-acc-head .meta { font-size: 12px; color: var(--slate-600); }
+  .block-acc-head .chev { font-size: 10px; color: var(--slate-600); transition: transform .15s; }
+  .block-accordion.open .chev { transform: rotate(90deg); }
+  .block-acc-body { display: none; padding: 0 10px 10px; }
+  .block-accordion.open .block-acc-body { display: block; }
+
+  .other-task {
+    border-top: 1px solid rgba(248,250,252,0.05);
+    padding: 8px 4px 4px;
+  }
+  .other-task-name {
+    font-size: 12px; font-weight: 500; color: var(--slate-500);
+    padding: 4px 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .other-task-name .spacer { flex: 1; }
+  .other-task .inline-add-form { margin: 4px 4px 6px; padding: 6px 8px; }
+  .other-task .inline-add-form input { font-size: 12px; }
+  .other-task-name .cnt { color: var(--slate-600); }
+  .other-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 8px; border-radius: 8px; cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .other-item:hover { background: rgba(248,250,252,0.04); }
+  .other-item.selected { background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.35); }
+  .other-item .checkbox {
+    width: 15px; height: 15px; border-radius: 5px; flex-shrink: 0;
+    border: 1.5px solid rgba(248,250,252,0.18);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; color: #fff;
+  }
+  .other-item.selected .checkbox { background: var(--bridge-accent); border-color: var(--bridge-accent); }
+  .other-item .title { flex: 1; font-size: 12px; color: var(--slate-400); }
+  .other-item.selected .title { color: var(--fg); }
+
+  /* ─── 푸터 ─── */
+  .modal-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px;
+    border-top: 1px solid rgba(248,250,252,0.08);
+    background: var(--bridge-obsidian);
+  }
+  .footer-left { display: flex; align-items: center; gap: 12px; }
+  .selection-summary { font-size: 13px; color: var(--slate-400); }
+  .selection-summary b { color: #a5b4fc; font-weight: 700; }
+  .esc-hint { font-size: 12px; color: var(--slate-600); }
+  .footer-right { display: flex; gap: 10px; }
+  .cancel-btn {
+    background: rgba(248,250,252,0.04); border: 1px solid rgba(248,250,252,0.1);
+    color: var(--fg); border-radius: 12px; padding: 10px 20px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+  }
+  .submit-btn {
+    background: var(--bridge-accent); border: none; color: #fff;
+    border-radius: 12px; padding: 10px 22px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    transition: all .15s;
+  }
+  .submit-btn:disabled { opacity: 0.4; cursor: default; }
+  .submit-btn:not(:disabled):hover { box-shadow: 0 0 30px rgba(99,102,241,0.35); }
+</style>
+</head>
+<body>
+
+<div class="design-note">
+  <h1>💡 개선안: <span>"오늘 내 작업"이 먼저 보이는 3단 위계</span></h1>
+  <ol>
+    <li><b>① 히어로 존 "내가 포함된 Task" — 내 항목 강조.</b> 액센트 테두리 + 인디고 배경으로 영역 자체를 격상. 내 담당 항목은 액센트 좌측 바 + "내 항목" 칩으로 크게, 경로(블록 › 태스크)는 브레드크럼으로 축약. 3열 배열 유지. <b>기간(📅 시작–종료) + 마감 상태 칩</b>(오늘 마감 / D-N / 기한 지남)으로 오늘 우선순위 판단 지원.</li>
+    <li><b>② 같은 태스크의 팀 항목은 접어서 보관.</b> 동료 항목은 "팀 항목 N개" 토글 뒤로 — 필요할 때만 펼쳐서 함께 추가. 소음은 제거하되 맥락은 유지.</li>
+    <li><b>③ 다른 Task는 디밍 + 블록 아코디언.</b> 기본 접힘 & 투명도 낮춤 → "그 다음에 보는 영역"이라는 시각 신호. 검색 시엔 자동으로 펼쳐짐.</li>
+    <li><b>이미 추가된 항목은 리스트 하단으로 + 취소선.</b> 오늘 남은 일이 위로 모임.</li>
+    <li><b>즉석 추가 기능 유지.</b> 태스크별 ＋ → 인라인 입력으로 새 체크리스트 즉석 생성(자동 선택 · "새 항목" 칩), 블록 헤더 ＋ → 새 Task 추가. 기존 모달의 quick-add 흐름 그대로.</li>
+  </ol>
+</div>
+
+<div class="modal">
+  <div class="accent-line"></div>
+
+  <div class="modal-header">
+    <div>
+      <h2>데일리 체크리스트 추가</h2>
+      <p>추가할 체크리스트를 선택하세요</p>
+    </div>
+    <button class="close-btn">✕</button>
+  </div>
+
+  <div class="toolbar">
+    <div class="milestone-select">4차 마일스톤 <span style="color:#64748b;font-size:10px">▾</span></div>
+    <div class="search-box">
+      <span style="color:#64748b">🔍</span>
+      <input type="text" placeholder="체크리스트 검색..." />
+    </div>
+    <button class="new-feature-btn">＋ 새 Feature</button>
+  </div>
+
+  <div class="modal-body">
+
+    <!-- ═══ ① 오늘 내 작업 ═══ -->
+    <div class="hero">
+      <div class="hero-head">
+        <span class="dot"></span>
+        <h3>내가 포함된 Task</h3>
+        <span class="count-badge" id="myRemainCount">남은 항목 3</span>
+        <span class="spacer"></span>
+        <span style="font-size:12px;color:#64748b">⇕ 모두 닫기</span>
+      </div>
+
+      <div class="hero-grid">
+
+      <!-- 기타 작업 › 공용 개발 작업 -->
+      <div class="my-task-group">
+        <div class="my-task-path">
+          <span class="block-dot" style="background:#2DD4BF"></span>
+          기타 작업 <span class="sep">›</span> <span class="task-name">공용 개발 작업</span>
+          <span class="spacer"></span>
+          <button class="quick-add-btn" title="이 태스크에 체크리스트 추가" onclick="openInlineForm(this)">＋</button>
+        </div>
+        <div class="inline-add-form">
+          <input type="text" placeholder="새 체크리스트 항목 입력 후 Enter..." onkeydown="if(event.key==='Enter')addPendingItem(this)" />
+          <button class="confirm" onclick="addPendingItem(this.previousElementSibling)">＋</button>
+        </div>
+        <div class="my-item" onclick="toggleSel(this)">
+          <span class="checkbox">✓</span>
+          <div class="content">
+            <span class="title">[버그] 발열 이슈 점검</span>
+            <div class="item-meta">
+              <span class="date-chip"><span class="cal">📅</span>6.30 – 7.2</span>
+              <span class="dday-chip today">오늘 마감</span>
+            </div>
+          </div>
+          <span class="me-chip">내 항목</span>
+        </div>
+        <div class="my-item" onclick="toggleSel(this)">
+          <span class="checkbox">✓</span>
+          <div class="content">
+            <span class="title">[버그] 빌드, 어드레서블 이슈 점검</span>
+            <div class="item-meta">
+              <span class="date-chip"><span class="cal">📅</span>7.1 – 7.4</span>
+              <span class="dday-chip due-soon">D-2</span>
+            </div>
+          </div>
+          <span class="me-chip">내 항목</span>
+        </div>
+        <button class="team-toggle" onclick="toggleTeam(this)">
+          <span class="chev">▶</span> 이 태스크의 팀 항목 2개
+        </button>
+        <div class="team-items">
+          <div class="team-item" onclick="toggleSel(this)">
+            <span class="checkbox">✓</span>
+            <span class="title">[개발] 출시준비</span>
+            <span class="assignee-chip"><span class="avatar" style="background:#8b5cf6">김</span>김효림</span>
+          </div>
+          <div class="team-item" onclick="toggleSel(this)">
+            <span class="checkbox">✓</span>
+            <span class="title">[개발] 최적화</span>
+            <span class="assignee-chip"><span class="avatar" style="background:#f59e0b">김</span>김규현</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 텍틱스 모드 › 텍틱스 길잡이 -->
+      <div class="my-task-group">
+        <div class="my-task-path">
+          <span class="block-dot" style="background:#6366F1"></span>
+          텍틱스 모드 <span class="sep">›</span> <span class="task-name">텍틱스 길잡이</span>
+          <span class="spacer"></span>
+          <button class="quick-add-btn" title="이 태스크에 체크리스트 추가" onclick="openInlineForm(this)">＋</button>
+        </div>
+        <div class="inline-add-form">
+          <input type="text" placeholder="새 체크리스트 항목 입력 후 Enter..." onkeydown="if(event.key==='Enter')addPendingItem(this)" />
+          <button class="confirm" onclick="addPendingItem(this.previousElementSibling)">＋</button>
+        </div>
+        <div class="my-item" onclick="toggleSel(this)">
+          <span class="checkbox">✓</span>
+          <div class="content">
+            <span class="title">test</span>
+            <div class="item-meta">
+              <span class="date-chip"><span class="cal">📅</span>6.28 – 7.1</span>
+              <span class="dday-chip overdue">기한 지남</span>
+            </div>
+          </div>
+          <span class="me-chip">내 항목</span>
+        </div>
+        <button class="team-toggle" onclick="toggleTeam(this)">
+          <span class="chev">▶</span> 이 태스크의 팀 항목 5개
+        </button>
+        <div class="team-items">
+          <div class="team-item" onclick="toggleSel(this)">
+            <span class="checkbox">✓</span>
+            <span class="title">길잡이 셰이더 R&amp;D</span>
+            <span class="assignee-chip"><span class="avatar" style="background:#f43f5e">정</span>정소연</span>
+          </div>
+          <div class="team-item" onclick="toggleSel(this)">
+            <span class="checkbox">✓</span>
+            <span class="title">[UI] 신규 길잡이 버프 아이콘 제작 (더미 리소스 교체용)</span>
+            <span class="assignee-chip"><span class="avatar" style="background:#10b981">민</span>민준태</span>
+          </div>
+          <div class="team-item" onclick="toggleSel(this)">
+            <span class="checkbox">✓</span>
+            <span class="title">[UI] 길잡이 효과 발동 공용 토스트 UI 시안 작업</span>
+            <span class="assignee-chip"><span class="avatar" style="background:#10b981">민</span>민준태</span>
+          </div>
+          <div class="team-item" onclick="toggleSel(this)">
+            <span class="checkbox">✓</span>
+            <span class="title">[UI] 길잡이 효과 발동 공용 토스트 UI 프리팹 작업</span>
+            <span class="assignee-chip"><span class="avatar" style="background:#10b981">민</span>민준태</span>
+          </div>
+          <div class="team-item" onclick="toggleSel(this)">
+            <span class="checkbox">✓</span>
+            <span class="title">길잡이 카메라 라이팅 수정</span>
+            <span class="assignee-chip"><span class="avatar" style="background:#f43f5e">정</span>정소연</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 프로젝트 관리 › 업무 툴 작업 : 추가됨 항목은 하단으로 -->
+      <div class="my-task-group">
+        <div class="my-task-path">
+          <span class="block-dot" style="background:#22c55e"></span>
+          프로젝트 관리 <span class="sep">›</span> <span class="task-name">업무 툴 작업</span>
+          <span class="spacer"></span>
+          <button class="quick-add-btn" title="이 태스크에 체크리스트 추가" onclick="openInlineForm(this)">＋</button>
+        </div>
+        <div class="inline-add-form">
+          <input type="text" placeholder="새 체크리스트 항목 입력 후 Enter..." onkeydown="if(event.key==='Enter')addPendingItem(this)" />
+          <button class="confirm" onclick="addPendingItem(this.previousElementSibling)">＋</button>
+        </div>
+        <div class="my-item added">
+          <span class="checkbox" style="background:#2DD4BF;border-color:#2DD4BF">✓</span>
+          <div class="content">
+            <span class="title">과거 테스크/피처 정리</span>
+            <div class="item-meta">
+              <span class="date-chip"><span class="cal">📅</span>6.29 – 7.1</span>
+            </div>
+          </div>
+          <span class="added-chip">추가됨</span>
+        </div>
+      </div>
+
+      </div><!-- /hero-grid -->
+    </div>
+
+    <!-- ═══ ② 다른 Task ═══ -->
+    <div class="others-section">
+      <div class="others-head">
+        <span class="dot"></span>
+        <h3>다른 Task</h3>
+        <span class="count">36개 · 기본 접힘</span>
+        <span class="spacer"></span>
+        <button class="expand-all" onclick="expandAll()">모두 펼치기</button>
+      </div>
+
+      <div class="others-grid">
+        <!-- 텍틱스 모드 -->
+        <div class="block-accordion">
+          <div class="block-acc-head" onclick="toggleAcc(this)">
+            <span class="block-dot" style="background:#6366F1"></span>
+            <span class="name">텍틱스 모드</span>
+            <span class="meta">태스크 2 · 항목 6</span>
+            <span class="chev">▶</span>
+          </div>
+          <div class="block-acc-body">
+            <div class="other-task">
+              <div class="other-task-name">텍틱스 모드 보스 작업 <span class="cnt">2</span></div>
+              <div class="other-item" onclick="toggleSel(this)">
+                <span class="checkbox">✓</span><span class="title">[보스 몬스터] 킹 작업</span>
+              </div>
+              <div class="other-item" onclick="toggleSel(this)">
+                <span class="checkbox">✓</span><span class="title">[보스 몬스터] 퀸 작업</span>
+              </div>
+            </div>
+            <div class="other-task">
+              <div class="other-task-name">텍틱스 모드 아웃게임 <span class="cnt">4</span></div>
+              <div class="other-item" onclick="toggleSel(this)">
+                <span class="checkbox">✓</span><span class="title">[UI] 택틱스 아웃게임 UI 시안 작업</span>
+                <span class="assignee-chip"><span class="avatar" style="background:#10b981">민</span></span>
+              </div>
+              <div class="other-item" onclick="toggleSel(this)">
+                <span class="checkbox">✓</span><span class="title">[개발] 택틱스 아웃게임</span>
+                <span class="assignee-chip"><span class="avatar" style="background:#8b5cf6">김</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 상점 -->
+        <div class="block-accordion">
+          <div class="block-acc-head" onclick="toggleAcc(this)">
+            <span class="block-dot" style="background:#f97316"></span>
+            <span class="name">상점</span>
+            <span class="meta">태스크 2 · 항목 5</span>
+            <span class="chev">▶</span>
+          </div>
+          <div class="block-acc-body">
+            <div class="other-task">
+              <div class="other-task-name">상점 UI <span class="cnt">4</span></div>
+              <div class="other-item" onclick="toggleSel(this)">
+                <span class="checkbox">✓</span><span class="title">[UI] 상점 UI 시안 작업</span>
+                <span class="assignee-chip"><span class="avatar" style="background:#10b981">민</span></span>
+              </div>
+              <div class="other-item" onclick="toggleSel(this)">
+                <span class="checkbox">✓</span><span class="title">[연출] 상점</span>
+                <span class="assignee-chip"><span class="avatar" style="background:#0ea5e9">노</span></span>
+              </div>
+              <div class="other-item" onclick="toggleSel(this)">
+                <span class="checkbox">✓</span><span class="title">[개발] 상점</span>
+                <span class="assignee-chip"><span class="avatar" style="background:#8b5cf6">김</span></span>
+              </div>
+              <div class="other-item" onclick="toggleSel(this)">
+                <span class="checkbox">✓</span><span class="title">[UI] 상점 UI 프리팹 작업</span>
+                <span class="assignee-chip"><span class="avatar" style="background:#10b981">민</span></span>
+              </div>
+            </div>
+            <div class="other-task">
+              <div class="other-task-name">BM 기획 <span class="cnt">1</span></div>
+              <div class="other-item" onclick="toggleSel(this)">
+                <span class="checkbox">✓</span><span class="title">BM 상품 기획</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 아웃게임 컨텐츠 -->
+        <div class="block-accordion">
+          <div class="block-acc-head" onclick="toggleAcc(this)">
+            <span class="block-dot" style="background:#eab308"></span>
+            <span class="name">아웃게임 컨텐츠</span>
+            <span class="meta">태스크 3 · 항목 1</span>
+            <span class="chev">▶</span>
+          </div>
+          <div class="block-acc-body">
+            <div class="other-task">
+              <div class="other-task-name">아웃게임 성장 기획 <span class="cnt">1</span></div>
+              <div class="other-item" onclick="toggleSel(this)">
+                <span class="checkbox">✓</span><span class="title">아웃게임 성장 기획</span>
+                <span class="assignee-chip"><span class="avatar" style="background:#ec4899">박</span></span>
+              </div>
+            </div>
+            <div class="other-task">
+              <div class="other-task-name">아웃게임 브릿지 <span class="cnt">0</span></div>
+            </div>
+            <div class="other-task">
+              <div class="other-task-name">코어 성장 UI <span class="cnt">0</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 프로젝트 관리 -->
+        <div class="block-accordion">
+          <div class="block-acc-head" onclick="toggleAcc(this)">
+            <span class="block-dot" style="background:#22c55e"></span>
+            <span class="name">프로젝트 관리</span>
+            <span class="meta">태스크 1 · 항목 0</span>
+            <span class="chev">▶</span>
+          </div>
+          <div class="block-acc-body">
+            <div class="other-task">
+              <div class="other-task-name">4차 마일스톤 프로젝트 관리 <span class="cnt">0</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="modal-footer">
+    <div class="footer-left">
+      <span class="selection-summary" id="selSummary">체크리스트를 선택하세요</span>
+      <span class="esc-hint">Esc 닫기</span>
+    </div>
+    <div class="footer-right">
+      <button class="cancel-btn">닫기</button>
+      <button class="submit-btn" id="submitBtn" disabled>＋ 추가 (0)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function updateFooter() {
+    const n = document.querySelectorAll('.selected').length;
+    const btn = document.getElementById('submitBtn');
+    const sum = document.getElementById('selSummary');
+    btn.textContent = '＋ 추가 (' + n + ')';
+    btn.disabled = n === 0;
+    if (n === 0) { sum.textContent = '체크리스트를 선택하세요'; }
+    else {
+      const mine = document.querySelectorAll('.my-item.selected').length;
+      sum.innerHTML = '<b>' + n + '개</b> 선택됨' + (mine > 0 ? ' · 내 항목 <b>' + mine + '</b>' : '');
+    }
+  }
+  function toggleSel(el) {
+    if (el.classList.contains('added')) return;
+    el.classList.toggle('selected');
+    updateFooter();
+  }
+  /* ─── 즉석 추가 ─── */
+  function openInlineForm(btn) {
+    const path = btn.closest('.my-task-path, .other-task-name, .block-acc-head');
+    const form = path.nextElementSibling;
+    if (form && form.classList.contains('inline-add-form')) {
+      form.classList.toggle('open');
+      if (form.classList.contains('open')) form.querySelector('input').focus();
+    }
+  }
+  function addPendingItem(input) {
+    const title = input.value.trim();
+    if (!title) return;
+    const form = input.closest('.inline-add-form');
+    const isHero = !!form.closest('.my-task-group');
+    const row = document.createElement('div');
+    if (isHero) {
+      row.className = 'my-item selected';
+      row.setAttribute('onclick', 'toggleSel(this)');
+      row.innerHTML = '<span class="checkbox">✓</span>'
+        + '<div class="content"><span class="title">' + title + '</span></div>'
+        + '<span class="new-chip">새 항목</span>';
+    } else {
+      row.className = 'other-item selected';
+      row.setAttribute('onclick', 'toggleSel(this)');
+      row.innerHTML = '<span class="checkbox">✓</span>'
+        + '<span class="title">' + title + '</span>'
+        + '<span class="new-chip">새 항목</span>';
+    }
+    form.after(row);
+    input.value = '';
+    updateFooter();
+  }
+
+  /* 다른 Task 영역: 블록 헤더/태스크명에 + 버튼 자동 부착 (목업 편의) */
+  document.querySelectorAll('.other-task-name').forEach(nameEl => {
+    const spacer = document.createElement('span'); spacer.className = 'spacer';
+    const btn = document.createElement('button');
+    btn.className = 'quick-add-btn'; btn.textContent = '＋';
+    btn.title = '이 태스크에 체크리스트 추가';
+    btn.onclick = (e) => { e.stopPropagation(); openInlineForm(btn); };
+    nameEl.append(spacer, btn);
+    const form = document.createElement('div');
+    form.className = 'inline-add-form';
+    form.innerHTML = '<input type="text" placeholder="새 체크리스트 항목 입력 후 Enter..." '
+      + 'onkeydown="if(event.key===\'Enter\')addPendingItem(this)" />'
+      + '<button class="confirm" onclick="addPendingItem(this.previousElementSibling)">＋</button>';
+    nameEl.after(form);
+  });
+  document.querySelectorAll('.block-acc-head').forEach(head => {
+    const btn = document.createElement('button');
+    btn.className = 'quick-add-btn'; btn.textContent = '＋';
+    btn.title = '이 블록에 새 Task 추가';
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      head.parentElement.classList.add('open');
+      const name = prompt('새 Task 이름');
+      if (!name) return;
+      const task = document.createElement('div');
+      task.className = 'other-task';
+      task.innerHTML = '<div class="other-task-name">' + name
+        + ' <span class="new-chip">새 Task</span><span class="cnt">0</span></div>';
+      head.parentElement.querySelector('.block-acc-body').prepend(task);
+    };
+    head.insertBefore(btn, head.querySelector('.chev'));
+  });
+
+  function toggleTeam(btn) {
+    btn.classList.toggle('open');
+    btn.nextElementSibling.classList.toggle('open');
+  }
+  function toggleAcc(head) {
+    head.parentElement.classList.toggle('open');
+  }
+  function expandAll() {
+    const accs = document.querySelectorAll('.block-accordion');
+    const anyClosed = [...accs].some(a => !a.classList.contains('open'));
+    accs.forEach(a => a.classList.toggle('open', anyClosed));
+    event.target.textContent = anyClosed ? '모두 접기' : '모두 펼치기';
+  }
+</script>
+</body>
+</html>

@@ -890,7 +890,15 @@
     "collapseAll": "ย่อทั้งหมด",
     "newTask": "Task ใหม่",
     "newTaskPlaceholder": "กรอกชื่อ Task...",
-    "taskCreateFailed": "สร้าง Task ไม่สำเร็จ"
+    "taskCreateFailed": "สร้าง Task ไม่สำเร็จ",
+    "remainingCount": "เหลือ {{count}} รายการ",
+    "myItem": "รายการของฉัน",
+    "myItemCount": "ของฉัน {{count}} รายการ",
+    "teamItems": "รายการของทีมในงานนี้ {{count}} รายการ",
+    "dueToday": "ครบกำหนดวันนี้",
+    "overdue": "เลยกำหนด",
+    "taskCount": "{{count}} งาน",
+    "itemCount": "{{count}} รายการ"
   },
   "inquiry": {
     "title": "ติดต่อเรา",
@@ -4628,6 +4636,9 @@
     "filterAll": "ทั้งหมด",
     "filterNoMilestone": "ไม่มีไมล์สโตน",
     "noFilteredFeatures": "ไม่มีฟีเจอร์ที่ยังไม่ได้วางสำหรับไมล์สโตนนี้",
+    "searchFeatures": "ค้นหาฟีเจอร์",
+    "noSearchResults": "ไม่พบผลการค้นหา",
+    "clearSearch": "ล้างการค้นหา",
     "excludeFeature": "นำออกจากมายด์แมป"
   }
 }

@@ -890,7 +890,15 @@
     "collapseAll": "Contraer todo",
     "newTask": "Nueva Task",
     "newTaskPlaceholder": "Ingrese el título de la tarea...",
-    "taskCreateFailed": "Error al crear la tarea."
+    "taskCreateFailed": "Error al crear la tarea.",
+    "remainingCount": "{{count}} pendientes",
+    "myItem": "Mi elemento",
+    "myItemCount": "{{count}} míos",
+    "teamItems": "{{count}} elementos del equipo en esta tarea",
+    "dueToday": "Vence hoy",
+    "overdue": "Vencido",
+    "taskCount": "{{count}} tareas",
+    "itemCount": "{{count}} elementos"
   },
   "inquiry": {
     "title": "Contáctanos",
@@ -4628,6 +4636,9 @@
     "filterAll": "Todos",
     "filterNoMilestone": "Sin hito",
     "noFilteredFeatures": "No hay funciones sin ubicar para este hito",
+    "searchFeatures": "Buscar funciones",
+    "noSearchResults": "Sin resultados de búsqueda",
+    "clearSearch": "Borrar búsqueda",
     "excludeFeature": "Quitar del mapa mental"
   }
 }

@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>타임블록 추가 — UX 개선안</title>
+<style>
+  :root {
+    --bridge-dark: #191f2d;
+    --bridge-obsidian: #151B28;
+    --bridge-surface: #1e2a42;
+    --bridge-border: #384d6e;
+    --accent: #6366F1;
+    --secondary: #2DD4BF;
+    --fg: rgba(248, 250, 252, 0.98);
+    --slate-400: #94a3b8;
+    --slate-500: #64748b;
+    --slate-600: #475569;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+    background: #0d1119;
+    color: var(--fg);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 32px;
+    padding: 40px 24px;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  input { font-family: inherit; }
+
+  /* ───── Notes panel ───── */
+  .notes {
+    width: 340px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 40px;
+  }
+  .notes h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .notes .sub { font-size: 12px; color: var(--slate-500); margin-bottom: 20px; }
+  .note-card {
+    background: var(--bridge-obsidian);
+    border: 1px solid rgba(248,250,252,0.08);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .note-card .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(99,102,241,0.15);
+    color: #a5b4fc;
+    margin-bottom: 8px;
+  }
+  .note-card .tag.teal { background: rgba(45,212,191,0.15); color: var(--secondary); }
+  .note-card .tag.amber { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .note-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  .note-card ul { list-style: none; }
+  .note-card li {
+    font-size: 12px;
+    color: var(--slate-400);
+    line-height: 1.6;
+    padding-left: 14px;
+    position: relative;
+  }
+  .note-card li::before { content: "•"; position: absolute; left: 2px; color: var(--accent); }
+  .note-card li b { color: var(--fg); font-weight: 500; }
+
+  /* ───── Modal ───── */
+  .stage {
+    flex-shrink: 0;
+    width: 620px;
+  }
+  .modal {
+    width: 620px;
+    background: var(--bridge-dark);
+    border: 1px solid rgba(248,250,252,0.1);
+    border-radius: 20px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 760px;
+  }
+  .accent-line {
+    height: 2px;
+    background: linear-gradient(to right, rgba(99,102,241,0.6), rgba(45,212,191,0.4), transparent);
+    flex-shrink: 0;
+  }
+
+  /* Header */
+  .m-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid rgba(248,250,252,0.08);
+    flex-shrink: 0;
+  }
+  .m-header .title-wrap { display: flex; align-items: center; gap: 10px; }
+  .m-header h2 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  .date-chip {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(99,102,241,0.15);
+    color: #a5b4fc;
+  }
+  .icon-btn {
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 10px;
+    color: var(--slate-400);
+    transition: all .15s;
+  }
+  .icon-btn:hover { color: var(--fg); background: rgba(248,250,252,0.05); }
+
+  /* Time row */
+  .time-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(248,250,252,0.08);
+    flex-shrink: 0;
+  }
+  .time-input {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: rgba(248,250,252,0.03);
+    border: 1px solid rgba(248,250,252,0.1);
+    border-radius: 12px;
+    padding: 9px 14px;
+    font-size: 13px;
+    color: var(--fg);
+    transition: border-color .15s;
+  }
+  .time-input:hover { border-color: var(--bridge-border); }
+  .time-row .tilde { color: var(--slate-500); font-size: 12px; }
+  .duration-badge {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(45,212,191,0.15);
+    color: var(--secondary);
+    white-space: nowrap;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 10px 20px;
+    border-bottom: 1px solid rgba(248,250,252,0.08);
+    flex-shrink: 0;
+  }
+  .tab {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--slate-400);
+    border: 1px solid transparent;
+    transition: all .15s;
+  }
+  .tab:hover { color: var(--fg); background: rgba(248,250,252,0.05); }
+  .tab.active {
+    background: rgba(99,102,241,0.2);
+    color: #a5b4fc;
+    border-color: rgba(99,102,241,0.3);
+    font-weight: 700;
+  }
+  .tab svg { width: 14px; height: 14px; }
+
+  /* Body */
+  .m-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .panel { display: none; flex: 1; flex-direction: column; overflow: hidden; min-height: 0; }
+  .panel.active { display: flex; }
+
+  /* Search */
+  .search-wrap { padding: 14px 20px 10px; flex-shrink: 0; }
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(248,250,252,0.03);
+    border: 1px solid rgba(248,250,252,0.1);
+    border-radius: 12px;
+    padding: 10px 14px;
+    transition: all .15s;
+  }
+  .search-box:focus-within {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(99,102,241,0.5);
+  }
+  .search-box svg { width: 15px; height: 15px; color: var(--slate-500); flex-shrink: 0; }
+  .search-box input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--fg);
+    font-size: 13px;
+  }
+  .search-box input::placeholder { color: var(--slate-500); }
+
+  /* Unified list */
+  .unified-list {
+    flex: 1;
+    overflow-y: auto;
+    margin: 0 20px;
+    border: 1px solid rgba(248,250,252,0.1);
+    border-radius: 14px;
+    background: var(--bridge-surface);
+    min-height: 0;
+  }
+  .unified-list::-webkit-scrollbar { width: 6px; }
+  .unified-list::-webkit-scrollbar-thumb { background: rgba(248,250,252,0.15); border-radius: 3px; }
+  .unified-list::-webkit-scrollbar-track { background: transparent; }
+
+  .section-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--slate-400);
+    background: rgba(21,27,40,0.97);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid rgba(248,250,252,0.06);
+  }
+  .section-header svg { width: 13px; height: 13px; }
+  .section-header.today svg { color: var(--accent); }
+  .section-header.board svg { color: var(--secondary); }
+  .section-header .count {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--slate-500);
+    background: rgba(248,250,252,0.06);
+    padding: 1px 8px;
+    border-radius: 999px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .empty-slim {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    font-size: 12px;
+    color: var(--slate-500);
+    border-bottom: 1px solid rgba(248,250,252,0.04);
+  }
+
+  .item-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 16px;
+    text-align: left;
+    border-bottom: 1px solid rgba(248,250,252,0.04);
+    transition: background .12s;
+  }
+  .item-row:hover { background: rgba(99,102,241,0.1); }
+  .item-row .checkbox {
+    width: 17px; height: 17px;
+    border: 1.5px solid var(--bridge-border);
+    border-radius: 5px;
+    flex-shrink: 0;
+    transition: all .12s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .item-row:hover .checkbox { border-color: var(--accent); }
+  .item-row .info { flex: 1; min-width: 0; }
+  .item-row .name {
+    font-size: 13px;
+    color: var(--fg);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .item-row .path {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--slate-400);
+    white-space: nowrap; overflow: hidden;
+  }
+  .item-row .dot { width: 7px; height: 7px; border-radius: 999px; flex-shrink: 0; }
+  .item-row .period {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(248,250,252,0.05);
+    color: var(--slate-400);
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .item-row .period svg { width: 11px; height: 11px; }
+  .item-row .period.active { background: rgba(45,212,191,0.12); color: var(--secondary); }
+  .item-row .period.overdue { background: rgba(244,63,94,0.12); color: #fb7185; }
+  .item-row .pick {
+    font-size: 11px;
+    font-weight: 700;
+    color: #a5b4fc;
+    opacity: 0;
+    transition: opacity .12s;
+    flex-shrink: 0;
+    width: 24px;
+    text-align: right;
+  }
+  .item-row:hover .pick { opacity: 1; }
+
+  /* Create-new CTA under list */
+  .create-cta-wrap { padding: 10px 20px 14px; flex-shrink: 0; }
+  .create-cta {
+    width: 100%;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 11px;
+    border-radius: 12px;
+    border: 1px dashed rgba(248,250,252,0.15);
+    color: var(--slate-400);
+    font-size: 12px;
+    font-weight: 700;
+    transition: all .15s;
+  }
+  .create-cta:hover {
+    border-color: rgba(99,102,241,0.5);
+    color: #a5b4fc;
+    background: rgba(99,102,241,0.06);
+  }
+  .create-cta svg { width: 14px; height: 14px; }
+
+  /* ───── Create view (step) ───── */
+  .create-view { display: none; flex: 1; flex-direction: column; overflow: hidden; min-height: 0; }
+  .create-view.active { display: flex; }
+  .create-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 20px 4px;
+    flex-shrink: 0;
+  }
+  .back-btn {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 700;
+    color: var(--slate-400);
+    padding: 6px 10px 6px 6px;
+    border-radius: 8px;
+    transition: all .15s;
+  }
+  .back-btn:hover { color: var(--fg); background: rgba(248,250,252,0.05); }
+  .back-btn svg { width: 14px; height: 14px; }
+  .create-head .step-title { font-size: 13px; font-weight: 700; }
+
+  .field { padding: 10px 20px 0; flex-shrink: 0; }
+  .field label {
+    display: block;
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--slate-400);
+    margin-bottom: 8px;
+  }
+  .field label .req { color: var(--accent); }
+  .text-input {
+    width: 100%;
+    background: rgba(248,250,252,0.03);
+    border: 1px solid rgba(248,250,252,0.1);
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 13px;
+    color: var(--fg);
+    outline: none;
+    transition: all .15s;
+  }
+  .text-input::placeholder { color: var(--slate-500); }
+  .text-input:focus { box-shadow: 0 0 0 2px rgba(99,102,241,0.5); }
+
+  .task-picker-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 14px 20px 14px;
+    min-height: 0;
+  }
+  .task-picker {
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid rgba(248,250,252,0.1);
+    border-radius: 14px;
+    background: var(--bridge-surface);
+    min-height: 0;
+  }
+  .task-picker::-webkit-scrollbar { width: 6px; }
+  .task-picker::-webkit-scrollbar-thumb { background: rgba(248,250,252,0.15); border-radius: 3px; }
+  .feature-group-header {
+    position: sticky; top: 0; z-index: 2;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px;
+    font-size: 11px; font-weight: 700;
+    color: var(--slate-400);
+    background: rgba(21,27,40,0.97);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid rgba(248,250,252,0.06);
+  }
+  .task-option {
+    width: 100%;
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px 10px 32px;
+    text-align: left;
+    font-size: 13px;
+    color: var(--fg);
+    border-bottom: 1px solid rgba(248,250,252,0.04);
+    transition: background .12s;
+    position: relative;
+  }
+  .task-option:hover { background: rgba(99,102,241,0.1); }
+  .task-option.selected { background: rgba(99,102,241,0.2); }
+  .task-option.selected::after {
+    content: "";
+    position: absolute; right: 16px;
+    width: 16px; height: 16px;
+    background: var(--accent);
+    border-radius: 999px;
+    -webkit-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>') center/contain no-repeat;
+    mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>') center/contain no-repeat;
+  }
+
+  /* ───── Meeting panel ───── */
+  .meeting-time { font-size: 11px; color: var(--slate-400); margin-top: 2px; }
+
+  /* ───── Custom panel ───── */
+  .custom-body { padding: 16px 20px; overflow-y: auto; }
+  .preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .preset {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 12px 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(248,250,252,0.1);
+    color: var(--slate-400);
+    font-size: 12px; font-weight: 500;
+    transition: all .15s;
+  }
+  .preset:hover { border-color: rgba(99,102,241,0.3); color: var(--fg); }
+  .preset.selected {
+    border-color: var(--accent);
+    background: rgba(99,102,241,0.2);
+    color: #a5b4fc;
+    font-weight: 700;
+  }
+  .preset .emoji { font-size: 20px; }
+  .preset.is-new { position: relative; }
+  .preset.is-new::after {
+    content: "NEW";
+    position: absolute; top: -7px; right: -4px;
+    font-size: 9px; font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--secondary);
+    color: #06302b;
+  }
+  .color-row { display: flex; align-items: center; gap: 12px; margin-top: 20px; }
+  .color-row label {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--slate-400);
+  }
+  .swatches { display: flex; gap: 8px; }
+  .swatch {
+    width: 24px; height: 24px;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    transition: all .12s;
+  }
+  .swatch:hover { transform: scale(1.15); }
+  .swatch.selected { border-color: #fff; box-shadow: 0 0 0 2px rgba(99,102,241,0.5); }
+
+  /* Footer */
+  .m-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-top: 1px solid rgba(248,250,252,0.08);
+    flex-shrink: 0;
+  }
+  .esc-hint { font-size: 12px; color: var(--slate-600); }
+  .footer-actions { display: flex; gap: 8px; }
+  .btn-ghost {
+    padding: 9px 18px;
+    border-radius: 10px;
+    font-size: 12px; font-weight: 700;
+    color: var(--slate-400);
+    border: 1px solid rgba(248,250,252,0.1);
+    transition: all .15s;
+  }
+  .btn-ghost:hover { color: var(--fg); background: rgba(248,250,252,0.05); }
+  .btn-primary {
+    padding: 9px 22px;
+    border-radius: 10px;
+    font-size: 12px; font-weight: 700;
+    color: #fff;
+    background: var(--accent);
+    transition: all .2s;
+  }
+  .btn-primary:hover { box-shadow: 0 0 30px rgba(99,102,241,0.3); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .hidden { display: none !important; }
+
+  @media (max-width: 1060px) {
+    body { flex-direction: column; align-items: center; }
+    .notes { position: static; width: 620px; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═════════ 개선 노트 ═════════ -->
+<aside class="notes">
+  <h1>타임블록 추가 — UX 개선안</h1>
+  <p class="sub">ChecklistCreateModal 리디자인 · 2026-07-02</p>
+
+  <div class="note-card">
+    <span class="tag">체크리스트 탭</span>
+    <h3>선택 공간 확대</h3>
+    <ul>
+      <li>두 개의 작은 스크롤 박스 → <b>하나의 통합 리스트</b> (sticky 섹션 헤더)</li>
+      <li>모달 높이를 키우고 리스트가 <b>남는 공간을 전부 사용</b></li>
+      <li>오늘 체크리스트가 없으면 큰 빈 박스 대신 <b>한 줄 안내</b>로 축소</li>
+      <li><b>검색창 추가</b> — 항목이 많을 때 바로 필터링</li>
+      <li>섹션별 <b>개수 뱃지</b>로 전체 규모 파악</li>
+      <li>항목별 <b>기간 뱃지</b> (start_date ~ due_date): <b style="color:#2DD4BF;">진행중=틸</b> · <b style="color:#fb7185;">지연=로즈</b> · 예정=슬레이트 · 미지정은 흐리게</li>
+    </ul>
+  </div>
+
+  <div class="note-card">
+    <span class="tag teal">새로 생성</span>
+    <h3>3단 드롭다운 → 원스텝 피커</h3>
+    <ul>
+      <li>리스트 아래에 끼워 넣던 폼 → <b>별도 스텝 화면</b>으로 전환 (← 뒤로)</li>
+      <li>Feature/Task 이중 드롭다운 제거 → <b>Feature로 그룹핑된 단일 Task 리스트</b>에서 바로 선택</li>
+      <li>검색으로 Feature·Task 통합 필터</li>
+      <li>제목 입력을 <b>맨 위로</b> — 할 일부터 적고 위치 선택</li>
+    </ul>
+  </div>
+
+  <div class="note-card">
+    <span class="tag amber">직접 입력</span>
+    <h3>빠른 선택 변경</h3>
+    <ul>
+      <li>🍽️ 식사 → <b>💼 면접</b> (컬러 #F59E0B 유지)</li>
+    </ul>
+  </div>
+
+  <div class="note-card">
+    <span class="tag">전반 폴리시</span>
+    <h3>디자인 시스템 정합</h3>
+    <ul>
+      <li>Top Accent Line 추가 (모달 통일 패턴)</li>
+      <li>날짜를 헤더 옆 <b>칩</b>으로 이동, 시간 행 한 줄로 압축</li>
+      <li><b>소요 시간 뱃지</b> (예: 2시간 30분) 자동 표시</li>
+      <li>푸터 통일: Esc 힌트 + 우측 정렬 버튼</li>
+      <li>회의 탭은 기존 구조 유지, 스타일만 통일</li>
+    </ul>
+  </div>
+</aside>
+
+<!-- ═════════ 모달 목업 ═════════ -->
+<div class="stage">
+<div class="modal">
+  <div class="accent-line"></div>
+
+  <!-- Header -->
+  <div class="m-header">
+    <div class="title-wrap">
+      <h2>타임블록 추가</h2>
+      <span class="date-chip">7/2 (수)</span>
+    </div>
+    <button class="icon-btn" aria-label="닫기">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <!-- Time row -->
+  <div class="time-row">
+    <button class="time-input"><span>오전 10:00</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    </button>
+    <span class="tilde">~</span>
+    <button class="time-input"><span>오후 12:30</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    </button>
+    <span class="duration-badge">2시간 30분</span>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="checklist">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      체크리스트
+    </button>
+    <button class="tab" data-tab="meeting">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      회의
+    </button>
+    <button class="tab" data-tab="custom">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>
+      직접 입력
+    </button>
+  </div>
+
+  <!-- Body -->
+  <div class="m-body">
+
+    <!-- ── 체크리스트 탭 ── -->
+    <div class="panel active" id="panel-checklist">
+
+      <!-- 목록 뷰 -->
+      <div class="create-view active" id="checklist-list-view" style="display:flex;">
+        <div class="search-wrap">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="checklist-search" placeholder="체크리스트 검색..." />
+          </div>
+        </div>
+
+        <div class="unified-list" id="unified-list">
+          <!-- 오늘의 체크리스트 -->
+          <div class="section-header today">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            오늘의 체크리스트
+            <span class="count" id="today-count">2</span>
+          </div>
+          <!-- 오늘 항목이 없을 때는 아래 슬림 안내 한 줄만 노출 (style에서 display:none 해제) -->
+          <div class="empty-slim" id="today-empty" style="display:none;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            오늘의 체크리스트가 없습니다 — 아래 기존 항목에서 선택하세요
+          </div>
+          <div id="today-items">
+            <button class="item-row" data-name="튜토리얼 UX 검수" data-path="게임 플로우 작업 · 튜토리얼 작업">
+              <span class="checkbox"></span>
+              <span class="info">
+                <span class="name">튜토리얼 UX 검수</span>
+                <span class="path"><span class="dot" style="background:#6366F1"></span>게임 플로우 작업 · 튜토리얼 작업</span>
+              </span>
+              <span class="period active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                7/1 ~ 7/3
+              </span>
+              <span class="pick">선택</span>
+            </button>
+            <button class="item-row" data-name="스프린트 회고 정리" data-path="기타 작업 · 기타 작업 (Sprint2)">
+              <span class="checkbox"></span>
+              <span class="info">
+                <span class="name">스프린트 회고 정리</span>
+                <span class="path"><span class="dot" style="background:#10B981"></span>기타 작업 · 기타 작업 (Sprint2)</span>
+              </span>
+              <span class="period active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                7/2
+              </span>
+              <span class="pick">선택</span>
+            </button>
+          </div>
+
+          <!-- 기존 항목 -->
+          <div class="section-header board">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+            기존 항목에서 선택
+            <span class="count" id="board-count">8</span>
+          </div>
+          <div id="board-items">
+            <button class="item-row" data-name="기존 데이터 변경" data-path="게임 플로우 작업 · 튜토리얼 작업">
+              <span class="checkbox"></span>
+              <span class="info">
+                <span class="name">기존 데이터 변경</span>
+                <span class="path"><span class="dot" style="background:#6366F1"></span>게임 플로우 작업 · 튜토리얼 작업</span>
+              </span>
+              <span class="period active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 6/30 ~ 7/4</span>
+              <span class="pick">선택</span>
+            </button>
+            <button class="item-row" data-name="튜토리얼 기획" data-path="게임 플로우 작업 · 튜토리얼 작업">
+              <span class="checkbox"></span>
+              <span class="info">
+                <span class="name">튜토리얼 기획</span>
+                <span class="path"><span class="dot" style="background:#6366F1"></span>게임 플로우 작업 · 튜토리얼 작업</span>
+              </span>
+              <span class="period overdue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 6/25 ~ 7/1</span>
+              <span class="pick">선택</span>
+            </button>
+            <button class="item-row" data-name="무한밸런스" data-path="기타 작업 · 기타 작업 (Sprint2)">
+              <span class="checkbox"></span>
+              <span class="info">
+                <span class="name">무한밸런스</span>
+                <span class="path"><span class="dot" style="background:#10B981"></span>기타 작업 · 기타 작업 (Sprint2)</span>
+              </span>
+              <span class="period active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 7/2 ~ 7/8</span>
+              <span class="pick">선택</span>
+            </button>
+            <button class="item-row" data-name="스테이지 밸런스 조정" data-path="밸런스 작업 · 스테이지 밸런스">
+              <span class="checkbox"></span>
+              <span class="info">
+                <span class="name">스테이지 밸런스 조정</span>
+                <span class="path"><span class="dot" style="background:#F59E0B"></span>밸런스 작업 · 스테이지 밸런스</span>
+              </span>
+              <span class="period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 7/4 ~ 7/10</span>
+              <span class="pick">선택</span>
+            </button>
+            <button class="item-row" data-name="보스전 패턴 설계" data-path="전투 시스템 · 보스전">
+              <span class="checkbox"></span>
+              <span class="info">
+                <span class="name">보스전 패턴 설계</span>
+                <span class="path"><span class="dot" style="background:#EF4444"></span>전투 시스템 · 보스전</span>
+              </span>
+              <span class="period overdue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 6/27 ~ 6/30</span>
+              <span class="pick">선택</span>
+            </button>
+            <button class="item-row" data-name="상점 UI 개편안 검토" data-path="UI 개선 · 상점 리뉴얼">
+              <span class="checkbox"></span>
+              <span class="info">
+                <span class="name">상점 UI 개편안 검토</span>
+                <span class="path"><span class="dot" style="background:#8B5CF6"></span>UI 개선 · 상점 리뉴얼</span>
+              </span>
+              <span class="period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 7/7 ~ 7/11</span>
+              <span class="pick">선택</span>
+            </button>
+            <button class="item-row" data-name="신규 캐릭터 스킬 정의" data-path="캐릭터 · 신규 캐릭터 (Sprint2)">
+              <span class="checkbox"></span>
+              <span class="info">
+                <span class="name">신규 캐릭터 스킬 정의</span>
+                <span class="path"><span class="dot" style="background:#2DD4BF"></span>캐릭터 · 신규 캐릭터 (Sprint2)</span>
+              </span>
+              <span class="period active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 7/1 ~ 7/15</span>
+              <span class="pick">선택</span>
+            </button>
+            <button class="item-row" data-name="라이브 지표 리포트 정리" data-path="기타 작업 · 데이터 분석">
+              <span class="checkbox"></span>
+              <span class="info">
+                <span class="name">라이브 지표 리포트 정리</span>
+                <span class="path"><span class="dot" style="background:#10B981"></span>기타 작업 · 데이터 분석</span>
+              </span>
+              <span class="period" style="opacity:0.55;">기간 미지정</span>
+              <span class="pick">선택</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="create-cta-wrap">
+          <button class="create-cta" id="show-create">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            원하는 항목이 없나요? 새로 생성
+          </button>
+        </div>
+      </div>
+
+      <!-- 새로 생성 뷰 (스텝 전환) -->
+      <div class="create-view" id="checklist-create-view">
+        <div class="create-head">
+          <button class="back-btn" id="back-to-list">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            목록
+          </button>
+          <span class="step-title">새 체크리스트 생성</span>
+        </div>
+
+        <div class="field">
+          <label>할 일 <span class="req">*</span></label>
+          <input type="text" class="text-input" placeholder="무엇을 하실 건가요?" id="create-title" />
+        </div>
+
+        <div class="task-picker-wrap">
+          <div class="field" style="padding: 0 0 10px;">
+            <label>추가할 위치 (Feature › Task) <span class="req">*</span></label>
+            <div class="search-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="task-search" placeholder="Feature 또는 Task 검색..." />
+            </div>
+          </div>
+          <div class="task-picker" id="task-picker">
+            <div class="feature-group" data-feature="게임 플로우 작업">
+              <div class="feature-group-header"><span class="dot" style="width:8px;height:8px;border-radius:999px;background:#6366F1"></span>게임 플로우 작업</div>
+              <button class="task-option" data-task="튜토리얼 작업">튜토리얼 작업</button>
+              <button class="task-option" data-task="메인 플로우 개선">메인 플로우 개선</button>
+            </div>
+            <div class="feature-group" data-feature="밸런스 작업">
+              <div class="feature-group-header"><span class="dot" style="width:8px;height:8px;border-radius:999px;background:#F59E0B"></span>밸런스 작업</div>
+              <button class="task-option" data-task="스테이지 밸런스">스테이지 밸런스</button>
+              <button class="task-option" data-task="경제 밸런스">경제 밸런스</button>
+            </div>
+            <div class="feature-group" data-feature="전투 시스템">
+              <div class="feature-group-header"><span class="dot" style="width:8px;height:8px;border-radius:999px;background:#EF4444"></span>전투 시스템</div>
+              <button class="task-option" data-task="보스전">보스전</button>
+              <button class="task-option" data-task="스킬 시스템">스킬 시스템</button>
+            </div>
+            <div class="feature-group" data-feature="기타 작업">
+              <div class="feature-group-header"><span class="dot" style="width:8px;height:8px;border-radius:999px;background:#10B981"></span>기타 작업</div>
+              <button class="task-option" data-task="기타 작업 (Sprint2)">기타 작업 (Sprint2)</button>
+              <button class="task-option" data-task="데이터 분석">데이터 분석</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 회의 탭 ── -->
+    <div class="panel" id="panel-meeting">
+      <div class="search-wrap" style="padding-bottom: 6px;">
+        <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--slate-400);margin-bottom:2px;">7/2 회의 선택</label>
+      </div>
+      <div class="unified-list" style="flex:1;">
+        <button class="item-row">
+          <span class="dot" style="width:10px;height:10px;border-radius:999px;background:#8B5CF6;flex-shrink:0;"></span>
+          <span class="info">
+            <span class="name">스프린트 리뷰</span>
+            <span class="meeting-time">14:00 - 15:00</span>
+          </span>
+          <span class="pick">선택</span>
+        </button>
+        <button class="item-row">
+          <span class="dot" style="width:10px;height:10px;border-radius:999px;background:#6366F1;flex-shrink:0;"></span>
+          <span class="info">
+            <span class="name">주간 기획 회의</span>
+            <span class="meeting-time">16:00 - 17:00</span>
+          </span>
+          <span class="pick">선택</span>
+        </button>
+      </div>
+      <div class="create-cta-wrap">
+        <button class="create-cta">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          새 회의 만들기
+        </button>
+      </div>
+    </div>
+
+    <!-- ── 직접 입력 탭 ── -->
+    <div class="panel" id="panel-custom">
+      <div class="custom-body">
+        <div class="field" style="padding:0 0 16px;">
+          <label>빠른 선택</label>
+          <div class="preset-grid">
+            <button class="preset" data-color="#3B82F6"><span class="emoji">📝</span>회의 준비</button>
+            <button class="preset" data-color="#10B981"><span class="emoji">🚗</span>외근</button>
+            <button class="preset" data-color="#8B5CF6"><span class="emoji">😌</span>휴식</button>
+            <button class="preset" data-color="#6366F1"><span class="emoji">🤝</span>1on1</button>
+            <button class="preset" data-color="#64748B"><span class="emoji">📋</span>개인 업무</button>
+            <button class="preset is-new" data-color="#F59E0B"><span class="emoji">💼</span>면접</button>
+          </div>
+        </div>
+        <div class="field" style="padding:0;">
+          <label>블록 이름</label>
+          <input type="text" class="text-input" id="custom-title" placeholder="예: 리서치, 문서 정리..." />
+        </div>
+        <div class="color-row">
+          <label>색상</label>
+          <div class="swatches">
+            <button class="swatch" style="background:#6366F1"></button>
+            <button class="swatch" style="background:#8B5CF6"></button>
+            <button class="swatch" style="background:#3B82F6"></button>
+            <button class="swatch" style="background:#2DD4BF"></button>
+            <button class="swatch" style="background:#10B981"></button>
+            <button class="swatch selected" style="background:#F59E0B"></button>
+            <button class="swatch" style="background:#EF4444"></button>
+            <button class="swatch" style="background:#64748B"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="m-footer">
+    <span class="esc-hint">Esc 닫기</span>
+    <div class="footer-actions">
+      <button class="btn-ghost">취소</button>
+      <button class="btn-primary" id="submit-btn" disabled>생성</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+  // Tab switching
+  const tabs = document.querySelectorAll('.tab');
+  const panels = { checklist: 'panel-checklist', meeting: 'panel-meeting', custom: 'panel-custom' };
+  tabs.forEach(tab => tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    Object.values(panels).forEach(id => document.getElementById(id).classList.remove('active'));
+    document.getElementById(panels[tab.dataset.tab]).classList.add('active');
+    updateSubmit();
+  }));
+
+  // Checklist: list <-> create view
+  const listView = document.getElementById('checklist-list-view');
+  const createView = document.getElementById('checklist-create-view');
+  document.getElementById('show-create').addEventListener('click', () => {
+    listView.style.display = 'none';
+    createView.classList.add('active');
+    setTimeout(() => document.getElementById('create-title').focus(), 50);
+    updateSubmit();
+  });
+  document.getElementById('back-to-list').addEventListener('click', () => {
+    createView.classList.remove('active');
+    listView.style.display = 'flex';
+    updateSubmit();
+  });
+
+  // Checklist search filter
+  document.getElementById('checklist-search').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('#board-items .item-row').forEach(row => {
+      const hit = (row.dataset.name + ' ' + row.dataset.path).toLowerCase().includes(q);
+      row.style.display = hit ? '' : 'none';
+    });
+    const visible = [...document.querySelectorAll('#board-items .item-row')].filter(r => r.style.display !== 'none').length;
+    document.getElementById('board-count').textContent = visible;
+  });
+
+  // Task picker search + select
+  document.getElementById('task-search').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('#task-picker .feature-group').forEach(group => {
+      const fname = group.dataset.feature.toLowerCase();
+      let anyVisible = false;
+      group.querySelectorAll('.task-option').forEach(opt => {
+        const hit = fname.includes(q) || opt.dataset.task.toLowerCase().includes(q);
+        opt.style.display = hit ? '' : 'none';
+        if (hit) anyVisible = true;
+      });
+      group.style.display = anyVisible ? '' : 'none';
+    });
+  });
+  document.querySelectorAll('.task-option').forEach(opt => opt.addEventListener('click', () => {
+    document.querySelectorAll('.task-option').forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    updateSubmit();
+  }));
+  document.getElementById('create-title').addEventListener('input', updateSubmit);
+
+  // Custom presets
+  const customTitle = document.getElementById('custom-title');
+  document.querySelectorAll('.preset').forEach(p => p.addEventListener('click', () => {
+    document.querySelectorAll('.preset').forEach(x => x.classList.remove('selected'));
+    p.classList.add('selected');
+    customTitle.value = p.textContent.trim();
+    document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('selected', rgbToHex(s.style.background) === p.dataset.color.toUpperCase()));
+    updateSubmit();
+  }));
+  customTitle.addEventListener('input', updateSubmit);
+  document.querySelectorAll('.swatch').forEach(s => s.addEventListener('click', () => {
+    document.querySelectorAll('.swatch').forEach(x => x.classList.remove('selected'));
+    s.classList.add('selected');
+  }));
+  function rgbToHex(rgb) {
+    const m = rgb.match(/\d+/g);
+    if (!m) return rgb.toUpperCase();
+    return '#' + m.slice(0,3).map(n => (+n).toString(16).padStart(2,'0')).join('').toUpperCase();
+  }
+
+  // Submit enable logic (visual demo)
+  function updateSubmit() {
+    const btn = document.getElementById('submit-btn');
+    const activeTab = document.querySelector('.tab.active').dataset.tab;
+    if (activeTab === 'custom') {
+      btn.disabled = !customTitle.value.trim();
+    } else if (activeTab === 'checklist' && createView.classList.contains('active')) {
+      btn.disabled = !(document.getElementById('create-title').value.trim() && document.querySelector('.task-option.selected'));
+    } else {
+      btn.disabled = true; // 목록 뷰에서는 항목 클릭이 곧 생성
+    }
+  }
+
+  // Item rows: click = select (demo pulse)
+  document.querySelectorAll('#board-items .item-row, #panel-meeting .item-row').forEach(row => {
+    row.addEventListener('click', () => {
+      row.style.background = 'rgba(99,102,241,0.25)';
+      setTimeout(() => row.style.background = '', 350);
+    });
+  });
+</script>
+</body>
+</html>

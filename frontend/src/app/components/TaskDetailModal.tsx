@@ -1806,9 +1806,20 @@ export function TaskDetailModal({
                       contractors={contractors}
                       timeBlocksMap={checklistTimeBlocksMap}
                       featureColor={task.feature_color}
+                      isPersonal={isPersonal}
                       onToggle={handleToggleChecklistItem}
                       onMoveColumn={handleMoveChecklistColumn}
+                      onUpdateItem={handleUpdateChecklistItem}
                       onDelete={setChecklistItemToDelete}
+                      onMoveToTask={
+                        onMoveChecklistToTask &&
+                        (allTasks.length > 1 || milestones.length > 1)
+                          ? (itemId) => {
+                              setMoveChecklistItemId(itemId);
+                              setShowMoveChecklistDialog(true);
+                            }
+                          : undefined
+                      }
                       onQuickAdd={(title) => handleAddChecklistItem({ title })}
                     />
                   ) : (

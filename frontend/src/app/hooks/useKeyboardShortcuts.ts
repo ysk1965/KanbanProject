@@ -1,7 +1,15 @@
 import { useEffect, useRef } from "react";
 import { VIEW_MODE_KEY_MAP } from "../constants/keyboardShortcuts";
 
-const BOARD_SUB_MODES = ["kanban", "gantt", "calendar", "list", "milestone"];
+const BOARD_SUB_MODES = [
+  "kanban",
+  "gantt",
+  "calendar",
+  "list",
+  "mindmap",
+  "minikanban",
+  "milestone",
+];
 const SCHEDULE_SUB_TAB_MAP: Record<string, string> = {
   "1": "timeblock",
   "2": "calendar",

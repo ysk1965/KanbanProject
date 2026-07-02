@@ -875,7 +875,15 @@
     "collapseAll": "全部收合",
     "newTask": "新增 Task",
     "newTaskPlaceholder": "請輸入Task標題...",
-    "taskCreateFailed": "建立Task失敗。"
+    "taskCreateFailed": "建立Task失敗。",
+    "remainingCount": "剩餘 {{count}} 項",
+    "myItem": "我的項目",
+    "myItemCount": "我的 {{count}} 項",
+    "teamItems": "此任務的團隊項目 {{count}} 個",
+    "dueToday": "今日截止",
+    "overdue": "已逾期",
+    "taskCount": "{{count}} 個任務",
+    "itemCount": "{{count}} 個項目"
   },
   "inquiry": {
     "title": "聯繫我們",
@@ -4012,6 +4020,9 @@
     "filterAll": "全部",
     "filterNoMilestone": "無里程碑",
     "noFilteredFeatures": "此里程碑沒有未放置的功能",
+    "searchFeatures": "搜尋功能",
+    "noSearchResults": "沒有搜尋結果",
+    "clearSearch": "清除搜尋",
     "excludeFeature": "從心智圖中移除"
   }
 }
