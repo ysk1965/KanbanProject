@@ -221,26 +221,36 @@ export function MilestoneMatrix({
                         </td>
                       );
                     }
+                    const isDone = c.completed === c.total;
                     return (
                       <td
                         key={ms.id}
                         onClick={() => onFeatureClick?.(feature)}
                         className={`${cellClass} cursor-pointer ${
-                          isPrimary
-                            ? "bg-bridge-accent/[0.18] text-foreground font-bold ring-1 ring-inset ring-bridge-accent/40"
-                            : "bg-bridge-accent/[0.08] text-bridge-accent font-medium hover:bg-bridge-accent/[0.14]"
+                          isDone
+                            ? isPrimary
+                              ? "bg-emerald-500/[0.18] text-emerald-600 dark:text-emerald-400 font-bold ring-1 ring-inset ring-emerald-500/40"
+                              : "bg-emerald-500/[0.10] text-emerald-600 dark:text-emerald-400 font-medium hover:bg-emerald-500/[0.16]"
+                            : isPrimary
+                              ? "bg-bridge-accent/[0.18] text-foreground font-bold ring-1 ring-inset ring-bridge-accent/40"
+                              : "bg-bridge-accent/[0.08] text-bridge-accent font-medium hover:bg-bridge-accent/[0.14]"
                         }`}
                         title={
-                          isPrimary
-                            ? t("milestone.matrix.primaryTip", {
-                                defaultValue:
-                                  "기본 마일스톤 — 새 태스크가 상속됩니다",
+                          isDone
+                            ? t("milestone.matrix.doneTip", {
+                                defaultValue: "모든 태스크 완료",
                               })
-                            : undefined
+                            : isPrimary
+                              ? t("milestone.matrix.primaryTip", {
+                                  defaultValue:
+                                    "기본 마일스톤 — 새 태스크가 상속됩니다",
+                                })
+                              : undefined
                         }
                       >
                         {isPrimary && "● "}
                         {c.completed}/{c.total}
+                        {isDone && " ✓"}
                       </td>
                     );
                   })}

@@ -492,7 +492,7 @@ export function FeatureDetailModal({
                             return (
                               <div
                                 key={a.id}
-                                className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white border-2 border-bridge-obsidian ${i > 0 ? "-ml-2" : ""}`}
+                                className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white border-2 border-bridge-obsidian whitespace-nowrap overflow-hidden leading-none ${i > 0 ? "-ml-2" : ""}`}
                                 style={
                                   !color.bg
                                     ? { backgroundColor: color.hex }
@@ -529,7 +529,7 @@ export function FeatureDetailModal({
                               className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
                             >
                               <div
-                                className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white`}
+                                className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white whitespace-nowrap overflow-hidden leading-none`}
                                 style={
                                   !color.bg
                                     ? { backgroundColor: color.hex }
