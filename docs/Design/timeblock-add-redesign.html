@@ -314,22 +314,27 @@
     white-space: nowrap; overflow: hidden;
   }
   .item-row .dot { width: 7px; height: 7px; border-radius: 999px; flex-shrink: 0; }
-  .item-row .period {
+  .item-row .date-range {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     font-size: 11px;
-    font-weight: 500;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: rgba(248,250,252,0.05);
-    color: var(--slate-400);
+    color: var(--slate-500);
     flex-shrink: 0;
     white-space: nowrap;
   }
-  .item-row .period svg { width: 11px; height: 11px; }
-  .item-row .period.active { background: rgba(45,212,191,0.12); color: var(--secondary); }
-  .item-row .period.overdue { background: rgba(244,63,94,0.12); color: #fb7185; }
+  .item-row .date-range svg { width: 11px; height: 11px; }
+  .item-row .chip {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .item-row .chip.overdue { background: rgba(244,63,94,0.15); color: #fb7185; }
+  .item-row .chip.today { background: rgba(45,212,191,0.15); color: var(--secondary); }
+  .item-row .chip.dday { background: rgba(245,158,11,0.15); color: #fbbf24; }
   .item-row .pick {
     font-size: 11px;
     font-weight: 700;
@@ -564,7 +569,7 @@
       <li>오늘 체크리스트가 없으면 큰 빈 박스 대신 <b>한 줄 안내</b>로 축소</li>
       <li><b>검색창 추가</b> — 항목이 많을 때 바로 필터링</li>
       <li>섹션별 <b>개수 뱃지</b>로 전체 규모 파악</li>
-      <li>항목별 <b>기간 뱃지</b> (start_date ~ due_date): <b style="color:#2DD4BF;">진행중=틸</b> · <b style="color:#fb7185;">지연=로즈</b> · 예정=슬레이트 · 미지정은 흐리게</li>
+      <li><b>기간 표시</b> — 데일리 체크리스트 추가와 동일 포맷: 📅 <b>6.30 – 7.4</b> + 상태 칩 (<b style="color:#fb7185;">기한 지남</b> · <b style="color:#2DD4BF;">오늘 마감</b> · <b style="color:#fbbf24;">D-N</b>, 7일 초과는 칩 없음)</li>
     </ul>
   </div>
 
@@ -676,11 +681,7 @@
               <span class="checkbox"></span>
               <span class="info">
                 <span class="name">튜토리얼 UX 검수</span>
-                <span class="path"><span class="dot" style="background:#6366F1"></span>게임 플로우 작업 · 튜토리얼 작업</span>
-              </span>
-              <span class="period active">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                7/1 ~ 7/3
+                <span class="path"><span class="dot" style="background:#6366F1"></span>게임 플로우 작업 · 튜토리얼 작업</span><span class="date-range"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>7.1 – 7.3</span><span class="chip dday">D-1</span>
               </span>
               <span class="pick">선택</span>
             </button>
@@ -688,11 +689,7 @@
               <span class="checkbox"></span>
               <span class="info">
                 <span class="name">스프린트 회고 정리</span>
-                <span class="path"><span class="dot" style="background:#10B981"></span>기타 작업 · 기타 작업 (Sprint2)</span>
-              </span>
-              <span class="period active">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                7/2
+                <span class="path"><span class="dot" style="background:#10B981"></span>기타 작업 · 기타 작업 (Sprint2)</span><span class="date-range"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>7.2</span><span class="chip today">오늘 마감</span>
               </span>
               <span class="pick">선택</span>
             </button>
@@ -709,63 +706,56 @@
               <span class="checkbox"></span>
               <span class="info">
                 <span class="name">기존 데이터 변경</span>
-                <span class="path"><span class="dot" style="background:#6366F1"></span>게임 플로우 작업 · 튜토리얼 작업</span>
+                <span class="path"><span class="dot" style="background:#6366F1"></span>게임 플로우 작업 · 튜토리얼 작업</span><span class="date-range"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>6.30 – 7.4</span><span class="chip dday">D-2</span>
               </span>
-              <span class="period active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 6/30 ~ 7/4</span>
               <span class="pick">선택</span>
             </button>
             <button class="item-row" data-name="튜토리얼 기획" data-path="게임 플로우 작업 · 튜토리얼 작업">
               <span class="checkbox"></span>
               <span class="info">
                 <span class="name">튜토리얼 기획</span>
-                <span class="path"><span class="dot" style="background:#6366F1"></span>게임 플로우 작업 · 튜토리얼 작업</span>
+                <span class="path"><span class="dot" style="background:#6366F1"></span>게임 플로우 작업 · 튜토리얼 작업</span><span class="date-range"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>6.25 – 7.1</span><span class="chip overdue">기한 지남</span>
               </span>
-              <span class="period overdue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 6/25 ~ 7/1</span>
               <span class="pick">선택</span>
             </button>
             <button class="item-row" data-name="무한밸런스" data-path="기타 작업 · 기타 작업 (Sprint2)">
               <span class="checkbox"></span>
               <span class="info">
                 <span class="name">무한밸런스</span>
-                <span class="path"><span class="dot" style="background:#10B981"></span>기타 작업 · 기타 작업 (Sprint2)</span>
+                <span class="path"><span class="dot" style="background:#10B981"></span>기타 작업 · 기타 작업 (Sprint2)</span><span class="date-range"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>7.2 – 7.8</span><span class="chip dday">D-6</span>
               </span>
-              <span class="period active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 7/2 ~ 7/8</span>
               <span class="pick">선택</span>
             </button>
             <button class="item-row" data-name="스테이지 밸런스 조정" data-path="밸런스 작업 · 스테이지 밸런스">
               <span class="checkbox"></span>
               <span class="info">
                 <span class="name">스테이지 밸런스 조정</span>
-                <span class="path"><span class="dot" style="background:#F59E0B"></span>밸런스 작업 · 스테이지 밸런스</span>
+                <span class="path"><span class="dot" style="background:#F59E0B"></span>밸런스 작업 · 스테이지 밸런스</span><span class="date-range"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>7.4 – 7.10</span>
               </span>
-              <span class="period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 7/4 ~ 7/10</span>
               <span class="pick">선택</span>
             </button>
             <button class="item-row" data-name="보스전 패턴 설계" data-path="전투 시스템 · 보스전">
               <span class="checkbox"></span>
               <span class="info">
                 <span class="name">보스전 패턴 설계</span>
-                <span class="path"><span class="dot" style="background:#EF4444"></span>전투 시스템 · 보스전</span>
+                <span class="path"><span class="dot" style="background:#EF4444"></span>전투 시스템 · 보스전</span><span class="date-range"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>6.27 – 6.30</span><span class="chip overdue">기한 지남</span>
               </span>
-              <span class="period overdue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 6/27 ~ 6/30</span>
               <span class="pick">선택</span>
             </button>
             <button class="item-row" data-name="상점 UI 개편안 검토" data-path="UI 개선 · 상점 리뉴얼">
               <span class="checkbox"></span>
               <span class="info">
                 <span class="name">상점 UI 개편안 검토</span>
-                <span class="path"><span class="dot" style="background:#8B5CF6"></span>UI 개선 · 상점 리뉴얼</span>
+                <span class="path"><span class="dot" style="background:#8B5CF6"></span>UI 개선 · 상점 리뉴얼</span><span class="date-range"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>7.7 – 7.11</span>
               </span>
-              <span class="period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 7/7 ~ 7/11</span>
               <span class="pick">선택</span>
             </button>
             <button class="item-row" data-name="신규 캐릭터 스킬 정의" data-path="캐릭터 · 신규 캐릭터 (Sprint2)">
               <span class="checkbox"></span>
               <span class="info">
                 <span class="name">신규 캐릭터 스킬 정의</span>
-                <span class="path"><span class="dot" style="background:#2DD4BF"></span>캐릭터 · 신규 캐릭터 (Sprint2)</span>
+                <span class="path"><span class="dot" style="background:#2DD4BF"></span>캐릭터 · 신규 캐릭터 (Sprint2)</span><span class="date-range"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>7.1 – 7.15</span>
               </span>
-              <span class="period active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 7/1 ~ 7/15</span>
               <span class="pick">선택</span>
             </button>
             <button class="item-row" data-name="라이브 지표 리포트 정리" data-path="기타 작업 · 데이터 분석">
@@ -774,7 +764,6 @@
                 <span class="name">라이브 지표 리포트 정리</span>
                 <span class="path"><span class="dot" style="background:#10B981"></span>기타 작업 · 데이터 분석</span>
               </span>
-              <span class="period" style="opacity:0.55;">기간 미지정</span>
               <span class="pick">선택</span>
             </button>
           </div>
