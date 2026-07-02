@@ -7,9 +7,9 @@ import {
   Plus,
   Search,
   Check,
-  ChevronDown,
   ChevronRight,
   ChevronsUpDown,
+  CalendarDays,
 } from 'lucide-react';
 import {
   featureAPI,
@@ -84,8 +84,11 @@ export function AddDailyChecklistModal({
   // 이미 데일리 체크리스트에 추가된 항목 ID 목록
   const [addedChecklistItemIds, setAddedChecklistItemIds] = useState<Set<string>>(new Set());
 
-  // Task 접기/펼치기 상태 (접힌 Task ID Set)
-  const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
+  // 내 Task 카드의 팀 항목 토글 상태 (열린 Task ID Set)
+  const [openTeamTasks, setOpenTeamTasks] = useState<Set<string>>(new Set());
+
+  // 다른 Task 섹션의 Feature 아코디언 상태 (열린 Feature ID Set)
+  const [expandedOtherFeatures, setExpandedOtherFeatures] = useState<Set<string>>(new Set());
 
   // 새 Feature 생성 상태
   const [isCreatingFeature, setIsCreatingFeature] = useState(false);
@@ -171,8 +174,16 @@ export function AddDailyChecklistModal({
         setMilestones(milestonesResponse.milestones);
         setAddedChecklistItemIds(extractAddedIds(dailyChecklistResponse));
 
-        // 초기 마일스톤 설정
-        const initialMilestoneId = boardResponse.selected_milestone_id || null;
+        // 초기 마일스톤 설정: 현재 기간(assignedDate)에 해당하는 마일스톤 우선, 없으면 보드 선택값
+        const currentMilestone = milestonesResponse.milestones
+          .filter(
+            (m) =>
+              m.start_date?.slice(0, 10) <= assignedDate &&
+              assignedDate <= m.end_date?.slice(0, 10),
+          )
+          .sort((a, b) => a.end_date.localeCompare(b.end_date))[0];
+        const initialMilestoneId =
+          currentMilestone?.id || boardResponse.selected_milestone_id || null;
 
         // 2단계: Feature + Task + Checklist 병렬 로드
         const [featuresResponse, tasksResponse, checklistsResponse] = await Promise.all([
@@ -386,9 +397,9 @@ export function AddDailyChecklistModal({
     }
   };
 
-  // Task 개별 접기/펼치기
-  const toggleTaskCollapse = (taskId: string) => {
-    setCollapsedTasks((prev) => {
+  // 내 Task 카드의 팀 항목 토글
+  const toggleTeamTask = (taskId: string) => {
+    setOpenTeamTasks((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(taskId)) {
         newSet.delete(taskId);
@@ -399,23 +410,64 @@ export function AddDailyChecklistModal({
     });
   };
 
-  // 섹션 내 모든 Task 펼치기/닫기
-  const toggleAllTasks = (taskIds: string[], collapse: boolean) => {
-    setCollapsedTasks((prev) => {
+  // 다른 Task 섹션 Feature 아코디언 토글
+  const toggleOtherFeature = (featureId: string) => {
+    setExpandedOtherFeatures((prev) => {
       const newSet = new Set(prev);
-      taskIds.forEach((id) => {
-        if (collapse) {
-          newSet.add(id);
-        } else {
-          newSet.delete(id);
-        }
-      });
+      if (newSet.has(featureId)) {
+        newSet.delete(featureId);
+      } else {
+        newSet.add(featureId);
+      }
       return newSet;
     });
   };
 
+  // 기간 축약 표시: "6.30 – 7.2"
+  const formatShortDate = (date: string | null): string | null => {
+    if (!date) return null;
+    const parts = date.slice(0, 10).split('-');
+    if (parts.length !== 3) return null;
+    return `${parseInt(parts[1], 10)}.${parseInt(parts[2], 10)}`;
+  };
+
+  const formatDateRange = (startDate: string | null, dueDate: string | null): string | null => {
+    const start = formatShortDate(startDate);
+    const due = formatShortDate(dueDate);
+    if (start && due) return `${start} – ${due}`;
+    return start || due;
+  };
+
+  // 마감 상태 칩 (assignedDate 기준)
+  const getDdayInfo = (dueDate: string | null): { label: string; className: string } | null => {
+    if (!dueDate) return null;
+    const diffDays = Math.round(
+      (Date.parse(dueDate.slice(0, 10)) - Date.parse(assignedDate)) / 86400000,
+    );
+    if (Number.isNaN(diffDays)) return null;
+    if (diffDays < 0) {
+      return {
+        label: t('dailyChecklist.overdue'),
+        className: 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
+      };
+    }
+    if (diffDays === 0) {
+      return {
+        label: t('dailyChecklist.dueToday'),
+        className: 'bg-bridge-secondary/15 text-bridge-secondary',
+      };
+    }
+    if (diffDays <= 7) {
+      return {
+        label: `D-${diffDays}`,
+        className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+      };
+    }
+    return null;
+  };
+
   // Task를 "내가 포함된 Task" vs "다른 Task"로 분류
-  const { myTasksFeaturesData, othersTasksFeaturesData } = useMemo(() => {
+  const { myTaskGroups, othersTasksFeaturesData } = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
 
     // 모든 Task를 필터링/변환
@@ -484,9 +536,104 @@ export function AddDailyChecklistModal({
       }))
       .filter((featureData) => featureData.tasks.length > 0);
 
-    return { myTasksFeaturesData, othersTasksFeaturesData };
-  }, [groupedData, searchQuery, assigneeId]);
+    // 히어로 존용: Task 단위 카드로 평탄화 + 내 항목/추가됨/팀 항목 분리
+    const myTaskGroups = myTasksFeaturesData.flatMap((featureData) =>
+      featureData.tasks.map((taskData) => {
+        const mine = taskData.checklistItems.filter(
+          (item) => item.assignee?.id === assigneeId,
+        );
+        return {
+          feature: featureData.feature,
+          task: taskData.task,
+          myItems: mine.filter((item) => !addedChecklistItemIds.has(item.id)),
+          addedMyItems: mine.filter((item) => addedChecklistItemIds.has(item.id)),
+          teamItems: taskData.checklistItems.filter(
+            (item) => item.assignee?.id !== assigneeId,
+          ),
+        };
+      }),
+    );
 
+    return { myTaskGroups, othersTasksFeaturesData };
+  }, [groupedData, searchQuery, assigneeId, addedChecklistItemIds]);
+
+  // 임시 추가된 새 항목 렌더링 (히어로/다른 Task 공용)
+  const renderPendingItems = (taskId: string) =>
+    (pendingNewItems.get(taskId) || []).map((pendingItem) => {
+      const isSelected = selectedItems.has(pendingItem.tempId);
+      return (
+        <button
+          key={pendingItem.tempId}
+          onClick={() => toggleItem(pendingItem.tempId)}
+          className={`w-full flex items-center gap-2 px-3 py-2 mb-1 rounded-lg transition-all text-left cursor-pointer ${
+            isSelected
+              ? 'bg-bridge-accent/20 ring-1 ring-bridge-accent/50'
+              : 'hover:bg-foreground/5'
+          }`}
+        >
+          <div
+            className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
+              isSelected
+                ? 'bg-bridge-accent border-bridge-accent'
+                : 'border-bridge-border bg-foreground/5'
+            }`}
+          >
+            {isSelected && <Check className="h-3 w-3 text-white" />}
+          </div>
+          <span
+            className={`text-sm flex-1 truncate ${isSelected ? 'text-white font-medium' : 'text-muted-foreground'}`}
+          >
+            {pendingItem.title}
+          </span>
+          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+            {t('dailyChecklist.newItem')}
+          </span>
+        </button>
+      );
+    });
+
+  // Task별 인라인 체크리스트 추가 폼 (히어로/다른 Task 공용)
+  const renderInlineAddForm = (taskId: string) =>
+    addingTaskId === taskId ? (
+      <div className="flex gap-2 mb-2">
+        <input
+          type="text"
+          value={newItemTitle}
+          onChange={(e) => setNewItemTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
+            if (e.key === 'Enter' && newItemTitle.trim()) {
+              handleAddPendingItem(taskId);
+            } else if (e.key === 'Escape') {
+              setAddingTaskId(null);
+              setNewItemTitle('');
+            }
+          }}
+          placeholder={t('dailyChecklist.newChecklistPlaceholder')}
+          autoFocus
+          className="flex-1 min-w-0 px-3 py-1.5 bg-bridge-surface border border-foreground/10 rounded-lg text-foreground placeholder-slate-500 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+        />
+        <button
+          onClick={() => handleAddPendingItem(taskId)}
+          disabled={!newItemTitle.trim()}
+          className="p-1.5 bg-bridge-accent text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bridge-accent/90 transition-colors flex-shrink-0"
+          aria-label={t('dailyChecklist.newItem')}
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+    ) : null;
+
+  // 섹션 파생값
+  const myRemainingCount = myTaskGroups.reduce((acc, g) => acc + g.myItems.length, 0);
+  const teamTaskIds = myTaskGroups.filter((g) => g.teamItems.length > 0).map((g) => g.task.id);
+  const anyTeamOpen = teamTaskIds.some((id) => openTeamTasks.has(id));
+  const otherFeatureIds = othersTasksFeaturesData.map((f) => f.feature.id);
+  const isSearching = !!searchQuery.trim();
+  const allOthersExpanded =
+    isSearching ||
+    (otherFeatureIds.length > 0 && otherFeatureIds.every((id) => expandedOtherFeatures.has(id)));
+  const selectedMineCount = [...selectedItems].filter((id) => !id.startsWith('temp_')).length;
 
   return (
     <MotionModal open onClose={handleClose} className="sm:max-w-[1400px] sm:w-[92vw] max-h-[85dvh] flex flex-col p-0 overflow-hidden bg-bridge-dark">
@@ -623,7 +770,7 @@ export function AddDailyChecklistModal({
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 text-bridge-accent animate-spin" />
             </div>
-          ) : myTasksFeaturesData.length === 0 && othersTasksFeaturesData.length === 0 ? (
+          ) : myTaskGroups.length === 0 && othersTasksFeaturesData.length === 0 ? (
             <div className="text-center py-12">
               <CheckSquare className="h-12 w-12 text-slate-400 mx-auto mb-3" />
               <p className="text-slate-400">
@@ -637,541 +784,402 @@ export function AddDailyChecklistModal({
             </div>
           ) : (
             <div className="space-y-6">
-              {/* 내가 포함된 Task 섹션 */}
-              {myTasksFeaturesData.length > 0 && (
-                <div>
+              {/* 내가 포함된 Task — 히어로 존 */}
+              {myTaskGroups.length > 0 && (
+                <div className="rounded-2xl border border-bridge-accent/35 bg-gradient-to-br from-bridge-accent/10 to-bridge-accent/[0.03] p-4">
+                  {/* 섹션 헤더 */}
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="w-2 h-2 rounded-full bg-bridge-accent" />
+                    <div className="w-2 h-2 rounded-full bg-bridge-accent shadow-[0_0_12px_rgba(99,102,241,0.8)]" />
                     <h3 className="text-sm font-bold text-foreground">{t('dailyChecklist.myTasks')}</h3>
-                    <span className="text-xs text-slate-400">
-                      ({myTasksFeaturesData.reduce((acc, f) => acc + f.tasks.length, 0)}개)
+                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+                      {t('dailyChecklist.remainingCount', { count: myRemainingCount })}
                     </span>
-                    {(() => {
-                      const allTaskIds = myTasksFeaturesData.flatMap((f) => f.tasks.map((t) => t.task.id));
-                      const allCollapsed = allTaskIds.length > 0 && allTaskIds.every((id) => collapsedTasks.has(id));
-                      return (
-                        <button
-                          onClick={() => toggleAllTasks(allTaskIds, !allCollapsed)}
-                          className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-foreground/5"
-                        >
-                          <ChevronsUpDown className="h-3 w-3" />
-                          {allCollapsed ? t('dailyChecklist.expandAll') : t('dailyChecklist.collapseAll')}
-                        </button>
-                      );
-                    })()}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {myTasksFeaturesData.map((featureData) => (
-                      <div
-                        key={featureData.feature.id}
-                        className="bg-bridge-surface border border-foreground/10 rounded-xl overflow-hidden"
+                    {teamTaskIds.length > 0 && (
+                      <button
+                        onClick={() => setOpenTeamTasks(anyTeamOpen ? new Set() : new Set(teamTaskIds))}
+                        className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-foreground/5"
                       >
-                        {/* Feature Header */}
-                        <div className="flex items-center gap-2 px-4 py-3">
-                          <div
-                            className="w-3 h-3 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: featureData.feature.color }}
-                          />
-                          <span className="font-medium text-foreground text-sm flex-1 truncate">
-                            {featureData.feature.title}
-                          </span>
-                          {/* Feature에 Task 추가 버튼 */}
-                          <button
-                            onClick={() => {
-                              setAddingTaskToFeatureId(
-                                addingTaskToFeatureId === featureData.feature.id ? null : featureData.feature.id
-                              );
-                              setNewTaskTitle('');
-                            }}
-                            className={`p-1 rounded-md border transition-colors ${
-                              addingTaskToFeatureId === featureData.feature.id
-                                ? 'bg-bridge-accent text-white border-bridge-accent'
-                                : 'text-muted-foreground border-foreground/10 bg-bridge-surface hover:text-foreground hover:bg-bridge-surface-hover hover:border-bridge-border'
-                            }`}
-                            title={t('dailyChecklist.newTask')}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
+                        <ChevronsUpDown className="h-3 w-3" />
+                        {anyTeamOpen ? t('dailyChecklist.collapseAll') : t('dailyChecklist.expandAll')}
+                      </button>
+                    )}
+                  </div>
 
-                        {/* Feature에 Task 인라인 생성 폼 */}
-                        {addingTaskToFeatureId === featureData.feature.id && (
-                          <div className="px-4 py-2 border-t border-foreground/10 bg-bridge-dark/30">
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={newTaskTitle}
-                                onChange={(e) => setNewTaskTitle(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.nativeEvent.isComposing) return;
-                                  if (e.key === 'Enter' && newTaskTitle.trim()) {
-                                    handleCreateTask(featureData.feature.id);
-                                  } else if (e.key === 'Escape') {
-                                    setAddingTaskToFeatureId(null);
-                                    setNewTaskTitle('');
-                                  }
-                                }}
-                                placeholder={t('dailyChecklist.newTaskPlaceholder')}
-                                autoFocus
-                                className="flex-1 px-3 py-1.5 bg-bridge-surface border border-foreground/10 rounded-lg text-foreground placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
-                              />
-                              <button
-                                onClick={() => handleCreateTask(featureData.feature.id)}
-                                disabled={!newTaskTitle.trim() || isSubmittingTask}
-                                className="p-1.5 bg-bridge-accent text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bridge-accent/90 transition-colors flex items-center gap-1"
-                              >
-                                {isSubmittingTask ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Plus className="h-4 w-4" />
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Feature Content */}
-                        <div className="border-t border-foreground/10">
-                          {featureData.tasks.map((taskData) => {
-                            const isCollapsed = collapsedTasks.has(taskData.task.id);
-                            return (
+                  {/* Task 단위 카드 3열 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-start">
+                    {myTaskGroups.map((group) => {
+                      const isTeamOpen = openTeamTasks.has(group.task.id);
+                      return (
+                        <div
+                          key={group.task.id}
+                          className="bg-bridge-obsidian/60 border border-foreground/[0.08] rounded-xl p-3"
+                        >
+                          {/* 경로 브레드크럼 + 즉석 추가 */}
+                          <div className="flex items-center gap-1.5 mb-2">
                             <div
-                              key={taskData.task.id}
-                              className="border-b border-foreground/10 last:border-b-0"
+                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: group.feature.color }}
+                            />
+                            <span className="text-xs text-slate-400 font-medium truncate">
+                              {group.feature.title}
+                            </span>
+                            <span className="text-xs text-slate-600 flex-shrink-0">›</span>
+                            <span className="text-xs text-foreground font-bold truncate flex-1">
+                              {group.task.title}
+                            </span>
+                            <button
+                              onClick={() => {
+                                setAddingTaskId(addingTaskId === group.task.id ? null : group.task.id);
+                                setNewItemTitle('');
+                              }}
+                              className={`p-1 rounded-md border transition-colors flex-shrink-0 ${
+                                addingTaskId === group.task.id
+                                  ? 'bg-bridge-accent text-white border-bridge-accent'
+                                  : 'text-muted-foreground border-foreground/10 bg-bridge-surface hover:text-foreground hover:bg-bridge-surface-hover hover:border-bridge-border'
+                              }`}
+                              title={t('dailyChecklist.newItem')}
                             >
-                              {/* Task Header */}
-                              <div
-                                className="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-foreground/5 transition-colors"
-                                onClick={() => toggleTaskCollapse(taskData.task.id)}
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+
+                          {/* 인라인 추가 폼 */}
+                          {renderInlineAddForm(group.task.id)}
+
+                          {/* 임시 추가된 새 항목 */}
+                          {renderPendingItems(group.task.id)}
+
+                          {/* 내 항목 (미추가) */}
+                          {group.myItems.map((item) => {
+                            const isSelected = selectedItems.has(item.id);
+                            const dateRange = formatDateRange(item.start_date, item.due_date);
+                            const dday = getDdayInfo(item.due_date);
+                            return (
+                              <button
+                                key={item.id}
+                                onClick={() => toggleItem(item.id)}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2 mb-1.5 rounded-xl border border-l-[3px] border-l-bridge-accent text-left transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-bridge-accent/15 border-bridge-accent/50 ring-1 ring-bridge-accent/50'
+                                    : 'bg-bridge-dark/60 border-foreground/[0.08] hover:border-bridge-accent/40 hover:bg-bridge-accent/[0.06]'
+                                }`}
                               >
-                                {isCollapsed ? (
-                                  <ChevronRight className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-                                ) : (
-                                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-                                )}
-                                <span className="text-sm text-muted-foreground flex-1 truncate">
-                                  {taskData.task.title}
-                                </span>
-                                <span className="text-xs text-bridge-accent font-medium">
-                                  {taskData.checklistItems.length}
-                                </span>
-                                {/* + 버튼 */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setAddingTaskId(addingTaskId === taskData.task.id ? null : taskData.task.id);
-                                    setNewItemTitle('');
-                                  }}
-                                  className={`p-1 rounded-md border transition-colors ${
-                                    addingTaskId === taskData.task.id
-                                      ? 'bg-bridge-accent text-white border-bridge-accent'
-                                      : 'text-muted-foreground border-foreground/10 bg-bridge-surface hover:text-foreground hover:bg-bridge-surface-hover hover:border-bridge-border'
+                                <div
+                                  className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
+                                    isSelected
+                                      ? 'bg-bridge-accent border-bridge-accent'
+                                      : 'border-bridge-border bg-foreground/5'
                                   }`}
                                 >
-                                  <Plus className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-
-                              {/* 인라인 추가 폼 */}
-                              {addingTaskId === taskData.task.id && (
-                                <div className="px-4 pb-2">
-                                  <div className="flex gap-2">
-                                    <input
-                                      type="text"
-                                      value={newItemTitle}
-                                      onChange={(e) => setNewItemTitle(e.target.value)}
-                                      onKeyDown={(e) => {
-                                        if (e.nativeEvent.isComposing) return;
-                                        if (e.key === 'Enter' && newItemTitle.trim()) {
-                                          handleAddPendingItem(taskData.task.id);
-                                        } else if (e.key === 'Escape') {
-                                          setAddingTaskId(null);
-                                          setNewItemTitle('');
-                                        }
-                                      }}
-                                      placeholder={t('dailyChecklist.newChecklistPlaceholder')}
-                                      autoFocus
-                                      className="flex-1 px-3 py-1.5 bg-bridge-surface border border-foreground/10 rounded-lg text-foreground placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
-                                    />
-                                    <button
-                                      onClick={() => handleAddPendingItem(taskData.task.id)}
-                                      disabled={!newItemTitle.trim()}
-                                      className="p-1.5 bg-bridge-accent text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bridge-accent/90 transition-colors"
-                                    >
-                                      <Plus className="h-4 w-4" />
-                                    </button>
-                                  </div>
+                                  {isSelected && <Check className="h-3 w-3 text-white" />}
                                 </div>
-                              )}
-
-                              {/* Checklist Items */}
-                              {!isCollapsed && (
-                              <div className="bg-bridge-dark/50 px-2 py-1">
-                                {/* 임시로 추가된 새 항목들 (pendingNewItems) */}
-                                {(pendingNewItems.get(taskData.task.id) || []).map((pendingItem) => {
-                                  const isSelected = selectedItems.has(pendingItem.tempId);
-                                  return (
-                                    <button
-                                      key={pendingItem.tempId}
-                                      onClick={() => toggleItem(pendingItem.tempId)}
-                                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-left cursor-pointer ${
-                                        isSelected
-                                          ? 'bg-bridge-accent/20 ring-1 ring-bridge-accent/50'
-                                          : 'hover:bg-foreground/5'
-                                      }`}
-                                    >
-                                      <div
-                                        className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
-                                          isSelected
-                                            ? 'bg-bridge-accent border-bridge-accent'
-                                            : 'border-bridge-border bg-foreground/5'
-                                        }`}
-                                      >
-                                        {isSelected && <Check className="h-3 w-3 text-white" />}
-                                      </div>
-                                      <span className={`text-sm flex-1 truncate ${isSelected ? 'text-white font-medium' : 'text-muted-foreground'}`}>
-                                        {pendingItem.title}
-                                      </span>
-                                      <span className="text-xs px-1.5 py-0.5 rounded bg-bridge-secondary/20 text-bridge-secondary">
-                                        {t('dailyChecklist.newItem')}
-                                      </span>
-                                    </button>
-                                  );
-                                })}
-                                {/* 기존 체크리스트 항목들 */}
-                                {taskData.checklistItems.map((item) => {
-                                  const isSelected = selectedItems.has(item.id);
-                                  const isAlreadyAdded = addedChecklistItemIds.has(item.id);
-                                  const isMyItem = item.assignee?.id === assigneeId;
-                                  const isDisabled = isAlreadyAdded || !isMyItem;
-                                  return (
-                                    <button
-                                      key={item.id}
-                                      onClick={() => !isDisabled && toggleItem(item.id)}
-                                      disabled={isDisabled}
-                                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-left ${
-                                        isAlreadyAdded
-                                          ? 'opacity-50 cursor-not-allowed'
-                                          : !isMyItem
-                                          ? 'opacity-60 cursor-not-allowed'
-                                          : isSelected
-                                          ? 'bg-bridge-accent/20 ring-1 ring-bridge-accent/50 cursor-pointer'
-                                          : 'hover:bg-foreground/5 cursor-pointer'
-                                      }`}
-                                    >
-                                      {/* 체크박스 */}
-                                      <div
-                                        className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
-                                          isAlreadyAdded
-                                            ? 'bg-slate-600 border-slate-600'
-                                            : !isMyItem
-                                            ? 'border-bridge-border bg-foreground/5'
-                                            : isSelected
-                                            ? 'bg-bridge-accent border-bridge-accent'
-                                            : 'border-bridge-border bg-foreground/5'
-                                        }`}
-                                      >
-                                        {(isSelected || isAlreadyAdded) && (
-                                          <Check className="h-3 w-3 text-white" />
-                                        )}
-                                      </div>
-                                      {/* 제목 */}
-                                      <span
-                                        className={`text-sm flex-1 truncate ${
-                                          isAlreadyAdded
-                                            ? 'text-slate-400 line-through'
-                                            : !isMyItem
-                                            ? 'text-slate-400'
-                                            : isSelected
-                                            ? 'text-white font-medium'
-                                            : 'text-muted-foreground'
-                                        }`}
-                                      >
-                                        {item.title}
-                                      </span>
-                                      {/* 담당자 표시 - 내 것은 인디고, 다른 사람은 회색 */}
-                                      {item.assignee && (
+                                <div className="flex-1 min-w-0">
+                                  <span
+                                    className={`block text-sm truncate ${isSelected ? 'text-white font-medium' : 'text-foreground'}`}
+                                  >
+                                    {item.title}
+                                  </span>
+                                  {(dateRange || dday) && (
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                      {dateRange && (
+                                        <span className="flex items-center gap-1 text-xs text-slate-500">
+                                          <CalendarDays className="h-3 w-3" />
+                                          {dateRange}
+                                        </span>
+                                      )}
+                                      {dday && (
                                         <span
-                                          className={`text-xs px-1.5 py-0.5 rounded ${
-                                            isMyItem
-                                              ? 'bg-bridge-accent/20 text-bridge-accent'
-                                              : 'bg-foreground/5 text-slate-400'
-                                          }`}
+                                          className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${dday.className}`}
                                         >
-                                          {item.assignee.name}
+                                          {dday.label}
                                         </span>
                                       )}
-                                      {/* 이미 추가됨 배지 */}
-                                      {isAlreadyAdded && (
-                                        <span className="text-xs px-1.5 py-0.5 bg-slate-700 text-slate-400 rounded">
-                                          {t('dailyChecklist.alreadyAdded')}
-                                        </span>
-                                      )}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              )}
-                            </div>
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent flex-shrink-0">
+                                  {t('dailyChecklist.myItem')}
+                                </span>
+                              </button>
                             );
                           })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {/* 내가 포함 안 된 Task 섹션 */}
-              {othersTasksFeaturesData.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-2 h-2 rounded-full bg-slate-500" />
-                    <h3 className="text-sm font-bold text-slate-400">{t('dailyChecklist.otherTasks')}</h3>
-                    <span className="text-xs text-slate-400">
-                      ({othersTasksFeaturesData.reduce((acc, f) => acc + f.tasks.length, 0)}개)
-                    </span>
-                    {(() => {
-                      const allTaskIds = othersTasksFeaturesData.flatMap((f) => f.tasks.map((t) => t.task.id));
-                      const allCollapsed = allTaskIds.length > 0 && allTaskIds.every((id) => collapsedTasks.has(id));
-                      return (
-                        <button
-                          onClick={() => toggleAllTasks(allTaskIds, !allCollapsed)}
-                          className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-foreground/5"
-                        >
-                          <ChevronsUpDown className="h-3 w-3" />
-                          {allCollapsed ? t('dailyChecklist.expandAll') : t('dailyChecklist.collapseAll')}
-                        </button>
-                      );
-                    })()}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {othersTasksFeaturesData.map((featureData) => (
-                      <div
-                        key={featureData.feature.id}
-                        className="bg-bridge-surface border border-foreground/10 rounded-xl overflow-hidden"
-                      >
-                        {/* Feature Header */}
-                        <div className="flex items-center gap-2 px-4 py-3">
-                          <div
-                            className="w-3 h-3 rounded-full flex-shrink-0 opacity-60"
-                            style={{ backgroundColor: featureData.feature.color }}
-                          />
-                          <span className="font-medium text-slate-400 text-sm flex-1 truncate">
-                            {featureData.feature.title}
-                          </span>
-                          {/* Feature에 Task 추가 버튼 */}
-                          <button
-                            onClick={() => {
-                              setAddingTaskToFeatureId(
-                                addingTaskToFeatureId === featureData.feature.id ? null : featureData.feature.id
-                              );
-                              setNewTaskTitle('');
-                            }}
-                            className={`p-1 rounded-md border transition-colors ${
-                              addingTaskToFeatureId === featureData.feature.id
-                                ? 'bg-bridge-accent text-white border-bridge-accent'
-                                : 'text-muted-foreground border-foreground/10 bg-bridge-surface hover:text-foreground hover:bg-bridge-surface-hover hover:border-bridge-border'
-                            }`}
-                            title={t('dailyChecklist.newTask')}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-
-                        {/* Feature에 Task 인라인 생성 폼 */}
-                        {addingTaskToFeatureId === featureData.feature.id && (
-                          <div className="px-4 py-2 border-t border-foreground/10 bg-bridge-dark/30">
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={newTaskTitle}
-                                onChange={(e) => setNewTaskTitle(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.nativeEvent.isComposing) return;
-                                  if (e.key === 'Enter' && newTaskTitle.trim()) {
-                                    handleCreateTask(featureData.feature.id);
-                                  } else if (e.key === 'Escape') {
-                                    setAddingTaskToFeatureId(null);
-                                    setNewTaskTitle('');
-                                  }
-                                }}
-                                placeholder={t('dailyChecklist.newTaskPlaceholder')}
-                                autoFocus
-                                className="flex-1 px-3 py-1.5 bg-bridge-surface border border-foreground/10 rounded-lg text-foreground placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
-                              />
-                              <button
-                                onClick={() => handleCreateTask(featureData.feature.id)}
-                                disabled={!newTaskTitle.trim() || isSubmittingTask}
-                                className="p-1.5 bg-bridge-accent text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bridge-accent/90 transition-colors flex items-center gap-1"
-                              >
-                                {isSubmittingTask ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Plus className="h-4 w-4" />
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Feature Content */}
-                        <div className="border-t border-foreground/10">
-                          {featureData.tasks.map((taskData) => {
-                            const isCollapsed = collapsedTasks.has(taskData.task.id);
+                          {/* 내 항목 (이미 추가됨) */}
+                          {group.addedMyItems.map((item) => {
+                            const dateRange = formatDateRange(item.start_date, item.due_date);
                             return (
-                            <div
-                              key={taskData.task.id}
-                              className="border-b border-foreground/10 last:border-b-0"
-                            >
-                              {/* Task Header */}
                               <div
-                                className="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-foreground/5 transition-colors"
-                                onClick={() => toggleTaskCollapse(taskData.task.id)}
+                                key={item.id}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 mb-1.5 rounded-xl border border-l-[3px] border-foreground/[0.08] border-l-bridge-secondary/60 bg-bridge-dark/40 opacity-50"
                               >
-                                {isCollapsed ? (
-                                  <ChevronRight className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-                                ) : (
-                                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-                                )}
-                                <span className="text-sm text-slate-400 flex-1 truncate">
-                                  {taskData.task.title}
-                                </span>
-                                <span className="text-xs text-slate-400 font-medium">
-                                  {taskData.checklistItems.length}
-                                </span>
-                                {/* + 버튼 */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setAddingTaskId(addingTaskId === taskData.task.id ? null : taskData.task.id);
-                                    setNewItemTitle('');
-                                  }}
-                                  className={`p-1 rounded-md border transition-colors ${
-                                    addingTaskId === taskData.task.id
-                                      ? 'bg-bridge-accent text-white border-bridge-accent'
-                                      : 'text-muted-foreground border-foreground/10 bg-bridge-surface hover:text-foreground hover:bg-bridge-surface-hover hover:border-bridge-border'
-                                  }`}
-                                >
-                                  <Plus className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-
-                              {/* 인라인 추가 폼 */}
-                              {addingTaskId === taskData.task.id && (
-                                <div className="px-4 pb-2">
-                                  <div className="flex gap-2">
-                                    <input
-                                      type="text"
-                                      value={newItemTitle}
-                                      onChange={(e) => setNewItemTitle(e.target.value)}
-                                      onKeyDown={(e) => {
-                                        if (e.nativeEvent.isComposing) return;
-                                        if (e.key === 'Enter' && newItemTitle.trim()) {
-                                          handleAddPendingItem(taskData.task.id);
-                                        } else if (e.key === 'Escape') {
-                                          setAddingTaskId(null);
-                                          setNewItemTitle('');
-                                        }
-                                      }}
-                                      placeholder={t('dailyChecklist.newChecklistPlaceholder')}
-                                      autoFocus
-                                      className="flex-1 px-3 py-1.5 bg-bridge-surface border border-foreground/10 rounded-lg text-foreground placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
-                                    />
-                                    <button
-                                      onClick={() => handleAddPendingItem(taskData.task.id)}
-                                      disabled={!newItemTitle.trim()}
-                                      className="p-1.5 bg-bridge-accent text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bridge-accent/90 transition-colors"
-                                    >
-                                      <Plus className="h-4 w-4" />
-                                    </button>
-                                  </div>
+                                <div className="w-4 h-4 rounded border bg-bridge-secondary border-bridge-secondary flex-shrink-0 flex items-center justify-center">
+                                  <Check className="h-3 w-3 text-white" />
                                 </div>
-                              )}
+                                <div className="flex-1 min-w-0">
+                                  <span className="block text-sm text-slate-400 line-through truncate">
+                                    {item.title}
+                                  </span>
+                                  {dateRange && (
+                                    <span className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
+                                      <CalendarDays className="h-3 w-3" />
+                                      {dateRange}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary flex-shrink-0">
+                                  {t('dailyChecklist.alreadyAdded')}
+                                </span>
+                              </div>
+                            );
+                          })}
 
-                              {/* Checklist Items */}
-                              {!isCollapsed && (
-                              <div className="bg-bridge-dark/50 px-2 py-1">
-                                {/* 임시로 추가된 새 항목들 (pendingNewItems) */}
-                                {(pendingNewItems.get(taskData.task.id) || []).map((pendingItem) => {
-                                  const isSelected = selectedItems.has(pendingItem.tempId);
-                                  return (
-                                    <button
-                                      key={pendingItem.tempId}
-                                      onClick={() => toggleItem(pendingItem.tempId)}
-                                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-left cursor-pointer ${
-                                        isSelected
-                                          ? 'bg-bridge-accent/20 ring-1 ring-bridge-accent/50'
-                                          : 'hover:bg-foreground/5'
-                                      }`}
-                                    >
-                                      <div
-                                        className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
-                                          isSelected
-                                            ? 'bg-bridge-accent border-bridge-accent'
-                                            : 'border-bridge-border bg-foreground/5'
-                                        }`}
-                                      >
-                                        {isSelected && <Check className="h-3 w-3 text-white" />}
-                                      </div>
-                                      <span className={`text-sm flex-1 truncate ${isSelected ? 'text-white font-medium' : 'text-muted-foreground'}`}>
-                                        {pendingItem.title}
-                                      </span>
-                                      <span className="text-xs px-1.5 py-0.5 rounded bg-bridge-secondary/20 text-bridge-secondary">
-                                        {t('dailyChecklist.newItem')}
-                                      </span>
-                                    </button>
-                                  );
-                                })}
-                                {/* 기존 체크리스트 - 모두 선택 불가 */}
-                                {taskData.checklistItems.map((item) => {
+                          {/* 팀 항목 토글 */}
+                          {group.teamItems.length > 0 && (
+                            <>
+                              <button
+                                onClick={() => toggleTeamTask(group.task.id)}
+                                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-400 px-1.5 py-1 rounded-lg hover:bg-foreground/5 transition-colors"
+                              >
+                                <ChevronRight
+                                  className={`h-3 w-3 transition-transform ${isTeamOpen ? 'rotate-90' : ''}`}
+                                />
+                                {t('dailyChecklist.teamItems', { count: group.teamItems.length })}
+                              </button>
+                              {isTeamOpen &&
+                                group.teamItems.map((item) => {
                                   const isAlreadyAdded = addedChecklistItemIds.has(item.id);
                                   return (
                                     <div
                                       key={item.id}
-                                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left ${
-                                        isAlreadyAdded ? 'opacity-40' : 'opacity-60'
-                                      }`}
+                                      className={`w-full flex items-center gap-2 pl-4 pr-3 py-1.5 rounded-lg ${isAlreadyAdded ? 'opacity-40' : 'opacity-60'}`}
                                     >
-                                      {/* 체크박스 (비활성) */}
                                       <div className="w-4 h-4 rounded border border-bridge-border bg-foreground/5 flex-shrink-0 flex items-center justify-center">
-                                        {isAlreadyAdded && (
-                                          <Check className="h-3 w-3 text-slate-400" />
-                                        )}
+                                        {isAlreadyAdded && <Check className="h-3 w-3 text-slate-400" />}
                                       </div>
-                                      {/* 제목 */}
                                       <span
-                                        className={`text-sm flex-1 truncate ${
-                                          isAlreadyAdded
-                                            ? 'text-slate-400 line-through'
-                                            : 'text-slate-400'
-                                        }`}
+                                        className={`text-sm flex-1 truncate text-slate-400 ${isAlreadyAdded ? 'line-through' : ''}`}
                                       >
                                         {item.title}
                                       </span>
-                                      {/* 담당자 표시 */}
                                       {item.assignee && (
-                                        <span className="text-xs px-1.5 py-0.5 bg-foreground/5 text-slate-400 rounded">
+                                        <span className="text-xs px-1.5 py-0.5 rounded-full bg-foreground/5 text-slate-400 flex-shrink-0">
                                           {item.assignee.name}
-                                        </span>
-                                      )}
-                                      {/* 이미 추가됨 배지 */}
-                                      {isAlreadyAdded && (
-                                        <span className="text-xs px-1.5 py-0.5 bg-slate-700 text-slate-400 rounded">
-                                          {t('dailyChecklist.alreadyAdded')}
                                         </span>
                                       )}
                                     </div>
                                   );
                                 })}
-                              </div>
-                              )}
-                            </div>
-                            );
-                          })}
+                            </>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 다른 Task 섹션 — 디밍 + Feature 아코디언 */}
+              {othersTasksFeaturesData.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 rounded-full bg-slate-500" />
+                    <h3 className="text-sm font-bold text-slate-400">{t('dailyChecklist.otherTasks')}</h3>
+                    <span className="text-xs text-slate-500">
+                      ({t('dailyChecklist.taskCount', {
+                        count: othersTasksFeaturesData.reduce((acc, f) => acc + f.tasks.length, 0),
+                      })})
+                    </span>
+                    <button
+                      onClick={() =>
+                        setExpandedOtherFeatures(
+                          allOthersExpanded ? new Set() : new Set(otherFeatureIds),
+                        )
+                      }
+                      className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-foreground/5"
+                    >
+                      <ChevronsUpDown className="h-3 w-3" />
+                      {allOthersExpanded ? t('dailyChecklist.collapseAll') : t('dailyChecklist.expandAll')}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-start">
+                    {othersTasksFeaturesData.map((featureData) => {
+                      const isExpanded =
+                        isSearching ||
+                        expandedOtherFeatures.has(featureData.feature.id) ||
+                        addingTaskToFeatureId === featureData.feature.id;
+                      const itemTotal = featureData.tasks.reduce(
+                        (acc, taskData) => acc + taskData.checklistItems.length,
+                        0,
+                      );
+                      return (
+                        <div
+                          key={featureData.feature.id}
+                          className={`bg-bridge-surface/40 border border-foreground/[0.06] rounded-xl overflow-hidden transition-opacity ${
+                            isExpanded ? 'opacity-100' : 'opacity-70 hover:opacity-100'
+                          }`}
+                        >
+                          {/* Feature 아코디언 헤더 */}
+                          <div
+                            className="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-foreground/[0.03] transition-colors"
+                            onClick={() => toggleOtherFeature(featureData.feature.id)}
+                          >
+                            <div
+                              className="w-2.5 h-2.5 rounded-full flex-shrink-0 opacity-60"
+                              style={{ backgroundColor: featureData.feature.color }}
+                            />
+                            <span className="font-medium text-slate-400 text-sm flex-1 truncate">
+                              {featureData.feature.title}
+                            </span>
+                            <span className="text-xs text-slate-500 flex-shrink-0">
+                              {t('dailyChecklist.taskCount', { count: featureData.tasks.length })} ·{' '}
+                              {t('dailyChecklist.itemCount', { count: itemTotal })}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAddingTaskToFeatureId(
+                                  addingTaskToFeatureId === featureData.feature.id
+                                    ? null
+                                    : featureData.feature.id,
+                                );
+                                setNewTaskTitle('');
+                              }}
+                              className={`p-1 rounded-md border transition-colors flex-shrink-0 ${
+                                addingTaskToFeatureId === featureData.feature.id
+                                  ? 'bg-bridge-accent text-white border-bridge-accent'
+                                  : 'text-muted-foreground border-foreground/10 bg-bridge-surface hover:text-foreground hover:bg-bridge-surface-hover hover:border-bridge-border'
+                              }`}
+                              title={t('dailyChecklist.newTask')}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                            <ChevronRight
+                              className={`h-3.5 w-3.5 text-slate-500 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                            />
+                          </div>
+
+                          {isExpanded && (
+                            <>
+                              {/* Feature에 Task 인라인 생성 폼 */}
+                              {addingTaskToFeatureId === featureData.feature.id && (
+                                <div className="px-4 py-2 border-t border-foreground/10 bg-bridge-dark/30">
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="text"
+                                      value={newTaskTitle}
+                                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.nativeEvent.isComposing) return;
+                                        if (e.key === 'Enter' && newTaskTitle.trim()) {
+                                          handleCreateTask(featureData.feature.id);
+                                        } else if (e.key === 'Escape') {
+                                          setAddingTaskToFeatureId(null);
+                                          setNewTaskTitle('');
+                                        }
+                                      }}
+                                      placeholder={t('dailyChecklist.newTaskPlaceholder')}
+                                      autoFocus
+                                      className="flex-1 px-3 py-1.5 bg-bridge-surface border border-foreground/10 rounded-lg text-foreground placeholder-slate-500 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                                    />
+                                    <button
+                                      onClick={() => handleCreateTask(featureData.feature.id)}
+                                      disabled={!newTaskTitle.trim() || isSubmittingTask}
+                                      className="p-1.5 bg-bridge-accent text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bridge-accent/90 transition-colors flex items-center gap-1"
+                                    >
+                                      {isSubmittingTask ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Plus className="h-4 w-4" />
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Task 목록 */}
+                              <div className="border-t border-foreground/10">
+                                {featureData.tasks.map((taskData) => (
+                                  <div
+                                    key={taskData.task.id}
+                                    className="border-b border-foreground/10 last:border-b-0"
+                                  >
+                                    {/* Task Header */}
+                                    <div className="flex items-center gap-2 px-4 py-2">
+                                      <span className="text-sm text-slate-400 flex-1 truncate">
+                                        {taskData.task.title}
+                                      </span>
+                                      <span className="text-xs text-slate-500 font-medium">
+                                        {taskData.checklistItems.length}
+                                      </span>
+                                      <button
+                                        onClick={() => {
+                                          setAddingTaskId(
+                                            addingTaskId === taskData.task.id ? null : taskData.task.id,
+                                          );
+                                          setNewItemTitle('');
+                                        }}
+                                        className={`p-1 rounded-md border transition-colors ${
+                                          addingTaskId === taskData.task.id
+                                            ? 'bg-bridge-accent text-white border-bridge-accent'
+                                            : 'text-muted-foreground border-foreground/10 bg-bridge-surface hover:text-foreground hover:bg-bridge-surface-hover hover:border-bridge-border'
+                                        }`}
+                                        title={t('dailyChecklist.newItem')}
+                                      >
+                                        <Plus className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+
+                                    <div className="px-3 pb-1">
+                                      {/* 인라인 추가 폼 */}
+                                      {renderInlineAddForm(taskData.task.id)}
+
+                                      {/* 임시 추가된 새 항목 */}
+                                      {renderPendingItems(taskData.task.id)}
+
+                                      {/* 기존 체크리스트 - 모두 선택 불가 */}
+                                      {taskData.checklistItems.map((item) => {
+                                        const isAlreadyAdded = addedChecklistItemIds.has(item.id);
+                                        return (
+                                          <div
+                                            key={item.id}
+                                            className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-left ${
+                                              isAlreadyAdded ? 'opacity-40' : 'opacity-60'
+                                            }`}
+                                          >
+                                            <div className="w-4 h-4 rounded border border-bridge-border bg-foreground/5 flex-shrink-0 flex items-center justify-center">
+                                              {isAlreadyAdded && (
+                                                <Check className="h-3 w-3 text-slate-400" />
+                                              )}
+                                            </div>
+                                            <span
+                                              className={`text-sm flex-1 truncate text-slate-400 ${
+                                                isAlreadyAdded ? 'line-through' : ''
+                                              }`}
+                                            >
+                                              {item.title}
+                                            </span>
+                                            {item.assignee && (
+                                              <span className="text-xs px-1.5 py-0.5 rounded-full bg-foreground/5 text-slate-400 flex-shrink-0">
+                                                {item.assignee.name}
+                                              </span>
+                                            )}
+                                            {isAlreadyAdded && (
+                                              <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-700 text-slate-400 flex-shrink-0">
+                                                {t('dailyChecklist.alreadyAdded')}
+                                              </span>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1188,6 +1196,12 @@ export function AddDailyChecklistModal({
                   {t('dailyChecklist.selectedCount', { count: selectedItems.size })}
                 </span>{' '}
                 {t('dailyChecklist.selectedLabel')}
+                {selectedMineCount > 0 && (
+                  <span className="text-slate-500">
+                    {' · '}
+                    {t('dailyChecklist.myItemCount', { count: selectedMineCount })}
+                  </span>
+                )}
               </span>
             ) : (
               <span>{t('dailyChecklist.selectChecklist')}</span>

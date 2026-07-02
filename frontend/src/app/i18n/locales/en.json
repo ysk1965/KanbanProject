@@ -1009,7 +1009,15 @@
     "collapseAll": "Collapse all",
     "newTask": "New Task",
     "newTaskPlaceholder": "Enter task title...",
-    "taskCreateFailed": "Failed to create task."
+    "taskCreateFailed": "Failed to create task.",
+    "remainingCount": "{{count}} remaining",
+    "myItem": "My item",
+    "myItemCount": "{{count}} mine",
+    "teamItems": "{{count}} team items in this task",
+    "dueToday": "Due today",
+    "overdue": "Overdue",
+    "taskCount": "{{count}} tasks",
+    "itemCount": "{{count}} items"
   },
   "inquiry": {
     "title": "Contact Us",
@@ -4707,6 +4715,9 @@
     "filterAll": "All",
     "filterNoMilestone": "No milestone",
     "noFilteredFeatures": "No unplaced features for this milestone",
+    "searchFeatures": "Search features",
+    "noSearchResults": "No search results",
+    "clearSearch": "Clear search",
     "excludeFeature": "Remove from mind map"
   },
   "minikanban": {

@@ -39,6 +39,7 @@ import {
   Loader2,
   MousePointer2,
   Plus,
+  Search,
   StickyNote,
   X,
 } from "lucide-react";
@@ -565,6 +566,7 @@ function MindMapCanvas({
   const [loading, setLoading] = useState(true);
   // 미배치 트레이 마일스톤 필터. null=전체, "__none__"=마일스톤 미배정
   const [milestoneFilter, setMilestoneFilter] = useState<string | null>(null);
+  const [traySearch, setTraySearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   // Feature 노드 우클릭 컨텍스트 메뉴
@@ -875,13 +877,18 @@ function MindMapCanvas({
   const filterActive = milestoneOptions.length > 0 || hasNoMilestone;
 
   const visibleUnplaced = useMemo(() => {
-    if (milestoneFilter === null) return unplaced;
+    let list = unplaced;
     if (milestoneFilter === "__none__")
-      return unplaced.filter((f) => !msMap[f.id]?.length);
-    return unplaced.filter((f) =>
-      msMap[f.id]?.some((m) => m.id === milestoneFilter),
-    );
-  }, [unplaced, milestoneFilter, msMap]);
+      list = list.filter((f) => !msMap[f.id]?.length);
+    else if (milestoneFilter !== null)
+      list = list.filter((f) =>
+        msMap[f.id]?.some((m) => m.id === milestoneFilter),
+      );
+    const query = traySearch.trim().toLowerCase();
+    if (query)
+      list = list.filter((f) => f.title.toLowerCase().includes(query));
+    return list;
+  }, [unplaced, milestoneFilter, msMap, traySearch]);
 
   // 트레이 → 캔버스 드롭
   const onDrop = useCallback(
@@ -967,6 +974,28 @@ function MindMapCanvas({
               </div>
               <div className="text-[11px] text-slate-500 mt-0.5">
                 {t("mindmap.dragToPlace", "캔버스로 드래그해 배치")}
+              </div>
+            </div>
+            <div className="px-2.5 pt-2 pb-0.5">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+                <input
+                  type="text"
+                  value={traySearch}
+                  onChange={(e) => setTraySearch(e.target.value)}
+                  placeholder={t("mindmap.searchFeatures", "피쳐 검색")}
+                  className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-lg py-1.5 pl-8 pr-7 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                />
+                {traySearch && (
+                  <button
+                    type="button"
+                    onClick={() => setTraySearch("")}
+                    aria-label={t("mindmap.clearSearch", "검색 지우기")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-foreground transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
             {filterActive &&
@@ -1090,10 +1119,12 @@ function MindMapCanvas({
                 <div className="text-[11px] text-slate-600 text-center py-6">
                   {unplaced.length === 0
                     ? t("mindmap.allPlaced", "모든 피쳐가 배치됨")
-                    : t(
-                        "mindmap.noFilteredFeatures",
-                        "해당 마일스톤의 미배치 피쳐 없음",
-                      )}
+                    : traySearch.trim()
+                      ? t("mindmap.noSearchResults", "검색 결과 없음")
+                      : t(
+                          "mindmap.noFilteredFeatures",
+                          "해당 마일스톤의 미배치 피쳐 없음",
+                        )}
                 </div>
               ) : (
                 visibleUnplaced.map((f) => (
