@@ -890,7 +890,15 @@
     "collapseAll": "全部折叠",
     "newTask": "新建 Task",
     "newTaskPlaceholder": "请输入Task标题...",
-    "taskCreateFailed": "创建Task失败。"
+    "taskCreateFailed": "创建Task失败。",
+    "remainingCount": "剩余 {{count}} 项",
+    "myItem": "我的项目",
+    "myItemCount": "我的 {{count}} 项",
+    "teamItems": "此任务的团队项目 {{count}} 个",
+    "dueToday": "今日截止",
+    "overdue": "已逾期",
+    "taskCount": "{{count}} 个任务",
+    "itemCount": "{{count}} 个项目"
   },
   "inquiry": {
     "title": "联系我们",
@@ -4137,6 +4145,9 @@
     "filterAll": "全部",
     "filterNoMilestone": "无里程碑",
     "noFilteredFeatures": "该里程碑没有未放置的功能",
+    "searchFeatures": "搜索功能",
+    "noSearchResults": "没有搜索结果",
+    "clearSearch": "清除搜索",
     "excludeFeature": "从思维导图中移除"
   }
 }

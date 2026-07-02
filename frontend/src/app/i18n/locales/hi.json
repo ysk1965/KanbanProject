@@ -890,7 +890,15 @@
     "collapseAll": "सभी बंद करें",
     "newTask": "नया Task",
     "newTaskPlaceholder": "टास्क शीर्षक दर्ज करें...",
-    "taskCreateFailed": "टास्क बनाने में विफल।"
+    "taskCreateFailed": "टास्क बनाने में विफल।",
+    "remainingCount": "{{count}} शेष",
+    "myItem": "मेरा आइटम",
+    "myItemCount": "{{count}} मेरे",
+    "teamItems": "इस टास्क में टीम के {{count}} आइटम",
+    "dueToday": "आज देय",
+    "overdue": "अवधि समाप्त",
+    "taskCount": "{{count}} टास्क",
+    "itemCount": "{{count}} आइटम"
   },
   "inquiry": {
     "title": "संपर्क करें",
@@ -4137,6 +4145,9 @@
     "filterAll": "सभी",
     "filterNoMilestone": "कोई माइलस्टोन नहीं",
     "noFilteredFeatures": "इस माइलस्टोन के लिए कोई अनप्लेस्ड फ़ीचर नहीं",
+    "searchFeatures": "फ़ीचर खोजें",
+    "noSearchResults": "कोई खोज परिणाम नहीं",
+    "clearSearch": "खोज साफ़ करें",
     "excludeFeature": "माइंड मैप से हटाएं"
   }
 }

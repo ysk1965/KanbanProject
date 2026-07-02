@@ -1010,7 +1010,15 @@
     "collapseAll": "모두 닫기",
     "newTask": "새 Task",
     "newTaskPlaceholder": "Task 제목을 입력하세요...",
-    "taskCreateFailed": "Task 생성에 실패했습니다."
+    "taskCreateFailed": "Task 생성에 실패했습니다.",
+    "remainingCount": "남은 항목 {{count}}",
+    "myItem": "내 항목",
+    "myItemCount": "내 항목 {{count}}",
+    "teamItems": "이 태스크의 팀 항목 {{count}}개",
+    "dueToday": "오늘 마감",
+    "overdue": "기한 지남",
+    "taskCount": "태스크 {{count}}",
+    "itemCount": "항목 {{count}}"
   },
   "inquiry": {
     "title": "문의하기",
@@ -4728,6 +4736,9 @@
     "filterAll": "전체",
     "filterNoMilestone": "마일스톤 없음",
     "noFilteredFeatures": "해당 마일스톤의 미배치 피쳐 없음",
+    "searchFeatures": "피쳐 검색",
+    "noSearchResults": "검색 결과 없음",
+    "clearSearch": "검색 지우기",
     "excludeFeature": "마인드맵에서 제외"
   },
   "minikanban": {

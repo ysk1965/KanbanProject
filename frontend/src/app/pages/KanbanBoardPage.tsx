@@ -1659,50 +1659,53 @@ export function KanbanBoardPage() {
 
   // Feature 관리
   // 피처 생성 + (선택 시) 마일스톤 연결 + 상태 갱신. 생성된 Feature 반환.
-  const createFeatureCore = async (data: {
-    title: string;
-    description?: string;
-    startDate?: string;
-    dueDate?: string;
-    milestoneId?: string;
-  }): Promise<Feature | null> => {
-    if (!boardId) return null;
+  const createFeatureCore = useCallback(
+    async (data: {
+      title: string;
+      description?: string;
+      startDate?: string;
+      dueDate?: string;
+      milestoneId?: string;
+    }): Promise<Feature | null> => {
+      if (!boardId) return null;
 
-    try {
-      const newFeature = await featureService.createFeature(boardId, {
-        title: data.title,
-        description: data.description,
-        color: getRandomFeatureColor(),
-        start_date: data.startDate,
-        due_date: data.dueDate,
-      });
+      try {
+        const newFeature = await featureService.createFeature(boardId, {
+          title: data.title,
+          description: data.description,
+          color: getRandomFeatureColor(),
+          start_date: data.startDate,
+          due_date: data.dueDate,
+        });
 
-      if (data.milestoneId) {
-        try {
-          const updatedMilestone = await milestoneService.addFeatures(
-            boardId,
-            data.milestoneId,
-            [newFeature.id],
-          );
-          setMilestones((prev) =>
-            prev.map((m) =>
-              m.id === updatedMilestone.id ? updatedMilestone : m,
-            ),
-          );
-        } catch (error) {
-          console.error("Failed to link feature to milestone:", error);
+        if (data.milestoneId) {
+          try {
+            const updatedMilestone = await milestoneService.addFeatures(
+              boardId,
+              data.milestoneId,
+              [newFeature.id],
+            );
+            setMilestones((prev) =>
+              prev.map((m) =>
+                m.id === updatedMilestone.id ? updatedMilestone : m,
+              ),
+            );
+          } catch (error) {
+            console.error("Failed to link feature to milestone:", error);
+          }
         }
-      }
 
-      setFeatures([...features, newFeature]);
-      setAllFeatures([...allFeatures, newFeature]);
-      notifyScheduleRefresh();
-      return newFeature;
-    } catch (error) {
-      console.error("Failed to create feature:", error);
-      return null;
-    }
-  };
+        setFeatures((prev) => [...prev, newFeature]);
+        setAllFeatures((prev) => [...prev, newFeature]);
+        notifyScheduleRefresh();
+        return newFeature;
+      } catch (error) {
+        console.error("Failed to create feature:", error);
+        return null;
+      }
+    },
+    [boardId, notifyScheduleRefresh],
+  );
 
   const handleAddFeature = async (data: {
     title: string;
@@ -1717,20 +1720,6 @@ export function KanbanBoardPage() {
       setIsFeatureModalOpen(true);
     }
   };
-
-  // 마인드맵에서 피처 생성 (상세 모달을 열지 않고 Feature 반환 → 캔버스에 노드 배치)
-  const handleCreateFeatureFromMindmap = useCallback(
-    (data: {
-      title: string;
-      description?: string;
-      startDate?: string;
-      dueDate?: string;
-      milestoneId?: string;
-    }) => createFeatureCore(data),
-    // createFeatureCore는 매 렌더 재생성되지만 최신 클로저를 참조하므로 의존성 생략
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
 
   const handleFeatureClick = useCallback((feature: Feature) => {
     setSelectedFeature(feature);
@@ -3282,7 +3271,7 @@ export function KanbanBoardPage() {
                 milestones={milestones}
                 onFeatureClick={handleFeatureClick}
                 onTaskClick={handleTaskClick}
-                onCreateFeature={handleCreateFeatureFromMindmap}
+                onCreateFeature={createFeatureCore}
               />
             </Suspense>
           </main>

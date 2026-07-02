@@ -890,7 +890,15 @@
     "collapseAll": "Recolher tudo",
     "newTask": "Nova Task",
     "newTaskPlaceholder": "Digite o título da task...",
-    "taskCreateFailed": "Falha ao criar task."
+    "taskCreateFailed": "Falha ao criar task.",
+    "remainingCount": "{{count}} restantes",
+    "myItem": "Meu item",
+    "myItemCount": "{{count}} meus",
+    "teamItems": "{{count}} itens da equipe nesta tarefa",
+    "dueToday": "Vence hoje",
+    "overdue": "Atrasado",
+    "taskCount": "{{count}} tarefas",
+    "itemCount": "{{count}} itens"
   },
   "inquiry": {
     "title": "Fale Conosco",
@@ -4137,6 +4145,9 @@
     "filterAll": "Todos",
     "filterNoMilestone": "Sem marco",
     "noFilteredFeatures": "Nenhum recurso não posicionado para este marco",
+    "searchFeatures": "Buscar recursos",
+    "noSearchResults": "Nenhum resultado de busca",
+    "clearSearch": "Limpar busca",
     "excludeFeature": "Remover do mapa mental"
   }
 }

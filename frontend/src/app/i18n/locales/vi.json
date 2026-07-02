@@ -890,7 +890,15 @@
     "collapseAll": "Thu gọn tất cả",
     "newTask": "Task mới",
     "newTaskPlaceholder": "Nhập tiêu đề task...",
-    "taskCreateFailed": "Tạo task thất bại."
+    "taskCreateFailed": "Tạo task thất bại.",
+    "remainingCount": "Còn {{count}} mục",
+    "myItem": "Mục của tôi",
+    "myItemCount": "{{count}} mục của tôi",
+    "teamItems": "{{count}} mục của nhóm trong task này",
+    "dueToday": "Hết hạn hôm nay",
+    "overdue": "Quá hạn",
+    "taskCount": "{{count}} task",
+    "itemCount": "{{count}} mục"
   },
   "inquiry": {
     "title": "Lien he",
@@ -4628,6 +4636,9 @@
     "filterAll": "Tất cả",
     "filterNoMilestone": "Không có mốc",
     "noFilteredFeatures": "Không có tính năng chưa đặt cho mốc này",
+    "searchFeatures": "Tìm tính năng",
+    "noSearchResults": "Không có kết quả tìm kiếm",
+    "clearSearch": "Xóa tìm kiếm",
     "excludeFeature": "Xóa khỏi sơ đồ tư duy"
   }
 }
