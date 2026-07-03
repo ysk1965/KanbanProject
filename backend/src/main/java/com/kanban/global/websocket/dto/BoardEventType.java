@@ -14,6 +14,7 @@ public enum BoardEventType {
     TASK_DELETED,
     TASK_MOVED,
     TASK_RESTORED,
+    TASKS_REORDERED,
 
     // Block events
     BLOCK_CREATED,

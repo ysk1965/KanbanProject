@@ -86,6 +86,10 @@ public class TaskMoveService {
         // Task 이동
         task.moveToBoard(targetBoard, targetBlock, targetFeature, newPosition);
 
+        // 타겟 피처의 서브태스크 리스트 맨 끝에 추가
+        Integer maxFeaturePos = taskRepository.findMaxFeaturePositionByFeatureId(targetFeature.getId());
+        task.updateFeaturePosition((maxFeaturePos != null) ? maxFeaturePos + 1 : 0);
+
         // 타겟 Feature 카운터 증가
         targetFeature.incrementTotalTasks();
         if (Boolean.TRUE.equals(task.getIsCompleted())) {
@@ -131,6 +135,9 @@ public class TaskMoveService {
         Integer maxPos = taskRepository.findMaxPositionByBlockId(targetBlock.getId());
         int newPosition = (maxPos != null) ? maxPos + 1 : 0;
 
+        Integer maxFeaturePos = taskRepository.findMaxFeaturePositionByFeatureId(targetFeature.getId());
+        int newFeaturePosition = (maxFeaturePos != null) ? maxFeaturePos + 1 : 0;
+
         // 새 Task 생성 (복사)
         Task newTask = Task.builder()
                 .id(UUID.randomUUID().toString())
@@ -141,6 +148,7 @@ public class TaskMoveService {
                 .estimatedMinutes(sourceTask.getEstimatedMinutes())
                 .isCompleted(false)
                 .position(newPosition)
+                .featurePosition(newFeaturePosition)
                 .board(targetBoard)
                 .block(targetBlock)
                 .feature(targetFeature)

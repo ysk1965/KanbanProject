@@ -43,7 +43,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 보드 관련 여러 서비스를 조합하여 통합 응답을 제공하는 Facade 서비스
@@ -184,6 +186,21 @@ public class BoardFacadeService {
             aiCredits = aiCreditService.getCredits(board, subscription);
         } catch (Exception e) {
             log.warn("Failed to load AI credits for board {}: {}", boardId, e.getMessage());
+        }
+
+        // Feature 카운터 재계산: DB 캐시 카운터가 실제 태스크 상태와 불일치할 수 있으므로
+        // 응답 DTO를 실제 tasks 데이터 기준으로 보정
+        Map<String, int[]> taskCountsByFeature = new HashMap<>();
+        for (TaskResponse.Simple t : tasksResponse.getTasks()) {
+            int[] counts = taskCountsByFeature.computeIfAbsent(t.getFeatureId(), k -> new int[2]);
+            counts[0]++;
+            if (t.isCompleted()) counts[1]++;
+        }
+        for (FeatureResponse.Simple f : featuresResponse.getFeatures()) {
+            int[] counts = taskCountsByFeature.getOrDefault(f.getId(), new int[]{0, 0});
+            if (f.getTotalTasks() != counts[0] || f.getCompletedTasks() != counts[1]) {
+                f.recalcCounters(counts[0], counts[1]);
+            }
         }
 
         log.info("Board full data loaded: {} by user: {}", boardId, userId);

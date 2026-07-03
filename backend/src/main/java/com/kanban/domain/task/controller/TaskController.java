@@ -89,6 +89,16 @@ public class TaskController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/features/{featureId}/tasks/reorder")
+    public ResponseEntity<Map<String, String>> reorderFeatureTasks(
+            @PathVariable String boardId,
+            @PathVariable String featureId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody TaskRequest.ReorderFeatureTasks request) {
+        taskService.reorderFeatureTasks(boardId, featureId, principal.getUserId(), request);
+        return ResponseEntity.ok(Map.of("message", "서브태스크 순서가 변경되었습니다"));
+    }
+
     @PutMapping("/tasks/{taskId}/dates")
     public ResponseEntity<TaskResponse.Detail> updateTaskDates(
             @PathVariable String boardId,

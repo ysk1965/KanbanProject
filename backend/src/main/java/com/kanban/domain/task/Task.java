@@ -83,6 +83,13 @@ public class Task extends BaseTimeEntity {
     @Builder.Default
     private Integer position = 0;
 
+    /**
+     * 피처(서브태스크 리스트) 내 표시 순서. position은 칸반 블록 내 순서라 별도 관리한다.
+     */
+    @Column(name = "feature_position", nullable = false)
+    @Builder.Default
+    private Integer featurePosition = 0;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;
@@ -132,6 +139,10 @@ public class Task extends BaseTimeEntity {
 
     public void updatePosition(Integer position) {
         this.position = position;
+    }
+
+    public void updateFeaturePosition(Integer featurePosition) {
+        this.featurePosition = featurePosition;
     }
 
     public void moveToBlock(Block newBlock) {
