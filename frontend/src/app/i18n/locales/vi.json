@@ -1355,6 +1355,7 @@
     "move": "Di chuyen",
     "moveChecklistToTask": "Di chuyển đến Task khác",
     "moveChecklistToTaskTitle": "Di chuyển mục checklist",
+    "moveCompletedSection": "Đã hoàn thành",
     "moveChecklistToTaskDesc": "Chọn task để di chuyển đến.",
     "deleteChecklistTitle": "Xoa muc danh sach kiem tra?",
     "deleteChecklistDesc": "Muc da xoa khong the khoi phuc.",

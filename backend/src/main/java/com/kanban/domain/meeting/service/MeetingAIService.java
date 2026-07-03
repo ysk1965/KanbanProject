@@ -209,6 +209,9 @@ public class MeetingAIService {
                     Integer maxTaskPos = taskRepository.findMaxPositionByBlockId(taskBlock.getId());
                     int newTaskPos = (maxTaskPos != null) ? maxTaskPos + 1 : 0;
 
+                    Integer maxFeaturePos = taskRepository.findMaxFeaturePositionByFeatureId(feature.getId());
+                    int newFeaturePos = (maxFeaturePos != null) ? maxFeaturePos + 1 : 0;
+
                     Task task = Task.builder()
                             .feature(feature)
                             .board(board)
@@ -216,6 +219,7 @@ public class MeetingAIService {
                             .title(ts.getTitle())
                             .description(ts.getDescription())
                             .position(newTaskPos)
+                            .featurePosition(newFeaturePos)
                             .createdBy(creator)
                             .build();
                     taskRepository.save(task);

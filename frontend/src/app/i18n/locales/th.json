@@ -1355,6 +1355,7 @@
     "move": "ย้าย",
     "moveChecklistToTask": "ย้ายไป Task อื่น",
     "moveChecklistToTaskTitle": "ย้ายรายการเช็คลิสต์",
+    "moveCompletedSection": "เสร็จสิ้น",
     "moveChecklistToTaskDesc": "เลือก Task ที่ต้องการย้ายไป",
     "deleteChecklistTitle": "ลบรายการเช็คลิสต์?",
     "deleteChecklistDesc": "รายการที่ลบแล้วไม่สามารถกู้คืนได้",

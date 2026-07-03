@@ -474,6 +474,8 @@ export interface Task {
   estimated_minutes: number | null;
   completed: boolean;
   position: number;
+  /** 피처(서브태스크 리스트) 내 표시 순서 — position은 칸반 블록 내 순서 */
+  feature_position?: number;
   tags: Tag[];
   checklist_total?: number;
   checklist_completed?: number;
@@ -1770,6 +1772,7 @@ export type BoardEventType =
   | "TASK_DELETED"
   | "TASK_MOVED"
   | "TASK_RESTORED"
+  | "TASKS_REORDERED"
   | "BLOCK_CREATED"
   | "BLOCK_UPDATED"
   | "BLOCK_DELETED"

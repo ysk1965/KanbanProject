@@ -657,6 +657,7 @@ export interface TaskResponse {
   estimated_minutes: number | null;
   completed: boolean;
   position: number;
+  feature_position?: number;
   tags: TagResponse[];
   checklist_total?: number;
   checklist_completed?: number;
@@ -1601,6 +1602,20 @@ export const taskAPI = {
     return apiClient.put<TaskResponse>(
       `/boards/${boardId}/tasks/${taskId}/move-feature`,
       data,
+    );
+  },
+
+  // 피처 내 서브태스크 순서 변경
+  reorderFeatureTasks: async (
+    boardId: string,
+    featureId: string,
+    taskIds: string[],
+  ) => {
+    return apiClient.put<{ message: string }>(
+      `/boards/${boardId}/features/${featureId}/tasks/reorder`,
+      {
+        task_ids: taskIds,
+      },
     );
   },
 

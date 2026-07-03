@@ -46,6 +46,7 @@ import {
 import type { Feature, Milestone, MindMapDocument, Task } from "../types";
 import { mindMapAPI } from "../utils/api";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
+import { compareFeatureOrder } from "../utils/taskOrder";
 import { AddFeatureModal } from "../components/AddFeatureModal";
 
 // 피쳐가 속한 마일스톤 정보 (마인드맵 노드 칩 표시용)
@@ -59,7 +60,7 @@ interface MindMapViewProps {
   boardId: string;
   features: Feature[];
   tasks: Task[];
-  /** feature_id → 소속 마일스톤 목록 (없으면 칩 미표시) */
+  /** feature_id → 마일스톤 목록 (태스크 milestone_id 기준 파생, 배정 없으면 멤버십 폴백. 없으면 칩 미표시) */
   featureMilestonesMap?: Record<string, FeatureMilestoneRef[]>;
   canEdit: boolean;
   memberColorMap: Record<string, string | null>;
@@ -168,6 +169,55 @@ function NodeHandles({ canEdit }: { canEdit: boolean }) {
 // ────────────────────────────────────────────────────────────
 // Feature 노드 — feature_id로 live 조회
 // ────────────────────────────────────────────────────────────
+// 태스크 행 (FeatureNode 내 공용)
+function TaskRow({
+  task,
+  onTaskClick,
+}: {
+  task: Task;
+  onTaskClick: (task: Task) => void;
+}) {
+  const clTotal = task.checklist_total ?? 0;
+  const clDone = task.checklist_completed ?? 0;
+  return (
+    <div
+      key={task.id}
+      className="flex items-center gap-2 px-2 py-[5px] rounded-lg hover:bg-foreground/[0.04] transition-colors"
+      onClick={(e) => {
+        e.stopPropagation();
+        onTaskClick(task);
+      }}
+    >
+      {task.completed ? (
+        <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-400" />
+      ) : (
+        <Circle className="w-3 h-3 shrink-0 text-slate-500" />
+      )}
+      <span
+        className={`flex-1 text-[11px] font-medium leading-tight line-clamp-1 ${
+          task.completed
+            ? "text-slate-500 line-through"
+            : "text-foreground"
+        }`}
+      >
+        {task.title}
+      </span>
+      {clTotal > 0 && (
+        <span
+          className={`text-[9px] font-bold shrink-0 px-1.5 py-0.5 rounded ${
+            clDone === clTotal
+              ? "bg-emerald-500/10 text-emerald-400"
+              : "bg-foreground/[0.05] text-slate-500"
+          }`}
+        >
+          {clDone}/{clTotal}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
 const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
   const {
     featuresById,
@@ -189,6 +239,36 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
   const doneCount = featureTasks.filter((t) => t.completed).length;
   const expanded = expandedFeatures.has(featureId);
 
+  // 마일스톤 2개 이상이면 milestone_id 기준 그루핑
+  const taskGroups = useMemo(() => {
+    if (milestones.length < 2) return null;
+    const msMap = new Map(milestones.map((ms) => [ms.id, ms]));
+    const grouped: {
+      ms: FeatureMilestoneRef | null;
+      tasks: Task[];
+    }[] = [];
+    const byMs = new Map<string | null, Task[]>();
+    for (const t of featureTasks) {
+      const key = t.milestone_id ?? null;
+      const arr = byMs.get(key);
+      if (arr) arr.push(t);
+      else byMs.set(key, [t]);
+    }
+    for (const ms of milestones) {
+      const tasks = byMs.get(ms.id);
+      if (tasks?.length) grouped.push({ ms, tasks });
+    }
+    const unassigned = byMs.get(null);
+    if (unassigned?.length) grouped.push({ ms: null, tasks: unassigned });
+    // milestone_id가 있지만 이 피처의 마일스톤 목록에 없는 태스크
+    for (const [key, tasks] of byMs) {
+      if (key !== null && !msMap.has(key) && tasks.length) {
+        grouped.push({ ms: null, tasks });
+      }
+    }
+    return grouped;
+  }, [milestones, featureTasks]);
+
   if (!feature) {
     return (
       <div className="px-3 py-2 rounded-xl border border-foreground/10 bg-bridge-obsidian text-xs text-slate-500">
@@ -199,7 +279,7 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
   }
 
   const color = feature.color || "#6366F1";
-  const pct = feature.progress_percentage ?? 0;
+  const pct = taskCount > 0 ? Math.round((doneCount * 100) / taskCount) : 0;
   const assignee = feature.assignee;
 
   return (
@@ -295,46 +375,65 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
           </button>
           {expanded && (
             <div className="px-2.5 pb-2.5">
-              {featureTasks.map((task) => {
-                const clTotal = task.checklist_total ?? 0;
-                const clDone = task.checklist_completed ?? 0;
-                return (
-                  <div
+              {taskGroups ? (
+                // 마일스톤 2개 이상: 컴팩트 디바이더로 그루핑
+                taskGroups.map((group, gi) => {
+                  const msColor = group.ms
+                    ? MILESTONE_COLORS[
+                        group.ms.idx % MILESTONE_COLORS.length
+                      ]
+                    : "#64748b";
+                  const groupDone = group.tasks.filter(
+                    (t) => t.completed,
+                  ).length;
+                  return (
+                    <div key={group.ms?.id ?? `unassigned-${gi}`}>
+                      <div className="flex items-center gap-1.5 px-2 py-1">
+                        <span
+                          className="flex-1 h-px"
+                          style={{
+                            background: `${msColor}4D`,
+                          }}
+                        />
+                        <span
+                          className="text-[9px] font-bold whitespace-nowrap"
+                          style={{ color: msColor }}
+                        >
+                          {group.ms?.title ?? "미배정"}
+                        </span>
+                        <span
+                          className="text-[9px] font-bold"
+                          style={{ color: `${msColor}99` }}
+                        >
+                          {groupDone}/{group.tasks.length}
+                        </span>
+                        <span
+                          className="flex-1 h-px"
+                          style={{
+                            background: `${msColor}26`,
+                          }}
+                        />
+                      </div>
+                      {group.tasks.map((task) => (
+                        <TaskRow
+                          key={task.id}
+                          task={task}
+                          onTaskClick={onTaskClick}
+                        />
+                      ))}
+                    </div>
+                  );
+                })
+              ) : (
+                // 마일스톤 0~1개: 기존 플랫 리스트
+                featureTasks.map((task) => (
+                  <TaskRow
                     key={task.id}
-                    className="flex items-center gap-2 px-2 py-[5px] rounded-lg hover:bg-foreground/[0.04] transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onTaskClick(task);
-                    }}
-                  >
-                    {task.completed ? (
-                      <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-400" />
-                    ) : (
-                      <Circle className="w-3 h-3 shrink-0 text-slate-500" />
-                    )}
-                    <span
-                      className={`flex-1 text-[11px] font-medium leading-tight line-clamp-1 ${
-                        task.completed
-                          ? "text-slate-500 line-through"
-                          : "text-foreground"
-                      }`}
-                    >
-                      {task.title}
-                    </span>
-                    {clTotal > 0 && (
-                      <span
-                        className={`text-[9px] font-bold shrink-0 px-1.5 py-0.5 rounded ${
-                          clDone === clTotal
-                            ? "bg-emerald-500/10 text-emerald-400"
-                            : "bg-foreground/[0.05] text-slate-500"
-                        }`}
-                      >
-                        {clDone}/{clTotal}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
+                    task={task}
+                    onTaskClick={onTaskClick}
+                  />
+                ))
+              )}
             </div>
           )}
         </>
@@ -587,7 +686,7 @@ function MindMapCanvas({
     return map;
   }, [features]);
 
-  // feature_id → Task[] (position 정렬)
+  // feature_id → Task[] (피처 내 표시 순서 정렬 — 피처 모달 DnD 순서와 동일)
   const tasksByFeature = useMemo(() => {
     const map = new Map<string, Task[]>();
     tasks.forEach((task) => {
@@ -595,7 +694,7 @@ function MindMapCanvas({
       if (arr) arr.push(task);
       else map.set(task.feature_id, [task]);
     });
-    map.forEach((arr) => arr.sort((a, b) => a.position - b.position));
+    map.forEach((arr) => arr.sort(compareFeatureOrder));
     return map;
   }, [tasks]);
 

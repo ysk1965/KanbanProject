@@ -31,6 +31,7 @@ import {
 } from "date-fns";
 import { ko } from "date-fns/locale";
 import { formatDate } from "../utils/dateUtils";
+import { sortByFeatureOrder } from "../utils/taskOrder";
 import { useHolidays } from "../hooks/useHolidays";
 import { Feature, Task, Milestone, TaskDependency } from "../types";
 import { DependencyArrows, TaskPosition } from "./DependencyArrows";
@@ -683,14 +684,14 @@ export function WeeklyScheduleView({
     return tasks.some((t) => t.baseline_start_date || t.baseline_due_date);
   }, [tasks]);
 
-  // Feature별 Task 그룹화
+  // Feature별 Task 그룹화 (피처 내 표시 순서 정렬)
   const featureTaskMap = useMemo(() => {
     const map = new Map<string, Task[]>();
     features.forEach((feature) => {
       const featureTasks = tasks.filter(
         (task) => task.feature_id === feature.id,
       );
-      map.set(feature.id, featureTasks);
+      map.set(feature.id, sortByFeatureOrder(featureTasks));
     });
     return map;
   }, [features, tasks]);

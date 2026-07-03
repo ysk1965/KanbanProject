@@ -1031,17 +1031,31 @@ export function KanbanBoardPage() {
   }, [milestones]);
 
   // Feature별 소속 마일스톤 목록 맵 (마인드맵 노드 칩 표시용)
-  // 한 피쳐가 여러 마일스톤에 속할 수 있어 배열, idx는 색상 매핑용(마일스톤 순서)
+  // 진실은 task.milestone_id — 태스크 배정 기준으로 파생 (MilestoneMatrix와 동일 원칙)
+  // 태스크 배정이 하나도 없는 피처만 멤버십(milestone.features) 폴백, idx는 색상 매핑용(마일스톤 순서)
   const featureMilestonesMap = useMemo(() => {
+    const msRef = new Map(
+      milestones.map((ms, idx) => [ms.id, { id: ms.id, title: ms.title, idx }]),
+    );
     const map: Record<string, { id: string; title: string; idx: number }[]> =
       {};
+    tasks.forEach((t) => {
+      if (!t.milestone_id || !t.feature_id) return;
+      const ref = msRef.get(t.milestone_id);
+      if (!ref) return;
+      const list = (map[t.feature_id] ||= []);
+      if (!list.some((m) => m.id === ref.id)) list.push(ref);
+    });
+    const taskDerived = new Set(Object.keys(map));
     milestones.forEach((ms, idx) => {
       ms.features?.forEach((f) => {
+        if (taskDerived.has(f.id)) return;
         (map[f.id] ||= []).push({ id: ms.id, title: ms.title, idx });
       });
     });
+    Object.values(map).forEach((list) => list.sort((a, b) => a.idx - b.idx));
     return map;
-  }, [milestones]);
+  }, [milestones, tasks]);
 
   // Upgrade Modal 열기 헬퍼
   const openUpgradeModal = (trigger: UpgradeTrigger) => {
@@ -1899,6 +1913,28 @@ export function KanbanBoardPage() {
       notifyScheduleRefresh();
     } catch (error: any) {
       console.error("Failed to create task:", error);
+    }
+  };
+
+  // 피처 상세 모달: 서브태스크 DnD 순서 변경 (낙관적 업데이트 + 서버 영속화)
+  const handleReorderSubtasks = async (featureId: string, taskIds: string[]) => {
+    if (!boardId) return;
+
+    const orderMap = new Map(taskIds.map((id, index) => [id, index]));
+    const prevTasks = tasks;
+    setTasks((prev) =>
+      prev.map((t) =>
+        orderMap.has(t.id)
+          ? { ...t, feature_position: orderMap.get(t.id)! }
+          : t,
+      ),
+    );
+
+    try {
+      await taskService.reorderFeatureTasks(boardId, featureId, taskIds);
+    } catch (error) {
+      console.error("Failed to reorder subtasks:", error);
+      setTasks(prevTasks);
     }
   };
 
@@ -3413,6 +3449,9 @@ export function KanbanBoardPage() {
           }
           blocks={blocks}
           onAddSubtask={(title) => handleAddSubtask(selectedFeature!.id, title)}
+          onReorderSubtasks={(taskIds) =>
+            selectedFeature && handleReorderSubtasks(selectedFeature.id, taskIds)
+          }
           onRenameSubtask={(taskId, newTitle) => {
             setTasks((prev) =>
               prev.map((t) =>

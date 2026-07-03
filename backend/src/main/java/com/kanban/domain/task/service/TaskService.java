@@ -175,6 +175,10 @@ public class TaskService {
         Integer maxPosition = taskRepository.findMaxPositionByBlockId(taskBlock.getId());
         int newPosition = (maxPosition != null) ? maxPosition + 1 : 0;
 
+        // 피처 내 표시 순서: 맨 끝에 추가
+        Integer maxFeaturePosition = taskRepository.findMaxFeaturePositionByFeatureId(featureId);
+        int newFeaturePosition = (maxFeaturePosition != null) ? maxFeaturePosition + 1 : 0;
+
         // 마일스톤 결정: 명시 요청이 있으면 그것(필요 시 피처 자동 연결), 없으면 피처의 대표 마일스톤
         Milestone milestone;
         if (request.getMilestoneId() != null && !request.getMilestoneId().isEmpty()) {
@@ -194,6 +198,7 @@ public class TaskService {
                 .dueDate(request.getDueDate())
                 .estimatedMinutes(request.getEstimatedMinutes())
                 .position(newPosition)
+                .featurePosition(newFeaturePosition)
                 .createdBy(creator)
                 .build();
 
@@ -480,6 +485,10 @@ public class TaskService {
         String oldFeatureTitle = task.getFeature().getTitle();
         task.moveToFeature(targetFeature);
 
+        // 새 피처의 서브태스크 리스트 맨 끝에 추가
+        Integer maxFeaturePosition = taskRepository.findMaxFeaturePositionByFeatureId(targetFeature.getId());
+        task.updateFeaturePosition((maxFeaturePosition != null) ? maxFeaturePosition + 1 : 0);
+
         // 피처 이동으로 해제된 마일스톤을 새 피처의 대표 마일스톤으로 재설정 (불변식 유지)
         task.assignMilestone(featurePrimaryMilestone(targetFeature.getId()));
 
@@ -500,6 +509,43 @@ public class TaskService {
                 taskId, oldFeatureTitle, targetFeature.getTitle(), userId);
 
         return TaskResponse.Detail.of(task, tags);
+    }
+
+    @Transactional
+    public void reorderFeatureTasks(String boardId, String featureId, String userId, TaskRequest.ReorderFeatureTasks request) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Feature feature = featureRepository.findById(featureId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
+
+        if (!feature.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
+        }
+
+        List<Task> featureTasks = taskRepository.findByFeatureIdOrderByPositionAsc(featureId);
+        Map<String, Task> taskMap = featureTasks.stream()
+                .collect(Collectors.toMap(Task::getId, t -> t));
+
+        List<String> taskIds = request.getTaskIds();
+        for (String id : taskIds) {
+            if (!taskMap.containsKey(id)) {
+                throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+            }
+        }
+        if (taskIds.size() != featureTasks.size()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        for (int i = 0; i < taskIds.size(); i++) {
+            taskMap.get(taskIds.get(i)).updateFeaturePosition(i);
+        }
+
+        log.info("Feature tasks reordered: feature {} in board {} by user: {}", featureId, boardId, userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.TASKS_REORDERED, userId, user.getName(),
+                Map.of("feature_id", featureId, "task_ids", taskIds));
     }
 
     @Transactional

@@ -217,6 +217,8 @@ export function TaskDetailModal({
       feature_id: string;
       feature_title: string;
       feature_color: string;
+      completed: boolean;
+      completed_at?: string | null;
     }[]
   >([]);
   const [loadingMoveMilestoneTasks, setLoadingMoveMilestoneTasks] =
@@ -679,6 +681,8 @@ export function TaskDetailModal({
           feature_id: tk.feature_id,
           feature_title: tk.feature_title,
           feature_color: tk.feature_color,
+          completed: tk.completed,
+          completed_at: tk.completed_at,
         })),
       );
       return;
@@ -696,6 +700,8 @@ export function TaskDetailModal({
             feature_id: tk.feature_id,
             feature_title: tk.feature_title,
             feature_color: tk.feature_color,
+            completed: tk.completed,
+            completed_at: tk.completed_at,
           })),
         );
       })
@@ -2154,7 +2160,13 @@ export function TaskDetailModal({
                   </p>
                 );
               }
-              return filtered.map((mt) => (
+              const incomplete = filtered.filter((mt) => !mt.completed);
+              const completed = filtered
+                .filter((mt) => mt.completed)
+                .sort((a, b) =>
+                  (b.completed_at ?? "").localeCompare(a.completed_at ?? ""),
+                );
+              const renderTaskItem = (mt: (typeof filtered)[number]) => (
                 <button
                   key={mt.id}
                   onClick={() => setSelectedTargetTaskId(mt.id)}
@@ -2162,14 +2174,18 @@ export function TaskDetailModal({
                     selectedTargetTaskId === mt.id
                       ? "border-bridge-accent bg-bridge-accent/10"
                       : "border-foreground/10 hover:bg-foreground/5"
-                  }`}
+                  } ${mt.completed ? "opacity-60" : ""}`}
                 >
                   <div
                     className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: mt.feature_color }}
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm text-foreground truncate">
+                    <div
+                      className={`text-sm text-foreground truncate ${
+                        mt.completed ? "line-through" : ""
+                      }`}
+                    >
                       {mt.title}
                     </div>
                     <div className="text-xs text-slate-400 truncate">
@@ -2177,7 +2193,24 @@ export function TaskDetailModal({
                     </div>
                   </div>
                 </button>
-              ));
+              );
+              return (
+                <>
+                  {incomplete.map(renderTaskItem)}
+                  {completed.length > 0 && (
+                    <div className="flex items-center gap-2 pt-3 pb-1 px-1">
+                      <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                        {t("task.moveCompletedSection", "완료됨")}
+                      </span>
+                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/15 text-slate-400">
+                        {completed.length}
+                      </span>
+                      <div className="flex-1 h-px bg-foreground/[0.08]" />
+                    </div>
+                  )}
+                  {completed.map(renderTaskItem)}
+                </>
+              );
             })()
           )}
         </div>

@@ -1,8 +1,28 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  restrictToVerticalAxis,
+  restrictToParentElement,
+} from "@dnd-kit/modifiers";
+import {
+  arrayMove,
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Feature, Task, Tag, Milestone } from "../types";
 import { FEATURE_COLORS } from "../constants";
+import { sortByFeatureOrder } from "../utils/taskOrder";
 import {
   X,
   Trash2,
@@ -17,6 +37,7 @@ import {
   Pencil,
   AlertTriangle,
   ChevronDown,
+  GripVertical,
 } from "lucide-react";
 import { MotionModal } from "./ui/MotionModal";
 import { Button } from "./ui/button";
@@ -45,6 +66,7 @@ interface FeatureDetailModalProps {
   onClose: () => void;
   onAddSubtask: (title: string) => void;
   onRenameSubtask?: (taskId: string, newTitle: string) => void;
+  onReorderSubtasks?: (taskIds: string[]) => void;
   onUpdateFeature: (feature: Partial<Feature>) => void;
   onDelete: (
     featureId: string,
@@ -73,6 +95,7 @@ export function FeatureDetailModal({
   onClose,
   onAddSubtask,
   onRenameSubtask,
+  onReorderSubtasks,
   onUpdateFeature,
   onDelete,
   allFeatures,
@@ -129,6 +152,12 @@ export function FeatureDetailModal({
       setHasChanges(changed);
     }
   }, [initialFeature, editedFeature]);
+
+  // 서브태스크 DnD 정렬 (hook은 early return 위에 선언 — React #310 방지)
+  const subtaskSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+  const sortedTasks = useMemo(() => sortByFeatureOrder(tasks), [tasks]);
 
   if (!open || !feature || !editedFeature) return null;
 
@@ -192,6 +221,16 @@ export function FeatureDetailModal({
       }
     }
     setEditingTaskId(null);
+  };
+
+  const handleSubtaskDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = sortedTasks.findIndex((t) => t.id === active.id);
+    const newIndex = sortedTasks.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(sortedTasks, oldIndex, newIndex);
+    onReorderSubtasks?.(reordered.map((t) => t.id));
   };
 
   const handleAddSubtask = () => {
@@ -793,9 +832,25 @@ export function FeatureDetailModal({
                       </div>
                     </div>
                   )}
-                  {tasks.map((task) => (
-                    <div
+                  <DndContext
+                    sensors={subtaskSensors}
+                    collisionDetection={closestCenter}
+                    modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                    onDragEnd={handleSubtaskDragEnd}
+                  >
+                    <SortableContext
+                      items={sortedTasks.map((t) => t.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                  {sortedTasks.map((task) => (
+                    <SortableSubtaskRow
                       key={task.id}
+                      taskId={task.id}
+                      dragEnabled={
+                        canEdit &&
+                        !!onReorderSubtasks &&
+                        sortedTasks.length > 1
+                      }
                       className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors group ${onTaskClick ? "cursor-pointer" : ""}`}
                       onClick={() => {
                         if (onTaskClick && editingTaskId !== task.id) {
@@ -856,8 +911,10 @@ export function FeatureDetailModal({
                           {getBlockName(task.block_id).toUpperCase()}
                         </span>
                       </div>
-                    </div>
+                    </SortableSubtaskRow>
                   ))}
+                    </SortableContext>
+                  </DndContext>
                 </div>
 
                 {/* Quick Add Dock */}
@@ -1334,5 +1391,58 @@ export function FeatureDetailModal({
           document.body,
         )}
     </>
+  );
+}
+
+// 서브태스크 DnD 정렬 행 (드래그 핸들은 hover 시 노출)
+function SortableSubtaskRow({
+  taskId,
+  dragEnabled,
+  className,
+  onClick,
+  children,
+}: {
+  taskId: string;
+  dragEnabled: boolean;
+  className: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: taskId, disabled: !dragEnabled });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+    position: isDragging ? "relative" : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      className={className}
+      onClick={onClick}
+    >
+      {dragEnabled && (
+        <span
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+          className="flex-shrink-0 -ml-2 mr-2 cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity touch-none"
+        >
+          <GripVertical className="h-4 w-4" />
+        </span>
+      )}
+      {children}
+    </div>
   );
 }

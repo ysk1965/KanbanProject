@@ -1485,6 +1485,7 @@
     "checklistCopied": "Checklist copied",
     "moveChecklistToTask": "Move to another Task",
     "moveChecklistToTaskTitle": "Move Checklist Item",
+    "moveCompletedSection": "Completed",
     "moveChecklistToTaskDesc": "Select a task to move to.",
     "moveChecklistMilestoneLabel": "Milestone",
     "deleteChecklistTitle": "Delete checklist item?",

@@ -805,6 +805,14 @@ export const taskService = {
     return task;
   },
 
+  reorderFeatureTasks: async (
+    boardId: string,
+    featureId: string,
+    taskIds: string[],
+  ): Promise<void> => {
+    await taskAPI.reorderFeatureTasks(boardId, featureId, taskIds);
+  },
+
   updateTaskDates: async (
     boardId: string,
     taskId: string,

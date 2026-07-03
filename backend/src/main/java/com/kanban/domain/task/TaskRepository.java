@@ -56,6 +56,9 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("SELECT MAX(t.position) FROM Task t WHERE t.block.id = :blockId")
     Integer findMaxPositionByBlockId(@Param("blockId") String blockId);
 
+    @Query("SELECT MAX(t.featurePosition) FROM Task t WHERE t.feature.id = :featureId")
+    Integer findMaxFeaturePositionByFeatureId(@Param("featureId") String featureId);
+
     int countByFeatureId(String featureId);
 
     int countByFeatureIdAndIsCompletedTrue(String featureId);
