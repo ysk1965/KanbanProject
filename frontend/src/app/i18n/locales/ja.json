@@ -1355,6 +1355,7 @@
     "move": "移動",
     "moveChecklistToTask": "別のTaskに移動",
     "moveChecklistToTaskTitle": "チェックリスト項目の移動",
+    "moveCompletedSection": "完了済み",
     "moveChecklistToTaskDesc": "移動先のTaskを選択してください。",
     "deleteChecklistTitle": "チェックリストアイテムを削除しますか？",
     "deleteChecklistDesc": "削除したアイテムは復元できません。",

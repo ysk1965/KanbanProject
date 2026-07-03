@@ -34,6 +34,7 @@ public class TaskResponse {
         private Integer estimatedMinutes;
         private boolean completed;
         private Integer position;
+        private Integer featurePosition;
         private List<TagInfo> tags;
         private int checklistTotal;
         private int checklistCompleted;
@@ -57,6 +58,7 @@ public class TaskResponse {
                     .estimatedMinutes(task.getEstimatedMinutes())
                     .completed(task.getIsCompleted())
                     .position(task.getPosition())
+                    .featurePosition(task.getFeaturePosition())
                     .tags(tags != null ? tags.stream().map(TagInfo::of).toList() : List.of())
                     .checklistTotal(checklistTotal)
                     .checklistCompleted(checklistCompleted)
@@ -85,6 +87,7 @@ public class TaskResponse {
         private Integer estimatedMinutes;
         private boolean completed;
         private Integer position;
+        private Integer featurePosition;
         private List<TagInfo> tags;
         private CreatorInfo createdBy;
         private LocalDateTime createdAt;
@@ -109,6 +112,7 @@ public class TaskResponse {
                     .estimatedMinutes(task.getEstimatedMinutes())
                     .completed(task.getIsCompleted())
                     .position(task.getPosition())
+                    .featurePosition(task.getFeaturePosition())
                     .tags(tags != null ? tags.stream().map(TagInfo::of).toList() : List.of())
                     .createdBy(CreatorInfo.of(task))
                     .createdAt(task.getCreatedAt())

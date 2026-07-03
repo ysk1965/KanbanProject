@@ -189,6 +189,23 @@ export function useBoardWebSocketHandlers(
         notifyScheduleRefresh();
         break;
       }
+      case "TASKS_REORDERED": {
+        const { task_ids } = data as {
+          feature_id: string;
+          task_ids: string[];
+        };
+        if (Array.isArray(task_ids)) {
+          const orderMap = new Map(task_ids.map((id, index) => [id, index]));
+          setTasks((prev) =>
+            prev.map((t) =>
+              orderMap.has(t.id)
+                ? { ...t, feature_position: orderMap.get(t.id)! }
+                : t,
+            ),
+          );
+        }
+        break;
+      }
       case "TASK_MOVED": {
         const { task, feature } = data as {
           task: Task;

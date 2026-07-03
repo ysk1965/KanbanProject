@@ -1340,6 +1340,7 @@
     "move": "移動",
     "moveChecklistToTask": "移動到其他Task",
     "moveChecklistToTaskTitle": "移動清單項目",
+    "moveCompletedSection": "已完成",
     "moveChecklistToTaskDesc": "請選擇要移動到的Task。",
     "deleteChecklistTitle": "刪除清單項？",
     "deleteChecklistDesc": "已刪除的項目無法復原。",

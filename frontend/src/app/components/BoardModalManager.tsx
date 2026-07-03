@@ -171,6 +171,7 @@ interface BoardModalManagerProps {
   blocks: Block[];
   onAddSubtask: (title: string) => void;
   onRenameSubtask: (taskId: string, newTitle: string) => void;
+  onReorderSubtasks?: (taskIds: string[]) => void;
   onUpdateFeature: (updates: Partial<Feature>) => void;
   onDeleteFeature: (
     featureId: string,
@@ -502,6 +503,7 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         onClose={props.onCloseFeature}
         onAddSubtask={props.onAddSubtask}
         onRenameSubtask={props.onRenameSubtask}
+        onReorderSubtasks={props.onReorderSubtasks}
         onUpdateFeature={props.onUpdateFeature}
         onDelete={props.onDeleteFeature}
         allFeatures={props.allFeatures}

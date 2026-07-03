@@ -39,6 +39,12 @@ public class FeatureResponse {
         private List<TagInfo> tags;
         private boolean inbox;
 
+        public void recalcCounters(int total, int completed) {
+            this.totalTasks = total;
+            this.completedTasks = completed;
+            this.progressPercentage = total > 0 ? (int) ((completed * 100.0) / total) : 0;
+        }
+
         public static Simple of(Feature feature, List<Tag> tags) {
             return Simple.builder()
                     .id(feature.getId())

@@ -1355,6 +1355,7 @@
     "move": "Mover",
     "moveChecklistToTask": "Mover a otro Task",
     "moveChecklistToTaskTitle": "Mover elemento de checklist",
+    "moveCompletedSection": "Completadas",
     "moveChecklistToTaskDesc": "Selecciona un task al que mover.",
     "deleteChecklistTitle": "¿Eliminar elemento de lista de verificación?",
     "deleteChecklistDesc": "Los elementos eliminados no se pueden recuperar.",

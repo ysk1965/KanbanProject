@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public class TaskRequest {
 
@@ -72,6 +73,13 @@ public class TaskRequest {
     public static class MoveFeature {
         @NotNull(message = "이동할 Feature ID는 필수입니다")
         private String targetFeatureId;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    public static class ReorderFeatureTasks {
+        @NotNull(message = "Task ID 목록은 필수입니다")
+        private List<String> taskIds;
     }
 
     @Getter

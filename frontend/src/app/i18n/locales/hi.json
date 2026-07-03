@@ -1355,6 +1355,7 @@
     "move": "ले जाएं",
     "moveChecklistToTask": "अन्य Task में ले जाएं",
     "moveChecklistToTaskTitle": "चेकलिस्ट आइटम ले जाएं",
+    "moveCompletedSection": "पूर्ण",
     "moveChecklistToTaskDesc": "ले जाने के लिए Task चुनें।",
     "deleteChecklistTitle": "चेकलिस्ट आइटम हटाएं?",
     "deleteChecklistDesc": "हटाए गए आइटम पुनर्प्राप्त नहीं किए जा सकते।",
