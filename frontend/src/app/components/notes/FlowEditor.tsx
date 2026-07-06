@@ -31,10 +31,12 @@ import {
 import "@xyflow/react/dist/style.css";
 import {
   Clock,
+  Film,
   Hand,
   Image as ImageIcon,
   Loader2,
   MousePointer2,
+  Pause,
   Pencil,
   Save,
   Play,
@@ -67,9 +69,16 @@ import type { CollaborationState } from "../../hooks/useCollaboration";
 // ────────────────────────────────────────────────────────────
 // 저장 스키마 (note.content JSON)
 //   { type: "bridge-flow", version: 1, nodes: [...], edges: [...] }
-// 노드 kind: text | sticky | shape | image | video
+// 노드 kind: text | sticky | shape | image | video | sprite
+//   sprite = 여러 이미지를 GIF처럼 순환 재생하는 애니메이션 노드
 // ────────────────────────────────────────────────────────────
-type FlowNodeKind = "text" | "sticky" | "shape" | "image" | "video";
+type FlowNodeKind =
+  | "text"
+  | "sticky"
+  | "shape"
+  | "image"
+  | "video"
+  | "sprite";
 
 interface StoredFlowNode {
   id: string;
@@ -93,6 +102,70 @@ interface FlowDocument {
   version?: number;
   nodes: StoredFlowNode[];
   edges: StoredFlowEdge[];
+}
+
+// 삽입 미디어 원본 크기 기준 (긴 변 상한 / 짧은 변 하한)
+const MEDIA_MAX = 560;
+const MEDIA_MIN = 120;
+
+function getImageSize(
+  file: File,
+): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = () => {
+      resolve(null);
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  });
+}
+
+function getVideoSize(
+  file: File,
+): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement("video");
+    v.preload = "metadata";
+    v.onloadedmetadata = () => {
+      resolve({ width: v.videoWidth, height: v.videoHeight });
+      URL.revokeObjectURL(url);
+    };
+    v.onerror = () => {
+      resolve(null);
+      URL.revokeObjectURL(url);
+    };
+    v.src = url;
+  });
+}
+
+// 원본 비율 유지하며 상·하한에 맞춘 노드 크기 계산
+function fitMediaSize(
+  nat: { width: number; height: number } | null,
+  fallback: { width: number; height: number },
+): { width: number; height: number } {
+  if (!nat || !nat.width || !nat.height) return fallback;
+  let w = nat.width;
+  let h = nat.height;
+  const longest = Math.max(w, h);
+  if (longest > MEDIA_MAX) {
+    const s = MEDIA_MAX / longest;
+    w *= s;
+    h *= s;
+  }
+  const shortest = Math.min(w, h);
+  if (shortest < MEDIA_MIN) {
+    const s = MEDIA_MIN / shortest;
+    w *= s;
+    h *= s;
+  }
+  return { width: Math.round(w), height: Math.round(h) };
 }
 
 const NODE_COLORS = [
@@ -163,14 +236,14 @@ function DeleteBtn({ id }: { id: string }) {
   return (
     <button
       type="button"
-      className="absolute -top-2 -right-2 z-20 w-5 h-5 rounded-full bg-bridge-obsidian border border-foreground/15 flex items-center justify-center opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-400 transition-opacity"
+      className="absolute -top-2.5 -right-2.5 z-20 w-6 h-6 rounded-full bg-rose-500 text-white border-2 border-bridge-obsidian shadow-lg shadow-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-rose-600 transition-opacity"
       onClick={(e) => {
         e.stopPropagation();
         deleteNode(id);
       }}
       title="삭제"
     >
-      <X className="w-3 h-3" />
+      <X className="w-3.5 h-3.5" strokeWidth={3} />
     </button>
   );
 }
@@ -437,15 +510,64 @@ const ShapeNode = memo(function ShapeNode({ id, data, selected }: NodeProps) {
   );
 });
 
+// 미디어 캡션 편집 인풋 (이미지·영상 공용) — 더블클릭 진입, 중앙정렬
+function MediaCaptionEditor({
+  id,
+  caption,
+  variant,
+  onDone,
+}: {
+  id: string;
+  caption: string;
+  variant: "image" | "video";
+  onDone: () => void;
+}) {
+  const { updateNodeData } = useFlow();
+  const [draft, setDraft] = useState(caption);
+  useEffect(() => setDraft(caption), [caption]);
+  const commit = () => {
+    updateNodeData(id, { caption: draft.trim() });
+    onDone();
+  };
+  const base =
+    variant === "image"
+      ? "text-[11px] text-white"
+      : "text-[11px] text-slate-200";
+  return (
+    <input
+      autoFocus
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          commit();
+        }
+        if (e.key === "Escape") {
+          setDraft(caption);
+          onDone();
+        }
+      }}
+      placeholder="이름 입력"
+      className={`w-full bg-transparent outline-none text-center placeholder-slate-400 ${base}`}
+      onDoubleClick={(e) => e.stopPropagation()}
+    />
+  );
+}
+
 // ── 이미지 노드 ────────────────────────────────────────────
 const ImageNode = memo(function ImageNode({ id, data, selected }: NodeProps) {
   const { canEdit } = useFlow();
   const url = (data as { url?: string }).url || "";
   const caption = (data as { caption?: string }).caption || "";
+  const [editingCaption, setEditingCaption] = useState(false);
   return (
     <div
-      className="group relative w-full h-full rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-lg overflow-hidden"
+      className="group relative w-full h-full"
       style={{ minWidth: 120, minHeight: 90 }}
+      onDoubleClick={() => {
+        if (canEdit) setEditingCaption(true);
+      }}
     >
       <NodeResizer
         isVisible={canEdit && !!selected}
@@ -457,23 +579,37 @@ const ImageNode = memo(function ImageNode({ id, data, selected }: NodeProps) {
       />
       <NodeHandles canEdit={canEdit} />
       <DeleteBtn id={id} />
-      {url ? (
-        <img
-          src={url}
-          alt={caption || "image"}
-          className="w-full h-full object-cover pointer-events-none select-none"
-          draggable={false}
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center text-slate-500">
-          <ImageIcon className="w-6 h-6" />
-        </div>
-      )}
-      {caption && (
-        <div className="absolute bottom-0 inset-x-0 px-2 py-1 text-[11px] text-white bg-black/50 truncate">
-          {caption}
-        </div>
-      )}
+      {/* 미디어 프레임 — 클리핑은 여기서만 (X 버튼은 바깥에 남아 잘리지 않음) */}
+      <div className="relative w-full h-full rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-lg overflow-hidden">
+        {url ? (
+          <img
+            src={url}
+            alt={caption || "image"}
+            className="w-full h-full object-contain bg-black pointer-events-none select-none"
+            draggable={false}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-slate-500">
+            <ImageIcon className="w-6 h-6" />
+          </div>
+        )}
+        {(caption || (canEdit && editingCaption)) && (
+          <div className="absolute bottom-0 inset-x-0 px-2 py-1 bg-black/50">
+            {canEdit && editingCaption ? (
+              <MediaCaptionEditor
+                id={id}
+                caption={caption}
+                variant="image"
+                onDone={() => setEditingCaption(false)}
+              />
+            ) : (
+              <div className="text-[11px] text-white text-center truncate">
+                {caption}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 });
@@ -483,10 +619,14 @@ const VideoNode = memo(function VideoNode({ id, data, selected }: NodeProps) {
   const { canEdit } = useFlow();
   const url = (data as { url?: string }).url || "";
   const caption = (data as { caption?: string }).caption || "";
+  const [editingCaption, setEditingCaption] = useState(false);
   return (
     <div
-      className="group relative w-full h-full rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-lg overflow-hidden"
+      className="group relative w-full h-full"
       style={{ minWidth: 160, minHeight: 100 }}
+      onDoubleClick={() => {
+        if (canEdit) setEditingCaption(true);
+      }}
     >
       <NodeResizer
         isVisible={canEdit && !!selected}
@@ -497,20 +637,164 @@ const VideoNode = memo(function VideoNode({ id, data, selected }: NodeProps) {
       />
       <NodeHandles canEdit={canEdit} />
       <DeleteBtn id={id} />
-      {url ? (
-        <video
-          src={url}
-          controls
-          className="w-full h-full object-contain bg-black"
+      {/* 미디어 프레임 — 클리핑은 여기서만 (X 버튼은 바깥에 남아 잘리지 않음) */}
+      <div className="relative w-full h-full rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-lg overflow-hidden flex flex-col">
+        {url ? (
+          <video
+            src={url}
+            controls
+            className="w-full flex-1 min-h-0 object-contain bg-black"
+          />
+        ) : (
+          <div className="w-full flex-1 flex items-center justify-center text-slate-500">
+            <Play className="w-6 h-6" />
+          </div>
+        )}
+        {(caption || (canEdit && editingCaption)) && (
+          <div className="px-2 py-1 flex-shrink-0">
+            {canEdit && editingCaption ? (
+              <MediaCaptionEditor
+                id={id}
+                caption={caption}
+                variant="video"
+                onDone={() => setEditingCaption(false)}
+              />
+            ) : (
+              <div className="text-[11px] text-slate-400 text-center truncate">
+                {caption}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+// ── 스프라이트(애니메이션) 노드 ────────────────────────────
+//   frames: string[] 을 fps 속도로 순환 재생 (GIF처럼)
+const SpriteNode = memo(function SpriteNode({ id, data, selected }: NodeProps) {
+  const { canEdit, updateNodeData } = useFlow();
+  const frames = ((data as { frames?: string[] }).frames || []).filter(Boolean);
+  const caption = (data as { caption?: string }).caption || "";
+  const fps = (data as { fps?: number }).fps || 8;
+  const [idx, setIdx] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const [editingCaption, setEditingCaption] = useState(false);
+
+  // 프레임 순환 재생
+  useEffect(() => {
+    if (!playing || frames.length <= 1) return;
+    const interval = setInterval(
+      () => setIdx((i) => (i + 1) % frames.length),
+      Math.max(40, Math.round(1000 / Math.max(1, fps))),
+    );
+    return () => clearInterval(interval);
+  }, [playing, frames.length, fps]);
+
+  // 프레임 수 변동 시 인덱스 보정
+  useEffect(() => {
+    setIdx((i) => (frames.length ? i % frames.length : 0));
+  }, [frames.length]);
+
+  const current = frames[idx] || frames[0] || "";
+  const setFps = (v: number) =>
+    updateNodeData(id, { fps: Math.min(30, Math.max(1, v)) });
+
+  return (
+    <div
+      className="group relative w-full h-full rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-lg overflow-hidden"
+      style={{ minWidth: 120, minHeight: 90 }}
+      onDoubleClick={() => {
+        if (canEdit) setEditingCaption(true);
+      }}
+    >
+      <NodeResizer
+        isVisible={canEdit && !!selected}
+        minWidth={100}
+        minHeight={80}
+        keepAspectRatio
+        color="#2DD4BF"
+        handleClassName="!w-2 !h-2 !rounded-sm"
+      />
+      <NodeHandles canEdit={canEdit} />
+      <DeleteBtn id={id} />
+      {current ? (
+        <img
+          src={current}
+          alt={caption || "sprite"}
+          className="w-full h-full object-contain bg-black pointer-events-none select-none"
+          draggable={false}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center text-slate-500">
-          <Play className="w-6 h-6" />
+          <Film className="w-6 h-6" />
         </div>
       )}
-      {caption && (
-        <div className="px-2 py-1 text-[11px] text-slate-400 truncate">
-          {caption}
+
+      {/* 프레임 뱃지 */}
+      <div className="absolute top-1.5 left-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/55 text-[11px] font-bold text-bridge-secondary pointer-events-none">
+        <Film className="w-3 h-3" />
+        {frames.length > 0 ? `${idx + 1}/${frames.length}` : "0"}
+      </div>
+
+      {/* 재생 컨트롤 (hover 시 노출) */}
+      <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setPlaying((p) => !p);
+          }}
+          className="w-6 h-6 rounded-md bg-black/55 text-white flex items-center justify-center hover:bg-black/75"
+          title={playing ? "일시정지" : "재생"}
+        >
+          {playing ? (
+            <Pause className="w-3.5 h-3.5" />
+          ) : (
+            <Play className="w-3.5 h-3.5" />
+          )}
+        </button>
+        {canEdit && (
+          <div
+            className="flex items-center gap-0.5 px-1 h-6 rounded-md bg-black/55 text-white text-[11px] font-bold"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setFps(fps - 1)}
+              className="px-1 hover:text-bridge-secondary"
+              title="느리게"
+            >
+              −
+            </button>
+            <span className="tabular-nums">{fps}fps</span>
+            <button
+              type="button"
+              onClick={() => setFps(fps + 1)}
+              className="px-1 hover:text-bridge-secondary"
+              title="빠르게"
+            >
+              +
+            </button>
+          </div>
+        )}
+      </div>
+
+      {(caption || (canEdit && editingCaption)) && (
+        <div className="absolute bottom-0 inset-x-0 px-2 py-1 bg-black/50">
+          {canEdit && editingCaption ? (
+            <MediaCaptionEditor
+              id={id}
+              caption={caption}
+              variant="image"
+              onDone={() => setEditingCaption(false)}
+            />
+          ) : (
+            <div className="text-[11px] text-white text-center truncate">
+              {caption}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -523,6 +807,7 @@ const nodeTypes = {
   shape: ShapeNode,
   image: ImageNode,
   video: VideoNode,
+  sprite: SpriteNode,
 };
 
 // ── (de)serialize ──────────────────────────────────────────
@@ -662,6 +947,12 @@ function FlowCanvas({
   );
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const dragDepthRef = useRef(0);
+  // 여러 이미지 입력 시 "묶기 vs 개별" 선택 대기 상태
+  const [pendingGroup, setPendingGroup] = useState<{
+    images: File[];
+    videos: File[];
+    pos: { x: number; y: number };
+  } | null>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -985,18 +1276,26 @@ function FlowCanvas({
       const isVideo = file.type.startsWith("video/");
       if (!isImage && !isVideo) return; // 지원 타입만
       try {
+        // 업로드 전 원본 크기 측정 (실패 시 fallback 크기)
+        const natural = isImage
+          ? await getImageSize(file)
+          : await getVideoSize(file);
         const scope = boardId ? { boardId } : { organizationId: orgId! };
         const { url } = await fileAPI.uploadNote(file, scope);
         if (isImage) {
-          addNodeAt("image", { url, caption: file.name }, pos, {
-            width: 200,
-            height: 150,
-          });
+          addNodeAt(
+            "image",
+            { url, caption: file.name },
+            pos,
+            fitMediaSize(natural, { width: 240, height: 180 }),
+          );
         } else {
-          addNodeAt("video", { url, caption: file.name }, pos, {
-            width: 240,
-            height: 150,
-          });
+          addNodeAt(
+            "video",
+            { url, caption: file.name },
+            pos,
+            fitMediaSize(natural, { width: 280, height: 180 }),
+          );
         }
       } catch (err) {
         console.error("Flow media upload failed:", err);
@@ -1011,21 +1310,92 @@ function FlowCanvas({
     [addNodeAt, boardId, orgId, t],
   );
 
-  const handleFileSelected = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files ? Array.from(e.target.files) : [];
-      pendingMediaRef.current = null;
-      if (files.length === 0) return;
-      const base = centerPos();
+  // 여러 이미지를 정렬해 하나의 스프라이트(애니메이션) 노드로 생성
+  const uploadAndAddSprite = useCallback(
+    async (images: File[], pos: { x: number; y: number }) => {
+      const imgs = images.filter((f) => f.type.startsWith("image/"));
+      if (imgs.length === 0) return;
+      // 프레임 순서 보장 — 파일명 자연 정렬 (idle0, idle1, idle10 …)
+      const ordered = [...imgs].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, {
+          numeric: true,
+          sensitivity: "base",
+        }),
+      );
+      try {
+        const natural = await getImageSize(ordered[0]);
+        const scope = boardId ? { boardId } : { organizationId: orgId! };
+        const uploaded = await Promise.all(
+          ordered.map((f) => fileAPI.uploadNote(f, scope)),
+        );
+        const frames = uploaded.map((u) => u.url).filter(Boolean);
+        if (frames.length === 0) return;
+        addNodeAt(
+          "sprite",
+          { frames, caption: ordered[0].name.replace(/\.[^.]+$/, ""), fps: 8 },
+          pos,
+          fitMediaSize(natural, { width: 240, height: 180 }),
+        );
+      } catch (err) {
+        console.error("Flow sprite upload failed:", err);
+        toast.error(
+          t(
+            "flow.mediaUploadFailed",
+            "미디어 업로드에 실패했습니다. 파일 크기나 형식을 확인해주세요.",
+          ),
+        );
+      }
+    },
+    [addNodeAt, boardId, orgId, t],
+  );
+
+  // 파일들을 각각 개별 노드로 배치 (살짝 어긋난 위치)
+  const addMediaBatch = useCallback(
+    async (files: File[], base: { x: number; y: number }) => {
       for (let i = 0; i < files.length; i++) {
-        // 여러 장이면 살짝 어긋난 위치로 나란히 배치
         await uploadAndAddMedia(files[i], {
           x: base.x + i * 24,
           y: base.y + i * 24,
         });
       }
     },
-    [uploadAndAddMedia, centerPos],
+    [uploadAndAddMedia],
+  );
+
+  // "묶기 vs 개별" 모달 결정 처리
+  const resolveGroup = useCallback(
+    async (asSprite: boolean) => {
+      const g = pendingGroup;
+      setPendingGroup(null);
+      if (!g) return;
+      if (asSprite) {
+        await uploadAndAddSprite(g.images, g.pos);
+        // 영상은 애니메이션에 묶이지 않으므로 개별 배치
+        if (g.videos.length > 0)
+          await addMediaBatch(g.videos, { x: g.pos.x + 40, y: g.pos.y + 40 });
+      } else {
+        await addMediaBatch([...g.images, ...g.videos], g.pos);
+      }
+    },
+    [pendingGroup, uploadAndAddSprite, addMediaBatch],
+  );
+
+  const handleFileSelected = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files ? Array.from(e.target.files) : [];
+      pendingMediaRef.current = null;
+      if (files.length === 0) return;
+      const base = centerPos();
+      const images = files.filter((f) => f.type.startsWith("image/"));
+      const videos = files.filter((f) => f.type.startsWith("video/"));
+      // 이미지 2장 이상이면 묶기 여부를 먼저 묻는다
+      if (images.length >= 2) {
+        setPendingGroup({ images, videos, pos: base });
+        return;
+      }
+      await addMediaBatch(files, base);
+    },
+    [addMediaBatch, centerPos],
   );
 
   // ── 파일 드래그 드롭 ────────────────────────────────────────
@@ -1067,14 +1437,16 @@ function FlowCanvas({
       e.preventDefault();
       // 놓은 지점을 캔버스 좌표로 변환
       const base = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-      for (let i = 0; i < files.length; i++) {
-        await uploadAndAddMedia(files[i], {
-          x: base.x + i * 24,
-          y: base.y + i * 24,
-        });
+      const images = files.filter((f) => f.type.startsWith("image/"));
+      const videos = files.filter((f) => f.type.startsWith("video/"));
+      // 이미지 2장 이상이면 묶기 여부를 먼저 묻는다
+      if (images.length >= 2) {
+        setPendingGroup({ images, videos, pos: base });
+        return;
       }
+      await addMediaBatch(files, base);
     },
-    [canEdit, mode, screenToFlowPosition, uploadAndAddMedia],
+    [canEdit, mode, screenToFlowPosition, addMediaBatch],
   );
 
   // ── 클립보드 붙여넣기 (이미지) ──────────────────────────────
@@ -1543,6 +1915,69 @@ function FlowCanvas({
         className="hidden"
         onChange={handleFileSelected}
       />
+
+      {/* 여러 이미지: 묶기(애니메이션) vs 개별 선택 모달 */}
+      {pendingGroup && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setPendingGroup(null)}
+        >
+          <div
+            className="w-full max-w-md bg-bridge-obsidian rounded-2xl border border-foreground/10 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
+            <div className="px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+              <div className="text-sm font-bold text-foreground">
+                {t("flow.groupImagesTitle", "이미지 추가 방식")}
+              </div>
+              <div className="mt-0.5 text-xs text-slate-400">
+                {t("flow.groupImagesDesc", {
+                  defaultValue: "{{count}}장의 이미지를 어떻게 넣을까요?",
+                  count: pendingGroup.images.length,
+                })}
+              </div>
+            </div>
+            <div className="p-4 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => resolveGroup(true)}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-foreground/10 bg-foreground/[0.03] hover:border-bridge-secondary/60 hover:bg-bridge-secondary/10 transition-colors"
+              >
+                <Film className="w-7 h-7 text-bridge-secondary" />
+                <span className="text-xs font-bold text-foreground">
+                  {t("flow.groupAsAnimation", "묶어서 (애니메이션)")}
+                </span>
+                <span className="text-[11px] text-slate-500 text-center leading-snug">
+                  {t("flow.groupAsAnimationHint", "GIF처럼 한 노드에서 재생")}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => resolveGroup(false)}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-foreground/10 bg-foreground/[0.03] hover:border-bridge-accent/60 hover:bg-bridge-accent/10 transition-colors"
+              >
+                <ImageIcon className="w-7 h-7 text-bridge-accent" />
+                <span className="text-xs font-bold text-foreground">
+                  {t("flow.addSeparately", "개별로 추가")}
+                </span>
+                <span className="text-[11px] text-slate-500 text-center leading-snug">
+                  {t("flow.addSeparatelyHint", "각각 별도 노드로")}
+                </span>
+              </button>
+            </div>
+            <div className="flex items-center justify-end px-5 py-3 border-t border-foreground/[0.08]">
+              <button
+                type="button"
+                onClick={() => setPendingGroup(null)}
+                className="text-xs text-slate-400 hover:text-foreground px-3 py-1.5 rounded-lg hover:bg-foreground/5 transition-colors"
+              >
+                {t("common.cancel", "취소")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         .react-flow__handle.fl-handle{

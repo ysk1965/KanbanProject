@@ -11,7 +11,13 @@
     "empty": "शुरू करने के लिए ऊपर की पट्टी से नोड जोड़ें",
     "emptyReadOnly": "यह फ़्लो खाली है",
     "dropHere": "यहाँ छवि या वीडियो छोड़ें",
-    "mediaUploadFailed": "मीडिया अपलोड विफल। कृपया फ़ाइल का आकार या प्रारूप जाँचें।"
+    "mediaUploadFailed": "मीडिया अपलोड विफल। कृपया फ़ाइल का आकार या प्रारूप जाँचें।",
+    "groupImagesTitle": "छवियाँ जोड़ने का तरीका",
+    "groupImagesDesc": "{{count}} छवियाँ कैसे जोड़ें?",
+    "groupAsAnimation": "समूहित करें (एनिमेशन)",
+    "groupAsAnimationHint": "GIF की तरह एक नोड में चलाएँ",
+    "addSeparately": "अलग-अलग जोड़ें",
+    "addSeparatelyHint": "हर एक अपना नोड"
   },
   "common": {
     "loading": "लोड हो रहा है...",

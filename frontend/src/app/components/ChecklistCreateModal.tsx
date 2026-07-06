@@ -269,13 +269,19 @@ export function ChecklistCreateModal({
   }, [boardId, assigneeId, targetDate]);
 
   // 기존 항목 필터링: 완료 항목 제외, 오늘의 체크리스트에 이미 있는 항목 제외
+  // 정렬: 마감일(due_date) 오름차순, 일정 없는 항목은 맨 아래
   const filteredBoardItems = useMemo(() => {
     const todayItemIds = new Set(
       todayChecklists.map((item) => item.checklist_item_id).filter(Boolean),
     );
-    return boardItems.filter(
-      (item) => !item.completed && !todayItemIds.has(item.id),
-    );
+    return boardItems
+      .filter((item) => !item.completed && !todayItemIds.has(item.id))
+      .sort((a, b) => {
+        if (!a.due_date && !b.due_date) return 0;
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return a.due_date.localeCompare(b.due_date);
+      });
   }, [boardItems, todayChecklists]);
 
   // Feature 목록 로드 (새로 생성 모드일 때만)

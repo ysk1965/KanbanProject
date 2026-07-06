@@ -11,7 +11,13 @@
     "empty": "상단 팔레트에서 노드를 추가해 시작하세요",
     "emptyReadOnly": "아직 플로우가 비어 있습니다",
     "dropHere": "여기에 이미지·영상을 놓으세요",
-    "mediaUploadFailed": "미디어 업로드에 실패했습니다. 파일 크기나 형식을 확인해주세요."
+    "mediaUploadFailed": "미디어 업로드에 실패했습니다. 파일 크기나 형식을 확인해주세요.",
+    "groupImagesTitle": "이미지 추가 방식",
+    "groupImagesDesc": "{{count}}장의 이미지를 어떻게 넣을까요?",
+    "groupAsAnimation": "묶어서 (애니메이션)",
+    "groupAsAnimationHint": "GIF처럼 한 노드에서 재생",
+    "addSeparately": "개별로 추가",
+    "addSeparatelyHint": "각각 별도 노드로"
   },
   "common": {
     "loading": "로딩 중...",

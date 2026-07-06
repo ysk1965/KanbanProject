@@ -11,7 +11,13 @@
     "empty": "Añade un nodo desde la barra de herramientas para empezar",
     "emptyReadOnly": "Este flujo está vacío",
     "dropHere": "Suelta imágenes o vídeos aquí",
-    "mediaUploadFailed": "Error al subir el archivo. Comprueba el tamaño o el formato."
+    "mediaUploadFailed": "Error al subir el archivo. Comprueba el tamaño o el formato.",
+    "groupImagesTitle": "Cómo añadir imágenes",
+    "groupImagesDesc": "¿Cómo quieres añadir {{count}} imágenes?",
+    "groupAsAnimation": "Agrupar (animación)",
+    "groupAsAnimationHint": "Reproducir en un nodo, como un GIF",
+    "addSeparately": "Añadir por separado",
+    "addSeparatelyHint": "Cada una en su propio nodo"
   },
   "common": {
     "loading": "Cargando...",
