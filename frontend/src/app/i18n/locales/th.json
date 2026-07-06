@@ -898,7 +898,13 @@
     "dueToday": "ครบกำหนดวันนี้",
     "overdue": "เลยกำหนด",
     "taskCount": "{{count}} งาน",
-    "itemCount": "{{count}} รายการ"
+    "itemCount": "{{count}} รายการ",
+    "workloadTitle": "ภาระงานของฉัน",
+    "workloadActive": "ใช้งาน {{count}} รายการ",
+    "workloadEmpty": "ไม่มีรายการที่กำหนดไว้ในช่วงนี้",
+    "workloadToday": "วันนี้",
+    "workloadAddDate": "วันที่เพิ่ม",
+    "workloadSelected": "รายการที่เลือก"
   },
   "inquiry": {
     "title": "ติดต่อเรา",

@@ -898,7 +898,13 @@
     "dueToday": "Hết hạn hôm nay",
     "overdue": "Quá hạn",
     "taskCount": "{{count}} task",
-    "itemCount": "{{count}} mục"
+    "itemCount": "{{count}} mục",
+    "workloadTitle": "Khối lượng công việc của tôi",
+    "workloadActive": "{{count}} đang hoạt động",
+    "workloadEmpty": "Không có mục nào được lên lịch trong khoảng này",
+    "workloadToday": "Hôm nay",
+    "workloadAddDate": "Ngày thêm",
+    "workloadSelected": "Mục đã chọn"
   },
   "inquiry": {
     "title": "Lien he",

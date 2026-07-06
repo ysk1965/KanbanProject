@@ -1017,7 +1017,13 @@
     "dueToday": "Due today",
     "overdue": "Overdue",
     "taskCount": "{{count}} tasks",
-    "itemCount": "{{count}} items"
+    "itemCount": "{{count}} items",
+    "workloadTitle": "My workload",
+    "workloadActive": "{{count}} active",
+    "workloadEmpty": "No scheduled items in this period",
+    "workloadToday": "Today",
+    "workloadAddDate": "Add date",
+    "workloadSelected": "Selected item"
   },
   "inquiry": {
     "title": "Contact Us",

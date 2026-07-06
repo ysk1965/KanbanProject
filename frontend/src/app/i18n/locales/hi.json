@@ -898,7 +898,13 @@
     "dueToday": "आज देय",
     "overdue": "अवधि समाप्त",
     "taskCount": "{{count}} टास्क",
-    "itemCount": "{{count}} आइटम"
+    "itemCount": "{{count}} आइटम",
+    "workloadTitle": "मेरा वर्कलोड",
+    "workloadActive": "{{count}} सक्रिय",
+    "workloadEmpty": "इस अवधि में कोई निर्धारित आइटम नहीं",
+    "workloadToday": "आज",
+    "workloadAddDate": "जोड़ने की तिथि",
+    "workloadSelected": "चयनित आइटम"
   },
   "inquiry": {
     "title": "संपर्क करें",
