@@ -26,7 +26,6 @@ interface MilestoneModalProps {
   features: Feature[];
   featureMilestoneCountMap?: Record<string, number>;
   featurePrimaryMilestoneMap?: Record<string, string>;
-  onSetPrimaryFeature?: (featureId: string) => void | Promise<void>;
   onSave: (data: {
     title: string;
     description?: string;
@@ -46,7 +45,6 @@ export function MilestoneModal({
   features,
   featureMilestoneCountMap = {},
   featurePrimaryMilestoneMap = {},
-  onSetPrimaryFeature,
   onSave,
   onDelete,
   onSelectMilestone,
@@ -435,28 +433,11 @@ export function MilestoneModal({
                             </span>
                           )}
                           {isContinuationHere && (
-                            <>
-                              <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary flex-shrink-0">
-                                {t("milestone.continuationBadge", {
-                                  defaultValue: "이어짐",
-                                })}
-                              </span>
-                              {onSetPrimaryFeature && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    onSetPrimaryFeature(feature.id);
-                                  }}
-                                  className="text-xs font-medium text-slate-400 hover:text-bridge-accent flex-shrink-0 transition-colors"
-                                >
-                                  {t("milestone.setPrimary", {
-                                    defaultValue: "대표로 지정",
-                                  })}
-                                </button>
-                              )}
-                            </>
+                            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary flex-shrink-0">
+                              {t("milestone.continuationBadge", {
+                                defaultValue: "이어짐",
+                              })}
+                            </span>
                           )}
                           {!isPrimaryHere &&
                             !isContinuationHere &&

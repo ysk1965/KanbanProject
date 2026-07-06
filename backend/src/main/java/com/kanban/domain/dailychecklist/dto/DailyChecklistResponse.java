@@ -1,8 +1,10 @@
 package com.kanban.domain.dailychecklist.dto;
 
+import com.kanban.domain.block.Block;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.dailychecklist.DailyChecklist;
 import com.kanban.domain.feature.Feature;
+import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.user.User;
 import lombok.AllArgsConstructor;
@@ -68,12 +70,18 @@ public class DailyChecklistResponse {
         private Boolean completed;
         private TaskInfo task;
         private FeatureInfo feature;
+        private ChecklistResponse.BlockInfo block;
+        private ChecklistResponse.MilestoneInfo milestone;
+        private LocalDate startDate;
+        private LocalDate dueDate;
         private LocalDateTime createdAt;
 
         public static ItemResponse of(DailyChecklist dailyChecklist) {
             ChecklistItem checklistItem = dailyChecklist.getChecklistItem();
             Task task = checklistItem != null ? checklistItem.getTask() : null;
             Feature feature = task != null ? task.getFeature() : null;
+            Block block = task != null ? task.getBlock() : null;
+            Milestone milestone = task != null ? task.getMilestone() : null;
 
             return ItemResponse.builder()
                     .id(dailyChecklist.getId())
@@ -85,6 +93,10 @@ public class DailyChecklistResponse {
                     .completed(checklistItem != null ? checklistItem.getIsCompleted() : false)
                     .task(task != null ? TaskInfo.of(task) : null)
                     .feature(feature != null ? FeatureInfo.of(feature) : null)
+                    .block(ChecklistResponse.BlockInfo.of(block))
+                    .milestone(ChecklistResponse.MilestoneInfo.of(milestone))
+                    .startDate(checklistItem != null ? checklistItem.getStartDate() : null)
+                    .dueDate(checklistItem != null ? checklistItem.getDueDate() : null)
                     .createdAt(dailyChecklist.getCreatedAt())
                     .build();
         }

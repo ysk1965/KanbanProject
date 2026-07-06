@@ -250,10 +250,15 @@ public class TaskService {
 
         // 마일스톤 재배정: null(미전달)이면 변경 없음, ""이면 해제, 값이면 배정(필요 시 피처 자동 연결)
         if (request.getMilestoneId() != null) {
+            Milestone oldMilestone = task.getMilestone();
             Milestone milestone = request.getMilestoneId().isEmpty()
                     ? null
                     : resolveAndLinkMilestone(task.getBoard(), task.getFeature(), request.getMilestoneId());
             task.assignMilestone(milestone);
+            // 옛 마일스톤에 이 피처의 태스크가 하나도 남지 않으면 비게 된 피처-마일스톤 링크 정리
+            if (oldMilestone != null && !oldMilestone.equals(milestone)) {
+                cleanupEmptyMilestoneLink(task.getFeature(), oldMilestone);
+            }
         }
 
         User updater = userRepository.findById(userId)
@@ -482,7 +487,9 @@ public class TaskService {
             return TaskResponse.Detail.of(task, tags);
         }
 
-        String oldFeatureTitle = task.getFeature().getTitle();
+        Feature oldFeature = task.getFeature();
+        Milestone oldMilestone = task.getMilestone();
+        String oldFeatureTitle = oldFeature.getTitle();
         task.moveToFeature(targetFeature);
 
         // 새 피처의 서브태스크 리스트 맨 끝에 추가
@@ -491,6 +498,9 @@ public class TaskService {
 
         // 피처 이동으로 해제된 마일스톤을 새 피처의 대표 마일스톤으로 재설정 (불변식 유지)
         task.assignMilestone(featurePrimaryMilestone(targetFeature.getId()));
+
+        // 옛 피처의 옛 마일스톤에 남은 태스크가 없으면 비게 된 피처-마일스톤 링크 정리
+        cleanupEmptyMilestoneLink(oldFeature, oldMilestone);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -665,16 +675,17 @@ public class TaskService {
         );
     }
 
-    /** 피처의 대표(primary) 마일스톤 (없으면 null) */
+    /** 피처의 홈(대표) 마일스톤 — 연결된 마일스톤 중 가장 이른 시작일(동률 시 마일스톤 id). 없으면 null. */
     private Milestone featurePrimaryMilestone(String featureId) {
-        return milestoneFeatureRepository.findByFeatureIdAndIsPrimaryTrue(featureId)
+        return milestoneFeatureRepository.findByFeatureIdOrderByMilestoneStartDate(featureId)
+                .stream().findFirst()
                 .map(MilestoneFeature::getMilestone)
                 .orElse(null);
     }
 
     /**
      * 마일스톤을 로드·검증하고, 피처가 아직 연결돼 있지 않으면 자동으로 연결(continuation)한다.
-     * 피처가 이미 대표 마일스톤을 가지면 non-primary로, 없으면 primary로 링크.
+     * 홈(대표) 여부는 저장하지 않으므로 링크만 추가하면 된다.
      */
     private Milestone resolveAndLinkMilestone(Board board, Feature feature, String milestoneId) {
         Milestone milestone = milestoneRepository.findById(milestoneId)
@@ -683,10 +694,36 @@ public class TaskService {
             throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
         }
         if (milestoneFeatureRepository.findByMilestoneIdAndFeatureId(milestone.getId(), feature.getId()).isEmpty()) {
-            boolean hasPrimary = milestoneFeatureRepository.findByFeatureIdAndIsPrimaryTrue(feature.getId()).isPresent();
-            milestoneFeatureRepository.save(MilestoneFeature.create(milestone, feature, !hasPrimary));
+            milestoneFeatureRepository.save(MilestoneFeature.create(milestone, feature));
         }
         return milestone;
+    }
+
+    /**
+     * 태스크가 (feature, milestone) 조합에서 빠져나간 뒤, 그 조합에 남은 (미삭제) 태스크가 없으면
+     * 태스크로 인해 생겼던 피처-마일스톤 링크를 정리한다. (마일스톤 필터의 "유령 카드" 방지)
+     * <p>호출 규약: task의 milestone/feature 재배정을 마친 뒤(옛 값을 인자로) 호출한다.
+     * 남은 태스크 조회는 JPA auto-flush로 방금 옮긴 태스크가 제외된 상태에서 수행된다.
+     */
+    private void cleanupEmptyMilestoneLink(Feature feature, Milestone milestone) {
+        if (feature == null || milestone == null) {
+            return;
+        }
+        // 이 피처의 태스크가 아직 해당 마일스톤에 남아있으면 링크 유지
+        if (!taskRepository.findByFeatureIdAndMilestoneId(feature.getId(), milestone.getId()).isEmpty()) {
+            return;
+        }
+        MilestoneFeature link = milestoneFeatureRepository
+                .findByMilestoneIdAndFeatureId(milestone.getId(), feature.getId())
+                .orElse(null);
+        if (link == null) {
+            return;
+        }
+        // 홈(대표)은 저장값이 아니라 파생이므로 링크만 지우면 남은 링크에서 자동으로 새 홈이 계산된다.
+        milestoneFeatureRepository.delete(link);
+
+        log.info("Removed empty milestone-feature link: feature {} <-> milestone {}",
+                feature.getId(), milestone.getId());
     }
 
     private void validateTaskLimit(Board board) {

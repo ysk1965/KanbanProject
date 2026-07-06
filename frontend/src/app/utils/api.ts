@@ -2920,6 +2920,10 @@ export interface BoardChecklistItemResponse {
     color: string | null;
     position: number | null;
   } | null;
+  milestone?: {
+    id: string;
+    title: string;
+  } | null;
 }
 
 export interface BoardChecklistResponse {
@@ -3494,17 +3498,6 @@ export const milestoneAPI = {
     );
   },
 
-  setPrimaryFeature: async (
-    boardId: string,
-    milestoneId: string,
-    featureId: string,
-  ) => {
-    return apiClient.put<MilestoneDetailResponse>(
-      `/boards/${boardId}/milestones/${milestoneId}/features/${featureId}/primary`,
-      {},
-    );
-  },
-
   // Milestone Allocation APIs
   getAllocations: async (boardId: string, milestoneId: string) => {
     return apiClient.get<{ allocations: MilestoneAllocationResponse[] }>(
@@ -3676,6 +3669,18 @@ export interface DailyChecklistItemResponse {
     title: string;
     color: string;
   } | null;
+  block?: {
+    id: string;
+    name: string;
+    color: string | null;
+    position: number | null;
+  } | null;
+  milestone?: {
+    id: string;
+    title: string;
+  } | null;
+  start_date?: string | null;
+  due_date?: string | null;
   created_at: string;
   isVirtual?: boolean; // 워크로드 날짜 범위 기반 가상 항목 (DB 미저장)
 }

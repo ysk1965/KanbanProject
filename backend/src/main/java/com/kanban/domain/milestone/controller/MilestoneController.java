@@ -90,18 +90,6 @@ public class MilestoneController {
         return ResponseEntity.ok().build();
     }
 
-    /** 피처의 대표(홈) 마일스톤을 이 마일스톤으로 지정 */
-    @PutMapping("/{milestoneId}/features/{featureId}/primary")
-    public ResponseEntity<MilestoneResponse.Detail> setPrimaryFeature(
-            @PathVariable String boardId,
-            @PathVariable String milestoneId,
-            @PathVariable String featureId,
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) {
-        return ResponseEntity.ok(
-                milestoneService.setPrimaryFeature(boardId, milestoneId, featureId, userPrincipal.getUserId()));
-    }
-
     // ==================== Block Visibility Endpoints ====================
 
     @PutMapping("/{milestoneId}/blocks/{blockId}/visibility")

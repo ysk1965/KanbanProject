@@ -169,6 +169,7 @@ interface BoardModalManagerProps {
   onCloseFeature: () => void;
   featureTasks: Task[];
   blocks: Block[];
+  allBlocks?: Block[];
   onAddSubtask: (title: string) => void;
   onRenameSubtask: (taskId: string, newTitle: string) => void;
   onReorderSubtasks?: (taskIds: string[]) => void;
@@ -280,7 +281,6 @@ interface BoardModalManagerProps {
   allFeatures: Feature[];
   featureMilestoneCountMap: Record<string, number>;
   featurePrimaryMilestoneMap: Record<string, string>;
-  onSetPrimaryMilestoneFeature: (featureId: string) => void | Promise<void>;
   onSaveMilestone: (data: any) => void;
   onDeleteMilestone: (id: string) => void;
   onSelectMilestone: (milestone: Milestone | null) => void;
@@ -498,6 +498,7 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         feature={props.selectedFeature}
         tasks={props.featureTasks}
         blocks={props.blocks}
+        allBlocks={props.allBlocks}
         milestones={props.milestones}
         open={props.isFeatureModalOpen}
         onClose={props.onCloseFeature}
@@ -643,7 +644,6 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         features={props.allFeatures}
         featureMilestoneCountMap={props.featureMilestoneCountMap}
         featurePrimaryMilestoneMap={props.featurePrimaryMilestoneMap}
-        onSetPrimaryFeature={props.onSetPrimaryMilestoneFeature}
         onSave={props.onSaveMilestone}
         onDelete={props.onDeleteMilestone}
         onSelectMilestone={props.onSelectMilestone}

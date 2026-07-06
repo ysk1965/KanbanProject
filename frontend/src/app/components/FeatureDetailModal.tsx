@@ -61,6 +61,8 @@ interface FeatureDetailModalProps {
   feature: Feature | null;
   tasks: Task[];
   blocks: Array<{ id: string; name: string }>;
+  /** 마일스톤 필터와 무관한 전체 블록 (타 마일스톤 태스크의 블록명 해석용). 미전달 시 blocks로 폴백. */
+  allBlocks?: Array<{ id: string; name: string }>;
   milestones: Milestone[];
   open: boolean;
   onClose: () => void;
@@ -90,6 +92,7 @@ export function FeatureDetailModal({
   feature,
   tasks,
   blocks,
+  allBlocks,
   milestones,
   open,
   onClose,
@@ -164,6 +167,13 @@ export function FeatureDetailModal({
   const progressPercent = feature.progress_percentage;
   const completedCount = feature.completed_tasks;
   const totalCount = feature.total_tasks;
+
+  // 이 피처가 (primary로) 속한 마일스톤 — 있으면 기간은 마일스톤을 따름(편집 불가).
+  // Feature에는 milestone 링크가 없어 milestones의 로드된 features에서 역참조.
+  // 로드 안 됐으면 undefined → 기존처럼 편집 가능(안전 폴백).
+  const primaryMilestone = milestones.find((m) =>
+    (m.features ?? []).some((f) => f.id === feature.id && f.is_primary),
+  );
 
   const handleClose = () => {
     if (hasChanges) {
@@ -287,7 +297,9 @@ export function FeatureDetailModal({
   };
 
   const getBlockName = (blockId: string) => {
-    return blocks.find((b) => b.id === blockId)?.name || blockId;
+    // 마일스톤 필터로 blocks가 축소되어도 타 마일스톤 태스크의 블록명을 해석하려면 전체 블록(allBlocks)을 우선 조회
+    const blockPool = allBlocks && allBlocks.length > 0 ? allBlocks : blocks;
+    return blockPool.find((b) => b.id === blockId)?.name || blockId;
   };
 
   const getTaskMilestoneTitle = (milestoneId?: string | null) =>
@@ -389,6 +401,33 @@ export function FeatureDetailModal({
             <div className="flex items-center gap-2 flex-wrap">
               {/* 기간 칩 */}
               {(() => {
+                // 마일스톤에 속하면 기간은 마일스톤을 따름 — 읽기 전용 표시
+                if (primaryMilestone) {
+                  const parseYmd = (s: string) => {
+                    const [y, m, d] = s.split("-").map(Number);
+                    return new Date(y, m - 1, d);
+                  };
+                  return (
+                    <div
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border bg-bridge-accent/[0.12] border-bridge-accent/35 text-foreground cursor-default"
+                      title={t(
+                        "feature.periodFollowsMilestone",
+                        "마일스톤 기간을 따릅니다",
+                      )}
+                    >
+                      <CalendarIcon className="h-3.5 w-3.5 text-bridge-accent" />
+                      <span>
+                        {format(parseYmd(primaryMilestone.start_date), "M.d", {
+                          locale: ko,
+                        })}
+                        {" ~ "}
+                        {format(parseYmd(primaryMilestone.end_date), "M.d", {
+                          locale: ko,
+                        })}
+                      </span>
+                    </div>
+                  );
+                }
                 const hasDate = !!(
                   editedFeature.start_date || editedFeature.due_date
                 );
@@ -835,84 +874,89 @@ export function FeatureDetailModal({
                   <DndContext
                     sensors={subtaskSensors}
                     collisionDetection={closestCenter}
-                    modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                    modifiers={[
+                      restrictToVerticalAxis,
+                      restrictToParentElement,
+                    ]}
                     onDragEnd={handleSubtaskDragEnd}
                   >
                     <SortableContext
                       items={sortedTasks.map((t) => t.id)}
                       strategy={verticalListSortingStrategy}
                     >
-                  {sortedTasks.map((task) => (
-                    <SortableSubtaskRow
-                      key={task.id}
-                      taskId={task.id}
-                      dragEnabled={
-                        canEdit &&
-                        !!onReorderSubtasks &&
-                        sortedTasks.length > 1
-                      }
-                      className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors group ${onTaskClick ? "cursor-pointer" : ""}`}
-                      onClick={() => {
-                        if (onTaskClick && editingTaskId !== task.id) {
-                          onTaskClick(task);
-                        }
-                      }}
-                    >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{
-                            backgroundColor: selectedColor,
-                            boxShadow: `0 0 8px ${selectedColor}44`,
-                          }}
-                        />
-                        {editingTaskId === task.id ? (
-                          <input
-                            ref={editInputRef}
-                            type="text"
-                            value={editingTaskTitle}
-                            onChange={(e) =>
-                              setEditingTaskTitle(e.target.value)
+                      {sortedTasks.map((task) => (
+                        <SortableSubtaskRow
+                          key={task.id}
+                          taskId={task.id}
+                          dragEnabled={
+                            canEdit &&
+                            !!onReorderSubtasks &&
+                            sortedTasks.length > 1
+                          }
+                          className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors group ${onTaskClick ? "cursor-pointer" : ""}`}
+                          onClick={() => {
+                            if (onTaskClick && editingTaskId !== task.id) {
+                              onTaskClick(task);
                             }
-                            onBlur={handleSaveTaskTitle}
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => {
-                              if (e.nativeEvent.isComposing) return;
-                              if (e.key === "Enter") handleSaveTaskTitle();
-                              if (e.key === "Escape") setEditingTaskId(null);
-                            }}
-                            className="flex-1 text-xs font-medium bg-foreground/5 border border-bridge-accent/50 rounded-md px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
-                          />
-                        ) : (
-                          <span
-                            className={`text-xs font-medium text-foreground/80 group-hover:text-foreground transition-colors truncate ${canEdit ? "cursor-text hover:bg-foreground/5 rounded px-1 -mx-1" : ""}`}
-                            onClick={(e) => {
-                              if (canEdit) {
-                                e.stopPropagation();
-                                handleStartEditTask(task);
-                              }
-                            }}
-                          >
-                            {task.title}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs font-bold text-slate-400 flex-shrink-0 ml-2">
-                        <span
-                          className="tracking-widest transition-colors"
-                          style={{ color: undefined }}
+                          }}
                         >
-                          →{" "}
-                          {getTaskMilestoneTitle(task.milestone_id) && (
-                            <span className="text-bridge-accent">
-                              {getTaskMilestoneTitle(task.milestone_id)} ·{" "}
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div
+                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{
+                                backgroundColor: selectedColor,
+                                boxShadow: `0 0 8px ${selectedColor}44`,
+                              }}
+                            />
+                            {editingTaskId === task.id ? (
+                              <input
+                                ref={editInputRef}
+                                type="text"
+                                value={editingTaskTitle}
+                                onChange={(e) =>
+                                  setEditingTaskTitle(e.target.value)
+                                }
+                                onBlur={handleSaveTaskTitle}
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => {
+                                  if (e.nativeEvent.isComposing) return;
+                                  if (e.key === "Enter") handleSaveTaskTitle();
+                                  if (e.key === "Escape")
+                                    setEditingTaskId(null);
+                                }}
+                                className="flex-1 text-xs font-medium bg-foreground/5 border border-bridge-accent/50 rounded-md px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                              />
+                            ) : (
+                              <span
+                                className={`text-xs font-medium text-foreground/80 group-hover:text-foreground transition-colors truncate ${canEdit ? "cursor-text hover:bg-foreground/5 rounded px-1 -mx-1" : ""}`}
+                                onClick={(e) => {
+                                  if (canEdit) {
+                                    e.stopPropagation();
+                                    handleStartEditTask(task);
+                                  }
+                                }}
+                              >
+                                {task.title}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 flex-shrink-0 ml-2">
+                            <span
+                              className="tracking-widest transition-colors"
+                              style={{ color: undefined }}
+                            >
+                              →{" "}
+                              {getTaskMilestoneTitle(task.milestone_id) && (
+                                <span className="text-bridge-accent">
+                                  {getTaskMilestoneTitle(task.milestone_id)}{" "}
+                                  ·{" "}
+                                </span>
+                              )}
+                              {getBlockName(task.block_id).toUpperCase()}
                             </span>
-                          )}
-                          {getBlockName(task.block_id).toUpperCase()}
-                        </span>
-                      </div>
-                    </SortableSubtaskRow>
-                  ))}
+                          </div>
+                        </SortableSubtaskRow>
+                      ))}
                     </SortableContext>
                   </DndContext>
                 </div>

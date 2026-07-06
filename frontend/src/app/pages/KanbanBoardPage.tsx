@@ -2340,33 +2340,6 @@ export function KanbanBoardPage() {
   };
 
   // 피처의 대표(홈) 마일스톤을 현재 선택된 마일스톤으로 지정
-  const handleSetPrimaryMilestoneFeature = async (featureId: string) => {
-    if (!boardId || !selectedMilestone) return;
-    const prevPrimaryId = featurePrimaryMilestoneMap[featureId];
-    try {
-      await milestoneService.setPrimaryFeature(
-        boardId,
-        selectedMilestone.id,
-        featureId,
-      );
-      // 대표 이동으로 새 대표 + 기존 대표 마일스톤이 모두 영향받으므로 둘 다 갱신
-      const affectedIds = new Set<string>([selectedMilestone.id]);
-      if (prevPrimaryId) affectedIds.add(prevPrimaryId);
-      const refreshed = await Promise.all(
-        [...affectedIds].map((id) =>
-          milestoneService.getMilestone(boardId, id),
-        ),
-      );
-      setMilestones((prev) =>
-        prev.map((m) => refreshed.find((r) => r.id === m.id) || m),
-      );
-      const newSelected = refreshed.find((r) => r.id === selectedMilestone.id);
-      if (newSelected) setSelectedMilestone(newSelected);
-    } catch (error) {
-      console.error("Failed to set primary milestone feature:", error);
-    }
-  };
-
   const handleDeleteMilestone = async (milestoneId: string) => {
     if (!boardId) return;
 
@@ -3469,6 +3442,7 @@ export function KanbanBoardPage() {
               : []
           }
           blocks={blocks}
+          allBlocks={allBlocks}
           onAddSubtask={(title) => handleAddSubtask(selectedFeature!.id, title)}
           onReorderSubtasks={(taskIds) =>
             selectedFeature &&
@@ -3652,7 +3626,6 @@ export function KanbanBoardPage() {
           allFeatures={allFeatures}
           featureMilestoneCountMap={featureMilestoneCountMap}
           featurePrimaryMilestoneMap={featurePrimaryMilestoneMap}
-          onSetPrimaryMilestoneFeature={handleSetPrimaryMilestoneFeature}
           onSaveMilestone={handleSaveMilestone}
           onDeleteMilestone={handleDeleteMilestone}
           onSelectMilestone={async (ms) => {

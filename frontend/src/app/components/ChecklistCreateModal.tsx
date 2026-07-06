@@ -12,8 +12,10 @@ import {
   Plus,
   ClipboardList,
   Coffee,
+  Flag,
 } from "lucide-react";
 import { format, parseISO, isToday as isDateToday } from "date-fns";
+import { getDDay } from "../utils/dateUtils";
 import {
   featureAPI,
   taskAPI,
@@ -31,6 +33,115 @@ import { ColorPickerPopover } from "./ui/ColorPickerPopover";
 import { FEATURE_COLORS } from "../constants";
 
 type TimeblockTab = "checklist" | "meeting" | "custom";
+
+interface TimeblockItemRowProps {
+  title: string;
+  featureTitle?: string | null;
+  featureColor?: string | null;
+  taskTitle?: string | null;
+  blockName?: string | null;
+  blockColor?: string | null;
+  milestoneTitle?: string | null;
+  dueDate?: string | null;
+  onClick: () => void;
+}
+
+/**
+ * 타임블록 항목 선택 행 (컴팩트 시안 A)
+ * - 제목행: 제목 + 우측 마감 배지(D-day)
+ * - 메타행: 마일스톤 · 블록 · 피처 › 태스크 (값 있는 것만, 배경 없는 마커)
+ */
+function TimeblockItemRow({
+  title,
+  featureTitle,
+  featureColor,
+  taskTitle,
+  blockName,
+  blockColor,
+  milestoneTitle,
+  dueDate,
+  onClick,
+}: TimeblockItemRowProps) {
+  const { t } = useTranslation();
+  const dday = getDDay(dueDate);
+  const hasSchedule = !!dueDate;
+  const dateText = hasSchedule
+    ? `~${format(parseISO(dueDate as string), "M/d")}${
+        dday.urgency !== "normal" && dday.text ? ` · ${dday.text}` : ""
+      }`
+    : t("dailySchedule.noDueDate");
+  const dateTone = !hasSchedule
+    ? "border border-dashed border-foreground/15 text-slate-500"
+    : dday.urgency === "overdue"
+      ? "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+      : dday.urgency === "today" || dday.urgency === "soon"
+        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+        : "bg-foreground/[0.06] text-slate-400";
+
+  const hasMeta = !!(milestoneTitle || blockName || featureTitle);
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full px-3.5 py-2.5 flex items-start gap-2.5 hover:bg-bridge-accent/10 transition-colors text-left group"
+    >
+      <div className="w-4 h-4 rounded border border-bridge-border flex-shrink-0 mt-0.5 group-hover:border-bridge-accent/50" />
+      <div className="flex-1 min-w-0">
+        {/* 제목 + 마감 배지 */}
+        <div className="flex items-center gap-2">
+          <span className="flex-1 min-w-0 truncate text-sm text-foreground">
+            {title}
+          </span>
+          <span
+            className={`flex-shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-md tabular-nums whitespace-nowrap ${dateTone}`}
+          >
+            {dateText}
+          </span>
+        </div>
+        {/* 메타: 마일스톤 · 블록 · 피처 › 태스크 */}
+        {hasMeta && (
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-1 text-xs min-w-0">
+            {milestoneTitle && (
+              <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium min-w-0">
+                <Flag className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate max-w-[128px]">{milestoneTitle}</span>
+              </span>
+            )}
+            {milestoneTitle && (blockName || featureTitle) && (
+              <span className="text-slate-600">·</span>
+            )}
+            {blockName && (
+              <span className="inline-flex items-center gap-1 text-bridge-secondary min-w-0">
+                <span
+                  className="w-1.5 h-1.5 rounded-sm flex-shrink-0"
+                  style={{ backgroundColor: blockColor || "#2DD4BF" }}
+                />
+                <span className="truncate max-w-[104px]">{blockName}</span>
+              </span>
+            )}
+            {blockName && featureTitle && (
+              <span className="text-slate-600">·</span>
+            )}
+            {featureTitle && (
+              <span className="inline-flex items-center gap-1 text-slate-400 min-w-0">
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: featureColor || "#64748b" }}
+                />
+                <span className="truncate">
+                  {featureTitle}
+                  {taskTitle && (
+                    <span className="text-slate-500"> › {taskTitle}</span>
+                  )}
+                </span>
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </button>
+  );
+}
 
 interface ChecklistCreateModalProps {
   boardId: string;
@@ -389,7 +500,7 @@ export function ChecklistCreateModal({
                 <CheckSquare className="inline h-4 w-4 mr-1 text-bridge-accent" />
                 {t("dailySchedule.selectFromToday", { date: dateLabel })}
               </label>
-              <div className="border border-foreground/10 rounded-xl max-h-64 overflow-y-auto bg-bridge-surface">
+              <div className="border border-foreground/10 rounded-xl max-h-[180px] overflow-y-auto bg-bridge-surface">
                 {isLoadingToday ? (
                   <div className="px-4 py-6 text-slate-400 flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -402,32 +513,18 @@ export function ChecklistCreateModal({
                 ) : (
                   <div className="divide-y divide-white/5">
                     {todayChecklists.map((item) => (
-                      <button
+                      <TimeblockItemRow
                         key={item.id}
+                        title={item.title}
+                        featureTitle={item.feature?.title}
+                        featureColor={item.feature?.color}
+                        taskTitle={item.task?.title}
+                        blockName={item.block?.name}
+                        blockColor={item.block?.color}
+                        milestoneTitle={item.milestone?.title}
+                        dueDate={item.due_date}
                         onClick={() => onSelectExisting(item.checklist_item_id)}
-                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-bridge-accent/10 transition-colors text-left group"
-                      >
-                        <div className="w-4 h-4 rounded border border-bridge-border flex-shrink-0 group-hover:border-bridge-accent/50" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm text-foreground truncate">
-                            {item.title}
-                          </div>
-                          {item.feature && (
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <div
-                                className="w-2 h-2 rounded-full"
-                                style={{ backgroundColor: item.feature.color }}
-                              />
-                              <span className="text-xs text-slate-400 truncate">
-                                {item.feature.title} · {item.task?.title}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <span className="text-xs text-bridge-accent font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                          {t("dailySchedule.select")}
-                        </span>
-                      </button>
+                      />
                     ))}
                   </div>
                 )}
@@ -440,7 +537,7 @@ export function ChecklistCreateModal({
                 <ClipboardList className="inline h-4 w-4 mr-1 text-bridge-secondary" />
                 {t("dailySchedule.selectFromBoard")}
               </label>
-              <div className="border border-foreground/10 rounded-xl max-h-48 overflow-y-auto bg-bridge-surface">
+              <div className="border border-foreground/10 rounded-xl max-h-[296px] overflow-y-auto bg-bridge-surface">
                 {isLoadingBoardItems ? (
                   <div className="px-4 py-6 text-slate-400 flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -453,32 +550,18 @@ export function ChecklistCreateModal({
                 ) : (
                   <div className="divide-y divide-white/5">
                     {filteredBoardItems.map((item) => (
-                      <button
+                      <TimeblockItemRow
                         key={item.id}
+                        title={item.title}
+                        featureTitle={item.feature?.title}
+                        featureColor={item.feature?.color}
+                        taskTitle={item.task?.title}
+                        blockName={item.block?.name}
+                        blockColor={item.block?.color}
+                        milestoneTitle={item.milestone?.title}
+                        dueDate={item.due_date}
                         onClick={() => onSelectBoardItem(item.id)}
-                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-bridge-accent/10 transition-colors text-left group"
-                      >
-                        <div className="w-4 h-4 rounded border border-bridge-border flex-shrink-0 group-hover:border-bridge-secondary/50" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm text-foreground truncate">
-                            {item.title}
-                          </div>
-                          {item.feature && (
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <div
-                                className="w-2 h-2 rounded-full"
-                                style={{ backgroundColor: item.feature.color }}
-                              />
-                              <span className="text-xs text-slate-400 truncate">
-                                {item.feature.title} · {item.task?.title}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <span className="text-xs text-bridge-secondary font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                          {t("dailySchedule.select")}
-                        </span>
-                      </button>
+                      />
                     ))}
                   </div>
                 )}
