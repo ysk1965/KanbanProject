@@ -26,7 +26,8 @@ export interface CalendarEventModalInitial {
   category?: CalendarCategory;
   eventType?: string;
   memberId?: string;
-  date?: string; // yyyy-MM-dd — start/end 프리필
+  date?: string; // yyyy-MM-dd — 시작일 프리필
+  endDate?: string; // yyyy-MM-dd — 종료일 프리필 (기간 드래그)
 }
 
 interface CalendarEventModalProps {
@@ -66,7 +67,6 @@ export function CalendarEventModal({
   const [title, setTitle] = useState<string>("");
   const [startDate, setStartDate] = useState<string>(getTodayDateString());
   const [endDate, setEndDate] = useState<string>(getTodayDateString());
-  const [rangeMode, setRangeMode] = useState<boolean>(false);
   const [recurring, setRecurring] = useState<boolean>(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,21 +85,20 @@ export function CalendarEventModal({
       setTitle(editing.title || "");
       setStartDate(editing.start_date);
       setEndDate(editing.end_date);
-      setRangeMode(editing.start_date !== editing.end_date);
       setRecurring(editing.recurring);
       return;
     }
 
     const cat = initial?.category || "TEAM";
     const type = initial?.eventType || typesFor(cat)[0].key;
-    const date = initial?.date || getTodayDateString();
+    const startD = initial?.date || getTodayDateString();
+    const endD = initial?.endDate || startD;
     setCategory(cat);
     setEventType(type);
     setMemberId(initial?.memberId || "");
     setTitle("");
-    setStartDate(date);
-    setEndDate(date);
-    setRangeMode(false);
+    setStartDate(startD);
+    setEndDate(endD < startD ? startD : endD);
     setRecurring(false);
   }, [open, editing, initial]);
 
@@ -119,11 +118,9 @@ export function CalendarEventModal({
   const handleSave = async () => {
     if (!canSave || saving) return;
 
-    // 종료일 결정: 부재는 항상 범위, 팀은 범위 토글, 휴무일은 단일
-    let effectiveEnd = startDate;
-    if (category === "MEMBER") effectiveEnd = endDate || startDate;
-    else if (category === "TEAM" && rangeMode)
-      effectiveEnd = endDate || startDate;
+    // 종료일 결정: 팀 이벤트·부재는 시작~끝 범위, 휴무일은 단일
+    const effectiveEnd =
+      category === "CALENDAR" ? startDate : endDate || startDate;
 
     if (effectiveEnd < startDate) {
       setError("종료일이 시작일보다 빠릅니다.");
@@ -175,7 +172,7 @@ export function CalendarEventModal({
     category === "CALENDAR"
       ? "예: 창립기념일"
       : category === "MEMBER"
-        ? "메모 (선택)"
+        ? "예: 부산 출장 · 오전 반차 · 재택"
         : "예: v1.2 클라이언트 빌드";
 
   return (
@@ -226,40 +223,42 @@ export function CalendarEventModal({
           {TABS.find((t) => t.category === category)?.hint}
         </p>
 
-        {/* 종류 */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
-            종류
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {types.map((t) => {
-              const active = t.key === eventType;
-              return (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => setEventType(t.key)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    active
-                      ? "text-foreground"
-                      : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
-                  }`}
-                  style={
-                    active
-                      ? {
-                          borderColor: `${t.color}99`,
-                          backgroundColor: `${t.color}26`,
-                        }
-                      : undefined
-                  }
-                >
-                  <span>{t.icon}</span>
-                  {t.label}
-                </button>
-              );
-            })}
+        {/* 종류 — 부재(MEMBER)는 사유 분류 없이 단일 타입이라 선택기 숨김 */}
+        {category !== "MEMBER" && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              종류
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {types.map((t) => {
+                const active = t.key === eventType;
+                return (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setEventType(t.key)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                      active
+                        ? "text-foreground"
+                        : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
+                    }`}
+                    style={
+                      active
+                        ? {
+                            borderColor: `${t.color}99`,
+                            backgroundColor: `${t.color}26`,
+                          }
+                        : undefined
+                    }
+                  >
+                    <span>{t.icon}</span>
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* 대상 멤버 (부재 전용) */}
         {category === "MEMBER" && (
@@ -287,7 +286,11 @@ export function CalendarEventModal({
         {/* 제목/이름/메모 */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
-            {category === "CALENDAR" ? "이름" : "제목"}
+            {category === "CALENDAR"
+              ? "이름"
+              : category === "MEMBER"
+                ? "내용"
+                : "제목"}
           </label>
           <input
             type="text"
@@ -311,14 +314,12 @@ export function CalendarEventModal({
               onChange={(e) => {
                 const v = e.target.value;
                 setStartDate(v);
-                // 단일 모드거나 종료일이 시작일보다 빠르면 동기화
-                const isRange =
-                  category === "MEMBER" || (category === "TEAM" && rangeMode);
-                if (!isRange || endDate < v) setEndDate(v);
+                // 종료일이 시작일보다 빠르면 시작일로 맞춤
+                if (endDate < v) setEndDate(v);
               }}
               className="flex-1 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
             />
-            {(category === "MEMBER" || (category === "TEAM" && rangeMode)) && (
+            {category !== "CALENDAR" && (
               <>
                 <span className="text-slate-500 text-sm">~</span>
                 <input
@@ -331,22 +332,10 @@ export function CalendarEventModal({
               </>
             )}
           </div>
-
-          {/* 팀 이벤트: 기간 토글 */}
-          {category === "TEAM" && (
-            <button
-              type="button"
-              onClick={() => {
-                setRangeMode((prev) => {
-                  const next = !prev;
-                  if (next && endDate < startDate) setEndDate(startDate);
-                  return next;
-                });
-              }}
-              className="self-start text-xs text-slate-500 hover:text-foreground transition-colors"
-            >
-              {rangeMode ? "− 단일 날짜로" : "＋ 기간 이벤트로 (여러 날)"}
-            </button>
+          {category !== "CALENDAR" && (
+            <p className="text-xs text-slate-500">
+              하루 일정이면 시작·종료를 같은 날짜로 두세요.
+            </p>
           )}
 
           {/* 휴무일: 매년 반복 */}
