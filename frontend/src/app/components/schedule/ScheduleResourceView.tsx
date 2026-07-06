@@ -1885,7 +1885,10 @@ export function ScheduleResourceView({
 
           {/* ─── Milestone row ─── */}
           {milestoneBarData.length > 0 && (
-            <div className="flex border-b border-foreground/[0.08]">
+            <div
+              className="flex border-b border-foreground/[0.08] sticky z-[15] bg-bridge-dark"
+              style={{ top: HEADER_HEIGHT }}
+            >
               {/* Left label */}
               <div
                 className="shrink-0 sticky left-0 z-10 bg-bridge-obsidian border-r border-foreground/[0.08]
@@ -1979,7 +1982,14 @@ export function ScheduleResourceView({
 
           {/* ─── Event band (팀 공통 이벤트) — 기간 드래그로 추가 ─── */}
           {
-            <div className="flex border-b border-foreground/[0.08]">
+            <div
+              className="flex border-b border-foreground/[0.08] sticky z-[15] bg-bridge-dark"
+              style={{
+                top:
+                  HEADER_HEIGHT +
+                  (milestoneBarData.length > 0 ? MILESTONE_ROW_HEIGHT : 0),
+              }}
+            >
               {/* Left label */}
               <div
                 className="shrink-0 sticky left-0 z-10 bg-bridge-obsidian border-r border-foreground/[0.08]
@@ -2037,7 +2047,7 @@ export function ScheduleResourceView({
                       style={{
                         left: pos.left,
                         width: singleDay ? undefined : pos.width,
-                        maxWidth: 240,
+                        maxWidth: singleDay ? 240 : undefined,
                         top: (MILESTONE_ROW_HEIGHT - 26) / 2,
                         height: 26,
                         backgroundColor: event.color || meta.color,
@@ -2644,7 +2654,7 @@ export function ScheduleResourceView({
                         />
                       );
                     })}
-                    {/* Member absence hatching — full row height + reason label */}
+                    {/* Member absence hatching — full row height (라벨은 레인 바에만 표시) */}
                     {row.kind === "member" &&
                       rowAbsences.map((absence) => {
                         const hPos = getBarPosition(
@@ -2657,24 +2667,14 @@ export function ScheduleResourceView({
                         return (
                           <div
                             key={`abs-hatch-${absence.id}`}
-                            className="absolute top-0 bottom-0 pointer-events-none overflow-hidden"
+                            className="absolute top-0 bottom-0 pointer-events-none"
                             style={{
                               left: hPos.left,
                               width: hPos.width,
                               zIndex: HATCH_OVERLAY_Z,
                               background: makeAbsenceHatchBg(c),
                             }}
-                          >
-                            <span
-                              className="absolute bottom-1 left-1/2 -translate-x-1/2 text-xs font-bold whitespace-nowrap px-1.5 py-0.5 rounded"
-                              style={{
-                                color: c,
-                                backgroundColor: "rgba(21, 27, 40, 0.8)",
-                              }}
-                            >
-                              {meta.icon} {absence.title || meta.label}
-                            </span>
-                          </div>
+                          />
                         );
                       })}
 
