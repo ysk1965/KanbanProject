@@ -1,4 +1,16 @@
 {
+  "flow": {
+    "newMemo": "मेमो",
+    "handTool": "हैंड टूल",
+    "pointerTool": "चयन टूल",
+    "addText": "टेक्स्ट",
+    "addSticky": "स्टिकी",
+    "addShape": "आकृति",
+    "addImage": "छवि",
+    "addVideo": "वीडियो",
+    "empty": "शुरू करने के लिए ऊपर की पट्टी से नोड जोड़ें",
+    "emptyReadOnly": "यह फ़्लो खाली है"
+  },
   "common": {
     "loading": "लोड हो रहा है...",
     "save": "सहेजें",
@@ -465,7 +477,18 @@
       "actionChecklistCreated": " ने चेकलिस्ट बनाई ",
       "actionChecklistCompleted": " ने चेकलिस्ट पूरी की ",
       "actionChecklistUncompleted": " ने चेकलिस्ट अपूर्ण की ",
-      "actionDefault": " ने एक कार्रवाई की"
+      "actionDefault": " ने एक कार्रवाई की",
+      "actionTaskFeatureMoved": " ने Task स्थानांतरित किया ",
+      "actionFeatureRestored": " ने Feature पुनर्स्थापित किया ",
+      "actionTaskRestored": " ने Task पुनर्स्थापित किया ",
+      "actionChecklistMoved": " ने चेकलिस्ट स्थानांतरित की ",
+      "actionChecklistDeleted": " ने चेकलिस्ट हटाई ",
+      "actionChecklistRestored": " ने चेकलिस्ट पुनर्स्थापित की ",
+      "actionFeaturePermanentlyDeleted": " ने Feature स्थायी रूप से हटाया ",
+      "actionTaskPermanentlyDeleted": " ने Task स्थायी रूप से हटाया ",
+      "actionChecklistPermanentlyDeleted": " ने चेकलिस्ट स्थायी रूप से हटाई ",
+      "actionChecklistCreatedBulk": " ने {{count}} चेकलिस्ट आइटम बनाए",
+      "openTask": "टास्क खोलें"
     }
   },
   "trial": {

@@ -1,4 +1,16 @@
 {
+  "flow": {
+    "newMemo": "メモ",
+    "handTool": "手のツール",
+    "pointerTool": "選択ツール",
+    "addText": "テキスト",
+    "addSticky": "付箋",
+    "addShape": "図形",
+    "addImage": "画像",
+    "addVideo": "動画",
+    "empty": "上部のパレットからノードを追加して始めましょう",
+    "emptyReadOnly": "フローはまだ空です"
+  },
   "common": {
     "loading": "読み込み中...",
     "save": "保存",
@@ -465,7 +477,18 @@
       "actionChecklistCreated": " がチェックリスト ",
       "actionChecklistCompleted": " がチェックリスト ",
       "actionChecklistUncompleted": " がチェックリスト ",
-      "actionDefault": " がアクションを実行しました"
+      "actionDefault": " がアクションを実行しました",
+      "actionTaskFeatureMoved": " が Task を移動 ",
+      "actionFeatureRestored": " が Feature を復元 ",
+      "actionTaskRestored": " が Task を復元 ",
+      "actionChecklistMoved": " がチェックリストを移動 ",
+      "actionChecklistDeleted": " がチェックリストを削除 ",
+      "actionChecklistRestored": " がチェックリストを復元 ",
+      "actionFeaturePermanentlyDeleted": " が Feature を完全削除 ",
+      "actionTaskPermanentlyDeleted": " が Task を完全削除 ",
+      "actionChecklistPermanentlyDeleted": " がチェックリストを完全削除 ",
+      "actionChecklistCreatedBulk": " がチェックリスト {{count}} 件を作成",
+      "openTask": "タスクを開く"
     }
   },
   "trial": {

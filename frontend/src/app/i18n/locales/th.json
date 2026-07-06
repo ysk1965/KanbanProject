@@ -1,4 +1,16 @@
 {
+  "flow": {
+    "newMemo": "บันทึก",
+    "handTool": "เครื่องมือมือ",
+    "pointerTool": "เครื่องมือเลือก",
+    "addText": "ข้อความ",
+    "addSticky": "โน้ต",
+    "addShape": "รูปทรง",
+    "addImage": "รูปภาพ",
+    "addVideo": "วิดีโอ",
+    "empty": "เพิ่มโหนดจากแถบเครื่องมือด้านบนเพื่อเริ่มต้น",
+    "emptyReadOnly": "โฟลว์นี้ว่างเปล่า"
+  },
   "common": {
     "loading": "กำลังโหลด...",
     "save": "บันทึก",
@@ -465,7 +477,18 @@
       "actionChecklistCreated": " สร้างเช็คลิสต์ ",
       "actionChecklistCompleted": " ทำเช็คลิสต์เสร็จ ",
       "actionChecklistUncompleted": " ยกเลิกเช็คลิสต์ ",
-      "actionDefault": " ดำเนินการ"
+      "actionDefault": " ดำเนินการ",
+      "actionTaskFeatureMoved": " ย้าย Task ",
+      "actionFeatureRestored": " กู้คืน Feature ",
+      "actionTaskRestored": " กู้คืน Task ",
+      "actionChecklistMoved": " ย้ายเช็คลิสต์ ",
+      "actionChecklistDeleted": " ลบเช็คลิสต์ ",
+      "actionChecklistRestored": " กู้คืนเช็คลิสต์ ",
+      "actionFeaturePermanentlyDeleted": " ลบ Feature ถาวร ",
+      "actionTaskPermanentlyDeleted": " ลบ Task ถาวร ",
+      "actionChecklistPermanentlyDeleted": " ลบเช็คลิสต์ถาวร ",
+      "actionChecklistCreatedBulk": " สร้างเช็คลิสต์ {{count}} รายการ",
+      "openTask": "เปิดงาน"
     }
   },
   "trial": {

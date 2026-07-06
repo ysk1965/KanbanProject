@@ -194,7 +194,7 @@ public class TrashService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         activityService.logActivity(task.getBoard(), user, ActivityAction.CHECKLIST_RESTORED, TargetType.CHECKLIST, itemId,
-                Map.of("title", item.getTitle(), "taskTitle", task.getTitle()));
+                Map.of("checklistTitle", item.getTitle(), "taskTitle", task.getTitle(), "taskId", task.getId()));
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_RESTORED, userId, user.getName(),
                 Map.of("id", itemId, "task_id", task.getId()));
 
@@ -252,7 +252,7 @@ public class TrashService {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         activityService.logActivity(board, user, ActivityAction.CHECKLIST_PERMANENTLY_DELETED, TargetType.CHECKLIST, itemId,
-                Map.of("title", title));
+                Map.of("checklistTitle", title));
     }
 
     @Transactional

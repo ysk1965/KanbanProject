@@ -138,7 +138,8 @@ public class ChecklistService {
                 item.getId(),
                 Map.of(
                         "checklistTitle", item.getTitle(),
-                        "taskTitle", task.getTitle()
+                        "taskTitle", task.getTitle(),
+                        "taskId", task.getId()
                 )
         );
 
@@ -406,7 +407,7 @@ public class ChecklistService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         activityService.logActivity(task.getBoard(), user, ActivityAction.CHECKLIST_DELETED, TargetType.CHECKLIST, itemId,
-                Map.of("title", item.getTitle(), "taskTitle", task.getTitle()));
+                Map.of("checklistTitle", item.getTitle(), "taskTitle", task.getTitle(), "taskId", task.getId()));
 
         item.softDelete(userId, LocalDateTime.now(ZoneOffset.UTC));
 
@@ -460,7 +461,7 @@ public class ChecklistService {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
             activityService.logActivityInNewTransaction(task.getBoard(), user, ActivityAction.CHECKLIST_CHECKED, TargetType.CHECKLIST, itemId,
-                    Map.of("checklistTitle", item.getTitle(), "taskTitle", task.getTitle(), "isCompleted", item.getIsCompleted()));
+                    Map.of("checklistTitle", item.getTitle(), "taskTitle", task.getTitle(), "taskId", task.getId(), "isCompleted", item.getIsCompleted()));
         } catch (Exception e) {
             log.warn("Failed to log checklist toggle activity for item: {}", itemId, e);
         }
@@ -512,7 +513,7 @@ public class ChecklistService {
         activityService.logActivity(
                 targetTask.getBoard(), creator,
                 ActivityAction.CHECKLIST_CREATED, TargetType.CHECKLIST, item.getId(),
-                Map.of("checklistTitle", item.getTitle(), "taskTitle", targetTask.getTitle()));
+                Map.of("checklistTitle", item.getTitle(), "taskTitle", targetTask.getTitle(), "taskId", targetTask.getId()));
 
         log.info("Checklist item created from workload: {} in task: {} by user: {}", item.getId(), targetTask.getId(), userId);
 
@@ -670,7 +671,8 @@ public class ChecklistService {
         activityService.logActivity(sourceTask.getBoard(), user, ActivityAction.CHECKLIST_MOVED, TargetType.CHECKLIST, item.getId(),
                 Map.of("checklistTitle", item.getTitle(),
                         "fromTask", sourceTask.getTitle(),
-                        "toTask", targetTask.getTitle()));
+                        "toTask", targetTask.getTitle(),
+                        "taskId", targetTask.getId()));
 
         log.info("Checklist item moved: {} from task {} to task {} by user: {}",
                 itemId, taskId, targetTask.getId(), userId);

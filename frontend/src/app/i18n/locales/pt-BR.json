@@ -1,4 +1,16 @@
 {
+  "flow": {
+    "newMemo": "Nota",
+    "handTool": "Ferramenta mão",
+    "pointerTool": "Ferramenta seleção",
+    "addText": "Texto",
+    "addSticky": "Nota adesiva",
+    "addShape": "Forma",
+    "addImage": "Imagem",
+    "addVideo": "Vídeo",
+    "empty": "Adicione um nó pela barra de ferramentas para começar",
+    "emptyReadOnly": "Este fluxo está vazio"
+  },
   "common": {
     "loading": "Carregando...",
     "save": "Salvar",
@@ -465,7 +477,18 @@
       "actionChecklistCreated": " criou o checklist ",
       "actionChecklistCompleted": " concluiu o checklist ",
       "actionChecklistUncompleted": " desmarcou o checklist ",
-      "actionDefault": " realizou uma ação"
+      "actionDefault": " realizou uma ação",
+      "actionTaskFeatureMoved": " moveu a Task ",
+      "actionFeatureRestored": " restaurou a Feature ",
+      "actionTaskRestored": " restaurou a Task ",
+      "actionChecklistMoved": " moveu o checklist ",
+      "actionChecklistDeleted": " excluiu o checklist ",
+      "actionChecklistRestored": " restaurou o checklist ",
+      "actionFeaturePermanentlyDeleted": " excluiu permanentemente a Feature ",
+      "actionTaskPermanentlyDeleted": " excluiu permanentemente a Task ",
+      "actionChecklistPermanentlyDeleted": " excluiu permanentemente o checklist ",
+      "actionChecklistCreatedBulk": " criou {{count}} itens de checklist",
+      "openTask": "Abrir tarefa"
     }
   },
   "trial": {

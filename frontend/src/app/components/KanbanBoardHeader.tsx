@@ -85,6 +85,7 @@ interface KanbanBoardHeaderProps {
   hasMoreActivities: boolean;
   onLoadMoreActivities: () => void;
   onNotificationClick: (notification: any) => void;
+  onActivityNavigate?: (target: any) => void;
   // Permissions
   canEdit: boolean;
   canAccessSchedule: boolean;
@@ -148,6 +149,7 @@ export function KanbanBoardHeader({
   hasMoreActivities,
   onLoadMoreActivities,
   onNotificationClick,
+  onActivityNavigate,
   canEdit,
   canAccessSchedule,
   canAccessMilestone,
@@ -480,6 +482,7 @@ export function KanbanBoardHeader({
               hasMoreActivities={hasMoreActivities}
               onLoadMoreActivities={onLoadMoreActivities}
               onNotificationClick={onNotificationClick}
+              onActivityNavigate={onActivityNavigate}
               onUnreadCountChange={onUnreadCountChange}
               canAccessSlack={canAccessSlack}
               canAccessDiscord={canAccessSlack}

@@ -19,6 +19,10 @@ const ExcalidrawLazy = React.lazy(async () => {
   const mod = await import("@excalidraw/excalidraw");
   return { default: mod.Excalidraw };
 });
+const FlowReadOnlyLazy = React.lazy(async () => {
+  const mod = await import("../components/notes/FlowEditor");
+  return { default: mod.FlowReadOnly };
+});
 import { useCreateBlockNote } from "@blocknote/react";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
@@ -256,34 +260,53 @@ export function SharedNotePage() {
               </div>
             }
           >
-            <div className="w-full min-h-[60vh] h-[75vh] excalidraw-bridge-container">
-              <ExcalidrawLazy
-                initialData={(() => {
-                  try {
-                    const parsed = JSON.parse(note.content || "{}");
-                    return {
-                      elements: parsed.elements || [],
-                      appState: {
-                        viewBackgroundColor:
-                          parsed.appState?.viewBackgroundColor ||
-                          (isDark ? "#151B28" : "#efe6d8"),
+            {(() => {
+              // 개편된 BOARD는 bridge-flow(React Flow). 레거시 Excalidraw 콘텐츠는 그대로 렌더.
+              let isFlowBoard = false;
+              try {
+                isFlowBoard =
+                  JSON.parse(note.content || "{}")?.type === "bridge-flow";
+              } catch {
+                isFlowBoard = false;
+              }
+              if (isFlowBoard) {
+                return (
+                  <div className="w-full min-h-[60vh] h-[75vh]">
+                    <FlowReadOnlyLazy content={note.content} isDark={isDark} />
+                  </div>
+                );
+              }
+              return (
+                <div className="w-full min-h-[60vh] h-[75vh] excalidraw-bridge-container">
+                  <ExcalidrawLazy
+                    initialData={(() => {
+                      try {
+                        const parsed = JSON.parse(note.content || "{}");
+                        return {
+                          elements: parsed.elements || [],
+                          appState: {
+                            viewBackgroundColor:
+                              parsed.appState?.viewBackgroundColor ||
+                              (isDark ? "#151B28" : "#efe6d8"),
+                          },
+                          files: parsed.files || {},
+                        };
+                      } catch {
+                        return {};
+                      }
+                    })()}
+                    viewModeEnabled={true}
+                    theme={isDark ? "dark" : "light"}
+                    UIOptions={{
+                      canvasActions: {
+                        loadScene: false,
+                        export: { saveFileToDisk: false },
                       },
-                      files: parsed.files || {},
-                    };
-                  } catch {
-                    return {};
-                  }
-                })()}
-                viewModeEnabled={true}
-                theme={isDark ? "dark" : "light"}
-                UIOptions={{
-                  canvasActions: {
-                    loadScene: false,
-                    export: { saveFileToDisk: false },
-                  },
-                }}
-              />
-            </div>
+                    }}
+                  />
+                </div>
+              );
+            })()}
           </Suspense>
         ) : (
           <div
