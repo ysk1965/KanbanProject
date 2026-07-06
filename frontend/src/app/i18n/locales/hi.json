@@ -1326,6 +1326,7 @@
       "board": "बोर्ड",
       "todo": "TODO",
       "doing": "DOING",
+      "doingBadge": "प्रगति में",
       "done": "DONE"
     },
     "checklistFilter": {
