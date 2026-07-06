@@ -25,6 +25,7 @@ import {
 import { FEATURE_COLORS, getRandomFeatureColor } from "../constants";
 import { MotionModal } from "./ui/MotionModal";
 import { ColorPickerPopover } from "./ui/ColorPickerPopover";
+import { MyWorkloadStrip } from "./schedule/MyWorkloadStrip";
 
 interface AddDailyChecklistModalProps {
   boardId: string;
@@ -863,6 +864,14 @@ export function AddDailyChecklistModal({
           <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
+
+      {/* 내 워크로드 스트립 — 담당자 본인의 일정 바 (마일스톤 필터와 독립) */}
+      <MyWorkloadStrip
+        boardId={boardId}
+        assigneeId={assigneeId}
+        assignedDate={assignedDate}
+        selectedItemIds={selectedItems}
+      />
 
       {/* Content - Feature/Task/Checklist 그룹화 뷰 */}
       <div className="flex-1 overflow-y-auto px-6 py-4">

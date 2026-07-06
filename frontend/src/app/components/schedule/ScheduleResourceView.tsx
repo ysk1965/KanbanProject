@@ -2225,9 +2225,11 @@ export function ScheduleResourceView({
                     (d) => (barLanes[d.item.id] || 0) >= MAX_VISIBLE_LANES,
                   ).length
                 : 0;
-            const COLLAPSE_BTN_HEIGHT = needsCollapse ? 28 : 0;
 
-            // 개인 부재 바 — 태스크 바 아래 전용 레인 1개에 배치
+            // 개인 부재 바 — "행 전체 최대 레인" 아래가 아니라, 그 부재 날짜에
+            // 실제로 걸치는 태스크의 최대 레인 바로 아래에 배치한다.
+            // (전역 최대 레인에 고정하면, 부재 날짜에 태스크가 적을 때 태스크와
+            //  부재 바 사이에 빈 레인이 노출되던 문제 제거)
             const rowAbsences =
               row.kind === "member" ? memberAbsencesById.get(row.id) || [] : [];
             const absenceBars = rowAbsences
@@ -2235,18 +2237,34 @@ export function ScheduleResourceView({
                 absence: a,
                 pos: getBarPosition(a.start_date, a.end_date),
               }))
-              .filter((d) => d.pos !== null);
-            const absenceLane = absenceBars.length > 0 ? 1 : 0;
-            const absenceTop =
-              BAR_TOP_OFFSET +
-              (visibleMaxLane + 1) * (BAR_HEIGHT + BAR_TOP_OFFSET);
+              .filter((d) => d.pos !== null)
+              .map((d) => {
+                // 이 부재 기간과 겹치는 태스크 바 중 (접힘 시 숨겨지는 레인 제외)
+                // 가장 아래 레인을 찾아 그 바로 아래 레인에 부재 바를 놓는다.
+                let localMaxLane = -1;
+                for (const vb of itemsWithBars) {
+                  const lane = barLanes[vb.item.id] || 0;
+                  if (lane > visibleMaxLane) continue; // 접힘 상태에서 숨겨진 바
+                  if (
+                    vb.pos!.startDayIndex <= d.pos!.endDayIndex &&
+                    vb.pos!.endDayIndex >= d.pos!.startDayIndex
+                  ) {
+                    if (lane > localMaxLane) localMaxLane = lane;
+                  }
+                }
+                const laneIndex = Math.min(localMaxLane, visibleMaxLane) + 1;
+                return { ...d, laneIndex };
+              });
+            const maxAbsenceLaneIndex = absenceBars.length
+              ? Math.max(...absenceBars.map((d) => d.laneIndex))
+              : -1;
 
+            // 행 높이는 태스크 최대 레인과 부재 바 최대 레인 중 더 깊은 쪽 기준.
+            const deepestLane = Math.max(visibleMaxLane, maxAbsenceLaneIndex);
             const dynamicRowHeight = Math.max(
               ROW_HEIGHT,
-              (visibleMaxLane + 1) * (BAR_HEIGHT + BAR_TOP_OFFSET) +
-                absenceLane * (BAR_HEIGHT + BAR_TOP_OFFSET) +
-                BAR_TOP_OFFSET * 2 +
-                COLLAPSE_BTN_HEIGHT,
+              (deepestLane + 1) * (BAR_HEIGHT + BAR_TOP_OFFSET) +
+                BAR_TOP_OFFSET * 2,
             );
 
             return (
@@ -2594,10 +2612,13 @@ export function ScheduleResourceView({
                     )}
 
                     {/* 개인 부재 오버레이 바 (휴가/출장/병가/재택) */}
-                    {absenceBars.map(({ absence, pos }) => {
+                    {absenceBars.map(({ absence, pos, laneIndex }) => {
                       if (!pos) return null;
                       const meta = calendarTypeMeta(absence.event_type);
                       const c = absence.color || meta.color;
+                      const top =
+                        BAR_TOP_OFFSET +
+                        laneIndex * (BAR_HEIGHT + BAR_TOP_OFFSET);
                       return (
                         <div
                           key={absence.id}
@@ -2607,7 +2628,7 @@ export function ScheduleResourceView({
                           style={{
                             left: pos.left,
                             width: pos.width,
-                            top: absenceTop,
+                            top,
                             height: BAR_HEIGHT,
                             color: "#e9edf5",
                             border: `1px dashed ${c}99`,
@@ -2654,23 +2675,25 @@ export function ScheduleResourceView({
                         />
                       );
                     })}
-                    {/* Member absence hatching — full row height (라벨은 레인 바에만 표시) */}
+                    {/* Member absence hatching — 태스크 + 부재 바까지만 칠하고
+                        그 아래 빈 레인은 칠하지 않는다(빈 줄처럼 보이던 문제 제거) */}
                     {row.kind === "member" &&
-                      rowAbsences.map((absence) => {
-                        const hPos = getBarPosition(
-                          absence.start_date,
-                          absence.end_date,
-                        );
+                      absenceBars.map(({ absence, pos: hPos, laneIndex }) => {
                         if (!hPos) return null;
                         const meta = calendarTypeMeta(absence.event_type);
                         const c = absence.color || meta.color;
+                        const hatchHeight =
+                          BAR_TOP_OFFSET +
+                          laneIndex * (BAR_HEIGHT + BAR_TOP_OFFSET) +
+                          BAR_HEIGHT;
                         return (
                           <div
                             key={`abs-hatch-${absence.id}`}
-                            className="absolute top-0 bottom-0 pointer-events-none"
+                            className="absolute top-0 pointer-events-none"
                             style={{
                               left: hPos.left,
                               width: hPos.width,
+                              height: hatchHeight,
                               zIndex: HATCH_OVERLAY_Z,
                               background: makeAbsenceHatchBg(c),
                             }}

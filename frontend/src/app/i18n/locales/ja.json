@@ -898,7 +898,13 @@
     "dueToday": "本日締切",
     "overdue": "期限切れ",
     "taskCount": "タスク{{count}}件",
-    "itemCount": "項目{{count}}件"
+    "itemCount": "項目{{count}}件",
+    "workloadTitle": "マイワークロード",
+    "workloadActive": "アクティブ {{count}}件",
+    "workloadEmpty": "この期間に予定された項目はありません",
+    "workloadToday": "今日",
+    "workloadAddDate": "追加日",
+    "workloadSelected": "選択した項目"
   },
   "inquiry": {
     "title": "お問い合わせ",
