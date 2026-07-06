@@ -25,6 +25,7 @@ import com.kanban.domain.note.NoteVersionRepository;
 import com.kanban.domain.invite.InviteLinkRepository;
 import com.kanban.domain.milestone.MilestoneAllocationRepository;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
+import com.kanban.domain.calendar.CalendarEventRepository;
 import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.notification.NotificationPreferenceRepository;
 import com.kanban.domain.notification.NotificationRepository;
@@ -89,6 +90,7 @@ public class BoardService {
     private final TaskWeightRepository taskWeightRepository;
     private final WeightLevelRepository weightLevelRepository;
     private final MilestoneRepository milestoneRepository;
+    private final CalendarEventRepository calendarEventRepository;
     private final MilestoneFeatureRepository milestoneFeatureRepository;
     private final MilestoneAllocationRepository milestoneAllocationRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
@@ -407,6 +409,7 @@ public class BoardService {
         tagRepository.deleteByBoardId(boardId);
         weightLevelRepository.deleteByBoardId(boardId);
         milestoneRepository.deleteByBoardId(boardId);
+        calendarEventRepository.deleteByBoardId(boardId);
         boardCustomEmojiRepository.deleteByBoardId(boardId);
 
         dailyStandupConfigRepository.deleteByBoardId(boardId);

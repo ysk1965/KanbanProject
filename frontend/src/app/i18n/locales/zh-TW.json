@@ -1311,6 +1311,7 @@
       "board": "看板",
       "todo": "TODO",
       "doing": "DOING",
+      "doingBadge": "進行中",
       "done": "DONE"
     },
     "checklistFilter": {
