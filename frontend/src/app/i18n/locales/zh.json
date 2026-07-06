@@ -11,7 +11,13 @@
     "empty": "从顶部工具栏添加节点以开始",
     "emptyReadOnly": "此流程图为空",
     "dropHere": "将图片或视频拖放到此处",
-    "mediaUploadFailed": "媒体上传失败，请检查文件大小或格式。"
+    "mediaUploadFailed": "媒体上传失败，请检查文件大小或格式。",
+    "groupImagesTitle": "图片添加方式",
+    "groupImagesDesc": "如何添加 {{count}} 张图片？",
+    "groupAsAnimation": "合并（动画）",
+    "groupAsAnimationHint": "像 GIF 一样在同一节点播放",
+    "addSeparately": "分别添加",
+    "addSeparatelyHint": "各自独立节点"
   },
   "common": {
     "loading": "加载中...",

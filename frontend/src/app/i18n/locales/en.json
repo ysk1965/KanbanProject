@@ -11,7 +11,13 @@
     "empty": "Add a node from the toolbar to get started",
     "emptyReadOnly": "This flow is empty",
     "dropHere": "Drop images or videos here",
-    "mediaUploadFailed": "Media upload failed. Please check the file size or format."
+    "mediaUploadFailed": "Media upload failed. Please check the file size or format.",
+    "groupImagesTitle": "How to add images",
+    "groupImagesDesc": "How would you like to add {{count}} images?",
+    "groupAsAnimation": "Group (animation)",
+    "groupAsAnimationHint": "Play in one node, like a GIF",
+    "addSeparately": "Add separately",
+    "addSeparatelyHint": "Each as its own node"
   },
   "common": {
     "loading": "Loading...",
