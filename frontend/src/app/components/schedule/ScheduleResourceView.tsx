@@ -70,6 +70,18 @@ const MAX_VISIBLE_LANES = 4;
 /** 클릭과 "그리기"를 구분하기 위한 최소 드래그 픽셀 거리 */
 const DRAW_DRAG_THRESHOLD = 6;
 
+/** 주말/공휴일/부재 빗금(hatching) 오버레이 배경 패턴 */
+const HATCH_WEEKEND_BG = `url("data:image/svg+xml,%3Csvg width='8' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-1 5L5-1M3 9L9 3' stroke='rgba(255,255,255,0.10)' stroke-width='1'/%3E%3C/svg%3E"), rgba(255,255,255,0.03)`;
+const HATCH_HOLIDAY_BG = `url("data:image/svg+xml,%3Csvg width='8' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-1 5L5-1M3 9L9 3' stroke='rgba(239,68,68,0.18)' stroke-width='1'/%3E%3C/svg%3E"), rgba(239,68,68,0.06)`;
+const HATCH_OVERLAY_Z = 25;
+
+function makeAbsenceHatchBg(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16) || 0;
+  const g = parseInt(hex.slice(3, 5), 16) || 0;
+  const b = parseInt(hex.slice(5, 7), 16) || 0;
+  return `url("data:image/svg+xml,%3Csvg width='8' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-1 5L5-1M3 9L9 3' stroke='rgba(${r},${g},${b},0.4)' stroke-width='1.2'/%3E%3C/svg%3E"), rgba(${r},${g},${b},0.08)`;
+}
+
 // ========================================
 // Types
 // ========================================
@@ -1933,6 +1945,27 @@ export function ScheduleResourceView({
                     ),
                 )}
 
+                {/* Hatching overlays (milestone row) */}
+                {timelineDays.map((day, idx) => {
+                  const dateStr = formatDateStr(day);
+                  const isHol = mergedHolidayMap.has(dateStr);
+                  const isWknd =
+                    isWeekend(day) && !forcedWorkdaySet.has(dateStr);
+                  if (!isHol && !isWknd) return null;
+                  return (
+                    <div
+                      key={`mh-${idx}`}
+                      className="absolute top-0 bottom-0 pointer-events-none"
+                      style={{
+                        left: idx * dayWidth,
+                        width: dayWidth,
+                        zIndex: HATCH_OVERLAY_Z,
+                        background: isHol ? HATCH_HOLIDAY_BG : HATCH_WEEKEND_BG,
+                      }}
+                    />
+                  );
+                })}
+
                 {/* Today line */}
                 {todayIndex >= 0 && (
                   <div
@@ -2049,6 +2082,27 @@ export function ScheduleResourceView({
                       />
                     );
                   })()}
+
+                {/* Hatching overlays (event band) */}
+                {timelineDays.map((day, idx) => {
+                  const dateStr = formatDateStr(day);
+                  const isHol = mergedHolidayMap.has(dateStr);
+                  const isWknd =
+                    isWeekend(day) && !forcedWorkdaySet.has(dateStr);
+                  if (!isHol && !isWknd) return null;
+                  return (
+                    <div
+                      key={`eh-${idx}`}
+                      className="absolute top-0 bottom-0 pointer-events-none"
+                      style={{
+                        left: idx * dayWidth,
+                        width: dayWidth,
+                        zIndex: HATCH_OVERLAY_Z,
+                        background: isHol ? HATCH_HOLIDAY_BG : HATCH_WEEKEND_BG,
+                      }}
+                    />
+                  );
+                })}
 
                 {/* Today line */}
                 {todayIndex >= 0 && (
@@ -2566,6 +2620,63 @@ export function ScheduleResourceView({
                         </div>
                       );
                     })}
+
+                    {/* ── Hatching overlays (above all bars) ── */}
+                    {/* Weekend / holiday hatching — full row height per day column */}
+                    {timelineDays.map((day, idx) => {
+                      const dateStr = formatDateStr(day);
+                      const isHol = mergedHolidayMap.has(dateStr);
+                      const isWknd =
+                        isWeekend(day) && !forcedWorkdaySet.has(dateStr);
+                      if (!isHol && !isWknd) return null;
+                      return (
+                        <div
+                          key={`hatch-${idx}`}
+                          className="absolute top-0 bottom-0 pointer-events-none"
+                          style={{
+                            left: idx * dayWidth,
+                            width: dayWidth,
+                            zIndex: HATCH_OVERLAY_Z,
+                            background: isHol
+                              ? HATCH_HOLIDAY_BG
+                              : HATCH_WEEKEND_BG,
+                          }}
+                        />
+                      );
+                    })}
+                    {/* Member absence hatching — full row height + reason label */}
+                    {row.kind === "member" &&
+                      rowAbsences.map((absence) => {
+                        const hPos = getBarPosition(
+                          absence.start_date,
+                          absence.end_date,
+                        );
+                        if (!hPos) return null;
+                        const meta = calendarTypeMeta(absence.event_type);
+                        const c = absence.color || meta.color;
+                        return (
+                          <div
+                            key={`abs-hatch-${absence.id}`}
+                            className="absolute top-0 bottom-0 pointer-events-none overflow-hidden"
+                            style={{
+                              left: hPos.left,
+                              width: hPos.width,
+                              zIndex: HATCH_OVERLAY_Z,
+                              background: makeAbsenceHatchBg(c),
+                            }}
+                          >
+                            <span
+                              className="absolute bottom-1 left-1/2 -translate-x-1/2 text-xs font-bold whitespace-nowrap px-1.5 py-0.5 rounded"
+                              style={{
+                                color: c,
+                                backgroundColor: "rgba(21, 27, 40, 0.8)",
+                              }}
+                            >
+                              {meta.icon} {absence.title || meta.label}
+                            </span>
+                          </div>
+                        );
+                      })}
 
                     {/* Ghost bar for cross-row drag target */}
                     {isCrossRowTarget &&
