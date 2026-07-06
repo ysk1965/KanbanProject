@@ -11,7 +11,13 @@
     "empty": "Thêm một nút từ thanh công cụ để bắt đầu",
     "emptyReadOnly": "Sơ đồ này đang trống",
     "dropHere": "Thả hình ảnh hoặc video vào đây",
-    "mediaUploadFailed": "Tải lên phương tiện thất bại. Vui lòng kiểm tra kích thước hoặc định dạng tệp."
+    "mediaUploadFailed": "Tải lên phương tiện thất bại. Vui lòng kiểm tra kích thước hoặc định dạng tệp.",
+    "groupImagesTitle": "Cách thêm ảnh",
+    "groupImagesDesc": "Bạn muốn thêm {{count}} ảnh như thế nào?",
+    "groupAsAnimation": "Gộp lại (hoạt ảnh)",
+    "groupAsAnimationHint": "Phát trong một nút như GIF",
+    "addSeparately": "Thêm riêng lẻ",
+    "addSeparatelyHint": "Mỗi ảnh một nút riêng"
   },
   "common": {
     "loading": "Dang tai...",

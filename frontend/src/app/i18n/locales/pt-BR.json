@@ -11,7 +11,13 @@
     "empty": "Adicione um nó pela barra de ferramentas para começar",
     "emptyReadOnly": "Este fluxo está vazio",
     "dropHere": "Solte imagens ou vídeos aqui",
-    "mediaUploadFailed": "Falha ao enviar a mídia. Verifique o tamanho ou o formato do arquivo."
+    "mediaUploadFailed": "Falha ao enviar a mídia. Verifique o tamanho ou o formato do arquivo.",
+    "groupImagesTitle": "Como adicionar imagens",
+    "groupImagesDesc": "Como você quer adicionar {{count}} imagens?",
+    "groupAsAnimation": "Agrupar (animação)",
+    "groupAsAnimationHint": "Reproduzir em um nó, como um GIF",
+    "addSeparately": "Adicionar separadamente",
+    "addSeparatelyHint": "Cada uma em seu próprio nó"
   },
   "common": {
     "loading": "Carregando...",

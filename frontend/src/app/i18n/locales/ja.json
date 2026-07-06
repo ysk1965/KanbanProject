@@ -11,7 +11,13 @@
     "empty": "上部のパレットからノードを追加して始めましょう",
     "emptyReadOnly": "フローはまだ空です",
     "dropHere": "ここに画像・動画をドロップ",
-    "mediaUploadFailed": "メディアのアップロードに失敗しました。ファイルのサイズや形式を確認してください。"
+    "mediaUploadFailed": "メディアのアップロードに失敗しました。ファイルのサイズや形式を確認してください。",
+    "groupImagesTitle": "画像の追加方法",
+    "groupImagesDesc": "{{count}}枚の画像をどう追加しますか？",
+    "groupAsAnimation": "まとめる（アニメーション）",
+    "groupAsAnimationHint": "GIFのように1つのノードで再生",
+    "addSeparately": "個別に追加",
+    "addSeparatelyHint": "それぞれ別ノードに"
   },
   "common": {
     "loading": "読み込み中...",
