@@ -14,7 +14,9 @@ public enum CalendarEventType {
     RELEASE,
     DEADLINE,
     EVENT,
-    // 개인 부재
+    // 개인 부재 — 사유 분류 없이 단일 타입(내용 텍스트로 표현).
+    // VACATION/TRIP/SICK/REMOTE는 하위호환용으로 남겨둠(신규 UI는 ABSENCE만 생성)
+    ABSENCE,
     VACATION,
     TRIP,
     SICK,
@@ -30,7 +32,7 @@ public enum CalendarEventType {
     public Category category() {
         return switch (this) {
             case BUILD, RELEASE, DEADLINE, EVENT -> Category.TEAM;
-            case VACATION, TRIP, SICK, REMOTE -> Category.MEMBER;
+            case ABSENCE, VACATION, TRIP, SICK, REMOTE -> Category.MEMBER;
             case HOLIDAY, WORKDAY -> Category.CALENDAR;
         };
     }

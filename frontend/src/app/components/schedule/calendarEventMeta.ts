@@ -45,8 +45,19 @@ export const TEAM_TYPES: CalendarTypeMeta[] = [
   },
 ];
 
-/** 개인 부재 */
+/** 개인 부재 — 사유 분류 없이 단일 타입(내용 텍스트로 표현). 중립색. */
 export const MEMBER_TYPES: CalendarTypeMeta[] = [
+  {
+    key: "ABSENCE",
+    label: "부재",
+    icon: "🚶",
+    color: "#94a3b8",
+    category: "MEMBER",
+  },
+];
+
+/** 레거시 부재 타입(하위호환 렌더용) — 신규 UI는 생성하지 않음 */
+export const LEGACY_MEMBER_TYPES: CalendarTypeMeta[] = [
   {
     key: "VACATION",
     label: "휴가",
@@ -98,6 +109,7 @@ export const CALENDAR_TYPES: CalendarTypeMeta[] = [
 export const ALL_CALENDAR_TYPES: CalendarTypeMeta[] = [
   ...TEAM_TYPES,
   ...MEMBER_TYPES,
+  ...LEGACY_MEMBER_TYPES,
   ...CALENDAR_TYPES,
 ];
 

@@ -7,6 +7,7 @@ import {
   taskAPI,
   TaskResponse,
   milestoneAPI,
+  calendarEventAPI,
 } from "../../utils/api";
 import { Feature, Milestone } from "../../types";
 import { MotionModal } from "../ui/MotionModal";
@@ -42,7 +43,10 @@ function computeMenuPos(btn: HTMLButtonElement | null): MenuPos | null {
   const spaceAbove = rect.top;
   const openUp = spaceBelow < MENU_MIN_HEIGHT && spaceAbove > spaceBelow;
   const available = (openUp ? spaceAbove : spaceBelow) - MENU_VIEWPORT_GAP;
-  const maxHeight = Math.max(MENU_MIN_HEIGHT, Math.min(MENU_MAX_HEIGHT, available));
+  const maxHeight = Math.max(
+    MENU_MIN_HEIGHT,
+    Math.min(MENU_MAX_HEIGHT, available),
+  );
   return openUp
     ? {
         left: rect.left,
@@ -67,6 +71,8 @@ interface WorkloadCreateModalProps {
   features: Feature[];
   milestones: Milestone[];
   assigneeId?: string | null;
+  /** 부재 탭 표시용 멤버 이름 (assigneeId가 멤버일 때) */
+  assigneeName?: string | null;
   contractorId?: string | null;
   startDate: string;
   dueDate: string;
@@ -82,12 +88,18 @@ export function WorkloadCreateModal({
   features,
   milestones,
   assigneeId,
+  assigneeName,
   contractorId,
   startDate,
   dueDate,
   onCreated,
 }: WorkloadCreateModalProps) {
   const { t } = useTranslation();
+
+  // 업무 / 부재 탭 (부재는 멤버 행에서만 — assigneeId 있을 때)
+  const [tab, setTab] = useState<"task" | "absence">("task");
+  const [absStart, setAbsStart] = useState(startDate);
+  const [absEnd, setAbsEnd] = useState(dueDate);
 
   // ── Form state ──
   const [title, setTitle] = useState("");
@@ -126,7 +138,9 @@ export function WorkloadCreateModal({
   const featureMenuRef = useRef<HTMLDivElement>(null);
   const taskMenuRef = useRef<HTMLDivElement>(null);
   // Computed fixed positions for the portaled menus
-  const [milestoneMenuPos, setMilestoneMenuPos] = useState<MenuPos | null>(null);
+  const [milestoneMenuPos, setMilestoneMenuPos] = useState<MenuPos | null>(
+    null,
+  );
   const [featureMenuPos, setFeatureMenuPos] = useState<MenuPos | null>(null);
   const [taskMenuPos, setTaskMenuPos] = useState<MenuPos | null>(null);
 
@@ -167,6 +181,9 @@ export function WorkloadCreateModal({
     setShowMilestoneDropdown(false);
     setShowFeatureDropdown(false);
     setShowTaskDropdown(false);
+    setTab("task");
+    setAbsStart(startDate);
+    setAbsEnd(dueDate);
 
     // Find the milestone whose [start_date, end_date] contains the dragged
     // period start. If several match, prefer the most specific (shortest) span.
@@ -195,7 +212,10 @@ export function WorkloadCreateModal({
     const loadMilestoneFeatures = async () => {
       setIsLoadingMilestoneFeatures(true);
       try {
-        const res = await milestoneAPI.getMilestone(boardId, selectedMilestoneId);
+        const res = await milestoneAPI.getMilestone(
+          boardId,
+          selectedMilestoneId,
+        );
         if (!cancelled) {
           setMilestoneFeatureIds(res.features.map((f) => f.id));
         }
@@ -387,16 +407,57 @@ export function WorkloadCreateModal({
     t,
   ]);
 
+  // ── 부재 저장 (calendarEventAPI) ──
+  const handleSubmitAbsence = useCallback(async () => {
+    const trimmed = title.trim();
+    if (!trimmed || !assigneeId || isSubmitting) return;
+    if (absEnd < absStart) {
+      setError(t("common.error", "An error occurred"));
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await calendarEventAPI.create(boardId, {
+        event_type: "ABSENCE",
+        member_id: assigneeId,
+        title: trimmed,
+        start_date: absStart,
+        end_date: absEnd,
+      });
+      onCreated();
+      onClose();
+    } catch (err) {
+      console.error("Failed to create absence:", err);
+      setError(t("common.error", "An error occurred"));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    title,
+    assigneeId,
+    isSubmitting,
+    absStart,
+    absEnd,
+    boardId,
+    onCreated,
+    onClose,
+    t,
+  ]);
+
   // ── Key handler ──
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.nativeEvent.isComposing) {
       e.preventDefault();
-      handleSubmit();
+      if (tab === "absence") handleSubmitAbsence();
+      else handleSubmit();
     }
   };
 
   // ── Helpers ──
-  const selectedMilestone = milestones.find((m) => m.id === selectedMilestoneId);
+  const selectedMilestone = milestones.find(
+    (m) => m.id === selectedMilestoneId,
+  );
   const selectedFeature = selectableFeatures.find(
     (f) => f.id === selectedFeatureId,
   );
@@ -418,7 +479,9 @@ export function WorkloadCreateModal({
           aria-hidden="true"
         />
         <h2 className="text-sm font-bold text-foreground flex-1">
-          {t("schedule.workloadCreate.title", "새 업무 추가")}
+          {tab === "absence"
+            ? "부재 추가"
+            : t("schedule.workloadCreate.title", "새 업무 추가")}
         </h2>
         <button
           onClick={onClose}
@@ -432,342 +495,166 @@ export function WorkloadCreateModal({
 
       {/* Body */}
       <div className="px-5 pb-5 pt-4 space-y-4">
-        {/* Milestone selector */}
-        {milestones.length > 0 && (
-          <div ref={milestoneDropdownRef} className="relative">
-            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-              {t("schedule.workloadCreate.milestone", "마일스톤 (선택사항)")}
-            </label>
+        {/* 업무 / 부재 탭 — 멤버 행(assigneeId)에서만 노출 */}
+        {assigneeId && (
+          <div className="grid grid-cols-2 gap-1.5">
             <button
-              ref={milestoneBtnRef}
-              onClick={toggleMilestoneDropdown}
-              className="w-full flex items-center gap-2 px-3 py-2.5
+              type="button"
+              onClick={() => setTab("task")}
+              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold border transition-colors ${
+                tab === "task"
+                  ? "border-bridge-accent/60 bg-bridge-accent/15 text-foreground"
+                  : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
+              }`}
+            >
+              <Plus size={13} /> 업무
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("absence")}
+              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold border transition-colors ${
+                tab === "absence"
+                  ? "border-bridge-secondary/60 bg-bridge-secondary/15 text-foreground"
+                  : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
+              }`}
+            >
+              🚶 부재
+            </button>
+          </div>
+        )}
+
+        {tab === "absence" ? (
+          <>
+            {/* 대상 멤버 */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
+                대상 멤버
+              </label>
+              <div className="w-full px-3 py-2.5 bg-foreground/[0.03] border border-foreground/10 rounded-xl text-xs text-foreground">
+                {assigneeName || "이 멤버"}
+              </div>
+            </div>
+
+            {/* 내용 */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
+                내용
+              </label>
+              <input
+                ref={titleInputRef}
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="예: 부산 출장 · 오전 반차 · 재택"
+                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl
+                  py-3 px-4 text-foreground placeholder-slate-500
+                  focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+              />
+              <p className="text-xs text-slate-500 mt-1.5">
+                바에 이 텍스트가 표시됩니다
+              </p>
+            </div>
+
+            {/* 기간 */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
+                기간
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={absStart}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setAbsStart(v);
+                    if (absEnd < v) setAbsEnd(v);
+                  }}
+                  className="flex-1 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
+                />
+                <span className="text-slate-500 text-sm">~</span>
+                <input
+                  type="date"
+                  value={absEnd}
+                  min={absStart}
+                  onChange={(e) => setAbsEnd(e.target.value)}
+                  className="flex-1 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
+                />
+              </div>
+            </div>
+
+            {error && <p className="text-xs text-red-400">{error}</p>}
+          </>
+        ) : (
+          <>
+            {/* Milestone selector */}
+            {milestones.length > 0 && (
+              <div ref={milestoneDropdownRef} className="relative">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
+                  {t(
+                    "schedule.workloadCreate.milestone",
+                    "마일스톤 (선택사항)",
+                  )}
+                </label>
+                <button
+                  ref={milestoneBtnRef}
+                  onClick={toggleMilestoneDropdown}
+                  className="w-full flex items-center gap-2 px-3 py-2.5
                 bg-foreground/[0.03] border border-foreground/10 rounded-xl
                 text-xs text-foreground hover:bg-foreground/5 transition-all
                 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-            >
-              {selectedMilestone ? (
-                <span className="flex-1 text-left truncate">
-                  {selectedMilestone.title}
-                </span>
-              ) : (
-                <span className="flex-1 text-left text-slate-500">
-                  {t("schedule.workloadCreate.milestoneNone", "전체")}
-                </span>
-              )}
-              {isLoadingMilestoneFeatures && (
-                <Loader2
-                  size={14}
-                  className="animate-spin text-bridge-accent shrink-0"
-                />
-              )}
-              <ChevronDown
-                size={14}
-                className={`shrink-0 text-slate-400 transition-transform ${showMilestoneDropdown ? "rotate-180" : ""}`}
-              />
-            </button>
-
-            {showMilestoneDropdown &&
-              milestoneMenuPos &&
-              createPortal(
-                <div
-                  ref={milestoneMenuRef}
-                  style={{
-                    position: "fixed",
-                    left: milestoneMenuPos.left,
-                    width: milestoneMenuPos.width,
-                    top: milestoneMenuPos.top,
-                    bottom: milestoneMenuPos.bottom,
-                    maxHeight: milestoneMenuPos.maxHeight,
-                    zIndex: 9999,
-                  }}
-                  className="bg-bridge-obsidian border border-foreground/[0.08] rounded-xl shadow-xl
-                  overflow-y-auto custom-scrollbar py-1"
                 >
-                  {/* All (no milestone filter) option */}
-                  <button
-                    onClick={() => {
-                      setSelectedMilestoneId(null);
-                      setShowMilestoneDropdown(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
-                    text-slate-400 hover:bg-foreground/5 transition-colors"
-                  >
-                    <span className="flex-1">
-                      {t("schedule.workloadCreate.milestoneNone", "전체")}
-                    </span>
-                    {!selectedMilestoneId && (
-                      <Check size={14} className="text-bridge-accent shrink-0" />
-                    )}
-                  </button>
-
-                  {/* Milestones */}
-                  {milestones.map((milestone) => (
-                    <button
-                      key={milestone.id}
-                      onClick={() => {
-                        setSelectedMilestoneId(milestone.id);
-                        setShowMilestoneDropdown(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
-                      text-foreground hover:bg-foreground/5 transition-colors"
-                    >
-                      <span className="flex-1 truncate">
-                        {milestone.title}
-                        <span className="text-slate-500 ml-1.5">
-                          {milestone.start_date}~{milestone.end_date}
-                        </span>
-                      </span>
-                      {milestone.id === selectedMilestoneId && (
-                        <Check
-                          size={14}
-                          className="text-bridge-accent shrink-0"
-                        />
-                      )}
-                    </button>
-                  ))}
-                </div>,
-                document.body,
-              )}
-          </div>
-        )}
-
-        {/* Feature selector */}
-        <div ref={featureDropdownRef} className="relative">
-          <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-            {t("schedule.workloadCreate.feature", "Feature (선택사항)")}
-          </label>
-          <button
-            ref={featureBtnRef}
-            onClick={toggleFeatureDropdown}
-            className="w-full flex items-center gap-2 px-3 py-2.5
-              bg-foreground/[0.03] border border-foreground/10 rounded-xl
-              text-xs text-foreground hover:bg-foreground/5 transition-all
-              focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-          >
-            {selectedFeature ? (
-              <>
-                <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: selectedFeature.color }}
-                />
-                <span className="flex-1 text-left truncate">
-                  {selectedFeature.title}
-                </span>
-              </>
-            ) : isNewFeature ? (
-              <span className="flex-1 text-left text-bridge-secondary truncate">
-                {t("schedule.workloadCreate.featureNew", "새 Feature 만들기")}
-              </span>
-            ) : (
-              <span className="flex-1 text-left text-slate-500">
-                {t("schedule.workloadCreate.featureNone", "미분류")}
-              </span>
-            )}
-            <ChevronDown
-              size={14}
-              className={`shrink-0 text-slate-400 transition-transform ${showFeatureDropdown ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {showFeatureDropdown &&
-            featureMenuPos &&
-            createPortal(
-              <div
-                ref={featureMenuRef}
-                style={{
-                  position: "fixed",
-                  left: featureMenuPos.left,
-                  width: featureMenuPos.width,
-                  top: featureMenuPos.top,
-                  bottom: featureMenuPos.bottom,
-                  maxHeight: featureMenuPos.maxHeight,
-                  zIndex: 9999,
-                }}
-                className="bg-bridge-obsidian border border-foreground/[0.08] rounded-xl shadow-xl
-                overflow-y-auto custom-scrollbar py-1"
-              >
-                {/* None option */}
-                <button
-                  onClick={() => {
-                    setSelectedFeatureId(null);
-                    setNewFeatureTitle("");
-                    setShowFeatureDropdown(false);
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
-                  text-slate-400 hover:bg-foreground/5 transition-colors"
-                >
-                  <span className="flex-1">
-                    {t("schedule.workloadCreate.featureNone", "미분류")}
-                  </span>
-                  {!selectedFeatureId && (
-                    <Check size={14} className="text-bridge-accent shrink-0" />
-                  )}
-                </button>
-
-                {/* Empty milestone hint */}
-                {selectedMilestoneId && visibleFeatures.length === 0 && (
-                  <p className="px-3 py-2 text-xs text-slate-500">
-                    {t(
-                      "schedule.workloadCreate.milestoneEmpty",
-                      "이 마일스톤에 연결된 Feature가 없습니다",
-                    )}
-                  </p>
-                )}
-
-                {/* Existing features (scoped to the selected milestone) */}
-                {visibleFeatures.map((feature) => (
-                  <button
-                    key={feature.id}
-                    onClick={() => {
-                      setSelectedFeatureId(feature.id);
-                      setNewFeatureTitle("");
-                      setShowFeatureDropdown(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
-                    text-foreground hover:bg-foreground/5 transition-colors"
-                  >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: feature.color }}
-                    />
-                    <span className="flex-1 truncate">{feature.title}</span>
-                    {feature.id === selectedFeatureId && (
-                      <Check
-                        size={14}
-                        className="text-bridge-accent shrink-0"
-                      />
-                    )}
-                  </button>
-                ))}
-
-                {/* New feature option (only when not scoped to a milestone) */}
-                {!selectedMilestoneId && (
-                  <div className="border-t border-foreground/[0.08] mt-1 pt-1">
-                    <button
-                      onClick={() => {
-                        setSelectedFeatureId(NEW_FEATURE_SENTINEL);
-                        setShowFeatureDropdown(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
-                      text-bridge-secondary hover:bg-foreground/5 transition-colors"
-                    >
-                      <Plus size={14} className="shrink-0" />
-                      <span className="flex-1">
-                        {t(
-                          "schedule.workloadCreate.featureNew",
-                          "새 Feature 만들기",
-                        )}
-                      </span>
-                      {isNewFeature && (
-                        <Check
-                          size={14}
-                          className="text-bridge-accent shrink-0"
-                        />
-                      )}
-                    </button>
-                  </div>
-                )}
-              </div>,
-              document.body,
-            )}
-
-          {/* Inbox hint */}
-          {!selectedFeatureId && !isNewFeature && (
-            <p className="text-xs text-slate-500 mt-1.5">
-              {t("schedule.workloadCreate.inboxHint", "미분류에 추가됩니다")}
-            </p>
-          )}
-        </div>
-
-        {/* New feature title input */}
-        {isNewFeature && (
-          <div>
-            <input
-              ref={newFeatureInputRef}
-              type="text"
-              value={newFeatureTitle}
-              onChange={(e) => setNewFeatureTitle(e.target.value)}
-              placeholder={t(
-                "schedule.workloadCreate.featureNew",
-                "새 Feature 만들기",
-              )}
-              className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl
-                py-3 px-4 text-foreground placeholder-slate-500
-                focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-            />
-          </div>
-        )}
-
-        {/* Task selector (only when existing feature is selected) */}
-        {selectedFeatureId && !isNewFeature && (
-          <div ref={taskDropdownRef} className="relative">
-            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-              {t("schedule.workloadCreate.task", "Task (선택사항)")}
-            </label>
-            {isLoadingTasks ? (
-              <div className="flex items-center gap-2 py-2.5 px-3 text-xs text-slate-500">
-                <Loader2
-                  size={14}
-                  className="animate-spin text-bridge-accent"
-                />
-                {t("common.loading", "Loading...")}
-              </div>
-            ) : (
-              <>
-                <button
-                  ref={taskBtnRef}
-                  onClick={toggleTaskDropdown}
-                  className="w-full flex items-center gap-2 px-3 py-2.5
-                    bg-foreground/[0.03] border border-foreground/10 rounded-xl
-                    text-xs text-foreground hover:bg-foreground/5 transition-all
-                    focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                >
-                  {selectedTask ? (
+                  {selectedMilestone ? (
                     <span className="flex-1 text-left truncate">
-                      {selectedTask.title}
+                      {selectedMilestone.title}
                     </span>
                   ) : (
                     <span className="flex-1 text-left text-slate-500">
-                      {t("schedule.workloadCreate.taskAuto", "자동 생성")}
+                      {t("schedule.workloadCreate.milestoneNone", "전체")}
                     </span>
+                  )}
+                  {isLoadingMilestoneFeatures && (
+                    <Loader2
+                      size={14}
+                      className="animate-spin text-bridge-accent shrink-0"
+                    />
                   )}
                   <ChevronDown
                     size={14}
-                    className={`shrink-0 text-slate-400 transition-transform ${showTaskDropdown ? "rotate-180" : ""}`}
+                    className={`shrink-0 text-slate-400 transition-transform ${showMilestoneDropdown ? "rotate-180" : ""}`}
                   />
                 </button>
 
-                {showTaskDropdown &&
-                  taskMenuPos &&
+                {showMilestoneDropdown &&
+                  milestoneMenuPos &&
                   createPortal(
                     <div
-                      ref={taskMenuRef}
+                      ref={milestoneMenuRef}
                       style={{
                         position: "fixed",
-                        left: taskMenuPos.left,
-                        width: taskMenuPos.width,
-                        top: taskMenuPos.top,
-                        bottom: taskMenuPos.bottom,
-                        maxHeight: taskMenuPos.maxHeight,
+                        left: milestoneMenuPos.left,
+                        width: milestoneMenuPos.width,
+                        top: milestoneMenuPos.top,
+                        bottom: milestoneMenuPos.bottom,
+                        maxHeight: milestoneMenuPos.maxHeight,
                         zIndex: 9999,
                       }}
                       className="bg-bridge-obsidian border border-foreground/[0.08] rounded-xl shadow-xl
-                    overflow-y-auto custom-scrollbar py-1"
+                  overflow-y-auto custom-scrollbar py-1"
                     >
-                      {/* Auto-create option */}
+                      {/* All (no milestone filter) option */}
                       <button
                         onClick={() => {
-                          setSelectedTaskId(null);
-                          setShowTaskDropdown(false);
+                          setSelectedMilestoneId(null);
+                          setShowMilestoneDropdown(false);
                         }}
                         className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
-                        text-slate-400 hover:bg-foreground/5 transition-colors"
+                    text-slate-400 hover:bg-foreground/5 transition-colors"
                       >
                         <span className="flex-1">
-                          {t("schedule.workloadCreate.taskAuto", "자동 생성")}
+                          {t("schedule.workloadCreate.milestoneNone", "전체")}
                         </span>
-                        {!selectedTaskId && (
+                        {!selectedMilestoneId && (
                           <Check
                             size={14}
                             className="text-bridge-accent shrink-0"
@@ -775,19 +662,24 @@ export function WorkloadCreateModal({
                         )}
                       </button>
 
-                      {/* Existing tasks */}
-                      {tasks.map((task) => (
+                      {/* Milestones */}
+                      {milestones.map((milestone) => (
                         <button
-                          key={task.id}
+                          key={milestone.id}
                           onClick={() => {
-                            setSelectedTaskId(task.id);
-                            setShowTaskDropdown(false);
+                            setSelectedMilestoneId(milestone.id);
+                            setShowMilestoneDropdown(false);
                           }}
                           className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
-                          text-foreground hover:bg-foreground/5 transition-colors"
+                      text-foreground hover:bg-foreground/5 transition-colors"
                         >
-                          <span className="flex-1 truncate">{task.title}</span>
-                          {task.id === selectedTaskId && (
+                          <span className="flex-1 truncate">
+                            {milestone.title}
+                            <span className="text-slate-500 ml-1.5">
+                              {milestone.start_date}~{milestone.end_date}
+                            </span>
+                          </span>
+                          {milestone.id === selectedMilestoneId && (
                             <Check
                               size={14}
                               className="text-bridge-accent shrink-0"
@@ -798,34 +690,319 @@ export function WorkloadCreateModal({
                     </div>,
                     document.body,
                   )}
-              </>
+              </div>
             )}
-          </div>
-        )}
 
-        {/* Title input */}
-        <div>
-          <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-            {t("schedule.panel.itemTitle", "Item title")}
-          </label>
-          <input
-            ref={titleInputRef}
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={t(
-              "schedule.workloadCreate.titlePlaceholder",
-              "업무 제목을 입력하세요",
+            {/* Feature selector */}
+            <div ref={featureDropdownRef} className="relative">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
+                {t("schedule.workloadCreate.feature", "Feature (선택사항)")}
+              </label>
+              <button
+                ref={featureBtnRef}
+                onClick={toggleFeatureDropdown}
+                className="w-full flex items-center gap-2 px-3 py-2.5
+              bg-foreground/[0.03] border border-foreground/10 rounded-xl
+              text-xs text-foreground hover:bg-foreground/5 transition-all
+              focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+              >
+                {selectedFeature ? (
+                  <>
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: selectedFeature.color }}
+                    />
+                    <span className="flex-1 text-left truncate">
+                      {selectedFeature.title}
+                    </span>
+                  </>
+                ) : isNewFeature ? (
+                  <span className="flex-1 text-left text-bridge-secondary truncate">
+                    {t(
+                      "schedule.workloadCreate.featureNew",
+                      "새 Feature 만들기",
+                    )}
+                  </span>
+                ) : (
+                  <span className="flex-1 text-left text-slate-500">
+                    {t("schedule.workloadCreate.featureNone", "미분류")}
+                  </span>
+                )}
+                <ChevronDown
+                  size={14}
+                  className={`shrink-0 text-slate-400 transition-transform ${showFeatureDropdown ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {showFeatureDropdown &&
+                featureMenuPos &&
+                createPortal(
+                  <div
+                    ref={featureMenuRef}
+                    style={{
+                      position: "fixed",
+                      left: featureMenuPos.left,
+                      width: featureMenuPos.width,
+                      top: featureMenuPos.top,
+                      bottom: featureMenuPos.bottom,
+                      maxHeight: featureMenuPos.maxHeight,
+                      zIndex: 9999,
+                    }}
+                    className="bg-bridge-obsidian border border-foreground/[0.08] rounded-xl shadow-xl
+                overflow-y-auto custom-scrollbar py-1"
+                  >
+                    {/* None option */}
+                    <button
+                      onClick={() => {
+                        setSelectedFeatureId(null);
+                        setNewFeatureTitle("");
+                        setShowFeatureDropdown(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
+                  text-slate-400 hover:bg-foreground/5 transition-colors"
+                    >
+                      <span className="flex-1">
+                        {t("schedule.workloadCreate.featureNone", "미분류")}
+                      </span>
+                      {!selectedFeatureId && (
+                        <Check
+                          size={14}
+                          className="text-bridge-accent shrink-0"
+                        />
+                      )}
+                    </button>
+
+                    {/* Empty milestone hint */}
+                    {selectedMilestoneId && visibleFeatures.length === 0 && (
+                      <p className="px-3 py-2 text-xs text-slate-500">
+                        {t(
+                          "schedule.workloadCreate.milestoneEmpty",
+                          "이 마일스톤에 연결된 Feature가 없습니다",
+                        )}
+                      </p>
+                    )}
+
+                    {/* Existing features (scoped to the selected milestone) */}
+                    {visibleFeatures.map((feature) => (
+                      <button
+                        key={feature.id}
+                        onClick={() => {
+                          setSelectedFeatureId(feature.id);
+                          setNewFeatureTitle("");
+                          setShowFeatureDropdown(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
+                    text-foreground hover:bg-foreground/5 transition-colors"
+                      >
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: feature.color }}
+                        />
+                        <span className="flex-1 truncate">{feature.title}</span>
+                        {feature.id === selectedFeatureId && (
+                          <Check
+                            size={14}
+                            className="text-bridge-accent shrink-0"
+                          />
+                        )}
+                      </button>
+                    ))}
+
+                    {/* New feature option (only when not scoped to a milestone) */}
+                    {!selectedMilestoneId && (
+                      <div className="border-t border-foreground/[0.08] mt-1 pt-1">
+                        <button
+                          onClick={() => {
+                            setSelectedFeatureId(NEW_FEATURE_SENTINEL);
+                            setShowFeatureDropdown(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
+                      text-bridge-secondary hover:bg-foreground/5 transition-colors"
+                        >
+                          <Plus size={14} className="shrink-0" />
+                          <span className="flex-1">
+                            {t(
+                              "schedule.workloadCreate.featureNew",
+                              "새 Feature 만들기",
+                            )}
+                          </span>
+                          {isNewFeature && (
+                            <Check
+                              size={14}
+                              className="text-bridge-accent shrink-0"
+                            />
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>,
+                  document.body,
+                )}
+
+              {/* Inbox hint */}
+              {!selectedFeatureId && !isNewFeature && (
+                <p className="text-xs text-slate-500 mt-1.5">
+                  {t(
+                    "schedule.workloadCreate.inboxHint",
+                    "미분류에 추가됩니다",
+                  )}
+                </p>
+              )}
+            </div>
+
+            {/* New feature title input */}
+            {isNewFeature && (
+              <div>
+                <input
+                  ref={newFeatureInputRef}
+                  type="text"
+                  value={newFeatureTitle}
+                  onChange={(e) => setNewFeatureTitle(e.target.value)}
+                  placeholder={t(
+                    "schedule.workloadCreate.featureNew",
+                    "새 Feature 만들기",
+                  )}
+                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl
+                py-3 px-4 text-foreground placeholder-slate-500
+                focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                />
+              </div>
             )}
-            className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl
+
+            {/* Task selector (only when existing feature is selected) */}
+            {selectedFeatureId && !isNewFeature && (
+              <div ref={taskDropdownRef} className="relative">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
+                  {t("schedule.workloadCreate.task", "Task (선택사항)")}
+                </label>
+                {isLoadingTasks ? (
+                  <div className="flex items-center gap-2 py-2.5 px-3 text-xs text-slate-500">
+                    <Loader2
+                      size={14}
+                      className="animate-spin text-bridge-accent"
+                    />
+                    {t("common.loading", "Loading...")}
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      ref={taskBtnRef}
+                      onClick={toggleTaskDropdown}
+                      className="w-full flex items-center gap-2 px-3 py-2.5
+                    bg-foreground/[0.03] border border-foreground/10 rounded-xl
+                    text-xs text-foreground hover:bg-foreground/5 transition-all
+                    focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                    >
+                      {selectedTask ? (
+                        <span className="flex-1 text-left truncate">
+                          {selectedTask.title}
+                        </span>
+                      ) : (
+                        <span className="flex-1 text-left text-slate-500">
+                          {t("schedule.workloadCreate.taskAuto", "자동 생성")}
+                        </span>
+                      )}
+                      <ChevronDown
+                        size={14}
+                        className={`shrink-0 text-slate-400 transition-transform ${showTaskDropdown ? "rotate-180" : ""}`}
+                      />
+                    </button>
+
+                    {showTaskDropdown &&
+                      taskMenuPos &&
+                      createPortal(
+                        <div
+                          ref={taskMenuRef}
+                          style={{
+                            position: "fixed",
+                            left: taskMenuPos.left,
+                            width: taskMenuPos.width,
+                            top: taskMenuPos.top,
+                            bottom: taskMenuPos.bottom,
+                            maxHeight: taskMenuPos.maxHeight,
+                            zIndex: 9999,
+                          }}
+                          className="bg-bridge-obsidian border border-foreground/[0.08] rounded-xl shadow-xl
+                    overflow-y-auto custom-scrollbar py-1"
+                        >
+                          {/* Auto-create option */}
+                          <button
+                            onClick={() => {
+                              setSelectedTaskId(null);
+                              setShowTaskDropdown(false);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
+                        text-slate-400 hover:bg-foreground/5 transition-colors"
+                          >
+                            <span className="flex-1">
+                              {t(
+                                "schedule.workloadCreate.taskAuto",
+                                "자동 생성",
+                              )}
+                            </span>
+                            {!selectedTaskId && (
+                              <Check
+                                size={14}
+                                className="text-bridge-accent shrink-0"
+                              />
+                            )}
+                          </button>
+
+                          {/* Existing tasks */}
+                          {tasks.map((task) => (
+                            <button
+                              key={task.id}
+                              onClick={() => {
+                                setSelectedTaskId(task.id);
+                                setShowTaskDropdown(false);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
+                          text-foreground hover:bg-foreground/5 transition-colors"
+                            >
+                              <span className="flex-1 truncate">
+                                {task.title}
+                              </span>
+                              {task.id === selectedTaskId && (
+                                <Check
+                                  size={14}
+                                  className="text-bridge-accent shrink-0"
+                                />
+                              )}
+                            </button>
+                          ))}
+                        </div>,
+                        document.body,
+                      )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Title input */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
+                {t("schedule.panel.itemTitle", "Item title")}
+              </label>
+              <input
+                ref={titleInputRef}
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={t(
+                  "schedule.workloadCreate.titlePlaceholder",
+                  "업무 제목을 입력하세요",
+                )}
+                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl
               py-3 px-4 text-foreground placeholder-slate-500
               focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-          />
-        </div>
+              />
+            </div>
 
-        {/* Error */}
-        {error && <p className="text-xs text-red-400">{error}</p>}
+            {/* Error */}
+            {error && <p className="text-xs text-red-400">{error}</p>}
+          </>
+        )}
       </div>
 
       {/* Footer */}
@@ -834,8 +1011,11 @@ export function WorkloadCreateModal({
           Esc {t("schedule.workloadCreate.cancel", "취소")}
         </span>
         <button
-          onClick={handleSubmit}
-          disabled={!canSubmit || isSubmitting}
+          onClick={tab === "absence" ? handleSubmitAbsence : handleSubmit}
+          disabled={
+            (tab === "absence" ? title.trim().length === 0 : !canSubmit) ||
+            isSubmitting
+          }
           className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-bridge-accent
             disabled:opacity-50 disabled:cursor-not-allowed
             hover:bg-bridge-accent/90 transition-all"

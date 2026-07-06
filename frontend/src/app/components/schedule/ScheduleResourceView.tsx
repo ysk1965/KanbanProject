@@ -359,6 +359,12 @@ export function ScheduleResourceView({
   // ─── 업무 생성 바 그리기 상태 ───
   const [drawState, setDrawState] = useState<DrawState | null>(null);
   const drawStateRef = useRef<DrawState | null>(null);
+  // ─── 이벤트 밴드 기간 드래그 상태 ───
+  const [eventDraw, setEventDraw] = useState<{
+    startDayIndex: number;
+    currentDayIndex: number;
+  } | null>(null);
+  const eventDrawRef = useRef<typeof eventDraw>(null);
   /** 그리기 완료 후 업무 생성 모달 (확정된 기간/행) */
   const [pendingCreate, setPendingCreate] = useState<{
     rowId: string;
@@ -536,7 +542,7 @@ export function ScheduleResourceView({
   // Scroll to today on mount
   useEffect(() => {
     if (!loading && scrollContainerRef.current && todayIndex >= 0) {
-      const scrollTo = todayIndex * dayWidth - 7 * dayWidth;
+      const scrollTo = todayIndex * dayWidth - 4 * dayWidth;
       scrollContainerRef.current.scrollLeft = Math.max(0, scrollTo);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1411,6 +1417,77 @@ export function ScheduleResourceView({
     [externalDragItem, timelineDays],
   );
 
+  // ─── 이벤트 밴드에서 기간 드래그 → 팀 이벤트 추가 모달 ───
+  const handleEventDrawStart = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.button !== 0) return;
+      if (externalDragItem || dragStateRef.current) return;
+      const target = e.target as HTMLElement;
+      if (target.closest("[data-bar]")) return; // 기존 이벤트 칩 위에서 시작하면 무시
+
+      const container = scrollContainerRef.current;
+      const rect = container?.getBoundingClientRect();
+      const scrollLeft = container?.scrollLeft || 0;
+      const startDayIndex = Math.floor(
+        (e.clientX - (rect?.left || 0) - LEFT_COL_WIDTH + scrollLeft) /
+          dayWidth,
+      );
+      if (startDayIndex < 0 || startDayIndex >= timelineDays.length) return;
+
+      const startClientX = e.clientX;
+      let moved = false;
+      const initial = { startDayIndex, currentDayIndex: startDayIndex };
+      eventDrawRef.current = initial;
+      setEventDraw(initial);
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "crosshair";
+
+      const handleMove = (moveEvent: MouseEvent) => {
+        const ds = eventDrawRef.current;
+        if (!ds) return;
+        if (Math.abs(moveEvent.clientX - startClientX) >= DRAW_DRAG_THRESHOLD) {
+          moved = true;
+        }
+        const cont = scrollContainerRef.current;
+        const r = cont?.getBoundingClientRect();
+        const sl = cont?.scrollLeft || 0;
+        let dayIndex = Math.floor(
+          (moveEvent.clientX - (r?.left || 0) - LEFT_COL_WIDTH + sl) / dayWidth,
+        );
+        dayIndex = Math.max(0, Math.min(timelineDays.length - 1, dayIndex));
+        if (dayIndex !== ds.currentDayIndex) {
+          const updated = { ...ds, currentDayIndex: dayIndex };
+          eventDrawRef.current = updated;
+          setEventDraw(updated);
+        }
+      };
+
+      const handleUp = () => {
+        document.removeEventListener("mousemove", handleMove);
+        document.removeEventListener("mouseup", handleUp);
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+        const ds = eventDrawRef.current;
+        eventDrawRef.current = null;
+        setEventDraw(null);
+        if (!ds) return;
+
+        const a = Math.min(ds.startDayIndex, ds.currentDayIndex);
+        const b = Math.max(ds.startDayIndex, ds.currentDayIndex);
+        // 드래그(여러 날)면 기간, 단순 클릭이면 그 날 하루로 프리필
+        openEventModal({
+          category: "TEAM",
+          date: formatDateStr(timelineDays[a]),
+          endDate: formatDateStr(timelineDays[moved ? b : a]),
+        });
+      };
+
+      document.addEventListener("mousemove", handleMove);
+      document.addEventListener("mouseup", handleUp);
+    },
+    [externalDragItem, timelineDays, dayWidth, openEventModal],
+  );
+
   // ─── 바 삭제 (체크리스트) ───
   const handleDeleteBarItem = useCallback(
     async (item: AssigneeItemResponse) => {
@@ -1576,7 +1653,7 @@ export function ScheduleResourceView({
   const totalTimelineWidth = timelineDays.length * dayWidth;
   const totalContentHeight =
     (milestoneBarData.length > 0 ? MILESTONE_ROW_HEIGHT : 0) +
-    (teamEventBarData.length > 0 ? MILESTONE_ROW_HEIGHT : 0) +
+    MILESTONE_ROW_HEIGHT + // 이벤트 밴드는 항상 표시 (드래그 생성 영역)
     rows.length * ROW_HEIGHT;
 
   return (
@@ -1867,8 +1944,8 @@ export function ScheduleResourceView({
             </div>
           )}
 
-          {/* ─── Event band (팀 공통 이벤트) ─── */}
-          {teamEventBarData.length > 0 && (
+          {/* ─── Event band (팀 공통 이벤트) — 기간 드래그로 추가 ─── */}
+          {
             <div className="flex border-b border-foreground/[0.08]">
               {/* Left label */}
               <div
@@ -1885,13 +1962,15 @@ export function ScheduleResourceView({
                 </span>
               </div>
 
-              {/* Timeline area */}
+              {/* Timeline area — 드래그로 기간 이벤트 생성 */}
               <div
-                className="relative"
+                className="relative cursor-crosshair"
                 style={{
                   width: totalTimelineWidth,
                   height: MILESTONE_ROW_HEIGHT,
                 }}
+                onMouseDown={handleEventDrawStart}
+                title="드래그: 기간 이벤트 추가"
               >
                 {/* Weekend + holiday columns */}
                 {timelineDays.map((day, idx) => {
@@ -1919,6 +1998,7 @@ export function ScheduleResourceView({
                   return (
                     <div
                       key={event.id}
+                      data-bar="true"
                       className="absolute rounded-lg flex items-center gap-1 px-2 text-xs font-medium text-white
                         hover:shadow-lg transition-all cursor-pointer overflow-hidden"
                       style={{
@@ -1934,6 +2014,7 @@ export function ScheduleResourceView({
                       } (${event.start_date}${
                         singleDay ? "" : " ~ " + event.end_date
                       })`}
+                      onMouseDown={(e) => e.stopPropagation()}
                       onClick={() => openEventModal(undefined, event)}
                     >
                       <span>{meta.icon}</span>
@@ -1944,6 +2025,31 @@ export function ScheduleResourceView({
                   );
                 })}
 
+                {/* 드래그 중 고스트 선택 영역 */}
+                {eventDraw &&
+                  (() => {
+                    const a = Math.min(
+                      eventDraw.startDayIndex,
+                      eventDraw.currentDayIndex,
+                    );
+                    const b = Math.max(
+                      eventDraw.startDayIndex,
+                      eventDraw.currentDayIndex,
+                    );
+                    return (
+                      <div
+                        className="absolute rounded-lg border-2 border-dashed border-bridge-secondary
+                          bg-bridge-secondary/15 pointer-events-none z-20"
+                        style={{
+                          left: a * dayWidth,
+                          width: (b - a + 1) * dayWidth,
+                          top: (MILESTONE_ROW_HEIGHT - 26) / 2,
+                          height: 26,
+                        }}
+                      />
+                    );
+                  })()}
+
                 {/* Today line */}
                 {todayIndex >= 0 && (
                   <div
@@ -1953,7 +2059,7 @@ export function ScheduleResourceView({
                 )}
               </div>
             </div>
-          )}
+          }
 
           {/* ─── Member rows ─── */}
           {rows.map((row, rowIndex) => {
@@ -2562,6 +2668,14 @@ export function ScheduleResourceView({
           !pendingCreate.rowId.startsWith("contractor:") &&
           pendingCreate.rowId !== "__unassigned__"
             ? pendingCreate.rowId
+            : null
+        }
+        assigneeName={
+          pendingCreate &&
+          !pendingCreate.rowId.startsWith("contractor:") &&
+          pendingCreate.rowId !== "__unassigned__"
+            ? boardMembers.find((m) => m.userId === pendingCreate.rowId)
+                ?.name || null
             : null
         }
         contractorId={
