@@ -51,6 +51,7 @@ import {
   X,
 } from "lucide-react";
 import * as Y from "yjs";
+import { toast } from "sonner";
 import { NoteShareButton } from "./NoteShareButton";
 import { NoteVersionHistory } from "./NoteVersionHistory";
 import { NoteTagManager } from "./NoteTagManager";
@@ -659,6 +660,8 @@ function FlowCanvas({
   const [interactionMode, setInteractionMode] = useState<"hand" | "pointer">(
     "hand",
   );
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const dragDepthRef = useRef(0);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -711,9 +714,8 @@ function FlowCanvas({
     return collaboration.provider.onSnapshotUpdated(async () => {
       if (modeRef.current !== "view") return;
       try {
-        const { noteService, orgNoteService } = await import(
-          "../../utils/services"
-        );
+        const { noteService, orgNoteService } =
+          await import("../../utils/services");
         const updated = boardId
           ? await noteService.getDetail(boardId, note.id)
           : orgId
@@ -729,7 +731,15 @@ function FlowCanvas({
         console.error("Flow snapshot refetch failed:", err);
       }
     });
-  }, [collaboration, note.id, boardId, orgId, onNoteUpdate, setNodes, setEdges]);
+  }, [
+    collaboration,
+    note.id,
+    boardId,
+    orgId,
+    onNoteUpdate,
+    setNodes,
+    setEdges,
+  ]);
 
   // Yjs 옵저버: 원격 변경 → 캔버스 재구성 (편집 모드에서만)
   useEffect(() => {
@@ -893,16 +903,14 @@ function FlowCanvas({
     [screenToFlowPosition],
   );
 
-  const addNode = useCallback(
+  // 지정 좌표에 노드 생성
+  const addNodeAt = useCallback(
     (
       type: FlowNodeKind,
       data: Record<string, unknown>,
-      size?: {
-        width: number;
-        height: number;
-      },
+      pos: { x: number; y: number },
+      size?: { width: number; height: number },
     ) => {
-      const pos = centerPos();
       setNodes((nds) => [
         ...nds,
         {
@@ -914,7 +922,21 @@ function FlowCanvas({
         },
       ]);
     },
-    [centerPos, setNodes],
+    [setNodes],
+  );
+
+  const addNode = useCallback(
+    (
+      type: FlowNodeKind,
+      data: Record<string, unknown>,
+      size?: {
+        width: number;
+        height: number;
+      },
+    ) => {
+      addNodeAt(type, data, centerPos(), size);
+    },
+    [centerPos, addNodeAt],
   );
 
   const addText = useCallback(
@@ -955,34 +977,141 @@ function FlowCanvas({
     }
   }, []);
 
-  const handleFileSelected = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      const kind = pendingMediaRef.current;
-      pendingMediaRef.current = null;
-      if (!file || !kind) return;
+  // 파일 하나를 업로드 → 타입 판별 → 지정 좌표에 image/video 노드 생성
+  // (팔레트 버튼·붙여넣기·드롭이 공유)
+  const uploadAndAddMedia = useCallback(
+    async (file: File, pos: { x: number; y: number }) => {
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      if (!isImage && !isVideo) return; // 지원 타입만
       try {
         const scope = boardId ? { boardId } : { organizationId: orgId! };
         const { url } = await fileAPI.uploadNote(file, scope);
-        if (kind === "image") {
-          addNode(
-            "image",
-            { url, caption: file.name },
-            { width: 200, height: 150 },
-          );
+        if (isImage) {
+          addNodeAt("image", { url, caption: file.name }, pos, {
+            width: 200,
+            height: 150,
+          });
         } else {
-          addNode(
-            "video",
-            { url, caption: file.name },
-            { width: 240, height: 150 },
-          );
+          addNodeAt("video", { url, caption: file.name }, pos, {
+            width: 240,
+            height: 150,
+          });
         }
       } catch (err) {
         console.error("Flow media upload failed:", err);
+        toast.error(
+          t(
+            "flow.mediaUploadFailed",
+            "미디어 업로드에 실패했습니다. 파일 크기나 형식을 확인해주세요.",
+          ),
+        );
       }
     },
-    [addNode, boardId, orgId],
+    [addNodeAt, boardId, orgId, t],
   );
+
+  const handleFileSelected = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files ? Array.from(e.target.files) : [];
+      pendingMediaRef.current = null;
+      if (files.length === 0) return;
+      const base = centerPos();
+      for (let i = 0; i < files.length; i++) {
+        // 여러 장이면 살짝 어긋난 위치로 나란히 배치
+        await uploadAndAddMedia(files[i], {
+          x: base.x + i * 24,
+          y: base.y + i * 24,
+        });
+      }
+    },
+    [uploadAndAddMedia, centerPos],
+  );
+
+  // ── 파일 드래그 드롭 ────────────────────────────────────────
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (!(canEdit && mode === "edit")) return;
+      if (!Array.from(e.dataTransfer.types).includes("Files")) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    },
+    [canEdit, mode],
+  );
+
+  const handleDragEnter = useCallback(
+    (e: React.DragEvent) => {
+      if (!(canEdit && mode === "edit")) return;
+      if (!Array.from(e.dataTransfer.types).includes("Files")) return;
+      dragDepthRef.current += 1;
+      setIsDraggingFile(true);
+    },
+    [canEdit, mode],
+  );
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (!Array.from(e.dataTransfer.types).includes("Files")) return;
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setIsDraggingFile(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      dragDepthRef.current = 0;
+      setIsDraggingFile(false);
+      if (!(canEdit && mode === "edit")) return;
+      const files = Array.from(e.dataTransfer.files || []).filter(
+        (f) => f.type.startsWith("image/") || f.type.startsWith("video/"),
+      );
+      if (files.length === 0) return;
+      e.preventDefault();
+      // 놓은 지점을 캔버스 좌표로 변환
+      const base = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      for (let i = 0; i < files.length; i++) {
+        await uploadAndAddMedia(files[i], {
+          x: base.x + i * 24,
+          y: base.y + i * 24,
+        });
+      }
+    },
+    [canEdit, mode, screenToFlowPosition, uploadAndAddMedia],
+  );
+
+  // ── 클립보드 붙여넣기 (이미지) ──────────────────────────────
+  useEffect(() => {
+    if (!(canEdit && mode === "edit")) return;
+    const onPaste = async (e: ClipboardEvent) => {
+      // 텍스트 입력 편집 중이면 기본 붙여넣기에 양보
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable)
+      )
+        return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const images: File[] = [];
+      for (const item of Array.from(items)) {
+        if (item.kind === "file" && item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) images.push(file);
+        }
+      }
+      if (images.length === 0) return;
+      e.preventDefault();
+      const base = centerPos();
+      for (let i = 0; i < images.length; i++) {
+        await uploadAndAddMedia(images[i], {
+          x: base.x + i * 24,
+          y: base.y + i * 24,
+        });
+      }
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, [canEdit, mode, centerPos, uploadAndAddMedia]);
 
   // 저장 (스냅샷 발행 + 버전 생성)
   const handleSave = useCallback(async () => {
@@ -1246,7 +1375,22 @@ function FlowCanvas({
           className={`flex-1 relative ${
             interactionMode === "pointer" ? "fl-pointer" : ""
           }`}
+          onDragOver={handleDragOver}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
         >
+          {/* 파일 드롭 오버레이 */}
+          {editable && isDraggingFile && (
+            <div className="absolute inset-3 z-40 pointer-events-none rounded-2xl border-2 border-dashed border-bridge-accent/70 bg-bridge-accent/10 backdrop-blur-[1px] flex items-center justify-center">
+              <div className="flex flex-col items-center gap-2 text-bridge-accent">
+                <ImageIcon className="w-8 h-8" />
+                <span className="text-sm font-bold">
+                  {t("flow.dropHere", "여기에 이미지·영상을 놓으세요")}
+                </span>
+              </div>
+            </div>
+          )}
           {/* 팔레트 툴바 (편집 모드) */}
           {editable && (
             <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 bg-bridge-obsidian/85 backdrop-blur-md border border-foreground/[0.08] rounded-2xl px-2 py-1.5 shadow-2xl">
@@ -1395,6 +1539,7 @@ function FlowCanvas({
       <input
         ref={fileInputRef}
         type="file"
+        multiple
         className="hidden"
         onChange={handleFileSelected}
       />

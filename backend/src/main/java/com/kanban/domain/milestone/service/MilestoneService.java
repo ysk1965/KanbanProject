@@ -35,6 +35,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -77,15 +78,20 @@ public class MilestoneService {
         List<Milestone> milestones = milestoneRepository.findByBoardIdWithDetailsOrderByStartDateAsc(boardId);
 
         if (milestones.isEmpty()) {
-            return MilestoneResponse.ListResponse.of(milestones, Map.of(), Map.of(), Map.of());
+            return MilestoneResponse.ListResponse.of(milestones, Map.of(), Map.of(), Map.of(), Map.of());
         }
 
         // 1회 쿼리로 모든 마일스톤의 features 조회 (N+1 해결)
         List<MilestoneFeature> allMilestoneFeatures = milestoneFeatureRepository.findByBoardIdWithFeatures(boardId);
 
-        // 마일스톤 ID별로 링크(피처 + isPrimary) 그룹핑 — 표시용 전체
+        // 마일스톤 ID별로 링크 그룹핑 — 표시용 전체
         Map<String, List<MilestoneFeature>> linksMap = allMilestoneFeatures.stream()
                 .collect(Collectors.groupingBy(mf -> mf.getMilestone().getId()));
+
+        // 피처별 홈(대표) 마일스톤 파생: 연결된 마일스톤 중 가장 이른 시작일(동률 시 마일스톤 id)
+        Map<String, LocalDate> msStart = milestones.stream()
+                .collect(Collectors.toMap(Milestone::getId, Milestone::getStartDate));
+        Map<String, String> homeByFeature = deriveHomeMilestones(allMilestoneFeatures, msStart);
 
         // (마일스톤, 피처)별 태스크 카운트 1회 집계 — 진행률 + 피처별 카운트 공용
         Map<String, Map<String, int[]>> countsMap = taskCountsByMilestoneFeature(boardId);
@@ -96,7 +102,7 @@ public class MilestoneService {
             progressMap.put(milestone.getId(), progressFromCounts(countsMap.get(milestone.getId())));
         }
 
-        return MilestoneResponse.ListResponse.of(milestones, linksMap, progressMap, countsMap);
+        return MilestoneResponse.ListResponse.of(milestones, linksMap, progressMap, countsMap, homeByFeature);
     }
 
     public MilestoneResponse.Detail getMilestone(String boardId, String milestoneId, String userId) {
@@ -141,17 +147,12 @@ public class MilestoneService {
                 throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
             }
 
-            // 이미 다른 마일스톤에 대표 링크를 가진 피처는 "이어짐"(non-primary)으로 추가
-            Set<String> havingPrimary = new HashSet<>(
-                    milestoneFeatureRepository.findFeatureIdsHavingPrimary(request.getFeatureIds()));
-
             List<MilestoneFeature> links = new ArrayList<>();
             for (Feature feature : featuresToLink) {
                 if (!feature.getBoard().getId().equals(boardId)) {
                     throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
                 }
-                boolean primary = !havingPrimary.contains(feature.getId());
-                links.add(MilestoneFeature.create(milestone, feature, primary));
+                links.add(MilestoneFeature.create(milestone, feature));
             }
             milestoneFeatureRepository.saveAll(links);
         }
@@ -249,17 +250,12 @@ public class MilestoneService {
         if (!newFeatureIds.isEmpty()) {
             List<Feature> featuresToAdd = featureRepository.findAllById(newFeatureIds);
 
-            // 이미 다른 마일스톤에 대표 링크를 가진 피처는 "이어짐"(non-primary)으로 추가
-            Set<String> havingPrimary = new HashSet<>(
-                    milestoneFeatureRepository.findFeatureIdsHavingPrimary(newFeatureIds));
-
             List<MilestoneFeature> newLinks = new ArrayList<>();
             for (Feature feature : featuresToAdd) {
                 if (!feature.getBoard().getId().equals(boardId)) {
                     throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
                 }
-                boolean primary = !havingPrimary.contains(feature.getId());
-                newLinks.add(MilestoneFeature.create(milestone, feature, primary));
+                newLinks.add(MilestoneFeature.create(milestone, feature));
             }
             milestoneFeatureRepository.saveAll(newLinks);
         }
@@ -285,60 +281,24 @@ public class MilestoneService {
         if (target == null) {
             return;
         }
-        boolean wasPrimary = target.isPrimary();
         milestoneFeatureRepository.delete(target);
         milestoneFeatureRepository.flush();
 
-        // 대표 링크를 제거했고 다른 이어짐 링크가 남아있다면, 가장 이른 마일스톤을 대표로 승격 (불변식 유지).
-        // 삭제를 먼저 flush해야 부분 유니크 인덱스(대표 1개)와 충돌하지 않음.
-        Milestone newPrimary;
-        if (wasPrimary) {
-            MilestoneFeature promoted = milestoneFeatureRepository.findByFeatureIdOrderByMilestoneStartDate(featureId)
-                    .stream().findFirst().orElse(null);
-            if (promoted != null) {
-                promoted.updatePrimary(true);
-            }
-            newPrimary = promoted != null ? promoted.getMilestone() : null;
-        } else {
-            newPrimary = milestoneFeatureRepository.findByFeatureIdAndIsPrimaryTrue(featureId)
-                    .map(MilestoneFeature::getMilestone).orElse(null);
-        }
+        // 제거 후 남은 링크 중 가장 이른 마일스톤이 새 홈(대표). 삭제를 먼저 flush해야 파생이 정확.
+        Milestone newHome = milestoneFeatureRepository.findByFeatureIdOrderByMilestoneStartDate(featureId)
+                .stream().findFirst()
+                .map(MilestoneFeature::getMilestone)
+                .orElse(null);
 
-        // 제거된 마일스톤에 배정돼 있던 이 피처의 태스크를 새 대표 마일스톤(없으면 null)으로 재배정 (불변식 유지)
+        // 제거된 마일스톤에 배정돼 있던 이 피처의 태스크를 새 홈 마일스톤(없으면 null)으로 재배정
+        // (불변식: task.milestone ∈ 피처가 연결된 마일스톤)
         List<Task> orphanTasks = taskRepository.findByFeatureIdAndMilestoneId(featureId, milestoneId);
         for (Task tk : orphanTasks) {
-            tk.assignMilestone(newPrimary);
+            tk.assignMilestone(newHome);
         }
 
         log.info("Feature {} removed from milestone {} by user: {} ({} tasks reassigned)",
                 featureId, milestoneId, userId, orphanTasks.size());
-    }
-
-    /**
-     * 피처의 대표(홈) 마일스톤을 이 마일스톤으로 변경.
-     * 기존 대표 링크는 이어짐(false)으로 강등하고, 이 (마일스톤, 피처) 링크를 대표(true)로 승격한다.
-     */
-    @Transactional
-    public MilestoneResponse.Detail setPrimaryFeature(String boardId, String milestoneId, String featureId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
-
-        Milestone milestone = getMilestoneWithBoardCheck(boardId, milestoneId);
-
-        MilestoneFeature target = milestoneFeatureRepository
-                .findByMilestoneIdAndFeatureId(milestoneId, featureId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
-
-        if (!target.isPrimary()) {
-            // 기존 대표 강등을 먼저 flush한 뒤 승격해야 부분 유니크 인덱스(대표 1개)와 충돌하지 않음
-            milestoneFeatureRepository.findByFeatureIdAndIsPrimaryTrue(featureId)
-                    .ifPresent(current -> current.updatePrimary(false));
-            milestoneFeatureRepository.flush();
-            target.updatePrimary(true);
-        }
-
-        log.info("Feature {} primary milestone set to {} by user: {}", featureId, milestoneId, userId);
-
-        return buildDetail(milestone);
     }
 
     /** 마일스톤 상세 응답 구성 — 표시용 전체 링크 + 진행률/피처 카운트(태스크 단위, 이 마일스톤 스코프) */
@@ -347,7 +307,47 @@ public class MilestoneService {
         Map<String, int[]> featureCounts = taskCountsByMilestoneFeature(milestone.getBoard().getId())
                 .getOrDefault(milestone.getId(), Map.of());
         int progress = progressFromCounts(featureCounts);
-        return MilestoneResponse.Detail.of(milestone, links, progress, featureCounts);
+
+        // 이 마일스톤에 속한 각 피처의 홈(대표) 마일스톤 파생 (가장 이른 시작일, 동률 시 마일스톤 id)
+        Map<String, String> homeByFeature = new HashMap<>();
+        for (MilestoneFeature link : links) {
+            String featureId = link.getFeature().getId();
+            if (homeByFeature.containsKey(featureId)) {
+                continue;
+            }
+            milestoneFeatureRepository.findByFeatureIdOrderByMilestoneStartDate(featureId).stream()
+                    .findFirst()
+                    .ifPresent(first -> homeByFeature.put(featureId, first.getMilestone().getId()));
+        }
+
+        return MilestoneResponse.Detail.of(milestone, links, progress, featureCounts, homeByFeature);
+    }
+
+    /**
+     * 피처별 홈(대표) 마일스톤 파생 — 연결된 마일스톤 중 시작일이 가장 이른 것(동률 시 마일스톤 id).
+     * 저장된 플래그가 아니라 링크와 마일스톤 시작일로 계산한다.
+     */
+    private Map<String, String> deriveHomeMilestones(List<MilestoneFeature> allLinks, Map<String, LocalDate> msStart) {
+        Map<String, String> home = new HashMap<>();
+        Map<String, LocalDate> bestStart = new HashMap<>();
+        for (MilestoneFeature link : allLinks) {
+            String featureId = link.getFeature().getId();
+            String milestoneId = link.getMilestone().getId();
+            LocalDate start = msStart.get(milestoneId);
+            if (start == null) {
+                continue;
+            }
+            LocalDate curStart = bestStart.get(featureId);
+            String curMilestone = home.get(featureId);
+            boolean better = curStart == null
+                    || start.isBefore(curStart)
+                    || (start.isEqual(curStart) && milestoneId.compareTo(curMilestone) < 0);
+            if (better) {
+                bestStart.put(featureId, start);
+                home.put(featureId, milestoneId);
+            }
+        }
+        return home;
     }
 
     @Transactional

@@ -9,7 +9,9 @@
     "addImage": "छवि",
     "addVideo": "वीडियो",
     "empty": "शुरू करने के लिए ऊपर की पट्टी से नोड जोड़ें",
-    "emptyReadOnly": "यह फ़्लो खाली है"
+    "emptyReadOnly": "यह फ़्लो खाली है",
+    "dropHere": "यहाँ छवि या वीडियो छोड़ें",
+    "mediaUploadFailed": "मीडिया अपलोड विफल। कृपया फ़ाइल का आकार या प्रारूप जाँचें।"
   },
   "common": {
     "loading": "लोड हो रहा है...",
@@ -743,6 +745,7 @@
     "noMeetingsForDate": "{{date}} के लिए कोई पंजीकृत बैठक नहीं",
     "selectFromBoard": "मौजूदा आइटम से चुनें",
     "noBoardItems": "जोड़ने के लिए कोई चेकलिस्ट आइटम उपलब्ध नहीं",
+    "noDueDate": "कोई तिथि नहीं",
     "select": "चुनें",
     "collapse": "संक्षिप्त करें",
     "createNew": "नया बनाएं",
@@ -1502,6 +1505,7 @@
     "defaultAction": " ने एक कार्रवाई की"
   },
   "feature": {
+    "periodFollowsMilestone": "माइलस्टोन की अवधि का अनुसरण करता है",
     "addTitle": "नया Feature जोड़ें",
     "titleLabel": "शीर्षक",
     "titlePlaceholder": "उदा. लॉगिन Feature लागू करें",

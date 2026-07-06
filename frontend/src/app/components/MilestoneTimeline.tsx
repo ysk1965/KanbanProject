@@ -297,10 +297,17 @@ export function MilestoneTimeline({
       const milestoneFeatures = cached?.features ?? milestone.features ?? [];
       for (const fi of milestoneFeatures) {
         const feat = featureMap.get(fi.id);
+        // 피처 자체 날짜 우선 → 없으면 부모 마일스톤 기간을 따름
         const fStart = feat?.start_date
           ? parseLocalDate(feat.start_date)
-          : null;
-        const fEnd = feat?.due_date ? parseLocalDate(feat.due_date) : null;
+          : hasDates
+            ? parseLocalDate(milestone.start_date)
+            : null;
+        const fEnd = feat?.due_date
+          ? parseLocalDate(feat.due_date)
+          : hasDates
+            ? parseLocalDate(milestone.end_date)
+            : null;
         const hasFeatDates = !!(fStart && fEnd);
         rows.push({
           kind: "feature",

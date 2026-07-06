@@ -60,11 +60,12 @@ public class MilestoneResponse {
         private LocalDateTime createdAt;
 
         public static DetailSimple of(Milestone milestone, List<MilestoneFeature> links, int progressPercentage,
-                                      Map<String, int[]> featureCounts) {
+                                      Map<String, int[]> featureCounts, Map<String, String> homeByFeature) {
             List<FeatureInfo> featureInfos = links.stream()
                     .map(link -> {
                         int[] c = featureCounts.getOrDefault(link.getFeature().getId(), new int[]{0, 0});
-                        return FeatureInfo.of(link, c[0], c[1]);
+                        boolean isHome = milestone.getId().equals(homeByFeature.get(link.getFeature().getId()));
+                        return FeatureInfo.of(link, c[0], c[1], isHome);
                     })
                     .toList();
 
@@ -99,11 +100,12 @@ public class MilestoneResponse {
         private LocalDateTime createdAt;
 
         public static Detail of(Milestone milestone, List<MilestoneFeature> links, int progressPercentage,
-                                Map<String, int[]> featureCounts) {
+                                Map<String, int[]> featureCounts, Map<String, String> homeByFeature) {
             List<FeatureInfo> featureInfos = links.stream()
                     .map(link -> {
                         int[] c = featureCounts.getOrDefault(link.getFeature().getId(), new int[]{0, 0});
-                        return FeatureInfo.of(link, c[0], c[1]);
+                        boolean isHome = milestone.getId().equals(homeByFeature.get(link.getFeature().getId()));
+                        return FeatureInfo.of(link, c[0], c[1], isHome);
                     })
                     .toList();
 
@@ -134,13 +136,15 @@ public class MilestoneResponse {
         public static ListResponse of(List<Milestone> milestones,
                                       Map<String, List<MilestoneFeature>> linksMap,
                                       Map<String, Integer> progressMap,
-                                      Map<String, Map<String, int[]>> countsMap) {
+                                      Map<String, Map<String, int[]>> countsMap,
+                                      Map<String, String> homeByFeature) {
             List<DetailSimple> detailList = milestones.stream()
                     .map(m -> DetailSimple.of(
                             m,
                             linksMap.getOrDefault(m.getId(), List.of()),
                             progressMap.getOrDefault(m.getId(), 0),
-                            countsMap.getOrDefault(m.getId(), Map.of())
+                            countsMap.getOrDefault(m.getId(), Map.of()),
+                            homeByFeature
                     ))
                     .toList();
             return new ListResponse(detailList);
@@ -162,8 +166,9 @@ public class MilestoneResponse {
         /**
          * 마일스톤-스코프 카운트로 FeatureInfo 생성.
          * total/completed는 "이 마일스톤에 배정된 이 피처의 태스크" 기준 (피처 전역 카운트 아님).
+         * isPrimary(홈 여부)는 저장값이 아니라 "가장 이른 마일스톤" 규칙으로 파생해 넘겨받는다.
          */
-        public static FeatureInfo of(MilestoneFeature link, int totalTasks, int completedTasks) {
+        public static FeatureInfo of(MilestoneFeature link, int totalTasks, int completedTasks, boolean isPrimary) {
             Feature feature = link.getFeature();
             int pct = totalTasks == 0 ? 0 : (int) Math.round((double) completedTasks / totalTasks * 100);
             return FeatureInfo.builder()
@@ -173,7 +178,7 @@ public class MilestoneResponse {
                     .totalTasks(totalTasks)
                     .completedTasks(completedTasks)
                     .progressPercentage(pct)
-                    .isPrimary(link.isPrimary())
+                    .isPrimary(isPrimary)
                     .build();
         }
     }

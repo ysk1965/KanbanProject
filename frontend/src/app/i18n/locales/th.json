@@ -9,7 +9,9 @@
     "addImage": "รูปภาพ",
     "addVideo": "วิดีโอ",
     "empty": "เพิ่มโหนดจากแถบเครื่องมือด้านบนเพื่อเริ่มต้น",
-    "emptyReadOnly": "โฟลว์นี้ว่างเปล่า"
+    "emptyReadOnly": "โฟลว์นี้ว่างเปล่า",
+    "dropHere": "วางรูปภาพหรือวิดีโอที่นี่",
+    "mediaUploadFailed": "อัปโหลดสื่อไม่สำเร็จ โปรดตรวจสอบขนาดหรือรูปแบบไฟล์"
   },
   "common": {
     "loading": "กำลังโหลด...",
@@ -743,6 +745,7 @@
     "noMeetingsForDate": "ไม่มีการประชุมที่ลงทะเบียนสำหรับ{{date}}",
     "selectFromBoard": "เลือกจากรายการที่มีอยู่",
     "noBoardItems": "ไม่มีรายการเช็คลิสต์ที่สามารถเพิ่มได้",
+    "noDueDate": "ไม่มีกำหนด",
     "select": "เลือก",
     "collapse": "ย่อ",
     "createNew": "สร้างใหม่",
@@ -1502,6 +1505,7 @@
     "defaultAction": " ดำเนินการ"
   },
   "feature": {
+    "periodFollowsMilestone": "อ้างอิงตามช่วงเวลาของไมล์สโตน",
     "addTitle": "เพิ่ม Feature ใหม่",
     "titleLabel": "ชื่อ",
     "titlePlaceholder": "เช่น พัฒนาฟีเจอร์เข้าสู่ระบบ",
