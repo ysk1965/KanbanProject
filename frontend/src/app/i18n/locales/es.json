@@ -898,7 +898,13 @@
     "dueToday": "Vence hoy",
     "overdue": "Vencido",
     "taskCount": "{{count}} tareas",
-    "itemCount": "{{count}} elementos"
+    "itemCount": "{{count}} elementos",
+    "workloadTitle": "Mi carga de trabajo",
+    "workloadActive": "{{count}} activos",
+    "workloadEmpty": "No hay elementos programados en este periodo",
+    "workloadToday": "Hoy",
+    "workloadAddDate": "Fecha de adición",
+    "workloadSelected": "Elemento seleccionado"
   },
   "inquiry": {
     "title": "Contáctanos",

@@ -898,7 +898,13 @@
     "dueToday": "今日截止",
     "overdue": "已逾期",
     "taskCount": "{{count}} 个任务",
-    "itemCount": "{{count}} 个项目"
+    "itemCount": "{{count}} 个项目",
+    "workloadTitle": "我的工作量",
+    "workloadActive": "进行中 {{count}} 项",
+    "workloadEmpty": "此期间没有排定的项目",
+    "workloadToday": "今天",
+    "workloadAddDate": "添加日",
+    "workloadSelected": "已选项目"
   },
   "inquiry": {
     "title": "联系我们",

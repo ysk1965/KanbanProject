@@ -883,7 +883,13 @@
     "dueToday": "今日截止",
     "overdue": "已逾期",
     "taskCount": "{{count}} 個任務",
-    "itemCount": "{{count}} 個項目"
+    "itemCount": "{{count}} 個項目",
+    "workloadTitle": "我的工作量",
+    "workloadActive": "進行中 {{count}} 項",
+    "workloadEmpty": "此期間沒有排定的項目",
+    "workloadToday": "今天",
+    "workloadAddDate": "加入日",
+    "workloadSelected": "已選項目"
   },
   "inquiry": {
     "title": "聯繫我們",

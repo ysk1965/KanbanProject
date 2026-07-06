@@ -1018,7 +1018,13 @@
     "dueToday": "오늘 마감",
     "overdue": "기한 지남",
     "taskCount": "태스크 {{count}}",
-    "itemCount": "항목 {{count}}"
+    "itemCount": "항목 {{count}}",
+    "workloadTitle": "내 워크로드",
+    "workloadActive": "활성 {{count}}건",
+    "workloadEmpty": "이 기간에 예정된 일정이 없어요",
+    "workloadToday": "오늘",
+    "workloadAddDate": "추가일",
+    "workloadSelected": "선택한 항목"
   },
   "inquiry": {
     "title": "문의하기",
