@@ -9,7 +9,9 @@
     "addImage": "Imagen",
     "addVideo": "Vídeo",
     "empty": "Añade un nodo desde la barra de herramientas para empezar",
-    "emptyReadOnly": "Este flujo está vacío"
+    "emptyReadOnly": "Este flujo está vacío",
+    "dropHere": "Suelta imágenes o vídeos aquí",
+    "mediaUploadFailed": "Error al subir el archivo. Comprueba el tamaño o el formato."
   },
   "common": {
     "loading": "Cargando...",
@@ -743,6 +745,7 @@
     "noMeetingsForDate": "No hay reuniones registradas para {{date}}",
     "selectFromBoard": "Seleccionar de elementos existentes",
     "noBoardItems": "No hay elementos de lista de verificación disponibles para agregar",
+    "noDueDate": "Sin fecha",
     "select": "Seleccionar",
     "collapse": "Contraer",
     "createNew": "Crear nuevo",
@@ -1502,6 +1505,7 @@
     "defaultAction": " realizó una acción"
   },
   "feature": {
+    "periodFollowsMilestone": "Sigue el período del hito",
     "addTitle": "Agregar nuevo Feature",
     "titleLabel": "Título",
     "titlePlaceholder": "Ej. Implementar función de inicio de sesión",

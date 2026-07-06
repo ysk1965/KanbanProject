@@ -9,7 +9,9 @@
     "addImage": "이미지",
     "addVideo": "영상",
     "empty": "상단 팔레트에서 노드를 추가해 시작하세요",
-    "emptyReadOnly": "아직 플로우가 비어 있습니다"
+    "emptyReadOnly": "아직 플로우가 비어 있습니다",
+    "dropHere": "여기에 이미지·영상을 놓으세요",
+    "mediaUploadFailed": "미디어 업로드에 실패했습니다. 파일 크기나 형식을 확인해주세요."
   },
   "common": {
     "loading": "로딩 중...",
@@ -825,6 +827,7 @@
     "noMeetingsForDate": "{{date}} 등록된 회의가 없습니다",
     "selectFromBoard": "기존 항목에서 선택",
     "noBoardItems": "추가할 수 있는 체크리스트 항목이 없습니다",
+    "noDueDate": "일정 없음",
     "select": "선택",
     "collapse": "접기",
     "createNew": "새로 생성",
@@ -1654,6 +1657,7 @@
     "defaultAction": "님이 작업을 수행했습니다"
   },
   "feature": {
+    "periodFollowsMilestone": "마일스톤 기간을 따릅니다",
     "addTitle": "새 Feature 추가",
     "titleLabel": "제목",
     "titlePlaceholder": "예: 로그인 기능 구현",

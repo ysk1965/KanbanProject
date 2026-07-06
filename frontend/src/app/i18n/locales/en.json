@@ -9,7 +9,9 @@
     "addImage": "Image",
     "addVideo": "Video",
     "empty": "Add a node from the toolbar to get started",
-    "emptyReadOnly": "This flow is empty"
+    "emptyReadOnly": "This flow is empty",
+    "dropHere": "Drop images or videos here",
+    "mediaUploadFailed": "Media upload failed. Please check the file size or format."
   },
   "common": {
     "loading": "Loading...",
@@ -824,6 +826,7 @@
     "noMeetingsForDate": "No {{date}} meetings registered",
     "selectFromBoard": "Select from existing items",
     "noBoardItems": "No checklist items available to add",
+    "noDueDate": "No date",
     "select": "Select",
     "collapse": "Collapse",
     "createNew": "Create new",
@@ -1653,6 +1656,7 @@
     "defaultAction": " performed an action"
   },
   "feature": {
+    "periodFollowsMilestone": "Follows the milestone period",
     "addTitle": "Add New Feature",
     "titleLabel": "Title",
     "titlePlaceholder": "e.g. Implement login feature",

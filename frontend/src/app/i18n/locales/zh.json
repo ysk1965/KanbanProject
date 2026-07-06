@@ -9,7 +9,9 @@
     "addImage": "图片",
     "addVideo": "视频",
     "empty": "从顶部工具栏添加节点以开始",
-    "emptyReadOnly": "此流程图为空"
+    "emptyReadOnly": "此流程图为空",
+    "dropHere": "将图片或视频拖放到此处",
+    "mediaUploadFailed": "媒体上传失败，请检查文件大小或格式。"
   },
   "common": {
     "loading": "加载中...",
@@ -743,6 +745,7 @@
     "noMeetingsForDate": "{{date}}没有已注册的会议",
     "selectFromBoard": "从现有项目中选择",
     "noBoardItems": "没有可添加的清单项",
+    "noDueDate": "无日程",
     "select": "选择",
     "collapse": "收起",
     "createNew": "新建",
@@ -1502,6 +1505,7 @@
     "defaultAction": " 执行了一个操作"
   },
   "feature": {
+    "periodFollowsMilestone": "跟随里程碑的周期",
     "addTitle": "添加新 Feature",
     "titleLabel": "标题",
     "titlePlaceholder": "例如：实现登录功能",

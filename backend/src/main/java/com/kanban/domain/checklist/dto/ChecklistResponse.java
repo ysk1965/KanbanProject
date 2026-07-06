@@ -6,6 +6,7 @@ import com.kanban.domain.contractor.dto.BoardContractorResponse;
 import com.kanban.domain.contractor.entity.BoardContractor;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.jobrole.dto.JobRoleResponse;
+import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.user.User;
 import lombok.AllArgsConstructor;
@@ -128,11 +129,13 @@ public class ChecklistResponse {
         private TaskInfo task;
         private FeatureInfo feature;
         private BlockInfo block;
+        private MilestoneInfo milestone;
 
         public static BoardItem of(ChecklistItem item) {
             Task task = item.getTask();
             Feature feature = task != null ? task.getFeature() : null;
             Block block = task != null ? task.getBlock() : null;
+            Milestone milestone = task != null ? task.getMilestone() : null;
 
             return BoardItem.builder()
                     .id(item.getId())
@@ -145,6 +148,7 @@ public class ChecklistResponse {
                     .task(task != null ? TaskInfo.of(task) : null)
                     .feature(feature != null ? FeatureInfo.of(feature) : null)
                     .block(BlockInfo.of(block))
+                    .milestone(MilestoneInfo.of(milestone))
                     .build();
         }
     }
@@ -199,6 +203,24 @@ public class ChecklistResponse {
                     .name(block.getName())
                     .color(block.getColor())
                     .position(block.getPosition())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class MilestoneInfo {
+        private String id;
+        private String title;
+
+        public static MilestoneInfo of(Milestone milestone) {
+            if (milestone == null) {
+                return null;
+            }
+            return MilestoneInfo.builder()
+                    .id(milestone.getId())
+                    .title(milestone.getTitle())
                     .build();
         }
     }

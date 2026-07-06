@@ -28,14 +28,8 @@ public class MilestoneFeature {
     @JoinColumn(name = "feature_id", nullable = false)
     private Feature feature;
 
-    /**
-     * 대표(홈) 마일스톤 여부.
-     * 피처는 정확히 1개의 대표 링크를 가지며, 진행률은 대표 마일스톤에만 집계된다.
-     * false면 "이어짐"(continuation) — 표시는 되지만 진행률 집계 대상이 아님.
-     */
-    @Column(name = "is_primary", nullable = false)
-    @Builder.Default
-    private boolean isPrimary = true;
+    // 피처의 "홈(대표) 마일스톤"은 더 이상 저장하지 않는다.
+    // 응답 시 피처가 연결된 마일스톤 중 가장 이른 시작일(동률 시 마일스톤 id)을 홈으로 파생한다.
 
     @PrePersist
     public void prePersist() {
@@ -45,18 +39,9 @@ public class MilestoneFeature {
     }
 
     public static MilestoneFeature create(Milestone milestone, Feature feature) {
-        return create(milestone, feature, true);
-    }
-
-    public static MilestoneFeature create(Milestone milestone, Feature feature, boolean isPrimary) {
         return MilestoneFeature.builder()
                 .milestone(milestone)
                 .feature(feature)
-                .isPrimary(isPrimary)
                 .build();
-    }
-
-    public void updatePrimary(boolean isPrimary) {
-        this.isPrimary = isPrimary;
     }
 }

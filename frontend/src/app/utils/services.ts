@@ -1949,30 +1949,6 @@ export const milestoneService = {
     }
   },
 
-  setPrimaryFeature: async (
-    boardId: string,
-    milestoneId: string,
-    featureId: string,
-  ): Promise<Milestone> => {
-    const m = await milestoneAPI.setPrimaryFeature(
-      boardId,
-      milestoneId,
-      featureId,
-    );
-    return {
-      id: m.id,
-      title: m.title,
-      description: m.description,
-      start_date: m.start_date,
-      end_date: m.end_date,
-      feature_count: m.feature_count,
-      progress_percentage: m.progress_percentage,
-      features: m.features,
-      created_by: m.created_by,
-      created_at: m.created_at,
-    };
-  },
-
   removeFeature: async (
     boardId: string,
     milestoneId: string,

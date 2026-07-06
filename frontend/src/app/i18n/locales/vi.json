@@ -9,7 +9,9 @@
     "addImage": "Hình ảnh",
     "addVideo": "Video",
     "empty": "Thêm một nút từ thanh công cụ để bắt đầu",
-    "emptyReadOnly": "Sơ đồ này đang trống"
+    "emptyReadOnly": "Sơ đồ này đang trống",
+    "dropHere": "Thả hình ảnh hoặc video vào đây",
+    "mediaUploadFailed": "Tải lên phương tiện thất bại. Vui lòng kiểm tra kích thước hoặc định dạng tệp."
   },
   "common": {
     "loading": "Dang tai...",
@@ -743,6 +745,7 @@
     "noMeetingsForDate": "Khong co cuoc hop nao duoc dang ky cho {{date}}",
     "selectFromBoard": "Chon tu cac muc hien co",
     "noBoardItems": "Khong co muc danh sach kiem tra nao de them",
+    "noDueDate": "Không có lịch",
     "select": "Chon",
     "collapse": "Thu gon",
     "createNew": "Tao moi",
@@ -1502,6 +1505,7 @@
     "defaultAction": " da thuc hien mot hanh dong"
   },
   "feature": {
+    "periodFollowsMilestone": "Theo thời hạn của cột mốc",
     "addTitle": "Them Feature moi",
     "titleLabel": "Tieu de",
     "titlePlaceholder": "Vi du: Phat trien tinh nang dang nhap",
