@@ -1,4 +1,16 @@
 {
+  "flow": {
+    "newMemo": "메모",
+    "handTool": "손 도구",
+    "pointerTool": "선택 도구",
+    "addText": "텍스트",
+    "addSticky": "스티키",
+    "addShape": "도형",
+    "addImage": "이미지",
+    "addVideo": "영상",
+    "empty": "상단 팔레트에서 노드를 추가해 시작하세요",
+    "emptyReadOnly": "아직 플로우가 비어 있습니다"
+  },
   "common": {
     "loading": "로딩 중...",
     "save": "저장",
@@ -508,7 +520,18 @@
       "actionChecklistCreated": "님이 체크리스트를 생성했습니다 ",
       "actionChecklistCompleted": "님이 체크리스트를 완료했습니다 ",
       "actionChecklistUncompleted": "님이 체크리스트를 미완료로 변경했습니다 ",
-      "actionDefault": "님이 작업을 수행했습니다"
+      "actionDefault": "님이 작업을 수행했습니다",
+      "actionTaskFeatureMoved": "님이 Task를 이동했습니다 ",
+      "actionFeatureRestored": "님이 Feature를 복원했습니다 ",
+      "actionTaskRestored": "님이 Task를 복원했습니다 ",
+      "actionChecklistMoved": "님이 체크리스트를 이동했습니다 ",
+      "actionChecklistDeleted": "님이 체크리스트를 삭제했습니다 ",
+      "actionChecklistRestored": "님이 체크리스트를 복원했습니다 ",
+      "actionFeaturePermanentlyDeleted": "님이 Feature를 영구 삭제했습니다 ",
+      "actionTaskPermanentlyDeleted": "님이 Task를 영구 삭제했습니다 ",
+      "actionChecklistPermanentlyDeleted": "님이 체크리스트를 영구 삭제했습니다 ",
+      "actionChecklistCreatedBulk": "님이 체크리스트 {{count}}개를 생성했습니다",
+      "openTask": "태스크 열기"
     }
   },
   "trial": {

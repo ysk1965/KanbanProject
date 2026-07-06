@@ -110,7 +110,10 @@ import {
   BoardMember as ShareBoardMember,
   MemberRole,
 } from "../components/ShareBoardModal";
-import { NotificationDropdown } from "../components/NotificationDropdown";
+import {
+  NotificationDropdown,
+  type ActivityNavTarget,
+} from "../components/NotificationDropdown";
 import { UpgradeTrigger } from "../components/UpgradeModal";
 import { MeetingCalendarView } from "../components/MeetingCalendarView";
 import { WeeklyScheduleView } from "../components/WeeklyScheduleView";
@@ -1917,7 +1920,10 @@ export function KanbanBoardPage() {
   };
 
   // 피처 상세 모달: 서브태스크 DnD 순서 변경 (낙관적 업데이트 + 서버 영속화)
-  const handleReorderSubtasks = async (featureId: string, taskIds: string[]) => {
+  const handleReorderSubtasks = async (
+    featureId: string,
+    taskIds: string[],
+  ) => {
     if (!boardId) return;
 
     const orderMap = new Map(taskIds.map((id, index) => [id, index]));
@@ -2067,6 +2073,18 @@ export function KanbanBoardPage() {
     [handleViewTaskById],
   );
 
+  // 활동로그 항목 클릭 → 대상(피처/태스크) 모달로 이동
+  const handleActivityNavigate = useCallback(
+    (target: ActivityNavTarget) => {
+      if (target.kind === "feature") {
+        handleViewFeatureById(target.featureId);
+      } else {
+        handleViewTaskWithChecklist(target.taskId, target.checklistItemId);
+      }
+    },
+    [handleViewFeatureById, handleViewTaskWithChecklist],
+  );
+
   const handleOpenContractorManager = useCallback(() => {
     setIsContractorManagerOpen(true);
   }, []);
@@ -2140,9 +2158,7 @@ export function KanbanBoardPage() {
     // 낙관적 업데이트
     setTasks((prev) =>
       prev.map((t) =>
-        taskIds.includes(t.id)
-          ? { ...t, milestone_id: targetMilestoneId }
-          : t,
+        taskIds.includes(t.id) ? { ...t, milestone_id: targetMilestoneId } : t,
       ),
     );
     try {
@@ -2693,7 +2709,11 @@ export function KanbanBoardPage() {
           ...targetItems,
           { ...movedChecklistItem, position: maxPosition + 1 },
         ];
-        return { ...prev, [sourceTaskId]: nextSource, [targetTaskId]: nextTarget };
+        return {
+          ...prev,
+          [sourceTaskId]: nextSource,
+          [targetTaskId]: nextTarget,
+        };
       });
 
       const wasCompleted = movedChecklistItem?.completed ?? false;
@@ -2887,6 +2907,7 @@ export function KanbanBoardPage() {
           hasMoreActivity={hasMoreActivity}
           onLoadMoreActivity={handleLoadMoreActivity}
           onNotificationClick={handleNotificationClick}
+          onActivityNavigate={handleActivityNavigate}
           onUnreadCountChange={setUnreadNotificationCount}
           canAccessSlack={canAccessSlack}
           onSlackUpgrade={() => openUpgradeModal("slack")}
@@ -3450,7 +3471,8 @@ export function KanbanBoardPage() {
           blocks={blocks}
           onAddSubtask={(title) => handleAddSubtask(selectedFeature!.id, title)}
           onReorderSubtasks={(taskIds) =>
-            selectedFeature && handleReorderSubtasks(selectedFeature.id, taskIds)
+            selectedFeature &&
+            handleReorderSubtasks(selectedFeature.id, taskIds)
           }
           onRenameSubtask={(taskId, newTitle) => {
             setTasks((prev) =>

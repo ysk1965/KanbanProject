@@ -1,4 +1,16 @@
 {
+  "flow": {
+    "newMemo": "便签",
+    "handTool": "抓手工具",
+    "pointerTool": "选择工具",
+    "addText": "文本",
+    "addSticky": "便签",
+    "addShape": "图形",
+    "addImage": "图片",
+    "addVideo": "视频",
+    "empty": "从顶部工具栏添加节点以开始",
+    "emptyReadOnly": "此流程图为空"
+  },
   "common": {
     "loading": "加载中...",
     "save": "保存",
@@ -465,7 +477,18 @@
       "actionChecklistCreated": " 创建了清单 ",
       "actionChecklistCompleted": " 完成了清单 ",
       "actionChecklistUncompleted": " 取消完成了清单 ",
-      "actionDefault": " 执行了一个操作"
+      "actionDefault": " 执行了一个操作",
+      "actionTaskFeatureMoved": " 移动了 Task ",
+      "actionFeatureRestored": " 恢复了 Feature ",
+      "actionTaskRestored": " 恢复了 Task ",
+      "actionChecklistMoved": " 移动了清单 ",
+      "actionChecklistDeleted": " 删除了清单 ",
+      "actionChecklistRestored": " 恢复了清单 ",
+      "actionFeaturePermanentlyDeleted": " 永久删除了 Feature ",
+      "actionTaskPermanentlyDeleted": " 永久删除了 Task ",
+      "actionChecklistPermanentlyDeleted": " 永久删除了清单 ",
+      "actionChecklistCreatedBulk": " 创建了 {{count}} 个清单项",
+      "openTask": "打开任务"
     }
   },
   "trial": {

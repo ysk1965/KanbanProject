@@ -1,4 +1,16 @@
 {
+  "flow": {
+    "newMemo": "Memo",
+    "handTool": "Hand tool",
+    "pointerTool": "Select tool",
+    "addText": "Text",
+    "addSticky": "Sticky",
+    "addShape": "Shape",
+    "addImage": "Image",
+    "addVideo": "Video",
+    "empty": "Add a node from the toolbar to get started",
+    "emptyReadOnly": "This flow is empty"
+  },
   "common": {
     "loading": "Loading...",
     "save": "Save",
@@ -507,7 +519,18 @@
       "actionChecklistCreated": " created checklist ",
       "actionChecklistCompleted": " completed checklist ",
       "actionChecklistUncompleted": " uncompleted checklist ",
-      "actionDefault": " performed an action"
+      "actionDefault": " performed an action",
+      "actionTaskFeatureMoved": " moved Task ",
+      "actionFeatureRestored": " restored Feature ",
+      "actionTaskRestored": " restored Task ",
+      "actionChecklistMoved": " moved checklist ",
+      "actionChecklistDeleted": " deleted checklist ",
+      "actionChecklistRestored": " restored checklist ",
+      "actionFeaturePermanentlyDeleted": " permanently deleted Feature ",
+      "actionTaskPermanentlyDeleted": " permanently deleted Task ",
+      "actionChecklistPermanentlyDeleted": " permanently deleted checklist ",
+      "actionChecklistCreatedBulk": " created {{count}} checklist items",
+      "openTask": "Open task"
     }
   },
   "trial": {

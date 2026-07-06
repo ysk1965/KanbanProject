@@ -1,4 +1,16 @@
 {
+  "flow": {
+    "newMemo": "Ghi chú",
+    "handTool": "Công cụ tay",
+    "pointerTool": "Công cụ chọn",
+    "addText": "Văn bản",
+    "addSticky": "Ghi chú",
+    "addShape": "Hình khối",
+    "addImage": "Hình ảnh",
+    "addVideo": "Video",
+    "empty": "Thêm một nút từ thanh công cụ để bắt đầu",
+    "emptyReadOnly": "Sơ đồ này đang trống"
+  },
   "common": {
     "loading": "Dang tai...",
     "save": "Luu",
@@ -465,7 +477,18 @@
       "actionChecklistCreated": " da tao danh sach kiem tra ",
       "actionChecklistCompleted": " da hoan thanh danh sach kiem tra ",
       "actionChecklistUncompleted": " da huy hoan thanh danh sach kiem tra ",
-      "actionDefault": " da thuc hien mot hanh dong"
+      "actionDefault": " da thuc hien mot hanh dong",
+      "actionTaskFeatureMoved": " da di chuyen Task ",
+      "actionFeatureRestored": " da khoi phuc Feature ",
+      "actionTaskRestored": " da khoi phuc Task ",
+      "actionChecklistMoved": " da di chuyen danh sach kiem tra ",
+      "actionChecklistDeleted": " da xoa danh sach kiem tra ",
+      "actionChecklistRestored": " da khoi phuc danh sach kiem tra ",
+      "actionFeaturePermanentlyDeleted": " da xoa vinh vien Feature ",
+      "actionTaskPermanentlyDeleted": " da xoa vinh vien Task ",
+      "actionChecklistPermanentlyDeleted": " da xoa vinh vien danh sach kiem tra ",
+      "actionChecklistCreatedBulk": " da tao {{count}} muc danh sach kiem tra",
+      "openTask": "Mo task"
     }
   },
   "trial": {

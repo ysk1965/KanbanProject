@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 
 const ExcalidrawEditor = React.lazy(() => import("./ExcalidrawEditor"));
+const FlowEditor = React.lazy(() => import("./FlowEditor"));
 import { filterSuggestionItems, insertOrUpdateBlock } from "@blocknote/core";
 import {
   useCreateBlockNote,
@@ -159,6 +160,18 @@ export function NoteEditor({
   }
 
   if (note.type === "BOARD") {
+    // BOARD는 React Flow(bridge-flow)로 개편됨. 단, 기존에 만들어진 Excalidraw
+    // 콘텐츠(content.type === "excalidraw")는 무손실 편집을 위해 계속 Excalidraw로 연다.
+    // 신규 보드(빈 content)나 bridge-flow 콘텐츠는 React Flow로 연다.
+    const isLegacyExcalidraw = (() => {
+      if (!note.content?.trim()) return false;
+      try {
+        return JSON.parse(note.content)?.type === "excalidraw";
+      } catch {
+        return false;
+      }
+    })();
+    const BoardEditor = isLegacyExcalidraw ? ExcalidrawEditor : FlowEditor;
     return (
       <Suspense
         fallback={
@@ -167,7 +180,7 @@ export function NoteEditor({
           </div>
         }
       >
-        <ExcalidrawEditor
+        <BoardEditor
           boardId={boardId}
           orgId={orgId}
           note={note}
