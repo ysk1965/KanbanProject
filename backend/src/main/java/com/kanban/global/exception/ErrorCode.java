@@ -146,6 +146,9 @@ public enum ErrorCode {
     MILESTONE_ALLOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "MS003", "마일스톤 할당 정보를 찾을 수 없습니다"),
     MILESTONE_ALLOCATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "MS004", "이미 할당된 멤버입니다"),
 
+    // Calendar Event (워크로드 특별 일정)
+    CALENDAR_EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CE001", "특별 일정을 찾을 수 없습니다"),
+
     // Weight Level
     WEIGHT_LEVEL_NOT_FOUND(HttpStatus.NOT_FOUND, "W001", "가중치 레벨을 찾을 수 없습니다"),
 

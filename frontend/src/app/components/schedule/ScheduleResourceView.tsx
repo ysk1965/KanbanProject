@@ -21,6 +21,7 @@ import {
   ZoomIn,
   ZoomOut,
   Settings,
+  CalendarPlus,
 } from "lucide-react";
 import { BoardMember } from "../ShareBoardModal";
 import { BoardContractor, Feature, JobRole, Milestone } from "../../types";
@@ -28,11 +29,18 @@ import {
   boardChecklistAPI,
   checklistAPI,
   contractorAPI,
+  calendarEventAPI,
+  CalendarEventItem,
   AssigneeItemResponse,
   ChecklistByAssigneeResponse,
 } from "../../utils/api";
 import { WorkloadCreateModal } from "./WorkloadCreateModal";
 import { MoveToTaskModal } from "./MoveToTaskModal";
+import {
+  CalendarEventModal,
+  CalendarEventModalInitial,
+} from "./CalendarEventModal";
+import { calendarTypeMeta } from "./calendarEventMeta";
 import { getInitials, getAssigneeHex } from "../../utils/assigneeColor";
 import { useHolidays, HolidayInfo } from "../../hooks/useHolidays";
 
@@ -215,7 +223,14 @@ export function ScheduleResourceView({
   // ─── State ───
   const [data, setData] = useState<ChecklistByAssigneeResponse | null>(null);
   const [contractors, setContractors] = useState<BoardContractor[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEventItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // 특별 일정 추가/편집 모달
+  const [eventModal, setEventModal] = useState<{
+    open: boolean;
+    initial?: CalendarEventModalInitial;
+    editing?: CalendarEventItem | null;
+  }>({ open: false });
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [dropHighlight, setDropHighlight] = useState<DropHighlight | null>(
@@ -405,21 +420,98 @@ export function ScheduleResourceView({
     return merged;
   }, [hPrev, hCur, hNext]);
 
+  // ─── 특별 일정 파생 (달력 예외 병합 / 팀 이벤트 / 개인 부재) ───
+  const { mergedHolidayMap, forcedWorkdaySet, teamEvents, memberAbsencesById } =
+    useMemo(() => {
+      // 라이브러리 공휴일에서 시작 (복제)
+      const holiMap = new Map<string, HolidayInfo[]>();
+      holidayMap.forEach((v, k) => holiMap.set(k, [...v]));
+      const workdaySet = new Set<string>();
+
+      // CALENDAR 타입(휴무일/근무일)을 표시 창(window) 전체에 확장 (반복 포함)
+      const calendarItems = calendarEvents.filter(
+        (e) => e.category === "CALENDAR",
+      );
+      if (calendarItems.length > 0) {
+        for (const day of timelineDays) {
+          const ds = formatDateStr(day);
+          const mmdd = ds.slice(5); // "MM-DD"
+          for (const e of calendarItems) {
+            const inRange = ds >= e.start_date && ds <= e.end_date;
+            const recurringMatch =
+              e.recurring &&
+              mmdd >= e.start_date.slice(5) &&
+              mmdd <= e.end_date.slice(5);
+            if (!inRange && !recurringMatch) continue;
+            if (e.event_type === "WORKDAY") {
+              workdaySet.add(ds);
+            } else {
+              const arr = holiMap.get(ds) || [];
+              arr.push({ date: ds, name: e.title || "휴무일", type: "custom" });
+              holiMap.set(ds, arr);
+            }
+          }
+        }
+      }
+      // 근무일 지정은 공휴일/주말 셰이딩을 덮어씀
+      workdaySet.forEach((ds) => holiMap.delete(ds));
+
+      const team = calendarEvents.filter((e) => e.category === "TEAM");
+      const absById = new Map<string, CalendarEventItem[]>();
+      calendarEvents
+        .filter((e) => e.category === "MEMBER" && e.member)
+        .forEach((e) => {
+          const arr = absById.get(e.member!.id) || [];
+          arr.push(e);
+          absById.set(e.member!.id, arr);
+        });
+
+      return {
+        mergedHolidayMap: holiMap,
+        forcedWorkdaySet: workdaySet,
+        teamEvents: team,
+        memberAbsencesById: absById,
+      };
+    }, [holidayMap, calendarEvents, timelineDays]);
+
+  // 특별 일정 저장 후 리로드
+  const reloadCalendarEvents = useCallback(async () => {
+    if (!boardId) return;
+    try {
+      const res = await calendarEventAPI.list(boardId);
+      setCalendarEvents(res.events);
+    } catch (err) {
+      console.warn("Failed to reload calendar events", err);
+    }
+  }, [boardId]);
+
+  const openEventModal = useCallback(
+    (
+      initial?: CalendarEventModalInitial,
+      editing?: CalendarEventItem | null,
+    ) => {
+      setEventModal({ open: true, initial, editing: editing || null });
+    },
+    [],
+  );
+
   // ─── Fetch data ───
   const fetchData = useCallback(
     async (silent = false) => {
       if (!boardId) return;
       try {
         if (!silent) setLoading(true);
-        const [result, contractorList] = await Promise.all([
+        const [result, contractorList, eventList] = await Promise.all([
           boardChecklistAPI.getItemsByAssignee(boardId, {
             start_date: rangeStart,
             end_date: rangeEnd,
           }),
           contractorAPI.list(boardId).catch(() => ({ contractors: [] })),
+          calendarEventAPI.list(boardId).catch(() => ({ events: [] })),
         ]);
         setData(result);
         setContractors(contractorList.contractors as BoardContractor[]);
+        setCalendarEvents(eventList.events);
       } catch (err) {
         console.warn("Failed to fetch checklist items by assignee", err);
       } finally {
@@ -943,6 +1035,16 @@ export function ScheduleResourceView({
       })
       .filter((d) => d.pos !== null);
   }, [milestones, getBarPosition]);
+
+  // ─── 팀 이벤트 바 위치 (이벤트 밴드용) ───
+  const teamEventBarData = useMemo(() => {
+    return teamEvents
+      .map((event) => {
+        const pos = getBarPosition(event.start_date, event.end_date);
+        return { event, pos };
+      })
+      .filter((d) => d.pos !== null);
+  }, [teamEvents, getBarPosition]);
 
   // ─── Handle bar interactions ───
   const handleBarClick = useCallback(
@@ -1474,6 +1576,7 @@ export function ScheduleResourceView({
   const totalTimelineWidth = timelineDays.length * dayWidth;
   const totalContentHeight =
     (milestoneBarData.length > 0 ? MILESTONE_ROW_HEIGHT : 0) +
+    (teamEventBarData.length > 0 ? MILESTONE_ROW_HEIGHT : 0) +
     rows.length * ROW_HEIGHT;
 
   return (
@@ -1502,6 +1605,17 @@ export function ScheduleResourceView({
                   ? t("schedule.resource.groupByJobRole", "직군별")
                   : t("schedule.resource.groupByMember", "멤버별")}
               </span>
+              <button
+                type="button"
+                onClick={() => openEventModal()}
+                className="inline-flex items-center gap-1.5 shrink-0 h-8 px-2.5 rounded-lg text-xs font-medium
+                  text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
+                title="특별 일정 추가 (이벤트/부재/휴무일)"
+                aria-label="특별 일정 추가"
+              >
+                <CalendarPlus className="w-4 h-4" />
+                <span className="hidden md:inline">특별일</span>
+              </button>
               <div className="relative shrink-0" ref={settingsRef}>
                 <button
                   type="button"
@@ -1613,12 +1727,14 @@ export function ScheduleResourceView({
               onMouseDown={handleHeaderMouseDown}
             >
               {timelineDays.map((day, idx) => {
-                const weekend = isWeekend(day);
+                const dateStr = formatDateStr(day);
+                const forcedWork = forcedWorkdaySet.has(dateStr);
+                const weekend = isWeekend(day) && !forcedWork;
                 const isToday = idx === todayIndex;
                 const dayNum = day.getDate();
                 const showMonth = dayNum === 1 || idx === 0;
                 const locale = i18n.language || "en";
-                const holidays = holidayMap.get(formatDateStr(day));
+                const holidays = mergedHolidayMap.get(dateStr);
                 const isHoliday = !!holidays && holidays.length > 0;
                 const holidayName = isHoliday
                   ? holidays!.map((h) => h.name).join(", ")
@@ -1627,7 +1743,11 @@ export function ScheduleResourceView({
                 return (
                   <div
                     key={idx}
-                    title={holidayName}
+                    title={holidayName || "우클릭: 휴무일/근무일 지정"}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      openEventModal({ category: "CALENDAR", date: dateStr });
+                    }}
                     className={`absolute top-0 flex flex-col items-center justify-center border-r border-foreground/[0.04]
                       ${isHoliday ? "bg-red-500/[0.04]" : weekend ? "bg-foreground/[0.02]" : ""}
                       ${isToday ? "bg-bridge-accent/5" : ""}`}
@@ -1699,8 +1819,10 @@ export function ScheduleResourceView({
               >
                 {/* Weekend + holiday columns */}
                 {timelineDays.map((day, idx) => {
-                  const weekend = isWeekend(day);
-                  const isHoliday = holidayMap.has(formatDateStr(day));
+                  const dateStr = formatDateStr(day);
+                  const isHoliday = mergedHolidayMap.has(dateStr);
+                  const weekend =
+                    isWeekend(day) && !forcedWorkdaySet.has(dateStr);
                   if (!weekend && !isHoliday) return null;
                   return (
                     <div
@@ -1733,6 +1855,94 @@ export function ScheduleResourceView({
                       </div>
                     ),
                 )}
+
+                {/* Today line */}
+                {todayIndex >= 0 && (
+                  <div
+                    className="absolute top-0 bottom-0 w-px bg-red-400 z-10"
+                    style={{ left: todayIndex * dayWidth + dayWidth / 2 }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ─── Event band (팀 공통 이벤트) ─── */}
+          {teamEventBarData.length > 0 && (
+            <div className="flex border-b border-foreground/[0.08]">
+              {/* Left label */}
+              <div
+                className="shrink-0 sticky left-0 z-10 bg-bridge-obsidian border-r border-foreground/[0.08]
+                  flex items-center gap-2 px-4"
+                style={{ width: LEFT_COL_WIDTH, height: MILESTONE_ROW_HEIGHT }}
+              >
+                <CalendarPlus
+                  size={14}
+                  className="text-bridge-secondary shrink-0"
+                />
+                <span className="text-xs font-medium text-foreground truncate">
+                  이벤트
+                </span>
+              </div>
+
+              {/* Timeline area */}
+              <div
+                className="relative"
+                style={{
+                  width: totalTimelineWidth,
+                  height: MILESTONE_ROW_HEIGHT,
+                }}
+              >
+                {/* Weekend + holiday columns */}
+                {timelineDays.map((day, idx) => {
+                  const dateStr = formatDateStr(day);
+                  const isHoliday = mergedHolidayMap.has(dateStr);
+                  const weekend =
+                    isWeekend(day) && !forcedWorkdaySet.has(dateStr);
+                  if (!weekend && !isHoliday) return null;
+                  return (
+                    <div
+                      key={`ew-${idx}`}
+                      className={`absolute top-0 bottom-0 ${
+                        isHoliday ? "bg-red-500/[0.04]" : "bg-foreground/[0.02]"
+                      }`}
+                      style={{ left: idx * dayWidth, width: dayWidth }}
+                    />
+                  );
+                })}
+
+                {/* Event chips */}
+                {teamEventBarData.map(({ event, pos }) => {
+                  if (!pos) return null;
+                  const meta = calendarTypeMeta(event.event_type);
+                  const singleDay = event.start_date === event.end_date;
+                  return (
+                    <div
+                      key={event.id}
+                      className="absolute rounded-lg flex items-center gap-1 px-2 text-xs font-medium text-white
+                        hover:shadow-lg transition-all cursor-pointer overflow-hidden"
+                      style={{
+                        left: pos.left,
+                        width: singleDay ? undefined : pos.width,
+                        maxWidth: 240,
+                        top: (MILESTONE_ROW_HEIGHT - 26) / 2,
+                        height: 26,
+                        backgroundColor: event.color || meta.color,
+                      }}
+                      title={`${meta.label}${
+                        event.title ? " · " + event.title : ""
+                      } (${event.start_date}${
+                        singleDay ? "" : " ~ " + event.end_date
+                      })`}
+                      onClick={() => openEventModal(undefined, event)}
+                    >
+                      <span>{meta.icon}</span>
+                      <span className="truncate">
+                        {event.title || meta.label}
+                      </span>
+                    </div>
+                  );
+                })}
 
                 {/* Today line */}
                 {todayIndex >= 0 && (
@@ -1846,9 +2056,25 @@ export function ScheduleResourceView({
                   ).length
                 : 0;
             const COLLAPSE_BTN_HEIGHT = needsCollapse ? 28 : 0;
+
+            // 개인 부재 바 — 태스크 바 아래 전용 레인 1개에 배치
+            const rowAbsences =
+              row.kind === "member" ? memberAbsencesById.get(row.id) || [] : [];
+            const absenceBars = rowAbsences
+              .map((a) => ({
+                absence: a,
+                pos: getBarPosition(a.start_date, a.end_date),
+              }))
+              .filter((d) => d.pos !== null);
+            const absenceLane = absenceBars.length > 0 ? 1 : 0;
+            const absenceTop =
+              BAR_TOP_OFFSET +
+              (visibleMaxLane + 1) * (BAR_HEIGHT + BAR_TOP_OFFSET);
+
             const dynamicRowHeight = Math.max(
               ROW_HEIGHT,
               (visibleMaxLane + 1) * (BAR_HEIGHT + BAR_TOP_OFFSET) +
+                absenceLane * (BAR_HEIGHT + BAR_TOP_OFFSET) +
                 BAR_TOP_OFFSET * 2 +
                 COLLAPSE_BTN_HEIGHT,
             );
@@ -1870,6 +2096,22 @@ export function ScheduleResourceView({
                       width: LEFT_COL_WIDTH,
                       minHeight: dynamicRowHeight,
                     }}
+                    title={
+                      row.kind === "member"
+                        ? "우클릭: 부재(휴가/출장 등) 추가"
+                        : undefined
+                    }
+                    onContextMenu={
+                      row.kind === "member"
+                        ? (e) => {
+                            e.preventDefault();
+                            openEventModal({
+                              category: "MEMBER",
+                              memberId: row.id,
+                            });
+                          }
+                        : undefined
+                    }
                   >
                     <div className="flex items-start gap-2">
                       {row.avatar ? (
@@ -1992,8 +2234,10 @@ export function ScheduleResourceView({
                   >
                     {/* Weekend + holiday + grid columns */}
                     {timelineDays.map((day, idx) => {
-                      const weekend = isWeekend(day);
-                      const isHoliday = holidayMap.has(formatDateStr(day));
+                      const dateStr = formatDateStr(day);
+                      const isHoliday = mergedHolidayMap.has(dateStr);
+                      const weekend =
+                        isWeekend(day) && !forcedWorkdaySet.has(dateStr);
                       const isHighlighted =
                         dropHighlight?.rowIndex === rowIndex &&
                         dropHighlight?.dayIndex === idx;
@@ -2179,6 +2423,44 @@ export function ScheduleResourceView({
                       },
                     )}
 
+                    {/* 개인 부재 오버레이 바 (휴가/출장/병가/재택) */}
+                    {absenceBars.map(({ absence, pos }) => {
+                      if (!pos) return null;
+                      const meta = calendarTypeMeta(absence.event_type);
+                      const c = absence.color || meta.color;
+                      return (
+                        <div
+                          key={absence.id}
+                          data-bar="true"
+                          className="absolute rounded-lg flex items-center gap-1 px-2 text-xs font-medium
+                          cursor-pointer hover:brightness-110 transition-all overflow-hidden"
+                          style={{
+                            left: pos.left,
+                            width: pos.width,
+                            top: absenceTop,
+                            height: BAR_HEIGHT,
+                            color: "#e9edf5",
+                            border: `1px dashed ${c}99`,
+                            backgroundColor: `${c}1f`,
+                            backgroundImage: `repeating-linear-gradient(45deg, ${c}44 0 5px, ${c}14 5px 10px)`,
+                          }}
+                          title={`${meta.label}${
+                            absence.title ? " · " + absence.title : ""
+                          } (${absence.start_date} ~ ${absence.end_date})`}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEventModal(undefined, absence);
+                          }}
+                        >
+                          <span>{meta.icon}</span>
+                          <span className="truncate">
+                            {absence.title || meta.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+
                     {/* Ghost bar for cross-row drag target */}
                     {isCrossRowTarget &&
                       dragState &&
@@ -2307,6 +2589,23 @@ export function ScheduleResourceView({
           setMoveTarget(null);
           fetchData(true);
         }}
+      />
+
+      {/* ─── 특별 일정 추가/편집 모달 ─── */}
+      <CalendarEventModal
+        open={eventModal.open}
+        onClose={() => setEventModal({ open: false })}
+        boardId={boardId}
+        members={boardMembers
+          .filter((m) => m.role !== "viewer")
+          .map((m) => ({
+            id: m.userId,
+            name: m.name,
+            avatar: m.avatar || null,
+          }))}
+        initial={eventModal.initial}
+        editing={eventModal.editing}
+        onSaved={reloadCalendarEvents}
       />
 
       {/* ─── 바 우클릭 컨텍스트 메뉴 ─── */}

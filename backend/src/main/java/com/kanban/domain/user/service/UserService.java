@@ -11,6 +11,7 @@ import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.invite.InviteLinkRepository;
 import com.kanban.domain.organization.repository.OrganizationRepository;
 import com.kanban.domain.milestone.MilestoneAllocationRepository;
+import com.kanban.domain.calendar.CalendarEventRepository;
 import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.notification.NotificationRepository;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
@@ -59,6 +60,7 @@ public class UserService {
     private final TaskRepository taskRepository;
     private final CommentRepository commentRepository;
     private final MilestoneRepository milestoneRepository;
+    private final CalendarEventRepository calendarEventRepository;
     private final ChecklistItemRepository checklistItemRepository;
     private final InviteLinkRepository inviteLinkRepository;
     private final OrganizationRepository organizationRepository;
@@ -195,6 +197,8 @@ public class UserService {
         taskRepository.nullifyCreatedByUserId(userId);
         commentRepository.nullifyAuthorByUserId(userId);
         milestoneRepository.nullifyCreatedByUserId(userId);
+        calendarEventRepository.nullifyMemberByUserId(userId);
+        calendarEventRepository.nullifyCreatedByUserId(userId);
         checklistItemRepository.nullifyAssigneeByUserId(userId);
         inviteLinkRepository.nullifyCreatedByUserId(userId);
         boardMemberRepository.nullifyInvitedByUserId(userId);
