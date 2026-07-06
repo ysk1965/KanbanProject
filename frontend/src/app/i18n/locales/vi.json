@@ -1326,6 +1326,7 @@
       "board": "Bảng",
       "todo": "TODO",
       "doing": "DOING",
+      "doingBadge": "Đang làm",
       "done": "DONE"
     },
     "checklistFilter": {

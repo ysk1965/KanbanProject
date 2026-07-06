@@ -1454,6 +1454,7 @@
       "board": "보드",
       "todo": "TODO",
       "doing": "DOING",
+      "doingBadge": "진행중",
       "done": "DONE"
     },
     "checklistFilter": {

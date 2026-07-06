@@ -1326,6 +1326,7 @@
       "board": "Tablero",
       "todo": "TODO",
       "doing": "DOING",
+      "doingBadge": "En curso",
       "done": "DONE"
     },
     "checklistFilter": {

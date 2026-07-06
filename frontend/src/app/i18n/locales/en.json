@@ -1453,6 +1453,7 @@
       "board": "Board",
       "todo": "TODO",
       "doing": "DOING",
+      "doingBadge": "In progress",
       "done": "DONE"
     },
     "checklistFilter": {

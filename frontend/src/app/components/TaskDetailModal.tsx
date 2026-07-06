@@ -86,6 +86,7 @@ import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import { getTodayDateString } from "../utils/dateUtils";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 import {
   DndContext,
   closestCenter,
@@ -2581,6 +2582,7 @@ function ChecklistItemRow({
   isHighlighted?: boolean;
 }) {
   const { t } = useTranslation();
+  const reducedMotion = useReducedMotion();
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(item.title);
   const [showOptions, setShowOptions] = useState(false);
@@ -2642,10 +2644,20 @@ function ChecklistItemRow({
     new Date(item.due_date).getTime() - new Date().getTime() < 86400000 &&
     !item.completed;
 
+  // 진행중(DOING) 상태 파생 — 미완료 & 시작일이 오늘 이하
+  const isDoing =
+    resolveChecklistColumn(item, getTodayDateString()) === "doing";
+
   return (
     <>
       <div
-        className={`group flex items-center gap-2 p-2 rounded hover:bg-foreground/5 border ${isHighlighted ? "bg-purple-500/20 border-purple-500/50" : "border-transparent hover:border-foreground/10"}`}
+        className={`group flex items-center gap-2 p-2 rounded hover:bg-foreground/5 border ${
+          isHighlighted
+            ? "bg-purple-500/20 border-purple-500/50"
+            : isDoing
+              ? "bg-gradient-to-r from-bridge-accent/10 to-transparent border-bridge-accent/20 hover:border-bridge-accent/30"
+              : "border-transparent hover:border-foreground/10"
+        }`}
       >
         {/* 드래그 핸들 */}
         {dragHandleProps && (
@@ -2710,6 +2722,21 @@ function ChecklistItemRow({
             </div>
           )}
         </div>
+
+        {/* 진행중(DOING) 라이브 인디케이터 */}
+        {isDoing && (
+          <span className="flex items-center gap-1.5 flex-shrink-0 text-xs font-bold text-bridge-accent">
+            <span className="relative flex h-1.5 w-1.5">
+              {!reducedMotion && (
+                <span className="absolute inline-flex h-full w-full rounded-full bg-bridge-accent opacity-75 animate-ping" />
+              )}
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-bridge-accent" />
+            </span>
+            <span className="hidden sm:inline">
+              {t("task.checklistView.doingBadge", { defaultValue: "진행중" })}
+            </span>
+          </span>
+        )}
 
         {/* 오른쪽 정렬: 기간 + 담당자 (클릭해서 수정) */}
         <div className="flex items-center gap-2 flex-shrink-0">

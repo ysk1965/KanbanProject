@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>체크리스트 리스트 뷰 — DOING 표시 방안</title>
+<style>
+  :root{
+    --dark:#191f2d; --obsidian:#151B28; --accent:#6366F1; --secondary:#2DD4BF;
+    --surface:#1e2a42; --border:#384d6e; --fg:#e8ebf2; --muted:#8a93a6;
+    --muted2:#6b7280; --emerald:#10b981; --amber:#f59e0b; --rose:#f43f5e;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--dark); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+    line-height:1.6; padding:40px 20px 80px;
+  }
+  .wrap{max-width:920px;margin:0 auto}
+  h1{font-size:24px;font-weight:700;letter-spacing:-.02em;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 8px}
+  .ctx{background:var(--obsidian);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:16px 18px;margin:20px 0 36px;font-size:13.5px;color:#c3c9d6}
+  .ctx b{color:var(--fg)}
+  .ctx code{background:rgba(99,102,241,.15);color:#a5b4fc;padding:1px 6px;border-radius:5px;font-size:12px}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;margin-right:4px}
+  .p-todo{background:rgba(139,147,166,.18);color:#b6bdca}
+  .p-doing{background:rgba(99,102,241,.18);color:#a5b4fc}
+  .p-done{background:rgba(16,185,129,.18);color:#5eead4}
+
+  .approach{margin:0 0 44px}
+  .a-head{display:flex;align-items:baseline;gap:10px;margin:0 0 4px}
+  .a-num{font-size:12px;font-weight:700;color:var(--accent);background:rgba(99,102,241,.14);border-radius:8px;padding:2px 9px;flex-shrink:0}
+  .a-title{font-size:17px;font-weight:700;margin:0}
+  .a-desc{color:var(--muted);font-size:13.5px;margin:2px 0 14px}
+  .mock{background:var(--obsidian);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:10px 8px}
+  .mock-h{display:flex;align-items:center;justify-content:space-between;padding:6px 10px 10px;border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:6px}
+  .mock-h .t{font-size:13px;font-weight:700}
+  .prog{display:flex;align-items:center;gap:8px}
+  .bar{width:120px;height:6px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden}
+  .bar>i{display:block;height:100%;width:55%;background:var(--accent);border-radius:99px}
+  .pct{font-size:12px;color:var(--accent);font-weight:700}
+
+  /* base row */
+  .row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;border:1px solid transparent;position:relative}
+  .row:hover{background:rgba(255,255,255,.04)}
+  .cb{width:20px;height:20px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:2px solid var(--muted2);background:transparent}
+  .cb.done{background:var(--emerald);border-color:var(--emerald);box-shadow:0 0 8px rgba(16,185,129,.4)}
+  .cb svg{width:13px;height:13px;color:#fff}
+  .ttl{flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ttl.done{text-decoration:line-through;color:var(--muted)}
+  .meta{display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .date{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px}
+  .date.over{color:var(--rose)}
+  .date svg{width:12px;height:12px;opacity:.8}
+  .av{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:2px 8px 2px 3px;border-radius:999px}
+  .dot{width:18px;height:18px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:700}
+  .hrs{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px}
+  .hrs svg{width:12px;height:12px;opacity:.7}
+  .a-dami{background:rgba(245,158,11,.16);color:#fbbf24}.a-dami .dot{background:#f59e0b}
+  .a-soyeon{background:rgba(244,63,94,.16);color:#fb7185}.a-soyeon .dot{background:#f43f5e}
+  .a-woohyuk{background:rgba(45,212,191,.16);color:#5eead4}.a-woohyuk .dot{background:#14b8a6}
+
+  .cal{display:inline-block}
+  .clock{display:inline-block}
+
+  /* approach-specific styles injected below via classes */
+  .b-badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;flex-shrink:0}
+  .b-doing{background:rgba(99,102,241,.18);color:#a5b4fc}
+  .b-todo{background:rgba(139,147,166,.16);color:#9aa2b1}
+  .b-done{background:rgba(16,185,129,.16);color:#5eead4}
+
+  /* 2: tri-state checkbox */
+  .cb.doing{border-color:var(--accent);background:transparent;position:relative}
+  .cb.doing::after{content:"";width:9px;height:9px;border-radius:3px;background:var(--accent);box-shadow:0 0 7px rgba(99,102,241,.6)}
+
+  /* 3: left accent bar */
+  .row.acc{padding-left:14px}
+  .row.acc::before{content:"";position:absolute;left:3px;top:8px;bottom:8px;width:3px;border-radius:99px;background:var(--muted2)}
+  .row.acc.doing::before{background:var(--accent);box-shadow:0 0 8px rgba(99,102,241,.5)}
+  .row.acc.done::before{background:var(--emerald)}
+
+  /* 4: grouped sections */
+  .grp{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:12px 10px 5px;display:flex;align-items:center;gap:7px}
+  .grp .cnt{background:rgba(255,255,255,.07);color:#c3c9d6;border-radius:99px;padding:0 7px;font-size:10.5px}
+  .grp.d{color:#a5b4fc}
+  .grp .gdot{width:7px;height:7px;border-radius:99px;background:var(--accent)}
+
+  /* 5: pulse row highlight */
+  .row.pulse{background:linear-gradient(90deg,rgba(99,102,241,.10),transparent 70%)}
+  .live{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#a5b4fc;flex-shrink:0}
+  .live .p{width:7px;height:7px;border-radius:99px;background:var(--accent);position:relative}
+  .live .p::after{content:"";position:absolute;inset:-3px;border-radius:99px;border:1.5px solid var(--accent);animation:pp 1.6s ease-out infinite}
+  @keyframes pp{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.9);opacity:0}}
+
+  .pc{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;font-size:12.5px}
+  .pc>div{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:10px;padding:9px 12px}
+  .pc .h{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+  .pc .pro .h{color:#5eead4}.pc .con .h{color:#fb7185}
+  .pc ul{margin:0;padding-left:16px;color:#b6bdca}.pc li{margin:1px 0}
+
+  .rec{background:linear-gradient(135deg,rgba(99,102,241,.14),rgba(45,212,191,.08));border:1px solid rgba(99,102,241,.3);border-radius:14px;padding:18px 20px;margin-top:12px}
+  .rec h3{margin:0 0 8px;font-size:15px}
+  .rec p{margin:6px 0;font-size:13.5px;color:#cdd3e0}
+  .rec b{color:#fff}
+  hr.sep{border:0;border-top:1px solid rgba(255,255,255,.06);margin:36px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>체크리스트 리스트 뷰 — DOING 상태 표시 방안</h1>
+  <p class="sub">TaskDetailModal · CheckList 리스트 모드 개선 제안 (5안 비교)</p>
+
+  <div class="ctx">
+    <b>현재 문제</b> — 리스트 뷰는 <span class="pill p-done">완료</span> 초록 체크와
+    <span class="pill p-todo">미완료</span> 빈 원, 딱 2가지만 구분합니다.
+    보드 모드에는 있는 <span class="pill p-doing">DOING</span>(진행 중)이 리스트에서는 안 보입니다.<br><br>
+    <b>이미 있는 것</b> — 상태 파생 규칙은 구현돼 있습니다 (<code>utils/checklistStatus.ts</code>):<br>
+    · <code>done</code> = <code>completed === true</code><br>
+    · <code>doing</code> = 미완료 &amp; <code>start_date &le; 오늘</code> (마감 지나도 미완료면 DOING 유지)<br>
+    · <code>todo</code> = 미완료 &amp; 시작일이 미래이거나 없음<br>
+    → <b>저장값이 아니라 매 렌더 계산</b>이라, 리스트 행에 <code>resolveChecklistColumn(item, today)</code>만 호출해 표현하면 됩니다. 백엔드/DB 변경 불필요.
+  </div>
+
+  <!-- ── 1. Status Badge ── -->
+  <div class="approach">
+    <div class="a-head"><span class="a-num">방안 1</span><h2 class="a-title">상태 뱃지 (Status Badge)</h2></div>
+    <p class="a-desc">제목 옆에 <b>TODO / 진행중 / 완료</b> 텍스트 뱃지를 붙입니다. 가장 명시적이고 오해의 여지가 없음.</p>
+    <div class="mock">
+      <div class="mock-h"><span class="t">CheckList</span>
+        <div class="prog"><div class="bar"><i></i></div><span class="pct">55%</span></div></div>
+
+      <div class="row">
+        <div class="cb"></div>
+        <span class="ttl">불 챕터 배경</span>
+        <span class="b-badge b-doing">진행중</span>
+        <div class="meta">
+          <span class="date"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>7/1 - 7/8</span>
+          <span class="av a-dami"><span class="dot">다</span>최다미</span>
+          <span class="hrs"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>21h</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="cb"></div>
+        <span class="ttl">[연출] 불 챕터 배경연출</span>
+        <span class="b-badge b-todo">예정</span>
+        <div class="meta">
+          <span class="date"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>7/22 - 7/24</span>
+          <span class="av a-woohyuk"><span class="dot">우</span>노우혁</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="cb"></div>
+        <span class="ttl">챕터04_프리팹, 라이팅</span>
+        <span class="b-badge b-doing">진행중</span>
+        <div class="meta">
+          <span class="date over"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>6/16 - 6/17</span>
+          <span class="av a-soyeon"><span class="dot">소</span>정소연</span>
+          <span class="hrs"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>4h30m</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="cb done"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+        <span class="ttl done">챕터04_모델링 폴리싱</span>
+        <span class="b-badge b-done">완료</span>
+        <div class="meta">
+          <span class="date">6/15 - 6/17</span>
+          <span class="av a-soyeon"><span class="dot">소</span>정소연</span>
+          <span class="hrs">13h</span>
+        </div>
+      </div>
+    </div>
+    <div class="pc">
+      <div class="pro"><div class="h">장점</div><ul><li>의미가 100% 명확, 학습 불필요</li><li>완료 항목에도 "완료" 표기해 일관성</li></ul></div>
+      <div class="con"><div class="h">단점</div><ul><li>행이 가로로 붐빔 (뱃지+날짜+담당+시간)</li><li>모바일 좁은 폭에서 줄바꿈 우려</li></ul></div>
+    </div>
+  </div>
+
+  <hr class="sep"/>
+
+  <!-- ── 2. Tri-state checkbox ── -->
+  <div class="approach">
+    <div class="a-head"><span class="a-num">방안 2</span><h2 class="a-title">3단계 체크박스 (Tri-state)</h2></div>
+    <p class="a-desc">체크박스 자체가 상태를 표현합니다. <b>빈 원(예정) → 인디고 점(진행중) → 초록 체크(완료)</b>. 추가 요소 0, 가장 미니멀.</p>
+    <div class="mock">
+      <div class="mock-h"><span class="t">CheckList</span>
+        <div class="prog"><div class="bar"><i></i></div><span class="pct">55%</span></div></div>
+
+      <div class="row">
+        <div class="cb doing"></div>
+        <span class="ttl">불 챕터 배경</span>
+        <div class="meta">
+          <span class="date"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>7/1 - 7/8</span>
+          <span class="av a-dami"><span class="dot">다</span>최다미</span>
+          <span class="hrs"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>21h</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="cb"></div>
+        <span class="ttl">[연출] 불 챕터 배경연출</span>
+        <div class="meta">
+          <span class="date"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>7/22 - 7/24</span>
+          <span class="av a-woohyuk"><span class="dot">우</span>노우혁</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="cb doing"></div>
+        <span class="ttl">챕터04_프리팹, 라이팅</span>
+        <div class="meta">
+          <span class="date over"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>6/16 - 6/17</span>
+          <span class="av a-soyeon"><span class="dot">소</span>정소연</span>
+          <span class="hrs"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>4h30m</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="cb done"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+        <span class="ttl done">챕터04_모델링 폴리싱</span>
+        <div class="meta">
+          <span class="date">6/15 - 6/17</span>
+          <span class="av a-soyeon"><span class="dot">소</span>정소연</span>
+          <span class="hrs">13h</span>
+        </div>
+      </div>
+    </div>
+    <div class="pc">
+      <div class="pro"><div class="h">장점</div><ul><li>가로 공간 0 추가, 레이아웃 그대로</li><li>보드 모드 3열 색상과 일관 (인디고=DOING)</li></ul></div>
+      <div class="con"><div class="h">단점</div><ul><li>체크박스 클릭 동작 혼동 우려 (점을 눌러 완료?)</li><li>색약 사용자엔 tooltip/aria 보강 필요</li></ul></div>
+    </div>
+  </div>
+
+  <hr class="sep"/>
+
+  <!-- ── 3. Left accent bar ── -->
+  <div class="approach">
+    <div class="a-head"><span class="a-num">방안 3</span><h2 class="a-title">왼쪽 상태 컬러 바 (Accent Bar)</h2></div>
+    <p class="a-desc">행 왼쪽에 얇은 세로 바로 상태를 표시. <b>회색=예정, 인디고=진행중, 초록=완료</b>. 스캔하기 쉽고 클릭 동작과 분리됨.</p>
+    <div class="mock">
+      <div class="mock-h"><span class="t">CheckList</span>
+        <div class="prog"><div class="bar"><i></i></div><span class="pct">55%</span></div></div>
+
+      <div class="row acc doing">
+        <div class="cb"></div>
+        <span class="ttl">불 챕터 배경</span>
+        <div class="meta">
+          <span class="date"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>7/1 - 7/8</span>
+          <span class="av a-dami"><span class="dot">다</span>최다미</span>
+          <span class="hrs"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>21h</span>
+        </div>
+      </div>
+      <div class="row acc">
+        <div class="cb"></div>
+        <span class="ttl">[연출] 불 챕터 배경연출</span>
+        <div class="meta">
+          <span class="date"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>7/22 - 7/24</span>
+          <span class="av a-woohyuk"><span class="dot">우</span>노우혁</span>
+        </div>
+      </div>
+      <div class="row acc doing">
+        <div class="cb"></div>
+        <span class="ttl">챕터04_프리팹, 라이팅</span>
+        <div class="meta">
+          <span class="date over"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>6/16 - 6/17</span>
+          <span class="av a-soyeon"><span class="dot">소</span>정소연</span>
+          <span class="hrs"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>4h30m</span>
+        </div>
+      </div>
+      <div class="row acc done">
+        <div class="cb done"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+        <span class="ttl done">챕터04_모델링 폴리싱</span>
+        <div class="meta">
+          <span class="date">6/15 - 6/17</span>
+          <span class="av a-soyeon"><span class="dot">소</span>정소연</span>
+          <span class="hrs">13h</span>
+        </div>
+      </div>
+    </div>
+    <div class="pc">
+      <div class="pro"><div class="h">장점</div><ul><li>세로 스캔 시 진행중 항목이 한눈에</li><li>공간 거의 안 씀, 클릭 동작 방해 없음</li></ul></div>
+      <div class="con"><div class="h">단점</div><ul><li>색상만으로 의미 전달 → 뱃지보다 덜 명시적</li><li>담당자 색 뱃지와 시각적 경쟁</li></ul></div>
+    </div>
+  </div>
+
+  <hr class="sep"/>
+
+  <!-- ── 4. Grouped sections ── -->
+  <div class="approach">
+    <div class="a-head"><span class="a-num">방안 4</span><h2 class="a-title">상태별 그룹 섹션 (Grouped)</h2></div>
+    <p class="a-desc">리스트를 <b>진행중 · 예정 · 완료</b> 소섹션으로 묶어 렌더. 상태가 곧 구조가 되어 "지금 뭐가 돌아가는지" 즉시 파악.</p>
+    <div class="mock">
+      <div class="mock-h"><span class="t">CheckList</span>
+        <div class="prog"><div class="bar"><i></i></div><span class="pct">55%</span></div></div>
+
+      <div class="grp d"><span class="gdot"></span>진행중 <span class="cnt">2</span></div>
+      <div class="row">
+        <div class="cb"></div>
+        <span class="ttl">불 챕터 배경</span>
+        <div class="meta">
+          <span class="date"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>7/1 - 7/8</span>
+          <span class="av a-dami"><span class="dot">다</span>최다미</span>
+          <span class="hrs"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>21h</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="cb"></div>
+        <span class="ttl">챕터04_프리팹, 라이팅</span>
+        <div class="meta">
+          <span class="date over"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>6/16 - 6/17</span>
+          <span class="av a-soyeon"><span class="dot">소</span>정소연</span>
+          <span class="hrs"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>4h30m</span>
+        </div>
+      </div>
+
+      <div class="grp"><span class="gdot" style="background:var(--muted2)"></span>예정 <span class="cnt">1</span></div>
+      <div class="row">
+        <div class="cb"></div>
+        <span class="ttl">[연출] 불 챕터 배경연출</span>
+        <div class="meta">
+          <span class="date"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>7/22 - 7/24</span>
+          <span class="av a-woohyuk"><span class="dot">우</span>노우혁</span>
+        </div>
+      </div>
+
+      <div class="grp"><span class="gdot" style="background:var(--emerald)"></span>완료 <span class="cnt">1</span></div>
+      <div class="row">
+        <div class="cb done"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+        <span class="ttl done">챕터04_모델링 폴리싱</span>
+        <div class="meta">
+          <span class="date">6/15 - 6/17</span>
+          <span class="av a-soyeon"><span class="dot">소</span>정소연</span>
+          <span class="hrs">13h</span>
+        </div>
+      </div>
+    </div>
+    <div class="pc">
+      <div class="pro"><div class="h">장점</div><ul><li>"지금 진행중" 항목이 최상단에 모임</li><li>보드 모드와 개념 일치 (열=섹션)</li></ul></div>
+      <div class="con"><div class="h">단점</div><ul><li>수동 정렬(feature_position) / 드래그와 충돌</li><li>구현 비용 최대 (그룹핑·DnD 재정의)</li></ul></div>
+    </div>
+  </div>
+
+  <hr class="sep"/>
+
+  <!-- ── 5. Live indicator ── -->
+  <div class="approach">
+    <div class="a-head"><span class="a-num">방안 5</span><h2 class="a-title">진행중 라이브 인디케이터 (Pulse)</h2></div>
+    <p class="a-desc">DOING 항목에만 은은한 배경 하이라이트 + 펄스 점 "진행중". 완료/예정은 지금 그대로 두고 <b>진행중만 강조</b>하는 최소 개입안.</p>
+    <div class="mock">
+      <div class="mock-h"><span class="t">CheckList</span>
+        <div class="prog"><div class="bar"><i></i></div><span class="pct">55%</span></div></div>
+
+      <div class="row pulse">
+        <div class="cb"></div>
+        <span class="ttl">불 챕터 배경</span>
+        <span class="live"><span class="p"></span>진행중</span>
+        <div class="meta">
+          <span class="date"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>7/1 - 7/8</span>
+          <span class="av a-dami"><span class="dot">다</span>최다미</span>
+          <span class="hrs"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>21h</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="cb"></div>
+        <span class="ttl">[연출] 불 챕터 배경연출</span>
+        <div class="meta">
+          <span class="date"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>7/22 - 7/24</span>
+          <span class="av a-woohyuk"><span class="dot">우</span>노우혁</span>
+        </div>
+      </div>
+      <div class="row pulse">
+        <div class="cb"></div>
+        <span class="ttl">챕터04_프리팹, 라이팅</span>
+        <span class="live"><span class="p"></span>진행중</span>
+        <div class="meta">
+          <span class="date over"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>6/16 - 6/17</span>
+          <span class="av a-soyeon"><span class="dot">소</span>정소연</span>
+          <span class="hrs"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>4h30m</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="cb done"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+        <span class="ttl done">챕터04_모델링 폴리싱</span>
+        <div class="meta">
+          <span class="date">6/15 - 6/17</span>
+          <span class="av a-soyeon"><span class="dot">소</span>정소연</span>
+          <span class="hrs">13h</span>
+        </div>
+      </div>
+    </div>
+    <div class="pc">
+      <div class="pro"><div class="h">장점</div><ul><li>진행중 항목이 눈에 확 띔, 활기 있음</li><li>기존 행 구조 유지, 진행중에만 개입</li></ul></div>
+      <div class="con"><div class="h">단점</div><ul><li>애니메이션 → <code>useReducedMotion</code> 대응 필수</li><li>진행중 많으면 배경 하이라이트 과함</li></ul></div>
+    </div>
+  </div>
+
+  <div class="rec">
+    <h3>추천 — 방안 3(컬러 바) + 방안 1(뱃지)의 절충, 또는 방안 2</h3>
+    <p><b>가장 안전한 선택은 방안 2(3단계 체크박스)</b>입니다. 레이아웃을 전혀 안 바꾸고, 보드 모드의 인디고=DOING 색과 일관되며, 상태 파생 함수만 재사용하면 됩니다. 단 체크박스 클릭 의미가 흐려지지 않도록 <b>DOING 점 클릭 = 완료 토글</b>임을 tooltip/aria로 명확히.</p>
+    <p><b>"진행중을 확실히 보여주고 싶다"</b>가 핵심이면 <b>방안 1(뱃지)</b> 또는 <b>방안 5(펄스)</b>가 표현력이 가장 큽니다. 방안 5는 진행중만 강조해 개입이 최소지만 모션 접근성 처리가 필요합니다.</p>
+    <p>방안 4(그룹)는 표현은 가장 강력하나, 이 프로젝트의 <b>수동 정렬(feature_position) + 드래그 정렬</b>과 충돌하므로 이번 목적엔 과합니다.</p>
+    <p style="margin-top:10px;color:#9aa2b1;font-size:12.5px">모든 안 공통: 백엔드 변경 없음 · <code>resolveChecklistColumn(item, today)</code> 재사용 · <code>ChecklistItemRow</code> 한 곳만 수정. 원하시는 안 알려주시면 바로 구현하겠습니다.</p>
+  </div>
+
+</div>
+</body>
+</html>

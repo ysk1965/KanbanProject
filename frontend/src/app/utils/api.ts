@@ -3548,6 +3548,66 @@ export const milestoneAPI = {
 };
 
 // ========================================
+// Calendar Event API (워크로드 특별 일정)
+// ========================================
+
+/** 워크로드 특별 일정 항목 (팀 이벤트 / 개인 부재 / 달력 예외) */
+export interface CalendarEventItem {
+  id: string;
+  event_type: string; // BUILD/RELEASE/DEADLINE/EVENT/VACATION/TRIP/SICK/REMOTE/HOLIDAY/WORKDAY
+  category: string; // TEAM/MEMBER/CALENDAR
+  member: { id: string; name: string; profile_image: string | null } | null;
+  title: string | null;
+  start_date: string;
+  end_date: string;
+  color: string | null;
+  recurring: boolean;
+  created_at: string;
+}
+
+export interface CalendarEventPayload {
+  event_type: string;
+  member_id?: string | null;
+  title?: string | null;
+  start_date: string;
+  end_date: string;
+  color?: string | null;
+  recurring?: boolean;
+}
+
+export const calendarEventAPI = {
+  list: async (boardId: string) => {
+    return apiClient.get<{ events: CalendarEventItem[] }>(
+      `/boards/${boardId}/calendar-events`,
+    );
+  },
+
+  create: async (boardId: string, data: CalendarEventPayload) => {
+    return apiClient.post<CalendarEventItem>(
+      `/boards/${boardId}/calendar-events`,
+      data,
+    );
+  },
+
+  update: async (
+    boardId: string,
+    eventId: string,
+    data: Partial<CalendarEventPayload>,
+  ) => {
+    return apiClient.put<CalendarEventItem>(
+      `/boards/${boardId}/calendar-events/${eventId}`,
+      data,
+    );
+  },
+
+  remove: async (boardId: string, eventId: string) => {
+    return apiClient.delete<{ message?: string }>(
+      `/boards/${boardId}/calendar-events/${eventId}`,
+    );
+  },
+};
+
+// ========================================
 // Test Data API (for development)
 // ========================================
 
