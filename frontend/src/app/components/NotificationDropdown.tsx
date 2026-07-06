@@ -27,6 +27,46 @@ import {
 } from "../utils/dateUtils";
 import { TFunction } from "i18next";
 
+/** 활동로그 항목 클릭 시 이동할 대상 (부모에서 라우팅) */
+export type ActivityNavTarget =
+  | { kind: "task"; taskId: string; checklistItemId?: string }
+  | { kind: "feature"; featureId: string };
+
+/**
+ * 활동로그 항목의 이동 대상을 해석한다.
+ * - FEATURE 액션: target_id = feature id → 피처 모달
+ * - TASK 액션(AI 체크리스트 생성 포함): target_id = task id → 태스크 모달
+ * - CHECKLIST 액션: target_id = 체크리스트 항목 id, metadata.taskId = 부모 태스크 id
+ * - 삭제/영구삭제 및 블록 액션은 이동 대상 없음(null)
+ */
+export function getActivityNavTarget(
+  activity: ActivityLog,
+): ActivityNavTarget | null {
+  const action = activity.action as string;
+  const targetId = activity.target_id;
+  const targetType = activity.target_type;
+  const metadata = (activity.metadata || {}) as Record<string, unknown>;
+
+  if (!targetId) return null;
+  // 삭제/영구삭제된 대상은 열 수 없음
+  if (action.endsWith("_DELETED")) return null;
+
+  switch (targetType) {
+    case "FEATURE":
+      return { kind: "feature", featureId: targetId };
+    case "TASK":
+      return { kind: "task", taskId: targetId };
+    case "CHECKLIST": {
+      const taskId = metadata.taskId as string | undefined;
+      // 구버전 로그(taskId 없음)는 이동 불가
+      if (!taskId) return null;
+      return { kind: "task", taskId, checklistItemId: targetId };
+    }
+    default:
+      return null; // BLOCK 등은 이동 대상 없음
+  }
+}
+
 function getNotificationIcon(type: NotificationType) {
   switch (type) {
     case "COMMENT_MENTION":
@@ -214,6 +254,19 @@ function getActionText(activity: ActivityLog, t: TFunction) {
         </>
       );
     case "CHECKLIST_CREATED":
+      // AI 일괄 생성 경로: checklistTitle 없이 itemsCreated 개수만 존재
+      if (!metadata.checklistTitle && metadata.itemsCreated) {
+        return (
+          <>
+            <span className="font-medium text-foreground">{user.name}</span>
+            <span className="text-foreground/80">
+              {t("notification.activity.actionChecklistCreatedBulk", {
+                count: Number(metadata.itemsCreated),
+              })}
+            </span>
+          </>
+        );
+      }
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
@@ -239,6 +292,130 @@ function getActionText(activity: ActivityLog, t: TFunction) {
           </span>
         </>
       );
+    case "TASK_FEATURE_MOVED":
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-foreground/80">
+            {t("notification.activity.actionTaskFeatureMoved")}
+          </span>
+          <span className="font-medium text-indigo-400">
+            {metadata.taskTitle as string}
+          </span>
+          <span className="text-foreground/80"> </span>
+          <span className="font-medium text-green-400">
+            {metadata.fromFeature as string}
+          </span>
+          <span className="text-foreground/80"> → </span>
+          <span className="font-medium text-green-400">
+            {metadata.toFeature as string}
+          </span>
+        </>
+      );
+    case "FEATURE_RESTORED":
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-foreground/80">
+            {t("notification.activity.actionFeatureRestored")}
+          </span>
+          <span className="font-medium text-indigo-400">
+            {metadata.featureTitle as string}
+          </span>
+        </>
+      );
+    case "TASK_RESTORED":
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-foreground/80">
+            {t("notification.activity.actionTaskRestored")}
+          </span>
+          <span className="font-medium text-indigo-400">
+            {metadata.taskTitle as string}
+          </span>
+        </>
+      );
+    case "CHECKLIST_MOVED":
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-foreground/80">
+            {t("notification.activity.actionChecklistMoved")}
+          </span>
+          <span className="font-medium text-indigo-400">
+            {metadata.checklistTitle as string}
+          </span>
+          <span className="text-foreground/80"> </span>
+          <span className="font-medium text-green-400">
+            {metadata.fromTask as string}
+          </span>
+          <span className="text-foreground/80"> → </span>
+          <span className="font-medium text-green-400">
+            {metadata.toTask as string}
+          </span>
+        </>
+      );
+    case "CHECKLIST_DELETED":
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-foreground/80">
+            {t("notification.activity.actionChecklistDeleted")}
+          </span>
+          <span className="font-medium text-indigo-400">
+            {metadata.checklistTitle as string}
+          </span>
+        </>
+      );
+    case "CHECKLIST_RESTORED":
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-foreground/80">
+            {t("notification.activity.actionChecklistRestored")}
+          </span>
+          <span className="font-medium text-indigo-400">
+            {metadata.checklistTitle as string}
+          </span>
+        </>
+      );
+    case "FEATURE_PERMANENTLY_DELETED":
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-foreground/80">
+            {t("notification.activity.actionFeaturePermanentlyDeleted")}
+          </span>
+          <span className="font-medium text-slate-400">
+            {metadata.featureTitle as string}
+          </span>
+        </>
+      );
+    case "TASK_PERMANENTLY_DELETED":
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-foreground/80">
+            {t("notification.activity.actionTaskPermanentlyDeleted")}
+          </span>
+          <span className="font-medium text-slate-400">
+            {metadata.taskTitle as string}
+          </span>
+        </>
+      );
+    case "CHECKLIST_PERMANENTLY_DELETED":
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-foreground/80">
+            {t("notification.activity.actionChecklistPermanentlyDeleted")}
+          </span>
+          <span className="font-medium text-slate-400">
+            {metadata.checklistTitle as string}
+          </span>
+        </>
+      );
     default:
       return (
         <>
@@ -258,6 +435,7 @@ interface NotificationDropdownProps {
   hasMoreActivities: boolean;
   onLoadMoreActivities: () => Promise<void>;
   onNotificationClick: (notification: NotificationItem) => void;
+  onActivityNavigate?: (target: ActivityNavTarget) => void;
   onUnreadCountChange: (count: number) => void;
   canAccessSlack?: boolean;
   canAccessDiscord?: boolean;
@@ -274,6 +452,7 @@ export function NotificationDropdown({
   hasMoreActivities,
   onLoadMoreActivities,
   onNotificationClick,
+  onActivityNavigate,
   onUnreadCountChange,
   canAccessSlack = true,
   canAccessDiscord = true,
@@ -599,10 +778,39 @@ export function NotificationDropdown({
                   {activities.map((activity) => {
                     const activityUserName = activity.user?.name || "?";
                     const activityColor = getAssigneeClasses(activityUserName);
+                    const navTarget = getActivityNavTarget(activity);
+                    const clickable = !!navTarget && !!onActivityNavigate;
+                    const taskTitle = (activity.metadata as Record<string, unknown>)
+                      ?.taskTitle as string | undefined;
+                    const isChecklist = (activity.action as string).startsWith(
+                      "CHECKLIST_",
+                    );
+                    const handleNavigate = () => {
+                      if (!clickable) return;
+                      onActivityNavigate!(navTarget!);
+                      setIsOpen(false);
+                    };
                     return (
                       <div
                         key={activity.id}
-                        className="flex gap-2.5 px-4 py-3 border-l-2 border-transparent hover:bg-foreground/5 transition-colors"
+                        role={clickable ? "button" : undefined}
+                        tabIndex={clickable ? 0 : undefined}
+                        onClick={clickable ? handleNavigate : undefined}
+                        onKeyDown={
+                          clickable
+                            ? (e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  handleNavigate();
+                                }
+                              }
+                            : undefined
+                        }
+                        className={`group flex gap-2.5 px-4 py-3 border-l-2 border-transparent transition-colors ${
+                          clickable
+                            ? "cursor-pointer hover:bg-foreground/5 focus:outline-none focus-visible:bg-bridge-accent/10 focus-visible:border-l-bridge-accent"
+                            : ""
+                        }`}
                       >
                         {/* Avatar */}
                         <div className="flex-shrink-0">
@@ -626,6 +834,30 @@ export function NotificationDropdown({
                           <div className="text-xs leading-snug">
                             {getActionText(activity, t)}
                           </div>
+                          {/* 체크리스트 항목의 소속 태스크 표시 */}
+                          {isChecklist && taskTitle && (
+                            <div
+                              className={`mt-1.5 inline-flex items-center gap-1.5 max-w-full px-2 py-1 rounded-lg bg-bridge-surface border transition-colors ${
+                                clickable
+                                  ? "border-foreground/[0.08] group-hover:border-bridge-accent/40"
+                                  : "border-foreground/[0.08]"
+                              }`}
+                            >
+                              <ClipboardList
+                                size={11}
+                                className="text-slate-400 shrink-0"
+                              />
+                              <span className="text-xs text-slate-300 font-medium truncate">
+                                {taskTitle}
+                              </span>
+                              {clickable && (
+                                <ChevronRight
+                                  size={11}
+                                  className="text-slate-500 group-hover:text-bridge-accent shrink-0 transition-colors"
+                                />
+                              )}
+                            </div>
+                          )}
                           <p className="text-xs text-slate-400 mt-1">
                             {getTimeAgo(activity.created_at, t)}
                           </p>

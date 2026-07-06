@@ -1,4 +1,16 @@
 {
+  "flow": {
+    "newMemo": "便籤",
+    "handTool": "抓手工具",
+    "pointerTool": "選取工具",
+    "addText": "文字",
+    "addSticky": "便籤",
+    "addShape": "圖形",
+    "addImage": "圖片",
+    "addVideo": "影片",
+    "empty": "從頂部工具列新增節點以開始",
+    "emptyReadOnly": "此流程圖為空"
+  },
   "common": {
     "loading": "載入中...",
     "save": "儲存",
@@ -461,7 +473,18 @@
       "actionChecklistCreated": " 建立了清單 ",
       "actionChecklistCompleted": " 完成了清單 ",
       "actionChecklistUncompleted": " 取消完成了清單 ",
-      "actionDefault": " 執行了一個操作"
+      "actionDefault": " 執行了一個操作",
+      "actionTaskFeatureMoved": " 移動了 Task ",
+      "actionFeatureRestored": " 還原了 Feature ",
+      "actionTaskRestored": " 還原了 Task ",
+      "actionChecklistMoved": " 移動了清單 ",
+      "actionChecklistDeleted": " 刪除了清單 ",
+      "actionChecklistRestored": " 還原了清單 ",
+      "actionFeaturePermanentlyDeleted": " 永久刪除了 Feature ",
+      "actionTaskPermanentlyDeleted": " 永久刪除了 Task ",
+      "actionChecklistPermanentlyDeleted": " 永久刪除了清單 ",
+      "actionChecklistCreatedBulk": " 建立了 {{count}} 個清單項目",
+      "openTask": "開啟任務"
     }
   },
   "trial": {

@@ -1,4 +1,16 @@
 {
+  "flow": {
+    "newMemo": "Nota",
+    "handTool": "Herramienta mano",
+    "pointerTool": "Herramienta selección",
+    "addText": "Texto",
+    "addSticky": "Nota adhesiva",
+    "addShape": "Forma",
+    "addImage": "Imagen",
+    "addVideo": "Vídeo",
+    "empty": "Añade un nodo desde la barra de herramientas para empezar",
+    "emptyReadOnly": "Este flujo está vacío"
+  },
   "common": {
     "loading": "Cargando...",
     "save": "Guardar",
@@ -465,7 +477,18 @@
       "actionChecklistCreated": " creó la lista de verificación ",
       "actionChecklistCompleted": " completó la lista de verificación ",
       "actionChecklistUncompleted": " desmarcó la lista de verificación ",
-      "actionDefault": " realizó una acción"
+      "actionDefault": " realizó una acción",
+      "actionTaskFeatureMoved": " movió el Task ",
+      "actionFeatureRestored": " restauró el Feature ",
+      "actionTaskRestored": " restauró el Task ",
+      "actionChecklistMoved": " movió la lista de verificación ",
+      "actionChecklistDeleted": " eliminó la lista de verificación ",
+      "actionChecklistRestored": " restauró la lista de verificación ",
+      "actionFeaturePermanentlyDeleted": " eliminó permanentemente el Feature ",
+      "actionTaskPermanentlyDeleted": " eliminó permanentemente el Task ",
+      "actionChecklistPermanentlyDeleted": " eliminó permanentemente la lista de verificación ",
+      "actionChecklistCreatedBulk": " creó {{count}} elementos de lista",
+      "openTask": "Abrir tarea"
     }
   },
   "trial": {

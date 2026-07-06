@@ -1,4 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
 import {
@@ -20,7 +27,7 @@ interface MyWorkloadStripProps {
   boardId: string;
   /** 바를 그릴 담당자 (대개 현재 사용자) */
   assigneeId: string;
-  /** 데일리 체크리스트를 추가하는 날 "yyyy-MM-dd" — window 중심 + 마커 */
+  /** 데일리 체크리스트를 추가하는 날 "yyyy-MM-dd" — window 기준 + 마커 */
   assignedDate: string;
   /** 모달에서 지금 선택 중인 항목 id (실시간 강조용) */
   selectedItemIds: Set<string>;
@@ -28,11 +35,12 @@ interface MyWorkloadStripProps {
   onBarClick?: (itemId: string) => void;
 }
 
-const TOTAL_DAYS = 42; // 6주
-const WEEKS = 6;
-const MAX_LANES = 3;
+const VISIBLE_DAYS = 28; // 화면에 보이는 4주 (나머지는 가로 스크롤)
+const FETCH_DAYS = 168; // 담당자 항목을 넉넉히 가져올 범위 (24주)
 const BAR_H = 20;
 const LANE_GAP = 4;
+const TOP_OFFSET = 20; // 주 라벨 영역
+const MIN_BAR_PX = 10;
 const DEFAULT_FEATURE_COLOR = "#6366F1";
 
 /** "yyyy-MM-dd" → "M/D" */
@@ -44,10 +52,8 @@ function shortLabel(dateStr: string): string {
 interface PlacedBar {
   item: AssigneeItemResponse;
   lane: number;
-  leftPct: number;
-  widthPct: number;
-  overflowLeft: boolean;
-  overflowRight: boolean;
+  startIdx: number;
+  endIdx: number;
   color: string;
 }
 
@@ -72,13 +78,17 @@ export function MyWorkloadStrip({
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
-  // ─── window: assignedDate가 속한 주(일요일 시작)의 1주 전부터 6주 ───
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [viewportWidth, setViewportWidth] = useState(0);
+  const didInitScroll = useRef(false);
+
+  // ─── window: assignedDate가 속한 주(일요일)의 1주 전부터 시작 ───
   const rangeStart = useMemo(() => {
     const weekday = parseDate(assignedDate).getDay(); // 0=Sun
     return addDaysToDate(assignedDate, -weekday - 7);
   }, [assignedDate]);
-  const rangeEnd = useMemo(
-    () => addDaysToDate(rangeStart, TOTAL_DAYS - 1),
+  const fetchEnd = useMemo(
+    () => addDaysToDate(rangeStart, FETCH_DAYS - 1),
     [rangeStart],
   );
 
@@ -99,10 +109,11 @@ export function MyWorkloadStrip({
     let cancelled = false;
     setIsLoading(true);
     setHasError(false);
+    didInitScroll.current = false;
     boardChecklistAPI
       .getItemsByAssignee(boardId, {
         start_date: rangeStart,
-        end_date: rangeEnd,
+        end_date: fetchEnd,
       })
       .then((res) => {
         if (cancelled) return;
@@ -119,83 +130,94 @@ export function MyWorkloadStrip({
     return () => {
       cancelled = true;
     };
-  }, [boardId, assigneeId, rangeStart, rangeEnd]);
+  }, [boardId, assigneeId, rangeStart, fetchEnd]);
 
-  // ─── 바 배치 계산 ───
-  const { placedBars, hiddenCount, laneCount } = useMemo(() => {
+  // ─── 뷰포트 폭 측정 → dayWidth 계산 (4주가 보이는 폭에 맞춤) ───
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const measure = () => setViewportWidth(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [open, isLoading]);
+
+  const dayWidth = viewportWidth > 0 ? viewportWidth / VISIBLE_DAYS : 0;
+
+  // ─── 바 배치 계산 (레인 제한 없음 — 전부 표시) ───
+  const { placedBars, laneCount, maxEndIdx } = useMemo(() => {
     const dated = items.filter((it) => it.start_date || it.due_date);
 
     const ranges: BarRange[] = [];
     const meta = new Map<string, { startIdx: number; endIdx: number }>();
+    let maxEnd = VISIBLE_DAYS - 1;
     for (const it of dated) {
       const start = it.start_date || it.due_date!;
       const end = it.due_date || it.start_date!;
       const startIdx = diffDays(rangeStart, start);
       const endIdx = diffDays(rangeStart, end);
-      // window 밖(완전히 벗어남)이면 제외
-      if (endIdx < 0 || startIdx > TOTAL_DAYS - 1) continue;
+      if (endIdx < 0) continue; // window 시작 이전이면 제외
       ranges.push({ id: it.id, startDayIndex: startIdx, endDayIndex: endIdx });
       meta.set(it.id, { startIdx, endIdx });
+      maxEnd = Math.max(maxEnd, endIdx);
     }
 
     const lanes = computeBarLanes(ranges);
     const byId = new Map(dated.map((it) => [it.id, it]));
 
     const placed: PlacedBar[] = [];
-    let hidden = 0;
     let maxLane = -1;
-
     for (const r of ranges) {
       const lane = lanes[r.id] ?? 0;
-      if (lane >= MAX_LANES) {
-        hidden += 1;
-        continue;
-      }
       maxLane = Math.max(maxLane, lane);
       const m = meta.get(r.id)!;
-      const rawLeft = m.startIdx / TOTAL_DAYS;
-      const rawRight = (m.endIdx + 1) / TOTAL_DAYS;
-      const leftClamped = Math.max(0, rawLeft);
-      const rightClamped = Math.min(1, rawRight);
       const item = byId.get(r.id)!;
       placed.push({
         item,
         lane,
-        leftPct: leftClamped * 100,
-        widthPct: Math.max((rightClamped - leftClamped) * 100, 1.4),
-        overflowLeft: rawLeft < 0,
-        overflowRight: rawRight > 1,
+        startIdx: m.startIdx,
+        endIdx: m.endIdx,
         color: item.feature?.color || DEFAULT_FEATURE_COLOR,
       });
     }
 
     return {
       placedBars: placed,
-      hiddenCount: hidden,
       laneCount: Math.max(maxLane + 1, 1),
+      maxEndIdx: maxEnd,
     };
   }, [items, rangeStart]);
 
-  // ─── 마커 위치 ───
-  const todayStr = getTodayDateString();
-  const todayIdx = diffDays(rangeStart, todayStr);
+  // ─── 마커 위치(일 인덱스) ───
+  const todayIdx = diffDays(rangeStart, getTodayDateString());
   const addIdx = diffDays(rangeStart, assignedDate);
-  const todayPct =
-    todayIdx >= 0 && todayIdx <= TOTAL_DAYS - 1
-      ? (todayIdx / TOTAL_DAYS) * 100
-      : null;
-  const addPct =
-    addIdx >= 0 && addIdx <= TOTAL_DAYS - 1
-      ? (addIdx / TOTAL_DAYS) * 100
-      : null;
 
-  const trackHeight = laneCount * BAR_H + (laneCount - 1) * LANE_GAP + LANE_GAP;
+  // ─── 콘텐츠 총 일수: 데이터에 딱 맞게 (필요할 때만 스크롤) ───
+  const contentDays = Math.max(
+    VISIBLE_DAYS,
+    maxEndIdx + 3,
+    addIdx + 3,
+    todayIdx + 3,
+  );
+  const contentWidth = contentDays * dayWidth;
+  const weekCount = Math.ceil(contentDays / 7);
+  const trackHeight = TOP_OFFSET + laneCount * (BAR_H + LANE_GAP);
+
+  // ─── 초기 스크롤: 추가일이 살짝 왼쪽에 오도록 ───
+  useEffect(() => {
+    if (didInitScroll.current) return;
+    if (isLoading || dayWidth <= 0 || !scrollRef.current) return;
+    const target = Math.max(0, (addIdx - 2) * dayWidth);
+    scrollRef.current.scrollLeft = target;
+    didInitScroll.current = true;
+  }, [isLoading, dayWidth, addIdx]);
 
   // 에러 시 조용히 숨김 (모달 본문 흐름 방해 X)
   if (hasError) return null;
 
   const displayName = assignee?.name ?? "";
-  const barCount = placedBars.length + hiddenCount;
+  const barCount = placedBars.length;
 
   return (
     <div className="px-6 pt-3">
@@ -208,6 +230,21 @@ export function MyWorkloadStrip({
           aria-expanded={open}
         >
           <div className="flex items-center gap-2.5 min-w-0">
+            {assignee &&
+              (assignee.profile_image ? (
+                <img
+                  src={assignee.profile_image}
+                  alt={displayName}
+                  className="w-5 h-5 rounded-full object-cover flex-shrink-0"
+                />
+              ) : (
+                <div
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                  style={{ backgroundColor: getAssigneeHex(displayName) }}
+                >
+                  {getInitials(displayName)}
+                </div>
+              ))}
             <span className="text-xs font-bold uppercase tracking-widest text-bridge-accent">
               {t("dailyChecklist.workloadTitle")}
             </span>
@@ -221,9 +258,6 @@ export function MyWorkloadStrip({
                 {t("dailyChecklist.workloadActive", { count: barCount })}
               </span>
             )}
-            <span className="text-xs text-slate-500 whitespace-nowrap hidden sm:inline">
-              {shortLabel(rangeStart)} – {shortLabel(rangeEnd)}
-            </span>
           </div>
           <span className="text-slate-400 flex-shrink-0">
             {open ? (
@@ -246,82 +280,76 @@ export function MyWorkloadStrip({
                 {t("dailyChecklist.workloadEmpty")}
               </div>
             ) : (
-              <div className="flex gap-3">
-                {/* Avatar column */}
-                <div className="w-24 flex-shrink-0 flex items-start gap-2 pt-5">
-                  {assignee?.profile_image ? (
-                    <img
-                      src={assignee.profile_image}
-                      alt={displayName}
-                      className="w-7 h-7 rounded-full object-cover flex-shrink-0"
-                    />
-                  ) : (
-                    <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                      style={{ backgroundColor: getAssigneeHex(displayName) }}
-                    >
-                      {getInitials(displayName)}
-                    </div>
-                  )}
-                </div>
-
-                {/* Track */}
-                <div className="flex-1 min-w-0">
+              <>
+                {/* 가로 스크롤 타임라인 */}
+                <div
+                  ref={scrollRef}
+                  className="overflow-x-auto overflow-y-hidden custom-scrollbar"
+                >
                   <div
                     className="relative"
-                    style={{ height: trackHeight + 20 }}
+                    style={{
+                      width: contentWidth || "100%",
+                      height: trackHeight,
+                    }}
                   >
-                    {/* Week gridlines + labels */}
-                    {Array.from({ length: WEEKS }).map((_, i) => {
-                      const leftPct = ((i * 7) / TOTAL_DAYS) * 100;
+                    {/* 주 눈금 + 라벨 */}
+                    {Array.from({ length: weekCount + 1 }).map((_, i) => {
+                      const left = i * 7 * dayWidth;
+                      if (left > contentWidth) return null;
                       const labelDate = addDaysToDate(rangeStart, i * 7);
                       return (
                         <div
                           key={i}
                           className="absolute top-0 bottom-0 border-l border-foreground/[0.06]"
-                          style={{ left: `${leftPct}%` }}
+                          style={{ left }}
                         >
-                          <span className="absolute top-0 left-1 text-xs text-slate-500 tabular-nums">
+                          <span className="absolute top-0 left-1 text-xs text-slate-500 tabular-nums whitespace-nowrap">
                             {shortLabel(labelDate)}
                           </span>
                         </div>
                       );
                     })}
 
-                    {/* Today marker */}
-                    {todayPct !== null && (
+                    {/* 오늘 마커 */}
+                    {todayIdx >= 0 && (
                       <div
                         className="absolute z-20"
                         style={{
-                          left: `${todayPct}%`,
+                          left: todayIdx * dayWidth,
                           top: 16,
                           bottom: 0,
                         }}
                       >
                         <div className="absolute top-0 bottom-0 border-l-[1.5px] border-bridge-secondary" />
-                        <span className="absolute -top-4 left-0 -translate-x-1/2 text-xs font-medium px-1.5 py-px rounded bg-bridge-secondary text-bridge-dark whitespace-nowrap">
+                        <span className="absolute -top-0 left-1 text-xs font-medium px-1.5 py-px rounded bg-bridge-secondary text-bridge-dark whitespace-nowrap">
                           {t("dailyChecklist.workloadToday")}
                         </span>
                       </div>
                     )}
 
-                    {/* Add-date marker */}
-                    {addPct !== null && (
+                    {/* 추가일 마커 */}
+                    {addIdx >= 0 && addIdx !== todayIdx && (
                       <div
                         className="absolute z-20"
-                        style={{ left: `${addPct}%`, top: 16, bottom: 0 }}
+                        style={{ left: addIdx * dayWidth, top: 16, bottom: 0 }}
                       >
                         <div className="absolute top-0 bottom-0 border-l-[1.5px] border-dashed border-bridge-accent" />
-                        <span className="absolute -top-4 left-0 -translate-x-1/2 text-xs font-medium px-1.5 py-px rounded bg-bridge-accent text-white whitespace-nowrap">
+                        <span className="absolute -top-0 left-1 text-xs font-medium px-1.5 py-px rounded bg-bridge-accent text-white whitespace-nowrap">
                           {t("dailyChecklist.workloadAddDate")}
                         </span>
                       </div>
                     )}
 
-                    {/* Bars */}
+                    {/* 바 */}
                     {placedBars.map((b) => {
                       const isSel = selectedItemIds.has(b.item.id);
-                      const top = 20 + b.lane * (BAR_H + LANE_GAP);
+                      const rawLeft = b.startIdx * dayWidth;
+                      const rawRight = (b.endIdx + 1) * dayWidth;
+                      const left = Math.max(0, rawLeft);
+                      const width = Math.max(rawRight - left, MIN_BAR_PX);
+                      const overflowLeft = b.startIdx < 0;
+                      const top = TOP_OFFSET + b.lane * (BAR_H + LANE_GAP);
                       return (
                         <div
                           key={b.item.id}
@@ -333,12 +361,10 @@ export function MyWorkloadStrip({
                           }
                           className={`absolute flex items-center px-1.5 rounded-md text-xs text-white overflow-hidden whitespace-nowrap transition-shadow ${
                             onBarClick ? "cursor-pointer" : ""
-                          } ${b.overflowLeft ? "rounded-l-none" : ""} ${
-                            b.overflowRight ? "rounded-r-none" : ""
-                          }`}
+                          } ${overflowLeft ? "rounded-l-none" : ""}`}
                           style={{
-                            left: `${b.leftPct}%`,
-                            width: `${b.widthPct}%`,
+                            left,
+                            width,
                             top,
                             height: BAR_H,
                             backgroundColor: b.color,
@@ -355,37 +381,25 @@ export function MyWorkloadStrip({
                         </div>
                       );
                     })}
-
-                    {/* Hidden overflow chip */}
-                    {hiddenCount > 0 && (
-                      <div
-                        className="absolute right-0 text-xs font-medium text-slate-400"
-                        style={{
-                          top: 20 + (MAX_LANES - 1) * (BAR_H + LANE_GAP),
-                        }}
-                      >
-                        +{hiddenCount}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Legend */}
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-xs text-slate-500">
-                    <span className="flex items-center gap-1.5">
-                      <i className="inline-block w-0.5 h-3 bg-bridge-secondary" />
-                      {t("dailyChecklist.workloadToday")}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <i className="inline-block w-0.5 h-3 bg-bridge-accent" />
-                      {t("dailyChecklist.workloadAddDate")}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <i className="inline-block w-3 h-3 rounded-sm border border-white/70" />
-                      {t("dailyChecklist.workloadSelected")}
-                    </span>
                   </div>
                 </div>
-              </div>
+
+                {/* Legend */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-slate-500">
+                  <span className="flex items-center gap-1.5">
+                    <i className="inline-block w-0.5 h-3 bg-bridge-secondary" />
+                    {t("dailyChecklist.workloadToday")}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <i className="inline-block w-0.5 h-3 bg-bridge-accent" />
+                    {t("dailyChecklist.workloadAddDate")}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <i className="inline-block w-3 h-3 rounded-sm border border-white/70" />
+                    {t("dailyChecklist.workloadSelected")}
+                  </span>
+                </div>
+              </>
             )}
           </div>
         )}
