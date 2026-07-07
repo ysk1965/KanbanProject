@@ -207,6 +207,77 @@ export function FeatureDetailModal({
     if (feature && open) setNewSubtaskMilestoneId(defaultSubtaskMilestoneId);
   }, [feature, open, defaultSubtaskMilestoneId]);
 
+  // 서브태스크를 마일스톤별로 그룹핑(마인드맵 taskGroups 규칙 재사용).
+  // 보드 milestones 순서(=색상 idx 순) → 고아 마일스톤 → 미배치 순. 버킷 내 순서는 sortedTasks 유지(안정).
+  // ⚠️ Hooks 규칙: 아래 early return보다 위에서 선언해야 함(React #310 방지).
+  const taskGroups = useMemo(() => {
+    const colorFor = (msId: string | null) => {
+      if (!msId) return MILESTONE_UNASSIGNED_COLOR;
+      const idx = milestones.findIndex((m) => m.id === msId);
+      return idx >= 0
+        ? MILESTONE_COLORS[idx % MILESTONE_COLORS.length]
+        : MILESTONE_UNASSIGNED_COLOR;
+    };
+    const byMs = new Map<string | null, Task[]>();
+    for (const tk of sortedTasks) {
+      const key = tk.milestone_id ?? null;
+      if (!byMs.has(key)) byMs.set(key, []);
+      byMs.get(key)!.push(tk);
+    }
+    const groups: {
+      key: string;
+      milestoneId: string | null;
+      title: string;
+      color: string;
+      tasks: Task[];
+    }[] = [];
+    const consumed = new Set<string>();
+    for (const m of milestones) {
+      const ts = byMs.get(m.id);
+      if (ts?.length) {
+        groups.push({
+          key: m.id,
+          milestoneId: m.id,
+          title: m.title,
+          color: colorFor(m.id),
+          tasks: ts,
+        });
+        consumed.add(m.id);
+      }
+    }
+    // milestones에 없는 마일스톤 id를 가진 태스크(고아) 처리
+    for (const [key, ts] of byMs) {
+      if (key !== null && !consumed.has(key) && ts.length) {
+        groups.push({
+          key,
+          milestoneId: key,
+          title: milestones.find((m) => m.id === key)?.title ?? key,
+          color: colorFor(key),
+          tasks: ts,
+        });
+      }
+    }
+    const unassigned = byMs.get(null);
+    if (unassigned?.length) {
+      groups.push({
+        key: "__unassigned__",
+        milestoneId: null,
+        title: t("featureDetail.milestoneUnassigned"),
+        color: MILESTONE_UNASSIGNED_COLOR,
+        tasks: unassigned,
+      });
+    }
+    return groups;
+  }, [sortedTasks, milestones, t]);
+
+  // 마일스톤이 2개 이상으로 나뉠 때만 그룹 뷰로 전환(그 외엔 기존 평면 리스트).
+  const grouped = taskGroups.length > 1;
+  // 그룹 뷰의 시각 순서와 DnD/재정렬 기준을 일치시키기 위한 평탄화 목록.
+  const orderedTasks = useMemo(
+    () => (grouped ? taskGroups.flatMap((g) => g.tasks) : sortedTasks),
+    [grouped, taskGroups, sortedTasks],
+  );
+
   if (!open || !feature || !editedFeature) return null;
 
   const progressPercent = feature.progress_percentage;
@@ -361,70 +432,6 @@ export function FeatureDetailModal({
       ? MILESTONE_COLORS[idx % MILESTONE_COLORS.length]
       : MILESTONE_UNASSIGNED_COLOR;
   };
-
-  // 서브태스크를 마일스톤별로 그룹핑(마인드맵 taskGroups 규칙 재사용).
-  // 보드 milestones 순서(=색상 idx 순) → 미배치 → 고아 마일스톤 순. 버킷 내 순서는 sortedTasks 유지(안정).
-  const taskGroups = useMemo(() => {
-    const byMs = new Map<string | null, Task[]>();
-    for (const t of sortedTasks) {
-      const key = t.milestone_id ?? null;
-      if (!byMs.has(key)) byMs.set(key, []);
-      byMs.get(key)!.push(t);
-    }
-    const groups: {
-      key: string;
-      milestoneId: string | null;
-      title: string;
-      color: string;
-      tasks: Task[];
-    }[] = [];
-    const consumed = new Set<string | null>();
-    for (const m of milestones) {
-      const ts = byMs.get(m.id);
-      if (ts?.length) {
-        groups.push({
-          key: m.id,
-          milestoneId: m.id,
-          title: m.title,
-          color: getMilestoneColor(m.id),
-          tasks: ts,
-        });
-        consumed.add(m.id);
-      }
-    }
-    // milestones에 없는 마일스톤 id를 가진 태스크(고아) 처리
-    for (const [key, ts] of byMs) {
-      if (key !== null && !consumed.has(key) && ts.length) {
-        groups.push({
-          key,
-          milestoneId: key,
-          title: getTaskMilestoneTitle(key) ?? key,
-          color: getMilestoneColor(key),
-          tasks: ts,
-        });
-      }
-    }
-    const unassigned = byMs.get(null);
-    if (unassigned?.length) {
-      groups.push({
-        key: "__unassigned__",
-        milestoneId: null,
-        title: t("featureDetail.milestoneUnassigned"),
-        color: MILESTONE_UNASSIGNED_COLOR,
-        tasks: unassigned,
-      });
-    }
-    return groups;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortedTasks, milestones, t]);
-
-  // 마일스톤이 2개 이상으로 나뉠 때만 그룹 뷰로 전환(그 외엔 기존 평면 리스트).
-  const grouped = taskGroups.length > 1;
-  // 그룹 뷰의 시각 순서와 DnD/재정렬 기준을 일치시키기 위한 평탄화 목록.
-  const orderedTasks = useMemo(
-    () => (grouped ? taskGroups.flatMap((g) => g.tasks) : sortedTasks),
-    [grouped, taskGroups, sortedTasks],
-  );
 
   const featureTags = editedFeature.tags || [];
   const selectedColor = editedFeature.color || "#8B5CF6";
