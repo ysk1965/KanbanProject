@@ -72,13 +72,7 @@ import type { CollaborationState } from "../../hooks/useCollaboration";
 // 노드 kind: text | sticky | shape | image | video | sprite
 //   sprite = 여러 이미지를 GIF처럼 순환 재생하는 애니메이션 노드
 // ────────────────────────────────────────────────────────────
-type FlowNodeKind =
-  | "text"
-  | "sticky"
-  | "shape"
-  | "image"
-  | "video"
-  | "sprite";
+type FlowNodeKind = "text" | "sticky" | "shape" | "image" | "video" | "sprite";
 
 interface StoredFlowNode {
   id: string;
@@ -697,13 +691,12 @@ const SpriteNode = memo(function SpriteNode({ id, data, selected }: NodeProps) {
     setIdx((i) => (frames.length ? i % frames.length : 0));
   }, [frames.length]);
 
-  const current = frames[idx] || frames[0] || "";
   const setFps = (v: number) =>
     updateNodeData(id, { fps: Math.min(30, Math.max(1, v)) });
 
   return (
     <div
-      className="group relative w-full h-full rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-lg overflow-hidden"
+      className="group relative w-full h-full"
       style={{ minWidth: 120, minHeight: 90 }}
       onDoubleClick={() => {
         if (canEdit) setEditingCaption(true);
@@ -719,84 +712,93 @@ const SpriteNode = memo(function SpriteNode({ id, data, selected }: NodeProps) {
       />
       <NodeHandles canEdit={canEdit} />
       <DeleteBtn id={id} />
-      {current ? (
-        <img
-          src={current}
-          alt={caption || "sprite"}
-          className="w-full h-full object-contain bg-black pointer-events-none select-none"
-          draggable={false}
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center text-slate-500">
-          <Film className="w-6 h-6" />
-        </div>
-      )}
-
-      {/* 프레임 뱃지 */}
-      <div className="absolute top-1.5 left-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/55 text-[11px] font-bold text-bridge-secondary pointer-events-none">
-        <Film className="w-3 h-3" />
-        {frames.length > 0 ? `${idx + 1}/${frames.length}` : "0"}
-      </div>
-
-      {/* 재생 컨트롤 (hover 시 노출) */}
-      <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setPlaying((p) => !p);
-          }}
-          className="w-6 h-6 rounded-md bg-black/55 text-white flex items-center justify-center hover:bg-black/75"
-          title={playing ? "일시정지" : "재생"}
-        >
-          {playing ? (
-            <Pause className="w-3.5 h-3.5" />
-          ) : (
-            <Play className="w-3.5 h-3.5" />
-          )}
-        </button>
-        {canEdit && (
-          <div
-            className="flex items-center gap-0.5 px-1 h-6 rounded-md bg-black/55 text-white text-[11px] font-bold"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setFps(fps - 1)}
-              className="px-1 hover:text-bridge-secondary"
-              title="느리게"
-            >
-              −
-            </button>
-            <span className="tabular-nums">{fps}fps</span>
-            <button
-              type="button"
-              onClick={() => setFps(fps + 1)}
-              className="px-1 hover:text-bridge-secondary"
-              title="빠르게"
-            >
-              +
-            </button>
+      {/* 미디어 프레임 — 클리핑은 여기서만 (X 버튼은 바깥에 남아 잘리지 않음) */}
+      <div className="relative w-full h-full rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-lg overflow-hidden">
+        {frames.length > 0 ? (
+          // 모든 프레임을 한 번씩만 로드·디코드해두고 보이기/숨기기만 토글한다.
+          // (프레임마다 src를 바꾸면 네트워크 로드 지연으로 첫 프레임에 멈춤)
+          frames.map((src, i) => (
+            <img
+              key={`${i}-${src}`}
+              src={src}
+              alt={caption || "sprite"}
+              className="absolute inset-0 w-full h-full object-contain bg-black pointer-events-none select-none"
+              style={{ visibility: i === idx ? "visible" : "hidden" }}
+              draggable={false}
+            />
+          ))
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-slate-500">
+            <Film className="w-6 h-6" />
           </div>
         )}
-      </div>
 
-      {(caption || (canEdit && editingCaption)) && (
-        <div className="absolute bottom-0 inset-x-0 px-2 py-1 bg-black/50">
-          {canEdit && editingCaption ? (
-            <MediaCaptionEditor
-              id={id}
-              caption={caption}
-              variant="image"
-              onDone={() => setEditingCaption(false)}
-            />
-          ) : (
-            <div className="text-[11px] text-white text-center truncate">
-              {caption}
+        {/* 프레임 뱃지 */}
+        <div className="absolute top-1.5 left-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/55 text-[11px] font-bold text-bridge-secondary pointer-events-none">
+          <Film className="w-3 h-3" />
+          {frames.length > 0 ? `${idx + 1}/${frames.length}` : "0"}
+        </div>
+
+        {/* 재생 컨트롤 (hover 시 노출) */}
+        <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPlaying((p) => !p);
+            }}
+            className="w-6 h-6 rounded-md bg-black/55 text-white flex items-center justify-center hover:bg-black/75"
+            title={playing ? "일시정지" : "재생"}
+          >
+            {playing ? (
+              <Pause className="w-3.5 h-3.5" />
+            ) : (
+              <Play className="w-3.5 h-3.5" />
+            )}
+          </button>
+          {canEdit && (
+            <div
+              className="flex items-center gap-0.5 px-1 h-6 rounded-md bg-black/55 text-white text-[11px] font-bold"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setFps(fps - 1)}
+                className="px-1 hover:text-bridge-secondary"
+                title="느리게"
+              >
+                −
+              </button>
+              <span className="tabular-nums">{fps}fps</span>
+              <button
+                type="button"
+                onClick={() => setFps(fps + 1)}
+                className="px-1 hover:text-bridge-secondary"
+                title="빠르게"
+              >
+                +
+              </button>
             </div>
           )}
         </div>
-      )}
+
+        {(caption || (canEdit && editingCaption)) && (
+          <div className="absolute bottom-0 inset-x-0 px-2 py-1 bg-black/50">
+            {canEdit && editingCaption ? (
+              <MediaCaptionEditor
+                id={id}
+                caption={caption}
+                variant="image"
+                onDone={() => setEditingCaption(false)}
+              />
+            ) : (
+              <div className="text-[11px] text-white text-center truncate">
+                {caption}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 });
