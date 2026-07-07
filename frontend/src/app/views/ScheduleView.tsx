@@ -80,7 +80,6 @@ export function ScheduleView({
   onViewFeatureById,
   onNavigateToMeeting,
   onViewTaskWithChecklist,
-  onViewTaskById,
   onItemDetailClick,
   onOpenContractorManager,
   onMilestoneClick,
@@ -130,49 +129,10 @@ export function ScheduleView({
             <ScheduleCalendarView
               boardId={boardId}
               boardMembers={boardMembersData}
-              memberColorMap={memberColorMap}
-              jobRoles={jobRoles}
-              onViewTask={async (taskId) => {
-                onViewTaskById(taskId);
-              }}
-              onDropChecklist={async (item, targetDate) => {
-                if (item.task?.id) {
-                  try {
-                    await checklistAPI.updateItem(
-                      boardId,
-                      item.task.id,
-                      item.id,
-                      {
-                        start_date: targetDate,
-                        due_date: targetDate,
-                      },
-                    );
-                  } catch (err) {
-                    console.warn(
-                      "Failed to drop checklist item on calendar",
-                      err,
-                    );
-                  }
-                }
-                notifyScheduleRefresh();
-              }}
-              externalDragItem={
-                panelDragState?.isActive ? panelDragState.item : null
-              }
-              refreshTrigger={scheduleRefreshPanel}
-            />
-          </Suspense>
-          <Suspense fallback={null}>
-            <ChecklistItemPanel
-              key={scheduleRefreshPanel}
-              boardId={boardId}
-              onDragStateChange={setPanelDragState}
-              onItemDetailClick={onItemDetailClick}
-              boardMembers={boardMembersData}
-              onItemAdded={() => notifyScheduleRefresh()}
               milestones={milestones}
-              jobRoles={jobRoles}
-              memberJobRoleMap={memberJobRoleMap}
+              currentUserRole={currentUserRole}
+              onMilestoneClick={(milestone) => onMilestoneClick(milestone)}
+              refreshTrigger={scheduleRefreshPanel}
             />
           </Suspense>
         </div>

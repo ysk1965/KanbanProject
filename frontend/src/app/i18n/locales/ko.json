@@ -873,7 +873,15 @@
       "prevMonth": "이전 달",
       "nextMonth": "다음 달",
       "noItems": "이 날에 배정된 항목이 없습니다",
-      "allCards": "전체 카드"
+      "allCards": "전체 카드",
+      "addEvent": "추가",
+      "workday": "근무일",
+      "layer": {
+        "event": "이벤트",
+        "absence": "부재",
+        "holiday": "휴무일",
+        "milestone": "마일스톤"
+      }
     },
     "resource": {
       "milestone": "마일스톤",
