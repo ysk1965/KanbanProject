@@ -804,6 +804,13 @@
       "unhighlight": "Quitar resaltado"
     },
     "panel": {
+      "filterMilestoneShort": "Hito",
+      "filterMemberShort": "Miembro",
+      "filterBlockShort": "Bloque",
+      "filterJobRoleShort": "Rol",
+      "filterMember": "Filtrar por miembro",
+      "addFilter": "Filtro",
+      "unassigned": "Sin asignar",
       "title": "Lista de verificación",
       "search": "Buscar...",
       "noUnscheduled": "Todos los elementos están programados",

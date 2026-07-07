@@ -928,6 +928,13 @@
       "success": "이동 완료"
     },
     "panel": {
+      "filterMilestoneShort": "마일스톤",
+      "filterMemberShort": "구성원",
+      "filterBlockShort": "블록",
+      "filterJobRoleShort": "직군",
+      "filterMember": "구성원별 필터",
+      "addFilter": "필터",
+      "unassigned": "미배정",
       "title": "체크리스트",
       "search": "검색...",
       "noUnscheduled": "모든 항목이 배정되었습니다",
