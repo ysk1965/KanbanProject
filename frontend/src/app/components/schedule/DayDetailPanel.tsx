@@ -26,6 +26,8 @@ interface DayDetailPanelProps {
   date: string; // yyyy-MM-dd
   data: DayDetailData;
   canManage: boolean;
+  /** 모바일에서 오버레이로 열려 있는지 (데스크톱은 항상 노출) */
+  mobileOpen: boolean;
   onClose: () => void;
   onMilestoneClick: (m: Milestone) => void;
   onEventClick: (e: CalendarEventItem) => void;
@@ -54,6 +56,7 @@ export function DayDetailPanel({
   date,
   data,
   canManage,
+  mobileOpen,
   onClose,
   onMilestoneClick,
   onEventClick,
@@ -88,18 +91,21 @@ export function DayDetailPanel({
 
   return (
     <>
-      {/* Mobile backdrop */}
-      <div
-        className="lg:hidden fixed inset-0 bg-black/50 z-40"
-        onClick={onClose}
-        aria-hidden
-      />
+      {/* Mobile backdrop — 모바일 오버레이가 열렸을 때만 */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={onClose}
+          aria-hidden
+        />
+      )}
 
       <aside
-        className="fixed lg:relative inset-y-0 right-0 z-50 lg:z-auto
+        className={`fixed lg:relative inset-y-0 right-0 z-50 lg:z-auto
           w-full max-w-sm lg:max-w-none lg:w-[320px] shrink-0
           border-l border-foreground/[0.08] bg-bridge-dark
-          flex flex-col overflow-hidden shadow-2xl lg:shadow-none"
+          flex-col overflow-hidden shadow-2xl lg:shadow-none
+          ${mobileOpen ? "flex" : "hidden"} lg:flex`}
         role="complementary"
         aria-label={t("schedule.calendar.detail.title", "선택한 날짜 상세")}
       >
@@ -117,20 +123,24 @@ export function DayDetailPanel({
                 {format(dateObj, "yyyy · MMM")} · {format(dateObj, "EEEE")}
               </span>
             </div>
-            <IconButton
-              aria-label={t("common.close", "닫기")}
-              size="sm"
-              onClick={onClose}
-            >
-              <X className="w-4 h-4" />
-            </IconButton>
+            <div className="lg:hidden">
+              <IconButton
+                aria-label={t("common.close", "닫기")}
+                size="sm"
+                onClick={onClose}
+              >
+                <X className="w-4 h-4" />
+              </IconButton>
+            </div>
           </div>
 
           {/* Count summary */}
           <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
             <span>
               {t("schedule.calendar.layer.event", "이벤트")}{" "}
-              <b className="text-slate-300 tabular-nums">{data.events.length}</b>
+              <b className="text-slate-300 tabular-nums">
+                {data.events.length}
+              </b>
             </span>
             <span>
               {t("schedule.calendar.layer.absence", "부재")}{" "}
