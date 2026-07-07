@@ -927,6 +927,13 @@
       "success": "Moved successfully"
     },
     "panel": {
+      "filterMilestoneShort": "Milestone",
+      "filterMemberShort": "Member",
+      "filterBlockShort": "Block",
+      "filterJobRoleShort": "Role",
+      "filterMember": "Filter by member",
+      "addFilter": "Filter",
+      "unassigned": "Unassigned",
       "title": "Checklist",
       "search": "Search...",
       "noUnscheduled": "All items are scheduled",

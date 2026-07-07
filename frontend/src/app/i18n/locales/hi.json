@@ -804,6 +804,13 @@
       "unhighlight": "हाइलाइट हटाएं"
     },
     "panel": {
+      "filterMilestoneShort": "माइलस्टोन",
+      "filterMemberShort": "सदस्य",
+      "filterBlockShort": "ब्लॉक",
+      "filterJobRoleShort": "भूमिका",
+      "filterMember": "सदस्य द्वारा फ़िल्टर",
+      "addFilter": "फ़िल्टर",
+      "unassigned": "अनअसाइन",
       "title": "चेकलिस्ट",
       "search": "खोजें...",
       "noUnscheduled": "सभी आइटम शेड्यूल किए गए हैं",

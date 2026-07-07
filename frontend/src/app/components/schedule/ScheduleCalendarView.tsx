@@ -139,14 +139,12 @@ function computeBarSegments(items: BarItem[], weeks: Date[][]): BarSegment[][] {
   });
 }
 
-// 셀 높이에 맞춰 표시할 바 개수를 동적으로 결정 (최대 4, 최소 1)
-const MAX_VISIBLE_CAP = 4;
-const MIN_VISIBLE_BARS = 1;
-const BAR_HEIGHT = 24;
+// 셀 높이에 맞춰 표시할 바 개수를 동적으로 결정 (최대 5, 최소 3 — 얇은 바로 더 많이 수용)
+const MAX_VISIBLE_CAP = 5;
+const MIN_VISIBLE_BARS = 3;
+const BAR_HEIGHT = 18;
 const BAR_GAP = 2;
 const HEADER_HEIGHT = 28;
-// "+N more" 인디케이터가 겹치지 않도록 남기는 하단 여백
-const OVERFLOW_RESERVE = 16;
 
 const LAYER_META: { key: LayerKey; label: string; color: string }[] = [
   { key: "event", label: "이벤트", color: "#6366F1" },
@@ -281,7 +279,8 @@ export function ScheduleCalendarView({
     const compute = () => {
       const rowCount = weeks.length || 1;
       const rowH = el.clientHeight / rowCount;
-      const usable = rowH - HEADER_HEIGHT - OVERFLOW_RESERVE;
+      if (rowH <= 0) return; // 레이아웃 미확정 시 기존값 유지
+      const usable = rowH - HEADER_HEIGHT;
       const fit = Math.floor(usable / (BAR_HEIGHT + BAR_GAP));
       setMaxVisibleBars(
         Math.max(MIN_VISIBLE_BARS, Math.min(MAX_VISIBLE_CAP, fit)),
@@ -529,7 +528,7 @@ export function ScheduleCalendarView({
           role="button"
           tabIndex={0}
           aria-label={item.title}
-          className={`h-6 rounded-md px-1.5 flex items-center gap-1 text-xs font-medium
+          className={`h-full rounded-md px-1.5 flex items-center gap-1 text-xs font-medium
             truncate cursor-pointer hover:brightness-110 transition-all text-white ${
               isMilestone
                 ? "bg-bridge-accent/80 border border-bridge-accent/60"

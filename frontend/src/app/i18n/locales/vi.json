@@ -804,6 +804,13 @@
       "unhighlight": "Bỏ đánh dấu"
     },
     "panel": {
+      "filterMilestoneShort": "Mốc",
+      "filterMemberShort": "Thành viên",
+      "filterBlockShort": "Khối",
+      "filterJobRoleShort": "Vai trò",
+      "filterMember": "Lọc theo thành viên",
+      "addFilter": "Bộ lọc",
+      "unassigned": "Chưa giao",
       "title": "Danh sách kiểm tra",
       "search": "Tìm kiếm...",
       "noUnscheduled": "Tất cả các mục đã được lên lịch",

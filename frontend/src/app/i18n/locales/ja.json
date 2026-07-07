@@ -804,6 +804,13 @@
       "unhighlight": "ハイライト解除"
     },
     "panel": {
+      "filterMilestoneShort": "マイルストーン",
+      "filterMemberShort": "メンバー",
+      "filterBlockShort": "ブロック",
+      "filterJobRoleShort": "職種",
+      "filterMember": "メンバーで絞り込み",
+      "addFilter": "フィルター",
+      "unassigned": "未割り当て",
       "title": "チェックリスト",
       "search": "検索...",
       "noUnscheduled": "すべての項目がスケジュール済みです",

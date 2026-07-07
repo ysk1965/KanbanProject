@@ -804,6 +804,13 @@
       "unhighlight": "取消高亮"
     },
     "panel": {
+      "filterMilestoneShort": "里程碑",
+      "filterMemberShort": "成员",
+      "filterBlockShort": "区块",
+      "filterJobRoleShort": "职务",
+      "filterMember": "按成员筛选",
+      "addFilter": "筛选",
+      "unassigned": "未分配",
       "title": "清单",
       "search": "搜索...",
       "noUnscheduled": "所有项目均已安排",
