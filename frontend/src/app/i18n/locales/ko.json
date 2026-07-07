@@ -2019,6 +2019,8 @@
     "addSubtaskGuide": "아래에서 서브태스크를 추가해보세요",
     "subtaskDescription": "서브태스크는 칸반보드의 Task 블록에 카드로 나타나며, 블록 간 드래그로 진행 상태를 관리할 수 있어요.",
     "newSubtaskPlaceholder": "새 서브태스크 추가...",
+    "milestoneUnassigned": "미배치",
+    "selectMilestone": "마일스톤 선택",
     "saveChangesTitle": "변경사항을 저장하시겠습니까?",
     "saveChangesDesc": "저장하지 않은 변경사항이 있습니다. 저장하지 않고 닫으면 변경사항이 사라집니다.",
     "discard": "저장 안 함",

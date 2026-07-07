@@ -2017,6 +2017,8 @@
     "addSubtaskGuide": "Add subtasks below",
     "subtaskDescription": "Subtasks appear as cards on the kanban board's Task block, and you can manage progress by dragging them between blocks.",
     "newSubtaskPlaceholder": "Add new subtask...",
+    "milestoneUnassigned": "Unassigned",
+    "selectMilestone": "Select milestone",
     "saveChangesTitle": "Save changes?",
     "saveChangesDesc": "You have unsaved changes. Closing without saving will discard them.",
     "discard": "Don't save",

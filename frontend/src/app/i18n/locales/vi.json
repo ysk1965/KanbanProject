@@ -2337,6 +2337,8 @@
     "addSubtaskGuide": "Them nhiem vu con ben duoi",
     "subtaskDescription": "Nhiem vu con xuat hien duoi dang the tren khoi Task cua bang kanban, va ban co the quan ly tien do bang cach keo chung giua cac khoi.",
     "newSubtaskPlaceholder": "Them nhiem vu con moi...",
+    "milestoneUnassigned": "Chua gan",
+    "selectMilestone": "Chon cot moc",
     "saveChangesTitle": "Luu thay doi?",
     "saveChangesDesc": "Ban co thay doi chua duoc luu. Dong ma khong luu se bo qua chung.",
     "discard": "Khong luu",

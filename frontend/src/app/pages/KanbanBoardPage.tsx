@@ -1897,7 +1897,11 @@ export function KanbanBoardPage() {
   };
 
   // Task 관리
-  const handleAddSubtask = async (featureId: string, taskTitle: string) => {
+  const handleAddSubtask = async (
+    featureId: string,
+    taskTitle: string,
+    milestoneId: string | null = null,
+  ) => {
     if (!boardId) return;
 
     const feature = features.find((f) => f.id === featureId);
@@ -1906,6 +1910,7 @@ export function KanbanBoardPage() {
     try {
       const newTask = await taskService.createTask(boardId, featureId, {
         title: taskTitle,
+        milestone_id: milestoneId,
       });
       setTasks([...tasks, newTask]);
       setFeatures(
@@ -3443,7 +3448,9 @@ export function KanbanBoardPage() {
           }
           blocks={blocks}
           allBlocks={allBlocks}
-          onAddSubtask={(title) => handleAddSubtask(selectedFeature!.id, title)}
+          onAddSubtask={(title, milestoneId) =>
+            handleAddSubtask(selectedFeature!.id, title, milestoneId)
+          }
           onReorderSubtasks={(taskIds) =>
             selectedFeature &&
             handleReorderSubtasks(selectedFeature.id, taskIds)
