@@ -33,8 +33,11 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Circle,
+  Eye,
   EyeOff,
+  Flag,
   Hand,
   Loader2,
   MousePointer2,
@@ -100,6 +103,9 @@ const MILESTONE_COLORS = [
   "#ec4899",
 ];
 
+// 마일스톤 필터에서 "미배정"(마일스톤 없는 태스크/피처)을 가리키는 키
+const UNASSIGNED_MS = "__none__";
+
 const HANDLE_SIDES: Position[] = [
   Position.Top,
   Position.Right,
@@ -118,6 +124,8 @@ interface MindMapCtx {
   featuresById: Map<string, Feature>;
   featureMilestonesMap: Record<string, FeatureMilestoneRef[]>;
   tasksByFeature: Map<string, Task[]>;
+  /** 숨김(off) 처리된 마일스톤 id 집합. UNASSIGNED_MS 포함 가능. dim 처리에 사용 */
+  hiddenMilestones: Set<string>;
   expandedFeatures: Set<string>;
   memberColorMap: Record<string, string | null>;
   canEdit: boolean;
@@ -223,6 +231,7 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
     featuresById,
     featureMilestonesMap,
     tasksByFeature,
+    hiddenMilestones,
     expandedFeatures,
     memberColorMap,
     canEdit,
@@ -235,6 +244,21 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
   const feature = featuresById.get(featureId);
   const milestones = featureMilestonesMap[featureId] || [];
   const featureTasks = tasksByFeature.get(featureId) ?? [];
+
+  // 마일스톤 필터 dim: 피처가 걸친 마일스톤(+ 미배정 태스크 보유 시 UNASSIGNED_MS)이
+  // 전부 숨김이면 노드 전체를 흐림. 일부만 숨김이면 해당 그룹/칩만 흐림.
+  const hasHiddenMs = hiddenMilestones.size > 0;
+  const nodeDim = useMemo(() => {
+    if (!hasHiddenMs) return false;
+    const ids = milestones.map((m) => m.id);
+    const hasUnassigned = featureTasks.some((t) => !t.milestone_id);
+    const relevant = ids.length
+      ? hasUnassigned
+        ? [...ids, UNASSIGNED_MS]
+        : ids
+      : [UNASSIGNED_MS];
+    return relevant.every((id) => hiddenMilestones.has(id));
+  }, [hasHiddenMs, milestones, featureTasks, hiddenMilestones]);
   const taskCount = featureTasks.length;
   const doneCount = featureTasks.filter((t) => t.completed).length;
   const expanded = expandedFeatures.has(featureId);
@@ -284,8 +308,13 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
 
   return (
     <div
-      className="group relative rounded-2xl border border-foreground/10 bg-bridge-obsidian shadow-lg cursor-pointer transition-colors hover:border-bridge-accent/60"
-      style={{ width: FEATURE_NODE_WIDTH }}
+      className="group relative rounded-2xl border border-foreground/10 bg-bridge-obsidian shadow-lg cursor-pointer hover:border-bridge-accent/60"
+      style={{
+        width: FEATURE_NODE_WIDTH,
+        opacity: nodeDim ? 0.2 : 1,
+        filter: nodeDim ? "grayscale(0.85)" : undefined,
+        transition: "opacity .3s ease, filter .3s ease, border-color .15s ease",
+      }}
       onClick={() => onFeatureClick(feature)}
       onContextMenu={(e) => openFeatureMenu(e, id, feature)}
     >
@@ -330,6 +359,7 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
             {milestones.map((ms) => {
               const msColor =
                 MILESTONE_COLORS[ms.idx % MILESTONE_COLORS.length];
+              const msDim = hiddenMilestones.has(ms.id);
               return (
                 <span
                   key={ms.id}
@@ -337,6 +367,9 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
                   style={{
                     color: msColor,
                     backgroundColor: `${msColor}26`,
+                    opacity: msDim ? 0.35 : 1,
+                    textDecoration: msDim ? "line-through" : undefined,
+                    transition: "opacity .3s ease",
                   }}
                   title={ms.title}
                 >
@@ -386,8 +419,18 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
                   const groupDone = group.tasks.filter(
                     (t) => t.completed,
                   ).length;
+                  const groupDim = hiddenMilestones.has(
+                    group.ms?.id ?? UNASSIGNED_MS,
+                  );
                   return (
-                    <div key={group.ms?.id ?? `unassigned-${gi}`}>
+                    <div
+                      key={group.ms?.id ?? `unassigned-${gi}`}
+                      style={{
+                        opacity: groupDim ? 0.3 : 1,
+                        filter: groupDim ? "grayscale(0.75)" : undefined,
+                        transition: "opacity .3s ease, filter .3s ease",
+                      }}
+                    >
                       <div className="flex items-center gap-1.5 px-2 py-1">
                         <span
                           className="flex-1 h-px"
@@ -668,6 +711,19 @@ function MindMapCanvas({
   const [traySearch, setTraySearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
+  // 캔버스 마일스톤 on/off 필터 (dim 처리). hiddenMs = 숨김(off) 마일스톤 id 집합.
+  // UNASSIGNED_MS 포함 가능. 신규 마일스톤은 집합에 없으므로 기본 표시.
+  const [hiddenMs, setHiddenMs] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(`mindmapHiddenMs_${boardId}`);
+      if (raw) return new Set<string>(JSON.parse(raw) as string[]);
+    } catch {
+      /* ignore */
+    }
+    return new Set();
+  });
+  const [msPanelOpen, setMsPanelOpen] = useState(false);
+  const msPanelRef = useRef<HTMLDivElement>(null);
   // Feature 노드 우클릭 컨텍스트 메뉴
   const [featureMenu, setFeatureMenu] = useState<{
     nodeId: string;
@@ -975,6 +1031,120 @@ function MindMapCanvas({
 
   const filterActive = milestoneOptions.length > 0 || hasNoMilestone;
 
+  // ── 캔버스 마일스톤 필터 (dim) ──
+  // hiddenMs 영속화 (보드별 localStorage)
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        `mindmapHiddenMs_${boardId}`,
+        JSON.stringify([...hiddenMs]),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [hiddenMs, boardId]);
+
+  // 필터 패널 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!msPanelOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (msPanelRef.current && !msPanelRef.current.contains(e.target as Node))
+        setMsPanelOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [msPanelOpen]);
+
+  // 마일스톤별 진행도 (task.milestone_id + completed 기준, 미배정 포함)
+  const milestoneProgress = useMemo(() => {
+    const map = new Map<string, { done: number; total: number }>();
+    let noneDone = 0;
+    let noneTotal = 0;
+    tasks.forEach((task) => {
+      if (task.milestone_id) {
+        const entry = map.get(task.milestone_id) ?? { done: 0, total: 0 };
+        entry.total += 1;
+        if (task.completed) entry.done += 1;
+        map.set(task.milestone_id, entry);
+      } else {
+        noneTotal += 1;
+        if (task.completed) noneDone += 1;
+      }
+    });
+    return { map, none: { done: noneDone, total: noneTotal } };
+  }, [tasks]);
+
+  const showNoneRow = milestoneProgress.none.total > 0;
+  const totalMsCount = milestoneOptions.length + (showNoneRow ? 1 : 0);
+  const visibleMsCount =
+    milestoneOptions.filter((m) => !hiddenMs.has(m.id)).length +
+    (showNoneRow && !hiddenMs.has(UNASSIGNED_MS) ? 1 : 0);
+
+  // 표시 중인 마일스톤 종합 진행도 (task 가중 합산)
+  const overallVisiblePct = useMemo(() => {
+    let done = 0;
+    let total = 0;
+    milestoneOptions.forEach((m) => {
+      if (hiddenMs.has(m.id)) return;
+      const p = milestoneProgress.map.get(m.id);
+      if (p) {
+        done += p.done;
+        total += p.total;
+      }
+    });
+    if (showNoneRow && !hiddenMs.has(UNASSIGNED_MS)) {
+      done += milestoneProgress.none.done;
+      total += milestoneProgress.none.total;
+    }
+    return total > 0 ? Math.round((done * 100) / total) : 0;
+  }, [milestoneOptions, hiddenMs, milestoneProgress, showNoneRow]);
+
+  const toggleMsVisible = useCallback((id: string) => {
+    setHiddenMs((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+  const showAllMs = useCallback(() => setHiddenMs(new Set()), []);
+  const hideAllMs = useCallback(() => {
+    const all = milestoneOptions.map((m) => m.id);
+    if (showNoneRow) all.push(UNASSIGNED_MS);
+    setHiddenMs(new Set(all));
+  }, [milestoneOptions, showNoneRow]);
+
+  // 걸친 마일스톤이 전부 숨김인 피처 노드 → 연결 엣지도 함께 흐림
+  const dimmedNodeIds = useMemo(() => {
+    const s = new Set<string>();
+    if (hiddenMs.size === 0) return s;
+    const map = featureMilestonesMap ?? {};
+    nodes.forEach((n) => {
+      if (n.type !== "feature") return;
+      const fid = (n.data as { feature_id?: string }).feature_id;
+      if (!fid) return;
+      const ids = (map[fid] || []).map((m) => m.id);
+      const ftasks = tasksByFeature.get(fid) ?? [];
+      const hasUnassigned = ftasks.some((t) => !t.milestone_id);
+      const relevant = ids.length
+        ? hasUnassigned
+          ? [...ids, UNASSIGNED_MS]
+          : ids
+        : [UNASSIGNED_MS];
+      if (relevant.every((id) => hiddenMs.has(id))) s.add(n.id);
+    });
+    return s;
+  }, [nodes, hiddenMs, featureMilestonesMap, tasksByFeature]);
+
+  const displayEdges = useMemo(() => {
+    if (dimmedNodeIds.size === 0) return edges;
+    return edges.map((e) =>
+      dimmedNodeIds.has(e.source) || dimmedNodeIds.has(e.target)
+        ? { ...e, style: { ...(e.style || {}), opacity: 0.15 } }
+        : e,
+    );
+  }, [edges, dimmedNodeIds]);
+
   const visibleUnplaced = useMemo(() => {
     let list = unplaced;
     if (milestoneFilter === "__none__")
@@ -1025,6 +1195,7 @@ function MindMapCanvas({
       featuresById,
       featureMilestonesMap: featureMilestonesMap ?? {},
       tasksByFeature,
+      hiddenMilestones: hiddenMs,
       expandedFeatures,
       memberColorMap,
       canEdit,
@@ -1040,6 +1211,7 @@ function MindMapCanvas({
       featuresById,
       featureMilestonesMap,
       tasksByFeature,
+      hiddenMs,
       expandedFeatures,
       memberColorMap,
       canEdit,
@@ -1323,6 +1495,147 @@ function MindMapCanvas({
             )}
           </div>
 
+          {/* 마일스톤 필터 패널 (우상단, dim 토글) */}
+          {milestoneOptions.length > 0 && (
+            <div ref={msPanelRef} className="absolute top-3 right-3 z-30 w-[236px]">
+              <button
+                type="button"
+                onClick={() => setMsPanelOpen((o) => !o)}
+                className="w-full flex items-center gap-2 bg-bridge-obsidian/85 backdrop-blur-md border border-foreground/[0.08] rounded-2xl px-3 py-2 shadow-2xl hover:border-foreground/[0.12] transition-colors"
+              >
+                <Flag className="w-3.5 h-3.5 text-bridge-secondary shrink-0" />
+                <span className="text-xs font-bold text-foreground">
+                  {t("mindmap.milestoneFilter", "마일스톤 필터")}
+                </span>
+                <span className="text-[10px] font-bold text-slate-400 font-mono">
+                  {visibleMsCount}/{totalMsCount}
+                </span>
+                {hiddenMs.size > 0 && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-bridge-secondary shrink-0" />
+                )}
+                {msPanelOpen ? (
+                  <ChevronUp className="w-3.5 h-3.5 text-slate-400 ml-auto shrink-0" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-auto shrink-0" />
+                )}
+              </button>
+
+              {msPanelOpen && (
+                <div className="mt-1.5 bg-bridge-obsidian/95 backdrop-blur-md border border-foreground/[0.08] rounded-2xl shadow-2xl overflow-hidden">
+                  <div className="flex items-center gap-1 px-2.5 py-2 border-b border-foreground/[0.06]">
+                    <span className="flex-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                      {t("mindmap.milestoneVisibility", "표시할 마일스톤")}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={showAllMs}
+                      className="text-[10px] font-bold text-slate-400 hover:text-foreground px-1.5 py-0.5 rounded transition-colors"
+                    >
+                      {t("mindmap.showAll", "전체")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={hideAllMs}
+                      className="text-[10px] font-bold text-slate-400 hover:text-foreground px-1.5 py-0.5 rounded transition-colors"
+                    >
+                      {t("mindmap.hideAll", "숨김")}
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2 border-b border-foreground/[0.06]">
+                    <span className="text-[10px] font-bold text-slate-500 shrink-0">
+                      {t("mindmap.overallProgress", "종합")}
+                    </span>
+                    <div className="flex-1 h-1.5 rounded-full bg-foreground/10 overflow-hidden">
+                      <span
+                        className="block h-full rounded-full"
+                        style={{
+                          width: `${overallVisiblePct}%`,
+                          background: "linear-gradient(90deg,#6366F1,#2DD4BF)",
+                        }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 font-mono shrink-0">
+                      {overallVisiblePct}%
+                    </span>
+                  </div>
+                  <div className="max-h-[280px] overflow-y-auto py-1 custom-scrollbar">
+                    {milestoneOptions.map((ms) => {
+                      const color =
+                        MILESTONE_COLORS[ms.idx % MILESTONE_COLORS.length];
+                      const prog = milestoneProgress.map.get(ms.id);
+                      const done = prog?.done ?? 0;
+                      const total = prog?.total ?? 0;
+                      const pct =
+                        total > 0 ? Math.round((done * 100) / total) : 0;
+                      const on = !hiddenMs.has(ms.id);
+                      return (
+                        <button
+                          key={ms.id}
+                          type="button"
+                          onClick={() => toggleMsVisible(ms.id)}
+                          className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-foreground/[0.04] transition-colors"
+                          style={{ opacity: on ? 1 : 0.5 }}
+                          title={ms.title}
+                        >
+                          <span
+                            className="w-2.5 h-2.5 rounded-[3px] shrink-0"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className="flex-1 min-w-0 text-left">
+                            <span className="block text-xs font-bold text-foreground truncate">
+                              {ms.title}
+                            </span>
+                            <span className="block text-[10px] text-slate-500 font-mono">
+                              {done}/{total} · {pct}%
+                            </span>
+                          </span>
+                          {on ? (
+                            <Eye
+                              className="w-3.5 h-3.5 shrink-0"
+                              style={{ color }}
+                            />
+                          ) : (
+                            <EyeOff className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                          )}
+                        </button>
+                      );
+                    })}
+                    {showNoneRow &&
+                      (() => {
+                        const on = !hiddenMs.has(UNASSIGNED_MS);
+                        const { done, total } = milestoneProgress.none;
+                        const pct =
+                          total > 0 ? Math.round((done * 100) / total) : 0;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => toggleMsVisible(UNASSIGNED_MS)}
+                            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-foreground/[0.04] transition-colors"
+                            style={{ opacity: on ? 1 : 0.5 }}
+                          >
+                            <span className="w-2.5 h-2.5 rounded-[3px] shrink-0 bg-slate-500" />
+                            <span className="flex-1 min-w-0 text-left">
+                              <span className="block text-xs font-bold text-foreground truncate">
+                                {t("mindmap.unassigned", "미배정")}
+                              </span>
+                              <span className="block text-[10px] text-slate-500 font-mono">
+                                {done}/{total} · {pct}%
+                              </span>
+                            </span>
+                            {on ? (
+                              <Eye className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            ) : (
+                              <EyeOff className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })()}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {nodes.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
               <div className="text-center text-slate-500">
@@ -1341,7 +1654,7 @@ function MindMapCanvas({
 
           <ReactFlow
             nodes={nodes}
-            edges={edges}
+            edges={displayEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}

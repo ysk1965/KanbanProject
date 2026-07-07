@@ -139,8 +139,8 @@ function computeBarSegments(items: BarItem[], weeks: Date[][]): BarSegment[][] {
   });
 }
 
-// 셀 높이에 맞춰 표시할 바 개수를 동적으로 결정 (최대 5, 최소 3 — 얇은 바로 더 많이 수용)
-const MAX_VISIBLE_CAP = 5;
+// 셀 높이에 맞춰 표시할 바 개수를 동적으로 결정 (최대 4 = 기존 3 + 한 라인, 최소 3)
+const MAX_VISIBLE_CAP = 4;
 const MIN_VISIBLE_BARS = 3;
 const BAR_HEIGHT = 18;
 const BAR_GAP = 2;
