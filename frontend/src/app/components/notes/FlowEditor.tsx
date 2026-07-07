@@ -733,11 +733,21 @@ const SpriteNode = memo(function SpriteNode({ id, data, selected }: NodeProps) {
           </div>
         )}
 
-        {/* 프레임 뱃지 */}
+        {/* 프레임 뱃지 — 전체 프레임 수만 정적 표시 (재생 중 숫자가 튀지 않도록) */}
         <div className="absolute top-1.5 left-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/55 text-[11px] font-bold text-bridge-secondary pointer-events-none">
           <Film className="w-3 h-3" />
-          {frames.length > 0 ? `${idx + 1}/${frames.length}` : "0"}
+          {frames.length > 0 ? `${frames.length}F` : "0"}
         </div>
+
+        {/* 재생 진행 바 — hover 시에만 노출, 현재 프레임 위치 표시 */}
+        {frames.length > 1 && (
+          <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <div
+              className="h-full bg-gradient-to-r from-bridge-secondary to-teal-300 transition-[width] duration-100 ease-linear"
+              style={{ width: `${((idx + 1) / frames.length) * 100}%` }}
+            />
+          </div>
+        )}
 
         {/* 재생 컨트롤 (hover 시 노출) */}
         <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

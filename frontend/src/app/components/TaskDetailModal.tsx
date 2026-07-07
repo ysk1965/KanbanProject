@@ -67,6 +67,7 @@ import {
   Wrench,
   List,
   LayoutGrid,
+  Search,
 } from "lucide-react";
 import { TaskMoveModal } from "./TaskMoveModal";
 import { TaskAIChecklistModal } from "./TaskAIChecklistModal";
@@ -195,10 +196,12 @@ export function TaskDetailModal({
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(
     null,
   );
-  // Feature 이동: 대상 마일스톤 선택 (기본값 = 현재 Task의 마일스톤)
+  // Feature 이동: 대상 마일스톤 선택 (기본값 = "all" 전체)
   const [moveFeatureMilestoneId, setMoveFeatureMilestoneId] = useState<
     string | null
   >(null);
+  // Feature 이동: 이름 검색어
+  const [moveFeatureSearch, setMoveFeatureSearch] = useState("");
   const [showMoveChecklistDialog, setShowMoveChecklistDialog] = useState(false);
   const [moveChecklistItemId, setMoveChecklistItemId] = useState<string | null>(
     null,
@@ -645,27 +648,68 @@ export function TaskDetailModal({
     }
   }, [showMoveChecklistDialog, defaultMoveMilestoneId]);
 
-  // Feature 이동 다이얼로그가 열릴 때 기본 마일스톤 설정
+  // Feature 이동 다이얼로그가 열릴 때 기본값 = "all"(전체)
   useEffect(() => {
     if (showMoveFeatureDialog) {
-      setMoveFeatureMilestoneId((prev) => prev ?? defaultMoveMilestoneId);
+      setMoveFeatureMilestoneId((prev) => prev ?? "all");
     }
-  }, [showMoveFeatureDialog, defaultMoveMilestoneId]);
+  }, [showMoveFeatureDialog]);
 
-  // Feature 이동 후보: 마일스톤이 있으면 선택된 마일스톤의 Feature, 없으면 전체
+  // Feature 이동 후보: 전체 Feature 단일 목록 + 각 Feature의 소속 마일스톤(역참조)
+  // 탭/검색 필터는 렌더 단에서 적용한다.
   const moveFeatureCandidates = useMemo<
-    { id: string; title: string; color: string }[]
+    {
+      id: string;
+      title: string;
+      color: string;
+      milestones: { id: string; title: string }[];
+    }[]
   >(() => {
     if (milestones.length > 0) {
-      const m = milestones.find((mm) => mm.id === moveFeatureMilestoneId);
-      return (m?.features ?? []).map((f) => ({
-        id: f.id,
-        title: f.title,
-        color: f.color,
-      }));
+      const map = new Map<
+        string,
+        {
+          id: string;
+          title: string;
+          color: string;
+          milestones: { id: string; title: string }[];
+        }
+      >();
+      milestones.forEach((m) => {
+        (m.features ?? []).forEach((f) => {
+          const existing = map.get(f.id);
+          if (existing) {
+            existing.milestones.push({ id: m.id, title: m.title });
+          } else {
+            map.set(f.id, {
+              id: f.id,
+              title: f.title,
+              color: f.color,
+              milestones: [{ id: m.id, title: m.title }],
+            });
+          }
+        });
+      });
+      // 마일스톤에 속하지 않은 Feature도 이동 대상으로 포함(배지는 없음)
+      features.forEach((f) => {
+        if (!map.has(f.id)) {
+          map.set(f.id, {
+            id: f.id,
+            title: f.title,
+            color: f.color,
+            milestones: [],
+          });
+        }
+      });
+      return Array.from(map.values());
     }
-    return features.map((f) => ({ id: f.id, title: f.title, color: f.color }));
-  }, [milestones, moveFeatureMilestoneId, features]);
+    return features.map((f) => ({
+      id: f.id,
+      title: f.title,
+      color: f.color,
+      milestones: [],
+    }));
+  }, [milestones, features]);
 
   // 선택된 마일스톤의 Task 목록 로드 (현재 마일스톤은 이미 로드된 allTasks 재사용)
   useEffect(() => {
@@ -1985,6 +2029,7 @@ export function TaskDetailModal({
           setShowMoveFeatureDialog(false);
           setSelectedFeatureId(null);
           setMoveFeatureMilestoneId(null);
+          setMoveFeatureSearch("");
         }}
         className="sm:max-w-sm p-6"
       >
@@ -1994,6 +2039,23 @@ export function TaskDetailModal({
         <p className="text-sm text-slate-400 mt-1">
           {t("task.moveFeatureDesc")}
         </p>
+        {/* Feature 이름 검색 */}
+        <div className="relative mt-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+          <input
+            type="text"
+            value={moveFeatureSearch}
+            onChange={(e) => {
+              setMoveFeatureSearch(e.target.value);
+              setSelectedFeatureId(null);
+            }}
+            placeholder={t(
+              "task.moveFeatureSearchPlaceholder",
+              "Feature 이름으로 검색",
+            )}
+            className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 pl-9 pr-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+          />
+        </div>
         {/* 마일스톤 선택 */}
         {milestones.length > 0 && (
           <div className="mt-3">
@@ -2001,6 +2063,20 @@ export function TaskDetailModal({
               {t("task.moveChecklistMilestoneLabel", "마일스톤")}
             </div>
             <div className="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
+              <button
+                onClick={() => {
+                  if (moveFeatureMilestoneId === "all") return;
+                  setMoveFeatureMilestoneId("all");
+                  setSelectedFeatureId(null);
+                }}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                  moveFeatureMilestoneId === "all"
+                    ? "bg-bridge-accent text-white"
+                    : "bg-foreground/5 text-slate-400 hover:bg-foreground/10"
+                }`}
+              >
+                {t("task.moveFeatureAllMilestones", "전체")}
+              </button>
               {milestones.map((m) => (
                 <button
                   key={m.id}
@@ -2023,35 +2099,83 @@ export function TaskDetailModal({
         )}
         <div className="space-y-2 py-4 max-h-[300px] overflow-y-auto custom-scrollbar">
           {(() => {
-            const candidates = moveFeatureCandidates.filter(
-              (f) => f.id !== task?.feature_id,
-            );
+            const query = moveFeatureSearch.trim().toLowerCase();
+            const candidates = moveFeatureCandidates.filter((f) => {
+              if (f.id === task?.feature_id) return false;
+              if (
+                moveFeatureMilestoneId &&
+                moveFeatureMilestoneId !== "all" &&
+                !f.milestones.some((ms) => ms.id === moveFeatureMilestoneId)
+              ) {
+                return false;
+              }
+              if (query && !f.title.toLowerCase().includes(query)) return false;
+              return true;
+            });
             if (candidates.length === 0) {
               return (
                 <p className="text-xs text-slate-500 text-center py-10">
-                  {t("task.moveFeatureEmpty", "이동할 Feature가 없습니다")}
+                  {query
+                    ? t("task.moveFeatureSearchEmpty", "검색 결과가 없습니다")
+                    : t("task.moveFeatureEmpty", "이동할 Feature가 없습니다")}
                 </p>
               );
             }
-            return candidates.map((feature) => (
-              <button
-                key={feature.id}
-                onClick={() => setSelectedFeatureId(feature.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
-                  selectedFeatureId === feature.id
-                    ? "border-bridge-accent bg-bridge-accent/10"
-                    : "border-foreground/10 hover:border-foreground/10 hover:bg-foreground/5"
-                }`}
-              >
-                <div
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: feature.color }}
-                />
-                <span className="text-foreground text-sm truncate">
-                  {feature.title}
-                </span>
-              </button>
-            ));
+            return candidates.map((feature) => {
+              // 검색어 하이라이트
+              const idx = query
+                ? feature.title.toLowerCase().indexOf(query)
+                : -1;
+              const titleNode =
+                idx >= 0 ? (
+                  <>
+                    {feature.title.slice(0, idx)}
+                    <mark className="bg-bridge-accent/30 text-foreground rounded-sm px-0.5">
+                      {feature.title.slice(idx, idx + query.length)}
+                    </mark>
+                    {feature.title.slice(idx + query.length)}
+                  </>
+                ) : (
+                  feature.title
+                );
+              return (
+                <button
+                  key={feature.id}
+                  onClick={() => setSelectedFeatureId(feature.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
+                    selectedFeatureId === feature.id
+                      ? "border-bridge-accent bg-bridge-accent/10"
+                      : "border-foreground/10 hover:border-foreground/10 hover:bg-foreground/5"
+                  }`}
+                >
+                  <div
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: feature.color }}
+                  />
+                  <span className="flex-1 min-w-0 text-left text-foreground text-sm truncate">
+                    {titleNode}
+                  </span>
+                  {feature.milestones.length > 0 && (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {feature.milestones.slice(0, 2).map((ms) => (
+                        <span
+                          key={ms.id}
+                          title={ms.title}
+                          className="max-w-[84px] truncate text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent"
+                        >
+                          {ms.title}
+                        </span>
+                      ))}
+                      {feature.milestones.length > 2 && (
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/10 text-slate-400">
+                          +{feature.milestones.length - 2}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </button>
+              );
+            });
           })()}
         </div>
         <div className="flex justify-end gap-2">
@@ -2061,6 +2185,7 @@ export function TaskDetailModal({
               setShowMoveFeatureDialog(false);
               setSelectedFeatureId(null);
               setMoveFeatureMilestoneId(null);
+              setMoveFeatureSearch("");
             }}
             className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
           >
@@ -2074,6 +2199,7 @@ export function TaskDetailModal({
               setShowMoveFeatureDialog(false);
               setSelectedFeatureId(null);
               setMoveFeatureMilestoneId(null);
+              setMoveFeatureSearch("");
               onClose();
             }}
             disabled={!selectedFeatureId}

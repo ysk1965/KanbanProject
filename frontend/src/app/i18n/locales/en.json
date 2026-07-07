@@ -1534,6 +1534,9 @@
     "moveFeatureTitle": "Move Feature",
     "moveFeatureDesc": "Select a feature to move to.",
     "moveFeatureEmpty": "No features to move to",
+    "moveFeatureSearchPlaceholder": "Search features by name",
+    "moveFeatureSearchEmpty": "No matching features",
+    "moveFeatureAllMilestones": "All",
     "move": "Move",
     "copyChecklist": "Copy checklist",
     "checklistCopied": "Checklist copied",
@@ -4776,7 +4779,13 @@
     "searchFeatures": "Search features",
     "noSearchResults": "No search results",
     "clearSearch": "Clear search",
-    "excludeFeature": "Remove from mind map"
+    "excludeFeature": "Remove from mind map",
+    "milestoneFilter": "Milestones",
+    "milestoneVisibility": "Show milestones",
+    "showAll": "All",
+    "hideAll": "None",
+    "overallProgress": "Total",
+    "unassigned": "Unassigned"
   },
   "minikanban": {
     "hint": "Drag cards across TODO·DOING·DONE, move tasks to another block",

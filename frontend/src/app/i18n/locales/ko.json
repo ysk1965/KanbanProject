@@ -1535,6 +1535,9 @@
     "moveFeatureTitle": "Feature 이동",
     "moveFeatureDesc": "이동할 Feature를 선택하세요.",
     "moveFeatureEmpty": "이동할 Feature가 없습니다",
+    "moveFeatureSearchPlaceholder": "Feature 이름으로 검색",
+    "moveFeatureSearchEmpty": "검색 결과가 없습니다",
+    "moveFeatureAllMilestones": "전체",
     "move": "이동",
     "copyChecklist": "체크리스트 복사",
     "checklistCopied": "체크리스트가 복사되었습니다",
@@ -4797,7 +4800,13 @@
     "searchFeatures": "피쳐 검색",
     "noSearchResults": "검색 결과 없음",
     "clearSearch": "검색 지우기",
-    "excludeFeature": "마인드맵에서 제외"
+    "excludeFeature": "마인드맵에서 제외",
+    "milestoneFilter": "마일스톤 필터",
+    "milestoneVisibility": "표시할 마일스톤",
+    "showAll": "전체",
+    "hideAll": "숨김",
+    "overallProgress": "종합",
+    "unassigned": "미배정"
   },
   "minikanban": {
     "hint": "카드를 TODO·DOING·DONE으로 드래그, 태스크를 다른 블록으로 이동",
