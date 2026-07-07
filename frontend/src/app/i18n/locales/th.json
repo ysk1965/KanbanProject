@@ -804,6 +804,13 @@
       "unhighlight": "ยกเลิกไฮไลต์"
     },
     "panel": {
+      "filterMilestoneShort": "หมุดหมาย",
+      "filterMemberShort": "สมาชิก",
+      "filterBlockShort": "บล็อก",
+      "filterJobRoleShort": "บทบาท",
+      "filterMember": "กรองตามสมาชิก",
+      "addFilter": "ตัวกรอง",
+      "unassigned": "ยังไม่มอบหมาย",
       "title": "รายการตรวจสอบ",
       "search": "ค้นหา...",
       "noUnscheduled": "รายการทั้งหมดถูกกำหนดไว้แล้ว",

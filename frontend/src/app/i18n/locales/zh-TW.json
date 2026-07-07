@@ -795,6 +795,13 @@
       "unhighlight": "取消醒目標示"
     },
     "panel": {
+      "filterMilestoneShort": "里程碑",
+      "filterMemberShort": "成員",
+      "filterBlockShort": "區塊",
+      "filterJobRoleShort": "職務",
+      "filterMember": "依成員篩選",
+      "addFilter": "篩選",
+      "unassigned": "未分配",
       "title": "清單",
       "search": "搜尋...",
       "noUnscheduled": "所有項目均已排程",

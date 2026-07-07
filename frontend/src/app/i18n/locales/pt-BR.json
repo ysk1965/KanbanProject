@@ -804,6 +804,13 @@
       "unhighlight": "Remover destaque"
     },
     "panel": {
+      "filterMilestoneShort": "Marco",
+      "filterMemberShort": "Membro",
+      "filterBlockShort": "Bloco",
+      "filterJobRoleShort": "Função",
+      "filterMember": "Filtrar por membro",
+      "addFilter": "Filtro",
+      "unassigned": "Não atribuído",
       "title": "Lista de verificação",
       "search": "Pesquisar...",
       "noUnscheduled": "Todos os itens estão agendados",
