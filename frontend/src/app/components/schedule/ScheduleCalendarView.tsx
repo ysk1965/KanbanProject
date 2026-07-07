@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Loader2, Briefcase } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Plus, Flag } from "lucide-react";
 import { IconButton } from "../ui/IconButton";
-import { JobRole } from "../../types";
+import { Milestone } from "../../types";
 import {
   startOfMonth,
   endOfMonth,
@@ -17,12 +17,14 @@ import {
   getDay,
 } from "date-fns";
 import { BoardMember } from "../ShareBoardModal";
-import {
-  boardChecklistAPI,
-  AssigneeItemResponse,
-  ChecklistByAssigneeResponse,
-} from "../../utils/api";
+import { calendarEventAPI, CalendarEventItem } from "../../utils/api";
 import { useHolidays, HolidayInfo } from "../../hooks/useHolidays";
+import { calendarTypeMeta } from "./calendarEventMeta";
+import {
+  CalendarEventModal,
+  CalendarEventModalInitial,
+  CalendarMemberOption,
+} from "./CalendarEventModal";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,58 +33,47 @@ import { useHolidays, HolidayInfo } from "../../hooks/useHolidays";
 interface ScheduleCalendarViewProps {
   boardId: string;
   boardMembers: BoardMember[];
-  memberColorMap?: Record<string, string | null>;
-  jobRoles?: JobRole[];
-  onViewTask?: (taskId: string) => void;
-  onDropChecklist?: (item: AssigneeItemResponse, targetDate: string) => void;
-  /** External drag state forwarded from parent (ChecklistItemPanel ghost) */
-  externalDragItem?: AssigneeItemResponse | null;
+  milestones: Milestone[];
+  currentUserRole?: string;
+  onMilestoneClick?: (milestone: Milestone) => void;
   /** Increment to trigger data refresh */
   refreshTrigger?: number;
 }
 
-/** Normalised calendar item – one per checklist item, pre-processed for rendering */
-interface CalendarItem {
+/** 캘린더 격자에 올릴 바 하나 (팀 이벤트 / 개인 부재 / 마일스톤) */
+type BarKind = "event" | "absence" | "milestone";
+
+interface BarItem {
   id: string;
+  kind: BarKind;
   title: string;
-  completed: boolean;
-  startDate: string | null;
-  dueDate: string | null;
-  featureColor: string;
-  featureTitle: string;
-  taskId: string | null;
-  taskTitle: string | null;
-  assigneeProfileImage: string | null;
-  assigneeName: string | null;
-  assigneeJobRoleId: string | null;
+  startDate: string;
+  endDate: string;
+  color: string;
+  icon: string;
+  avatar?: string | null;
+  /** 원본 이벤트 — 클릭 편집용 */
+  event?: CalendarEventItem;
+  /** 원본 마일스톤 — 클릭 진입용 */
+  milestone?: Milestone;
 }
 
-/** Multiday bar segment that spans across a calendar row */
+/** 주 단위 격자를 가로지르는 멀티데이 바 세그먼트 */
 interface BarSegment {
-  item: CalendarItem;
-  /** 0-based column index within the week row where this segment starts */
+  item: BarItem;
   startCol: number;
-  /** How many columns this segment spans */
   span: number;
-  /** Row index in the stacking order for the cell (to position vertically) */
   row: number;
 }
+
+/** 레이어 토글 키 */
+type LayerKey = "event" | "absence" | "holiday" | "milestone";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 const WEEKDAY_LABELS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-/** Parse date string (YYYY-MM-DD or ISO) to midnight local Date */
-function parseDate(dateStr: string): Date {
-  // Handle YYYY-MM-DD without timezone shift
-  if (dateStr.length === 10) {
-    const [y, m, d] = dateStr.split("-").map(Number);
-    return new Date(y, m - 1, d);
-  }
-  return new Date(dateStr);
-}
 
 /** Format a Date as YYYY-MM-DD */
 function toDateString(d: Date): string {
@@ -92,74 +83,25 @@ function toDateString(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-/**
- * Flatten the by-assignee response into a single CalendarItem array
- * containing only items that have at least one date set.
- */
-function flattenToCalendarItems(
-  data: ChecklistByAssigneeResponse,
-): CalendarItem[] {
-  const items: CalendarItem[] = [];
-
-  const mapItem = (
-    item: AssigneeItemResponse,
-    assignee: {
-      name: string;
-      profile_image: string | null;
-      job_role?: { id: string } | null;
-    } | null,
-  ): CalendarItem => ({
-    id: item.id,
-    title: item.title,
-    completed: item.completed,
-    startDate: item.start_date,
-    dueDate: item.due_date,
-    featureColor: item.feature?.color || "#6366F1",
-    featureTitle: item.feature?.title || "",
-    taskId: item.task?.id || null,
-    taskTitle: item.task?.title || null,
-    assigneeProfileImage: assignee?.profile_image || null,
-    assigneeName: assignee?.name || null,
-    assigneeJobRoleId: assignee?.job_role?.id || null,
-  });
-
-  for (const group of data.assignees) {
-    for (const item of group.items) {
-      if (item.start_date || item.due_date) {
-        items.push(mapItem(item, group.assignee));
-      }
-    }
+/** Parse date string (YYYY-MM-DD) to midnight local Date */
+function parseDate(dateStr: string): Date {
+  if (dateStr.length === 10) {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    return new Date(y, m - 1, d);
   }
-
-  for (const item of data.unassigned) {
-    if (item.start_date || item.due_date) {
-      items.push(mapItem(item, null));
-    }
-  }
-
-  return items;
+  return new Date(dateStr);
 }
 
 /**
- * Compute bar segments for ALL dated items (single-day and multiday) across the
- * calendar grid. Single-day items naturally collapse to a 1-column span. Items
- * are placed into stacking lanes (rows) so nothing overlaps. Returns an array of
- * BarSegment for each week-row of the calendar.
+ * Compute bar segments for all bar items (single-day and multiday) across the
+ * calendar grid. Single-day items collapse to a 1-column span. Items stack into
+ * lanes (rows) so nothing overlaps. Returns BarSegment[] per week-row.
  */
-function computeBarSegments(
-  items: CalendarItem[],
-  weeks: Date[][],
-): BarSegment[][] {
-  // Stable lane order: earliest start first, then longest duration first, then id.
-  // Longer multiday bars settle into top lanes, single-day items cascade below.
+function computeBarSegments(items: BarItem[], weeks: Date[][]): BarSegment[][] {
+  // 안정적 레인 순서: 시작 빠른 것 → 긴 것(늦게 끝나는 것) → id
   const sorted = [...items].sort((a, b) => {
-    const aStart = a.startDate || a.dueDate || "";
-    const bStart = b.startDate || b.dueDate || "";
-    if (aStart !== bStart) return aStart < bStart ? -1 : 1;
-    // Same start: longer span first (later end → top lane)
-    const aEnd = a.dueDate || a.startDate || "";
-    const bEnd = b.dueDate || b.startDate || "";
-    if (aEnd !== bEnd) return aEnd > bEnd ? -1 : 1;
+    if (a.startDate !== b.startDate) return a.startDate < b.startDate ? -1 : 1;
+    if (a.endDate !== b.endDate) return a.endDate > b.endDate ? -1 : 1;
     return a.id < b.id ? -1 : 1;
   });
 
@@ -167,21 +109,11 @@ function computeBarSegments(
     const weekStart = week[0];
     const weekEnd = week[week.length - 1];
     const segments: BarSegment[] = [];
-
-    // Track occupied rows per column for stacking
     const columnMaxRow: number[] = new Array(7).fill(0);
 
     for (const item of sorted) {
-      if (!item.startDate && !item.dueDate) continue;
-
-      const itemStart = item.startDate
-        ? parseDate(item.startDate)
-        : parseDate(item.dueDate!);
-      const itemEnd = item.dueDate
-        ? parseDate(item.dueDate)
-        : parseDate(item.startDate!);
-
-      // Skip if item doesn't overlap this week
+      const itemStart = parseDate(item.startDate);
+      const itemEnd = parseDate(item.endDate);
       if (itemEnd < weekStart || itemStart > weekEnd) continue;
 
       const clippedStart = itemStart < weekStart ? weekStart : itemStart;
@@ -191,12 +123,10 @@ function computeBarSegments(
       const endCol = getDay(clippedEnd);
       const span = endCol - startCol + 1;
 
-      // Find the first available row for the columns this segment spans
       let row = 0;
       for (let c = startCol; c <= endCol; c++) {
         row = Math.max(row, columnMaxRow[c]);
       }
-      // Occupy the row
       for (let c = startCol; c <= endCol; c++) {
         columnMaxRow[c] = row + 1;
       }
@@ -210,10 +140,16 @@ function computeBarSegments(
 
 // Maximum visible bars per cell row before "+N more" is shown
 const MAX_VISIBLE_BARS = 3;
-const BAR_HEIGHT = 24; // h-6 = 24px
+const BAR_HEIGHT = 24;
 const BAR_GAP = 2;
-// Vertical offset where the bar overlay starts (cell padding p-1 = 4px + today badge h-6 = 24px)
 const HEADER_HEIGHT = 28;
+
+const LAYER_META: { key: LayerKey; label: string; color: string }[] = [
+  { key: "event", label: "이벤트", color: "#6366F1" },
+  { key: "absence", label: "부재", color: "#f59e0b" },
+  { key: "holiday", label: "휴무일", color: "#f87171" },
+  { key: "milestone", label: "마일스톤", color: "#818cf8" },
+];
 
 // ---------------------------------------------------------------------------
 // Component
@@ -221,96 +157,73 @@ const HEADER_HEIGHT = 28;
 
 export function ScheduleCalendarView({
   boardId,
-  boardMembers: _boardMembers,
-  memberColorMap: _memberColorMap,
-  jobRoles = [],
-  onViewTask,
-  onDropChecklist,
-  externalDragItem,
+  boardMembers,
+  milestones,
+  currentUserRole,
+  onMilestoneClick,
   refreshTrigger,
 }: ScheduleCalendarViewProps) {
   const { t, i18n } = useTranslation();
 
+  const canManage = currentUserRole !== "viewer";
+
   // ------ State ------
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const [data, setData] = useState<ChecklistByAssigneeResponse | null>(null);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEventItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showCompleted, setShowCompleted] = useState(true);
+  const [eventModal, setEventModal] = useState<{
+    open: boolean;
+    initial?: CalendarEventModalInitial;
+    editing?: CalendarEventItem | null;
+  }>({ open: false });
 
-  // 직군 필터 (멀티 선택, 빈 Set = 전체)
-  const jobRoleFilterKey = `scheduleCalendarJobRoleFilter_${boardId}`;
-  const [selectedJobRoleIds, setSelectedJobRoleIds] = useState<Set<string>>(
-    () => {
-      if (typeof window === "undefined") return new Set();
-      try {
-        const raw = window.localStorage.getItem(jobRoleFilterKey);
-        return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-      } catch {
-        return new Set();
-      }
-    },
-  );
-  const toggleJobRoleFilter = useCallback(
-    (key: string) => {
-      setSelectedJobRoleIds((prev) => {
+  // 레이어 토글 (숨김 Set — 기본 전체 표시)
+  const layersKey = `scheduleCalendarLayers_${boardId}`;
+  const [hiddenLayers, setHiddenLayers] = useState<Set<LayerKey>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = window.localStorage.getItem(layersKey);
+      return raw ? new Set(JSON.parse(raw) as LayerKey[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  const toggleLayer = useCallback(
+    (key: LayerKey) => {
+      setHiddenLayers((prev) => {
         const next = new Set(prev);
         if (next.has(key)) next.delete(key);
         else next.add(key);
         try {
-          window.localStorage.setItem(
-            jobRoleFilterKey,
-            JSON.stringify([...next]),
-          );
+          window.localStorage.setItem(layersKey, JSON.stringify([...next]));
         } catch {
           /* ignore */
         }
         return next;
       });
     },
-    [jobRoleFilterKey],
+    [layersKey],
   );
-  const clearJobRoleFilter = useCallback(() => {
-    setSelectedJobRoleIds(new Set());
-    try {
-      window.localStorage.removeItem(jobRoleFilterKey);
-    } catch {
-      /* ignore */
-    }
-  }, [jobRoleFilterKey]);
-
-  // DnD drop target
-  const [dropTargetDate, setDropTargetDate] = useState<string | null>(null);
-  const dropTargetRef = useRef<string | null>(null);
-  const calendarRef = useRef<HTMLDivElement>(null);
-  const cellRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // ------ Data fetching ------
   const fetchData = useCallback(async () => {
+    if (!boardId) return;
     setIsLoading(true);
     try {
-      const monthStart = startOfMonth(currentMonth);
-      const monthEnd = endOfMonth(currentMonth);
-      // Expand range to include cells from adjacent months visible in the grid
-      const gridStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-      const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
-
-      const response = await boardChecklistAPI.getItemsByAssignee(boardId, {
-        start_date: toDateString(gridStart),
-        end_date: toDateString(gridEnd),
-      });
-      setData(response);
-    } catch (err) {
-      // Silently handle – data stays null and empty state shown
+      const res = await calendarEventAPI.list(boardId);
+      setCalendarEvents(res.events);
+    } catch {
+      // 조용히 처리 — 빈 상태 유지
     } finally {
       setIsLoading(false);
     }
-  }, [boardId, currentMonth]);
+  }, [boardId]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Refresh when parent triggers (e.g. after external drop) — debounced to batch rapid updates
+  // 부모 트리거(패널/외부 변경) 시 재조회 — 급격한 변경 배치
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
       const timer = setTimeout(() => fetchData(), 400);
@@ -345,25 +258,111 @@ export function ScheduleCalendarView({
     return result;
   }, [currentMonth]);
 
-  // ------ Calendar items ------
-  const calendarItems = useMemo(() => {
-    if (!data) return [];
-    let all = flattenToCalendarItems(data);
-    if (!showCompleted) all = all.filter((i) => !i.completed);
-    // 직군 필터: 빈 Set이면 전체, 아니면 선택된 직군 OR "__none__"(미지정 포함)만
-    if (selectedJobRoleIds.size > 0) {
-      all = all.filter((i) => {
-        const key = i.assigneeJobRoleId || "__none__";
-        return selectedJobRoleIds.has(key);
-      });
-    }
-    return all;
-  }, [data, showCompleted, selectedJobRoleIds]);
+  const gridDays = useMemo(() => weeks.flat(), [weeks]);
 
-  // Bar segments per week row — all dated items (single-day collapse to 1-col bars)
+  const showHolidayLayer = !hiddenLayers.has("holiday");
+
+  // ------ 달력 예외(휴무일/근무일) 병합 — 리소스 뷰와 동일 로직 (반복 포함) ------
+  const { mergedHolidayMap, forcedWorkdaySet } = useMemo(() => {
+    const holiMap = new Map<string, HolidayInfo[]>();
+    holidayMap.forEach((v, k) => holiMap.set(k, [...v]));
+    const workdaySet = new Set<string>();
+
+    const calItems = calendarEvents.filter((e) => e.category === "CALENDAR");
+    if (calItems.length > 0) {
+      for (const day of gridDays) {
+        const ds = toDateString(day);
+        const mmdd = ds.slice(5);
+        for (const e of calItems) {
+          const inRange = ds >= e.start_date && ds <= e.end_date;
+          const recurringMatch =
+            e.recurring &&
+            mmdd >= e.start_date.slice(5) &&
+            mmdd <= e.end_date.slice(5);
+          if (!inRange && !recurringMatch) continue;
+          if (e.event_type === "WORKDAY") {
+            workdaySet.add(ds);
+          } else {
+            const arr = holiMap.get(ds) || [];
+            arr.push({ date: ds, name: e.title || "휴무일", type: "custom" });
+            holiMap.set(ds, arr);
+          }
+        }
+      }
+    }
+    // 근무일 지정은 공휴일/주말 셰이딩을 덮어씀
+    workdaySet.forEach((ds) => holiMap.delete(ds));
+
+    return { mergedHolidayMap: holiMap, forcedWorkdaySet: workdaySet };
+  }, [holidayMap, calendarEvents, gridDays]);
+
+  // ------ 바 아이템 (이벤트/부재/마일스톤) ------
+  const barItems = useMemo(() => {
+    const items: BarItem[] = [];
+
+    if (!hiddenLayers.has("event")) {
+      calendarEvents
+        .filter((e) => e.category === "TEAM")
+        .forEach((e) => {
+          const meta = calendarTypeMeta(e.event_type);
+          items.push({
+            id: `ev-${e.id}`,
+            kind: "event",
+            title: e.title || meta.label,
+            startDate: e.start_date,
+            endDate: e.end_date,
+            color: e.color || meta.color,
+            icon: meta.icon,
+            event: e,
+          });
+        });
+    }
+
+    if (!hiddenLayers.has("absence")) {
+      calendarEvents
+        .filter((e) => e.category === "MEMBER" && e.member)
+        .forEach((e) => {
+          const meta = calendarTypeMeta(e.event_type);
+          const label = e.title
+            ? `${e.member!.name} · ${e.title}`
+            : e.member!.name;
+          items.push({
+            id: `ab-${e.id}`,
+            kind: "absence",
+            title: label,
+            startDate: e.start_date,
+            endDate: e.end_date,
+            color: e.color || meta.color,
+            icon: meta.icon,
+            avatar: e.member!.profile_image,
+            event: e,
+          });
+        });
+    }
+
+    if (!hiddenLayers.has("milestone")) {
+      milestones
+        .filter((m) => m.start_date && m.end_date)
+        .forEach((m) => {
+          items.push({
+            id: `ms-${m.id}`,
+            kind: "milestone",
+            title: m.title,
+            startDate: m.start_date,
+            endDate: m.end_date,
+            color: "#6366F1",
+            icon: "⚑",
+            milestone: m,
+          });
+        });
+    }
+
+    return items;
+  }, [calendarEvents, milestones, hiddenLayers]);
+
   const barSegmentsByWeek = useMemo(
-    () => computeBarSegments(calendarItems, weeks),
-    [calendarItems, weeks],
+    () => computeBarSegments(barItems, weeks),
+    [barItems, weeks],
   );
 
   // ------ Navigation ------
@@ -377,74 +376,60 @@ export function ScheduleCalendarView({
   );
   const handleToday = useCallback(() => setCurrentMonth(new Date()), []);
 
-  // ------ DnD drop target tracking ------
-  useEffect(() => {
-    if (!externalDragItem) {
-      setDropTargetDate(null);
-      dropTargetRef.current = null;
-      return;
-    }
+  // ------ 멤버 옵션 (모달용) ------
+  const memberOptions: CalendarMemberOption[] = useMemo(
+    () =>
+      boardMembers
+        .filter((m) => m.role !== "viewer")
+        .map((m) => ({ id: m.userId, name: m.name, avatar: m.avatar || null })),
+    [boardMembers],
+  );
 
-    const handleMouseMove = (e: MouseEvent) => {
-      // Find which cell the cursor is over
-      let found: string | null = null;
-      cellRefs.current.forEach((cell, dateStr) => {
-        const rect = cell.getBoundingClientRect();
-        if (
-          e.clientX >= rect.left &&
-          e.clientX <= rect.right &&
-          e.clientY >= rect.top &&
-          e.clientY <= rect.bottom
-        ) {
-          found = dateStr;
-        }
+  // ------ 추가/편집 ------
+  const openAdd = useCallback(
+    (dateStr?: string) => {
+      if (!canManage) return;
+      setEventModal({
+        open: true,
+        initial: { category: "TEAM", date: dateStr },
+        editing: null,
       });
-      dropTargetRef.current = found;
-      setDropTargetDate(found);
-    };
+    },
+    [canManage],
+  );
 
-    const handleMouseUp = () => {
-      if (dropTargetRef.current && externalDragItem && onDropChecklist) {
-        onDropChecklist(externalDragItem, dropTargetRef.current);
-      }
-      dropTargetRef.current = null;
-      setDropTargetDate(null);
-    };
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [externalDragItem, onDropChecklist]);
-
-  // ------ Bar click handler ------
   const handleBarClick = useCallback(
-    (item: CalendarItem) => {
-      if (item.taskId && onViewTask) {
-        onViewTask(item.taskId);
+    (item: BarItem) => {
+      if (item.kind === "milestone") {
+        if (item.milestone && onMilestoneClick)
+          onMilestoneClick(item.milestone);
+        return;
+      }
+      // 이벤트/부재 → 편집 (뷰어는 모달 안에서 저장 불가하지만 열람은 허용)
+      if (item.event) {
+        setEventModal({ open: true, editing: item.event });
       }
     },
-    [onViewTask],
+    [onMilestoneClick],
   );
 
   // ------ Render helpers ------
   const renderBar = useCallback(
-    (item: CalendarItem, widthPercent: number = 100) => {
-      const completedClasses = item.completed ? "opacity-50" : "";
+    (item: BarItem) => {
+      const isMilestone = item.kind === "milestone";
       return (
         <div
           key={item.id}
           role="button"
           tabIndex={0}
-          aria-label={`${item.title}${item.completed ? " (completed)" : ""}`}
+          aria-label={item.title}
           className={`h-6 rounded-md px-1.5 flex items-center gap-1 text-xs font-medium
-            truncate cursor-pointer hover:brightness-110 transition-all ${completedClasses} text-white`}
-          style={{
-            backgroundColor: item.featureColor,
-            width: `${widthPercent}%`,
-          }}
+            truncate cursor-pointer hover:brightness-110 transition-all text-white ${
+              isMilestone
+                ? "bg-bridge-accent/80 border border-bridge-accent/60"
+                : ""
+            }`}
+          style={isMilestone ? undefined : { backgroundColor: item.color }}
           onClick={(e) => {
             e.stopPropagation();
             handleBarClick(item);
@@ -456,16 +441,20 @@ export function ScheduleCalendarView({
             }
           }}
         >
-          {item.assigneeProfileImage && (
+          {item.kind === "absence" && item.avatar ? (
             <img
-              src={item.assigneeProfileImage}
-              alt={item.assigneeName || ""}
+              src={item.avatar}
+              alt=""
               className="w-4 h-4 rounded-full shrink-0"
             />
+          ) : isMilestone ? (
+            <Flag className="w-3 h-3 shrink-0" />
+          ) : (
+            <span className="text-[11px] leading-none shrink-0">
+              {item.icon}
+            </span>
           )}
-          <span className={`truncate ${item.completed ? "line-through" : ""}`}>
-            {item.title}
-          </span>
+          <span className="truncate">{item.title}</span>
         </div>
       );
     },
@@ -473,7 +462,7 @@ export function ScheduleCalendarView({
   );
 
   // ------ Loading state ------
-  if (isLoading && !data) {
+  if (isLoading && calendarEvents.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center bg-bridge-dark">
         <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
@@ -483,12 +472,9 @@ export function ScheduleCalendarView({
 
   // ------ Render ------
   return (
-    <div
-      className="flex-1 flex flex-col h-full bg-bridge-dark overflow-hidden"
-      ref={calendarRef}
-    >
+    <div className="flex-1 flex flex-col h-full bg-bridge-dark overflow-hidden">
       {/* ===== Top toolbar ===== */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-foreground/[0.08] bg-bridge-obsidian shrink-0">
+      <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-foreground/[0.08] bg-bridge-obsidian shrink-0 flex-wrap">
         <div className="flex items-center gap-2">
           <IconButton
             aria-label={t("schedule.calendar.prevMonth", "Previous month")}
@@ -514,70 +500,45 @@ export function ScheduleCalendarView({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* 직군 필터 칩 */}
-          {jobRoles.length > 0 && (
-            <div className="flex items-center gap-1 flex-wrap">
-              <Briefcase className="w-3.5 h-3.5 text-slate-500" />
-              {jobRoles.map((r) => {
-                const active = selectedJobRoleIds.has(r.id);
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => toggleJobRoleFilter(r.id)}
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold transition-all ${
-                      active ? "ring-1" : "opacity-60 hover:opacity-100"
-                    }`}
-                    style={{
-                      backgroundColor: active
-                        ? `${r.color || "#6366F1"}26`
-                        : "rgba(255,255,255,0.04)",
-                      color: active ? r.color || "#6366F1" : "rgb(148 163 184)",
-                      borderColor: r.color || "#6366F1",
-                    }}
-                  >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: r.color || "#6366F1" }}
-                    />
-                    {r.name}
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                onClick={() => toggleJobRoleFilter("__none__")}
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold transition-all ${
-                  selectedJobRoleIds.has("__none__")
-                    ? "bg-slate-500/20 text-slate-300 ring-1 ring-slate-500/50"
-                    : "bg-foreground/[0.04] text-slate-500 hover:opacity-100 opacity-60"
-                }`}
-              >
-                {t("jobRole.unassigned", "미지정")}
-              </button>
-              {selectedJobRoleIds.size > 0 && (
+          {/* 레이어 토글 레전드 */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {LAYER_META.map((layer) => {
+              const active = !hiddenLayers.has(layer.key);
+              return (
                 <button
+                  key={layer.key}
                   type="button"
-                  onClick={clearJobRoleFilter}
-                  className="text-xs text-slate-500 hover:text-foreground px-1.5"
-                  title={t("common.clear", "Clear")}
+                  onClick={() => toggleLayer(layer.key)}
+                  aria-pressed={active}
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border transition-all ${
+                    active
+                      ? "border-foreground/10 bg-foreground/[0.04] text-slate-300"
+                      : "border-transparent bg-transparent text-slate-600 line-through opacity-60"
+                  }`}
                 >
-                  ×
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{
+                      backgroundColor: active ? layer.color : "#475569",
+                    }}
+                  />
+                  {t(`schedule.calendar.layer.${layer.key}`, layer.label)}
                 </button>
-              )}
-            </div>
-          )}
+              );
+            })}
+          </div>
 
-          {/* Completed toggle */}
-          <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showCompleted}
-              onChange={(e) => setShowCompleted(e.target.checked)}
-              className="accent-bridge-accent w-3.5 h-3.5"
-            />
-            {t("schedule.calendar.allCards", "All cards")}
-          </label>
+          {/* 추가 버튼 */}
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => openAdd()}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {t("schedule.calendar.addEvent", "추가")}
+            </button>
+          )}
         </div>
       </div>
 
@@ -624,14 +585,16 @@ export function ScheduleCalendarView({
                   const dateStr = toDateString(day);
                   const inMonth = isSameMonth(day, currentMonth);
                   const today = isToday(day);
-                  const isDropTarget = dropTargetDate === dateStr;
-                  const holidays = holidayMap.get(dateStr);
+                  const holidays = showHolidayLayer
+                    ? mergedHolidayMap.get(dateStr)
+                    : undefined;
                   const isHoliday = !!holidays && holidays.length > 0;
                   const holidayName = isHoliday
                     ? holidays!.map((h) => h.name).join(", ")
                     : undefined;
+                  const isForcedWorkday =
+                    showHolidayLayer && forcedWorkdaySet.has(dateStr);
 
-                  // Count hidden segments (row >= MAX_VISIBLE_BARS) overlapping this column
                   const overflowCount = segments.filter(
                     (s) =>
                       colIdx >= s.startCol &&
@@ -642,24 +605,27 @@ export function ScheduleCalendarView({
                   return (
                     <div
                       key={colIdx}
-                      ref={(el) => {
-                        if (el) cellRefs.current.set(dateStr, el);
-                      }}
                       role="gridcell"
                       aria-label={format(day, "MMMM d, yyyy")}
                       title={holidayName}
+                      onClick={() => openAdd(dateStr)}
                       className={`align-top border border-foreground/[0.05] p-1
                         transition-colors relative min-w-0 overflow-hidden
+                        ${canManage ? "cursor-pointer hover:bg-foreground/[0.03]" : ""}
                         ${!inMonth ? "opacity-40" : ""}
                         ${isHoliday ? "bg-red-500/[0.04]" : ""}
-                        ${isDropTarget ? "bg-bridge-accent/10 ring-2 ring-bridge-accent/30 ring-inset" : ""}
+                        ${isForcedWorkday ? "bg-emerald-500/[0.05]" : ""}
                       `}
                     >
-                      {/* Date number + holiday label */}
+                      {/* Date number + holiday/workday label */}
                       <div className="flex items-center justify-between gap-1 mb-1 min-w-0">
                         {isHoliday ? (
                           <span className="text-xs font-medium text-red-400 truncate">
                             {holidayName}
+                          </span>
+                        ) : isForcedWorkday ? (
+                          <span className="text-xs font-medium text-emerald-400 truncate">
+                            {t("schedule.calendar.workday", "근무일")}
                           </span>
                         ) : (
                           <span />
@@ -681,7 +647,7 @@ export function ScheduleCalendarView({
                         </span>
                       </div>
 
-                      {/* Overflow indicator – pinned to bottom */}
+                      {/* Overflow indicator */}
                       {overflowCount > 0 && (
                         <div className="absolute bottom-1 right-1 text-xs text-slate-400">
                           +{overflowCount} more
@@ -691,13 +657,11 @@ export function ScheduleCalendarView({
                   );
                 })}
 
-                {/* Item bar overlay – spans the full week row (single + multiday) */}
+                {/* Bar overlay – spans the full week row (single + multiday) */}
                 {segments.length > 0 && (
                   <div
                     className="absolute inset-x-0 bottom-0 pointer-events-none overflow-hidden"
-                    style={{
-                      top: `${HEADER_HEIGHT}px`,
-                    }}
+                    style={{ top: `${HEADER_HEIGHT}px` }}
                   >
                     {segments
                       .filter((s) => s.row < MAX_VISIBLE_BARS)
@@ -728,6 +692,17 @@ export function ScheduleCalendarView({
           })}
         </div>
       </div>
+
+      {/* ===== 특별 일정 추가/편집 모달 ===== */}
+      <CalendarEventModal
+        open={eventModal.open}
+        onClose={() => setEventModal({ open: false })}
+        boardId={boardId}
+        members={memberOptions}
+        initial={eventModal.initial}
+        editing={eventModal.editing}
+        onSaved={fetchData}
+      />
     </div>
   );
 }

@@ -872,7 +872,15 @@
       "prevMonth": "Previous month",
       "nextMonth": "Next month",
       "noItems": "No items assigned to this date",
-      "allCards": "All cards"
+      "allCards": "All cards",
+      "addEvent": "Add",
+      "workday": "Workday",
+      "layer": {
+        "event": "Events",
+        "absence": "Absence",
+        "holiday": "Holidays",
+        "milestone": "Milestones"
+      }
     },
     "resource": {
       "milestone": "Milestone",
