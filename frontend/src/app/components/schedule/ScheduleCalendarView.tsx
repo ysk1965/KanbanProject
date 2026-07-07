@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Loader2, Plus, Flag } from "lucide-react";
 import { IconButton } from "../ui/IconButton";
@@ -139,11 +139,14 @@ function computeBarSegments(items: BarItem[], weeks: Date[][]): BarSegment[][] {
   });
 }
 
-// Maximum visible bars per cell row before "+N more" is shown
-const MAX_VISIBLE_BARS = 3;
+// 셀 높이에 맞춰 표시할 바 개수를 동적으로 결정 (최대 4, 최소 1)
+const MAX_VISIBLE_CAP = 4;
+const MIN_VISIBLE_BARS = 1;
 const BAR_HEIGHT = 24;
 const BAR_GAP = 2;
 const HEADER_HEIGHT = 28;
+// "+N more" 인디케이터가 겹치지 않도록 남기는 하단 여백
+const OVERFLOW_RESERVE = 16;
 
 const LAYER_META: { key: LayerKey; label: string; color: string }[] = [
   { key: "event", label: "이벤트", color: "#6366F1" },
@@ -177,8 +180,12 @@ export function ScheduleCalendarView({
     initial?: CalendarEventModalInitial;
     editing?: CalendarEventItem | null;
   }>({ open: false });
-  // 선택된 날짜 (우측 상세 패널)
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // 선택된 날짜 (우측 상세 패널) — 기본값 오늘, 데스크톱에서 상시 노출
+  const [selectedDate, setSelectedDate] = useState<string>(() =>
+    toDateString(new Date()),
+  );
+  // 모바일: 패널이 캘린더를 덮으므로 탭 시에만 오버레이로 오픈
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
 
   // 레이어 토글 (숨김 Set — 기본 전체 표시)
   const layersKey = `scheduleCalendarLayers_${boardId}`;
@@ -264,6 +271,27 @@ export function ScheduleCalendarView({
   const gridDays = useMemo(() => weeks.flat(), [weeks]);
 
   const showHolidayLayer = !hiddenLayers.has("holiday");
+
+  // ------ 셀 높이 기반 동적 표시 개수 (최대 4, 셀 작아지면 감소) ------
+  const rowGroupRef = useRef<HTMLDivElement>(null);
+  const [maxVisibleBars, setMaxVisibleBars] = useState(MAX_VISIBLE_CAP);
+  useEffect(() => {
+    const el = rowGroupRef.current;
+    if (!el) return;
+    const compute = () => {
+      const rowCount = weeks.length || 1;
+      const rowH = el.clientHeight / rowCount;
+      const usable = rowH - HEADER_HEIGHT - OVERFLOW_RESERVE;
+      const fit = Math.floor(usable / (BAR_HEIGHT + BAR_GAP));
+      setMaxVisibleBars(
+        Math.max(MIN_VISIBLE_BARS, Math.min(MAX_VISIBLE_CAP, fit)),
+      );
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [weeks.length]);
 
   // ------ 달력 예외(휴무일/근무일) 병합 — 리소스 뷰와 동일 로직 (반복 포함) ------
   const { mergedHolidayMap, forcedWorkdaySet } = useMemo(() => {
@@ -443,10 +471,7 @@ export function ScheduleCalendarView({
     const publicHolidays = holidayMap.get(sel) || [];
     const ms = milestones.filter(
       (m) =>
-        m.start_date &&
-        m.end_date &&
-        sel >= m.start_date &&
-        sel <= m.end_date,
+        m.start_date && m.end_date && sel >= m.start_date && sel <= m.end_date,
     );
 
     return {
@@ -472,16 +497,15 @@ export function ScheduleCalendarView({
     [canManage],
   );
 
-  // ------ 키보드 내비게이션 (←/→ 날짜 이동, Esc 닫기) ------
+  // ------ 키보드 내비게이션 (←/→ 날짜 이동, Esc 모바일 패널 닫기) ------
   useEffect(() => {
-    if (!selectedDate) return;
     const handler = (e: KeyboardEvent) => {
       if (eventModal.open) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
 
       if (e.key === "Escape") {
-        setSelectedDate(null);
+        setMobilePanelOpen(false);
       } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
         e.preventDefault();
         const d = parseDate(selectedDate);
@@ -556,150 +580,150 @@ export function ScheduleCalendarView({
   return (
     <div className="flex-1 flex h-full bg-bridge-dark overflow-hidden">
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-      {/* ===== Top toolbar ===== */}
-      <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-foreground/[0.08] bg-bridge-obsidian shrink-0 flex-wrap">
-        <div className="flex items-center gap-2">
-          <IconButton
-            aria-label={t("schedule.calendar.prevMonth", "Previous month")}
-            onClick={handlePrevMonth}
-          >
-            <ChevronLeft />
-          </IconButton>
-          <button
-            className="px-3 py-1 rounded-lg text-xs font-medium text-bridge-accent hover:bg-bridge-accent/10 transition-colors"
-            onClick={handleToday}
-          >
-            {t("schedule.calendar.today", "Today")}
-          </button>
-          <IconButton
-            aria-label={t("schedule.calendar.nextMonth", "Next month")}
-            onClick={handleNextMonth}
-          >
-            <ChevronRight />
-          </IconButton>
-          <span className="text-sm font-bold text-foreground tracking-tight ml-2">
-            {format(currentMonth, "MMMM yyyy")}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* 레이어 토글 레전드 */}
-          <div className="flex items-center gap-1 flex-wrap">
-            {LAYER_META.map((layer) => {
-              const active = !hiddenLayers.has(layer.key);
-              return (
-                <button
-                  key={layer.key}
-                  type="button"
-                  onClick={() => toggleLayer(layer.key)}
-                  aria-pressed={active}
-                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border transition-all ${
-                    active
-                      ? "border-foreground/10 bg-foreground/[0.04] text-slate-300"
-                      : "border-transparent bg-transparent text-slate-600 line-through opacity-60"
-                  }`}
-                >
-                  <span
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{
-                      backgroundColor: active ? layer.color : "#475569",
-                    }}
-                  />
-                  {t(`schedule.calendar.layer.${layer.key}`, layer.label)}
-                </button>
-              );
-            })}
+        {/* ===== Top toolbar ===== */}
+        <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-foreground/[0.08] bg-bridge-obsidian shrink-0 flex-wrap">
+          <div className="flex items-center gap-2">
+            <IconButton
+              aria-label={t("schedule.calendar.prevMonth", "Previous month")}
+              onClick={handlePrevMonth}
+            >
+              <ChevronLeft />
+            </IconButton>
+            <button
+              className="px-3 py-1 rounded-lg text-xs font-medium text-bridge-accent hover:bg-bridge-accent/10 transition-colors"
+              onClick={handleToday}
+            >
+              {t("schedule.calendar.today", "Today")}
+            </button>
+            <IconButton
+              aria-label={t("schedule.calendar.nextMonth", "Next month")}
+              onClick={handleNextMonth}
+            >
+              <ChevronRight />
+            </IconButton>
+            <span className="text-sm font-bold text-foreground tracking-tight ml-2">
+              {format(currentMonth, "MMMM yyyy")}
+            </span>
           </div>
 
-          {/* 추가 버튼 */}
-          {canManage && (
-            <button
-              type="button"
-              onClick={() => openAdd()}
-              className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              {t("schedule.calendar.addEvent", "추가")}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ===== Calendar grid ===== */}
-      <div
-        className="flex-1 overflow-hidden flex flex-col"
-        role="grid"
-        aria-label="Monthly calendar"
-      >
-        {/* Weekday headers */}
-        <div
-          role="row"
-          className="grid grid-cols-7 border-b border-foreground/[0.08]"
-        >
-          {WEEKDAY_LABELS_EN.map((label, idx) => (
-            <div
-              key={idx}
-              role="columnheader"
-              className="text-xs font-bold uppercase tracking-widest text-slate-400 py-2 text-center"
-            >
-              {label}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* 레이어 토글 레전드 */}
+            <div className="flex items-center gap-1 flex-wrap">
+              {LAYER_META.map((layer) => {
+                const active = !hiddenLayers.has(layer.key);
+                return (
+                  <button
+                    key={layer.key}
+                    type="button"
+                    onClick={() => toggleLayer(layer.key)}
+                    aria-pressed={active}
+                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border transition-all ${
+                      active
+                        ? "border-foreground/10 bg-foreground/[0.04] text-slate-300"
+                        : "border-transparent bg-transparent text-slate-600 line-through opacity-60"
+                    }`}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{
+                        backgroundColor: active ? layer.color : "#475569",
+                      }}
+                    />
+                    {t(`schedule.calendar.layer.${layer.key}`, layer.label)}
+                  </button>
+                );
+              })}
             </div>
-          ))}
+
+            {/* 추가 버튼 */}
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => openAdd()}
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {t("schedule.calendar.addEvent", "추가")}
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Weeks */}
+        {/* ===== Calendar grid ===== */}
         <div
-          role="rowgroup"
-          className="flex-1 grid"
-          style={{
-            gridTemplateRows: `repeat(${weeks.length}, minmax(0, 1fr))`,
-          }}
+          className="flex-1 overflow-hidden flex flex-col"
+          role="grid"
+          aria-label="Monthly calendar"
         >
-          {weeks.map((week, weekIdx) => {
-            const segments = barSegmentsByWeek[weekIdx] || [];
-
-            return (
+          {/* Weekday headers */}
+          <div
+            role="row"
+            className="grid grid-cols-7 border-b border-foreground/[0.08]"
+          >
+            {WEEKDAY_LABELS_EN.map((label, idx) => (
               <div
-                key={weekIdx}
-                role="row"
-                className="relative grid grid-cols-7 min-h-0"
+                key={idx}
+                role="columnheader"
+                className="text-xs font-bold uppercase tracking-widest text-slate-400 py-2 text-center"
               >
-                {week.map((day, colIdx) => {
-                  const dateStr = toDateString(day);
-                  const inMonth = isSameMonth(day, currentMonth);
-                  const today = isToday(day);
-                  const holidays = showHolidayLayer
-                    ? mergedHolidayMap.get(dateStr)
-                    : undefined;
-                  const isHoliday = !!holidays && holidays.length > 0;
-                  const holidayName = isHoliday
-                    ? holidays!.map((h) => h.name).join(", ")
-                    : undefined;
-                  const isForcedWorkday =
-                    showHolidayLayer && forcedWorkdaySet.has(dateStr);
+                {label}
+              </div>
+            ))}
+          </div>
 
-                  const overflowCount = segments.filter(
-                    (s) =>
-                      colIdx >= s.startCol &&
-                      colIdx < s.startCol + s.span &&
-                      s.row >= MAX_VISIBLE_BARS,
-                  ).length;
+          {/* Weeks */}
+          <div
+            ref={rowGroupRef}
+            role="rowgroup"
+            className="flex-1 grid"
+            style={{
+              gridTemplateRows: `repeat(${weeks.length}, minmax(0, 1fr))`,
+            }}
+          >
+            {weeks.map((week, weekIdx) => {
+              const segments = barSegmentsByWeek[weekIdx] || [];
 
-                  const isSelected = selectedDate === dateStr;
+              return (
+                <div
+                  key={weekIdx}
+                  role="row"
+                  className="relative grid grid-cols-7 min-h-0"
+                >
+                  {week.map((day, colIdx) => {
+                    const dateStr = toDateString(day);
+                    const inMonth = isSameMonth(day, currentMonth);
+                    const today = isToday(day);
+                    const holidays = showHolidayLayer
+                      ? mergedHolidayMap.get(dateStr)
+                      : undefined;
+                    const isHoliday = !!holidays && holidays.length > 0;
+                    const holidayName = isHoliday
+                      ? holidays!.map((h) => h.name).join(", ")
+                      : undefined;
+                    const isForcedWorkday =
+                      showHolidayLayer && forcedWorkdaySet.has(dateStr);
 
-                  return (
-                    <div
-                      key={colIdx}
-                      role="gridcell"
-                      aria-label={format(day, "MMMM d, yyyy")}
-                      aria-selected={isSelected}
-                      title={holidayName}
-                      onClick={() =>
-                        setSelectedDate((prev) =>
-                          prev === dateStr ? null : dateStr,
-                        )
-                      }
-                      className={`align-top border border-foreground/[0.05] p-1
+                    const overflowCount = segments.filter(
+                      (s) =>
+                        colIdx >= s.startCol &&
+                        colIdx < s.startCol + s.span &&
+                        s.row >= maxVisibleBars,
+                    ).length;
+
+                    const isSelected = selectedDate === dateStr;
+
+                    return (
+                      <div
+                        key={colIdx}
+                        role="gridcell"
+                        aria-label={format(day, "MMMM d, yyyy")}
+                        aria-selected={isSelected}
+                        title={holidayName}
+                        onClick={() => {
+                          setSelectedDate(dateStr);
+                          setMobilePanelOpen(true);
+                        }}
+                        className={`align-top border border-foreground/[0.05] p-1
                         transition-colors relative min-w-0 overflow-hidden
                         cursor-pointer hover:bg-foreground/[0.03]
                         ${!inMonth ? "opacity-40" : ""}
@@ -707,22 +731,22 @@ export function ScheduleCalendarView({
                         ${isForcedWorkday ? "bg-emerald-500/[0.05]" : ""}
                         ${isSelected ? "ring-2 ring-inset ring-bridge-accent bg-bridge-accent/[0.06] z-10" : ""}
                       `}
-                    >
-                      {/* Date number + holiday/workday label */}
-                      <div className="flex items-center justify-between gap-1 mb-1 min-w-0">
-                        {isHoliday ? (
-                          <span className="text-xs font-medium text-red-400 truncate">
-                            {holidayName}
-                          </span>
-                        ) : isForcedWorkday ? (
-                          <span className="text-xs font-medium text-emerald-400 truncate">
-                            {t("schedule.calendar.workday", "근무일")}
-                          </span>
-                        ) : (
-                          <span />
-                        )}
-                        <span
-                          className={`text-xs font-medium leading-none shrink-0
+                      >
+                        {/* Date number + holiday/workday label */}
+                        <div className="flex items-center justify-between gap-1 mb-1 min-w-0">
+                          {isHoliday ? (
+                            <span className="text-xs font-medium text-red-400 truncate">
+                              {holidayName}
+                            </span>
+                          ) : isForcedWorkday ? (
+                            <span className="text-xs font-medium text-emerald-400 truncate">
+                              {t("schedule.calendar.workday", "근무일")}
+                            </span>
+                          ) : (
+                            <span />
+                          )}
+                          <span
+                            className={`text-xs font-medium leading-none shrink-0
                             ${
                               today
                                 ? "bg-bridge-accent text-white w-6 h-6 rounded-full flex items-center justify-center font-bold"
@@ -733,65 +757,66 @@ export function ScheduleCalendarView({
                                     : "text-slate-500"
                             }
                           `}
-                        >
-                          {day.getDate()}
-                        </span>
-                      </div>
-
-                      {/* Overflow indicator */}
-                      {overflowCount > 0 && (
-                        <div className="absolute bottom-1 right-1 text-xs text-slate-400">
-                          +{overflowCount} more
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {/* Bar overlay – spans the full week row (single + multiday) */}
-                {segments.length > 0 && (
-                  <div
-                    className="absolute inset-x-0 bottom-0 pointer-events-none overflow-hidden"
-                    style={{ top: `${HEADER_HEIGHT}px` }}
-                  >
-                    {segments
-                      .filter((s) => s.row < MAX_VISIBLE_BARS)
-                      .map((segment) => {
-                        const leftPercent = (segment.startCol / 7) * 100;
-                        const widthPercent = (segment.span / 7) * 100;
-                        const topPx = segment.row * (BAR_HEIGHT + BAR_GAP);
-
-                        return (
-                          <div
-                            key={segment.item.id}
-                            className="absolute pointer-events-auto"
-                            style={{
-                              left: `calc(${leftPercent}% + 4px)`,
-                              width: `calc(${widthPercent}% - 8px)`,
-                              top: `${topPx}px`,
-                              height: `${BAR_HEIGHT}px`,
-                            }}
                           >
-                            {renderBar(segment.item)}
+                            {day.getDate()}
+                          </span>
+                        </div>
+
+                        {/* Overflow indicator */}
+                        {overflowCount > 0 && (
+                          <div className="absolute bottom-1 right-1 text-xs text-slate-400">
+                            +{overflowCount} more
                           </div>
-                        );
-                      })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Bar overlay – spans the full week row (single + multiday) */}
+                  {segments.length > 0 && (
+                    <div
+                      className="absolute inset-x-0 bottom-0 pointer-events-none overflow-hidden"
+                      style={{ top: `${HEADER_HEIGHT}px` }}
+                    >
+                      {segments
+                        .filter((s) => s.row < maxVisibleBars)
+                        .map((segment) => {
+                          const leftPercent = (segment.startCol / 7) * 100;
+                          const widthPercent = (segment.span / 7) * 100;
+                          const topPx = segment.row * (BAR_HEIGHT + BAR_GAP);
+
+                          return (
+                            <div
+                              key={segment.item.id}
+                              className="absolute pointer-events-auto"
+                              style={{
+                                left: `calc(${leftPercent}% + 4px)`,
+                                width: `calc(${widthPercent}% - 8px)`,
+                                top: `${topPx}px`,
+                                height: `${BAR_HEIGHT}px`,
+                              }}
+                            >
+                              {renderBar(segment.item)}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
-      </div>
 
-      {/* ===== 우측 날짜 상세 패널 ===== */}
-      {selectedDate && selectedDayDetail && (
+      {/* ===== 우측 날짜 상세 패널 (데스크톱 상시 노출 / 모바일 오버레이) ===== */}
+      {selectedDayDetail && (
         <DayDetailPanel
           date={selectedDate}
           data={selectedDayDetail}
           canManage={canManage}
-          onClose={() => setSelectedDate(null)}
+          mobileOpen={mobilePanelOpen}
+          onClose={() => setMobilePanelOpen(false)}
           onMilestoneClick={(m) => onMilestoneClick?.(m)}
           onEventClick={(e) => setEventModal({ open: true, editing: e })}
           onAdd={(d) => openAdd(d)}
