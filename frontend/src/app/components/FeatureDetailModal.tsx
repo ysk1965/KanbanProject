@@ -53,9 +53,24 @@ import { useTranslation } from "react-i18next";
 import { ColorPickerPopover } from "./ui/ColorPickerPopover";
 import { TagPickerPopover } from "./TagPickerPopover";
 import { featureAPI, taskAPI } from "../utils/api";
+import { getTodayDateString } from "../utils/dateUtils";
 import { FeatureAIDecomposeModal } from "./FeatureAIDecomposeModal";
 import { useAuth } from "../contexts/AuthContext";
 import { getAssigneeClasses, getInitials } from "../utils/assigneeColor";
+
+// 마일스톤 색상 팔레트 — 마인드맵(MindMapView)의 MILESTONE_COLORS와 동일.
+// 보드 milestones 배열의 인덱스로 색상을 파생해 두 화면의 마일스톤 색상을 일치시킨다.
+const MILESTONE_COLORS = [
+  "#6366F1", // indigo
+  "#2DD4BF", // teal
+  "#f59e0b", // amber
+  "#a855f7", // purple
+  "#f43f5e", // red/rose
+  "#10b981",
+  "#0ea5e9",
+  "#ec4899",
+];
+const MILESTONE_UNASSIGNED_COLOR = "#64748b"; // slate — 미배치 그룹
 
 interface FeatureDetailModalProps {
   feature: Feature | null;
@@ -66,7 +81,7 @@ interface FeatureDetailModalProps {
   milestones: Milestone[];
   open: boolean;
   onClose: () => void;
-  onAddSubtask: (title: string) => void;
+  onAddSubtask: (title: string, milestoneId: string | null) => void;
   onRenameSubtask?: (taskId: string, newTitle: string) => void;
   onReorderSubtasks?: (taskIds: string[]) => void;
   onUpdateFeature: (feature: Partial<Feature>) => void;
@@ -112,6 +127,10 @@ export function FeatureDetailModal({
   onTaskClick,
 }: FeatureDetailModalProps) {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [newSubtaskMilestoneId, setNewSubtaskMilestoneId] = useState<
+    string | null
+  >(null);
+  const [milestoneDropdownOpen, setMilestoneDropdownOpen] = useState(false);
   const [initialFeature, setInitialFeature] = useState<Feature | null>(null);
   const [editedFeature, setEditedFeature] = useState<Feature | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
@@ -161,6 +180,32 @@ export function FeatureDetailModal({
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
   const sortedTasks = useMemo(() => sortByFeatureOrder(tasks), [tasks]);
+
+  // 새 서브태스크의 마일스톤 선택 — 이 피처에 연결된 마일스톤 + '미배치'.
+  // Feature에는 milestone 링크가 없어 milestones의 features에서 역참조(primaryMilestone과 동일 패턴).
+  const featureMilestones = useMemo(
+    () =>
+      feature
+        ? milestones.filter((m) =>
+            (m.features ?? []).some((f) => f.id === feature.id),
+          )
+        : [],
+    [feature, milestones],
+  );
+  // 기본값: 오늘 날짜가 포함되는 연결 마일스톤, 없으면 null(미배치).
+  const defaultSubtaskMilestoneId = useMemo(() => {
+    const today = getTodayDateString();
+    const match = featureMilestones.find(
+      (m) =>
+        (m.start_date?.slice(0, 10) ?? "") <= today &&
+        today <= (m.end_date?.slice(0, 10) ?? ""),
+    );
+    return match?.id ?? null;
+  }, [featureMilestones]);
+
+  useEffect(() => {
+    if (feature && open) setNewSubtaskMilestoneId(defaultSubtaskMilestoneId);
+  }, [feature, open, defaultSubtaskMilestoneId]);
 
   if (!open || !feature || !editedFeature) return null;
 
@@ -236,10 +281,10 @@ export function FeatureDetailModal({
   const handleSubtaskDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = sortedTasks.findIndex((t) => t.id === active.id);
-    const newIndex = sortedTasks.findIndex((t) => t.id === over.id);
+    const oldIndex = orderedTasks.findIndex((t) => t.id === active.id);
+    const newIndex = orderedTasks.findIndex((t) => t.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(sortedTasks, oldIndex, newIndex);
+    const reordered = arrayMove(orderedTasks, oldIndex, newIndex);
     onReorderSubtasks?.(reordered.map((t) => t.id));
   };
 
@@ -254,8 +299,9 @@ export function FeatureDetailModal({
         });
         setTimeout(() => setFlyingTask(null), 800);
       }
-      onAddSubtask(newSubtaskTitle.trim());
+      onAddSubtask(newSubtaskTitle.trim(), newSubtaskMilestoneId);
       setNewSubtaskTitle("");
+      setNewSubtaskMilestoneId(defaultSubtaskMilestoneId);
     }
   };
 
@@ -307,8 +353,174 @@ export function FeatureDetailModal({
       ? milestones.find((m) => m.id === milestoneId)?.title
       : undefined;
 
+  // 마일스톤 색상 — 보드 milestones 배열 내 인덱스로 파생(마인드맵과 일치). 미배치는 slate.
+  const getMilestoneColor = (milestoneId?: string | null) => {
+    if (!milestoneId) return MILESTONE_UNASSIGNED_COLOR;
+    const idx = milestones.findIndex((m) => m.id === milestoneId);
+    return idx >= 0
+      ? MILESTONE_COLORS[idx % MILESTONE_COLORS.length]
+      : MILESTONE_UNASSIGNED_COLOR;
+  };
+
+  // 서브태스크를 마일스톤별로 그룹핑(마인드맵 taskGroups 규칙 재사용).
+  // 보드 milestones 순서(=색상 idx 순) → 미배치 → 고아 마일스톤 순. 버킷 내 순서는 sortedTasks 유지(안정).
+  const taskGroups = useMemo(() => {
+    const byMs = new Map<string | null, Task[]>();
+    for (const t of sortedTasks) {
+      const key = t.milestone_id ?? null;
+      if (!byMs.has(key)) byMs.set(key, []);
+      byMs.get(key)!.push(t);
+    }
+    const groups: {
+      key: string;
+      milestoneId: string | null;
+      title: string;
+      color: string;
+      tasks: Task[];
+    }[] = [];
+    const consumed = new Set<string | null>();
+    for (const m of milestones) {
+      const ts = byMs.get(m.id);
+      if (ts?.length) {
+        groups.push({
+          key: m.id,
+          milestoneId: m.id,
+          title: m.title,
+          color: getMilestoneColor(m.id),
+          tasks: ts,
+        });
+        consumed.add(m.id);
+      }
+    }
+    // milestones에 없는 마일스톤 id를 가진 태스크(고아) 처리
+    for (const [key, ts] of byMs) {
+      if (key !== null && !consumed.has(key) && ts.length) {
+        groups.push({
+          key,
+          milestoneId: key,
+          title: getTaskMilestoneTitle(key) ?? key,
+          color: getMilestoneColor(key),
+          tasks: ts,
+        });
+      }
+    }
+    const unassigned = byMs.get(null);
+    if (unassigned?.length) {
+      groups.push({
+        key: "__unassigned__",
+        milestoneId: null,
+        title: t("featureDetail.milestoneUnassigned"),
+        color: MILESTONE_UNASSIGNED_COLOR,
+        tasks: unassigned,
+      });
+    }
+    return groups;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortedTasks, milestones, t]);
+
+  // 마일스톤이 2개 이상으로 나뉠 때만 그룹 뷰로 전환(그 외엔 기존 평면 리스트).
+  const grouped = taskGroups.length > 1;
+  // 그룹 뷰의 시각 순서와 DnD/재정렬 기준을 일치시키기 위한 평탄화 목록.
+  const orderedTasks = useMemo(
+    () => (grouped ? taskGroups.flatMap((g) => g.tasks) : sortedTasks),
+    [grouped, taskGroups, sortedTasks],
+  );
+
   const featureTags = editedFeature.tags || [];
   const selectedColor = editedFeature.color || "#8B5CF6";
+
+  // 서브태스크 한 행 렌더링. grouped일 때 점 색상은 마일스톤 색을 따르고,
+  // 우측 라벨의 마일스톤명은 그룹 헤더로 승격되어 중복 표기하지 않는다(블록명만 표시).
+  const renderSubtaskRow = (task: Task) => {
+    const dotColor = grouped
+      ? getMilestoneColor(task.milestone_id)
+      : selectedColor;
+    const milestoneTitle = getTaskMilestoneTitle(task.milestone_id);
+    return (
+      <SortableSubtaskRow
+        key={task.id}
+        taskId={task.id}
+        dragEnabled={canEdit && !!onReorderSubtasks && orderedTasks.length > 1}
+        className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors group ${onTaskClick ? "cursor-pointer" : ""}`}
+        onClick={() => {
+          if (onTaskClick && editingTaskId !== task.id) {
+            onTaskClick(task);
+          }
+        }}
+      >
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div
+            className="w-2 h-2 rounded-full flex-shrink-0"
+            style={{
+              backgroundColor: dotColor,
+              boxShadow: `0 0 8px ${dotColor}44`,
+            }}
+          />
+          {editingTaskId === task.id ? (
+            <input
+              ref={editInputRef}
+              type="text"
+              value={editingTaskTitle}
+              onChange={(e) => setEditingTaskTitle(e.target.value)}
+              onBlur={handleSaveTaskTitle}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
+                if (e.key === "Enter") handleSaveTaskTitle();
+                if (e.key === "Escape") setEditingTaskId(null);
+              }}
+              className="flex-1 text-xs font-medium bg-foreground/5 border border-bridge-accent/50 rounded-md px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+            />
+          ) : (
+            <span
+              className={`text-xs font-medium text-foreground/80 group-hover:text-foreground transition-colors truncate ${canEdit ? "cursor-text hover:bg-foreground/5 rounded px-1 -mx-1" : ""}`}
+              onClick={(e) => {
+                if (canEdit) {
+                  e.stopPropagation();
+                  handleStartEditTask(task);
+                }
+              }}
+            >
+              {task.title}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-400 flex-shrink-0 ml-2">
+          <span className="tracking-widest transition-colors">
+            →{" "}
+            {!grouped && milestoneTitle && (
+              <span className="text-bridge-accent">{milestoneTitle} · </span>
+            )}
+            {getBlockName(task.block_id).toUpperCase()}
+          </span>
+        </div>
+      </SortableSubtaskRow>
+    );
+  };
+
+  // 마일스톤 그룹 구분선(마인드맵 divider 언어 재사용: 색상 라인 + 제목 + done/total).
+  const renderMilestoneDivider = (group: (typeof taskGroups)[number]) => {
+    const c = group.color;
+    const done = group.tasks.filter((tk) => tk.completed).length;
+    return (
+      <div className="flex items-center gap-2 px-5 pt-4 pb-2">
+        <span className="flex-1 h-px" style={{ background: `${c}4D` }} />
+        <span
+          className="text-xs font-bold whitespace-nowrap"
+          style={{ color: c }}
+        >
+          {group.title}
+        </span>
+        <span
+          className="text-xs font-bold whitespace-nowrap tabular-nums"
+          style={{ color: `${c}99` }}
+        >
+          {done}/{group.tasks.length}
+        </span>
+        <span className="flex-1 h-px" style={{ background: `${c}26` }} />
+      </div>
+    );
+  };
 
   return (
     <>
@@ -881,82 +1093,19 @@ export function FeatureDetailModal({
                     onDragEnd={handleSubtaskDragEnd}
                   >
                     <SortableContext
-                      items={sortedTasks.map((t) => t.id)}
+                      items={orderedTasks.map((t) => t.id)}
                       strategy={verticalListSortingStrategy}
                     >
-                      {sortedTasks.map((task) => (
-                        <SortableSubtaskRow
-                          key={task.id}
-                          taskId={task.id}
-                          dragEnabled={
-                            canEdit &&
-                            !!onReorderSubtasks &&
-                            sortedTasks.length > 1
-                          }
-                          className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors group ${onTaskClick ? "cursor-pointer" : ""}`}
-                          onClick={() => {
-                            if (onTaskClick && editingTaskId !== task.id) {
-                              onTaskClick(task);
-                            }
-                          }}
-                        >
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div
-                              className="w-2 h-2 rounded-full flex-shrink-0"
-                              style={{
-                                backgroundColor: selectedColor,
-                                boxShadow: `0 0 8px ${selectedColor}44`,
-                              }}
-                            />
-                            {editingTaskId === task.id ? (
-                              <input
-                                ref={editInputRef}
-                                type="text"
-                                value={editingTaskTitle}
-                                onChange={(e) =>
-                                  setEditingTaskTitle(e.target.value)
-                                }
-                                onBlur={handleSaveTaskTitle}
-                                onClick={(e) => e.stopPropagation()}
-                                onKeyDown={(e) => {
-                                  if (e.nativeEvent.isComposing) return;
-                                  if (e.key === "Enter") handleSaveTaskTitle();
-                                  if (e.key === "Escape")
-                                    setEditingTaskId(null);
-                                }}
-                                className="flex-1 text-xs font-medium bg-foreground/5 border border-bridge-accent/50 rounded-md px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
-                              />
-                            ) : (
-                              <span
-                                className={`text-xs font-medium text-foreground/80 group-hover:text-foreground transition-colors truncate ${canEdit ? "cursor-text hover:bg-foreground/5 rounded px-1 -mx-1" : ""}`}
-                                onClick={(e) => {
-                                  if (canEdit) {
-                                    e.stopPropagation();
-                                    handleStartEditTask(task);
-                                  }
-                                }}
-                              >
-                                {task.title}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 flex-shrink-0 ml-2">
-                            <span
-                              className="tracking-widest transition-colors"
-                              style={{ color: undefined }}
-                            >
-                              →{" "}
-                              {getTaskMilestoneTitle(task.milestone_id) && (
-                                <span className="text-bridge-accent">
-                                  {getTaskMilestoneTitle(task.milestone_id)}{" "}
-                                  ·{" "}
-                                </span>
+                      {grouped
+                        ? taskGroups.map((group) => (
+                            <div key={group.key}>
+                              {renderMilestoneDivider(group)}
+                              {group.tasks.map((task) =>
+                                renderSubtaskRow(task),
                               )}
-                              {getBlockName(task.block_id).toUpperCase()}
-                            </span>
-                          </div>
-                        </SortableSubtaskRow>
-                      ))}
+                            </div>
+                          ))
+                        : orderedTasks.map((task) => renderSubtaskRow(task))}
                     </SortableContext>
                   </DndContext>
                 </div>
@@ -982,6 +1131,60 @@ export function FeatureDetailModal({
                       ease: "easeInOut",
                     }}
                   >
+                    <Popover
+                      open={milestoneDropdownOpen}
+                      onOpenChange={setMilestoneDropdownOpen}
+                    >
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          title={t("featureDetail.selectMilestone")}
+                          className="flex items-center gap-1 flex-shrink-0 rounded-lg px-2.5 py-2.5 text-xs text-foreground bg-bridge-dark/50 border border-bridge-border/30 hover:border-bridge-accent/50 transition-all max-w-[130px]"
+                        >
+                          <span className="truncate">
+                            {featureMilestones.find(
+                              (m) => m.id === newSubtaskMilestoneId,
+                            )?.title ?? t("featureDetail.milestoneUnassigned")}
+                          </span>
+                          <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-52 p-1">
+                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewSubtaskMilestoneId(null);
+                              setMilestoneDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
+                              newSubtaskMilestoneId === null
+                                ? "bg-bridge-accent/15 text-bridge-accent font-bold"
+                                : "text-foreground hover:bg-foreground/5"
+                            }`}
+                          >
+                            {t("featureDetail.milestoneUnassigned")}
+                          </button>
+                          {featureMilestones.map((m) => (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => {
+                                setNewSubtaskMilestoneId(m.id);
+                                setMilestoneDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-xs truncate transition-colors ${
+                                newSubtaskMilestoneId === m.id
+                                  ? "bg-bridge-accent/15 text-bridge-accent font-bold"
+                                  : "text-foreground hover:bg-foreground/5"
+                              }`}
+                            >
+                              {m.title}
+                            </button>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                     <input
                       type="text"
                       placeholder={t("featureDetail.newSubtaskPlaceholder")}

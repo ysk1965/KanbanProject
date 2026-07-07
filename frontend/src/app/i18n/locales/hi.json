@@ -2337,6 +2337,8 @@
     "addSubtaskGuide": "नीचे उप-कार्य जोड़ें",
     "subtaskDescription": "उप-कार्य Kanban बोर्ड के Task Block पर कार्ड के रूप में दिखाई देते हैं, और आप उन्हें Block के बीच खींचकर प्रगति प्रबंधित कर सकते हैं।",
     "newSubtaskPlaceholder": "नया उप-कार्य जोड़ें...",
+    "milestoneUnassigned": "अनिर्दिष्ट",
+    "selectMilestone": "माइलस्टोन चुनें",
     "saveChangesTitle": "बदलाव सहेजें?",
     "saveChangesDesc": "आपके पास सहेजे नहीं गए बदलाव हैं। बिना सहेजे बंद करने पर वे खो जाएंगे।",
     "discard": "सहेजें नहीं",

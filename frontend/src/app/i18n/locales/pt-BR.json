@@ -2337,6 +2337,8 @@
     "addSubtaskGuide": "Adicione subtarefas abaixo",
     "subtaskDescription": "As subtarefas aparecem como cards no bloco Task do board kanban, e você pode gerenciar o progresso arrastando-as entre os blocos.",
     "newSubtaskPlaceholder": "Adicionar nova subtarefa...",
+    "milestoneUnassigned": "Não atribuído",
+    "selectMilestone": "Selecionar marco",
     "saveChangesTitle": "Salvar alterações?",
     "saveChangesDesc": "Você tem alterações não salvas. Fechar sem salvar irá descartá-las.",
     "discard": "Não salvar",

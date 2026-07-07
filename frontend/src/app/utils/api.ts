@@ -1525,6 +1525,7 @@ export const taskAPI = {
       start_date?: string;
       due_date?: string;
       estimated_minutes?: number;
+      milestone_id?: string | null;
     },
   ) => {
     return apiClient.post<TaskResponse>(

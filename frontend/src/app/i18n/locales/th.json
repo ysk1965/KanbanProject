@@ -2337,6 +2337,8 @@
     "addSubtaskGuide": "เพิ่มงานย่อยด้านล่าง",
     "subtaskDescription": "งานย่อยจะแสดงเป็นการ์ดบน Task Block ของบอร์ด Kanban และคุณสามารถจัดการความคืบหน้าได้โดยการลากระหว่าง Block",
     "newSubtaskPlaceholder": "เพิ่มงานย่อยใหม่...",
+    "milestoneUnassigned": "ยังไม่กำหนด",
+    "selectMilestone": "เลือกไมล์สโตน",
     "saveChangesTitle": "บันทึกการเปลี่ยนแปลง?",
     "saveChangesDesc": "คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก การปิดโดยไม่บันทึกจะทำให้การเปลี่ยนแปลงหายไป",
     "discard": "ไม่บันทึก",

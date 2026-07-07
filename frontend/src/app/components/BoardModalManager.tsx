@@ -170,7 +170,7 @@ interface BoardModalManagerProps {
   featureTasks: Task[];
   blocks: Block[];
   allBlocks?: Block[];
-  onAddSubtask: (title: string) => void;
+  onAddSubtask: (title: string, milestoneId: string | null) => void;
   onRenameSubtask: (taskId: string, newTitle: string) => void;
   onReorderSubtasks?: (taskIds: string[]) => void;
   onUpdateFeature: (updates: Partial<Feature>) => void;
