@@ -181,7 +181,9 @@ export function FeatureDetailModal({
   );
   const sortedTasks = useMemo(() => sortByFeatureOrder(tasks), [tasks]);
 
-  // 새 서브태스크의 마일스톤 선택 — 이 피처에 연결된 마일스톤 + '미배치'.
+  // 새 서브태스크의 마일스톤 선택 드롭다운은 보드 전체 마일스톤을 노출한다(아래 map 참조).
+  // featureMilestones(이 피처에 연결된 마일스톤)는 기본 선택값 파생에만 사용한다.
+  // 링크 안 된 마일스톤에 배정해도 BE resolveAndLinkMilestone가 피처↔마일스톤 링크를 자동 생성.
   // Feature에는 milestone 링크가 없어 milestones의 features에서 역참조(primaryMilestone과 동일 패턴).
   const featureMilestones = useMemo(
     () =>
@@ -1149,7 +1151,7 @@ export function FeatureDetailModal({
                           className="flex items-center gap-1 flex-shrink-0 rounded-lg px-2.5 py-2.5 text-xs text-foreground bg-bridge-dark/50 border border-bridge-border/30 hover:border-bridge-accent/50 transition-all max-w-[130px]"
                         >
                           <span className="truncate">
-                            {featureMilestones.find(
+                            {milestones.find(
                               (m) => m.id === newSubtaskMilestoneId,
                             )?.title ?? t("featureDetail.milestoneUnassigned")}
                           </span>
@@ -1172,7 +1174,7 @@ export function FeatureDetailModal({
                           >
                             {t("featureDetail.milestoneUnassigned")}
                           </button>
-                          {featureMilestones.map((m) => (
+                          {milestones.map((m) => (
                             <button
                               key={m.id}
                               type="button"
