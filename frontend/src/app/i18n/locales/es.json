@@ -2337,6 +2337,8 @@
     "addSubtaskGuide": "Agrega subtareas abajo",
     "subtaskDescription": "Las subtareas aparecen como tarjetas en el bloque de Task del tablero kanban, y puedes gestionar el progreso arrastrándolas entre bloques.",
     "newSubtaskPlaceholder": "Agregar nueva subtarea...",
+    "milestoneUnassigned": "Sin asignar",
+    "selectMilestone": "Seleccionar hito",
     "saveChangesTitle": "¿Guardar cambios?",
     "saveChangesDesc": "Tienes cambios sin guardar. Cerrar sin guardar los descartará.",
     "discard": "No guardar",

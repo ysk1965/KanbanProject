@@ -2337,6 +2337,8 @@
     "addSubtaskGuide": "在下方添加子任务",
     "subtaskDescription": "子任务会作为卡片显示在看板的 Task Block 上，您可以通过在 Block 之间拖动来管理进度。",
     "newSubtaskPlaceholder": "添加新子任务...",
+    "milestoneUnassigned": "未分配",
+    "selectMilestone": "选择里程碑",
     "saveChangesTitle": "保存更改？",
     "saveChangesDesc": "您有未保存的更改。关闭而不保存将丢弃这些更改。",
     "discard": "不保存",
