@@ -25,6 +25,7 @@ import {
   CalendarEventModalInitial,
   CalendarMemberOption,
 } from "./CalendarEventModal";
+import { DayDetailPanel, DayDetailData } from "./DayDetailPanel";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -176,6 +177,8 @@ export function ScheduleCalendarView({
     initial?: CalendarEventModalInitial;
     editing?: CalendarEventItem | null;
   }>({ open: false });
+  // 선택된 날짜 (우측 상세 패널)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   // 레이어 토글 (숨김 Set — 기본 전체 표시)
   const layersKey = `scheduleCalendarLayers_${boardId}`;
@@ -413,6 +416,85 @@ export function ScheduleCalendarView({
     [onMilestoneClick],
   );
 
+  // ------ 선택 날짜 상세 (우측 패널) ------
+  const selectedDayDetail = useMemo<DayDetailData | null>(() => {
+    if (!selectedDate) return null;
+    const sel = selectedDate;
+    const activeOn = (e: CalendarEventItem) => {
+      if (sel >= e.start_date && sel <= e.end_date) return true;
+      if (e.recurring) {
+        const mmdd = sel.slice(5);
+        return mmdd >= e.start_date.slice(5) && mmdd <= e.end_date.slice(5);
+      }
+      return false;
+    };
+
+    const events = calendarEvents.filter(
+      (e) => e.category === "TEAM" && activeOn(e),
+    );
+    const absences = calendarEvents.filter(
+      (e) => e.category === "MEMBER" && e.member && activeOn(e),
+    );
+    const calItems = calendarEvents.filter(
+      (e) => e.category === "CALENDAR" && activeOn(e),
+    );
+    const customHolidays = calItems.filter((e) => e.event_type !== "WORKDAY");
+    const workdayEvents = calItems.filter((e) => e.event_type === "WORKDAY");
+    const publicHolidays = holidayMap.get(sel) || [];
+    const ms = milestones.filter(
+      (m) =>
+        m.start_date &&
+        m.end_date &&
+        sel >= m.start_date &&
+        sel <= m.end_date,
+    );
+
+    return {
+      milestones: ms,
+      events,
+      absences,
+      customHolidays,
+      workdayEvents,
+      publicHolidays,
+    };
+  }, [selectedDate, calendarEvents, milestones, holidayMap]);
+
+  // ------ 공휴일을 근무일로 지정 (오버라이드 이벤트 생성) ------
+  const openDesignateWorkday = useCallback(
+    (dateStr: string) => {
+      if (!canManage) return;
+      setEventModal({
+        open: true,
+        initial: { category: "CALENDAR", eventType: "WORKDAY", date: dateStr },
+        editing: null,
+      });
+    },
+    [canManage],
+  );
+
+  // ------ 키보드 내비게이션 (←/→ 날짜 이동, Esc 닫기) ------
+  useEffect(() => {
+    if (!selectedDate) return;
+    const handler = (e: KeyboardEvent) => {
+      if (eventModal.open) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      if (e.key === "Escape") {
+        setSelectedDate(null);
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        const d = parseDate(selectedDate);
+        d.setDate(d.getDate() + (e.key === "ArrowRight" ? 1 : -1));
+        const ns = toDateString(d);
+        setSelectedDate(ns);
+        if (!isSameMonth(d, currentMonth)) setCurrentMonth(d);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selectedDate, eventModal.open, currentMonth]);
+
   // ------ Render helpers ------
   const renderBar = useCallback(
     (item: BarItem) => {
@@ -472,7 +554,8 @@ export function ScheduleCalendarView({
 
   // ------ Render ------
   return (
-    <div className="flex-1 flex flex-col h-full bg-bridge-dark overflow-hidden">
+    <div className="flex-1 flex h-full bg-bridge-dark overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
       {/* ===== Top toolbar ===== */}
       <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-foreground/[0.08] bg-bridge-obsidian shrink-0 flex-wrap">
         <div className="flex items-center gap-2">
@@ -602,19 +685,27 @@ export function ScheduleCalendarView({
                       s.row >= MAX_VISIBLE_BARS,
                   ).length;
 
+                  const isSelected = selectedDate === dateStr;
+
                   return (
                     <div
                       key={colIdx}
                       role="gridcell"
                       aria-label={format(day, "MMMM d, yyyy")}
+                      aria-selected={isSelected}
                       title={holidayName}
-                      onClick={() => openAdd(dateStr)}
+                      onClick={() =>
+                        setSelectedDate((prev) =>
+                          prev === dateStr ? null : dateStr,
+                        )
+                      }
                       className={`align-top border border-foreground/[0.05] p-1
                         transition-colors relative min-w-0 overflow-hidden
-                        ${canManage ? "cursor-pointer hover:bg-foreground/[0.03]" : ""}
+                        cursor-pointer hover:bg-foreground/[0.03]
                         ${!inMonth ? "opacity-40" : ""}
                         ${isHoliday ? "bg-red-500/[0.04]" : ""}
                         ${isForcedWorkday ? "bg-emerald-500/[0.05]" : ""}
+                        ${isSelected ? "ring-2 ring-inset ring-bridge-accent bg-bridge-accent/[0.06] z-10" : ""}
                       `}
                     >
                       {/* Date number + holiday/workday label */}
@@ -692,6 +783,21 @@ export function ScheduleCalendarView({
           })}
         </div>
       </div>
+      </div>
+
+      {/* ===== 우측 날짜 상세 패널 ===== */}
+      {selectedDate && selectedDayDetail && (
+        <DayDetailPanel
+          date={selectedDate}
+          data={selectedDayDetail}
+          canManage={canManage}
+          onClose={() => setSelectedDate(null)}
+          onMilestoneClick={(m) => onMilestoneClick?.(m)}
+          onEventClick={(e) => setEventModal({ open: true, editing: e })}
+          onAdd={(d) => openAdd(d)}
+          onDesignateWorkday={openDesignateWorkday}
+        />
+      )}
 
       {/* ===== 특별 일정 추가/편집 모달 ===== */}
       <CalendarEventModal
