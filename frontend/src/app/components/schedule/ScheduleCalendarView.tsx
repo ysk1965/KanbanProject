@@ -139,12 +139,12 @@ function computeBarSegments(items: BarItem[], weeks: Date[][]): BarSegment[][] {
   });
 }
 
-// 셀 높이에 맞춰 표시할 바 개수를 동적으로 결정 (최대 4 = 기존 3 + 한 라인, 최소 3)
-const MAX_VISIBLE_CAP = 4;
+// 셀 높이에 맞춰 표시할 바 개수를 동적으로 결정 (최소 3, 상한 없음 — 셀에 들어가는 만큼)
 const MIN_VISIBLE_BARS = 3;
 const BAR_HEIGHT = 18;
 const BAR_GAP = 2;
 const HEADER_HEIGHT = 28;
+const MORE_LABEL_HEIGHT = 16;
 
 const LAYER_META: { key: LayerKey; label: string; color: string }[] = [
   { key: "event", label: "이벤트", color: "#6366F1" },
@@ -272,7 +272,7 @@ export function ScheduleCalendarView({
 
   // ------ 셀 높이 기반 동적 표시 개수 (최대 4, 셀 작아지면 감소) ------
   const rowGroupRef = useRef<HTMLDivElement>(null);
-  const [maxVisibleBars, setMaxVisibleBars] = useState(MAX_VISIBLE_CAP);
+  const [maxVisibleBars, setMaxVisibleBars] = useState(MIN_VISIBLE_BARS);
   useEffect(() => {
     const el = rowGroupRef.current;
     if (!el) return;
@@ -280,11 +280,9 @@ export function ScheduleCalendarView({
       const rowCount = weeks.length || 1;
       const rowH = el.clientHeight / rowCount;
       if (rowH <= 0) return; // 레이아웃 미확정 시 기존값 유지
-      const usable = rowH - HEADER_HEIGHT;
+      const usable = rowH - HEADER_HEIGHT - MORE_LABEL_HEIGHT;
       const fit = Math.floor(usable / (BAR_HEIGHT + BAR_GAP));
-      setMaxVisibleBars(
-        Math.max(MIN_VISIBLE_BARS, Math.min(MAX_VISIBLE_CAP, fit)),
-      );
+      setMaxVisibleBars(Math.max(MIN_VISIBLE_BARS, fit));
     };
     compute();
     const ro = new ResizeObserver(compute);
