@@ -1375,6 +1375,7 @@
       "todo": "TODO",
       "doing": "DOING",
       "doingBadge": "प्रगति में",
+      "periodBadge": "अवधि में",
       "done": "DONE"
     },
     "checklistFilter": {

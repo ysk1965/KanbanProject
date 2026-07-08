@@ -1510,6 +1510,7 @@
       "todo": "TODO",
       "doing": "DOING",
       "doingBadge": "In progress",
+      "periodBadge": "In range",
       "done": "DONE"
     },
     "checklistFilter": {

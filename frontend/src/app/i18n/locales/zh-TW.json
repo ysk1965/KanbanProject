@@ -1360,6 +1360,7 @@
       "todo": "TODO",
       "doing": "DOING",
       "doingBadge": "進行中",
+      "periodBadge": "週期內",
       "done": "DONE"
     },
     "checklistFilter": {
