@@ -803,7 +803,8 @@
       "collapse": "Thu gọn",
       "more": "thêm",
       "highlight": "Đánh dấu",
-      "unhighlight": "Bỏ đánh dấu"
+      "unhighlight": "Bỏ đánh dấu",
+      "clearSchedule": "Xóa khỏi lịch"
     },
     "panel": {
       "filterMilestoneShort": "Mốc",

@@ -803,7 +803,8 @@
       "collapse": "折りたたむ",
       "more": "もっと見る",
       "highlight": "ハイライト",
-      "unhighlight": "ハイライト解除"
+      "unhighlight": "ハイライト解除",
+      "clearSchedule": "スケジュールから削除"
     },
     "panel": {
       "filterMilestoneShort": "マイルストーン",

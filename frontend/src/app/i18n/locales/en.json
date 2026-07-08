@@ -904,7 +904,8 @@
       "groupBy": "Group by",
       "zoom": "Zoom",
       "highlight": "Highlight",
-      "unhighlight": "Remove highlight"
+      "unhighlight": "Remove highlight",
+      "clearSchedule": "Remove from schedule"
     },
     "workloadCreate": {
       "title": "Add new work",
