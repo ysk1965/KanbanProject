@@ -723,23 +723,51 @@ export function KanbanBoardPage() {
     isInquiryModalOpen,
   );
 
+  // ======== Feature별 소속 마일스톤 맵 (task.milestone_id 기준 파생) ========
+  // 진실은 task.milestone_id — 태스크 배정 기준으로 파생 (MilestoneMatrix와 동일 원칙)
+  // 태스크 배정이 하나도 없는 피처만 멤버십(milestone.features) 폴백, idx는 색상 매핑용(마일스톤 순서)
+  // 마인드맵 노드 칩 + 칸반 마일스톤 필터(kanbanFeatures)가 공유하는 단일 소스
+  const featureMilestonesMap = useMemo(() => {
+    const msRef = new Map(
+      milestones.map((ms, idx) => [ms.id, { id: ms.id, title: ms.title, idx }]),
+    );
+    const map: Record<string, { id: string; title: string; idx: number }[]> =
+      {};
+    tasks.forEach((t) => {
+      if (!t.milestone_id || !t.feature_id) return;
+      const ref = msRef.get(t.milestone_id);
+      if (!ref) return;
+      const list = (map[t.feature_id] ||= []);
+      if (!list.some((m) => m.id === ref.id)) list.push(ref);
+    });
+    const taskDerived = new Set(Object.keys(map));
+    milestones.forEach((ms, idx) => {
+      ms.features?.forEach((f) => {
+        if (taskDerived.has(f.id)) return;
+        (map[f.id] ||= []).push({ id: ms.id, title: ms.title, idx });
+      });
+    });
+    Object.values(map).forEach((list) => list.sort((a, b) => a.idx - b.idx));
+    return map;
+  }, [milestones, tasks]);
+
   // ======== 마일스톤 파생 필터 (칸반 계열 뷰 전용) ========
   // features/tasks는 전체(full) 단일 소스. 마일스톤 필터는 여기서 파생 계산해
   // 칸반/리스트/간트/캘린더에만 적용한다. (독립 서브탭은 전체 데이터를 사용)
-  // 서버 semantics 일치: features=마일스톤 멤버십, tasks=task.milestone_id 기준.
+  // 피처 소속도 task.milestone_id 기준(featureMilestonesMap) — 태스크가 배정된
+  // 마일스톤에만 노출되고, 태스크 배정이 없는 피처만 멤버십 폴백으로 표시된다.
   const kanbanFeatures = useMemo(() => {
     const mid = kanbanSelectedMilestoneId;
     if (!mid || mid === "all") return features;
     if (mid === "none") {
-      const assigned = new Set<string>();
-      milestones.forEach((m) => m.features?.forEach((f) => assigned.add(f.id)));
-      return features.filter((f) => !assigned.has(f.id));
+      return features.filter(
+        (f) => (featureMilestonesMap[f.id]?.length ?? 0) === 0,
+      );
     }
-    const ids = new Set(
-      (milestones.find((m) => m.id === mid)?.features ?? []).map((f) => f.id),
+    return features.filter((f) =>
+      featureMilestonesMap[f.id]?.some((m) => m.id === mid),
     );
-    return features.filter((f) => ids.has(f.id));
-  }, [features, milestones, kanbanSelectedMilestoneId]);
+  }, [features, featureMilestonesMap, kanbanSelectedMilestoneId]);
 
   const kanbanTasks = useMemo(() => {
     const mid = kanbanSelectedMilestoneId;
@@ -1032,33 +1060,6 @@ export function KanbanBoardPage() {
     }
     return map;
   }, [milestones]);
-
-  // Feature별 소속 마일스톤 목록 맵 (마인드맵 노드 칩 표시용)
-  // 진실은 task.milestone_id — 태스크 배정 기준으로 파생 (MilestoneMatrix와 동일 원칙)
-  // 태스크 배정이 하나도 없는 피처만 멤버십(milestone.features) 폴백, idx는 색상 매핑용(마일스톤 순서)
-  const featureMilestonesMap = useMemo(() => {
-    const msRef = new Map(
-      milestones.map((ms, idx) => [ms.id, { id: ms.id, title: ms.title, idx }]),
-    );
-    const map: Record<string, { id: string; title: string; idx: number }[]> =
-      {};
-    tasks.forEach((t) => {
-      if (!t.milestone_id || !t.feature_id) return;
-      const ref = msRef.get(t.milestone_id);
-      if (!ref) return;
-      const list = (map[t.feature_id] ||= []);
-      if (!list.some((m) => m.id === ref.id)) list.push(ref);
-    });
-    const taskDerived = new Set(Object.keys(map));
-    milestones.forEach((ms, idx) => {
-      ms.features?.forEach((f) => {
-        if (taskDerived.has(f.id)) return;
-        (map[f.id] ||= []).push({ id: ms.id, title: ms.title, idx });
-      });
-    });
-    Object.values(map).forEach((list) => list.sort((a, b) => a.idx - b.idx));
-    return map;
-  }, [milestones, tasks]);
 
   // Upgrade Modal 열기 헬퍼
   const openUpgradeModal = (trigger: UpgradeTrigger) => {

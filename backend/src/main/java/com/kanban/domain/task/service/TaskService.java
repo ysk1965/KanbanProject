@@ -293,6 +293,7 @@ public class TaskService {
         }
 
         Feature feature = task.getFeature();
+        Milestone milestone = task.getMilestone(); // 삭제 후 유령 링크 정리에 사용
 
         // 활동 로그 기록
         String taskTitle = task.getTitle();
@@ -319,6 +320,10 @@ public class TaskService {
         entityManager.flush();
         entityManager.clear();
 
+        // 삭제된 태스크가 (feature, milestone) 조합의 마지막이었다면 유령 링크 정리
+        // (soft-delete + flush 후 조회 → @SQLRestriction으로 방금 삭제한 태스크는 제외됨)
+        cleanupEmptyMilestoneLink(feature, milestone);
+
         log.info("Task soft-deleted: {} by user: {}", taskId, userId);
 
         // Feature가 영속화 컨텍스트에서 분리됐을 수 있으므로 재조회 후 summary
@@ -340,6 +345,9 @@ public class TaskService {
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         }
+
+        Feature feature = task.getFeature();
+        Milestone milestone = task.getMilestone(); // 삭제 후 유령 링크 정리에 사용
 
         // 1) 알림
         notificationRepository.deleteByTaskId(taskId);
@@ -365,6 +373,10 @@ public class TaskService {
 
         // 6) Task row 삭제
         taskRepository.delete(task);
+        entityManager.flush();
+
+        // 삭제된 태스크가 (feature, milestone) 조합의 마지막이었다면 유령 링크 정리
+        cleanupEmptyMilestoneLink(feature, milestone);
 
         log.info("Task hard-deleted: {}", taskId);
     }

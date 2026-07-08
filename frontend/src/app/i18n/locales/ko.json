@@ -4803,6 +4803,7 @@
     "noSearchResults": "검색 결과 없음",
     "clearSearch": "검색 지우기",
     "excludeFeature": "마인드맵에서 제외",
+    "nNodes": "{{count}}개 노드",
     "milestoneFilter": "마일스톤 필터",
     "milestoneVisibility": "표시할 마일스톤",
     "showAll": "전체",
