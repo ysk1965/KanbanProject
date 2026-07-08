@@ -409,6 +409,8 @@ export interface MindMapNode {
   color?: string;
   width?: number;
   height?: number;
+  /** 위치 이동 잠금 (드래그 비활성) */
+  locked?: boolean;
 }
 
 export interface MindMapEdge {

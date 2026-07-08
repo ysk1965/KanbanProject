@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -47,10 +48,21 @@ import {
   Eye,
   DoorOpen,
   MessageSquare,
+  MessageCircle,
   ChevronDown,
   Tag as TagIcon,
   Users,
   X,
+  Lock,
+  Unlock,
+  BringToFront,
+  SendToBack,
+  Copy,
+  ClipboardPaste,
+  Trash2,
+  Undo2,
+  Redo2,
+  type LucideIcon,
 } from "lucide-react";
 import * as Y from "yjs";
 import { toast } from "sonner";
@@ -81,6 +93,8 @@ interface StoredFlowNode {
   y: number;
   width?: number;
   height?: number;
+  locked?: boolean; // 잠금 (이동·리사이즈·삭제 차단)
+  z?: number; // 스택 순서 (zIndex)
   data: Record<string, unknown>;
 }
 interface StoredFlowEdge {
@@ -190,6 +204,9 @@ interface FlowCtx {
   recolorNode: (id: string) => void;
   cycleShape: (id: string) => void;
   deleteNode: (id: string) => void;
+  // 컨텍스트 메뉴 "코멘트 달기" → 해당 노드의 코멘트 에디터 자동 오픈
+  commentTargetId: string | null;
+  clearCommentTarget: () => void;
 }
 const FlowContext = createContext<FlowCtx | null>(null);
 const useFlow = () => {
@@ -223,10 +240,10 @@ function NodeHandles({ canEdit }: { canEdit: boolean }) {
   );
 }
 
-// 삭제 X 버튼 (hover 시 노출)
-function DeleteBtn({ id }: { id: string }) {
+// 삭제 X 버튼 (hover 시 노출) — 잠긴 노드에서는 숨김
+function DeleteBtn({ id, locked }: { id: string; locked?: boolean }) {
   const { canEdit, deleteNode } = useFlow();
-  if (!canEdit) return null;
+  if (!canEdit || locked) return null;
   return (
     <button
       type="button"
@@ -242,12 +259,154 @@ function DeleteBtn({ id }: { id: string }) {
   );
 }
 
+// 잠금 배지 (좌상단) — 잠긴 노드에 상시 노출
+function LockBadge({ locked }: { locked?: boolean }) {
+  if (!locked) return null;
+  return (
+    <div
+      className="absolute -top-2 -left-2 z-20 w-5 h-5 rounded-md bg-amber-500 text-white border-2 border-bridge-obsidian shadow-md flex items-center justify-center pointer-events-none"
+      title="잠김"
+    >
+      <Lock className="w-2.5 h-2.5" strokeWidth={2.5} />
+    </div>
+  );
+}
+
+// 컨텍스트 메뉴 항목
+function MenuItem({
+  icon: Icon,
+  label,
+  kbd,
+  danger,
+  disabled,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  kbd?: string;
+  danger?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-[13px] transition-colors disabled:opacity-40 disabled:pointer-events-none ${
+        danger
+          ? "text-rose-300 hover:bg-rose-500/15"
+          : "text-foreground hover:bg-bridge-accent/15"
+      }`}
+    >
+      <Icon
+        className={`w-4 h-4 flex-shrink-0 ${danger ? "text-rose-300" : "text-slate-400"}`}
+      />
+      <span className="flex-1 text-left">{label}</span>
+      {kbd && (
+        <span className="text-[10px] font-mono text-slate-500 tracking-wide">
+          {kbd}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// 노드 코멘트 (우하단 배지 + 팝오버) — data.comment에 저장, Yjs로 동기화
+const NodeComment = memo(function NodeComment({
+  id,
+  comment,
+}: {
+  id: string;
+  comment?: string;
+}) {
+  const { canEdit, updateNodeData, commentTargetId, clearCommentTarget } =
+    useFlow();
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(comment ?? "");
+
+  // 컨텍스트 메뉴에서 이 노드가 지정되면 에디터 자동 오픈
+  useEffect(() => {
+    if (commentTargetId !== id) return;
+    setDraft(comment ?? "");
+    setOpen(true);
+    setEditing(true);
+    clearCommentTarget();
+  }, [commentTargetId, id, comment, clearCommentTarget]);
+
+  const hasComment = !!(comment && comment.trim());
+  if (!hasComment && !open) return null;
+
+  const commit = () => {
+    updateNodeData(id, { comment: draft.trim() });
+    setEditing(false);
+    if (!draft.trim()) setOpen(false);
+  };
+
+  return (
+    <div
+      className="absolute -bottom-2 -right-2 z-30"
+      onDoubleClick={(e) => e.stopPropagation()}
+    >
+      <button
+        type="button"
+        className="w-5 h-5 rounded-md bg-teal-500 text-white border-2 border-bridge-obsidian shadow-md flex items-center justify-center hover:bg-teal-400 transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((o) => !o);
+        }}
+        title="코멘트"
+      >
+        <MessageCircle className="w-2.5 h-2.5" strokeWidth={2.5} />
+      </button>
+      {open && (
+        <div
+          className="absolute bottom-7 right-0 w-44 bg-bridge-surface border border-foreground/10 rounded-lg p-2 shadow-2xl shadow-black/50"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {editing && canEdit ? (
+            <textarea
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              rows={3}
+              placeholder="코멘트 입력…"
+              className="w-full bg-transparent text-xs text-foreground placeholder-slate-500 outline-none resize-none custom-scrollbar"
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setEditing(false);
+                  if (!hasComment) setOpen(false);
+                }
+              }}
+            />
+          ) : (
+            <div
+              className="text-xs text-slate-300 whitespace-pre-wrap break-words leading-relaxed cursor-text"
+              onClick={() => {
+                if (!canEdit) return;
+                setDraft(comment ?? "");
+                setEditing(true);
+              }}
+            >
+              {comment}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
+
 // ── 텍스트 노드 ────────────────────────────────────────────
 const TextNode = memo(function TextNode({ id, data, selected }: NodeProps) {
   const { canEdit, updateNodeData, recolorNode } = useFlow();
   const title = (data as { title?: string }).title || "";
   const body = (data as { body?: string }).body || "";
   const color = (data as { color?: string }).color || "#6366F1";
+  const locked = (data as { locked?: boolean }).locked;
+  const comment = (data as { comment?: string }).comment;
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(title);
   const [draftBody, setDraftBody] = useState(body);
@@ -269,14 +428,16 @@ const TextNode = memo(function TextNode({ id, data, selected }: NodeProps) {
       }}
     >
       <NodeResizer
-        isVisible={canEdit && !!selected}
+        isVisible={canEdit && !!selected && !locked}
         minWidth={160}
         minHeight={70}
         color={color}
         handleClassName="!w-2 !h-2 !rounded-sm"
       />
       <NodeHandles canEdit={canEdit} />
-      <DeleteBtn id={id} />
+      <DeleteBtn id={id} locked={locked} />
+      <LockBadge locked={locked} />
+      <NodeComment id={id} comment={comment} />
       <span
         className="absolute left-0 top-3 bottom-3 w-1 rounded-full"
         style={{ backgroundColor: color }}
@@ -338,6 +499,8 @@ const StickyNode = memo(function StickyNode({ id, data, selected }: NodeProps) {
   const { canEdit, updateNodeData, recolorNode } = useFlow();
   const body = (data as { body?: string }).body || "";
   const color = (data as { color?: string }).color || "#f59e0b";
+  const locked = (data as { locked?: boolean }).locked;
+  const comment = (data as { comment?: string }).comment;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(body);
 
@@ -362,14 +525,16 @@ const StickyNode = memo(function StickyNode({ id, data, selected }: NodeProps) {
       }}
     >
       <NodeResizer
-        isVisible={canEdit && !!selected}
+        isVisible={canEdit && !!selected && !locked}
         minWidth={120}
         minHeight={52}
         color={color}
         handleClassName="!w-2 !h-2 !rounded-sm"
       />
       <NodeHandles canEdit={canEdit} />
-      <DeleteBtn id={id} />
+      <DeleteBtn id={id} locked={locked} />
+      <LockBadge locked={locked} />
+      <NodeComment id={id} comment={comment} />
       <button
         type="button"
         className="absolute top-1.5 left-1.5 w-2.5 h-2.5 rounded-full z-10"
@@ -414,6 +579,8 @@ const ShapeNode = memo(function ShapeNode({ id, data, selected }: NodeProps) {
     "rectangle") as ShapeKind;
   const label = (data as { label?: string }).label || "";
   const color = (data as { color?: string }).color || "#6366F1";
+  const locked = (data as { locked?: boolean }).locked;
+  const comment = (data as { comment?: string }).comment;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(label);
 
@@ -437,14 +604,16 @@ const ShapeNode = memo(function ShapeNode({ id, data, selected }: NodeProps) {
       }}
     >
       <NodeResizer
-        isVisible={canEdit && !!selected}
+        isVisible={canEdit && !!selected && !locked}
         minWidth={80}
         minHeight={60}
         color={color}
         handleClassName="!w-2 !h-2 !rounded-sm"
       />
       <NodeHandles canEdit={canEdit} />
-      <DeleteBtn id={id} />
+      <DeleteBtn id={id} locked={locked} />
+      <LockBadge locked={locked} />
+      <NodeComment id={id} comment={comment} />
       {/* 도형 배경 */}
       <div
         className="absolute inset-0 border-2"
@@ -554,6 +723,8 @@ const ImageNode = memo(function ImageNode({ id, data, selected }: NodeProps) {
   const { canEdit } = useFlow();
   const url = (data as { url?: string }).url || "";
   const caption = (data as { caption?: string }).caption || "";
+  const locked = (data as { locked?: boolean }).locked;
+  const comment = (data as { comment?: string }).comment;
   const [editingCaption, setEditingCaption] = useState(false);
   return (
     <div
@@ -564,7 +735,7 @@ const ImageNode = memo(function ImageNode({ id, data, selected }: NodeProps) {
       }}
     >
       <NodeResizer
-        isVisible={canEdit && !!selected}
+        isVisible={canEdit && !!selected && !locked}
         minWidth={100}
         minHeight={80}
         keepAspectRatio
@@ -572,7 +743,9 @@ const ImageNode = memo(function ImageNode({ id, data, selected }: NodeProps) {
         handleClassName="!w-2 !h-2 !rounded-sm"
       />
       <NodeHandles canEdit={canEdit} />
-      <DeleteBtn id={id} />
+      <DeleteBtn id={id} locked={locked} />
+      <LockBadge locked={locked} />
+      <NodeComment id={id} comment={comment} />
       {/* 미디어 프레임 — 클리핑은 여기서만 (X 버튼은 바깥에 남아 잘리지 않음) */}
       <div className="relative w-full h-full rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-lg overflow-hidden">
         {url ? (
@@ -613,6 +786,8 @@ const VideoNode = memo(function VideoNode({ id, data, selected }: NodeProps) {
   const { canEdit } = useFlow();
   const url = (data as { url?: string }).url || "";
   const caption = (data as { caption?: string }).caption || "";
+  const locked = (data as { locked?: boolean }).locked;
+  const comment = (data as { comment?: string }).comment;
   const [editingCaption, setEditingCaption] = useState(false);
   return (
     <div
@@ -623,14 +798,16 @@ const VideoNode = memo(function VideoNode({ id, data, selected }: NodeProps) {
       }}
     >
       <NodeResizer
-        isVisible={canEdit && !!selected}
+        isVisible={canEdit && !!selected && !locked}
         minWidth={140}
         minHeight={90}
         color="#f472b6"
         handleClassName="!w-2 !h-2 !rounded-sm"
       />
       <NodeHandles canEdit={canEdit} />
-      <DeleteBtn id={id} />
+      <DeleteBtn id={id} locked={locked} />
+      <LockBadge locked={locked} />
+      <NodeComment id={id} comment={comment} />
       {/* 미디어 프레임 — 클리핑은 여기서만 (X 버튼은 바깥에 남아 잘리지 않음) */}
       <div className="relative w-full h-full rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-lg overflow-hidden flex flex-col">
         {url ? (
@@ -672,6 +849,8 @@ const SpriteNode = memo(function SpriteNode({ id, data, selected }: NodeProps) {
   const frames = ((data as { frames?: string[] }).frames || []).filter(Boolean);
   const caption = (data as { caption?: string }).caption || "";
   const fps = (data as { fps?: number }).fps || 8;
+  const locked = (data as { locked?: boolean }).locked;
+  const comment = (data as { comment?: string }).comment;
   const [idx, setIdx] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [editingCaption, setEditingCaption] = useState(false);
@@ -703,7 +882,7 @@ const SpriteNode = memo(function SpriteNode({ id, data, selected }: NodeProps) {
       }}
     >
       <NodeResizer
-        isVisible={canEdit && !!selected}
+        isVisible={canEdit && !!selected && !locked}
         minWidth={100}
         minHeight={80}
         keepAspectRatio
@@ -711,7 +890,9 @@ const SpriteNode = memo(function SpriteNode({ id, data, selected }: NodeProps) {
         handleClassName="!w-2 !h-2 !rounded-sm"
       />
       <NodeHandles canEdit={canEdit} />
-      <DeleteBtn id={id} />
+      <DeleteBtn id={id} locked={locked} />
+      <LockBadge locked={locked} />
+      <NodeComment id={id} comment={comment} />
       {/* 미디어 프레임 — 클리핑은 여기서만 (X 버튼은 바깥에 남아 잘리지 않음) */}
       <div className="relative w-full h-full rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-lg overflow-hidden">
         {frames.length > 0 ? (
@@ -824,6 +1005,11 @@ const nodeTypes = {
 
 // ── (de)serialize ──────────────────────────────────────────
 function rfNodeToStored(n: Node): StoredFlowNode {
+  // locked·z 는 top-level 필드로 추출 (data 에는 남기지 않음)
+  const { locked, z, ...restData } = n.data as {
+    locked?: boolean;
+    z?: number;
+  } & Record<string, unknown>;
   return {
     id: n.id,
     kind: (n.type as FlowNodeKind) || "text",
@@ -831,7 +1017,9 @@ function rfNodeToStored(n: Node): StoredFlowNode {
     y: Math.round(n.position.y),
     ...(n.width ? { width: Math.round(n.width) } : {}),
     ...(n.height ? { height: Math.round(n.height) } : {}),
-    data: { ...(n.data as Record<string, unknown>) },
+    ...(locked ? { locked: true } : {}),
+    ...(typeof z === "number" ? { z } : {}),
+    data: restData,
   };
 }
 
@@ -842,7 +1030,14 @@ function storedToRFNode(s: StoredFlowNode): Node {
     position: { x: s.x, y: s.y },
     ...(s.width ? { width: s.width } : {}),
     ...(s.height ? { height: s.height } : {}),
-    data: s.data || {},
+    ...(typeof s.z === "number" ? { zIndex: s.z } : {}),
+    ...(s.locked ? { draggable: false } : {}),
+    // 런타임 노드는 locked·z 를 data 에서 읽는다 (노드 컴포넌트/렌더용)
+    data: {
+      ...(s.data || {}),
+      ...(s.locked ? { locked: true } : {}),
+      ...(typeof s.z === "number" ? { z: s.z } : {}),
+    },
   };
 }
 
@@ -931,6 +1126,185 @@ interface FlowEditorProps {
 }
 
 // ────────────────────────────────────────────────────────────
+// 되돌리기/다시 실행 (per-user, 상태 diff 기반)
+//   - 캔버스 전체 롤백이 아니라 "내가 만진 노드/엣지 id"만 되돌린다.
+//   - rfNodeToStored/rfEdgeToStored 로 정규화하므로 selected/dragging 은 무시.
+//   - undo/redo 결과는 기존 로컬→Yjs diff 이펙트를 타고 협업에 그대로 전파.
+//   - 협업 중 상대가 그새 바꾼 노드는 diff 대상이 아니므로 보존된다(best-effort).
+// ────────────────────────────────────────────────────────────
+type StoredNodeMap = Map<string, StoredFlowNode>;
+type StoredEdgeMap = Map<string, StoredFlowEdge>;
+interface HistorySlice {
+  nodes: Array<[string, StoredFlowNode | null]>; // null = 존재하지 않았음(=삭제로 복원)
+  edges: Array<[string, StoredFlowEdge | null]>;
+}
+interface HistoryEntry {
+  before: HistorySlice;
+  after: HistorySlice;
+}
+
+function diffToEntry(
+  baseN: StoredNodeMap,
+  baseE: StoredEdgeMap,
+  curN: StoredNodeMap,
+  curE: StoredEdgeMap,
+): HistoryEntry | null {
+  const nBefore: HistorySlice["nodes"] = [];
+  const nAfter: HistorySlice["nodes"] = [];
+  const nIds = new Set([...baseN.keys(), ...curN.keys()]);
+  for (const id of nIds) {
+    const b = baseN.get(id) ?? null;
+    const c = curN.get(id) ?? null;
+    if (JSON.stringify(b) !== JSON.stringify(c)) {
+      nBefore.push([id, b]);
+      nAfter.push([id, c]);
+    }
+  }
+  const eBefore: HistorySlice["edges"] = [];
+  const eAfter: HistorySlice["edges"] = [];
+  const eIds = new Set([...baseE.keys(), ...curE.keys()]);
+  for (const id of eIds) {
+    const b = baseE.get(id) ?? null;
+    const c = curE.get(id) ?? null;
+    if (JSON.stringify(b) !== JSON.stringify(c)) {
+      eBefore.push([id, b]);
+      eAfter.push([id, c]);
+    }
+  }
+  if (nBefore.length === 0 && eBefore.length === 0) return null;
+  return {
+    before: { nodes: nBefore, edges: eBefore },
+    after: { nodes: nAfter, edges: eAfter },
+  };
+}
+
+function useFlowHistory(params: {
+  nodes: Node[];
+  edges: Edge[];
+  setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
+  setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
+  enabled: boolean;
+  resetKey: string;
+  remoteDirtyRef: React.MutableRefObject<boolean>;
+}) {
+  const {
+    nodes,
+    edges,
+    setNodes,
+    setEdges,
+    enabled,
+    resetKey,
+    remoteDirtyRef,
+  } = params;
+  const baseNRef = useRef<StoredNodeMap>(new Map());
+  const baseERef = useRef<StoredEdgeMap>(new Map());
+  const pastRef = useRef<HistoryEntry[]>([]);
+  const futureRef = useRef<HistoryEntry[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  // 노트/모드 전환 시 baseline 재설정 + 스택 비우기
+  //   편집 진입 시점엔 이미 노드가 로드돼 있으므로 baseline 이 곧 현재 상태.
+  //   (원격/드래프트 반영분은 remoteDirtyRef 로 별도 흡수)
+  useEffect(() => {
+    baseNRef.current = new Map(nodes.map((n) => [n.id, rfNodeToStored(n)]));
+    baseERef.current = new Map(edges.map((e) => [e.id, rfEdgeToStored(e)]));
+    pastRef.current = [];
+    futureRef.current = [];
+    setCanUndo(false);
+    setCanRedo(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetKey]);
+
+  // 변경 정착 감지(디바운스) → 커밋 경계에서 한 스텝으로 기록
+  useEffect(() => {
+    if (!enabled) return;
+    const timer = setTimeout(() => {
+      // 드래그/리사이즈 진행 중이면 다음 변경에서 다시 평가
+      if (nodes.some((n) => n.dragging)) return;
+      const curN: StoredNodeMap = new Map(
+        nodes.map((n) => [n.id, rfNodeToStored(n)]),
+      );
+      const curE: StoredEdgeMap = new Map(
+        edges.map((e) => [e.id, rfEdgeToStored(e)]),
+      );
+      // 원격/드래프트 반영분은 baseline 으로 흡수(내 히스토리에 안 쌓음)
+      if (remoteDirtyRef.current) {
+        baseNRef.current = curN;
+        baseERef.current = curE;
+        remoteDirtyRef.current = false;
+        return;
+      }
+      const entry = diffToEntry(baseNRef.current, baseERef.current, curN, curE);
+      if (!entry) return;
+      pastRef.current.push(entry);
+      if (pastRef.current.length > 100) pastRef.current.shift();
+      futureRef.current = [];
+      baseNRef.current = curN;
+      baseERef.current = curE;
+      setCanUndo(true);
+      setCanRedo(false);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [nodes, edges, enabled, remoteDirtyRef]);
+
+  const applySlice = useCallback(
+    (slice: HistorySlice) => {
+      if (slice.nodes.length) {
+        setNodes((live) => {
+          const m = new Map(live.map((n) => [n.id, n]));
+          for (const [id, stored] of slice.nodes) {
+            if (stored === null) m.delete(id);
+            else m.set(id, storedToRFNode(stored));
+          }
+          return Array.from(m.values());
+        });
+      }
+      if (slice.edges.length) {
+        setEdges((live) => {
+          const m = new Map(live.map((e) => [e.id, e]));
+          for (const [id, stored] of slice.edges) {
+            if (stored === null) m.delete(id);
+            else m.set(id, storedToRFEdge(stored));
+          }
+          return Array.from(m.values());
+        });
+      }
+      // baseline 을 적용 결과로 선반영 → 정착 이펙트가 중복 스텝을 만들지 않음
+      for (const [id, stored] of slice.nodes) {
+        if (stored === null) baseNRef.current.delete(id);
+        else baseNRef.current.set(id, stored);
+      }
+      for (const [id, stored] of slice.edges) {
+        if (stored === null) baseERef.current.delete(id);
+        else baseERef.current.set(id, stored);
+      }
+    },
+    [setNodes, setEdges],
+  );
+
+  const undo = useCallback(() => {
+    const entry = pastRef.current.pop();
+    if (!entry) return;
+    applySlice(entry.before);
+    futureRef.current.push(entry);
+    setCanUndo(pastRef.current.length > 0);
+    setCanRedo(true);
+  }, [applySlice]);
+
+  const redo = useCallback(() => {
+    const entry = futureRef.current.pop();
+    if (!entry) return;
+    applySlice(entry.after);
+    pastRef.current.push(entry);
+    setCanUndo(true);
+    setCanRedo(futureRef.current.length > 0);
+  }, [applySlice]);
+
+  return { undo, redo, canUndo, canRedo };
+}
+
+// ────────────────────────────────────────────────────────────
 // 내부 캔버스
 // ────────────────────────────────────────────────────────────
 function FlowCanvas({
@@ -976,10 +1350,23 @@ function FlowCanvas({
   const yEdgesRef = useRef<Y.Map<unknown> | null>(null);
   const isRemoteUpdateRef = useRef(false);
   const isLocalUpdateRef = useRef(false);
+  // 원격/드래프트 반영분은 히스토리에 쌓지 않도록 표시
+  const remoteDirtyRef = useRef(false);
   const modeRef = useRef<"view" | "edit">(mode);
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
+
+  // 되돌리기/다시 실행 (per-user, 편집 모드에서만)
+  const { undo, redo, canUndo, canRedo } = useFlowHistory({
+    nodes,
+    edges,
+    setNodes,
+    setEdges,
+    enabled: canEdit && mode === "edit",
+    resetKey: `${note.id}:${mode}`,
+    remoteDirtyRef,
+  });
 
   // 편집/읽기 모드에 맞춰 collab readOnly + awareness 동기화
   useEffect(() => {
@@ -1060,6 +1447,7 @@ function FlowCanvas({
       if (isLocalUpdateRef.current) return;
       if (modeRef.current !== "edit") return;
       isRemoteUpdateRef.current = true;
+      remoteDirtyRef.current = true;
       const { nodes: n, edges: e } = fromYMaps(yNodes, yEdges);
       setNodes(n);
       setEdges(e);
@@ -1088,6 +1476,7 @@ function FlowCanvas({
     if (!yNodes || !yEdges) return;
     if (yNodes.size === 0 && yEdges.size === 0) return; // 드래프트 없음 → 스냅샷 유지
     isRemoteUpdateRef.current = true;
+    remoteDirtyRef.current = true;
     const { nodes: n, edges: e } = fromYMaps(yNodes, yEdges);
     setNodes(n);
     setEdges(e);
@@ -1187,6 +1576,228 @@ function FlowCanvas({
     },
     [setNodes, setEdges],
   );
+
+  // ── 컨텍스트 메뉴: 상태 · 클립보드 · 액션 ────────────────────
+  const nodesRef = useRef<Node[]>(nodes);
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+  const clipboardRef = useRef<StoredFlowNode[] | null>(null);
+  const [menu, setMenu] = useState<{
+    x: number;
+    y: number;
+    nodeId: string | null;
+  } | null>(null);
+  const [commentTargetId, setCommentTargetId] = useState<string | null>(null);
+  const clearCommentTarget = useCallback(() => setCommentTargetId(null), []);
+
+  // 잠금 토글 — data.locked(렌더용) + draggable(동작용) 동시 갱신
+  const toggleLock = useCallback(
+    (id: string) => {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== id) return n;
+          const next = !(n.data as { locked?: boolean }).locked;
+          return {
+            ...n,
+            draggable: next ? false : undefined,
+            data: { ...n.data, locked: next },
+          };
+        }),
+      );
+    },
+    [setNodes],
+  );
+
+  const bringToFront = useCallback(
+    (id: string) => {
+      setNodes((nds) => {
+        let max = 0;
+        nds.forEach((n) => {
+          const z = (n.data as { z?: number }).z;
+          if (typeof z === "number" && z > max) max = z;
+        });
+        const next = max + 1;
+        return nds.map((n) =>
+          n.id === id
+            ? { ...n, zIndex: next, data: { ...n.data, z: next } }
+            : n,
+        );
+      });
+    },
+    [setNodes],
+  );
+
+  const sendToBack = useCallback(
+    (id: string) => {
+      setNodes((nds) => {
+        let min = 0;
+        nds.forEach((n) => {
+          const z = (n.data as { z?: number }).z;
+          if (typeof z === "number" && z < min) min = z;
+        });
+        const next = min - 1;
+        return nds.map((n) =>
+          n.id === id
+            ? { ...n, zIndex: next, data: { ...n.data, z: next } }
+            : n,
+        );
+      });
+    },
+    [setNodes],
+  );
+
+  const copyNodes = useCallback((ids: string[]) => {
+    const set = new Set(ids);
+    const picked = nodesRef.current.filter((n) => set.has(n.id));
+    if (picked.length) clipboardRef.current = picked.map(rfNodeToStored);
+  }, []);
+
+  const pasteNodes = useCallback(
+    (pos?: { x: number; y: number }) => {
+      const clip = clipboardRef.current;
+      if (!clip || clip.length === 0) return;
+      const originX = Math.min(...clip.map((c) => c.x));
+      const originY = Math.min(...clip.map((c) => c.y));
+      const target = pos ?? { x: originX + 24, y: originY + 24 };
+      let maxZ = 0;
+      nodesRef.current.forEach((n) => {
+        const z = (n.data as { z?: number }).z;
+        if (typeof z === "number" && z > maxZ) maxZ = z;
+      });
+      const created = clip.map((c, i) =>
+        storedToRFNode({
+          ...c,
+          id: crypto.randomUUID(),
+          x: Math.round(target.x + (c.x - originX)),
+          y: Math.round(target.y + (c.y - originY)),
+          z: maxZ + 1 + i,
+        }),
+      );
+      created.forEach((n) => (n.selected = true));
+      setNodes((nds) => [
+        ...nds.map((n) => (n.selected ? { ...n, selected: false } : n)),
+        ...created,
+      ]);
+    },
+    [setNodes],
+  );
+
+  // "코멘트 달기" → 코멘트 필드 초기화 후 해당 노드 에디터 오픈
+  const requestComment = useCallback(
+    (id: string) => {
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === id && (n.data as { comment?: string }).comment === undefined
+            ? { ...n, data: { ...n.data, comment: "" } }
+            : n,
+        ),
+      );
+      setCommentTargetId(id);
+    },
+    [setNodes],
+  );
+
+  // 메뉴 열기 (노드 우클릭 → 해당 노드 선택 / 빈 캔버스 우클릭 → 붙여넣기)
+  const handleNodeContextMenu = useCallback(
+    (e: ReactMouseEvent, node: Node) => {
+      e.preventDefault();
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.selected === (n.id === node.id)
+            ? n
+            : { ...n, selected: n.id === node.id },
+        ),
+      );
+      setMenu({ x: e.clientX, y: e.clientY, nodeId: node.id });
+    },
+    [setNodes],
+  );
+  const handlePaneContextMenu = useCallback(
+    (e: ReactMouseEvent | MouseEvent) => {
+      e.preventDefault();
+      setMenu({ x: e.clientX, y: e.clientY, nodeId: null });
+    },
+    [],
+  );
+
+  // 메뉴 닫기 — Esc / 스크롤
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenu(null);
+    };
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menu]);
+
+  // 단축키 — ⌘C 복사 / ⌘V 붙여넣기 / ⌘⇧L 잠금 / ⌘] 앞으로 / ⌘[ 뒤로
+  useEffect(() => {
+    if (!(canEdit && mode === "edit")) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable)
+      )
+        return;
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      const selected = () => nodesRef.current.filter((n) => n.selected);
+      const key = e.key.toLowerCase();
+      if (key === "z") {
+        // ⌘Z 되돌리기 / ⌘⇧Z 다시 실행
+        if (e.shiftKey) redo();
+        else undo();
+        e.preventDefault();
+      } else if (key === "y") {
+        // ⌘Y(Ctrl+Y) 다시 실행
+        redo();
+        e.preventDefault();
+      } else if (key === "c") {
+        const sel = selected();
+        if (sel.length) {
+          clipboardRef.current = sel.map(rfNodeToStored);
+          e.preventDefault();
+        }
+      } else if (key === "v") {
+        if (clipboardRef.current?.length) {
+          pasteNodes();
+          e.preventDefault();
+        }
+      } else if (e.shiftKey && key === "l") {
+        const sel = selected();
+        sel.forEach((n) => toggleLock(n.id));
+        if (sel.length) e.preventDefault();
+      } else if (e.key === "]") {
+        const sel = selected();
+        sel.forEach((n) => bringToFront(n.id));
+        if (sel.length) e.preventDefault();
+      } else if (e.key === "[") {
+        const sel = selected();
+        sel.forEach((n) => sendToBack(n.id));
+        if (sel.length) e.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [
+    canEdit,
+    mode,
+    pasteNodes,
+    toggleLock,
+    bringToFront,
+    sendToBack,
+    undo,
+    redo,
+  ]);
 
   const onConnect = useCallback(
     (conn: Connection) => {
@@ -1578,8 +2189,19 @@ function FlowCanvas({
       recolorNode,
       cycleShape,
       deleteNode,
+      commentTargetId,
+      clearCommentTarget,
     }),
-    [canEdit, mode, updateNodeData, recolorNode, cycleShape, deleteNode],
+    [
+      canEdit,
+      mode,
+      updateNodeData,
+      recolorNode,
+      cycleShape,
+      deleteNode,
+      commentTargetId,
+      clearCommentTarget,
+    ],
   );
 
   const editable = canEdit && mode === "edit";
@@ -1807,6 +2429,29 @@ function FlowCanvas({
                 </button>
               </div>
               <div className="w-px h-5 bg-foreground/10" />
+              <div className="flex items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={undo}
+                  disabled={!canUndo}
+                  aria-label={t("flow.undo", "되돌리기") + " (⌘Z)"}
+                  title={t("flow.undo", "되돌리기") + " (⌘Z)"}
+                  className="flex items-center justify-center w-7 h-7 rounded-md text-slate-400 hover:text-foreground hover:bg-foreground/10 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  <Undo2 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={redo}
+                  disabled={!canRedo}
+                  aria-label={t("flow.redo", "다시 실행") + " (⌘⇧Z)"}
+                  title={t("flow.redo", "다시 실행") + " (⌘⇧Z)"}
+                  className="flex items-center justify-center w-7 h-7 rounded-md text-slate-400 hover:text-foreground hover:bg-foreground/10 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  <Redo2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="w-px h-5 bg-foreground/10" />
               <PaletteBtn
                 onClick={addText}
                 icon={<Type className="w-3.5 h-3.5" />}
@@ -1857,6 +2502,8 @@ function FlowCanvas({
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onNodeContextMenu={editable ? handleNodeContextMenu : undefined}
+            onPaneContextMenu={editable ? handlePaneContextMenu : undefined}
             nodeTypes={nodeTypes}
             colorMode="dark"
             fitView
@@ -1991,6 +2638,128 @@ function FlowCanvas({
         </div>
       )}
 
+      {/* 컨텍스트 메뉴 */}
+      {menu && (
+        <>
+          <div
+            className="fixed inset-0 z-[199]"
+            onMouseDown={() => setMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setMenu(null);
+            }}
+          />
+          <div
+            className="fixed z-[200] min-w-[212px] p-1.5 rounded-xl border border-foreground/[0.14] bg-bridge-obsidian/95 backdrop-blur shadow-2xl shadow-black/60"
+            style={{
+              left: Math.min(menu.x, window.innerWidth - 232),
+              top: Math.min(menu.y, window.innerHeight - 340),
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {(() => {
+              const hasClip = !!clipboardRef.current?.length;
+              const flowPos = screenToFlowPosition({ x: menu.x, y: menu.y });
+              if (!menu.nodeId) {
+                return (
+                  <MenuItem
+                    icon={ClipboardPaste}
+                    label={t("flow.menu.pasteHere", "여기에 붙여넣기")}
+                    kbd="⌘V"
+                    disabled={!hasClip}
+                    onClick={() => {
+                      pasteNodes(flowPos);
+                      setMenu(null);
+                    }}
+                  />
+                );
+              }
+              const id = menu.nodeId;
+              const node = nodes.find((n) => n.id === id);
+              const locked = !!(node?.data as { locked?: boolean })?.locked;
+              return (
+                <>
+                  <MenuItem
+                    icon={locked ? Unlock : Lock}
+                    label={
+                      locked
+                        ? t("flow.menu.unlock", "잠금 해제")
+                        : t("flow.menu.lock", "잠금")
+                    }
+                    kbd="⌘⇧L"
+                    onClick={() => {
+                      toggleLock(id);
+                      setMenu(null);
+                    }}
+                  />
+                  <div className="h-px bg-foreground/[0.08] mx-1 my-1" />
+                  <MenuItem
+                    icon={BringToFront}
+                    label={t("flow.menu.front", "앞으로 가져오기")}
+                    kbd="⌘]"
+                    disabled={locked}
+                    onClick={() => {
+                      bringToFront(id);
+                      setMenu(null);
+                    }}
+                  />
+                  <MenuItem
+                    icon={SendToBack}
+                    label={t("flow.menu.back", "뒤로 보내기")}
+                    kbd="⌘["
+                    disabled={locked}
+                    onClick={() => {
+                      sendToBack(id);
+                      setMenu(null);
+                    }}
+                  />
+                  <div className="h-px bg-foreground/[0.08] mx-1 my-1" />
+                  <MenuItem
+                    icon={Copy}
+                    label={t("flow.menu.copy", "복사")}
+                    kbd="⌘C"
+                    onClick={() => {
+                      copyNodes([id]);
+                      setMenu(null);
+                    }}
+                  />
+                  <MenuItem
+                    icon={ClipboardPaste}
+                    label={t("flow.menu.paste", "붙여넣기")}
+                    kbd="⌘V"
+                    disabled={!hasClip}
+                    onClick={() => {
+                      pasteNodes();
+                      setMenu(null);
+                    }}
+                  />
+                  <MenuItem
+                    icon={MessageCircle}
+                    label={t("flow.menu.comment", "코멘트 달기")}
+                    onClick={() => {
+                      requestComment(id);
+                      setMenu(null);
+                    }}
+                  />
+                  <div className="h-px bg-foreground/[0.08] mx-1 my-1" />
+                  <MenuItem
+                    icon={Trash2}
+                    label={t("flow.menu.delete", "삭제")}
+                    kbd="⌫"
+                    danger
+                    disabled={locked}
+                    onClick={() => {
+                      deleteNode(id);
+                      setMenu(null);
+                    }}
+                  />
+                </>
+              );
+            })()}
+          </div>
+        </>
+      )}
+
       <style>{`
         .react-flow__handle.fl-handle{
           width:9px;height:9px;background:#6366F1;border:2px solid #151B28;opacity:0;transition:opacity .15s;
@@ -2058,6 +2827,8 @@ function FlowReadOnlyCanvas({
       recolorNode: () => {},
       cycleShape: () => {},
       deleteNode: () => {},
+      commentTargetId: null,
+      clearCommentTarget: () => {},
     }),
     [],
   );

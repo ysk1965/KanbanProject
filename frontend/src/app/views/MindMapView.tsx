@@ -40,10 +40,13 @@ import {
   Flag,
   Hand,
   Loader2,
+  Lock,
+  Maximize2,
   MousePointer2,
   Plus,
   Search,
   StickyNote,
+  Unlock,
   X,
 } from "lucide-react";
 import type { Feature, Milestone, MindMapDocument, Task } from "../types";
@@ -132,13 +135,18 @@ interface MindMapCtx {
   onFeatureClick: (feature: Feature) => void;
   onTaskClick: (task: Task) => void;
   toggleExpand: (featureId: string) => void;
+  toggleLock: (id: string) => void;
   renameMemo: (id: string, label: string) => void;
   recolorMemo: (id: string) => void;
   deleteNode: (id: string) => void;
-  openFeatureMenu: (
+  openNodeMenu: (
     e: React.MouseEvent,
-    nodeId: string,
-    feature: Feature,
+    args: {
+      nodeId: string;
+      nodeType: "feature" | "memo";
+      title: string;
+      locked: boolean;
+    },
   ) => void;
 }
 const MindMapContext = createContext<MindMapCtx | null>(null);
@@ -203,9 +211,7 @@ function TaskRow({
       )}
       <span
         className={`flex-1 text-[11px] font-medium leading-tight line-clamp-1 ${
-          task.completed
-            ? "text-slate-500 line-through"
-            : "text-foreground"
+          task.completed ? "text-slate-500 line-through" : "text-foreground"
         }`}
       >
         {task.title}
@@ -227,6 +233,7 @@ function TaskRow({
 
 // ────────────────────────────────────────────────────────────
 const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
+  const { t } = useTranslation();
   const {
     featuresById,
     featureMilestonesMap,
@@ -238,9 +245,10 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
     onFeatureClick,
     onTaskClick,
     toggleExpand,
-    openFeatureMenu,
+    openNodeMenu,
   } = useMindMap();
   const featureId = (data as { feature_id: string }).feature_id;
+  const locked = !!(data as { locked?: boolean }).locked;
   const feature = featuresById.get(featureId);
   const milestones = featureMilestonesMap[featureId] || [];
   const featureTasks = tasksByFeature.get(featureId) ?? [];
@@ -316,9 +324,24 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
         transition: "opacity .3s ease, filter .3s ease, border-color .15s ease",
       }}
       onClick={() => onFeatureClick(feature)}
-      onContextMenu={(e) => openFeatureMenu(e, id, feature)}
+      onContextMenu={(e) =>
+        openNodeMenu(e, {
+          nodeId: id,
+          nodeType: "feature",
+          title: feature.title,
+          locked,
+        })
+      }
     >
       <NodeHandles canEdit={canEdit} />
+      {locked && (
+        <span
+          className="absolute -top-1.5 -right-1.5 z-10 w-5 h-5 rounded-full bg-bridge-obsidian border border-foreground/15 flex items-center justify-center shadow-md"
+          title={t("mindmap.locked", "위치 잠김")}
+        >
+          <Lock className="w-2.5 h-2.5 text-amber-400" />
+        </span>
+      )}
       <span
         className="absolute left-0 top-3 bottom-3 w-1 rounded-full"
         style={{ backgroundColor: color }}
@@ -408,75 +431,71 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
           </button>
           {expanded && (
             <div className="px-2.5 pb-2.5">
-              {taskGroups ? (
-                // 마일스톤 2개 이상: 컴팩트 디바이더로 그루핑
-                taskGroups.map((group, gi) => {
-                  const msColor = group.ms
-                    ? MILESTONE_COLORS[
-                        group.ms.idx % MILESTONE_COLORS.length
-                      ]
-                    : "#64748b";
-                  const groupDone = group.tasks.filter(
-                    (t) => t.completed,
-                  ).length;
-                  const groupDim = hiddenMilestones.has(
-                    group.ms?.id ?? UNASSIGNED_MS,
-                  );
-                  return (
-                    <div
-                      key={group.ms?.id ?? `unassigned-${gi}`}
-                      style={{
-                        opacity: groupDim ? 0.3 : 1,
-                        filter: groupDim ? "grayscale(0.75)" : undefined,
-                        transition: "opacity .3s ease, filter .3s ease",
-                      }}
-                    >
-                      <div className="flex items-center gap-1.5 px-2 py-1">
-                        <span
-                          className="flex-1 h-px"
-                          style={{
-                            background: `${msColor}4D`,
-                          }}
-                        />
-                        <span
-                          className="text-[9px] font-bold whitespace-nowrap"
-                          style={{ color: msColor }}
-                        >
-                          {group.ms?.title ?? "미배정"}
-                        </span>
-                        <span
-                          className="text-[9px] font-bold"
-                          style={{ color: `${msColor}99` }}
-                        >
-                          {groupDone}/{group.tasks.length}
-                        </span>
-                        <span
-                          className="flex-1 h-px"
-                          style={{
-                            background: `${msColor}26`,
-                          }}
-                        />
+              {taskGroups
+                ? // 마일스톤 2개 이상: 컴팩트 디바이더로 그루핑
+                  taskGroups.map((group, gi) => {
+                    const msColor = group.ms
+                      ? MILESTONE_COLORS[group.ms.idx % MILESTONE_COLORS.length]
+                      : "#64748b";
+                    const groupDone = group.tasks.filter(
+                      (t) => t.completed,
+                    ).length;
+                    const groupDim = hiddenMilestones.has(
+                      group.ms?.id ?? UNASSIGNED_MS,
+                    );
+                    return (
+                      <div
+                        key={group.ms?.id ?? `unassigned-${gi}`}
+                        style={{
+                          opacity: groupDim ? 0.3 : 1,
+                          filter: groupDim ? "grayscale(0.75)" : undefined,
+                          transition: "opacity .3s ease, filter .3s ease",
+                        }}
+                      >
+                        <div className="flex items-center gap-1.5 px-2 py-1">
+                          <span
+                            className="flex-1 h-px"
+                            style={{
+                              background: `${msColor}4D`,
+                            }}
+                          />
+                          <span
+                            className="text-[9px] font-bold whitespace-nowrap"
+                            style={{ color: msColor }}
+                          >
+                            {group.ms?.title ?? "미배정"}
+                          </span>
+                          <span
+                            className="text-[9px] font-bold"
+                            style={{ color: `${msColor}99` }}
+                          >
+                            {groupDone}/{group.tasks.length}
+                          </span>
+                          <span
+                            className="flex-1 h-px"
+                            style={{
+                              background: `${msColor}26`,
+                            }}
+                          />
+                        </div>
+                        {group.tasks.map((task) => (
+                          <TaskRow
+                            key={task.id}
+                            task={task}
+                            onTaskClick={onTaskClick}
+                          />
+                        ))}
                       </div>
-                      {group.tasks.map((task) => (
-                        <TaskRow
-                          key={task.id}
-                          task={task}
-                          onTaskClick={onTaskClick}
-                        />
-                      ))}
-                    </div>
-                  );
-                })
-              ) : (
-                // 마일스톤 0~1개: 기존 플랫 리스트
-                featureTasks.map((task) => (
-                  <TaskRow
-                    key={task.id}
-                    task={task}
-                    onTaskClick={onTaskClick}
-                  />
-                ))
-              )}
+                    );
+                  })
+                : // 마일스톤 0~1개: 기존 플랫 리스트
+                  featureTasks.map((task) => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      onTaskClick={onTaskClick}
+                    />
+                  ))}
             </div>
           )}
         </>
@@ -499,9 +518,12 @@ const MemoNode = memo(function MemoNode({
   width,
   height,
 }: NodeProps) {
-  const { canEdit, renameMemo, recolorMemo, deleteNode } = useMindMap();
+  const { t } = useTranslation();
+  const { canEdit, renameMemo, recolorMemo, deleteNode, openNodeMenu } =
+    useMindMap();
   const label = (data as { label?: string }).label || "";
   const color = (data as { color?: string }).color || "#6366F1";
+  const locked = !!(data as { locked?: boolean }).locked;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(label);
 
@@ -527,9 +549,25 @@ const MemoNode = memo(function MemoNode({
         setDraft(label);
         setEditing(true);
       }}
+      onContextMenu={(e) =>
+        openNodeMenu(e, {
+          nodeId: id,
+          nodeType: "memo",
+          title: label || t("mindmap.memo", "메모"),
+          locked,
+        })
+      }
     >
+      {locked && (
+        <span
+          className="absolute -top-1.5 -right-1.5 z-10 w-5 h-5 rounded-full bg-bridge-obsidian border border-foreground/15 flex items-center justify-center shadow-md"
+          title={t("mindmap.locked", "위치 잠김")}
+        >
+          <Lock className="w-2.5 h-2.5 text-amber-400" />
+        </span>
+      )}
       <NodeResizer
-        isVisible={canEdit && !!selected}
+        isVisible={canEdit && !locked && !!selected}
         minWidth={120}
         minHeight={44}
         color={color}
@@ -607,6 +645,7 @@ function serialize(
         id: n.id,
         x: Math.round(n.position.x),
         y: Math.round(n.position.y),
+        ...((n.data as { locked?: boolean }).locked ? { locked: true } : {}),
       };
       if (n.type === "memo") {
         return {
@@ -642,13 +681,15 @@ function deserialize(
   const validNodes: Node[] = [];
   const keptIds = new Set<string>();
   for (const n of doc.nodes || []) {
+    const locked = !!n.locked;
     if (n.kind === "feature") {
       if (!n.feature_id || !featuresById.has(n.feature_id)) continue; // 삭제된 피쳐 prune
       validNodes.push({
         id: n.id,
         type: "feature",
         position: { x: n.x, y: n.y },
-        data: { feature_id: n.feature_id },
+        ...(locked ? { draggable: false } : {}),
+        data: { feature_id: n.feature_id, locked },
       });
     } else {
       validNodes.push({
@@ -657,7 +698,8 @@ function deserialize(
         position: { x: n.x, y: n.y },
         ...(n.width ? { width: n.width } : {}),
         ...(n.height ? { height: n.height } : {}),
-        data: { label: n.label || "", color: n.color || "#6366F1" },
+        ...(locked ? { draggable: false } : {}),
+        data: { label: n.label || "", color: n.color || "#6366F1", locked },
       });
     }
     keptIds.add(n.id);
@@ -724,10 +766,12 @@ function MindMapCanvas({
   });
   const [msPanelOpen, setMsPanelOpen] = useState(false);
   const msPanelRef = useRef<HTMLDivElement>(null);
-  // Feature 노드 우클릭 컨텍스트 메뉴
-  const [featureMenu, setFeatureMenu] = useState<{
+  // 노드 우클릭 컨텍스트 메뉴 (Feature/메모 공용)
+  const [nodeMenu, setNodeMenu] = useState<{
     nodeId: string;
+    nodeType: "feature" | "memo";
     title: string;
+    locked: boolean;
     x: number;
     y: number;
   } | null>(null);
@@ -918,34 +962,60 @@ function MindMapCanvas({
     [setNodes, setEdges],
   );
 
-  // Feature 노드 우클릭 → 컨텍스트 메뉴 오픈 (뷰포트 경계 보정)
-  const openFeatureMenu = useCallback(
-    (e: React.MouseEvent, nodeId: string, feature: Feature) => {
+  // 위치 이동 잠금 토글 (드래그 비활성 + 문서 저장)
+  const toggleLock = useCallback(
+    (id: string) => {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== id) return n;
+          const locked = !(n.data as { locked?: boolean }).locked;
+          return {
+            ...n,
+            draggable: locked ? false : undefined,
+            data: { ...n.data, locked },
+          };
+        }),
+      );
+    },
+    [setNodes],
+  );
+
+  // 노드 우클릭 → 컨텍스트 메뉴 오픈 (뷰포트 경계 보정)
+  const openNodeMenu = useCallback(
+    (
+      e: React.MouseEvent,
+      args: {
+        nodeId: string;
+        nodeType: "feature" | "memo";
+        title: string;
+        locked: boolean;
+      },
+    ) => {
       if (!canEdit) return;
       e.preventDefault();
       e.stopPropagation();
       const menuW = 200;
-      const menuH = 52;
+      const menuH = 100;
       const x =
         e.clientX + menuW > window.innerWidth ? e.clientX - menuW : e.clientX;
       const y =
         e.clientY + menuH > window.innerHeight ? e.clientY - menuH : e.clientY;
-      setFeatureMenu({ nodeId, title: feature.title, x, y });
+      setNodeMenu({ ...args, x, y });
     },
     [canEdit],
   );
 
   // 컨텍스트 메뉴 외부 클릭/스크롤 시 닫기
   useEffect(() => {
-    if (!featureMenu) return;
-    const close = () => setFeatureMenu(null);
+    if (!nodeMenu) return;
+    const close = () => setNodeMenu(null);
     document.addEventListener("mousedown", close);
     window.addEventListener("wheel", close, { passive: true });
     return () => {
       document.removeEventListener("mousedown", close);
       window.removeEventListener("wheel", close);
     };
-  }, [featureMenu]);
+  }, [nodeMenu]);
 
   // 단축키: h=손 도구(팬), v=선택 도구(박스 다중선택). 입력/편집 중엔 무시.
   useEffect(() => {
@@ -1154,8 +1224,7 @@ function MindMapCanvas({
         msMap[f.id]?.some((m) => m.id === milestoneFilter),
       );
     const query = traySearch.trim().toLowerCase();
-    if (query)
-      list = list.filter((f) => f.title.toLowerCase().includes(query));
+    if (query) list = list.filter((f) => f.title.toLowerCase().includes(query));
     return list;
   }, [unplaced, milestoneFilter, msMap, traySearch]);
 
@@ -1202,10 +1271,11 @@ function MindMapCanvas({
       onFeatureClick,
       onTaskClick,
       toggleExpand,
+      toggleLock,
       renameMemo,
       recolorMemo,
       deleteNode,
-      openFeatureMenu,
+      openNodeMenu,
     }),
     [
       featuresById,
@@ -1218,10 +1288,11 @@ function MindMapCanvas({
       onFeatureClick,
       onTaskClick,
       toggleExpand,
+      toggleLock,
       renameMemo,
       recolorMemo,
       deleteNode,
-      openFeatureMenu,
+      openNodeMenu,
     ],
   );
 
@@ -1408,15 +1479,28 @@ function MindMapCanvas({
                         f.id,
                       )
                     }
-                    className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-foreground/[0.03] border border-foreground/[0.07] cursor-grab hover:border-bridge-accent/50 hover:bg-bridge-accent/[0.06] transition-colors"
+                    className="group flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-foreground/[0.03] border border-foreground/[0.07] cursor-grab hover:border-bridge-accent/50 hover:bg-bridge-accent/[0.06] transition-colors"
                   >
                     <span
                       className="w-1 self-stretch rounded-full"
                       style={{ backgroundColor: f.color || "#6366F1" }}
                     />
-                    <span className="text-xs font-medium text-foreground line-clamp-1">
+                    <span className="flex-1 min-w-0 text-xs font-medium text-foreground line-clamp-1">
                       {f.title}
                     </span>
+                    <button
+                      type="button"
+                      draggable={false}
+                      aria-label={t("mindmap.viewDetail", "상세 보기")}
+                      title={t("mindmap.viewDetail", "상세 보기")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onFeatureClick(f);
+                      }}
+                      className="shrink-0 p-1 rounded-lg text-slate-400 opacity-0 group-hover:opacity-100 hover:text-foreground hover:bg-foreground/10 transition-all"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 ))
               )}
@@ -1497,7 +1581,10 @@ function MindMapCanvas({
 
           {/* 마일스톤 필터 패널 (우상단, dim 토글) */}
           {milestoneOptions.length > 0 && (
-            <div ref={msPanelRef} className="absolute top-3 right-3 z-30 w-[236px]">
+            <div
+              ref={msPanelRef}
+              className="absolute top-3 right-3 z-30 w-[236px]"
+            >
               <button
                 type="button"
                 onClick={() => setMsPanelOpen((o) => !o)}
@@ -1717,30 +1804,64 @@ function MindMapCanvas({
         }
         @keyframes mm-edge-dash{to{stroke-dashoffset:-10}}
       `}</style>
-      {/* Feature 노드 우클릭 컨텍스트 메뉴 */}
-      {featureMenu && (
+      {/* 노드 우클릭 컨텍스트 메뉴 (Feature/메모 공용) */}
+      {nodeMenu && (
         <div
           className="fixed z-50 min-w-[200px] py-1 rounded-xl bg-bridge-obsidian border border-foreground/10 shadow-2xl"
-          style={{ left: featureMenu.x, top: featureMenu.y }}
+          style={{ left: nodeMenu.x, top: nodeMenu.y }}
           onMouseDown={(e) => e.stopPropagation()}
           onContextMenu={(e) => e.preventDefault()}
         >
           <div className="px-3 pt-2 pb-1.5 border-b border-foreground/[0.06]">
             <div className="text-xs font-bold text-foreground line-clamp-1">
-              {featureMenu.title}
+              {nodeMenu.title}
             </div>
           </div>
           <button
             type="button"
             onClick={() => {
-              deleteNode(featureMenu.nodeId);
-              setFeatureMenu(null);
+              toggleLock(nodeMenu.nodeId);
+              setNodeMenu(null);
             }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-400 hover:text-rose-400 hover:bg-foreground/[0.05] transition-colors"
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-400 hover:text-foreground hover:bg-foreground/[0.05] transition-colors"
           >
-            <EyeOff className="w-3.5 h-3.5 shrink-0" />
-            <span>{t("mindmap.excludeFeature", "마인드맵에서 제외")}</span>
+            {nodeMenu.locked ? (
+              <>
+                <Unlock className="w-3.5 h-3.5 shrink-0" />
+                <span>{t("mindmap.unlockPosition", "위치 잠금 해제")}</span>
+              </>
+            ) : (
+              <>
+                <Lock className="w-3.5 h-3.5 shrink-0" />
+                <span>{t("mindmap.lockPosition", "위치 잠금")}</span>
+              </>
+            )}
           </button>
+          {nodeMenu.nodeType === "feature" ? (
+            <button
+              type="button"
+              onClick={() => {
+                deleteNode(nodeMenu.nodeId);
+                setNodeMenu(null);
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-400 hover:text-rose-400 hover:bg-foreground/[0.05] transition-colors"
+            >
+              <EyeOff className="w-3.5 h-3.5 shrink-0" />
+              <span>{t("mindmap.excludeFeature", "마인드맵에서 제외")}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                deleteNode(nodeMenu.nodeId);
+                setNodeMenu(null);
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-400 hover:text-rose-400 hover:bg-foreground/[0.05] transition-colors"
+            >
+              <X className="w-3.5 h-3.5 shrink-0" />
+              <span>{t("mindmap.deleteMemo", "메모 삭제")}</span>
+            </button>
+          )}
         </div>
       )}
       {onCreateFeature && (

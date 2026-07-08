@@ -3,6 +3,8 @@
     "newMemo": "메모",
     "handTool": "손 도구",
     "pointerTool": "선택 도구",
+    "undo": "되돌리기",
+    "redo": "다시 실행",
     "addText": "텍스트",
     "addSticky": "스티키",
     "addShape": "도형",
