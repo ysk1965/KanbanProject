@@ -27,6 +27,7 @@ import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.integration.discord.service.DiscordNotificationService;
 import com.kanban.domain.integration.slack.service.SlackNotificationService;
 import com.kanban.domain.notification.service.NotificationService;
+import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
@@ -723,6 +724,121 @@ public class ChecklistService {
         }
 
         log.info("Checklist items reordered in task: {} by user: {}", taskId, userId);
+    }
+
+    /**
+     * 체크리스트 병합.
+     * <p>
+     * 실수로 여러 항목으로 쪼개져 각자 타임블록을 물고 있는 경우, 대표 항목(target)으로 통합한다.
+     * - 소스 항목들의 타임블록(schedule_blocks)을 대표 항목으로 재지정 (블록별 담당자는 그대로 유지)
+     * - 대표 항목의 제목/기간을 반영 (기간 미지정 시 전체 날짜·타임블록 범위로 자동 확장)
+     * - 소스 항목은 소프트 삭제
+     * <p>
+     * 웹소켓은 신규 이벤트 없이 기존 CHECKLIST_DELETED(소스) + CHECKLIST_UPDATED(대표)를 재사용한다.
+     */
+    @Transactional
+    public ChecklistResponse.Detail mergeChecklistItems(String boardId, String taskId, String userId, ChecklistRequest.Merge request) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        if (!task.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+
+        String targetId = request.getTargetId();
+
+        // 소스 = 요청 목록에서 대표/중복/null 제거
+        List<String> sourceIds = request.getSourceIds().stream()
+                .filter(id -> id != null && !id.equals(targetId))
+                .distinct()
+                .toList();
+        if (sourceIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        ChecklistItem target = checklistItemRepository.findById(targetId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
+        if (!target.getTask().getId().equals(taskId)) {
+            throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
+        }
+
+        List<ChecklistItem> sources = checklistItemRepository.findAllById(sourceIds);
+        if (sources.size() != sourceIds.size()) {
+            throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
+        }
+        for (ChecklistItem s : sources) {
+            if (!s.getTask().getId().equals(taskId)) {
+                throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
+            }
+        }
+
+        // 통합 기간 자동 계산: 대표+소스 항목의 start/due + 소속 타임블록 날짜의 min/max
+        List<String> allIds = new java.util.ArrayList<>(sourceIds);
+        allIds.add(targetId);
+        List<ScheduleBlock> allBlocks = scheduleBlockRepository.findByChecklistItemIdIn(allIds);
+
+        LocalDate computedStart = null;
+        LocalDate computedDue = null;
+        for (ChecklistItem it : sources) {
+            computedStart = minDate(computedStart, it.getStartDate());
+            computedDue = maxDate(computedDue, it.getDueDate());
+        }
+        computedStart = minDate(computedStart, target.getStartDate());
+        computedDue = maxDate(computedDue, target.getDueDate());
+        for (ScheduleBlock b : allBlocks) {
+            computedStart = minDate(computedStart, b.getScheduledDate());
+            computedDue = maxDate(computedDue, b.getScheduledDate());
+        }
+
+        // 타임블록 재지정: sources → target
+        scheduleBlockRepository.relinkChecklistItemBlocks(target, sourceIds);
+
+        // 대표 항목 필드 반영
+        if (request.getTitle() != null && !request.getTitle().isBlank()) {
+            target.updateTitle(request.getTitle());
+        }
+        LocalDate finalStart = request.getStartDate() != null ? request.getStartDate() : computedStart;
+        LocalDate finalDue = request.getDueDate() != null ? request.getDueDate() : computedDue;
+        if (finalStart != null) target.updateStartDate(finalStart);
+        if (finalDue != null) target.updateDueDate(finalDue);
+
+        // 소스 소프트 삭제 + 활동 로그
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        for (ChecklistItem s : sources) {
+            s.softDelete(userId, now);
+            activityService.logActivity(task.getBoard(), user, ActivityAction.CHECKLIST_DELETED, TargetType.CHECKLIST, s.getId(),
+                    Map.of("checklistTitle", s.getTitle(), "taskTitle", task.getTitle(), "taskId", task.getId()));
+        }
+
+        log.info("Merged {} checklist items into {} (task {}) by user {}", sourceIds.size(), targetId, taskId, userId);
+
+        ChecklistResponse.Detail response = ChecklistResponse.Detail.of(target);
+
+        // 웹소켓: 소스 삭제 + 대표 업데이트 (기존 핸들러 재사용)
+        for (String sid : sourceIds) {
+            webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_DELETED, userId, user.getName(),
+                    Map.of("id", sid, "task_id", taskId));
+        }
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, userId, user.getName(),
+                Map.of("task_id", taskId, "item", response));
+
+        return response;
+    }
+
+    private static LocalDate minDate(LocalDate a, LocalDate b) {
+        if (a == null) return b;
+        if (b == null) return a;
+        return a.isBefore(b) ? a : b;
+    }
+
+    private static LocalDate maxDate(LocalDate a, LocalDate b) {
+        if (a == null) return b;
+        if (b == null) return a;
+        return a.isAfter(b) ? a : b;
     }
 
     public ChecklistResponse.BoardListResponse getBoardChecklistItems(String boardId, String userId, String assigneeId, Boolean isScheduled) {

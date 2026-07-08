@@ -1,5 +1,6 @@
 package com.kanban.domain.schedule;
 
+import com.kanban.domain.checklist.ChecklistItem;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -157,6 +158,13 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, St
     @Modifying
     @Query("UPDATE ScheduleBlock sb SET sb.checklistItem = null WHERE sb.checklistItem.id = :checklistItemId")
     void unlinkByChecklistItemId(@Param("checklistItemId") String checklistItemId);
+
+    /**
+     * 체크리스트 병합: 소스 항목들에 연결된 타임블록을 대표 항목으로 재지정한다.
+     */
+    @Modifying
+    @Query("UPDATE ScheduleBlock sb SET sb.checklistItem = :target WHERE sb.checklistItem.id IN :sourceItemIds")
+    int relinkChecklistItemBlocks(@Param("target") ChecklistItem target, @Param("sourceItemIds") List<String> sourceItemIds);
 
     @Modifying
     @Query("DELETE FROM ScheduleBlock sb WHERE sb.checklistItem.id IN " +
