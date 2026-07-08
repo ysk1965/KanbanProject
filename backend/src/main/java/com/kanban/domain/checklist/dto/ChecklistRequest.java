@@ -145,4 +145,28 @@ public class ChecklistRequest {
         @NotNull(message = "항목 ID 목록은 필수입니다")
         private List<String> itemIds;
     }
+
+    /**
+     * 체크리스트 병합 요청.
+     * targetId(대표 항목)에 sourceIds(흡수될 항목들)의 타임블록을 모으고 소스는 소프트 삭제한다.
+     * title/startDate/dueDate 를 보내지 않으면(null) 대표 항목 값을 유지하며,
+     * 기간은 병합 대상 전체의 날짜/타임블록 범위로 서버가 자동 확장한다.
+     */
+    @Getter
+    @NoArgsConstructor
+    public static class Merge {
+        @NotBlank(message = "대표 항목 ID는 필수입니다")
+        private String targetId;
+
+        @NotNull(message = "병합 대상 항목 목록은 필수입니다")
+        @Size(min = 1, message = "병합 대상 항목이 최소 1개 필요합니다")
+        private List<String> sourceIds;
+
+        @Size(max = 200, message = "체크리스트 항목 제목은 200자 이내여야 합니다")
+        private String title;
+
+        private LocalDate startDate;
+
+        private LocalDate dueDate;
+    }
 }

@@ -57,6 +57,7 @@ import {
   MessageSquare,
   Lightbulb,
   ArrowRightLeft,
+  GitMerge,
   GripVertical,
   ArrowRight,
   Copy,
@@ -210,6 +211,15 @@ export function TaskDetailModal({
     string | null
   >(null);
   const [checklistMoveSearch, setChecklistMoveSearch] = useState("");
+  // 체크리스트 병합: 대표 항목(시작점) + 흡수할 소스 항목 선택
+  const [mergeTargetItemId, setMergeTargetItemId] = useState<string | null>(
+    null,
+  );
+  const [mergeSelectedIds, setMergeSelectedIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [mergeTitle, setMergeTitle] = useState("");
+  const [mergeBusy, setMergeBusy] = useState(false);
   // 체크리스트 이동: 대상 마일스톤 선택 (기본값 = 현재 마일스톤)
   const [moveTargetMilestoneId, setMoveTargetMilestoneId] = useState<
     string | null
@@ -1124,6 +1134,102 @@ export function TaskDetailModal({
     }
   };
 
+  const openMergeChecklistDialog = (itemId: string) => {
+    const target = checklistItems.find((ci) => ci.id === itemId);
+    setMergeTargetItemId(itemId);
+    setMergeSelectedIds(new Set());
+    setMergeTitle(target?.title || "");
+  };
+
+  const closeMergeChecklistDialog = () => {
+    setMergeTargetItemId(null);
+    setMergeSelectedIds(new Set());
+    setMergeTitle("");
+  };
+
+  const toggleMergeSource = (itemId: string) => {
+    setMergeSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  };
+
+  const handleMergeChecklistItems = async () => {
+    if (!boardId || !task || !mergeTargetItemId) return;
+    const targetId = mergeTargetItemId;
+    const sourceIds = Array.from(mergeSelectedIds).filter(
+      (id) => id !== targetId,
+    );
+    if (sourceIds.length === 0) return;
+
+    setMergeBusy(true);
+    const originalItems = [...checklistItems];
+    const originalBlocks = checklistTimeBlocksMap;
+    try {
+      const merged = await checklistAPI.mergeItems(boardId, task.id, {
+        target_id: targetId,
+        source_ids: sourceIds,
+        title: mergeTitle.trim() || undefined,
+      });
+
+      const mappedTarget = {
+        ...merged,
+        assignee: merged.assignee
+          ? {
+              id: merged.assignee.id,
+              name: merged.assignee.name,
+              profile_image: merged.assignee.profile_image,
+            }
+          : null,
+        contractor: merged.contractor ?? null,
+      };
+
+      const newItems = originalItems
+        .filter((ci) => !sourceIds.includes(ci.id))
+        .map((ci) => (ci.id === targetId ? { ...ci, ...mappedTarget } : ci));
+      setChecklistItems(newItems);
+
+      // 소스 타임블록을 대표 항목으로 이관
+      setChecklistTimeBlocksMap((prev) => {
+        const next = { ...prev };
+        const targetBlocks = [
+          ...(next[targetId] || []),
+          ...sourceIds.flatMap((sid) => next[sid] || []),
+        ].sort((a, b) => {
+          const d = a.scheduled_date.localeCompare(b.scheduled_date);
+          return d !== 0 ? d : a.start_time.localeCompare(b.start_time);
+        });
+        next[targetId] = targetBlocks;
+        sourceIds.forEach((sid) => delete next[sid]);
+        return next;
+      });
+
+      const completedCount = newItems.filter((ci) => ci.completed).length;
+      onUpdate({
+        checklist_total: newItems.length,
+        checklist_completed: completedCount,
+        checklist_version: Date.now(),
+      });
+      onChecklistSync?.(task.id, newItems);
+
+      toast.success(
+        t("task.mergeChecklist.success", "{{count}}개 항목을 병합했습니다", {
+          count: sourceIds.length + 1,
+        }),
+      );
+      closeMergeChecklistDialog();
+    } catch (error) {
+      console.error("Failed to merge checklist items:", error);
+      setChecklistItems(originalItems);
+      setChecklistTimeBlocksMap(originalBlocks);
+      toast.error(t("task.mergeChecklist.failed", "병합에 실패했습니다"));
+    } finally {
+      setMergeBusy(false);
+    }
+  };
+
   const handleChecklistDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !boardId || !task) return;
@@ -1905,6 +2011,11 @@ export function TaskDetailModal({
                                   }
                                 : undefined
                             }
+                            onMerge={
+                              checklistItems.length > 1
+                                ? () => openMergeChecklistDialog(item.id)
+                                : undefined
+                            }
                             boardMembers={boardMembers}
                             contractors={contractors}
                             boardId={boardId}
@@ -2398,6 +2509,243 @@ export function TaskDetailModal({
         </div>
       </MotionModal>
 
+      {/* 체크리스트 병합 다이얼로그 */}
+      <MotionModal
+        open={!!mergeTargetItemId}
+        onClose={closeMergeChecklistDialog}
+        className="sm:max-w-md p-0 overflow-hidden"
+      >
+        {(() => {
+          const target = checklistItems.find(
+            (ci) => ci.id === mergeTargetItemId,
+          );
+          if (!target) return null;
+          const candidates = checklistItems.filter((ci) => ci.id !== target.id);
+          const selected = candidates.filter((ci) =>
+            mergeSelectedIds.has(ci.id),
+          );
+          const mergeAll = [target, ...selected];
+
+          const blockMinutes = (b: ScheduleBlockDetailResponse) =>
+            Math.round(
+              (new Date(`2000-01-01T${b.end_time}`).getTime() -
+                new Date(`2000-01-01T${b.start_time}`).getTime()) /
+                60000,
+            );
+
+          let spanStart: string | null = null;
+          let spanEnd: string | null = null;
+          let totalBlocks = 0;
+          let totalMinutes = 0;
+          const bumpDate = (d: string | null | undefined) => {
+            if (!d) return;
+            if (!spanStart || d < spanStart) spanStart = d;
+            if (!spanEnd || d > spanEnd) spanEnd = d;
+          };
+          for (const it of mergeAll) {
+            bumpDate(it.start_date);
+            bumpDate(it.due_date);
+            const blocks = checklistTimeBlocksMap[it.id] || [];
+            totalBlocks += blocks.length;
+            for (const b of blocks) {
+              bumpDate(b.scheduled_date);
+              totalMinutes += blockMinutes(b);
+            }
+          }
+          const hasCompletedSelected = selected.some((ci) => ci.completed);
+          const fmtDur = (min: number) => {
+            const h = Math.floor(min / 60);
+            const m = min % 60;
+            if (h > 0 && m > 0) return `${h}h ${m}m`;
+            if (h > 0) return `${h}h`;
+            return `${m}m`;
+          };
+          const fmtDate = (d: string | null) =>
+            d ? format(new Date(d), "M/d", { locale: ko }) : "—";
+
+          return (
+            <div>
+              <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
+              <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+                <div className="w-8 h-8 rounded-lg bg-bridge-accent/15 grid place-items-center flex-none">
+                  <GitMerge className="h-4 w-4 text-bridge-accent" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-foreground">
+                    {t(
+                      "task.mergeChecklist.title",
+                      "{{count}}개 항목을 하나로 병합",
+                      { count: selected.length + 1 },
+                    )}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {t(
+                      "task.mergeChecklist.subtitle",
+                      "선택한 항목의 타임블록을 대표 항목으로 모읍니다",
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="px-5 pb-5 pt-4 space-y-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                    {t("task.mergeChecklist.titleField", "통합 제목")}
+                  </label>
+                  <input
+                    value={mergeTitle}
+                    onChange={(e) => setMergeTitle(e.target.value)}
+                    className="mt-2 w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                    placeholder={target.title}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                    {t("task.mergeChecklist.selectField", "합칠 항목 선택")}
+                  </label>
+                  {candidates.length === 0 ? (
+                    <p className="mt-2 text-xs text-slate-500 py-3">
+                      {t(
+                        "task.mergeChecklist.noCandidates",
+                        "병합할 다른 항목이 없습니다",
+                      )}
+                    </p>
+                  ) : (
+                    <div className="mt-2 space-y-1 max-h-52 overflow-y-auto custom-scrollbar">
+                      {candidates.map((ci) => {
+                        const blocks = checklistTimeBlocksMap[ci.id] || [];
+                        const mins = blocks.reduce(
+                          (s, b) => s + blockMinutes(b),
+                          0,
+                        );
+                        const isSel = mergeSelectedIds.has(ci.id);
+                        return (
+                          <button
+                            key={ci.id}
+                            onClick={() => toggleMergeSource(ci.id)}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-all ${
+                              isSel
+                                ? "border-bridge-accent bg-bridge-accent/10"
+                                : "border-foreground/10 hover:bg-foreground/5"
+                            }`}
+                          >
+                            <span
+                              className={`w-4 h-4 rounded flex-none grid place-items-center border ${
+                                isSel
+                                  ? "bg-bridge-accent border-bridge-accent"
+                                  : "border-slate-500"
+                              }`}
+                            >
+                              {isSel && (
+                                <Check className="h-3 w-3 text-white" />
+                              )}
+                            </span>
+                            <span
+                              className={`flex-1 min-w-0 text-sm truncate ${
+                                ci.completed
+                                  ? "line-through text-slate-500"
+                                  : "text-foreground"
+                              }`}
+                            >
+                              {ci.title}
+                            </span>
+                            <span className="text-xs text-slate-500 font-mono flex-none">
+                              {blocks.length > 0
+                                ? t(
+                                    "task.mergeChecklist.blockInfo",
+                                    "블록 {{n}} · {{dur}}",
+                                    { n: blocks.length, dur: fmtDur(mins) },
+                                  )
+                                : t(
+                                    "task.mergeChecklist.noBlocks",
+                                    "블록 없음",
+                                  )}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {selected.length > 0 && (
+                  <div className="rounded-xl border border-dashed border-foreground/20 bg-foreground/[0.03] p-3 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-500">
+                        {t("task.mergeChecklist.previewPeriod", "기간")}
+                      </span>
+                      <span className="font-mono text-foreground">
+                        {fmtDate(spanStart)} → {fmtDate(spanEnd)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-500">
+                        {t("task.mergeChecklist.previewBlocks", "타임블록")}
+                      </span>
+                      <span className="font-mono text-foreground">
+                        {t(
+                          "task.mergeChecklist.previewBlocksValue",
+                          "{{n}}개 · {{dur}}",
+                          { n: totalBlocks, dur: fmtDur(totalMinutes) },
+                        )}
+                      </span>
+                    </div>
+                    {hasCompletedSelected && (
+                      <div className="flex items-start gap-1.5 text-xs text-amber-500 pt-1">
+                        <AlertCircle className="h-3.5 w-3.5 flex-none mt-0.5" />
+                        <span>
+                          {t(
+                            "task.mergeChecklist.completedWarn",
+                            "완료 처리된 항목이 포함됩니다",
+                          )}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
+                <span className="text-xs text-slate-500">
+                  {selected.length > 0
+                    ? t(
+                        "task.mergeChecklist.deleteHint",
+                        "선택한 {{n}}개 항목은 삭제됩니다",
+                        { n: selected.length },
+                      )
+                    : t(
+                        "task.mergeChecklist.selectHint",
+                        "합칠 항목을 선택하세요",
+                      )}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={closeMergeChecklistDialog}
+                    disabled={mergeBusy}
+                    className="px-4 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 disabled:opacity-50"
+                  >
+                    {t("common.cancel")}
+                  </button>
+                  <button
+                    onClick={handleMergeChecklistItems}
+                    disabled={selected.length === 0 || mergeBusy}
+                    className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50 inline-flex items-center gap-1.5"
+                  >
+                    {mergeBusy ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <GitMerge className="h-3.5 w-3.5" />
+                    )}
+                    {t("task.mergeChecklist.confirm", "병합")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </MotionModal>
+
       {/* 체크리스트 아이템 삭제 확인 다이얼로그 */}
       <MotionModal
         open={!!checklistItemToDelete}
@@ -2624,6 +2972,7 @@ function SortableChecklistItemRow(props: {
   onUpdate: (updates: Partial<ChecklistItem>) => void;
   onDelete: () => void;
   onMoveToTask?: () => void;
+  onMerge?: () => void;
   boardMembers: BoardMember[];
   contractors?: BoardContractor[];
   boardId: string | null;
@@ -2684,6 +3033,7 @@ function ChecklistItemRow({
   onUpdate,
   onDelete,
   onMoveToTask,
+  onMerge,
   boardMembers,
   contractors = [],
   boardId,
@@ -2698,6 +3048,7 @@ function ChecklistItemRow({
   onUpdate: (updates: Partial<ChecklistItem>) => void;
   onDelete: () => void;
   onMoveToTask?: () => void;
+  onMerge?: () => void;
   boardMembers: BoardMember[];
   contractors?: BoardContractor[];
   boardId: string | null;
@@ -3293,6 +3644,17 @@ function ChecklistItemRow({
         {/* 이동/삭제 버튼 - Viewer는 불가 */}
         {canEdit && (
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+            {onMerge && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                onClick={onMerge}
+                title={t("task.mergeChecklist.action", "다른 항목과 병합")}
+              >
+                <GitMerge className="h-3 w-3" />
+              </Button>
+            )}
             {onMoveToTask && (
               <Button
                 variant="ghost"

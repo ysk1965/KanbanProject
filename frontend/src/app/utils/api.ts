@@ -1836,6 +1836,25 @@ export const checklistAPI = {
     );
   },
 
+  // 체크리스트 병합: source_ids 항목들의 타임블록을 target_id(대표)로 모으고 소스는 삭제.
+  // title/start_date/due_date 미지정 시 서버가 대표 값 유지 + 기간 자동 확장.
+  mergeItems: async (
+    boardId: string,
+    taskId: string,
+    data: {
+      target_id: string;
+      source_ids: string[];
+      title?: string;
+      start_date?: string | null;
+      due_date?: string | null;
+    },
+  ) => {
+    return apiClient.post<ChecklistItemResponse>(
+      `/boards/${boardId}/tasks/${taskId}/checklist/merge`,
+      data,
+    );
+  },
+
   aiDecompose: async (boardId: string, taskId: string, language?: string) => {
     const params = language ? `?language=${language}` : "";
     return apiClient.post<ChecklistAIDecompositionResponse>(

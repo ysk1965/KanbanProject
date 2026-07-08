@@ -115,6 +115,16 @@ public class ChecklistController {
         return ResponseEntity.ok(Map.of("message", "체크리스트 순서가 변경되었습니다"));
     }
 
+    @PostMapping("/merge")
+    public ResponseEntity<ChecklistResponse.Detail> mergeChecklistItems(
+            @PathVariable String boardId,
+            @PathVariable String taskId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody ChecklistRequest.Merge request) {
+        ChecklistResponse.Detail response = checklistService.mergeChecklistItems(boardId, taskId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
     @PatchMapping("/{itemId}/toggle")
     public ResponseEntity<ChecklistResponse.Detail> toggleChecklistItem(
             @PathVariable String boardId,
