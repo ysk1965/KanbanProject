@@ -3,6 +3,8 @@
     "newMemo": "メモ",
     "handTool": "手のツール",
     "pointerTool": "選択ツール",
+    "undo": "元に戻す",
+    "redo": "やり直し",
     "addText": "テキスト",
     "addSticky": "付箋",
     "addShape": "図形",

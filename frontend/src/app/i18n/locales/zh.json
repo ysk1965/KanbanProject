@@ -3,6 +3,8 @@
     "newMemo": "便签",
     "handTool": "抓手工具",
     "pointerTool": "选择工具",
+    "undo": "撤销",
+    "redo": "重做",
     "addText": "文本",
     "addSticky": "便签",
     "addShape": "图形",

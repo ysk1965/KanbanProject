@@ -3,6 +3,8 @@
     "newMemo": "Nota",
     "handTool": "Herramienta mano",
     "pointerTool": "Herramienta selección",
+    "undo": "Deshacer",
+    "redo": "Rehacer",
     "addText": "Texto",
     "addSticky": "Nota adhesiva",
     "addShape": "Forma",
