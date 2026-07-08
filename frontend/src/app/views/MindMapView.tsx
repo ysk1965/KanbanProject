@@ -770,12 +770,12 @@ function MindMapCanvas({
   });
   const [msPanelOpen, setMsPanelOpen] = useState(false);
   const msPanelRef = useRef<HTMLDivElement>(null);
-  // 노드 우클릭 컨텍스트 메뉴 (Feature/메모 공용)
+  // 노드 우클릭 컨텍스트 메뉴 (Feature/메모/다중 공용)
   const [nodeMenu, setNodeMenu] = useState<{
-    nodeId: string;
-    nodeType: "feature" | "memo";
-    title: string;
-    locked: boolean;
+    nodeIds: string[];
+    nodeType: "feature" | "memo" | "mixed";
+    title: string; // 단일=노드 제목, 다중="N개 노드"
+    allLocked: boolean; // 선택 전체가 잠금 상태인지 → 잠금/해제 라벨 결정
     x: number;
     y: number;
   } | null>(null);
@@ -966,6 +966,18 @@ function MindMapCanvas({
     [setNodes, setEdges],
   );
 
+  // 여러 노드 일괄 제거 (선택 전체 삭제/제외)
+  const deleteNodes = useCallback(
+    (ids: string[]) => {
+      const set = new Set(ids);
+      setNodes((nds) => nds.filter((n) => !set.has(n.id)));
+      setEdges((eds) =>
+        eds.filter((e) => !set.has(e.source) && !set.has(e.target)),
+      );
+    },
+    [setNodes, setEdges],
+  );
+
   // 위치 이동 잠금 토글 (드래그 비활성 + 문서 저장)
   const toggleLock = useCallback(
     (id: string) => {
@@ -984,7 +996,37 @@ function MindMapCanvas({
     [setNodes],
   );
 
-  // 노드 우클릭 → 컨텍스트 메뉴 오픈 (뷰포트 경계 보정)
+  // 여러 노드 일괄 잠금/해제 (선택 전체)
+  const toggleLockMany = useCallback(
+    (ids: string[], lock: boolean) => {
+      const set = new Set(ids);
+      setNodes((nds) =>
+        nds.map((n) =>
+          set.has(n.id)
+            ? {
+                ...n,
+                draggable: lock ? false : undefined,
+                data: { ...n.data, locked: lock },
+              }
+            : n,
+        ),
+      );
+    },
+    [setNodes],
+  );
+
+  // 우클릭 좌표 → 뷰포트 경계 보정된 메뉴 위치
+  const clampMenuPos = useCallback((e: React.MouseEvent) => {
+    const menuW = 200;
+    const menuH = 100;
+    const x =
+      e.clientX + menuW > window.innerWidth ? e.clientX - menuW : e.clientX;
+    const y =
+      e.clientY + menuH > window.innerHeight ? e.clientY - menuH : e.clientY;
+    return { x, y };
+  }, []);
+
+  // 단일 노드 우클릭 → 컨텍스트 메뉴 오픈 (노드별 div 핸들러에서 호출)
   const openNodeMenu = useCallback(
     (
       e: React.MouseEvent,
@@ -998,15 +1040,43 @@ function MindMapCanvas({
       if (!canEdit) return;
       e.preventDefault();
       e.stopPropagation();
-      const menuW = 200;
-      const menuH = 100;
-      const x =
-        e.clientX + menuW > window.innerWidth ? e.clientX - menuW : e.clientX;
-      const y =
-        e.clientY + menuH > window.innerHeight ? e.clientY - menuH : e.clientY;
-      setNodeMenu({ ...args, x, y });
+      const { x, y } = clampMenuPos(e);
+      setNodeMenu({
+        nodeIds: [args.nodeId],
+        nodeType: args.nodeType,
+        title: args.title,
+        allLocked: args.locked,
+        x,
+        y,
+      });
     },
-    [canEdit],
+    [canEdit, clampMenuPos],
+  );
+
+  // 다중 선택 오버레이 우클릭 → 선택 전체 대상 컨텍스트 메뉴 오픈
+  const openSelectionMenu = useCallback(
+    (e: React.MouseEvent, selNodes: Node[]) => {
+      if (!canEdit || selNodes.length === 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const { x, y } = clampMenuPos(e);
+      const nodeIds = selNodes.map((n) => n.id);
+      const allFeature = selNodes.every((n) => n.type === "feature");
+      const allMemo = selNodes.every((n) => n.type === "memo");
+      setNodeMenu({
+        nodeIds,
+        nodeType: allFeature ? "feature" : allMemo ? "memo" : "mixed",
+        title: t("mindmap.nNodes", "{{count}}개 노드", {
+          count: nodeIds.length,
+        }),
+        allLocked: selNodes.every(
+          (n) => (n.data as { locked?: boolean }).locked,
+        ),
+        x,
+        y,
+      });
+    },
+    [canEdit, clampMenuPos, t],
   );
 
   // 컨텍스트 메뉴 외부 클릭/스크롤 시 닫기
@@ -1749,6 +1819,7 @@ function MindMapCanvas({
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onSelectionContextMenu={openSelectionMenu}
             nodeTypes={nodeTypes}
             colorMode="dark"
             fitView
@@ -1825,12 +1896,12 @@ function MindMapCanvas({
           <button
             type="button"
             onClick={() => {
-              toggleLock(nodeMenu.nodeId);
+              toggleLockMany(nodeMenu.nodeIds, !nodeMenu.allLocked);
               setNodeMenu(null);
             }}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-400 hover:text-foreground hover:bg-foreground/[0.05] transition-colors"
           >
-            {nodeMenu.locked ? (
+            {nodeMenu.allLocked ? (
               <>
                 <Unlock className="w-3.5 h-3.5 shrink-0" />
                 <span>{t("mindmap.unlockPosition", "위치 잠금 해제")}</span>
@@ -1842,29 +1913,29 @@ function MindMapCanvas({
               </>
             )}
           </button>
-          {nodeMenu.nodeType === "feature" ? (
+          {nodeMenu.nodeType === "memo" ? (
             <button
               type="button"
               onClick={() => {
-                deleteNode(nodeMenu.nodeId);
-                setNodeMenu(null);
-              }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-400 hover:text-rose-400 hover:bg-foreground/[0.05] transition-colors"
-            >
-              <EyeOff className="w-3.5 h-3.5 shrink-0" />
-              <span>{t("mindmap.excludeFeature", "마인드맵에서 제외")}</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                deleteNode(nodeMenu.nodeId);
+                deleteNodes(nodeMenu.nodeIds);
                 setNodeMenu(null);
               }}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-400 hover:text-rose-400 hover:bg-foreground/[0.05] transition-colors"
             >
               <X className="w-3.5 h-3.5 shrink-0" />
               <span>{t("mindmap.deleteMemo", "메모 삭제")}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                deleteNodes(nodeMenu.nodeIds);
+                setNodeMenu(null);
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-400 hover:text-rose-400 hover:bg-foreground/[0.05] transition-colors"
+            >
+              <EyeOff className="w-3.5 h-3.5 shrink-0" />
+              <span>{t("mindmap.excludeFeature", "마인드맵에서 제외")}</span>
             </button>
           )}
         </div>
