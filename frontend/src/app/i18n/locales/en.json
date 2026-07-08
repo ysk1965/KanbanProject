@@ -3,6 +3,8 @@
     "newMemo": "Memo",
     "handTool": "Hand tool",
     "pointerTool": "Select tool",
+    "undo": "Undo",
+    "redo": "Redo",
     "addText": "Text",
     "addSticky": "Sticky",
     "addShape": "Shape",

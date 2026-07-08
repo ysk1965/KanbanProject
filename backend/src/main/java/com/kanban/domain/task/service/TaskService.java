@@ -496,8 +496,11 @@ public class TaskService {
         Integer maxFeaturePosition = taskRepository.findMaxFeaturePositionByFeatureId(targetFeature.getId());
         task.updateFeaturePosition((maxFeaturePosition != null) ? maxFeaturePosition + 1 : 0);
 
-        // 피처 이동으로 해제된 마일스톤을 새 피처의 대표 마일스톤으로 재설정 (불변식 유지)
-        task.assignMilestone(featurePrimaryMilestone(targetFeature.getId()));
+        // 이동 전 마일스톤을 유지. 대상 피처에 해당 마일스톤 링크가 없으면 자동 연결(continuation)하여 불변식 유지.
+        // (oldMilestone 이 null 이면 그대로 미지정 유지 — moveToFeature 가 이미 null 로 설정)
+        if (oldMilestone != null) {
+            task.assignMilestone(resolveAndLinkMilestone(task.getBoard(), targetFeature, oldMilestone.getId()));
+        }
 
         // 옛 피처의 옛 마일스톤에 남은 태스크가 없으면 비게 된 피처-마일스톤 링크 정리
         cleanupEmptyMilestoneLink(oldFeature, oldMilestone);

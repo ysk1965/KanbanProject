@@ -3,6 +3,8 @@
     "newMemo": "บันทึก",
     "handTool": "เครื่องมือมือ",
     "pointerTool": "เครื่องมือเลือก",
+    "undo": "เลิกทำ",
+    "redo": "ทำซ้ำ",
     "addText": "ข้อความ",
     "addSticky": "โน้ต",
     "addShape": "รูปทรง",
