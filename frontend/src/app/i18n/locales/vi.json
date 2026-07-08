@@ -1375,6 +1375,7 @@
       "todo": "TODO",
       "doing": "DOING",
       "doingBadge": "Đang làm",
+      "periodBadge": "Trong thời hạn",
       "done": "DONE"
     },
     "checklistFilter": {

@@ -1375,6 +1375,7 @@
       "todo": "TODO",
       "doing": "DOING",
       "doingBadge": "進行中",
+      "periodBadge": "期間中",
       "done": "DONE"
     },
     "checklistFilter": {
