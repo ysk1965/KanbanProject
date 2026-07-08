@@ -200,6 +200,7 @@ function TaskRow({
       key={task.id}
       className="flex items-center gap-2 px-2 py-[5px] rounded-lg hover:bg-foreground/[0.04] transition-colors"
       onClick={(e) => {
+        if (e.shiftKey || e.metaKey) return; // 전파 → 부모 노드 선택
         e.stopPropagation();
         onTaskClick(task);
       }}
@@ -323,7 +324,10 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
         filter: nodeDim ? "grayscale(0.85)" : undefined,
         transition: "opacity .3s ease, filter .3s ease, border-color .15s ease",
       }}
-      onClick={() => onFeatureClick(feature)}
+      onClick={(e) => {
+        if (e.shiftKey || e.metaKey) return; // 다중 선택 중 — 모달 열지 않음
+        onFeatureClick(feature);
+      }}
       onContextMenu={(e) =>
         openNodeMenu(e, {
           nodeId: id,
@@ -1754,6 +1758,7 @@ function MindMapCanvas({
             panOnDrag={interactionMode === "hand" ? true : [1, 2]}
             selectionOnDrag={canEdit && interactionMode === "pointer"}
             selectionMode={SelectionMode.Partial}
+            multiSelectionKeyCode={["Shift", "Meta"]}
             deleteKeyCode={canEdit ? ["Backspace", "Delete"] : null}
             defaultEdgeOptions={{
               style: { stroke: "rgba(148,163,184,0.5)", strokeWidth: 2 },
