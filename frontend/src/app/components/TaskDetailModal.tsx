@@ -37,6 +37,13 @@ import { Badge } from "./ui/badge";
 import { Calendar } from "./ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "./ui/dropdown-menu";
+import {
   X,
   Plus,
   Trash2,
@@ -58,6 +65,7 @@ import {
   Lightbulb,
   ArrowRightLeft,
   GitMerge,
+  MoreVertical,
   GripVertical,
   ArrowRight,
   Copy,
@@ -3641,39 +3649,54 @@ function ChecklistItemRow({
           )}
         </button>
 
-        {/* 이동/삭제 버튼 - Viewer는 불가 */}
+        {/* 항목 액션 메뉴 - Viewer는 불가 */}
         {canEdit && (
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
-            {onMerge && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 text-slate-400 hover:text-foreground hover:bg-foreground/10"
-                onClick={onMerge}
-                title={t("task.mergeChecklist.action", "다른 항목과 병합")}
+          <div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-slate-400 hover:text-foreground hover:bg-foreground/10 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 data-[state=open]:bg-foreground/10 data-[state=open]:text-foreground transition-opacity"
+                  title={t("common.more", "더보기")}
+                >
+                  <MoreVertical className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="bg-bridge-surface border-bridge-border"
               >
-                <GitMerge className="h-3 w-3" />
-              </Button>
-            )}
-            {onMoveToTask && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 text-slate-400 hover:text-foreground hover:bg-foreground/10"
-                onClick={onMoveToTask}
-                title={t("task.moveChecklistToTask")}
-              >
-                <ArrowRightLeft className="h-3 w-3" />
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-              onClick={onDelete}
-            >
-              <Trash2 className="h-3 w-3" />
-            </Button>
+                {onMerge && (
+                  <DropdownMenuItem
+                    onClick={onMerge}
+                    className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
+                  >
+                    <GitMerge className="h-3.5 w-3.5 mr-2" />
+                    {t("task.mergeChecklist.action", "다른 항목과 병합")}
+                  </DropdownMenuItem>
+                )}
+                {onMoveToTask && (
+                  <DropdownMenuItem
+                    onClick={onMoveToTask}
+                    className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
+                  >
+                    <ArrowRightLeft className="h-3.5 w-3.5 mr-2" />
+                    {t("task.moveChecklistToTask")}
+                  </DropdownMenuItem>
+                )}
+                {(onMerge || onMoveToTask) && (
+                  <DropdownMenuSeparator className="bg-bridge-border" />
+                )}
+                <DropdownMenuItem
+                  onClick={onDelete}
+                  className="text-red-400 hover:bg-red-500/10 hover:text-red-300 focus:bg-red-500/10 focus:text-red-300 text-xs"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-2" />
+                  {t("common.delete")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
       </div>
