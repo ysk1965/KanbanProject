@@ -803,7 +803,8 @@
       "collapse": "ยุบ",
       "more": "เพิ่มเติม",
       "highlight": "ไฮไลต์",
-      "unhighlight": "ยกเลิกไฮไลต์"
+      "unhighlight": "ยกเลิกไฮไลต์",
+      "clearSchedule": "นำออกจากกำหนดการ"
     },
     "panel": {
       "filterMilestoneShort": "หมุดหมาย",

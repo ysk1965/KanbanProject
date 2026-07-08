@@ -6,6 +6,7 @@ import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.checklist.dto.ChecklistResponse;
 import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.meeting.MeetingRepository;
 import com.kanban.domain.schedule.ScheduleBlock;
@@ -27,8 +28,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -283,9 +286,14 @@ public class ScheduleService {
         log.info("Schedule block created: {} by user: {}", block.getId(), userId);
 
         User user = userRepository.findById(userId).orElse(null);
+        String actorName = user != null ? user.getName() : null;
+
+        // 날짜 없는 체크리스트에 타임블록 날짜 자동 반영 (시작일이 비어 있을 때만)
+        fillChecklistStartDateFromBlocks(boardId, userId, actorName, checklistItem);
+
         ScheduleResponse.BlockDetail response = ScheduleResponse.BlockDetail.of(block);
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_CREATED,
-                userId, user != null ? user.getName() : null, response);
+                userId, actorName, response);
 
         return response;
     }
@@ -337,9 +345,14 @@ public class ScheduleService {
         log.info("Schedule block created with new checklist item: {} by user: {}", block.getId(), userId);
 
         User creator = userRepository.findById(userId).orElse(null);
+        String actorName = creator != null ? creator.getName() : null;
+
+        // 시작일 없이 생성된 새 체크리스트에 타임블록 날짜 자동 반영
+        fillChecklistStartDateFromBlocks(boardId, userId, actorName, checklistItem);
+
         ScheduleResponse.BlockDetail response = ScheduleResponse.BlockDetail.of(block);
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_CREATED,
-                userId, creator != null ? creator.getName() : null, response);
+                userId, actorName, response);
 
         return response;
     }
@@ -385,13 +398,21 @@ public class ScheduleService {
         }
 
         String deletedBlockId = block.getId();
+        // 삭제 전 캡처: 이 블록이 체크리스트 시작일을 정의하던 앵커였는지 판단하기 위함
+        ChecklistItem linkedItem = block.getChecklistItem();
+        LocalDate removedBlockDate = block.getScheduledDate();
         scheduleBlockRepository.delete(block);
 
         log.info("Schedule block deleted: {} by user: {}", blockId, userId);
 
         User user = userRepository.findById(userId).orElse(null);
+        String actorName = user != null ? user.getName() : null;
+
+        // 삭제된 블록이 시작일을 정의하던 블록이면 남은 블록 기준으로 재계산
+        recalcChecklistStartDateOnBlockRemoval(boardId, userId, actorName, linkedItem, removedBlockDate);
+
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_DELETED,
-                userId, user != null ? user.getName() : null, Map.of("id", deletedBlockId));
+                userId, actorName, Map.of("id", deletedBlockId));
     }
 
     @Transactional
@@ -483,5 +504,66 @@ public class ScheduleService {
             return "CHECKLIST";
         }
         return null;
+    }
+
+    // ==================== 타임블록 → 체크리스트 시작일 자동 동기화 ====================
+
+    /**
+     * 타임블록 생성 시: 체크리스트 항목에 시작일이 비어 있으면 가장 이른 타임블록 날짜로 채운다.
+     * 사용자가 이미 시작일을 지정했으면 손대지 않는다. (마감일은 변경하지 않음)
+     */
+    private void fillChecklistStartDateFromBlocks(String boardId, String actorUserId, String actorName, ChecklistItem item) {
+        if (item == null || item.getStartDate() != null) {
+            return; // 연결된 체크리스트가 없거나, 사용자가 이미 지정한 시작일이 있으면 우선 존중
+        }
+        LocalDate earliest = earliestBlockDate(item.getId());
+        if (earliest == null) {
+            return;
+        }
+        applyChecklistStartDate(boardId, actorUserId, actorName, item, earliest);
+    }
+
+    /**
+     * 타임블록 삭제 시: 삭제된 블록이 시작일을 정의하던 "가장 이른 블록"이었다면 남은 블록 기준으로 재계산한다.
+     * 남은 블록이 없으면 시작일을 비운다(자동 채움 이전 상태로 복귀). 시작일이 삭제된 블록 날짜와 다르면
+     * (= 사용자가 직접 넣은 값이거나 더 이른 다른 블록이 있으면) 손대지 않는다.
+     */
+    private void recalcChecklistStartDateOnBlockRemoval(String boardId, String actorUserId, String actorName,
+                                                        ChecklistItem item, LocalDate removedBlockDate) {
+        if (item == null || removedBlockDate == null) {
+            return;
+        }
+        LocalDate current = item.getStartDate();
+        if (current == null || !current.isEqual(removedBlockDate)) {
+            return; // 시작일이 삭제된 블록에 앵커되어 있지 않음 → 사용자 값/다른 블록 값 보존
+        }
+        LocalDate earliest = earliestBlockDate(item.getId()); // 삭제가 반영된 남은 블록 기준
+        applyChecklistStartDate(boardId, actorUserId, actorName, item, earliest);
+    }
+
+    /**
+     * 연결된 타임블록들 중 가장 이른 scheduledDate. 블록이 없으면 null.
+     * (JPQL 조회가 선행 save/delete를 flush하므로 방금 생성/삭제한 블록이 정확히 반영된다.)
+     */
+    private LocalDate earliestBlockDate(String checklistItemId) {
+        return scheduleBlockRepository.findByChecklistItemId(checklistItemId).stream()
+                .map(ScheduleBlock::getScheduledDate)
+                .min(Comparator.naturalOrder())
+                .orElse(null);
+    }
+
+    /**
+     * 체크리스트 시작일을 newStart로 갱신하고 CHECKLIST_UPDATED 이벤트를 브로드캐스트한다.
+     * 값이 실제로 바뀔 때만 동작한다.
+     */
+    private void applyChecklistStartDate(String boardId, String actorUserId, String actorName,
+                                         ChecklistItem item, LocalDate newStart) {
+        if (Objects.equals(item.getStartDate(), newStart)) {
+            return;
+        }
+        item.updateStartDate(newStart);
+        ChecklistResponse.Detail detail = ChecklistResponse.Detail.of(item);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, actorUserId, actorName,
+                Map.of("task_id", item.getTask().getId(), "item", detail));
     }
 }

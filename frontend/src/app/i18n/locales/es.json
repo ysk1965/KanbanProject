@@ -803,7 +803,8 @@
       "collapse": "Contraer",
       "more": "más",
       "highlight": "Resaltar",
-      "unhighlight": "Quitar resaltado"
+      "unhighlight": "Quitar resaltado",
+      "clearSchedule": "Quitar de la programación"
     },
     "panel": {
       "filterMilestoneShort": "Hito",

@@ -803,7 +803,8 @@
       "collapse": "संक्षिप्त करें",
       "more": "और",
       "highlight": "हाइलाइट करें",
-      "unhighlight": "हाइलाइट हटाएं"
+      "unhighlight": "हाइलाइट हटाएं",
+      "clearSchedule": "शेड्यूल से हटाएं"
     },
     "panel": {
       "filterMilestoneShort": "माइलस्टोन",

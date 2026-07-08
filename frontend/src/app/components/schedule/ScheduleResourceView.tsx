@@ -15,7 +15,7 @@ import {
   ChevronDown,
   ChevronUp,
   Briefcase,
-  Trash2,
+  CalendarX,
   ArrowRightLeft,
   Highlighter,
   ZoomIn,
@@ -67,6 +67,9 @@ const HEADER_HEIGHT = 48;
 const MIN_BAR_WIDTH = 20;
 /** Maximum number of visible bar lanes before collapsing with "+N more" */
 const MAX_VISIBLE_LANES = 4;
+/** 밴드(마일스톤/이벤트) 칩 높이 및 레인 간격 */
+const BAND_BAR_HEIGHT = 26;
+const BAND_BAR_GAP = 4;
 /** 클릭과 "그리기"를 구분하기 위한 최소 드래그 픽셀 거리 */
 const DRAW_DRAG_THRESHOLD = 6;
 
@@ -1064,6 +1067,39 @@ export function ScheduleResourceView({
       .filter((d) => d.pos !== null);
   }, [teamEvents, getBarPosition]);
 
+  // ─── 마일스톤/이벤트 밴드 레인 스태킹 (겹치는 바 → 여러 줄로 쌓기) ───
+  const milestoneLanes = useMemo(
+    () =>
+      computeBarLanes(
+        milestoneBarData.map((d) => ({
+          id: d.milestone.id,
+          startDayIndex: d.pos!.startDayIndex,
+          endDayIndex: d.pos!.endDayIndex,
+        })),
+      ),
+    [milestoneBarData],
+  );
+  const milestoneLaneCount = useMemo(() => {
+    const vals = Object.values(milestoneLanes);
+    return vals.length ? Math.max(...vals) + 1 : 0;
+  }, [milestoneLanes]);
+
+  const teamEventLanes = useMemo(
+    () =>
+      computeBarLanes(
+        teamEventBarData.map((d) => ({
+          id: d.event.id,
+          startDayIndex: d.pos!.startDayIndex,
+          endDayIndex: d.pos!.endDayIndex,
+        })),
+      ),
+    [teamEventBarData],
+  );
+  const teamEventLaneCount = useMemo(() => {
+    const vals = Object.values(teamEventLanes);
+    return vals.length ? Math.max(...vals) + 1 : 0;
+  }, [teamEventLanes]);
+
   // ─── Handle bar interactions ───
   const handleBarClick = useCallback(
     (item: AssigneeItemResponse) => {
@@ -1500,13 +1536,16 @@ export function ScheduleResourceView({
     [externalDragItem, timelineDays, dayWidth, openEventModal],
   );
 
-  // ─── 바 삭제 (체크리스트) ───
-  const handleDeleteBarItem = useCallback(
+  // ─── 바 일정 제거 (날짜만 클리어, 체크리스트 항목은 유지) ───
+  const handleClearBarSchedule = useCallback(
     async (item: AssigneeItemResponse) => {
       setBarContextMenu(null);
       if (!item.task) return;
       try {
-        await checklistAPI.deleteItem(boardId, item.task.id, item.id);
+        await checklistAPI.patchItem(boardId, item.task.id, item.id, {
+          start_date: null,
+          due_date: null,
+        });
         setData((prev) => {
           if (!prev) return prev;
           const remove = (arr: AssigneeItemResponse[]) =>
@@ -1525,7 +1564,7 @@ export function ScheduleResourceView({
           };
         });
       } catch (err) {
-        console.warn("Failed to delete bar item", err);
+        console.warn("Failed to clear bar schedule", err);
         fetchData(true);
       }
     },
@@ -1663,9 +1702,12 @@ export function ScheduleResourceView({
   }
 
   const totalTimelineWidth = timelineDays.length * dayWidth;
+  // 밴드는 겹치는 바 수(레인)에 따라 높이가 늘어난다.
+  const milestoneBandHeight = bandHeightForLanes(milestoneLaneCount);
+  const eventBandHeight = bandHeightForLanes(teamEventLaneCount);
   const totalContentHeight =
-    (milestoneBarData.length > 0 ? MILESTONE_ROW_HEIGHT : 0) +
-    MILESTONE_ROW_HEIGHT + // 이벤트 밴드는 항상 표시 (드래그 생성 영역)
+    (milestoneBarData.length > 0 ? milestoneBandHeight : 0) +
+    eventBandHeight + // 이벤트 밴드는 항상 표시 (드래그 생성 영역)
     rows.length * ROW_HEIGHT;
 
   return (
@@ -1893,7 +1935,7 @@ export function ScheduleResourceView({
               <div
                 className="shrink-0 sticky left-0 z-10 bg-bridge-obsidian border-r border-foreground/[0.08]
                   flex items-center gap-2 px-4"
-                style={{ width: LEFT_COL_WIDTH, height: MILESTONE_ROW_HEIGHT }}
+                style={{ width: LEFT_COL_WIDTH, height: milestoneBandHeight }}
               >
                 <Flag size={14} className="text-bridge-accent shrink-0" />
                 <span className="text-xs font-medium text-foreground truncate">
@@ -1906,7 +1948,7 @@ export function ScheduleResourceView({
                 className="relative"
                 style={{
                   width: totalTimelineWidth,
-                  height: MILESTONE_ROW_HEIGHT,
+                  height: milestoneBandHeight,
                 }}
               >
                 {/* Weekend + holiday columns */}
@@ -1933,12 +1975,16 @@ export function ScheduleResourceView({
                     pos && (
                       <div
                         key={milestone.id}
-                        className="absolute h-7 rounded-lg flex items-center px-2 text-xs font-medium
+                        className="absolute rounded-lg flex items-center px-2 text-xs font-medium
                         text-white bg-bridge-accent/80 hover:bg-bridge-accent hover:shadow-lg transition-all cursor-pointer"
                         style={{
                           left: pos.left,
                           width: pos.width,
-                          top: (MILESTONE_ROW_HEIGHT - 28) / 2,
+                          top: bandBarTop(
+                            milestoneLanes[milestone.id] || 0,
+                            milestoneLaneCount,
+                          ),
+                          height: BAND_BAR_HEIGHT,
                         }}
                         title={`${milestone.title} (${milestone.start_date} ~ ${milestone.end_date})`}
                         onClick={() => onMilestoneClick?.(milestone)}
@@ -1987,14 +2033,14 @@ export function ScheduleResourceView({
               style={{
                 top:
                   HEADER_HEIGHT +
-                  (milestoneBarData.length > 0 ? MILESTONE_ROW_HEIGHT : 0),
+                  (milestoneBarData.length > 0 ? milestoneBandHeight : 0),
               }}
             >
               {/* Left label */}
               <div
                 className="shrink-0 sticky left-0 z-10 bg-bridge-obsidian border-r border-foreground/[0.08]
                   flex items-center gap-2 px-4"
-                style={{ width: LEFT_COL_WIDTH, height: MILESTONE_ROW_HEIGHT }}
+                style={{ width: LEFT_COL_WIDTH, height: eventBandHeight }}
               >
                 <CalendarPlus
                   size={14}
@@ -2010,7 +2056,7 @@ export function ScheduleResourceView({
                 className="relative cursor-crosshair"
                 style={{
                   width: totalTimelineWidth,
-                  height: MILESTONE_ROW_HEIGHT,
+                  height: eventBandHeight,
                 }}
                 onMouseDown={handleEventDrawStart}
                 title="드래그: 기간 이벤트 추가"
@@ -2048,8 +2094,11 @@ export function ScheduleResourceView({
                         left: pos.left,
                         width: singleDay ? undefined : pos.width,
                         maxWidth: singleDay ? 240 : undefined,
-                        top: (MILESTONE_ROW_HEIGHT - 26) / 2,
-                        height: 26,
+                        top: bandBarTop(
+                          teamEventLanes[event.id] || 0,
+                          teamEventLaneCount,
+                        ),
+                        height: BAND_BAR_HEIGHT,
                         backgroundColor: event.color || meta.color,
                       }}
                       title={`${meta.label}${
@@ -2086,8 +2135,8 @@ export function ScheduleResourceView({
                         style={{
                           left: a * dayWidth,
                           width: (b - a + 1) * dayWidth,
-                          top: (MILESTONE_ROW_HEIGHT - 26) / 2,
-                          height: 26,
+                          top: bandBarTop(0, teamEventLaneCount),
+                          height: BAND_BAR_HEIGHT,
                         }}
                       />
                     );
@@ -2910,11 +2959,11 @@ export function ScheduleResourceView({
             )}
             <button
               type="button"
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-400 hover:bg-foreground/5 transition-colors"
-              onClick={() => handleDeleteBarItem(barContextMenu.item)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors"
+              onClick={() => handleClearBarSchedule(barContextMenu.item)}
             >
-              <Trash2 className="w-4 h-4 shrink-0" />
-              {t("common.delete", "삭제")}
+              <CalendarX className="w-4 h-4 shrink-0" />
+              {t("schedule.resource.clearSchedule", "일정에서 제거")}
             </button>
           </div>
         </>
@@ -2933,6 +2982,18 @@ interface BarRange {
   id: string;
   startDayIndex: number;
   endDayIndex: number;
+}
+
+/** 레인 개수에 따른 밴드 전체 높이. 1레인 이하면 기존 고정 높이를 유지(단일 바 세로 중앙). */
+function bandHeightForLanes(laneCount: number): number {
+  if (laneCount <= 1) return MILESTONE_ROW_HEIGHT;
+  return laneCount * (BAND_BAR_HEIGHT + BAND_BAR_GAP) + BAND_BAR_GAP;
+}
+
+/** 밴드 내 특정 레인의 바 top 위치. 1레인 이하면 세로 중앙 정렬(기존 동작 보존). */
+function bandBarTop(lane: number, laneCount: number): number {
+  if (laneCount <= 1) return (MILESTONE_ROW_HEIGHT - BAND_BAR_HEIGHT) / 2;
+  return BAND_BAR_GAP + lane * (BAND_BAR_HEIGHT + BAND_BAR_GAP);
 }
 
 function computeBarLanes(bars: BarRange[]): Record<string, number> {

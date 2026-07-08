@@ -64,6 +64,8 @@ interface ChecklistItemPanelProps {
   memberJobRoleMap?: Record<string, JobRoleInfo | null>;
   /** 워크로드 바에서 하이라이트된 태스크 id — 같은 태스크의 항목을 강조 */
   highlightedTaskId?: string | null;
+  /** 증가 시 항목 목록만 재조회 (필터/접힘 등 패널 상태는 유지) */
+  refreshTrigger?: number;
 }
 
 // ─── Feature group types ──────────────────────────────────────────────────────
@@ -215,11 +217,27 @@ export function ChecklistItemPanel({
   jobRoles = [],
   memberJobRoleMap = {},
   highlightedTaskId = null,
+  refreshTrigger = 0,
 }: ChecklistItemPanelProps) {
   const { t } = useTranslation();
 
-  // ── Panel open/close ──
-  const [isOpen, setIsOpen] = useState(true);
+  // ── Panel open/close (persisted per board) ──
+  const panelOpenKey = `checklistPanelOpen_${boardId}`;
+  const [isOpen, setIsOpenState] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem(panelOpenKey) !== "0";
+  });
+  const setIsOpen = useCallback(
+    (open: boolean) => {
+      setIsOpenState(open);
+      try {
+        window.localStorage.setItem(panelOpenKey, open ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+    },
+    [panelOpenKey],
+  );
 
   // ── Add modal ──
   const [showAddModal, setShowAddModal] = useState(false);
@@ -361,7 +379,7 @@ export function ChecklistItemPanel({
     if (boardId) {
       loadItems();
     }
-  }, [boardId, loadItems]);
+  }, [boardId, loadItems, refreshTrigger]);
 
   // ── Notify parent of drag state changes ──
   useEffect(() => {

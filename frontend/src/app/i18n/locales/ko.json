@@ -905,7 +905,8 @@
       "groupBy": "그룹 기준",
       "zoom": "확대/축소",
       "highlight": "하이라이트",
-      "unhighlight": "하이라이트 해제"
+      "unhighlight": "하이라이트 해제",
+      "clearSchedule": "일정에서 제거"
     },
     "workloadCreate": {
       "title": "새 업무 추가",
