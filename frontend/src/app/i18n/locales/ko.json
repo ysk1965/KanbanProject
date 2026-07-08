@@ -1510,7 +1510,8 @@
       "board": "보드",
       "todo": "TODO",
       "doing": "DOING",
-      "doingBadge": "진행중",
+      "doingBadge": "진행 중",
+      "periodBadge": "기간 중",
       "done": "DONE"
     },
     "checklistFilter": {

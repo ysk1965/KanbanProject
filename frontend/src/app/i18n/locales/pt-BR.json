@@ -1375,6 +1375,7 @@
       "todo": "TODO",
       "doing": "DOING",
       "doingBadge": "Em andamento",
+      "periodBadge": "No período",
       "done": "DONE"
     },
     "checklistFilter": {

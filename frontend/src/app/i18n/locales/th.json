@@ -1375,6 +1375,7 @@
       "todo": "TODO",
       "doing": "DOING",
       "doingBadge": "กำลังทำ",
+      "periodBadge": "ในช่วง",
       "done": "DONE"
     },
     "checklistFilter": {

@@ -2771,8 +2771,14 @@ function ChecklistItemRow({
     !item.completed;
 
   // 진행중(DOING) 상태 파생 — 미완료 & 시작일이 오늘 이하
-  const isDoing =
-    resolveChecklistColumn(item, getTodayDateString()) === "doing";
+  const todayStr = getTodayDateString();
+  const isDoing = resolveChecklistColumn(item, todayStr) === "doing";
+  // 오늘 타임블록에 실제로 배정됐는지 (진행 중) vs 기간 안이지만 오늘 미배정 (기간 중)
+  const inTodaysTimeblock = timeBlocks.some(
+    (block) => block.scheduled_date === todayStr,
+  );
+  const isActiveToday = isDoing && inTodaysTimeblock;
+  const isInPeriod = isDoing && !inTodaysTimeblock;
 
   return (
     <>
@@ -2780,7 +2786,7 @@ function ChecklistItemRow({
         className={`group flex items-center gap-2 p-2 rounded hover:bg-foreground/5 border ${
           isHighlighted
             ? "bg-purple-500/20 border-purple-500/50"
-            : isDoing
+            : isActiveToday
               ? "bg-gradient-to-r from-bridge-accent/10 to-transparent border-bridge-accent/20 hover:border-bridge-accent/30"
               : "border-transparent hover:border-foreground/10"
         }`}
@@ -2849,8 +2855,8 @@ function ChecklistItemRow({
           )}
         </div>
 
-        {/* 진행중(DOING) 라이브 인디케이터 */}
-        {isDoing && (
+        {/* 진행 중 — 오늘 타임블록에 배정됨 (라이브 인디케이터) */}
+        {isActiveToday && (
           <span className="flex items-center gap-1.5 flex-shrink-0 text-xs font-bold text-bridge-accent">
             <span className="relative flex h-1.5 w-1.5">
               {!reducedMotion && (
@@ -2859,7 +2865,17 @@ function ChecklistItemRow({
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-bridge-accent" />
             </span>
             <span className="hidden sm:inline">
-              {t("task.checklistView.doingBadge", { defaultValue: "진행중" })}
+              {t("task.checklistView.doingBadge", { defaultValue: "진행 중" })}
+            </span>
+          </span>
+        )}
+
+        {/* 기간 중 — 기간 안이지만 오늘 타임블록엔 미배정 (차분한 스카이, 정적) */}
+        {isInPeriod && (
+          <span className="flex items-center gap-1.5 flex-shrink-0 text-xs font-bold text-sky-600 dark:text-sky-400">
+            <span className="inline-flex h-1.5 w-1.5 rounded-full border border-sky-600 dark:border-sky-400" />
+            <span className="hidden sm:inline">
+              {t("task.checklistView.periodBadge", { defaultValue: "기간 중" })}
             </span>
           </span>
         )}
