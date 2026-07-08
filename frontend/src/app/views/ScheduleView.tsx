@@ -212,7 +212,7 @@ export function ScheduleView({
           </Suspense>
           <Suspense fallback={null}>
             <ChecklistItemPanel
-              key={scheduleRefreshPanel}
+              refreshTrigger={scheduleRefreshPanel}
               boardId={boardId}
               onDragStateChange={setPanelDragState}
               onItemDetailClick={onItemDetailClick}

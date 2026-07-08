@@ -803,7 +803,8 @@
       "collapse": "Recolher",
       "more": "mais",
       "highlight": "Destacar",
-      "unhighlight": "Remover destaque"
+      "unhighlight": "Remover destaque",
+      "clearSchedule": "Remover do cronograma"
     },
     "panel": {
       "filterMilestoneShort": "Marco",
