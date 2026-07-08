@@ -2084,16 +2084,18 @@ export function ScheduleResourceView({
                   if (!pos) return null;
                   const meta = calendarTypeMeta(event.event_type);
                   const singleDay = event.start_date === event.end_date;
+                  const narrow = pos.width < 40;
                   return (
                     <div
                       key={event.id}
                       data-bar="true"
-                      className="absolute rounded-lg flex items-center gap-1 px-2 text-xs font-medium text-white
-                        hover:shadow-lg transition-all cursor-pointer overflow-hidden"
+                      className={`absolute rounded-lg flex items-center gap-1 ${
+                        narrow ? "px-1" : "px-2"
+                      } text-xs font-medium text-white
+                        hover:shadow-lg transition-all cursor-pointer overflow-hidden`}
                       style={{
                         left: pos.left,
-                        width: singleDay ? undefined : pos.width,
-                        maxWidth: singleDay ? 240 : undefined,
+                        width: pos.width,
                         top: bandBarTop(
                           teamEventLanes[event.id] || 0,
                           teamEventLaneCount,
@@ -2109,7 +2111,7 @@ export function ScheduleResourceView({
                       onMouseDown={(e) => e.stopPropagation()}
                       onClick={() => openEventModal(undefined, event)}
                     >
-                      <span>{meta.icon}</span>
+                      <span className="shrink-0">{meta.icon}</span>
                       <span className="truncate">
                         {event.title || meta.label}
                       </span>
