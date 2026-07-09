@@ -744,6 +744,7 @@
     "noMeetingsForDate": "{{date}}沒有已註冊的會議",
     "selectFromBoard": "從現有項目中選擇",
     "noBoardItems": "沒有可新增的清單項",
+    "noMilestone": "無里程碑",
     "noDueDate": "無日程",
     "select": "選擇",
     "collapse": "收合",
@@ -1407,6 +1408,12 @@
       "confirm": "合併",
       "success": "已合併{{count}}個項目",
       "failed": "合併失敗"
+    },
+    "reassignBlock": {
+      "action": "移動到其他項目",
+      "menuTitle": "移動到的項目",
+      "success": "已移動時間區塊",
+      "failed": "移動時間區塊失敗"
     },
     "moveChecklistToTaskTitle": "移動清單項目",
     "moveCompletedSection": "已完成",

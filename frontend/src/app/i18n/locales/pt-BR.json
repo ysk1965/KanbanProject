@@ -753,6 +753,7 @@
     "noMeetingsForDate": "Nenhuma reunião registrada para {{date}}",
     "selectFromBoard": "Selecionar de itens existentes",
     "noBoardItems": "Nenhum item de checklist disponível para adicionar",
+    "noMilestone": "Sem marco",
     "noDueDate": "Sem data",
     "select": "Selecionar",
     "collapse": "Recolher",
@@ -1422,6 +1423,12 @@
       "confirm": "Mesclar",
       "success": "{{count}} itens mesclados",
       "failed": "Falha ao mesclar"
+    },
+    "reassignBlock": {
+      "action": "Mover para outro item",
+      "menuTitle": "Item de destino",
+      "success": "Bloco de tempo movido",
+      "failed": "Falha ao mover o bloco de tempo"
     },
     "moveChecklistToTaskTitle": "Mover item da checklist",
     "moveCompletedSection": "Concluídas",

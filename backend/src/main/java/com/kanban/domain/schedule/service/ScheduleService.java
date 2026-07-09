@@ -386,6 +386,58 @@ public class ScheduleService {
         return response;
     }
 
+    /**
+     * 타임블록을 다른 체크리스트 항목으로 재지정한다 (같은 보드 내).
+     * 실수로 다른 항목에 붙은 타임블록을 올바른 항목으로 옮길 때 사용.
+     * 블록 담당자/시간은 그대로 유지되며 소속 체크리스트만 변경된다.
+     */
+    @Transactional
+    public ScheduleResponse.BlockDetail reassignBlockChecklistItem(
+            String boardId, String blockId, String userId, ScheduleRequest.ReassignChecklistItem request) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        ScheduleBlock block = scheduleBlockRepository.findById(blockId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_BLOCK_NOT_FOUND));
+
+        if (!block.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.SCHEDULE_BLOCK_NOT_FOUND);
+        }
+
+        // 체크리스트에 연결된 블록만 재지정 가능 (MEETING/CUSTOM 블록은 대상 아님)
+        if (block.getChecklistItem() == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        ChecklistItem target = checklistItemRepository.findById(request.getChecklistItemId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
+
+        if (!target.getTask().getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
+        }
+
+        // 이미 대상 항목에 속하면 변경 없음
+        if (target.getId().equals(block.getChecklistItem().getId())) {
+            return ScheduleResponse.BlockDetail.of(block);
+        }
+
+        block.linkChecklistItem(target);
+        scheduleBlockRepository.save(block);
+
+        User user = userRepository.findById(userId).orElse(null);
+        String actorName = user != null ? user.getName() : null;
+
+        // 시작일 없던 대상 항목에 타임블록 날짜 자동 반영
+        fillChecklistStartDateFromBlocks(boardId, userId, actorName, target);
+
+        log.info("Schedule block {} reassigned to checklist item {} by user: {}", blockId, target.getId(), userId);
+
+        ScheduleResponse.BlockDetail response = ScheduleResponse.BlockDetail.of(block);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_UPDATED,
+                userId, actorName, response);
+
+        return response;
+    }
+
     @Transactional
     public void deleteScheduleBlock(String boardId, String blockId, String userId) {
         boardService.checkMemberOrAbove(boardId, userId);

@@ -753,6 +753,7 @@
     "noMeetingsForDate": "{{date}} के लिए कोई पंजीकृत बैठक नहीं",
     "selectFromBoard": "मौजूदा आइटम से चुनें",
     "noBoardItems": "जोड़ने के लिए कोई चेकलिस्ट आइटम उपलब्ध नहीं",
+    "noMilestone": "कोई माइलस्टोन नहीं",
     "noDueDate": "कोई तिथि नहीं",
     "select": "चुनें",
     "collapse": "संक्षिप्त करें",
@@ -1422,6 +1423,12 @@
       "confirm": "मर्ज करें",
       "success": "{{count}} आइटम मर्ज किए गए",
       "failed": "मर्ज विफल"
+    },
+    "reassignBlock": {
+      "action": "दूसरे आइटम में ले जाएं",
+      "menuTitle": "गंतव्य आइटम",
+      "success": "टाइम ब्लॉक ले जाया गया",
+      "failed": "टाइम ब्लॉक ले जाने में विफल"
     },
     "moveChecklistToTaskTitle": "चेकलिस्ट आइटम ले जाएं",
     "moveCompletedSection": "पूर्ण",

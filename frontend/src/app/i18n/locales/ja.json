@@ -753,6 +753,7 @@
     "noMeetingsForDate": "{{date}}の登録された会議はありません",
     "selectFromBoard": "既存項目から選択",
     "noBoardItems": "追加可能なチェックリスト項目がありません",
+    "noMilestone": "マイルストーンなし",
     "noDueDate": "日程なし",
     "select": "選択",
     "collapse": "折りたたむ",
@@ -1422,6 +1423,12 @@
       "confirm": "統合",
       "success": "{{count}}件の項目を統合しました",
       "failed": "統合に失敗しました"
+    },
+    "reassignBlock": {
+      "action": "他の項目へ移動",
+      "menuTitle": "移動先の項目",
+      "success": "タイムブロックを移動しました",
+      "failed": "タイムブロックの移動に失敗しました"
     },
     "moveChecklistToTaskTitle": "チェックリスト項目の移動",
     "moveCompletedSection": "完了済み",
