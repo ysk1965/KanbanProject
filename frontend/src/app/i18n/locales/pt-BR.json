@@ -1164,7 +1164,7 @@
   },
   "nightShutdown": {
     "title": "Fora do horário de funcionamento",
-    "subtitle": "O serviço funciona diariamente das 08:00 às 23:00 (KST)",
+    "subtitle": "A manutenção do servidor ocorre diariamente das 03:30 às 08:30 (KST)",
     "resumeAt": "O serviço retorna às",
     "hours": "Horas",
     "minutes": "Min",

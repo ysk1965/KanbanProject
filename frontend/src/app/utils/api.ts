@@ -104,10 +104,11 @@ const isTokenExpired = (token: string): boolean => {
   return decoded.exp <= now;
 };
 
-// 서버 점검 시간 체크 (KST 23:00~08:00)
+// 서버 점검 시간 체크 (KST 03:30~08:30)
 const isMaintenanceWindow = (): boolean => {
-  const kstHour = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCHours();
-  return kstHour >= 23 || kstHour < 8;
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const mins = kst.getUTCHours() * 60 + kst.getUTCMinutes();
+  return mins >= 3 * 60 + 30 && mins < 8 * 60 + 30;
 };
 
 // API 에러 타입
@@ -299,7 +300,7 @@ class ApiClient {
       if (error instanceof TypeError && isMaintenanceWindow()) {
         window.dispatchEvent(
           new CustomEvent("server-maintenance", {
-            detail: { message: "서비스 점검 중입니다 (23:00~08:00)" },
+            detail: { message: "서비스 점검 중입니다 (03:30~08:30)" },
           }),
         );
       }

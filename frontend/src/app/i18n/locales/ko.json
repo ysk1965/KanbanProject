@@ -1293,7 +1293,7 @@
   },
   "nightShutdown": {
     "title": "운영 시간이 아닙니다",
-    "subtitle": "매일 08:00 ~ 23:00 (KST) 에 서비스가 운영됩니다",
+    "subtitle": "매일 03:30 ~ 08:30 (KST) 에 서버 점검이 진행됩니다",
     "resumeAt": "서비스 재개 시간",
     "hours": "시간",
     "minutes": "분",

@@ -1164,7 +1164,7 @@
   },
   "nightShutdown": {
     "title": "Ngoài giờ hoạt động",
-    "subtitle": "Dịch vụ hoạt động hàng ngày từ 08:00 đến 23:00 (KST)",
+    "subtitle": "Bảo trì máy chủ diễn ra hàng ngày từ 03:30 đến 08:30 (KST)",
     "resumeAt": "Thời gian mở lại",
     "hours": "Giờ",
     "minutes": "Phút",

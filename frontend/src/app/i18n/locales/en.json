@@ -1292,7 +1292,7 @@
   },
   "nightShutdown": {
     "title": "Outside Operating Hours",
-    "subtitle": "Service is available daily from 08:00 to 23:00 (KST)",
+    "subtitle": "Daily maintenance runs from 03:30 to 08:30 (KST)",
     "resumeAt": "Service resumes at",
     "hours": "Hours",
     "minutes": "Min",
