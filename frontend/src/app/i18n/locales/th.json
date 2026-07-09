@@ -827,7 +827,16 @@
       "selectFeaturePlaceholder": "เลือกฟีเจอร์",
       "selectTaskPlaceholder": "เลือกงาน",
       "noFeatures": "ยังไม่มีฟีเจอร์",
-      "noTasks": "ยังไม่มีงานในฟีเจอร์นี้"
+      "noTasks": "ยังไม่มีงานในฟีเจอร์นี้",
+      "needPlacement": "รายการต้องจัด",
+      "placedOf": "จัดแล้ว {{placed}}/{{total}}",
+      "showMode": "โหมดแสดง",
+      "modeUnscheduled": "ยังไม่จัด",
+      "modeAll": "ทั้งหมด",
+      "allShort": "ทั้งหมด",
+      "me": "ฉัน",
+      "noMilestone": "ไม่มีไมล์สโตน",
+      "noItemsForMember": "ไม่มีรายการที่ต้องจัดสำหรับสมาชิกนี้ 🎉"
     },
     "settingsTitle": "การตั้งค่าตารางเวลา",
     "managementMethod": "วิธีการจัดการ",

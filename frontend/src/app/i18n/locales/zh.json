@@ -827,7 +827,16 @@
       "selectFeaturePlaceholder": "选择功能",
       "selectTaskPlaceholder": "选择任务",
       "noFeatures": "暂无功能",
-      "noTasks": "此功能下暂无任务"
+      "noTasks": "此功能下暂无任务",
+      "needPlacement": "个待安排",
+      "placedOf": "已排 {{placed}}/{{total}}",
+      "showMode": "显示模式",
+      "modeUnscheduled": "待安排",
+      "modeAll": "全部",
+      "allShort": "全",
+      "me": "我",
+      "noMilestone": "未指定里程碑",
+      "noItemsForMember": "该成员没有待安排的项目 🎉"
     },
     "settingsTitle": "日程设置",
     "managementMethod": "管理方式",

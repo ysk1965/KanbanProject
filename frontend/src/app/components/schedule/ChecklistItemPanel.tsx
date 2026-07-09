@@ -14,13 +14,17 @@ import {
   Users,
   Check,
 } from "lucide-react";
-import { AssigneeItemResponse, boardChecklistAPI } from "../../utils/api";
+import {
+  AssigneeItemResponse,
+  boardChecklistAPI,
+  resolveFileUrl,
+} from "../../utils/api";
 import { JobRole, JobRoleInfo, Milestone } from "../../types";
 import { BoardMember } from "../ShareBoardModal";
 import { ChecklistDragItem } from "./ChecklistDragItem";
 import { AddChecklistItemModal } from "./AddChecklistItemModal";
-import { getTodayDateString } from "../../utils/dateUtils";
 import { getAssigneeHex, getInitials } from "../../utils/assigneeColor";
+import { useAuth } from "../../contexts/AuthContext";
 
 // ─── Public interface consumed by sibling views ──────────────────────────────
 
@@ -71,6 +75,19 @@ interface ChecklistItemPanelProps {
 // ─── Feature group types ──────────────────────────────────────────────────────
 
 const NO_FEATURE_KEY = "__no_feature__";
+const NO_MILESTONE_KEY = "__no_milestone__";
+
+/** Unified milestone header palette (assigned by sorted order). */
+const MILESTONE_PALETTE = [
+  "#6366F1",
+  "#2DD4BF",
+  "#F59E0B",
+  "#F43F5E",
+  "#A855F7",
+  "#10B981",
+  "#3B82F6",
+  "#EC4899",
+];
 
 interface FeatureGroup {
   key: string;
@@ -79,6 +96,27 @@ interface FeatureGroup {
   title: string;
   color: string | null;
   items: AssigneeItemResponse[];
+}
+
+/** Milestone → (its feature groups) — the outer grouping level. */
+interface MilestoneGroup {
+  key: string;
+  /** id is null for the "no milestone" bucket. */
+  milestoneId: string | null;
+  title: string;
+  color: string;
+  /** yyyy-MM-dd start, null for the "no milestone" bucket. */
+  startDate: string | null;
+  featureGroups: FeatureGroup[];
+  itemCount: number;
+}
+
+/** feature id → the milestone it belongs to (with a display color). */
+interface FeatureMilestoneRef {
+  id: string;
+  title: string;
+  color: string;
+  startDate: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -141,6 +179,61 @@ function groupItemsByFeature(
   return groups;
 }
 
+/**
+ * Two-level grouping: Milestone → Feature → items.
+ * Features whose id is not found in `featureToMilestone` fall into the
+ * "no milestone" bucket, sorted last.
+ */
+function groupByMilestone(
+  items: AssigneeItemResponse[],
+  featureToMilestone: Map<string, FeatureMilestoneRef>,
+  noMilestoneLabel: string,
+  noFeatureLabel: string,
+): MilestoneGroup[] {
+  const buckets = new Map<string, AssigneeItemResponse[]>();
+  for (const item of items) {
+    const ms = item.feature ? featureToMilestone.get(item.feature.id) : undefined;
+    const key = ms?.id ?? NO_MILESTONE_KEY;
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = [];
+      buckets.set(key, bucket);
+    }
+    bucket.push(item);
+  }
+
+  const groups: MilestoneGroup[] = [];
+  for (const [key, bucketItems] of buckets.entries()) {
+    const ref =
+      key === NO_MILESTONE_KEY
+        ? null
+        : (featureToMilestone.get(
+            // any item in the bucket resolves to the same milestone ref
+            bucketItems.find((i) => i.feature)?.feature?.id ?? "",
+          ) ?? null);
+    groups.push({
+      key,
+      milestoneId: ref?.id ?? null,
+      title: ref?.title ?? noMilestoneLabel,
+      color: ref?.color ?? "#64748B",
+      startDate: ref?.startDate ?? null,
+      featureGroups: groupItemsByFeature(bucketItems, noFeatureLabel),
+      itemCount: bucketItems.length,
+    });
+  }
+
+  // Sort: by start date (earliest first), no-milestone bucket always last.
+  groups.sort((a, b) => {
+    if (a.milestoneId === null) return 1;
+    if (b.milestoneId === null) return -1;
+    if (a.startDate && b.startDate && a.startDate !== b.startDate) {
+      return a.startDate < b.startDate ? -1 : 1;
+    }
+    return a.title.localeCompare(b.title);
+  });
+  return groups;
+}
+
 // ─── FeatureGroupSection sub-component ───────────────────────────────────────
 
 interface FeatureGroupSectionProps {
@@ -197,6 +290,79 @@ function FeatureGroupSection({
   );
 }
 
+// ─── MilestoneGroupSection sub-component ─────────────────────────────────────
+
+interface MilestoneGroupSectionProps {
+  group: MilestoneGroup;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}
+
+function MilestoneGroupSection({
+  group,
+  isOpen,
+  onToggle,
+  children,
+}: MilestoneGroupSectionProps) {
+  const shortDate = group.startDate
+    ? group.startDate.slice(5).replace("-", "/")
+    : null;
+  return (
+    <div>
+      {/* Milestone header (outer group) */}
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors"
+        style={{
+          backgroundColor: `color-mix(in srgb, ${group.color} 12%, transparent)`,
+          border: `1px solid color-mix(in srgb, ${group.color} 28%, transparent)`,
+        }}
+        aria-expanded={isOpen}
+      >
+        {isOpen ? (
+          <ChevronDown size={12} className="shrink-0 text-slate-400" aria-hidden="true" />
+        ) : (
+          <ChevronRight size={12} className="shrink-0 text-slate-400" aria-hidden="true" />
+        )}
+        <Flag size={12} className="shrink-0" style={{ color: group.color }} aria-hidden="true" />
+        <span className="font-bold text-xs text-foreground truncate">
+          {group.title}
+        </span>
+        {shortDate && (
+          <span
+            className="text-xs font-bold px-1.5 py-px rounded-full shrink-0 tabular-nums"
+            style={{
+              color: group.color,
+              backgroundColor: `color-mix(in srgb, ${group.color} 16%, transparent)`,
+            }}
+          >
+            {shortDate}
+          </span>
+        )}
+        <span
+          className="ml-auto text-xs font-bold shrink-0 tabular-nums"
+          style={{ color: group.color }}
+        >
+          {group.itemCount}
+        </span>
+      </button>
+
+      {/* Feature groups nested inside a tinted rail */}
+      {isOpen && (
+        <div
+          className="mt-1 mb-1 ml-2 pl-2.5 space-y-1"
+          style={{
+            borderLeft: `2px solid color-mix(in srgb, ${group.color} 28%, transparent)`,
+          }}
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 /**
@@ -220,6 +386,7 @@ export function ChecklistItemPanel({
   refreshTrigger = 0,
 }: ChecklistItemPanelProps) {
   const { t } = useTranslation();
+  const { currentUser } = useAuth();
 
   // ── Panel open/close (persisted per board) ──
   const panelOpenKey = `checklistPanelOpen_${boardId}`;
@@ -250,6 +417,26 @@ export function ChecklistItemPanel({
   // ── Search ──
   const [searchQuery, setSearchQuery] = useState("");
 
+  // ── 표시 모드: 미배치(unscheduled) 우선 인박스 vs 전체 (persisted) ──
+  const showModeKey = `checklistPanelShowMode_${boardId}`;
+  const [showMode, setShowModeState] = useState<"unscheduled" | "all">(() => {
+    if (typeof window === "undefined") return "unscheduled";
+    return window.localStorage.getItem(showModeKey) === "all"
+      ? "all"
+      : "unscheduled";
+  });
+  const setShowMode = useCallback(
+    (mode: "unscheduled" | "all") => {
+      setShowModeState(mode);
+      try {
+        window.localStorage.setItem(showModeKey, mode);
+      } catch {
+        /* ignore */
+      }
+    },
+    [showModeKey],
+  );
+
   // ── Unified filter UI state (C: active chips + "add filter" menu) ──
   // activePicker = which filter's value dropdown is open (chip click / add-menu pick).
   // showAddMenu = the "+ 필터" category menu is open.
@@ -259,11 +446,10 @@ export function ChecklistItemPanel({
   const filterZoneRef = useRef<HTMLDivElement>(null);
 
   // ── Milestone filter (narrows visible features to those in selected milestone) ──
+  // 리스트는 마일스톤별로 그룹핑되므로 필터는 선택 사항(전체 = 모든 마일스톤 그룹 표시).
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(
     null,
   );
-  // Apply the "current period" default only once per board (do not override user choice).
-  const didInitMilestoneRef = useRef(false);
 
   // ── 직군 필터 (단일 선택, "__none__" = 미지정) ──
   const jobRoleFilterKey = `checklistPanelJobRoleFilter_${boardId}`;
@@ -305,7 +491,8 @@ export function ChecklistItemPanel({
     [blockFilterKey],
   );
 
-  // ── 구성원 필터 (단일 선택, "__none__" = 미배정, 담당자는 항목에서 파생) ──
+  // ── 구성원 필터 (아바타 스트립) ──
+  // 값: userId | "__none__"(미배정) | "__all__"(전체) | null(미초기화 → 본인 디폴트)
   const memberFilterKey = `checklistPanelMemberFilter_${boardId}`;
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(
     () => {
@@ -313,8 +500,12 @@ export function ChecklistItemPanel({
       return window.localStorage.getItem(memberFilterKey);
     },
   );
+  // 저장값이 없을 때 최초 1회 본인으로 기본 선택 (사용자가 명시적으로 바꾸면 그 값을 유지).
+  const didInitMemberRef = useRef(false);
   const updateMemberFilter = useCallback(
     (id: string | null) => {
+      // 아바타 스트립에서는 항상 명시적 값을 저장한다("__all__" 포함) →
+      // 다음 방문 때 저장값이 우선하고 본인 디폴트가 재적용되지 않는다.
       setSelectedMemberId(id);
       try {
         if (id) window.localStorage.setItem(memberFilterKey, id);
@@ -325,32 +516,58 @@ export function ChecklistItemPanel({
     },
     [memberFilterKey],
   );
+  // 보드 전환 시 본인 디폴트 재적용 플래그 리셋
+  useEffect(() => {
+    didInitMemberRef.current = false;
+  }, [boardId]);
+  // 최초 진입 시 저장값이 없으면 본인으로 기본 선택
+  useEffect(() => {
+    if (didInitMemberRef.current) return;
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(memberFilterKey);
+    if (stored === null && currentUser?.id) {
+      setSelectedMemberId(currentUser.id);
+    }
+    didInitMemberRef.current = true;
+  }, [memberFilterKey, currentUser?.id]);
 
-  // ── Feature group expand state (expanded feature keys; default = all collapsed) ──
-  const expandedFeatureKey = `expandedChecklistFeatures_${boardId}`;
-  const [expandedFeatureKeys, setExpandedFeatureKeys] = useState<Set<string>>(
-    () => {
-      if (typeof window === "undefined") return new Set();
-      try {
-        const raw = window.localStorage.getItem(expandedFeatureKey);
-        if (raw) return new Set(JSON.parse(raw) as string[]);
-      } catch {
-        /* ignore */
-      }
-      return new Set();
-    },
-  );
-  // Persist expanded keys per board.
+  /** 실제 필터에 쓰이는 값: "__all__"/null 은 필터 없음. */
+  const memberFilterValue: string | null =
+    selectedMemberId && selectedMemberId !== "__all__" ? selectedMemberId : null;
+
+  // ── 그룹 접힘 상태 (기본 전부 펼침 = 미배치 그룹 자동 노출) ──
+  // 저장하는 것은 "접힌" 키 집합. 마일스톤은 "ms:{key}", 피처는 "feat:{key}".
+  const collapsedGroupKey = `checklistCollapsedGroups_${boardId}`;
+  const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = window.localStorage.getItem(collapsedGroupKey);
+      if (raw) return new Set(JSON.parse(raw) as string[]);
+    } catch {
+      /* ignore */
+    }
+    return new Set();
+  });
+  // Persist collapsed keys per board.
   useEffect(() => {
     try {
       window.localStorage.setItem(
-        expandedFeatureKey,
-        JSON.stringify([...expandedFeatureKeys]),
+        collapsedGroupKey,
+        JSON.stringify([...collapsedKeys]),
       );
     } catch {
       /* ignore */
     }
-  }, [expandedFeatureKey, expandedFeatureKeys]);
+  }, [collapsedGroupKey, collapsedKeys]);
+
+  const toggleCollapsed = useCallback((key: string) => {
+    setCollapsedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
 
   // ── Scroll container ref (to preserve scroll position on item removal) ──
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -361,12 +578,20 @@ export function ChecklistItemPanel({
   const dragStateRef = useRef<PanelDragState | null>(null);
 
   // ── Load all items (both scheduled and unscheduled) ──
+  // 리스트 재조회(드롭 후 refreshTrigger 등)에도 세로 스크롤 위치를 유지한다.
   const loadItems = useCallback(async () => {
+    const savedScrollTop = scrollContainerRef.current?.scrollTop ?? 0;
     setIsLoading(true);
     setError(null);
     try {
       const response = await boardChecklistAPI.getItems(boardId);
       setItems(response.items);
+      // 재렌더 후 스크롤 위치 복원 (배치로 항목이 빠져도 화면이 튀지 않도록)
+      requestAnimationFrame(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = savedScrollTop;
+        }
+      });
     } catch (err) {
       console.error("ChecklistItemPanel: failed to load items", err);
       setError(t("common.error"));
@@ -407,28 +632,47 @@ export function ChecklistItemPanel({
       .sort((a, b) => a.title.localeCompare(b.title));
   }, [milestones]);
 
-  // ── Default to the milestone covering the current date (once per board) ──
-  useEffect(() => {
-    if (didInitMilestoneRef.current) return;
-    if (milestoneOptions.length === 0) return;
-    const today = getTodayDateString();
-    const current = milestoneOptions.find(
-      (m) =>
-        m.start_date &&
-        m.end_date &&
-        m.start_date <= today &&
-        today <= m.end_date,
-    );
-    if (current) {
-      setSelectedMilestoneId(current.id);
-    }
-    didInitMilestoneRef.current = true;
-  }, [milestoneOptions]);
-
-  // ── Reset the init flag when switching boards ──
-  useEffect(() => {
-    didInitMilestoneRef.current = false;
-  }, [boardId]);
+  // ── feature id → 소속 마일스톤 매핑 (그룹핑용) ──
+  // 피처가 여러 마일스톤에 걸칠 수 있으므로 is_primary 를 우선하고, 없으면 첫 매칭.
+  // 색상은 마일스톤을 start_date 순으로 정렬한 인덱스로 통일 팔레트에서 배정.
+  const featureToMilestone = useMemo(() => {
+    const sorted = [...milestones].sort((a, b) => {
+      if (a.start_date && b.start_date && a.start_date !== b.start_date) {
+        return a.start_date < b.start_date ? -1 : 1;
+      }
+      return a.title.localeCompare(b.title);
+    });
+    const colorOf = (idx: number) =>
+      MILESTONE_PALETTE[idx % MILESTONE_PALETTE.length];
+    const map = new Map<string, FeatureMilestoneRef>();
+    // 1st pass: is_primary 인 피처 우선 배정
+    sorted.forEach((m, idx) => {
+      for (const f of m.features ?? []) {
+        if (f.is_primary) {
+          map.set(f.id, {
+            id: m.id,
+            title: m.title,
+            color: colorOf(idx),
+            startDate: m.start_date ?? null,
+          });
+        }
+      }
+    });
+    // 2nd pass: 아직 매핑 안 된 피처는 첫 매칭 마일스톤으로
+    sorted.forEach((m, idx) => {
+      for (const f of m.features ?? []) {
+        if (!map.has(f.id)) {
+          map.set(f.id, {
+            id: m.id,
+            title: m.title,
+            color: colorOf(idx),
+            startDate: m.start_date ?? null,
+          });
+        }
+      }
+    });
+    return map;
+  }, [milestones]);
 
   // ── Selected milestone's feature ids (used to filter items) ──
   const selectedMilestoneFeatureIds = useMemo(() => {
@@ -470,16 +714,19 @@ export function ChecklistItemPanel({
   }, [items]);
 
   // ── Reset member filter if the selected member no longer has any items ──
+  // 단, 센티널("__all__"/"__none__")과 본인은 항목이 없어도 유지(빈 상태 노출).
   useEffect(() => {
     if (
       selectedMemberId &&
       selectedMemberId !== "__none__" &&
+      selectedMemberId !== "__all__" &&
+      selectedMemberId !== currentUser?.id &&
       memberOptions.length > 0 &&
       !memberOptions.some((m) => m.id === selectedMemberId)
     ) {
-      updateMemberFilter(null);
+      updateMemberFilter("__all__");
     }
-  }, [memberOptions, selectedMemberId, updateMemberFilter]);
+  }, [memberOptions, selectedMemberId, updateMemberFilter, currentUser?.id]);
 
   // ── Block filter options (derived from loaded items' parent-task blocks) ──
   const blockOptions = useMemo(() => {
@@ -530,19 +777,6 @@ export function ChecklistItemPanel({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showAddMenu, activePicker]);
-
-  // ── Toggle a feature group ──
-  const toggleFeatureGroup = useCallback((key: string) => {
-    setExpandedFeatureKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }, []);
 
   // ── Drag start handler (onMouseDown on each item) ──
   const handleItemMouseDown = useCallback(
@@ -630,8 +864,12 @@ export function ChecklistItemPanel({
     [onItemDropped],
   );
 
-  // ── Filter items by search query + milestone (via feature ids) + job role ──
-  const filteredItems = useMemo(() => {
+  // ── 미배치 판정 (start/due 둘 다 없으면 미배치) ──
+  const isUnscheduled = (item: AssigneeItemResponse) =>
+    !(item.start_date || item.due_date);
+
+  // ── 1) 담당자·표시모드를 제외한 공통 필터 (마일스톤/블록/직군/검색) ──
+  const scopedExceptMemberAndMode = useMemo(() => {
     let result = items;
     if (selectedMilestoneFeatureIds) {
       result = result.filter(
@@ -650,12 +888,6 @@ export function ChecklistItemPanel({
     if (selectedBlockId) {
       result = result.filter((item) => item.block?.id === selectedBlockId);
     }
-    if (selectedMemberId) {
-      result = result.filter((item) => {
-        const id = getItemAssignee(item)?.id ?? "__none__";
-        return id === selectedMemberId;
-      });
-    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter((item) => item.title.toLowerCase().includes(q));
@@ -667,14 +899,67 @@ export function ChecklistItemPanel({
     searchQuery,
     selectedJobRoleId,
     selectedBlockId,
-    selectedMemberId,
     memberJobRoleMap,
   ]);
 
+  const matchesMember = useCallback(
+    (item: AssigneeItemResponse) => {
+      if (!memberFilterValue) return true;
+      const id = getItemAssignee(item)?.id ?? "__none__";
+      return id === memberFilterValue;
+    },
+    [memberFilterValue],
+  );
+
+  // ── 2) 요약 헤더 스코프 (담당자 적용, 표시모드 무시) ──
+  const summaryScope = useMemo(
+    () => scopedExceptMemberAndMode.filter(matchesMember),
+    [scopedExceptMemberAndMode, matchesMember],
+  );
+  const summaryNeed = useMemo(
+    () => summaryScope.filter(isUnscheduled).length,
+    [summaryScope],
+  );
+  const summaryTotal = summaryScope.length;
+  const summaryPlaced = summaryTotal - summaryNeed;
+
+  // ── 3) 아바타 뱃지 스코프 (표시모드 적용, 담당자 무시) ──
+  const badgeScope = useMemo(
+    () =>
+      showMode === "unscheduled"
+        ? scopedExceptMemberAndMode.filter(isUnscheduled)
+        : scopedExceptMemberAndMode,
+    [scopedExceptMemberAndMode, showMode],
+  );
+  const memberBadgeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    let none = 0;
+    for (const item of badgeScope) {
+      const id = getItemAssignee(item)?.id;
+      if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
+      else none += 1;
+    }
+    return { counts, none, all: badgeScope.length };
+  }, [badgeScope]);
+
+  // ── 4) 최종 리스트 (표시모드 + 담당자 모두 적용) ──
+  const filteredItems = useMemo(
+    () => badgeScope.filter(matchesMember),
+    [badgeScope, matchesMember],
+  );
+
+  // ── 5) 마일스톤 › 피처 2단 그룹 ──
   const noFeatureLabel = t("schedule.panel.noFeature", "피처 없음");
-  const featureGroups = useMemo(
-    () => groupItemsByFeature(filteredItems, noFeatureLabel),
-    [filteredItems, noFeatureLabel],
+  const noMilestoneLabel = t("schedule.panel.noMilestone", "마일스톤 미지정");
+  const milestoneGroups = useMemo(
+    () =>
+      groupByMilestone(
+        filteredItems,
+        featureToMilestone,
+        noMilestoneLabel,
+        noFeatureLabel,
+      ),
+    [filteredItems, featureToMilestone, noMilestoneLabel, noFeatureLabel],
   );
 
   // ── Collapsed state: render only a slim toggle strip ──
@@ -700,8 +985,8 @@ export function ChecklistItemPanel({
   }
 
   // ── Unified filter model (C: active chips + "+ 필터" menu) ──────────────────
-  // Fixed display order. Milestone first: it is the only one shown by default.
-  const filterOrder: FilterKey[] = ["milestone", "member", "block", "jobRole"];
+  // 담당자는 상단 아바타 스트립으로 분리했으므로 "+ 필터"에서는 제외.
+  const filterOrder: FilterKey[] = ["milestone", "block", "jobRole"];
 
   const filterMeta: Record<
     FilterKey,
@@ -794,7 +1079,7 @@ export function ChecklistItemPanel({
   ): React.ReactNode =>
     profileImage ? (
       <img
-        src={profileImage}
+        src={resolveFileUrl(profileImage)}
         alt=""
         className="rounded-full shrink-0 object-cover"
         style={{ width: size, height: size }}
@@ -973,6 +1258,74 @@ export function ChecklistItemPanel({
   const pickerDropdownCls =
     "absolute top-full left-0 mt-1 z-30 min-w-[180px] max-w-[calc(100%-16px)] bg-bridge-obsidian border border-foreground/[0.08] rounded-lg shadow-xl max-h-[240px] overflow-y-auto custom-scrollbar py-1";
 
+  // ── 담당자 아바타 스트립 데이터 ──
+  const isAllSelected = !selectedMemberId || selectedMemberId === "__all__";
+  const selfInOptions = memberOptions.find((m) => m.id === currentUser?.id);
+  const selfEntry = currentUser
+    ? {
+        id: currentUser.id,
+        name: selfInOptions?.name ?? currentUser.name,
+        profileImage:
+          selfInOptions?.profileImage ?? currentUser.profile_image ?? null,
+      }
+    : null;
+  const otherMembers = memberOptions.filter((m) => m.id !== currentUser?.id);
+  const summaryWho = isAllSelected
+    ? null
+    : selectedMemberId === "__none__"
+      ? t("schedule.panel.unassigned", "미배정")
+      : (memberOptions.find((m) => m.id === selectedMemberId)?.name ??
+        (selectedMemberId === currentUser?.id ? currentUser?.name : null) ??
+        null);
+  const summaryPct =
+    summaryTotal > 0 ? Math.round((summaryPlaced / summaryTotal) * 100) : 0;
+
+  // 담당자 아바타 버튼 (스트립 공용)
+  const renderStripAvatar = (
+    key: string,
+    face: React.ReactNode,
+    label: string,
+    count: number,
+    isSelected: boolean,
+    onClick: () => void,
+  ) => (
+    <button
+      key={key}
+      type="button"
+      onClick={onClick}
+      aria-pressed={isSelected}
+      title={label}
+      className="flex flex-col items-center gap-1 w-[46px] shrink-0 group"
+    >
+      <span
+        className={`relative rounded-full transition-all ${
+          isSelected
+            ? "ring-2 ring-bridge-accent ring-offset-2 ring-offset-bridge-obsidian"
+            : "opacity-70 group-hover:opacity-100"
+        }`}
+      >
+        {face}
+        <span
+          className={`absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full grid place-items-center
+            text-xs font-bold leading-none border-2 border-bridge-obsidian tabular-nums ${
+              count > 0
+                ? "bg-amber-500 text-[#1a1200]"
+                : "bg-slate-600 text-slate-900"
+            }`}
+        >
+          {count}
+        </span>
+      </span>
+      <span
+        className={`text-xs max-w-[46px] truncate ${
+          isSelected ? "text-foreground font-medium" : "text-slate-500"
+        }`}
+      >
+        {label}
+      </span>
+    </button>
+  );
+
   return (
     <>
       {/* Panel container */}
@@ -1006,6 +1359,131 @@ export function ChecklistItemPanel({
             </button>
           </div>
         </div>
+
+        {/* Summary header — 배치 필요 요약 + 진행률 */}
+        <div className="px-4 py-3 border-b border-foreground/[0.08]">
+          <div className="flex items-baseline gap-1.5">
+            {summaryWho && (
+              <span className="text-xs font-bold text-bridge-accent truncate max-w-[110px]">
+                {summaryWho}
+              </span>
+            )}
+            <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
+              {summaryNeed}
+            </span>
+            <span className="text-xs text-slate-400">
+              {t("schedule.panel.needPlacement", "개 배치 필요")}
+            </span>
+            <span className="ml-auto text-xs text-slate-500 tabular-nums shrink-0">
+              {t("schedule.panel.placedOf", {
+                defaultValue: "배치 {{placed}}/{{total}}",
+                placed: summaryPlaced,
+                total: summaryTotal,
+              })}
+            </span>
+          </div>
+          <div className="mt-2 h-1.5 rounded-full bg-foreground/[0.07] overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-bridge-accent to-bridge-secondary transition-[width] duration-300"
+              style={{ width: `${summaryPct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* 미배치 / 전체 세그먼트 */}
+        <div className="px-3 pt-2.5">
+          <div
+            role="tablist"
+            aria-label={t("schedule.panel.showMode", "표시 모드")}
+            className="flex gap-1 p-0.5 rounded-lg bg-foreground/[0.03] border border-foreground/10"
+          >
+            <button
+              role="tab"
+              aria-selected={showMode === "unscheduled"}
+              onClick={() => setShowMode("unscheduled")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                showMode === "unscheduled"
+                  ? "bg-bridge-accent text-white"
+                  : "text-slate-400 hover:text-foreground"
+              }`}
+            >
+              {t("schedule.panel.modeUnscheduled", "미배치")}
+              <span className="text-xs font-bold tabular-nums opacity-80">
+                {summaryNeed}
+              </span>
+            </button>
+            <button
+              role="tab"
+              aria-selected={showMode === "all"}
+              onClick={() => setShowMode("all")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                showMode === "all"
+                  ? "bg-bridge-accent text-white"
+                  : "text-slate-400 hover:text-foreground"
+              }`}
+            >
+              {t("schedule.panel.modeAll", "전체")}
+              <span className="text-xs font-bold tabular-nums opacity-80">
+                {summaryTotal}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* 담당자 아바타 스트립 */}
+        {(selfEntry || otherMembers.length > 0) && (
+          <div className="pt-2.5 pb-2 border-b border-foreground/[0.08]">
+            <div className="px-4 pb-1.5 text-xs font-bold uppercase tracking-widest text-slate-500">
+              {t("schedule.panel.filterMemberShort", "담당자")}
+            </div>
+            <div className="flex gap-2 px-3 pb-1 overflow-x-auto custom-scrollbar">
+              {/* 전체 */}
+              {renderStripAvatar(
+                "__all__",
+                <span className="w-9 h-9 rounded-full grid place-items-center bg-bridge-surface text-slate-300 text-xs font-bold">
+                  {t("schedule.panel.allShort", "전체")}
+                </span>,
+                t("common.all", "전체"),
+                memberBadgeCounts.all,
+                isAllSelected,
+                () => updateMemberFilter("__all__"),
+              )}
+              {/* 본인 */}
+              {selfEntry &&
+                renderStripAvatar(
+                  selfEntry.id,
+                  memberAvatar(selfEntry.name, selfEntry.profileImage, 36),
+                  t("schedule.panel.me", "나"),
+                  memberBadgeCounts.counts.get(selfEntry.id) ?? 0,
+                  selectedMemberId === selfEntry.id,
+                  () => updateMemberFilter(selfEntry.id),
+                )}
+              {/* 그 외 구성원 */}
+              {otherMembers.map((m) =>
+                renderStripAvatar(
+                  m.id,
+                  memberAvatar(m.name, m.profileImage, 36),
+                  m.name,
+                  memberBadgeCounts.counts.get(m.id) ?? 0,
+                  selectedMemberId === m.id,
+                  () => updateMemberFilter(m.id),
+                ),
+              )}
+              {/* 미배정 */}
+              {memberBadgeCounts.none > 0 &&
+                renderStripAvatar(
+                  "__none__",
+                  <span className="w-9 h-9 rounded-full grid place-items-center bg-foreground/10 text-slate-500 text-xs font-bold">
+                    ?
+                  </span>,
+                  t("schedule.panel.unassigned", "미배정"),
+                  memberBadgeCounts.none,
+                  selectedMemberId === "__none__",
+                  () => updateMemberFilter("__none__"),
+                )}
+            </div>
+          </div>
+        )}
 
         {/* Search input */}
         <div className="px-3 py-2 border-b border-foreground/[0.08]">
@@ -1160,46 +1638,75 @@ export function ChecklistItemPanel({
               <p className="text-xs text-slate-500">
                 {searchQuery
                   ? t("common.noData", "No data available")
-                  : t(
-                      "schedule.panel.noUnscheduled",
-                      "All items are scheduled",
-                    )}
+                  : summaryWho
+                    ? t(
+                        "schedule.panel.noItemsForMember",
+                        "이 담당자의 배치할 항목이 없어요 🎉",
+                      )
+                    : showMode === "unscheduled"
+                      ? t(
+                          "schedule.panel.noUnscheduled",
+                          "All items are scheduled",
+                        )
+                      : t("common.noData", "No data available")}
               </p>
             </div>
           )}
 
           {!isLoading && !error && filteredItems.length > 0 && (
             <>
-              {featureGroups.map((group) => (
-                <FeatureGroupSection
-                  key={group.key}
-                  group={group}
-                  isOpen={expandedFeatureKeys.has(group.key)}
-                  onToggle={() => toggleFeatureGroup(group.key)}
-                >
-                  {group.items.map((item) => {
-                    const scheduled = !!(item.start_date || item.due_date);
-                    return (
-                      <ChecklistDragItem
-                        key={item.id}
-                        item={item}
-                        assignee={null}
-                        isDragging={
-                          dragState?.item.id === item.id && dragState.isActive
-                        }
-                        isScheduled={scheduled}
-                        isHighlighted={
-                          !!highlightedTaskId &&
-                          item.task?.id === highlightedTaskId
-                        }
-                        onMouseDown={handleItemMouseDown}
-                        onDetailClick={onItemDetailClick}
-                        onScheduledClick={() => onScheduledItemClick?.(item)}
-                      />
-                    );
-                  })}
-                </FeatureGroupSection>
-              ))}
+              {milestoneGroups.map((ms) => {
+                const msCollapseKey = `ms:${ms.key}`;
+                const msOpen = !collapsedKeys.has(msCollapseKey);
+                return (
+                  <MilestoneGroupSection
+                    key={ms.key}
+                    group={ms}
+                    isOpen={msOpen}
+                    onToggle={() => toggleCollapsed(msCollapseKey)}
+                  >
+                    {ms.featureGroups.map((group) => {
+                      const featCollapseKey = `feat:${group.key}`;
+                      const featOpen = !collapsedKeys.has(featCollapseKey);
+                      return (
+                        <FeatureGroupSection
+                          key={group.key}
+                          group={group}
+                          isOpen={featOpen}
+                          onToggle={() => toggleCollapsed(featCollapseKey)}
+                        >
+                          {group.items.map((item) => {
+                            const scheduled = !!(
+                              item.start_date || item.due_date
+                            );
+                            return (
+                              <ChecklistDragItem
+                                key={item.id}
+                                item={item}
+                                assignee={null}
+                                isDragging={
+                                  dragState?.item.id === item.id &&
+                                  dragState.isActive
+                                }
+                                isScheduled={scheduled}
+                                isHighlighted={
+                                  !!highlightedTaskId &&
+                                  item.task?.id === highlightedTaskId
+                                }
+                                onMouseDown={handleItemMouseDown}
+                                onDetailClick={onItemDetailClick}
+                                onScheduledClick={() =>
+                                  onScheduledItemClick?.(item)
+                                }
+                              />
+                            );
+                          })}
+                        </FeatureGroupSection>
+                      );
+                    })}
+                  </MilestoneGroupSection>
+                );
+              })}
             </>
           )}
         </div>

@@ -955,7 +955,16 @@
       "selectFeaturePlaceholder": "피처를 선택하세요",
       "selectTaskPlaceholder": "태스크를 선택하세요",
       "noFeatures": "피처가 없습니다",
-      "noTasks": "이 피처에 태스크가 없습니다"
+      "noTasks": "이 피처에 태스크가 없습니다",
+      "needPlacement": "개 배치 필요",
+      "placedOf": "배치 {{placed}}/{{total}}",
+      "showMode": "표시 모드",
+      "modeUnscheduled": "미배치",
+      "modeAll": "전체",
+      "allShort": "전체",
+      "me": "나",
+      "noMilestone": "마일스톤 미지정",
+      "noItemsForMember": "이 담당자의 배치할 항목이 없어요 🎉"
     },
     "settingsTitle": "스케줄 설정",
     "managementMethod": "관리 방식",

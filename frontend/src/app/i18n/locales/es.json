@@ -827,7 +827,16 @@
       "selectFeaturePlaceholder": "Seleccionar característica",
       "selectTaskPlaceholder": "Seleccionar tarea",
       "noFeatures": "Sin características",
-      "noTasks": "Sin tareas en esta característica"
+      "noTasks": "Sin tareas en esta característica",
+      "needPlacement": "por ubicar",
+      "placedOf": "{{placed}}/{{total}} ubicadas",
+      "showMode": "Modo de vista",
+      "modeUnscheduled": "Sin ubicar",
+      "modeAll": "Todas",
+      "allShort": "Todas",
+      "me": "Yo",
+      "noMilestone": "Sin hito",
+      "noItemsForMember": "Nada por ubicar para este miembro 🎉"
     },
     "settingsTitle": "Configuración de horario",
     "managementMethod": "Método de gestión",
