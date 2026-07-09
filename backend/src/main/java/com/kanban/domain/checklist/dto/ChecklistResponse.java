@@ -352,6 +352,7 @@ public class ChecklistResponse {
      * 개별 ChecklistItem 응답 (캘린더/리소스 뷰용)
      * - task: 상위 Task 요약 (id, title)
      * - feature: 상위 Feature 요약 (id, title, color)
+     * - milestone: 상위 Task 의 마일스톤 요약 (id, title) — 태스크 단위 마일스톤 배정 반영
      * Jackson SNAKE_CASE 전략에 의해 startDate → start_date, dueDate → due_date 직렬화됨
      */
     @Getter
@@ -366,11 +367,13 @@ public class ChecklistResponse {
         private TaskInfo task;
         private FeatureInfo feature;
         private BlockInfo block;
+        private MilestoneInfo milestone;
 
         public static AssigneeItemResponse of(ChecklistItem item) {
             Task task = item.getTask();
             Feature feature = task != null ? task.getFeature() : null;
             Block block = task != null ? task.getBlock() : null;
+            Milestone milestone = task != null ? task.getMilestone() : null;
 
             return AssigneeItemResponse.builder()
                     .id(item.getId())
@@ -381,6 +384,7 @@ public class ChecklistResponse {
                     .task(task != null ? TaskInfo.of(task) : null)
                     .feature(feature != null ? FeatureInfo.of(feature) : null)
                     .block(BlockInfo.of(block))
+                    .milestone(MilestoneInfo.of(milestone))
                     .build();
         }
     }

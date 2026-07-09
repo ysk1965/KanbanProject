@@ -2967,6 +2967,10 @@ export interface AssigneeItemResponse {
     color: string | null;
     position: number | null;
   } | null;
+  milestone?: {
+    id: string;
+    title: string;
+  } | null;
 }
 
 export interface AssigneeGroupResponse {
