@@ -753,6 +753,7 @@
     "noMeetingsForDate": "ไม่มีการประชุมที่ลงทะเบียนสำหรับ{{date}}",
     "selectFromBoard": "เลือกจากรายการที่มีอยู่",
     "noBoardItems": "ไม่มีรายการเช็คลิสต์ที่สามารถเพิ่มได้",
+    "noMilestone": "ไม่มีเป้าหมาย",
     "noDueDate": "ไม่มีกำหนด",
     "select": "เลือก",
     "collapse": "ย่อ",
@@ -1422,6 +1423,12 @@
       "confirm": "รวม",
       "success": "รวม {{count}} รายการแล้ว",
       "failed": "รวมไม่สำเร็จ"
+    },
+    "reassignBlock": {
+      "action": "ย้ายไปยังรายการอื่น",
+      "menuTitle": "รายการปลายทาง",
+      "success": "ย้ายบล็อกเวลาแล้ว",
+      "failed": "ย้ายบล็อกเวลาไม่สำเร็จ"
     },
     "moveChecklistToTaskTitle": "ย้ายรายการเช็คลิสต์",
     "moveCompletedSection": "เสร็จสิ้น",

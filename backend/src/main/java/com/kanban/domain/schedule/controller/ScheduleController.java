@@ -101,6 +101,17 @@ public class ScheduleController {
         return ResponseEntity.ok(response);
     }
 
+    @PatchMapping("/{blockId}/checklist-item")
+    public ResponseEntity<ScheduleResponse.BlockDetail> reassignBlockChecklistItem(
+            @PathVariable String boardId,
+            @PathVariable String blockId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody ScheduleRequest.ReassignChecklistItem request) {
+        ScheduleResponse.BlockDetail response = scheduleService.reassignBlockChecklistItem(
+                boardId, blockId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{blockId}")
     public ResponseEntity<Map<String, String>> deleteScheduleBlock(
             @PathVariable String boardId,

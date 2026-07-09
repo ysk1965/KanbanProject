@@ -834,6 +834,7 @@
     "noMeetingsForDate": "No {{date}} meetings registered",
     "selectFromBoard": "Select from existing items",
     "noBoardItems": "No checklist items available to add",
+    "noMilestone": "No milestone",
     "noDueDate": "No date",
     "select": "Select",
     "collapse": "Collapse",
@@ -1563,6 +1564,12 @@
       "confirm": "Merge",
       "success": "Merged {{count}} items",
       "failed": "Failed to merge"
+    },
+    "reassignBlock": {
+      "action": "Move to another item",
+      "menuTitle": "Move to item",
+      "success": "Time block moved",
+      "failed": "Failed to move time block"
     },
     "moveChecklistToTaskTitle": "Move Checklist Item",
     "moveCompletedSection": "Completed",

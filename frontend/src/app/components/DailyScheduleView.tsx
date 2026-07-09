@@ -48,6 +48,7 @@ import {
   DailyChecklistColumnResponse,
 } from "../utils/api";
 import { getInitials, getAssigneeHex } from "../utils/assigneeColor";
+import type { MilestoneColorMap } from "../utils/milestoneColor";
 import {
   BoardWebSocketEvent,
   ChecklistItem,
@@ -59,6 +60,7 @@ interface DailyScheduleViewProps {
   boardMembers: BoardMember[];
   organizationId?: string | null;
   memberColorMap?: Record<string, string | null>;
+  milestoneColorMap?: MilestoneColorMap;
   onViewFeature?: (featureId: string) => void;
   onViewTask?: (taskId: string, checklistItemId?: string) => void;
   onViewMeeting?: (meetingId: string, date?: Date) => void;
@@ -110,6 +112,7 @@ export function DailyScheduleView({
   boardMembers,
   organizationId,
   memberColorMap,
+  milestoneColorMap,
   onViewFeature,
   onViewTask,
   onViewMeeting,
@@ -2057,6 +2060,7 @@ export function DailyScheduleView({
       {pendingBlock && showChecklistModal && (
         <ChecklistCreateModal
           boardId={boardId}
+          milestoneColorMap={milestoneColorMap}
           assigneeId={pendingBlock.userId}
           startTime={pendingBlock.startTime}
           endTime={pendingBlock.endTime}

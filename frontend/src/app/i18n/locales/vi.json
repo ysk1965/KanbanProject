@@ -753,6 +753,7 @@
     "noMeetingsForDate": "Khong co cuoc hop nao duoc dang ky cho {{date}}",
     "selectFromBoard": "Chon tu cac muc hien co",
     "noBoardItems": "Khong co muc danh sach kiem tra nao de them",
+    "noMilestone": "Khong co cot moc",
     "noDueDate": "Không có lịch",
     "select": "Chon",
     "collapse": "Thu gon",
@@ -1422,6 +1423,12 @@
       "confirm": "Gộp",
       "success": "Đã gộp {{count}} mục",
       "failed": "Gộp thất bại"
+    },
+    "reassignBlock": {
+      "action": "Chuyển sang mục khác",
+      "menuTitle": "Mục đích đến",
+      "success": "Đã chuyển khối thời gian",
+      "failed": "Không thể chuyển khối thời gian"
     },
     "moveChecklistToTaskTitle": "Di chuyển mục checklist",
     "moveCompletedSection": "Đã hoàn thành",

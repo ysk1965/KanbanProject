@@ -52,6 +52,7 @@ import {
 import type { Feature, Milestone, MindMapDocument, Task } from "../types";
 import { mindMapAPI } from "../utils/api";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
+import { MILESTONE_PALETTE } from "../utils/milestoneColor";
 import { compareFeatureOrder } from "../utils/taskOrder";
 import { AddFeatureModal } from "../components/AddFeatureModal";
 
@@ -95,16 +96,8 @@ const MEMO_COLORS = [
 ];
 
 // 마일스톤 칩 색상 팔레트 (마일스톤 순서 idx 기준 — 일관된 색상 매핑)
-const MILESTONE_COLORS = [
-  "#6366F1",
-  "#2DD4BF",
-  "#f59e0b",
-  "#a855f7",
-  "#f43f5e",
-  "#10b981",
-  "#0ea5e9",
-  "#ec4899",
-];
+// 단일 소스: utils/milestoneColor.ts (12색, 인접 대비 최적화)
+const MILESTONE_COLORS = MILESTONE_PALETTE.map((c) => c.hex);
 
 // 마일스톤 필터에서 "미배정"(마일스톤 없는 태스크/피처)을 가리키는 키
 const UNASSIGNED_MS = "__none__";

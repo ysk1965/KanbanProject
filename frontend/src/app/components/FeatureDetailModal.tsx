@@ -57,19 +57,11 @@ import { getTodayDateString } from "../utils/dateUtils";
 import { FeatureAIDecomposeModal } from "./FeatureAIDecomposeModal";
 import { useAuth } from "../contexts/AuthContext";
 import { getAssigneeClasses, getInitials } from "../utils/assigneeColor";
+import { MILESTONE_PALETTE } from "../utils/milestoneColor";
 
-// 마일스톤 색상 팔레트 — 마인드맵(MindMapView)의 MILESTONE_COLORS와 동일.
-// 보드 milestones 배열의 인덱스로 색상을 파생해 두 화면의 마일스톤 색상을 일치시킨다.
-const MILESTONE_COLORS = [
-  "#6366F1", // indigo
-  "#2DD4BF", // teal
-  "#f59e0b", // amber
-  "#a855f7", // purple
-  "#f43f5e", // red/rose
-  "#10b981",
-  "#0ea5e9",
-  "#ec4899",
-];
+// 마일스톤 색상 팔레트 — 단일 소스 utils/milestoneColor.ts (마인드맵 등과 공유).
+// 보드 milestones 배열의 인덱스로 색상을 파생해 모든 화면의 마일스톤 색상을 일치시킨다.
+const MILESTONE_COLORS = MILESTONE_PALETTE.map((c) => c.hex);
 const MILESTONE_UNASSIGNED_COLOR = "#64748b"; // slate — 미배치 그룹
 
 interface FeatureDetailModalProps {

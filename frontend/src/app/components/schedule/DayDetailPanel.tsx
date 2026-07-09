@@ -7,6 +7,11 @@ import { Milestone } from "../../types";
 import { CalendarEventItem } from "../../utils/api";
 import { HolidayInfo } from "../../hooks/useHolidays";
 import { calendarTypeMeta } from "./calendarEventMeta";
+import {
+  MilestoneColorMap,
+  resolveMilestoneColor,
+  withAlpha,
+} from "../../utils/milestoneColor";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -25,6 +30,8 @@ export interface DayDetailData {
 interface DayDetailPanelProps {
   date: string; // yyyy-MM-dd
   data: DayDetailData;
+  /** 마일스톤 id → 색 (배열 순서 기준). 미전달 시 id 해시 fallback */
+  milestoneColorMap?: MilestoneColorMap;
   canManage: boolean;
   /** 모바일에서 오버레이로 열려 있는지 (데스크톱은 항상 노출) */
   mobileOpen: boolean;
@@ -55,6 +62,7 @@ function initialsOf(name: string): string {
 export function DayDetailPanel({
   date,
   data,
+  milestoneColorMap,
   canManage,
   mobileOpen,
   onClose,
@@ -304,30 +312,53 @@ export function DayDetailPanel({
                     data.milestones.length,
                   )}
                   <div className="flex flex-col gap-1">
-                    {data.milestones.map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => onMilestoneClick(m)}
-                        className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl border border-transparent hover:border-foreground/[0.08] hover:bg-foreground/[0.04] transition-colors text-left"
-                      >
-                        <span className="w-1 self-stretch rounded-full bg-bridge-accent shrink-0" />
-                        <span className="w-6 h-6 grid place-items-center rounded-full bg-bridge-accent/15 shrink-0">
-                          <Flag className="w-3.5 h-3.5 text-bridge-accent" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium text-foreground truncate">
-                            {m.title}
+                    {data.milestones.map((m) => {
+                      const msColor = resolveMilestoneColor(
+                        m.id,
+                        milestoneColorMap,
+                      ).hex;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => onMilestoneClick(m)}
+                          className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl border border-transparent hover:border-foreground/[0.08] hover:bg-foreground/[0.04] transition-colors text-left"
+                        >
+                          <span
+                            className="w-1 self-stretch rounded-full shrink-0"
+                            style={{ backgroundColor: msColor }}
+                          />
+                          <span
+                            className="w-6 h-6 grid place-items-center rounded-full shrink-0"
+                            style={{
+                              backgroundColor: withAlpha(msColor, 0.15),
+                            }}
+                          >
+                            <Flag
+                              className="w-3.5 h-3.5"
+                              style={{ color: msColor }}
+                            />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium text-foreground truncate">
+                              {m.title}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              {t(
+                                "schedule.calendar.detail.inPeriod",
+                                "기간 중",
+                              )}
+                            </div>
                           </div>
-                          <div className="text-xs text-slate-500">
-                            {t("schedule.calendar.detail.inPeriod", "기간 중")}
-                          </div>
-                        </div>
-                        <span className="text-xs font-bold text-bridge-accent tabular-nums shrink-0">
-                          {Math.round(m.progress_percentage)}%
-                        </span>
-                      </button>
-                    ))}
+                          <span
+                            className="text-xs font-bold tabular-nums shrink-0"
+                            style={{ color: msColor }}
+                          >
+                            {Math.round(m.progress_percentage)}%
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}

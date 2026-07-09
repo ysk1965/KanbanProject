@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   X,
   Clock,
   ChevronDown,
+  ChevronRight,
   Folder,
   FileText,
   Loader2,
@@ -17,14 +18,20 @@ import {
 import { format, parseISO, isToday as isDateToday } from "date-fns";
 import { getDDay } from "../utils/dateUtils";
 import {
+  MilestoneColorMap,
+  resolveMilestoneColor,
+} from "../utils/milestoneColor";
+import {
   featureAPI,
   taskAPI,
   dailyChecklistAPI,
   meetingAPI,
+  milestoneAPI,
   FeatureResponse,
   TaskResponse,
   DailyChecklistItemResponse,
   BoardChecklistItemResponse,
+  MilestoneSimpleResponse,
   MeetingSummary,
 } from "../utils/api";
 import { MotionModal } from "./ui/MotionModal";
@@ -42,6 +49,8 @@ interface TimeblockItemRowProps {
   blockName?: string | null;
   blockColor?: string | null;
   milestoneTitle?: string | null;
+  milestoneColor?: string | null;
+  hideMilestone?: boolean;
   dueDate?: string | null;
   onClick: () => void;
 }
@@ -59,6 +68,8 @@ function TimeblockItemRow({
   blockName,
   blockColor,
   milestoneTitle,
+  milestoneColor,
+  hideMilestone,
   dueDate,
   onClick,
 }: TimeblockItemRowProps) {
@@ -78,7 +89,8 @@ function TimeblockItemRow({
         ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
         : "bg-foreground/[0.06] text-slate-400";
 
-  const hasMeta = !!(milestoneTitle || blockName || featureTitle);
+  const showMilestone = !!milestoneTitle && !hideMilestone;
+  const hasMeta = !!(showMilestone || blockName || featureTitle);
 
   return (
     <button
@@ -101,13 +113,16 @@ function TimeblockItemRow({
         {/* 메타: 마일스톤 · 블록 · 피처 › 태스크 */}
         {hasMeta && (
           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-1 text-xs min-w-0">
-            {milestoneTitle && (
-              <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium min-w-0">
+            {showMilestone && (
+              <span
+                className="inline-flex items-center gap-1 font-medium min-w-0"
+                style={{ color: milestoneColor || "#f59e0b" }}
+              >
                 <Flag className="w-3 h-3 flex-shrink-0" />
                 <span className="truncate max-w-[128px]">{milestoneTitle}</span>
               </span>
             )}
-            {milestoneTitle && (blockName || featureTitle) && (
+            {showMilestone && (blockName || featureTitle) && (
               <span className="text-slate-600">·</span>
             )}
             {blockName && (
@@ -145,6 +160,8 @@ function TimeblockItemRow({
 
 interface ChecklistCreateModalProps {
   boardId: string;
+  /** 마일스톤 id → 색 (배열 순서 기준). 라벨 색 일관성용 */
+  milestoneColorMap?: MilestoneColorMap;
   assigneeId: string;
   startTime: string;
   endTime: string;
@@ -164,6 +181,7 @@ interface ChecklistCreateModalProps {
 
 export function ChecklistCreateModal({
   boardId,
+  milestoneColorMap,
   assigneeId,
   startTime,
   endTime,
@@ -208,6 +226,12 @@ export function ChecklistCreateModal({
     [],
   );
   const [isLoadingBoardItems, setIsLoadingBoardItems] = useState(true);
+
+  // 기존 항목: 마일스톤 그룹 (C2)
+  const [milestones, setMilestones] = useState<MilestoneSimpleResponse[]>([]);
+  const [collapsedMilestones, setCollapsedMilestones] = useState<Set<string>>(
+    new Set(),
+  );
 
   // 오늘의 회의 목록
   const [todayMeetings, setTodayMeetings] = useState<MeetingSummary[]>([]);
@@ -268,6 +292,26 @@ export function ChecklistCreateModal({
     loadTimeblockData();
   }, [boardId, assigneeId, targetDate]);
 
+  // 마일스톤 진행률/기간 로드 (기존 항목 그룹 헤더용)
+  useEffect(() => {
+    const loadMilestones = async () => {
+      try {
+        const res = await milestoneAPI.getMilestones(boardId);
+        setMilestones(res.milestones || []);
+      } catch (error) {
+        console.error("Failed to load milestones:", error);
+        setMilestones([]);
+      }
+    };
+    loadMilestones();
+  }, [boardId]);
+
+  const milestoneInfoMap = useMemo(() => {
+    const map = new Map<string, MilestoneSimpleResponse>();
+    milestones.forEach((m) => map.set(m.id, m));
+    return map;
+  }, [milestones]);
+
   // 기존 항목 필터링: 완료 항목 제외, 오늘의 체크리스트에 이미 있는 항목 제외
   // 정렬: 마감일(due_date) 오름차순, 일정 없는 항목은 맨 아래
   const filteredBoardItems = useMemo(() => {
@@ -283,6 +327,70 @@ export function ChecklistCreateModal({
         return a.due_date.localeCompare(b.due_date);
       });
   }, [boardItems, todayChecklists]);
+
+  // 기존 항목: 마일스톤별 그룹 (C2) — 기간 없는 항목도 각 마일스톤 아래 그대로 노출
+  const NO_MILESTONE_KEY = "__none__";
+  const groupedBoardItems = useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        id: string | null;
+        title: string;
+        progress: number | null;
+        endDate: string | null;
+        items: BoardChecklistItemResponse[];
+      }
+    >();
+
+    filteredBoardItems.forEach((item) => {
+      const key = item.milestone?.id ?? NO_MILESTONE_KEY;
+      if (!groups.has(key)) {
+        const info = item.milestone?.id
+          ? milestoneInfoMap.get(item.milestone.id)
+          : undefined;
+        groups.set(key, {
+          id: item.milestone?.id ?? null,
+          title: item.milestone?.title ?? t("dailySchedule.noMilestone"),
+          progress: info ? info.progress_percentage : null,
+          endDate: info ? info.end_date : null,
+          items: [],
+        });
+      }
+      groups.get(key)!.items.push(item);
+    });
+
+    // 정렬: 마일스톤 종료일 가까운 순 → 없는 항목 그룹은 맨 아래
+    return Array.from(groups.values()).sort((a, b) => {
+      if (a.id === null) return 1;
+      if (b.id === null) return -1;
+      if (a.endDate && b.endDate) return a.endDate.localeCompare(b.endDate);
+      if (a.endDate) return -1;
+      if (b.endDate) return 1;
+      return a.title.localeCompare(b.title);
+    });
+  }, [filteredBoardItems, milestoneInfoMap, t]);
+
+  const toggleMilestoneGroup = (key: string) => {
+    setCollapsedMilestones((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  // 최초 로드 시: 첫 그룹만 펼치고 나머지는 접힌 상태로 초기화 (이후 사용자 토글은 유지)
+  const didInitCollapseRef = useRef(false);
+  useEffect(() => {
+    if (didInitCollapseRef.current) return;
+    if (groupedBoardItems.length === 0) return;
+    didInitCollapseRef.current = true;
+    setCollapsedMilestones(
+      new Set(
+        groupedBoardItems.slice(1).map((group) => group.id ?? NO_MILESTONE_KEY),
+      ),
+    );
+  }, [groupedBoardItems]);
 
   // Feature 목록 로드 (새로 생성 모드일 때만)
   useEffect(() => {
@@ -528,6 +636,12 @@ export function ChecklistCreateModal({
                         blockName={item.block?.name}
                         blockColor={item.block?.color}
                         milestoneTitle={item.milestone?.title}
+                        milestoneColor={
+                          resolveMilestoneColor(
+                            item.milestone?.id,
+                            milestoneColorMap,
+                          ).hex
+                        }
                         dueDate={item.due_date}
                         onClick={() => onSelectExisting(item.checklist_item_id)}
                       />
@@ -537,13 +651,14 @@ export function ChecklistCreateModal({
               </div>
             </div>
 
-            {/* 기존 항목에서 선택 */}
+            {/* 기존 항목에서 선택 — 시점 범위 + 마일스톤 그룹 (C2) */}
             <div>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                 <ClipboardList className="inline h-4 w-4 mr-1 text-bridge-secondary" />
                 {t("dailySchedule.selectFromBoard")}
               </label>
-              <div className="border border-foreground/10 rounded-xl max-h-[296px] overflow-y-auto bg-bridge-surface">
+
+              <div className="border border-foreground/10 rounded-xl max-h-[360px] overflow-y-auto bg-bridge-surface">
                 {isLoadingBoardItems ? (
                   <div className="px-4 py-6 text-slate-400 flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -554,22 +669,72 @@ export function ChecklistCreateModal({
                     {t("dailySchedule.noBoardItems")}
                   </div>
                 ) : (
-                  <div className="divide-y divide-white/5">
-                    {filteredBoardItems.map((item) => (
-                      <TimeblockItemRow
-                        key={item.id}
-                        title={item.title}
-                        featureTitle={item.feature?.title}
-                        featureColor={item.feature?.color}
-                        taskTitle={item.task?.title}
-                        blockName={item.block?.name}
-                        blockColor={item.block?.color}
-                        milestoneTitle={item.milestone?.title}
-                        dueDate={item.due_date}
-                        onClick={() => onSelectBoardItem(item.id)}
-                      />
-                    ))}
-                  </div>
+                  groupedBoardItems.map((group) => {
+                    const key = group.id ?? NO_MILESTONE_KEY;
+                    const collapsed = collapsedMilestones.has(key);
+                    return (
+                      <div key={key}>
+                        <button
+                          type="button"
+                          onClick={() => toggleMilestoneGroup(key)}
+                          className="w-full flex items-center gap-2 px-3 py-2 bg-foreground/[0.04] hover:bg-foreground/[0.06] border-b border-white/5 transition-colors"
+                        >
+                          <ChevronRight
+                            className={`w-3.5 h-3.5 text-slate-500 flex-shrink-0 transition-transform ${
+                              collapsed ? "" : "rotate-90"
+                            }`}
+                          />
+                          {group.id && (
+                            <Flag className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                          )}
+                          <span className="text-xs font-bold text-foreground truncate max-w-[150px]">
+                            {group.title}
+                          </span>
+                          {group.progress !== null && (
+                            <>
+                              <span className="text-xs font-medium text-slate-500 tabular-nums flex-shrink-0">
+                                {group.progress}%
+                              </span>
+                              <span className="w-12 h-1 rounded-full bg-foreground/10 overflow-hidden flex-shrink-0">
+                                <span
+                                  className="block h-full bg-amber-500 rounded-full"
+                                  style={{ width: `${group.progress}%` }}
+                                />
+                              </span>
+                            </>
+                          )}
+                          <span className="ml-auto flex-shrink-0 text-xs font-medium text-slate-500 tabular-nums bg-foreground/[0.06] px-2 py-0.5 rounded-full">
+                            {group.items.length}
+                          </span>
+                        </button>
+                        {!collapsed && (
+                          <div className="divide-y divide-white/5">
+                            {group.items.map((item) => (
+                              <TimeblockItemRow
+                                key={item.id}
+                                title={item.title}
+                                featureTitle={item.feature?.title}
+                                featureColor={item.feature?.color}
+                                taskTitle={item.task?.title}
+                                blockName={item.block?.name}
+                                blockColor={item.block?.color}
+                                milestoneTitle={item.milestone?.title}
+                                milestoneColor={
+                                  resolveMilestoneColor(
+                                    item.milestone?.id,
+                                    milestoneColorMap,
+                                  ).hex
+                                }
+                                hideMilestone
+                                dueDate={item.due_date}
+                                onClick={() => onSelectBoardItem(item.id)}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>

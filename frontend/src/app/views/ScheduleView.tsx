@@ -1,4 +1,4 @@
-import { Suspense, useState } from "react";
+import { Suspense, useState, useMemo } from "react";
 import {
   Feature,
   Milestone,
@@ -12,6 +12,7 @@ import { BoardMember as ShareBoardMember } from "../components/ShareBoardModal";
 import { checklistAPI } from "../utils/api";
 import { lazyWithRetry } from "../utils/lazyWithRetry";
 import type { PanelDragState } from "../components/schedule/ChecklistItemPanel";
+import { buildMilestoneColorMap } from "../utils/milestoneColor";
 
 const ScheduleCalendarView = lazyWithRetry(
   () =>
@@ -44,6 +45,8 @@ interface ScheduleViewProps {
   jobRoles: JobRole[];
   memberJobRoleMap: Record<string, JobRoleInfo | null>;
   milestones: Milestone[];
+  /** 워크로드 바 툴팁용: taskId → milestoneId */
+  taskMilestoneMap: Record<string, string | null>;
   allFeatures: Feature[];
   scheduleRefreshKey: number;
   scheduleRefreshPanel: number;
@@ -70,6 +73,7 @@ export function ScheduleView({
   jobRoles,
   memberJobRoleMap,
   milestones,
+  taskMilestoneMap,
   allFeatures,
   scheduleRefreshKey,
   scheduleRefreshPanel,
@@ -97,6 +101,12 @@ export function ScheduleView({
     null,
   );
 
+  // 마일스톤 id → 색 (배열 순서 기준 — 하위 뷰에 전달해 색 일관성 유지)
+  const milestoneColorMap = useMemo(
+    () => buildMilestoneColorMap(milestones),
+    [milestones],
+  );
+
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
       {scheduleSubTab === "timeblock" ? (
@@ -105,6 +115,7 @@ export function ScheduleView({
           boardMembers={boardMembersData}
           organizationId={organizationId}
           memberColorMap={memberColorMap}
+          milestoneColorMap={milestoneColorMap}
           onViewFeature={onViewFeatureById}
           onViewMeeting={(_meetingId, date) => {
             onNavigateToMeeting(date);
@@ -149,6 +160,7 @@ export function ScheduleView({
               boardId={boardId}
               boardMembers={boardMembersData}
               milestones={milestones}
+              taskMilestoneMap={taskMilestoneMap}
               memberColorMap={memberColorMap}
               jobRoles={jobRoles}
               onOpenContractorManager={onOpenContractorManager}

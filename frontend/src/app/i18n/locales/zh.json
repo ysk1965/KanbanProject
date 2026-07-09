@@ -753,6 +753,7 @@
     "noMeetingsForDate": "{{date}}没有已注册的会议",
     "selectFromBoard": "从现有项目中选择",
     "noBoardItems": "没有可添加的清单项",
+    "noMilestone": "无里程碑",
     "noDueDate": "无日程",
     "select": "选择",
     "collapse": "收起",
@@ -1422,6 +1423,12 @@
       "confirm": "合并",
       "success": "已合并{{count}}个项",
       "failed": "合并失败"
+    },
+    "reassignBlock": {
+      "action": "移动到其他项",
+      "menuTitle": "移动到的项",
+      "success": "已移动时间块",
+      "failed": "移动时间块失败"
     },
     "moveChecklistToTaskTitle": "移动清单项",
     "moveCompletedSection": "已完成",

@@ -26,6 +26,10 @@ import {
   CalendarMemberOption,
 } from "./CalendarEventModal";
 import { DayDetailPanel, DayDetailData } from "./DayDetailPanel";
+import {
+  buildMilestoneColorMap,
+  resolveMilestoneColor,
+} from "../../utils/milestoneColor";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -324,6 +328,12 @@ export function ScheduleCalendarView({
     return { mergedHolidayMap: holiMap, forcedWorkdaySet: workdaySet };
   }, [holidayMap, calendarEvents, gridDays]);
 
+  // 마일스톤 id → 색 (배열 순서 기준 — 다른 뷰와 동일)
+  const milestoneColorMap = useMemo(
+    () => buildMilestoneColorMap(milestones),
+    [milestones],
+  );
+
   // ------ 바 아이템 (이벤트/부재/마일스톤) ------
   const barItems = useMemo(() => {
     const items: BarItem[] = [];
@@ -378,7 +388,7 @@ export function ScheduleCalendarView({
             title: m.title,
             startDate: m.start_date,
             endDate: m.end_date,
-            color: "#6366F1",
+            color: resolveMilestoneColor(m.id, milestoneColorMap).hex,
             icon: "⚑",
             milestone: m,
           });
@@ -386,7 +396,7 @@ export function ScheduleCalendarView({
     }
 
     return items;
-  }, [calendarEvents, milestones, hiddenLayers]);
+  }, [calendarEvents, milestones, hiddenLayers, milestoneColorMap]);
 
   const barSegmentsByWeek = useMemo(
     () => computeBarSegments(barItems, weeks),
@@ -528,11 +538,9 @@ export function ScheduleCalendarView({
           aria-label={item.title}
           className={`h-full rounded-md px-1.5 flex items-center gap-1 text-xs font-medium
             truncate cursor-pointer hover:brightness-110 transition-all text-white ${
-              isMilestone
-                ? "bg-bridge-accent/80 border border-bridge-accent/60"
-                : ""
+              isMilestone ? "border border-white/20" : ""
             }`}
-          style={isMilestone ? undefined : { backgroundColor: item.color }}
+          style={{ backgroundColor: item.color }}
           onClick={(e) => {
             e.stopPropagation();
             handleBarClick(item);
@@ -811,6 +819,7 @@ export function ScheduleCalendarView({
         <DayDetailPanel
           date={selectedDate}
           data={selectedDayDetail}
+          milestoneColorMap={milestoneColorMap}
           canManage={canManage}
           mobileOpen={mobilePanelOpen}
           onClose={() => setMobilePanelOpen(false)}

@@ -753,6 +753,7 @@
     "noMeetingsForDate": "No hay reuniones registradas para {{date}}",
     "selectFromBoard": "Seleccionar de elementos existentes",
     "noBoardItems": "No hay elementos de lista de verificación disponibles para agregar",
+    "noMilestone": "Sin hito",
     "noDueDate": "Sin fecha",
     "select": "Seleccionar",
     "collapse": "Contraer",
@@ -1422,6 +1423,12 @@
       "confirm": "Combinar",
       "success": "Se combinaron {{count}} elementos",
       "failed": "Error al combinar"
+    },
+    "reassignBlock": {
+      "action": "Mover a otro elemento",
+      "menuTitle": "Elemento de destino",
+      "success": "Bloque de tiempo movido",
+      "failed": "Error al mover el bloque de tiempo"
     },
     "moveChecklistToTaskTitle": "Mover elemento de checklist",
     "moveCompletedSection": "Completadas",

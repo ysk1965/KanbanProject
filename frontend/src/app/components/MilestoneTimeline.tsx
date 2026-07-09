@@ -14,6 +14,10 @@ import {
 import { ko } from "date-fns/locale";
 import type { Feature, Milestone, MilestoneFeatureInfo } from "../types";
 import { getMilestoneStatus } from "./MilestoneView";
+import {
+  buildMilestoneColorMap,
+  resolveMilestoneColor,
+} from "../utils/milestoneColor";
 
 // ========================================
 // Constants
@@ -123,6 +127,12 @@ export function MilestoneTimeline({
     for (const f of features) map.set(f.id, f);
     return map;
   }, [features]);
+
+  // 마일스톤 id → 색 (배열 순서 기준 — 다른 뷰와 동일)
+  const milestoneColorMap = useMemo(
+    () => buildMilestoneColorMap(milestones),
+    [milestones],
+  );
 
   // 전체 날짜 범위 (주 경계로 패딩)
   const { rangeStart, totalDays, weeks } = useMemo(() => {
@@ -452,6 +462,16 @@ export function MilestoneTimeline({
                       }}
                       title={`${row.milestone.title} (${row.milestone.start_date} ~ ${row.milestone.end_date})`}
                     >
+                      {/* 마일스톤 색 좌측 레일 (상태 채움은 유지, 정체성만 추가) */}
+                      <span
+                        className="absolute left-0 top-0 bottom-0 w-1 rounded-l-md pointer-events-none"
+                        style={{
+                          backgroundColor: resolveMilestoneColor(
+                            row.milestone.id,
+                            milestoneColorMap,
+                          ).hex,
+                        }}
+                      />
                       {canDrag && (
                         <>
                           <div
