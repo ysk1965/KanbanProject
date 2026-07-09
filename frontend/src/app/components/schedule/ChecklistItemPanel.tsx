@@ -1041,7 +1041,7 @@ export function ChecklistItemPanel({
           <Search size={14} aria-hidden="true" />
           <span
             className="text-xs font-bold uppercase tracking-widest"
-            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+            style={{ writingMode: "vertical-rl" }}
           >
             {t("schedule.panel.title", "Checklist")}
           </span>
