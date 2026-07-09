@@ -554,16 +554,25 @@ export function ChecklistItemPanel({
   useEffect(() => {
     didInitMemberRef.current = false;
   }, [boardId]);
-  // 최초 진입 시 저장값이 없으면 본인으로 기본 선택
+  // 최초 진입 시 저장값이 없으면 기본 선택.
+  // 본인이 보드 멤버(role=MEMBER)면 본인, 아니면 전체.
+  // 역할 판정을 위해 boardMembers 로딩(길이>0) 이후에만 초기화한다.
   useEffect(() => {
     if (didInitMemberRef.current) return;
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem(memberFilterKey);
-    if (stored === null && currentUser?.id) {
-      setSelectedMemberId(currentUser.id);
+    if (stored !== null) {
+      didInitMemberRef.current = true;
+      return;
     }
+    if (!currentUser?.id) return;
+    if (boardMembers.length === 0) return; // 로딩 대기
+    const selfIsMemberRole = boardMembers.some(
+      (m) => m.userId === currentUser.id && m.role === "MEMBER",
+    );
+    setSelectedMemberId(selfIsMemberRole ? currentUser.id : "__all__");
     didInitMemberRef.current = true;
-  }, [memberFilterKey, currentUser?.id]);
+  }, [memberFilterKey, currentUser?.id, boardMembers]);
 
   /** 실제 필터에 쓰이는 값: "__all__"/null 은 필터 없음. */
   const memberFilterValue: string | null =
@@ -732,24 +741,32 @@ export function ChecklistItemPanel({
 
   // ── Member filter options (derived from loaded items' assignees) ──
   const memberOptions = useMemo(() => {
+    // 보드 멤버 중 role=MEMBER 인 user id 집합. boardMembers 미로딩 시(길이 0)에는
+    // 필터를 보류해 기존처럼 항목 담당자 전체를 노출(로딩 후 정정).
+    const allowed = new Set<string>();
+    for (const m of boardMembers) {
+      if (m.role === "MEMBER") allowed.add(m.userId);
+    }
+    const roleFilterActive = boardMembers.length > 0;
+
     const map = new Map<
       string,
       { id: string; name: string; profileImage: string | null }
     >();
     for (const item of items) {
       const assignee = getItemAssignee(item);
-      if (assignee && !map.has(assignee.id)) {
-        map.set(assignee.id, {
-          id: assignee.id,
-          name: assignee.name,
-          profileImage: assignee.profile_image ?? null,
-        });
-      }
+      if (!assignee || map.has(assignee.id)) continue;
+      if (roleFilterActive && !allowed.has(assignee.id)) continue;
+      map.set(assignee.id, {
+        id: assignee.id,
+        name: assignee.name,
+        profileImage: assignee.profile_image ?? null,
+      });
     }
     return Array.from(map.values()).sort((a, b) =>
       a.name.localeCompare(b.name),
     );
-  }, [items]);
+  }, [items, boardMembers]);
 
   // ── Reset member filter if the selected member no longer has any items ──
   // 단, 센티널("__all__"/"__none__")과 본인은 항목이 없어도 유지(빈 상태 노출).
@@ -1309,15 +1326,26 @@ export function ChecklistItemPanel({
 
   // ── 담당자 아바타 스트립 데이터 ──
   const isAllSelected = !selectedMemberId || selectedMemberId === "__all__";
+  // 본인 아바타(나)는 본인이 보드 멤버(role=MEMBER)일 때만 노출.
+  // boardMembers 미로딩(길이 0) 시엔 허용(로딩 후 정정).
+  const selfIsMember =
+    !currentUser?.id
+      ? false
+      : boardMembers.length === 0
+        ? true
+        : boardMembers.some(
+            (m) => m.userId === currentUser.id && m.role === "MEMBER",
+          );
   const selfInOptions = memberOptions.find((m) => m.id === currentUser?.id);
-  const selfEntry = currentUser
-    ? {
-        id: currentUser.id,
-        name: selfInOptions?.name ?? currentUser.name,
-        profileImage:
-          selfInOptions?.profileImage ?? currentUser.profile_image ?? null,
-      }
-    : null;
+  const selfEntry =
+    currentUser && selfIsMember
+      ? {
+          id: currentUser.id,
+          name: selfInOptions?.name ?? currentUser.name,
+          profileImage:
+            selfInOptions?.profileImage ?? currentUser.profile_image ?? null,
+        }
+      : null;
   const otherMembers = memberOptions.filter((m) => m.id !== currentUser?.id);
   const summaryWho = isAllSelected
     ? null
