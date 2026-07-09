@@ -1,6 +1,6 @@
 # Infrastructure Scheduler Module
 # Automatically shuts down EC2 (EB) and RDS during off-peak hours to reduce costs.
-# KST 23:00~08:00 (UTC 14:00~23:00) — ~37.5% cost reduction on compute/DB.
+# KST 03:30~08:30 (UTC 18:30~23:15) — maintenance window; cost reduction on compute/DB.
 
 locals {
   function_name = "${var.project_name}-${var.environment}-infra-scheduler"
@@ -155,7 +155,7 @@ resource "aws_sns_topic_subscription" "email" {
 
 # ─── EventBridge Scheduled Rules ───
 
-# Shutdown Rule: KST 23:00 = UTC 14:00
+# Shutdown Rule: KST 03:30 = UTC 18:30 (see var.shutdown_cron)
 resource "aws_cloudwatch_event_rule" "shutdown" {
   count               = var.enabled ? 1 : 0
   name                = "${local.rule_prefix}-shutdown"
@@ -192,7 +192,7 @@ resource "aws_lambda_permission" "shutdown" {
   source_arn    = aws_cloudwatch_event_rule.shutdown[0].arn
 }
 
-# Startup Rule: KST 08:00 = UTC 23:00 (or KST 07:30 = UTC 22:30 for prod)
+# Startup Rule: KST 08:15 = UTC 23:15 (warm-up so ready by 08:30; see var.startup_cron)
 resource "aws_cloudwatch_event_rule" "startup" {
   count               = var.enabled ? 1 : 0
   name                = "${local.rule_prefix}-startup"
