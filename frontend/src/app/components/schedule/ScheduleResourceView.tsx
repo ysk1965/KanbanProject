@@ -42,6 +42,10 @@ import {
 } from "./CalendarEventModal";
 import { calendarTypeMeta } from "./calendarEventMeta";
 import { getInitials, getAssigneeHex } from "../../utils/assigneeColor";
+import {
+  buildMilestoneColorMap,
+  resolveMilestoneColor,
+} from "../../utils/milestoneColor";
 import { useHolidays, HolidayInfo } from "../../hooks/useHolidays";
 
 // ========================================
@@ -93,6 +97,8 @@ interface ScheduleResourceViewProps {
   boardId: string;
   boardMembers: BoardMember[];
   milestones: Milestone[];
+  /** 바 툴팁용: taskId → milestoneId (KanbanBoardPage 전체 tasks에서 파생) */
+  taskMilestoneMap?: Record<string, string | null>;
   memberColorMap?: Record<string, string | null>;
   jobRoles?: JobRole[];
   /** 외주 관리 모달을 여는 핸들러 (없으면 버튼 미표시) */
@@ -151,6 +157,8 @@ interface TooltipState {
   y: number;
   item: AssigneeItemResponse;
   featureName: string;
+  /** 이 항목의 태스크가 배정된 마일스톤 (없으면 null) */
+  milestone: Milestone | null;
 }
 
 interface DropHighlight {
@@ -194,6 +202,17 @@ function isWeekend(date: Date): boolean {
   return day === 0 || day === 6;
 }
 
+/** 툴팁용 D-day 라벨 (오늘 기준, 마감 지남 = D+n) */
+function getDdayInfo(
+  dueDate: string | null,
+): { label: string; overdue: boolean } | null {
+  if (!dueDate) return null;
+  const diff = diffDays(formatDateStr(new Date()), dueDate);
+  if (diff > 0) return { label: `D-${diff}`, overdue: false };
+  if (diff === 0) return { label: "D-Day", overdue: false };
+  return { label: `D+${Math.abs(diff)}`, overdue: true };
+}
+
 function getDayLabel(date: Date, locale: string): string {
   const days: Record<string, string[]> = {
     en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
@@ -219,6 +238,7 @@ export function ScheduleResourceView({
   boardId,
   boardMembers,
   milestones,
+  taskMilestoneMap,
   memberColorMap,
   jobRoles = [],
   onOpenContractorManager,
@@ -1057,6 +1077,12 @@ export function ScheduleResourceView({
       .filter((d) => d.pos !== null);
   }, [milestones, getBarPosition]);
 
+  // 마일스톤 id → 색 (배열 순서 기준 — 다른 뷰와 동일)
+  const milestoneColorMap = useMemo(
+    () => buildMilestoneColorMap(milestones),
+    [milestones],
+  );
+
   // ─── 팀 이벤트 바 위치 (이벤트 밴드용) ───
   const teamEventBarData = useMemo(() => {
     return teamEvents
@@ -1118,14 +1144,21 @@ export function ScheduleResourceView({
   const handleBarMouseEnter = useCallback(
     (e: React.MouseEvent, item: AssigneeItemResponse) => {
       const featureName = item.feature?.title || "";
+      const milestoneId = item.task
+        ? (taskMilestoneMap?.[item.task.id] ?? null)
+        : null;
+      const milestone = milestoneId
+        ? (milestones.find((m) => m.id === milestoneId) ?? null)
+        : null;
       setTooltip({
         x: e.clientX,
         y: e.clientY,
         item,
         featureName,
+        milestone,
       });
     },
-    [],
+    [taskMilestoneMap, milestones],
   );
 
   const handleBarMouseLeave = useCallback(() => {
@@ -1976,7 +2009,7 @@ export function ScheduleResourceView({
                       <div
                         key={milestone.id}
                         className="absolute rounded-lg flex items-center px-2 text-xs font-medium
-                        text-white bg-bridge-accent/80 hover:bg-bridge-accent hover:shadow-lg transition-all cursor-pointer"
+                        text-white hover:shadow-lg transition-all cursor-pointer"
                         style={{
                           left: pos.left,
                           width: pos.width,
@@ -1985,6 +2018,10 @@ export function ScheduleResourceView({
                             milestoneLaneCount,
                           ),
                           height: BAND_BAR_HEIGHT,
+                          backgroundColor: resolveMilestoneColor(
+                            milestone.id,
+                            milestoneColorMap,
+                          ).hex,
                         }}
                         title={`${milestone.title} (${milestone.start_date} ~ ${milestone.end_date})`}
                         onClick={() => onMilestoneClick?.(milestone)}
@@ -2810,36 +2847,89 @@ export function ScheduleResourceView({
       </div>
 
       {/* ─── Tooltip ─── */}
-      {tooltip && (
-        <div
-          className="fixed z-50 pointer-events-none bg-bridge-obsidian border border-foreground/[0.12]
-            rounded-lg px-3 py-2 shadow-xl max-w-[240px]"
-          style={{
-            left: tooltip.x + 12,
-            top: tooltip.y + 12,
-          }}
-        >
-          <p className="text-xs font-medium text-foreground truncate">
-            {tooltip.item.title}
-          </p>
-          {tooltip.featureName && (
-            <p className="text-xs text-slate-500 truncate mt-0.5">
-              {tooltip.featureName}
-              {tooltip.item.task && ` > ${tooltip.item.task.title}`}
-            </p>
-          )}
-          {(tooltip.item.start_date || tooltip.item.due_date) && (
-            <p className="text-xs text-slate-400 mt-1">
-              {tooltip.item.start_date || "?"} ~ {tooltip.item.due_date || "?"}
-            </p>
-          )}
-          {tooltip.item.completed && (
-            <span className="text-xs font-bold text-emerald-400 mt-0.5 block">
-              {t("schedule.resource.completed", "Completed")}
-            </span>
-          )}
-        </div>
-      )}
+      {tooltip &&
+        (() => {
+          const { item, milestone, featureName } = tooltip;
+          const dday = item.completed ? null : getDdayInfo(item.due_date);
+          const hasDateRow = item.start_date || item.due_date || item.completed;
+          return (
+            <div
+              className="fixed z-50 pointer-events-none bg-bridge-obsidian border border-foreground/[0.12]
+                rounded-lg shadow-xl max-w-[300px] overflow-hidden"
+              style={{
+                left: tooltip.x + 12,
+                top: tooltip.y + 12,
+              }}
+            >
+              {/* 마일스톤 액센트 라인 */}
+              {milestone && (
+                <div className="h-[2px] bg-gradient-to-r from-bridge-accent/70 via-bridge-accent/30 to-transparent" />
+              )}
+              <div className="px-3 py-2">
+                {/* 마일스톤 칩 + 마일스톤 마감 */}
+                {milestone && (
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span
+                      className="inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full
+                        bg-bridge-accent/15 text-bridge-accent min-w-0"
+                    >
+                      <Flag size={10} className="shrink-0" />
+                      <span className="truncate">{milestone.title}</span>
+                    </span>
+                    {milestone.end_date && (
+                      <span className="text-xs text-slate-600 shrink-0 tabular-nums">
+                        ~ {milestone.end_date.slice(5).replace("-", "/")}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs font-medium text-foreground truncate">
+                  {item.title}
+                </p>
+                {/* 피처 › 태스크 경로 (피처 컬러 도트) */}
+                {featureName && (
+                  <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                    <span
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{
+                        backgroundColor: item.feature?.color || "#6366F1",
+                      }}
+                    />
+                    <span className="text-xs text-slate-500 truncate">
+                      {featureName}
+                      {item.task && ` › ${item.task.title}`}
+                    </span>
+                  </div>
+                )}
+                {/* 기간 + D-day / 완료 */}
+                {hasDateRow && (
+                  <div className="flex items-center justify-between gap-3 mt-1.5 pt-1.5 border-t border-foreground/[0.08]">
+                    <span className="text-xs text-slate-400 tabular-nums">
+                      {item.start_date || "?"} ~ {item.due_date || "?"}
+                    </span>
+                    {item.completed ? (
+                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+                        {t("schedule.resource.completed", "Completed")}
+                      </span>
+                    ) : (
+                      dday && (
+                        <span
+                          className={`text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+                            dday.overdue
+                              ? "bg-red-500/15 text-red-600 dark:text-red-400"
+                              : "bg-bridge-secondary/15 text-bridge-secondary"
+                          }`}
+                        >
+                          {dday.label}
+                        </span>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
       {/* ─── 업무 생성 모달 ─── */}
       <WorkloadCreateModal

@@ -776,6 +776,13 @@ export function KanbanBoardPage() {
     return tasks.filter((t) => t.milestone_id === mid);
   }, [tasks, kanbanSelectedMilestoneId]);
 
+  // 워크로드 바 툴팁용: taskId → milestoneId (전체 tasks 기준, 마일스톤 필터와 무관)
+  const taskMilestoneMap = useMemo(() => {
+    const map: Record<string, string | null> = {};
+    for (const t of tasks) map[t.id] = t.milestone_id ?? null;
+    return map;
+  }, [tasks]);
+
   // ======== 커스텀 Hook: 필터 ========
   const { filteredFeatures, filteredTasks, sortedBlocks } = useBoardFilters(
     kanbanFeatures,
@@ -3087,6 +3094,7 @@ export function KanbanBoardPage() {
             jobRoles={jobRoles}
             memberJobRoleMap={memberJobRoleMap}
             milestones={milestones}
+            taskMilestoneMap={taskMilestoneMap}
             allFeatures={allFeatures}
             scheduleRefreshKey={scheduleRefreshKey}
             scheduleRefreshPanel={scheduleRefreshPanel}

@@ -86,6 +86,17 @@ public class ScheduleRequest {
         private String color;
     }
 
+    /**
+     * 타임블록을 다른 체크리스트 항목으로 재지정 (같은 보드 내).
+     * 실수로 다른 항목에 붙은 타임블록을 올바른 항목으로 옮길 때 사용.
+     */
+    @Getter
+    @NoArgsConstructor
+    public static class ReassignChecklistItem {
+        @NotBlank(message = "대상 체크리스트 항목 ID는 필수입니다")
+        private String checklistItemId;
+    }
+
     @Getter
     @NoArgsConstructor
     public static class UpdateSettings {

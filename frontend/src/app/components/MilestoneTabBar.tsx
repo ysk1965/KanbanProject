@@ -3,6 +3,7 @@ import { Flag, Pencil, Plus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { Feature, Milestone } from "../types";
+import { getMilestoneColorByIndex } from "../utils/milestoneColor";
 
 interface MilestoneTabBarProps {
   milestones: Milestone[];
@@ -57,9 +58,10 @@ export const MilestoneTabBar = memo(function MilestoneTabBar({
             {t("kanban.unassigned", "미지정")}
           </button>
         )}
-        {milestones.map((milestone) => {
+        {milestones.map((milestone, index) => {
           const startDate = format(parseISO(milestone.start_date), "M/d");
           const endDate = format(parseISO(milestone.end_date), "M/d");
+          const milestoneColor = getMilestoneColorByIndex(index).hex;
           return (
             <button
               key={milestone.id}
@@ -70,6 +72,10 @@ export const MilestoneTabBar = memo(function MilestoneTabBar({
                   : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
               }`}
             >
+              <span
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: milestoneColor }}
+              />
               <span>{milestone.title}</span>
               <span
                 className={`text-xs font-normal ${selectedMilestoneId === milestone.id ? "text-white/70" : "text-zinc-500"}`}

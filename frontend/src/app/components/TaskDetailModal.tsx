@@ -1238,6 +1238,47 @@ export function TaskDetailModal({
     }
   };
 
+  const handleReassignTimeBlock = async (
+    blockId: string,
+    fromItemId: string,
+    targetItemId: string,
+  ) => {
+    if (!boardId || fromItemId === targetItemId) return;
+    const original = checklistTimeBlocksMap;
+    const movingBlock = (original[fromItemId] || []).find(
+      (b) => b.id === blockId,
+    );
+    if (!movingBlock) return;
+
+    // 낙관적 업데이트: 소스 → 대상으로 블록 이동
+    setChecklistTimeBlocksMap((prev) => {
+      const next = { ...prev };
+      next[fromItemId] = (next[fromItemId] || []).filter(
+        (b) => b.id !== blockId,
+      );
+      next[targetItemId] = [...(next[targetItemId] || []), movingBlock].sort(
+        (a, b) => {
+          const d = a.scheduled_date.localeCompare(b.scheduled_date);
+          return d !== 0 ? d : a.start_time.localeCompare(b.start_time);
+        },
+      );
+      return next;
+    });
+
+    try {
+      await scheduleAPI.reassignBlockChecklistItem(boardId, blockId, {
+        checklist_item_id: targetItemId,
+      });
+      toast.success(t("task.reassignBlock.success", "타임블록을 이동했습니다"));
+    } catch (error) {
+      console.error("Failed to reassign time block:", error);
+      setChecklistTimeBlocksMap(original);
+      toast.error(
+        t("task.reassignBlock.failed", "타임블록 이동에 실패했습니다"),
+      );
+    }
+  };
+
   const handleChecklistDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !boardId || !task) return;
@@ -2023,6 +2064,20 @@ export function TaskDetailModal({
                               checklistItems.length > 1
                                 ? () => openMergeChecklistDialog(item.id)
                                 : undefined
+                            }
+                            siblingItems={checklistItems
+                              .filter((ci) => ci.id !== item.id)
+                              .map((ci) => ({
+                                id: ci.id,
+                                title: ci.title,
+                                completed: ci.completed,
+                              }))}
+                            onReassignBlock={(blockId, targetItemId) =>
+                              handleReassignTimeBlock(
+                                blockId,
+                                item.id,
+                                targetItemId,
+                              )
                             }
                             boardMembers={boardMembers}
                             contractors={contractors}
@@ -2981,6 +3036,8 @@ function SortableChecklistItemRow(props: {
   onDelete: () => void;
   onMoveToTask?: () => void;
   onMerge?: () => void;
+  siblingItems?: { id: string; title: string; completed: boolean }[];
+  onReassignBlock?: (blockId: string, targetItemId: string) => void;
   boardMembers: BoardMember[];
   contractors?: BoardContractor[];
   boardId: string | null;
@@ -3042,6 +3099,8 @@ function ChecklistItemRow({
   onDelete,
   onMoveToTask,
   onMerge,
+  siblingItems = [],
+  onReassignBlock,
   boardMembers,
   contractors = [],
   boardId,
@@ -3057,6 +3116,8 @@ function ChecklistItemRow({
   onDelete: () => void;
   onMoveToTask?: () => void;
   onMerge?: () => void;
+  siblingItems?: { id: string; title: string; completed: boolean }[];
+  onReassignBlock?: (blockId: string, targetItemId: string) => void;
   boardMembers: BoardMember[];
   contractors?: BoardContractor[];
   boardId: string | null;
@@ -3713,7 +3774,7 @@ function ChecklistItemRow({
               {timeBlocks.map((block) => (
                 <div
                   key={block.id}
-                  className="flex items-center gap-2 text-xs py-1 px-2 rounded bg-white/[0.02] border border-bridge-border"
+                  className="group/tb flex items-center gap-2 text-xs py-1 px-2 rounded bg-white/[0.02] border border-bridge-border"
                 >
                   <CalendarIcon className="h-3 w-3 text-slate-400" />
                   <span className="text-slate-400">
@@ -3735,6 +3796,44 @@ function ChecklistItemRow({
                     )}
                     분)
                   </span>
+                  {canEdit && onReassignBlock && siblingItems.length > 0 && (
+                    <div className="ml-auto">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="h-5 w-5 grid place-items-center rounded text-slate-400 hover:text-foreground hover:bg-foreground/10 opacity-0 group-hover/tb:opacity-100 data-[state=open]:opacity-100 data-[state=open]:bg-foreground/10 transition-opacity"
+                            title={t(
+                              "task.reassignBlock.action",
+                              "다른 항목으로 이동",
+                            )}
+                          >
+                            <ArrowRightLeft className="h-3 w-3" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="bg-bridge-surface border-bridge-border max-h-64 overflow-y-auto custom-scrollbar"
+                        >
+                          <div className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-widest text-slate-500">
+                            {t("task.reassignBlock.menuTitle", "이동할 항목")}
+                          </div>
+                          {siblingItems.map((sib) => (
+                            <DropdownMenuItem
+                              key={sib.id}
+                              onClick={() => onReassignBlock(block.id, sib.id)}
+                              className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs max-w-[240px]"
+                            >
+                              <span
+                                className={`truncate ${sib.completed ? "line-through text-slate-500" : ""}`}
+                              >
+                                {sib.title}
+                              </span>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
                 </div>
               ))}
             </>

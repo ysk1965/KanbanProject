@@ -3126,6 +3126,18 @@ export const scheduleAPI = {
     );
   },
 
+  // 타임블록을 다른 체크리스트 항목으로 재지정 (같은 보드 내)
+  reassignBlockChecklistItem: async (
+    boardId: string,
+    blockId: string,
+    data: { checklist_item_id: string },
+  ) => {
+    return apiClient.patch<ScheduleBlockDetailResponse>(
+      `/boards/${boardId}/schedules/${blockId}/checklist-item`,
+      data,
+    );
+  },
+
   getSettings: async (boardId: string) => {
     return apiClient.get<ScheduleSettingsResponse>(
       `/boards/${boardId}/schedules/settings`,

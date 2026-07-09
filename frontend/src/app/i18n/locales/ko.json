@@ -835,6 +835,7 @@
     "noMeetingsForDate": "{{date}} 등록된 회의가 없습니다",
     "selectFromBoard": "기존 항목에서 선택",
     "noBoardItems": "추가할 수 있는 체크리스트 항목이 없습니다",
+    "noMilestone": "마일스톤 없음",
     "noDueDate": "일정 없음",
     "select": "선택",
     "collapse": "접기",
@@ -1564,6 +1565,12 @@
       "confirm": "병합",
       "success": "{{count}}개 항목을 병합했습니다",
       "failed": "병합에 실패했습니다"
+    },
+    "reassignBlock": {
+      "action": "다른 항목으로 이동",
+      "menuTitle": "이동할 항목",
+      "success": "타임블록을 이동했습니다",
+      "failed": "타임블록 이동에 실패했습니다"
     },
     "moveChecklistToTaskTitle": "체크리스트 항목 이동",
     "moveCompletedSection": "완료됨",
