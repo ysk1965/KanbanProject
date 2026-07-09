@@ -572,6 +572,15 @@ export function ChecklistItemPanel({
   // ── Scroll container ref (to preserve scroll position on item removal) ──
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // ── 담당자 스트립: 내부 드래그(잡고 끌기)로 좌우 스크롤 ──
+  const stripScrollRef = useRef<HTMLDivElement>(null);
+  const stripDragRef = useRef({
+    down: false,
+    startX: 0,
+    startScroll: 0,
+    moved: false,
+  });
+
   // ── Drag state ──
   const [dragState, setDragState] = useState<PanelDragState | null>(null);
   // Use refs for handlers that need the latest drag values inside document listeners
@@ -1280,6 +1289,38 @@ export function ChecklistItemPanel({
   const summaryPct =
     summaryTotal > 0 ? Math.round((summaryPlaced / summaryTotal) * 100) : 0;
 
+  // ── 담당자 스트립 드래그-스크롤 핸들러 ──
+  const handleStripMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const el = stripScrollRef.current;
+    if (!el) return;
+    stripDragRef.current = {
+      down: true,
+      startX: e.pageX,
+      startScroll: el.scrollLeft,
+      moved: false,
+    };
+  };
+  const handleStripMouseMove = (e: React.MouseEvent) => {
+    const st = stripDragRef.current;
+    const el = stripScrollRef.current;
+    if (!st.down || !el) return;
+    const dx = e.pageX - st.startX;
+    if (Math.abs(dx) > 3) st.moved = true;
+    el.scrollLeft = st.startScroll - dx;
+  };
+  const endStripDrag = () => {
+    stripDragRef.current.down = false;
+  };
+  // 드래그로 끌었으면 뒤따라오는 아바타 클릭(필터 선택)을 취소한다.
+  const handleStripClickCapture = (e: React.MouseEvent) => {
+    if (stripDragRef.current.moved) {
+      e.preventDefault();
+      e.stopPropagation();
+      stripDragRef.current.moved = false;
+    }
+  };
+
   // 담당자 아바타 버튼 (스트립 공용)
   const renderStripAvatar = (
     key: string,
@@ -1441,7 +1482,16 @@ export function ChecklistItemPanel({
             <div className="px-4 pb-1.5 text-xs font-bold uppercase tracking-widest text-slate-500">
               {t("schedule.panel.filterMemberShort", "담당자")}
             </div>
-            <div className="flex gap-2 px-3 pt-2 pb-1 overflow-x-auto custom-scrollbar">
+            <div
+              ref={stripScrollRef}
+              onMouseDown={handleStripMouseDown}
+              onMouseMove={handleStripMouseMove}
+              onMouseUp={endStripDrag}
+              onMouseLeave={endStripDrag}
+              onClickCapture={handleStripClickCapture}
+              className="flex gap-2 px-3 pt-2 pb-1 overflow-x-auto custom-scrollbar
+                cursor-grab active:cursor-grabbing select-none"
+            >
               {/* 전체 */}
               {renderStripAvatar(
                 "__all__",

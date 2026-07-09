@@ -325,7 +325,9 @@ function BoardCard({
                       ? new Date(item.start_date)
                       : item.due_date
                         ? new Date(item.due_date)
-                        : undefined
+                        : item.done_date
+                          ? new Date(item.done_date)
+                          : undefined
                   }
                   onSelect={(r) => {
                     onUpdate?.(item.id, {
