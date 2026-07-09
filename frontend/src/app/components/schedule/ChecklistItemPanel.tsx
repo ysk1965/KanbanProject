@@ -401,7 +401,7 @@ function MilestoneGroupSection({
 
 /**
  * Right-side panel showing unscheduled checklist items as drag sources.
- * Width: 280px (collapsed: hidden, only a toggle button remains).
+ * Width: 340px (collapsed: hidden, only a toggle button remains).
  *
  * DnD uses custom mouse events to match the existing ScheduleBlock.tsx pattern.
  */
@@ -1147,7 +1147,8 @@ export function ChecklistItemPanel({
       <img
         src={resolveFileUrl(profileImage)}
         alt=""
-        className="rounded-full shrink-0 object-cover"
+        draggable={false}
+        className="rounded-full shrink-0 object-cover select-none pointer-events-none"
         style={{ width: size, height: size }}
       />
     ) : (
@@ -1444,7 +1445,7 @@ export function ChecklistItemPanel({
     <>
       {/* Panel container */}
       <div
-        className="w-[280px] border-l border-foreground/[0.08] bg-bridge-obsidian
+        className="w-[340px] border-l border-foreground/[0.08] bg-bridge-obsidian
           flex flex-col overflow-hidden shrink-0"
         role="complementary"
         aria-label={t("schedule.panel.title", "Checklist")}
@@ -1556,6 +1557,7 @@ export function ChecklistItemPanel({
               onMouseMove={handleStripMouseMove}
               onMouseUp={endStripDrag}
               onMouseLeave={endStripDrag}
+              onDragStart={(e) => e.preventDefault()}
               onClickCapture={handleStripClickCapture}
               className="flex gap-2 px-3 pt-2 pb-1 overflow-x-auto custom-scrollbar
                 cursor-grab active:cursor-grabbing select-none"
