@@ -1288,13 +1288,16 @@ export function ChecklistItemPanel({
     count: number,
     isSelected: boolean,
     onClick: () => void,
-  ) => (
+  ) => {
+    // 3자리 초과는 "99+"로 축약해 배지가 아바타를 벗어나 잘리지 않도록 한다.
+    const countLabel = count > 99 ? "99+" : String(count);
+    return (
     <button
       key={key}
       type="button"
       onClick={onClick}
       aria-pressed={isSelected}
-      title={label}
+      title={`${label} · ${count}`}
       className="flex flex-col items-center gap-1 w-[46px] shrink-0 group"
     >
       <span
@@ -1306,14 +1309,15 @@ export function ChecklistItemPanel({
       >
         {face}
         <span
-          className={`absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full grid place-items-center
-            text-xs font-bold leading-none border-2 border-bridge-obsidian tabular-nums ${
+          className={`absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full
+            flex items-center justify-center text-xs font-bold leading-none
+            border-2 border-bridge-obsidian tabular-nums ${
               count > 0
                 ? "bg-amber-500 text-[#1a1200]"
                 : "bg-slate-600 text-slate-900"
             }`}
         >
-          {count}
+          {countLabel}
         </span>
       </span>
       <span
@@ -1324,7 +1328,8 @@ export function ChecklistItemPanel({
         {label}
       </span>
     </button>
-  );
+    );
+  };
 
   return (
     <>
@@ -1436,7 +1441,7 @@ export function ChecklistItemPanel({
             <div className="px-4 pb-1.5 text-xs font-bold uppercase tracking-widest text-slate-500">
               {t("schedule.panel.filterMemberShort", "담당자")}
             </div>
-            <div className="flex gap-2 px-3 pb-1 overflow-x-auto custom-scrollbar">
+            <div className="flex gap-2 px-3 pt-2 pb-1 overflow-x-auto custom-scrollbar">
               {/* 전체 */}
               {renderStripAvatar(
                 "__all__",

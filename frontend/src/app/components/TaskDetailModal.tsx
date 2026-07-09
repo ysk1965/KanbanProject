@@ -1589,6 +1589,13 @@ export function TaskDetailModal({
                               ? new Date(editedTask.due_date)
                               : undefined,
                           }}
+                          defaultMonth={
+                            editedTask.start_date
+                              ? new Date(editedTask.start_date)
+                              : editedTask.due_date
+                                ? new Date(editedTask.due_date)
+                                : undefined
+                          }
                           onSelect={handleDateRangeChange}
                           numberOfMonths={2}
                           locale={ko}
@@ -3367,6 +3374,13 @@ function ChecklistItemRow({
                       : undefined,
                     to: item.due_date ? new Date(item.due_date) : undefined,
                   }}
+                  defaultMonth={
+                    item.start_date
+                      ? new Date(item.start_date)
+                      : item.due_date
+                        ? new Date(item.due_date)
+                        : undefined
+                  }
                   onSelect={(range) => {
                     onUpdate({
                       start_date: range?.from
@@ -3991,6 +4005,7 @@ function AddChecklistItemInput({
                   <Calendar
                     mode="range"
                     selected={dateRange}
+                    defaultMonth={dateRange?.from ?? dateRange?.to ?? undefined}
                     onSelect={setDateRange}
                     numberOfMonths={1}
                     locale={ko}
