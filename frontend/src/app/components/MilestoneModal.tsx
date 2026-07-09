@@ -22,15 +22,21 @@ import { getTodayDateString } from "../utils/dateUtils";
 // ────────────────────────────────────────────────────────────
 // 세로 타임라인 진행률 링 노드
 // ────────────────────────────────────────────────────────────
-type MilestoneStatus = "done" | "active" | "risk" | "todo";
+type MilestoneStatus = "done" | "current" | "risk" | "todo";
 
-// 상태별 링 색 (완료=emerald, 진행=bridge-accent, 지연=amber, 예정=hollow)
+// 상태별 링 색 (완료=emerald, 현재=bridge-accent, 지연=amber, 예정=hollow)
 const RING_COLOR: Record<MilestoneStatus, string> = {
   done: "#34d399",
-  active: "#6366f1",
+  current: "#6366f1",
   risk: "#fbbf24",
   todo: "#64748b",
 };
+
+// yyyy-MM-dd → 타임존 무관 day 정수 (UTC 자정 기준)
+function dateToNum(s: string): number {
+  const [y, m, d] = s.split("-").map(Number);
+  return Date.UTC(y, m - 1, d);
+}
 
 // 진행률 + 기간(오늘 기준)으로 마일스톤 상태 파생
 function deriveMilestoneStatus(
@@ -40,7 +46,27 @@ function deriveMilestoneStatus(
   if (m.progress_percentage >= 100) return "done";
   if (m.start_date > today) return "todo"; // 아직 시작 전
   if (m.end_date < today) return "risk"; // 기간 지났는데 미완료
-  return "active"; // 진행 중
+  return "current"; // 오늘이 기간 내부 = 진행 중
+}
+
+// 현재 마일스톤: 기간의 경과 비율(%)
+function timeElapsedPercent(
+  m: { start_date: string; end_date: string },
+  today: string,
+): number {
+  const s = dateToNum(m.start_date);
+  const e = dateToNum(m.end_date);
+  const t = dateToNum(today);
+  if (e <= s) return t >= s ? 100 : 0;
+  return Math.max(0, Math.min(100, Math.round(((t - s) / (e - s)) * 100)));
+}
+
+// 종료일까지 D-day 라벨
+function dDayLabel(m: { end_date: string }, today: string): string {
+  const days = Math.round((dateToNum(m.end_date) - dateToNum(today)) / 86400000);
+  if (days > 0) return `D-${days}`;
+  if (days === 0) return "D-DAY";
+  return `D+${-days}`;
 }
 
 function MilestoneRingNode({
@@ -161,7 +187,9 @@ export function MilestoneModal({
     setPendingSelect(null);
   }, [milestone, isOpen]);
 
-  // 세로 타임라인 레일: 시작일 순 정렬 + TODAY 마커 삽입
+  // 세로 타임라인 레일: 시작일 순 정렬
+  //  - 오늘이 어떤 마일스톤 기간 안이면 → 그 마일스톤을 "current"로 강조 (구분선 없음)
+  //  - 오늘이 마일스톤 사이 공백/이전/이후면 → 그 위치에만 TODAY 구분선
   const today = getTodayDateString();
   const railItems = useMemo<
     Array<
@@ -171,18 +199,24 @@ export function MilestoneModal({
     const sorted = [...milestones].sort((a, b) =>
       a.start_date < b.start_date ? -1 : a.start_date > b.start_date ? 1 : 0,
     );
+    // 오늘이 어떤 마일스톤 기간 내부에 있는가?
+    const hasCurrent = sorted.some(
+      (m) => m.start_date <= today && today <= m.end_date,
+    );
     const items: Array<
       { today: true } | { today?: false; m: Milestone; status: MilestoneStatus }
     > = [];
-    let todayInserted = false;
+    let dividerInserted = false;
     for (const m of sorted) {
-      if (!todayInserted && m.end_date >= today) {
+      // 현재 마일스톤이 없을 때만, 오늘보다 늦게 시작하는 첫 항목 앞에 구분선
+      if (!hasCurrent && !dividerInserted && m.start_date > today) {
         items.push({ today: true });
-        todayInserted = true;
+        dividerInserted = true;
       }
       items.push({ m, status: deriveMilestoneStatus(m, today) });
     }
-    if (!todayInserted) items.push({ today: true });
+    // 오늘이 모든 마일스톤보다 이후 (현재도 없고 삽입도 안 됨) → 맨 아래
+    if (!hasCurrent && !dividerInserted) items.push({ today: true });
     return items;
   }, [milestones, today]);
 
@@ -303,56 +337,124 @@ export function MilestoneModal({
                   style={{ left: 12 }}
                   aria-hidden
                 />
-                {railItems.map((it) =>
-                  it.today ? (
-                    <div
-                      key="__today__"
-                      className="relative flex items-center gap-2.5 py-1"
-                    >
-                      <span className="grid w-6 place-items-center">
-                        <span className="h-0.5 w-3 rounded-full bg-rose-400 ring-2 ring-bridge-dark" />
-                      </span>
-                      <span className="text-xs font-bold tracking-widest text-rose-400">
-                        TODAY
-                      </span>
-                    </div>
-                  ) : (
+                {railItems.map((it) => {
+                  if (it.today) {
+                    return (
+                      <div
+                        key="__today__"
+                        className="relative flex items-center gap-2.5 py-1"
+                      >
+                        <span className="grid w-6 place-items-center">
+                          <span className="h-0.5 w-3 rounded-full bg-rose-400 ring-2 ring-bridge-dark" />
+                        </span>
+                        <span className="text-xs font-bold tracking-widest text-rose-400">
+                          TODAY
+                        </span>
+                      </div>
+                    );
+                  }
+                  const isSel = milestone?.id === it.m.id;
+                  const isCurrent = it.status === "current";
+                  const work = it.m.progress_percentage || 0;
+                  const elapsed = isCurrent
+                    ? timeElapsedPercent(it.m, today)
+                    : 0;
+                  return (
                     <button
                       key={it.m.id}
                       onClick={() => requestSelect(it.m)}
                       className={`relative grid grid-cols-[24px_1fr] items-center gap-2.5 rounded-lg py-2 pr-2 text-left transition-all ${
-                        milestone?.id === it.m.id
+                        isSel
                           ? "bg-bridge-accent/15 border border-bridge-accent/30"
                           : "border border-transparent hover:bg-bridge-surface-hover"
                       }`}
                     >
+                      {/* 현재 마일스톤: 빨강 좌측 액센트 */}
+                      {isCurrent && (
+                        <span
+                          className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-rose-400"
+                          aria-hidden
+                        />
+                      )}
                       <span className="justify-self-center">
                         <MilestoneRingNode
-                          percent={it.m.progress_percentage || 0}
+                          percent={work}
                           status={it.status}
-                          selected={milestone?.id === it.m.id}
+                          selected={isSel}
                         />
                       </span>
-                      <span className="min-w-0">
-                        <span
-                          className={`block truncate text-sm font-medium ${
-                            milestone?.id === it.m.id
-                              ? "text-bridge-accent"
-                              : "text-foreground"
-                          }`}
-                        >
-                          {it.m.title}
+                      {isCurrent ? (
+                        <span className="min-w-0">
+                          <span className="flex items-center gap-1.5">
+                            <span
+                              className={`min-w-0 truncate text-sm font-medium ${
+                                isSel ? "text-bridge-accent" : "text-foreground"
+                              }`}
+                            >
+                              {it.m.title}
+                            </span>
+                            <span className="shrink-0 rounded-full bg-rose-400/15 px-1.5 py-0.5 text-xs font-bold text-rose-400">
+                              {t("milestone.todayBadge", {
+                                defaultValue: "오늘",
+                              })}
+                            </span>
+                          </span>
+                          <span className="mt-0.5 flex items-center justify-between gap-2 text-xs text-slate-500 tabular-nums">
+                            <span className="truncate">
+                              {format(new Date(it.m.start_date), "M/d")}~
+                              {format(new Date(it.m.end_date), "M/d")}
+                            </span>
+                            <span className="shrink-0 font-medium text-rose-400">
+                              {dDayLabel(it.m, today)}
+                            </span>
+                          </span>
+                          {/* 이중 바: 기간 경과(빨강) 위에 작업 진행(그라디언트) + 오늘 마커 */}
+                          <span className="relative mt-1 block h-1.5 overflow-hidden rounded-full bg-foreground/10">
+                            <span
+                              className="absolute inset-y-0 left-0 rounded-full bg-rose-400/25"
+                              style={{ width: `${elapsed}%` }}
+                            />
+                            <span
+                              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-bridge-secondary to-bridge-accent"
+                              style={{ width: `${work}%` }}
+                            />
+                            <span
+                              className="absolute inset-y-[-1px] w-0.5 bg-rose-400"
+                              style={{ left: `${elapsed}%` }}
+                            />
+                          </span>
+                          <span className="mt-0.5 flex items-center justify-between text-xs text-slate-500 tabular-nums">
+                            <span>
+                              {t("milestone.workShort", { defaultValue: "작업" })}{" "}
+                              {work}%
+                            </span>
+                            <span>
+                              {t("milestone.elapsedShort", {
+                                defaultValue: "기간",
+                              })}{" "}
+                              {elapsed}%
+                            </span>
+                          </span>
                         </span>
-                        <span className="mt-0.5 block truncate text-xs text-slate-500 tabular-nums">
-                          {format(new Date(it.m.start_date), "M/d")}~
-                          {format(new Date(it.m.end_date), "M/d")}
-                          {milestone?.id === it.m.id &&
-                            ` · ${it.m.progress_percentage || 0}%`}
+                      ) : (
+                        <span className="min-w-0">
+                          <span
+                            className={`block truncate text-sm font-medium ${
+                              isSel ? "text-bridge-accent" : "text-foreground"
+                            }`}
+                          >
+                            {it.m.title}
+                          </span>
+                          <span className="mt-0.5 block truncate text-xs text-slate-500 tabular-nums">
+                            {format(new Date(it.m.start_date), "M/d")}~
+                            {format(new Date(it.m.end_date), "M/d")}
+                            {isSel && ` · ${work}%`}
+                          </span>
                         </span>
-                      </span>
+                      )}
                     </button>
-                  ),
-                )}
+                  );
+                })}
               </div>
             </div>
             <div className="p-2 border-t border-bridge-border">
