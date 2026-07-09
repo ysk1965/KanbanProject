@@ -17,13 +17,13 @@ variable "enabled" {
 variable "shutdown_cron" {
   description = "Cron expression for shutdown (EventBridge format, UTC)"
   type        = string
-  default     = "cron(0 14 ? * * *)" # KST 23:00
+  default     = "cron(30 18 ? * * *)" # KST 03:30
 }
 
 variable "startup_cron" {
   description = "Cron expression for startup (EventBridge format, UTC)"
   type        = string
-  default     = "cron(0 23 ? * * *)" # KST 08:00
+  default     = "cron(15 23 ? * * *)" # KST 08:15 (warm-up for 08:30 resume)
 }
 
 variable "eb_environment_name" {
