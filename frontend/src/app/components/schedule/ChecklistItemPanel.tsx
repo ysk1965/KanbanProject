@@ -181,19 +181,46 @@ function groupItemsByFeature(
 
 /**
  * Two-level grouping: Milestone → Feature → items.
- * Features whose id is not found in `featureToMilestone` fall into the
- * "no milestone" bucket, sorted last.
+ *
+ * A checklist item's milestone is resolved by the item's own task-level
+ * milestone first (`item.milestone`), falling back to its parent feature's
+ * milestone (`featureToMilestone`). This ensures a task explicitly assigned to
+ * a milestone is grouped there even when its feature spans another milestone.
+ * Items that resolve to neither fall into the "no milestone" bucket, sorted last.
  */
+function resolveItemMilestone(
+  item: AssigneeItemResponse,
+  featureToMilestone: Map<string, FeatureMilestoneRef>,
+  milestoneRefById: Map<string, FeatureMilestoneRef>,
+): FeatureMilestoneRef | undefined {
+  if (item.milestone) {
+    // 태스크 단위 마일스톤 우선. 색상/시작일을 위해 ref 맵에서 조회하되,
+    // 없으면 최소 정보로 구성한다.
+    return (
+      milestoneRefById.get(item.milestone.id) ?? {
+        id: item.milestone.id,
+        title: item.milestone.title,
+        color: "#64748B",
+        startDate: null,
+      }
+    );
+  }
+  return item.feature ? featureToMilestone.get(item.feature.id) : undefined;
+}
+
 function groupByMilestone(
   items: AssigneeItemResponse[],
   featureToMilestone: Map<string, FeatureMilestoneRef>,
+  milestoneRefById: Map<string, FeatureMilestoneRef>,
   noMilestoneLabel: string,
   noFeatureLabel: string,
 ): MilestoneGroup[] {
   const buckets = new Map<string, AssigneeItemResponse[]>();
+  const refByKey = new Map<string, FeatureMilestoneRef>();
   for (const item of items) {
-    const ms = item.feature ? featureToMilestone.get(item.feature.id) : undefined;
+    const ms = resolveItemMilestone(item, featureToMilestone, milestoneRefById);
     const key = ms?.id ?? NO_MILESTONE_KEY;
+    if (ms && !refByKey.has(key)) refByKey.set(key, ms);
     let bucket = buckets.get(key);
     if (!bucket) {
       bucket = [];
@@ -204,13 +231,7 @@ function groupByMilestone(
 
   const groups: MilestoneGroup[] = [];
   for (const [key, bucketItems] of buckets.entries()) {
-    const ref =
-      key === NO_MILESTONE_KEY
-        ? null
-        : (featureToMilestone.get(
-            // any item in the bucket resolves to the same milestone ref
-            bucketItems.find((i) => i.feature)?.feature?.id ?? "",
-          ) ?? null);
+    const ref = key === NO_MILESTONE_KEY ? null : (refByKey.get(key) ?? null);
     groups.push({
       key,
       milestoneId: ref?.id ?? null,
@@ -321,11 +342,24 @@ function MilestoneGroupSection({
         aria-expanded={isOpen}
       >
         {isOpen ? (
-          <ChevronDown size={12} className="shrink-0 text-slate-400" aria-hidden="true" />
+          <ChevronDown
+            size={12}
+            className="shrink-0 text-slate-400"
+            aria-hidden="true"
+          />
         ) : (
-          <ChevronRight size={12} className="shrink-0 text-slate-400" aria-hidden="true" />
+          <ChevronRight
+            size={12}
+            className="shrink-0 text-slate-400"
+            aria-hidden="true"
+          />
         )}
-        <Flag size={12} className="shrink-0" style={{ color: group.color }} aria-hidden="true" />
+        <Flag
+          size={12}
+          className="shrink-0"
+          style={{ color: group.color }}
+          aria-hidden="true"
+        />
         <span className="font-bold text-xs text-foreground truncate">
           {group.title}
         </span>
@@ -533,7 +567,9 @@ export function ChecklistItemPanel({
 
   /** 실제 필터에 쓰이는 값: "__all__"/null 은 필터 없음. */
   const memberFilterValue: string | null =
-    selectedMemberId && selectedMemberId !== "__all__" ? selectedMemberId : null;
+    selectedMemberId && selectedMemberId !== "__all__"
+      ? selectedMemberId
+      : null;
 
   // ── 그룹 접힘 상태 (기본 전부 펼침 = 미배치 그룹 자동 노출) ──
   // 저장하는 것은 "접힌" 키 집합. 마일스톤은 "ms:{key}", 피처는 "feat:{key}".
@@ -641,10 +677,12 @@ export function ChecklistItemPanel({
       .sort((a, b) => a.title.localeCompare(b.title));
   }, [milestones]);
 
-  // ── feature id → 소속 마일스톤 매핑 (그룹핑용) ──
-  // 피처가 여러 마일스톤에 걸칠 수 있으므로 is_primary 를 우선하고, 없으면 첫 매칭.
+  // ── 마일스톤 매핑 (그룹핑용) ──
+  // - featureToMilestone: feature id → 소속 마일스톤 (태스크 마일스톤이 없을 때의 폴백)
+  //   피처가 여러 마일스톤에 걸칠 수 있으므로 is_primary 를 우선하고, 없으면 첫 매칭.
+  // - milestoneRefById: milestone id → ref (태스크 단위 마일스톤 배정을 우선 반영하기 위함)
   // 색상은 마일스톤을 start_date 순으로 정렬한 인덱스로 통일 팔레트에서 배정.
-  const featureToMilestone = useMemo(() => {
+  const { featureToMilestone, milestoneRefById } = useMemo(() => {
     const sorted = [...milestones].sort((a, b) => {
       if (a.start_date && b.start_date && a.start_date !== b.start_date) {
         return a.start_date < b.start_date ? -1 : 1;
@@ -653,43 +691,34 @@ export function ChecklistItemPanel({
     });
     const colorOf = (idx: number) =>
       MILESTONE_PALETTE[idx % MILESTONE_PALETTE.length];
+    const refById = new Map<string, FeatureMilestoneRef>();
+    sorted.forEach((m, idx) => {
+      refById.set(m.id, {
+        id: m.id,
+        title: m.title,
+        color: colorOf(idx),
+        startDate: m.start_date ?? null,
+      });
+    });
     const map = new Map<string, FeatureMilestoneRef>();
     // 1st pass: is_primary 인 피처 우선 배정
-    sorted.forEach((m, idx) => {
+    sorted.forEach((m) => {
       for (const f of m.features ?? []) {
         if (f.is_primary) {
-          map.set(f.id, {
-            id: m.id,
-            title: m.title,
-            color: colorOf(idx),
-            startDate: m.start_date ?? null,
-          });
+          map.set(f.id, refById.get(m.id)!);
         }
       }
     });
     // 2nd pass: 아직 매핑 안 된 피처는 첫 매칭 마일스톤으로
-    sorted.forEach((m, idx) => {
+    sorted.forEach((m) => {
       for (const f of m.features ?? []) {
         if (!map.has(f.id)) {
-          map.set(f.id, {
-            id: m.id,
-            title: m.title,
-            color: colorOf(idx),
-            startDate: m.start_date ?? null,
-          });
+          map.set(f.id, refById.get(m.id)!);
         }
       }
     });
-    return map;
+    return { featureToMilestone: map, milestoneRefById: refById };
   }, [milestones]);
-
-  // ── Selected milestone's feature ids (used to filter items) ──
-  const selectedMilestoneFeatureIds = useMemo(() => {
-    if (!selectedMilestoneId) return null;
-    const milestone = milestones.find((m) => m.id === selectedMilestoneId);
-    if (!milestone?.features) return new Set<string>();
-    return new Set(milestone.features.map((f) => f.id));
-  }, [milestones, selectedMilestoneId]);
 
   // ── Reset milestone filter if its milestone disappears ──
   useEffect(() => {
@@ -880,10 +909,12 @@ export function ChecklistItemPanel({
   // ── 1) 담당자·표시모드를 제외한 공통 필터 (마일스톤/블록/직군/검색) ──
   const scopedExceptMemberAndMode = useMemo(() => {
     let result = items;
-    if (selectedMilestoneFeatureIds) {
+    if (selectedMilestoneId) {
+      // 그룹핑과 동일한 기준: 태스크 마일스톤 우선, 없으면 피처 마일스톤.
       result = result.filter(
         (item) =>
-          item.feature && selectedMilestoneFeatureIds.has(item.feature.id),
+          resolveItemMilestone(item, featureToMilestone, milestoneRefById)
+            ?.id === selectedMilestoneId,
       );
     }
     if (selectedJobRoleId) {
@@ -904,7 +935,9 @@ export function ChecklistItemPanel({
     return result;
   }, [
     items,
-    selectedMilestoneFeatureIds,
+    selectedMilestoneId,
+    featureToMilestone,
+    milestoneRefById,
     searchQuery,
     selectedJobRoleId,
     selectedBlockId,
@@ -965,10 +998,17 @@ export function ChecklistItemPanel({
       groupByMilestone(
         filteredItems,
         featureToMilestone,
+        milestoneRefById,
         noMilestoneLabel,
         noFeatureLabel,
       ),
-    [filteredItems, featureToMilestone, noMilestoneLabel, noFeatureLabel],
+    [
+      filteredItems,
+      featureToMilestone,
+      milestoneRefById,
+      noMilestoneLabel,
+      noFeatureLabel,
+    ],
   );
 
   // ── Collapsed state: render only a slim toggle strip ──
@@ -1333,42 +1373,42 @@ export function ChecklistItemPanel({
     // 3자리 초과는 "99+"로 축약해 배지가 아바타를 벗어나 잘리지 않도록 한다.
     const countLabel = count > 99 ? "99+" : String(count);
     return (
-    <button
-      key={key}
-      type="button"
-      onClick={onClick}
-      aria-pressed={isSelected}
-      title={`${label} · ${count}`}
-      className="flex flex-col items-center gap-1 w-[46px] shrink-0 group"
-    >
-      <span
-        className={`relative rounded-full transition-all ${
-          isSelected
-            ? "ring-2 ring-bridge-accent ring-offset-2 ring-offset-bridge-obsidian"
-            : "opacity-70 group-hover:opacity-100"
-        }`}
+      <button
+        key={key}
+        type="button"
+        onClick={onClick}
+        aria-pressed={isSelected}
+        title={`${label} · ${count}`}
+        className="flex flex-col items-center gap-1 w-[46px] shrink-0 group"
       >
-        {face}
         <span
-          className={`absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full
+          className={`relative rounded-full transition-all ${
+            isSelected
+              ? "ring-2 ring-bridge-accent ring-offset-2 ring-offset-bridge-obsidian"
+              : "opacity-70 group-hover:opacity-100"
+          }`}
+        >
+          {face}
+          <span
+            className={`absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full
             flex items-center justify-center text-xs font-bold leading-none
             border-2 border-bridge-obsidian tabular-nums ${
               count > 0
                 ? "bg-amber-500 text-[#1a1200]"
                 : "bg-slate-600 text-slate-900"
             }`}
-        >
-          {countLabel}
+          >
+            {countLabel}
+          </span>
         </span>
-      </span>
-      <span
-        className={`text-xs max-w-[46px] truncate ${
-          isSelected ? "text-foreground font-medium" : "text-slate-500"
-        }`}
-      >
-        {label}
-      </span>
-    </button>
+        <span
+          className={`text-xs max-w-[46px] truncate ${
+            isSelected ? "text-foreground font-medium" : "text-slate-500"
+          }`}
+        >
+          {label}
+        </span>
+      </button>
     );
   };
 
