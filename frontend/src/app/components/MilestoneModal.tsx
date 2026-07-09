@@ -5,7 +5,7 @@ import {
   Flag,
   Calendar as CalendarIcon,
   Plus,
-  ChevronRight,
+  Check,
   Maximize2,
 } from "lucide-react";
 import { Button } from "./ui/button";
@@ -17,6 +17,91 @@ import { MotionModal } from "./ui/MotionModal";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import type { Milestone, Feature } from "../types";
+import { getTodayDateString } from "../utils/dateUtils";
+
+// ────────────────────────────────────────────────────────────
+// 세로 타임라인 진행률 링 노드
+// ────────────────────────────────────────────────────────────
+type MilestoneStatus = "done" | "active" | "risk" | "todo";
+
+// 상태별 링 색 (완료=emerald, 진행=bridge-accent, 지연=amber, 예정=hollow)
+const RING_COLOR: Record<MilestoneStatus, string> = {
+  done: "#34d399",
+  active: "#6366f1",
+  risk: "#fbbf24",
+  todo: "#64748b",
+};
+
+// 진행률 + 기간(오늘 기준)으로 마일스톤 상태 파생
+function deriveMilestoneStatus(
+  m: { start_date: string; end_date: string; progress_percentage: number },
+  today: string,
+): MilestoneStatus {
+  if (m.progress_percentage >= 100) return "done";
+  if (m.start_date > today) return "todo"; // 아직 시작 전
+  if (m.end_date < today) return "risk"; // 기간 지났는데 미완료
+  return "active"; // 진행 중
+}
+
+function MilestoneRingNode({
+  percent,
+  status,
+  selected,
+}: {
+  percent: number;
+  status: MilestoneStatus;
+  selected?: boolean;
+}) {
+  const R = 8;
+  const CIRC = 2 * Math.PI * R;
+  const pct = Math.max(0, Math.min(100, percent));
+  const color = RING_COLOR[status];
+  const isDone = status === "done";
+  return (
+    <span
+      className="relative grid place-items-center rounded-full bg-bridge-dark"
+      style={{ width: 22, height: 22 }}
+      aria-hidden
+    >
+      <svg width="22" height="22" viewBox="0 0 22 22" className="-rotate-90">
+        <circle
+          cx="11"
+          cy="11"
+          r={R}
+          fill="none"
+          stroke="rgba(148,163,184,0.22)"
+          strokeWidth="3"
+        />
+        {pct > 0 && (
+          <circle
+            cx="11"
+            cy="11"
+            r={R}
+            fill="none"
+            stroke={color}
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeDasharray={CIRC}
+            strokeDashoffset={CIRC * (1 - pct / 100)}
+          />
+        )}
+      </svg>
+      {isDone && (
+        <Check
+          className="absolute h-3 w-3"
+          strokeWidth={3.5}
+          style={{ color }}
+        />
+      )}
+      {selected && !isDone && (
+        <span
+          className="absolute rounded-full"
+          style={{ width: 5, height: 5, background: color }}
+        />
+      )}
+    </span>
+  );
+}
 
 interface MilestoneModalProps {
   isOpen: boolean;
@@ -42,9 +127,7 @@ export function MilestoneModal({
   onClose,
   milestone,
   milestones,
-  features,
   featureMilestoneCountMap = {},
-  featurePrimaryMilestoneMap = {},
   onSave,
   onDelete,
   onSelectMilestone,
@@ -54,9 +137,6 @@ export function MilestoneModal({
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
-  const [selectedFeatureIds, setSelectedFeatureIds] = useState<Set<string>>(
-    new Set(),
-  );
   const [isSaving, setIsSaving] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const [pendingSelect, setPendingSelect] = useState<{
@@ -71,19 +151,40 @@ export function MilestoneModal({
       setDescription(milestone.description || "");
       setStartDate(new Date(milestone.start_date));
       setEndDate(new Date(milestone.end_date));
-      setSelectedFeatureIds(
-        new Set(milestone.features?.map((f) => f.id) || []),
-      );
     } else {
       setTitle("");
       setDescription("");
       setStartDate(undefined);
       setEndDate(undefined);
-      setSelectedFeatureIds(new Set());
     }
     setDescExpanded(false);
     setPendingSelect(null);
   }, [milestone, isOpen]);
+
+  // 세로 타임라인 레일: 시작일 순 정렬 + TODAY 마커 삽입
+  const today = getTodayDateString();
+  const railItems = useMemo<
+    Array<
+      { today: true } | { today?: false; m: Milestone; status: MilestoneStatus }
+    >
+  >(() => {
+    const sorted = [...milestones].sort((a, b) =>
+      a.start_date < b.start_date ? -1 : a.start_date > b.start_date ? 1 : 0,
+    );
+    const items: Array<
+      { today: true } | { today?: false; m: Milestone; status: MilestoneStatus }
+    > = [];
+    let todayInserted = false;
+    for (const m of sorted) {
+      if (!todayInserted && m.end_date >= today) {
+        items.push({ today: true });
+        todayInserted = true;
+      }
+      items.push({ m, status: deriveMilestoneStatus(m, today) });
+    }
+    if (!todayInserted) items.push({ today: true });
+    return items;
+  }, [milestones, today]);
 
   const handleSave = async (): Promise<boolean> => {
     if (!title.trim() || !startDate || !endDate) {
@@ -98,7 +199,6 @@ export function MilestoneModal({
         description: description.trim() || undefined,
         start_date: format(startDate, "yyyy-MM-dd"),
         end_date: format(endDate, "yyyy-MM-dd"),
-        feature_ids: Array.from(selectedFeatureIds),
       });
       return true;
     } catch (error) {
@@ -120,15 +220,12 @@ export function MilestoneModal({
     const baseEnd = milestone
       ? format(new Date(milestone.end_date), "yyyy-MM-dd")
       : "";
-    const baseFeat = new Set(milestone?.features?.map((f) => f.id) ?? []);
     const curStart = startDate ? format(startDate, "yyyy-MM-dd") : "";
     const curEnd = endDate ? format(endDate, "yyyy-MM-dd") : "";
     if (title !== baseTitle) return true;
     if (description !== baseDesc) return true;
     if (curStart !== baseStart) return true;
     if (curEnd !== baseEnd) return true;
-    if (selectedFeatureIds.size !== baseFeat.size) return true;
-    for (const id of selectedFeatureIds) if (!baseFeat.has(id)) return true;
     return false;
   })();
 
@@ -170,37 +267,6 @@ export function MilestoneModal({
     }
   };
 
-  const toggleFeature = (featureId: string) => {
-    setSelectedFeatureIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(featureId)) {
-        newSet.delete(featureId);
-      } else {
-        newSet.add(featureId);
-      }
-      return newSet;
-    });
-  };
-
-  // 현재 마일스톤에 이미 저장된 링크의 대표 여부 (featureId → is_primary)
-  const persistedLinkPrimary = useMemo(() => {
-    const map = new Map<string, boolean>();
-    for (const f of milestone?.features ?? []) map.set(f.id, f.is_primary);
-    return map;
-  }, [milestone]);
-
-  // Feature 정렬: 현재 마일스톤 연결 우선 → 연결 수 적은 순
-  const sortedFeatures = useMemo(() => {
-    return [...features].sort((a, b) => {
-      const aSelected = selectedFeatureIds.has(a.id) ? 0 : 1;
-      const bSelected = selectedFeatureIds.has(b.id) ? 0 : 1;
-      if (aSelected !== bSelected) return aSelected - bSelected;
-      const aCount = featureMilestoneCountMap[a.id] || 0;
-      const bCount = featureMilestoneCountMap[b.id] || 0;
-      return aCount - bCount;
-    });
-  }, [features, selectedFeatureIds, featureMilestoneCountMap]);
-
   return (
     <>
       <MotionModal
@@ -227,57 +293,67 @@ export function MilestoneModal({
 
         {/* 좌측 리스트 + 우측 폼 */}
         <div className="flex flex-1 overflow-hidden">
-          {/* 좌측: 마일스톤 리스트 */}
+          {/* 좌측: 세로 타임라인 레일 */}
           <div className="w-56 shrink-0 border-r border-bridge-border flex flex-col bg-white/[0.01]">
-            <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
-              {milestones.map((ms) => (
-                <button
-                  key={ms.id}
-                  onClick={() => requestSelect(ms)}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg transition-all group ${
-                    milestone?.id === ms.id
-                      ? "bg-bridge-accent/15 border border-bridge-accent/30"
-                      : "hover:bg-bridge-surface-hover border border-transparent"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`text-sm font-medium truncate ${
-                        milestone?.id === ms.id
-                          ? "text-bridge-accent"
-                          : "text-foreground"
+            <div className="flex-1 overflow-y-auto px-2 py-3">
+              <div className="relative flex flex-col gap-0.5">
+                {/* 세로 스파인 */}
+                <div
+                  className="absolute top-3 bottom-3 w-px bg-bridge-border"
+                  style={{ left: 12 }}
+                  aria-hidden
+                />
+                {railItems.map((it) =>
+                  it.today ? (
+                    <div
+                      key="__today__"
+                      className="relative flex items-center gap-2.5 py-1"
+                    >
+                      <span className="grid w-6 place-items-center">
+                        <span className="h-0.5 w-3 rounded-full bg-rose-400 ring-2 ring-bridge-dark" />
+                      </span>
+                      <span className="text-xs font-bold tracking-widest text-rose-400">
+                        TODAY
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      key={it.m.id}
+                      onClick={() => requestSelect(it.m)}
+                      className={`relative grid grid-cols-[24px_1fr] items-center gap-2.5 rounded-lg py-2 pr-2 text-left transition-all ${
+                        milestone?.id === it.m.id
+                          ? "bg-bridge-accent/15 border border-bridge-accent/30"
+                          : "border border-transparent hover:bg-bridge-surface-hover"
                       }`}
                     >
-                      {ms.title}
-                    </span>
-                    <ChevronRight
-                      size={14}
-                      className={`shrink-0 ${
-                        milestone?.id === ms.id
-                          ? "text-bridge-accent"
-                          : "text-zinc-600 group-hover:text-zinc-400"
-                      }`}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-zinc-500">
-                      {format(new Date(ms.start_date), "M/d")} ~{" "}
-                      {format(new Date(ms.end_date), "M/d")}
-                    </span>
-                    <span className="text-xs text-zinc-600">
-                      {ms.feature_count || ms.features?.length || 0}
-                      {t("milestone.featureUnit", "개")}
-                    </span>
-                  </div>
-                  {/* 진행률 바 */}
-                  <div className="mt-1.5 h-1 bg-white/5 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-full transition-all"
-                      style={{ width: `${ms.progress_percentage || 0}%` }}
-                    />
-                  </div>
-                </button>
-              ))}
+                      <span className="justify-self-center">
+                        <MilestoneRingNode
+                          percent={it.m.progress_percentage || 0}
+                          status={it.status}
+                          selected={milestone?.id === it.m.id}
+                        />
+                      </span>
+                      <span className="min-w-0">
+                        <span
+                          className={`block truncate text-sm font-medium ${
+                            milestone?.id === it.m.id
+                              ? "text-bridge-accent"
+                              : "text-foreground"
+                          }`}
+                        >
+                          {it.m.title}
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs text-slate-500 tabular-nums">
+                          {format(new Date(it.m.start_date), "M/d")}~
+                          {format(new Date(it.m.end_date), "M/d")}
+                          {milestone?.id === it.m.id &&
+                            ` · ${it.m.progress_percentage || 0}%`}
+                        </span>
+                      </span>
+                    </button>
+                  ),
+                )}
+              </div>
             </div>
             <div className="p-2 border-t border-bridge-border">
               <button
@@ -386,78 +462,70 @@ export function MilestoneModal({
                 </Popover>
               </div>
 
-              {/* Feature 연결 */}
-              <div className="space-y-2">
-                <label className="kanban-label block">
-                  {t("milestone.linkedFeatures")}
-                </label>
-                <div className="max-h-48 overflow-y-auto space-y-1 bg-bridge-surface rounded-xl p-2 border border-foreground/10">
-                  {sortedFeatures.length > 0 ? (
-                    sortedFeatures.map((feature) => {
-                      const milestoneCount =
-                        featureMilestoneCountMap[feature.id] || 0;
-                      // 이 마일스톤에 저장된 링크의 대표 여부 (미저장이면 undefined)
-                      const persistedPrimary = persistedLinkPrimary.get(
-                        feature.id,
-                      );
-                      const isPrimaryHere = persistedPrimary === true;
-                      // 이 마일스톤에 저장됐지만 대표가 아니며, 대표가 다른 마일스톤인 경우 = 이어짐
-                      const primaryMsId = featurePrimaryMilestoneMap[feature.id];
-                      const isContinuationHere =
-                        persistedPrimary === false &&
-                        !!primaryMsId &&
-                        primaryMsId !== milestone?.id;
-                      return (
-                        <label
-                          key={feature.id}
-                          className="flex items-center gap-2 p-2 rounded-lg hover:bg-bridge-surface-hover cursor-pointer transition-colors"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedFeatureIds.has(feature.id)}
-                            onChange={() => toggleFeature(feature.id)}
-                            className="w-4 h-4 rounded border-foreground/10 bg-bridge-obsidian text-indigo-500 focus:ring-indigo-500"
-                          />
+              {/* 담긴 작업 (태스크에서 자동 파생 — 읽기 전용) */}
+              {isEditMode && (
+                <div className="space-y-2">
+                  <label className="kanban-label block">
+                    {t("milestone.containedWork", {
+                      defaultValue: "담긴 작업",
+                    })}
+                    <span className="ml-1.5 text-xs font-normal normal-case tracking-normal text-slate-500">
+                      ·{" "}
+                      {t("milestone.derivedHint", {
+                        defaultValue: "태스크 자동 파생",
+                      })}
+                    </span>
+                  </label>
+                  {milestone?.features && milestone.features.length > 0 ? (
+                    <div className="max-h-48 overflow-y-auto space-y-1 bg-bridge-surface rounded-xl p-2 border border-foreground/10">
+                      {milestone.features.map((feature) => {
+                        const spanning =
+                          (featureMilestoneCountMap[feature.id] || 0) > 1;
+                        return (
                           <div
-                            className="w-3 h-3 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: feature.color }}
-                          />
-                          <span className="text-sm text-foreground truncate flex-1">
-                            {feature.title}
-                          </span>
-                          {isPrimaryHere && (
-                            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent flex-shrink-0">
-                              {t("milestone.primaryBadge", {
-                                defaultValue: "대표",
-                              })}
+                            key={feature.id}
+                            className="flex items-center gap-2 p-2 rounded-lg"
+                          >
+                            <div
+                              className="w-3 h-3 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: feature.color }}
+                            />
+                            <span className="text-sm text-foreground truncate flex-1">
+                              {feature.title}
                             </span>
-                          )}
-                          {isContinuationHere && (
-                            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary flex-shrink-0">
-                              {t("milestone.continuationBadge", {
-                                defaultValue: "이어짐",
-                              })}
-                            </span>
-                          )}
-                          {!isPrimaryHere &&
-                            !isContinuationHere &&
-                            milestoneCount > 0 && (
-                              <span className="text-xs text-slate-500 flex-shrink-0 tabular-nums">
-                                {t("milestone.linkedCount", {
-                                  count: milestoneCount,
+                            {spanning && (
+                              <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 flex-shrink-0">
+                                ⑂{" "}
+                                {t("milestone.spanningShort", {
+                                  defaultValue: "걸침",
                                 })}
                               </span>
                             )}
-                        </label>
-                      );
-                    })
+                            <span className="text-xs text-slate-500 flex-shrink-0 tabular-nums">
+                              {feature.completed_tasks}/{feature.total_tasks}
+                            </span>
+                            <div className="w-14 h-1.5 rounded-full bg-foreground/10 overflow-hidden flex-shrink-0">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-bridge-secondary to-bridge-accent"
+                                style={{
+                                  width: `${feature.progress_percentage || 0}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   ) : (
-                    <p className="text-sm text-slate-400 text-center py-4">
-                      {t("milestone.noFeatures")}
+                    <p className="text-sm text-slate-400 text-center py-6 bg-bridge-surface rounded-xl border border-foreground/10">
+                      {t("milestone.noContainedWork", {
+                        defaultValue:
+                          "배정된 태스크가 없습니다. 마일스톤 보드·태스크에서 배정하세요.",
+                      })}
                     </p>
                   )}
                 </div>
-              </div>
+              )}
             </div>
 
             {/* 푸터 */}
