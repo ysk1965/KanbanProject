@@ -1164,7 +1164,7 @@
   },
   "nightShutdown": {
     "title": "非运营时间",
-    "subtitle": "服务每天 08:00 ~ 23:00 (KST) 运营",
+    "subtitle": "每天 03:30 ~ 08:30 (KST) 进行服务器维护",
     "resumeAt": "服务恢复时间",
     "hours": "小时",
     "minutes": "分钟",

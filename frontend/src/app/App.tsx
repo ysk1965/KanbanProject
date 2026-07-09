@@ -626,13 +626,14 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
       setMaintenanceStatus(status);
       setIsNightShutdown(false);
     } catch {
-      // 서버 접속 불가 + 야간 점검 시간(KST 23:00~08:00)이면 야간 셧다운 페이지 표시
-      const kstHour = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCHours();
-      if (kstHour >= 23 || kstHour < 8) {
+      // 서버 접속 불가 + 점검 시간(KST 03:30~08:30)이면 야간 셧다운 페이지 표시
+      const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+      const kstMins = kst.getUTCHours() * 60 + kst.getUTCMinutes();
+      if (kstMins >= 3 * 60 + 30 && kstMins < 8 * 60 + 30) {
         setIsNightShutdown(true);
         setMaintenanceStatus({
           enabled: true,
-          message: '서버 점검 중입니다 (23:00~08:00)',
+          message: '서버 점검 중입니다 (03:30~08:30)',
           started_at: null,
           estimated_end_at: null,
         });

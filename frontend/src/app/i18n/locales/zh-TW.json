@@ -1149,7 +1149,7 @@
   },
   "nightShutdown": {
     "title": "非營運時間",
-    "subtitle": "服務每天 08:00 ~ 23:00 (KST) 營運",
+    "subtitle": "每天 03:30 ~ 08:30 (KST) 進行伺服器維護",
     "resumeAt": "服務恢復時間",
     "hours": "小時",
     "minutes": "分鐘",
