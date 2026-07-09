@@ -827,7 +827,16 @@
       "selectFeaturePlaceholder": "Selecionar funcionalidade",
       "selectTaskPlaceholder": "Selecionar tarefa",
       "noFeatures": "Sem funcionalidades",
-      "noTasks": "Sem tarefas nesta funcionalidade"
+      "noTasks": "Sem tarefas nesta funcionalidade",
+      "needPlacement": "para alocar",
+      "placedOf": "{{placed}}/{{total}} alocadas",
+      "showMode": "Modo de exibição",
+      "modeUnscheduled": "Não alocadas",
+      "modeAll": "Todas",
+      "allShort": "Todas",
+      "me": "Eu",
+      "noMilestone": "Sem marco",
+      "noItemsForMember": "Nada para alocar para este membro 🎉"
     },
     "settingsTitle": "Configurações de Agenda",
     "managementMethod": "Método de Gerenciamento",

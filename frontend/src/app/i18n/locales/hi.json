@@ -827,7 +827,16 @@
       "selectFeaturePlaceholder": "फ़ीचर चुनें",
       "selectTaskPlaceholder": "कार्य चुनें",
       "noFeatures": "कोई फ़ीचर नहीं",
-      "noTasks": "इस फ़ीचर में कोई कार्य नहीं"
+      "noTasks": "इस फ़ीचर में कोई कार्य नहीं",
+      "needPlacement": "रखना बाकी",
+      "placedOf": "{{placed}}/{{total}} रखा",
+      "showMode": "व्यू मोड",
+      "modeUnscheduled": "अनिर्धारित",
+      "modeAll": "सभी",
+      "allShort": "सभी",
+      "me": "मैं",
+      "noMilestone": "कोई माइलस्टोन नहीं",
+      "noItemsForMember": "इस सदस्य के लिए रखने को कुछ नहीं 🎉"
     },
     "settingsTitle": "शेड्यूल सेटिंग्स",
     "managementMethod": "प्रबंधन विधि",

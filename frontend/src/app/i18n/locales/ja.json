@@ -827,7 +827,16 @@
       "selectFeaturePlaceholder": "フィーチャーを選択",
       "selectTaskPlaceholder": "タスクを選択",
       "noFeatures": "フィーチャーがありません",
-      "noTasks": "このフィーチャーにタスクがありません"
+      "noTasks": "このフィーチャーにタスクがありません",
+      "needPlacement": "件 未配置",
+      "placedOf": "配置 {{placed}}/{{total}}",
+      "showMode": "表示モード",
+      "modeUnscheduled": "未配置",
+      "modeAll": "すべて",
+      "allShort": "全",
+      "me": "自分",
+      "noMilestone": "マイルストーン未設定",
+      "noItemsForMember": "この担当者に配置する項目はありません 🎉"
     },
     "settingsTitle": "スケジュール設定",
     "managementMethod": "管理方法",

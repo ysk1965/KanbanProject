@@ -827,7 +827,16 @@
       "selectFeaturePlaceholder": "Chọn tính năng",
       "selectTaskPlaceholder": "Chọn công việc",
       "noFeatures": "Chưa có tính năng",
-      "noTasks": "Chưa có công việc trong tính năng này"
+      "noTasks": "Chưa có công việc trong tính năng này",
+      "needPlacement": "cần xếp",
+      "placedOf": "Đã xếp {{placed}}/{{total}}",
+      "showMode": "Chế độ xem",
+      "modeUnscheduled": "Chưa xếp",
+      "modeAll": "Tất cả",
+      "allShort": "Tất cả",
+      "me": "Tôi",
+      "noMilestone": "Chưa có cột mốc",
+      "noItemsForMember": "Không có mục nào cần xếp cho thành viên này 🎉"
     },
     "settingsTitle": "Cai dat lich trinh",
     "managementMethod": "Phuong thuc quan ly",

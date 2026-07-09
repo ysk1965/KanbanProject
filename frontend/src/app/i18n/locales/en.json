@@ -954,7 +954,16 @@
       "selectFeaturePlaceholder": "Select a feature",
       "selectTaskPlaceholder": "Select a task",
       "noFeatures": "No features yet",
-      "noTasks": "No tasks in this feature"
+      "noTasks": "No tasks in this feature",
+      "needPlacement": "to place",
+      "placedOf": "{{placed}}/{{total}} placed",
+      "showMode": "View mode",
+      "modeUnscheduled": "Unplaced",
+      "modeAll": "All",
+      "allShort": "All",
+      "me": "Me",
+      "noMilestone": "No milestone",
+      "noItemsForMember": "Nothing to place for this member 🎉"
     },
     "settingsTitle": "Schedule Settings",
     "managementMethod": "Management Method",
