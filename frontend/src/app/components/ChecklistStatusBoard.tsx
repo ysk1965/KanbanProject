@@ -320,6 +320,13 @@ function BoardCard({
                       : undefined,
                     to: item.due_date ? new Date(item.due_date) : undefined,
                   }}
+                  defaultMonth={
+                    item.start_date
+                      ? new Date(item.start_date)
+                      : item.due_date
+                        ? new Date(item.due_date)
+                        : undefined
+                  }
                   onSelect={(r) => {
                     onUpdate?.(item.id, {
                       start_date: r?.from ? format(r.from, "yyyy-MM-dd") : null,
