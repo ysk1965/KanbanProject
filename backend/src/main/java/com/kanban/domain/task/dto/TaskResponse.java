@@ -25,6 +25,8 @@ public class TaskResponse {
         private String blockId;
         private String blockName;
         private String milestoneId;
+        private Integer taskNumber;
+        private String taskKey;
         private String title;
         private String description;
         private LocalDate startDate;
@@ -49,6 +51,8 @@ public class TaskResponse {
                     .blockId(task.getBlock().getId())
                     .blockName(task.getBlock().getName())
                     .milestoneId(task.getMilestone() != null ? task.getMilestone().getId() : null)
+                    .taskNumber(task.getTaskNumber())
+                    .taskKey(task.getTaskKey())
                     .title(task.getTitle())
                     .description(task.getDescription())
                     .startDate(task.getStartDate())
@@ -78,6 +82,8 @@ public class TaskResponse {
         private String blockId;
         private String blockName;
         private String milestoneId;
+        private Integer taskNumber;
+        private String taskKey;
         private String title;
         private String description;
         private LocalDate startDate;
@@ -103,6 +109,8 @@ public class TaskResponse {
                     .blockId(task.getBlock().getId())
                     .blockName(task.getBlock().getName())
                     .milestoneId(task.getMilestone() != null ? task.getMilestone().getId() : null)
+                    .taskNumber(task.getTaskNumber())
+                    .taskKey(task.getTaskKey())
                     .title(task.getTitle())
                     .description(task.getDescription())
                     .startDate(task.getStartDate())

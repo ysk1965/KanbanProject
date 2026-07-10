@@ -450,29 +450,31 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
             className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 pl-9 pr-3 text-sm text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 transition-all"
           />
         </div>
-        {/* Create Actions */}
+        {/* Create Actions — 가장 잦은 '새 문서'를 주 버튼으로, 보드·폴더는 아이콘 버튼으로 분리 */}
         {canEdit && (
-          <div className="flex gap-1.5 mt-3">
+          <div className="grid grid-cols-[1fr_auto_auto] gap-1.5 mt-3">
             <button
               onClick={() => handleCreateDocument(null)}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+              className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-bold text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 transition-colors"
             >
               <FilePlus size={15} />
               {t('notes.newDocument', '새 문서')}
             </button>
             <button
               onClick={() => handleCreateBoard(null)}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+              aria-label={t('notes.newBoard', '새 보드')}
+              title={t('notes.newBoard', '새 보드')}
+              className="flex items-center justify-center w-9 text-bridge-secondary bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-colors"
             >
-              <PenTool size={15} />
-              {t('notes.newBoard', '새 보드')}
+              <PenTool size={16} />
             </button>
             <button
               onClick={() => handleCreateFolder(null)}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+              aria-label={t('notes.newFolder', '새 폴더')}
+              title={t('notes.newFolder', '새 폴더')}
+              className="flex items-center justify-center w-9 text-bridge-accent bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-colors"
             >
-              <FolderPlus size={15} />
-              {t('notes.newFolder', '새 폴더')}
+              <FolderPlus size={16} />
             </button>
           </div>
         )}

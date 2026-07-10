@@ -1415,6 +1415,14 @@
     "move": "Di chuyen",
     "moveChecklistToTask": "Di chuyển đến Task khác",
     "mergeChecklist": {
+      "featureLabel": "Tính năng",
+      "taskLabel": "Nhiệm vụ",
+      "representative": "Đại diện",
+      "statusDone": "Hoàn thành",
+      "statusDoing": "Đang làm",
+      "statusTodo": "Dự kiến",
+      "previewAssignees": "Người phụ trách",
+      "previewAssigneesValue": "{{names}} ({{n}})",
       "action": "Gộp với mục khác",
       "title": "Gộp {{count}} mục thành một",
       "subtitle": "Gom các khối thời gian của mục đã chọn vào mục đại diện",
@@ -2939,6 +2947,7 @@
   },
   "notes": {
     "moveFailed": "Di chuyển ghi chú thất bại",
+    "moveInto": "Vào trong",
     "addTag": "Thêm thẻ",
     "aiAlreadyExists": "Đã tồn tại",
     "aiAnalyzing": "AI đang phân tích ghi chú của bạn...",

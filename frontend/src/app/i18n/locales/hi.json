@@ -1415,6 +1415,14 @@
     "move": "ले जाएं",
     "moveChecklistToTask": "अन्य Task में ले जाएं",
     "mergeChecklist": {
+      "featureLabel": "फ़ीचर",
+      "taskLabel": "टास्क",
+      "representative": "मुख्य",
+      "statusDone": "पूर्ण",
+      "statusDoing": "जारी",
+      "statusTodo": "नियोजित",
+      "previewAssignees": "असाइनी",
+      "previewAssigneesValue": "{{names}} ({{n}})",
       "action": "दूसरे आइटम के साथ मर्ज करें",
       "title": "{{count}} आइटम को एक में मर्ज करें",
       "subtitle": "चयनित आइटम के टाइम ब्लॉक को मुख्य आइटम में इकट्ठा करें",
@@ -2939,6 +2947,7 @@
   },
   "notes": {
     "moveFailed": "नोट स्थानांतरित करने में विफल",
+    "moveInto": "अंदर",
     "addTag": "टैग जोड़ें",
     "aiAlreadyExists": "पहले से मौजूद",
     "aiAnalyzing": "AI नोट का विश्लेषण कर रहा है...",

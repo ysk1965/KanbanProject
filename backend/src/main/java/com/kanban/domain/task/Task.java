@@ -90,6 +90,17 @@ public class Task extends BaseTimeEntity {
     @Builder.Default
     private Integer featurePosition = 0;
 
+    /** 보드 내 태스크 순번 (사람이 읽는 키의 숫자부). 예: 42 */
+    @Column(name = "task_number")
+    private Integer taskNumber;
+
+    /**
+     * 사람이 읽는 불변 키. 예: "STORY-42". 생성 시 발급되며 보드 이동/삭제에도 바뀌지 않는다.
+     * 전역 유니크(uk_tasks_task_key). 링크 해석은 이 값의 단일 인덱스 조회로 처리한다.
+     */
+    @Column(name = "task_key", length = 20)
+    private String taskKey;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;
@@ -143,6 +154,12 @@ public class Task extends BaseTimeEntity {
 
     public void updateFeaturePosition(Integer featurePosition) {
         this.featurePosition = featurePosition;
+    }
+
+    /** 사람이 읽는 키 배정 (생성 또는 백필 시 1회). */
+    public void assignKey(Integer taskNumber, String taskKey) {
+        this.taskNumber = taskNumber;
+        this.taskKey = taskKey;
     }
 
     public void moveToBlock(Block newBlock) {

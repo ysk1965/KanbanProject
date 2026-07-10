@@ -56,6 +56,21 @@ function getMaxSubtreeDepth(item: NoteTreeItem): number {
   return 1 + Math.max(...item.children.map(getMaxSubtreeDepth));
 }
 
+// 형제 사이(before/after)로 끼워넣는 위치를 알리는 강조 삽입선 — 발광 + 시작점 도트
+function DropLine({ indent }: { indent: number }) {
+  return (
+    <div
+      className="relative h-[3px] rounded-full bg-bridge-accent my-0.5"
+      style={{ marginLeft: indent, marginRight: 8, boxShadow: '0 0 8px rgba(99,102,241,0.6)' }}
+    >
+      <span
+        className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-bridge-accent"
+        style={{ boxShadow: '0 0 8px rgba(99,102,241,0.9)' }}
+      />
+    </div>
+  );
+}
+
 export function NoteTreeSidebar({
   tree,
   selectedNoteId,
@@ -420,9 +435,7 @@ function RootDropZone({ isOver, canEdit, isDragging }: { isOver: boolean; canEdi
       ref={setNodeRef}
       className={`rounded-lg transition-all ${isDragging ? 'min-h-[48px]' : 'min-h-[16px]'}`}
     >
-      {isOver && (
-        <div className="h-0.5 rounded-full bg-bridge-accent my-0.5" style={{ marginLeft: 8, marginRight: 8 }} />
-      )}
+      {isOver && <DropLine indent={8} />}
     </div>
   );
 }
@@ -523,12 +536,7 @@ function TreeItemComponent({
   return (
     <div className={isDragging ? 'opacity-30' : ''}>
       {/* Before drop indicator line */}
-      {isBeforeTarget && (
-        <div
-          className="h-0.5 rounded-full bg-bridge-accent my-0.5"
-          style={{ marginLeft: indentPx, marginRight: 8 }}
-        />
-      )}
+      {isBeforeTarget && <DropLine indent={indentPx} />}
 
       {/* Item row — draggable + droppable */}
       <div
@@ -538,7 +546,9 @@ function TreeItemComponent({
             ? 'bg-bridge-accent/20 text-foreground'
             : isSelected
               ? 'bg-bridge-accent/15 text-foreground'
-              : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground'
+              : isFolder
+                ? 'bg-foreground/[0.03] text-foreground hover:bg-foreground/[0.06]'
+                : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground'
         }`}
         style={{
           paddingLeft: `${indentPx}px`,
@@ -550,9 +560,9 @@ function TreeItemComponent({
         {...listeners}
         onClick={handleClick}
       >
-        {/* Drag handle */}
+        {/* Drag handle — 평소 은은히 노출, 호버 시 또렷하게 */}
         {canEdit && !renaming && (
-          <span className="flex-shrink-0 opacity-0 group-hover:opacity-40 transition-opacity cursor-grab active:cursor-grabbing">
+          <span className="flex-shrink-0 opacity-20 group-hover:opacity-90 transition-opacity cursor-grab active:cursor-grabbing text-slate-400">
             <GripVertical size={14} />
           </span>
         )}
@@ -593,7 +603,21 @@ function TreeItemComponent({
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className="flex-1 min-w-0 truncate">{item.title}</span>
+          <span className={`flex-1 min-w-0 truncate ${isFolder ? 'font-medium' : ''}`}>{item.title}</span>
+        )}
+
+        {/* 폴더 안으로 드롭 중임을 명확히 알리는 라벨 */}
+        {isInsideTarget && (
+          <span className="flex-shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-md bg-bridge-accent/20 text-bridge-accent">
+            {t('notes.moveInto', '안으로')}
+          </span>
+        )}
+
+        {/* 접힌 폴더의 자식 개수 배지 — 펼치지 않아도 내용량 파악 */}
+        {isFolder && hasChildren && !expanded && !isInsideTarget && (
+          <span className="flex-shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent group-hover:hidden">
+            {item.children!.length}
+          </span>
         )}
 
         {/* Context Menu */}
@@ -668,24 +692,19 @@ function TreeItemComponent({
       </div>
 
       {/* 'inside-first' indicator — 첫 자식 위치(자식 indent)에 선 표시 */}
-      {isInsideFirstTarget && (
-        <div
-          className="h-0.5 rounded-full bg-bridge-accent my-0.5"
-          style={{ marginLeft: (depth + 1) * 20 + 8, marginRight: 8 }}
-        />
-      )}
+      {isInsideFirstTarget && <DropLine indent={(depth + 1) * 20 + 8} />}
 
       {/* After drop indicator line — 자식이 보이지 않을 때만 행 바로 아래 표시 */}
-      {isAfterTarget && !(expanded && hasChildren) && (
-        <div
-          className="h-0.5 rounded-full bg-bridge-accent my-0.5"
-          style={{ marginLeft: indentPx, marginRight: 8 }}
-        />
-      )}
+      {isAfterTarget && !(expanded && hasChildren) && <DropLine indent={indentPx} />}
 
-      {/* Children */}
+      {/* Children — 좌측 세로 가이드 레일로 계층 소속을 시각화 */}
       {expanded && hasChildren && (
-        <div>
+        <div className="relative">
+          <span
+            aria-hidden
+            className="absolute top-0 bottom-0 w-px bg-foreground/[0.10] pointer-events-none"
+            style={{ left: indentPx + 9 }}
+          />
           <SiblingGroup
             items={item.children}
             parentId={item.id}
@@ -709,12 +728,7 @@ function TreeItemComponent({
       )}
 
       {/* After drop indicator — 펼쳐진 서브트리 뒤로 가는 경우 서브트리 끝에 표시 */}
-      {isAfterTarget && expanded && hasChildren && (
-        <div
-          className="h-0.5 rounded-full bg-bridge-accent my-0.5"
-          style={{ marginLeft: indentPx, marginRight: 8 }}
-        />
-      )}
+      {isAfterTarget && expanded && hasChildren && <DropLine indent={indentPx} />}
     </div>
   );
 }

@@ -1415,6 +1415,14 @@
     "move": "ย้าย",
     "moveChecklistToTask": "ย้ายไป Task อื่น",
     "mergeChecklist": {
+      "featureLabel": "ฟีเจอร์",
+      "taskLabel": "งาน",
+      "representative": "หลัก",
+      "statusDone": "เสร็จสิ้น",
+      "statusDoing": "กำลังดำเนินการ",
+      "statusTodo": "วางแผนไว้",
+      "previewAssignees": "ผู้รับผิดชอบ",
+      "previewAssigneesValue": "{{names}} ({{n}})",
       "action": "รวมกับรายการอื่น",
       "title": "รวม {{count}} รายการเป็นหนึ่งเดียว",
       "subtitle": "รวมบล็อกเวลาของรายการที่เลือกไว้ในรายการหลัก",
@@ -2939,6 +2947,7 @@
   },
   "notes": {
     "moveFailed": "ย้ายโน้ตไม่สำเร็จ",
+    "moveInto": "เข้าไป",
     "addTag": "เพิ่มแท็ก",
     "aiAlreadyExists": "มีอยู่แล้ว",
     "aiAnalyzing": "AI กำลังวิเคราะห์โน้ตของคุณ...",

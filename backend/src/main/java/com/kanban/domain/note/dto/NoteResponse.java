@@ -116,8 +116,18 @@ public class NoteResponse {
         private List<TagInfo> tags;
         private String authorName;
         private LocalDateTime updatedAt;
+        /** 링크 미리보기(og:description)용 평문 발췌. BOARD/발췌 불가 시 null */
+        private String excerpt;
+        /** 상위 폴더 제목 (없으면 null) — 미리보기 브레드크럼용 */
+        private String parentTitle;
+        /** 소속 보드명 또는 조직명 (미리보기 출처 표시용) */
+        private String boardName;
 
         public static SharedNote of(Note note, List<TagInfo> tags) {
+            String boardName = note.getBoard() != null
+                    ? note.getBoard().getName()
+                    : (note.getOrganization() != null ? note.getOrganization().getName() : null);
+
             return SharedNote.builder()
                     .title(note.getTitle())
                     .content(note.getContent())
@@ -125,6 +135,9 @@ public class NoteResponse {
                     .tags(tags)
                     .authorName(note.getUpdatedBy().getName())
                     .updatedAt(note.getUpdatedAt())
+                    .excerpt(NoteExcerptExtractor.extract(note.getContent(), note.getType()))
+                    .parentTitle(note.getParent() != null ? note.getParent().getTitle() : null)
+                    .boardName(boardName)
                     .build();
         }
     }

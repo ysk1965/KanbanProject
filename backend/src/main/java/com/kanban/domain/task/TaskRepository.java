@@ -14,6 +14,12 @@ public interface TaskRepository extends JpaRepository<Task, String> {
 
     List<Task> findByBoardIdOrderByPositionAsc(String boardId);
 
+    /** 사람이 읽는 키로 태스크 조회 (링크 해석용, 활성 태스크만 — @SQLRestriction) */
+    Optional<Task> findByTaskKey(String taskKey);
+
+    /** 백필용: 생성 순서대로 태스크 조회 (오래된 것이 1번) */
+    List<Task> findByBoardIdOrderByCreatedAtAsc(String boardId);
+
     List<Task> findByFeatureIdOrderByPositionAsc(String featureId);
 
     List<Task> findByBlockIdOrderByPositionAsc(String blockId);
