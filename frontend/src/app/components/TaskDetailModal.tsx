@@ -218,7 +218,10 @@ export function TaskDetailModal({
   const [selectedTargetTaskId, setSelectedTargetTaskId] = useState<
     string | null
   >(null);
-  const [checklistMoveSearch, setChecklistMoveSearch] = useState("");
+  // 체크리스트 이동: 좌측 피처 선택 (기본값 = 현재 항목이 속한 피처)
+  const [selectedTargetFeatureId, setSelectedTargetFeatureId] = useState<
+    string | null
+  >(null);
   // 체크리스트 병합: 대표 항목(시작점) + 흡수할 소스 항목 선택
   const [mergeTargetItemId, setMergeTargetItemId] = useState<string | null>(
     null,
@@ -531,7 +534,10 @@ export function TaskDetailModal({
 
   const handleCopyTaskLink = useCallback(async () => {
     if (!boardId || !task) return;
-    const url = `${window.location.origin}/boards/${boardId}?task=${task.id}`;
+    // 사람이 읽는 키가 있으면 짧은 키 링크(/t/STORY-42), 없으면 기존 딥링크로 폴백
+    const url = task.task_key
+      ? `${window.location.origin}/t/${task.task_key}`
+      : `${window.location.origin}/boards/${boardId}?task=${task.id}`;
     try {
       await navigator.clipboard.writeText(url);
     } catch {
@@ -666,13 +672,6 @@ export function TaskDetailModal({
     }
   }, [showMoveChecklistDialog, defaultMoveMilestoneId]);
 
-  // Feature 이동 다이얼로그가 열릴 때 기본값 = "all"(전체)
-  useEffect(() => {
-    if (showMoveFeatureDialog) {
-      setMoveFeatureMilestoneId((prev) => prev ?? "all");
-    }
-  }, [showMoveFeatureDialog]);
-
   // Feature 이동 후보: 전체 Feature 단일 목록 + 각 Feature의 소속 마일스톤(역참조)
   // 탭/검색 필터는 렌더 단에서 적용한다.
   const moveFeatureCandidates = useMemo<
@@ -729,6 +728,20 @@ export function TaskDetailModal({
     }));
   }, [milestones, features]);
 
+  // 현재 Task가 속한 Feature 정보 ("지금" 칩 + 기본 마일스톤 선택용)
+  const currentFeatureInfo = useMemo(
+    () => moveFeatureCandidates.find((f) => f.id === task?.feature_id) ?? null,
+    [moveFeatureCandidates, task?.feature_id],
+  );
+
+  // Feature 이동 다이얼로그가 열릴 때 기본값 = 현재 Feature가 속한 마일스톤(없으면 전체)
+  useEffect(() => {
+    if (showMoveFeatureDialog) {
+      const preferred = currentFeatureInfo?.milestones[0]?.id ?? "all";
+      setMoveFeatureMilestoneId((prev) => prev ?? preferred);
+    }
+  }, [showMoveFeatureDialog, currentFeatureInfo]);
+
   // 선택된 마일스톤의 Task 목록 로드 (현재 마일스톤은 이미 로드된 allTasks 재사용)
   useEffect(() => {
     if (!showMoveChecklistDialog || !boardId) return;
@@ -784,6 +797,43 @@ export function TaskDetailModal({
     currentMilestoneId,
     allTasks,
   ]);
+
+  // 이동 대상 Task를 피처 단위로 그룹핑 (2단 드릴다운 좌측 컬럼)
+  const moveTargetFeatures = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        id: string;
+        title: string;
+        color: string;
+        tasks: typeof moveMilestoneTasks;
+      }
+    >();
+    for (const mt of moveMilestoneTasks) {
+      let group = map.get(mt.feature_id);
+      if (!group) {
+        group = {
+          id: mt.feature_id,
+          title: mt.feature_title,
+          color: mt.feature_color,
+          tasks: [],
+        };
+        map.set(mt.feature_id, group);
+      }
+      group.tasks.push(mt);
+    }
+    return Array.from(map.values());
+  }, [moveMilestoneTasks]);
+
+  // 기본 선택: 현재 항목이 속한 피처를 자동 선택 (없으면 첫 피처)
+  useEffect(() => {
+    if (!showMoveChecklistDialog || moveTargetFeatures.length === 0) return;
+    setSelectedTargetFeatureId((prev) => {
+      if (prev && moveTargetFeatures.some((f) => f.id === prev)) return prev;
+      const current = moveTargetFeatures.find((f) => f.id === task?.feature_id);
+      return (current ?? moveTargetFeatures[0]).id;
+    });
+  }, [showMoveChecklistDialog, moveTargetFeatures, task?.feature_id]);
 
   if (!task || !editedTask) return null;
 
@@ -1458,6 +1508,14 @@ export function TaskDetailModal({
               <div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 flex-1 group">
+                    {task.task_key && (
+                      <span
+                        className="shrink-0 text-xs font-bold font-mono px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent"
+                        title={t("share.taskKey", "태스크 키")}
+                      >
+                        {task.task_key}
+                      </span>
+                    )}
                     {canEdit && isEditingTitle ? (
                       <Input
                         value={editedTask.title}
@@ -2212,7 +2270,7 @@ export function TaskDetailModal({
           setMoveFeatureMilestoneId(null);
           setMoveFeatureSearch("");
         }}
-        className="sm:max-w-sm p-6"
+        className="sm:max-w-2xl p-6"
       >
         <h3 className="text-lg font-bold text-foreground">
           {t("task.moveFeatureTitle")}
@@ -2220,6 +2278,30 @@ export function TaskDetailModal({
         <p className="text-sm text-slate-400 mt-1">
           {t("task.moveFeatureDesc")}
         </p>
+        {/* 지금: 현재 Task가 속한 Feature */}
+        {currentFeatureInfo && (
+          <div className="mt-3 flex items-center gap-2.5 flex-wrap bg-bridge-surface border border-foreground/[0.08] rounded-xl px-3.5 py-2.5">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-500 flex-shrink-0">
+              {t("task.moveFeatureCurrentLabel", "지금")}
+            </span>
+            <span
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: currentFeatureInfo.color }}
+            />
+            <span className="text-sm font-medium text-foreground truncate">
+              {currentFeatureInfo.title}
+            </span>
+            {currentFeatureInfo.milestones.slice(0, 2).map((ms) => (
+              <span
+                key={ms.id}
+                title={ms.title}
+                className="max-w-[84px] truncate text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent"
+              >
+                {ms.title}
+              </span>
+            ))}
+          </div>
+        )}
         {/* Feature 이름 검색 */}
         <div className="relative mt-3">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
@@ -2227,8 +2309,11 @@ export function TaskDetailModal({
             type="text"
             value={moveFeatureSearch}
             onChange={(e) => {
-              setMoveFeatureSearch(e.target.value);
+              const v = e.target.value;
+              setMoveFeatureSearch(v);
               setSelectedFeatureId(null);
+              // 입력 시 전체 마일스톤으로 넓혀 검색
+              if (v.trim()) setMoveFeatureMilestoneId("all");
             }}
             placeholder={t(
               "task.moveFeatureSearchPlaceholder",
@@ -2237,128 +2322,215 @@ export function TaskDetailModal({
             className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 pl-9 pr-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
           />
         </div>
-        {/* 마일스톤 선택 */}
-        {milestones.length > 0 && (
-          <div className="mt-3">
-            <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
-              {t("task.moveChecklistMilestoneLabel", "마일스톤")}
-            </div>
-            <div className="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
-              <button
-                onClick={() => {
-                  if (moveFeatureMilestoneId === "all") return;
-                  setMoveFeatureMilestoneId("all");
-                  setSelectedFeatureId(null);
-                }}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                  moveFeatureMilestoneId === "all"
-                    ? "bg-bridge-accent text-white"
-                    : "bg-foreground/5 text-slate-400 hover:bg-foreground/10"
-                }`}
-              >
-                {t("task.moveFeatureAllMilestones", "전체")}
-              </button>
-              {milestones.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => {
-                    if (m.id === moveFeatureMilestoneId) return;
-                    setMoveFeatureMilestoneId(m.id);
-                    setSelectedFeatureId(null);
-                  }}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                    moveFeatureMilestoneId === m.id
-                      ? "bg-bridge-accent text-white"
-                      : "bg-foreground/5 text-slate-400 hover:bg-foreground/10"
-                  }`}
-                >
-                  {m.title}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        <div className="space-y-2 py-4 max-h-[300px] overflow-y-auto custom-scrollbar">
-          {(() => {
-            const query = moveFeatureSearch.trim().toLowerCase();
-            const candidates = moveFeatureCandidates.filter((f) => {
-              if (f.id === task?.feature_id) return false;
-              if (
-                moveFeatureMilestoneId &&
-                moveFeatureMilestoneId !== "all" &&
-                !f.milestones.some((ms) => ms.id === moveFeatureMilestoneId)
-              ) {
-                return false;
-              }
-              if (query && !f.title.toLowerCase().includes(query)) return false;
-              return true;
-            });
-            if (candidates.length === 0) {
-              return (
-                <p className="text-xs text-slate-500 text-center py-10">
-                  {query
-                    ? t("task.moveFeatureSearchEmpty", "검색 결과가 없습니다")
-                    : t("task.moveFeatureEmpty", "이동할 Feature가 없습니다")}
-                </p>
-              );
+        {/* 2단 드릴다운: 마일스톤 → Feature */}
+        {(() => {
+          const query = moveFeatureSearch.trim().toLowerCase();
+          const base = moveFeatureCandidates.filter(
+            (f) => f.id !== task?.feature_id,
+          );
+          const countFor = (mid: string) =>
+            mid === "all"
+              ? base.length
+              : base.filter((f) => f.milestones.some((ms) => ms.id === mid))
+                  .length;
+          const featureList = base.filter((f) => {
+            if (
+              moveFeatureMilestoneId &&
+              moveFeatureMilestoneId !== "all" &&
+              !f.milestones.some((ms) => ms.id === moveFeatureMilestoneId)
+            ) {
+              return false;
             }
-            return candidates.map((feature) => {
-              // 검색어 하이라이트
-              const idx = query
-                ? feature.title.toLowerCase().indexOf(query)
-                : -1;
-              const titleNode =
-                idx >= 0 ? (
-                  <>
-                    {feature.title.slice(0, idx)}
-                    <mark className="bg-bridge-accent/30 text-foreground rounded-sm px-0.5">
-                      {feature.title.slice(idx, idx + query.length)}
-                    </mark>
-                    {feature.title.slice(idx + query.length)}
-                  </>
-                ) : (
-                  feature.title
-                );
-              return (
-                <button
-                  key={feature.id}
-                  onClick={() => setSelectedFeatureId(feature.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
-                    selectedFeatureId === feature.id
-                      ? "border-bridge-accent bg-bridge-accent/10"
-                      : "border-foreground/10 hover:border-foreground/10 hover:bg-foreground/5"
-                  }`}
-                >
-                  <div
-                    className="w-3 h-3 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: feature.color }}
-                  />
-                  <span className="flex-1 min-w-0 text-left text-foreground text-sm truncate">
-                    {titleNode}
+            if (query && !f.title.toLowerCase().includes(query)) return false;
+            return true;
+          });
+          const milestoneOptions = [
+            { id: "all", title: t("task.moveFeatureAllMilestones", "전체") },
+            ...milestones.map((m) => ({ id: m.id, title: m.title })),
+          ];
+          return (
+            <div className="mt-3 grid grid-cols-[0.8fr_1.35fr] rounded-2xl border border-foreground/[0.08] overflow-hidden">
+              {/* 마일스톤 컬럼 */}
+              <div className="min-h-[300px] max-h-[340px] overflow-y-auto custom-scrollbar border-r border-foreground/[0.08] bg-foreground/[0.015]">
+                <div className="sticky top-0 z-10 bg-bridge-obsidian px-4 pt-3 pb-2">
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                    {t("task.moveChecklistMilestoneLabel", "마일스톤")}
                   </span>
-                  {feature.milestones.length > 0 && (
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {feature.milestones.slice(0, 2).map((ms) => (
-                        <span
-                          key={ms.id}
-                          title={ms.title}
-                          className="max-w-[84px] truncate text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent"
-                        >
-                          {ms.title}
-                        </span>
-                      ))}
-                      {feature.milestones.length > 2 && (
-                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/10 text-slate-400">
-                          +{feature.milestones.length - 2}
+                </div>
+                {milestoneOptions.map((m) => {
+                  const on =
+                    moveFeatureMilestoneId === m.id ||
+                    (!moveFeatureMilestoneId && m.id === "all");
+                  const isCurrent =
+                    m.id !== "all" &&
+                    !!currentFeatureInfo?.milestones.some(
+                      (ms) => ms.id === m.id,
+                    );
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        setMoveFeatureMilestoneId(m.id);
+                        setSelectedFeatureId(null);
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-4 py-3 text-left border-l-2 transition-colors ${
+                        on
+                          ? "bg-bridge-accent/15 border-bridge-accent"
+                          : "border-transparent hover:bg-foreground/5"
+                      }`}
+                    >
+                      <span className="flex-1 truncate text-sm font-medium text-slate-300">
+                        {m.title}
+                      </span>
+                      {isCurrent && (
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-bridge-secondary/15 text-bridge-secondary flex-shrink-0">
+                          {t("task.moveCurrentBadge", "현재")}
                         </span>
                       )}
-                    </div>
-                  )}
-                </button>
-              );
-            });
-          })()}
-        </div>
+                      <span className="text-xs text-slate-500 tabular-nums bg-foreground/5 px-2 py-0.5 rounded-full flex-shrink-0">
+                        {countFor(m.id)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Feature 컬럼 */}
+              <div className="min-h-[300px] max-h-[340px] overflow-y-auto custom-scrollbar">
+                <div className="sticky top-0 z-10 bg-bridge-obsidian px-4 pt-3 pb-2 flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                    Feature
+                  </span>
+                  <span className="ml-auto text-xs text-slate-500 tabular-nums">
+                    {featureList.length}
+                  </span>
+                </div>
+                {featureList.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 h-[240px] px-4 text-center text-slate-500">
+                    <Search className="w-8 h-8 opacity-40" />
+                    <p className="text-sm">
+                      {query
+                        ? t(
+                            "task.moveFeatureSearchEmpty",
+                            "검색 결과가 없습니다",
+                          )
+                        : t(
+                            "task.moveFeatureEmpty",
+                            "이동할 Feature가 없습니다",
+                          )}
+                    </p>
+                  </div>
+                ) : (
+                  featureList.map((feature) => {
+                    const idx = query
+                      ? feature.title.toLowerCase().indexOf(query)
+                      : -1;
+                    const titleNode =
+                      idx >= 0 ? (
+                        <>
+                          {feature.title.slice(0, idx)}
+                          <mark className="bg-bridge-accent/30 text-foreground rounded-sm px-0.5">
+                            {feature.title.slice(idx, idx + query.length)}
+                          </mark>
+                          {feature.title.slice(idx + query.length)}
+                        </>
+                      ) : (
+                        feature.title
+                      );
+                    const sel = selectedFeatureId === feature.id;
+                    return (
+                      <button
+                        key={feature.id}
+                        onClick={() => setSelectedFeatureId(feature.id)}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                          sel ? "bg-bridge-accent/15" : "hover:bg-foreground/5"
+                        }`}
+                      >
+                        <span
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: feature.color }}
+                        />
+                        <span className="flex-1 min-w-0 text-foreground text-sm font-medium truncate">
+                          {titleNode}
+                        </span>
+                        {feature.milestones.length > 0 && (
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {feature.milestones.slice(0, 2).map((ms) => (
+                              <span
+                                key={ms.id}
+                                title={ms.title}
+                                className="max-w-[84px] truncate text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent"
+                              >
+                                {ms.title}
+                              </span>
+                            ))}
+                            {feature.milestones.length > 2 && (
+                              <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/10 text-slate-400">
+                                +{feature.milestones.length - 2}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <span
+                          className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                            sel
+                              ? "bg-bridge-accent border-bridge-accent"
+                              : "border-foreground/20"
+                          }`}
+                        >
+                          {sel && <Check className="w-3 h-3 text-white" />}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          );
+        })()}
+        {/* 이동 대상 미리보기 */}
+        {(() => {
+          const selFeature = moveFeatureCandidates.find(
+            (f) => f.id === selectedFeatureId,
+          );
+          const ready = !!selFeature;
+          return (
+            <div
+              className={`mt-3 flex items-center gap-2 flex-wrap px-4 py-3 rounded-xl border text-sm ${
+                ready
+                  ? "border-bridge-accent/40 bg-bridge-accent/10"
+                  : "border-dashed border-foreground/10 bg-foreground/[0.03]"
+              }`}
+            >
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-500 flex-shrink-0">
+                {t("task.moveDestLabel", "이동 대상")}
+              </span>
+              {selFeature ? (
+                <>
+                  <span
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: selFeature.color }}
+                  />
+                  <span className="text-foreground font-bold">
+                    {selFeature.title}
+                  </span>
+                  {selFeature.milestones.slice(0, 2).map((ms) => (
+                    <span
+                      key={ms.id}
+                      title={ms.title}
+                      className="max-w-[84px] truncate text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent"
+                    >
+                      {ms.title}
+                    </span>
+                  ))}
+                </>
+              ) : (
+                <span className="text-slate-500">
+                  {t("task.moveNoDest", "아직 선택 안 됨")}
+                </span>
+              )}
+            </div>
+          );
+        })()}
         <div className="flex justify-end gap-2">
           <Button
             variant="outline"
@@ -2384,9 +2556,14 @@ export function TaskDetailModal({
               onClose();
             }}
             disabled={!selectedFeatureId}
-            className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
+            className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50 max-w-[260px] truncate"
           >
-            {t("task.move")}
+            {selectedFeatureId
+              ? `${t("task.move")} → ${
+                  moveFeatureCandidates.find((f) => f.id === selectedFeatureId)
+                    ?.title ?? ""
+                }`
+              : t("task.move")}
           </Button>
         </div>
       </MotionModal>
@@ -2398,10 +2575,10 @@ export function TaskDetailModal({
           setShowMoveChecklistDialog(false);
           setMoveChecklistItemId(null);
           setSelectedTargetTaskId(null);
-          setChecklistMoveSearch("");
+          setSelectedTargetFeatureId(null);
           setMoveTargetMilestoneId(null);
         }}
-        className="sm:max-w-lg p-6"
+        className="sm:max-w-2xl p-6"
       >
         <h3 className="text-lg font-bold text-foreground">
           {t("task.moveChecklistToTaskTitle")}
@@ -2423,6 +2600,7 @@ export function TaskDetailModal({
                     if (m.id === moveTargetMilestoneId) return;
                     setMoveTargetMilestoneId(m.id);
                     setSelectedTargetTaskId(null);
+                    setSelectedTargetFeatureId(null);
                   }}
                   className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
                     moveTargetMilestoneId === m.id
@@ -2436,92 +2614,185 @@ export function TaskDetailModal({
             </div>
           </div>
         )}
-        <Input
-          value={checklistMoveSearch}
-          onChange={(e) => setChecklistMoveSearch(e.target.value)}
-          placeholder={t("common.search")}
-          className="bg-foreground/5 border-foreground/10 text-foreground placeholder:text-slate-500 text-sm mt-3"
-        />
-        <div className="space-y-1 py-2 max-h-[420px] overflow-y-auto custom-scrollbar">
-          {loadingMoveMilestoneTasks ? (
-            <div className="flex items-center justify-center py-10">
-              <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+        {/* 2단 드릴다운: 피처 → Task */}
+        <div className="mt-3 grid grid-cols-[1fr_1.15fr] rounded-2xl border border-foreground/[0.08] overflow-hidden">
+          {/* 피처 컬럼 */}
+          <div className="min-h-[300px] max-h-[340px] overflow-y-auto custom-scrollbar border-r border-foreground/[0.08] bg-foreground/[0.015]">
+            <div className="sticky top-0 z-10 bg-bridge-obsidian px-4 pt-3 pb-2 flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                {t("task.moveFeatureColLabel", "피처")}
+              </span>
+              {!loadingMoveMilestoneTasks && moveTargetFeatures.length > 0 && (
+                <span className="ml-auto text-xs text-slate-500 tabular-nums">
+                  {moveTargetFeatures.length}
+                </span>
+              )}
             </div>
-          ) : (
-            (() => {
-              const filtered = moveMilestoneTasks
-                .filter((mt) => mt.id !== task?.id)
-                .filter(
-                  (mt) =>
-                    !checklistMoveSearch ||
-                    mt.title
-                      .toLowerCase()
-                      .includes(checklistMoveSearch.toLowerCase()) ||
-                    mt.feature_title
-                      .toLowerCase()
-                      .includes(checklistMoveSearch.toLowerCase()),
-                );
-              if (filtered.length === 0) {
+            {loadingMoveMilestoneTasks ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+              </div>
+            ) : moveTargetFeatures.length === 0 ? (
+              <p className="text-xs text-slate-500 text-center py-10">
+                {t("schedule.moveToTask.noTasks", "태스크가 없습니다")}
+              </p>
+            ) : (
+              moveTargetFeatures.map((f) => {
+                const on = selectedTargetFeatureId === f.id;
+                const isCurrent = f.id === task?.feature_id;
                 return (
-                  <p className="text-xs text-slate-500 text-center py-10">
-                    {t("schedule.moveToTask.noTasks", "태스크가 없습니다")}
-                  </p>
+                  <button
+                    key={f.id}
+                    onClick={() => {
+                      setSelectedTargetFeatureId(f.id);
+                      setSelectedTargetTaskId(null);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left border-l-2 transition-colors ${
+                      on
+                        ? "bg-bridge-accent/15 border-bridge-accent"
+                        : "border-transparent hover:bg-foreground/5"
+                    }`}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: f.color }}
+                    />
+                    <span className="flex-1 truncate text-sm font-medium text-foreground">
+                      {f.title}
+                    </span>
+                    {isCurrent && (
+                      <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-bridge-secondary/15 text-bridge-secondary flex-shrink-0">
+                        {t("task.moveCurrentBadge", "현재")}
+                      </span>
+                    )}
+                    <span className="text-xs text-slate-500 tabular-nums bg-foreground/5 px-2 py-0.5 rounded-full flex-shrink-0">
+                      {f.tasks.length}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                  </button>
+                );
+              })
+            )}
+          </div>
+          {/* Task 컬럼 */}
+          <div className="min-h-[300px] max-h-[340px] overflow-y-auto custom-scrollbar">
+            <div className="sticky top-0 z-10 bg-bridge-obsidian px-4 pt-3 pb-2">
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                Task
+              </span>
+            </div>
+            {(() => {
+              const selFeat = moveTargetFeatures.find(
+                (f) => f.id === selectedTargetFeatureId,
+              );
+              if (!selFeat) {
+                return (
+                  <div className="flex flex-col items-center justify-center gap-3 h-[240px] px-4 text-center text-slate-500">
+                    <ChevronRight className="w-8 h-8 opacity-40" />
+                    <p className="text-sm">
+                      {t(
+                        "task.movePickFeatureFirst",
+                        "왼쪽에서 피처를 먼저 선택하세요",
+                      )}
+                    </p>
+                  </div>
                 );
               }
-              const incomplete = filtered.filter((mt) => !mt.completed);
-              const completed = filtered
-                .filter((mt) => mt.completed)
-                .sort((a, b) =>
-                  (b.completed_at ?? "").localeCompare(a.completed_at ?? ""),
-                );
-              const renderTaskItem = (mt: (typeof filtered)[number]) => (
-                <button
-                  key={mt.id}
-                  onClick={() => setSelectedTargetTaskId(mt.id)}
-                  className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all text-left ${
-                    selectedTargetTaskId === mt.id
-                      ? "border-bridge-accent bg-bridge-accent/10"
-                      : "border-foreground/10 hover:bg-foreground/5"
-                  } ${mt.completed ? "opacity-60" : ""}`}
-                >
-                  <div
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: mt.feature_color }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div
-                      className={`text-sm text-foreground truncate ${
-                        mt.completed ? "line-through" : ""
+              const tasks = [...selFeat.tasks].sort(
+                (a, b) => Number(a.completed) - Number(b.completed),
+              );
+              return tasks.map((mt) => {
+                const isSource = mt.id === task?.id;
+                const sel = selectedTargetTaskId === mt.id;
+                return (
+                  <button
+                    key={mt.id}
+                    disabled={isSource}
+                    onClick={() => setSelectedTargetTaskId(mt.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                      sel ? "bg-bridge-accent/15" : "hover:bg-foreground/5"
+                    } ${isSource ? "opacity-40 cursor-not-allowed" : ""}`}
+                  >
+                    <span
+                      className={`flex-1 truncate text-sm font-medium text-foreground ${
+                        mt.completed ? "line-through text-slate-400" : ""
                       }`}
                     >
                       {mt.title}
-                    </div>
-                    <div className="text-xs text-slate-400 truncate">
-                      {mt.feature_title}
-                    </div>
-                  </div>
-                </button>
-              );
-              return (
-                <>
-                  {incomplete.map(renderTaskItem)}
-                  {completed.length > 0 && (
-                    <div className="flex items-center gap-2 pt-3 pb-1 px-1">
-                      <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                        {t("task.moveCompletedSection", "완료됨")}
-                      </span>
-                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/15 text-slate-400">
-                        {completed.length}
-                      </span>
-                      <div className="flex-1 h-px bg-foreground/[0.08]" />
-                    </div>
-                  )}
-                  {completed.map(renderTaskItem)}
-                </>
-              );
-            })()
-          )}
+                      {isSource && (
+                        <span className="ml-2 text-xs font-normal text-slate-500">
+                          · {t("task.moveCurrentLocation", "현재 위치")}
+                        </span>
+                      )}
+                    </span>
+                    <span
+                      className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                        sel
+                          ? "bg-bridge-accent border-bridge-accent"
+                          : "border-foreground/20"
+                      }`}
+                    >
+                      {sel && <Check className="w-3 h-3 text-white" />}
+                    </span>
+                  </button>
+                );
+              });
+            })()}
+          </div>
         </div>
+        {/* 이동 대상 경로 미리보기 */}
+        {(() => {
+          const selFeat = moveTargetFeatures.find(
+            (f) => f.id === selectedTargetFeatureId,
+          );
+          const selTask = selFeat?.tasks.find(
+            (tk) => tk.id === selectedTargetTaskId,
+          );
+          const ms = milestones.find((m) => m.id === moveTargetMilestoneId);
+          const ready = !!selTask;
+          return (
+            <div
+              className={`mt-3 flex items-center gap-2 flex-wrap px-4 py-3 rounded-xl border text-sm ${
+                ready
+                  ? "border-bridge-accent/40 bg-bridge-accent/10"
+                  : "border-dashed border-foreground/10 bg-foreground/[0.03]"
+              }`}
+            >
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-500 flex-shrink-0">
+                {t("task.moveDestLabel", "이동 대상")}
+              </span>
+              {selFeat ? (
+                <>
+                  {ms && (
+                    <>
+                      <span className="text-slate-400">{ms.title}</span>
+                      <span className="text-slate-600">›</span>
+                    </>
+                  )}
+                  <span
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: selFeat.color }}
+                  />
+                  <span className="text-slate-300">{selFeat.title}</span>
+                  <span className="text-slate-600">›</span>
+                  {selTask ? (
+                    <span className="text-foreground font-bold">
+                      {selTask.title}
+                    </span>
+                  ) : (
+                    <span className="text-slate-500">
+                      {t("task.movePickTask", "Task 선택")}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="text-slate-500">
+                  {t("task.moveNoDest", "아직 선택 안 됨")}
+                </span>
+              )}
+            </div>
+          );
+        })()}
         <div className="flex justify-end gap-2">
           <Button
             variant="outline"
@@ -2529,7 +2800,7 @@ export function TaskDetailModal({
               setShowMoveChecklistDialog(false);
               setMoveChecklistItemId(null);
               setSelectedTargetTaskId(null);
-              setChecklistMoveSearch("");
+              setSelectedTargetFeatureId(null);
               setMoveTargetMilestoneId(null);
             }}
             className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
@@ -2568,13 +2839,18 @@ export function TaskDetailModal({
               setShowMoveChecklistDialog(false);
               setMoveChecklistItemId(null);
               setSelectedTargetTaskId(null);
-              setChecklistMoveSearch("");
+              setSelectedTargetFeatureId(null);
               setMoveTargetMilestoneId(null);
             }}
             disabled={!selectedTargetTaskId}
             className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
           >
-            {t("task.move")}
+            {selectedTargetTaskId
+              ? `${t("task.move")} → ${
+                  moveMilestoneTasks.find((x) => x.id === selectedTargetTaskId)
+                    ?.title ?? ""
+                }`
+              : t("task.move")}
           </Button>
         </div>
       </MotionModal>
@@ -2632,6 +2908,110 @@ export function TaskDetailModal({
           };
           const fmtDate = (d: string | null) =>
             d ? format(new Date(d), "M/d", { locale: ko }) : "—";
+          const fmtRange = (s: string | null, e: string | null) =>
+            s || e ? `${fmtDate(s)} → ${fmtDate(e)}` : "—";
+
+          const todayStr = getTodayDateString();
+          const statusMeta = (item: ChecklistItem) => {
+            const col = resolveChecklistColumn(item, todayStr);
+            if (col === "done")
+              return {
+                label: t("task.mergeChecklist.statusDone", "완료"),
+                cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+              };
+            if (col === "doing")
+              return {
+                label: t("task.mergeChecklist.statusDoing", "진행중"),
+                cls: "bg-bridge-accent/15 text-bridge-accent",
+              };
+            return {
+              label: t("task.mergeChecklist.statusTodo", "예정"),
+              cls: "bg-slate-500/15 text-slate-400",
+            };
+          };
+
+          // 병합에 참여하는 담당자(대표 + 선택) 이름 목록
+          const assigneeNames = Array.from(
+            new Set(
+              mergeAll
+                .map((it) => it.assignee?.name)
+                .filter((n): n is string => !!n),
+            ),
+          );
+
+          // 대표/후보 행의 공통 본문 (제목·상태·담당자·기간·블록 + 아바타)
+          const rowInner = (ci: ChecklistItem) => {
+            const blocks = checklistTimeBlocksMap[ci.id] || [];
+            const mins = blocks.reduce((s, b) => s + blockMinutes(b), 0);
+            const st = statusMeta(ci);
+            const memberData = ci.assignee
+              ? boardMembers.find((m) => m.userId === ci.assignee!.id)
+              : undefined;
+            const aColor = ci.assignee
+              ? getAssigneeClasses(ci.assignee.name, memberData?.assigneeColor)
+              : null;
+            return (
+              <>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-sm font-medium truncate ${
+                        ci.completed
+                          ? "line-through text-slate-500"
+                          : "text-foreground"
+                      }`}
+                    >
+                      {ci.title}
+                    </span>
+                    <span
+                      className={`text-xs font-bold px-1.5 py-0.5 rounded-full flex-none ${st.cls}`}
+                    >
+                      {st.label}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2 text-xs text-slate-500 flex-wrap">
+                    {ci.assignee && (
+                      <>
+                        <span className="truncate max-w-[7rem]">
+                          {ci.assignee.name}
+                        </span>
+                        <span className="w-px h-2.5 bg-foreground/15 flex-none" />
+                      </>
+                    )}
+                    <span className="inline-flex items-center gap-1 font-mono">
+                      <CalendarIcon className="h-3 w-3 opacity-70" />
+                      {fmtRange(ci.start_date, ci.due_date)}
+                    </span>
+                    <span className="w-px h-2.5 bg-foreground/15 flex-none" />
+                    <span
+                      className={`inline-flex items-center gap-1 font-mono ${
+                        blocks.length === 0 ? "text-slate-600" : ""
+                      }`}
+                    >
+                      <Layers className="h-3 w-3 opacity-70" />
+                      {blocks.length > 0
+                        ? t(
+                            "task.mergeChecklist.blockInfo",
+                            "블록 {{n}} · {{dur}}",
+                            { n: blocks.length, dur: fmtDur(mins) },
+                          )
+                        : t("task.mergeChecklist.noBlocks", "블록 없음")}
+                    </span>
+                  </div>
+                </div>
+                {ci.assignee && aColor && (
+                  <div
+                    className={`w-7 h-7 rounded-full ${aColor.bg} flex items-center justify-center text-xs text-white flex-none`}
+                    style={
+                      !aColor.bg ? { backgroundColor: aColor.hex } : undefined
+                    }
+                  >
+                    {getInitials(ci.assignee.name)}
+                  </div>
+                )}
+              </>
+            );
+          };
 
           return (
             <div>
@@ -2658,6 +3038,33 @@ export function TaskDetailModal({
               </div>
 
               <div className="px-5 pb-5 pt-4 space-y-4">
+                {/* 소속 피처 › 태스크 컨텍스트 — 후보는 모두 같은 태스크 소속 */}
+                <div className="flex items-center gap-2 flex-wrap bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl px-3 py-2.5">
+                  <span className="inline-flex items-center gap-1.5 text-xs min-w-0">
+                    <span
+                      className="w-2.5 h-2.5 rounded-[3px] flex-none"
+                      style={{
+                        backgroundColor: task.feature_color || "#6366F1",
+                      }}
+                    />
+                    <span className="text-slate-400 flex-none">
+                      {t("task.mergeChecklist.featureLabel", "피처")}
+                    </span>
+                    <b className="font-bold text-foreground truncate">
+                      {task.feature_title}
+                    </b>
+                  </span>
+                  <ChevronRight className="h-3 w-3 text-slate-600 flex-none" />
+                  <span className="inline-flex items-center gap-1.5 text-xs min-w-0">
+                    <span className="text-slate-400 flex-none">
+                      {t("task.mergeChecklist.taskLabel", "태스크")}
+                    </span>
+                    <b className="font-bold text-foreground truncate">
+                      {task.title}
+                    </b>
+                  </span>
+                </div>
+
                 <div>
                   <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                     {t("task.mergeChecklist.titleField", "통합 제목")}
@@ -2674,6 +3081,28 @@ export function TaskDetailModal({
                   <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                     {t("task.mergeChecklist.selectField", "합칠 항목 선택")}
                   </label>
+
+                  {/* 대표 항목 — 나머지 항목이 여기로 모임 */}
+                  <div className="mt-2 relative flex items-center gap-3 px-3 py-2.5 rounded-xl border border-bridge-secondary/40 bg-bridge-secondary/[0.06] overflow-hidden">
+                    <span
+                      className="absolute left-0 top-0 bottom-0 w-[3px]"
+                      style={{
+                        backgroundColor: target.assignee
+                          ? getAssigneeClasses(
+                              target.assignee.name,
+                              boardMembers.find(
+                                (m) => m.userId === target.assignee!.id,
+                              )?.assigneeColor,
+                            ).hex
+                          : "#2DD4BF",
+                      }}
+                    />
+                    <span className="ml-1 text-xs font-bold px-2 py-0.5 rounded-md bg-bridge-secondary/15 text-bridge-secondary flex-none">
+                      {t("task.mergeChecklist.representative", "대표")}
+                    </span>
+                    {rowInner(target)}
+                  </div>
+
                   {candidates.length === 0 ? (
                     <p className="mt-2 text-xs text-slate-500 py-3">
                       {t(
@@ -2682,26 +3111,36 @@ export function TaskDetailModal({
                       )}
                     </p>
                   ) : (
-                    <div className="mt-2 space-y-1 max-h-52 overflow-y-auto custom-scrollbar">
+                    <div className="mt-2 space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
                       {candidates.map((ci) => {
-                        const blocks = checklistTimeBlocksMap[ci.id] || [];
-                        const mins = blocks.reduce(
-                          (s, b) => s + blockMinutes(b),
-                          0,
-                        );
                         const isSel = mergeSelectedIds.has(ci.id);
+                        const memberData = ci.assignee
+                          ? boardMembers.find(
+                              (m) => m.userId === ci.assignee!.id,
+                            )
+                          : undefined;
+                        const stripeHex = ci.assignee
+                          ? getAssigneeClasses(
+                              ci.assignee.name,
+                              memberData?.assigneeColor,
+                            ).hex
+                          : "#475569";
                         return (
                           <button
                             key={ci.id}
                             onClick={() => toggleMergeSource(ci.id)}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-all ${
+                            className={`relative w-full flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-xl border text-left transition-all overflow-hidden ${
                               isSel
-                                ? "border-bridge-accent bg-bridge-accent/10"
-                                : "border-foreground/10 hover:bg-foreground/5"
+                                ? "border-bridge-accent bg-bridge-accent/[0.08]"
+                                : "border-foreground/10 hover:border-foreground/[0.18] hover:bg-foreground/[0.02]"
                             }`}
                           >
                             <span
-                              className={`w-4 h-4 rounded flex-none grid place-items-center border ${
+                              className="absolute left-0 top-0 bottom-0 w-[3px]"
+                              style={{ backgroundColor: stripeHex }}
+                            />
+                            <span
+                              className={`ml-1 w-[18px] h-[18px] rounded-[5px] flex-none grid place-items-center border ${
                                 isSel
                                   ? "bg-bridge-accent border-bridge-accent"
                                   : "border-slate-500"
@@ -2711,27 +3150,7 @@ export function TaskDetailModal({
                                 <Check className="h-3 w-3 text-white" />
                               )}
                             </span>
-                            <span
-                              className={`flex-1 min-w-0 text-sm truncate ${
-                                ci.completed
-                                  ? "line-through text-slate-500"
-                                  : "text-foreground"
-                              }`}
-                            >
-                              {ci.title}
-                            </span>
-                            <span className="text-xs text-slate-500 font-mono flex-none">
-                              {blocks.length > 0
-                                ? t(
-                                    "task.mergeChecklist.blockInfo",
-                                    "블록 {{n}} · {{dur}}",
-                                    { n: blocks.length, dur: fmtDur(mins) },
-                                  )
-                                : t(
-                                    "task.mergeChecklist.noBlocks",
-                                    "블록 없음",
-                                  )}
-                            </span>
+                            {rowInner(ci)}
                           </button>
                         );
                       })}
@@ -2761,6 +3180,23 @@ export function TaskDetailModal({
                         )}
                       </span>
                     </div>
+                    {assigneeNames.length > 0 && (
+                      <div className="flex items-center justify-between text-xs gap-3">
+                        <span className="text-slate-500 flex-none">
+                          {t("task.mergeChecklist.previewAssignees", "담당자")}
+                        </span>
+                        <span className="text-foreground text-right truncate">
+                          {t(
+                            "task.mergeChecklist.previewAssigneesValue",
+                            "{{names}} ({{n}}명)",
+                            {
+                              names: assigneeNames.join("·"),
+                              n: assigneeNames.length,
+                            },
+                          )}
+                        </span>
+                      </div>
+                    )}
                     {hasCompletedSelected && (
                       <div className="flex items-start gap-1.5 text-xs text-amber-500 pt-1">
                         <AlertCircle className="h-3.5 w-3.5 flex-none mt-0.5" />
@@ -3141,8 +3577,11 @@ function ChecklistItemRow({
   const [showOptions, setShowOptions] = useState(false);
   const [showTimeBlocks, setShowTimeBlocks] = useState(false);
 
-  // 부모에서 벌크로 로드된 타임블록 사용
-  const timeBlocks = preloadedTimeBlocks || [];
+  // 부모에서 벌크로 로드된 타임블록 사용 (최근 날짜·늦은 시간 순 정렬)
+  const timeBlocks = [...(preloadedTimeBlocks || [])].sort((a, b) => {
+    const d = b.scheduled_date.localeCompare(a.scheduled_date);
+    return d !== 0 ? d : b.start_time.localeCompare(a.start_time);
+  });
 
   // 담당자 색상
   const memberData = item.assignee

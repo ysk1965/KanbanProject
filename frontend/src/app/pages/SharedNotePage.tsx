@@ -45,8 +45,20 @@ function useSystemTheme() {
   return isDark;
 }
 
+/**
+ * URL 파라미터에서 실제 공유 토큰(UUID)을 추출한다.
+ * 링크는 `제목슬러그-{UUID}` 형태일 수 있고, UUID는 항상 하이픈 5그룹(8-4-4-4-12)의 마지막이다.
+ * 순수 UUID(레거시 링크)는 그대로 반환된다.
+ */
+function extractShareToken(raw?: string): string | undefined {
+  if (!raw) return raw;
+  const parts = raw.split("-");
+  return parts.length >= 5 ? parts.slice(-5).join("-") : raw;
+}
+
 export function SharedNotePage() {
-  const { shareToken } = useParams<{ shareToken: string }>();
+  const { shareToken: rawShareToken } = useParams<{ shareToken: string }>();
+  const shareToken = extractShareToken(rawShareToken);
   const { t } = useTranslation();
   const isDark = useSystemTheme();
   const [note, setNote] = useState<SharedNote | null>(null);
