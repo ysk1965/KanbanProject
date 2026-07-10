@@ -78,7 +78,7 @@ variable "google_client_id" {
 variable "domain_name" {
   description = "Domain name (e.g., bridgespots.com)"
   type        = string
-  default     = ""  # Set this to enable custom domain
+  default     = "" # Set this to enable custom domain
 }
 
 variable "secondary_domain_name" {

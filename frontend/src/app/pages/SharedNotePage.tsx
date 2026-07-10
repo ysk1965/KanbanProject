@@ -45,15 +45,20 @@ function useSystemTheme() {
   return isDark;
 }
 
+const UUID_SUFFIX =
+  /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 /**
- * URL 파라미터에서 실제 공유 토큰(UUID)을 추출한다.
- * 링크는 `제목슬러그-{UUID}` 형태일 수 있고, UUID는 항상 하이픈 5그룹(8-4-4-4-12)의 마지막이다.
- * 순수 UUID(레거시 링크)는 그대로 반환된다.
+ * URL 파라미터에서 실제 조회 토큰을 추출한다. 링크는 `제목슬러그-{토큰}` 형태일 수 있다.
+ * - 레거시: 끝의 UUID 5그룹(8-4-4-4-12)을 추출.
+ * - 신규: 하이픈 없는 짧은 코드(base62) → 마지막 하이픈 세그먼트.
  */
 function extractShareToken(raw?: string): string | undefined {
   if (!raw) return raw;
-  const parts = raw.split("-");
-  return parts.length >= 5 ? parts.slice(-5).join("-") : raw;
+  const uuid = raw.match(UUID_SUFFIX);
+  if (uuid) return uuid[0];
+  const idx = raw.lastIndexOf("-");
+  return idx >= 0 ? raw.slice(idx + 1) : raw;
 }
 
 export function SharedNotePage() {

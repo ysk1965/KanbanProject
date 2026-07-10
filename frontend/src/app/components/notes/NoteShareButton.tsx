@@ -68,10 +68,12 @@ export function NoteShareButton({
       : "";
   // Public link: exists only when sharing is enabled (anyone, read-only).
   // 제목 슬러그를 앞에 붙여 URL에서도 문서를 알아볼 수 있게 한다.
-  // 조회 키는 여전히 뒤쪽 UUID 토큰 — 슬러그는 표시용 장식이라 보안 엔트로피에 영향 없음.
+  // 조회 키는 짧은 코드(share_code) 우선, 없으면 레거시 UUID 토큰으로 폴백.
+  // 슬러그는 표시용 장식이라 보안 엔트로피에 영향 없음.
   const titleSlug = slugifyTitle(note.title);
+  const publicToken = note.share_code || note.share_token;
   const publicUrl = isShared
-    ? `${window.location.origin}/shared/note/${titleSlug ? `${titleSlug}-` : ""}${note.share_token}`
+    ? `${window.location.origin}/n/${titleSlug ? `${titleSlug}-` : ""}${publicToken}`
     : "";
   // Link shown & copied: public when shared, otherwise the team link.
   const activeUrl = isShared ? publicUrl : teamUrl;

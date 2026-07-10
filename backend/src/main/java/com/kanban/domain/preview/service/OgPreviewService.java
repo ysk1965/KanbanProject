@@ -60,7 +60,7 @@ public class OgPreviewService {
     // ===== 종류별 미리보기 =====
 
     private OgPreviewResponse notePreview(String rawToken) {
-        NoteResponse.SharedNote note = noteService.getSharedNote(extractUuidToken(rawToken));
+        NoteResponse.SharedNote note = noteService.getSharedNote(extractNoteToken(rawToken));
         String description = firstNonBlank(
                 note.getExcerpt(),
                 orgAnd(note.getBoardName(), "읽기 전용 공유 문서"),
@@ -171,5 +171,25 @@ public class OgPreviewService {
         return parts.length >= 5
                 ? String.join("-", Arrays.copyOfRange(parts, parts.length - 5, parts.length))
                 : raw;
+    }
+
+    private static final java.util.regex.Pattern UUID_SUFFIX = java.util.regex.Pattern.compile(
+            "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
+
+    /**
+     * 노트 링크에서 조회 토큰을 추출한다.
+     * 레거시 링크(슬러그-UUID)는 끝의 UUID 5그룹을, 신규 링크(슬러그-shortCode)는
+     * 마지막 하이픈 세그먼트(하이픈 없는 base62 코드)를 반환한다.
+     */
+    static String extractNoteToken(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        java.util.regex.Matcher m = UUID_SUFFIX.matcher(raw);
+        if (m.find()) {
+            return m.group();
+        }
+        int i = raw.lastIndexOf('-');
+        return i >= 0 ? raw.substring(i + 1) : raw;
     }
 }

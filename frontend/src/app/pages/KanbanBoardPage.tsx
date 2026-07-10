@@ -2028,8 +2028,9 @@ export function KanbanBoardPage() {
   }, []);
 
   const handleChecklistItemDetailClick = useCallback(
-    async (item: { task: { id: string } | null }) => {
+    async (item: { id: string; task: { id: string } | null }) => {
       if (!item.task || !boardId) return;
+      setHighlightChecklistItemId(item.id);
       const task = tasks.find((t) => t.id === item.task!.id);
       if (task) {
         handleTaskClick(task);
