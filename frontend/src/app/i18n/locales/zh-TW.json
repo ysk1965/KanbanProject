@@ -1149,7 +1149,7 @@
   },
   "nightShutdown": {
     "title": "非營運時間",
-    "subtitle": "服務每天 08:00 ~ 23:00 (KST) 營運",
+    "subtitle": "每天 03:30 ~ 08:30 (KST) 進行伺服器維護",
     "resumeAt": "服務恢復時間",
     "hours": "小時",
     "minutes": "分鐘",
@@ -1400,6 +1400,14 @@
     "move": "移動",
     "moveChecklistToTask": "移動到其他Task",
     "mergeChecklist": {
+      "featureLabel": "功能",
+      "taskLabel": "任務",
+      "representative": "代表",
+      "statusDone": "已完成",
+      "statusDoing": "進行中",
+      "statusTodo": "計劃中",
+      "previewAssignees": "負責人",
+      "previewAssigneesValue": "{{names}}（{{n}}人）",
       "action": "與其他項目合併",
       "title": "將{{count}}個項目合併為一個",
       "subtitle": "將所選項目的時間區塊歸入代表項目",
@@ -3989,6 +3997,7 @@
   },
   "notes": {
     "moveFailed": "移動筆記失敗",
+    "moveInto": "移入",
     "newBoard": "新畫板",
     "addBoard": "新增畫板",
     "editButton": "編輯",

@@ -27,6 +27,7 @@ import com.kanban.domain.tag.TaskTag;
 import com.kanban.domain.tag.TaskTagRepository;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
+import com.kanban.domain.task.dto.TaskKeyResponse;
 import com.kanban.domain.task.dto.TaskRequest;
 import com.kanban.domain.task.dto.TaskResponse;
 import com.kanban.domain.user.User;
@@ -71,6 +72,7 @@ public class TaskService {
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
+    private final TaskKeyAllocator taskKeyAllocator;
     private final MilestoneFeatureRepository milestoneFeatureRepository;
     private final MilestoneRepository milestoneRepository;
     private final ActivityService activityService;
@@ -140,6 +142,21 @@ public class TaskService {
         return TaskResponse.Detail.of(task, tags);
     }
 
+    /**
+     * 사람이 읽는 태스크 키(예: STORY-42)를 보드/태스크 ID로 해석한다.
+     * 키는 대소문자 무시, 조회 후 보드 뷰어 이상 권한을 검증한다.
+     */
+    public TaskKeyResponse resolveTaskKey(String key, String userId) {
+        String normalized = key == null ? "" : key.trim().toUpperCase();
+        Task task = taskRepository.findByTaskKey(normalized)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        String boardId = task.getBoard().getId();
+        boardService.checkViewerOrAbove(boardId, userId);
+
+        return new TaskKeyResponse(boardId, task.getId());
+    }
+
     @Transactional
     public TaskResponse.Detail createTask(String boardId, String featureId, String userId, TaskRequest.Create request) {
         boardService.checkMemberOrAbove(boardId, userId);
@@ -179,6 +196,13 @@ public class TaskService {
         Integer maxFeaturePosition = taskRepository.findMaxFeaturePositionByFeatureId(featureId);
         int newFeaturePosition = (maxFeaturePosition != null) ? maxFeaturePosition + 1 : 0;
 
+        // 사람이 읽는 키 발급 (보드 락 구간 안 — 프리픽스 없으면 파생·할당 후 번호 원자적 증가)
+        if (board.getKeyPrefix() == null || board.getKeyPrefix().isBlank()) {
+            board.assignKeyPrefixIfAbsent(taskKeyAllocator.allocateUniquePrefix(board.getName()));
+        }
+        int taskNumber = board.nextTaskNumber();
+        String taskKey = board.getKeyPrefix() + "-" + taskNumber;
+
         // 마일스톤 결정: 명시 요청이 있으면 그것(필요 시 피처 자동 연결), 없으면 피처의 대표 마일스톤
         Milestone milestone;
         if (request.getMilestoneId() != null && !request.getMilestoneId().isEmpty()) {
@@ -199,6 +223,8 @@ public class TaskService {
                 .estimatedMinutes(request.getEstimatedMinutes())
                 .position(newPosition)
                 .featurePosition(newFeaturePosition)
+                .taskNumber(taskNumber)
+                .taskKey(taskKey)
                 .createdBy(creator)
                 .build();
 

@@ -43,6 +43,18 @@ public interface BoardRepository extends JpaRepository<Board, String> {
     @Query("SELECT b FROM Board b WHERE b.id = :boardId AND b.deletedAt IS NULL")
     Optional<Board> findActiveById(@Param("boardId") String boardId);
 
+    /**
+     * 태스크 키 프리픽스가 이미 사용 중인지 (대소문자 무시, 삭제 보드 포함 — 전역 유일성 확보)
+     */
+    @Query("SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END FROM Board b WHERE UPPER(b.keyPrefix) = UPPER(:prefix)")
+    boolean existsByKeyPrefixIgnoreCase(@Param("prefix") String prefix);
+
+    /**
+     * 백필 대상: 프리픽스가 아직 없는 활성 보드 ID 목록
+     */
+    @Query("SELECT b.id FROM Board b WHERE b.deletedAt IS NULL AND b.keyPrefix IS NULL")
+    List<String> findActiveIdsWithoutKeyPrefix();
+
     // Admin용 메서드: 활성 보드만
     @Query("SELECT b FROM Board b WHERE b.deletedAt IS NULL AND " +
            "(:search IS NULL OR :search = '' OR b.name LIKE %:search% OR b.description LIKE %:search%) AND " +

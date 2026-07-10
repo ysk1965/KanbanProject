@@ -1164,7 +1164,7 @@
   },
   "nightShutdown": {
     "title": "営業時間外です",
-    "subtitle": "毎日 08:00 ~ 23:00 (KST) にサービスを提供しています",
+    "subtitle": "毎日 03:30 ~ 08:30 (KST) にサーバーメンテナンスを実施します",
     "resumeAt": "サービス再開時間",
     "hours": "時間",
     "minutes": "分",
@@ -1415,6 +1415,14 @@
     "move": "移動",
     "moveChecklistToTask": "別のTaskに移動",
     "mergeChecklist": {
+      "featureLabel": "機能",
+      "taskLabel": "タスク",
+      "representative": "代表",
+      "statusDone": "完了",
+      "statusDoing": "進行中",
+      "statusTodo": "予定",
+      "previewAssignees": "担当者",
+      "previewAssigneesValue": "{{names}}（{{n}}名）",
       "action": "他の項目と統合",
       "title": "{{count}}件の項目を1つに統合",
       "subtitle": "選択した項目のタイムブロックを代表項目にまとめます",
@@ -2939,6 +2947,7 @@
   },
   "notes": {
     "moveFailed": "ノートの移動に失敗しました",
+    "moveInto": "中へ",
     "addTag": "タグを追加",
     "aiAlreadyExists": "適用済み",
     "aiAnalyzing": "AIがノートを分析しています...",

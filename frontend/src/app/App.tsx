@@ -1,52 +1,68 @@
-import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { ThemeProvider, useTheme } from './contexts/ThemeContext';
-import { AnalyticsProvider } from './contexts/AnalyticsContext';
-import { LoginPage } from './components/LoginPage';
-import { Dashboard } from './components/dashboard';
-import { InviteLandingPage } from './components/InviteLandingPage';
-import { LandingPage } from './components/landing/LandingPage';
-import { ComparisonPage } from './components/landing/ComparisonPage';
-import { KanbanBoardPage } from './pages/KanbanBoardPage';
-import { PersonalBoardPage } from './pages/PersonalBoardPage';
-import { EmailVerificationPendingPage } from './components/EmailVerificationPendingPage';
-import { EmailVerificationResultPage } from './components/EmailVerificationResultPage';
-import { ForgotPasswordPage } from './components/ForgotPasswordPage';
-import { ResetPasswordPage } from './components/ResetPasswordPage';
-import { TermsPage } from './components/TermsPage';
-import { PrivacyPage } from './components/PrivacyPage';
-import { SettingsPage } from './components/SettingsPage';
-import ErrorBoundary from './components/ErrorBoundary';
-import { AdminRoute } from './components/AdminRoute';
-import { AdminPage } from './pages/AdminPage';
-import { PaymentSuccessPage } from './pages/PaymentSuccessPage';
-import { PaymentFailPage } from './pages/PaymentFailPage';
-import { AnnouncementsPage } from './pages/AnnouncementsPage';
-import { SharedNotePage } from './pages/SharedNotePage';
-import { SharedAlbumPage } from './pages/SharedAlbumPage';
-import { SharedGalleryPage } from './pages/SharedGalleryPage';
-import { PublicUploadPage } from './pages/PublicUploadPage';
-import { GalleryUploadPage } from './pages/GalleryUploadPage';
-import BibleTranscriptionPage from './pages/BibleTranscriptionPage';
-import RoulettePage from './pages/RoulettePage';
-import { CustomIconPage } from './pages/CustomIconPage';
-import { OrganizationPage } from './pages/OrganizationPage';
-import { OrganizationDetailPage } from './pages/OrganizationDetailPage';
-import { OrgInviteAcceptPage } from './pages/OrgInviteAcceptPage';
-import { SlackOAuthCallback } from './components/slack/SlackOAuthCallback';
-import { AnnouncementDisplay } from './components/AnnouncementDisplay';
-import { MaintenancePage } from './components/MaintenancePage';
-import { NightShutdownPage } from './components/NightShutdownPage';
-import { boardService, inviteLinkService, organizationService, systemService } from './utils/services';
-import { useState, useEffect, useCallback } from 'react';
-import { Board } from './types';
-import type { MaintenanceStatus } from './utils/api';
-import { trackEvent } from './contexts/AnalyticsContext';
-import { useVisualViewport, useKeyboardAutoScroll } from './hooks/useVisualViewport';
-import { PWAUpdatePrompt } from './components/PWAUpdatePrompt';
-import { Toaster } from './components/ui/sonner';
-import { MobileBottomNav } from './components/ui/MobileBottomNav';
+import {
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useParams,
+  useLocation,
+} from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
+import { AnalyticsProvider } from "./contexts/AnalyticsContext";
+import { LoginPage } from "./components/LoginPage";
+import { Dashboard } from "./components/dashboard";
+import { InviteLandingPage } from "./components/InviteLandingPage";
+import { LandingPage } from "./components/landing/LandingPage";
+import { ComparisonPage } from "./components/landing/ComparisonPage";
+import { KanbanBoardPage } from "./pages/KanbanBoardPage";
+import { PersonalBoardPage } from "./pages/PersonalBoardPage";
+import { TaskKeyRedirect } from "./pages/TaskKeyRedirect";
+import { EmailVerificationPendingPage } from "./components/EmailVerificationPendingPage";
+import { EmailVerificationResultPage } from "./components/EmailVerificationResultPage";
+import { ForgotPasswordPage } from "./components/ForgotPasswordPage";
+import { ResetPasswordPage } from "./components/ResetPasswordPage";
+import { TermsPage } from "./components/TermsPage";
+import { PrivacyPage } from "./components/PrivacyPage";
+import { SettingsPage } from "./components/SettingsPage";
+import ErrorBoundary from "./components/ErrorBoundary";
+import { AdminRoute } from "./components/AdminRoute";
+import { AdminPage } from "./pages/AdminPage";
+import { PaymentSuccessPage } from "./pages/PaymentSuccessPage";
+import { PaymentFailPage } from "./pages/PaymentFailPage";
+import { AnnouncementsPage } from "./pages/AnnouncementsPage";
+import { SharedNotePage } from "./pages/SharedNotePage";
+import { SharedAlbumPage } from "./pages/SharedAlbumPage";
+import { SharedGalleryPage } from "./pages/SharedGalleryPage";
+import { PublicUploadPage } from "./pages/PublicUploadPage";
+import { GalleryUploadPage } from "./pages/GalleryUploadPage";
+import BibleTranscriptionPage from "./pages/BibleTranscriptionPage";
+import RoulettePage from "./pages/RoulettePage";
+import { CustomIconPage } from "./pages/CustomIconPage";
+import { OrganizationPage } from "./pages/OrganizationPage";
+import { OrganizationDetailPage } from "./pages/OrganizationDetailPage";
+import { OrgInviteAcceptPage } from "./pages/OrgInviteAcceptPage";
+import { SlackOAuthCallback } from "./components/slack/SlackOAuthCallback";
+import { AnnouncementDisplay } from "./components/AnnouncementDisplay";
+import { MaintenancePage } from "./components/MaintenancePage";
+import { NightShutdownPage } from "./components/NightShutdownPage";
+import {
+  boardService,
+  inviteLinkService,
+  organizationService,
+  systemService,
+} from "./utils/services";
+import { useState, useEffect, useCallback } from "react";
+import { Board } from "./types";
+import type { MaintenanceStatus } from "./utils/api";
+import { trackEvent } from "./contexts/AnalyticsContext";
+import {
+  useVisualViewport,
+  useKeyboardAutoScroll,
+} from "./hooks/useVisualViewport";
+import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
+import { Toaster } from "./components/ui/sonner";
+import { MobileBottomNav } from "./components/ui/MobileBottomNav";
 
 // 인증이 필요한 라우트 래퍼
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -56,7 +72,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
-        <div className="text-white text-lg">{t('app.loading')}</div>
+        <div className="text-white text-lg">{t("app.loading")}</div>
       </div>
     );
   }
@@ -82,7 +98,15 @@ interface InviteInfo {
 
 // 로그인 페이지 래퍼 (이미 로그인되어 있으면 보드 목록으로)
 function LoginRoute() {
-  const { isAuthenticated, isLoading, login: authLogin, signup: authSignup, googleLogin: authGoogleLogin, googleLoginWithIdToken: authGoogleLoginWithIdToken, isTester } = useAuth();
+  const {
+    isAuthenticated,
+    isLoading,
+    login: authLogin,
+    signup: authSignup,
+    googleLogin: authGoogleLogin,
+    googleLoginWithIdToken: authGoogleLoginWithIdToken,
+    isTester,
+  } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [isProcessingInvite, setIsProcessingInvite] = useState(false);
@@ -92,7 +116,7 @@ function LoginRoute() {
   // 초대 정보 로드
   useEffect(() => {
     const loadInviteInfo = async () => {
-      const pendingCode = localStorage.getItem('pending_invite_code');
+      const pendingCode = localStorage.getItem("pending_invite_code");
       if (pendingCode) {
         try {
           const info = await inviteLinkService.getInviteLinkInfo(pendingCode);
@@ -103,7 +127,7 @@ function LoginRoute() {
             });
           }
         } catch (error) {
-          console.error('Failed to load invite info:', error);
+          console.error("Failed to load invite info:", error);
         }
       }
     };
@@ -122,7 +146,7 @@ function LoginRoute() {
 
   const signup = async (email: string, password: string, name: string) => {
     await authSignup(email, password, name);
-    localStorage.setItem('bridge_show_onboarding', 'true');
+    localStorage.setItem("bridge_show_onboarding", "true");
     await handleLoginSuccess();
   };
 
@@ -139,19 +163,29 @@ function LoginRoute() {
   useEffect(() => {
     const handlePostLogin = async () => {
       // 방금 로그인했거나 이미 인증된 상태인 경우
-      if ((justLoggedIn || (isAuthenticated && !isLoading)) && !isProcessingInvite) {
+      if (
+        (justLoggedIn || (isAuthenticated && !isLoading)) &&
+        !isProcessingInvite
+      ) {
         // 대기 중인 조직 초대가 있으면 자동으로 수락 (보드 초대보다 우선)
-        const pendingOrgCode = localStorage.getItem('pending_org_invite_code');
+        const pendingOrgCode = localStorage.getItem("pending_org_invite_code");
         if (pendingOrgCode && justLoggedIn) {
           setIsProcessingInvite(true);
-          localStorage.removeItem('pending_org_invite_code');
+          localStorage.removeItem("pending_org_invite_code");
           try {
-            const result = await organizationService.acceptInvite(pendingOrgCode);
+            const result =
+              await organizationService.acceptInvite(pendingOrgCode);
             navigate(`/organizations/${result.organization_id}`);
           } catch (error: any) {
-            console.error('Failed to accept org invite:', error);
-            alert(error?.message || t('app.orgInviteAcceptFailed', '조직 초대 수락에 실패했습니다.'));
-            navigate('/boards');
+            console.error("Failed to accept org invite:", error);
+            alert(
+              error?.message ||
+                t(
+                  "app.orgInviteAcceptFailed",
+                  "조직 초대 수락에 실패했습니다.",
+                ),
+            );
+            navigate("/boards");
           } finally {
             setIsProcessingInvite(false);
           }
@@ -159,28 +193,32 @@ function LoginRoute() {
         }
 
         // 대기 중인 보드 초대가 있으면 자동으로 수락
-        const pendingCode = localStorage.getItem('pending_invite_code');
+        const pendingCode = localStorage.getItem("pending_invite_code");
         if (pendingCode && justLoggedIn) {
           // 방금 로그인한 경우에만 초대 자동 수락
           setIsProcessingInvite(true);
-          localStorage.removeItem('pending_invite_code');
+          localStorage.removeItem("pending_invite_code");
           try {
             const result = await inviteLinkService.acceptInvite(pendingCode);
             navigate(`/boards/${result.board_id}`);
           } catch (error: any) {
-            console.error('Failed to accept invite:', error);
-            alert(error?.message || t('app.inviteAcceptFailed'));
-            navigate('/boards');
+            console.error("Failed to accept invite:", error);
+            alert(error?.message || t("app.inviteAcceptFailed"));
+            navigate("/boards");
           } finally {
             setIsProcessingInvite(false);
           }
         } else if (isAuthenticated && !isLoading) {
           // pending invite가 있으면 justLoggedIn을 기다림 (race condition 방지)
-          const hasPendingOrgInvite = localStorage.getItem('pending_org_invite_code');
-          const hasPendingBoardInvite = localStorage.getItem('pending_invite_code');
+          const hasPendingOrgInvite = localStorage.getItem(
+            "pending_org_invite_code",
+          );
+          const hasPendingBoardInvite = localStorage.getItem(
+            "pending_invite_code",
+          );
           if (!hasPendingOrgInvite && !hasPendingBoardInvite) {
             // 보드 목록으로 이동 (TESTER 자동 리다이렉트는 BoardsRoute에서 처리)
-            navigate('/boards');
+            navigate("/boards");
           }
         }
       }
@@ -194,10 +232,10 @@ function LoginRoute() {
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
         <div className="text-center">
           <div className="text-white text-lg mb-2">
-            {isProcessingInvite ? t('app.processingInvite') : t('app.loading')}
+            {isProcessingInvite ? t("app.processingInvite") : t("app.loading")}
           </div>
           {isProcessingInvite && (
-            <div className="text-slate-400 text-sm">{t('app.pleaseWait')}</div>
+            <div className="text-slate-400 text-sm">{t("app.pleaseWait")}</div>
           )}
         </div>
       </div>
@@ -208,8 +246,14 @@ function LoginRoute() {
     <LoginPage
       onLogin={login}
       onSignup={signup}
-      onGoogleLogin={import.meta.env.VITE_GOOGLE_CLIENT_ID ? googleLogin : undefined}
-      onGoogleLoginWithIdToken={import.meta.env.VITE_GOOGLE_CLIENT_ID ? googleLoginWithIdToken : undefined}
+      onGoogleLogin={
+        import.meta.env.VITE_GOOGLE_CLIENT_ID ? googleLogin : undefined
+      }
+      onGoogleLoginWithIdToken={
+        import.meta.env.VITE_GOOGLE_CLIENT_ID
+          ? googleLoginWithIdToken
+          : undefined
+      }
       inviteInfo={inviteInfo}
     />
   );
@@ -232,13 +276,17 @@ function BoardsRoute() {
       const boardsData = await boardService.getBoards();
       // TESTER인 경우 참여 중인 보드가 있으면 바로 이동 (milkyway.pe.kr 도메인도 isTester에 포함)
       // 단, 해당 보드 로드 실패로 돌아온 경우엔 리다이렉트하지 않음
-      if (isTester && boardsData.length > 0 && boardLoadFailed !== boardsData[0].id) {
+      if (
+        isTester &&
+        boardsData.length > 0 &&
+        boardLoadFailed !== boardsData[0].id
+      ) {
         navigate(`/boards/${boardsData[0].id}`, { replace: true });
         return;
       }
       setBoards(boardsData);
     } catch (error) {
-      console.error('Failed to load boards:', error);
+      console.error("Failed to load boards:", error);
     } finally {
       setIsLoading(false);
     }
@@ -249,20 +297,28 @@ function BoardsRoute() {
   }, []);
 
   const handleSelectBoard = (boardId: string) => {
-    trackEvent('board_view', { board_id: boardId });
+    trackEvent("board_view", { board_id: boardId });
     navigate(`/boards/${boardId}`);
   };
 
-  const handleCreateBoard = async (name: string, description?: string, backgroundGradient?: string) => {
+  const handleCreateBoard = async (
+    name: string,
+    description?: string,
+    backgroundGradient?: string,
+  ) => {
     try {
-      const newBoard = await boardService.createBoard(name, description, backgroundGradient);
+      const newBoard = await boardService.createBoard(
+        name,
+        description,
+        backgroundGradient,
+      );
       setBoards([...boards, newBoard]);
-      trackEvent('board_create', { board_id: newBoard.id });
+      trackEvent("board_create", { board_id: newBoard.id });
     } catch (error) {
-      console.error('Failed to create board:', error);
-      trackEvent('error', {
-        error_type: 'board_create_failed',
-        error_message: error instanceof Error ? error.message : 'Unknown error'
+      console.error("Failed to create board:", error);
+      trackEvent("error", {
+        error_type: "board_create_failed",
+        error_message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   };
@@ -277,11 +333,11 @@ function BoardsRoute() {
       await boardService.toggleStar(boardId, newStarredStatus);
       setBoards(
         boards.map((b) =>
-          b.id === boardId ? { ...b, is_starred: newStarredStatus } : b
-        )
+          b.id === boardId ? { ...b, is_starred: newStarredStatus } : b,
+        ),
       );
     } catch (error) {
-      console.error('Failed to toggle star:', error);
+      console.error("Failed to toggle star:", error);
     }
   };
 
@@ -289,25 +345,37 @@ function BoardsRoute() {
     try {
       await boardService.deleteBoard(boardId);
       setBoards(boards.filter((b) => b.id !== boardId));
-      trackEvent('board_delete', { board_id: boardId });
+      trackEvent("board_delete", { board_id: boardId });
     } catch (error) {
-      console.error('Failed to delete board:', error);
+      console.error("Failed to delete board:", error);
     }
   };
 
-  const handleUpdateBoard = async (boardId: string, name: string, description?: string, backgroundGradient?: string) => {
+  const handleUpdateBoard = async (
+    boardId: string,
+    name: string,
+    description?: string,
+    backgroundGradient?: string,
+  ) => {
     try {
-      const updatedBoard = await boardService.updateBoard(boardId, name, description, backgroundGradient);
-      setBoards(boards.map((b) => (b.id === boardId ? { ...b, ...updatedBoard } : b)));
+      const updatedBoard = await boardService.updateBoard(
+        boardId,
+        name,
+        description,
+        backgroundGradient,
+      );
+      setBoards(
+        boards.map((b) => (b.id === boardId ? { ...b, ...updatedBoard } : b)),
+      );
     } catch (error) {
-      console.error('Failed to update board:', error);
+      console.error("Failed to update board:", error);
     }
   };
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
-        <div className="text-white text-lg">{t('app.loading')}</div>
+        <div className="text-white text-lg">{t("app.loading")}</div>
       </div>
     );
   }
@@ -333,7 +401,7 @@ function EmailPendingRoute() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
-        <div className="text-white text-lg">{t('app.loading')}</div>
+        <div className="text-white text-lg">{t("app.loading")}</div>
       </div>
     );
   }
@@ -360,9 +428,9 @@ function InviteRoute() {
   const handleLogin = () => {
     // 초대 코드를 저장하고 로그인 페이지로 이동
     if (code) {
-      localStorage.setItem('pending_invite_code', code);
+      localStorage.setItem("pending_invite_code", code);
     }
-    navigate('/login');
+    navigate("/login");
   };
 
   const handleAcceptInvite = async (boardId: string) => {
@@ -406,7 +474,7 @@ function HomeRoute() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
-        <div className="text-white text-lg">{t('app.loading')}</div>
+        <div className="text-white text-lg">{t("app.loading")}</div>
       </div>
     );
   }
@@ -424,7 +492,7 @@ function AppRoutes() {
 
   // Initialize deep link handler for Capacitor native apps
   useEffect(() => {
-    import('./utils/deepLinks')
+    import("./utils/deepLinks")
       .then(({ initDeepLinks }) => initDeepLinks(appNavigate))
       .catch(() => {});
   }, [appNavigate]);
@@ -433,190 +501,213 @@ function AppRoutes() {
     <>
       <ThemeSync />
       <Routes>
-      {/* 루트: 로그인 상태면 /boards, 아니면 /login */}
-      <Route path="/" element={<HomeRoute />} />
+        {/* 루트: 로그인 상태면 /boards, 아니면 /login */}
+        <Route path="/" element={<HomeRoute />} />
 
-      {/* 랜딩 페이지 */}
-      <Route path="/landing" element={<LandingPage />} />
-      <Route path="/compare" element={<ComparisonPage />} />
+        {/* 랜딩 페이지 */}
+        <Route path="/landing" element={<LandingPage />} />
+        <Route path="/compare" element={<ComparisonPage />} />
 
-      {/* 로그인 */}
-      <Route path="/login" element={<LoginRoute />} />
+        {/* 로그인 */}
+        <Route path="/login" element={<LoginRoute />} />
 
-      {/* 이메일 인증 */}
-      <Route path="/verify-email/:token" element={<EmailVerificationResultPage />} />
-      <Route path="/email-pending" element={<EmailPendingRoute />} />
+        {/* 이메일 인증 */}
+        <Route
+          path="/verify-email/:token"
+          element={<EmailVerificationResultPage />}
+        />
+        <Route path="/email-pending" element={<EmailPendingRoute />} />
 
-      {/* 비밀번호 재설정 */}
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        {/* 비밀번호 재설정 */}
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
-      {/* 이용약관 및 개인정보처리방침 */}
-      <Route path="/terms" element={<TermsPage />} />
-      <Route path="/privacy" element={<PrivacyPage />} />
+        {/* 이용약관 및 개인정보처리방침 */}
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
 
-      {/* 공유 노트 (공개 - 인증 불필요) */}
-      <Route path="/shared/note/:shareToken" element={<SharedNotePage />} />
+        {/* 공유 노트 (공개 - 인증 불필요) */}
+        <Route path="/shared/note/:shareToken" element={<SharedNotePage />} />
 
-      {/* 공유 앨범 (공개 - 인증 불필요) */}
-      <Route path="/shared/album/:shareToken" element={<SharedAlbumPage />} />
+        {/* 공유 앨범 (공개 - 인증 불필요) */}
+        <Route path="/shared/album/:shareToken" element={<SharedAlbumPage />} />
 
-      {/* 공유 갤러리 (공개 - 인증 불필요, 다중 앨범 탭) */}
-      <Route path="/shared/gallery/:shareToken" element={<SharedGalleryPage />} />
+        {/* 공유 갤러리 (공개 - 인증 불필요, 다중 앨범 탭) */}
+        <Route
+          path="/shared/gallery/:shareToken"
+          element={<SharedGalleryPage />}
+        />
 
-      {/* 공개 업로드 (인증 불필요) */}
-      <Route path="/shared/upload/:uploadToken" element={<PublicUploadPage />} />
+        {/* 공개 업로드 (인증 불필요) */}
+        <Route
+          path="/shared/upload/:uploadToken"
+          element={<PublicUploadPage />}
+        />
 
-      {/* 갤러리 공개 업로드 (인증 불필요, 다중 앨범 업로드) */}
-      <Route path="/shared/gallery-upload/:uploadToken" element={<GalleryUploadPage />} />
+        {/* 갤러리 공개 업로드 (인증 불필요, 다중 앨범 업로드) */}
+        <Route
+          path="/shared/gallery-upload/:uploadToken"
+          element={<GalleryUploadPage />}
+        />
 
-      {/* 공지사항 */}
-      <Route path="/announcements" element={<AnnouncementsPage />} />
+        {/* 공지사항 */}
+        <Route path="/announcements" element={<AnnouncementsPage />} />
 
-      {/* 성경 필사 */}
-      <Route path="/bible" element={<BibleTranscriptionPage />} />
+        {/* 성경 필사 */}
+        <Route path="/bible" element={<BibleTranscriptionPage />} />
 
-      {/* 커피 룰렛 */}
-      <Route path="/roulette" element={<RoulettePage />} />
+        {/* 커피 룰렛 */}
+        <Route path="/roulette" element={<RoulettePage />} />
 
-      {/* 커스텀 아이콘 생성기 */}
-      <Route
-        path="/customicon"
-        element={
-          <PrivateRoute>
-            <CustomIconPage />
-          </PrivateRoute>
-        }
-      />
+        {/* 커스텀 아이콘 생성기 */}
+        <Route
+          path="/customicon"
+          element={
+            <PrivateRoute>
+              <CustomIconPage />
+            </PrivateRoute>
+          }
+        />
 
-      {/* Slack OAuth 콜백 */}
-      <Route
-        path="/auth/slack/callback"
-        element={
-          <PrivateRoute>
-            <SlackOAuthCallback />
-          </PrivateRoute>
-        }
-      />
+        {/* Slack OAuth 콜백 */}
+        <Route
+          path="/auth/slack/callback"
+          element={
+            <PrivateRoute>
+              <SlackOAuthCallback />
+            </PrivateRoute>
+          }
+        />
 
-      {/* 설정 */}
-      <Route
-        path="/settings"
-        element={
-          <PrivateRoute>
-            <SettingsPage />
-          </PrivateRoute>
-        }
-      />
+        {/* 설정 */}
+        <Route
+          path="/settings"
+          element={
+            <PrivateRoute>
+              <SettingsPage />
+            </PrivateRoute>
+          }
+        />
 
-      {/* 보드 목록 */}
-      <Route
-        path="/boards"
-        element={
-          <PrivateRoute>
-            <BoardsRoute />
-          </PrivateRoute>
-        }
-      />
+        {/* 보드 목록 */}
+        <Route
+          path="/boards"
+          element={
+            <PrivateRoute>
+              <BoardsRoute />
+            </PrivateRoute>
+          }
+        />
 
-      {/* 개인 보드 (일정 + AI 일기) */}
-      <Route
-        path="/my-board"
-        element={
-          <PrivateRoute>
-            <PersonalBoardPage />
-          </PrivateRoute>
-        }
-      />
+        {/* 개인 보드 (일정 + AI 일기) */}
+        <Route
+          path="/my-board"
+          element={
+            <PrivateRoute>
+              <PersonalBoardPage />
+            </PrivateRoute>
+          }
+        />
 
-      {/* 칸반 보드 */}
-      <Route
-        path="/boards/:boardId"
-        element={
-          <PrivateRoute>
-            <KanbanBoardPage />
-          </PrivateRoute>
-        }
-      />
+        {/* 칸반 보드 */}
+        <Route
+          path="/boards/:boardId"
+          element={
+            <PrivateRoute>
+              <KanbanBoardPage />
+            </PrivateRoute>
+          }
+        />
 
-      {/* 결제 결과 페이지 */}
-      <Route
-        path="/payment/success"
-        element={
-          <PrivateRoute>
-            <PaymentSuccessPage />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/payment/fail"
-        element={
-          <PrivateRoute>
-            <PaymentFailPage />
-          </PrivateRoute>
-        }
-      />
+        {/* 사람이 읽는 태스크 키 딥링크 (예: /t/STORY-42) → 보드 딥링크로 리다이렉트 */}
+        <Route
+          path="/t/:taskKey"
+          element={
+            <PrivateRoute>
+              <TaskKeyRedirect />
+            </PrivateRoute>
+          }
+        />
 
-      {/* 조직 */}
-      <Route
-        path="/organizations"
-        element={
-          <PrivateRoute>
-            <OrganizationPage />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/organizations/:orgId"
-        element={
-          <PrivateRoute>
-            <OrganizationDetailPage />
-          </PrivateRoute>
-        }
-      />
+        {/* 결제 결과 페이지 */}
+        <Route
+          path="/payment/success"
+          element={
+            <PrivateRoute>
+              <PaymentSuccessPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/payment/fail"
+          element={
+            <PrivateRoute>
+              <PaymentFailPage />
+            </PrivateRoute>
+          }
+        />
 
-      {/* 조직 초대 링크 */}
-      <Route path="/org-invite/:code" element={<OrgInviteAcceptPage />} />
+        {/* 조직 */}
+        <Route
+          path="/organizations"
+          element={
+            <PrivateRoute>
+              <OrganizationPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/organizations/:orgId"
+          element={
+            <PrivateRoute>
+              <OrganizationDetailPage />
+            </PrivateRoute>
+          }
+        />
 
-      {/* 초대 링크 */}
-      <Route path="/invite/:code" element={<InviteRoute />} />
+        {/* 조직 초대 링크 */}
+        <Route path="/org-invite/:code" element={<OrgInviteAcceptPage />} />
 
-      {/* Admin */}
-      <Route
-        path="/admin/*"
-        element={
-          <AdminRoute>
-            <AdminPage />
-          </AdminRoute>
-        }
-      />
+        {/* 초대 링크 */}
+        <Route path="/invite/:code" element={<InviteRoute />} />
 
-      {/* 404 - 존재하지 않는 경로 */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Admin */}
+        <Route
+          path="/admin/*"
+          element={
+            <AdminRoute>
+              <AdminPage />
+            </AdminRoute>
+          }
+        />
+
+        {/* 404 - 존재하지 않는 경로 */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </>
   );
 }
 
 // 점검 모드에서도 허용되는 경로들
 const MAINTENANCE_ALLOWED_PATHS = [
-  '/login',
-  '/signup',
-  '/admin',
-  '/forgot-password',
-  '/reset-password',
-  '/verify-email',
-  '/shared/note',
-  '/shared/album',
-  '/shared/gallery',
-  '/shared/upload',
-  '/shared/gallery-upload',
+  "/login",
+  "/signup",
+  "/admin",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/shared/note",
+  "/shared/album",
+  "/shared/gallery",
+  "/shared/upload",
+  "/shared/gallery-upload",
 ];
 
 // 점검 모드 + 공지사항 래퍼
 function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const [maintenanceStatus, setMaintenanceStatus] = useState<MaintenanceStatus | null>(null);
+  const [maintenanceStatus, setMaintenanceStatus] =
+    useState<MaintenanceStatus | null>(null);
   const [isNightShutdown, setIsNightShutdown] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
 
@@ -626,13 +717,14 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
       setMaintenanceStatus(status);
       setIsNightShutdown(false);
     } catch {
-      // 서버 접속 불가 + 야간 점검 시간(KST 23:00~08:00)이면 야간 셧다운 페이지 표시
-      const kstHour = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCHours();
-      if (kstHour >= 23 || kstHour < 8) {
+      // 서버 접속 불가 + 점검 시간(KST 03:30~08:30)이면 야간 셧다운 페이지 표시
+      const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+      const kstMins = kst.getUTCHours() * 60 + kst.getUTCMinutes();
+      if (kstMins >= 3 * 60 + 30 && kstMins < 8 * 60 + 30) {
         setIsNightShutdown(true);
         setMaintenanceStatus({
           enabled: true,
-          message: '서버 점검 중입니다 (23:00~08:00)',
+          message: "서버 점검 중입니다 (03:30~08:30)",
           started_at: null,
           estimated_end_at: null,
         });
@@ -651,7 +743,8 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
 
   // 점검 모드에서도 허용된 경로인지 확인
   const isAllowedPath = MAINTENANCE_ALLOWED_PATHS.some(
-    path => location.pathname === path || location.pathname.startsWith(path + '/')
+    (path) =>
+      location.pathname === path || location.pathname.startsWith(path + "/"),
   );
 
   if (isChecking) {
@@ -667,7 +760,9 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
     if (isNightShutdown) {
       return <NightShutdownPage onRetry={checkMaintenance} />;
     }
-    return <MaintenancePage status={maintenanceStatus} onRetry={checkMaintenance} />;
+    return (
+      <MaintenancePage status={maintenanceStatus} onRetry={checkMaintenance} />
+    );
   }
 
   return <>{children}</>;

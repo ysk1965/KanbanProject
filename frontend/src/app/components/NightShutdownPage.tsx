@@ -6,31 +6,31 @@ interface NightShutdownPageProps {
   onRetry: () => void;
 }
 
-/** 다음 KST 08:00 시각을 계산 */
+/** 다음 KST 08:30(서비스 재개) 시각을 계산 */
 const getNextStartupTime = (): Date => {
   const now = new Date();
   const kstOffset = 9 * 60 * 60 * 1000;
   const kstNow = new Date(now.getTime() + kstOffset);
-  const kstHour = kstNow.getUTCHours();
+  const kstMins = kstNow.getUTCHours() * 60 + kstNow.getUTCMinutes();
 
   const target = new Date(kstNow);
-  target.setUTCHours(8, 0, 0, 0);
-  if (kstHour >= 8) {
+  target.setUTCHours(8, 30, 0, 0);
+  if (kstMins >= 8 * 60 + 30) {
     target.setUTCDate(target.getUTCDate() + 1);
   }
   return new Date(target.getTime() - kstOffset);
 };
 
-/** KST 23:00 시작 시각 계산 */
+/** KST 03:30(점검 시작) 시각 계산 */
 const getShutdownStartTime = (): Date => {
   const now = new Date();
   const kstOffset = 9 * 60 * 60 * 1000;
   const kstNow = new Date(now.getTime() + kstOffset);
-  const kstHour = kstNow.getUTCHours();
+  const kstMins = kstNow.getUTCHours() * 60 + kstNow.getUTCMinutes();
 
   const target = new Date(kstNow);
-  target.setUTCHours(23, 0, 0, 0);
-  if (kstHour < 23) {
+  target.setUTCHours(3, 30, 0, 0);
+  if (kstMins < 3 * 60 + 30) {
     target.setUTCDate(target.getUTCDate() - 1);
   }
   return new Date(target.getTime() - kstOffset);
@@ -197,7 +197,7 @@ export function NightShutdownPage({ onRetry }: NightShutdownPageProps) {
             <Clock className="h-4 w-4 text-slate-500" />
             <span className="text-slate-400">
               {t('nightShutdown.resumeAt')}{' '}
-              <span className="text-foreground font-medium">08:00 KST</span>
+              <span className="text-foreground font-medium">08:30 KST</span>
             </span>
           </div>
 
@@ -205,14 +205,18 @@ export function NightShutdownPage({ onRetry }: NightShutdownPageProps) {
           <div className="mt-6 pt-5 border-t border-foreground/[0.08]">
             <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">{t('nightShutdown.schedule')}</p>
             <div className="relative h-6 bg-foreground/5 rounded-full overflow-hidden">
-              {/* Active period: 08:00~23:00 = 33.3%~95.8% of day */}
+              {/* Active period: 08:30~다음날 03:30 (점검 03:30~08:30 제외) */}
               <div
-                className="absolute h-full bg-gradient-to-r from-bridge-accent/30 to-bridge-secondary/30 rounded-full"
-                style={{ left: '33.3%', width: '62.5%' }}
+                className="absolute h-full bg-gradient-to-r from-bridge-accent/30 to-bridge-secondary/30"
+                style={{ left: '0%', width: '14.583%' }}
               />
-              {/* Labels */}
-              <span className="absolute left-[33.3%] -translate-x-1/2 top-full mt-1 text-xs text-slate-500">08:00</span>
-              <span className="absolute left-[95.8%] -translate-x-1/2 top-full mt-1 text-xs text-slate-500">23:00</span>
+              <div
+                className="absolute h-full bg-gradient-to-r from-bridge-accent/30 to-bridge-secondary/30"
+                style={{ left: '35.417%', width: '64.583%' }}
+              />
+              {/* Labels (점검 시작/종료) */}
+              <span className="absolute left-[14.583%] -translate-x-1/2 top-full mt-1 text-xs text-slate-500">03:30</span>
+              <span className="absolute left-[35.417%] -translate-x-1/2 top-full mt-1 text-xs text-slate-500">08:30</span>
               {/* Current time marker */}
               <div
                 className="absolute top-0 h-full w-0.5 bg-red-400/80"

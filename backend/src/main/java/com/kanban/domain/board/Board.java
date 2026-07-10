@@ -77,6 +77,15 @@ public class Board extends BaseTimeEntity {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    /** 사람이 읽는 태스크 키의 프리픽스 (예: "STORY"). 첫 태스크 생성 또는 백필 시 파생·할당된다. */
+    @Column(name = "key_prefix", length = 10)
+    private String keyPrefix;
+
+    /** 보드별 태스크 번호 카운터. 단조 증가하며 삭제해도 감소하지 않는다. */
+    @Column(name = "task_seq", nullable = false, columnDefinition = "INTEGER NOT NULL DEFAULT 0")
+    @Builder.Default
+    private Integer taskSeq = 0;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -106,6 +115,25 @@ public class Board extends BaseTimeEntity {
 
     public void updateBackgroundGradient(String backgroundGradient) {
         this.backgroundGradient = backgroundGradient;
+    }
+
+    /** 프리픽스가 아직 없을 때만 할당한다 (태스크 생성 경로에서 지연 할당). */
+    public void assignKeyPrefixIfAbsent(String prefix) {
+        if (this.keyPrefix == null || this.keyPrefix.isBlank()) {
+            this.keyPrefix = prefix;
+        }
+    }
+
+    /** 다음 태스크 번호를 원자적으로 발급한다 (호출 측에서 보드를 비관적 락으로 잡은 상태여야 안전). */
+    public int nextTaskNumber() {
+        this.taskSeq = (this.taskSeq == null ? 0 : this.taskSeq) + 1;
+        return this.taskSeq;
+    }
+
+    /** 백필 전용: 프리픽스와 카운터를 한 번에 초기화한다. */
+    public void initTaskKeying(String prefix, int seq) {
+        this.keyPrefix = prefix;
+        this.taskSeq = seq;
     }
 
     public boolean isOwner(String userId) {

@@ -98,10 +98,11 @@ const isTokenExpired = (token: string): boolean => {
   return decoded.exp <= now;
 };
 
-// 서버 점검 시간 체크 (KST 23:00~08:00)
+// 서버 점검 시간 체크 (KST 03:30~08:30)
 const isMaintenanceWindow = (): boolean => {
-  const kstHour = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCHours();
-  return kstHour >= 23 || kstHour < 8;
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const mins = kst.getUTCHours() * 60 + kst.getUTCMinutes();
+  return mins >= 3 * 60 + 30 && mins < 8 * 60 + 30;
 };
 
 // API 에러 타입
@@ -293,7 +294,7 @@ class ApiClient {
       if (error instanceof TypeError && isMaintenanceWindow()) {
         window.dispatchEvent(
           new CustomEvent("server-maintenance", {
-            detail: { message: "서비스 점검 중입니다 (23:00~08:00)" },
+            detail: { message: "서비스 점검 중입니다 (03:30~08:30)" },
           }),
         );
       }
@@ -647,6 +648,8 @@ export interface TaskResponse {
   feature_color: string;
   block_id: string;
   block_name?: string;
+  task_number?: number | null;
+  task_key?: string | null;
   title: string;
   description?: string;
   // v7.0: Task.assignee 제거 - ChecklistItem.assignee로 대체
@@ -1513,6 +1516,13 @@ export const taskAPI = {
 
   getTask: async (boardId: string, taskId: string) => {
     return apiClient.get<TaskResponse>(`/boards/${boardId}/tasks/${taskId}`);
+  },
+
+  // 사람이 읽는 태스크 키(예: STORY-42) 해석 → { board_id, task_id }
+  resolveKey: async (key: string) => {
+    return apiClient.get<{ board_id: string; task_id: string }>(
+      `/task-keys/${encodeURIComponent(key)}`,
+    );
   },
 
   createTask: async (
@@ -5744,6 +5754,12 @@ export interface SharedNote {
   tags: NoteTagInfo[];
   author_name: string;
   updated_at: string;
+  /** 링크 미리보기용 평문 발췌 (BOARD/발췌 불가 시 null) */
+  excerpt?: string | null;
+  /** 상위 폴더 제목 */
+  parent_title?: string | null;
+  /** 소속 보드명 또는 조직명 */
+  board_name?: string | null;
 }
 
 export interface NoteAISuggestionResponse {

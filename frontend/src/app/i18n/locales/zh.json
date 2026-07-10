@@ -1164,7 +1164,7 @@
   },
   "nightShutdown": {
     "title": "非运营时间",
-    "subtitle": "服务每天 08:00 ~ 23:00 (KST) 运营",
+    "subtitle": "每天 03:30 ~ 08:30 (KST) 进行服务器维护",
     "resumeAt": "服务恢复时间",
     "hours": "小时",
     "minutes": "分钟",
@@ -1415,6 +1415,14 @@
     "move": "移动",
     "moveChecklistToTask": "移动到其他Task",
     "mergeChecklist": {
+      "featureLabel": "功能",
+      "taskLabel": "任务",
+      "representative": "代表",
+      "statusDone": "已完成",
+      "statusDoing": "进行中",
+      "statusTodo": "计划中",
+      "previewAssignees": "负责人",
+      "previewAssigneesValue": "{{names}}（{{n}}人）",
       "action": "与其他项合并",
       "title": "将{{count}}个项合并为一个",
       "subtitle": "将所选项的时间块归入代表项",
@@ -2939,6 +2947,7 @@
   },
   "notes": {
     "moveFailed": "移动笔记失败",
+    "moveInto": "移入",
     "addTag": "添加标签",
     "aiAlreadyExists": "已存在",
     "aiAnalyzing": "AI正在分析笔记...",

@@ -7,6 +7,8 @@ import {
   Plus,
   Check,
   Maximize2,
+  MoreHorizontal,
+  Trash2,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -129,6 +131,58 @@ function MilestoneRingNode({
   );
 }
 
+// ────────────────────────────────────────────────────────────
+// 생성 중 임시 위치 미리보기 — 점선 고스트 노드
+//  - 기간(startDate)에 따라 레일의 시작일 순서 자리에 끼어 표시된다.
+// ────────────────────────────────────────────────────────────
+function GhostRailNode({
+  title,
+  startDate,
+  endDate,
+  newLabel,
+  hereLabel,
+  needPeriodLabel,
+  undatedSubLabel,
+}: {
+  title: string;
+  startDate?: Date;
+  endDate?: Date;
+  newLabel: string;
+  hereLabel: string;
+  needPeriodLabel: string;
+  undatedSubLabel: string;
+}) {
+  const dated = !!(startDate && endDate);
+  return (
+    <div
+      className="relative grid grid-cols-[24px_1fr] items-center gap-2.5 rounded-lg border border-dashed border-bridge-accent bg-bridge-accent/10 py-2 pr-2"
+      aria-hidden
+    >
+      <span
+        className="justify-self-center grid place-items-center rounded-full border border-dashed border-bridge-accent bg-bridge-dark"
+        style={{ width: 22, height: 22 }}
+      >
+        <Plus className="h-3 w-3 text-bridge-accent" strokeWidth={2.5} />
+      </span>
+      <span className="min-w-0">
+        <span className="flex items-center gap-1.5">
+          <span className="min-w-0 truncate text-sm font-medium text-bridge-accent">
+            {title.trim() || newLabel}
+          </span>
+          <span className="shrink-0 rounded-full bg-bridge-accent px-1.5 py-0.5 text-xs font-bold text-white">
+            {dated ? hereLabel : needPeriodLabel}
+          </span>
+        </span>
+        <span className="mt-0.5 block truncate text-xs text-slate-400 tabular-nums">
+          {dated
+            ? `${format(startDate!, "M/d")}~${format(endDate!, "M/d")}`
+            : undatedSubLabel}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 interface MilestoneModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -168,6 +222,8 @@ export function MilestoneModal({
   const [pendingSelect, setPendingSelect] = useState<{
     target: Milestone | null;
   } | null>(null);
+  // 레일 항목별 오버플로(⋯) 메뉴 — 열려 있는 마일스톤 id
+  const [menuFor, setMenuFor] = useState<string | null>(null);
 
   const isEditMode = !!milestone;
 
@@ -185,17 +241,22 @@ export function MilestoneModal({
     }
     setDescExpanded(false);
     setPendingSelect(null);
+    setMenuFor(null);
   }, [milestone, isOpen]);
 
   // 세로 타임라인 레일: 시작일 순 정렬
   //  - 오늘이 어떤 마일스톤 기간 안이면 → 그 마일스톤을 "current"로 강조 (구분선 없음)
   //  - 오늘이 마일스톤 사이 공백/이전/이후면 → 그 위치에만 TODAY 구분선
   const today = getTodayDateString();
-  const railItems = useMemo<
-    Array<
-      { today: true } | { today?: false; m: Milestone; status: MilestoneStatus }
-    >
-  >(() => {
+  // 생성 모드에서 미리보기용 고스트의 시작일 키 (yyyy-MM-dd) — 없으면 맨 끝
+  const isCreating = !milestone;
+  const ghostStart =
+    isCreating && startDate ? format(startDate, "yyyy-MM-dd") : null;
+  type RailEntry =
+    | { kind: "today" }
+    | { kind: "ghost" }
+    | { kind: "milestone"; m: Milestone; status: MilestoneStatus };
+  const railItems = useMemo<RailEntry[]>(() => {
     const sorted = [...milestones].sort((a, b) =>
       a.start_date < b.start_date ? -1 : a.start_date > b.start_date ? 1 : 0,
     );
@@ -203,22 +264,62 @@ export function MilestoneModal({
     const hasCurrent = sorted.some(
       (m) => m.start_date <= today && today <= m.end_date,
     );
-    const items: Array<
-      { today: true } | { today?: false; m: Milestone; status: MilestoneStatus }
-    > = [];
+    const items: RailEntry[] = [];
     let dividerInserted = false;
+    let ghostInserted = false;
     for (const m of sorted) {
+      // 생성 중 고스트: 시작일 오름차순에서 자기보다 늦은 첫 항목 앞에 삽입
+      if (
+        isCreating &&
+        !ghostInserted &&
+        ghostStart &&
+        m.start_date > ghostStart
+      ) {
+        items.push({ kind: "ghost" });
+        ghostInserted = true;
+      }
       // 현재 마일스톤이 없을 때만, 오늘보다 늦게 시작하는 첫 항목 앞에 구분선
       if (!hasCurrent && !dividerInserted && m.start_date > today) {
-        items.push({ today: true });
+        items.push({ kind: "today" });
         dividerInserted = true;
       }
-      items.push({ m, status: deriveMilestoneStatus(m, today) });
+      items.push({ kind: "milestone", m, status: deriveMilestoneStatus(m, today) });
     }
     // 오늘이 모든 마일스톤보다 이후 (현재도 없고 삽입도 안 됨) → 맨 아래
-    if (!hasCurrent && !dividerInserted) items.push({ today: true });
+    if (!hasCurrent && !dividerInserted) items.push({ kind: "today" });
+    // 고스트가 아직 안 들어갔으면 (기간 미정 or 가장 늦은 시작) → 맨 아래
+    if (isCreating && !ghostInserted) items.push({ kind: "ghost" });
     return items;
-  }, [milestones, today]);
+  }, [milestones, today, isCreating, ghostStart]);
+
+  // 피처별 소속 마일스톤 목록 (레일과 동일한 시작일 순 번호 부여)
+  //  - "담긴 작업"에서 걸친 피처가 어느 마일스톤들에 있는지 칩으로 표시
+  const featureMilestonesMap = useMemo<
+    Record<string, Array<{ id: string; order: number; title: string }>>
+  >(() => {
+    const sorted = [...milestones].sort((a, b) =>
+      a.start_date < b.start_date ? -1 : a.start_date > b.start_date ? 1 : 0,
+    );
+    const orderMap: Record<string, number> = {};
+    sorted.forEach((m, i) => {
+      orderMap[m.id] = i + 1;
+    });
+    const map: Record<
+      string,
+      Array<{ id: string; order: number; title: string }>
+    > = {};
+    for (const m of sorted) {
+      if (!m.features) continue;
+      for (const f of m.features) {
+        (map[f.id] ||= []).push({
+          id: m.id,
+          order: orderMap[m.id] ?? 0,
+          title: m.title,
+        });
+      }
+    }
+    return map;
+  }, [milestones]);
 
   const handleSave = async (): Promise<boolean> => {
     if (!title.trim() || !startDate || !endDate) {
@@ -287,14 +388,16 @@ export function MilestoneModal({
     }
   };
 
-  const handleDelete = async () => {
-    if (!milestone || !onDelete) return;
+  const handleDelete = async (target: Milestone) => {
+    if (!onDelete) return;
 
     if (!confirm(t("milestone.deleteConfirm"))) return;
 
     try {
-      await onDelete(milestone.id);
-      onSelectMilestone(null);
+      await onDelete(target.id);
+      setMenuFor(null);
+      // 선택 중이던 마일스톤을 지웠으면 생성 모드로
+      if (milestone?.id === target.id) onSelectMilestone(null);
     } catch (error) {
       console.error("Failed to delete milestone:", error);
       alert(t("milestone.deleteFailed"));
@@ -337,8 +440,16 @@ export function MilestoneModal({
                   style={{ left: 12 }}
                   aria-hidden
                 />
+                {/* 메뉴 열림 시 바깥 클릭 닫기용 백드롭 */}
+                {menuFor && (
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setMenuFor(null)}
+                    aria-hidden
+                  />
+                )}
                 {railItems.map((it) => {
-                  if (it.today) {
+                  if (it.kind === "today") {
                     return (
                       <div
                         key="__today__"
@@ -353,122 +464,188 @@ export function MilestoneModal({
                       </div>
                     );
                   }
-                  const isSel = milestone?.id === it.m.id;
+                  if (it.kind === "ghost") {
+                    return (
+                      <GhostRailNode
+                        key="__ghost__"
+                        title={title}
+                        startDate={startDate}
+                        endDate={endDate}
+                        newLabel={t("milestone.new", "새 마일스톤")}
+                        hereLabel={t("milestone.ghostHere", {
+                          defaultValue: "여기 추가",
+                        })}
+                        needPeriodLabel={t("milestone.ghostNeedPeriod", {
+                          defaultValue: "기간 필요",
+                        })}
+                        undatedSubLabel={t("milestone.ghostUndated", {
+                          defaultValue: "기간 미정 · 맨 끝",
+                        })}
+                      />
+                    );
+                  }
+                  const m = it.m;
+                  const isSel = milestone?.id === m.id;
                   const isCurrent = it.status === "current";
-                  const work = it.m.progress_percentage || 0;
-                  const elapsed = isCurrent
-                    ? timeElapsedPercent(it.m, today)
-                    : 0;
+                  const work = m.progress_percentage || 0;
+                  const elapsed = isCurrent ? timeElapsedPercent(m, today) : 0;
+                  const menuOpen = menuFor === m.id;
                   return (
-                    <button
-                      key={it.m.id}
-                      onClick={() => requestSelect(it.m)}
-                      className={`relative grid grid-cols-[24px_1fr] items-center gap-2.5 rounded-lg py-2 pr-2 text-left transition-all ${
-                        isSel
-                          ? "bg-bridge-accent/15 border border-bridge-accent/30"
-                          : "border border-transparent hover:bg-bridge-surface-hover"
-                      }`}
-                    >
-                      {/* 현재 마일스톤: 빨강 좌측 액센트 */}
-                      {isCurrent && (
-                        <span
-                          className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-rose-400"
-                          aria-hidden
-                        />
-                      )}
-                      <span className="justify-self-center">
-                        <MilestoneRingNode
-                          percent={work}
-                          status={it.status}
-                          selected={isSel}
-                        />
-                      </span>
-                      {isCurrent ? (
-                        <span className="min-w-0">
-                          <span className="flex items-center gap-1.5">
+                    <div key={m.id} className="group relative">
+                      <button
+                        onClick={() => requestSelect(m)}
+                        className={`relative grid w-full grid-cols-[24px_1fr] items-center gap-2.5 rounded-lg py-2 pr-2 text-left transition-all ${
+                          isSel
+                            ? "bg-bridge-accent/15 border border-bridge-accent/30"
+                            : "border border-transparent hover:bg-bridge-surface-hover"
+                        }`}
+                      >
+                        {/* 현재 마일스톤: 빨강 좌측 액센트 */}
+                        {isCurrent && (
+                          <span
+                            className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-rose-400"
+                            aria-hidden
+                          />
+                        )}
+                        <span className="justify-self-center">
+                          <MilestoneRingNode
+                            percent={work}
+                            status={it.status}
+                            selected={isSel}
+                          />
+                        </span>
+                        {isCurrent ? (
+                          <span className="min-w-0">
+                            <span className="flex items-center gap-1.5 pr-6">
+                              <span
+                                className={`min-w-0 truncate text-sm font-medium ${
+                                  isSel
+                                    ? "text-bridge-accent"
+                                    : "text-foreground"
+                                }`}
+                              >
+                                {m.title}
+                              </span>
+                              <span className="shrink-0 rounded-full bg-rose-400/15 px-1.5 py-0.5 text-xs font-bold text-rose-400">
+                                {t("milestone.todayBadge", {
+                                  defaultValue: "오늘",
+                                })}
+                              </span>
+                            </span>
+                            <span className="mt-0.5 flex items-center justify-between gap-2 text-xs text-slate-500 tabular-nums">
+                              <span className="truncate">
+                                {format(new Date(m.start_date), "M/d")}~
+                                {format(new Date(m.end_date), "M/d")}
+                              </span>
+                              <span className="shrink-0 font-medium text-rose-400">
+                                {dDayLabel(m, today)}
+                              </span>
+                            </span>
+                            {/* 이중 바: 기간 경과(빨강) 위에 작업 진행(그라디언트) + 오늘 마커 */}
+                            <span className="relative mt-1 block h-1.5 overflow-hidden rounded-full bg-foreground/10">
+                              <span
+                                className="absolute inset-y-0 left-0 rounded-full bg-rose-400/25"
+                                style={{ width: `${elapsed}%` }}
+                              />
+                              <span
+                                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-bridge-secondary to-bridge-accent"
+                                style={{ width: `${work}%` }}
+                              />
+                              <span
+                                className="absolute inset-y-[-1px] w-0.5 bg-rose-400"
+                                style={{ left: `${elapsed}%` }}
+                              />
+                            </span>
+                            <span className="mt-0.5 flex items-center justify-between text-xs text-slate-500 tabular-nums">
+                              <span>
+                                {t("milestone.workShort", {
+                                  defaultValue: "작업",
+                                })}{" "}
+                                {work}%
+                              </span>
+                              <span>
+                                {t("milestone.elapsedShort", {
+                                  defaultValue: "기간",
+                                })}{" "}
+                                {elapsed}%
+                              </span>
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="min-w-0">
                             <span
-                              className={`min-w-0 truncate text-sm font-medium ${
+                              className={`block truncate pr-6 text-sm font-medium ${
                                 isSel ? "text-bridge-accent" : "text-foreground"
                               }`}
                             >
-                              {it.m.title}
+                              {m.title}
                             </span>
-                            <span className="shrink-0 rounded-full bg-rose-400/15 px-1.5 py-0.5 text-xs font-bold text-rose-400">
-                              {t("milestone.todayBadge", {
-                                defaultValue: "오늘",
-                              })}
-                            </span>
-                          </span>
-                          <span className="mt-0.5 flex items-center justify-between gap-2 text-xs text-slate-500 tabular-nums">
-                            <span className="truncate">
-                              {format(new Date(it.m.start_date), "M/d")}~
-                              {format(new Date(it.m.end_date), "M/d")}
-                            </span>
-                            <span className="shrink-0 font-medium text-rose-400">
-                              {dDayLabel(it.m, today)}
+                            <span className="mt-0.5 block truncate text-xs text-slate-500 tabular-nums">
+                              {format(new Date(m.start_date), "M/d")}~
+                              {format(new Date(m.end_date), "M/d")}
+                              {isSel && ` · ${work}%`}
                             </span>
                           </span>
-                          {/* 이중 바: 기간 경과(빨강) 위에 작업 진행(그라디언트) + 오늘 마커 */}
-                          <span className="relative mt-1 block h-1.5 overflow-hidden rounded-full bg-foreground/10">
-                            <span
-                              className="absolute inset-y-0 left-0 rounded-full bg-rose-400/25"
-                              style={{ width: `${elapsed}%` }}
-                            />
-                            <span
-                              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-bridge-secondary to-bridge-accent"
-                              style={{ width: `${work}%` }}
-                            />
-                            <span
-                              className="absolute inset-y-[-1px] w-0.5 bg-rose-400"
-                              style={{ left: `${elapsed}%` }}
-                            />
-                          </span>
-                          <span className="mt-0.5 flex items-center justify-between text-xs text-slate-500 tabular-nums">
-                            <span>
-                              {t("milestone.workShort", { defaultValue: "작업" })}{" "}
-                              {work}%
-                            </span>
-                            <span>
-                              {t("milestone.elapsedShort", {
-                                defaultValue: "기간",
-                              })}{" "}
-                              {elapsed}%
-                            </span>
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="min-w-0">
-                          <span
-                            className={`block truncate text-sm font-medium ${
-                              isSel ? "text-bridge-accent" : "text-foreground"
-                            }`}
-                          >
-                            {it.m.title}
-                          </span>
-                          <span className="mt-0.5 block truncate text-xs text-slate-500 tabular-nums">
-                            {format(new Date(it.m.start_date), "M/d")}~
-                            {format(new Date(it.m.end_date), "M/d")}
-                            {isSel && ` · ${work}%`}
-                          </span>
-                        </span>
+                        )}
+                      </button>
+
+                      {/* 항목별 오버플로(⋯) — 삭제를 대상 옆으로 */}
+                      {onDelete && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMenuFor(menuOpen ? null : m.id);
+                          }}
+                          aria-label={t("common.more", {
+                            defaultValue: "더보기",
+                          })}
+                          className={`absolute right-1.5 top-1.5 z-20 grid h-6 w-6 place-items-center rounded-md text-slate-400 transition-all hover:bg-foreground/10 hover:text-foreground ${
+                            menuOpen
+                              ? "opacity-100 bg-foreground/10"
+                              : "opacity-0 focus:opacity-100 group-hover:opacity-100"
+                          }`}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
                       )}
-                    </button>
+                      {menuOpen && onDelete && (
+                        <div className="absolute right-1.5 top-9 z-20 w-32 rounded-xl border border-bridge-border bg-bridge-obsidian p-1 shadow-2xl">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(m);
+                            }}
+                            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {t("common.delete")}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
+
+                {/* 리스트 끝: 새 마일스톤 추가 카드 (편집 중일 때만 노출, 생성 중엔 고스트로 대체) */}
+                {isEditMode && (
+                  <button
+                    type="button"
+                    onClick={() => requestSelect(null)}
+                    className="mt-1 grid w-full grid-cols-[24px_1fr] items-center gap-2.5 rounded-lg border border-dashed border-bridge-border py-2.5 pr-2 text-left text-slate-400 transition-all hover:border-bridge-accent hover:bg-bridge-accent/5 hover:text-bridge-accent"
+                  >
+                    <span className="justify-self-center grid h-[22px] w-[22px] place-items-center rounded-full border border-dashed border-current">
+                      <Plus size={13} />
+                    </span>
+                    <span className="text-sm font-medium">
+                      {t("milestone.addNew", {
+                        defaultValue: "새 마일스톤 추가",
+                      })}
+                    </span>
+                  </button>
+                )}
               </div>
-            </div>
-            <div className="p-2 border-t border-bridge-border">
-              <button
-                onClick={() => requestSelect(null)}
-                className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                  !milestone
-                    ? "bg-bridge-accent text-white"
-                    : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
-                }`}
-              >
-                <Plus size={14} />
-                {t("milestone.new", "새 마일스톤")}
-              </button>
             </div>
           </div>
 
@@ -596,11 +773,25 @@ export function MilestoneModal({
                               {feature.title}
                             </span>
                             {spanning && (
-                              <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 flex-shrink-0">
-                                ⑂{" "}
-                                {t("milestone.spanningShort", {
-                                  defaultValue: "걸침",
-                                })}
+                              <span className="flex items-center gap-1 flex-shrink-0">
+                                {(featureMilestonesMap[feature.id] || []).map(
+                                  (ms) => {
+                                    const isHere = ms.id === milestone?.id;
+                                    return (
+                                      <span
+                                        key={ms.id}
+                                        title={ms.title}
+                                        className={`inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-md border px-1.5 text-xs font-bold tabular-nums ${
+                                          isHere
+                                            ? "border-bridge-accent/50 bg-bridge-accent/20 text-bridge-accent"
+                                            : "border-foreground/10 bg-foreground/5 text-slate-400"
+                                        }`}
+                                      >
+                                        {ms.order}
+                                      </span>
+                                    );
+                                  },
+                                )}
                               </span>
                             )}
                             <span className="text-xs text-slate-500 flex-shrink-0 tabular-nums">
@@ -632,15 +823,15 @@ export function MilestoneModal({
 
             {/* 푸터 */}
             <div className="flex items-center justify-between p-5 border-t border-bridge-border bg-white/[0.02]">
-              <div>
-                {isEditMode && onDelete && (
-                  <Button
-                    variant="ghost"
-                    onClick={handleDelete}
-                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                  >
-                    {t("common.delete")}
-                  </Button>
+              <div className="min-h-[34px] flex items-center">
+                {/* 편집 중 변경이 없으면 저장 비활성 이유를 명시 */}
+                {isEditMode && !isDirty && (
+                  <span className="flex items-center gap-2 text-xs text-slate-500">
+                    <span className="h-1 w-1 rounded-full bg-slate-500" />
+                    {t("milestone.noChanges", {
+                      defaultValue: "변경사항 없음",
+                    })}
+                  </span>
                 )}
               </div>
               <div className="flex items-center gap-4">
@@ -652,13 +843,13 @@ export function MilestoneModal({
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={isSaving}
-                  className="px-6 py-2.5 bg-white text-black font-bold text-xs rounded-lg tracking-widest hover:bg-zinc-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isSaving || (isEditMode && !isDirty)}
+                  className="px-6 py-2.5 bg-white text-black font-bold text-xs rounded-lg tracking-widest hover:bg-zinc-200 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-slate-400 disabled:hover:bg-white/10"
                 >
                   {isSaving
                     ? t("milestone.saving")
                     : isEditMode
-                      ? t("common.edit")
+                      ? t("milestone.saveChanges", { defaultValue: "변경 저장" })
                       : t("common.create")}
                 </button>
               </div>

@@ -1164,7 +1164,7 @@
   },
   "nightShutdown": {
     "title": "Fuera del horario de servicio",
-    "subtitle": "El servicio está disponible todos los días de 08:00 a 23:00 (KST)",
+    "subtitle": "El mantenimiento del servidor se realiza a diario de 03:30 a 08:30 (KST)",
     "resumeAt": "El servicio se reanuda a las",
     "hours": "Horas",
     "minutes": "Min",
@@ -1415,6 +1415,14 @@
     "move": "Mover",
     "moveChecklistToTask": "Mover a otro Task",
     "mergeChecklist": {
+      "featureLabel": "Función",
+      "taskLabel": "Tarea",
+      "representative": "Principal",
+      "statusDone": "Completado",
+      "statusDoing": "En curso",
+      "statusTodo": "Planificado",
+      "previewAssignees": "Responsables",
+      "previewAssigneesValue": "{{names}} ({{n}})",
       "action": "Combinar con otro elemento",
       "title": "Combinar {{count}} elementos en uno",
       "subtitle": "Reúne los bloques de tiempo de los elementos seleccionados en el elemento principal",
@@ -2939,6 +2947,7 @@
   },
   "notes": {
     "moveFailed": "No se pudo mover la nota",
+    "moveInto": "Dentro",
     "addTag": "Agregar etiqueta",
     "aiAlreadyExists": "Ya existe",
     "aiAnalyzing": "La IA está analizando tu nota...",
