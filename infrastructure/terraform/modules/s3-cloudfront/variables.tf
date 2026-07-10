@@ -35,5 +35,5 @@ variable "domain_aliases" {
 variable "price_class" {
   description = "CloudFront price class (PriceClass_100: NA+EU, PriceClass_200: +Asia, PriceClass_All: Global)"
   type        = string
-  default     = ""  # Empty means use environment-based default
+  default     = "" # Empty means use environment-based default
 }

@@ -321,6 +321,12 @@ locals {
 module "s3_cloudfront" {
   source = "../../modules/s3-cloudfront"
 
+  # og-preview Lambda@Edge는 us-east-1에 생성해야 하므로 전용 provider를 전달한다.
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
   bucket_name = var.frontend_bucket_name
 
   project_name        = var.project_name

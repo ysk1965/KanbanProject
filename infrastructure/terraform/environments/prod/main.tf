@@ -96,7 +96,7 @@ module "vpc" {
   project_name       = var.project_name
   environment        = var.environment
   vpc_cidr           = var.vpc_cidr
-  enable_nat_gateway = false  # Phase 1: No NAT Gateway (~$36/month saving)
+  enable_nat_gateway = false # Phase 1: No NAT Gateway (~$36/month saving)
 }
 
 # Security Groups Module
@@ -119,9 +119,9 @@ module "rds" {
   security_group_id = module.security_groups.rds_security_group_id
   master_password   = local.secret.db_password
 
-  instance_class          = "db.t4g.micro"  # Phase 1: Cost-effective
+  instance_class          = "db.t4g.micro" # Phase 1: Cost-effective
   allocated_storage       = 20
-  backup_retention_period = 3               # Prod: 3-day backup (vs dev 1-day)
+  backup_retention_period = 3 # Prod: 3-day backup (vs dev 1-day)
 
   # Cross-account migration: CMK-encrypted restore + clean terraform import
   engine_version      = var.rds_engine_version
@@ -159,8 +159,8 @@ module "elasticache" {
   environment        = var.environment
   private_subnet_ids = module.vpc.private_subnet_ids
   security_group_id  = module.security_groups.redis_security_group_id
-  node_type          = "cache.t4g.micro"  # Phase 1: Single micro node
-  num_cache_clusters = 1                  # Phase 1: No Multi-AZ
+  node_type          = "cache.t4g.micro" # Phase 1: Single micro node
+  num_cache_clusters = 1                 # Phase 1: No Multi-AZ
 }
 
 # Elastic Beanstalk Module - Phase 1: Public Subnet, min 1 instance
@@ -207,29 +207,29 @@ module "elastic_beanstalk" {
   environment           = var.environment
   vpc_id                = module.vpc.vpc_id
   public_subnet_ids     = module.vpc.public_subnet_ids
-  private_subnet_ids    = module.vpc.public_subnet_ids  # Phase 1: Use public subnets (no NAT)
+  private_subnet_ids    = module.vpc.public_subnet_ids # Phase 1: Use public subnets (no NAT)
   alb_security_group_id = module.security_groups.alb_security_group_id
   ec2_security_group_id = module.security_groups.eb_ec2_security_group_id
 
   instance_type       = "t3.small"
-  min_instances       = 1    # Phase 1: Single instance
-  max_instances       = 2    # Phase 1: Scale up to 2 if needed
-  associate_public_ip = "true"  # Phase 1: Public subnet, no NAT
+  min_instances       = 1      # Phase 1: Single instance
+  max_instances       = 2      # Phase 1: Scale up to 2 if needed
+  associate_public_ip = "true" # Phase 1: Public subnet, no NAT
 
-  spring_profile = "prod"
-  database_url   = module.rds.jdbc_url
-  db_username    = "kanban_admin"
-  db_password    = local.secret.db_password
-  redis_host     = module.elasticache.redis_endpoint
-  redis_port     = "6379"
-  jwt_secret     = local.secret.jwt_secret
+  spring_profile   = "prod"
+  database_url     = module.rds.jdbc_url
+  db_username      = "kanban_admin"
+  db_password      = local.secret.db_password
+  redis_host       = module.elasticache.redis_endpoint
+  redis_port       = "6379"
+  jwt_secret       = local.secret.jwt_secret
   claude_api_key   = local.secret.claude_api_key
   openai_api_key   = local.secret.openai_api_key
   openai_admin_key = local.secret.openai_admin_key
   mail_username    = local.secret.mail_username
-  mail_password   = local.secret.mail_password
+  mail_password    = local.secret.mail_password
   google_client_id = var.google_client_id
-  frontend_url   = var.domain_name != "" ? "https://${var.domain_name}" : module.s3_cloudfront.cloudfront_url
+  frontend_url     = var.domain_name != "" ? "https://${var.domain_name}" : module.s3_cloudfront.cloudfront_url
 
   ssl_certificate_arn = var.domain_name != "" ? module.acm_certificate_alb[0].validated_certificate_arn : ""
 
@@ -362,7 +362,7 @@ resource "aws_route53_record" "frontend_root" {
   provider = aws.dns
   count    = var.domain_name != "" ? 1 : 0
 
-  zone_id = local.primary_zone_id
+  zone_id         = local.primary_zone_id
   name            = var.domain_name
   type            = "A"
   allow_overwrite = true
@@ -380,7 +380,7 @@ resource "aws_route53_record" "frontend_www" {
   provider = aws.dns
   count    = var.domain_name != "" ? 1 : 0
 
-  zone_id = local.primary_zone_id
+  zone_id         = local.primary_zone_id
   name            = "www.${var.domain_name}"
   type            = "A"
   allow_overwrite = true
@@ -494,9 +494,9 @@ resource "aws_cloudfront_distribution" "attachments" {
 
     response_headers_policy_id = aws_cloudfront_response_headers_policy.attachments_cors.id
 
-    min_ttl     = 86400     # 1 day minimum
-    default_ttl = 2592000   # 30 days
-    max_ttl     = 31536000  # 1 year
+    min_ttl     = 86400    # 1 day minimum
+    default_ttl = 2592000  # 30 days
+    max_ttl     = 31536000 # 1 year
   }
 
   # 커스텀 아이콘 - 30일 캐시 (immutable)
@@ -518,9 +518,9 @@ resource "aws_cloudfront_distribution" "attachments" {
 
     response_headers_policy_id = aws_cloudfront_response_headers_policy.attachments_cors.id
 
-    min_ttl     = 86400     # 1 day minimum
-    default_ttl = 2592000   # 30 days
-    max_ttl     = 31536000  # 1 year
+    min_ttl     = 86400    # 1 day minimum
+    default_ttl = 2592000  # 30 days
+    max_ttl     = 31536000 # 1 year
   }
 
   # 조직 사진첩 - 30일 캐시 (UUID 기반 immutable 파일)
@@ -542,9 +542,9 @@ resource "aws_cloudfront_distribution" "attachments" {
 
     response_headers_policy_id = aws_cloudfront_response_headers_policy.attachments_cors.id
 
-    min_ttl     = 86400     # 1 day minimum
-    default_ttl = 2592000   # 30 days
-    max_ttl     = 31536000  # 1 year
+    min_ttl     = 86400    # 1 day minimum
+    default_ttl = 2592000  # 30 days
+    max_ttl     = 31536000 # 1 year
   }
 
   restrictions {
@@ -569,8 +569,8 @@ resource "aws_s3_bucket_policy" "attachments" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "AllowCloudFrontAccess"
-        Effect    = "Allow"
+        Sid    = "AllowCloudFrontAccess"
+        Effect = "Allow"
         Principal = {
           Service = "cloudfront.amazonaws.com"
         }
@@ -591,7 +591,7 @@ resource "aws_route53_record" "backend_api" {
   provider = aws.dns
   count    = var.domain_name != "" ? 1 : 0
 
-  zone_id = local.primary_zone_id
+  zone_id         = local.primary_zone_id
   name            = "api.${var.domain_name}"
   type            = "A"
   allow_overwrite = true
@@ -609,11 +609,17 @@ resource "aws_route53_record" "backend_api" {
 module "s3_cloudfront" {
   source = "../../modules/s3-cloudfront"
 
+  # og-preview Lambda@Edge는 us-east-1에 생성해야 하므로 전용 provider를 전달한다.
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
   bucket_name = var.frontend_bucket_name
 
   project_name        = var.project_name
   environment         = var.environment
-  price_class         = "PriceClass_100"  # Phase 1: North America + Europe only
+  price_class         = "PriceClass_100" # Phase 1: North America + Europe only
   acm_certificate_arn = var.domain_name != "" ? module.acm_certificate[0].validated_certificate_arn : ""
   domain_aliases      = var.domain_name != "" ? [var.domain_name, "www.${var.domain_name}"] : []
 

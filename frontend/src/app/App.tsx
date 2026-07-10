@@ -527,6 +527,8 @@ function AppRoutes() {
         <Route path="/privacy" element={<PrivacyPage />} />
 
         {/* 공유 노트 (공개 - 인증 불필요) */}
+        {/* 신규 단축 경로 + 레거시 /shared/note 별칭(기존 링크 호환) */}
+        <Route path="/n/:shareToken" element={<SharedNotePage />} />
         <Route path="/shared/note/:shareToken" element={<SharedNotePage />} />
 
         {/* 공유 앨범 (공개 - 인증 불필요) */}
@@ -696,6 +698,7 @@ const MAINTENANCE_ALLOWED_PATHS = [
   "/forgot-password",
   "/reset-password",
   "/verify-email",
+  "/n",
   "/shared/note",
   "/shared/album",
   "/shared/gallery",

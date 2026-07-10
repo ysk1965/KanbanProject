@@ -19,7 +19,7 @@ variable "environment" {
 variable "vpc_cidr" {
   description = "VPC CIDR block"
   type        = string
-  default     = "10.1.0.0/16"  # Different CIDR from dev
+  default     = "10.1.0.0/16" # Different CIDR from dev
 }
 
 variable "db_password" {
@@ -78,7 +78,7 @@ variable "google_client_id" {
 variable "domain_name" {
   description = "Domain name (e.g., bridgespots.com)"
   type        = string
-  default     = ""  # Set this to enable custom domain
+  default     = "" # Set this to enable custom domain
 }
 
 variable "attachments_bucket_name" {

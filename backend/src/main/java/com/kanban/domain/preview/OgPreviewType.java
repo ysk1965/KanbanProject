@@ -5,7 +5,7 @@ package com.kanban.domain.preview;
  * key는 프론트 경로 세그먼트와 일치하며, Lambda@Edge가 봇 요청 경로에서 뽑아 넘긴다.
  */
 public enum OgPreviewType {
-    NOTE("note", "/shared/note/%s", "읽기 전용 공유 문서"),
+    NOTE("note", "/n/%s", "읽기 전용 공유 문서"),
     ALBUM("album", "/shared/album/%s", "공유 사진 앨범"),
     GALLERY("gallery", "/shared/gallery/%s", "공유 갤러리"),
     UPLOAD("upload", "/shared/upload/%s", "사진 업로드"),

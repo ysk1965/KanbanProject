@@ -27,8 +27,8 @@ resource "aws_s3_bucket_policy" "frontend" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "AllowCloudFrontAccess"
-        Effect    = "Allow"
+        Sid    = "AllowCloudFrontAccess"
+        Effect = "Allow"
         Principal = {
           Service = "cloudfront.amazonaws.com"
         }
@@ -133,12 +133,12 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   default_cache_behavior {
-    allowed_methods              = ["GET", "HEAD", "OPTIONS"]
-    cached_methods               = ["GET", "HEAD"]
-    target_origin_id             = "S3-${aws_s3_bucket.frontend.id}"
-    viewer_protocol_policy       = "redirect-to-https"
-    compress                     = true
-    response_headers_policy_id   = aws_cloudfront_response_headers_policy.security_headers.id
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = "S3-${aws_s3_bucket.frontend.id}"
+    viewer_protocol_policy     = "redirect-to-https"
+    compress                   = true
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security_headers.id
 
     # SPA Router: Host 헤더 기반 도메인별 index.html 분기 + SPA fallback
     function_association {
@@ -154,8 +154,8 @@ resource "aws_cloudfront_distribution" "frontend" {
     }
 
     min_ttl     = 0
-    default_ttl = 0         # no cache (HTML, SW, manifest 등)
-    max_ttl     = 86400     # 1 day max (S3 헤더가 있어도 1일 이내)
+    default_ttl = 0     # no cache (HTML, SW, manifest 등)
+    max_ttl     = 86400 # 1 day max (S3 헤더가 있어도 1일 이내)
   }
 
   # Cache behavior for static assets (long cache)
@@ -174,9 +174,43 @@ resource "aws_cloudfront_distribution" "frontend" {
       }
     }
 
-    min_ttl     = 31536000  # 1 year
+    min_ttl     = 31536000 # 1 year
     default_ttl = 31536000
     max_ttl     = 31536000
+  }
+
+  # 공유 링크 OG 미리보기 경로 — og-preview Lambda@Edge(viewer-request) 연결.
+  # 이 경로들엔 spa_router(CF Function)가 붙지 않으므로(같은 이벤트 중복 불가),
+  # Lambda가 봇엔 og:* HTML을, 사람엔 index.html rewrite(SPA fallback)를 반환한다.
+  # 4개 프리픽스는 서로 배타적이라 순서는 무관하다.
+  dynamic "ordered_cache_behavior" {
+    for_each = toset(["/n/*", "/shared/*", "/invite/*", "/org-invite/*"])
+    content {
+      path_pattern               = ordered_cache_behavior.value
+      allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+      cached_methods             = ["GET", "HEAD"]
+      target_origin_id           = "S3-${aws_s3_bucket.frontend.id}"
+      viewer_protocol_policy     = "redirect-to-https"
+      compress                   = true
+      response_headers_policy_id = aws_cloudfront_response_headers_policy.security_headers.id
+
+      lambda_function_association {
+        event_type   = "viewer-request"
+        lambda_arn   = aws_lambda_function.og_preview.qualified_arn
+        include_body = false
+      }
+
+      forwarded_values {
+        query_string = false
+        cookies {
+          forward = "none"
+        }
+      }
+
+      min_ttl     = 0
+      default_ttl = 0 # HTML/봇 응답은 캐시하지 않음
+      max_ttl     = 86400
+    }
   }
 
   # SPA routing은 CloudFront Function(spa_router)이 처리

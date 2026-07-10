@@ -71,6 +71,10 @@ public class Note {
     @Column(name = "share_token", length = 36, unique = true)
     private String shareToken;
 
+    /** 공개 공유 링크 단축용 짧은 코드(base62). shareToken(UUID)과 병행 — 신규 링크는 이 코드를 쓴다. */
+    @Column(name = "share_code", length = 16, unique = true)
+    private String shareCode;
+
     @Column(name = "is_shared", nullable = false)
     @Builder.Default
     private Boolean isShared = false;
@@ -144,10 +148,27 @@ public class Note {
         this.deletedBy = null;
     }
 
+    // 짧은 코드용 base62 알파벳 (하이픈 없음 → 슬러그와 분리가 명확하고 URL-safe)
+    private static final String SHARE_CODE_ALPHABET =
+            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private static final java.security.SecureRandom SHARE_CODE_RNG = new java.security.SecureRandom();
+
+    /** 10자 base62(62^10 ≈ 8.4e17) — 충돌 확률은 무시 가능, unique 제약으로 최종 보장. */
+    private static String generateShareCode() {
+        StringBuilder sb = new StringBuilder(10);
+        for (int i = 0; i < 10; i++) {
+            sb.append(SHARE_CODE_ALPHABET.charAt(SHARE_CODE_RNG.nextInt(SHARE_CODE_ALPHABET.length())));
+        }
+        return sb.toString();
+    }
+
     public String enableShare() {
         this.isShared = true;
         if (this.shareToken == null) {
             this.shareToken = UUID.randomUUID().toString();
+        }
+        if (this.shareCode == null) {
+            this.shareCode = generateShareCode();
         }
         return this.shareToken;
     }
@@ -155,12 +176,14 @@ public class Note {
     public void disableShare() {
         this.isShared = false;
         this.shareToken = null;
+        this.shareCode = null;
     }
 
-    /** 공유를 끄지 않고 토큰만 교체. 기존 토큰을 가진 사용자는 즉시 차단된다. */
+    /** 공유를 끄지 않고 토큰/코드를 교체. 기존 링크(UUID·코드 모두)를 가진 사용자는 즉시 차단된다. */
     public String rotateShareToken() {
         this.isShared = true;
         this.shareToken = UUID.randomUUID().toString();
+        this.shareCode = generateShareCode();
         return this.shareToken;
     }
 

@@ -24,8 +24,8 @@ interface ChecklistDragItemProps {
  *
  * Layout:
  * ┌─ Feature color bar (4px) ──────────────────────┐
- * │  ⠿  ChecklistItem title                   😀   │
- * │      Feature > Task                             │
+ * │  ⠿  ChecklistItem title                   [↗]  │
+ * │      😀 Assignee · Feature > Task               │
  * │      📅 03/15 ~ 03/20  (if dates present)       │
  * └─────────────────────────────────────────────────┘
  */
@@ -109,10 +109,34 @@ export function ChecklistDragItem({
             {item.title}
           </p>
 
-          {/* Feature > Task subtitle */}
-          {subtitle && (
-            <p className="text-xs text-slate-500 truncate mt-0.5 leading-snug">
-              {subtitle}
+          {/* Assignee (inline) + Feature > Task subtitle */}
+          {(assignee || subtitle) && (
+            <p className="flex items-center gap-1 text-xs text-slate-500 truncate mt-0.5 leading-snug">
+              {assignee && (
+                <span className="flex items-center gap-1 shrink-0 min-w-0 max-w-[120px]">
+                  {assignee.profile_image ? (
+                    <img
+                      src={resolveFileUrl(assignee.profile_image)}
+                      alt={assignee.name}
+                      className="w-4 h-4 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <span
+                      className="w-4 h-4 rounded-full flex items-center justify-center
+                        text-xs font-bold text-white whitespace-nowrap overflow-hidden shrink-0"
+                      style={{ backgroundColor: getAssigneeHex(assignee.name) }}
+                      aria-label={assignee.name}
+                    >
+                      {getInitials(assignee.name)}
+                    </span>
+                  )}
+                  <span className="text-slate-400 truncate">{assignee.name}</span>
+                </span>
+              )}
+              {assignee && subtitle && (
+                <span className="text-slate-600 shrink-0">·</span>
+              )}
+              {subtitle && <span className="truncate">{subtitle}</span>}
             </p>
           )}
 
@@ -125,10 +149,9 @@ export function ChecklistDragItem({
           )}
         </div>
 
-        {/* Right side: detail button + assignee avatar */}
-        <div className="shrink-0 flex items-center gap-1 self-start">
-          {/* Detail view button */}
-          {onDetailClick && item.task && (
+        {/* Right side: detail button */}
+        {onDetailClick && item.task && (
+          <div className="shrink-0 flex items-center self-start">
             <IconButton
               aria-label="Detail"
               onClick={(e) => {
@@ -142,30 +165,8 @@ export function ChecklistDragItem({
             >
               <ExternalLink />
             </IconButton>
-          )}
-
-          {/* Assignee avatar */}
-          {assignee && (
-            <div title={assignee.name}>
-              {assignee.profile_image ? (
-                <img
-                  src={resolveFileUrl(assignee.profile_image)}
-                  alt={assignee.name}
-                  className="w-5 h-5 rounded-full object-cover"
-                />
-              ) : (
-                <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center
-                    text-xs font-bold text-white shrink-0"
-                  style={{ backgroundColor: getAssigneeHex(assignee.name) }}
-                  aria-label={assignee.name}
-                >
-                  {getInitials(assignee.name)}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
