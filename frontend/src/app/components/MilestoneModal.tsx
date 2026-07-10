@@ -65,7 +65,9 @@ function timeElapsedPercent(
 
 // 종료일까지 D-day 라벨
 function dDayLabel(m: { end_date: string }, today: string): string {
-  const days = Math.round((dateToNum(m.end_date) - dateToNum(today)) / 86400000);
+  const days = Math.round(
+    (dateToNum(m.end_date) - dateToNum(today)) / 86400000,
+  );
   if (days > 0) return `D-${days}`;
   if (days === 0) return "D-DAY";
   return `D+${-days}`;
@@ -75,39 +77,50 @@ function MilestoneRingNode({
   percent,
   status,
   selected,
+  size = 22,
 }: {
   percent: number;
   status: MilestoneStatus;
   selected?: boolean;
+  size?: number;
 }) {
-  const R = 8;
+  const sw = size >= 28 ? 3.5 : 3; // 큰 노드는 스트로크도 비례해서 굵게
+  const R = size / 2 - sw;
   const CIRC = 2 * Math.PI * R;
+  const c = size / 2;
   const pct = Math.max(0, Math.min(100, percent));
   const color = RING_COLOR[status];
   const isDone = status === "done";
+  const checkPx = size >= 28 ? 16 : 12;
+  const dotPx = size >= 28 ? 7 : 5;
   return (
     <span
       className="relative grid place-items-center rounded-full bg-bridge-dark"
-      style={{ width: 22, height: 22 }}
+      style={{ width: size, height: size }}
       aria-hidden
     >
-      <svg width="22" height="22" viewBox="0 0 22 22" className="-rotate-90">
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        className="-rotate-90"
+      >
         <circle
-          cx="11"
-          cy="11"
+          cx={c}
+          cy={c}
           r={R}
           fill="none"
           stroke="rgba(148,163,184,0.22)"
-          strokeWidth="3"
+          strokeWidth={sw}
         />
         {pct > 0 && (
           <circle
-            cx="11"
-            cy="11"
+            cx={c}
+            cy={c}
             r={R}
             fill="none"
             stroke={color}
-            strokeWidth="3"
+            strokeWidth={sw}
             strokeLinecap="round"
             strokeDasharray={CIRC}
             strokeDashoffset={CIRC * (1 - pct / 100)}
@@ -116,31 +129,53 @@ function MilestoneRingNode({
       </svg>
       {isDone && (
         <Check
-          className="absolute h-3 w-3"
+          className="absolute"
+          style={{ color, width: checkPx, height: checkPx }}
           strokeWidth={3.5}
-          style={{ color }}
         />
       )}
       {selected && !isDone && (
         <span
           className="absolute rounded-full"
-          style={{ width: 5, height: 5, background: color }}
+          style={{ width: dotPx, height: dotPx, background: color }}
         />
       )}
     </span>
   );
 }
 
+// 필수 입력 필드의 충족 여부를 인풋 우측에 표시하는 상태 아이콘
+//  - 미충족: 점선 원(hollow) / 충족: emerald 체크
+function FieldStatusIcon({ filled }: { filled: boolean }) {
+  return filled ? (
+    <span
+      className="grid place-items-center rounded-full bg-emerald-500"
+      style={{ width: 20, height: 20 }}
+      aria-hidden
+    >
+      <Check className="h-3 w-3 text-white" strokeWidth={3} />
+    </span>
+  ) : (
+    <span
+      className="block rounded-full border border-dashed border-slate-500"
+      style={{ width: 20, height: 20 }}
+      aria-hidden
+    />
+  );
+}
+
 // ────────────────────────────────────────────────────────────
 // 생성 중 임시 위치 미리보기 — 점선 고스트 노드
 //  - 기간(startDate)에 따라 레일의 시작일 순서 자리에 끼어 표시된다.
+//  - 배지는 필수 입력 상태를 반영: 제목 필요 → 기간 필요 → 생성 준비완료
 // ────────────────────────────────────────────────────────────
 function GhostRailNode({
   title,
   startDate,
   endDate,
   newLabel,
-  hereLabel,
+  readyLabel,
+  needTitleLabel,
   needPeriodLabel,
   undatedSubLabel,
 }: {
@@ -148,11 +183,19 @@ function GhostRailNode({
   startDate?: Date;
   endDate?: Date;
   newLabel: string;
-  hereLabel: string;
+  readyLabel: string;
+  needTitleLabel: string;
   needPeriodLabel: string;
   undatedSubLabel: string;
 }) {
   const dated = !!(startDate && endDate);
+  const hasTitle = !!title.trim();
+  const ready = hasTitle && dated;
+  const badgeText = ready
+    ? readyLabel
+    : !hasTitle
+      ? needTitleLabel
+      : needPeriodLabel;
   return (
     <div
       className="relative grid grid-cols-[24px_1fr] items-center gap-2.5 rounded-lg border border-dashed border-bridge-accent bg-bridge-accent/10 py-2 pr-2"
@@ -169,8 +212,12 @@ function GhostRailNode({
           <span className="min-w-0 truncate text-sm font-medium text-bridge-accent">
             {title.trim() || newLabel}
           </span>
-          <span className="shrink-0 rounded-full bg-bridge-accent px-1.5 py-0.5 text-xs font-bold text-white">
-            {dated ? hereLabel : needPeriodLabel}
+          <span
+            className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold text-white ${
+              ready ? "bg-emerald-500" : "bg-bridge-accent"
+            }`}
+          >
+            {badgeText}
           </span>
         </span>
         <span className="mt-0.5 block truncate text-xs text-slate-400 tabular-nums">
@@ -283,7 +330,11 @@ export function MilestoneModal({
         items.push({ kind: "today" });
         dividerInserted = true;
       }
-      items.push({ kind: "milestone", m, status: deriveMilestoneStatus(m, today) });
+      items.push({
+        kind: "milestone",
+        m,
+        status: deriveMilestoneStatus(m, today),
+      });
     }
     // 오늘이 모든 마일스톤보다 이후 (현재도 없고 삽입도 안 됨) → 맨 아래
     if (!hasCurrent && !dividerInserted) items.push({ kind: "today" });
@@ -322,8 +373,8 @@ export function MilestoneModal({
   }, [milestones]);
 
   const handleSave = async (): Promise<boolean> => {
+    // 필수 미충족 시 생성 버튼이 비활성이라 도달할 수 없지만, 안전 가드로 유지
     if (!title.trim() || !startDate || !endDate) {
-      alert(t("milestone.requiredFields"));
       return false;
     }
 
@@ -363,6 +414,11 @@ export function MilestoneModal({
     if (curEnd !== baseEnd) return true;
     return false;
   })();
+
+  // 필수 입력(제목 + 기간) 충족 여부 — 생성 모드에서 생성 버튼 게이팅
+  const hasTitle = title.trim().length > 0;
+  const hasPeriod = !!startDate && !!endDate;
+  const canCreate = hasTitle && hasPeriod;
 
   // 다른 마일스톤(또는 새 마일스톤)으로 전환 — 변경사항 있으면 확인 후
   const requestSelect = (target: Milestone | null) => {
@@ -472,8 +528,11 @@ export function MilestoneModal({
                         startDate={startDate}
                         endDate={endDate}
                         newLabel={t("milestone.new", "새 마일스톤")}
-                        hereLabel={t("milestone.ghostHere", {
-                          defaultValue: "여기 추가",
+                        readyLabel={t("milestone.ghostReady", {
+                          defaultValue: "생성 준비완료",
+                        })}
+                        needTitleLabel={t("milestone.ghostNeedTitle", {
+                          defaultValue: "제목 필요",
                         })}
                         needPeriodLabel={t("milestone.ghostNeedPeriod", {
                           defaultValue: "기간 필요",
@@ -512,11 +571,12 @@ export function MilestoneModal({
                             percent={work}
                             status={it.status}
                             selected={isSel}
+                            size={isCurrent ? 30 : 22}
                           />
                         </span>
                         {isCurrent ? (
                           <span className="min-w-0">
-                            <span className="flex items-center gap-1.5 pr-6">
+                            <span className="flex items-center gap-1.5 pr-7">
                               <span
                                 className={`min-w-0 truncate text-sm font-medium ${
                                   isSel
@@ -531,39 +591,29 @@ export function MilestoneModal({
                                   defaultValue: "오늘",
                                 })}
                               </span>
-                            </span>
-                            <span className="mt-0.5 flex items-center justify-between gap-2 text-xs text-slate-500 tabular-nums">
-                              <span className="truncate">
-                                {format(new Date(m.start_date), "M/d")}~
-                                {format(new Date(m.end_date), "M/d")}
-                              </span>
-                              <span className="shrink-0 font-medium text-rose-400">
+                              <span className="ml-auto shrink-0 text-xs font-medium text-rose-400 tabular-nums">
                                 {dDayLabel(m, today)}
                               </span>
                             </span>
-                            {/* 이중 바: 기간 경과(빨강) 위에 작업 진행(그라디언트) + 오늘 마커 */}
-                            <span className="relative mt-1 block h-1.5 overflow-hidden rounded-full bg-foreground/10">
+                            {/* 이중 바: 기간 경과(로즈) 위에 작업 진행(그라디언트) — 작업<기간이면 로즈 꼬리로 지연 표시 */}
+                            <span className="relative mt-2 block h-1.5 overflow-hidden rounded-full bg-foreground/10">
                               <span
-                                className="absolute inset-y-0 left-0 rounded-full bg-rose-400/25"
+                                className="absolute inset-y-0 left-0 rounded-full bg-rose-400/30"
                                 style={{ width: `${elapsed}%` }}
                               />
                               <span
                                 className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-bridge-secondary to-bridge-accent"
                                 style={{ width: `${work}%` }}
                               />
-                              <span
-                                className="absolute inset-y-[-1px] w-0.5 bg-rose-400"
-                                style={{ left: `${elapsed}%` }}
-                              />
                             </span>
-                            <span className="mt-0.5 flex items-center justify-between text-xs text-slate-500 tabular-nums">
-                              <span>
+                            <span className="mt-1.5 flex items-center justify-between text-xs font-medium tabular-nums">
+                              <span className="text-bridge-accent">
                                 {t("milestone.workShort", {
                                   defaultValue: "작업",
                                 })}{" "}
                                 {work}%
                               </span>
-                              <span>
+                              <span className="text-rose-400">
                                 {t("milestone.elapsedShort", {
                                   defaultValue: "기간",
                                 })}{" "}
@@ -657,12 +707,17 @@ export function MilestoneModal({
                 <label className="kanban-label block">
                   {t("milestone.titleLabel")} *
                 </label>
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder={t("milestone.titlePlaceholder")}
-                  className="bg-bridge-obsidian border-foreground/10 text-foreground placeholder-slate-400 focus:border-indigo-500/50 rounded-xl"
-                />
+                <div className="relative">
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder={t("milestone.titlePlaceholder")}
+                    className="bg-bridge-obsidian border-foreground/10 text-foreground placeholder-slate-400 focus:border-indigo-500/50 rounded-xl pr-11"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                    <FieldStatusIcon filled={hasTitle} />
+                  </span>
+                </div>
               </div>
 
               {/* 설명 */}
@@ -699,46 +754,51 @@ export function MilestoneModal({
                 <label className="kanban-label block">
                   {t("milestone.periodLabel")} *
                 </label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full h-10 justify-start text-left font-normal bg-bridge-surface-hover border-foreground/10 text-foreground hover:bg-bridge-surface-hover hover:border-indigo-500/50 rounded-xl"
+                <div className="relative">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full h-10 justify-start text-left font-normal bg-bridge-surface-hover border-foreground/10 text-foreground hover:bg-bridge-surface-hover hover:border-indigo-500/50 rounded-xl pr-11"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                        {startDate && endDate ? (
+                          <>
+                            {format(startDate, "yyyy. MM. dd.", { locale: ko })}
+                            {" ~ "}
+                            {format(endDate, "yyyy. MM. dd.", { locale: ko })}
+                          </>
+                        ) : (
+                          <span className="text-slate-400">
+                            {t("milestone.selectPeriod")}
+                          </span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-auto p-0 bg-bridge-surface border-bridge-border"
+                      align="start"
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
-                      {startDate && endDate ? (
-                        <>
-                          {format(startDate, "yyyy. MM. dd.", { locale: ko })}
-                          {" ~ "}
-                          {format(endDate, "yyyy. MM. dd.", { locale: ko })}
-                        </>
-                      ) : (
-                        <span className="text-slate-400">
-                          {t("milestone.selectPeriod")}
-                        </span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-auto p-0 bg-bridge-surface border-bridge-border"
-                    align="start"
-                  >
-                    <Calendar
-                      mode="range"
-                      selected={{
-                        from: startDate,
-                        to: endDate,
-                      }}
-                      onSelect={(range) => {
-                        setStartDate(range?.from);
-                        setEndDate(range?.to);
-                      }}
-                      numberOfMonths={2}
-                      locale={ko}
-                      className="text-foreground"
-                    />
-                  </PopoverContent>
-                </Popover>
+                      <Calendar
+                        mode="range"
+                        selected={{
+                          from: startDate,
+                          to: endDate,
+                        }}
+                        onSelect={(range) => {
+                          setStartDate(range?.from);
+                          setEndDate(range?.to);
+                        }}
+                        numberOfMonths={2}
+                        locale={ko}
+                        className="text-foreground"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                    <FieldStatusIcon filled={hasPeriod} />
+                  </span>
+                </div>
               </div>
 
               {/* 담긴 작업 (태스크에서 자동 파생 — 읽기 전용) */}
@@ -833,6 +893,24 @@ export function MilestoneModal({
                     })}
                   </span>
                 )}
+                {/* 생성 모드: 남은 필수 입력을 안내 */}
+                {!isEditMode && !canCreate && (
+                  <span className="flex items-center gap-2 text-xs text-slate-500">
+                    <span className="h-1 w-1 rounded-full bg-bridge-accent" />
+                    {t("milestone.requiredHint", {
+                      defaultValue: "입력 필요",
+                    })}
+                    {": "}
+                    {[
+                      !hasTitle &&
+                        t("milestone.titleLabel", { defaultValue: "제목" }),
+                      !hasPeriod &&
+                        t("milestone.periodLabel", { defaultValue: "기간" }),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-4">
                 <button
@@ -843,13 +921,15 @@ export function MilestoneModal({
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={isSaving || (isEditMode && !isDirty)}
+                  disabled={isSaving || (isEditMode ? !isDirty : !canCreate)}
                   className="px-6 py-2.5 bg-white text-black font-bold text-xs rounded-lg tracking-widest hover:bg-zinc-200 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-slate-400 disabled:hover:bg-white/10"
                 >
                   {isSaving
                     ? t("milestone.saving")
                     : isEditMode
-                      ? t("milestone.saveChanges", { defaultValue: "변경 저장" })
+                      ? t("milestone.saveChanges", {
+                          defaultValue: "변경 저장",
+                        })
                       : t("common.create")}
                 </button>
               </div>
