@@ -661,6 +661,13 @@ export const taskService = {
     }
   },
 
+  // 사람이 읽는 태스크 키(예: STORY-42) → { board_id, task_id }
+  resolveKey: async (
+    key: string,
+  ): Promise<{ board_id: string; task_id: string }> => {
+    return taskAPI.resolveKey(key);
+  },
+
   createTask: async (
     boardId: string,
     featureId: string,

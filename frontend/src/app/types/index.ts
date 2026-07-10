@@ -466,6 +466,10 @@ export interface Task {
   block_name?: string;
   /** 이 태스크가 배정된 마일스톤 (피처가 마일스톤에 속하지 않으면 null) */
   milestone_id?: string | null;
+  /** 보드 내 태스크 순번 (사람이 읽는 키의 숫자부) */
+  task_number?: number | null;
+  /** 사람이 읽는 불변 키 (예: STORY-42). 링크 공유·표시용 */
+  task_key?: string | null;
   title: string;
   description?: string;
   // v7.0: Task.assignee 제거 - ChecklistItem.assignee로 대체

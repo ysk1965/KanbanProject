@@ -1415,6 +1415,14 @@
     "move": "Mover",
     "moveChecklistToTask": "Mover a otro Task",
     "mergeChecklist": {
+      "featureLabel": "Función",
+      "taskLabel": "Tarea",
+      "representative": "Principal",
+      "statusDone": "Completado",
+      "statusDoing": "En curso",
+      "statusTodo": "Planificado",
+      "previewAssignees": "Responsables",
+      "previewAssigneesValue": "{{names}} ({{n}})",
       "action": "Combinar con otro elemento",
       "title": "Combinar {{count}} elementos en uno",
       "subtitle": "Reúne los bloques de tiempo de los elementos seleccionados en el elemento principal",
@@ -2939,6 +2947,7 @@
   },
   "notes": {
     "moveFailed": "No se pudo mover la nota",
+    "moveInto": "Dentro",
     "addTag": "Agregar etiqueta",
     "aiAlreadyExists": "Ya existe",
     "aiAnalyzing": "La IA está analizando tu nota...",
