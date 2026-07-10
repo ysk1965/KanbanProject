@@ -5742,6 +5742,7 @@ export interface NoteDetail {
   ai_content_snapshot: string | null;
   is_shared: boolean;
   share_token: string | null;
+  share_code: string | null;
   has_unpublished_draft: boolean;
   like_count: number;
   liked: boolean;

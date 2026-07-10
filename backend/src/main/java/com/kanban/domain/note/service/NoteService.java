@@ -598,7 +598,7 @@ public class NoteService {
     }
 
     public NoteResponse.SharedNote getSharedNote(String shareToken) {
-        Note note = noteRepository.findByShareTokenAndIsSharedTrueAndIsDeletedFalse(shareToken)
+        Note note = noteRepository.findBySharePublicToken(shareToken)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_NOT_FOUND));
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(note.getId());

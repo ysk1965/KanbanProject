@@ -58,7 +58,7 @@ module "vpc" {
   project_name       = var.project_name
   environment        = var.environment
   vpc_cidr           = var.vpc_cidr
-  enable_nat_gateway = false  # Cost saving: No NAT Gateway
+  enable_nat_gateway = false # Cost saving: No NAT Gateway
 }
 
 # Security Groups Module
@@ -80,9 +80,9 @@ module "rds" {
   security_group_id = module.security_groups.rds_security_group_id
   master_password   = var.db_password
 
-  instance_class          = "db.t4g.micro"  # Free tier eligible
+  instance_class          = "db.t4g.micro" # Free tier eligible
   allocated_storage       = 20
-  backup_retention_period = 1               # Minimal backup for dev
+  backup_retention_period = 1 # Minimal backup for dev
 }
 
 # Infrastructure Scheduler - Off-peak shutdown (KST 03:30~08:30, maintenance window)
@@ -126,29 +126,29 @@ module "elastic_beanstalk" {
   environment           = var.environment
   vpc_id                = module.vpc.vpc_id
   public_subnet_ids     = module.vpc.public_subnet_ids
-  private_subnet_ids    = module.vpc.public_subnet_ids  # Use public subnets for EC2 (no NAT)
+  private_subnet_ids    = module.vpc.public_subnet_ids # Use public subnets for EC2 (no NAT)
   alb_security_group_id = module.security_groups.alb_security_group_id
   ec2_security_group_id = module.security_groups.eb_ec2_security_group_id
 
   instance_type       = "t3.small"
   min_instances       = 1
   max_instances       = 2
-  associate_public_ip = "true"  # Public subnet, no NAT
+  associate_public_ip = "true" # Public subnet, no NAT
 
-  spring_profile = "dev"
-  database_url   = module.rds.jdbc_url
-  db_username    = "kanban_admin"
-  db_password    = var.db_password
-  redis_host     = ""
-  redis_port     = ""
-  jwt_secret     = var.jwt_secret
+  spring_profile   = "dev"
+  database_url     = module.rds.jdbc_url
+  db_username      = "kanban_admin"
+  db_password      = var.db_password
+  redis_host       = ""
+  redis_port       = ""
+  jwt_secret       = var.jwt_secret
   claude_api_key   = var.claude_api_key
   openai_api_key   = var.openai_api_key
   openai_admin_key = var.openai_admin_key
   mail_username    = var.mail_username
-  mail_password   = var.mail_password
+  mail_password    = var.mail_password
   google_client_id = var.google_client_id
-  frontend_url   = var.domain_name != "" ? "https://${var.domain_name}" : module.s3_cloudfront.cloudfront_url
+  frontend_url     = var.domain_name != "" ? "https://${var.domain_name}" : module.s3_cloudfront.cloudfront_url
 
   ssl_certificate_arn = var.domain_name != "" ? module.acm_certificate_alb[0].validated_certificate_arn : ""
 
@@ -222,6 +222,12 @@ module "route53" {
 # S3 + CloudFront Module
 module "s3_cloudfront" {
   source = "../../modules/s3-cloudfront"
+
+  # og-preview Lambda@Edge는 us-east-1에 생성해야 하므로 전용 provider를 전달한다.
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
 
   project_name        = var.project_name
   environment         = var.environment
@@ -459,9 +465,9 @@ resource "aws_cloudfront_distribution" "attachments" {
 
     response_headers_policy_id = aws_cloudfront_response_headers_policy.attachments_cors.id
 
-    min_ttl     = 86400     # 1 day minimum
-    default_ttl = 2592000   # 30 days
-    max_ttl     = 31536000  # 1 year
+    min_ttl     = 86400    # 1 day minimum
+    default_ttl = 2592000  # 30 days
+    max_ttl     = 31536000 # 1 year
   }
 
   # 커스텀 아이콘 - 30일 캐시 (immutable)
@@ -483,9 +489,9 @@ resource "aws_cloudfront_distribution" "attachments" {
 
     response_headers_policy_id = aws_cloudfront_response_headers_policy.attachments_cors.id
 
-    min_ttl     = 86400     # 1 day minimum
-    default_ttl = 2592000   # 30 days
-    max_ttl     = 31536000  # 1 year
+    min_ttl     = 86400    # 1 day minimum
+    default_ttl = 2592000  # 30 days
+    max_ttl     = 31536000 # 1 year
   }
 
   # 조직 사진첩 - 30일 캐시 (UUID 기반 immutable 파일)
@@ -507,9 +513,9 @@ resource "aws_cloudfront_distribution" "attachments" {
 
     response_headers_policy_id = aws_cloudfront_response_headers_policy.attachments_cors.id
 
-    min_ttl     = 86400     # 1 day minimum
-    default_ttl = 2592000   # 30 days
-    max_ttl     = 31536000  # 1 year
+    min_ttl     = 86400    # 1 day minimum
+    default_ttl = 2592000  # 30 days
+    max_ttl     = 31536000 # 1 year
   }
 
   restrictions {
@@ -534,8 +540,8 @@ resource "aws_s3_bucket_policy" "attachments" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "AllowCloudFrontAccess"
-        Effect    = "Allow"
+        Sid    = "AllowCloudFrontAccess"
+        Effect = "Allow"
         Principal = {
           Service = "cloudfront.amazonaws.com"
         }

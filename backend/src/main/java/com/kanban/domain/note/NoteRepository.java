@@ -41,6 +41,10 @@ public interface NoteRepository extends JpaRepository<Note, String> {
     @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy WHERE n.shareToken = :shareToken AND n.isShared = true AND n.isDeleted = false")
     Optional<Note> findByShareTokenAndIsSharedTrueAndIsDeletedFalse(@Param("shareToken") String shareToken);
 
+    /** 공개 공유 링크 조회 — 신규 short code 또는 레거시 UUID share_token 어느 쪽이든 매칭. */
+    @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy WHERE (n.shareCode = :token OR n.shareToken = :token) AND n.isShared = true AND n.isDeleted = false")
+    Optional<Note> findBySharePublicToken(@Param("token") String token);
+
     @Modifying
     @Query("DELETE FROM Note n WHERE n.board.id = :boardId")
     void deleteAllByBoardId(@Param("boardId") String boardId);

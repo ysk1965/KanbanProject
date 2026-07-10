@@ -67,6 +67,7 @@ public class NoteResponse {
         private String aiContentSnapshot;
         private Boolean isShared;
         private String shareToken;
+        private String shareCode;
         private boolean hasUnpublishedDraft;
         private int likeCount;
         private boolean liked;
@@ -99,6 +100,7 @@ public class NoteResponse {
                     .aiContentSnapshot(note.getAiContentSnapshot())
                     .isShared(note.getIsShared())
                     .shareToken(note.getShareToken())
+                    .shareCode(note.getShareCode())
                     .hasUnpublishedDraft(hasUnpublishedDraft)
                     .likeCount(likeCount)
                     .liked(liked)

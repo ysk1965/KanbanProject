@@ -1808,7 +1808,7 @@ export function ChecklistItemPanel({
                               <ChecklistDragItem
                                 key={item.id}
                                 item={item}
-                                assignee={null}
+                                assignee={getItemAssignee(item)}
                                 isDragging={
                                   dragState?.item.id === item.id &&
                                   dragState.isActive
@@ -1867,13 +1867,31 @@ export function ChecklistItemPanel({
           <span className="text-xs font-medium text-foreground truncate block pl-1">
             {dragState.item.title}
           </span>
-          {(dragState.item.feature || dragState.item.task) && (
-            <span className="text-xs text-slate-500 truncate block pl-1 mt-0.5">
-              {[dragState.item.feature?.title, dragState.item.task?.title]
-                .filter(Boolean)
-                .join(" > ")}
-            </span>
-          )}
+          {(() => {
+            const ghostAssignee = getItemAssignee(dragState.item);
+            const ghostSubtitle = [
+              dragState.item.feature?.title,
+              dragState.item.task?.title,
+            ]
+              .filter(Boolean)
+              .join(" > ");
+            if (!ghostAssignee && !ghostSubtitle) return null;
+            return (
+              <span className="flex items-center gap-1 text-xs text-slate-500 truncate pl-1 mt-0.5">
+                {ghostAssignee && (
+                  <span className="text-slate-400 shrink-0">
+                    {ghostAssignee.name}
+                  </span>
+                )}
+                {ghostAssignee && ghostSubtitle && (
+                  <span className="text-slate-600 shrink-0">·</span>
+                )}
+                {ghostSubtitle && (
+                  <span className="truncate">{ghostSubtitle}</span>
+                )}
+              </span>
+            );
+          })()}
         </div>
       )}
 

@@ -559,13 +559,6 @@ export function MilestoneModal({
                             : "border border-transparent hover:bg-bridge-surface-hover"
                         }`}
                       >
-                        {/* 현재 마일스톤: 빨강 좌측 액센트 */}
-                        {isCurrent && (
-                          <span
-                            className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-rose-400"
-                            aria-hidden
-                          />
-                        )}
                         <span className="justify-self-center">
                           <MilestoneRingNode
                             percent={work}
@@ -714,9 +707,11 @@ export function MilestoneModal({
                     placeholder={t("milestone.titlePlaceholder")}
                     className="bg-bridge-obsidian border-foreground/10 text-foreground placeholder-slate-400 focus:border-indigo-500/50 rounded-xl pr-11"
                   />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                    <FieldStatusIcon filled={hasTitle} />
-                  </span>
+                  {!isEditMode && (
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                      <FieldStatusIcon filled={hasTitle} />
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -795,9 +790,11 @@ export function MilestoneModal({
                       />
                     </PopoverContent>
                   </Popover>
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                    <FieldStatusIcon filled={hasPeriod} />
-                  </span>
+                  {!isEditMode && (
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                      <FieldStatusIcon filled={hasPeriod} />
+                    </span>
+                  )}
                 </div>
               </div>
 
