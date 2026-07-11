@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Plus,
@@ -12,9 +12,12 @@ import {
   RotateCw,
   Eye,
   EyeOff,
+  List,
+  CalendarRange,
 } from "lucide-react";
 import { MotionModal } from "./ui/MotionModal";
 import { IconButton } from "./ui/IconButton";
+import { ContractorTimeline } from "./ContractorTimeline";
 import { contractorService, jobRoleService } from "../utils/services";
 import { getTodayDateString } from "../utils/dateUtils";
 import type { BoardContractor, ContractorPeriod, JobRole } from "../types";
@@ -204,6 +207,11 @@ export function ContractorManageModal({
   const [editPeriodStart, setEditPeriodStart] = useState<string>("");
   const [editPeriodEnd, setEditPeriodEnd] = useState<string>("");
 
+  // 뷰 전환: 리스트 / 타임라인 + 타임라인→리스트 포커스 스크롤
+  const [view, setView] = useState<"list" | "timeline">("list");
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const itemRefs = useRef<Record<string, HTMLLIElement | null>>({});
+
   const selfMember = useMemo(
     () => members.find((m) => m.userId === currentUserId) || null,
     [members, currentUserId],
@@ -236,9 +244,25 @@ export function ContractorManageModal({
       setEditingPeriodId(null);
       setNewName("");
       setError(null);
+      setView("list");
+      setFocusId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, boardId]);
+
+  // 타임라인에서 인원 선택 → 리스트로 전환 후 해당 항목으로 스크롤·강조
+  const handleTimelineSelect = (id: string) => {
+    setView("list");
+    setFocusId(id);
+  };
+
+  useEffect(() => {
+    if (view !== "list" || !focusId) return;
+    const el = itemRefs.current[focusId];
+    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    const timer = setTimeout(() => setFocusId(null), 1600);
+    return () => clearTimeout(timer);
+  }, [view, focusId, contractors]);
 
   const canEditContractor = (c: BoardContractor): boolean => {
     if (isAdminOrAbove) return true;
@@ -435,7 +459,7 @@ export function ContractorManageModal({
       onClose={onClose}
       accentColor
       aria-label={t("contractor.manage", "외주 관리")}
-      className="sm:max-w-lg"
+      className={view === "timeline" ? "sm:max-w-2xl" : "sm:max-w-lg"}
     >
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
         <div>
@@ -460,6 +484,41 @@ export function ContractorManageModal({
       </div>
 
       <div className="px-5 pb-5 pt-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+        {/* 뷰 탭: 리스트 / 타임라인 */}
+        <div className="mb-4 inline-flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/[0.04] border border-foreground/[0.08]">
+          <button
+            type="button"
+            onClick={() => setView("list")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors ${
+              view === "list"
+                ? "bg-bridge-obsidian text-foreground font-bold shadow-sm"
+                : "text-slate-400 hover:text-foreground font-medium"
+            }`}
+          >
+            <List className="w-3.5 h-3.5" />
+            {t("contractor.viewList", "리스트")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("timeline")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors ${
+              view === "timeline"
+                ? "bg-bridge-obsidian text-foreground font-bold shadow-sm"
+                : "text-slate-400 hover:text-foreground font-medium"
+            }`}
+          >
+            <CalendarRange className="w-3.5 h-3.5" />
+            {t("contractor.viewTimeline", "타임라인")}
+          </button>
+        </div>
+
+        {view === "timeline" ? (
+          <ContractorTimeline
+            contractors={contractors}
+            onSelect={handleTimelineSelect}
+          />
+        ) : (
+          <>
         {/* Create form */}
         <div className="mb-4 p-3 rounded-xl bg-foreground/[0.03] border border-foreground/10 space-y-2">
           <div className="flex items-center gap-2">
@@ -588,7 +647,14 @@ export function ContractorManageModal({
               return (
                 <li
                   key={c.id}
-                  className={`px-2 py-2 rounded-lg bg-foreground/[0.03] border border-foreground/[0.08] hover:border-foreground/[0.12] transition-colors ${c.hidden && !isEditing ? "opacity-60" : ""}`}
+                  ref={(el) => {
+                    itemRefs.current[c.id] = el;
+                  }}
+                  className={`px-2 py-2 rounded-lg bg-foreground/[0.03] border transition-colors ${
+                    focusId === c.id
+                      ? "border-bridge-accent ring-2 ring-bridge-accent/50"
+                      : "border-foreground/[0.08] hover:border-foreground/[0.12]"
+                  } ${c.hidden && !isEditing ? "opacity-60" : ""}`}
                 >
                   <div className="flex items-center gap-2">
                     <span
@@ -880,6 +946,8 @@ export function ContractorManageModal({
               );
             })}
           </ul>
+        )}
+          </>
         )}
       </div>
 
