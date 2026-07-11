@@ -62,6 +62,7 @@ import {
   noteAPI,
   memberAPI,
   orgNoteAPI,
+  myNoteAPI,
   resolveFileUrl,
 } from "../../utils/api";
 import { blockNoteDictionary } from "../../utils/blocknoteLocale";
@@ -98,6 +99,7 @@ export interface BreadcrumbItem {
 interface NoteEditorProps {
   boardId?: string;
   orgId?: string;
+  personal?: boolean;
   note: NoteDetail;
   tags: NoteTagInfo[];
   loading: boolean;
@@ -120,6 +122,7 @@ interface NoteEditorProps {
 export function NoteEditor({
   boardId,
   orgId,
+  personal,
   note,
   tags,
   loading,
@@ -183,6 +186,7 @@ export function NoteEditor({
         <BoardEditor
           boardId={boardId}
           orgId={orgId}
+          personal={personal}
           note={note}
           tags={tags}
           canEdit={canEdit}
@@ -210,6 +214,7 @@ export function NoteEditor({
     <CollabNoteEditor
       boardId={boardId}
       orgId={orgId}
+      personal={personal}
       note={note}
       tags={tags}
       canEdit={canEdit}
@@ -233,6 +238,7 @@ export function NoteEditor({
 interface CollabEditorProps {
   boardId?: string;
   orgId?: string;
+  personal?: boolean;
   note: NoteDetail;
   tags: NoteTagInfo[];
   canEdit: boolean;
@@ -254,6 +260,7 @@ interface CollabEditorProps {
 function CollabNoteEditor({
   boardId,
   orgId,
+  personal,
   note,
   tags,
   canEdit,
@@ -320,9 +327,11 @@ function CollabNoteEditor({
     return collaboration.provider.onSnapshotUpdated(async () => {
       if (mode !== "view") return;
       try {
-        const { noteService, orgNoteService } =
+        const { noteService, orgNoteService, myNoteService } =
           await import("../../utils/services");
-        const updated = boardId
+        const updated = personal
+          ? await myNoteService.getDetail("me", note.id)
+          : boardId
           ? await noteService.getDetail(boardId, note.id)
           : orgId
             ? await orgNoteService.getDetail(orgId, note.id)
@@ -335,7 +344,7 @@ function CollabNoteEditor({
         console.error("Failed to refetch note after snapshot update:", err);
       }
     });
-  }, [collaboration, mode, note.id, boardId, orgId, onNoteUpdate]);
+  }, [collaboration, mode, note.id, boardId, orgId, personal, onNoteUpdate]);
 
   // In VIEW mode, ask the server whether a restorable discarded draft exists so
   // we can offer 되돌리기. Only meaningful when there's no live unpublished draft.
@@ -347,7 +356,9 @@ function CollabNoteEditor({
     }
     (async () => {
       try {
-        const res = boardId
+        const res = personal
+          ? await myNoteAPI.hasArchivedDraft("me", note.id)
+          : boardId
           ? await noteAPI.hasArchivedDraft(boardId, note.id)
           : orgId
             ? await orgNoteAPI.hasArchivedDraft(orgId, note.id)
@@ -360,7 +371,7 @@ function CollabNoteEditor({
     return () => {
       cancelled = true;
     };
-  }, [mode, canEdit, note.has_unpublished_draft, note.id, boardId, orgId]);
+  }, [mode, canEdit, note.has_unpublished_draft, note.id, boardId, orgId, personal]);
 
   const editorPeers = useMemo(
     () => collaboration.connectedUsers.filter((u) => u.mode === "edit"),
@@ -405,11 +416,15 @@ function CollabNoteEditor({
     async (file: File): Promise<string> => {
       const result = await fileAPI.uploadNote(
         file,
-        boardId ? { boardId } : { organizationId: orgId! },
+        personal
+          ? ({ personal: true } as const)
+          : boardId
+          ? { boardId }
+          : { organizationId: orgId! },
       );
       return result.url;
     },
-    [boardId, orgId],
+    [boardId, orgId, personal],
   );
 
   // Create BlockNote editor with Yjs collaboration
@@ -1001,11 +1016,14 @@ function CollabNoteEditor({
     )
       return;
     try {
-      if (boardId) await noteAPI.discardDraft(boardId, note.id);
+      if (personal) await myNoteAPI.discardDraft("me", note.id);
+      else if (boardId) await noteAPI.discardDraft(boardId, note.id);
       else if (orgId) await orgNoteAPI.discardDraft(orgId, note.id);
-      const { noteService, orgNoteService } =
+      const { noteService, orgNoteService, myNoteService } =
         await import("../../utils/services");
-      const updated = boardId
+      const updated = personal
+        ? await myNoteService.getDetail("me", note.id)
+        : boardId
         ? await noteService.getDetail(boardId, note.id)
         : orgId
           ? await orgNoteService.getDetail(orgId, note.id)
@@ -1041,12 +1059,15 @@ function CollabNoteEditor({
   // rebuild the local Y.Doc/provider; the next EDIT entry shows the restored draft.
   const handleRestoreDraft = useCallback(async () => {
     try {
-      if (boardId) await noteAPI.restoreDraft(boardId, note.id);
+      if (personal) await myNoteAPI.restoreDraft("me", note.id);
+      else if (boardId) await noteAPI.restoreDraft(boardId, note.id);
       else if (orgId) await orgNoteAPI.restoreDraft(orgId, note.id);
       else return;
-      const { noteService, orgNoteService } =
+      const { noteService, orgNoteService, myNoteService } =
         await import("../../utils/services");
-      const updated = boardId
+      const updated = personal
+        ? await myNoteService.getDetail("me", note.id)
+        : boardId
         ? await noteService.getDetail(boardId, note.id)
         : orgId
           ? await orgNoteService.getDetail(orgId, note.id)
@@ -1256,6 +1277,7 @@ function CollabNoteEditor({
           <NoteShareButton
             boardId={boardId}
             orgId={orgId}
+            personal={personal}
             note={note}
             canEdit={canEdit}
             onNoteUpdate={onNoteUpdate}
@@ -1264,7 +1286,11 @@ function CollabNoteEditor({
           <button
             onClick={async () => {
               try {
-                const svcMod = boardId
+                const svcMod = personal
+                  ? await import("../../utils/services").then(
+                      (m) => m.myNoteService,
+                    )
+                  : boardId
                   ? await import("../../utils/services").then(
                       (m) => m.noteService,
                     )
@@ -1272,7 +1298,7 @@ function CollabNoteEditor({
                       (m) => m.orgNoteService,
                     );
                 const updated = await svcMod.toggleLike(
-                  (boardId || orgId)!,
+                  (boardId || orgId || "me")!,
                   note.id,
                 );
                 onNoteUpdate?.(updated);
@@ -1327,6 +1353,7 @@ function CollabNoteEditor({
             <NoteTagManager
               boardId={boardId}
               orgId={orgId}
+              personal={personal}
               noteId={note.id}
               noteTags={note.tags}
               allTags={tags}
@@ -1339,6 +1366,7 @@ function CollabNoteEditor({
             <NoteVersionHistory
               boardId={boardId}
               orgId={orgId}
+              personal={personal}
               noteId={note.id}
               noteType={note.type}
               currentTitle={note.title}
@@ -1366,9 +1394,11 @@ function CollabNoteEditor({
                 // Refetch the restored note, then rebuild the Y.Doc/provider/
                 // editor stack so the fresh empty doc rehydrates from the
                 // restored note.content (mirrors handleDiscardDraft).
-                const { noteService, orgNoteService } =
+                const { noteService, orgNoteService, myNoteService } =
                   await import("../../utils/services");
-                const updated = boardId
+                const updated = personal
+                  ? await myNoteService.getDetail("me", note.id)
+                  : boardId
                   ? await noteService.getDetail(boardId, note.id)
                   : orgId
                     ? await orgNoteService.getDetail(orgId, note.id)
@@ -1383,7 +1413,11 @@ function CollabNoteEditor({
                 onCollabReset?.();
               }}
               onVersionsChanged={async () => {
-                if (boardId) {
+                if (personal) {
+                  const { myNoteService } = await import("../../utils/services");
+                  const updated = await myNoteService.getDetail("me", note.id);
+                  onNoteUpdate?.(updated);
+                } else if (boardId) {
                   const { noteService } = await import("../../utils/services");
                   const updated = await noteService.getDetail(boardId, note.id);
                   onNoteUpdate?.(updated);
@@ -1637,6 +1671,7 @@ function CollabNoteEditor({
             <NoteCommentSidebar
               boardId={boardId}
               orgId={orgId}
+              personal={personal}
               noteId={note.id}
               currentUserId={currentUser.id}
               canEdit={canEdit}
@@ -1655,6 +1690,7 @@ function CollabNoteEditor({
           <NoteBottomComments
             boardId={boardId}
             orgId={orgId}
+            personal={personal}
             noteId={note.id}
             currentUserId={currentUser.id}
             canEdit={canEdit}

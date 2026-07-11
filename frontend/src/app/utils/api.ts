@@ -2055,7 +2055,7 @@ export const fileAPI = {
 
   uploadNote: async (
     file: File,
-    scope: { boardId: string } | { organizationId: string },
+    scope: { boardId: string } | { organizationId: string } | { personal: true },
   ): Promise<{ url: string }> => {
     const formData = new FormData();
     formData.append("file", file);
@@ -2063,7 +2063,9 @@ export const fileAPI = {
     const param =
       "boardId" in scope
         ? `boardId=${encodeURIComponent(scope.boardId)}`
-        : `organizationId=${encodeURIComponent(scope.organizationId)}`;
+        : "organizationId" in scope
+          ? `organizationId=${encodeURIComponent(scope.organizationId)}`
+          : `personal=true`;
 
     const response = await authenticatedFetch(
       `${API_BASE_URL}/files/upload-note?${param}`,
@@ -6408,6 +6410,228 @@ export const orgNoteCommentAPI = {
   ) => {
     return apiClient.post<ReactionsToggleResponse>(
       `/organizations/${orgId}/notes/${noteId}/comments/${commentId}/reactions/toggle`,
+      { emoji },
+    );
+  },
+};
+
+// ========================================
+// Personal (MySpace) Note API — owner-scoped mirror of orgNoteAPI.
+// Scope는 JWT의 현재 사용자로 암묵 결정되므로 경로에 scope id가 없다.
+// 첫 인자 _scopeId는 noteService/orgNoteService와 시그니처를 맞추기 위한 무시값.
+// ========================================
+
+export const myNoteAPI = {
+  getTree: async (_scopeId?: string) => {
+    return apiClient.get<NoteTreeItem[]>(`/me/notes`);
+  },
+
+  getList: async (_scopeId?: string) => {
+    return apiClient.get<NoteListItem[]>(`/me/notes/list`);
+  },
+
+  getDetail: async (_scopeId: string, noteId: string) => {
+    return apiClient.get<NoteDetail>(`/me/notes/${noteId}`);
+  },
+
+  create: async (
+    _scopeId: string,
+    data: {
+      title: string;
+      type: "FOLDER" | "DOCUMENT" | "BOARD";
+      parentId?: string | null;
+      content?: string;
+      tagIds?: string[];
+    },
+  ) => {
+    return apiClient.post<NoteDetail>(`/me/notes`, data);
+  },
+
+  update: async (
+    _scopeId: string,
+    noteId: string,
+    data: {
+      title?: string;
+      content?: string;
+      tagIds?: string[];
+    },
+    createVersion = true,
+  ) => {
+    const params = createVersion ? "" : "?createVersion=false";
+    return apiClient.put<NoteDetail>(`/me/notes/${noteId}${params}`, data);
+  },
+
+  delete: async (_scopeId: string, noteId: string) => {
+    return apiClient.delete<{ message: string }>(`/me/notes/${noteId}`);
+  },
+
+  move: async (
+    _scopeId: string,
+    noteId: string,
+    data: {
+      parentId?: string | null;
+      position?: number;
+    },
+  ) => {
+    return apiClient.put<NoteDetail>(`/me/notes/${noteId}/move`, {
+      parent_id: data.parentId,
+      position: data.position,
+    });
+  },
+
+  getVersions: async (_scopeId: string, noteId: string) => {
+    return apiClient.get<NoteVersionInfo[]>(`/me/notes/${noteId}/versions`);
+  },
+
+  getVersionDetail: async (
+    _scopeId: string,
+    noteId: string,
+    versionId: string,
+  ) => {
+    return apiClient.get<NoteVersionDetail>(
+      `/me/notes/${noteId}/versions/${versionId}`,
+    );
+  },
+
+  restoreVersion: async (
+    _scopeId: string,
+    noteId: string,
+    versionId: string,
+    liveSnapshot?: { current_title?: string; current_content?: string },
+  ) => {
+    return apiClient.post<NoteDetail>(
+      `/me/notes/${noteId}/versions/${versionId}/restore`,
+      liveSnapshot,
+    );
+  },
+
+  deleteVersion: async (_scopeId: string, noteId: string, versionId: string) => {
+    return apiClient.delete<void>(`/me/notes/${noteId}/versions/${versionId}`);
+  },
+
+  deleteAllVersions: async (_scopeId: string, noteId: string) => {
+    return apiClient.delete<void>(`/me/notes/${noteId}/versions`);
+  },
+
+  discardDraft: async (_scopeId: string, noteId: string) => {
+    return apiClient.delete<void>(`/me/notes/${noteId}/draft`);
+  },
+
+  restoreDraft: async (_scopeId: string, noteId: string) => {
+    return apiClient.post<void>(`/me/notes/${noteId}/draft/restore`);
+  },
+
+  hasArchivedDraft: async (_scopeId: string, noteId: string) => {
+    return apiClient.get<{ available: boolean }>(
+      `/me/notes/${noteId}/draft/archived`,
+    );
+  },
+
+  getTags: async (_scopeId?: string) => {
+    return apiClient.get<NoteTagInfo[]>(`/me/note-tags`);
+  },
+
+  createTag: async (_scopeId: string, data: { name: string; color: string }) => {
+    return apiClient.post<NoteTagInfo>(`/me/note-tags`, data);
+  },
+
+  deleteTag: async (_scopeId: string, tagId: string) => {
+    return apiClient.delete<{ message: string }>(`/me/note-tags/${tagId}`);
+  },
+
+  enableShare: async (_scopeId: string, noteId: string) => {
+    return apiClient.post<NoteDetail>(`/me/notes/${noteId}/share`);
+  },
+
+  disableShare: async (_scopeId: string, noteId: string) => {
+    return apiClient.delete<NoteDetail>(`/me/notes/${noteId}/share`);
+  },
+
+  rotateShareToken: async (_scopeId: string, noteId: string) => {
+    return apiClient.post<NoteDetail>(`/me/notes/${noteId}/share/rotate`);
+  },
+
+  toggleLike: async (_scopeId: string, noteId: string) => {
+    return apiClient.post<NoteDetail>(`/me/notes/${noteId}/like/toggle`);
+  },
+
+  getTrash: async (_scopeId?: string) => {
+    return apiClient.get<NoteTrashItem[]>(`/me/notes/trash`);
+  },
+
+  restoreFromTrash: async (_scopeId: string, noteId: string) => {
+    return apiClient.post<NoteDetail>(`/me/notes/${noteId}/restore`);
+  },
+
+  permanentDelete: async (_scopeId: string, noteId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/me/notes/${noteId}/permanent`,
+    );
+  },
+
+  emptyTrash: async (_scopeId?: string) => {
+    return apiClient.delete<{ deleted_count: number }>(`/me/notes/trash`);
+  },
+};
+
+export const myNoteCommentAPI = {
+  getComments: async (_scopeId: string, noteId: string) => {
+    return apiClient.get<NoteCommentListResponse>(
+      `/me/notes/${noteId}/comments`,
+    );
+  },
+
+  createComment: async (
+    _scopeId: string,
+    noteId: string,
+    data: {
+      content: string;
+      block_id?: string | null;
+      parent_id?: string | null;
+      mentions?: string[];
+    },
+  ) => {
+    return apiClient.post<NoteCommentDetail>(
+      `/me/notes/${noteId}/comments`,
+      data,
+    );
+  },
+
+  updateComment: async (
+    _scopeId: string,
+    noteId: string,
+    commentId: string,
+    data: {
+      content: string;
+      mentions?: string[];
+    },
+  ) => {
+    return apiClient.put<NoteCommentDetail>(
+      `/me/notes/${noteId}/comments/${commentId}`,
+      data,
+    );
+  },
+
+  deleteComment: async (_scopeId: string, noteId: string, commentId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/me/notes/${noteId}/comments/${commentId}`,
+    );
+  },
+
+  toggleResolved: async (_scopeId: string, noteId: string, commentId: string) => {
+    return apiClient.post<NoteCommentDetail>(
+      `/me/notes/${noteId}/comments/${commentId}/resolve`,
+    );
+  },
+
+  toggleReaction: async (
+    _scopeId: string,
+    noteId: string,
+    commentId: string,
+    emoji: string,
+  ) => {
+    return apiClient.post<ReactionsToggleResponse>(
+      `/me/notes/${noteId}/comments/${commentId}/reactions/toggle`,
       { emoji },
     );
   },

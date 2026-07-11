@@ -60,6 +60,7 @@ const LANG_MAP: Record<string, string> = {
 interface ExcalidrawEditorProps {
   boardId?: string;
   orgId?: string;
+  personal?: boolean;
   note: NoteDetail;
   tags: NoteTagInfo[];
   canEdit: boolean;
@@ -78,6 +79,7 @@ interface ExcalidrawEditorProps {
 export default function ExcalidrawEditor({
   boardId,
   orgId,
+  personal,
   note,
   tags,
   canEdit,
@@ -122,9 +124,11 @@ export default function ExcalidrawEditor({
     return collaboration.provider.onSnapshotUpdated(async () => {
       if (mode !== "view") return;
       try {
-        const { noteService, orgNoteService } =
+        const { noteService, orgNoteService, myNoteService } =
           await import("../../utils/services");
-        const updated = boardId
+        const updated = personal
+          ? await myNoteService.getDetail("me", note.id)
+          : boardId
           ? await noteService.getDetail(boardId, note.id)
           : orgId
             ? await orgNoteService.getDetail(orgId, note.id)
@@ -152,7 +156,7 @@ export default function ExcalidrawEditor({
         );
       }
     });
-  }, [collaboration, mode, note.id, boardId, orgId, onNoteUpdate]);
+  }, [collaboration, mode, note.id, boardId, orgId, personal, onNoteUpdate]);
 
   const excalidrawAPIRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -689,6 +693,7 @@ export default function ExcalidrawEditor({
           <NoteShareButton
             boardId={boardId}
             orgId={orgId}
+            personal={personal}
             note={note}
             canEdit={canEdit}
             onNoteUpdate={onNoteUpdate}
@@ -697,6 +702,7 @@ export default function ExcalidrawEditor({
             <NoteTagManager
               boardId={boardId}
               orgId={orgId}
+              personal={personal}
               noteId={note.id}
               noteTags={note.tags}
               allTags={tags}
@@ -709,6 +715,7 @@ export default function ExcalidrawEditor({
             <NoteVersionHistory
               boardId={boardId}
               orgId={orgId}
+              personal={personal}
               noteId={note.id}
               noteType={note.type}
               currentTitle={note.title}
@@ -737,7 +744,10 @@ export default function ExcalidrawEditor({
               hasOtherEditors={editorPeers.length > 0}
               onRestore={async () => {
                 let updated;
-                if (boardId) {
+                if (personal) {
+                  const { myNoteService } = await import("../../utils/services");
+                  updated = await myNoteService.getDetail("me", note.id);
+                } else if (boardId) {
                   const { noteService } = await import("../../utils/services");
                   updated = await noteService.getDetail(boardId, note.id);
                 } else if (orgId) {
@@ -897,6 +907,7 @@ export default function ExcalidrawEditor({
             <NoteBottomComments
               boardId={boardId}
               orgId={orgId}
+              personal={personal}
               noteId={note.id}
               currentUserId={currentUser.id}
               canEdit={canEdit}

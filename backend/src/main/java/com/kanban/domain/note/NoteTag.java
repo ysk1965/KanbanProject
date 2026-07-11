@@ -2,6 +2,7 @@ package com.kanban.domain.note;
 
 import com.kanban.domain.board.Board;
 import com.kanban.domain.organization.Organization;
+import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -28,6 +29,11 @@ public class NoteTag {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
     private Organization organization;
+
+    /** 개인(마이 스페이스) 노트 태그 소유자. board/organization 과 상호배타적. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_user_id")
+    private User owner;
 
     @Column(name = "name", nullable = false, length = 50)
     private String name;

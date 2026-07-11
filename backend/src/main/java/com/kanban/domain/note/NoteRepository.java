@@ -73,6 +73,35 @@ public interface NoteRepository extends JpaRepository<Note, String> {
     @Query("DELETE FROM Note n WHERE n.organization.id = :orgId")
     void deleteAllByOrganizationId(@Param("orgId") String orgId);
 
+    // ===== Personal (owner) scoped queries =====
+
+    @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy WHERE n.owner.id = :userId AND n.isDeleted = false ORDER BY n.position ASC")
+    List<Note> findAllByOwnerUserIdNotDeleted(@Param("userId") String userId);
+
+    @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy WHERE n.owner.id = :userId AND n.parent IS NULL AND n.isDeleted = false ORDER BY n.position ASC")
+    List<Note> findRootsByOwnerUserId(@Param("userId") String userId);
+
+    @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy WHERE n.id = :id AND n.owner.id = :userId")
+    Optional<Note> findByIdAndOwnerUserId(@Param("id") String id, @Param("userId") String userId);
+
+    @Query("SELECT COALESCE(MAX(n.position), -1) + 1 FROM Note n WHERE n.owner.id = :userId AND n.parent IS NULL AND n.isDeleted = false")
+    int findNextRootPositionByOwnerUserId(@Param("userId") String userId);
+
+    @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy WHERE n.owner.id = :userId AND n.type IN ('DOCUMENT', 'BOARD') AND n.isDeleted = false ORDER BY n.updatedAt DESC")
+    List<Note> findAllDocumentsAndBoardsByOwnerUserId(@Param("userId") String userId);
+
+    @Query("SELECT n FROM Note n " +
+           "LEFT JOIN FETCH n.createdBy " +
+           "LEFT JOIN FETCH n.updatedBy " +
+           "LEFT JOIN FETCH n.deletedBy " +
+           "LEFT JOIN FETCH n.parent p " +
+           "WHERE n.owner.id = :userId AND n.isDeleted = true " +
+           "ORDER BY n.deletedAt DESC")
+    List<Note> findTrashByOwnerUserId(@Param("userId") String userId);
+
+    @Query("SELECT n FROM Note n WHERE n.owner.id = :userId AND n.isDeleted = true")
+    List<Note> findAllTrashByOwnerUserId(@Param("userId") String userId);
+
     // ===== Trash (휴지통) =====
 
     @Query("SELECT n FROM Note n " +

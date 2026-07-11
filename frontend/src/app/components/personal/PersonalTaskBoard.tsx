@@ -151,6 +151,7 @@ function getScheduledDays(frequencyType: HabitFrequency, frequencyDays?: string)
 
 function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () => void; refreshKey?: number }) {
   const { t } = useTranslation();
+  const reduced = useReducedMotion();
   const [allHabits, setAllHabits] = useState<PersonalHabit[]>([]);
   const [todayHabits, setTodayHabits] = useState<HabitTodayItem[]>([]);
   const [weeklyMatrix, setWeeklyMatrix] = useState<HabitWeeklyMatrix | null>(null);
@@ -1090,6 +1091,7 @@ function QuadrantCell({
   onUpdate: (id: string, data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => void;
 }) {
   const { t } = useTranslation();
+  const reduced = useReducedMotion();
   const cfg = QUADRANT_CONFIG[quadrant];
   const Icon = cfg.icon;
   const labelKeys = QUADRANT_LABEL_KEYS[quadrant];

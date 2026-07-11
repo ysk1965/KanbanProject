@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Share2, Link2, Check, Globe, X, RotateCw, Users } from "lucide-react";
-import { noteAPI, orgNoteAPI } from "../../utils/api";
+import { noteAPI, orgNoteAPI, myNoteAPI } from "../../utils/api";
 import type { NoteDetail } from "../../utils/api";
 
 interface NoteShareButtonProps {
   boardId?: string;
   orgId?: string;
+  personal?: boolean;
   note: NoteDetail;
   canEdit: boolean;
   onNoteUpdate?: (note: NoteDetail) => void;
@@ -30,12 +31,14 @@ function slugifyTitle(title?: string): string {
 export function NoteShareButton({
   boardId,
   orgId,
+  personal,
   note,
   canEdit,
   onNoteUpdate,
 }: NoteShareButtonProps) {
   const isOrg = !!orgId;
-  const scopeId = boardId || orgId || "";
+  const scopeId = personal ? "me" : boardId || orgId || "";
+  const api = personal ? myNoteAPI : isOrg ? orgNoteAPI : noteAPI;
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -83,7 +86,6 @@ export function NoteShareButton({
     setLoading(true);
     try {
       let updated: NoteDetail;
-      const api = isOrg ? orgNoteAPI : noteAPI;
       if (isShared) {
         updated = await api.disableShare(scopeId, note.id);
       } else {
@@ -109,7 +111,6 @@ export function NoteShareButton({
     if (!ok) return;
     setLoading(true);
     try {
-      const api = isOrg ? orgNoteAPI : noteAPI;
       const updated = await api.rotateShareToken(scopeId, note.id);
       onNoteUpdate?.(updated);
       setCopied(false);

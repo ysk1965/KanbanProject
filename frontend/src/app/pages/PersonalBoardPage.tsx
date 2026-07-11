@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FEATURE_COLORS } from '../constants';
-import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2, Flag, Repeat, Flame, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2, Flag, Repeat, Flame, X, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PersonalSchedule, type TabSwipeHandle } from '../components/personal/PersonalSchedule';
 import { PersonalDiary } from '../components/personal/PersonalDiary';
@@ -10,6 +10,7 @@ import { PersonalTaskBoard } from '../components/personal/PersonalTaskBoard';
 
 import { PersonalOverview } from '../components/personal/PersonalOverview';
 import { PersonalCalendar } from '../components/personal/PersonalCalendar';
+import { PersonalNotes } from '../components/personal/PersonalNotes';
 import { UserMenu } from '../components/UserMenu';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -17,8 +18,8 @@ import { personalTaskAPI, personalHabitAPI } from '../utils/api';
 import { PersonalTask, PersonalTaskPriority, HabitFrequency, HabitImportance } from '../types';
 import { getTodayDateString } from '../utils/dateUtils';
 
-type TabType = 'overview' | 'tasks' | 'schedule' | 'calendar' | 'diary';
-const TAB_ORDER: TabType[] = ['overview', 'tasks', 'schedule', 'calendar', 'diary'];
+type TabType = 'overview' | 'tasks' | 'schedule' | 'calendar' | 'notes' | 'diary';
+const TAB_ORDER: TabType[] = ['overview', 'tasks', 'schedule', 'calendar', 'notes', 'diary'];
 
 export function PersonalBoardPage() {
   const { t } = useTranslation();
@@ -35,6 +36,7 @@ export function PersonalBoardPage() {
     { key: 'tasks' as TabType, label: t('personal.tabs.todo', 'ToDo'), icon: LayoutGrid },
     { key: 'schedule' as TabType, label: t('personal.tabs.schedule', 'Schedule'), icon: CalendarDays },
     { key: 'calendar' as TabType, label: t('personal.tabs.calendar', 'Calendar'), icon: Calendar },
+    { key: 'notes' as TabType, label: t('personal.tabs.notes', 'Notes'), icon: FileText },
     { key: 'diary' as TabType, label: t('personal.tabs.diary', 'AI Diary'), icon: BookHeart },
   ];
 
@@ -263,6 +265,7 @@ export function PersonalBoardPage() {
             )}
             {activeTab === 'schedule' && <PersonalSchedule ref={scheduleRef} />}
             {activeTab === 'calendar' && <PersonalCalendar ref={calendarRef} />}
+            {activeTab === 'notes' && <PersonalNotes />}
             {activeTab === 'diary' && <PersonalDiary ref={diaryRef} />}
           </motion.div>
         </AnimatePresence>

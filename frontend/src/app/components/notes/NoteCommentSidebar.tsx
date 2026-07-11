@@ -12,6 +12,7 @@ import {
 import {
   noteCommentService,
   orgNoteCommentService,
+  myNoteCommentService,
 } from "../../utils/services";
 import { memberAPI, mentionGroupAPI } from "../../utils/api";
 import type { MentionGroupDetail } from "../../utils/api";
@@ -28,6 +29,7 @@ import type {
 interface NoteCommentSidebarProps {
   boardId?: string;
   orgId?: string;
+  personal?: boolean;
   noteId: string;
   currentUserId: string;
   canEdit: boolean;
@@ -39,6 +41,7 @@ interface NoteCommentSidebarProps {
 export function NoteCommentSidebar({
   boardId,
   orgId,
+  personal,
   noteId,
   currentUserId,
   canEdit,
@@ -46,9 +49,10 @@ export function NoteCommentSidebar({
   activeBlockId,
   onBlockIdsChange,
 }: NoteCommentSidebarProps) {
-  const svc = orgId ? orgNoteCommentService : noteCommentService;
-  const scopeId = boardId || orgId || "";
-  const wsTopic = orgId ? `/topic/org/${orgId}` : `/topic/board/${boardId}`;
+  const svc = personal ? myNoteCommentService : orgId ? orgNoteCommentService : noteCommentService;
+  const scopeId = personal ? "me" : boardId || orgId || "";
+  // 개인 노트는 단일 사용자이므로 백엔드가 발행하지 않는 per-note 토픽 (구독 무해).
+  const wsTopic = personal ? `/topic/note/${noteId}` : orgId ? `/topic/org/${orgId}` : `/topic/board/${boardId}`;
   const { t } = useTranslation();
   const [threads, setThreads] = useState<NoteCommentDetail[]>([]);
   const [members, setMembers] = useState<MemberResponse[]>([]);
