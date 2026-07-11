@@ -70,18 +70,22 @@ public class FileController {
 
     /**
      * 노트 전용 파일 업로드 — 영구 경로에 바로 저장 (temp 경유 없음)
-     * boardId 또는 organizationId 중 정확히 하나만 지정해야 하며,
+     * boardId / organizationId / personal 중 정확히 하나만 지정해야 하며,
      * 해당 스코프의 멤버 권한을 가진 사용자만 호출할 수 있다.
+     * personal=true 는 마이 스페이스 개인 노트용으로, 현재 사용자 소유 스토리지에 저장한다.
      */
     @PostMapping("/upload-note")
     public ResponseEntity<?> uploadNoteFile(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestPart("file") MultipartFile file,
             @RequestParam(value = "boardId", required = false) String boardId,
-            @RequestParam(value = "organizationId", required = false) String organizationId) {
+            @RequestParam(value = "organizationId", required = false) String organizationId,
+            @RequestParam(value = "personal", required = false, defaultValue = "false") boolean personal) {
         boolean hasBoard = boardId != null && !boardId.isBlank();
         boolean hasOrg = organizationId != null && !organizationId.isBlank();
-        if (hasBoard == hasOrg) {
+        // board / org / personal 중 정확히 하나만 허용
+        int scopeCount = (hasBoard ? 1 : 0) + (hasOrg ? 1 : 0) + (personal ? 1 : 0);
+        if (scopeCount != 1) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
@@ -89,9 +93,12 @@ public class FileController {
         if (hasBoard) {
             boardService.checkMemberOrAbove(boardId, principal.getUserId());
             scopeId = boardId;
-        } else {
+        } else if (hasOrg) {
             organizationService.getOrgMemberOrThrow(organizationId, principal.getUserId());
             scopeId = organizationId;
+        } else {
+            // 개인 노트: 현재 사용자 소유 스토리지 (별도 멤버십 체크 불필요)
+            scopeId = "user-" + principal.getUserId();
         }
 
         fileUploadService.validateFile(file);

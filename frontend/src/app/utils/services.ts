@@ -3041,7 +3041,12 @@ export const noteCommentService = {
 // Organization Note Service
 // ========================================
 
-import { orgNoteAPI, orgNoteCommentAPI } from "./api";
+import {
+  orgNoteAPI,
+  orgNoteCommentAPI,
+  myNoteAPI,
+  myNoteCommentAPI,
+} from "./api";
 
 export const orgNoteService = {
   getBoardNotes: async (orgId: string) => {
@@ -3190,6 +3195,163 @@ export const orgNoteCommentService = {
   ) => {
     return await orgNoteCommentAPI.toggleReaction(
       orgId,
+      noteId,
+      commentId,
+      emoji,
+    );
+  },
+};
+
+// ========================================
+// Personal (MySpace) Note Service — owner-scoped mirror of orgNoteService.
+// scopeId 인자는 noteService/orgNoteService와 시그니처 호환을 위해 유지하되
+// 실제 스코프는 JWT 사용자로 결정된다 (myNoteAPI가 무시).
+// ========================================
+
+export const myNoteService = {
+  getTree: async (scopeId: string) => {
+    return await myNoteAPI.getTree(scopeId);
+  },
+  getList: async (scopeId: string) => {
+    return await myNoteAPI.getList(scopeId);
+  },
+  getDetail: async (scopeId: string, noteId: string) => {
+    return await myNoteAPI.getDetail(scopeId, noteId);
+  },
+  create: async (
+    scopeId: string,
+    data: {
+      title: string;
+      type: "FOLDER" | "DOCUMENT" | "BOARD";
+      parentId?: string | null;
+      content?: string;
+      tagIds?: string[];
+    },
+  ) => {
+    return await myNoteAPI.create(scopeId, data);
+  },
+  update: async (
+    scopeId: string,
+    noteId: string,
+    data: { title?: string; content?: string; tagIds?: string[] },
+    createVersion = true,
+  ) => {
+    return await myNoteAPI.update(scopeId, noteId, data, createVersion);
+  },
+  delete: async (scopeId: string, noteId: string) => {
+    return await myNoteAPI.delete(scopeId, noteId);
+  },
+  move: async (
+    scopeId: string,
+    noteId: string,
+    data: { parentId?: string | null; position?: number },
+  ) => {
+    return await myNoteAPI.move(scopeId, noteId, data);
+  },
+  getVersions: async (scopeId: string, noteId: string) => {
+    return await myNoteAPI.getVersions(scopeId, noteId);
+  },
+  getVersionDetail: async (
+    scopeId: string,
+    noteId: string,
+    versionId: string,
+  ) => {
+    return await myNoteAPI.getVersionDetail(scopeId, noteId, versionId);
+  },
+  restoreVersion: async (
+    scopeId: string,
+    noteId: string,
+    versionId: string,
+    liveSnapshot?: { current_title?: string; current_content?: string },
+  ) => {
+    return await myNoteAPI.restoreVersion(
+      scopeId,
+      noteId,
+      versionId,
+      liveSnapshot,
+    );
+  },
+  deleteVersion: async (scopeId: string, noteId: string, versionId: string) => {
+    return await myNoteAPI.deleteVersion(scopeId, noteId, versionId);
+  },
+  deleteAllVersions: async (scopeId: string, noteId: string) => {
+    return await myNoteAPI.deleteAllVersions(scopeId, noteId);
+  },
+  getTags: async (scopeId: string) => {
+    return await myNoteAPI.getTags(scopeId);
+  },
+  createTag: async (scopeId: string, data: { name: string; color: string }) => {
+    return await myNoteAPI.createTag(scopeId, data);
+  },
+  deleteTag: async (scopeId: string, tagId: string) => {
+    return await myNoteAPI.deleteTag(scopeId, tagId);
+  },
+  enableShare: async (scopeId: string, noteId: string) => {
+    return await myNoteAPI.enableShare(scopeId, noteId);
+  },
+  disableShare: async (scopeId: string, noteId: string) => {
+    return await myNoteAPI.disableShare(scopeId, noteId);
+  },
+  toggleLike: async (scopeId: string, noteId: string) => {
+    return await myNoteAPI.toggleLike(scopeId, noteId);
+  },
+  getTrash: async (scopeId: string) => {
+    return await myNoteAPI.getTrash(scopeId);
+  },
+  restoreFromTrash: async (scopeId: string, noteId: string) => {
+    return await myNoteAPI.restoreFromTrash(scopeId, noteId);
+  },
+  permanentDelete: async (scopeId: string, noteId: string) => {
+    return await myNoteAPI.permanentDelete(scopeId, noteId);
+  },
+  emptyTrash: async (scopeId: string) => {
+    return await myNoteAPI.emptyTrash(scopeId);
+  },
+};
+
+export const myNoteCommentService = {
+  getComments: async (scopeId: string, noteId: string) => {
+    return await myNoteCommentAPI.getComments(scopeId, noteId);
+  },
+  createComment: async (
+    scopeId: string,
+    noteId: string,
+    data: {
+      content: string;
+      block_id?: string | null;
+      parent_id?: string | null;
+      mentions?: string[];
+    },
+  ) => {
+    return await myNoteCommentAPI.createComment(scopeId, noteId, data);
+  },
+  updateComment: async (
+    scopeId: string,
+    noteId: string,
+    commentId: string,
+    data: { content: string; mentions?: string[] },
+  ) => {
+    return await myNoteCommentAPI.updateComment(
+      scopeId,
+      noteId,
+      commentId,
+      data,
+    );
+  },
+  deleteComment: async (scopeId: string, noteId: string, commentId: string) => {
+    return await myNoteCommentAPI.deleteComment(scopeId, noteId, commentId);
+  },
+  toggleResolved: async (scopeId: string, noteId: string, commentId: string) => {
+    return await myNoteCommentAPI.toggleResolved(scopeId, noteId, commentId);
+  },
+  toggleReaction: async (
+    scopeId: string,
+    noteId: string,
+    commentId: string,
+    emoji: string,
+  ) => {
+    return await myNoteCommentAPI.toggleReaction(
+      scopeId,
       noteId,
       commentId,
       emoji,

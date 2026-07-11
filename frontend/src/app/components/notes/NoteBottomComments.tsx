@@ -15,6 +15,7 @@ import {
 import {
   noteCommentService,
   orgNoteCommentService,
+  myNoteCommentService,
 } from "../../utils/services";
 import {
   memberAPI,
@@ -55,6 +56,7 @@ const REACTION_EMOJIS = [
 interface NoteBottomCommentsProps {
   boardId?: string;
   orgId?: string;
+  personal?: boolean;
   noteId: string;
   currentUserId: string;
   canEdit: boolean;
@@ -118,13 +120,15 @@ function renderContentWithMentions(
 export function NoteBottomComments({
   boardId,
   orgId,
+  personal,
   noteId,
   currentUserId,
   canEdit,
 }: NoteBottomCommentsProps) {
-  const svc = orgId ? orgNoteCommentService : noteCommentService;
-  const scopeId = boardId || orgId || "";
-  const wsTopic = orgId ? `/topic/org/${orgId}` : `/topic/board/${boardId}`;
+  const svc = personal ? myNoteCommentService : orgId ? orgNoteCommentService : noteCommentService;
+  const scopeId = personal ? "me" : boardId || orgId || "";
+  // 개인 노트는 단일 사용자이므로 백엔드가 발행하지 않는 per-note 토픽 (구독 무해).
+  const wsTopic = personal ? `/topic/note/${noteId}` : orgId ? `/topic/org/${orgId}` : `/topic/board/${boardId}`;
   // State
   const [comments, setComments] = useState<NoteCommentDetail[]>([]);
   const [members, setMembers] = useState<MemberResponse[]>([]);

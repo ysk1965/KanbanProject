@@ -32,6 +32,11 @@ public class Note {
     @JoinColumn(name = "organization_id")
     private Organization organization;
 
+    /** 개인(마이 스페이스) 노트 소유자. board/organization 과 상호배타적. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_user_id")
+    private User owner;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private Note parent;
@@ -217,5 +222,9 @@ public class Note {
 
     public boolean isOrgNote() {
         return this.organization != null;
+    }
+
+    public boolean isPersonalNote() {
+        return this.owner != null;
     }
 }

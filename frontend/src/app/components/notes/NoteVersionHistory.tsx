@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import DOMPurify from "dompurify";
 import { useCreateBlockNote } from "@blocknote/react";
-import { noteService, orgNoteService } from "../../utils/services";
+import { noteService, orgNoteService, myNoteService } from "../../utils/services";
 import { formatDateTime } from "../../utils/dateUtils";
 import { useTheme } from "../../contexts/ThemeContext";
 import { NoteVersionDiffView } from "./NoteVersionDiffView";
@@ -30,6 +30,7 @@ const ExcalidrawLazy = lazy(async () => {
 interface NoteVersionHistoryProps {
   boardId?: string;
   orgId?: string;
+  personal?: boolean;
   noteId: string;
   noteType: string;
   currentTitle: string;
@@ -55,6 +56,7 @@ interface NoteVersionHistoryProps {
 export function NoteVersionHistory({
   boardId,
   orgId,
+  personal,
   noteId,
   noteType,
   currentTitle,
@@ -68,8 +70,8 @@ export function NoteVersionHistory({
   onBeforeRestore,
   onRestoreFailed,
 }: NoteVersionHistoryProps) {
-  const svc = orgId ? orgNoteService : noteService;
-  const scopeId = boardId || orgId || "";
+  const svc = personal ? myNoteService : orgId ? orgNoteService : noteService;
+  const scopeId = personal ? "me" : boardId || orgId || "";
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   useEscClose(isOpen, () => {

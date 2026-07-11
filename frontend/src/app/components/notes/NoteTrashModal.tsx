@@ -3,13 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Trash2, FileText, Folder, PenTool, RotateCcw, Search, X, Loader2, AlertTriangle } from 'lucide-react';
 import { MotionModal } from '../ui/MotionModal';
 import { formatDateTime, formatRelativeTime } from '../../utils/dateUtils';
-import { noteService, orgNoteService } from '../../utils/services';
+import { noteService, orgNoteService, myNoteService } from '../../utils/services';
 import type { NoteTrashItem } from '../../utils/api';
 
 interface NoteTrashModalProps {
   open: boolean;
   onClose: () => void;
-  scopeType: 'board' | 'org';
+  scopeType: 'board' | 'org' | 'personal';
   scopeId: string;
   canPermanentDelete: boolean;
   onRestored?: (noteId: string) => void;
@@ -26,7 +26,7 @@ export function NoteTrashModal({
   onChanged,
 }: NoteTrashModalProps) {
   const { t } = useTranslation();
-  const svc = scopeType === 'org' ? orgNoteService : noteService;
+  const svc = scopeType === 'personal' ? myNoteService : scopeType === 'org' ? orgNoteService : noteService;
 
   const [items, setItems] = useState<NoteTrashItem[]>([]);
   const [loading, setLoading] = useState(false);

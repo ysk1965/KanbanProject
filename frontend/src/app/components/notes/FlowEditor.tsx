@@ -1110,6 +1110,7 @@ function deserialize(content: string | null): { nodes: Node[]; edges: Edge[] } {
 interface FlowEditorProps {
   boardId?: string;
   orgId?: string;
+  personal?: boolean;
   note: NoteDetail;
   tags: NoteTagInfo[];
   canEdit: boolean;
@@ -1310,6 +1311,7 @@ function useFlowHistory(params: {
 function FlowCanvas({
   boardId,
   orgId,
+  personal,
   note,
   tags,
   canEdit,
@@ -1404,9 +1406,11 @@ function FlowCanvas({
     return collaboration.provider.onSnapshotUpdated(async () => {
       if (modeRef.current !== "view") return;
       try {
-        const { noteService, orgNoteService } =
+        const { noteService, orgNoteService, myNoteService } =
           await import("../../utils/services");
-        const updated = boardId
+        const updated = personal
+          ? await myNoteService.getDetail("me", note.id)
+          : boardId
           ? await noteService.getDetail(boardId, note.id)
           : orgId
             ? await orgNoteService.getDetail(orgId, note.id)
@@ -1903,7 +1907,11 @@ function FlowCanvas({
         const natural = isImage
           ? await getImageSize(file)
           : await getVideoSize(file);
-        const scope = boardId ? { boardId } : { organizationId: orgId! };
+        const scope = personal
+          ? ({ personal: true } as const)
+          : boardId
+          ? { boardId }
+          : { organizationId: orgId! };
         const { url } = await fileAPI.uploadNote(file, scope);
         if (isImage) {
           addNodeAt(
@@ -1947,7 +1955,11 @@ function FlowCanvas({
       );
       try {
         const natural = await getImageSize(ordered[0]);
-        const scope = boardId ? { boardId } : { organizationId: orgId! };
+        const scope = personal
+          ? ({ personal: true } as const)
+          : boardId
+          ? { boardId }
+          : { organizationId: orgId! };
         const uploaded = await Promise.all(
           ordered.map((f) => fileAPI.uploadNote(f, scope)),
         );
@@ -2271,6 +2283,7 @@ function FlowCanvas({
             <NoteShareButton
               boardId={boardId}
               orgId={orgId}
+              personal={personal}
               note={note}
               canEdit={canEdit}
               onNoteUpdate={onNoteUpdate}
@@ -2279,6 +2292,7 @@ function FlowCanvas({
               <NoteTagManager
                 boardId={boardId}
                 orgId={orgId}
+                personal={personal}
                 noteId={note.id}
                 noteTags={note.tags}
                 allTags={tags}
@@ -2291,6 +2305,7 @@ function FlowCanvas({
               <NoteVersionHistory
                 boardId={boardId}
                 orgId={orgId}
+                personal={personal}
                 noteId={note.id}
                 noteType={note.type}
                 currentTitle={note.title}
@@ -2303,7 +2318,11 @@ function FlowCanvas({
                 })}
                 onRestore={async () => {
                   let updated;
-                  if (boardId) {
+                  if (personal) {
+                    const { myNoteService } =
+                      await import("../../utils/services");
+                    updated = await myNoteService.getDetail("me", note.id);
+                  } else if (boardId) {
                     const { noteService } =
                       await import("../../utils/services");
                     updated = await noteService.getDetail(boardId, note.id);
@@ -2557,6 +2576,7 @@ function FlowCanvas({
               <NoteBottomComments
                 boardId={boardId}
                 orgId={orgId}
+                personal={personal}
                 noteId={note.id}
                 currentUserId={currentUser.id}
                 canEdit={canEdit}

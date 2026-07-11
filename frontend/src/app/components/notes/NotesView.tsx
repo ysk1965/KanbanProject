@@ -7,7 +7,7 @@ import { NoteTreeSidebar } from './NoteTreeSidebar';
 import { NoteEditor } from './NoteEditor';
 import { NoteListView } from './NoteListView';
 import { NoteTrashModal } from './NoteTrashModal';
-import { noteService, orgNoteService } from '../../utils/services';
+import { noteService, orgNoteService, myNoteService } from '../../utils/services';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCollaboration } from '../../hooks/useCollaboration';
 import { getAssigneeHex } from '../../utils/assigneeColor';
@@ -19,6 +19,8 @@ import type { BreadcrumbItem } from './NoteEditor';
 interface NotesViewProps {
   boardId?: string;
   orgId?: string;
+  /** 마이 스페이스 개인 노트 스코프. board/org 대신 현재 사용자 소유 노트를 사용. */
+  personal?: boolean;
   currentUserRole: string;
 }
 
@@ -81,7 +83,7 @@ function applyLocalMove(
   return insert(without);
 }
 
-export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
+export function NotesView({ boardId, orgId, personal, currentUserRole }: NotesViewProps) {
   const { t } = useTranslation();
   const { currentUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -97,13 +99,13 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [boardNoteSections, setBoardNoteSections] = useState<BoardNoteSection[]>([]);
-  // Track which scope the selected note belongs to (org notes vs board notes)
-  const [selectedNoteScope, setSelectedNoteScope] = useState<{ type: 'org' | 'board'; id: string } | null>(null);
+  // Track which scope the selected note belongs to (org notes vs board notes vs personal)
+  const [selectedNoteScope, setSelectedNoteScope] = useState<{ type: 'org' | 'board' | 'personal'; id: string } | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
   // Determine scope
-  const scopeId = boardId || orgId || '';
-  const scopeType = orgId ? 'org' : 'board';
-  const svc = scopeType === 'org' ? orgNoteService : noteService;
+  const scopeId = personal ? 'me' : boardId || orgId || '';
+  const scopeType = personal ? 'personal' : orgId ? 'org' : 'board';
+  const svc = personal ? myNoteService : scopeType === 'org' ? orgNoteService : noteService;
 
   const isViewer = currentUserRole === 'viewer';
   const canEdit = !isViewer;
@@ -210,7 +212,7 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
           const detail = await svc.getDetail(scopeId, urlNoteId);
           if (cancelled) return;
           setSelectedNoteId(urlNoteId);
-          setSelectedNoteScope(orgId ? { type: 'org', id: orgId } : { type: 'board', id: boardId || '' });
+          setSelectedNoteScope(personal ? { type: 'personal', id: 'me' } : orgId ? { type: 'org', id: orgId } : { type: 'board', id: boardId || '' });
           setSelectedNote(detail);
         }
       } catch (err) {
@@ -564,6 +566,7 @@ export function NotesView({ boardId, orgId, currentUserRole }: NotesViewProps) {
             <NoteEditor
               boardId={selectedNoteScope?.type === 'board' ? selectedNoteScope.id : boardId}
               orgId={selectedNoteScope?.type === 'org' ? selectedNoteScope.id : (selectedNoteScope?.type === 'board' ? undefined : orgId)}
+              personal={personal}
               note={selectedNote}
               tags={tags}
               loading={noteLoading}

@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Tag as TagIcon, Plus, X, Check } from "lucide-react";
-import { noteService, orgNoteService } from "../../utils/services";
+import { noteService, orgNoteService, myNoteService } from "../../utils/services";
 import { ColorPickerPopover } from "../ui/ColorPickerPopover";
 import type { NoteTagInfo } from "../../utils/api";
 
@@ -21,6 +21,7 @@ const TAG_COLORS = [
 interface NoteTagManagerProps {
   boardId?: string;
   orgId?: string;
+  personal?: boolean;
   noteId: string;
   noteTags: NoteTagInfo[];
   allTags: NoteTagInfo[];
@@ -32,6 +33,7 @@ interface NoteTagManagerProps {
 export function NoteTagManager({
   boardId,
   orgId,
+  personal,
   noteId,
   noteTags,
   allTags,
@@ -40,8 +42,8 @@ export function NoteTagManager({
   onTagsChange,
 }: NoteTagManagerProps) {
   const { t } = useTranslation();
-  const svc = orgId ? orgNoteService : noteService;
-  const scopeId = boardId || orgId || '';
+  const svc = personal ? myNoteService : orgId ? orgNoteService : noteService;
+  const scopeId = personal ? 'me' : boardId || orgId || '';
   const [isOpen, setIsOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newTagName, setNewTagName] = useState("");
