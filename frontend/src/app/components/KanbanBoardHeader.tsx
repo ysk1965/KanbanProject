@@ -16,8 +16,7 @@ import {
   Keyboard,
   Trash2,
   UserCheck,
-  ChevronDown,
-  AlertTriangle,
+  UserPlus,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useTranslation } from "react-i18next";
@@ -520,14 +519,39 @@ export function KanbanBoardHeader({
               <span className="hidden md:inline text-xs font-medium">
                 {t("kanban.team")}
               </span>
+              <span className="text-xs font-bold text-foreground tabular-nums">
+                {boardMembersData?.length ?? 0}
+              </span>
             </button>
-            {contractors && contractors.length > 0 && (() => {
-              // 외부인원 상태 집계 (활동중 우선 강조 + 상태 분포 세그먼트)
+            {(() => {
+              const list = contractors ?? [];
+              const total = list.length;
+
+              // 등록된 외부인원이 없을 때: 관리자에겐 추가 유도, 그 외엔 숨김
+              if (total === 0) {
+                if (!isAdminOrOwner) return null;
+                return (
+                  <button
+                    type="button"
+                    onClick={onOpenContractorManager}
+                    title="외부인원 추가"
+                    aria-label="외부인원 추가"
+                    className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-lg border border-dashed border-foreground/20 text-slate-500 hover:border-bridge-accent hover:text-bridge-accent hover:bg-bridge-accent/10 transition-colors"
+                  >
+                    <UserPlus size={15} className="shrink-0" />
+                    <span className="hidden md:inline text-xs font-medium">
+                      외부인원
+                    </span>
+                  </button>
+                );
+              }
+
+              // 외부인원 상태 집계 (활동중 / 예정 / 만료 + 임박 여부)
               let active = 0;
               let upcoming = 0;
               let expired = 0;
               let imminent = false; // 시작/만료 7일 이내
-              contractors.forEach((c) => {
+              list.forEach((c) => {
                 const st = getContractorPeriodStatus(c.start_date, c.end_date);
                 if (st === "expired") expired += 1;
                 else if (st === "upcoming") upcoming += 1;
@@ -535,55 +559,42 @@ export function KanbanBoardHeader({
                 const dr = getContractorDaysRemaining(c.start_date, c.end_date);
                 if (dr) {
                   const days = parseInt(dr.replace(/[^0-9-]/g, ""), 10);
-                  if (!Number.isNaN(days) && days >= 0 && days <= 7) imminent = true;
+                  if (!Number.isNaN(days) && days >= 0 && days <= 7)
+                    imminent = true;
                 }
               });
-              const total = contractors.length;
-              const segments = [
-                { key: "active", count: active, cls: "bg-emerald-500" },
-                { key: "upcoming", count: upcoming, cls: "bg-amber-500" },
-                { key: "expired", count: expired, cls: "bg-slate-500/60" },
-              ].filter((s) => s.count > 0);
+
+              // 상태 도트/아이콘 색: 임박 > 활동중 > 유휴
+              const dotClass = imminent
+                ? "bg-amber-500 dark:bg-amber-400 shadow-[0_0_0_3px_rgba(245,158,11,0.18)]"
+                : active > 0
+                  ? "bg-emerald-500 dark:bg-emerald-400"
+                  : "bg-slate-400/60";
+              const iconClass = imminent
+                ? "text-amber-500 dark:text-amber-400"
+                : active > 0
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-slate-400";
+
               return (
                 <button
                   type="button"
                   onClick={onOpenContractorManager}
                   title={`외부인원 ${total}명 · 활동중 ${active}${upcoming ? ` · 예정 ${upcoming}` : ""}${expired ? ` · 만료 ${expired}` : ""}`}
                   aria-label={`외부인원 관리, 총 ${total}명 중 활동중 ${active}명`}
-                  className="flex items-center gap-2 md:gap-2.5 pl-2 md:pl-2.5 pr-2 md:pr-3 py-1.5 rounded-lg border border-dashed border-foreground/20 hover:border-bridge-accent bg-foreground/[0.02] hover:bg-bridge-accent/10 transition-colors"
+                  className="flex items-center gap-2 px-2.5 md:px-3 py-1.5 rounded-lg hover:bg-foreground/5 transition-colors"
                 >
-                  {imminent ? (
-                    <AlertTriangle
-                      size={14}
-                      className="text-amber-500 dark:text-amber-400 shrink-0"
-                    />
-                  ) : (
-                    <UserCheck size={16} className="text-slate-400 shrink-0" />
-                  )}
-                  <span className="hidden md:inline text-xs font-medium text-slate-400">
-                    외부인원
-                  </span>
-                  <span className="flex items-baseline gap-0.5 leading-none">
-                    <span className="text-base font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                      {active}
-                    </span>
-                    <span className="text-xs font-bold text-slate-500 tabular-nums">
-                      /{total}
-                    </span>
-                  </span>
-                  <span className="flex items-center gap-0.5 w-10 md:w-16 h-1.5">
-                    {segments.map((s) => (
-                      <span
-                        key={s.key}
-                        className={`h-full rounded-sm ${s.cls}`}
-                        style={{ flexGrow: s.count }}
-                      />
-                    ))}
-                  </span>
-                  <ChevronDown
-                    size={13}
-                    className="hidden md:block text-slate-400 shrink-0"
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotClass}`}
                   />
+                  <UserCheck size={16} className={`shrink-0 ${iconClass}`} />
+                  <span className="hidden md:inline text-xs font-medium text-slate-400">
+                    외부
+                  </span>
+                  <span className="text-xs font-bold text-foreground tabular-nums leading-none">
+                    {active}
+                    <span className="font-bold text-slate-500">/{total}</span>
+                  </span>
                 </button>
               );
             })()}
