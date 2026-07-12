@@ -2921,6 +2921,7 @@ export function KanbanBoardPage() {
           onOpenShortcutsHelp={() => setIsShortcutsHelpOpen(true)}
           currentUser={currentUser}
           memberColorMap={memberColorMap}
+          boardMembersData={boardMembersData}
           onLogout={logout}
           contractors={headerContractors}
           onOpenContractorManager={() => setIsContractorManagerOpen(true)}
