@@ -2055,7 +2055,8 @@ export const fileAPI = {
 
   uploadNote: async (
     file: File,
-    scope: { boardId: string } | { organizationId: string } | { personal: true },
+    scope:
+      { boardId: string } | { organizationId: string } | { personal: true },
   ): Promise<{ url: string }> => {
     const formData = new FormData();
     formData.append("file", file);
@@ -3590,6 +3591,94 @@ export const milestoneAPI = {
   ) => {
     return apiClient.delete<{ message: string }>(
       `/boards/${boardId}/milestones/${milestoneId}/allocations/${allocationId}`,
+    );
+  },
+};
+
+// ========================================
+// 스프린트 API (마일스톤 안의 선택형 스프린트)
+// ========================================
+import type { SprintBoard, SprintItemCard } from "../types";
+
+export const sprintAPI = {
+  /** 스프린트 프레임 조회 (타임라인 + 컬럼 + 게이지 + 백로그) */
+  getSprintBoard: async (boardId: string, milestoneId: string) => {
+    return apiClient.get<SprintBoard>(
+      `/boards/${boardId}/milestones/${milestoneId}/sprint-board`,
+    );
+  },
+
+  /** 스프린트 모드 on/off (관리자) — off 시 담긴 카드 병합 */
+  toggleSprintMode: async (
+    boardId: string,
+    milestoneId: string,
+    enabled: boolean,
+  ) => {
+    return apiClient.patch<SprintBoard>(
+      `/boards/${boardId}/milestones/${milestoneId}/sprint-mode`,
+      { enabled },
+    );
+  },
+
+  /** 체크리스트 항목 담기 */
+  addItem: async (
+    boardId: string,
+    sprintId: string,
+    checklistItemId: string,
+  ) => {
+    return apiClient.post<SprintBoard>(
+      `/boards/${boardId}/sprints/${sprintId}/items`,
+      { checklist_item_id: checklistItemId },
+    );
+  },
+
+  /** 항목 빼기 (Task 백로그로 복귀) */
+  removeItem: async (boardId: string, sprintId: string, itemId: string) => {
+    return apiClient.delete<SprintBoard>(
+      `/boards/${boardId}/sprints/${sprintId}/items/${itemId}`,
+    );
+  },
+
+  /** 카드 단계 이동 (sprint / review / done) */
+  moveStage: async (boardId: string, itemId: string, stage: string) => {
+    return apiClient.patch<SprintBoard>(
+      `/boards/${boardId}/checklist-items/${itemId}/sprint-stage`,
+      { stage },
+    );
+  },
+
+  /** 스프린트 종료 (100% 완료 시 동결 + 다음 스프린트 생성/복귀) */
+  closeSprint: async (boardId: string, sprintId: string) => {
+    return apiClient.post<SprintBoard>(
+      `/boards/${boardId}/sprints/${sprintId}/close`,
+    );
+  },
+
+  /** 아카이브 스프린트 재활성화 (수정 → 재동결용) */
+  reactivateSprint: async (boardId: string, sprintId: string) => {
+    return apiClient.post<SprintBoard>(
+      `/boards/${boardId}/sprints/${sprintId}/reactivate`,
+    );
+  },
+
+  /** 재활성화 취소 (원래 동결 기록 복원) */
+  cancelReactivation: async (boardId: string, sprintId: string) => {
+    return apiClient.post<SprintBoard>(
+      `/boards/${boardId}/sprints/${sprintId}/cancel-reactivation`,
+    );
+  },
+
+  /** 특정 스프린트의 담긴 카드 목록 (아카이브 열람용) */
+  getSprintItems: async (boardId: string, sprintId: string) => {
+    return apiClient.get<SprintItemCard[]>(
+      `/boards/${boardId}/sprints/${sprintId}/items`,
+    );
+  },
+
+  /** 아카이브 항목을 현재 스프린트로 재개 */
+  resumeItem: async (boardId: string, itemId: string) => {
+    return apiClient.post<SprintBoard>(
+      `/boards/${boardId}/checklist-items/${itemId}/resume`,
     );
   },
 };
@@ -6505,7 +6594,11 @@ export const myNoteAPI = {
     );
   },
 
-  deleteVersion: async (_scopeId: string, noteId: string, versionId: string) => {
+  deleteVersion: async (
+    _scopeId: string,
+    noteId: string,
+    versionId: string,
+  ) => {
     return apiClient.delete<void>(`/me/notes/${noteId}/versions/${versionId}`);
   },
 
@@ -6531,7 +6624,10 @@ export const myNoteAPI = {
     return apiClient.get<NoteTagInfo[]>(`/me/note-tags`);
   },
 
-  createTag: async (_scopeId: string, data: { name: string; color: string }) => {
+  createTag: async (
+    _scopeId: string,
+    data: { name: string; color: string },
+  ) => {
     return apiClient.post<NoteTagInfo>(`/me/note-tags`, data);
   },
 
@@ -6612,13 +6708,21 @@ export const myNoteCommentAPI = {
     );
   },
 
-  deleteComment: async (_scopeId: string, noteId: string, commentId: string) => {
+  deleteComment: async (
+    _scopeId: string,
+    noteId: string,
+    commentId: string,
+  ) => {
     return apiClient.delete<{ message: string }>(
       `/me/notes/${noteId}/comments/${commentId}`,
     );
   },
 
-  toggleResolved: async (_scopeId: string, noteId: string, commentId: string) => {
+  toggleResolved: async (
+    _scopeId: string,
+    noteId: string,
+    commentId: string,
+  ) => {
     return apiClient.post<NoteCommentDetail>(
       `/me/notes/${noteId}/comments/${commentId}/resolve`,
     );
