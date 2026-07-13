@@ -29,6 +29,7 @@ import {
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { Feature, Task, Tag, Block, ChecklistItem } from "../types";
 import { KanbanBlock } from "../components/KanbanBlock";
+import { SprintLane } from "../components/SprintLane";
 import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
 import { FeatureChipSelector } from "../components/FeatureChipSelector";
 import { EmptyBoardGuide } from "../components/EmptyBoardGuide";
@@ -67,6 +68,8 @@ interface KanbanViewProps {
   cascadeFeatureId: string | null;
   selectedFeatureIds: string[] | null;
   selectedMilestoneId: string;
+  milestones: { id: string; title: string }[];
+  isAdminOrOwner: boolean;
   filterOptions: FilterOptions;
   canEdit: boolean;
   isOrgMemberViewer: boolean;
@@ -113,6 +116,8 @@ export const KanbanView = memo(function KanbanView({
   cascadeFeatureId,
   selectedFeatureIds,
   selectedMilestoneId,
+  milestones,
+  isAdminOrOwner,
   filterOptions,
   canEdit,
   isOrgMemberViewer,
@@ -317,6 +322,15 @@ export const KanbanView = memo(function KanbanView({
             onFeatureInfoClick={onFeatureClick}
             onAddFeature={onOpenAddFeature}
             cascadeFeatureId={cascadeFeatureId}
+          />
+
+          {/* 스프린트 레인 (활성 스프린트를 칸반 위에서 직접 운영) */}
+          <SprintLane
+            boardId={boardId}
+            milestones={milestones}
+            selectedMilestoneId={selectedMilestoneId}
+            canEdit={canEdit}
+            isAdminOrOwner={isAdminOrOwner}
           />
 
           {/* 칸반 보드 */}

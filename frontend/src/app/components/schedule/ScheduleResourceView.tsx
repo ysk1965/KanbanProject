@@ -903,6 +903,32 @@ export function ScheduleResourceView({
     contractors,
   ]);
 
+  // 외주 계약 기간이 현재 가시 날짜 구간(vr)과 겹치는지 판정.
+  // 기간 중 하나라도 겹치면 표시. vr 미측정/기간 미상이면 표시(폴백).
+  const contractorOverlapsVisibleRange = useCallback(
+    (
+      row: {
+        startDate?: string | null;
+        endDate?: string | null;
+        periods?: { start: string | null; end: string | null }[];
+      },
+      vr: { start: number; end: number } | null,
+    ): boolean => {
+      if (!vr) return true;
+      const periods =
+        row.periods && row.periods.length > 0
+          ? row.periods
+          : [{ start: row.startDate ?? null, end: row.endDate ?? null }];
+      return periods.some((p) => {
+        if (!p.start && !p.end) return true;
+        const s = p.start ? diffDays(rangeStart, p.start) : -Infinity;
+        const e = p.end ? diffDays(rangeStart, p.end) : Infinity;
+        return s <= vr.end && e >= vr.start;
+      });
+    },
+    [rangeStart],
+  );
+
   // ─── Compute group segments (직군별 그룹 헤더 위치) ───
   const roleGroupSegments = useMemo(() => {
     if (!groupByJobRole)
@@ -2262,6 +2288,15 @@ export function ScheduleResourceView({
 
             // 그룹이 접힌 경우 멤버 행을 숨김 (헤더만 노출)
             if (hiddenRowIndices.has(rowIndex)) {
+              return <Fragment key={row.id}>{groupHeader}</Fragment>;
+            }
+
+            // 외주 행: 계약 기간이 현재 가시 날짜 구간과 하나도 겹치지 않으면 숨김.
+            // (member/미할당 행은 항상 표시. visibleDayRange 미측정 시 폴백으로 표시.)
+            if (
+              row.kind === "contractor" &&
+              !contractorOverlapsVisibleRange(row, visibleDayRange)
+            ) {
               return <Fragment key={row.id}>{groupHeader}</Fragment>;
             }
 
