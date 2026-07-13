@@ -31,7 +31,6 @@ import { Feature, Task, Tag, Block, ChecklistItem } from "../types";
 import { KanbanBlock } from "../components/KanbanBlock";
 import { SprintBoard } from "../components/SprintBoard";
 import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
-import { FeatureChipSelector } from "../components/FeatureChipSelector";
 import { EmptyBoardGuide } from "../components/EmptyBoardGuide";
 import JoinRequestBanner from "../components/JoinRequestBanner";
 import { FilterOptions } from "../components/FilterModal";
@@ -43,8 +42,6 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { blockService } from "../utils/services";
-
-const EMPTY_FEATURE_IDS: string[] = [];
 
 interface KanbanViewProps {
   boardId: string;
@@ -82,6 +79,8 @@ interface KanbanViewProps {
   onOpenAddFeature: () => void;
   onOpenAddBlock: () => void;
   onTaskClick: (task: Task) => void;
+  /** 스프린트 좌측 트리에서 체크리스트 행 클릭 → 태스크 모달(+ 해당 항목 하이라이트) */
+  onOpenChecklistItem: (taskId: string, checklistItemId?: string) => void;
   onMoveTask: (taskId: string, targetBlock: string, newOrder: number) => void;
   onReorderTask: (taskId: string, blockId: string, newPosition: number) => void;
   onEditBlock: (block: Block) => void;
@@ -129,6 +128,7 @@ export const KanbanView = memo(function KanbanView({
   onOpenAddFeature,
   onOpenAddBlock,
   onTaskClick,
+  onOpenChecklistItem,
   onMoveTask,
   onReorderTask,
   onEditBlock,
@@ -331,18 +331,6 @@ export const KanbanView = memo(function KanbanView({
             boardId={boardId}
             canEdit={canEdit}
           />
-          {/* Feature 칩 선택 영역 */}
-          <FeatureChipSelector
-            features={filteredFeatures}
-            selectedFeatureIds={selectedFeatureIds ?? EMPTY_FEATURE_IDS}
-            isAllSelected={selectedFeatureIds === null}
-            onToggleFeature={onToggleFeatureChip}
-            onSelectAll={onSelectAllFeatureChips}
-            onFeatureInfoClick={onFeatureClick}
-            onAddFeature={onOpenAddFeature}
-            cascadeFeatureId={cascadeFeatureId}
-          />
-
           {/* 블록 보드 ↔ 스프린트 모드 토글 */}
           <div className="shrink-0 flex items-center gap-1 px-4 md:px-6 pt-1 pb-2">
             <button
@@ -374,6 +362,7 @@ export const KanbanView = memo(function KanbanView({
                 milestones={milestones}
                 canEdit={canEdit}
                 isAdminOrOwner={isAdminOrOwner}
+                onOpenChecklistItem={onOpenChecklistItem}
                 milestoneId={
                   selectedMilestoneId !== "all" && selectedMilestoneId !== "none"
                     ? selectedMilestoneId

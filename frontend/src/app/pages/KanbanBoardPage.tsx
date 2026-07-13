@@ -3079,6 +3079,7 @@ export function KanbanBoardPage() {
             onOpenAddFeature={handleOpenAddFeatureModal}
             onOpenAddBlock={handleOpenAddBlockModal}
             onTaskClick={handleTaskClick}
+            onOpenChecklistItem={handleViewTaskWithChecklist}
             onMoveTask={handleMoveTask}
             onReorderTask={handleReorderTask}
             onEditBlock={setEditingBlock}
