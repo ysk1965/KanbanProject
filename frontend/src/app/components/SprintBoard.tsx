@@ -13,7 +13,7 @@ import {
   Flag,
   ChevronLeft,
 } from "lucide-react";
-import { sprintAPI } from "../utils/api";
+import { sprintAPI, checklistAPI } from "../utils/api";
 import type {
   SprintBoard as SprintBoardData,
   SprintColumn,
@@ -29,6 +29,8 @@ interface SprintBoardProps {
   isAdminOrOwner: boolean;
   /** 지정 시 이 마일스톤으로 고정(칸반 탭 연동). 미지정이면 자체 드롭다운으로 선택 */
   milestoneId?: string;
+  /** 좌측 트리에서 체크리스트 행 클릭 → 태스크 모달(+ 해당 항목 하이라이트) */
+  onOpenChecklistItem?: (taskId: string, checklistItemId?: string) => void;
 }
 
 /** Feature ▸ Task ▸ 체크리스트 소스 트리 노드 */
@@ -49,12 +51,26 @@ interface TreeFeature {
 const DRAG_ITEM = "application/bridge-sprint-item";
 const DRAG_SOURCE = "application/bridge-sprint-source";
 
+/** apiClient는 ApiError 객체({code,message})를 throw하므로 message를 우선 추출 */
+function errMessage(e: unknown, fallback: string): string {
+  if (
+    e &&
+    typeof e === "object" &&
+    "message" in e &&
+    typeof (e as { message?: unknown }).message === "string"
+  ) {
+    return (e as { message: string }).message;
+  }
+  return e instanceof Error ? e.message : fallback;
+}
+
 export function SprintBoard({
   boardId,
   milestones,
   canEdit,
   isAdminOrOwner,
   milestoneId: controlledMilestoneId,
+  onOpenChecklistItem,
 }: SprintBoardProps) {
   const controlled = !!controlledMilestoneId;
   const [internalMid, setInternalMid] = useState<string>(
@@ -87,9 +103,7 @@ export function SprintBoard({
       const data = await sprintAPI.getSprintBoard(boardId, milestoneId);
       setBoard(data);
     } catch (e: unknown) {
-      setError(
-        e instanceof Error ? e.message : "스프린트를 불러오지 못했습니다",
-      );
+      setError(errMessage(e, "스프린트를 불러오지 못했습니다"));
     } finally {
       setLoading(false);
     }
@@ -109,11 +123,12 @@ export function SprintBoard({
   const run = useCallback(async (fn: () => Promise<SprintBoardData>) => {
     if (busyRef.current) return;
     busyRef.current = true;
+    setError(null);
     try {
       const data = await fn();
       setBoard(data);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "작업에 실패했습니다");
+      setError(errMessage(e, "작업에 실패했습니다"));
     } finally {
       busyRef.current = false;
     }
@@ -168,6 +183,35 @@ export function SprintBoard({
       else next.add(fid);
       return next;
     });
+  };
+
+  // 담긴 항목의 소속 컬럼 조회(칩 표시용)
+  const columnById = useMemo(() => {
+    const m = new Map<string, SprintColumn>();
+    for (const c of columns) m.set(c.id, c);
+    return m;
+  }, [columns]);
+  const columnAccent = (c: SprintColumn) =>
+    c.kind === "START"
+      ? "#6366F1"
+      : c.kind === "END"
+        ? "#34d399"
+        : (c.color ?? "#f59e0b");
+
+  // 좌측 행: 체크박스 → 완료 토글(체크리스트 API 재사용 후 보드 갱신)
+  const toggleDone = (it: SprintItemCard) => {
+    if (!canEdit || !it.task_id) return;
+    void run(async () => {
+      await checklistAPI.toggleItem(boardId, it.task_id!, it.id);
+      return sprintAPI.getSprintBoard(boardId, milestoneId);
+    });
+  };
+  // 본문 클릭 → 태스크 모달 + 해당 체크리스트 하이라이트
+  const openItem = (it: SprintItemCard) => {
+    if (it.task_id) onOpenChecklistItem?.(it.task_id, it.id);
+  };
+  const openTask = (taskId: string) => {
+    if (taskId !== "__none__") onOpenChecklistItem?.(taskId);
   };
 
   // ==================== 드래그 앤 드롭 ====================
@@ -263,6 +307,21 @@ export function SprintBoard({
   const canClose =
     isAdminOrOwner && !!gauge && gauge.total > 0 && gauge.percentage === 100;
 
+  // 재활성화 상태: 현재 활성 스프린트가 최신(max seq)이 아니면 과거 스프린트를 재활성화한 상태.
+  // 이때 최신 스프린트는 뒤로 보관(parked)되어 있고, "재활성화 취소"로만 복귀 가능.
+  const maxSeq = (board?.sprints ?? []).reduce(
+    (m, s) => Math.max(m, s.sequence_no),
+    0,
+  );
+  const inReactivation = !!activeSprint && activeSprint.sequence_no < maxSeq;
+
+  const cancelReactivation = () => {
+    if (!activeSprint) return;
+    if (!window.confirm("재활성화를 취소하고 최신 스프린트로 되돌릴까요?"))
+      return;
+    void run(() => sprintAPI.cancelReactivation(boardId, activeSprint.id));
+  };
+
   // ==================== 렌더 ====================
   if (loading) {
     return (
@@ -309,15 +368,16 @@ export function SprintBoard({
           <div className="flex items-center gap-1.5 flex-wrap">
             {(board?.sprints ?? []).map((s) => {
               const isActive = s.status === "ACTIVE";
-              const onClick =
-                !isActive && isAdminOrOwner
-                  ? () => {
-                      if (window.confirm(`${s.name}을(를) 재활성화할까요?`))
-                        void run(() =>
-                          sprintAPI.reactivateSprint(boardId, s.id),
-                        );
-                    }
-                  : undefined;
+              // 재활성화 상태에서는 칩 재활성화가 막히므로(백엔드 409) 비활성화 —
+              // 최신 스프린트 복귀는 "재활성화 취소" 버튼으로 안내
+              const canReactivate =
+                !isActive && isAdminOrOwner && !inReactivation;
+              const onClick = canReactivate
+                ? () => {
+                    if (window.confirm(`${s.name}을(를) 재활성화할까요?`))
+                      void run(() => sprintAPI.reactivateSprint(boardId, s.id));
+                  }
+                : undefined;
               return (
                 <button
                   key={s.id}
@@ -331,7 +391,13 @@ export function SprintBoard({
                           ? "hover:bg-foreground/10 cursor-pointer"
                           : "cursor-default")
                   }`}
-                  title={isActive ? "진행 중" : "아카이브"}
+                  title={
+                    isActive
+                      ? "진행 중"
+                      : inReactivation
+                        ? "재활성화를 취소한 뒤 다른 스프린트를 열 수 있습니다"
+                        : "클릭해서 재활성화"
+                  }
                 >
                   {s.name}
                   {isActive && (
@@ -346,24 +412,35 @@ export function SprintBoard({
             })}
           </div>
 
-          {/* 종료 버튼 */}
+          {/* 라이프사이클 버튼 */}
           {activeSprint && isAdminOrOwner && (
-            <button
-              onClick={closeSprint}
-              disabled={!canClose}
-              className={`ml-auto px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                canClose
-                  ? "bg-bridge-accent text-white hover:bg-bridge-accent/90"
-                  : "bg-foreground/[0.05] text-slate-500 cursor-not-allowed"
-              }`}
-              title={
-                canClose
-                  ? "스프린트 종료"
-                  : "모든 카드가 Done이어야 종료할 수 있습니다"
-              }
-            >
-              스프린트 종료
-            </button>
+            <div className="ml-auto flex items-center gap-2">
+              {inReactivation && (
+                <button
+                  onClick={cancelReactivation}
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 hover:bg-bridge-secondary/25 transition-colors"
+                  title="재활성화를 취소하고 최신 스프린트로 되돌립니다"
+                >
+                  재활성화 취소
+                </button>
+              )}
+              <button
+                onClick={closeSprint}
+                disabled={!canClose}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  canClose
+                    ? "bg-bridge-accent text-white hover:bg-bridge-accent/90"
+                    : "bg-foreground/[0.05] text-slate-500 cursor-not-allowed"
+                }`}
+                title={
+                  canClose
+                    ? "스프린트 종료"
+                    : "모든 카드가 Done이어야 종료할 수 있습니다"
+                }
+              >
+                {inReactivation ? "재동결" : "스프린트 종료"}
+              </button>
+            </div>
           )}
         </div>
 
@@ -392,14 +469,14 @@ export function SprintBoard({
 
       {/* 스플릿: 좌 소스 트리 / 우 스프린트 보드 */}
       <div className="flex-1 min-h-0 flex">
-        {/* 좌: 소스 트리 */}
+        {/* 좌: 소스 트리 — Feature 섹션 ▸ Task 라벨 ▸ 체크리스트 행(클릭 진입 + 인라인 완료) */}
         <aside className="w-[300px] shrink-0 border-r border-foreground/[0.08] flex flex-col bg-bridge-dark">
           <div className="px-4 py-2.5 border-b border-foreground/[0.06] flex items-center gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
               Feature ▸ Task ▸ 체크리스트
             </span>
           </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1.5">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
             {tree.length === 0 && (
               <p className="text-xs text-slate-500 text-center py-8">
                 항목이 없습니다.
@@ -407,14 +484,16 @@ export function SprintBoard({
             )}
             {tree.map((feat) => {
               const collapsed = collapsedFeatures.has(feat.featureId);
+              const pct =
+                feat.total > 0
+                  ? Math.round((feat.taken / feat.total) * 100)
+                  : 0;
               return (
-                <div
-                  key={feat.featureId}
-                  className="rounded-xl border border-foreground/[0.06] bg-bridge-obsidian overflow-hidden"
-                >
+                <div key={feat.featureId} className="space-y-0.5">
+                  {/* Feature 섹션 헤더 */}
                   <button
                     onClick={() => toggleFeature(feat.featureId)}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 hover:bg-foreground/5 transition-colors"
+                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-foreground/5 transition-colors"
                   >
                     {collapsed ? (
                       <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
@@ -425,82 +504,194 @@ export function SprintBoard({
                       className="w-1 h-4 rounded-full shrink-0"
                       style={{ background: feat.featureColor ?? "#6366F1" }}
                     />
-                    <span className="text-xs font-bold text-foreground truncate flex-1 text-left">
+                    <span
+                      className="text-xs font-bold text-foreground truncate flex-1 text-left"
+                      title={feat.featureTitle}
+                    >
                       {feat.featureTitle}
                     </span>
-                    <span className="text-[10px] text-slate-500 tabular-nums shrink-0">
-                      {feat.taken}/{feat.total}
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      <span className="w-8 h-1 rounded-full bg-foreground/10 overflow-hidden">
+                        <span
+                          className="block h-full rounded-full bg-gradient-to-r from-bridge-accent to-bridge-secondary"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </span>
+                      <span className="text-xs text-slate-500 tabular-nums">
+                        {feat.taken}/{feat.total}
+                      </span>
                     </span>
                   </button>
+
                   {!collapsed && (
-                    <div className="px-2 pb-2 space-y-2">
-                      {feat.tasks.map((task) => (
-                        <div
-                          key={task.taskId}
-                          className="rounded-lg border border-foreground/[0.06] bg-bridge-dark"
-                        >
-                          <div className="px-2.5 py-1.5 flex items-center gap-1.5 border-b border-foreground/[0.05]">
-                            <span className="text-[11px] font-medium text-slate-300 truncate">
-                              {task.taskTitle}
-                            </span>
-                          </div>
-                          <div className="p-1.5 space-y-1">
-                            {task.items.map((it) => {
-                              const taken = !!it.sprint_column_id;
-                              return (
-                                <div
-                                  key={it.id}
-                                  draggable={canEdit && !taken}
-                                  onDragStart={(e) =>
-                                    onDragStartItem(e, it, "backlog")
-                                  }
-                                  className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] border transition-colors ${
-                                    taken
-                                      ? "opacity-45 border-transparent bg-foreground/[0.02]"
-                                      : "border-foreground/[0.06] bg-bridge-surface hover:border-bridge-border cursor-grab"
-                                  }`}
-                                >
-                                  {!taken && (
-                                    <GripVertical className="w-3 h-3 text-slate-600 shrink-0" />
-                                  )}
-                                  <span
-                                    className={`w-3 h-3 rounded-[4px] shrink-0 border ${
-                                      it.completed
-                                        ? "bg-bridge-secondary border-bridge-secondary"
-                                        : "border-slate-500"
-                                    }`}
-                                  />
-                                  <span
-                                    className={`flex-1 truncate text-foreground ${
-                                      it.completed
-                                        ? "line-through text-slate-500"
-                                        : ""
+                    <div className="space-y-1.5 pb-1">
+                      {feat.tasks.map((task) => {
+                        const hasTask =
+                          task.taskId !== "__none__" && !!onOpenChecklistItem;
+                        return (
+                          <div key={task.taskId}>
+                            {/* Task 라벨 (구분자 + 태스크 진입) */}
+                            <button
+                              type="button"
+                              onClick={() => openTask(task.taskId)}
+                              disabled={!hasTask}
+                              className={`group/task w-full flex items-center gap-1.5 pl-7 pr-2 py-1 rounded-md text-left transition-colors ${
+                                hasTask
+                                  ? "hover:bg-foreground/[0.03] cursor-pointer"
+                                  : "cursor-default"
+                              }`}
+                              title={task.taskTitle}
+                            >
+                              <span className="text-xs font-medium uppercase tracking-wide text-slate-400 truncate flex-1">
+                                {task.taskTitle}
+                              </span>
+                              {hasTask && (
+                                <span className="text-[11px] font-bold text-bridge-accent opacity-0 group-hover/task:opacity-100 transition-opacity shrink-0">
+                                  열기 ↗
+                                </span>
+                              )}
+                            </button>
+
+                            {/* 체크리스트 행 */}
+                            <div className="pl-7 mt-0.5 space-y-0.5">
+                              {task.items.map((it) => {
+                                const taken = !!it.sprint_column_id;
+                                const col = it.sprint_column_id
+                                  ? columnById.get(it.sprint_column_id)
+                                  : undefined;
+                                const canDrag = canEdit && !taken;
+                                const clickable =
+                                  !!it.task_id && !!onOpenChecklistItem;
+                                return (
+                                  <div
+                                    key={it.id}
+                                    className={`group flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg border border-transparent transition-colors ${
+                                      taken
+                                        ? "bg-bridge-secondary/[0.05] hover:bg-bridge-secondary/[0.08]"
+                                        : "hover:bg-bridge-surface hover:border-foreground/10"
                                     }`}
                                   >
-                                    {it.title}
-                                  </span>
-                                  {taken ? (
-                                    <span className="text-[9px] font-bold text-bridge-secondary bg-bridge-secondary/15 rounded px-1.5 py-0.5 shrink-0">
-                                      담김
-                                    </span>
-                                  ) : it.assignee ? (
+                                    {/* A. grip — 드래그 전용 (hover 시 노출) */}
                                     <span
-                                      className="w-4 h-4 rounded-full grid place-items-center text-[8px] font-bold text-white shrink-0"
-                                      style={{
-                                        background: getAssigneeHex(
-                                          it.assignee.name,
-                                        ),
-                                      }}
+                                      draggable={canDrag}
+                                      onDragStart={(e) =>
+                                        canDrag &&
+                                        onDragStartItem(e, it, "backlog")
+                                      }
+                                      className={`w-4 grid place-items-center shrink-0 rounded transition-all ${
+                                        canDrag
+                                          ? "text-slate-600 opacity-0 group-hover:opacity-100 cursor-grab hover:bg-bridge-accent/15 hover:text-bridge-accent"
+                                          : "opacity-0 pointer-events-none"
+                                      }`}
+                                      aria-label={
+                                        canDrag
+                                          ? "스프린트로 끌어 담기"
+                                          : undefined
+                                      }
+                                      title={
+                                        canDrag
+                                          ? "끌어서 스프린트에 담기"
+                                          : undefined
+                                      }
                                     >
-                                      {getInitials(it.assignee.name)}
+                                      <GripVertical className="w-3 h-3" />
                                     </span>
-                                  ) : null}
-                                </div>
-                              );
-                            })}
+
+                                    {/* B. 체크박스 — 완료 토글 */}
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleDone(it)}
+                                      disabled={!canEdit || !it.task_id}
+                                      aria-label={
+                                        it.completed ? "완료 해제" : "완료 표시"
+                                      }
+                                      className={`w-4 h-4 rounded-[5px] shrink-0 border grid place-items-center transition-colors ${
+                                        it.completed
+                                          ? "bg-bridge-secondary border-bridge-secondary"
+                                          : "border-slate-500 hover:border-bridge-secondary"
+                                      } ${
+                                        canEdit && it.task_id
+                                          ? "cursor-pointer"
+                                          : "cursor-default"
+                                      }`}
+                                    >
+                                      {it.completed && (
+                                        <Check
+                                          className="w-2.5 h-2.5 text-bridge-dark"
+                                          strokeWidth={3.5}
+                                        />
+                                      )}
+                                    </button>
+
+                                    {/* C. 본문 — 클릭 진입 */}
+                                    <button
+                                      type="button"
+                                      onClick={() => openItem(it)}
+                                      disabled={!clickable}
+                                      className={`flex-1 min-w-0 text-left ${
+                                        clickable
+                                          ? "cursor-pointer"
+                                          : "cursor-default"
+                                      }`}
+                                      title={it.title}
+                                    >
+                                      <span
+                                        className={`block text-xs truncate ${
+                                          it.completed
+                                            ? "line-through text-slate-500"
+                                            : "text-foreground"
+                                        }`}
+                                      >
+                                        {it.title}
+                                      </span>
+                                    </button>
+
+                                    {/* D. 메타 — 담긴 컬럼 칩 · 담당자 · 진입 힌트 */}
+                                    <span className="flex items-center gap-1 shrink-0">
+                                      {taken && col && (
+                                        <span
+                                          className="inline-flex items-center gap-1 text-[10px] font-bold rounded px-1.5 py-0.5 max-w-[76px]"
+                                          style={{
+                                            background: `${columnAccent(col)}26`,
+                                            color: columnAccent(col),
+                                          }}
+                                          title={`담김 · ${col.name}`}
+                                        >
+                                          <span
+                                            className="w-1 h-1 rounded-full shrink-0"
+                                            style={{
+                                              background: columnAccent(col),
+                                            }}
+                                          />
+                                          <span className="truncate">
+                                            {col.name}
+                                          </span>
+                                        </span>
+                                      )}
+                                      {it.assignee && (
+                                        <span
+                                          className="w-4 h-4 rounded-full grid place-items-center text-[9px] font-bold text-white shrink-0"
+                                          style={{
+                                            background: getAssigneeHex(
+                                              it.assignee.name,
+                                            ),
+                                          }}
+                                          title={it.assignee.name}
+                                        >
+                                          {getInitials(it.assignee.name)}
+                                        </span>
+                                      )}
+                                      {clickable && (
+                                        <ChevronRight className="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                      )}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
