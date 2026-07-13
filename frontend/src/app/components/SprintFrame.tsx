@@ -5,9 +5,11 @@ import {
   Check,
   CornerUpLeft,
   GripVertical,
+  ChevronRight,
+  Search,
 } from "lucide-react";
 import { sprintAPI } from "../utils/api";
-import { formatDate } from "../utils/dateUtils";
+import { formatDate, getTodayDateString } from "../utils/dateUtils";
 import type {
   SprintBoard,
   SprintInfo,
@@ -42,6 +44,27 @@ function avatarColor(name: string): string {
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 
+// 마감일 → 오늘 기준 D-day 칩 (색상 구분)
+function dueChip(due: string): { cls: string; txt: string } {
+  const iso = due.slice(0, 10);
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return { cls: "far", txt: formatDate(due) };
+  const target = new Date(y, m - 1, d);
+  const today = new Date(getTodayDateString() + "T00:00:00");
+  const days = Math.round((target.getTime() - today.getTime()) / 86400000);
+  const label = `${m}/${d}`;
+  if (days < 0) return { cls: "over", txt: `${label} · D+${-days}` };
+  if (days === 0) return { cls: "soon", txt: `${label} · D-day` };
+  if (days <= 3) return { cls: "soon", txt: `${label} · D-${days}` };
+  return { cls: "far", txt: `${label} · D-${days}` };
+}
+
+const DUE_CLASS: Record<string, string> = {
+  far: "text-slate-400 bg-foreground/[0.06]",
+  soon: "text-amber-500 bg-amber-500/15",
+  over: "text-rose-500 bg-rose-500/15",
+};
+
 export function SprintFrame({
   boardId,
   milestones,
@@ -61,6 +84,16 @@ export function SprintFrame({
   const [archiveView, setArchiveView] = useState<SprintInfo | null>(null);
   const [archiveItems, setArchiveItems] = useState<SprintItemCard[]>([]);
   const [archiveLoading, setArchiveLoading] = useState(false);
+  const [backlogQuery, setBacklogQuery] = useState("");
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    new Set(),
+  );
+  const toggleGroup = (id: string) =>
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const load = useCallback(async () => {
     if (!milestoneId) return;
@@ -310,7 +343,17 @@ export function SprintFrame({
     );
   }
 
-  const backlogByFeature = groupByFeature(board?.backlog ?? []);
+  const allBacklog = board?.backlog ?? [];
+  const takeableCount = allBacklog.filter((i) => !i.completed).length;
+  const q = backlogQuery.trim().toLowerCase();
+  const filteredBacklog = q
+    ? allBacklog.filter((i) =>
+        `${i.title} ${i.task_title ?? ""} ${i.feature_title ?? ""}`
+          .toLowerCase()
+          .includes(q),
+      )
+    : allBacklog;
+  const backlogByFeature = groupByFeature(filteredBacklog);
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar px-4 md:px-6 py-4">
@@ -409,76 +452,141 @@ export function SprintFrame({
             className="rounded-2xl border border-foreground/[0.08] bg-bridge-obsidian overflow-hidden"
           >
             <div className="px-4 py-3 border-b border-foreground/[0.08]">
-              <div className="text-sm font-bold text-foreground">
-                Task · 공통 백로그
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-foreground">
+                  Task · 공통 백로그
+                </span>
+                <span className="ml-auto text-[11px] font-bold text-slate-400 bg-foreground/[0.06] px-2 py-0.5 rounded-full tabular-nums">
+                  담기 가능 {takeableCount}
+                </span>
               </div>
               <div className="text-xs text-slate-500 mt-0.5">
                 피처 › 태스크 › 항목 · 담기로 스프린트에
               </div>
+              <div className="mt-2.5 flex items-center gap-2 bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2.5 py-1.5">
+                <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <input
+                  value={backlogQuery}
+                  onChange={(e) => setBacklogQuery(e.target.value)}
+                  placeholder="항목·태스크 검색"
+                  className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[13px] text-foreground placeholder-slate-500"
+                />
+              </div>
             </div>
-            <div className="p-3 flex flex-col gap-3 max-h-[560px] overflow-y-auto custom-scrollbar">
+            <div className="p-2.5 flex flex-col gap-2 max-h-[560px] overflow-y-auto custom-scrollbar">
               {backlogByFeature.length === 0 ? (
                 <div className="text-xs text-slate-500 text-center py-8">
-                  담을 수 있는 항목이 없습니다.
+                  {q ? "검색 결과가 없습니다." : "담을 수 있는 항목이 없습니다."}
                 </div>
               ) : (
-                backlogByFeature.map((grp) => (
-                  <div
-                    key={grp.featureId}
-                    className="rounded-xl border border-foreground/[0.08] bg-foreground/[0.02] overflow-hidden"
-                  >
-                    <div className="flex items-center gap-2 px-3 py-2 border-b border-foreground/[0.08]">
-                      <span
-                        className="w-2 h-2 rounded-sm"
-                        style={{ background: grp.color ?? "#6366F1" }}
-                      />
-                      <span className="text-[13px] font-bold text-foreground truncate">
-                        {grp.featureTitle}
-                      </span>
-                    </div>
-                    <ul className="p-1.5 flex flex-col gap-1">
-                      {grp.items.map((it) => (
-                        <li
-                          key={it.id}
-                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-[13px] hover:bg-foreground/5"
-                        >
-                          <span
-                            className={`w-4 h-4 rounded grid place-items-center shrink-0 ${
-                              it.completed
-                                ? "bg-emerald-500 text-white"
-                                : "border border-foreground/20"
+                backlogByFeature.map((grp) => {
+                  const isOpen = q ? true : !collapsedGroups.has(grp.featureId);
+                  const doneN = grp.items.filter((i) => i.completed).length;
+                  const totalN = grp.items.length;
+                  const pct = totalN
+                    ? Math.round((doneN / totalN) * 100)
+                    : 0;
+                  return (
+                    <div
+                      key={grp.featureId}
+                      className="shrink-0 rounded-xl border border-foreground/[0.08] bg-foreground/[0.02] overflow-hidden"
+                    >
+                      <button
+                        onClick={() => toggleGroup(grp.featureId)}
+                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-foreground/[0.03] transition-colors"
+                      >
+                        <span
+                          className="w-2.5 h-2.5 rounded-sm shrink-0"
+                          style={{ background: grp.color ?? "#6366F1" }}
+                        />
+                        <span className="text-[13px] font-bold text-foreground truncate min-w-0">
+                          {grp.featureTitle}
+                        </span>
+                        <span className="ml-auto flex items-center gap-2 shrink-0">
+                          <span className="w-10 h-1.5 rounded-full bg-foreground/10 overflow-hidden">
+                            <span
+                              className="block h-full rounded-full bg-gradient-to-r from-bridge-accent to-bridge-secondary"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </span>
+                          <span className="text-[11px] font-bold text-slate-400 tabular-nums">
+                            {doneN}/{totalN}
+                          </span>
+                          <ChevronRight
+                            className={`w-3.5 h-3.5 text-slate-500 transition-transform ${
+                              isOpen ? "rotate-90" : ""
                             }`}
-                          >
-                            {it.completed && <Check className="w-3 h-3" />}
-                          </span>
-                          <span className="flex-1 truncate">
-                            {it.task_title && (
-                              <span className="text-slate-500">
-                                {it.task_title}{" "}
-                                <span className="opacity-50">›</span>{" "}
-                              </span>
-                            )}
-                            {it.title}
-                          </span>
-                          {it.due_date && (
-                            <span className="text-[10.5px] text-slate-500 tabular-nums">
-                              {formatDate(it.due_date)}
-                            </span>
-                          )}
-                          {canEdit && (
-                            <button
-                              onClick={() => take(it.id)}
-                              disabled={busy}
-                              className="text-[11.5px] font-bold px-2 py-1 rounded-lg border border-bridge-accent bg-bridge-accent/15 text-bridge-accent hover:bg-bridge-accent hover:text-white transition-colors disabled:opacity-40 whitespace-nowrap inline-flex items-center gap-1"
-                            >
-                              담기 <ArrowRight className="w-3 h-3" />
-                            </button>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))
+                          />
+                        </span>
+                      </button>
+                      {isOpen && (
+                        <ul className="p-1.5 flex flex-col gap-0.5 border-t border-foreground/[0.08]">
+                          {grp.items.map((it) => {
+                            const dm = it.due_date
+                              ? dueChip(it.due_date)
+                              : null;
+                            return (
+                              <li
+                                key={it.id}
+                                className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-foreground/5"
+                              >
+                                <span
+                                  className={`w-4 h-4 rounded grid place-items-center shrink-0 ${
+                                    it.completed
+                                      ? "bg-emerald-500 text-white"
+                                      : "border border-foreground/20"
+                                  }`}
+                                >
+                                  {it.completed && (
+                                    <Check className="w-3 h-3" />
+                                  )}
+                                </span>
+                                <span className="flex-1 min-w-0">
+                                  <span
+                                    className={`block text-[13px] truncate ${
+                                      it.completed
+                                        ? "text-slate-400 line-through"
+                                        : "text-foreground"
+                                    }`}
+                                  >
+                                    {it.title}
+                                  </span>
+                                  {it.task_title && (
+                                    <span className="block text-[10.5px] text-slate-500 truncate">
+                                      {it.task_title}
+                                    </span>
+                                  )}
+                                </span>
+                                {dm && (
+                                  <span
+                                    className={`shrink-0 text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap tabular-nums ${DUE_CLASS[dm.cls]}`}
+                                  >
+                                    {dm.txt}
+                                  </span>
+                                )}
+                                {it.completed ? (
+                                  <span className="shrink-0 text-[10.5px] font-bold text-emerald-500 bg-emerald-500/15 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                    ✓ 완료
+                                  </span>
+                                ) : (
+                                  canEdit && (
+                                    <button
+                                      onClick={() => take(it.id)}
+                                      disabled={busy}
+                                      className="shrink-0 text-[11.5px] font-bold px-2 py-1 rounded-lg border border-bridge-accent bg-bridge-accent/15 text-bridge-accent hover:bg-bridge-accent hover:text-white transition-colors disabled:opacity-40 whitespace-nowrap inline-flex items-center gap-1"
+                                    >
+                                      담기 <ArrowRight className="w-3 h-3" />
+                                    </button>
+                                  )
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
