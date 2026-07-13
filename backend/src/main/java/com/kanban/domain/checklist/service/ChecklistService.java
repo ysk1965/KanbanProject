@@ -29,6 +29,7 @@ import com.kanban.domain.integration.slack.service.SlackNotificationService;
 import com.kanban.domain.notification.service.NotificationService;
 import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
+import com.kanban.domain.sprint.service.SprintService;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
@@ -58,6 +59,7 @@ import java.util.UUID;
 public class ChecklistService {
 
     private final ChecklistItemRepository checklistItemRepository;
+    private final SprintService sprintService;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
@@ -453,6 +455,8 @@ public class ChecklistService {
         }
 
         item.toggle();
+        // 스프린트에 담긴 항목이면 완료 상태에 맞춰 컬럼 동기화 (완료→Done, 미완료→직전 컬럼)
+        sprintService.syncColumnOnToggle(item, userId);
         checklistItemRepository.save(item);
 
         log.info("Checklist item toggled: {} to {} by user: {}", itemId, item.getIsCompleted(), userId);

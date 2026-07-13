@@ -586,14 +586,14 @@ export interface Checklist {
 // 스프린트 타입 (마일스톤 안의 선택형 스프린트)
 // ========================================
 
-export type SprintStage = "SPRINT" | "REVIEW" | "DONE";
+export type SprintColumnKind = "START" | "MIDDLE" | "END";
 export type SprintStatus = "ACTIVE" | "ARCHIVED";
 
 export interface SprintItemCard {
   id: string;
   title: string;
   completed: boolean;
-  sprint_stage: SprintStage | null; // null이면 백로그
+  sprint_column_id: string | null; // null이면 백로그(미담김)
   position: number;
   due_date: string | null;
   feature_id: string | null;
@@ -632,16 +632,21 @@ export interface SprintGauge {
   percentage: number; // done / total (Done 포함) — 역설 해소 게이지
 }
 
+export interface SprintColumn {
+  id: string;
+  name: string;
+  kind: SprintColumnKind; // START(Sprint)·END(Done) 고정 앵커, MIDDLE 자유
+  position: number;
+  color: string | null;
+  items: SprintItemCard[];
+}
+
 export interface SprintBoard {
   sprint_enabled: boolean;
   active_sprint: SprintInfo | null;
   sprints: SprintInfo[];
   gauge: SprintGauge;
-  columns: {
-    sprint: SprintItemCard[];
-    review: SprintItemCard[];
-    done: SprintItemCard[];
-  };
+  columns: SprintColumn[]; // 동적 컬럼 (position 순, 앞뒤 고정 + 중간 자유)
   backlog: SprintItemCard[];
 }
 

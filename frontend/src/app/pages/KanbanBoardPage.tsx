@@ -103,7 +103,7 @@ import { GanttView } from "../views/GanttView";
 import { KanbanView } from "../views/KanbanView";
 import { ScheduleView } from "../views/ScheduleView";
 import { FeatureCard } from "../components/FeatureCard";
-import { SprintFrame } from "../components/SprintFrame";
+import { SprintBoard } from "../components/SprintBoard";
 import { FeatureChipSelector } from "../components/FeatureChipSelector";
 import { TrialBanner } from "../components/TrialBanner";
 import { FilterOptions } from "../components/FilterModal";
@@ -3260,7 +3260,7 @@ export function KanbanBoardPage() {
             </div>
             <div className="flex-1 overflow-hidden">
               {milestoneMode === "sprint" ? (
-                <SprintFrame
+                <SprintBoard
                   boardId={boardId || ""}
                   milestones={milestones}
                   canEdit={canEdit}

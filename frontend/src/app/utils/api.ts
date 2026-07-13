@@ -3639,11 +3639,55 @@ export const sprintAPI = {
     );
   },
 
-  /** 카드 단계 이동 (sprint / review / done) */
-  moveStage: async (boardId: string, itemId: string, stage: string) => {
+  /** 카드 컬럼 이동 (드래그) — END 컬럼 도달 시 완료 동기화 */
+  moveToColumn: async (boardId: string, itemId: string, columnId: string) => {
     return apiClient.patch<SprintBoard>(
-      `/boards/${boardId}/checklist-items/${itemId}/sprint-stage`,
-      { stage },
+      `/boards/${boardId}/checklist-items/${itemId}/sprint-column`,
+      { column_id: columnId },
+    );
+  },
+
+  /** 중간 컬럼 추가 (관리자) */
+  createColumn: async (
+    boardId: string,
+    milestoneId: string,
+    name: string,
+    color?: string | null,
+  ) => {
+    return apiClient.post<SprintBoard>(
+      `/boards/${boardId}/milestones/${milestoneId}/sprint-columns`,
+      { name, color: color ?? null },
+    );
+  },
+
+  /** 컬럼 이름/색 변경 (관리자) */
+  updateColumn: async (
+    boardId: string,
+    columnId: string,
+    patch: { name?: string; color?: string | null },
+  ) => {
+    return apiClient.patch<SprintBoard>(
+      `/boards/${boardId}/sprint-columns/${columnId}`,
+      patch,
+    );
+  },
+
+  /** 중간 컬럼 삭제 (관리자) — 담긴 카드는 앞 컬럼으로 이동 */
+  deleteColumn: async (boardId: string, columnId: string) => {
+    return apiClient.delete<SprintBoard>(
+      `/boards/${boardId}/sprint-columns/${columnId}`,
+    );
+  },
+
+  /** 중간 컬럼 순서 재정렬 (관리자) */
+  reorderColumns: async (
+    boardId: string,
+    milestoneId: string,
+    columnIds: string[],
+  ) => {
+    return apiClient.patch<SprintBoard>(
+      `/boards/${boardId}/milestones/${milestoneId}/sprint-columns/order`,
+      { column_ids: columnIds },
     );
   },
 

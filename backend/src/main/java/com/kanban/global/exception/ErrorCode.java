@@ -156,6 +156,9 @@ public enum ErrorCode {
     SPRINT_REACTIVATION_BLOCKED(HttpStatus.CONFLICT, "SP007", "먼저 재활성화된 스프린트를 종료해 주세요"),
     SPRINT_ALREADY_ACTIVE(HttpStatus.BAD_REQUEST, "SP008", "이미 진행 중인 스프린트입니다"),
     SPRINT_NOT_IN_REACTIVATION(HttpStatus.BAD_REQUEST, "SP009", "재활성화 중인 스프린트가 아닙니다"),
+    SPRINT_COLUMN_NOT_FOUND(HttpStatus.NOT_FOUND, "SP010", "스프린트 컬럼을 찾을 수 없습니다"),
+    SPRINT_COLUMN_ANCHOR_IMMUTABLE(HttpStatus.BAD_REQUEST, "SP011", "Sprint · Done 컬럼은 수정하거나 삭제할 수 없습니다"),
+    SPRINT_COLUMN_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "SP012", "컬럼 이름을 입력해 주세요"),
 
     // Calendar Event (워크로드 특별 일정)
     CALENDAR_EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CE001", "특별 일정을 찾을 수 없습니다"),

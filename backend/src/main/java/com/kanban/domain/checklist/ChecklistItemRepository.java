@@ -123,14 +123,15 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
 
     // ==================== Sprint Queries ====================
 
-    /** 스프린트에 담긴 카드 (프레임 컬럼용) — task/feature/assignee/completedBy fetch */
+    /** 스프린트에 담긴 카드 (프레임 컬럼용) — task/feature/assignee/completedBy/sprintColumn fetch */
     @Query("SELECT c FROM ChecklistItem c " +
            "JOIN FETCH c.task t " +
            "JOIN FETCH t.feature " +
            "LEFT JOIN FETCH c.assignee " +
            "LEFT JOIN FETCH c.completedBy " +
+           "LEFT JOIN FETCH c.sprintColumn sc " +
            "WHERE c.sprint.id = :sprintId " +
-           "ORDER BY c.sprintStage, c.position")
+           "ORDER BY sc.position, c.position")
     List<ChecklistItem> findBySprintId(@Param("sprintId") String sprintId);
 
     /** 마일스톤 백로그 (아직 어떤 스프린트에도 안 담긴 항목) — 담기 후보 */
@@ -146,14 +147,18 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.sprint.id = :sprintId")
     int countBySprintId(@Param("sprintId") String sprintId);
 
-    /** 스코프 게이지 분자: 스프린트 내 특정 stage 카드 수 */
-    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.sprint.id = :sprintId AND c.sprintStage = :stage")
-    int countBySprintIdAndStage(@Param("sprintId") String sprintId,
-                                @Param("stage") com.kanban.domain.sprint.SprintStage stage);
+    /** 스코프 게이지 분자: 스프린트 내 특정 컬럼 종류(END=Done)의 카드 수 */
+    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.sprint.id = :sprintId AND c.sprintColumn.kind = :kind")
+    int countBySprintIdAndColumnKind(@Param("sprintId") String sprintId,
+                                     @Param("kind") com.kanban.domain.sprint.SprintColumnKind kind);
 
     /** 스프린트 모드 off 병합용: 마일스톤 내 담긴 카드 전체 조회 */
     @Query("SELECT c FROM ChecklistItem c WHERE c.sprint.milestone.id = :milestoneId AND c.sprint IS NOT NULL")
     List<ChecklistItem> findInSprintByMilestoneId(@Param("milestoneId") String milestoneId);
+
+    /** 특정 컬럼에 담긴 카드 (컬럼 삭제 시 재배치용) */
+    @Query("SELECT c FROM ChecklistItem c WHERE c.sprintColumn.id = :columnId")
+    List<ChecklistItem> findBySprintColumnId(@Param("columnId") String columnId);
 
     @Modifying
     @Query("UPDATE ChecklistItem ci SET ci.assignee = null WHERE ci.assignee.id = :userId")
