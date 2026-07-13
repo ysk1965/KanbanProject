@@ -27,6 +27,8 @@ interface SprintBoardProps {
   milestones: { id: string; title: string }[];
   canEdit: boolean;
   isAdminOrOwner: boolean;
+  /** 지정 시 이 마일스톤으로 고정(칸반 탭 연동). 미지정이면 자체 드롭다운으로 선택 */
+  milestoneId?: string;
 }
 
 /** Feature ▸ Task ▸ 체크리스트 소스 트리 노드 */
@@ -52,10 +54,13 @@ export function SprintBoard({
   milestones,
   canEdit,
   isAdminOrOwner,
+  milestoneId: controlledMilestoneId,
 }: SprintBoardProps) {
-  const [milestoneId, setMilestoneId] = useState<string>(
-    milestones[0]?.id ?? "",
+  const controlled = !!controlledMilestoneId;
+  const [internalMid, setInternalMid] = useState<string>(
+    controlledMilestoneId ?? milestones[0]?.id ?? "",
   );
+  const milestoneId = controlledMilestoneId ?? internalMid;
   const [board, setBoard] = useState<SprintBoardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,8 +100,10 @@ export function SprintBoard({
   }, [load]);
 
   useEffect(() => {
-    if (!milestoneId && milestones[0]?.id) setMilestoneId(milestones[0].id);
-  }, [milestones, milestoneId]);
+    if (!controlled && !internalMid && milestones[0]?.id) {
+      setInternalMid(milestones[0].id);
+    }
+  }, [controlled, milestones, internalMid]);
 
   // 뮤테이션 헬퍼 — 반환된 최신 보드로 즉시 교체
   const run = useCallback(async (fn: () => Promise<SprintBoardData>) => {
@@ -280,21 +287,23 @@ export function SprintBoard({
       {/* 상단 컨트롤 바 */}
       <div className="shrink-0 px-4 md:px-6 py-3 border-b border-foreground/[0.08] bg-bridge-obsidian">
         <div className="flex items-center gap-3 flex-wrap">
-          {/* 마일스톤 드롭다운 */}
-          <div className="relative">
-            <select
-              value={milestoneId}
-              onChange={(e) => setMilestoneId(e.target.value)}
-              className="appearance-none bg-foreground/[0.04] border border-foreground/10 rounded-lg py-1.5 pl-3 pr-8 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 cursor-pointer"
-            >
-              {milestones.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.title}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
+          {/* 마일스톤 드롭다운 (칸반 탭 연동 시 숨김) */}
+          {!controlled && (
+            <div className="relative">
+              <select
+                value={internalMid}
+                onChange={(e) => setInternalMid(e.target.value)}
+                className="appearance-none bg-foreground/[0.04] border border-foreground/10 rounded-lg py-1.5 pl-3 pr-8 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 cursor-pointer"
+              >
+                {milestones.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.title}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          )}
 
           {/* 스프린트 타임라인 칩 */}
           <div className="flex items-center gap-1.5 flex-wrap">

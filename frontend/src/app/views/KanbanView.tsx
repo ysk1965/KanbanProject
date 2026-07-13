@@ -29,6 +29,7 @@ import {
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { Feature, Task, Tag, Block, ChecklistItem } from "../types";
 import { KanbanBlock } from "../components/KanbanBlock";
+import { SprintBoard } from "../components/SprintBoard";
 import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
 import { FeatureChipSelector } from "../components/FeatureChipSelector";
 import { EmptyBoardGuide } from "../components/EmptyBoardGuide";
@@ -140,6 +141,25 @@ export const KanbanView = memo(function KanbanView({
   onJoinRequestSent,
 }: KanbanViewProps) {
   const { t } = useTranslation();
+
+  // 보드 모드: 블록 보드 ↔ 스프린트 (칸반 탭 내 토글, 보드별 유지)
+  const [boardMode, setBoardModeState] = useState<"blocks" | "sprint">(() => {
+    if (typeof window === "undefined") return "blocks";
+    return (
+      (localStorage.getItem(`kanbanBoardMode:${boardId}`) as
+        | "blocks"
+        | "sprint"
+        | null) ?? "blocks"
+    );
+  });
+  const setBoardMode = (mode: "blocks" | "sprint") => {
+    setBoardModeState(mode);
+    try {
+      localStorage.setItem(`kanbanBoardMode:${boardId}`, mode);
+    } catch {
+      /* noop */
+    }
+  };
 
   // @dnd-kit 블록 드래그 상태
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
@@ -323,7 +343,46 @@ export const KanbanView = memo(function KanbanView({
             cascadeFeatureId={cascadeFeatureId}
           />
 
-          {/* 칸반 보드 */}
+          {/* 블록 보드 ↔ 스프린트 모드 토글 */}
+          <div className="shrink-0 flex items-center gap-1 px-4 md:px-6 pt-1 pb-2">
+            <button
+              onClick={() => setBoardMode("blocks")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                boardMode === "blocks"
+                  ? "bg-bridge-accent/15 text-bridge-accent"
+                  : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+              }`}
+            >
+              블록 보드
+            </button>
+            <button
+              onClick={() => setBoardMode("sprint")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                boardMode === "sprint"
+                  ? "bg-bridge-accent/15 text-bridge-accent"
+                  : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+              }`}
+            >
+              스프린트
+            </button>
+          </div>
+
+          {boardMode === "sprint" ? (
+            <div className="flex-1 min-h-0">
+              <SprintBoard
+                boardId={boardId}
+                milestones={milestones}
+                canEdit={canEdit}
+                isAdminOrOwner={isAdminOrOwner}
+                milestoneId={
+                  selectedMilestoneId !== "all" && selectedMilestoneId !== "none"
+                    ? selectedMilestoneId
+                    : undefined
+                }
+              />
+            </div>
+          ) : (
+          /* 칸반 보드 */
           <div className="flex-1 p-3 md:p-6 overflow-x-auto overflow-y-hidden min-h-0 custom-scrollbar">
             <DndContext
               sensors={blockSensors}
@@ -453,6 +512,7 @@ export const KanbanView = memo(function KanbanView({
               </DragOverlay>
             </DndContext>
           </div>
+          )}
         </>
       )}
     </main>
