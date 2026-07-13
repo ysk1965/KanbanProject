@@ -121,6 +121,40 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     @Query("SELECT DISTINCT c.assignee.id FROM ChecklistItem c WHERE c.task.id = :taskId AND c.assignee IS NOT NULL")
     List<String> findDistinctAssigneeIdsByTaskId(@Param("taskId") String taskId);
 
+    // ==================== Sprint Queries ====================
+
+    /** 스프린트에 담긴 카드 (프레임 컬럼용) — task/feature/assignee/completedBy fetch */
+    @Query("SELECT c FROM ChecklistItem c " +
+           "JOIN FETCH c.task t " +
+           "JOIN FETCH t.feature " +
+           "LEFT JOIN FETCH c.assignee " +
+           "LEFT JOIN FETCH c.completedBy " +
+           "WHERE c.sprint.id = :sprintId " +
+           "ORDER BY c.sprintStage, c.position")
+    List<ChecklistItem> findBySprintId(@Param("sprintId") String sprintId);
+
+    /** 마일스톤 백로그 (아직 어떤 스프린트에도 안 담긴 항목) — 담기 후보 */
+    @Query("SELECT c FROM ChecklistItem c " +
+           "JOIN FETCH c.task t " +
+           "JOIN FETCH t.feature " +
+           "LEFT JOIN FETCH c.assignee " +
+           "WHERE t.milestone.id = :milestoneId AND c.sprint IS NULL " +
+           "ORDER BY t.id, c.position")
+    List<ChecklistItem> findBacklogByMilestoneId(@Param("milestoneId") String milestoneId);
+
+    /** 스코프 게이지 분모: 스프린트에 담긴 전체 카드 수 */
+    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.sprint.id = :sprintId")
+    int countBySprintId(@Param("sprintId") String sprintId);
+
+    /** 스코프 게이지 분자: 스프린트 내 특정 stage 카드 수 */
+    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.sprint.id = :sprintId AND c.sprintStage = :stage")
+    int countBySprintIdAndStage(@Param("sprintId") String sprintId,
+                                @Param("stage") com.kanban.domain.sprint.SprintStage stage);
+
+    /** 스프린트 모드 off 병합용: 마일스톤 내 담긴 카드 전체 조회 */
+    @Query("SELECT c FROM ChecklistItem c WHERE c.sprint.milestone.id = :milestoneId AND c.sprint IS NOT NULL")
+    List<ChecklistItem> findInSprintByMilestoneId(@Param("milestoneId") String milestoneId);
+
     @Modifying
     @Query("UPDATE ChecklistItem ci SET ci.assignee = null WHERE ci.assignee.id = :userId")
     void nullifyAssigneeByUserId(@Param("userId") String userId);

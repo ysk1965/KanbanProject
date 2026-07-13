@@ -45,6 +45,11 @@ public class Milestone extends BaseTimeEntity {
     @Builder.Default
     private Double defaultHoursPerDay = 6.0;
 
+    /** A안: 스프린트 레이어 노출 토글. false면 마일스톤 단일 진행률로만 관리. */
+    @Column(name = "sprint_enabled", nullable = false)
+    @Builder.Default
+    private Boolean sprintEnabled = false;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -53,6 +58,13 @@ public class Milestone extends BaseTimeEntity {
         if (this.defaultHoursPerDay == null) {
             this.defaultHoursPerDay = 6.0;
         }
+        if (this.sprintEnabled == null) {
+            this.sprintEnabled = false;
+        }
+    }
+
+    public void updateSprintEnabled(boolean enabled) {
+        this.sprintEnabled = enabled;
     }
 
     public void updateInfo(String title, String description, LocalDate startDate, LocalDate endDate) {

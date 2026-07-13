@@ -103,6 +103,7 @@ import { GanttView } from "../views/GanttView";
 import { KanbanView } from "../views/KanbanView";
 import { ScheduleView } from "../views/ScheduleView";
 import { FeatureCard } from "../components/FeatureCard";
+import { SprintFrame } from "../components/SprintFrame";
 import { FeatureChipSelector } from "../components/FeatureChipSelector";
 import { TrialBanner } from "../components/TrialBanner";
 import { FilterOptions } from "../components/FilterModal";
@@ -286,6 +287,9 @@ export function KanbanBoardPage() {
       }
     }
   }, [boardId]);
+
+  // 마일스톤 뷰 내부: 일반 마일스톤 뷰 ↔ 스프린트 프레임 전환
+  const [milestoneMode, setMilestoneMode] = useState<"view" | "sprint">("view");
 
   // 뷰 모드 상태 (URL 파라미터 우선, 없으면 localStorage)
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -3228,42 +3232,76 @@ export function KanbanBoardPage() {
             </Suspense>
           </main>
         ) : viewMode === "milestone" ? (
-          <main className="flex-1 overflow-hidden">
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center h-64">
-                  <div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" />
-                </div>
-              }
-            >
-              <MilestoneView
-                boardId={boardId || ""}
-                features={features}
-                tasks={tasks}
-                milestones={milestones}
-                onFeatureClick={handleFeatureClick}
-                onCreateMilestone={() => handleOpenMilestoneWithCheck()}
-                onEditMilestone={(milestone) =>
-                  handleOpenMilestoneWithCheck(milestone)
-                }
-                onDeleteMilestone={handleDeleteMilestone}
-                onUpdateMilestoneDates={
-                  canEdit ? handleUpdateMilestoneDates : undefined
-                }
-                onMoveTasksMilestone={
-                  canEdit ? handleMoveTasksMilestone : undefined
-                }
-                onRefresh={() => {
-                  if (boardId) {
-                    const milestoneId =
-                      kanbanSelectedMilestoneId !== "all"
-                        ? kanbanSelectedMilestoneId
-                        : undefined;
-                    reloadFeaturesAndTasks(milestoneId);
+          <main className="flex-1 overflow-hidden flex flex-col">
+            {/* 마일스톤 뷰 ↔ 스프린트 프레임 전환 */}
+            <div className="shrink-0 flex items-center gap-1 px-4 md:px-6 pt-3">
+              <button
+                onClick={() => setMilestoneMode("view")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  milestoneMode === "view"
+                    ? "bg-bridge-accent/15 text-bridge-accent"
+                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                }`}
+              >
+                마일스톤
+              </button>
+              <button
+                onClick={() => setMilestoneMode("sprint")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  milestoneMode === "sprint"
+                    ? "bg-bridge-accent/15 text-bridge-accent"
+                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                }`}
+              >
+                스프린트
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              {milestoneMode === "sprint" ? (
+                <SprintFrame
+                  boardId={boardId || ""}
+                  milestones={milestones}
+                  canEdit={canEdit}
+                  isAdminOrOwner={isAdminOrOwner}
+                />
+              ) : (
+                <Suspense
+                  fallback={
+                    <div className="flex items-center justify-center h-64">
+                      <div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" />
+                    </div>
                   }
-                }}
-              />
-            </Suspense>
+                >
+                  <MilestoneView
+                    boardId={boardId || ""}
+                    features={features}
+                    tasks={tasks}
+                    milestones={milestones}
+                    onFeatureClick={handleFeatureClick}
+                    onCreateMilestone={() => handleOpenMilestoneWithCheck()}
+                    onEditMilestone={(milestone) =>
+                      handleOpenMilestoneWithCheck(milestone)
+                    }
+                    onDeleteMilestone={handleDeleteMilestone}
+                    onUpdateMilestoneDates={
+                      canEdit ? handleUpdateMilestoneDates : undefined
+                    }
+                    onMoveTasksMilestone={
+                      canEdit ? handleMoveTasksMilestone : undefined
+                    }
+                    onRefresh={() => {
+                      if (boardId) {
+                        const milestoneId =
+                          kanbanSelectedMilestoneId !== "all"
+                            ? kanbanSelectedMilestoneId
+                            : undefined;
+                        reloadFeaturesAndTasks(milestoneId);
+                      }
+                    }}
+                  />
+                </Suspense>
+              )}
+            </div>
           </main>
         ) : viewMode === "list" ? (
           <main className="flex-1 flex flex-col overflow-hidden">
