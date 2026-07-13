@@ -3068,6 +3068,8 @@ export function KanbanBoardPage() {
             cascadeFeatureId={cascadeFeatureId}
             selectedFeatureIds={selectedFeatureIds}
             selectedMilestoneId={kanbanSelectedMilestoneId}
+            milestones={milestones}
+            isAdminOrOwner={isAdminOrOwner}
             filterOptions={filterOptions}
             canEdit={canEdit}
             isOrgMemberViewer={isOrgMemberViewer}
