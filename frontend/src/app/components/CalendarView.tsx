@@ -87,7 +87,7 @@ interface WeekFeatureSpan {
 const MAX_VISIBLE_GROUPS = 2;
 const MAX_TASKS_PER_FEATURE = 2;
 const MAX_VISIBLE_ORPHANS = 2;
-const LANE_HEIGHT = 22;
+const LANE_HEIGHT = 28;
 
 // ── component ──
 

@@ -2,7 +2,7 @@ package com.kanban.domain.checklist;
 
 import com.kanban.domain.contractor.entity.BoardContractor;
 import com.kanban.domain.sprint.Sprint;
-import com.kanban.domain.sprint.SprintStage;
+import com.kanban.domain.sprint.SprintColumn;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
@@ -51,14 +51,14 @@ public class ChecklistItem {
     @JoinColumn(name = "contractor_id")
     private BoardContractor contractor;
 
-    // ==================== Sprint (담긴 스프린트 + 프레임 내 위치) ====================
+    // ==================== Sprint (담긴 스프린트 + 컬럼 위치) ====================
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sprint_id")
     private Sprint sprint;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "sprint_stage", length = 20)
-    private SprintStage sprintStage;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sprint_column_id")
+    private SprintColumn sprintColumn;
 
     /** B안: 완료 체크한 유저 (담당자가 아니어도 됨). 완료자 ≠ 담당자면 "대신 완료". */
     @ManyToOne(fetch = FetchType.LAZY)
@@ -169,10 +169,7 @@ public class ChecklistItem {
             this.completedAt = LocalDateTime.now(ZoneOffset.UTC);
             this.doneDate = LocalDate.now();
         }
-        // 스프린트에 담긴 항목이면 프레임 위치도 Done으로 동기화 (양방향)
-        if (this.sprint != null) {
-            this.sprintStage = SprintStage.DONE;
-        }
+        // 컬럼 동기화(END 컬럼으로 이동)는 서비스가 담당 — 엔티티는 형제 컬럼을 모른다.
     }
 
     public void uncomplete() {
@@ -182,10 +179,7 @@ public class ChecklistItem {
             this.doneDate = null;
         }
         this.completedBy = null;
-        // Done 상태였던 스프린트 카드는 In Review로 되돌린다
-        if (this.sprint != null && this.sprintStage == SprintStage.DONE) {
-            this.sprintStage = SprintStage.REVIEW;
-        }
+        // END 컬럼에서 벗어나는 이동은 서비스가 담당.
     }
 
     /** B안: 완료 체크한 유저 기록 (완료 상태일 때만 유효) */
@@ -195,26 +189,21 @@ public class ChecklistItem {
 
     // ==================== Sprint helpers ====================
 
-    /** 백로그 항목을 스프린트에 담는다 (Sprint 컬럼으로). 완료 상태면 바로 Done. */
-    public void assignToSprint(Sprint sprint) {
+    /** 백로그 항목을 스프린트에 담는다 (지정 컬럼으로). */
+    public void assignToSprint(Sprint sprint, SprintColumn column) {
         this.sprint = sprint;
-        this.sprintStage = Boolean.TRUE.equals(this.isCompleted) ? SprintStage.DONE : SprintStage.SPRINT;
+        this.sprintColumn = column;
     }
 
-    /** 프레임 내 카드 이동 (sprint ↔ review ↔ done). Done 이동 시 완료 동기화. */
-    public void moveSprintStage(SprintStage stage) {
-        this.sprintStage = stage;
-        if (stage == SprintStage.DONE) {
-            complete();
-        } else if (Boolean.TRUE.equals(this.isCompleted)) {
-            uncomplete();
-        }
+    /** 프레임 내 카드 이동 (컬럼 변경). 완료 동기화는 서비스가 END 컬럼 여부로 판단해 처리. */
+    public void moveToSprintColumn(SprintColumn column) {
+        this.sprintColumn = column;
     }
 
     /** 스프린트에서 빼서 Task 백로그로 되돌린다 (완료 여부는 유지). */
     public void removeFromSprint() {
         this.sprint = null;
-        this.sprintStage = null;
+        this.sprintColumn = null;
     }
 
     public boolean isInSprint() {

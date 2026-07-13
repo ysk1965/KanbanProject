@@ -65,16 +65,64 @@ public class SprintController {
                 sprintService.removeItem(boardId, sprintId, itemId, userPrincipal.getUserId()));
     }
 
-    /** 카드 단계 이동 (sprint ↔ review ↔ done) */
-    @PatchMapping("/checklist-items/{itemId}/sprint-stage")
-    public ResponseEntity<SprintResponse.Board> moveStage(
+    /** 카드 컬럼 이동 (드래그) — END 컬럼 도달 시 완료 동기화 */
+    @PatchMapping("/checklist-items/{itemId}/sprint-column")
+    public ResponseEntity<SprintResponse.Board> moveToColumn(
             @PathVariable String boardId,
             @PathVariable String itemId,
-            @Valid @RequestBody SprintRequest.MoveStage request,
+            @Valid @RequestBody SprintRequest.MoveColumn request,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         return ResponseEntity.ok(
-                sprintService.moveStage(boardId, itemId, request.getStage(), userPrincipal.getUserId()));
+                sprintService.moveToColumn(boardId, itemId, request.getColumnId(), userPrincipal.getUserId()));
+    }
+
+    // ==================== 컬럼 CRUD (관리자) ====================
+
+    /** 중간 컬럼 추가 */
+    @PostMapping("/milestones/{milestoneId}/sprint-columns")
+    public ResponseEntity<SprintResponse.Board> createColumn(
+            @PathVariable String boardId,
+            @PathVariable String milestoneId,
+            @Valid @RequestBody SprintRequest.CreateColumn request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(sprintService.createColumn(
+                boardId, milestoneId, request.getName(), request.getColor(), userPrincipal.getUserId()));
+    }
+
+    /** 컬럼 이름/색 변경 */
+    @PatchMapping("/sprint-columns/{columnId}")
+    public ResponseEntity<SprintResponse.Board> updateColumn(
+            @PathVariable String boardId,
+            @PathVariable String columnId,
+            @Valid @RequestBody SprintRequest.UpdateColumn request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(sprintService.updateColumn(
+                boardId, columnId, request.getName(), request.getColor(), userPrincipal.getUserId()));
+    }
+
+    /** 중간 컬럼 삭제 (담긴 카드는 앞 컬럼으로 이동) */
+    @DeleteMapping("/sprint-columns/{columnId}")
+    public ResponseEntity<SprintResponse.Board> deleteColumn(
+            @PathVariable String boardId,
+            @PathVariable String columnId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(sprintService.deleteColumn(boardId, columnId, userPrincipal.getUserId()));
+    }
+
+    /** 중간 컬럼 순서 재정렬 */
+    @PatchMapping("/milestones/{milestoneId}/sprint-columns/order")
+    public ResponseEntity<SprintResponse.Board> reorderColumns(
+            @PathVariable String boardId,
+            @PathVariable String milestoneId,
+            @Valid @RequestBody SprintRequest.ReorderColumns request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(sprintService.reorderColumns(
+                boardId, milestoneId, request.getColumnIds(), userPrincipal.getUserId()));
     }
 
     /** 스프린트 종료 (100% 완료 시 동결 + 다음 스프린트 생성/복귀) — 관리자 */

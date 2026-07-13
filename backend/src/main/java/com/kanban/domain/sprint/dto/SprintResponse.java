@@ -3,7 +3,7 @@ package com.kanban.domain.sprint.dto;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.sprint.Sprint;
-import com.kanban.domain.sprint.SprintStage;
+import com.kanban.domain.sprint.SprintColumn;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.user.User;
 import lombok.AllArgsConstructor;
@@ -28,17 +28,32 @@ public class SprintResponse {
         private SprintInfo activeSprint;      // 활성 스프린트 없으면 null
         private List<SprintInfo> sprints;     // 타임라인 (활성 + 아카이브)
         private Gauge gauge;                   // 스코프 게이지 (활성 기준)
-        private Columns columns;               // Sprint / Review / Done 3컬럼
+        private List<Column> columns;          // 동적 컬럼 (START..MIDDLE..END), 각 컬럼에 담긴 카드 포함
         private List<ItemCard> backlog;        // 담기 후보 (아직 미담긴 마일스톤 항목)
     }
 
+    /** 스프린트 보드 컬럼 (마일스톤 단위). kind: START | MIDDLE | END */
     @Getter
     @AllArgsConstructor
     @Builder
-    public static class Columns {
-        private List<ItemCard> sprint;
-        private List<ItemCard> review;
-        private List<ItemCard> done;
+    public static class Column {
+        private String id;
+        private String name;
+        private String kind;
+        private int position;
+        private String color;
+        private List<ItemCard> items;
+
+        public static Column of(SprintColumn c, List<ItemCard> items) {
+            return Column.builder()
+                    .id(c.getId())
+                    .name(c.getName())
+                    .kind(c.getKind().name())
+                    .position(c.getPosition())
+                    .color(c.getColor())
+                    .items(items)
+                    .build();
+        }
     }
 
     /** 스코프 게이지 = done / total (Done 포함). 역설 해소의 핵심. */
@@ -95,7 +110,7 @@ public class SprintResponse {
         private String id;
         private String title;
         private boolean completed;
-        private String sprintStage;   // null이면 백로그
+        private String sprintColumnId;   // null이면 백로그
         private Integer position;
         private LocalDate dueDate;
         private String featureId;
@@ -109,12 +124,12 @@ public class SprintResponse {
         public static ItemCard of(ChecklistItem c) {
             Task task = c.getTask();
             Feature feature = task != null ? task.getFeature() : null;
-            SprintStage st = c.getSprintStage();
+            SprintColumn col = c.getSprintColumn();
             return ItemCard.builder()
                     .id(c.getId())
                     .title(c.getTitle())
                     .completed(Boolean.TRUE.equals(c.getIsCompleted()))
-                    .sprintStage(st != null ? st.name() : null)
+                    .sprintColumnId(col != null ? col.getId() : null)
                     .position(c.getPosition())
                     .dueDate(c.getDueDate())
                     .featureId(feature != null ? feature.getId() : null)
