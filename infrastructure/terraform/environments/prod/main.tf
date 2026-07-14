@@ -254,6 +254,11 @@ module "elastic_beanstalk" {
   discord_bot_token     = local.secret.discord_bot_token
   discord_redirect_uri  = var.discord_redirect_uri
 
+  # JIRA OAuth Integration
+  jira_oauth_client_id     = var.jira_oauth_client_id
+  jira_oauth_client_secret = var.jira_oauth_client_secret
+  jira_oauth_redirect_uri  = var.jira_oauth_redirect_uri
+
   # Slack App Integration
   slack_client_id            = var.slack_client_id
   slack_client_secret        = local.secret.slack_client_secret

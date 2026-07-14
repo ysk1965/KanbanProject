@@ -296,6 +296,27 @@ variable "discord_redirect_uri" {
   default     = ""
 }
 
+# JIRA OAuth Integration
+variable "jira_oauth_client_id" {
+  description = "JIRA OAuth2 client ID"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "jira_oauth_client_secret" {
+  description = "JIRA OAuth2 client secret"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "jira_oauth_redirect_uri" {
+  description = "JIRA OAuth2 redirect URI"
+  type        = string
+  default     = ""
+}
+
 # Slack App Integration
 variable "slack_client_id" {
   description = "Slack App Client ID"

@@ -10,9 +10,8 @@ import { useEffect } from "react";
  *   1. 이미 가로 delta가 우세하면(트랙패드 2-finger 가로 제스처) → 네이티브 그대로.
  *   2. 이벤트 지점에서 가장 가까운 "가로 스크롤 가능" 조상을 탐색.
  *   3. 세로 delta가 우세할 때:
- *      - Cmd(metaKey)/Shift 를 누르고 있으면 → 무조건 가로로 변환.
- *      - 순수 가로 영역(세로 스크롤 불가)이면 → 자동으로 가로로 변환.
- *      - 세로 스크롤도 가능한 영역이면 → 수식키 없이는 건드리지 않음(네이티브 세로).
+ *      - Cmd(metaKey)/Shift 를 누르고 있으면 → 가로로 변환.
+ *      - 수식키가 없으면 → 세로 스크롤 가능 여부와 무관하게 건드리지 않음(네이티브).
  *   4. 스크롤이 양 끝단에 닿으면 preventDefault 하지 않아 부모/페이지로 자연스럽게 넘긴다.
  *
  * 앱 루트(App)에서 1회 호출한다.
@@ -25,27 +24,19 @@ export function useHorizontalWheelScroll() {
       return overflowX === "auto" || overflowX === "scroll";
     };
 
-    const canScrollVertically = (el: HTMLElement): boolean => {
-      if (el.scrollHeight - el.clientHeight <= 1) return false;
-      const overflowY = getComputedStyle(el).overflowY;
-      return overflowY === "auto" || overflowY === "scroll";
-    };
-
     const onWheel = (e: WheelEvent) => {
       if (e.defaultPrevented) return;
       // 이미 가로 제스처면 네이티브에 맡긴다.
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       if (e.deltaY === 0) return;
 
-      const forceHorizontal = e.metaKey || e.shiftKey;
+      // 수식키(Cmd/Shift) 없이는 가로로 변환하지 않는다.
+      if (!(e.metaKey || e.shiftKey)) return;
 
       // 가장 가까운 가로 스크롤 가능 조상 탐색.
       let el = e.target as HTMLElement | null;
       while (el && el !== document.body && el !== document.documentElement) {
         if (el.nodeType === 1 && canScrollHorizontally(el)) {
-          // 세로 스크롤도 가능한 영역은 수식키 없으면 건드리지 않음.
-          if (!forceHorizontal && canScrollVertically(el)) return;
-
           const delta = e.deltaY;
           const atStart = el.scrollLeft <= 0;
           const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 1;

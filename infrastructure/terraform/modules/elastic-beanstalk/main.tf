@@ -590,6 +590,25 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.discord_redirect_uri
   }
 
+  # JIRA OAuth Integration
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "JIRA_OAUTH_CLIENT_ID"
+    value     = var.jira_oauth_client_id
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "JIRA_OAUTH_CLIENT_SECRET"
+    value     = var.jira_oauth_client_secret
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "JIRA_OAUTH_REDIRECT_URI"
+    value     = var.jira_oauth_redirect_uri
+  }
+
   # Slack App Integration
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"
