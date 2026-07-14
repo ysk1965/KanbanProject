@@ -1520,12 +1520,14 @@ export function SprintBoard({
                     feat.total > 0
                       ? Math.round((feat.taken / feat.total) * 100)
                       : 0;
+                  const featColor = feat.featureColor ?? "#6366F1";
                   return (
                     <div
                       key={feat.featureId}
                       className="rounded-xl border border-foreground/[0.08] hover:border-foreground/[0.12] bg-bridge-obsidian overflow-hidden transition-colors"
+                      style={{ borderLeftWidth: 3, borderLeftColor: featColor }}
                     >
-                      {/* Feature 카드: 헤더(토글 + 열기) · 본문 · 바닥 게이지 */}
+                      {/* Feature 카드: 좌측 컬러 레일 · 헤더(토글 + 열기) · 헤더 게이지 · 본문 */}
                       {/* 헤더: 좌측 토글 버튼 + 우측 피쳐 열기 버튼 (버튼 중첩 방지 위해 분리) */}
                       <div className="flex items-stretch">
                         <button
@@ -1538,12 +1540,6 @@ export function SprintBoard({
                             <ChevronDown className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                           )}
                           <span
-                            className="w-1 h-4 rounded-full shrink-0"
-                            style={{
-                              background: feat.featureColor ?? "#6366F1",
-                            }}
-                          />
-                          <span
                             className="text-xs font-bold text-foreground truncate flex-1"
                             title={feat.featureTitle}
                           >
@@ -1551,6 +1547,12 @@ export function SprintBoard({
                           </span>
                           <span className="text-xs text-slate-500 tabular-nums shrink-0">
                             {feat.taken}/{feat.total}
+                          </span>
+                          <span
+                            className="text-xs font-bold tabular-nums shrink-0"
+                            style={{ color: featColor }}
+                          >
+                            {pct}%
                           </span>
                         </button>
                         {onOpenFeature && (
@@ -1564,6 +1566,19 @@ export function SprintBoard({
                             <ExternalLink className="w-3.5 h-3.5" />
                           </button>
                         )}
+                      </div>
+
+                      {/* 헤더 게이지: 진척을 헤더 바로 아래 인라인으로 표시 */}
+                      <div className="px-2.5 pt-0.5 pb-2">
+                        <div
+                          className="h-1.5 rounded-full overflow-hidden bg-foreground/[0.06]"
+                          title={`담김 ${feat.taken}/${feat.total} · ${pct}%`}
+                        >
+                          <div
+                            className="h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none"
+                            style={{ width: `${pct}%`, background: featColor }}
+                          />
+                        </div>
                       </div>
 
                       {!collapsed && (
@@ -1743,20 +1758,6 @@ export function SprintBoard({
                           })}
                         </div>
                       )}
-
-                      {/* 게이지 = 카드 바닥선. 트랙은 피쳐 컬러로 은은하게(엣지바 B). */}
-                      <div
-                        className="h-1 overflow-hidden"
-                        style={{
-                          background: `${feat.featureColor ?? "#6366F1"}1f`,
-                        }}
-                        title={`담김 ${feat.taken}/${feat.total} · ${pct}%`}
-                      >
-                        <div
-                          className="h-full bg-gradient-to-r from-bridge-accent to-bridge-secondary transition-[width] duration-300 motion-reduce:transition-none"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
                     </div>
                   );
                 })}

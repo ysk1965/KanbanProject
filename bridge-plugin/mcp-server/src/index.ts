@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * BRIDGE MCP 서버 (MVP).
  *
@@ -138,7 +137,12 @@ server.tool(
   async ({ title, content, board_id, parent_id }) => {
     try {
       const scope = resolveBoardId(board_id);
-      const note = await client.saveDocument({ title, content, board_id: scope, parent_id });
+      const note = await client.saveDocument({
+        title,
+        content,
+        board_id: scope,
+        parent_id,
+      });
       return ok(summarize(note, scope));
     } catch (err) {
       return fail(err);
@@ -159,7 +163,11 @@ server.tool(
   async ({ id, board_id, title, content }) => {
     try {
       const scope = resolveBoardId(board_id);
-      const note = await client.updateDocument(id, { title, content, board_id: scope });
+      const note = await client.updateDocument(id, {
+        title,
+        content,
+        board_id: scope,
+      });
       return ok(summarize(note, scope));
     } catch (err) {
       return fail(err);
@@ -223,7 +231,9 @@ async function main() {
   await server.connect(transport);
   console.error(
     `[bridge-mcp] 연결됨 → ${baseUrl}` +
-      (defaultBoardId ? ` · 기본 저장 보드=${defaultBoardId}` : " · 기본 저장=마이스페이스"),
+      (defaultBoardId
+        ? ` · 기본 저장 보드=${defaultBoardId}`
+        : " · 기본 저장=마이스페이스"),
   );
 }
 

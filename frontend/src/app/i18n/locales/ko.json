@@ -4903,6 +4903,17 @@
     "copy": "복사",
     "copied": "복사됨",
     "targetBoard": "연결 대상",
-    "thisBoard": "이 보드"
+    "thisBoard": "이 보드",
+    "methodOneCommand": "원커맨드",
+    "methodOneCommandHint": "빠름",
+    "methodPlugin": "플러그인",
+    "methodPluginHint": "보안",
+    "oneCmdIntro": "명령 하나로 설치와 연결이 한 번에 끝나요. 토큰·보드 id가 이미 박혀 있어 프롬프트가 없습니다.",
+    "oneCmdHint": "터미널에 붙여넣고 Enter 한 번이면 끝.",
+    "oneCmdSecStrong": "토큰이 셸 히스토리에 남습니다.",
+    "oneCmdSec": "단기·폐기 가능 토큰을 권장해요. 다시 생성하면 새 토큰이 발급됩니다.",
+    "regen": "명령 다시 생성",
+    "genCommand": "연결 명령 생성",
+    "genHint": "새 액세스 토큰을 발급하고, 값이 박힌 설치 명령을 만들어요."
   }
 }

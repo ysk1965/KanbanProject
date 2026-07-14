@@ -4881,6 +4881,17 @@
     "copy": "Copy",
     "copied": "Copied",
     "targetBoard": "Target",
-    "thisBoard": "this board"
+    "thisBoard": "this board",
+    "methodOneCommand": "One command",
+    "methodOneCommandHint": "fast",
+    "methodPlugin": "Plugin",
+    "methodPluginHint": "secure",
+    "oneCmdIntro": "One command installs and connects in a single step — the token and board id are prefilled, so no prompts.",
+    "oneCmdHint": "Paste it into your terminal and press Enter.",
+    "oneCmdSecStrong": "The token ends up in your shell history.",
+    "oneCmdSec": "Prefer a short-lived, revocable token. Regenerating issues a new one.",
+    "regen": "Regenerate command",
+    "genCommand": "Generate connect command",
+    "genHint": "Issues a new access token and builds an install command with values filled in."
   }
 }

@@ -1,26 +1,26 @@
 {
-  "name": "bridge-mcp",
+  "name": "@bridgespots/mcp",
   "version": "0.1.0",
-  "description": "BRIDGE MCP 서버 — Claude 결과물을 BRIDGE 마이스페이스에 저장·공유하는 얇은 어댑터",
+  "description": "BRIDGE MCP server — save & share your AI assistant's output to a BRIDGE board or MySpace",
   "type": "module",
   "bin": {
-    "bridge-mcp": "dist/index.js"
+    "bridge-mcp": "dist/bridge-mcp.mjs"
   },
+  "main": "dist/bridge-mcp.mjs",
   "files": [
-    "dist"
+    "dist/bridge-mcp.mjs",
+    "README.md"
   ],
   "scripts": {
-    "build": "tsc",
-    "bundle": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/bridge-mcp.mjs",
-    "start": "node dist/index.js",
+    "bundle": "node build.mjs",
+    "build": "node build.mjs",
     "dev": "tsx src/index.ts",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.0",
-    "zod": "^3.23.8"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "node build.mjs"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8",
     "@types/node": "^22.10.0",
     "esbuild": "^0.24.0",
     "tsx": "^4.19.0",
@@ -28,5 +28,16 @@
   },
   "engines": {
     "node": ">=18"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "bridge",
+    "bridgespots",
+    "claude"
+  ],
+  "license": "UNLICENSED"
 }
