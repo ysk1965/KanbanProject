@@ -1,0 +1,6 @@
+node_modules/
+# dist 는 무시하되, 배포용 단일 번들만 커밋한다
+dist/*
+!dist/bridge-mcp.mjs
+.env
+*.log

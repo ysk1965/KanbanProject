@@ -1,0 +1,172 @@
+/**
+ * BRIDGE 백엔드 REST API 얇은 클라이언트.
+ *
+ * 설계 원칙: 여기에 비즈니스 로직을 넣지 않는다. BRIDGE 리소스(노트)와 거의 1:1로
+ * 대응하는 원자적 호출만 노출한다. 인증은 사용자 개인 액세스 토큰(PAT).
+ *
+ * 저장 스코프는 두 가지:
+ *   - board_id 없음 → 마이스페이스 개인 노트  (/api/v1/me/notes)
+ *   - board_id 있음 → 해당 보드 노트          (/api/v1/boards/{boardId}/notes)
+ * 보드 스코프는 백엔드가 MEMBER+ 멤버십과 보드 프리미엄을 강제한다(403으로 표면화).
+ *
+ * BRIDGE 는 Jackson SNAKE_CASE 전략을 쓰므로 요청/응답 JSON 필드는 모두 snake_case.
+ */
+
+export interface BridgeConfig {
+  /** 예: http://localhost:8080 */
+  baseUrl: string;
+  /** 개인 액세스 토큰 (bsp_...). POST /api/v1/pat 로 발급. */
+  token: string;
+  /** 공유 링크 조립용 프론트엔드 URL. 예: http://localhost:5173 */
+  frontendUrl?: string;
+}
+
+/** BRIDGE 노트 상세 (응답, snake_case). 필요한 필드만 선언. */
+export interface NoteDetail {
+  id: string;
+  type: string;
+  title: string;
+  content: string | null;
+  parent_id: string | null;
+  is_shared: boolean;
+  share_token: string | null;
+  share_code: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NoteListItem {
+  id: string;
+  title: string;
+  parent_id: string | null;
+  parent_title: string | null;
+  updated_at: string;
+}
+
+/** GET /api/v1/boards 항목 (BoardResponse.Simple). 저장 대상 선택용 요약. */
+export interface BoardSummary {
+  id: string;
+  name: string;
+  role: string; // OWNER / ADMIN / MEMBER / VIEWER
+  organization_id: string | null;
+  organization_name: string | null;
+}
+
+export class BridgeApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly body?: string,
+  ) {
+    super(message);
+    this.name = "BridgeApiError";
+  }
+}
+
+export class BridgeClient {
+  private readonly baseUrl: string;
+  private readonly token: string;
+  readonly frontendUrl?: string;
+
+  constructor(config: BridgeConfig) {
+    this.baseUrl = config.baseUrl.replace(/\/$/, "");
+    this.token = config.token;
+    this.frontendUrl = config.frontendUrl?.replace(/\/$/, "");
+  }
+
+  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      if (res.status === 401) {
+        throw new BridgeApiError(
+          "인증 실패 (401): PAT 가 유효하지 않거나 폐기/만료되었습니다.",
+          401,
+          text,
+        );
+      }
+      if (res.status === 403) {
+        // 보드 스코프의 두 게이트를 사람이 읽을 수 있게 안내
+        const hint = text.includes("PREMIUM")
+          ? "이 보드는 프리미엄이어야 노트를 저장할 수 있습니다."
+          : "이 보드에 대한 권한이 없습니다(멤버가 아니거나 VIEWER).";
+        throw new BridgeApiError(`거부됨 (403): ${hint}`, 403, text);
+      }
+      throw new BridgeApiError(`BRIDGE API ${method} ${path} 실패 (${res.status})`, res.status, text);
+    }
+
+    if (res.status === 204) return undefined as T;
+    return (await res.json()) as T;
+  }
+
+  /** 스코프에 맞는 노트 베이스 경로. boardId 없으면 마이스페이스. */
+  private notesBase(boardId?: string): string {
+    return boardId ? `/api/v1/boards/${boardId}/notes` : `/api/v1/me/notes`;
+  }
+
+  // ===== 원자적 툴 =====
+
+  /** list_boards — 사용자가 속한 보드 목록(저장 대상 선택용). */
+  listBoards(): Promise<BoardSummary[]> {
+    return this.request<BoardSummary[]>("GET", "/api/v1/boards");
+  }
+
+  /** save_document — 새 문서 저장. boardId 지정 시 해당 보드, 없으면 마이스페이스. */
+  saveDocument(input: {
+    title: string;
+    content: string;
+    type?: string;
+    parent_id?: string;
+    board_id?: string;
+  }): Promise<NoteDetail> {
+    return this.request<NoteDetail>("POST", this.notesBase(input.board_id), {
+      title: input.title,
+      type: input.type ?? "DOCUMENT",
+      content: input.content,
+      parent_id: input.parent_id ?? null,
+    });
+  }
+
+  /** update_document — 기존 문서 수정. 보드 문서면 board_id 를 같이 넘긴다. */
+  updateDocument(
+    id: string,
+    input: { title?: string; content?: string; board_id?: string },
+  ): Promise<NoteDetail> {
+    return this.request<NoteDetail>("PUT", `${this.notesBase(input.board_id)}/${id}`, {
+      title: input.title,
+      content: input.content,
+    });
+  }
+
+  /** get_document — 문서 조회. */
+  getDocument(id: string, boardId?: string): Promise<NoteDetail> {
+    return this.request<NoteDetail>("GET", `${this.notesBase(boardId)}/${id}`);
+  }
+
+  /** list_documents — 문서 목록(플랫). boardId 없으면 마이스페이스. */
+  listDocuments(boardId?: string): Promise<NoteListItem[]> {
+    return this.request<NoteListItem[]>("GET", `${this.notesBase(boardId)}/list`);
+  }
+
+  /** share_document — 공개 공유 활성화. share_code 반환. */
+  shareDocument(id: string, boardId?: string): Promise<NoteDetail> {
+    return this.request<NoteDetail>("POST", `${this.notesBase(boardId)}/${id}/share`);
+  }
+
+  /**
+   * 공유 코드로 사람이 여는 링크를 조립한다(프론트엔드 URL 이 설정된 경우).
+   * FE 라우트 `/n/:shareToken` 은 토큰과 짧은 코드를 모두 받는다.
+   */
+  buildShareUrl(shareCode: string | null): string | null {
+    if (!shareCode || !this.frontendUrl) return null;
+    return `${this.frontendUrl}/n/${shareCode}`;
+  }
+}

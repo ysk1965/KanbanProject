@@ -5507,6 +5507,41 @@ export const notificationPreferenceAPI = {
   },
 };
 
+// ========================================
+// Personal Access Token (PAT) API — MCP 연결용
+// ========================================
+
+export interface PatSummary {
+  id: string;
+  name: string;
+  token_prefix: string;
+  last_used_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+/** 발급 직후 1회만 반환. token(원문)은 이 응답에서만 볼 수 있다. */
+export interface PatCreated {
+  id: string;
+  name: string;
+  token: string;
+  token_prefix: string;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export const patAPI = {
+  list: async () => apiClient.get<PatSummary[]>("/pat"),
+
+  create: async (data: { name?: string; expiresInDays?: number | null }) =>
+    apiClient.post<PatCreated>("/pat", {
+      name: data.name || undefined,
+      expires_in_days: data.expiresInDays ?? undefined,
+    }),
+
+  revoke: async (id: string) => apiClient.delete<void>(`/pat/${id}`),
+};
+
 export const slackWebhookAPI = {
   getMemberStatuses: async (boardId: string) => {
     return apiClient.get<SlackWebhookMemberStatus[]>(

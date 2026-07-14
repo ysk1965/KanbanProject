@@ -1,0 +1,46 @@
+{
+  "name": "bridge",
+  "displayName": "BRIDGE",
+  "version": "0.1.0",
+  "description": "Claude가 만든 결과물을 BRIDGE 마이스페이스에 저장·조회·공유. save/update/get/list/share_document MCP 툴과 save-to-bridge 스킬을 제공.",
+  "author": { "name": "BRIDGE" },
+  "keywords": ["bridge", "mcp", "notes", "document", "save"],
+  "userConfig": {
+    "bridge_pat": {
+      "type": "string",
+      "title": "BRIDGE 개인 액세스 토큰",
+      "description": "BRIDGE에서 POST /api/v1/pat 로 발급한 bsp_... 토큰",
+      "sensitive": true,
+      "required": true
+    },
+    "bridge_api_url": {
+      "type": "string",
+      "title": "BRIDGE API URL",
+      "description": "백엔드 주소",
+      "default": "http://localhost:8080"
+    },
+    "bridge_frontend_url": {
+      "type": "string",
+      "title": "프론트엔드 URL",
+      "description": "공유 링크(/n/{code}) 조립용",
+      "default": "http://localhost:5173"
+    },
+    "bridge_default_board_id": {
+      "type": "string",
+      "title": "기본 저장 보드 id (선택)",
+      "description": "지정하면 이 연결의 저장이 기본으로 이 보드로 간다. 비우면 마이스페이스. 저장 시 board_id 를 주면 그게 우선하고, board_id=\"me\" 로 마이스페이스에 강제 저장."
+    }
+  },
+  "mcpServers": {
+    "spots": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/dist/bridge-mcp.mjs"],
+      "env": {
+        "BRIDGE_PAT": "${user_config.bridge_pat}",
+        "BRIDGE_API_URL": "${user_config.bridge_api_url}",
+        "BRIDGE_FRONTEND_URL": "${user_config.bridge_frontend_url}",
+        "BRIDGE_DEFAULT_BOARD_ID": "${user_config.bridge_default_board_id}"
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "bridge-internal",
+  "owner": { "name": "BRIDGE" },
+  "description": "BRIDGE 사내 플러그인 마켓플레이스",
+  "plugins": [
+    {
+      "name": "bridge",
+      "source": ".",
+      "description": "Claude 결과물을 BRIDGE 마이스페이스에 저장·공유하는 MCP 툴 + 스킬"
+    }
+  ]
+}
