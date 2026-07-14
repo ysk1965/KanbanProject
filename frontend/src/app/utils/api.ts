@@ -5786,6 +5786,109 @@ export const discordAPI = {
 };
 
 // ========================================
+// JIRA Integration API
+// ========================================
+
+export interface JiraStatus {
+  board_id: string;
+  connected: boolean;
+  base_url: string;
+  project_key: string;
+  jql: string | null;
+  status: string; // CONNECTED / ERROR / DISCONNECTED
+  last_synced_at: string | null;
+  last_error: string | null;
+  milestone_auto_assign: boolean;
+  write_back_enabled: boolean;
+  write_back_target_status_id: string | null;
+  connected_by_name: string | null;
+}
+
+export interface JiraTestResult {
+  success: boolean;
+  message: string;
+  project_name: string | null;
+}
+
+export interface JiraNameRef {
+  id: string;
+  name: string;
+}
+
+export interface JiraMeta {
+  statuses: JiraNameRef[];
+}
+
+export interface JiraImportResult {
+  total: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  features: number;
+  tasks: number;
+  checklists: number;
+  comments: number;
+  errors: string[];
+}
+
+export const jiraAPI = {
+  getStatus: async (boardId: string) => {
+    return apiClient.get<JiraStatus | null>(`/boards/${boardId}/jira/status`);
+  },
+
+  connect: async (
+    boardId: string,
+    data: {
+      baseUrl: string;
+      projectKey: string;
+      accountEmail: string;
+      apiToken: string;
+      jql?: string;
+    },
+  ) => {
+    return apiClient.post<JiraStatus>(`/boards/${boardId}/jira/connect`, {
+      base_url: data.baseUrl,
+      project_key: data.projectKey,
+      account_email: data.accountEmail,
+      api_token: data.apiToken,
+      jql: data.jql || undefined,
+    });
+  },
+
+  test: async (boardId: string) => {
+    return apiClient.post<JiraTestResult>(`/boards/${boardId}/jira/test`);
+  },
+
+  getMeta: async (boardId: string) => {
+    return apiClient.get<JiraMeta>(`/boards/${boardId}/jira/meta`);
+  },
+
+  updateWriteBack: async (
+    boardId: string,
+    data: { enabled: boolean; targetStatusId?: string | null },
+  ) => {
+    return apiClient.put<JiraStatus>(`/boards/${boardId}/jira/write-back`, {
+      enabled: data.enabled,
+      target_status_id: data.targetStatusId || undefined,
+    });
+  },
+
+  importIssues: async (
+    boardId: string,
+    data?: { jql?: string; preview?: boolean },
+  ) => {
+    return apiClient.post<JiraImportResult>(`/boards/${boardId}/jira/import`, {
+      jql: data?.jql || undefined,
+      preview: data?.preview ?? false,
+    });
+  },
+
+  disconnect: async (boardId: string) => {
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/jira`);
+  },
+};
+
+// ========================================
 // Daily Standup Config API
 // ========================================
 

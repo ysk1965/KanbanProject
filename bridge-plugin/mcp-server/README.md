@@ -24,15 +24,34 @@ claude mcp add bridge --scope user \
 > 층 설계: **MCP는 얇게, 스킬은 두껍게.** 이 서버는 "저장 방법"만 압니다.
 > "무엇을 언제 저장할지"는 호출하는 스킬의 몫입니다.
 
-## 노출 툴 (BRIDGE 리소스와 1:1 대응)
+## 노출 툴
+
+### 노트 툴 (쓰기 — 마이스페이스/보드/조직 스코프)
 
 | 툴 | 대응 API | 설명 |
 |----|----------|------|
-| `save_document` | `POST /api/v1/me/notes` | 결과물을 새 문서로 저장 → `id` 반환 |
-| `update_document` | `PUT /api/v1/me/notes/{id}` | 기존 문서 수정 |
-| `get_document` | `GET /api/v1/me/notes/{id}` | 본문까지 조회 |
-| `list_documents` | `GET /api/v1/me/notes/list` | 문서 목록(본문 제외) |
-| `share_document` | `POST /api/v1/me/notes/{id}/share` | 공개 공유 링크 발급 |
+| `list_boards` | `GET /api/v1/boards` | 사용자가 속한 보드 목록(저장 대상 선택) |
+| `save_document` | `POST .../notes` | 결과물을 새 문서로 저장 → `id` 반환. `board_id`/`org_id`로 스코프 지정 |
+| `update_document` | `PUT .../notes/{id}` | 기존 문서 수정 |
+| `get_document` | `GET .../notes/{id}` | 본문까지 조회 |
+| `list_documents` | `GET .../notes/list` | 문서 목록(본문 제외) |
+| `share_document` | `POST .../notes/{id}/share` | 공개 공유 링크 발급 |
+
+> 스코프별 베이스: 마이스페이스 `/api/v1/me/notes` · 보드 `/api/v1/boards/{id}/notes` · 조직 `/api/v1/organizations/{orgId}/notes`. `org_id`가 `board_id`보다 우선.
+
+### 읽기 툴 (BRIDGE 데이터 조회 → 스킬이 브리핑·리포트로 가공)
+
+| 툴 | 대응 API | 설명 |
+|----|----------|------|
+| `get_my_today` | `GET /api/v1/personal/dashboard/today` | 오늘 내 태스크·일정 |
+| `get_my_board_tasks` | `GET /api/v1/personal/dashboard/board-tasks` | 크로스보드 내 태스크 |
+| `get_my_calendar` | `GET /api/v1/personal/calendar/unified` | 기간 통합 캘린더(미팅+일정). start/end 필수 |
+| `get_board_stats` | `GET /api/v1/boards/{id}/statistics(/management)` | 보드 통계(완료·진행률, 관리 통계) |
+| `get_board_tasks` | `GET /api/v1/boards/{id}/tasks` | 보드 태스크 목록(필터) |
+| `get_board_milestones` | `GET /api/v1/boards/{id}/milestones` | 마일스톤 진척 |
+| `generate_board_report` | `POST /api/v1/boards/{id}/reports` | 서버측 AI 리포트 생성(선택) |
+| `list_org_boards` | `GET /api/v1/organizations/{orgId}/boards` | 조직(프로젝트)에 속한 보드들 |
+| `get_org_insights` | `GET .../insights/summary` + `.../insights/boards` | 조직 롤업 + 보드별 집계. start/end 필수 |
 
 > 검색(`search_documents`)은 BRIDGE 백엔드에 검색 엔드포인트가 아직 없어 미구현(로드맵 4단계).
 
