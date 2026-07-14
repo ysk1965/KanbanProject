@@ -17,7 +17,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "kanban-terraform-state"
+    bucket         = "kanban-terraform-state-259151461692"
     key            = "dev/terraform.tfstate"
     region         = "ap-northeast-2"
     encrypt        = true

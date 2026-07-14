@@ -79,6 +79,27 @@ docker-compose up -d              # PostgreSQL 15 + Redis 7
 
 ---
 
+## AWS / 인프라 계정 (필수)
+
+**이 프로젝트의 모든 AWS 리소스(Elastic Beanstalk, RDS, S3, CloudFront, Route53, IAM 등)는 계정 `259151461692` (별칭 `burgermonster`), 리전 `ap-northeast-2`에 있다.**
+
+- AWS CLI 사용 시 **반드시 이 계정 프로필을 지정**한다:
+  ```bash
+  aws --profile burgermonster <command> --region ap-northeast-2
+  ```
+- ⚠️ **`default` 프로필(997286396624)·`dev_sungrak`(472888337985)은 다른 계정**이므로 이 프로젝트 인프라 작업에 절대 사용하지 말 것. (997286396624는 크로스계정 DNS 용도)
+- 프로필 미설정 시:
+  ```bash
+  aws configure --profile burgermonster          # 액세스 키 방식 (region: ap-northeast-2)
+  # 또는 SSO: aws configure sso --profile burgermonster
+  ```
+- 확인: `aws sts get-caller-identity --profile burgermonster` → `Account`가 `259151461692`여야 함.
+- **GHA Terraform 파이프라인**도 이 계정의 OIDC 역할 `kanban-gha-terraform`을 사용한다. (계정 이전 시 OIDC provider + role trust 재설정 필요)
+
+> 프로필 이름(`burgermonster`)은 로컬 설정에 따라 다를 수 있으니, `aws configure list-profiles`로 `259151461692`에 매핑되는 프로필명을 확인해 사용한다.
+
+---
+
 ## BRIDGE 디자인 시스템 (v2.0.0 — 통일 토큰)
 
 상세 기획서: `docs/Design/v1.5.0.md` | 감사 문서: `docs/Design/UI-UX-Audit.md`
