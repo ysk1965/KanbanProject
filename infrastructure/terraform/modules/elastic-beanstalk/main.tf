@@ -224,7 +224,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
 
   # HTTPS Listener (conditional)
   dynamic "setting" {
-    for_each = var.ssl_certificate_arn != "" ? toset([1]) : toset([])
+    for_each = var.ssl_certificate_arn != "" ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elbv2:listener:443"
       name      = "ListenerEnabled"
@@ -233,7 +233,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
   }
 
   dynamic "setting" {
-    for_each = var.ssl_certificate_arn != "" ? toset([1]) : toset([])
+    for_each = var.ssl_certificate_arn != "" ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elbv2:listener:443"
       name      = "Protocol"
@@ -242,7 +242,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
   }
 
   dynamic "setting" {
-    for_each = var.ssl_certificate_arn != "" ? toset([1]) : toset([])
+    for_each = var.ssl_certificate_arn != "" ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elbv2:listener:443"
       name      = "SSLCertificateArns"
@@ -251,7 +251,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
   }
 
   dynamic "setting" {
-    for_each = var.ssl_certificate_arn != "" ? toset([1]) : toset([])
+    for_each = var.ssl_certificate_arn != "" ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elbv2:listener:443"
       name      = "SSLPolicy"
@@ -358,7 +358,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
   # Disable Redis auto-config when there is no Redis (dev). MUST be set or the app
   # tries localhost:6379 → /actuator/health DOWN → ALB unhealthy.
   dynamic "setting" {
-    for_each = var.redis_host == "" && var.spring_autoconfigure_exclude != "" ? toset([1]) : toset([])
+    for_each = var.redis_host == "" && var.spring_autoconfigure_exclude != "" ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elasticbeanstalk:application:environment"
       name      = "SPRING_AUTOCONFIGURE_EXCLUDE"
@@ -368,7 +368,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
 
   # Redis settings (only if Redis is configured)
   dynamic "setting" {
-    for_each = var.redis_host != "" ? toset([1]) : toset([])
+    for_each = var.redis_host != "" ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elasticbeanstalk:application:environment"
       name      = "REDIS_HOST"
@@ -377,7 +377,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
   }
 
   dynamic "setting" {
-    for_each = var.redis_host != "" ? toset([1]) : toset([])
+    for_each = var.redis_host != "" ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elasticbeanstalk:application:environment"
       name      = "REDIS_PORT"
@@ -399,7 +399,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
 
   # Test-prod frontend URL (CORS allow-list for the testprod CloudFront origin)
   dynamic "setting" {
-    for_each = var.testprod_frontend_url != "" ? toset([1]) : toset([])
+    for_each = var.testprod_frontend_url != "" ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elasticbeanstalk:application:environment"
       name      = "TESTPROD_FRONTEND_URL"
@@ -409,7 +409,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
 
   # S3 attachments bucket — only set when provided (else app keeps its own default)
   dynamic "setting" {
-    for_each = var.s3_bucket != "" ? toset([1]) : toset([])
+    for_each = var.s3_bucket != "" ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elasticbeanstalk:application:environment"
       name      = "S3_BUCKET"
@@ -437,7 +437,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
 
   # AI provider selection (claude | openai)
   dynamic "setting" {
-    for_each = var.ai_provider != "" ? toset([1]) : toset([])
+    for_each = var.ai_provider != "" ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elasticbeanstalk:application:environment"
       name      = "AI_PROVIDER"
@@ -467,7 +467,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
 
   # Google OAuth2 client secret — only when provided (SSM/secret); empty keeps live value untouched
   dynamic "setting" {
-    for_each = var.google_client_secret != "" ? toset([1]) : toset([])
+    for_each = var.google_client_secret != "" ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elasticbeanstalk:application:environment"
       name      = "GOOGLE_CLIENT_SECRET"
@@ -477,7 +477,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
 
   # Sentry error monitoring
   dynamic "setting" {
-    for_each = var.sentry_dsn != "" ? toset([1]) : toset([])
+    for_each = var.sentry_dsn != "" ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elasticbeanstalk:application:environment"
       name      = "SENTRY_DSN"
@@ -486,7 +486,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
   }
 
   dynamic "setting" {
-    for_each = var.sentry_environment != "" ? toset([1]) : toset([])
+    for_each = var.sentry_environment != "" ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elasticbeanstalk:application:environment"
       name      = "SENTRY_ENVIRONMENT"
@@ -496,7 +496,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
 
   # S3 Attachments CloudFront
   dynamic "setting" {
-    for_each = var.cloudfront_domain != "" ? toset([1]) : toset([])
+    for_each = var.cloudfront_domain != "" ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elasticbeanstalk:application:environment"
       name      = "CLOUDFRONT_DOMAIN"

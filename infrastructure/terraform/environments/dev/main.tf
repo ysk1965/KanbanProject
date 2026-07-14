@@ -59,7 +59,7 @@ provider "aws" {
   region = var.aws_region
 
   dynamic "assume_role" {
-    for_each = var.dns_account_role_arn != "" ? toset([1]) : toset([])
+    for_each = var.dns_account_role_arn != "" ? toset(["1"]) : toset([])
     content {
       role_arn     = var.dns_account_role_arn
       session_name = "${var.project_name}-${var.environment}-route53"
