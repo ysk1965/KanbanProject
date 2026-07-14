@@ -16,7 +16,7 @@ import {
   Puzzle,
 } from "lucide-react";
 import { MotionModal } from "./ui/MotionModal";
-import { patAPI, PatSummary, PatCreated } from "../utils/api";
+import { patAPI, PatSummary, PatCreated, BACKEND_ORIGIN } from "../utils/api";
 
 interface McpConnectModalProps {
   open: boolean;
@@ -36,13 +36,22 @@ const EXPIRY_OPTIONS = [0, 30, 90, 365]; // 0 = 만료 없음
 const MCP_PACKAGE = "@bridgespots/mcp";
 
 /**
- * 값(토큰·보드 id)이 박힌 `claude mcp add` 한 줄 명령을 조립한다.
+ * 값(토큰·API 주소·보드 id)이 박힌 `claude mcp add` 한 줄 명령을 조립한다.
  * 붙여넣고 Enter 한 번으로 설치+연결이 끝난다.
+ *
+ * apiUrl 은 지금 FE가 붙어있는 백엔드 origin(BACKEND_ORIGIN) — 환경별로 자동
+ * (로컬 → localhost, milkyway.pe.kr → milkyway API, bridgespots.com → bridgespots API).
+ * 이게 없으면 MCP 서버가 localhost 기본값을 써서 배포 환경 사용자가 연결 실패한다.
  */
-function buildInstallCommand(token: string, boardId: string): string {
+function buildInstallCommand(
+  token: string,
+  apiUrl: string,
+  boardId: string,
+): string {
   return [
     "claude mcp add bridge --scope user \\",
     `  --env BRIDGE_PAT="${token}" \\`,
+    `  --env BRIDGE_API_URL="${apiUrl}" \\`,
     `  --env BRIDGE_DEFAULT_BOARD_ID="${boardId}" \\`,
     `  -- npx -y ${MCP_PACKAGE}`,
   ].join("\n");
@@ -316,14 +325,22 @@ export function McpConnectModal({
                   <>
                     <div className="flex items-start gap-2 rounded-lg bg-bridge-dark border border-foreground/10 px-3 py-2.5">
                       <pre className="flex-1 font-mono text-xs text-foreground whitespace-pre overflow-x-auto custom-scrollbar m-0">
-                        {buildInstallCommand(created.token, boardId)}
+                        {buildInstallCommand(
+                          created.token,
+                          BACKEND_ORIGIN,
+                          boardId,
+                        )}
                       </pre>
                       <CopyBtn
                         copied={copied === "onecmd"}
                         onClick={() =>
                           copy(
                             "onecmd",
-                            buildInstallCommand(created.token, boardId),
+                            buildInstallCommand(
+                              created.token,
+                              BACKEND_ORIGIN,
+                              boardId,
+                            ),
                           )
                         }
                       />

@@ -5,8 +5,9 @@ import { domainBrandName } from "./domain";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
 
-// 백엔드 Origin (파일 URL 해석용)
-const BACKEND_ORIGIN = (() => {
+// 백엔드 Origin (파일 URL 해석용 · MCP 연결 명령의 BRIDGE_API_URL)
+// 현재 FE가 붙어있는 백엔드 주소 → 환경별로 자동(로컬/milkyway/bridgespots).
+export const BACKEND_ORIGIN = (() => {
   try {
     return new URL(API_BASE_URL).origin;
   } catch {
