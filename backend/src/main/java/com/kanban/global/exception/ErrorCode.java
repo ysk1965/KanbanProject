@@ -41,6 +41,10 @@ public enum ErrorCode {
     PASSWORD_RESET_TOKEN_ALREADY_USED(HttpStatus.BAD_REQUEST, "A017", "이미 사용된 비밀번호 재설정 링크입니다"),
     PASSWORD_RESET_EMAIL_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "A018", "잠시 후 다시 시도해주세요"),
 
+    // Auth - Personal Access Token
+    PAT_NOT_FOUND(HttpStatus.NOT_FOUND, "A019", "액세스 토큰을 찾을 수 없습니다"),
+    PAT_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "A020", "발급 가능한 액세스 토큰 수를 초과했습니다"),
+
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "사용자를 찾을 수 없습니다"),
     CURRENT_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "U002", "현재 비밀번호가 일치하지 않습니다"),

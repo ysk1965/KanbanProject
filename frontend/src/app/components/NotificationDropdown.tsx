@@ -11,11 +11,13 @@ import {
   MessageSquare,
   Settings,
   ChevronRight,
+  Link2,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { notificationAPI } from "../utils/api";
 import { SlackIntegrationPanel } from "./slack/SlackIntegrationPanel";
 import { DiscordSettingsPanel } from "./DiscordSettingsPanel";
+import { McpConnectModal } from "./McpConnectModal";
 import { NotificationPreferencesPanel } from "./NotificationPreferencesPanel";
 import { StandupConfigPanel } from "./StandupConfigPanel";
 import { NotificationItem, ActivityLog, NotificationType } from "../types";
@@ -475,8 +477,9 @@ export function NotificationDropdown({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoadingMoreActivities, setIsLoadingMoreActivities] = useState(false);
   const [settingsSubTab, setSettingsSubTab] = useState<
-    "slack" | "discord" | "preferences" | "standup"
+    "slack" | "discord" | "mcp" | "preferences" | "standup"
   >("slack");
+  const [mcpModalOpen, setMcpModalOpen] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
@@ -567,7 +570,10 @@ export function NotificationDropdown({
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <button className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-all" aria-label="알림">
+        <button
+          className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-all"
+          aria-label="알림"
+        >
           <Bell size={18} />
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1">
@@ -780,8 +786,9 @@ export function NotificationDropdown({
                     const activityColor = getAssigneeClasses(activityUserName);
                     const navTarget = getActivityNavTarget(activity);
                     const clickable = !!navTarget && !!onActivityNavigate;
-                    const taskTitle = (activity.metadata as Record<string, unknown>)
-                      ?.taskTitle as string | undefined;
+                    const taskTitle = (
+                      activity.metadata as Record<string, unknown>
+                    )?.taskTitle as string | undefined;
                     const isChecklist = (activity.action as string).startsWith(
                       "CHECKLIST_",
                     );
@@ -923,6 +930,16 @@ export function NotificationDropdown({
                   </span>
                 </button>
                 <button
+                  onClick={() => setSettingsSubTab("mcp")}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                    settingsSubTab === "mcp"
+                      ? "bg-bridge-accent/15 text-bridge-accent"
+                      : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                  }`}
+                >
+                  MCP
+                </button>
+                <button
                   onClick={() => setSettingsSubTab("preferences")}
                   className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
                     settingsSubTab === "preferences"
@@ -964,6 +981,23 @@ export function NotificationDropdown({
                     onUpgrade={onDiscordUpgrade || onSlackUpgrade}
                   />
                 )}
+                {settingsSubTab === "mcp" && (
+                  <div className="py-2">
+                    <p className="text-xs text-slate-400 leading-relaxed mb-3">
+                      {t(
+                        "mcp.panelIntro",
+                        "Claude 등 AI 어시스턴트가 만든 문서를 이 보드에 저장·공유하도록 연결합니다.",
+                      )}
+                    </p>
+                    <button
+                      onClick={() => setMcpModalOpen(true)}
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-bridge-accent text-white rounded-xl text-xs font-bold hover:bg-bridge-accent/90 transition-all"
+                    >
+                      <Link2 className="w-4 h-4" />
+                      {t("mcp.openBtn", "MCP 연결하기")}
+                    </button>
+                  </div>
+                )}
                 {settingsSubTab === "preferences" && (
                   <NotificationPreferencesPanel
                     boardId={boardId}
@@ -984,6 +1018,11 @@ export function NotificationDropdown({
           )}
         </div>
       </PopoverContent>
+      <McpConnectModal
+        open={mcpModalOpen}
+        onClose={() => setMcpModalOpen(false)}
+        boardId={boardId}
+      />
     </Popover>
   );
 }

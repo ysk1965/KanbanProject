@@ -1,5 +1,6 @@
 package com.kanban.global.security;
 
+import com.kanban.domain.auth.pat.PatService;
 import com.kanban.domain.user.SystemRole;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -7,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -23,6 +25,9 @@ import java.util.Collections;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
+    /** @Lazy: 필터가 서비스(→JPA)에 이른 시점에 결합되지 않도록. PAT 폴백 시에만 사용. */
+    @Lazy
+    private final PatService patService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -31,22 +36,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = resolveToken(request);
 
-        if (StringUtils.hasText(token) && jwtProvider.validateAccessToken(token)) {
-            String userId = jwtProvider.getUserIdFromToken(token);
-            String email = jwtProvider.getEmailFromToken(token);
-            String systemRoleStr = jwtProvider.getSystemRoleFromToken(token);
-            SystemRole systemRole = SystemRole.valueOf(systemRoleStr);
-
-            UserPrincipal principal = new UserPrincipal(userId, email, systemRole);
-
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(principal, null, Collections.emptyList());
-            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+        if (StringUtils.hasText(token)) {
+            UserPrincipal principal = resolvePrincipal(token);
+            if (principal != null) {
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(principal, null, Collections.emptyList());
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Bearer 토큰을 사용자로 해석한다. 먼저 JWT 액세스 토큰으로 시도하고,
+     * JWT 가 아니면(=서명/형식 불일치) 개인 액세스 토큰(PAT)으로 폴백한다.
+     */
+    private UserPrincipal resolvePrincipal(String token) {
+        if (jwtProvider.validateAccessToken(token)) {
+            String userId = jwtProvider.getUserIdFromToken(token);
+            String email = jwtProvider.getEmailFromToken(token);
+            SystemRole systemRole = SystemRole.valueOf(jwtProvider.getSystemRoleFromToken(token));
+            return new UserPrincipal(userId, email, systemRole);
+        }
+        return patService.authenticate(token).orElse(null);
     }
 
     private String resolveToken(HttpServletRequest request) {

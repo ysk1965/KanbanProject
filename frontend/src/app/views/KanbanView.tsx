@@ -363,6 +363,10 @@ export const KanbanView = memo(function KanbanView({
                 canEdit={canEdit}
                 isAdminOrOwner={isAdminOrOwner}
                 onOpenChecklistItem={onOpenChecklistItem}
+                onOpenFeature={(featureId) => {
+                  const feature = features.find((f) => f.id === featureId);
+                  if (feature) onFeatureClick(feature);
+                }}
                 milestoneId={
                   selectedMilestoneId !== "all" && selectedMilestoneId !== "none"
                     ? selectedMilestoneId
