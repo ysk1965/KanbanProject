@@ -368,6 +368,7 @@ export const KanbanView = memo(function KanbanView({
                     ? selectedMilestoneId
                     : undefined
                 }
+                memberFilter={filterOptions.members}
               />
             </div>
           ) : (

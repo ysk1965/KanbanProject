@@ -38,6 +38,8 @@ interface SprintBoardProps {
   milestoneId?: string;
   /** 좌측 트리에서 체크리스트 행 클릭 → 태스크 모달(+ 해당 항목 하이라이트) */
   onOpenChecklistItem?: (taskId: string, checklistItemId?: string) => void;
+  /** 담당자 필터(칸반 탭 필터바 연동). 이름 배열(+ '__no_members__'). 빈 배열이면 전체 */
+  memberFilter?: string[];
 }
 
 /** Feature ▸ Task ▸ 체크리스트 소스 트리 노드 */
@@ -78,6 +80,7 @@ export function SprintBoard({
   isAdminOrOwner,
   milestoneId: controlledMilestoneId,
   onOpenChecklistItem,
+  memberFilter,
 }: SprintBoardProps) {
   const controlled = !!controlledMilestoneId;
   const [internalMid, setInternalMid] = useState<string>(
@@ -91,6 +94,8 @@ export function SprintBoard({
   const [collapsedFeatures, setCollapsedFeatures] = useState<Set<string>>(
     new Set(),
   );
+  // 보드: Feature 컬럼 안 Task 소그룹 접기 상태 (key = `${featureId}:${taskId}`)
+  const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [addingColumn, setAddingColumn] = useState(false);
   const [newColName, setNewColName] = useState("");
@@ -141,19 +146,63 @@ export function SprintBoard({
     }
   }, []);
 
-  const activeSprint = board?.active_sprint ?? null;
+  // 담당자 필터 — 칸반 탭 필터바(filterOptions.members)와 동일 규칙으로 카드 걸러내기.
+  // 컬럼/백로그/좌측 트리 및 게이지가 모두 filteredBoard에서 파생되어 필터를 반영한다.
+  const filteredBoard = useMemo<SprintBoardData | null>(() => {
+    if (!board) return null;
+    const members = memberFilter ?? [];
+    if (members.length === 0) return board;
+    const hasNoAssignee = members.includes("__no_members__");
+    const names = new Set(members.filter((m) => m !== "__no_members__"));
+    const matches = (it: SprintItemCard) => {
+      const name = it.assignee?.name;
+      if (!name) return hasNoAssignee;
+      return names.has(name);
+    };
+    const filteredColumns = board.columns.map((c) => ({
+      ...c,
+      items: c.items.filter(matches),
+    }));
+    // 게이지 재계산: 담긴 항목(sprint_column_id) 중 완료/Done 컬럼 도달분
+    const endColIds = new Set(
+      board.columns.filter((c) => c.kind === "END").map((c) => c.id),
+    );
+    let done = 0;
+    let total = 0;
+    for (const c of filteredColumns) {
+      for (const it of c.items) {
+        if (!it.sprint_column_id) continue;
+        total += 1;
+        if (it.completed || endColIds.has(it.sprint_column_id)) done += 1;
+      }
+    }
+    return {
+      ...board,
+      backlog: board.backlog.filter(matches),
+      columns: filteredColumns,
+      gauge: {
+        done,
+        total,
+        percentage: total > 0 ? Math.round((done / total) * 100) : 0,
+      },
+    };
+  }, [board, memberFilter]);
+
+  const activeSprint = filteredBoard?.active_sprint ?? null;
   const columns = useMemo(
     () =>
-      (board?.columns ?? []).slice().sort((a, b) => a.position - b.position),
-    [board],
+      (filteredBoard?.columns ?? [])
+        .slice()
+        .sort((a, b) => a.position - b.position),
+    [filteredBoard],
   );
 
   // 소스 트리: backlog + 모든 컬럼 아이템을 합쳐 Feature ▸ Task ▸ 체크리스트로 재구성
   const tree = useMemo<TreeFeature[]>(() => {
-    if (!board) return [];
+    if (!filteredBoard) return [];
     const all: SprintItemCard[] = [
-      ...board.backlog,
-      ...board.columns.flatMap((c) => c.items),
+      ...filteredBoard.backlog,
+      ...filteredBoard.columns.flatMap((c) => c.items),
     ];
     const featMap = new Map<string, TreeFeature>();
     for (const it of all) {
@@ -181,13 +230,21 @@ export function SprintBoard({
       if (it.sprint_column_id) feat.taken += 1;
     }
     return Array.from(featMap.values());
-  }, [board]);
+  }, [filteredBoard]);
 
   const toggleFeature = (fid: string) => {
     setCollapsedFeatures((prev) => {
       const next = new Set(prev);
       if (next.has(fid)) next.delete(fid);
       else next.add(fid);
+      return next;
+    });
+  };
+  const toggleTask = (key: string) => {
+    setCollapsedTasks((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   };
@@ -211,55 +268,74 @@ export function SprintBoard({
     [columns],
   );
 
-  // START 컬럼의 카드를 Task 단위로 그룹핑 → 각 Task가 하나의 컬럼이 된다.
-  // 진척 바는 전체 컬럼 기준(스프린트에 담긴 그 Task의 전체 항목 중 완료 비율)으로 집계.
-  const taskColumns = useMemo(() => {
+  // 스프린트에 담긴 각 Feature = 하나의 컬럼. 컬럼 안은 Task 소그룹으로 나뉜다.
+  // 존재 조건(컬럼·소그룹 공통): "아직 Done이 아닌 담긴 항목"이 1개 이상 →
+  //   In Review로 옮겨도 유지되고, 전부 Done에 도달하면(= Done 컬럼에 모임) 사라진다.
+  // 소그룹 안 카드로 표시되는 건 START(Sprint) 단계에 남은 항목뿐. 순서는 좌측 트리와 일치.
+  interface TaskGroup {
+    taskId: string;
+    taskTitle: string;
+    items: SprintItemCard[]; // START 단계에 남은 카드
+    doneTotal: number; // 담긴 항목 중 완료 수
+    total: number; // 담긴 항목 전체 수
+  }
+  const featureColumns = useMemo(() => {
     if (!startColumn) return [];
-    // 전체 컬럼 기준: Task별 담긴/완료 수 (진척도용)
-    const takenByTask = new Map<string, { done: number; total: number }>();
-    for (const c of columns) {
-      for (const it of c.items) {
-        const tid = it.task_id ?? "__none__";
-        const agg = takenByTask.get(tid) ?? { done: 0, total: 0 };
-        agg.total += 1;
-        if (it.completed || c.kind === "END") agg.done += 1;
-        takenByTask.set(tid, agg);
+    const result: {
+      featureId: string;
+      featureTitle: string;
+      featureColor: string | null;
+      tasks: TaskGroup[];
+      doneTotal: number;
+      total: number;
+    }[] = [];
+    for (const feat of tree) {
+      const taskGroups: TaskGroup[] = [];
+      let fDone = 0;
+      let fTotal = 0;
+      for (const task of feat.tasks) {
+        const taken = task.items.filter((it) => it.sprint_column_id);
+        if (taken.length === 0) continue;
+
+        let doneTotal = 0;
+        let notInDoneColumn = 0;
+        for (const it of taken) {
+          const kind = it.sprint_column_id
+            ? columnById.get(it.sprint_column_id)?.kind
+            : undefined;
+          if (it.completed || kind === "END") doneTotal += 1;
+          if (kind !== "END") notInDoneColumn += 1;
+        }
+        // Feature 진척도에는 완료된 Task도 포함
+        fDone += doneTotal;
+        fTotal += taken.length;
+        // 전부 Done인 Task 소그룹은 숨김(Done 컬럼에 모임)
+        if (notInDoneColumn === 0) continue;
+
+        const startItems = taken.filter(
+          (it) => it.sprint_column_id === startColumn.id,
+        );
+        taskGroups.push({
+          taskId: task.taskId,
+          taskTitle: task.taskTitle,
+          items: startItems,
+          doneTotal,
+          total: taken.length,
+        });
       }
+      // 활성 Task 소그룹이 없으면(전부 Done/미담김) Feature 컬럼 숨김
+      if (taskGroups.length === 0) continue;
+      result.push({
+        featureId: feat.featureId,
+        featureTitle: feat.featureTitle,
+        featureColor: feat.featureColor,
+        tasks: taskGroups,
+        doneTotal: fDone,
+        total: fTotal,
+      });
     }
-    // START 컬럼 카드를 Task 순서대로 그룹핑
-    const groups = new Map<
-      string,
-      {
-        taskId: string;
-        taskTitle: string;
-        featureTitle: string | null;
-        featureColor: string | null;
-        items: SprintItemCard[];
-      }
-    >();
-    const order: string[] = [];
-    for (const it of startColumn.items) {
-      const tid = it.task_id ?? "__none__";
-      let g = groups.get(tid);
-      if (!g) {
-        g = {
-          taskId: tid,
-          taskTitle: it.task_title ?? "기타",
-          featureTitle: it.feature_title ?? null,
-          featureColor: it.feature_color ?? null,
-          items: [],
-        };
-        groups.set(tid, g);
-        order.push(tid);
-      }
-      g.items.push(it);
-    }
-    return order.map((tid) => {
-      const g = groups.get(tid)!;
-      const agg = takenByTask.get(tid) ?? { done: 0, total: g.items.length };
-      return { ...g, doneTotal: agg.done, total: agg.total };
-    });
-  }, [columns, startColumn]);
+    return result;
+  }, [tree, startColumn, columnById]);
 
   // 좌측 행: 체크박스 → 완료 토글(체크리스트 API 재사용 후 보드 갱신)
   const toggleDone = (it: SprintItemCard) => {
@@ -366,9 +442,14 @@ export function SprintBoard({
     void run(() => sprintAPI.closeSprint(boardId, activeSprint.id));
   };
 
-  const gauge = board?.gauge;
+  const gauge = filteredBoard?.gauge; // 표시용(담당자 필터 반영)
+  // 스프린트 종료는 전체 진척 기준(필터로 100%처럼 보여도 조기 종료 방지)
+  const fullGauge = board?.gauge;
   const canClose =
-    isAdminOrOwner && !!gauge && gauge.total > 0 && gauge.percentage === 100;
+    isAdminOrOwner &&
+    !!fullGauge &&
+    fullGauge.total > 0 &&
+    fullGauge.percentage === 100;
 
   // 재활성화 상태: 현재 활성 스프린트가 최신(max seq)이 아니면 과거 스프린트를 재활성화한 상태.
   // 이때 최신 스프린트는 뒤로 보관(parked)되어 있고, "재활성화 취소"로만 복귀 가능.
@@ -463,13 +544,13 @@ export function SprintBoard({
     </div>
   );
 
-  // Task 단위 컬럼 (기존 "Sprint" 컬럼을 Task별로 쪼갠 것).
-  // 드롭 목적지는 START 컬럼 — 담기면 각 항목이 자신의 Task 그룹으로 자동 배치된다.
-  const renderTaskColumn = (tc: (typeof taskColumns)[number]) => {
-    const accent = tc.featureColor ?? "#6366F1";
-    const key = `task-${tc.taskId}`;
-    const pct = tc.total > 0 ? Math.round((tc.doneTotal / tc.total) * 100) : 0;
-    const clickable = tc.taskId !== "__none__" && !!onOpenChecklistItem;
+  // Feature 단위 컬럼 (기존 "Sprint" 컬럼을 Feature별로 쪼갠 것).
+  // 컬럼 안은 Task 소그룹으로 나뉘고, 소그룹은 접기/펼치기 가능.
+  // 드롭 목적지는 START 컬럼 — 담기면 각 항목이 자신의 Feature/Task로 자동 배치된다.
+  const renderFeatureColumn = (fc: (typeof featureColumns)[number]) => {
+    const accent = fc.featureColor ?? "#6366F1";
+    const key = `feat-${fc.featureId}`;
+    const pct = fc.total > 0 ? Math.round((fc.doneTotal / fc.total) * 100) : 0;
     return (
       <div
         key={key}
@@ -483,53 +564,33 @@ export function SprintBoard({
         onDrop={(e) => {
           if (startColumn) void onDropColumn(e, startColumn);
         }}
-        className={`w-[260px] shrink-0 flex flex-col rounded-2xl border bg-bridge-obsidian transition-colors ${
+        className={`w-[270px] shrink-0 flex flex-col rounded-2xl border bg-bridge-obsidian transition-colors ${
           dragOverCol === key
             ? "border-bridge-accent/60"
             : "border-foreground/[0.08]"
         }`}
       >
-        {/* Task 컬럼 헤더 + 진척 바 */}
+        {/* Feature 컬럼 헤더 + 진척 바 */}
         <div className="px-3 pt-2.5 pb-2 border-b border-foreground/[0.06]">
           <div className="flex items-center gap-2">
             <span
               className="w-2 h-2 rounded-full shrink-0"
               style={{ background: accent }}
             />
-            <button
-              type="button"
-              onClick={() => openTask(tc.taskId)}
-              disabled={!clickable}
-              className={`text-xs font-bold text-foreground truncate flex-1 text-left ${
-                clickable
-                  ? "hover:text-bridge-accent cursor-pointer"
-                  : "cursor-default"
-              }`}
-              title={tc.taskTitle}
+            <span
+              className="text-xs font-bold text-foreground truncate flex-1"
+              title={fc.featureTitle}
             >
-              {tc.taskTitle}
-            </button>
+              {fc.featureTitle}
+            </span>
             <span className="text-[9px] font-bold text-slate-500 tracking-wide shrink-0">
-              TASK
+              FEATURE
             </span>
             <span className="text-[10px] font-bold text-slate-500 tabular-nums bg-bridge-dark rounded-full px-1.5 shrink-0">
-              {tc.items.length}
+              {fc.doneTotal}/{fc.total}
             </span>
           </div>
-          <div className="mt-2 flex items-center gap-2">
-            {tc.featureTitle && (
-              <span
-                className="text-[10px] text-slate-500 truncate max-w-[140px]"
-                title={tc.featureTitle}
-              >
-                {tc.featureTitle}
-              </span>
-            )}
-            <span className="ml-auto text-[10px] font-bold text-slate-500 tabular-nums shrink-0">
-              {tc.doneTotal}/{tc.total}
-            </span>
-          </div>
-          <div className="mt-1 h-1 rounded-full bg-foreground/10 overflow-hidden">
+          <div className="mt-2 h-1 rounded-full bg-foreground/10 overflow-hidden">
             <div
               className="h-full rounded-full bg-gradient-to-r from-bridge-accent to-bridge-secondary transition-all"
               style={{ width: `${pct}%` }}
@@ -537,15 +598,64 @@ export function SprintBoard({
           </div>
         </div>
 
-        {/* 카드 스택 */}
+        {/* Task 소그룹 스택 */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2 min-h-[120px]">
-          {tc.items.length === 0 ? (
-            <div className="h-full min-h-[80px] grid place-items-center text-[11px] text-slate-600">
-              비어 있음
-            </div>
-          ) : (
-            tc.items.map(renderCard)
-          )}
+          {fc.tasks.map((task) => {
+            const tkey = `${fc.featureId}:${task.taskId}`;
+            const collapsed = collapsedTasks.has(tkey);
+            const clickable = task.taskId !== "__none__" && !!onOpenChecklistItem;
+            return (
+              <div key={task.taskId}>
+                {/* Task 소그룹 헤더 (클릭 = 접기/펼치기, 호버 시 열기) */}
+                <div className="group/task flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-bridge-dark border border-foreground/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => toggleTask(tkey)}
+                    className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
+                    aria-label={collapsed ? "펼치기" : "접기"}
+                  >
+                    {collapsed ? (
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    )}
+                    <span
+                      className="text-[11px] font-bold uppercase tracking-wide text-slate-300 truncate"
+                      title={task.taskTitle}
+                    >
+                      {task.taskTitle}
+                    </span>
+                  </button>
+                  {clickable && (
+                    <button
+                      type="button"
+                      onClick={() => openTask(task.taskId)}
+                      className="text-[10px] font-bold text-bridge-accent opacity-0 group-hover/task:opacity-100 transition-opacity shrink-0"
+                      title="태스크 열기"
+                    >
+                      열기 ↗
+                    </button>
+                  )}
+                  <span className="text-[10px] font-bold text-slate-500 tabular-nums shrink-0">
+                    {task.doneTotal}/{task.total}
+                  </span>
+                </div>
+
+                {/* 카드 (펼침 시) */}
+                {!collapsed && (
+                  <div className="mt-1.5 space-y-1.5 pl-1">
+                    {task.items.length === 0 ? (
+                      <div className="py-2 px-1 text-[10px] text-slate-600">
+                        In Review로 이동됨 · 끌어와 되돌리기
+                      </div>
+                    ) : (
+                      task.items.map(renderCard)
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -919,12 +1029,12 @@ export function SprintBoard({
           ) : (
             <div className="flex gap-3 p-3 md:p-4 h-full min-w-max">
               {columns.map((col) => {
-                // START("Sprint") 컬럼은 Task 단위 컬럼들로 확장 (담긴 카드가 있을 때).
+                // START("Sprint") 컬럼은 Feature 단위 컬럼들로 확장 (활성 항목이 있을 때).
                 // In Review / Done 등 나머지 컬럼은 그대로 유지.
-                if (col.kind === "START" && taskColumns.length > 0) {
+                if (col.kind === "START" && featureColumns.length > 0) {
                   return (
                     <Fragment key={col.id}>
-                      {taskColumns.map((tc) => renderTaskColumn(tc))}
+                      {featureColumns.map((fc) => renderFeatureColumn(fc))}
                     </Fragment>
                   );
                 }
