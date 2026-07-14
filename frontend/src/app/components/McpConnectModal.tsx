@@ -33,7 +33,7 @@ const INSTALL_CMD =
 const EXPIRY_OPTIONS = [0, 30, 90, 365]; // 0 = 만료 없음
 
 /** npm 배포될 MCP 서버 패키지명 (원커맨드 npx 실행 대상). */
-const MCP_PACKAGE = "@bridgespots/mcp";
+const MCP_PACKAGE = "bridgespots-mcp";
 
 /**
  * 값(토큰·API 주소·보드 id)이 박힌 `claude mcp add` 한 줄 명령을 조립한다.
