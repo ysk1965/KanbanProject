@@ -22,7 +22,6 @@ import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.integration.jira.*;
 import com.kanban.domain.integration.jira.dto.JiraRequest;
 import com.kanban.domain.integration.jira.dto.JiraResponse;
-import com.kanban.domain.integration.slack.service.SlackTokenEncryptor;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.tag.Tag;
@@ -66,11 +65,11 @@ public class JiraImportService {
     private static final String DEFAULT_TAG_COLOR = "#94a3b8";
 
     private final JiraApiClient jiraApiClient;
+    private final JiraOAuthService oauthService;
     private final JiraIssueMapper mapper;
     private final JiraIntegrationConfigRepository configRepository;
     private final JiraIssueLinkRepository issueLinkRepository;
     private final JiraUserMappingRepository userMappingRepository;
-    private final SlackTokenEncryptor tokenEncryptor;
     private final ObjectMapper objectMapper;
 
     private final BoardService boardService;
@@ -94,23 +93,20 @@ public class JiraImportService {
         boardService.checkMemberOrAbove(boardId, userId);
         JiraIntegrationConfig config = configRepository.findActiveByBoardId(boardId)
             .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
-        String token = tokenEncryptor.decrypt(config.getApiTokenEncrypted());
+        String token = oauthService.resolveToken(config);
+        JiraAuthContext ctx = JiraAuthContext.of(config, token);
         String jql = resolveJql(request, config);
 
         List<ParsedJiraIssue> issues;
         try {
-            issues = fetchAll(config, token, jql);
+            issues = fetchAll(ctx, jql);
         } catch (BusinessException e) {
             config.markError(e.getMessage());
             throw e;
         }
 
         if (request.isPreview()) {
-            long epics = issues.stream().filter(ParsedJiraIssue::isEpic).count();
-            return JiraResponse.ImportResult.builder()
-                .total(issues.size()).created(0).updated(0).skipped(0)
-                .features((int) epics).tasks((int) (issues.size() - epics))
-                .checklists(0).comments(0).errors(List.of()).build();
+            return buildPreview(boardId, issues, config);
         }
 
         Board board = boardRepository.findByIdWithLock(boardId)
@@ -188,7 +184,7 @@ public class JiraImportService {
             // 첨부 → 댓글 (개별 실패는 무시하고 계속)
             for (ParsedJiraIssue.Attachment att : issue.attachments()) {
                 try {
-                    importAttachmentAsComment(board, importer, task, att, config, token);
+                    importAttachmentAsComment(board, importer, task, att, ctx);
                     c.comments++;
                 } catch (Exception ex) {
                     log.warn("JIRA attachment import failed ({} / {}): {}", issue.key(), att.filename(), ex.getMessage());
@@ -207,14 +203,89 @@ public class JiraImportService {
             .errors(c.errors).build();
     }
 
+    // ── 미리보기 (읽기 전용 드라이런: DB 변경 없음) ──
+
+    /**
+     * 가져오기 전에 "이슈 1건 → BRIDGE에서 무엇이 되는지"를 계산한다.
+     * 실제 생성/매핑 저장 없이 상태 블록·담당자 매칭·스킵 여부만 판별한다.
+     */
+    private JiraResponse.ImportResult buildPreview(String boardId, List<ParsedJiraIssue> issues,
+                                                   JiraIntegrationConfig config) {
+        Set<String> existingKeys = new HashSet<>();
+        for (JiraIssueLink link : issueLinkRepository.findByBoardId(boardId)) {
+            existingKeys.add(link.getJiraIssueKey());
+        }
+        Map<String, String> statusToBlock = readMap(config.getStatusToBlockJson());
+        List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
+        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
+        Milestone currentMilestone = Boolean.TRUE.equals(config.getMilestoneAutoAssign())
+            ? resolveCurrentMilestone(boardId) : null;
+
+        List<JiraResponse.PreviewItem> items = new ArrayList<>();
+        int epics = 0, tasks = 0, skipped = 0, checklists = 0, attachments = 0;
+
+        for (ParsedJiraIssue issue : issues) {
+            boolean isEpic = issue.isEpic();
+            boolean isSkipped = existingKeys.contains(issue.key());
+            boolean hasAssignee = issue.assigneeAccountId() != null;
+            int attCount = issue.attachments() != null ? issue.attachments().size() : 0;
+
+            String blockName = null;
+            if (!isEpic) {
+                Block block = resolveBlock(boardId, issue.statusName(), statusToBlock, taskBlock);
+                blockName = block != null ? block.getName() : null;
+            }
+
+            if (isSkipped) {
+                skipped++;
+            } else if (isEpic) {
+                epics++;
+            } else {
+                tasks++;
+                if (hasAssignee) checklists++;
+                attachments += attCount;
+            }
+
+            items.add(JiraResponse.PreviewItem.builder()
+                .key(issue.key())
+                .summary(issue.summary())
+                .targetType(isEpic ? "FEATURE" : "TASK")
+                .blockName(blockName)
+                .assigneeName(issue.assigneeDisplayName())
+                .assigneeMatched(hasAssignee && previewAssigneeMatched(
+                    boardId, members, issue.assigneeAccountId(), issue.assigneeDisplayName()))
+                .parentKey(issue.parentKey())
+                .attachmentCount(attCount)
+                .skipped(isSkipped)
+                .skipReason(isSkipped ? "이미 가져옴" : null)
+                .build());
+        }
+
+        return JiraResponse.ImportResult.builder()
+            .total(issues.size()).created(0).updated(0).skipped(skipped)
+            .features(epics).tasks(tasks).checklists(checklists).comments(attachments)
+            .milestoneName(currentMilestone != null ? currentMilestone.getTitle() : null)
+            .items(items).errors(List.of()).build();
+    }
+
+    /** resolveAssignee의 읽기 전용 버전 — 매핑 저장 없이 매칭 여부만 반환. */
+    private boolean previewAssigneeMatched(String boardId, List<BoardMember> members,
+                                           String accountId, String displayName) {
+        Optional<JiraUserMapping> stored = userMappingRepository.findByBoardIdAndJiraAccountId(boardId, accountId);
+        if (stored.isPresent()) return stored.get().getBridgeUser() != null;
+        if (displayName == null) return false;
+        return members.stream()
+            .map(BoardMember::getUser)
+            .anyMatch(u -> u != null && displayName.equalsIgnoreCase(u.getName()));
+    }
+
     // ── fetch ─────────────────────────────────────
 
-    private List<ParsedJiraIssue> fetchAll(JiraIntegrationConfig config, String token, String jql) {
+    private List<ParsedJiraIssue> fetchAll(JiraAuthContext ctx, String jql) {
         List<ParsedJiraIssue> out = new ArrayList<>();
         String nextPageToken = null;
         for (int page = 0; page < MAX_PAGES; page++) {
-            JsonNode result = jiraApiClient.searchIssues(config.getBaseUrl(), config.getAccountEmail(), token,
-                jql, nextPageToken, PAGE_SIZE);
+            JsonNode result = jiraApiClient.searchIssues(ctx, jql, nextPageToken, PAGE_SIZE);
             JsonNode issuesNode = result != null ? result.get("issues") : null;
             if (issuesNode != null && issuesNode.isArray()) {
                 for (JsonNode issue : issuesNode) {
@@ -298,8 +369,8 @@ public class JiraImportService {
     }
 
     private void importAttachmentAsComment(Board board, User importer, Task task,
-                                           ParsedJiraIssue.Attachment att, JiraIntegrationConfig config, String token) {
-        byte[] data = jiraApiClient.downloadAttachment(att.contentUrl(), config.getAccountEmail(), token);
+                                           ParsedJiraIssue.Attachment att, JiraAuthContext ctx) {
+        byte[] data = jiraApiClient.downloadAttachment(ctx, att.contentUrl());
 
         Comment comment = Comment.builder()
             .task(task)

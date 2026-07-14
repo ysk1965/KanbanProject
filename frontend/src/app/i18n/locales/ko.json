@@ -1189,7 +1189,14 @@
     "saveFailed": "저장에 실패했습니다",
     "disconnect": "연동 해제",
     "disconnectConfirm": "JIRA 연동을 해제할까요? 이미 가져온 카드는 남습니다.",
-    "disconnectFailed": "연동 해제에 실패했습니다"
+    "disconnectFailed": "연동 해제에 실패했습니다",
+    "previewSummary": "미리보기",
+    "issuesUnit": "건",
+    "milestoneAssign": "현재 마일스톤",
+    "noSummary": "(제목 없음)",
+    "previewEmpty": "가져올 이슈가 없습니다",
+    "assigneeMatched": "BRIDGE 멤버 매칭됨",
+    "assigneeUnmatched": "매칭 안 됨 (미배정으로 가져옴)"
   },
   "discordBot": {
     "title": "Discord Bot",

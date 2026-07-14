@@ -83,6 +83,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/slack/commands").permitAll()
                         // Discord OAuth callback (state-verified in service)
                         .requestMatchers("/api/v1/discord/oauth/callback").permitAll()
+                        // JIRA OAuth callback (HMAC state-verified in service)
+                        .requestMatchers("/api/v1/jira/oauth/callback").permitAll()
                         // WebSocket endpoints
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/ws-collab/**").permitAll()
