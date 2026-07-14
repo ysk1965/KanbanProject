@@ -11,12 +11,15 @@ npm 배포 후, 값이 박힌 한 줄로 설치+연결이 끝납니다:
 ```bash
 claude mcp add bridge --scope user \
   --env BRIDGE_PAT="bsp_..." \
+  --env BRIDGE_API_URL="https://<배포된 BRIDGE 백엔드>" \
   --env BRIDGE_DEFAULT_BOARD_ID="<board-id>" \
   -- npx -y @bridgespots/mcp
 ```
 
-> `BRIDGE_DEFAULT_BOARD_ID` 는 선택 — 없으면 마이스페이스가 기본. 번들은 의존성을
-> 인라인해 런타임 deps 0 이라 `npx` 가 파일 하나만 받습니다.
+> - `BRIDGE_API_URL` — 붙을 BRIDGE 백엔드 origin. 생략 시 `http://localhost:8080`(로컬).
+>   BRIDGE 웹의 "MCP 연결"이 만들어 주는 명령엔 **현재 환경 주소가 자동으로** 박혀 나옵니다.
+> - `BRIDGE_DEFAULT_BOARD_ID` — 선택. 없으면 마이스페이스가 기본.
+> - 번들은 의존성을 인라인해 런타임 deps 0 이라 `npx` 가 파일 하나만 받습니다.
 
 > 층 설계: **MCP는 얇게, 스킬은 두껍게.** 이 서버는 "저장 방법"만 압니다.
 > "무엇을 언제 저장할지"는 호출하는 스킬의 몫입니다.
