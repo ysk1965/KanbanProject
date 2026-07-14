@@ -106,6 +106,15 @@ export function SprintBoard({
   // 보드: Feature 컬럼 안 Task 소그룹 접기 상태 (key = `${featureId}:${taskId}`)
   const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+  // 드래그 중 드롭 존 안내용 — 카드→리스트(빼기) / 리스트→보드(담기) 방향을 구분한다.
+  const [dragOverList, setDragOverList] = useState(false);
+  const [draggingSource, setDraggingSource] = useState<
+    "backlog" | "sprint" | null
+  >(null);
+  // 리스트→보드 드래그 시 배정될 Feature 컬럼을 미리 강조하기 위한 feature_id
+  const [draggingFeatureId, setDraggingFeatureId] = useState<string | null>(
+    null,
+  );
   const [addingColumn, setAddingColumn] = useState(false);
   const [newColName, setNewColName] = useState("");
   const [editingCol, setEditingCol] = useState<string | null>(null);
@@ -453,6 +462,27 @@ export function SprintBoard({
     e.dataTransfer.setData(DRAG_ITEM, item.id);
     e.dataTransfer.setData(DRAG_SOURCE, source);
     e.dataTransfer.effectAllowed = "move";
+    setDraggingSource(source);
+    setDraggingFeatureId(item.feature_id ?? "__none__");
+  };
+  const onDragEndItem = () => {
+    setDraggingSource(null);
+    setDraggingFeatureId(null);
+    setDragOverList(false);
+    setDragOverCol(null);
+  };
+
+  // 카드 → 업무 리스트 드롭 = 스프린트에서 빼기.
+  // 빠진 항목은 sprint_column_id가 비워져 트리의 원래 Feature/Task 자리로 자동 복귀한다.
+  const onDropList = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverList(false);
+    if (!canEdit || !activeSprint) return;
+    const itemId = e.dataTransfer.getData(DRAG_ITEM);
+    const source = e.dataTransfer.getData(DRAG_SOURCE);
+    // 리스트에서 온 항목(backlog)은 이미 리스트에 있으므로 무시
+    if (!itemId || source !== "sprint") return;
+    await run(() => sprintAPI.removeItem(boardId, activeSprint.id, itemId));
   };
 
   const onDropColumn = async (e: React.DragEvent, col: SprintColumn) => {
@@ -474,11 +504,6 @@ export function SprintBoard({
     } else {
       await run(() => sprintAPI.moveToColumn(boardId, itemId, col.id));
     }
-  };
-
-  const removeCard = (item: SprintItemCard) => {
-    if (!activeSprint) return;
-    void run(() => sprintAPI.removeItem(boardId, activeSprint.id, item.id));
   };
 
   // ==================== 컬럼 CRUD ====================
@@ -620,6 +645,7 @@ export function SprintBoard({
       key={it.id}
       draggable={canEdit && !readOnly}
       onDragStart={(e) => !readOnly && onDragStartItem(e, it, "sprint")}
+      onDragEnd={onDragEndItem}
       className={`group rounded-xl border border-foreground/[0.08] bg-bridge-dark p-2.5 space-y-2 shadow-[0_2px_5px_rgba(0,0,0,0.25)] transition-colors ${
         readOnly ? "cursor-default" : "hover:border-bridge-border cursor-grab"
       }`}
@@ -634,15 +660,15 @@ export function SprintBoard({
         >
           {it.feature_title ?? "기타"}
         </span>
+        {/* 빼기 = 왼쪽 업무 리스트로 드래그. 힌트만 호버 시 노출(버튼 없음). */}
         {canEdit && !readOnly && (
-          <button
-            onClick={() => removeCard(it)}
-            className="ml-auto p-0.5 rounded text-slate-600 opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity shrink-0"
-            aria-label="스프린트에서 빼기"
-            title="스프린트에서 빼기"
+          <span
+            className="ml-auto inline-flex items-center gap-0.5 text-[9px] font-bold text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+            aria-hidden="true"
           >
-            <CornerUpLeft className="w-3.5 h-3.5" />
-          </button>
+            <CornerUpLeft className="w-3 h-3" />
+            리스트로 끌기
+          </span>
         )}
       </div>
       <div
@@ -682,6 +708,9 @@ export function SprintBoard({
     const accent = fc.featureColor ?? "#6366F1";
     const key = `feat-${fc.featureId}`;
     const pct = fc.total > 0 ? Math.round((fc.doneTotal / fc.total) * 100) : 0;
+    // 리스트에서 이 Feature 항목을 끌고 오는 중이면 "배정될 컬럼"으로 미리 강조
+    const isDropTarget =
+      draggingSource === "backlog" && draggingFeatureId === fc.featureId;
     return (
       <div
         key={key}
@@ -698,9 +727,20 @@ export function SprintBoard({
         className={`w-[270px] shrink-0 flex flex-col rounded-2xl border bg-bridge-obsidian transition-colors ${
           dragOverCol === key
             ? "border-bridge-accent/60"
-            : "border-foreground/[0.08]"
+            : isDropTarget
+              ? "border-bridge-secondary/50 ring-1 ring-bridge-secondary/30"
+              : "border-foreground/[0.08]"
         }`}
       >
+        {/* 배정 컬럼 미리보기 힌트 (드롭 전) */}
+        {isDropTarget && dragOverCol !== key && (
+          <div className="px-3 pt-2 -mb-1">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-bridge-secondary">
+              <ArrowRight className="w-3 h-3" />
+              여기로 배정
+            </span>
+          </div>
+        )}
         {/* Feature 컬럼 헤더 + 진척 바 */}
         <div className="px-3 pt-2.5 pb-2 border-b border-foreground/[0.06]">
           <div className="flex items-center gap-2">
@@ -987,7 +1027,36 @@ export function SprintBoard({
       <div className="flex-1 min-h-0 flex">
         {/* 좌: 소스 트리 — Feature 섹션 ▸ Task 라벨 ▸ 체크리스트 행(클릭 진입 + 인라인 완료) */}
         {!previewSprintId && (
-          <aside className="w-[300px] shrink-0 border-r border-foreground/[0.08] flex flex-col bg-bridge-dark">
+          <aside
+            onDragOver={(e) => {
+              // 스프린트 카드를 끌고 온 경우에만 드롭 허용(빼기)
+              if (canEdit && draggingSource === "sprint") {
+                e.preventDefault();
+                setDragOverList(true);
+              }
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node))
+                setDragOverList(false);
+            }}
+            onDrop={onDropList}
+            className="w-[300px] shrink-0 border-r border-foreground/[0.08] flex flex-col bg-bridge-dark relative"
+          >
+            {/* 카드→리스트 드롭 존 오버레이 (스프린트 카드 드래그 중에만) */}
+            {draggingSource === "sprint" && (
+              <div
+                className={`pointer-events-none absolute inset-2 z-20 rounded-2xl border-[1.5px] border-dashed flex items-start justify-center transition-colors ${
+                  dragOverList
+                    ? "border-bridge-accent bg-bridge-accent/10"
+                    : "border-bridge-accent/50 bg-bridge-accent/[0.04]"
+                }`}
+              >
+                <span className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-bold text-bridge-accent bg-bridge-obsidian/90 border border-bridge-accent/40 rounded-full px-3 py-1.5 shadow-lg">
+                  <CornerUpLeft className="w-3.5 h-3.5" />
+                  업무 리스트로 되돌리기 · 원래 자리로
+                </span>
+              </div>
+            )}
             <div className="px-4 py-2.5 border-b border-foreground/[0.06] flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-widest text-slate-400 truncate flex-1">
                 업무 리스트
@@ -1136,7 +1205,8 @@ export function SprintBoard({
                                         canDrag &&
                                         onDragStartItem(e, it, "backlog")
                                       }
-                                      className={`group flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg border border-transparent transition-colors ${
+                                      onDragEnd={onDragEndItem}
+                                      className={`group relative flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg border border-transparent transition-colors ${
                                         taken
                                           ? "bg-bridge-secondary/[0.05] hover:bg-bridge-secondary/[0.08]"
                                           : "hover:bg-bridge-surface hover:border-foreground/10"
@@ -1209,21 +1279,8 @@ export function SprintBoard({
                                         </span>
                                       </button>
 
-                                      {/* D. 메타 — 원클릭 담기 · 담긴 컬럼 칩 · 담당자 · 진입 힌트 */}
+                                      {/* D. 메타 — 담긴 컬럼 칩 · 담당자 · 진입 힌트 */}
                                       <span className="flex items-center gap-1 shrink-0">
-                                        {/* 원클릭 담기 (미담김 · 호버 노출) — 좌→우 편입 */}
-                                        {showAddBtn && (
-                                          <button
-                                            type="button"
-                                            onClick={() => addToSprint(it)}
-                                            className="inline-flex items-center gap-0.5 text-[10px] font-bold rounded-full pl-1 pr-1.5 py-0.5 bg-bridge-accent/15 text-bridge-accent border border-bridge-accent/30 opacity-0 group-hover:opacity-100 hover:bg-bridge-accent hover:text-white transition-all shrink-0"
-                                            title="스프린트에 담기"
-                                            aria-label="스프린트에 담기"
-                                          >
-                                            <ArrowRight className="w-3 h-3" />
-                                            스프린트
-                                          </button>
-                                        )}
                                         {taken && col && (
                                           <span
                                             className="inline-flex items-center gap-1 text-[10px] font-bold rounded px-1.5 py-0.5 max-w-[76px]"
@@ -1246,7 +1303,11 @@ export function SprintBoard({
                                         )}
                                         {it.assignee && (
                                           <span
-                                            className="w-4 h-4 rounded-full grid place-items-center text-[9px] font-bold text-white shrink-0"
+                                            className={`w-4 h-4 rounded-full grid place-items-center text-[9px] font-bold text-white shrink-0 ${
+                                              showAddBtn
+                                                ? "transition-opacity group-hover:opacity-0"
+                                                : ""
+                                            }`}
                                             style={{
                                               background: getAssigneeHex(
                                                 it.assignee.name,
@@ -1261,6 +1322,27 @@ export function SprintBoard({
                                           <ChevronRight className="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                                         )}
                                       </span>
+
+                                      {/* E. 원클릭 담기 (오버레이) — 레이아웃 폭을 점유하지 않고 제목 위로 겹침 */}
+                                      {showAddBtn && (
+                                        <>
+                                          {/* 제목 우측 끝을 행 배경색으로 페이드 → 버튼 뒤로 자연스럽게 사라짐 */}
+                                          <span
+                                            aria-hidden="true"
+                                            className="pointer-events-none absolute inset-y-0 right-0 w-24 rounded-r-lg bg-gradient-to-l from-bridge-surface from-45% to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => addToSprint(it)}
+                                            className="absolute right-1.5 top-1/2 -translate-y-1/2 z-10 inline-flex items-center gap-0.5 text-[10px] font-bold rounded-full pl-1 pr-1.5 py-0.5 bg-bridge-accent/15 text-bridge-accent border border-bridge-accent/30 opacity-0 group-hover:opacity-100 hover:bg-bridge-accent hover:text-white transition-all"
+                                            title="스프린트에 담기"
+                                            aria-label="스프린트에 담기"
+                                          >
+                                            <ArrowRight className="w-3 h-3" />
+                                            스프린트
+                                          </button>
+                                        </>
+                                      )}
                                     </div>
                                   );
                                 })}
