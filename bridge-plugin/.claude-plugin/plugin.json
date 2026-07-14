@@ -2,9 +2,9 @@
   "name": "bridge",
   "displayName": "BRIDGE",
   "version": "0.1.0",
-  "description": "Claude가 만든 결과물을 BRIDGE 마이스페이스에 저장·조회·공유. save/update/get/list/share_document MCP 툴과 save-to-bridge 스킬을 제공.",
+  "description": "BRIDGE 데이터를 읽어 브리핑·리포트로 가공하고, 결과물을 마이스페이스/보드/조직 노트에 저장·공유. 읽기 툴 9개 + 노트 툴 6개 + 스킬 4개(save-to-bridge, work-briefing, save-weekly-report, save-project-report).",
   "author": { "name": "BRIDGE" },
-  "keywords": ["bridge", "mcp", "notes", "document", "save"],
+  "keywords": ["bridge", "mcp", "notes", "document", "save", "report", "briefing"],
   "userConfig": {
     "bridge_pat": {
       "type": "string",

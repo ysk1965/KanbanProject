@@ -16,8 +16,14 @@ bridge-plugin/
 
 ## 구성 요소
 
-- **MCP 툴** (`spots` 서버): `save_document`, `update_document`, `get_document`, `list_documents`, `share_document` — BRIDGE 마이스페이스 노트 API와 1:1.
-- **스킬** `save-to-bridge`: "브릿지에 저장/공유해줘" 요청 시 결과물을 만들고 위 툴로 저장·공유.
+- **MCP 툴** (`spots` 서버):
+  - **노트 툴(쓰기)**: `list_boards`, `save_document`, `update_document`, `get_document`, `list_documents`, `share_document` — 마이스페이스/보드/조직 노트 API와 1:1(`board_id`/`org_id`로 스코프).
+  - **읽기 툴**: 개인 `get_my_today`·`get_my_board_tasks`·`get_my_calendar`, 보드 `get_board_stats`·`get_board_tasks`·`get_board_milestones`·`generate_board_report`, 조직 `list_org_boards`·`get_org_insights` — BRIDGE 데이터를 조회해 스킬이 가공.
+- **스킬**:
+  - `save-to-bridge`: "브릿지에 저장/공유해줘" 요청 시 결과물을 만들고 저장·공유.
+  - `work-briefing`: "오늘 뭐부터 하지" — 개인 업무 브리핑(읽기 중심).
+  - `save-weekly-report`: "이번 주 리포트" — 한 보드의 팀 주간 리포트를 보드 노트로 게시.
+  - `save-project-report`: "프로젝트 보고서" — 조직 여러 보드 롤업을 조직 노트로 게시.
 
 ## 사전 준비 — PAT 발급
 
