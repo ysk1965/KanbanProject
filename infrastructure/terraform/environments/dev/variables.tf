@@ -72,7 +72,33 @@ variable "mail_password" {
 variable "google_client_id" {
   description = "Google OAuth2 client ID"
   type        = string
+  default     = "529008418447-slt129ql6e1noruvhat2of5vovke80v3.apps.googleusercontent.com"
+}
+
+variable "google_client_secret" {
+  description = "Google OAuth2 client secret (sourced from SSM via local.secret when seeded)"
+  type        = string
+  sensitive   = true
   default     = ""
+}
+
+variable "ai_provider" {
+  description = "AI provider selection (claude | openai)"
+  type        = string
+  default     = "openai"
+}
+
+variable "sentry_dsn" {
+  description = "Sentry DSN for backend error monitoring (sourced from SSM via local.secret when seeded)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "testprod_frontend_url" {
+  description = "Test-prod frontend URL for CORS allow-list"
+  type        = string
+  default     = "https://d1lh3qblxyq39p.cloudfront.net"
 }
 
 variable "domain_name" {
@@ -81,10 +107,64 @@ variable "domain_name" {
   default     = "" # Set this to enable custom domain
 }
 
+variable "attachments_bucket_name" {
+  description = "S3 bucket for user attachments (data-source lookup). New account uses a new globally-unique name."
+  type        = string
+  default     = "kanban-attachments-259151461692"
+}
+
+variable "frontend_bucket_name" {
+  description = "Override frontend S3 bucket name (global uniqueness). Empty = {project}-{env}-frontend."
+  type        = string
+  default     = "kanban-dev-frontend-259151461692"
+}
+
+variable "dns_account_role_arn" {
+  description = "IAM role ARN to assume for managing Route53 records in ANOTHER AWS account (cross-account DNS / Pattern A). Leave empty to create & manage the hosted zone in THIS account."
+  type        = string
+  default     = "arn:aws:iam::997286396624:role/kanban-route53-cross-account"
+}
+
+variable "rds_engine_version" {
+  description = "PostgreSQL engine version for RDS. Pin to the SOURCE instance's actual version during migration (check: aws rds describe-db-instances)."
+  type        = string
+  default     = "15.10"
+}
+
+variable "rds_kms_key_id" {
+  description = "Customer-managed KMS key ARN for RDS storage encryption. Empty = default aws/rds key. Set to the new-account CMK so the cross-account-restored DB matches on terraform import."
+  type        = string
+  default     = ""
+}
+
+variable "rds_snapshot_identifier" {
+  description = "Restore RDS from this snapshot instead of creating empty (account-migration cutover). Empty = fresh."
+  type        = string
+  default     = ""
+}
+
+variable "rds_deletion_protection" {
+  description = "Override RDS deletion protection (null = prod-only legacy default; set true to protect the live DB)."
+  type        = bool
+  default     = null
+}
+
+variable "use_ssm_secrets" {
+  description = "Read app secrets from SSM SecureString (/kanban/<env>/<key>) instead of tfvars/TF_VAR. Seed SSM first via scripts/seed-ssm-secrets.sh."
+  type        = bool
+  default     = true
+}
+
+variable "ssm_secret_prefix" {
+  description = "SSM parameter path prefix for app secrets (dev/prod separation)."
+  type        = string
+  default     = "/kanban/dev"
+}
+
 variable "secondary_domain_name" {
   description = "Secondary domain name (e.g., milkyway.pe.kr) - shares same backend ALB"
   type        = string
-  default     = ""
+  default     = "milkyway.pe.kr"
 }
 
 # Polar.sh Payment

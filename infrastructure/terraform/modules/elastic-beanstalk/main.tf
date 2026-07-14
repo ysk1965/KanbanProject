@@ -44,6 +44,34 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_logs" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
 }
 
+# Inline policy: 첨부 버킷 S3 접근 (백엔드가 DefaultCredentialsProvider=인스턴스 역할로 putObject/copy/head/delete/list)
+# 관리형 WebTier 정책은 elasticbeanstalk-* 버킷에만 적용되어 첨부 버킷에는 권한이 없다.
+# 미설정 시 putObject가 AccessDenied(S3Exception) → /files/upload 500.
+resource "aws_iam_role_policy" "eb_s3_attachments" {
+  count = var.s3_bucket != "" ? 1 : 0
+  name  = "${var.project_name}-${var.environment}-eb-s3-attachments"
+  role  = aws_iam_role.eb_ec2.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:ListBucket",
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.s3_bucket}",
+          "arn:aws:s3:::${var.s3_bucket}/*",
+        ]
+      }
+    ]
+  })
+}
+
 # Instance Profile
 resource "aws_iam_instance_profile" "eb_ec2" {
   name = "${var.project_name}-${var.environment}-eb-ec2-profile"
@@ -327,6 +355,17 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.redis_host != "" ? "redis" : "simple"
   }
 
+  # Disable Redis auto-config when there is no Redis (dev). MUST be set or the app
+  # tries localhost:6379 → /actuator/health DOWN → ALB unhealthy.
+  dynamic "setting" {
+    for_each = var.redis_host == "" && var.spring_autoconfigure_exclude != "" ? [1] : []
+    content {
+      namespace = "aws:elasticbeanstalk:application:environment"
+      name      = "SPRING_AUTOCONFIGURE_EXCLUDE"
+      value     = var.spring_autoconfigure_exclude
+    }
+  }
+
   # Redis settings (only if Redis is configured)
   dynamic "setting" {
     for_each = var.redis_host != "" ? [1] : []
@@ -358,6 +397,26 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.frontend_url
   }
 
+  # Test-prod frontend URL (CORS allow-list for the testprod CloudFront origin)
+  dynamic "setting" {
+    for_each = var.testprod_frontend_url != "" ? [1] : []
+    content {
+      namespace = "aws:elasticbeanstalk:application:environment"
+      name      = "TESTPROD_FRONTEND_URL"
+      value     = var.testprod_frontend_url
+    }
+  }
+
+  # S3 attachments bucket — only set when provided (else app keeps its own default)
+  dynamic "setting" {
+    for_each = var.s3_bucket != "" ? [1] : []
+    content {
+      namespace = "aws:elasticbeanstalk:application:environment"
+      name      = "S3_BUCKET"
+      value     = var.s3_bucket
+    }
+  }
+
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"
     name      = "CLAUDE_API_KEY"
@@ -374,6 +433,16 @@ resource "aws_elastic_beanstalk_environment" "main" {
     namespace = "aws:elasticbeanstalk:application:environment"
     name      = "OPENAI_ADMIN_KEY"
     value     = var.openai_admin_key
+  }
+
+  # AI provider selection (claude | openai)
+  dynamic "setting" {
+    for_each = var.ai_provider != "" ? [1] : []
+    content {
+      namespace = "aws:elasticbeanstalk:application:environment"
+      name      = "AI_PROVIDER"
+      value     = var.ai_provider
+    }
   }
 
   # Email (Gmail SMTP)
@@ -394,6 +463,35 @@ resource "aws_elastic_beanstalk_environment" "main" {
     namespace = "aws:elasticbeanstalk:application:environment"
     name      = "GOOGLE_CLIENT_ID"
     value     = var.google_client_id
+  }
+
+  # Google OAuth2 client secret — only when provided (SSM/secret); empty keeps live value untouched
+  dynamic "setting" {
+    for_each = var.google_client_secret != "" ? [1] : []
+    content {
+      namespace = "aws:elasticbeanstalk:application:environment"
+      name      = "GOOGLE_CLIENT_SECRET"
+      value     = var.google_client_secret
+    }
+  }
+
+  # Sentry error monitoring
+  dynamic "setting" {
+    for_each = var.sentry_dsn != "" ? [1] : []
+    content {
+      namespace = "aws:elasticbeanstalk:application:environment"
+      name      = "SENTRY_DSN"
+      value     = var.sentry_dsn
+    }
+  }
+
+  dynamic "setting" {
+    for_each = var.sentry_environment != "" ? [1] : []
+    content {
+      namespace = "aws:elasticbeanstalk:application:environment"
+      name      = "SENTRY_ENVIRONMENT"
+      value     = var.sentry_environment
+    }
   }
 
   # S3 Attachments CloudFront

@@ -36,7 +36,7 @@ variable "ec2_security_group_id" {
 variable "solution_stack_name" {
   description = "Elastic Beanstalk solution stack name"
   type        = string
-  default     = "64bit Amazon Linux 2023 v4.8.3 running Corretto 21"
+  default     = "64bit Amazon Linux 2023 v4.12.1 running Corretto 21"
 }
 
 variable "instance_type" {
@@ -142,6 +142,45 @@ variable "google_client_id" {
   default     = ""
 }
 
+variable "google_client_secret" {
+  description = "Google OAuth2 client secret"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+# ─── App config / observability ───
+variable "spring_autoconfigure_exclude" {
+  description = "Spring Boot auto-configurations to exclude. Set when there is no Redis (dev) so RedisAutoConfiguration does not try localhost:6379 → /actuator/health DOWN."
+  type        = string
+  default     = "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration"
+}
+
+variable "ai_provider" {
+  description = "AI provider selection (claude | openai). Empty = app default."
+  type        = string
+  default     = ""
+}
+
+variable "sentry_dsn" {
+  description = "Sentry DSN for backend error monitoring. Empty = not set."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "sentry_environment" {
+  description = "Sentry environment tag (e.g. dev, prod). Empty = not set."
+  type        = string
+  default     = ""
+}
+
+variable "testprod_frontend_url" {
+  description = "Test-prod frontend URL for CORS allow-list. Empty = not set."
+  type        = string
+  default     = ""
+}
+
 variable "associate_public_ip" {
   description = "Associate public IP to EC2 instances (true for public subnet without NAT)"
   type        = string
@@ -156,6 +195,12 @@ variable "ssl_certificate_arn" {
 
 variable "cloudfront_domain" {
   description = "CloudFront domain for S3 attachments bucket (empty to use backend proxy)"
+  type        = string
+  default     = ""
+}
+
+variable "s3_bucket" {
+  description = "S3 attachments bucket name for the app (S3_BUCKET env). Empty = app uses its own configured default."
   type        = string
   default     = ""
 }
