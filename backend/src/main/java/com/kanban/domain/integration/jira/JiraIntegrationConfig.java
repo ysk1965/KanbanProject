@@ -41,14 +41,14 @@ public class JiraIntegrationConfig {
     @JoinColumn(name = "board_id", nullable = false, unique = true)
     private Board board;
 
-    // ① 대상
-    @Column(name = "base_url", nullable = false, length = 200)
+    // ① 대상 (OAuth 대기 상태에선 site/project가 아직 미정이라 nullable)
+    @Column(name = "base_url", length = 200)
     private String baseUrl;
 
     @Column(name = "cloud_id", length = 100)
     private String cloudId;
 
-    @Column(name = "project_key", nullable = false, length = 50)
+    @Column(name = "project_key", length = 50)
     private String projectKey;
 
     @Column(name = "jql", length = 1000)
@@ -63,9 +63,20 @@ public class JiraIntegrationConfig {
     @Column(name = "account_email", length = 200)
     private String accountEmail;
 
-    /** SlackTokenEncryptor로 암호화된 API 토큰. 서비스단에서 encrypt/decrypt. */
+    /**
+     * 암호화된 토큰. API_TOKEN이면 Atlassian API 토큰, OAUTH_3LO이면 access token.
+     * 서비스단에서 encrypt/decrypt.
+     */
     @Column(name = "api_token_encrypted", length = 500)
     private String apiTokenEncrypted;
+
+    /** OAuth refresh token(암호화). offline_access 스코프로 자동 갱신용. */
+    @Column(name = "refresh_token_encrypted", length = 500)
+    private String refreshTokenEncrypted;
+
+    /** OAuth access token 만료 시각(UTC). 임박 시 refresh token으로 자동 갱신. */
+    @Column(name = "token_expires_at")
+    private LocalDateTime tokenExpiresAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "connected_by", nullable = false)
@@ -147,6 +158,36 @@ public class JiraIntegrationConfig {
 
     public void updateJql(String jql) {
         this.jql = jql;
+    }
+
+    /** OAuth 토큰 저장/갱신 (콜백·리프레시 공용). authType을 OAUTH_3LO로. */
+    public void applyOAuthTokens(String accessTokenEncrypted, String refreshTokenEncrypted, LocalDateTime expiresAt) {
+        this.authType = JiraAuthType.OAUTH_3LO;
+        this.apiTokenEncrypted = accessTokenEncrypted;
+        if (refreshTokenEncrypted != null) {
+            this.refreshTokenEncrypted = refreshTokenEncrypted;
+        }
+        this.tokenExpiresAt = expiresAt;
+        this.accountEmail = null; // OAuth는 Bearer 인증 — 이메일 짝 불필요
+    }
+
+    /** OAuth 사이트/프로젝트 확정 (사용자가 사이트+프로젝트 선택 후). */
+    public void finalizeOAuthTarget(String baseUrl, String cloudId, String projectKey) {
+        this.baseUrl = baseUrl;
+        this.cloudId = cloudId;
+        this.projectKey = projectKey;
+        this.status = JiraConnectionStatus.CONNECTED;
+        this.active = true;
+        this.lastError = null;
+    }
+
+    public boolean isOAuth() {
+        return this.authType == JiraAuthType.OAUTH_3LO;
+    }
+
+    public boolean isTargetFinalized() {
+        return this.projectKey != null && !this.projectKey.isBlank()
+            && ((isOAuth() && this.cloudId != null) || this.baseUrl != null);
     }
 
     public void updateMapping(String statusToBlockJson, String priorityToTagJson,

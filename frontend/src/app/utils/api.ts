@@ -5792,8 +5792,10 @@ export const discordAPI = {
 export interface JiraStatus {
   board_id: string;
   connected: boolean;
-  base_url: string;
-  project_key: string;
+  auth_type: string | null; // API_TOKEN / OAUTH_3LO
+  needs_site_selection: boolean;
+  base_url: string | null;
+  project_key: string | null;
   jql: string | null;
   status: string; // CONNECTED / ERROR / DISCONNECTED
   last_synced_at: string | null;
@@ -5802,6 +5804,12 @@ export interface JiraStatus {
   write_back_enabled: boolean;
   write_back_target_status_id: string | null;
   connected_by_name: string | null;
+}
+
+export interface JiraSiteRef {
+  cloud_id: string;
+  url: string;
+  name: string;
 }
 
 export interface JiraTestResult {
@@ -5819,6 +5827,19 @@ export interface JiraMeta {
   statuses: JiraNameRef[];
 }
 
+export interface JiraPreviewItem {
+  key: string;
+  summary: string;
+  target_type: "FEATURE" | "TASK";
+  block_name: string | null;
+  assignee_name: string | null;
+  assignee_matched: boolean;
+  parent_key: string | null;
+  attachment_count: number;
+  skipped: boolean;
+  skip_reason: string | null;
+}
+
 export interface JiraImportResult {
   total: number;
   created: number;
@@ -5828,12 +5849,35 @@ export interface JiraImportResult {
   tasks: number;
   checklists: number;
   comments: number;
+  milestone_name?: string | null;
+  items?: JiraPreviewItem[] | null;
   errors: string[];
 }
 
 export const jiraAPI = {
   getStatus: async (boardId: string) => {
     return apiClient.get<JiraStatus | null>(`/boards/${boardId}/jira/status`);
+  },
+
+  // ── OAuth (Atlassian으로 연결) ──
+  getOAuthUrl: async (boardId: string) => {
+    const origin = encodeURIComponent(window.location.origin);
+    return apiClient.get<{ oauth_url: string }>(
+      `/boards/${boardId}/jira/oauth/url?origin=${origin}`,
+    );
+  },
+  getSites: async (boardId: string) => {
+    return apiClient.get<JiraSiteRef[]>(`/boards/${boardId}/jira/oauth/sites`);
+  },
+  finalize: async (
+    boardId: string,
+    data: { cloudId: string; baseUrl: string; projectKey: string },
+  ) => {
+    return apiClient.post<JiraStatus>(`/boards/${boardId}/jira/oauth/finalize`, {
+      cloud_id: data.cloudId,
+      base_url: data.baseUrl,
+      project_key: data.projectKey,
+    });
   },
 
   connect: async (

@@ -49,4 +49,14 @@ public class JiraRequest {
         private String jql;      // 선택 override (없으면 config.jql 또는 project=KEY)
         private boolean preview; // true면 건수만 계산
     }
+
+    /** OAuth 사이트/프로젝트 확정. */
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Finalize {
+        private String cloudId;
+        private String baseUrl;
+        private String projectKey;
+    }
 }

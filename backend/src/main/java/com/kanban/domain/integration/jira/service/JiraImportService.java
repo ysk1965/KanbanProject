@@ -22,7 +22,6 @@ import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.integration.jira.*;
 import com.kanban.domain.integration.jira.dto.JiraRequest;
 import com.kanban.domain.integration.jira.dto.JiraResponse;
-import com.kanban.domain.integration.slack.service.SlackTokenEncryptor;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.tag.Tag;
@@ -49,8 +48,10 @@ import java.util.*;
 /**
  * JIRA 이슈 → BRIDGE 카드 가져오기.
  *
- * 2-패스: (1) 에픽 → Feature, (2) 이슈 → Task(소속 Feature 하위).
- * - 담당자: Epic은 Feature.assignee 직접, 이슈는 ChecklistItem으로 이관(담당자 사다리로 BRIDGE 멤버 해석).
+ * 그룹핑: 프로젝트(Space) → Feature, 그 프로젝트의 모든 이슈 → Task(해당 Feature 하위).
+ * - 에픽: 그룹핑에 쓰지 않으므로 가져오지 않음(무시).
+ * - Feature 재사용: 프로젝트키를 원장(FEATURE 링크)에 기록해 재가져오기 때 같은 Feature에 append.
+ * - 담당자: ChecklistItem으로 이관(담당자 사다리로 BRIDGE 멤버 해석).
  * - 첨부: JIRA 바이트 → S3 직접 업로드 → Task 댓글(알림 없이 직접 build).
  * - priority/component → Tag.
  * - 마일스톤: 오늘 걸치는 현재 마일스톤 자동 배정.
@@ -66,11 +67,11 @@ public class JiraImportService {
     private static final String DEFAULT_TAG_COLOR = "#94a3b8";
 
     private final JiraApiClient jiraApiClient;
+    private final JiraOAuthService oauthService;
     private final JiraIssueMapper mapper;
     private final JiraIntegrationConfigRepository configRepository;
     private final JiraIssueLinkRepository issueLinkRepository;
     private final JiraUserMappingRepository userMappingRepository;
-    private final SlackTokenEncryptor tokenEncryptor;
     private final ObjectMapper objectMapper;
 
     private final BoardService boardService;
@@ -94,23 +95,20 @@ public class JiraImportService {
         boardService.checkMemberOrAbove(boardId, userId);
         JiraIntegrationConfig config = configRepository.findActiveByBoardId(boardId)
             .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
-        String token = tokenEncryptor.decrypt(config.getApiTokenEncrypted());
+        String token = oauthService.resolveToken(config);
+        JiraAuthContext ctx = JiraAuthContext.of(config, token);
         String jql = resolveJql(request, config);
 
         List<ParsedJiraIssue> issues;
         try {
-            issues = fetchAll(config, token, jql);
+            issues = fetchAll(ctx, jql);
         } catch (BusinessException e) {
             config.markError(e.getMessage());
             throw e;
         }
 
         if (request.isPreview()) {
-            long epics = issues.stream().filter(ParsedJiraIssue::isEpic).count();
-            return JiraResponse.ImportResult.builder()
-                .total(issues.size()).created(0).updated(0).skipped(0)
-                .features((int) epics).tasks((int) (issues.size() - epics))
-                .checklists(0).comments(0).errors(List.of()).build();
+            return buildPreview(boardId, issues, config);
         }
 
         Board board = boardRepository.findByIdWithLock(boardId)
@@ -128,44 +126,30 @@ public class JiraImportService {
         Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
             .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
-        // 기존 링크: 중복 스킵 + 에픽 key→featureId 역참조
+        // 에픽은 그룹핑에 쓰지 않으므로 제외 (프로젝트 Space = Feature)
+        List<ParsedJiraIssue> importable = issues.stream()
+            .filter(i -> !i.isEpic())
+            .toList();
+
+        // 기존 링크: 이슈 중복 스킵 + 프로젝트키 → Feature 재사용
         List<JiraIssueLink> existing = issueLinkRepository.findByBoardId(boardId);
         Set<String> existingKeys = new HashSet<>();
-        Map<String, String> keyToFeatureId = new HashMap<>();
+        Map<String, String> projectKeyToFeatureId = new HashMap<>();
         for (JiraIssueLink link : existing) {
             existingKeys.add(link.getJiraIssueKey());
             if (link.getTargetType() == JiraLinkTargetType.FEATURE) {
-                keyToFeatureId.put(link.getJiraIssueKey(), link.getTargetId());
+                projectKeyToFeatureId.put(link.getJiraIssueKey(), link.getTargetId());
             }
         }
 
         Counters c = new Counters();
-        c.skipped = (int) issues.stream().filter(i -> existingKeys.contains(i.key())).count();
+        c.skipped = (int) importable.stream().filter(i -> existingKeys.contains(i.key())).count();
 
-        // ── PASS 1: 에픽 → Feature ──
-        for (ParsedJiraIssue issue : issues) {
-            if (!issue.isEpic() || existingKeys.contains(issue.key())) continue;
-            User assignee = resolveAssignee(board, members, issue.assigneeAccountId(), issue.assigneeDisplayName());
-            Feature feature = createFeature(board, importer, issue, assignee);
-            saveLink(board, issue, JiraLinkTargetType.FEATURE, feature.getId());
-            keyToFeatureId.put(issue.key(), feature.getId());
-            c.features++;
-            c.created++;
-        }
+        // ── 프로젝트(Space) → Feature, 이슈 → Task ──
+        for (ParsedJiraIssue issue : importable) {
+            if (existingKeys.contains(issue.key())) continue;
 
-        Feature fallbackFeature = null;
-
-        // ── PASS 2: 이슈 → Task ──
-        for (ParsedJiraIssue issue : issues) {
-            if (issue.isEpic() || existingKeys.contains(issue.key())) continue;
-            Feature feature = null;
-            if (issue.parentKey() != null && keyToFeatureId.containsKey(issue.parentKey())) {
-                feature = featureRepository.findById(keyToFeatureId.get(issue.parentKey())).orElse(null);
-            }
-            if (feature == null) {
-                if (fallbackFeature == null) fallbackFeature = createFallbackFeature(board, importer);
-                feature = fallbackFeature;
-            }
+            Feature feature = resolveProjectFeature(board, importer, issue, projectKeyToFeatureId, c);
 
             Task task = createTask(board, importer, feature, issue, statusToBlock, taskBlock, currentMilestone);
             saveLink(board, issue, JiraLinkTargetType.TASK, task.getId());
@@ -188,7 +172,7 @@ public class JiraImportService {
             // 첨부 → 댓글 (개별 실패는 무시하고 계속)
             for (ParsedJiraIssue.Attachment att : issue.attachments()) {
                 try {
-                    importAttachmentAsComment(board, importer, task, att, config, token);
+                    importAttachmentAsComment(board, importer, task, att, ctx);
                     c.comments++;
                 } catch (Exception ex) {
                     log.warn("JIRA attachment import failed ({} / {}): {}", issue.key(), att.filename(), ex.getMessage());
@@ -202,19 +186,92 @@ public class JiraImportService {
             boardId, c.created, c.skipped, c.features, c.tasks, c.checklists, c.comments);
 
         return JiraResponse.ImportResult.builder()
-            .total(issues.size()).created(c.created).updated(0).skipped(c.skipped)
+            .total(importable.size()).created(c.created).updated(0).skipped(c.skipped)
             .features(c.features).tasks(c.tasks).checklists(c.checklists).comments(c.comments)
             .errors(c.errors).build();
     }
 
+    // ── 미리보기 (읽기 전용 드라이런: DB 변경 없음) ──
+
+    /**
+     * 가져오기 전에 "이슈 1건 → BRIDGE에서 무엇이 되는지"를 계산한다.
+     * 실제 생성/매핑 저장 없이 상태 블록·담당자 매칭·스킵 여부만 판별한다.
+     */
+    private JiraResponse.ImportResult buildPreview(String boardId, List<ParsedJiraIssue> issues,
+                                                   JiraIntegrationConfig config) {
+        Set<String> existingKeys = new HashSet<>();
+        for (JiraIssueLink link : issueLinkRepository.findByBoardId(boardId)) {
+            existingKeys.add(link.getJiraIssueKey());
+        }
+        Map<String, String> statusToBlock = readMap(config.getStatusToBlockJson());
+        List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
+        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
+        Milestone currentMilestone = Boolean.TRUE.equals(config.getMilestoneAutoAssign())
+            ? resolveCurrentMilestone(boardId) : null;
+
+        List<JiraResponse.PreviewItem> items = new ArrayList<>();
+        int tasks = 0, skipped = 0, checklists = 0, attachments = 0;
+        Set<String> projectKeys = new LinkedHashSet<>();  // 프로젝트(Space) = Feature
+
+        for (ParsedJiraIssue issue : issues) {
+            if (issue.isEpic()) continue;   // 에픽은 가져오지 않음 (프로젝트가 Feature)
+
+            boolean isSkipped = existingKeys.contains(issue.key());
+            boolean hasAssignee = issue.assigneeAccountId() != null;
+            int attCount = issue.attachments() != null ? issue.attachments().size() : 0;
+            if (issue.projectKey() != null) projectKeys.add(issue.projectKey());
+
+            Block block = resolveBlock(boardId, issue.statusName(), statusToBlock, taskBlock);
+            String blockName = block != null ? block.getName() : null;
+
+            if (isSkipped) {
+                skipped++;
+            } else {
+                tasks++;
+                if (hasAssignee) checklists++;
+                attachments += attCount;
+            }
+
+            items.add(JiraResponse.PreviewItem.builder()
+                .key(issue.key())
+                .summary(issue.summary())
+                .targetType("TASK")
+                .blockName(blockName)
+                .assigneeName(issue.assigneeDisplayName())
+                .assigneeMatched(hasAssignee && previewAssigneeMatched(
+                    boardId, members, issue.assigneeAccountId(), issue.assigneeDisplayName()))
+                .parentKey(issue.parentKey())
+                .attachmentCount(attCount)
+                .skipped(isSkipped)
+                .skipReason(isSkipped ? "이미 가져옴" : null)
+                .build());
+        }
+
+        return JiraResponse.ImportResult.builder()
+            .total(items.size()).created(0).updated(0).skipped(skipped)
+            .features(projectKeys.size()).tasks(tasks).checklists(checklists).comments(attachments)
+            .milestoneName(currentMilestone != null ? currentMilestone.getTitle() : null)
+            .items(items).errors(List.of()).build();
+    }
+
+    /** resolveAssignee의 읽기 전용 버전 — 매핑 저장 없이 매칭 여부만 반환. */
+    private boolean previewAssigneeMatched(String boardId, List<BoardMember> members,
+                                           String accountId, String displayName) {
+        Optional<JiraUserMapping> stored = userMappingRepository.findByBoardIdAndJiraAccountId(boardId, accountId);
+        if (stored.isPresent()) return stored.get().getBridgeUser() != null;
+        if (displayName == null) return false;
+        return members.stream()
+            .map(BoardMember::getUser)
+            .anyMatch(u -> u != null && displayName.equalsIgnoreCase(u.getName()));
+    }
+
     // ── fetch ─────────────────────────────────────
 
-    private List<ParsedJiraIssue> fetchAll(JiraIntegrationConfig config, String token, String jql) {
+    private List<ParsedJiraIssue> fetchAll(JiraAuthContext ctx, String jql) {
         List<ParsedJiraIssue> out = new ArrayList<>();
         String nextPageToken = null;
         for (int page = 0; page < MAX_PAGES; page++) {
-            JsonNode result = jiraApiClient.searchIssues(config.getBaseUrl(), config.getAccountEmail(), token,
-                jql, nextPageToken, PAGE_SIZE);
+            JsonNode result = jiraApiClient.searchIssues(ctx, jql, nextPageToken, PAGE_SIZE);
             JsonNode issuesNode = result != null ? result.get("issues") : null;
             if (issuesNode != null && issuesNode.isArray()) {
                 for (JsonNode issue : issuesNode) {
@@ -231,25 +288,36 @@ public class JiraImportService {
 
     // ── 생성 헬퍼 ─────────────────────────────────
 
-    private Feature createFeature(Board board, User importer, ParsedJiraIssue epic, User assignee) {
-        Integer maxPos = featureRepository.findMaxPositionByBoardId(board.getId());
-        Feature feature = Feature.builder()
+    /** 프로젝트(Space) 단위 Feature 확보 — 이미 있으면 재사용, 없으면 생성 후 원장 기록. */
+    private Feature resolveProjectFeature(Board board, User importer, ParsedJiraIssue issue,
+                                          Map<String, String> projectKeyToFeatureId, Counters c) {
+        String projectKey = issue.projectKey() != null ? issue.projectKey() : "JIRA";
+        String existingId = projectKeyToFeatureId.get(projectKey);
+        if (existingId != null) {
+            Feature found = featureRepository.findById(existingId).orElse(null);
+            if (found != null) return found;
+        }
+        String name = issue.projectName() != null && !issue.projectName().isBlank()
+            ? issue.projectName() : projectKey;
+        Feature feature = createProjectFeature(board, importer, name);
+        // 프로젝트키를 원장에 기록 → 재가져오기 때 같은 Feature 재사용
+        issueLinkRepository.save(JiraIssueLink.builder()
             .board(board)
-            .title(truncate(epic.summary(), 200))
-            .description(epic.description())
-            .assignee(assignee)
-            .createdBy(importer)
-            .position(maxPos != null ? maxPos + 1 : 0)
-            .build();
-        return featureRepository.save(feature);
+            .jiraIssueKey(projectKey)
+            .targetType(JiraLinkTargetType.FEATURE)
+            .targetId(feature.getId())
+            .build());
+        projectKeyToFeatureId.put(projectKey, feature.getId());
+        c.features++;
+        return feature;
     }
 
-    private Feature createFallbackFeature(Board board, User importer) {
+    private Feature createProjectFeature(Board board, User importer, String name) {
         Integer maxPos = featureRepository.findMaxPositionByBoardId(board.getId());
         Feature feature = Feature.builder()
             .board(board)
-            .title("JIRA 가져오기")
-            .description("에픽이 없는 JIRA 이슈가 담기는 기본 Feature")
+            .title(truncate(name, 200))
+            .description("JIRA에서 가져온 이슈")
             .createdBy(importer)
             .position(maxPos != null ? maxPos + 1 : 0)
             .build();
@@ -298,8 +366,8 @@ public class JiraImportService {
     }
 
     private void importAttachmentAsComment(Board board, User importer, Task task,
-                                           ParsedJiraIssue.Attachment att, JiraIntegrationConfig config, String token) {
-        byte[] data = jiraApiClient.downloadAttachment(att.contentUrl(), config.getAccountEmail(), token);
+                                           ParsedJiraIssue.Attachment att, JiraAuthContext ctx) {
+        byte[] data = jiraApiClient.downloadAttachment(ctx, att.contentUrl());
 
         Comment comment = Comment.builder()
             .task(task)

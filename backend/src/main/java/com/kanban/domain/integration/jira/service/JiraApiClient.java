@@ -18,12 +18,10 @@ import java.util.Base64;
 import java.util.List;
 
 /**
- * JIRA Cloud REST v3 클라이언트 (API 토큰 Basic 인증).
+ * JIRA Cloud REST v3 클라이언트. API 토큰(Basic)과 OAuth(Bearer) 모두 지원 — {@link JiraAuthContext}로 분기.
  *
- * 순수 전송 계층 — 자격증명(email, 복호화 토큰)과 baseUrl을 인자로 받아 stateless.
- * 응답은 Jackson {@link JsonNode}로 반환하고, 파싱은 Mapper/Service가 담당.
- * SlackApiClient의 재시도·백오프·BusinessException 변환 골격을 차용하되
- * 성공 판정은 HTTP status(2xx)로 한다.
+ * 순수 전송 계층. 응답은 Jackson {@link JsonNode}. 성공 판정은 HTTP status(2xx).
+ * SlackApiClient의 재시도·백오프·BusinessException 변환 골격 차용.
  */
 @Slf4j
 @Component
@@ -42,29 +40,21 @@ public class JiraApiClient {
 
     // ── 연결 검증 ──────────────────────────────────
 
-    /** GET /myself — 200이면 자격증명 유효. 401/403이면 JIRA_AUTH_FAILED. */
-    public JsonNode getMyself(String baseUrl, String email, String token) {
-        return exchange(baseUrl, email, token, HttpMethod.GET, "/myself", null);
+    public JsonNode getMyself(JiraAuthContext ctx) {
+        return exchange(ctx, HttpMethod.GET, "/myself", null);
     }
 
-    /** GET /project/{key} — 프로젝트 존재/접근 검증 및 메타. */
-    public JsonNode getProject(String baseUrl, String email, String token, String projectKey) {
-        return exchange(baseUrl, email, token, HttpMethod.GET, "/project/" + projectKey, null);
+    public JsonNode getProject(JiraAuthContext ctx, String projectKey) {
+        return exchange(ctx, HttpMethod.GET, "/project/" + projectKey, null);
     }
 
-    /** GET /project/{key}/statuses — 상태 목록(매핑 UI용). */
-    public JsonNode getProjectStatuses(String baseUrl, String email, String token, String projectKey) {
-        return exchange(baseUrl, email, token, HttpMethod.GET, "/project/" + projectKey + "/statuses", null);
+    public JsonNode getProjectStatuses(JiraAuthContext ctx, String projectKey) {
+        return exchange(ctx, HttpMethod.GET, "/project/" + projectKey + "/statuses", null);
     }
 
     // ── 이슈 검색 (Enhanced JQL search, nextPageToken 페이지네이션) ──
 
-    /**
-     * POST /search/jql — JQL 결과 한 페이지. nextPageToken이 null이면 마지막.
-     * @param nextPageToken 첫 호출 시 null.
-     */
-    public JsonNode searchIssues(String baseUrl, String email, String token,
-                                 String jql, String nextPageToken, int maxResults) {
+    public JsonNode searchIssues(JiraAuthContext ctx, String jql, String nextPageToken, int maxResults) {
         ObjectNode body = objectMapper.createObjectNode();
         body.put("jql", jql);
         body.put("maxResults", maxResults);
@@ -73,37 +63,30 @@ public class JiraApiClient {
         if (nextPageToken != null && !nextPageToken.isBlank()) {
             body.put("nextPageToken", nextPageToken);
         }
-        return exchange(baseUrl, email, token, HttpMethod.POST, "/search/jql", body);
+        return exchange(ctx, HttpMethod.POST, "/search/jql", body);
     }
 
-    /** GET /issue/{key}?fields=...&expand=... — 단건 상세(댓글 포함). */
-    public JsonNode getIssue(String baseUrl, String email, String token, String issueKey) {
-        String path = "/issue/" + issueKey + "?fields="
-            + String.join(",", DEFAULT_FIELDS) + ",comment";
-        return exchange(baseUrl, email, token, HttpMethod.GET, path, null);
+    public JsonNode getIssue(JiraAuthContext ctx, String issueKey) {
+        String path = "/issue/" + issueKey + "?fields=" + String.join(",", DEFAULT_FIELDS) + ",comment";
+        return exchange(ctx, HttpMethod.GET, path, null);
     }
 
     // ── 전환 (완료 역동기화) ───────────────────────
 
-    /** GET /issue/{key}/transitions — 현재 상태에서 가능한 전환 목록. */
-    public JsonNode getTransitions(String baseUrl, String email, String token, String issueKey) {
-        return exchange(baseUrl, email, token, HttpMethod.GET, "/issue/" + issueKey + "/transitions", null);
+    public JsonNode getTransitions(JiraAuthContext ctx, String issueKey) {
+        return exchange(ctx, HttpMethod.GET, "/issue/" + issueKey + "/transitions", null);
     }
 
-    /** POST /issue/{key}/transitions — 전환 실행. */
-    public void transitionIssue(String baseUrl, String email, String token, String issueKey, String transitionId) {
+    public void transitionIssue(JiraAuthContext ctx, String issueKey, String transitionId) {
         ObjectNode body = objectMapper.createObjectNode();
-        ObjectNode transition = body.putObject("transition");
-        transition.put("id", transitionId);
-        exchange(baseUrl, email, token, HttpMethod.POST, "/issue/" + issueKey + "/transitions", body);
+        body.putObject("transition").put("id", transitionId);
+        exchange(ctx, HttpMethod.POST, "/issue/" + issueKey + "/transitions", body);
     }
 
-    // ── 첨부 다운로드 ──────────────────────────────
+    // ── 첨부 다운로드 (content URL은 절대경로) ────
 
-    /** 첨부 content URL(절대 경로)에서 바이트를 내려받는다. */
-    public byte[] downloadAttachment(String contentUrl, String email, String token) {
-        HttpHeaders headers = basicAuthHeaders(email, token);
-        HttpEntity<Void> request = new HttpEntity<>(headers);
+    public byte[] downloadAttachment(JiraAuthContext ctx, String contentUrl) {
+        HttpEntity<Void> request = new HttpEntity<>(authHeaders(ctx));
         try {
             ResponseEntity<byte[]> response = restTemplate.exchange(contentUrl, HttpMethod.GET, request, byte[].class);
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
@@ -118,12 +101,11 @@ public class JiraApiClient {
 
     // ── 공통 호출 ──────────────────────────────────
 
-    private JsonNode exchange(String baseUrl, String email, String token,
-                              HttpMethod method, String path, JsonNode body) {
-        String url = apiBase(baseUrl) + path;
+    private JsonNode exchange(JiraAuthContext ctx, HttpMethod method, String path, JsonNode body) {
+        String url = apiBase(ctx) + path;
         for (int attempt = 0; attempt < MAX_RETRIES; attempt++) {
             try {
-                HttpHeaders headers = basicAuthHeaders(email, token);
+                HttpHeaders headers = authHeaders(ctx);
                 headers.setContentType(MediaType.APPLICATION_JSON);
                 headers.setAccept(List.of(MediaType.APPLICATION_JSON));
 
@@ -166,19 +148,23 @@ public class JiraApiClient {
         throw new BusinessException(ErrorCode.JIRA_API_ERROR);
     }
 
-    private HttpHeaders basicAuthHeaders(String email, String token) {
+    private HttpHeaders authHeaders(JiraAuthContext ctx) {
         HttpHeaders headers = new HttpHeaders();
-        String creds = email + ":" + token;
-        String encoded = Base64.getEncoder().encodeToString(creds.getBytes(StandardCharsets.UTF_8));
-        headers.set(HttpHeaders.AUTHORIZATION, "Basic " + encoded);
+        if (ctx.isOAuth()) {
+            headers.setBearerAuth(ctx.token());
+        } else {
+            String creds = ctx.email() + ":" + ctx.token();
+            String encoded = Base64.getEncoder().encodeToString(creds.getBytes(StandardCharsets.UTF_8));
+            headers.set(HttpHeaders.AUTHORIZATION, "Basic " + encoded);
+        }
         return headers;
     }
 
-    /** "cookapps-interactive.atlassian.net" 또는 "https://..." 모두 받아 REST v3 base로. */
-    private String apiBase(String baseUrl) {
-        String host = baseUrl.trim()
-            .replaceFirst("^https?://", "")
-            .replaceAll("/+$", "");
+    private String apiBase(JiraAuthContext ctx) {
+        if (ctx.isOAuth()) {
+            return "https://api.atlassian.com/ex/jira/" + ctx.cloudId() + "/rest/api/3";
+        }
+        String host = ctx.baseUrl().trim().replaceFirst("^https?://", "").replaceAll("/+$", "");
         return "https://" + host + "/rest/api/3";
     }
 

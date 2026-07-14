@@ -4,13 +4,19 @@ import com.kanban.domain.integration.jira.dto.JiraRequest;
 import com.kanban.domain.integration.jira.dto.JiraResponse;
 import com.kanban.domain.integration.jira.service.JiraConnectionService;
 import com.kanban.domain.integration.jira.service.JiraImportService;
+import com.kanban.domain.integration.jira.service.JiraOAuthService;
 import com.kanban.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,6 +30,59 @@ public class JiraController {
 
     private final JiraConnectionService connectionService;
     private final JiraImportService importService;
+    private final JiraOAuthService oauthService;
+
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
+
+    // ── OAuth (Atlassian으로 연결) ──────────────────
+
+    @GetMapping("/api/v1/boards/{boardId}/jira/oauth/url")
+    public ResponseEntity<JiraResponse.OAuthUrl> oauthUrl(
+            @PathVariable String boardId,
+            @RequestParam(value = "origin", required = false) String origin,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        String resolvedOrigin = (origin != null && !origin.isBlank()) ? origin : frontendUrl;
+        return ResponseEntity.ok(oauthService.getAuthorizeUrl(boardId, principal.getUserId(), resolvedOrigin));
+    }
+
+    @GetMapping("/api/v1/jira/oauth/callback")
+    public ResponseEntity<Void> oauthCallback(
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String error) {
+        String redirect;
+        if (code == null || error != null) {
+            redirect = frontendUrl + "?jira=oauth_error&reason=" + (error != null ? error : "denied");
+        } else {
+            try {
+                redirect = oauthService.handleCallback(code, state);
+            } catch (Exception e) {
+                log.warn("JIRA OAuth callback failed: {}", e.getMessage());
+                redirect = frontendUrl + "?jira=oauth_error&reason=error";
+            }
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.setLocation(URI.create(redirect));
+        return new ResponseEntity<>(headers, HttpStatus.FOUND);
+    }
+
+    @GetMapping("/api/v1/boards/{boardId}/jira/oauth/sites")
+    public ResponseEntity<List<JiraResponse.SiteRef>> oauthSites(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(oauthService.getAccessibleSites(boardId, principal.getUserId()));
+    }
+
+    @PostMapping("/api/v1/boards/{boardId}/jira/oauth/finalize")
+    public ResponseEntity<JiraResponse.Status> oauthFinalize(
+            @PathVariable String boardId,
+            @RequestBody JiraRequest.Finalize request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        oauthService.finalizeTarget(boardId, principal.getUserId(),
+            request.getCloudId(), request.getBaseUrl(), request.getProjectKey());
+        return ResponseEntity.ok(connectionService.getStatus(boardId, principal.getUserId()));
+    }
 
     @PostMapping("/api/v1/boards/{boardId}/jira/import")
     public ResponseEntity<JiraResponse.ImportResult> importIssues(

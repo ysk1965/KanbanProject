@@ -39,6 +39,7 @@ import java.util.Map;
 public class JiraConnectionService {
 
     private final JiraApiClient jiraApiClient;
+    private final JiraOAuthService oauthService;
     private final JiraIntegrationConfigRepository configRepository;
     private final JiraIssueLinkRepository issueLinkRepository;
     private final JiraUserMappingRepository userMappingRepository;
@@ -56,8 +57,9 @@ public class JiraConnectionService {
 
         // 저장 전 자격증명 검증: /myself + /project/{key}
         try {
-            jiraApiClient.getMyself(request.getBaseUrl(), request.getAccountEmail(), request.getApiToken());
-            jiraApiClient.getProject(request.getBaseUrl(), request.getAccountEmail(), request.getApiToken(), request.getProjectKey());
+            JiraAuthContext probe = JiraAuthContext.basic(request.getBaseUrl(), request.getAccountEmail(), request.getApiToken());
+            jiraApiClient.getMyself(probe);
+            jiraApiClient.getProject(probe, request.getProjectKey());
         } catch (BusinessException e) {
             log.warn("JIRA connect validation failed for board {}: {}", boardId, e.getErrorCode());
             if (e.getErrorCode() == ErrorCode.JIRA_ISSUE_NOT_FOUND) {
@@ -100,12 +102,13 @@ public class JiraConnectionService {
 
     // ── 연결 테스트 ────────────────────────────────
 
+    @Transactional
     public JiraResponse.TestResult testConnection(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
         JiraIntegrationConfig config = getActiveConfigOrThrow(boardId);
-        String token = tokenEncryptor.decrypt(config.getApiTokenEncrypted());
+        String token = oauthService.resolveToken(config);
         try {
-            JsonNode project = jiraApiClient.getProject(config.getBaseUrl(), config.getAccountEmail(), token, config.getProjectKey());
+            JsonNode project = jiraApiClient.getProject(JiraAuthContext.of(config, token), config.getProjectKey());
             String projectName = project != null && project.hasNonNull("name") ? project.get("name").asText() : config.getProjectKey();
             return JiraResponse.TestResult.builder()
                 .success(true)
@@ -122,13 +125,14 @@ public class JiraConnectionService {
 
     // ── 매핑 UI용 메타 (상태 목록) ────────────────
 
+    @Transactional
     public JiraResponse.Meta getMeta(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
         JiraIntegrationConfig config = getActiveConfigOrThrow(boardId);
-        String token = tokenEncryptor.decrypt(config.getApiTokenEncrypted());
+        String token = oauthService.resolveToken(config);
 
         JsonNode statusGroups = jiraApiClient.getProjectStatuses(
-            config.getBaseUrl(), config.getAccountEmail(), token, config.getProjectKey());
+            JiraAuthContext.of(config, token), config.getProjectKey());
 
         // /project/{key}/statuses = [ {name(issuetype), statuses:[{id,name}]}, ... ] → 유니크 상태로 평탄화
         Map<String, String> uniqueStatuses = new LinkedHashMap<>();
@@ -176,7 +180,10 @@ public class JiraConnectionService {
 
     public JiraResponse.Status getStatus(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
-        return toStatus(getActiveConfigOrThrow(boardId));
+        // pending(OAuth 사이트 미선택) 상태도 반환해야 FE가 사이트 선택 화면을 띄운다
+        JiraIntegrationConfig config = configRepository.findByBoardId(boardId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
+        return toStatus(config);
     }
 
     @Transactional
@@ -215,6 +222,8 @@ public class JiraConnectionService {
         return JiraResponse.Status.builder()
             .boardId(c.getBoard().getId())
             .connected(Boolean.TRUE.equals(c.getActive()))
+            .authType(c.getAuthType() != null ? c.getAuthType().name() : null)
+            .needsSiteSelection(c.isOAuth() && !c.isTargetFinalized())
             .baseUrl(c.getBaseUrl())
             .projectKey(c.getProjectKey())
             .jql(c.getJql())

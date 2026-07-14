@@ -9,6 +9,15 @@ import {
   Trash2,
   RefreshCw,
   ExternalLink,
+  Eye,
+  Layers,
+  CheckSquare,
+  User,
+  UserX,
+  Paperclip,
+  CornerDownRight,
+  Flag,
+  Building2,
 } from "lucide-react";
 import {
   jiraAPI,
@@ -16,6 +25,7 @@ import {
   JiraTestResult,
   JiraImportResult,
   JiraNameRef,
+  JiraSiteRef,
 } from "../utils/api";
 
 interface JiraSettingsPanelProps {
@@ -43,14 +53,28 @@ export function JiraSettingsPanel({
   const [isConnecting, setIsConnecting] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isSavingWriteBack, setIsSavingWriteBack] = useState(false);
 
   // results
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<JiraTestResult | null>(null);
-  const [importResult, setImportResult] = useState<JiraImportResult | null>(null);
+  const [importResult, setImportResult] = useState<JiraImportResult | null>(
+    null,
+  );
+  const [previewResult, setPreviewResult] = useState<JiraImportResult | null>(
+    null,
+  );
   const [statuses, setStatuses] = useState<JiraNameRef[]>([]);
+
+  // OAuth
+  const [sites, setSites] = useState<JiraSiteRef[]>([]);
+  const [isLoadingSites, setIsLoadingSites] = useState(false);
+  const [selectedCloudId, setSelectedCloudId] = useState("");
+  const [siteProjectKey, setSiteProjectKey] = useState("");
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [showTokenForm, setShowTokenForm] = useState(false);
 
   const fetchStatus = useCallback(async () => {
     setIsLoading(true);
@@ -76,9 +100,52 @@ export function JiraSettingsPanel({
       .catch(() => setStatuses([]));
   }, [boardId, status?.connected]);
 
+  // OAuth 콜백 결과 처리 (?jira=oauth_success|oauth_error)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const jiraParam = params.get("jira");
+    if (jiraParam !== "oauth_success" && jiraParam !== "oauth_error") return;
+    if (jiraParam === "oauth_success") {
+      fetchStatus();
+    } else {
+      setErrorMessage(
+        t("jiraIntegration.oauthError", "Atlassian 연결에 실패했습니다"),
+      );
+    }
+    params.delete("jira");
+    params.delete("board");
+    params.delete("reason");
+    const qs = params.toString();
+    window.history.replaceState(
+      {},
+      "",
+      `${window.location.pathname}${qs ? "?" + qs : ""}`,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 사이트 선택 단계면 접근 가능한 사이트 로드
+  useEffect(() => {
+    if (!status?.needs_site_selection) return;
+    setIsLoadingSites(true);
+    jiraAPI
+      .getSites(boardId)
+      .then((s) => {
+        setSites(s);
+        if (s.length === 1) setSelectedCloudId(s[0].cloud_id);
+      })
+      .catch(() => setSites([]))
+      .finally(() => setIsLoadingSites(false));
+  }, [boardId, status?.needs_site_selection]);
+
   const handleConnect = async () => {
     setErrorMessage(null);
-    if (!baseUrl.trim() || !projectKey.trim() || !accountEmail.trim() || !apiToken.trim()) {
+    if (
+      !baseUrl.trim() ||
+      !projectKey.trim() ||
+      !accountEmail.trim() ||
+      !apiToken.trim()
+    ) {
       setErrorMessage(t("jiraIntegration.fillAll", "모든 필드를 입력해주세요"));
       return;
     }
@@ -105,6 +172,54 @@ export function JiraSettingsPanel({
     }
   };
 
+  const handleOAuthConnect = async () => {
+    setErrorMessage(null);
+    setIsConnecting(true);
+    try {
+      const { oauth_url } = await jiraAPI.getOAuthUrl(boardId);
+      window.location.href = oauth_url;
+    } catch (e) {
+      setErrorMessage(
+        e instanceof Error
+          ? e.message
+          : t("jiraIntegration.connectFailed", "JIRA 연결에 실패했습니다"),
+      );
+      setIsConnecting(false);
+    }
+  };
+
+  const handleFinalize = async () => {
+    setErrorMessage(null);
+    if (!selectedCloudId || !siteProjectKey.trim()) {
+      setErrorMessage(
+        t(
+          "jiraIntegration.selectSiteProject",
+          "사이트와 프로젝트 키를 선택해주세요",
+        ),
+      );
+      return;
+    }
+    const site = sites.find((s) => s.cloud_id === selectedCloudId);
+    setIsFinalizing(true);
+    try {
+      const result = await jiraAPI.finalize(boardId, {
+        cloudId: selectedCloudId,
+        baseUrl: site?.url || "",
+        projectKey: siteProjectKey.trim(),
+      });
+      setStatus(result);
+      onJiraStatusChange?.(true);
+    } catch (e) {
+      setErrorMessage(
+        e instanceof Error
+          ? e.message
+          : t("jiraIntegration.connectFailed", "JIRA 연결에 실패했습니다"),
+      );
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
+
   const handleTest = async () => {
     setIsTesting(true);
     setTestResult(null);
@@ -124,15 +239,23 @@ export function JiraSettingsPanel({
 
   const handleImport = async (preview: boolean) => {
     setErrorMessage(null);
-    setIsImporting(true);
-    if (!preview) setImportResult(null);
+    if (preview) setIsPreviewing(true);
+    else {
+      setIsImporting(true);
+      setImportResult(null);
+    }
     try {
       const result = await jiraAPI.importIssues(boardId, {
         jql: jql.trim() || undefined,
         preview,
       });
-      setImportResult(result);
-      if (!preview) fetchStatus();
+      if (preview) {
+        setPreviewResult(result);
+      } else {
+        setImportResult(result);
+        setPreviewResult(null);
+        fetchStatus();
+      }
     } catch (e) {
       setErrorMessage(
         e instanceof Error
@@ -140,22 +263,29 @@ export function JiraSettingsPanel({
           : t("jiraIntegration.importFailed", "가져오기에 실패했습니다"),
       );
     } finally {
-      setIsImporting(false);
+      if (preview) setIsPreviewing(false);
+      else setIsImporting(false);
     }
   };
 
-  const handleWriteBackToggle = async (enabled: boolean, targetStatusId?: string) => {
+  const handleWriteBackToggle = async (
+    enabled: boolean,
+    targetStatusId?: string,
+  ) => {
     setIsSavingWriteBack(true);
     setErrorMessage(null);
     try {
       const result = await jiraAPI.updateWriteBack(boardId, {
         enabled,
-        targetStatusId: targetStatusId ?? status?.write_back_target_status_id ?? undefined,
+        targetStatusId:
+          targetStatusId ?? status?.write_back_target_status_id ?? undefined,
       });
       setStatus(result);
     } catch (e) {
       setErrorMessage(
-        e instanceof Error ? e.message : t("jiraIntegration.saveFailed", "저장에 실패했습니다"),
+        e instanceof Error
+          ? e.message
+          : t("jiraIntegration.saveFailed", "저장에 실패했습니다"),
       );
     } finally {
       setIsSavingWriteBack(false);
@@ -163,7 +293,14 @@ export function JiraSettingsPanel({
   };
 
   const handleDisconnect = async () => {
-    if (!window.confirm(t("jiraIntegration.disconnectConfirm", "JIRA 연동을 해제할까요? 이미 가져온 카드는 남습니다."))) {
+    if (
+      !window.confirm(
+        t(
+          "jiraIntegration.disconnectConfirm",
+          "JIRA 연동을 해제할까요? 이미 가져온 카드는 남습니다.",
+        ),
+      )
+    ) {
       return;
     }
     setIsDisconnecting(true);
@@ -172,11 +309,14 @@ export function JiraSettingsPanel({
       await jiraAPI.disconnect(boardId);
       setStatus(null);
       setImportResult(null);
+      setPreviewResult(null);
       setTestResult(null);
       onJiraStatusChange?.(false);
     } catch (e) {
       setErrorMessage(
-        e instanceof Error ? e.message : t("jiraIntegration.disconnectFailed", "연동 해제에 실패했습니다"),
+        e instanceof Error
+          ? e.message
+          : t("jiraIntegration.disconnectFailed", "연동 해제에 실패했습니다"),
       );
     } finally {
       setIsDisconnecting(false);
@@ -200,7 +340,85 @@ export function JiraSettingsPanel({
   const labelCls =
     "text-xs text-slate-400 uppercase tracking-wider font-medium mb-1.5 block";
 
-  // ── State 1: 미연결 — 연결 폼 ──
+  // ── State 1a: OAuth 사이트/프로젝트 선택 ──
+  if ((!status || !status.connected) && status?.needs_site_selection) {
+    return (
+      <div>
+        {errorBanner}
+        <div className="p-3 bg-white/[0.03] rounded-xl border border-foreground/10 space-y-3">
+          <div className="flex items-center gap-2 text-xs text-foreground font-bold">
+            <Building2 size={13} className="text-bridge-accent" />
+            {t("jiraIntegration.selectSite", "사이트 선택")}
+          </div>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            {t(
+              "jiraIntegration.selectSiteDesc",
+              "가져올 JIRA 사이트와 프로젝트를 선택하세요.",
+            )}
+          </p>
+          {isLoadingSites ? (
+            <div className="flex justify-center py-3">
+              <Loader2 size={16} className="animate-spin text-bridge-accent" />
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className={labelCls}>
+                  {t("jiraIntegration.site", "JIRA 사이트")}
+                </label>
+                <select
+                  className={inputCls}
+                  value={selectedCloudId}
+                  onChange={(e) => setSelectedCloudId(e.target.value)}
+                >
+                  <option value="">
+                    {t("jiraIntegration.selectSitePlaceholder", "사이트 선택…")}
+                  </option>
+                  {sites.map((s) => (
+                    <option key={s.cloud_id} value={s.cloud_id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>
+                  {t("jiraIntegration.projectKey", "프로젝트 키")}
+                </label>
+                <input
+                  className={inputCls}
+                  placeholder="PROJ"
+                  value={siteProjectKey}
+                  onChange={(e) => setSiteProjectKey(e.target.value)}
+                />
+              </div>
+              <button
+                onClick={handleFinalize}
+                disabled={isFinalizing}
+                className="flex items-center justify-center gap-2 w-full px-4 py-2 text-xs font-bold text-white bg-bridge-accent rounded-xl hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
+              >
+                {isFinalizing ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <Check size={13} />
+                )}
+                {t("jiraIntegration.finish", "완료")}
+              </button>
+              <button
+                onClick={handleDisconnect}
+                disabled={isDisconnecting}
+                className="w-full text-xs text-slate-500 hover:text-slate-400 transition-colors"
+              >
+                {t("jiraIntegration.cancel", "취소")}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── State 1: 미연결 — OAuth 버튼(주) + API 토큰 폼(보조) ──
   if (!status || !status.connected) {
     return (
       <div>
@@ -211,75 +429,113 @@ export function JiraSettingsPanel({
             {t("jiraIntegration.connectTitle", "JIRA 연결")}
           </div>
           <p className="text-xs text-slate-500 leading-relaxed">
-            {t("jiraIntegration.connectDesc", "JIRA 이슈를 이 보드로 가져오고, 완료 시 JIRA로 역동기화합니다.")}
+            {t(
+              "jiraIntegration.connectDesc",
+              "JIRA 이슈를 이 보드로 가져오고, 완료 시 JIRA로 역동기화합니다.",
+            )}
           </p>
 
-          <div>
-            <label className={labelCls}>{t("jiraIntegration.site", "JIRA 사이트")}</label>
-            <input
-              className={inputCls}
-              placeholder="your-team.atlassian.net"
-              value={baseUrl}
-              onChange={(e) => setBaseUrl(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={labelCls}>{t("jiraIntegration.projectKey", "프로젝트 키")}</label>
-            <input
-              className={inputCls}
-              placeholder="PROJ"
-              value={projectKey}
-              onChange={(e) => setProjectKey(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={labelCls}>{t("jiraIntegration.accountEmail", "계정 이메일")}</label>
-            <input
-              className={inputCls}
-              placeholder="you@company.com"
-              value={accountEmail}
-              onChange={(e) => setAccountEmail(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={labelCls}>{t("jiraIntegration.apiToken", "API 토큰")}</label>
-            <input
-              type="password"
-              className={inputCls}
-              placeholder="••••••••••••"
-              value={apiToken}
-              onChange={(e) => setApiToken(e.target.value)}
-            />
-            <a
-              href="https://id.atlassian.com/manage-profile/security/api-tokens"
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1 mt-1.5 text-xs text-bridge-accent hover:underline"
-            >
-              <ExternalLink size={11} />
-              {t("jiraIntegration.tokenHelp", "API 토큰 발급하기")}
-            </a>
-          </div>
-          <div>
-            <label className={labelCls}>
-              {t("jiraIntegration.jqlOptional", "JQL 범위 (선택)")}
-            </label>
-            <input
-              className={inputCls}
-              placeholder="project = PROJ AND sprint in openSprints()"
-              value={jql}
-              onChange={(e) => setJql(e.target.value)}
-            />
-          </div>
+          <button
+            onClick={handleOAuthConnect}
+            disabled={isConnecting}
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-[#2684ff] to-[#0052cc] rounded-xl hover:opacity-90 transition-all disabled:opacity-50"
+          >
+            {isConnecting ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <Building2 size={13} />
+            )}
+            {t("jiraIntegration.connectWithAtlassian", "Atlassian으로 연결")}
+          </button>
 
           <button
-            onClick={handleConnect}
-            disabled={isConnecting}
-            className="flex items-center justify-center gap-2 w-full px-4 py-2 text-xs font-bold text-white bg-bridge-accent rounded-xl hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
+            onClick={() => setShowTokenForm((v) => !v)}
+            className="w-full text-xs text-slate-500 hover:text-slate-400 transition-colors"
           >
-            {isConnecting ? <Loader2 size={13} className="animate-spin" /> : <Plug size={13} />}
-            {t("jiraIntegration.connectButton", "연결")}
+            {t("jiraIntegration.useApiToken", "또는 API 토큰으로 연결")}
           </button>
+
+          {showTokenForm && (
+            <div className="space-y-3 border-t border-foreground/[0.08] pt-3">
+              <div>
+                <label className={labelCls}>
+                  {t("jiraIntegration.site", "JIRA 사이트")}
+                </label>
+                <input
+                  className={inputCls}
+                  placeholder="your-team.atlassian.net"
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>
+                  {t("jiraIntegration.projectKey", "프로젝트 키")}
+                </label>
+                <input
+                  className={inputCls}
+                  placeholder="PROJ"
+                  value={projectKey}
+                  onChange={(e) => setProjectKey(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>
+                  {t("jiraIntegration.accountEmail", "계정 이메일")}
+                </label>
+                <input
+                  className={inputCls}
+                  placeholder="you@company.com"
+                  value={accountEmail}
+                  onChange={(e) => setAccountEmail(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>
+                  {t("jiraIntegration.apiToken", "API 토큰")}
+                </label>
+                <input
+                  type="password"
+                  className={inputCls}
+                  placeholder="••••••••••••"
+                  value={apiToken}
+                  onChange={(e) => setApiToken(e.target.value)}
+                />
+                <a
+                  href="https://id.atlassian.com/manage-profile/security/api-tokens"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 mt-1.5 text-xs text-bridge-accent hover:underline"
+                >
+                  <ExternalLink size={11} />
+                  {t("jiraIntegration.tokenHelp", "API 토큰 발급하기")}
+                </a>
+              </div>
+              <div>
+                <label className={labelCls}>
+                  {t("jiraIntegration.jqlOptional", "JQL 범위 (선택)")}
+                </label>
+                <input
+                  className={inputCls}
+                  placeholder="project = PROJ AND sprint in openSprints()"
+                  value={jql}
+                  onChange={(e) => setJql(e.target.value)}
+                />
+              </div>
+              <button
+                onClick={handleConnect}
+                disabled={isConnecting}
+                className="flex items-center justify-center gap-2 w-full px-4 py-2 text-xs font-bold text-white bg-bridge-accent rounded-xl hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
+              >
+                {isConnecting ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <Plug size={13} />
+                )}
+                {t("jiraIntegration.connectButton", "연결")}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -297,14 +553,20 @@ export function JiraSettingsPanel({
             <div className="text-xs text-foreground font-bold truncate">
               JIRA · {status.project_key}
             </div>
-            <div className="text-xs text-slate-500 truncate">{status.base_url}</div>
+            <div className="text-xs text-slate-500 truncate">
+              {status.base_url}
+            </div>
           </div>
           <button
             onClick={handleTest}
             disabled={isTesting}
             className="flex items-center gap-1 px-2.5 py-1 text-xs text-muted-foreground bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-all disabled:opacity-50"
           >
-            {isTesting ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+            {isTesting ? (
+              <Loader2 size={11} className="animate-spin" />
+            ) : (
+              <RefreshCw size={11} />
+            )}
             {t("jiraIntegration.test", "테스트")}
           </button>
         </div>
@@ -317,7 +579,11 @@ export function JiraSettingsPanel({
                 : "bg-red-500/10 text-red-400"
             }`}
           >
-            {testResult.success ? <Check size={12} /> : <AlertCircle size={12} />}
+            {testResult.success ? (
+              <Check size={12} />
+            ) : (
+              <AlertCircle size={12} />
+            )}
             <span>{testResult.message}</span>
           </div>
         )}
@@ -331,7 +597,9 @@ export function JiraSettingsPanel({
 
         {/* 가져오기 */}
         <div className="border-t border-foreground/[0.08] pt-3">
-          <label className={labelCls}>{t("jiraIntegration.importTitle", "가져오기")}</label>
+          <label className={labelCls}>
+            {t("jiraIntegration.importTitle", "가져오기")}
+          </label>
           <input
             className={`${inputCls} mb-2`}
             placeholder={`project = ${status.project_key}`}
@@ -341,21 +609,163 @@ export function JiraSettingsPanel({
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleImport(true)}
-              disabled={isImporting}
+              disabled={isImporting || isPreviewing}
               className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-muted-foreground bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-all disabled:opacity-50"
             >
+              {isPreviewing ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Eye size={12} />
+              )}
               {t("jiraIntegration.preview", "미리보기")}
             </button>
             <button
               onClick={() => handleImport(false)}
-              disabled={isImporting}
+              disabled={isImporting || isPreviewing}
               className="flex items-center gap-1.5 flex-1 justify-center px-3 py-1.5 text-xs font-bold text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
             >
-              {isImporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+              {isImporting ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Download size={12} />
+              )}
               {t("jiraIntegration.import", "가져오기")}
             </button>
           </div>
 
+          {/* 미리보기: 이슈별 상세 (무엇이 어떻게 들어오는지) */}
+          {previewResult && (
+            <div className="mt-2 rounded-lg border border-foreground/10 overflow-hidden">
+              {/* 요약 헤더 */}
+              <div className="px-2.5 py-2 bg-foreground/[0.04] border-b border-foreground/[0.08] space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                  <Eye size={12} className="text-bridge-accent" />
+                  {t("jiraIntegration.previewSummary", "미리보기")} ·{" "}
+                  {previewResult.total}
+                  {t("jiraIntegration.issuesUnit", "건")}
+                </div>
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+                    <Layers size={10} /> Feature {previewResult.features}
+                  </span>
+                  <span className="inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+                    <CheckSquare size={10} /> Task {previewResult.tasks}
+                  </span>
+                  {previewResult.checklists > 0 && (
+                    <span className="inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full bg-foreground/10 text-slate-400">
+                      <User size={10} /> {previewResult.checklists}
+                    </span>
+                  )}
+                  {previewResult.comments > 0 && (
+                    <span className="inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full bg-foreground/10 text-slate-400">
+                      <Paperclip size={10} /> {previewResult.comments}
+                    </span>
+                  )}
+                  {previewResult.skipped > 0 && (
+                    <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-500">
+                      {t("jiraIntegration.resultSkipped", "스킵")}{" "}
+                      {previewResult.skipped}
+                    </span>
+                  )}
+                </div>
+                {previewResult.milestone_name && (
+                  <div className="flex items-center gap-1 text-xs text-slate-500">
+                    <Flag size={10} className="text-bridge-accent" />
+                    {t(
+                      "jiraIntegration.milestoneAssign",
+                      "현재 마일스톤",
+                    )}: {previewResult.milestone_name}
+                  </div>
+                )}
+              </div>
+
+              {/* 이슈 목록 */}
+              {previewResult.items && previewResult.items.length > 0 ? (
+                <div className="max-h-64 overflow-y-auto custom-scrollbar divide-y divide-foreground/[0.06]">
+                  {previewResult.items.map((item) => {
+                    const isFeature = item.target_type === "FEATURE";
+                    return (
+                      <div
+                        key={item.key}
+                        className={`px-2.5 py-1.5 ${item.skipped ? "opacity-45" : ""}`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs px-1 py-0.5 rounded bg-foreground/10 text-slate-400 shrink-0">
+                            {item.key}
+                          </span>
+                          {isFeature ? (
+                            <span className="inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent shrink-0">
+                              <Layers size={10} /> Feature
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0">
+                              <CheckSquare size={10} />
+                              {item.block_name || "Task"}
+                            </span>
+                          )}
+                          {item.skipped && (
+                            <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-500 shrink-0 ml-auto">
+                              {item.skip_reason ||
+                                t("jiraIntegration.resultSkipped", "스킵")}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-foreground mt-1 line-clamp-2">
+                          {item.summary ||
+                            t("jiraIntegration.noSummary", "(제목 없음)")}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-slate-500">
+                          {item.parent_key && (
+                            <span className="inline-flex items-center gap-0.5">
+                              <CornerDownRight size={10} /> {item.parent_key}
+                            </span>
+                          )}
+                          {item.assignee_name && (
+                            <span
+                              className={`inline-flex items-center gap-0.5 ${
+                                item.assignee_matched
+                                  ? "text-emerald-500"
+                                  : "text-slate-500"
+                              }`}
+                              title={
+                                item.assignee_matched
+                                  ? t(
+                                      "jiraIntegration.assigneeMatched",
+                                      "BRIDGE 멤버 매칭됨",
+                                    )
+                                  : t(
+                                      "jiraIntegration.assigneeUnmatched",
+                                      "매칭 안 됨 (미배정으로 가져옴)",
+                                    )
+                              }
+                            >
+                              {item.assignee_matched ? (
+                                <User size={10} />
+                              ) : (
+                                <UserX size={10} />
+                              )}
+                              {item.assignee_name}
+                            </span>
+                          )}
+                          {item.attachment_count > 0 && (
+                            <span className="inline-flex items-center gap-0.5">
+                              <Paperclip size={10} /> {item.attachment_count}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="px-2.5 py-3 text-xs text-slate-500 text-center">
+                  {t("jiraIntegration.previewEmpty", "가져올 이슈가 없습니다")}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 실제 가져오기 결과 요약 */}
           {importResult && (
             <div className="mt-2 px-2.5 py-2 rounded-lg bg-bridge-accent/10 text-xs text-foreground space-y-0.5">
               <div className="font-bold text-bridge-accent">
@@ -366,12 +776,14 @@ export function JiraSettingsPanel({
                   ` · ${t("jiraIntegration.resultSkipped", "스킵")} ${importResult.skipped}`}
               </div>
               <div className="text-slate-400">
-                Feature {importResult.features} · Task {importResult.tasks} · Checklist{" "}
-                {importResult.checklists} · Comment {importResult.comments}
+                Feature {importResult.features} · Task {importResult.tasks} ·
+                Checklist {importResult.checklists} · Comment{" "}
+                {importResult.comments}
               </div>
               {importResult.errors?.length > 0 && (
                 <div className="text-amber-400">
-                  {importResult.errors.length} {t("jiraIntegration.resultErrors", "건 경고")}
+                  {importResult.errors.length}{" "}
+                  {t("jiraIntegration.resultErrors", "건 경고")}
                 </div>
               )}
             </div>
@@ -386,14 +798,23 @@ export function JiraSettingsPanel({
                 {t("jiraIntegration.writeBackTitle", "완료 역동기화")}
               </div>
               <div className="text-xs text-slate-500">
-                {t("jiraIntegration.writeBackDesc", "BRIDGE에서 완료하면 JIRA도 전환")}
+                {t(
+                  "jiraIntegration.writeBackDesc",
+                  "BRIDGE에서 완료하면 JIRA도 전환",
+                )}
               </div>
             </div>
             <button
               onClick={() => handleWriteBackToggle(!status.write_back_enabled)}
-              disabled={isSavingWriteBack || (!status.write_back_enabled && !status.write_back_target_status_id)}
+              disabled={
+                isSavingWriteBack ||
+                (!status.write_back_enabled &&
+                  !status.write_back_target_status_id)
+              }
               className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${
-                status.write_back_enabled ? "bg-bridge-accent" : "bg-foreground/15"
+                status.write_back_enabled
+                  ? "bg-bridge-accent"
+                  : "bg-foreground/15"
               } disabled:opacity-50`}
               aria-label={t("jiraIntegration.writeBackTitle", "완료 역동기화")}
             >
@@ -407,10 +828,14 @@ export function JiraSettingsPanel({
           <select
             className={`${inputCls} mt-2`}
             value={status.write_back_target_status_id || ""}
-            onChange={(e) => handleWriteBackToggle(status.write_back_enabled, e.target.value)}
+            onChange={(e) =>
+              handleWriteBackToggle(status.write_back_enabled, e.target.value)
+            }
             disabled={isSavingWriteBack}
           >
-            <option value="">{t("jiraIntegration.selectTargetStatus", "완료 대상 상태 선택")}</option>
+            <option value="">
+              {t("jiraIntegration.selectTargetStatus", "완료 대상 상태 선택")}
+            </option>
             {statuses.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -426,7 +851,11 @@ export function JiraSettingsPanel({
             disabled={isDisconnecting}
             className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
           >
-            {isDisconnecting ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+            {isDisconnecting ? (
+              <Loader2 size={11} className="animate-spin" />
+            ) : (
+              <Trash2 size={11} />
+            )}
             {t("jiraIntegration.disconnect", "연동 해제")}
           </button>
         </div>

@@ -1188,7 +1188,14 @@
     "saveFailed": "Failed to save",
     "disconnect": "Disconnect",
     "disconnectConfirm": "Disconnect JIRA? Already-imported cards will remain.",
-    "disconnectFailed": "Failed to disconnect"
+    "disconnectFailed": "Failed to disconnect",
+    "previewSummary": "Preview",
+    "issuesUnit": " issues",
+    "milestoneAssign": "Current milestone",
+    "noSummary": "(no title)",
+    "previewEmpty": "No issues to import",
+    "assigneeMatched": "Matched to a BRIDGE member",
+    "assigneeUnmatched": "Unmatched (imported unassigned)"
   },
   "discordBot": {
     "title": "Discord Bot",

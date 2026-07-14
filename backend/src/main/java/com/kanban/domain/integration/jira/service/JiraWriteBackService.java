@@ -2,7 +2,6 @@ package com.kanban.domain.integration.jira.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.kanban.domain.integration.jira.*;
-import com.kanban.domain.integration.slack.service.SlackTokenEncryptor;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +26,7 @@ public class JiraWriteBackService {
     private final JiraIssueLinkRepository issueLinkRepository;
     private final TaskRepository taskRepository;
     private final JiraApiClient jiraApiClient;
-    private final SlackTokenEncryptor tokenEncryptor;
+    private final JiraOAuthService oauthService;
 
     /** 한 보드의 완료 역동기화. 스케줄러가 configId로 호출 → 각자 트랜잭션에서 재로딩. */
     @Transactional
@@ -39,7 +38,8 @@ public class JiraWriteBackService {
             return 0;
         }
 
-        String token = tokenEncryptor.decrypt(config.getApiTokenEncrypted());
+        String token = oauthService.resolveToken(config);
+        JiraAuthContext ctx = JiraAuthContext.of(config, token);
         String boardId = config.getBoard().getId();
         List<JiraIssueLink> candidates =
             issueLinkRepository.findWriteBackCandidates(boardId, JiraLinkTargetType.TASK);
@@ -51,7 +51,7 @@ public class JiraWriteBackService {
                 continue; // 삭제됐거나 아직 미완료 → 다음 기회에
             }
             try {
-                transitionToTarget(config, token, link.getJiraIssueKey(), config.getWriteBackTargetStatusId());
+                transitionToTarget(ctx, link.getJiraIssueKey(), config.getWriteBackTargetStatusId());
                 link.markWriteBackDone();
                 done++;
             } catch (Exception e) {
@@ -66,8 +66,8 @@ public class JiraWriteBackService {
     }
 
     /** 목표 status로 가는 전환을 찾아 실행. 없으면(이미 대상 상태/전환 불가) 조용히 통과. */
-    private void transitionToTarget(JiraIntegrationConfig config, String token, String issueKey, String targetStatusId) {
-        JsonNode result = jiraApiClient.getTransitions(config.getBaseUrl(), config.getAccountEmail(), token, issueKey);
+    private void transitionToTarget(JiraAuthContext ctx, String issueKey, String targetStatusId) {
+        JsonNode result = jiraApiClient.getTransitions(ctx, issueKey);
         JsonNode transitions = result != null ? result.get("transitions") : null;
 
         String transitionId = null;
@@ -83,6 +83,6 @@ public class JiraWriteBackService {
             log.info("No transition to status {} available for {} — assuming already there", targetStatusId, issueKey);
             return;
         }
-        jiraApiClient.transitionIssue(config.getBaseUrl(), config.getAccountEmail(), token, issueKey, transitionId);
+        jiraApiClient.transitionIssue(ctx, issueKey, transitionId);
     }
 }
