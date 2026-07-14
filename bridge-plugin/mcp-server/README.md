@@ -1,8 +1,22 @@
-# BRIDGE MCP 서버
+# BRIDGE MCP 서버 · `@bridgespots/mcp`
 
-Claude(및 MCP 호환 클라이언트)가 만든 결과물을 **사용자의 BRIDGE 마이스페이스**에
+Claude(및 MCP 호환 클라이언트)가 만든 결과물을 **사용자의 BRIDGE 마이스페이스/보드**에
 저장·조회·공유하는 얇은 어댑터. 데이터 소유권·권한·감사는 전부 BRIDGE가 갖고,
 이 서버는 사용자 개인 액세스 토큰(PAT)을 통과시키는 통로일 뿐입니다.
+
+## 원커맨드 설치 (npx)
+
+npm 배포 후, 값이 박힌 한 줄로 설치+연결이 끝납니다:
+
+```bash
+claude mcp add bridge --scope user \
+  --env BRIDGE_PAT="bsp_..." \
+  --env BRIDGE_DEFAULT_BOARD_ID="<board-id>" \
+  -- npx -y @bridgespots/mcp
+```
+
+> `BRIDGE_DEFAULT_BOARD_ID` 는 선택 — 없으면 마이스페이스가 기본. 번들은 의존성을
+> 인라인해 런타임 deps 0 이라 `npx` 가 파일 하나만 받습니다.
 
 > 층 설계: **MCP는 얇게, 스킬은 두껍게.** 이 서버는 "저장 방법"만 압니다.
 > "무엇을 언제 저장할지"는 호출하는 스킬의 몫입니다.
