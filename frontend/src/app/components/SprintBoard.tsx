@@ -66,6 +66,7 @@ interface TreeFeature {
   tasks: TreeTask[];
   total: number;
   taken: number;
+  completed: number;
 }
 
 const DRAG_ITEM = "application/bridge-sprint-item";
@@ -389,6 +390,7 @@ export function SprintBoard({
           tasks: [],
           total: 0,
           taken: 0,
+          completed: 0,
         };
         featMap.set(fid, feat);
       }
@@ -401,6 +403,7 @@ export function SprintBoard({
       task.items.push(it);
       feat.total += 1;
       if (it.sprint_column_id) feat.taken += 1;
+      if (it.completed) feat.completed += 1;
     }
     return Array.from(featMap.values());
   }, [filteredBoard]);
@@ -1518,7 +1521,7 @@ export function SprintBoard({
                   const collapsed = collapsedFeatures.has(feat.featureId);
                   const pct =
                     feat.total > 0
-                      ? Math.round((feat.taken / feat.total) * 100)
+                      ? Math.round((feat.completed / feat.total) * 100)
                       : 0;
                   const featColor = feat.featureColor ?? "#6366F1";
                   return (
@@ -1546,7 +1549,7 @@ export function SprintBoard({
                             {feat.featureTitle}
                           </span>
                           <span className="text-xs text-slate-500 tabular-nums shrink-0">
-                            {feat.taken}/{feat.total}
+                            {feat.completed}/{feat.total}
                           </span>
                           <span
                             className="text-xs font-bold tabular-nums shrink-0"
@@ -1572,7 +1575,7 @@ export function SprintBoard({
                       <div className="px-2.5 pt-0.5 pb-2">
                         <div
                           className="h-1.5 rounded-full overflow-hidden bg-foreground/[0.06]"
-                          title={`담김 ${feat.taken}/${feat.total} · ${pct}%`}
+                          title={`완료 ${feat.completed}/${feat.total} · 담김 ${feat.taken}/${feat.total} · ${pct}%`}
                         >
                           <div
                             className="h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none"

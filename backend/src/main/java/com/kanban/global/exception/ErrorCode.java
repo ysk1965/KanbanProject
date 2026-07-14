@@ -223,6 +223,17 @@ public enum ErrorCode {
     DISCORD_USER_ALREADY_LINKED(HttpStatus.CONFLICT, "DK006", "이미 Discord 계정이 연동되어 있습니다"),
     DISCORD_OAUTH_STATE_INVALID(HttpStatus.BAD_REQUEST, "DK007", "유효하지 않은 OAuth 상태입니다"),
 
+    // JIRA Integration
+    JIRA_NOT_CONFIGURED(HttpStatus.NOT_FOUND, "JI001", "JIRA 연동이 설정되지 않았습니다"),
+    JIRA_ALREADY_CONFIGURED(HttpStatus.CONFLICT, "JI002", "이미 JIRA가 연결되어 있습니다"),
+    JIRA_CONNECTION_FAILED(HttpStatus.BAD_GATEWAY, "JI003", "JIRA 연결에 실패했습니다. 사이트 주소·프로젝트 키·토큰을 확인해주세요"),
+    JIRA_API_ERROR(HttpStatus.BAD_GATEWAY, "JI004", "JIRA API 호출에 실패했습니다"),
+    JIRA_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "JI005", "JIRA 인증에 실패했습니다. API 토큰을 확인해주세요"),
+    JIRA_PROJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "JI006", "JIRA 프로젝트를 찾을 수 없습니다"),
+    JIRA_ISSUE_NOT_FOUND(HttpStatus.NOT_FOUND, "JI007", "JIRA 이슈를 찾을 수 없습니다"),
+    JIRA_TRANSITION_NOT_AVAILABLE(HttpStatus.UNPROCESSABLE_ENTITY, "JI008", "해당 이슈에 사용 가능한 완료 전환이 없습니다"),
+    JIRA_IMPORT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "JI009", "JIRA 이슈 가져오기에 실패했습니다"),
+
     // System
     ANNOUNCEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SY001", "공지사항을 찾을 수 없습니다"),
     SYSTEM_UNDER_MAINTENANCE(HttpStatus.SERVICE_UNAVAILABLE, "SY002", "시스템 점검 중입니다"),

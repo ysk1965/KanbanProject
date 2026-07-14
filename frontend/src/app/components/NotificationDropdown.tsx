@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { notificationAPI } from "../utils/api";
 import { SlackIntegrationPanel } from "./slack/SlackIntegrationPanel";
 import { DiscordSettingsPanel } from "./DiscordSettingsPanel";
+import { JiraSettingsPanel } from "./JiraSettingsPanel";
 import { McpConnectModal } from "./McpConnectModal";
 import { NotificationPreferencesPanel } from "./NotificationPreferencesPanel";
 import { StandupConfigPanel } from "./StandupConfigPanel";
@@ -467,6 +468,7 @@ export function NotificationDropdown({
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [slackConnected, setSlackConnected] = useState(false);
   const [discordConnected, setDiscordConnected] = useState(false);
+  const [jiraConnected, setJiraConnected] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -477,7 +479,7 @@ export function NotificationDropdown({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoadingMoreActivities, setIsLoadingMoreActivities] = useState(false);
   const [settingsSubTab, setSettingsSubTab] = useState<
-    "slack" | "discord" | "mcp" | "preferences" | "standup"
+    "slack" | "discord" | "jira" | "mcp" | "preferences" | "standup"
   >("slack");
   const [mcpModalOpen, setMcpModalOpen] = useState(false);
 
@@ -930,6 +932,21 @@ export function NotificationDropdown({
                   </span>
                 </button>
                 <button
+                  onClick={() => setSettingsSubTab("jira")}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                    settingsSubTab === "jira"
+                      ? "bg-bridge-accent/15 text-bridge-accent"
+                      : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                  }`}
+                >
+                  <span className="flex items-center gap-1">
+                    JIRA
+                    {jiraConnected && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    )}
+                  </span>
+                </button>
+                <button
                   onClick={() => setSettingsSubTab("mcp")}
                   className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
                     settingsSubTab === "mcp"
@@ -979,6 +996,12 @@ export function NotificationDropdown({
                     onDiscordStatusChange={setDiscordConnected}
                     canAccessDiscord={canAccessDiscord}
                     onUpgrade={onDiscordUpgrade || onSlackUpgrade}
+                  />
+                )}
+                {settingsSubTab === "jira" && (
+                  <JiraSettingsPanel
+                    boardId={boardId}
+                    onJiraStatusChange={setJiraConnected}
                   />
                 )}
                 {settingsSubTab === "mcp" && (

@@ -60,6 +60,7 @@ import {
   useVisualViewport,
   useKeyboardAutoScroll,
 } from "./hooks/useVisualViewport";
+import { useHorizontalWheelScroll } from "./hooks/useHorizontalWheelScroll";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { Toaster } from "./components/ui/sonner";
 import { MobileBottomNav } from "./components/ui/MobileBottomNav";
@@ -776,6 +777,7 @@ function App() {
   // 모바일 키보드 대응: visual viewport CSS 변수 + 자동 스크롤
   useVisualViewport();
   useKeyboardAutoScroll();
+  useHorizontalWheelScroll();
 
   return (
     <ErrorBoundary>
