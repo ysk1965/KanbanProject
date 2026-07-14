@@ -467,7 +467,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
 
   # Google OAuth2 client secret — only when provided (SSM/secret); empty keeps live value untouched
   dynamic "setting" {
-    for_each = var.google_client_secret != "" ? toset(["1"]) : toset([])
+    for_each = nonsensitive(var.google_client_secret != "") ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elasticbeanstalk:application:environment"
       name      = "GOOGLE_CLIENT_SECRET"
@@ -477,7 +477,7 @@ resource "aws_elastic_beanstalk_environment" "main" {
 
   # Sentry error monitoring
   dynamic "setting" {
-    for_each = var.sentry_dsn != "" ? toset(["1"]) : toset([])
+    for_each = nonsensitive(var.sentry_dsn != "") ? toset(["1"]) : toset([])
     content {
       namespace = "aws:elasticbeanstalk:application:environment"
       name      = "SENTRY_DSN"
