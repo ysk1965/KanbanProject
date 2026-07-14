@@ -1,4 +1,4 @@
-# BRIDGE MCP 서버 · `@bridgespots/mcp`
+# BRIDGE MCP 서버 · `bridgespots-mcp`
 
 Claude(및 MCP 호환 클라이언트)가 만든 결과물을 **사용자의 BRIDGE 마이스페이스/보드**에
 저장·조회·공유하는 얇은 어댑터. 데이터 소유권·권한·감사는 전부 BRIDGE가 갖고,
@@ -13,7 +13,7 @@ claude mcp add bridge --scope user \
   --env BRIDGE_PAT="bsp_..." \
   --env BRIDGE_API_URL="https://<배포된 BRIDGE 백엔드>" \
   --env BRIDGE_DEFAULT_BOARD_ID="<board-id>" \
-  -- npx -y @bridgespots/mcp
+  -- npx -y bridgespots-mcp
 ```
 
 > - `BRIDGE_API_URL` — 붙을 BRIDGE 백엔드 origin. 생략 시 `http://localhost:8080`(로컬).
