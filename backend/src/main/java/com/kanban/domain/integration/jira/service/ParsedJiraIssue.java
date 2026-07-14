@@ -22,7 +22,9 @@ public record ParsedJiraIssue(
     String assigneeDisplayName, // nullable
     String parentKey,           // nullable ("QASA-1")
     LocalDateTime updated,
-    List<Attachment> attachments
+    List<Attachment> attachments,
+    String projectKey,          // "QASA" — 프로젝트(Space) 그룹핑 키
+    String projectName          // "[QA] 스텔라나이츠" — Feature 이름
 ) {
     public record Attachment(
         String filename,

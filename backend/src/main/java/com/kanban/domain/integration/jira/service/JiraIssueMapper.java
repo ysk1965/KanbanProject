@@ -29,6 +29,7 @@ public class JiraIssueMapper {
         JsonNode priority = fields.path("priority");
         JsonNode assignee = fields.path("assignee");
         JsonNode parent = fields.path("parent");
+        JsonNode project = fields.path("project");
 
         return new ParsedJiraIssue(
             issue.path("key").asText(null),
@@ -46,7 +47,9 @@ public class JiraIssueMapper {
             assignee.isMissingNode() || assignee.isNull() ? null : textOrNull(assignee, "displayName"),
             parent.isMissingNode() || parent.isNull() ? null : textOrNull(parent, "key"),
             parseDateTime(textOrNull(fields, "updated")),
-            attachments(fields.get("attachment"))
+            attachments(fields.get("attachment")),
+            project.isMissingNode() || project.isNull() ? null : textOrNull(project, "key"),
+            project.isMissingNode() || project.isNull() ? null : textOrNull(project, "name")
         );
     }
 
