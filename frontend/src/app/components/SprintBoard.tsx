@@ -1378,8 +1378,8 @@ export function SprintBoard({
                       : "클릭해서 미리보기 (읽기 전용)"
                 }
               >
-                {/* 라벨 행 — 축소/미리보기 상단. 진행중 확장은 아래 2행 레이아웃에 통합 */}
-                {!expandedActive && (
+                {/* 라벨 행 — 축소 세그먼트 상단. 확장(진행중·미리보기)은 각자 2행 레이아웃에 이름·배지를 통합 */}
+                {!expanded && (
                   <div className="flex items-center justify-between gap-2">
                     <span
                       className={`font-bold tracking-tight whitespace-nowrap ${
@@ -1407,8 +1407,8 @@ export function SprintBoard({
                   </div>
                 )}
 
-                {/* 진척 막대 — 축소/미리보기용 단색. 진행중 확장은 아래 Row 2로 이동 */}
-                {!expandedActive && (
+                {/* 진척 막대 — 축소 세그먼트용 단색. 확장(진행중·미리보기)은 각자 Row 2로 이동 */}
+                {!expanded && (
                   <div className="h-[5px] rounded-full bg-foreground/10 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-500 bg-bridge-secondary"
@@ -1593,76 +1593,50 @@ export function SprintBoard({
                   </div>
                 )}
 
-                {/* 미리보기 확장: 종료 시점 스냅샷 상세 (기존 레이아웃 유지) */}
+                {/* 미리보기 확장: 종료 시점 스냅샷 — 진행중 확장과 동일한 2행 구조·높이 */}
                 {isPreviewing && (
-                  <div className="flex flex-col gap-3 pt-0.5">
-                    <div className="flex items-baseline gap-2.5 flex-wrap">
-                      <span className="text-3xl font-bold text-foreground tabular-nums leading-none">
+                  <div className="flex flex-col gap-2">
+                    {/* Row 1 — 이름 · 미리보기 · 퍼센트 · 카운트 · 기간 · (우) 읽기전용 힌트 */}
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <span className="text-sm font-bold tracking-tight text-foreground whitespace-nowrap">
+                        {s.name}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
+                        <Eye className="w-3 h-3" /> 미리보기
+                      </span>
+                      <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
                         {pct}
-                        <span className="text-base text-slate-400">%</span>
+                        <span className="text-sm text-slate-400">%</span>
                       </span>
                       <span className="text-xs font-medium text-slate-400 tabular-nums">
-                        {doneN} / {totalN} 항목 완료
+                        {doneN} / {totalN} 항목
                       </span>
-                      {expandedActive && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setProgressTab(
-                              sprintProgress.nToday > 0
-                                ? "todayDone"
-                                : "inProgress",
-                            );
-                            setProgressOpen(true);
-                          }}
-                          className="text-[11px] font-bold text-bridge-secondary hover:text-bridge-secondary/80 transition-colors"
-                        >
-                          진행 현황 →
-                        </button>
-                      )}
                       {s.start_date && (
-                        <>
-                          <span className="text-slate-600">·</span>
-                          <span className="text-[11px] text-slate-500 tabular-nums">
-                            {formatDate(s.start_date)} ~{" "}
-                            {s.end_date ? formatDate(s.end_date) : "진행"}
-                          </span>
-                        </>
+                        <span className="text-[11px] text-slate-500 tabular-nums">
+                          {formatDate(s.start_date)} ~{" "}
+                          {s.end_date ? formatDate(s.end_date) : "진행"}
+                        </span>
                       )}
-                      {/* 종료 카운트다운 — 진행중 스프린트의 남은 기간을 긴급도 색으로 강조 */}
-                      {expandedActive &&
-                        s.end_date &&
-                        (() => {
-                          const d = getDDay(s.end_date);
-                          return (
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums ${
-                                DDAY_BADGE[d.urgency] ||
-                                "bg-bridge-secondary/15 text-bridge-secondary"
-                              }`}
-                              title={`종료 예정 ${formatDate(s.end_date)}`}
-                            >
-                              <Clock className="w-3 h-3" />
-                              종료 {d.text}
-                            </span>
-                          );
-                        })()}
+                      <span className="flex-1" />
+                      <span
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-bridge-secondary whitespace-nowrap"
+                        title="읽기 전용으로 열람 중입니다. 편집하려면 재활성화하세요."
+                      >
+                        <Eye className="w-3 h-3 shrink-0" /> 읽기 전용 스냅샷
+                      </span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-[11px] font-medium text-bridge-secondary bg-bridge-secondary/10 border border-bridge-secondary/25 rounded-lg px-3 py-1.5">
-                      <Eye className="w-3.5 h-3.5 shrink-0" />
-                      읽기 전용으로 열람 중입니다. 편집하려면 이 스프린트를
-                      재활성화하세요.
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[11px] text-slate-500">
-                        종료 시점 상태 스냅샷
-                      </span>
-                      <span className="flex-1" />
+                    {/* Row 2 — 진척바(스냅샷) · 재활성화 · 진행중으로 돌아가기 */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-[80px] h-[5px] rounded-full bg-foreground/10 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-bridge-secondary transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
                       {isAdminOrOwner &&
                         (inReactivation ? (
-                          <span className="text-[11px] text-slate-500">
+                          <span className="text-[11px] text-slate-500 whitespace-nowrap shrink-0">
                             재활성화 취소 후 이용 가능
                           </span>
                         ) : (
@@ -1671,10 +1645,10 @@ export function SprintBoard({
                               e.stopPropagation();
                               openReactivateModal(s);
                             }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 hover:bg-bridge-secondary/25 transition-colors"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 hover:bg-bridge-secondary/25 transition-colors whitespace-nowrap shrink-0"
                             title="이 스프린트를 다시 진행중으로 되살립니다"
                           >
-                            <RotateCcw className="w-3.5 h-3.5" />이 스프린트
+                            <RotateCcw className="w-3.5 h-3.5" />
                             재활성화
                           </button>
                         ))}
@@ -1683,7 +1657,7 @@ export function SprintBoard({
                           e.stopPropagation();
                           setPreviewSprintId(null);
                         }}
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-foreground bg-foreground/5 hover:bg-foreground/10 transition-colors"
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-foreground bg-foreground/5 hover:bg-foreground/10 transition-colors whitespace-nowrap shrink-0"
                       >
                         진행중으로 돌아가기
                       </button>
@@ -2321,7 +2295,7 @@ export function SprintBoard({
                             : "비어 있음"}
                         </div>
                       )}
-                      {col.items.map(renderCard)}
+                      {col.items.map((it) => renderCard(it))}
                     </div>
                   </div>
                 );
