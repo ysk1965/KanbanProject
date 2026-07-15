@@ -13,8 +13,9 @@
  *   보드: get_board_stats / get_board_tasks / get_board_milestones / generate_board_report
  *   조직: list_org_boards / get_org_insights
  *
- * 체크리스트 쓰기 툴 (커밋 ↔ 체크리스트 루프):
+ * 작업 쓰기 툴 (커밋 ↔ 보드 루프):
  *   toggle_checklist_item (완료/미완료 전환) / add_checklist_item (항목 추가)
+ *   add_task_comment (태스크 댓글) / link_commit (커밋·PR 추적선을 댓글로 기록)
  *
  * 노트 스코프 3종: 마이스페이스(기본) · board_id · org_id.
  *
@@ -372,6 +373,56 @@ server.tool(
           due_date,
         }),
       );
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.tool(
+  "add_task_comment",
+  "[쓰기] 태스크에 댓글을 남긴다. 배포/진행 로그('v1.2.3 배포 완료'), 리뷰 메모 등을 카드에 기록할 때 쓴다. " +
+    "board_id·task_id 는 get_board_tasks 나 list_my_checklist_items 로 확인한 값을 넘긴다. mentions 에 사용자 id 를 " +
+    "넣으면 멘션 알림이 간다. 실제 데이터를 바꾸므로 먼저 확인받고 호출하는 것을 권장한다.",
+  {
+    board_id: z.string().describe("보드 id"),
+    task_id: z.string().describe("태스크 id"),
+    content: z.string().min(1).describe("댓글 본문 (마크다운 가능)"),
+    mentions: z
+      .array(z.string())
+      .optional()
+      .describe("멘션할 사용자 id 배열 (선택). 지정 시 해당 사용자에게 알림."),
+  },
+  async ({ board_id, task_id, content, mentions }) => {
+    try {
+      return ok(
+        await client.addTaskComment(board_id, task_id, { content, mentions }),
+      );
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.tool(
+  "link_commit",
+  "[쓰기] 커밋/PR 을 태스크에 추적선으로 남긴다(카드 ↔ 코드 연결). 커밋 sha·메시지를 태스크 댓글로 " +
+    "마크다운 포맷해 기록한다. pr_url 을 주면 함께 첨부. 어떤 카드가 어떤 코드로 끝났는지 나중에 추적할 수 있게 한다. " +
+    "board_id·task_id 는 매칭한 태스크의 값을 넘긴다.",
+  {
+    board_id: z.string().describe("보드 id"),
+    task_id: z.string().describe("태스크 id"),
+    commit_sha: z.string().min(4).describe("커밋 SHA (짧은/전체 모두 허용)"),
+    message: z.string().min(1).describe("커밋 제목/메시지"),
+    pr_url: z.string().optional().describe("PR/커밋 URL (선택). 있으면 링크로 첨부."),
+  },
+  async ({ board_id, task_id, commit_sha, message, pr_url }) => {
+    try {
+      const shortSha = commit_sha.slice(0, 10);
+      const lines = [`🔗 커밋 \`${shortSha}\` — ${message}`];
+      if (pr_url) lines.push(pr_url);
+      const content = lines.join("\n");
+      return ok(await client.addTaskComment(board_id, task_id, { content }));
     } catch (err) {
       return fail(err);
     }
