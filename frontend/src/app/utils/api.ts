@@ -5838,6 +5838,7 @@ export interface JiraPreviewItem {
   attachment_count: number;
   skipped: boolean;
   skip_reason: string | null;
+  will_update: boolean;
 }
 
 export interface JiraImportResult {
@@ -5873,11 +5874,14 @@ export const jiraAPI = {
     boardId: string,
     data: { cloudId: string; baseUrl: string; projectKey: string },
   ) => {
-    return apiClient.post<JiraStatus>(`/boards/${boardId}/jira/oauth/finalize`, {
-      cloud_id: data.cloudId,
-      base_url: data.baseUrl,
-      project_key: data.projectKey,
-    });
+    return apiClient.post<JiraStatus>(
+      `/boards/${boardId}/jira/oauth/finalize`,
+      {
+        cloud_id: data.cloudId,
+        base_url: data.baseUrl,
+        project_key: data.projectKey,
+      },
+    );
   },
 
   connect: async (

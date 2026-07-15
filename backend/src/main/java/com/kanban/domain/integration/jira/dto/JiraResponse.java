@@ -88,5 +88,6 @@ public class JiraResponse {
         private int attachmentCount;    // 첨부 → 댓글로 이관될 개수
         private boolean skipped;         // 이미 가져와서 건너뜀
         private String skipReason;       // 스킵 사유 (nullable)
+        private boolean willUpdate;      // 기존 Task를 JIRA 최신값으로 갱신 예정
     }
 }
