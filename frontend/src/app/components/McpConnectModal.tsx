@@ -6,6 +6,10 @@ import {
   Share2,
   SquarePen,
   LayoutGrid,
+  ListChecks,
+  CheckSquare,
+  BarChart3,
+  Building2,
   Copy,
   Check,
   Loader2,
@@ -142,39 +146,104 @@ export function McpConnectModal({
     boardName ||
     (boardId ? `${boardId.slice(0, 8)}…` : t("mcp.thisBoard", "이 보드"));
 
-  const features = [
+  const featureGroups = [
     {
-      icon: FileText,
-      title: t("mcp.featSaveTitle", "이 보드에 문서 저장"),
-      tool: "save_document",
-      desc: t(
-        "mcp.featSaveDesc",
-        "AI가 만든 리포트·회의록·기획서를 이 보드 노트로 바로 저장.",
-      ),
+      label: t("mcp.groupDocs", "문서"),
+      items: [
+        {
+          icon: FileText,
+          title: t("mcp.featSaveTitle", "이 보드에 문서 저장"),
+          tool: "save_document",
+          desc: t(
+            "mcp.featSaveDesc",
+            "AI가 만든 리포트·회의록·기획서를 이 보드 노트로 바로 저장.",
+          ),
+        },
+        {
+          icon: Share2,
+          title: t("mcp.featShareTitle", "공유 링크 발급"),
+          tool: "share_document",
+          desc: t(
+            "mcp.featShareDesc",
+            "로그인 없이 열람 가능한 링크로 팀에 공유.",
+          ),
+        },
+        {
+          icon: SquarePen,
+          title: t("mcp.featEditTitle", "문서 조회·수정"),
+          tool: "get / update_document",
+          desc: t("mcp.featEditDesc", "저장한 문서를 다시 불러오거나 이어서 고치기."),
+        },
+        {
+          icon: LayoutGrid,
+          title: t("mcp.featListTitle", "문서 목록·보드 선택"),
+          tool: "list_documents / list_boards",
+          desc: t(
+            "mcp.featListDesc",
+            "이 보드에 쌓인 문서를 훑거나, 저장할 다른 보드를 고르기.",
+          ),
+        },
+      ],
     },
     {
-      icon: Share2,
-      title: t("mcp.featShareTitle", "공유 링크 발급"),
-      tool: "share_document",
-      desc: t("mcp.featShareDesc", "로그인 없이 열람 가능한 링크로 팀에 공유."),
+      label: t("mcp.groupBriefing", "내 작업 브리핑"),
+      items: [
+        {
+          icon: ListChecks,
+          title: t("mcp.featMyTitle", "오늘·태스크·일정 모아보기"),
+          tool: "get_my_today / board_tasks / calendar",
+          desc: t(
+            "mcp.featMyDesc",
+            "여러 보드에 흩어진 내 오늘 할 일·태스크·일정을 한 번에 브리핑.",
+          ),
+        },
+        {
+          icon: CheckSquare,
+          title: t("mcp.featMyChecklistTitle", "내 체크리스트 모아보기"),
+          tool: "list_my_checklist_items",
+          desc: t(
+            "mcp.featMyChecklistDesc",
+            "여러 보드에 걸친 내 미완료 체크리스트를 모아, 커밋과 대조.",
+          ),
+        },
+      ],
     },
     {
-      icon: SquarePen,
-      title: t("mcp.featEditTitle", "문서 조회·수정"),
-      tool: "get / update_document",
-      desc: t(
-        "mcp.featEditDesc",
-        "저장한 문서를 다시 불러오거나 이어서 고치기.",
-      ),
+      label: t("mcp.groupChecklist", "체크리스트 관리"),
+      items: [
+        {
+          icon: Check,
+          title: t("mcp.featChecklistWriteTitle", "체크리스트 완료·추가"),
+          tool: "toggle / add_checklist_item",
+          desc: t(
+            "mcp.featChecklistWriteDesc",
+            "커밋에 맞는 항목을 완료 처리하거나, 빠진 작업을 새 항목으로 추가.",
+          ),
+        },
+      ],
     },
     {
-      icon: LayoutGrid,
-      title: t("mcp.featListTitle", "문서 목록·보드 선택"),
-      tool: "list_documents / list_boards",
-      desc: t(
-        "mcp.featListDesc",
-        "이 보드에 쌓인 문서를 훑거나, 저장할 다른 보드를 고르기.",
-      ),
+      label: t("mcp.groupAnalytics", "보드·조직 분석"),
+      items: [
+        {
+          icon: BarChart3,
+          title: t("mcp.featBoardStatsTitle", "보드 통계·리포트"),
+          tool: "get_board_stats / tasks / milestones / report",
+          desc: t(
+            "mcp.featBoardStatsDesc",
+            "완료율·정체 태스크·마일스톤 진척으로 주간 리포트 근거를 뽑기.",
+          ),
+        },
+        {
+          icon: Building2,
+          title: t("mcp.featOrgTitle", "조직 인사이트"),
+          tool: "list_org_boards / get_org_insights",
+          desc: t(
+            "mcp.featOrgDesc",
+            "프로젝트 전체 롤업과 보드별 하이라이트로 조직 보고서 작성.",
+          ),
+        },
+      ],
     },
   ];
 
@@ -243,26 +312,40 @@ export function McpConnectModal({
                 "연결하면 AI가 이 보드에 직접 다음을 할 수 있어요. (내 계정 권한으로 동작)",
               )}
             </p>
-            <div className="divide-y divide-foreground/[0.06]">
-              {features.map((f) => {
-                const Icon = f.icon;
-                return (
-                  <div key={f.tool} className="flex items-start gap-3 py-3">
-                    <div className="w-8 h-8 rounded-lg bg-bridge-secondary/15 text-bridge-secondary flex items-center justify-center flex-none">
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="text-sm font-bold text-foreground">
-                        {f.title}
-                        <span className="ml-1.5 font-normal text-[11px] text-slate-500 font-mono">
-                          {f.tool}
-                        </span>
-                      </h4>
-                      <p className="text-xs text-slate-400 mt-0.5">{f.desc}</p>
-                    </div>
+            <div className="flex flex-col gap-4">
+              {featureGroups.map((group) => (
+                <div key={group.label}>
+                  <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">
+                    {group.label}
                   </div>
-                );
-              })}
+                  <div className="divide-y divide-foreground/[0.06]">
+                    {group.items.map((f) => {
+                      const Icon = f.icon;
+                      return (
+                        <div
+                          key={f.tool}
+                          className="flex items-start gap-3 py-3"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-bridge-secondary/15 text-bridge-secondary flex items-center justify-center flex-none">
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-sm font-bold text-foreground">
+                              {f.title}
+                              <span className="ml-1.5 font-normal text-xs text-slate-500 font-mono break-all">
+                                {f.tool}
+                              </span>
+                            </h4>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              {f.desc}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
             <div className="mt-4 rounded-xl border border-foreground/10 bg-foreground/[0.03] p-3.5">
               <div className="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">
@@ -272,7 +355,7 @@ export function McpConnectModal({
                 <span className="text-bridge-accent">"</span>
                 {t(
                   "mcp.exampleText",
-                  "이번 스프린트 회고를 리포트로 정리해서 이 보드에 저장하고 공유 링크 줘",
+                  "방금 커밋한 내용에 맞는 체크리스트 있으면 체크하고, 없으면 추가해줘",
                 )}
                 <span className="text-bridge-accent">"</span>
               </p>

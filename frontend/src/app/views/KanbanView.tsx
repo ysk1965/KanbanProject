@@ -373,6 +373,7 @@ export const KanbanView = memo(function KanbanView({
                     : undefined
                 }
                 memberFilter={filterOptions.members}
+                memberOrder={boardMembersData.map((m) => m.userId)}
               />
             </div>
           ) : (

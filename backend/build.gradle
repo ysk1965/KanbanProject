@@ -94,6 +94,15 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // 로컬(Asia/Seoul 등 비-UTC) 머신에서 H2/JDBC가 OS 타임존을 캐시해 LocalDate가 하루 밀리는 문제 방지.
+    // @PostConstruct 의 TimeZone.setDefault(UTC) 는 JDBC 초기화보다 늦어서 이 시점엔 이미 늦다.
+    systemProperty 'user.timezone', 'UTC'
+}
+
+// 로컬 개발 실행(./gradlew bootRun)을 UTC 로 기동한다.
+// 배포는 java -jar (bootJar) 라 이 설정의 영향을 받지 않는다(운영 서버는 이미 UTC).
+tasks.named('bootRun') {
+    jvmArgs('-Duser.timezone=UTC')
 }
 
 processResources {

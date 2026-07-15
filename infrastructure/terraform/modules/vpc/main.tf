@@ -104,7 +104,7 @@ resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
 
   dynamic "route" {
-    for_each = var.enable_nat_gateway ? [1] : []
+    for_each = var.enable_nat_gateway ? toset(["1"]) : toset([])
     content {
       cidr_block     = "0.0.0.0/0"
       nat_gateway_id = aws_nat_gateway.main[0].id

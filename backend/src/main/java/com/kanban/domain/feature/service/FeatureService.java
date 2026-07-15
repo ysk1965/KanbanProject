@@ -185,8 +185,10 @@ public class FeatureService {
 
         featureRepository.save(feature);
 
+        // Map.of 는 null 값을 허용하지 않는다 — color 미지정 시 NPE 방지를 위해 빈 문자열로 대체.
         activityService.logActivity(board, creator, ActivityAction.FEATURE_CREATED, TargetType.FEATURE, feature.getId(),
-                Map.of("featureTitle", feature.getTitle(), "featureColor", feature.getColor()));
+                Map.of("featureTitle", feature.getTitle(),
+                        "featureColor", feature.getColor() != null ? feature.getColor() : ""));
 
         log.info("Feature created: {} in board: {} by user: {}", feature.getId(), boardId, userId);
 

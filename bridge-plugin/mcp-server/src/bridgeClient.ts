@@ -240,6 +240,69 @@ export class BridgeClient {
     );
   }
 
+  /**
+   * list_my_checklist_items — 내가 담당한 미완료 체크리스트를 여러 보드에 걸쳐 조회.
+   * 각 항목은 board_id · task_id · checklist_item_id 를 포함하므로, 매칭 후 곧바로
+   * toggleChecklistItem / addChecklistItem 을 호출할 수 있다.
+   */
+  getMyChecklistItems(): Promise<unknown> {
+    return this.request("GET", "/api/v1/personal/dashboard/my-checklist-items");
+  }
+
+  /**
+   * toggle_checklist_item — 체크리스트 항목의 완료/미완료를 전환한다(쓰기).
+   * board_id·task_id·item_id 는 list_my_checklist_items 가 돌려준 값을 그대로 넘긴다.
+   */
+  toggleChecklistItem(
+    boardId: string,
+    taskId: string,
+    itemId: string,
+  ): Promise<unknown> {
+    return this.request(
+      "PATCH",
+      `/api/v1/boards/${boardId}/tasks/${taskId}/checklist/${itemId}/toggle`,
+    );
+  }
+
+  /**
+   * add_checklist_item — 태스크에 체크리스트 항목을 추가한다(쓰기).
+   * assignee_id 를 주면 담당자를 지정, 생략하면 미배정.
+   */
+  addChecklistItem(
+    boardId: string,
+    taskId: string,
+    input: { title: string; assignee_id?: string; due_date?: string },
+  ): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/api/v1/boards/${boardId}/tasks/${taskId}/checklist`,
+      {
+        title: input.title,
+        assignee_id: input.assignee_id,
+        due_date: input.due_date,
+      },
+    );
+  }
+
+  /**
+   * add_task_comment / link_commit — 태스크에 댓글을 남긴다(쓰기).
+   * mentions 는 멘션 알림을 받을 사용자 id 배열(선택).
+   */
+  addTaskComment(
+    boardId: string,
+    taskId: string,
+    input: { content: string; mentions?: string[] },
+  ): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/api/v1/boards/${boardId}/tasks/${taskId}/comments`,
+      {
+        content: input.content,
+        mentions: input.mentions,
+      },
+    );
+  }
+
   /** get_board_stats — 보드 통계. management=true 면 관리용 통계(정체/지연 등). */
   getBoardStats(
     boardId: string,

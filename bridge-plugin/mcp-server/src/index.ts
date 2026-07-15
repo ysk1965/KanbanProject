@@ -9,9 +9,13 @@
  *   - list_boards
  *
  * 읽기 툴 (BRIDGE 데이터 조회 → 스킬이 브리핑·리포트로 가공):
- *   개인: get_my_today / get_my_board_tasks / get_my_calendar
+ *   개인: get_my_today / get_my_board_tasks / get_my_calendar / list_my_checklist_items
  *   보드: get_board_stats / get_board_tasks / get_board_milestones / generate_board_report
  *   조직: list_org_boards / get_org_insights
+ *
+ * 작업 쓰기 툴 (커밋 ↔ 보드 루프):
+ *   toggle_checklist_item (완료/미완료 전환) / add_checklist_item (항목 추가)
+ *   add_task_comment (태스크 댓글) / link_commit (커밋·PR 추적선을 댓글로 기록)
  *
  * 노트 스코프 3종: 마이스페이스(기본) · board_id · org_id.
  *
@@ -304,6 +308,121 @@ server.tool(
   async ({ start_date, end_date }) => {
     try {
       return ok(await client.getMyCalendar(start_date, end_date));
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.tool(
+  "list_my_checklist_items",
+  "[읽기 전용] 내가 담당한 미완료 체크리스트를 여러 보드에 걸쳐 모아 조회한다. 각 항목은 " +
+    "checklist_item_id·task_id·board_id 를 포함하므로, 커밋/작업 내용과 대조해 맞는 항목을 찾으면 " +
+    "그 값들을 그대로 toggle_checklist_item 에 넘겨 완료 처리할 수 있다. PAT 소유자 본인 스코프가 자동 적용된다.",
+  {},
+  async () => {
+    try {
+      return ok(await client.getMyChecklistItems());
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.tool(
+  "toggle_checklist_item",
+  "[쓰기] 체크리스트 항목의 완료/미완료 상태를 전환한다. 커밋이 어떤 체크리스트 항목을 끝냈다고 " +
+    "판단되면 이 툴로 완료 처리한다. board_id·task_id·item_id 는 list_my_checklist_items 가 " +
+    "돌려준 값을 그대로 넘긴다. 실제 데이터를 바꾸므로 사용자에게 먼저 확인받고 호출하는 것을 권장한다.",
+  {
+    board_id: z.string().describe("보드 id (list_my_checklist_items 의 board_id)"),
+    task_id: z.string().describe("태스크 id (list_my_checklist_items 의 task_id)"),
+    item_id: z.string().describe("체크리스트 항목 id (list_my_checklist_items 의 checklist_item_id)"),
+  },
+  async ({ board_id, task_id, item_id }) => {
+    try {
+      return ok(await client.toggleChecklistItem(board_id, task_id, item_id));
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.tool(
+  "add_checklist_item",
+  "[쓰기] 태스크에 체크리스트 항목을 새로 추가한다. 커밋 내용에 맞는 기존 항목이 없으면(=빠진 작업) " +
+    "이 툴로 항목을 붙인다. board_id·task_id 는 get_board_tasks 나 list_my_checklist_items 로 확인한 값을 넘긴다. " +
+    "assignee_id 를 주면 담당자를 지정, 생략하면 미배정. 실제 데이터를 바꾸므로 먼저 확인받고 호출하는 것을 권장한다.",
+  {
+    board_id: z.string().describe("보드 id"),
+    task_id: z.string().describe("태스크 id"),
+    title: z.string().min(1).max(200).describe("체크리스트 항목 제목"),
+    assignee_id: z.string().optional().describe("담당자 사용자 id (선택). 생략하면 미배정."),
+    due_date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "yyyy-MM-dd 형식")
+      .optional()
+      .describe("마감일 yyyy-MM-dd (선택)"),
+  },
+  async ({ board_id, task_id, title, assignee_id, due_date }) => {
+    try {
+      return ok(
+        await client.addChecklistItem(board_id, task_id, {
+          title,
+          assignee_id,
+          due_date,
+        }),
+      );
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.tool(
+  "add_task_comment",
+  "[쓰기] 태스크에 댓글을 남긴다. 배포/진행 로그('v1.2.3 배포 완료'), 리뷰 메모 등을 카드에 기록할 때 쓴다. " +
+    "board_id·task_id 는 get_board_tasks 나 list_my_checklist_items 로 확인한 값을 넘긴다. mentions 에 사용자 id 를 " +
+    "넣으면 멘션 알림이 간다. 실제 데이터를 바꾸므로 먼저 확인받고 호출하는 것을 권장한다.",
+  {
+    board_id: z.string().describe("보드 id"),
+    task_id: z.string().describe("태스크 id"),
+    content: z.string().min(1).describe("댓글 본문 (마크다운 가능)"),
+    mentions: z
+      .array(z.string())
+      .optional()
+      .describe("멘션할 사용자 id 배열 (선택). 지정 시 해당 사용자에게 알림."),
+  },
+  async ({ board_id, task_id, content, mentions }) => {
+    try {
+      return ok(
+        await client.addTaskComment(board_id, task_id, { content, mentions }),
+      );
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.tool(
+  "link_commit",
+  "[쓰기] 커밋/PR 을 태스크에 추적선으로 남긴다(카드 ↔ 코드 연결). 커밋 sha·메시지를 태스크 댓글로 " +
+    "마크다운 포맷해 기록한다. pr_url 을 주면 함께 첨부. 어떤 카드가 어떤 코드로 끝났는지 나중에 추적할 수 있게 한다. " +
+    "board_id·task_id 는 매칭한 태스크의 값을 넘긴다.",
+  {
+    board_id: z.string().describe("보드 id"),
+    task_id: z.string().describe("태스크 id"),
+    commit_sha: z.string().min(4).describe("커밋 SHA (짧은/전체 모두 허용)"),
+    message: z.string().min(1).describe("커밋 제목/메시지"),
+    pr_url: z.string().optional().describe("PR/커밋 URL (선택). 있으면 링크로 첨부."),
+  },
+  async ({ board_id, task_id, commit_sha, message, pr_url }) => {
+    try {
+      const shortSha = commit_sha.slice(0, 10);
+      const lines = [`🔗 커밋 \`${shortSha}\` — ${message}`];
+      if (pr_url) lines.push(pr_url);
+      const content = lines.join("\n");
+      return ok(await client.addTaskComment(board_id, task_id, { content }));
     } catch (err) {
       return fail(err);
     }

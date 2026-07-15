@@ -21,7 +21,7 @@ variable "security_group_id" {
 variable "engine_version" {
   description = "Aurora PostgreSQL engine version"
   type        = string
-  default     = "15.4"
+  default     = "15.10"
 }
 
 variable "database_name" {
@@ -64,4 +64,22 @@ variable "instance_count" {
   description = "Number of Aurora instances"
   type        = number
   default     = 1
+}
+
+variable "kms_key_id" {
+  description = "Customer-managed KMS key ARN/ID for storage encryption. Empty = AWS-managed default aws/rds key."
+  type        = string
+  default     = ""
+}
+
+variable "deletion_protection" {
+  description = "Override deletion protection. null = protective default (enabled). Set false only for a genuinely disposable DB."
+  type        = bool
+  default     = null
+}
+
+variable "skip_final_snapshot" {
+  description = "Skip the final snapshot on destroy/replace. Default false (protective). Set true ONLY for genuinely disposable databases."
+  type        = bool
+  default     = false
 }
