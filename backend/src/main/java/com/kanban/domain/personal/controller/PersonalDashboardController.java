@@ -2,6 +2,7 @@ package com.kanban.domain.personal.controller;
 
 import com.kanban.domain.personal.dto.BoardTasksResponse;
 import com.kanban.domain.personal.dto.CelebrationsResponse;
+import com.kanban.domain.personal.dto.MyChecklistItemsResponse;
 import com.kanban.domain.personal.dto.PersonalDashboardResponse;
 import com.kanban.domain.personal.dto.PersonalOverviewResponse;
 import com.kanban.domain.personal.service.PersonalDashboardService;
@@ -43,6 +44,12 @@ public class PersonalDashboardController {
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ResponseEntity.ok(personalDashboardService.getBoardTasks(principal.getUserId(), date));
+    }
+
+    @GetMapping("/my-checklist-items")
+    public ResponseEntity<MyChecklistItemsResponse> getMyChecklistItems(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(personalDashboardService.getMyChecklistItems(principal.getUserId()));
     }
 
     @GetMapping("/celebrations")
