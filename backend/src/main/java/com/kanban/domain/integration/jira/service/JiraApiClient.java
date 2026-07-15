@@ -33,7 +33,7 @@ public class JiraApiClient {
     private static final List<String> DEFAULT_FIELDS = List.of(
         "summary", "description", "status", "issuetype", "priority",
         "labels", "components", "assignee", "reporter", "parent",
-        "created", "updated", "attachment");
+        "created", "updated", "attachment", "project");
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
