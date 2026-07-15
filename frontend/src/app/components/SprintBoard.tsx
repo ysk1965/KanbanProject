@@ -51,6 +51,8 @@ interface SprintBoardProps {
   onOpenFeature?: (featureId: string) => void;
   /** 담당자 필터(칸반 탭 필터바 연동). 이름 배열(+ '__no_members__'). 빈 배열이면 전체 */
   memberFilter?: string[];
+  /** 구성원 컬럼 정렬 기준 — 보드 멤버 관리(직군 관리) 순서의 userId 배열. 미지정 시 카드 수 내림차순 */
+  memberOrder?: string[];
 }
 
 /** Feature ▸ Task ▸ 체크리스트 소스 트리 노드 */
@@ -106,6 +108,7 @@ export function SprintBoard({
   onOpenChecklistItem,
   onOpenFeature,
   memberFilter,
+  memberOrder,
 }: SprintBoardProps) {
   const controlled = !!controlledMilestoneId;
   const [internalMid, setInternalMid] = useState<string>(
@@ -573,9 +576,17 @@ export function SprintBoard({
       else startByMember.set(id, [it]);
     }
     // START 카드가 있는 담당자만 컬럼화 · 미배정은 맨 뒤로
+    // 정렬 기준: memberOrder(보드 멤버 관리 순서)가 있으면 그 순서, 없으면 카드 수 내림차순.
+    // memberOrder에 없는 담당자는 뒤로, 그 사이는 카드 수 내림차순으로 안정화한다.
+    const orderIndex = new Map<string, number>();
+    (memberOrder ?? []).forEach((uid, i) => orderIndex.set(uid, i));
+    const rank = (id: string) => orderIndex.get(id) ?? Number.MAX_SAFE_INTEGER;
     const ids = Array.from(startByMember.keys()).sort((a, b) => {
       if (a === "__none__") return 1;
       if (b === "__none__") return -1;
+      const ra = rank(a);
+      const rb = rank(b);
+      if (ra !== rb) return ra - rb;
       return (
         (startByMember.get(b)?.length ?? 0) -
         (startByMember.get(a)?.length ?? 0)
@@ -588,7 +599,7 @@ export function SprintBoard({
       doneTotal: stat.get(id)?.done ?? 0,
       total: stat.get(id)?.total ?? 0,
     }));
-  }, [startColumn, columns, columnById]);
+  }, [startColumn, columns, columnById, memberOrder]);
 
   // 좌측 행: 체크박스 → 완료 토글(체크리스트 API 재사용 후 보드 갱신)
   const toggleDone = (it: SprintItemCard) => {
