@@ -1,6 +1,6 @@
 {
   "name": "bridgespots-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "BRIDGE MCP server — save & share your AI assistant's output to a BRIDGE board or MySpace",
   "type": "module",
   "bin": {

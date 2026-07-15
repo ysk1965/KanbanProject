@@ -9,9 +9,12 @@
  *   - list_boards
  *
  * 읽기 툴 (BRIDGE 데이터 조회 → 스킬이 브리핑·리포트로 가공):
- *   개인: get_my_today / get_my_board_tasks / get_my_calendar
+ *   개인: get_my_today / get_my_board_tasks / get_my_calendar / list_my_checklist_items
  *   보드: get_board_stats / get_board_tasks / get_board_milestones / generate_board_report
  *   조직: list_org_boards / get_org_insights
+ *
+ * 체크리스트 쓰기 툴 (커밋 ↔ 체크리스트 루프):
+ *   toggle_checklist_item (완료/미완료 전환) / add_checklist_item (항목 추가)
  *
  * 노트 스코프 3종: 마이스페이스(기본) · board_id · org_id.
  *
@@ -304,6 +307,71 @@ server.tool(
   async ({ start_date, end_date }) => {
     try {
       return ok(await client.getMyCalendar(start_date, end_date));
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.tool(
+  "list_my_checklist_items",
+  "[읽기 전용] 내가 담당한 미완료 체크리스트를 여러 보드에 걸쳐 모아 조회한다. 각 항목은 " +
+    "checklist_item_id·task_id·board_id 를 포함하므로, 커밋/작업 내용과 대조해 맞는 항목을 찾으면 " +
+    "그 값들을 그대로 toggle_checklist_item 에 넘겨 완료 처리할 수 있다. PAT 소유자 본인 스코프가 자동 적용된다.",
+  {},
+  async () => {
+    try {
+      return ok(await client.getMyChecklistItems());
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.tool(
+  "toggle_checklist_item",
+  "[쓰기] 체크리스트 항목의 완료/미완료 상태를 전환한다. 커밋이 어떤 체크리스트 항목을 끝냈다고 " +
+    "판단되면 이 툴로 완료 처리한다. board_id·task_id·item_id 는 list_my_checklist_items 가 " +
+    "돌려준 값을 그대로 넘긴다. 실제 데이터를 바꾸므로 사용자에게 먼저 확인받고 호출하는 것을 권장한다.",
+  {
+    board_id: z.string().describe("보드 id (list_my_checklist_items 의 board_id)"),
+    task_id: z.string().describe("태스크 id (list_my_checklist_items 의 task_id)"),
+    item_id: z.string().describe("체크리스트 항목 id (list_my_checklist_items 의 checklist_item_id)"),
+  },
+  async ({ board_id, task_id, item_id }) => {
+    try {
+      return ok(await client.toggleChecklistItem(board_id, task_id, item_id));
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.tool(
+  "add_checklist_item",
+  "[쓰기] 태스크에 체크리스트 항목을 새로 추가한다. 커밋 내용에 맞는 기존 항목이 없으면(=빠진 작업) " +
+    "이 툴로 항목을 붙인다. board_id·task_id 는 get_board_tasks 나 list_my_checklist_items 로 확인한 값을 넘긴다. " +
+    "assignee_id 를 주면 담당자를 지정, 생략하면 미배정. 실제 데이터를 바꾸므로 먼저 확인받고 호출하는 것을 권장한다.",
+  {
+    board_id: z.string().describe("보드 id"),
+    task_id: z.string().describe("태스크 id"),
+    title: z.string().min(1).max(200).describe("체크리스트 항목 제목"),
+    assignee_id: z.string().optional().describe("담당자 사용자 id (선택). 생략하면 미배정."),
+    due_date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "yyyy-MM-dd 형식")
+      .optional()
+      .describe("마감일 yyyy-MM-dd (선택)"),
+  },
+  async ({ board_id, task_id, title, assignee_id, due_date }) => {
+    try {
+      return ok(
+        await client.addChecklistItem(board_id, task_id, {
+          title,
+          assignee_id,
+          due_date,
+        }),
+      );
     } catch (err) {
       return fail(err);
     }

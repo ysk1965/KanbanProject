@@ -201,6 +201,25 @@ public class PersonalDashboardService {
 
     // ==================== Cross-Domain Integration: Board Tasks ====================
 
+    /**
+     * 크로스보드 "내 담당 미완료 체크리스트" 조회 (MCP list_my_checklist_items).
+     * <p>
+     * 커밋 ↔ 체크리스트 매칭에 쓰이므로 board_id · task_id · checklist_item_id 를 모두 노출한다.
+     * 리포지토리 쿼리가 task · board · feature 를 JOIN FETCH 하므로 N+1 이 없다.
+     */
+    public MyChecklistItemsResponse getMyChecklistItems(String userId) {
+        List<BoardMember> boardMembers = boardMemberRepository.findByUserIdWithActiveBoards(userId);
+        if (boardMembers.isEmpty()) {
+            return MyChecklistItemsResponse.builder().total(0).items(Collections.emptyList()).build();
+        }
+        List<String> boardIds = boardMembers.stream()
+                .map(bm -> bm.getBoard().getId())
+                .toList();
+        List<ChecklistItem> items = checklistItemRepository
+                .findByAssigneeIdAndBoardIdInAndNotCompleted(userId, boardIds);
+        return MyChecklistItemsResponse.of(items);
+    }
+
     public BoardTasksResponse getBoardTasks(String userId, LocalDate date) {
         LocalDate today = (date != null) ? date : LocalDate.now(ZoneOffset.UTC);
 
