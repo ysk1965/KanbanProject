@@ -67,11 +67,15 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, St
     // ==================== Management Statistics Queries ====================
 
     /**
-     * 보드의 모든 ScheduleBlock 조회 (ChecklistItem 연결된 것만)
+     * 보드의 모든 ScheduleBlock 조회 (ChecklistItem 연결된 것만).
+     * JOIN FETCH 로 ChecklistItem 을 즉시 로딩한다 — 소프트삭제된(@SQLRestriction deleted_at IS NULL)
+     * 또는 사라진 ChecklistItem 을 참조하는 블록(휴지통 태스크의 유령 링크)은 조인 단계에서 제외되어,
+     * 이후 LAZY 프록시 초기화 시 EntityNotFoundException 이 나는 것을 원천 차단한다.
      */
     @Query("SELECT sb FROM ScheduleBlock sb " +
+           "JOIN FETCH sb.checklistItem ci " +
+           "LEFT JOIN FETCH ci.task t " +
            "WHERE sb.board.id = :boardId " +
-           "AND sb.checklistItem IS NOT NULL " +
            "ORDER BY sb.scheduledDate")
     List<ScheduleBlock> findAllWithChecklistByBoardId(@Param("boardId") String boardId);
 

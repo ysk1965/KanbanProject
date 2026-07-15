@@ -51,6 +51,22 @@ public class BoardChecklistController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * 팀 주간 리포트용: 기간 내(completedAt) 완료된 체크리스트 항목을 담당자·태스크·피처와 함께 조회.
+     * - 권한: Board.Viewer+
+     * - start_date, end_date 필수 (ISO-8601 yyyy-MM-dd, completedAt 기준 포함 구간)
+     */
+    @GetMapping("/completed")
+    public ResponseEntity<ChecklistResponse.BoardListResponse> getCompletedChecklistItems(
+            @PathVariable String boardId,
+            @RequestParam("start_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam("end_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        ChecklistResponse.BoardListResponse response = checklistService.getCompletedChecklistItems(
+                boardId, principal.getUserId(), startDate, endDate);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/from-workload")
     public ResponseEntity<ChecklistResponse.Detail> createFromWorkload(
             @PathVariable String boardId,

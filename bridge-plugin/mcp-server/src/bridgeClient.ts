@@ -345,6 +345,19 @@ export class BridgeClient {
     return this.request("GET", `/api/v1/boards/${boardId}/milestones`);
   }
 
+  /** get_board_completed_checklist_items — 기간 내 완료된 체크리스트 항목(담당자·태스크·피처 포함). */
+  getBoardCompletedChecklistItems(
+    boardId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<unknown> {
+    const query = this.qs({ start_date: startDate, end_date: endDate });
+    return this.request(
+      "GET",
+      `/api/v1/boards/${boardId}/checklist-items/completed${query}`,
+    );
+  }
+
   /** generate_board_report — 서버측 AI 리포트 생성(선택). */
   generateBoardReport(
     boardId: string,
