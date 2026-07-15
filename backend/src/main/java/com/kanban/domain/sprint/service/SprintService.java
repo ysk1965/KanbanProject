@@ -5,6 +5,7 @@ import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.checklist.dto.ChecklistResponse;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.sprint.Sprint;
@@ -17,6 +18,8 @@ import com.kanban.domain.sprint.dto.SprintResponse;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.websocket.WebSocketEventService;
+import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -42,6 +45,7 @@ public class SprintService {
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
+    private final WebSocketEventService webSocketEventService;
 
     // 기본 컬럼 시드 (앞뒤 고정 + 기본 중간 1개)
     private static final String COL_SPRINT = "Sprint";
@@ -135,7 +139,12 @@ public class SprintService {
         if (!column.getMilestone().getId().equals(sprint.getMilestone().getId())) {
             throw new BusinessException(ErrorCode.SPRINT_COLUMN_NOT_FOUND);
         }
-        applyColumnMove(item, column, userId);
+        boolean completionChanged = applyColumnMove(item, column, userId);
+        // 완료 플래그가 바뀌었으면 일반 체크리스트 토글과 동일한 이벤트를 쏴서
+        // 블록 보드·태스크 모달 등 다른 화면의 체크박스가 실시간 동기화되도록 한다.
+        if (completionChanged) {
+            broadcastChecklistToggle(boardId, item, userId);
+        }
         return buildBoard(sprint.getMilestone());
     }
 
@@ -371,7 +380,9 @@ public class SprintService {
 
     // ==================== Helpers ====================
 
-    private void applyColumnMove(ChecklistItem item, SprintColumn column, String userId) {
+    /** 컬럼 이동 + 완료 동기화. 완료 플래그가 실제로 바뀌었으면 true를 반환한다. */
+    private boolean applyColumnMove(ChecklistItem item, SprintColumn column, String userId) {
+        boolean before = Boolean.TRUE.equals(item.getIsCompleted());
         item.moveToSprintColumn(column);
         if (column.isEnd()) {
             item.complete();
@@ -379,6 +390,23 @@ public class SprintService {
         } else if (Boolean.TRUE.equals(item.getIsCompleted())) {
             item.uncomplete();
         }
+        return before != Boolean.TRUE.equals(item.getIsCompleted());
+    }
+
+    /**
+     * 스프린트 컬럼 이동으로 완료 상태가 바뀌면, 일반 체크리스트 토글(ChecklistService)과
+     * 동일한 CHECKLIST_TOGGLED 이벤트를 브로드캐스트한다. 이벤트 payload({task_id, item})도 동일하게 맞춰
+     * 블록 보드·태스크 모달·일정 뷰의 체크박스가 새로고침 없이 즉시 동기화되도록 한다.
+     */
+    private void broadcastChecklistToggle(String boardId, ChecklistItem item, String userId) {
+        String taskId = item.getTask() != null ? item.getTask().getId() : null;
+        if (taskId == null) {
+            return;
+        }
+        ChecklistResponse.Detail detail = ChecklistResponse.Detail.of(item);
+        String userName = userRepository.findById(userId).map(u -> u.getName()).orElse(null);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_TOGGLED, userId, userName,
+                Map.of("task_id", taskId, "item", detail));
     }
 
     /** 마일스톤에 컬럼이 없으면 기본 3컬럼(Sprint/In Review/Done) 시드 */
