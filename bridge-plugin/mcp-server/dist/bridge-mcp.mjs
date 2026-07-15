@@ -21306,6 +21306,14 @@ var BridgeClient = class {
   getBoardMilestones(boardId) {
     return this.request("GET", `/api/v1/boards/${boardId}/milestones`);
   }
+  /** get_board_completed_checklist_items — 기간 내 완료된 체크리스트 항목(담당자·태스크·피처 포함). */
+  getBoardCompletedChecklistItems(boardId, startDate, endDate) {
+    const query = this.qs({ start_date: startDate, end_date: endDate });
+    return this.request(
+      "GET",
+      `/api/v1/boards/${boardId}/checklist-items/completed${query}`
+    );
+  }
   /** generate_board_report — 서버측 AI 리포트 생성(선택). */
   generateBoardReport(boardId, input) {
     return this.request("POST", `/api/v1/boards/${boardId}/reports`, input);
@@ -21403,6 +21411,7 @@ server.tool(
           id: b.id,
           name: b.name,
           role: b.role,
+          organization_id: b.organization_id,
           organization_name: b.organization_name,
           can_write: b.role !== "VIEWER"
         }))
@@ -21699,6 +21708,24 @@ server.tool(
   async ({ board_id }) => {
     try {
       return ok(await client.getBoardMilestones(board_id));
+    } catch (err) {
+      return fail(err);
+    }
+  }
+);
+server.tool(
+  "get_board_completed_checklist_items",
+  "[\uC77D\uAE30 \uC804\uC6A9] \uD55C \uBCF4\uB4DC\uC5D0\uC11C \uAE30\uAC04 \uB0B4 \uC644\uB8CC\uB41C \uCCB4\uD06C\uB9AC\uC2A4\uD2B8 \uD56D\uBAA9\uC744 \uB2F4\uB2F9\uC790\xB7\uD0DC\uC2A4\uD06C\xB7\uD53C\uCC98\xB7\uC644\uB8CC\uC2DC\uAC01\uACFC \uD568\uAED8 \uC870\uD68C\uD55C\uB2E4. start_date\xB7end_date \uB294 \uD544\uC218(yyyy-MM-dd, completedAt \uAE30\uC900 \uD3EC\uD568 \uAD6C\uAC04). \uC8FC\uAC04 \uBCF4\uACE0\uC11C\uC758 '\uAD6C\uC131\uC6D0\uBCC4 \uC774\uBC88 \uC8FC \uC644\uB8CC \uC5C5\uBB34' \uD0ED\uC744 \uCC44\uC6B0\uB294 \uD575\uC2EC \uC18C\uC2A4\uB2E4 \u2014 assignee \uB85C \uADF8\uB8F9\uD551\uD558\uBA74 \uAD6C\uC131\uC6D0\uBCC4, task/feature \uB85C \uC5B4\uB5A4 \uC5C5\uBB34\uC758 \uC5B4\uB5A4 \uD56D\uBAA9\uC744 \uB05D\uB0C8\uB294\uC9C0\uAE4C\uC9C0 \uB098\uC628\uB2E4. \uC9C0\uB09C\uC8FC \uBC94\uC704\uB85C \uD55C \uBC88 \uB354 \uD638\uCD9C\uD558\uBA74 \uC804\uC8FC \uB300\uBE44 \uB378\uD0C0\uB97C \uAD6C\uD560 \uC218 \uC788\uB2E4.",
+  {
+    board_id: external_exports.string().describe("\uBCF4\uB4DC id"),
+    start_date: dateArg.describe("\uC644\uB8CC \uAE30\uAC04 \uC2DC\uC791\uC77C (yyyy-MM-dd)"),
+    end_date: dateArg.describe("\uC644\uB8CC \uAE30\uAC04 \uC885\uB8CC\uC77C (yyyy-MM-dd)")
+  },
+  async ({ board_id, start_date, end_date }) => {
+    try {
+      return ok(
+        await client.getBoardCompletedChecklistItems(board_id, start_date, end_date)
+      );
     } catch (err) {
       return fail(err);
     }
