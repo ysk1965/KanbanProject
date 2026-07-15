@@ -108,6 +108,17 @@ public class Task extends BaseTimeEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    /**
+     * JIRA에서 pull된 QA 상태 (읽기전용). null이면 QA 흐름 밖(개발 소유).
+     * JIRA 연동 카드에서만 세팅되며, 카드에 QA 뱃지/반려 배너로 표시된다.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "qa_state", length = 20)
+    private QaState qaState;
+
+    @Column(name = "qa_synced_at")
+    private LocalDateTime qaSyncedAt;
+
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
@@ -178,6 +189,12 @@ public class Task extends BaseTimeEntity {
             this.completedAt = null;
             this.feature.decrementCompletedTasks();
         }
+    }
+
+    /** JIRA pull로 QA 상태 반영 (읽기전용). null이면 QA 흐름 밖으로 해제. */
+    public void applyQaState(QaState qaState) {
+        this.qaState = qaState;
+        this.qaSyncedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public void moveToFeature(Feature newFeature) {

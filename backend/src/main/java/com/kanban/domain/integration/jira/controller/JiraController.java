@@ -123,6 +123,14 @@ public class JiraController {
         return ResponseEntity.ok(connectionService.updateMapping(boardId, principal.getUserId(), request));
     }
 
+    @PutMapping("/api/v1/boards/{boardId}/jira/block-status-map")
+    public ResponseEntity<JiraResponse.Status> updateBlockStatusMap(
+            @PathVariable String boardId,
+            @RequestBody JiraRequest.BlockStatusMapping request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(connectionService.updateBlockStatusMap(boardId, principal.getUserId(), request));
+    }
+
     @PutMapping("/api/v1/boards/{boardId}/jira/write-back")
     public ResponseEntity<JiraResponse.Status> updateWriteBack(
             @PathVariable String boardId,

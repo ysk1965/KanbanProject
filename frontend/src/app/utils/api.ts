@@ -5797,7 +5797,19 @@ export interface JiraStatus {
   milestone_auto_assign: boolean;
   write_back_enabled: boolean;
   write_back_target_status_id: string | null;
+  /** 블록↔JIRA status 양방향 매핑 (key=blockId/__rejected). */
+  block_status_map: Record<string, JiraBlockStatusEntry> | null;
+  /** 웹훅 수신 토큰(Phase 4). 근실시간 pull URL 조립용. */
+  webhook_token: string | null;
   connected_by_name: string | null;
+}
+
+/** 매핑 항목: key=blockId 또는 "__rejected". */
+export interface JiraBlockStatusEntry {
+  jira_status_id?: string;
+  dir?: "push" | "pull";
+  qa?: "REVIEW" | "VERIFIED";
+  return_block_id?: string;
 }
 
 export interface JiraSiteRef {
@@ -5817,8 +5829,15 @@ export interface JiraNameRef {
   name: string;
 }
 
+export interface JiraBlockRef {
+  id: string;
+  name: string;
+  fixed_type: string | null;
+}
+
 export interface JiraMeta {
   statuses: JiraNameRef[];
+  blocks: JiraBlockRef[];
 }
 
 export interface JiraPreviewItem {
@@ -5913,6 +5932,16 @@ export const jiraAPI = {
       enabled: data.enabled,
       target_status_id: data.targetStatusId || undefined,
     });
+  },
+
+  updateBlockStatusMap: async (
+    boardId: string,
+    blockStatusMap: Record<string, JiraBlockStatusEntry>,
+  ) => {
+    return apiClient.put<JiraStatus>(
+      `/boards/${boardId}/jira/block-status-map`,
+      { block_status_map: blockStatusMap },
+    );
   },
 
   importIssues: async (

@@ -41,6 +41,7 @@ public class TaskResponse {
         private int checklistTotal;
         private int checklistCompleted;
         private List<AssigneeInfo> assignees;
+        private String qaState;   // JIRA pull QA 상태 (REVIEW/VERIFIED/REJECTED, nullable)
 
         public static Simple of(Task task, List<Tag> tags, int checklistTotal, int checklistCompleted, List<AssigneeInfo> assignees) {
             return Simple.builder()
@@ -67,6 +68,7 @@ public class TaskResponse {
                     .checklistTotal(checklistTotal)
                     .checklistCompleted(checklistCompleted)
                     .assignees(assignees != null ? assignees : List.of())
+                    .qaState(task.getQaState() != null ? task.getQaState().name() : null)
                     .build();
         }
     }
@@ -99,6 +101,7 @@ public class TaskResponse {
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
         private LocalDateTime completedAt;
+        private String qaState;   // JIRA pull QA 상태 (REVIEW/VERIFIED/REJECTED, nullable)
 
         public static Detail of(Task task, List<Tag> tags) {
             return Detail.builder()
@@ -126,6 +129,7 @@ public class TaskResponse {
                     .createdAt(task.getCreatedAt())
                     .updatedAt(task.getUpdatedAt())
                     .completedAt(task.getCompletedAt())
+                    .qaState(task.getQaState() != null ? task.getQaState().name() : null)
                     .build();
         }
     }

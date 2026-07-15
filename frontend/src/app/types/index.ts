@@ -491,6 +491,8 @@ export interface Task {
   created_at?: string;
   updated_at?: string;
   completed_at?: string | null;
+  /** JIRA에서 pull된 QA 상태 (읽기전용). null=QA 흐름 밖(개발 소유) */
+  qa_state?: "REVIEW" | "VERIFIED" | "REJECTED" | null;
 }
 
 // ========================================

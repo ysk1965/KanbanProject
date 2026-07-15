@@ -21,12 +21,17 @@ import {
 } from "lucide-react";
 import {
   jiraAPI,
+  BACKEND_ORIGIN,
   JiraStatus,
   JiraTestResult,
   JiraImportResult,
   JiraNameRef,
+  JiraBlockRef,
+  JiraBlockStatusEntry,
   JiraSiteRef,
 } from "../utils/api";
+
+const REJECTED_KEY = "__rejected";
 
 interface JiraSettingsPanelProps {
   boardId: string;
@@ -68,6 +73,15 @@ export function JiraSettingsPanel({
   );
   const [statuses, setStatuses] = useState<JiraNameRef[]>([]);
 
+  // 블록↔status 매핑
+  const [blocks, setBlocks] = useState<JiraBlockRef[]>([]);
+  const [blockMap, setBlockMap] = useState<
+    Record<string, JiraBlockStatusEntry>
+  >({});
+  const [isSavingMap, setIsSavingMap] = useState(false);
+  const [mapSaved, setMapSaved] = useState(false);
+  const [webhookCopied, setWebhookCopied] = useState(false);
+
   // OAuth
   const [sites, setSites] = useState<JiraSiteRef[]>([]);
   const [isLoadingSites, setIsLoadingSites] = useState(false);
@@ -96,9 +110,20 @@ export function JiraSettingsPanel({
     if (!status?.connected) return;
     jiraAPI
       .getMeta(boardId)
-      .then((m) => setStatuses(m.statuses || []))
-      .catch(() => setStatuses([]));
+      .then((m) => {
+        setStatuses(m.statuses || []);
+        setBlocks(m.blocks || []);
+      })
+      .catch(() => {
+        setStatuses([]);
+        setBlocks([]);
+      });
   }, [boardId, status?.connected]);
+
+  // 저장된 매핑을 편집 상태로 로드
+  useEffect(() => {
+    setBlockMap(status?.block_status_map ?? {});
+  }, [status?.block_status_map]);
 
   // OAuth 콜백 결과 처리 (?jira=oauth_success|oauth_error)
   useEffect(() => {
@@ -289,6 +314,40 @@ export function JiraSettingsPanel({
       );
     } finally {
       setIsSavingWriteBack(false);
+    }
+  };
+
+  // ── 블록↔status 매핑 편집 ──
+  const patchEntry = (key: string, patch: Partial<JiraBlockStatusEntry>) => {
+    setBlockMap((prev) => {
+      const next = { ...prev, [key]: { ...prev[key], ...patch } };
+      // 방향을 push로 바꾸면 qa 값 제거
+      if (patch.dir === "push" && next[key]) delete next[key].qa;
+      return next;
+    });
+  };
+
+  const handleSaveMap = async () => {
+    setIsSavingMap(true);
+    setErrorMessage(null);
+    try {
+      // 비어있는(상태 미선택) 항목은 제거하고 저장
+      const cleaned: Record<string, JiraBlockStatusEntry> = {};
+      for (const [k, v] of Object.entries(blockMap)) {
+        if (v?.jira_status_id) cleaned[k] = v;
+      }
+      const result = await jiraAPI.updateBlockStatusMap(boardId, cleaned);
+      setStatus(result);
+      setMapSaved(true);
+      window.setTimeout(() => setMapSaved(false), 1800);
+    } catch (e) {
+      setErrorMessage(
+        e instanceof Error
+          ? e.message
+          : t("jiraIntegration.saveFailed", "저장에 실패했습니다"),
+      );
+    } finally {
+      setIsSavingMap(false);
     }
   };
 
@@ -803,6 +862,146 @@ export function JiraSettingsPanel({
           )}
         </div>
 
+        {/* 블록 ↔ JIRA 상태 매핑 (양방향) */}
+        {blocks.length > 0 && (
+          <div className="border-t border-foreground/[0.08] pt-3">
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-xs text-foreground font-medium">
+                {t("jiraIntegration.mappingTitle", "블록 ↔ JIRA 상태 매핑")}
+              </div>
+              <div className="flex items-center gap-2">
+                {mapSaved && (
+                  <span className="text-xs font-bold text-emerald-500">
+                    {t("jiraIntegration.saved", "✓ 저장됨")}
+                  </span>
+                )}
+                <button
+                  onClick={handleSaveMap}
+                  disabled={isSavingMap}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors disabled:opacity-50"
+                >
+                  {isSavingMap && (
+                    <Loader2 size={11} className="animate-spin" />
+                  )}
+                  {t("jiraIntegration.mappingSave", "매핑 저장")}
+                </button>
+              </div>
+            </div>
+            <div className="text-xs text-slate-500 mb-2.5 leading-relaxed">
+              {t(
+                "jiraIntegration.mappingDesc",
+                "Push=개발이 옮기면 JIRA로 전환 · Pull=QA의 JIRA 변경을 읽기전용으로 반영",
+              )}
+            </div>
+
+            {blocks.map((block) => {
+              const entry = blockMap[block.id] || {};
+              const dir = entry.dir || "push";
+              return (
+                <div
+                  key={block.id}
+                  className="flex items-center gap-1.5 mb-1.5"
+                >
+                  <span className="w-16 shrink-0 text-xs font-medium text-foreground truncate">
+                    {block.name}
+                  </span>
+                  <div className="flex rounded-lg bg-foreground/[0.04] border border-foreground/10 p-0.5 shrink-0">
+                    {(["push", "pull"] as const).map((d) => (
+                      <button
+                        key={d}
+                        onClick={() => patchEntry(block.id, { dir: d })}
+                        className={`px-2 py-1 rounded-md text-xs font-bold transition-colors ${
+                          dir === d
+                            ? d === "push"
+                              ? "bg-bridge-accent text-white"
+                              : "bg-blue-500 text-white"
+                            : "text-slate-400 hover:text-foreground"
+                        }`}
+                      >
+                        {d === "push" ? "PUSH" : "PULL"}
+                      </button>
+                    ))}
+                  </div>
+                  <select
+                    className={`${inputCls} flex-1`}
+                    value={entry.jira_status_id || ""}
+                    onChange={(e) =>
+                      patchEntry(block.id, { jira_status_id: e.target.value })
+                    }
+                  >
+                    <option value="">
+                      {t("jiraIntegration.selectStatus", "상태 선택")}
+                    </option>
+                    {statuses.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                  {dir === "pull" && (
+                    <select
+                      className={`${inputCls} w-20 shrink-0`}
+                      value={entry.qa || "REVIEW"}
+                      onChange={(e) =>
+                        patchEntry(block.id, {
+                          qa: e.target.value as "REVIEW" | "VERIFIED",
+                        })
+                      }
+                    >
+                      <option value="REVIEW">
+                        {t("jiraIntegration.qaReview", "검토중")}
+                      </option>
+                      <option value="VERIFIED">
+                        {t("jiraIntegration.qaVerified", "완료")}
+                      </option>
+                    </select>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* 반려 행 */}
+            <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-foreground/[0.06]">
+              <span className="w-16 shrink-0 text-xs font-bold text-rose-400">
+                {t("jiraIntegration.rejected", "반려 →")}
+              </span>
+              <select
+                className={`${inputCls} flex-1`}
+                value={blockMap[REJECTED_KEY]?.jira_status_id || ""}
+                onChange={(e) =>
+                  patchEntry(REJECTED_KEY, { jira_status_id: e.target.value })
+                }
+              >
+                <option value="">
+                  {t("jiraIntegration.selectStatus", "상태 선택")}
+                </option>
+                {statuses.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-slate-500 shrink-0">
+                {t("jiraIntegration.returnTo", "복귀")}
+              </span>
+              <select
+                className={`${inputCls} w-20 shrink-0`}
+                value={blockMap[REJECTED_KEY]?.return_block_id || ""}
+                onChange={(e) =>
+                  patchEntry(REJECTED_KEY, { return_block_id: e.target.value })
+                }
+              >
+                <option value="">{t("jiraIntegration.block", "블록")}</option>
+                {blocks.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
         {/* 완료 역동기화 */}
         <div className="border-t border-foreground/[0.08] pt-3">
           <div className="flex items-center justify-between">
@@ -856,6 +1055,46 @@ export function JiraSettingsPanel({
             ))}
           </select>
         </div>
+
+        {/* 웹훅 (근실시간 pull) */}
+        {status.webhook_token && (
+          <div className="border-t border-foreground/[0.08] pt-3">
+            <div className="text-xs text-foreground font-medium mb-1">
+              {t("jiraIntegration.webhookTitle", "웹훅 (근실시간 동기화)")}
+            </div>
+            <div className="text-xs text-slate-500 mb-2 leading-relaxed">
+              {t(
+                "jiraIntegration.webhookDesc",
+                "JIRA Automation/웹훅에서 이 URL로 POST하면 검토중·완료·반려가 즉시 반영됩니다. (미설정 시 5분 폴링으로 백업)",
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <input
+                readOnly
+                value={`${BACKEND_ORIGIN}/api/v1/jira/webhook/${boardId}?token=${status.webhook_token}`}
+                onFocus={(e) => e.currentTarget.select()}
+                className={`${inputCls} flex-1 font-mono text-slate-400`}
+              />
+              <button
+                onClick={() => {
+                  navigator.clipboard
+                    ?.writeText(
+                      `${BACKEND_ORIGIN}/api/v1/jira/webhook/${boardId}?token=${status.webhook_token}`,
+                    )
+                    .then(() => {
+                      setWebhookCopied(true);
+                      window.setTimeout(() => setWebhookCopied(false), 1500);
+                    });
+                }}
+                className="px-2.5 py-2 rounded-lg text-xs font-bold text-foreground bg-foreground/5 border border-foreground/10 hover:bg-foreground/10 transition-colors shrink-0"
+              >
+                {webhookCopied
+                  ? t("jiraIntegration.copied", "✓ 복사됨")
+                  : t("jiraIntegration.copy", "복사")}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 해제 */}
         <div className="border-t border-foreground/[0.08] pt-3 flex justify-end">

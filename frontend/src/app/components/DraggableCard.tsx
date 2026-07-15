@@ -441,6 +441,27 @@ export const DraggableCard = memo(function DraggableCard({
         )}
       </div>
 
+      {/* JIRA QA 상태 뱃지 (pull, 읽기전용) */}
+      {task.qa_state && (
+        <div className="mb-1 pl-2">
+          <span
+            className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${
+              task.qa_state === "VERIFIED"
+                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                : task.qa_state === "REJECTED"
+                  ? "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+                  : "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+            }`}
+          >
+            {task.qa_state === "VERIFIED"
+              ? "✓ QA 완료"
+              : task.qa_state === "REJECTED"
+                ? "↩ 반려됨"
+                : "QA 검토중"}
+          </span>
+        </div>
+      )}
+
       {/* 태그 표시 (펼쳐졌을 때만) */}
       {isChecklistExpanded && taskTags.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-1 pl-2">
