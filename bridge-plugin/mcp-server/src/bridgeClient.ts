@@ -284,6 +284,25 @@ export class BridgeClient {
     );
   }
 
+  /**
+   * add_task_comment / link_commit — 태스크에 댓글을 남긴다(쓰기).
+   * mentions 는 멘션 알림을 받을 사용자 id 배열(선택).
+   */
+  addTaskComment(
+    boardId: string,
+    taskId: string,
+    input: { content: string; mentions?: string[] },
+  ): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/api/v1/boards/${boardId}/tasks/${taskId}/comments`,
+      {
+        content: input.content,
+        mentions: input.mentions,
+      },
+    );
+  }
+
   /** get_board_stats — 보드 통계. management=true 면 관리용 통계(정체/지연 등). */
   getBoardStats(
     boardId: string,
