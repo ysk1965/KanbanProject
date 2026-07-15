@@ -69,9 +69,9 @@ resource "aws_iam_role_policy" "lambda" {
         Resource = "arn:aws:rds:*:*:db:${var.rds_instance_id}"
       },
       {
-        Sid    = "SNS"
-        Effect = "Allow"
-        Action = "sns:Publish"
+        Sid      = "SNS"
+        Effect   = "Allow"
+        Action   = "sns:Publish"
         Resource = var.enabled ? aws_sns_topic.notifications[0].arn : "*"
       },
       {

@@ -29,14 +29,14 @@ terraform {
     }
   }
 
-  # Uncomment after creating S3 bucket
-  # backend "s3" {
-  #   bucket         = "kanban-terraform-state"
-  #   key            = "prod/terraform.tfstate"
-  #   region         = "ap-northeast-2"
-  #   encrypt        = true
-  #   dynamodb_table = "kanban-terraform-lock"
-  # }
+  # 신계정(259151461692) 원격 state — dev와 동일 버킷, prod 키 분리
+  backend "s3" {
+    bucket         = "kanban-terraform-state-259151461692"
+    key            = "prod/terraform.tfstate"
+    region         = "ap-northeast-2"
+    encrypt        = true
+    dynamodb_table = "kanban-terraform-lock"
+  }
 }
 
 provider "aws" {

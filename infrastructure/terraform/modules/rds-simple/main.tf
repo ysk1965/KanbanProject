@@ -18,8 +18,8 @@ resource "aws_db_instance" "main" {
   identifier          = "${var.project_name}-${var.environment}-db"
   snapshot_identifier = var.snapshot_identifier != "" ? var.snapshot_identifier : null
   engine              = "postgres"
-  engine_version = var.engine_version
-  instance_class = var.instance_class
+  engine_version      = var.engine_version
+  instance_class      = var.instance_class
 
   auto_minor_version_upgrade = var.auto_minor_version_upgrade
 
@@ -41,11 +41,13 @@ resource "aws_db_instance" "main" {
   backup_window           = "03:00-04:00"
   maintenance_window      = "sun:04:00-sun:05:00"
 
-  skip_final_snapshot       = var.environment != "prod"
-  final_snapshot_identifier = var.environment == "prod" ? "${var.project_name}-${var.environment}-final" : null
-  deletion_protection       = var.deletion_protection != null ? var.deletion_protection : var.environment == "prod"
+  # ⚠️ 삭제 보호/최종 스냅샷은 환경 "이름"이 아니라 명시적 플래그로 제어한다.
+  # (라이브 트래픽을 서빙하는 환경이 반드시 "prod"로 명명되지는 않는다 — 실제 운영은 dev 환경)
+  skip_final_snapshot       = var.skip_final_snapshot
+  final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.project_name}-${var.environment}-final"
+  deletion_protection       = var.deletion_protection != null ? var.deletion_protection : true
 
-  performance_insights_enabled = false  # Cost saving
+  performance_insights_enabled = false # Cost saving
 
   tags = {
     Name        = "${var.project_name}-${var.environment}-db"
