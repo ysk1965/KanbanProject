@@ -65,37 +65,42 @@ public final class BlockStatusMap {
     // ── PULL: JIRA status → 블록 + QA 상태 ───────────────
 
     /** JIRA status 반영 대상. null이면 개발 소유/미매핑 → pull이 카드를 건드리지 않음. */
-    public record PullTarget(String blockId, QaState qaState, boolean rejection) {}
+    public record PullTarget(String blockId, QaState qaState) {}
 
     /**
-     * 주어진 JIRA statusId가 pull(또는 반려) 대상인지 해석한다.
-     * <ul>
-     *   <li>__rejected.status와 일치 → 복귀 블록 + REJECTED</li>
-     *   <li>dir=pull 블록의 status와 일치 → 그 블록 + qa(REVIEW/VERIFIED)</li>
-     *   <li>그 외(push/미매핑) → null (개발 소유, pull이 무시)</li>
-     * </ul>
+     * dir=pull 블록 중 이 JIRA status에 해당하는 대상. null이면 개발 소유(push)/미매핑.
+     * 반려는 status 단독으론 판정 불가(작업중=개발 소유이자 반려 목적지)라 여기서 다루지 않는다({@link #rejectionRule}).
      */
     public PullTarget pullFor(String jiraStatusId) {
         if (jiraStatusId == null || jiraStatusId.isBlank()) return null;
-
-        Map<String, String> rej = raw.get(REJECTED_KEY);
-        if (rej != null && jiraStatusId.equals(rej.get("jira_status_id"))) {
-            String returnBlockId = rej.get("return_block_id");
-            if (returnBlockId != null && !returnBlockId.isBlank()) {
-                return new PullTarget(returnBlockId, QaState.REJECTED, true);
-            }
-        }
-
         for (var entry : raw.entrySet()) {
             if (REJECTED_KEY.equals(entry.getKey())) continue;
             Map<String, String> e = entry.getValue();
             if (!"pull".equalsIgnoreCase(e.getOrDefault("dir", "push"))) continue;
             if (jiraStatusId.equals(e.get("jira_status_id"))) {
                 QaState qa = parseQa(e.get("qa"));
-                return new PullTarget(entry.getKey(), qa != null ? qa : QaState.REVIEW, false);
+                return new PullTarget(entry.getKey(), qa != null ? qa : QaState.REVIEW);
             }
         }
         return null;
+    }
+
+    // ── 반려 전환 규칙 (Phase 4 옵션 B) ──────────────────
+
+    /**
+     * 반려 감지 규칙. "검토중({@code fromStatusId})에서 개발 블록으로 되돌아온 전환"을 반려로 본다.
+     * QASA엔 전용 반려 status가 없어 전환(이전 status→현재)으로만 판정한다.
+     */
+    public record RejectionRule(String fromStatusId, String returnBlockId) {}
+
+    /** {@code __rejected} = { from_status_id, return_block_id }. 둘 다 있어야 유효. */
+    public RejectionRule rejectionRule() {
+        Map<String, String> rej = raw.get(REJECTED_KEY);
+        if (rej == null) return null;
+        String from = rej.get("from_status_id");
+        String returnBlockId = rej.get("return_block_id");
+        if (from == null || from.isBlank() || returnBlockId == null || returnBlockId.isBlank()) return null;
+        return new RejectionRule(from, returnBlockId);
     }
 
     /**

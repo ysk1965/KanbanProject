@@ -331,10 +331,14 @@ export function JiraSettingsPanel({
     setIsSavingMap(true);
     setErrorMessage(null);
     try {
-      // 비어있는(상태 미선택) 항목은 제거하고 저장
+      // 비어있는 항목은 제거하고 저장 (__rejected는 from_status_id+return_block_id 기준)
       const cleaned: Record<string, JiraBlockStatusEntry> = {};
       for (const [k, v] of Object.entries(blockMap)) {
-        if (v?.jira_status_id) cleaned[k] = v;
+        if (k === REJECTED_KEY) {
+          if (v?.from_status_id && v?.return_block_id) cleaned[k] = v;
+        } else if (v?.jira_status_id) {
+          cleaned[k] = v;
+        }
       }
       const result = await jiraAPI.updateBlockStatusMap(boardId, cleaned);
       setStatus(result);
@@ -960,44 +964,54 @@ export function JiraSettingsPanel({
               );
             })}
 
-            {/* 반려 행 */}
-            <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-foreground/[0.06]">
-              <span className="w-16 shrink-0 text-xs font-bold text-rose-400">
-                {t("jiraIntegration.rejected", "반려 →")}
-              </span>
-              <select
-                className={`${inputCls} flex-1`}
-                value={blockMap[REJECTED_KEY]?.jira_status_id || ""}
-                onChange={(e) =>
-                  patchEntry(REJECTED_KEY, { jira_status_id: e.target.value })
-                }
-              >
-                <option value="">
-                  {t("jiraIntegration.selectStatus", "상태 선택")}
-                </option>
-                {statuses.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
+            {/* 반려 행 — "검토중 status에서 개발 블록으로 되돌아온 전환"을 반려로 감지 */}
+            <div className="mt-2 pt-2 border-t border-foreground/[0.06]">
+              <div className="text-xs font-bold text-rose-400 mb-1.5">
+                {t("jiraIntegration.rejectionTitle", "반려 감지 (전환 기반)")}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <select
+                  className={`${inputCls} flex-1`}
+                  value={blockMap[REJECTED_KEY]?.from_status_id || ""}
+                  onChange={(e) =>
+                    patchEntry(REJECTED_KEY, { from_status_id: e.target.value })
+                  }
+                >
+                  <option value="">
+                    {t("jiraIntegration.selectReviewStatus", "검토중 상태 선택")}
                   </option>
-                ))}
-              </select>
-              <span className="text-xs text-slate-500 shrink-0">
-                {t("jiraIntegration.returnTo", "복귀")}
-              </span>
-              <select
-                className={`${inputCls} w-20 shrink-0`}
-                value={blockMap[REJECTED_KEY]?.return_block_id || ""}
-                onChange={(e) =>
-                  patchEntry(REJECTED_KEY, { return_block_id: e.target.value })
-                }
-              >
-                <option value="">{t("jiraIntegration.block", "블록")}</option>
-                {blocks.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
+                  {statuses.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-xs text-slate-500 shrink-0">
+                  {t("jiraIntegration.rejectionArrow", "에서 되돌리면 →")}
+                </span>
+                <select
+                  className={`${inputCls} w-24 shrink-0`}
+                  value={blockMap[REJECTED_KEY]?.return_block_id || ""}
+                  onChange={(e) =>
+                    patchEntry(REJECTED_KEY, { return_block_id: e.target.value })
+                  }
+                >
+                  <option value="">
+                    {t("jiraIntegration.returnBlock", "복귀 블록")}
                   </option>
-                ))}
-              </select>
+                  {blocks.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                {t(
+                  "jiraIntegration.rejectionDesc",
+                  "QA가 검토중에서 개발 블록으로 되돌리면 반려로 표시하고 사유를 가져옵니다. (QASA엔 전용 반려 상태가 없어 전환으로 감지)",
+                )}
+              </div>
             </div>
           </div>
         )}

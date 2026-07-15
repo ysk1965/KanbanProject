@@ -52,6 +52,10 @@ public class JiraIssueLink {
     @Column(name = "jira_updated_at")
     private LocalDateTime jiraUpdatedAt;
 
+    /** 직전 pull 시점의 JIRA status id — 반려("검토중→개발블록") 전환 감지용(Phase 4 옵션 B). */
+    @Column(name = "last_jira_status_id", length = 30)
+    private String lastJiraStatusId;
+
     @Column(name = "last_imported_at", nullable = false)
     private LocalDateTime lastImportedAt;
 
@@ -91,6 +95,11 @@ public class JiraIssueLink {
 
     public void markWriteBackDone() {
         this.writeBackDoneAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    /** 직전 JIRA status 기록(반려 전환 감지용). pull 반영 후 호출. */
+    public void markJiraStatus(String statusId) {
+        this.lastJiraStatusId = statusId;
     }
 
     /** JIRA가 BRIDGE 원장보다 최신인지 — 증분 갱신 판정. */

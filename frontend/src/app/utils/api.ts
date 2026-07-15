@@ -5804,11 +5804,14 @@ export interface JiraStatus {
   connected_by_name: string | null;
 }
 
-/** 매핑 항목: key=blockId 또는 "__rejected". */
+/** 매핑 항목: key=blockId(블록 매핑) 또는 "__rejected"(반려 전환 규칙). */
 export interface JiraBlockStatusEntry {
   jira_status_id?: string;
   dir?: "push" | "pull";
   qa?: "REVIEW" | "VERIFIED";
+  /** __rejected 전용: 반려 시작 status(검토중). 여기서 개발 블록으로 되돌리면 반려로 감지. */
+  from_status_id?: string;
+  /** __rejected 전용: 반려 시 복귀할 블록(작업 중). */
   return_block_id?: string;
 }
 

@@ -169,7 +169,7 @@ public class JiraImportService {
                 // 대상 Task가 살아있음 → JIRA 최신값으로 갱신(제목/설명/상태→블록)
                 Task existingTask = taskRepository.findById(taskLink.getTargetId()).orElse(null);
                 if (existingTask != null) {
-                    updateTaskFromIssue(existingTask, board, importer, issue, blockMap, statusToBlock, taskBlock, ctx);
+                    updateTaskFromIssue(existingTask, board, importer, issue, blockMap, statusToBlock, taskBlock, ctx, taskLink);
                     taskLink.touchImport(JiraLinkTargetType.TASK, existingTask.getId(), issue.updated());
                     c.updated++;
                     continue;
@@ -251,7 +251,7 @@ public class JiraImportService {
         BlockStatusMap blockMap = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
         Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
 
-        updateTaskFromIssue(task, board, importer, issue, blockMap, statusToBlock, taskBlock, ctx);
+        updateTaskFromIssue(task, board, importer, issue, blockMap, statusToBlock, taskBlock, ctx, link);
         link.touchImport(JiraLinkTargetType.TASK, task.getId(), issue.updated());
         config.markSynced();
 
@@ -271,42 +271,44 @@ public class JiraImportService {
      */
     private void updateTaskFromIssue(Task task, Board board, User importer, ParsedJiraIssue issue,
                                      BlockStatusMap blockMap, Map<String, String> statusToBlock,
-                                     Block taskBlock, JiraAuthContext ctx) {
+                                     Block taskBlock, JiraAuthContext ctx, JiraIssueLink link) {
         task.updateInfo(truncate(issue.summary(), 200), issue.description(),
             task.getStartDate(), task.getDueDate(), task.getEstimatedMinutes());
 
         if (!blockMap.isEmpty()) {
-            applyPullReflection(task, board, importer, issue, blockMap, ctx);
+            applyPullReflection(task, board, importer, issue, blockMap, ctx, link.getLastJiraStatusId());
         } else {
             moveTaskToBlockEnd(task, resolveBlock(board.getId(), issue.statusName(), statusToBlock, taskBlock));
         }
+        link.markJiraStatus(issue.statusId());   // 다음 전환 감지용 직전 status 기록
     }
 
     /**
      * JIRA status 변화를 카드에 pull 반영 (읽기전용 소유권 존중).
-     *  · pull/반려 status → 매핑 블록으로 이동 + qa_state 세팅(반려는 사유 댓글 pull).
+     *  · 반려(검토중→개발블록 전환) → 복귀 블록 이동 + REJECTED + 사유 댓글. 전환 순간 1회만 발생.
+     *  · pull status(검토중/완료) → 매핑 블록 유지 + qa_state(QA가 위치 소유).
      *  · push/미매핑 status(개발 소유) → 카드 위치 그대로, QA 흐름 밖이면 뱃지 해제.
+     *
+     * @param prevStatusId 직전 pull 때의 JIRA status(없으면 null) — 반려 전환 판정 기준
      */
     private void applyPullReflection(Task task, Board board, User importer, ParsedJiraIssue issue,
-                                     BlockStatusMap blockMap, JiraAuthContext ctx) {
+                                     BlockStatusMap blockMap, JiraAuthContext ctx, String prevStatusId) {
+        // 반려 감지: 검토중(from)에 있다가 개발 소유 status로 되돌아온 전환
+        BlockStatusMap.RejectionRule rule = blockMap.rejectionRule();
+        if (rule != null && rule.fromStatusId().equals(prevStatusId)
+                && blockMap.pullFor(issue.statusId()) == null) {
+            moveToPullBlock(task, board, rule.returnBlockId());
+            task.applyQaState(com.kanban.domain.task.QaState.REJECTED);
+            pullRejectionReason(task, board, importer, issue, ctx);
+            return;
+        }
+
         BlockStatusMap.PullTarget pull = blockMap.pullFor(issue.statusId());
         if (pull == null) {
             if (task.getQaState() != null) task.applyQaState(null);  // 개발이 되가져감 → 뱃지 해제
             return;
         }
-
-        if (pull.rejection()) {
-            // 반려는 "복귀"라 한 번만 이동시킨다. 이후엔 개발이 위치를 소유하므로 다시 끌어오지 않음.
-            boolean newlyRejected = task.getQaState() != com.kanban.domain.task.QaState.REJECTED;
-            if (newlyRejected) {
-                moveToPullBlock(task, board, pull.blockId());
-                task.applyQaState(com.kanban.domain.task.QaState.REJECTED);
-                pullRejectionReason(task, board, importer, issue, ctx);
-            }
-            return;
-        }
-
-        // 검토중/완료는 QA가 위치를 소유 → 매번 pull 블록으로 유지 + 뱃지 반영.
+        // 검토중/완료는 QA가 위치를 소유 → 매핑 블록으로 유지 + 뱃지 반영.
         moveToPullBlock(task, board, pull.blockId());
         task.applyQaState(pull.qaState());
     }
@@ -650,6 +652,7 @@ public class JiraImportService {
             .targetType(type)
             .targetId(targetId)
             .jiraUpdatedAt(issue.updated())
+            .lastJiraStatusId(issue.statusId())
             .build());
     }
 
