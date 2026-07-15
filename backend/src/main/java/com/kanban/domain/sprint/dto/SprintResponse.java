@@ -113,6 +113,9 @@ public class SprintResponse {
         private String sprintColumnId;   // null이면 백로그
         private Integer position;
         private LocalDate dueDate;
+        private LocalDate startDate;      // 진행 현황 4구간 분류용(진행 중 판정)
+        private LocalDate doneDate;       // 완료일(과거 데이터 폴백, day 단위)
+        private LocalDateTime completedAt; // 완료 시각(오늘 완료 판정 소스)
         private String featureId;
         private String featureTitle;
         private String featureColor;
@@ -132,6 +135,9 @@ public class SprintResponse {
                     .sprintColumnId(col != null ? col.getId() : null)
                     .position(c.getPosition())
                     .dueDate(c.getDueDate())
+                    .startDate(c.getStartDate())
+                    .doneDate(c.getDoneDate())
+                    .completedAt(c.getCompletedAt())
                     .featureId(feature != null ? feature.getId() : null)
                     .featureTitle(feature != null ? feature.getTitle() : null)
                     .featureColor(feature != null ? feature.getColor() : null)
