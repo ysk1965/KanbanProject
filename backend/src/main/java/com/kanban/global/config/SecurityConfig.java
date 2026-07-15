@@ -85,6 +85,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/discord/oauth/callback").permitAll()
                         // JIRA OAuth callback (HMAC state-verified in service)
                         .requestMatchers("/api/v1/jira/oauth/callback").permitAll()
+                        // JIRA webhook receiver (per-board secret token verified in service)
+                        .requestMatchers("/api/v1/jira/webhook/**").permitAll()
                         // WebSocket endpoints
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/ws-collab/**").permitAll()

@@ -126,6 +126,8 @@ public class ChecklistResponse {
         private BoardContractorResponse.ContractorInfo contractor;
         private LocalDate startDate;
         private LocalDate dueDate;
+        private LocalDate doneDate;
+        private LocalDateTime completedAt;
         private TaskInfo task;
         private FeatureInfo feature;
         private BlockInfo block;
@@ -145,6 +147,8 @@ public class ChecklistResponse {
                     .contractor(BoardContractorResponse.ContractorInfo.of(item.getContractor()))
                     .startDate(item.getStartDate())
                     .dueDate(item.getDueDate())
+                    .doneDate(item.getDoneDate())
+                    .completedAt(item.getCompletedAt())
                     .task(task != null ? TaskInfo.of(task) : null)
                     .feature(feature != null ? FeatureInfo.of(feature) : null)
                     .block(BlockInfo.of(block))

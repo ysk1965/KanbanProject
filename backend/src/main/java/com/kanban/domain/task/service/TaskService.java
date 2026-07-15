@@ -85,6 +85,7 @@ public class TaskService {
     private final FileUploadService fileUploadService;
     private final WebSocketEventService webSocketEventService;
     private final EntityManager entityManager;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public TaskResponse.ListResponse getTasks(String boardId, String userId, String blockId, String featureId, String milestoneId) {
         // 뷰어 이상 권한 확인 (컨트롤러 경로 전용 — Facade는 멤버십을 1회 검증 후 internal 직접 호출)
@@ -496,6 +497,12 @@ public class TaskService {
         }
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.TASK_MOVED, userId, user.getName(),
                 Map.of("task", response, "feature", buildFeatureSummary(task.getFeature())));
+
+        // JIRA 연동 카드면 블록 변경을 push (커밋 후 비동기). core→jira 역의존 회피용 이벤트.
+        if (!oldBlockId.equals(targetBlock.getId())) {
+            eventPublisher.publishEvent(
+                new com.kanban.domain.task.event.TaskBlockChangedEvent(boardId, taskId, targetBlock.getId()));
+        }
         return response;
     }
 

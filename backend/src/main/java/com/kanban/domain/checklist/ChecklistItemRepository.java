@@ -278,4 +278,22 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
             @Param("boardIds") List<String> boardIds,
             @Param("startDateTime") LocalDateTime startDateTime,
             @Param("endDateTime") LocalDateTime endDateTime);
+
+    /**
+     * 보드 전체에서 기간 내(completedAt) 완료된 체크리스트 항목을 담당자 무관하게 조회 — 팀 주간 리포트용.
+     * task/feature/block/assignee 를 즉시 로딩하고, 담당자→완료시각 순으로 정렬한다.
+     */
+    @Query("SELECT ci FROM ChecklistItem ci " +
+           "JOIN FETCH ci.task t " +
+           "JOIN FETCH t.feature f " +
+           "JOIN FETCH t.block b " +
+           "LEFT JOIN FETCH ci.assignee a " +
+           "WHERE t.board.id = :boardId " +
+           "AND ci.isCompleted = true " +
+           "AND ci.completedAt BETWEEN :startDateTime AND :endDateTime " +
+           "ORDER BY a.id ASC NULLS LAST, ci.completedAt ASC")
+    List<ChecklistItem> findCompletedByBoardIdAndDateRange(
+            @Param("boardId") String boardId,
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime);
 }

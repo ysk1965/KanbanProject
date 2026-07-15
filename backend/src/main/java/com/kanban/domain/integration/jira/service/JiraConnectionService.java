@@ -3,6 +3,8 @@ package com.kanban.domain.integration.jira.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kanban.domain.block.Block;
+import com.kanban.domain.block.BlockRepository;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
@@ -45,6 +47,7 @@ public class JiraConnectionService {
     private final JiraUserMappingRepository userMappingRepository;
     private final BoardService boardService;
     private final BoardRepository boardRepository;
+    private final BlockRepository blockRepository;
     private final UserRepository userRepository;
     private final SlackTokenEncryptor tokenEncryptor;
     private final ObjectMapper objectMapper;
@@ -129,6 +132,7 @@ public class JiraConnectionService {
     public JiraResponse.Meta getMeta(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
         JiraIntegrationConfig config = getActiveConfigOrThrow(boardId);
+        config.ensureWebhookToken();   // 패널 진입 시 웹훅 토큰 보장(멱등)
         String token = oauthService.resolveToken(config);
 
         JsonNode statusGroups = jiraApiClient.getProjectStatuses(
@@ -151,7 +155,27 @@ public class JiraConnectionService {
         List<JiraResponse.NameRef> statusList = new ArrayList<>();
         uniqueStatuses.forEach((id, name) -> statusList.add(JiraResponse.NameRef.builder().id(id).name(name).build()));
 
-        return JiraResponse.Meta.builder().statuses(statusList).build();
+        // 매핑 UI 좌측: BRIDGE 블록 (Feature 블록 제외 — 카드가 흐르는 칸반 블록만)
+        List<JiraResponse.BlockRef> blockList = blockRepository.findByBoardIdOrderByPositionAsc(boardId).stream()
+            .filter(b -> !b.isFeatureBlock())
+            .map(b -> JiraResponse.BlockRef.builder()
+                .id(b.getId())
+                .name(b.getName())
+                .fixedType(b.getFixedType() != null ? b.getFixedType().name() : null)
+                .build())
+            .toList();
+
+        return JiraResponse.Meta.builder().statuses(statusList).blocks(blockList).build();
+    }
+
+    // ── 블록↔status 양방향 매핑 저장 ────────────────
+
+    @Transactional
+    public JiraResponse.Status updateBlockStatusMap(String boardId, String userId, JiraRequest.BlockStatusMapping request) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        JiraIntegrationConfig config = getActiveConfigOrThrow(boardId);
+        config.updateBlockStatusMap(toJsonNested(request.getBlockStatusMap()));
+        return toStatus(config);
     }
 
     // ── 매핑 규칙 저장 ────────────────────────────
@@ -218,6 +242,25 @@ public class JiraConnectionService {
         }
     }
 
+    private String toJsonNested(Map<String, Map<String, String>> map) {
+        if (map == null || map.isEmpty()) return null;
+        try {
+            return objectMapper.writeValueAsString(map);
+        } catch (JsonProcessingException e) {
+            throw new BusinessException(ErrorCode.JIRA_IMPORT_FAILED, "매핑 직렬화 실패");
+        }
+    }
+
+    private Map<String, Map<String, String>> readNested(String json) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json,
+                new com.fasterxml.jackson.core.type.TypeReference<Map<String, Map<String, String>>>() {});
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private JiraResponse.Status toStatus(JiraIntegrationConfig c) {
         return JiraResponse.Status.builder()
             .boardId(c.getBoard().getId())
@@ -233,6 +276,8 @@ public class JiraConnectionService {
             .milestoneAutoAssign(Boolean.TRUE.equals(c.getMilestoneAutoAssign()))
             .writeBackEnabled(Boolean.TRUE.equals(c.getWriteBackEnabled()))
             .writeBackTargetStatusId(c.getWriteBackTargetStatusId())
+            .blockStatusMap(readNested(c.getBlockStatusMapJson()))
+            .webhookToken(c.getWebhookToken())
             .connectedByName(c.getConnectedBy() != null ? c.getConnectedBy().getId() : null)
             .build();
     }

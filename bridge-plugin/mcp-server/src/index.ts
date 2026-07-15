@@ -135,6 +135,7 @@ server.tool(
           id: b.id,
           name: b.name,
           role: b.role,
+          organization_id: b.organization_id,
           organization_name: b.organization_name,
           can_write: b.role !== "VIEWER",
         })),
@@ -493,6 +494,28 @@ server.tool(
   async ({ board_id }) => {
     try {
       return ok(await client.getBoardMilestones(board_id));
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.tool(
+  "get_board_completed_checklist_items",
+  "[읽기 전용] 한 보드에서 기간 내 완료된 체크리스트 항목을 담당자·태스크·피처·완료시각과 함께 조회한다. " +
+    "start_date·end_date 는 필수(yyyy-MM-dd, completedAt 기준 포함 구간). " +
+    "주간 보고서의 '구성원별 이번 주 완료 업무' 탭을 채우는 핵심 소스다 — assignee 로 그룹핑하면 구성원별, " +
+    "task/feature 로 어떤 업무의 어떤 항목을 끝냈는지까지 나온다. 지난주 범위로 한 번 더 호출하면 전주 대비 델타를 구할 수 있다.",
+  {
+    board_id: z.string().describe("보드 id"),
+    start_date: dateArg.describe("완료 기간 시작일 (yyyy-MM-dd)"),
+    end_date: dateArg.describe("완료 기간 종료일 (yyyy-MM-dd)"),
+  },
+  async ({ board_id, start_date, end_date }) => {
+    try {
+      return ok(
+        await client.getBoardCompletedChecklistItems(board_id, start_date, end_date),
+      );
     } catch (err) {
       return fail(err);
     }

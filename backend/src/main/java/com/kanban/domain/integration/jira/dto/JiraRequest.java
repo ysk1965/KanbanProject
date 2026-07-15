@@ -32,6 +32,17 @@ public class JiraRequest {
         private boolean milestoneAutoAssign;
     }
 
+    /**
+     * 블록 ↔ JIRA status 양방향 매핑 저장.
+     * key=blockId 또는 "__rejected", value={ jira_status_id, dir(push|pull), qa, return_block_id }.
+     */
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class BlockStatusMapping {
+        private Map<String, Map<String, String>> blockStatusMap;
+    }
+
     /** 완료 역동기화 설정. */
     @Getter
     @NoArgsConstructor

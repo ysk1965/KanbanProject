@@ -122,6 +122,7 @@ public class JiraImportService {
         Map<String, String> statusToBlock = readMap(config.getStatusToBlockJson());
         Map<String, String> priorityToTag = readMap(config.getPriorityToTagJson());
         Map<String, String> componentToTag = readMap(config.getComponentToTagJson());
+        BlockStatusMap blockMap = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
 
         Milestone currentMilestone = Boolean.TRUE.equals(config.getMilestoneAutoAssign())
             ? resolveCurrentMilestone(boardId) : null;
@@ -168,7 +169,8 @@ public class JiraImportService {
                 // 대상 Task가 살아있음 → JIRA 최신값으로 갱신(제목/설명/상태→블록)
                 Task existingTask = taskRepository.findById(taskLink.getTargetId()).orElse(null);
                 if (existingTask != null) {
-                    updateTaskFromIssue(existingTask, boardId, issue, statusToBlock, taskBlock);
+                    updateTaskFromIssue(existingTask, board, importer, issue, blockMap, statusToBlock, taskBlock, ctx, taskLink);
+                    taskLink.touchImport(JiraLinkTargetType.TASK, existingTask.getId(), issue.updated());
                     c.updated++;
                     continue;
                 }
@@ -176,7 +178,7 @@ public class JiraImportService {
 
             // 신규 생성 (또는 삭제 후 재생성)
             Feature feature = resolveProjectFeature(board, importer, issue, projectKeyToFeatureId, c);
-            Task task = createTask(board, importer, feature, issue, statusToBlock, taskBlock, currentMilestone);
+            Task task = createTask(board, importer, feature, issue, blockMap, statusToBlock, taskBlock, currentMilestone);
             saveLink(board, issue, JiraLinkTargetType.TASK, task.getId());
             c.tasks++;
             c.created++;
@@ -217,20 +219,129 @@ public class JiraImportService {
     }
 
     /**
-     * 기존 Task를 JIRA 이슈 최신값으로 갱신(동기화). 재가져오기가 동기화 역할을 하도록 한다.
-     * 동기화 대상: 제목·설명·상태(→블록 이동). 담당자/태그/첨부는 중복 생성을 피하려 최초 생성 시에만 반영.
-     * 마일스톤은 사용자가 옮겼을 수 있어 보존한다.
+     * 단건 pull (Phase 4 웹훅) — 이미 연동된 이슈 1건을 JIRA 최신값으로 동기화한다.
+     * 미연동/에픽/삭제된 카드는 무시(신규 이슈는 스케줄러 full import가 담당).
+     * updatedAt 충돌 규칙: JIRA가 원장보다 최신일 때만 반영. 변경된 Task를 반환(없으면 null).
      */
-    private void updateTaskFromIssue(Task task, String boardId, ParsedJiraIssue issue,
-                                     Map<String, String> statusToBlock, Block taskBlock) {
+    /** 단건 pull 결과 스냅샷 — 트랜잭션 밖(웹훅 브로드캐스트)에서 안전하게 쓰도록 값만 담는다. */
+    public record PulledTask(String taskId, String blockId, String blockName,
+                             Integer position, boolean completed, String qaState) {}
+
+    @Transactional
+    public PulledTask syncSingleIssue(String boardId, String actorUserId, String issueKey) {
+        JiraIntegrationConfig config = configRepository.findActiveByBoardId(boardId).orElse(null);
+        if (config == null) return null;
+
+        JiraIssueLink link = issueLinkRepository.findByBoardIdAndJiraIssueKey(boardId, issueKey).orElse(null);
+        if (link == null || link.getTargetType() != JiraLinkTargetType.TASK) return null;
+        Task task = taskRepository.findById(link.getTargetId()).orElse(null);
+        if (task == null) return null;
+
+        String token = oauthService.resolveToken(config);
+        JiraAuthContext ctx = JiraAuthContext.of(config, token);
+        ParsedJiraIssue issue = mapper.parse(jiraApiClient.getIssue(ctx, issueKey));
+        if (issue.key() == null) return null;
+
+        // 충돌 해소: JIRA가 우리 원장보다 최신일 때만 pull (오래된/에코 이벤트 무시)
+        if (!link.isStaleAgainst(issue.updated())) return null;
+
+        Board board = task.getBoard();
+        User importer = userRepository.findById(actorUserId).orElse(task.getCreatedBy());
+        Map<String, String> statusToBlock = readMap(config.getStatusToBlockJson());
+        BlockStatusMap blockMap = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
+        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
+
+        updateTaskFromIssue(task, board, importer, issue, blockMap, statusToBlock, taskBlock, ctx, link);
+        link.touchImport(JiraLinkTargetType.TASK, task.getId(), issue.updated());
+        config.markSynced();
+
+        return new PulledTask(task.getId(),
+            task.getBlock() != null ? task.getBlock().getId() : null,
+            task.getBlock() != null ? task.getBlock().getName() : null,
+            task.getPosition(),
+            Boolean.TRUE.equals(task.getIsCompleted()),
+            task.getQaState() != null ? task.getQaState().name() : null);
+    }
+
+    /**
+     * 기존 Task를 JIRA 이슈 최신값으로 갱신(동기화 = pull). 재가져오기/폴링이 동기화 역할을 한다.
+     * 제목·설명은 항상 JIRA에서 갱신. 블록/QA 상태는 소유권에 따라:
+     *  · 블록↔status 매핑이 있으면 <b>pull 전용</b>(검토중/완료/반려)만 카드를 옮긴다 — 개발 소유 위치는 보존.
+     *  · 매핑이 없으면(레거시) 기존 statusName→block 단방향 동작.
+     */
+    private void updateTaskFromIssue(Task task, Board board, User importer, ParsedJiraIssue issue,
+                                     BlockStatusMap blockMap, Map<String, String> statusToBlock,
+                                     Block taskBlock, JiraAuthContext ctx, JiraIssueLink link) {
         task.updateInfo(truncate(issue.summary(), 200), issue.description(),
             task.getStartDate(), task.getDueDate(), task.getEstimatedMinutes());
 
-        Block target = resolveBlock(boardId, issue.statusName(), statusToBlock, taskBlock);
+        if (!blockMap.isEmpty()) {
+            applyPullReflection(task, board, importer, issue, blockMap, ctx, link.getLastJiraStatusId());
+        } else {
+            moveTaskToBlockEnd(task, resolveBlock(board.getId(), issue.statusName(), statusToBlock, taskBlock));
+        }
+        link.markJiraStatus(issue.statusId());   // 다음 전환 감지용 직전 status 기록
+    }
+
+    /**
+     * JIRA status 변화를 카드에 pull 반영 (읽기전용 소유권 존중).
+     *  · 반려(검토중→개발블록 전환) → 복귀 블록 이동 + REJECTED + 사유 댓글. 전환 순간 1회만 발생.
+     *  · pull status(검토중/완료) → 매핑 블록 유지 + qa_state(QA가 위치 소유).
+     *  · push/미매핑 status(개발 소유) → 카드 위치 그대로, QA 흐름 밖이면 뱃지 해제.
+     *
+     * @param prevStatusId 직전 pull 때의 JIRA status(없으면 null) — 반려 전환 판정 기준
+     */
+    private void applyPullReflection(Task task, Board board, User importer, ParsedJiraIssue issue,
+                                     BlockStatusMap blockMap, JiraAuthContext ctx, String prevStatusId) {
+        // 반려 감지: 검토중(from)에 있다가 개발 소유 status로 되돌아온 전환
+        BlockStatusMap.RejectionRule rule = blockMap.rejectionRule();
+        if (rule != null && rule.fromStatusId().equals(prevStatusId)
+                && blockMap.pullFor(issue.statusId()) == null) {
+            moveToPullBlock(task, board, rule.returnBlockId());
+            task.applyQaState(com.kanban.domain.task.QaState.REJECTED);
+            pullRejectionReason(task, board, importer, issue, ctx);
+            return;
+        }
+
+        BlockStatusMap.PullTarget pull = blockMap.pullFor(issue.statusId());
+        if (pull == null) {
+            if (task.getQaState() != null) task.applyQaState(null);  // 개발이 되가져감 → 뱃지 해제
+            return;
+        }
+        // 검토중/완료는 QA가 위치를 소유 → 매핑 블록으로 유지 + 뱃지 반영.
+        moveToPullBlock(task, board, pull.blockId());
+        task.applyQaState(pull.qaState());
+    }
+
+    private void moveToPullBlock(Task task, Board board, String blockId) {
+        Block target = blockRepository.findById(blockId).orElse(null);
+        if (target != null && target.getBoard() != null && board.getId().equals(target.getBoard().getId())) {
+            moveTaskToBlockEnd(task, target);
+        }
+    }
+
+    private void moveTaskToBlockEnd(Task task, Block target) {
         if (target != null && (task.getBlock() == null || !target.getId().equals(task.getBlock().getId()))) {
             task.moveToBlock(target);
             Integer maxPos = taskRepository.findMaxPositionByBlockId(target.getId());
             task.updatePosition(maxPos != null ? maxPos + 1 : 0);
+        }
+    }
+
+    /** 반려 시 JIRA 최신 댓글을 사유로 pull해 BRIDGE 댓글로 남긴다. 실패는 무시(반려 반영 자체는 유지). */
+    private void pullRejectionReason(Task task, Board board, User importer, ParsedJiraIssue issue, JiraAuthContext ctx) {
+        try {
+            JsonNode full = jiraApiClient.getIssue(ctx, issue.key());
+            JsonNode comments = full.path("fields").path("comment").path("comments");
+            String reason = null;
+            if (comments.isArray() && comments.size() > 0) {
+                reason = JiraAdfConverter.toPlainText(comments.get(comments.size() - 1).path("body"));
+            }
+            String content = "↩ JIRA에서 반려되었습니다" + (reason != null ? "\n\n" + reason : "");
+            commentRepository.save(Comment.builder()
+                .task(task).board(board).author(importer).content(truncate(content, 1000)).build());
+        } catch (Exception e) {
+            log.warn("JIRA rejection reason pull failed for {}: {}", issue.key(), e.getMessage());
         }
     }
 
@@ -253,6 +364,7 @@ public class JiraImportService {
             }
         }
         Map<String, String> statusToBlock = readMap(config.getStatusToBlockJson());
+        BlockStatusMap blockMap = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
         List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
         Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
         Milestone currentMilestone = Boolean.TRUE.equals(config.getMilestoneAutoAssign())
@@ -269,7 +381,7 @@ public class JiraImportService {
             boolean hasAssignee = issue.assigneeAccountId() != null;
             int attCount = issue.attachments() != null ? issue.attachments().size() : 0;
 
-            Block block = resolveBlock(boardId, issue.statusName(), statusToBlock, taskBlock);
+            Block block = resolvePlacementBlock(boardId, issue, blockMap, statusToBlock, taskBlock);
             String blockName = block != null ? block.getName() : null;
 
             if (willUpdate) {
@@ -377,8 +489,8 @@ public class JiraImportService {
     }
 
     private Task createTask(Board board, User importer, Feature feature, ParsedJiraIssue issue,
-                            Map<String, String> statusToBlock, Block taskBlock, Milestone milestone) {
-        Block block = resolveBlock(board.getId(), issue.statusName(), statusToBlock, taskBlock);
+                            BlockStatusMap blockMap, Map<String, String> statusToBlock, Block taskBlock, Milestone milestone) {
+        Block block = resolvePlacementBlock(board.getId(), issue, blockMap, statusToBlock, taskBlock);
 
         if (board.getKeyPrefix() == null || board.getKeyPrefix().isBlank()) {
             board.assignKeyPrefixIfAbsent(taskKeyAllocator.allocateUniquePrefix(board.getName()));
@@ -402,9 +514,28 @@ public class JiraImportService {
             .taskKey(taskKey)
             .createdBy(importer)
             .build();
+        // 신규 이슈가 pull/반려 status로 들어오면 QA 뱃지도 함께 반영
+        if (!blockMap.isEmpty()) {
+            BlockStatusMap.PullTarget pull = blockMap.pullFor(issue.statusId());
+            if (pull != null) task.applyQaState(pull.qaState());
+        }
+
         taskRepository.save(task);
         feature.incrementTotalTasks();
         return task;
+    }
+
+    /** 신규 배치 블록 — 매핑이 있으면 status→block(방향 무관), 없으면 레거시 statusName 매핑, 최후엔 기본 블록. */
+    private Block resolvePlacementBlock(String boardId, ParsedJiraIssue issue, BlockStatusMap blockMap,
+                                        Map<String, String> statusToBlock, Block defaultBlock) {
+        if (!blockMap.isEmpty()) {
+            String blockId = blockMap.blockForStatusId(issue.statusId());
+            if (blockId != null) {
+                Block b = blockRepository.findById(blockId).orElse(null);
+                if (b != null && b.getBoard() != null && boardId.equals(b.getBoard().getId())) return b;
+            }
+        }
+        return resolveBlock(boardId, issue.statusName(), statusToBlock, defaultBlock);
     }
 
     private void createAssigneeChecklist(Task task, User assignee, String displayName) {
@@ -521,6 +652,7 @@ public class JiraImportService {
             .targetType(type)
             .targetId(targetId)
             .jiraUpdatedAt(issue.updated())
+            .lastJiraStatusId(issue.statusId())
             .build());
     }
 

@@ -868,6 +868,24 @@ public class ChecklistService {
     }
 
     /**
+     * 보드 전체에서 기간 내(completedAt) 완료된 체크리스트 항목 조회 — 팀 주간 리포트용.
+     * - boardId 기준 권한 검증 (Viewer 이상)
+     * - start_date~end_date(포함) 사이에 완료된 항목만, 담당자·태스크·피처 컨텍스트와 함께 반환
+     */
+    public ChecklistResponse.BoardListResponse getCompletedChecklistItems(
+            String boardId, String userId, LocalDate startDate, LocalDate endDate) {
+        boardService.checkViewerOrAbove(boardId, userId);
+
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.plusDays(1).atStartOfDay(); // end_date 당일 포함(반열림 구간)
+
+        List<ChecklistItem> items = checklistItemRepository.findCompletedByBoardIdAndDateRange(
+                boardId, start, end);
+
+        return ChecklistResponse.BoardListResponse.of(items);
+    }
+
+    /**
      * 담당자별 체크리스트 조회 (캘린더/리소스 뷰용)
      * - boardId 기준 권한 검증 (Viewer 이상)
      * - startDate, endDate 범위로 필터링 (null이면 전체 조회)

@@ -1,6 +1,7 @@
 package com.kanban.domain.integration.jira.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.integration.jira.*;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
@@ -27,6 +28,36 @@ public class JiraWriteBackService {
     private final TaskRepository taskRepository;
     private final JiraApiClient jiraApiClient;
     private final JiraOAuthService oauthService;
+    private final ObjectMapper objectMapper;
+
+    /**
+     * 블록 이동 push (Phase 2) — 개발이 카드를 push 블록으로 옮기면 매핑된 JIRA status로 전환.
+     * {@code JiraPushListener}가 커밋 후 비동기로 호출. JIRA 연동 카드가 아니거나 push 대상이 없으면 no-op.
+     *
+     * <p>루프 방지: push 대상은 개발 소유(dir=push) status라서 pull이 무시한다(소유권 분리 = 에코 차단).
+     */
+    @Transactional
+    public void pushBlockStatus(String boardId, String taskId, String targetBlockId) {
+        JiraIntegrationConfig config = configRepository.findActiveByBoardId(boardId).orElse(null);
+        if (config == null || config.getBlockStatusMapJson() == null) return;
+
+        BlockStatusMap map = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
+        String targetStatusId = map.pushTargetForBlock(targetBlockId);
+        if (targetStatusId == null) return;   // 이 블록은 push 매핑 아님(또는 pull 소유)
+
+        JiraIssueLink link = issueLinkRepository
+            .findByTargetTypeAndTargetId(JiraLinkTargetType.TASK, taskId).orElse(null);
+        if (link == null) return;             // JIRA 연동 카드 아님
+
+        try {
+            String token = oauthService.resolveToken(config);
+            transitionToTarget(JiraAuthContext.of(config, token), link.getJiraIssueKey(), targetStatusId);
+            log.info("JIRA push: task {} → status {} ({})", taskId, targetStatusId, link.getJiraIssueKey());
+        } catch (Exception e) {
+            log.warn("JIRA push failed for {}: {}", link.getJiraIssueKey(), e.getMessage());
+            config.markError("push 실패: " + link.getJiraIssueKey());
+        }
+    }
 
     /** 한 보드의 완료 역동기화. 스케줄러가 configId로 호출 → 각자 트랜잭션에서 재로딩. */
     @Transactional

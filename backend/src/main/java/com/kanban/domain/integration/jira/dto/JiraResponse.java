@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.util.List;
+import java.util.Map;
 
 public class JiraResponse {
 
@@ -23,6 +24,10 @@ public class JiraResponse {
         private boolean milestoneAutoAssign;
         private boolean writeBackEnabled;
         private String writeBackTargetStatusId;
+        /** 블록↔status 양방향 매핑 (key=blockId/__rejected). 매핑 UI 초기값. */
+        private Map<String, Map<String, String>> blockStatusMap;
+        /** 웹훅 수신 토큰(Phase 4). FE가 웹훅 URL을 조립해 안내. */
+        private String webhookToken;
         private String connectedByName;
     }
 
@@ -33,16 +38,25 @@ public class JiraResponse {
         private String projectName;
     }
 
-    /** 매핑 UI용 메타 (JIRA 상태 목록 등). */
+    /** 매핑 UI용 메타 (JIRA 상태 목록 + BRIDGE 블록 목록). */
     @Getter @Builder @AllArgsConstructor
     public static class Meta {
         private List<NameRef> statuses;
+        private List<BlockRef> blocks;   // 매핑 UI 좌측(BRIDGE 블록)
     }
 
     @Getter @Builder @AllArgsConstructor
     public static class NameRef {
         private String id;
         private String name;
+    }
+
+    /** 매핑 UI용 BRIDGE 블록 (Feature 블록 제외). */
+    @Getter @Builder @AllArgsConstructor
+    public static class BlockRef {
+        private String id;
+        private String name;
+        private String fixedType;   // TASK / SPRINT / DONE / CUSTOM 등 (nullable)
     }
 
     /** OAuth 인증 URL. */

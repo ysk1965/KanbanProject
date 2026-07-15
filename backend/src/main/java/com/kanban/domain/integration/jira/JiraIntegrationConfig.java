@@ -92,6 +92,14 @@ public class JiraIntegrationConfig {
     @Column(name = "component_to_tag_json", columnDefinition = "TEXT")
     private String componentToTagJson;
 
+    /**
+     * 블록 ↔ JIRA status 양방향 매핑 (JSON). key=blockId 또는 특수키(__rejected),
+     * value={ jira_status_id, dir(push|pull), qa(REVIEW|VERIFIED), return_block_id }.
+     * push=BRIDGE→JIRA(개발 소유), pull=JIRA→BRIDGE 읽기전용(QA 소유). {@code statusToBlockJson}을 대체·확장.
+     */
+    @Column(name = "block_status_map_json", columnDefinition = "TEXT")
+    private String blockStatusMapJson;
+
     @Column(name = "milestone_auto_assign", nullable = false)
     @Builder.Default
     private Boolean milestoneAutoAssign = true;
@@ -103,6 +111,10 @@ public class JiraIntegrationConfig {
     /** 완료 시 전환할 JIRA 대상 상태 id (예 "10007" = "3. 작업 완료"). */
     @Column(name = "write_back_target_status_id", length = 30)
     private String writeBackTargetStatusId;
+
+    /** 웹훅 수신 검증용 보드별 시크릿 토큰(Phase 4). JIRA→BRIDGE 근실시간 pull URL에 포함. */
+    @Column(name = "webhook_token", length = 64)
+    private String webhookToken;
 
     // ④ 진행상태
     @Enumerated(EnumType.STRING)
@@ -196,6 +208,19 @@ public class JiraIntegrationConfig {
         this.priorityToTagJson = priorityToTagJson;
         this.componentToTagJson = componentToTagJson;
         this.milestoneAutoAssign = milestoneAutoAssign;
+    }
+
+    /** 블록↔status 양방향 매핑(JSON) 저장. null이면 매핑 없음(기본 블록으로 fallback). */
+    public void updateBlockStatusMap(String blockStatusMapJson) {
+        this.blockStatusMapJson = blockStatusMapJson;
+    }
+
+    /** 웹훅 토큰이 없으면 생성해 반환(멱등). */
+    public String ensureWebhookToken() {
+        if (this.webhookToken == null || this.webhookToken.isBlank()) {
+            this.webhookToken = UUID.randomUUID().toString().replace("-", "");
+        }
+        return this.webhookToken;
     }
 
     public void updateWriteBack(boolean enabled, String targetStatusId) {

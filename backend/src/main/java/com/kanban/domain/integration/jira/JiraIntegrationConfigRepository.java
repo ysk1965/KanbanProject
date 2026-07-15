@@ -21,6 +21,10 @@ public interface JiraIntegrationConfigRepository extends JpaRepository<JiraInteg
     @Query("SELECT c FROM JiraIntegrationConfig c WHERE c.active = true AND c.writeBackEnabled = true")
     List<JiraIntegrationConfig> findAllActiveWithWriteBack();
 
+    /** pull 폴링 스케줄러용 — 블록↔status 매핑이 설정된 활성 config 목록. */
+    @Query("SELECT c FROM JiraIntegrationConfig c WHERE c.active = true AND c.blockStatusMapJson IS NOT NULL")
+    List<JiraIntegrationConfig> findAllActiveWithBlockStatusMap();
+
     @Modifying
     @Query("DELETE FROM JiraIntegrationConfig c WHERE c.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
