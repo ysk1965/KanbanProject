@@ -30,13 +30,18 @@ resource "aws_rds_cluster" "main" {
     max_capacity = var.max_capacity
   }
 
-  backup_retention_period   = var.backup_retention_period
-  preferred_backup_window   = "03:00-04:00"
+  # 저장 데이터 암호화 (rds-simple과 파리티). CMK 미지정 시 기본 aws/rds 키 사용.
+  storage_encrypted = true
+  kms_key_id        = var.kms_key_id != "" ? var.kms_key_id : null
+
+  backup_retention_period      = var.backup_retention_period
+  preferred_backup_window      = "03:00-04:00"
   preferred_maintenance_window = "sun:04:00-sun:05:00"
 
-  skip_final_snapshot       = var.environment != "prod"
-  final_snapshot_identifier = var.environment == "prod" ? "${var.project_name}-${var.environment}-final-snapshot" : null
-  deletion_protection       = var.environment == "prod"
+  # 삭제 보호/최종 스냅샷은 환경 "이름"이 아니라 명시적 플래그로 제어 (rds-simple과 동일 정책)
+  skip_final_snapshot       = var.skip_final_snapshot
+  final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.project_name}-${var.environment}-final-snapshot"
+  deletion_protection       = var.deletion_protection != null ? var.deletion_protection : true
 
   enabled_cloudwatch_logs_exports = ["postgresql"]
 

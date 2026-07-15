@@ -596,6 +596,9 @@ export interface SprintItemCard {
   sprint_column_id: string | null; // null이면 백로그(미담김)
   position: number;
   due_date: string | null;
+  start_date: string | null; // 진행 현황 4구간 분류용(진행 중 판정)
+  done_date: string | null; // 완료일(과거 데이터 폴백)
+  completed_at: string | null; // 완료 시각(오늘 완료 판정 소스)
   feature_id: string | null;
   feature_title: string | null;
   feature_color: string | null;

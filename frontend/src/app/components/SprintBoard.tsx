@@ -13,6 +13,9 @@ import {
   Pencil,
   Trash2,
   Check,
+  Clock,
+  Calendar,
+  Circle,
   CornerUpLeft,
   ArrowRight,
   Flag,
@@ -26,6 +29,7 @@ import {
   Users,
   PanelLeftClose,
   PanelLeftOpen,
+  X,
 } from "lucide-react";
 import { sprintAPI, checklistAPI } from "../utils/api";
 import type {
@@ -35,7 +39,13 @@ import type {
   SprintItemCard,
 } from "../types";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
-import { formatDate } from "../utils/dateUtils";
+import {
+  formatDate,
+  formatRelativeTime,
+  parseUTCDate,
+  getTodayDateString,
+  getDDay,
+} from "../utils/dateUtils";
 import { MotionModal } from "./ui/MotionModal";
 
 interface SprintBoardProps {
@@ -51,6 +61,8 @@ interface SprintBoardProps {
   onOpenFeature?: (featureId: string) => void;
   /** 담당자 필터(칸반 탭 필터바 연동). 이름 배열(+ '__no_members__'). 빈 배열이면 전체 */
   memberFilter?: string[];
+  /** 구성원 컬럼 정렬 기준 — 보드 멤버 관리(직군 관리) 순서의 userId 배열. 미지정 시 카드 수 내림차순 */
+  memberOrder?: string[];
 }
 
 /** Feature ▸ Task ▸ 체크리스트 소스 트리 노드 */
@@ -97,6 +109,39 @@ function errMessage(e: unknown, fallback: string): string {
   return e instanceof Error ? e.message : fallback;
 }
 
+/**
+ * 태스크 소그룹 색상 — 태스크 ID 해시 기반 고정 팔레트.
+ * 피쳐 색(feature_color)과 독립적으로, 같은 피쳐 안의 여러 태스크를 시각적으로 분리한다.
+ * 미분류(__none__)는 중립 회색.
+ */
+const TASK_COLORS = [
+  "#3b82f6",
+  "#a855f7",
+  "#ec4899",
+  "#f59e0b",
+  "#10b981",
+  "#06b6d4",
+  "#8b5cf6",
+  "#f43f5e",
+];
+function taskColorHex(taskId: string): string {
+  if (!taskId || taskId === "__none__") return "#64748b";
+  let hash = 0;
+  for (let i = 0; i < taskId.length; i++) {
+    hash = taskId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return TASK_COLORS[Math.abs(hash) % TASK_COLORS.length];
+}
+
+/** D-day 긴급도 → 배지 색상. 지남/오늘=빨강, 임박(D-3이내)=앰버, 그 외=여유(틸). */
+const DDAY_BADGE: Record<string, string> = {
+  overdue: "bg-rose-500/15 text-rose-500",
+  today: "bg-rose-500/15 text-rose-500",
+  soon: "bg-amber-500/15 text-amber-500",
+  normal: "bg-bridge-secondary/15 text-bridge-secondary",
+  none: "",
+};
+
 export function SprintBoard({
   boardId,
   milestones,
@@ -106,6 +151,7 @@ export function SprintBoard({
   onOpenChecklistItem,
   onOpenFeature,
   memberFilter,
+  memberOrder,
 }: SprintBoardProps) {
   const controlled = !!controlledMilestoneId;
   const [internalMid, setInternalMid] = useState<string>(
@@ -130,6 +176,12 @@ export function SprintBoard({
   const [editingCol, setEditingCol] = useState<string | null>(null);
   const [editColName, setEditColName] = useState("");
   const busyRef = useRef(false);
+
+  // 진행 현황 모달 (게이지 클릭 → 오늘 완료/진행 중/기존 완료/미완료 상세)
+  const [progressOpen, setProgressOpen] = useState(false);
+  const [progressTab, setProgressTab] = useState<
+    "todayDone" | "inProgress" | "earlierDone" | "notStarted"
+  >("todayDone");
 
   // 과거 스프린트 미리보기 — 클릭 시 읽기 전용 스냅샷 열람(백엔드 무변경).
   // 재활성화는 배너의 명시적 버튼 → 확인 모달로만 진입한다.
@@ -573,9 +625,17 @@ export function SprintBoard({
       else startByMember.set(id, [it]);
     }
     // START 카드가 있는 담당자만 컬럼화 · 미배정은 맨 뒤로
+    // 정렬 기준: memberOrder(보드 멤버 관리 순서)가 있으면 그 순서, 없으면 카드 수 내림차순.
+    // memberOrder에 없는 담당자는 뒤로, 그 사이는 카드 수 내림차순으로 안정화한다.
+    const orderIndex = new Map<string, number>();
+    (memberOrder ?? []).forEach((uid, i) => orderIndex.set(uid, i));
+    const rank = (id: string) => orderIndex.get(id) ?? Number.MAX_SAFE_INTEGER;
     const ids = Array.from(startByMember.keys()).sort((a, b) => {
       if (a === "__none__") return 1;
       if (b === "__none__") return -1;
+      const ra = rank(a);
+      const rb = rank(b);
+      if (ra !== rb) return ra - rb;
       return (
         (startByMember.get(b)?.length ?? 0) -
         (startByMember.get(a)?.length ?? 0)
@@ -588,7 +648,7 @@ export function SprintBoard({
       doneTotal: stat.get(id)?.done ?? 0,
       total: stat.get(id)?.total ?? 0,
     }));
-  }, [startColumn, columns, columnById]);
+  }, [startColumn, columns, columnById, memberOrder]);
 
   // 좌측 행: 체크박스 → 완료 토글(체크리스트 API 재사용 후 보드 갱신)
   const toggleDone = (it: SprintItemCard) => {
@@ -716,6 +776,95 @@ export function SprintBoard({
     fullGauge.total > 0 &&
     fullGauge.percentage === 100;
 
+  // 진행 현황 4구간 분류 (KanbanBlock 진행 현황과 동일 규약).
+  // 대상: 담긴 항목(sprint_column_id != null)만 — 게이지 %와 정확히 일치.
+  //  · 오늘 완료: 완료 && completed_at/done_date >= 로컬 자정
+  //  · 기존 완료: 완료 && 그 이전
+  //  · 진행 중  : 미완료 && (MIDDLE 컬럼에 있음 || 기간이 오늘과 겹침)
+  //  · 미완료   : 나머지 (START 대기 등)
+  const sprintProgress = useMemo(() => {
+    const cols = filteredBoard?.columns ?? [];
+    const endColIds = new Set(
+      cols.filter((c) => c.kind === "END").map((c) => c.id),
+    );
+    const midColIds = new Set(
+      cols.filter((c) => c.kind === "MIDDLE").map((c) => c.id),
+    );
+    const now = new Date();
+    const startToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    ).getTime();
+    const todayStr = getTodayDateString();
+    const doneTs = (it: SprintItemCard) =>
+      parseUTCDate(it.completed_at ?? it.done_date)?.getTime() ?? 0;
+
+    const todayDone: SprintItemCard[] = [];
+    const earlierDone: SprintItemCard[] = [];
+    const inProgress: SprintItemCard[] = [];
+    const notStarted: SprintItemCard[] = [];
+
+    for (const c of cols) {
+      for (const it of c.items) {
+        if (!it.sprint_column_id) continue; // 담긴 항목만 게이지 스코프
+        const isDone = it.completed || endColIds.has(it.sprint_column_id);
+        if (isDone) {
+          if ((it.completed_at || it.done_date) && doneTs(it) >= startToday)
+            todayDone.push(it);
+          else earlierDone.push(it);
+        } else {
+          const inMidCol = it.sprint_column_id
+            ? midColIds.has(it.sprint_column_id)
+            : false;
+          const s = it.start_date;
+          const d = it.due_date;
+          const hasDate = !!(s || d);
+          const afterStart = !s || s <= todayStr;
+          const beforeDue = !d || todayStr <= d;
+          const dateActive = hasDate && afterStart && beforeDue;
+          if (inMidCol || dateActive) inProgress.push(it);
+          else notStarted.push(it);
+        }
+      }
+    }
+
+    todayDone.sort((a, b) => doneTs(b) - doneTs(a));
+    earlierDone.sort((a, b) => doneTs(b) - doneTs(a));
+    const byDue = (a: SprintItemCard, b: SprintItemCard) =>
+      (a.due_date ?? "9999-99-99").localeCompare(b.due_date ?? "9999-99-99");
+    inProgress.sort(byDue);
+    notStarted.sort(byDue);
+
+    const nToday = todayDone.length;
+    const nEarlier = earlierDone.length;
+    const nProg = inProgress.length;
+    const nNot = notStarted.length;
+    const total = nToday + nEarlier + nProg + nNot;
+    const done = nToday + nEarlier;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    const denom = total || 1;
+    return {
+      buckets: { todayDone, inProgress, earlierDone, notStarted },
+      counts: {
+        todayDone: nToday,
+        inProgress: nProg,
+        earlierDone: nEarlier,
+        notStarted: nNot,
+      },
+      nToday,
+      nEarlier,
+      nProg,
+      nNot,
+      total,
+      done,
+      pct,
+      segEarlier: (nEarlier / denom) * 100,
+      segToday: (nToday / denom) * 100,
+      segProg: (nProg / denom) * 100,
+    };
+  }, [filteredBoard]);
+
   // 재활성화 상태: 현재 활성 스프린트가 최신(max seq)이 아니면 과거 스프린트를 재활성화한 상태.
   // 이때 최신 스프린트는 뒤로 보관(parked)되어 있고, "재활성화 취소"로만 복귀 가능.
   const maxSeq = (board?.sprints ?? []).reduce(
@@ -791,6 +940,9 @@ export function SprintBoard({
       ? columnById.get(it.sprint_column_id)
       : undefined;
     const isDoneItem = it.completed || curCol?.kind === "END";
+    // 마감 D-day — 완료된 카드는 긴급도 표시 안 함(완료 배지로 대체).
+    const dday = !isDoneItem && it.due_date ? getDDay(it.due_date) : null;
+    const overdue = dday?.urgency === "overdue";
     // 리뷰 = 첫 MIDDLE(기본 "In Review")로 이동. 이미 그 컬럼이거나 완료면 숨김.
     const showReview =
       canEdit &&
@@ -809,6 +961,9 @@ export function SprintBoard({
         draggable={canEdit && !readOnly}
         onDragStart={(e) => !readOnly && onDragStartItem(e, it, "sprint")}
         onDragEnd={onDragEndItem}
+        style={
+          overdue ? { borderLeftColor: "#f43f5e", borderLeftWidth: 3 } : undefined
+        }
         className={`group relative rounded-xl border border-foreground/[0.08] bg-bridge-dark p-2.5 space-y-2 shadow-[0_2px_5px_rgba(0,0,0,0.25)] transition-colors ${
           readOnly ? "cursor-default" : "hover:border-bridge-border cursor-grab"
         }`}
@@ -891,9 +1046,17 @@ export function SprintBoard({
         <div className="flex items-center gap-2 text-[10px] text-slate-500">
           {it.task_title && <span className="truncate">{it.task_title}</span>}
           <div className="ml-auto flex items-center gap-1.5 shrink-0">
-            {it.due_date && (
+            {dday ? (
+              <span
+                className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold tabular-nums ${DDAY_BADGE[dday.urgency]}`}
+                title={formatDate(it.due_date)}
+              >
+                <Calendar className="w-2.5 h-2.5" />
+                {dday.text}
+              </span>
+            ) : it.due_date && !it.completed ? (
               <span className="tabular-nums">{formatDate(it.due_date)}</span>
-            )}
+            ) : null}
             {it.completed ? (
               <span className="inline-flex items-center gap-0.5 text-bridge-secondary font-bold">
                 <Check className="w-3 h-3" /> 완료
@@ -973,18 +1136,30 @@ export function SprintBoard({
             const collapsed = collapsedTasks.has(tkey);
             const clickable =
               task.taskId !== "__none__" && !!onOpenChecklistItem;
+            // 태스크 고유 색 + 진행률 — 같은 피쳐 안 태스크 묶음을 시각적으로 분리.
+            const tColor = taskColorHex(task.taskId);
+            const tPct =
+              task.total > 0
+                ? Math.round((task.doneTotal / task.total) * 100)
+                : 0;
             return (
-              // Task 소그룹 = 프레임 + 헤더 (카드를 담는 하나의 묶음).
+              // Task 소그룹 = 색 스파인 프레임 + 헤더 (카드를 담는 하나의 묶음).
+              // 좌측 3px 스파인 + 은은한 틴트로 "한 태스크"라는 소속감을 부여.
               // 카드는 개별 draggable 유지, 프레임은 소속감만 부여.
               <div
                 key={task.taskId}
                 className="rounded-xl border border-foreground/[0.08] overflow-hidden"
+                style={{
+                  borderLeft: `3px solid ${tColor}`,
+                  background: `${tColor}0d`,
+                }}
               >
                 {/* Task 소그룹 헤더 바 (클릭 = 접기/펼치기, 호버 시 열기) */}
                 <div
-                  className={`group/task flex items-center gap-1.5 px-2 py-1.5 bg-foreground/[0.04] ${
+                  className={`group/task flex items-center gap-1.5 px-2 py-1.5 ${
                     collapsed ? "" : "border-b border-foreground/[0.06]"
                   }`}
+                  style={{ background: `${tColor}14` }}
                 >
                   <button
                     type="button"
@@ -997,6 +1172,10 @@ export function SprintBoard({
                     ) : (
                       <ChevronDown className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                     )}
+                    <span
+                      className="w-1.5 h-1.5 rounded-sm shrink-0"
+                      style={{ background: tColor }}
+                    />
                     <span
                       className="text-[11px] font-bold uppercase tracking-wide text-slate-300 truncate"
                       title={task.taskTitle}
@@ -1014,6 +1193,13 @@ export function SprintBoard({
                       열기 ↗
                     </button>
                   )}
+                  {/* 태스크별 진행률 미니바 — 밀린 태스크를 스캔 한 번에 파악 */}
+                  <span className="w-8 h-1 rounded-full bg-foreground/10 overflow-hidden shrink-0">
+                    <span
+                      className="block h-full rounded-full transition-all"
+                      style={{ width: `${tPct}%`, background: tColor }}
+                    />
+                  </span>
                   <span className="text-[10px] font-bold text-slate-500 tabular-nums shrink-0">
                     {task.doneTotal}/{task.total}
                   </span>
@@ -1217,17 +1403,61 @@ export function SprintBoard({
                   )}
                 </div>
 
-                {/* 진척 막대 (항상 표시) */}
-                <div className="h-[5px] rounded-full bg-foreground/10 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      expandedActive
-                        ? "bg-gradient-to-r from-bridge-accent to-bridge-secondary"
-                        : "bg-bridge-secondary"
-                    }`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
+                {/* 진척 막대 — 활성 확장은 4구간 세그먼트(클릭 시 진행 현황), 그 외는 단색 */}
+                {expandedActive ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setProgressTab(
+                        sprintProgress.nToday > 0 ? "todayDone" : "inProgress",
+                      );
+                      setProgressOpen(true);
+                    }}
+                    aria-haspopup="dialog"
+                    aria-label="진행 현황 보기"
+                    title="진행 현황 자세히 보기"
+                    className="group/bar flex items-center gap-2 -mx-0.5 px-0.5 py-0.5 rounded"
+                  >
+                    <div className="flex-1 h-[5px] rounded-full bg-slate-600 overflow-hidden relative">
+                      <div
+                        className="absolute left-0 top-0 h-full bg-bridge-accent transition-all duration-500"
+                        style={{ width: `${sprintProgress.segEarlier}%` }}
+                      />
+                      {sprintProgress.segToday > 0 && (
+                        <div
+                          className="absolute top-0 h-full bg-bridge-secondary transition-all duration-500"
+                          style={{
+                            left: `${sprintProgress.segEarlier}%`,
+                            width: `${sprintProgress.segToday}%`,
+                            boxShadow: "0 0 8px var(--bridge-secondary)",
+                          }}
+                        />
+                      )}
+                      {sprintProgress.segProg > 0 && (
+                        <div
+                          className="absolute top-0 h-full bg-amber-500 transition-all duration-500"
+                          style={{
+                            left: `${sprintProgress.segEarlier + sprintProgress.segToday}%`,
+                            width: `${sprintProgress.segProg}%`,
+                          }}
+                        />
+                      )}
+                    </div>
+                    {sprintProgress.nToday > 0 && (
+                      <span className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0 tabular-nums">
+                        ▲ {sprintProgress.nToday}
+                      </span>
+                    )}
+                  </button>
+                ) : (
+                  <div className="h-[5px] rounded-full bg-foreground/10 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500 bg-bridge-secondary"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                )}
 
                 {/* 축소 상태: 퍼센트 요약 */}
                 {!expanded && (
@@ -1247,6 +1477,23 @@ export function SprintBoard({
                       <span className="text-xs font-medium text-slate-400 tabular-nums">
                         {doneN} / {totalN} 항목 완료
                       </span>
+                      {expandedActive && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setProgressTab(
+                              sprintProgress.nToday > 0
+                                ? "todayDone"
+                                : "inProgress",
+                            );
+                            setProgressOpen(true);
+                          }}
+                          className="text-[11px] font-bold text-bridge-secondary hover:text-bridge-secondary/80 transition-colors"
+                        >
+                          진행 현황 →
+                        </button>
+                      )}
                       {s.start_date && (
                         <>
                           <span className="text-slate-600">·</span>
@@ -1256,6 +1503,24 @@ export function SprintBoard({
                           </span>
                         </>
                       )}
+                      {/* 종료 카운트다운 — 진행중 스프린트의 남은 기간을 긴급도 색으로 강조 */}
+                      {expandedActive &&
+                        s.end_date &&
+                        (() => {
+                          const d = getDDay(s.end_date);
+                          return (
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums ${
+                                DDAY_BADGE[d.urgency] ||
+                                "bg-bridge-secondary/15 text-bridge-secondary"
+                              }`}
+                              title={`종료 예정 ${formatDate(s.end_date)}`}
+                            >
+                              <Clock className="w-3 h-3" />
+                              종료 {d.text}
+                            </span>
+                          );
+                        })()}
                     </div>
 
                     {isPreviewing ? (
@@ -2024,6 +2289,207 @@ export function SprintBoard({
               재활성화
             </button>
           </div>
+        </div>
+      </MotionModal>
+
+      {/* 진행 현황 모달 — 오늘 완료 / 진행 중 / 기존 완료 / 미완료 (KanbanBlock 진행 현황과 동일 규약) */}
+      <MotionModal
+        open={progressOpen}
+        onClose={() => setProgressOpen(false)}
+        accentColor
+        aria-label="진행 현황"
+        className="sm:max-w-xl"
+      >
+        {/* Header */}
+        <div className="flex items-center gap-2 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+          <Check className="w-4 h-4 text-bridge-secondary shrink-0" />
+          <h3 className="text-sm font-bold text-foreground truncate">
+            진행 현황
+          </h3>
+          {activeSprint && (
+            <span className="text-xs text-slate-500 truncate min-w-0">
+              · {activeSprint.name}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setProgressOpen(false)}
+            aria-label="닫기"
+            className="ml-auto text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg p-1.5 transition-colors shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Progress summary */}
+        <div className="px-5 py-4 border-b border-foreground/[0.08]">
+          <div className="flex items-baseline gap-2 mb-2.5">
+            <span className="text-2xl font-bold text-foreground tracking-tight tabular-nums">
+              {sprintProgress.pct}%
+            </span>
+            <span className="text-sm text-slate-400 tabular-nums">
+              {sprintProgress.done} / {sprintProgress.total}
+            </span>
+            {sprintProgress.nToday > 0 && (
+              <span className="ml-auto text-xs font-bold px-2.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary tabular-nums">
+                ▲ {sprintProgress.nToday}
+              </span>
+            )}
+          </div>
+          {/* 4색 스택 바: 기존완료 / 오늘완료 / 진행중 / 미완료(트랙) */}
+          <div className="h-2 bg-slate-600 rounded-full overflow-hidden relative">
+            <div
+              className="absolute left-0 top-0 h-full bg-bridge-accent"
+              style={{ width: `${sprintProgress.segEarlier}%` }}
+            />
+            <div
+              className="absolute top-0 h-full bg-bridge-secondary"
+              style={{
+                left: `${sprintProgress.segEarlier}%`,
+                width: `${sprintProgress.segToday}%`,
+              }}
+            />
+            <div
+              className="absolute top-0 h-full bg-amber-500"
+              style={{
+                left: `${sprintProgress.segEarlier + sprintProgress.segToday}%`,
+                width: `${sprintProgress.segProg}%`,
+              }}
+            />
+          </div>
+          <div className="flex items-center gap-x-3.5 gap-y-1.5 mt-2.5 flex-wrap">
+            <span className="flex items-center gap-1.5 text-xs text-slate-400 tabular-nums">
+              <span className="w-2 h-2 rounded-sm bg-bridge-secondary" />
+              오늘 완료 {sprintProgress.nToday}
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-slate-400 tabular-nums">
+              <span className="w-2 h-2 rounded-sm bg-amber-500" />
+              진행 중 {sprintProgress.nProg}
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-slate-400 tabular-nums">
+              <span className="w-2 h-2 rounded-sm bg-bridge-accent" />
+              기존 완료 {sprintProgress.nEarlier}
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-slate-400 tabular-nums">
+              <span className="w-2 h-2 rounded-sm bg-slate-600" />
+              미완료 {sprintProgress.nNot}
+            </span>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 pb-5 pt-4">
+          <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+            {(
+              [
+                ["todayDone", "오늘 완료"],
+                ["inProgress", "진행 중"],
+                ["earlierDone", "기존 완료"],
+                ["notStarted", "미완료"],
+              ] as const
+            ).map(([tab, label]) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setProgressTab(tab)}
+                className={`text-xs px-3 py-1 rounded-full transition-colors tabular-nums ${
+                  progressTab === tab
+                    ? "bg-bridge-secondary/15 text-bridge-secondary font-bold"
+                    : "text-slate-500 hover:text-slate-300 bg-foreground/[0.03]"
+                }`}
+              >
+                {label} {sprintProgress.counts[tab]}
+              </button>
+            ))}
+          </div>
+
+          {sprintProgress.buckets[progressTab].length === 0 ? (
+            <div className="text-sm text-slate-500 py-12 text-center">
+              항목이 없어요
+            </div>
+          ) : (
+            <div className="space-y-1 max-h-[60dvh] overflow-y-auto custom-scrollbar">
+              {sprintProgress.buckets[progressTab].slice(0, 100).map((it) => {
+                const isDone =
+                  progressTab === "todayDone" || progressTab === "earlierDone";
+                const isProg = progressTab === "inProgress";
+                const rightLabel = isDone
+                  ? formatRelativeTime(it.completed_at ?? it.done_date)
+                  : it.due_date
+                    ? `~ ${it.due_date}`
+                    : it.start_date
+                      ? `${it.start_date} ~`
+                      : "";
+                return (
+                  <button
+                    key={it.id}
+                    type="button"
+                    onClick={() => {
+                      if (it.task_id) onOpenChecklistItem?.(it.task_id, it.id);
+                      setProgressOpen(false);
+                    }}
+                    className="w-full flex items-start gap-3 px-3 py-2.5 rounded-xl bg-foreground/[0.03] hover:bg-foreground/[0.06] border border-foreground/[0.06] transition-colors text-left"
+                  >
+                    <span
+                      className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                        isDone
+                          ? "bg-emerald-500/15"
+                          : isProg
+                            ? "bg-amber-500/15"
+                            : "bg-slate-500/15"
+                      }`}
+                    >
+                      {isDone ? (
+                        <Check className="w-3 h-3 text-emerald-500" />
+                      ) : isProg ? (
+                        <Clock className="w-3 h-3 text-amber-500" />
+                      ) : (
+                        <Circle className="w-3 h-3 text-slate-400" />
+                      )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm text-foreground font-medium break-words">
+                        {it.title}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-1 min-w-0">
+                        {it.task_title && (
+                          <span className="text-xs text-slate-500 truncate">
+                            {it.task_title}
+                          </span>
+                        )}
+                        {it.assignee && (
+                          <>
+                            <span className="text-xs text-slate-600 shrink-0">
+                              ·
+                            </span>
+                            <span className="flex items-center gap-1 shrink-0">
+                              <span
+                                className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold leading-none text-white flex-shrink-0 border border-foreground/[0.08] whitespace-nowrap overflow-hidden"
+                                style={{
+                                  backgroundColor: getAssigneeHex(
+                                    it.assignee.name,
+                                  ),
+                                }}
+                                title={it.assignee.name}
+                              >
+                                {getInitials(it.assignee.name)}
+                              </span>
+                              <span className="text-xs text-slate-400">
+                                {it.assignee.name}
+                              </span>
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-xs text-slate-500 shrink-0 mt-0.5">
+                      {rightLabel}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </MotionModal>
     </div>

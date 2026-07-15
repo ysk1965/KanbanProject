@@ -259,6 +259,19 @@ resource "aws_elastic_beanstalk_environment" "main" {
     }
   }
 
+  # HTTP(80) 리스너 비활성화 — EB ALB는 옵션 세팅으로 HTTP→HTTPS 리다이렉트 액션을
+  # 지원하지 않으므로, HTTPS가 켜지면 평문 80 리스너를 닫아 API(JWT)의 평문 노출을 제거한다.
+  # (모든 클라이언트/OAuth 콜백/웹훅은 https://api.<domain> 사용. 커스텀 도메인/인증서가
+  #  없는 경우엔 80을 유지해 EB CNAME으로 접근 가능하게 둔다.)
+  dynamic "setting" {
+    for_each = var.ssl_certificate_arn != "" ? toset(["1"]) : toset([])
+    content {
+      namespace = "aws:elbv2:listener:default"
+      name      = "ListenerEnabled"
+      value     = "false"
+    }
+  }
+
   # ALB Sticky Session (for WebSocket connection affinity)
   setting {
     namespace = "aws:elasticbeanstalk:environment:process:default"

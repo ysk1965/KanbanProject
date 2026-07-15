@@ -27,7 +27,7 @@ variable "engine_version" {
 variable "instance_class" {
   description = "RDS instance class"
   type        = string
-  default     = "db.t4g.micro"  # Free tier eligible
+  default     = "db.t4g.micro" # Free tier eligible
 }
 
 variable "allocated_storage" {
@@ -91,7 +91,13 @@ variable "auto_minor_version_upgrade" {
 }
 
 variable "deletion_protection" {
-  description = "Override deletion protection. null = enabled only for prod (legacy behavior); set true/false to force (recommend true for the live DB)."
+  description = "Override deletion protection. null = protective default (enabled). Set false only for a genuinely disposable DB."
   type        = bool
   default     = null
+}
+
+variable "skip_final_snapshot" {
+  description = "Skip the final snapshot on destroy/replace. Default false (protective) — a forced replacement still captures a snapshot. Set true ONLY for genuinely disposable databases."
+  type        = bool
+  default     = false
 }
