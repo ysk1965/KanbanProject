@@ -67,11 +67,11 @@ public class JiraIntegrationConfig {
      * 암호화된 토큰. API_TOKEN이면 Atlassian API 토큰, OAUTH_3LO이면 access token.
      * 서비스단에서 encrypt/decrypt.
      */
-    @Column(name = "api_token_encrypted", length = 500)
+    @Column(name = "api_token_encrypted", columnDefinition = "TEXT")
     private String apiTokenEncrypted;
 
     /** OAuth refresh token(암호화). offline_access 스코프로 자동 갱신용. */
-    @Column(name = "refresh_token_encrypted", length = 500)
+    @Column(name = "refresh_token_encrypted", columnDefinition = "TEXT")
     private String refreshTokenEncrypted;
 
     /** OAuth access token 만료 시각(UTC). 임박 시 refresh token으로 자동 갱신. */
