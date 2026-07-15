@@ -661,6 +661,12 @@ export function JiraSettingsPanel({
                       <Paperclip size={10} /> {previewResult.comments}
                     </span>
                   )}
+                  {previewResult.updated > 0 && (
+                    <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-500">
+                      {t("jiraIntegration.resultUpdated", "업데이트")}{" "}
+                      {previewResult.updated}
+                    </span>
+                  )}
                   {previewResult.skipped > 0 && (
                     <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-500">
                       {t("jiraIntegration.resultSkipped", "스킵")}{" "}
@@ -701,6 +707,11 @@ export function JiraSettingsPanel({
                             <span className="inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0">
                               <CheckSquare size={10} />
                               {item.block_name || "Task"}
+                            </span>
+                          )}
+                          {item.will_update && (
+                            <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-500 shrink-0 ml-auto">
+                              {t("jiraIntegration.willUpdate", "업데이트")}
                             </span>
                           )}
                           {item.skipped && (
@@ -772,6 +783,8 @@ export function JiraSettingsPanel({
                 {t("jiraIntegration.resultTotal", "대상")} {importResult.total}
                 {importResult.created > 0 &&
                   ` · ${t("jiraIntegration.resultCreated", "생성")} ${importResult.created}`}
+                {importResult.updated > 0 &&
+                  ` · ${t("jiraIntegration.resultUpdated", "업데이트")} ${importResult.updated}`}
                 {importResult.skipped > 0 &&
                   ` · ${t("jiraIntegration.resultSkipped", "스킵")} ${importResult.skipped}`}
               </div>

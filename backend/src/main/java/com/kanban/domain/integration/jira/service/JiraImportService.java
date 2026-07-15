@@ -54,8 +54,11 @@ import java.util.*;
  * - 담당자: ChecklistItem으로 이관(담당자 사다리로 BRIDGE 멤버 해석).
  * - 첨부: JIRA 바이트 → S3 직접 업로드 → Task 댓글(알림 없이 직접 build).
  * - priority/component → Tag.
- * - 마일스톤: 오늘 걸치는 현재 마일스톤 자동 배정.
- * - 원장(JiraIssueLink): 이미 있는 이슈는 스킵(재가져오기 시 BRIDGE 수정분 보존).
+ * - 마일스톤: 오늘 걸치는 현재 마일스톤 자동 배정(최초 생성 시).
+ * - 원장(JiraIssueLink) 업서트: 재가져오기 = 동기화.
+ *   · 링크+Task 존재 → JIRA 최신값으로 갱신(제목/설명/상태→블록).
+ *   · 링크 있으나 Task 삭제됨(고아) → 링크 제거 후 재생성.
+ *   · 링크 없음 → 신규 생성.
  */
 @Slf4j
 @Service
@@ -131,26 +134,48 @@ public class JiraImportService {
             .filter(i -> !i.isEpic())
             .toList();
 
-        // 기존 링크: 이슈 중복 스킵 + 프로젝트키 → Feature 재사용
+        // 원장 재조정(reconcile): BRIDGE에서 대상(Task/Feature)이 삭제된 고아 링크는 제거해
+        // 재가져오기 시 다시 생성되게 한다. 살아있는 링크만 맵으로 구성한다.
         List<JiraIssueLink> existing = issueLinkRepository.findByBoardId(boardId);
-        Set<String> existingKeys = new HashSet<>();
+        Map<String, JiraIssueLink> taskLinkByKey = new HashMap<>();
         Map<String, String> projectKeyToFeatureId = new HashMap<>();
+        List<JiraIssueLink> orphans = new ArrayList<>();
         for (JiraIssueLink link : existing) {
-            existingKeys.add(link.getJiraIssueKey());
-            if (link.getTargetType() == JiraLinkTargetType.FEATURE) {
+            boolean targetAlive = link.getTargetType() == JiraLinkTargetType.TASK
+                ? taskRepository.existsById(link.getTargetId())
+                : featureRepository.existsById(link.getTargetId());
+            if (!targetAlive) {
+                orphans.add(link);
+                continue;
+            }
+            if (link.getTargetType() == JiraLinkTargetType.TASK) {
+                taskLinkByKey.put(link.getJiraIssueKey(), link);
+            } else {
                 projectKeyToFeatureId.put(link.getJiraIssueKey(), link.getTargetId());
             }
         }
+        if (!orphans.isEmpty()) {
+            issueLinkRepository.deleteAll(orphans);
+            log.info("JIRA reconcile board {}: {} orphan link(s) removed (BRIDGE에서 삭제됨)", boardId, orphans.size());
+        }
 
         Counters c = new Counters();
-        c.skipped = (int) importable.stream().filter(i -> existingKeys.contains(i.key())).count();
 
-        // ── 프로젝트(Space) → Feature, 이슈 → Task ──
+        // ── 업서트: 이미 연동된 이슈는 갱신, 없으면(또는 삭제 후) 생성 ──
         for (ParsedJiraIssue issue : importable) {
-            if (existingKeys.contains(issue.key())) continue;
+            JiraIssueLink taskLink = taskLinkByKey.get(issue.key());
+            if (taskLink != null) {
+                // 대상 Task가 살아있음 → JIRA 최신값으로 갱신(제목/설명/상태→블록)
+                Task existingTask = taskRepository.findById(taskLink.getTargetId()).orElse(null);
+                if (existingTask != null) {
+                    updateTaskFromIssue(existingTask, boardId, issue, statusToBlock, taskBlock);
+                    c.updated++;
+                    continue;
+                }
+            }
 
+            // 신규 생성 (또는 삭제 후 재생성)
             Feature feature = resolveProjectFeature(board, importer, issue, projectKeyToFeatureId, c);
-
             Task task = createTask(board, importer, feature, issue, statusToBlock, taskBlock, currentMilestone);
             saveLink(board, issue, JiraLinkTargetType.TASK, task.getId());
             c.tasks++;
@@ -182,13 +207,31 @@ public class JiraImportService {
         }
 
         config.markSynced();
-        log.info("JIRA import to board {}: created={} skipped={} (F{} T{} CL{} C{})",
-            boardId, c.created, c.skipped, c.features, c.tasks, c.checklists, c.comments);
+        log.info("JIRA import to board {}: created={} updated={} orphans={} (F{} T{} CL{} C{})",
+            boardId, c.created, c.updated, orphans.size(), c.features, c.tasks, c.checklists, c.comments);
 
         return JiraResponse.ImportResult.builder()
-            .total(importable.size()).created(c.created).updated(0).skipped(c.skipped)
+            .total(importable.size()).created(c.created).updated(c.updated).skipped(0)
             .features(c.features).tasks(c.tasks).checklists(c.checklists).comments(c.comments)
             .errors(c.errors).build();
+    }
+
+    /**
+     * 기존 Task를 JIRA 이슈 최신값으로 갱신(동기화). 재가져오기가 동기화 역할을 하도록 한다.
+     * 동기화 대상: 제목·설명·상태(→블록 이동). 담당자/태그/첨부는 중복 생성을 피하려 최초 생성 시에만 반영.
+     * 마일스톤은 사용자가 옮겼을 수 있어 보존한다.
+     */
+    private void updateTaskFromIssue(Task task, String boardId, ParsedJiraIssue issue,
+                                     Map<String, String> statusToBlock, Block taskBlock) {
+        task.updateInfo(truncate(issue.summary(), 200), issue.description(),
+            task.getStartDate(), task.getDueDate(), task.getEstimatedMinutes());
+
+        Block target = resolveBlock(boardId, issue.statusName(), statusToBlock, taskBlock);
+        if (target != null && (task.getBlock() == null || !target.getId().equals(task.getBlock().getId()))) {
+            task.moveToBlock(target);
+            Integer maxPos = taskRepository.findMaxPositionByBlockId(target.getId());
+            task.updatePosition(maxPos != null ? maxPos + 1 : 0);
+        }
     }
 
     // ── 미리보기 (읽기 전용 드라이런: DB 변경 없음) ──
@@ -199,9 +242,15 @@ public class JiraImportService {
      */
     private JiraResponse.ImportResult buildPreview(String boardId, List<ParsedJiraIssue> issues,
                                                    JiraIntegrationConfig config) {
-        Set<String> existingKeys = new HashSet<>();
+        // 살아있는 링크만: TASK 대상이 존재하는 이슈 키(→갱신 예정), FEATURE 대상이 존재하는 프로젝트 키
+        Set<String> liveTaskKeys = new HashSet<>();
+        Set<String> liveFeatureProjectKeys = new HashSet<>();
         for (JiraIssueLink link : issueLinkRepository.findByBoardId(boardId)) {
-            existingKeys.add(link.getJiraIssueKey());
+            if (link.getTargetType() == JiraLinkTargetType.TASK) {
+                if (taskRepository.existsById(link.getTargetId())) liveTaskKeys.add(link.getJiraIssueKey());
+            } else if (featureRepository.existsById(link.getTargetId())) {
+                liveFeatureProjectKeys.add(link.getJiraIssueKey());
+            }
         }
         Map<String, String> statusToBlock = readMap(config.getStatusToBlockJson());
         List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
@@ -210,26 +259,28 @@ public class JiraImportService {
             ? resolveCurrentMilestone(boardId) : null;
 
         List<JiraResponse.PreviewItem> items = new ArrayList<>();
-        int tasks = 0, skipped = 0, checklists = 0, attachments = 0;
-        Set<String> projectKeys = new LinkedHashSet<>();  // 프로젝트(Space) = Feature
+        int tasks = 0, updated = 0, checklists = 0, attachments = 0;
+        Set<String> newFeatureProjectKeys = new LinkedHashSet<>();  // 새로 생성될 Feature(프로젝트) 수
 
         for (ParsedJiraIssue issue : issues) {
             if (issue.isEpic()) continue;   // 에픽은 가져오지 않음 (프로젝트가 Feature)
 
-            boolean isSkipped = existingKeys.contains(issue.key());
+            boolean willUpdate = liveTaskKeys.contains(issue.key());  // 기존 Task 갱신 예정
             boolean hasAssignee = issue.assigneeAccountId() != null;
             int attCount = issue.attachments() != null ? issue.attachments().size() : 0;
-            if (issue.projectKey() != null) projectKeys.add(issue.projectKey());
 
             Block block = resolveBlock(boardId, issue.statusName(), statusToBlock, taskBlock);
             String blockName = block != null ? block.getName() : null;
 
-            if (isSkipped) {
-                skipped++;
+            if (willUpdate) {
+                updated++;
             } else {
                 tasks++;
                 if (hasAssignee) checklists++;
                 attachments += attCount;
+                if (issue.projectKey() != null && !liveFeatureProjectKeys.contains(issue.projectKey())) {
+                    newFeatureProjectKeys.add(issue.projectKey());
+                }
             }
 
             items.add(JiraResponse.PreviewItem.builder()
@@ -242,14 +293,15 @@ public class JiraImportService {
                     boardId, members, issue.assigneeAccountId(), issue.assigneeDisplayName()))
                 .parentKey(issue.parentKey())
                 .attachmentCount(attCount)
-                .skipped(isSkipped)
-                .skipReason(isSkipped ? "이미 가져옴" : null)
+                .skipped(false)
+                .skipReason(null)
+                .willUpdate(willUpdate)
                 .build());
         }
 
         return JiraResponse.ImportResult.builder()
-            .total(items.size()).created(0).updated(0).skipped(skipped)
-            .features(projectKeys.size()).tasks(tasks).checklists(checklists).comments(attachments)
+            .total(items.size()).created(0).updated(updated).skipped(0)
+            .features(newFeatureProjectKeys.size()).tasks(tasks).checklists(checklists).comments(attachments)
             .milestoneName(currentMilestone != null ? currentMilestone.getTitle() : null)
             .items(items).errors(List.of()).build();
     }
@@ -502,7 +554,7 @@ public class JiraImportService {
     }
 
     private static class Counters {
-        int created, updated, skipped, features, tasks, checklists, comments;
+        int created, updated, features, tasks, checklists, comments;
         final List<String> errors = new ArrayList<>();
     }
 }
