@@ -124,16 +124,17 @@ public class SprintResponse {
         private AssigneeInfo assignee;
         private AssigneeInfo completedBy; // B안: 완료자 (담당자와 다르면 "대신 완료")
         // ── JIRA 뷰 전용 (컬럼=JIRA 상태 그루핑용) ──
-        private String blockId;           // 부모 Task의 현재 칸반 블록 = JIRA 상태 매핑 키
+        private String blockId;           // 부모 Task의 현재 칸반 블록 = 매핑된 JIRA 상태(push 시 최신)
         private String qaState;           // JIRA pull QA 상태 (REVIEW/VERIFIED/REJECTED), 없으면 null
         private String jiraIssueKey;      // 연동된 JIRA 이슈 키(QASA-123), 미연동이면 null
+        private String jiraStatusId;      // 마지막 pull 시점의 실제 JIRA 상태 id (미러링 컬럼 배치용)
 
         public static ItemCard of(ChecklistItem c) {
-            return of(c, null);
+            return of(c, null, null);
         }
 
-        /** JIRA 뷰용 — 부모 Task의 JIRA 이슈 키를 함께 주입. */
-        public static ItemCard of(ChecklistItem c, String jiraIssueKey) {
+        /** JIRA 뷰용 — 부모 Task의 JIRA 이슈 키 + 실제 JIRA 상태 id를 함께 주입. */
+        public static ItemCard of(ChecklistItem c, String jiraIssueKey, String jiraStatusId) {
             Task task = c.getTask();
             Feature feature = task != null ? task.getFeature() : null;
             SprintColumn col = c.getSprintColumn();
@@ -157,6 +158,7 @@ public class SprintResponse {
                     .blockId(task != null && task.getBlock() != null ? task.getBlock().getId() : null)
                     .qaState(task != null && task.getQaState() != null ? task.getQaState().name() : null)
                     .jiraIssueKey(jiraIssueKey)
+                    .jiraStatusId(jiraStatusId)
                     .build();
         }
     }

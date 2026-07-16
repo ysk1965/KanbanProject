@@ -514,10 +514,10 @@ public class SprintService {
     }
 
     /**
-     * 스프린트 항목들의 부모 Task 중 JIRA에 연동된 것의 이슈 키를 배치 조회.
-     * JIRA 미연동 보드면 빈 맵(추가 쿼리 없음).
+     * 스프린트 항목들의 부모 Task 중 JIRA에 연동된 링크를 배치 조회(taskId → 링크).
+     * JIRA 미연동 보드면 빈 맵(추가 쿼리 없음). 링크에서 이슈 키 + 실제 JIRA 상태 id를 얻는다.
      */
-    private Map<String, String> resolveJiraKeys(String boardId, List<ChecklistItem> items) {
+    private Map<String, JiraIssueLink> resolveJiraLinks(String boardId, List<ChecklistItem> items) {
         if (jiraIntegrationConfigRepository.findActiveByBoardId(boardId).isEmpty()) {
             return Map.of();
         }
@@ -530,10 +530,10 @@ public class SprintService {
         if (taskIds.isEmpty()) {
             return Map.of();
         }
-        Map<String, String> map = new HashMap<>();
+        Map<String, JiraIssueLink> map = new HashMap<>();
         for (JiraIssueLink link : jiraIssueLinkRepository
                 .findByBoardIdAndTargetTypeAndTargetIdIn(boardId, JiraLinkTargetType.TASK, taskIds)) {
-            map.put(link.getTargetId(), link.getJiraIssueKey());
+            map.put(link.getTargetId(), link);
         }
         return map;
     }
@@ -571,8 +571,8 @@ public class SprintService {
 
         if (active != null) {
             List<ChecklistItem> items = checklistItemRepository.findBySprintId(active.getId());
-            // JIRA 뷰(컬럼=JIRA 상태)용 — 연동 보드일 때만 부모 Task의 JIRA 키를 배치 조회(N+1 방지)
-            Map<String, String> jiraKeyByTaskId = resolveJiraKeys(milestone.getBoard().getId(), items);
+            // JIRA 뷰(컬럼=JIRA 상태)용 — 연동 보드일 때만 부모 Task의 JIRA 링크를 배치 조회(N+1 방지)
+            Map<String, JiraIssueLink> jiraLinkByTaskId = resolveJiraLinks(milestone.getBoard().getId(), items);
             Map<String, List<SprintResponse.ItemCard>> byCol = new LinkedHashMap<>();
             for (SprintColumn c : cols) {
                 byCol.put(c.getId(), new ArrayList<>());
@@ -581,7 +581,11 @@ public class SprintService {
             int done = 0;
             for (ChecklistItem c : items) {
                 String taskId = c.getTask() != null ? c.getTask().getId() : null;
-                SprintResponse.ItemCard card = SprintResponse.ItemCard.of(c, taskId != null ? jiraKeyByTaskId.get(taskId) : null);
+                JiraIssueLink jiraLink = taskId != null ? jiraLinkByTaskId.get(taskId) : null;
+                SprintResponse.ItemCard card = SprintResponse.ItemCard.of(
+                        c,
+                        jiraLink != null ? jiraLink.getJiraIssueKey() : null,
+                        jiraLink != null ? jiraLink.getLastJiraStatusId() : null);
                 SprintColumn ic = c.getSprintColumn();
                 if (ic != null && byCol.containsKey(ic.getId())) {
                     byCol.get(ic.getId()).add(card);
