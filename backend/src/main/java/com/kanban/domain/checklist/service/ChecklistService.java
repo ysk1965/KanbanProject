@@ -209,6 +209,12 @@ public class ChecklistService {
         String oldAssigneeId = item.getAssignee() != null ? item.getAssignee().getId() : null;
         String oldContractorId = item.getContractor() != null ? item.getContractor().getId() : null;
 
+        // 변경 이력용 이전 값 스냅샷 (제목/기간/담당자)
+        String oldTitle = item.getTitle();
+        LocalDate oldStart = item.getStartDate();
+        LocalDate oldDue = item.getDueDate();
+        String oldAssigneeName = assigneeDisplay(item);
+
         item.updateInfo(request.getTitle(), request.getStartDate(), request.getDueDate());
 
         // assignee 와 contractor 는 mutually exclusive — assignee 우선
@@ -269,6 +275,10 @@ public class ChecklistService {
         ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        // 변경 이력 기록 (제목/기간/담당자 변경분을 각각 로깅)
+        logChecklistDiffs(task.getBoard(), user, item, oldTitle, oldStart, oldDue, oldAssigneeName);
+
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, userId, user.getName(),
                 Map.of("task_id", taskId, "item", response));
         return response;
@@ -302,6 +312,12 @@ public class ChecklistService {
 
         String oldAssigneeId = item.getAssignee() != null ? item.getAssignee().getId() : null;
         String oldContractorId = item.getContractor() != null ? item.getContractor().getId() : null;
+
+        // 변경 이력용 이전 값 스냅샷 (제목/기간/담당자)
+        String oldTitle = item.getTitle();
+        LocalDate oldStart = item.getStartDate();
+        LocalDate oldDue = item.getDueDate();
+        String oldAssigneeName = assigneeDisplay(item);
 
         if (request.hasTitle() && request.getTitle() != null) {
             item.updateTitle(request.getTitle());
@@ -380,6 +396,10 @@ public class ChecklistService {
         ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        // 변경 이력 기록 (제목/기간/담당자 변경분을 각각 로깅)
+        logChecklistDiffs(task.getBoard(), user, item, oldTitle, oldStart, oldDue, oldAssigneeName);
+
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, userId, user.getName(),
                 Map.of("task_id", taskId, "item", response));
         return response;
@@ -812,11 +832,21 @@ public class ChecklistService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        List<String> mergedTitles = new java.util.ArrayList<>();
         for (ChecklistItem s : sources) {
+            mergedTitles.add(s.getTitle());
             s.softDelete(userId, now);
             activityService.logActivity(task.getBoard(), user, ActivityAction.CHECKLIST_DELETED, TargetType.CHECKLIST, s.getId(),
                     Map.of("checklistTitle", s.getTitle(), "taskTitle", task.getTitle(), "taskId", task.getId()));
         }
+
+        // 대표 항목에 병합 이력 기록 (어떤 항목들이 흡수됐는지)
+        Map<String, Object> mergeMeta = new java.util.HashMap<>();
+        mergeMeta.put("checklistTitle", target.getTitle());
+        mergeMeta.put("taskTitle", task.getTitle());
+        mergeMeta.put("taskId", task.getId());
+        mergeMeta.put("mergedTitles", mergedTitles);
+        logChecklistChange(task.getBoard(), user, ActivityAction.CHECKLIST_MERGED, target.getId(), mergeMeta);
 
         log.info("Merged {} checklist items into {} (task {}) by user {}", sourceIds.size(), targetId, taskId, userId);
 
@@ -831,6 +861,54 @@ public class ChecklistService {
                 Map.of("task_id", taskId, "item", response));
 
         return response;
+    }
+
+    // ==================== 변경 이력(activity) 헬퍼 ====================
+
+    /** 현재 담당자 표시명 (assignee 우선, 없으면 contractor). 둘 다 없으면 null. */
+    private String assigneeDisplay(ChecklistItem item) {
+        if (item.getAssignee() != null) return item.getAssignee().getName();
+        if (item.getContractor() != null) return item.getContractor().getName();
+        return null;
+    }
+
+    /** 체크리스트 변경 이력을 남긴다. 로깅 실패가 본 트랜잭션을 롤백하지 않도록 방어한다. */
+    private void logChecklistChange(Board board, User user, ActivityAction action, String itemId, Map<String, Object> metadata) {
+        try {
+            activityService.logActivity(board, user, action, TargetType.CHECKLIST, itemId, metadata);
+        } catch (Exception e) {
+            log.warn("Failed to log checklist change activity {} for item {}", action, itemId, e);
+        }
+    }
+
+    /** 제목/기간/담당자 변경분을 이전 스냅샷과 비교해 각각 이력으로 남긴다. (update/patch 공용) */
+    private void logChecklistDiffs(Board board, User actor, ChecklistItem item,
+                                   String oldTitle, LocalDate oldStart, LocalDate oldDue, String oldAssignee) {
+        if (!java.util.Objects.equals(oldTitle, item.getTitle())) {
+            Map<String, Object> m = new java.util.HashMap<>();
+            m.put("checklistTitle", item.getTitle());
+            m.put("oldTitle", oldTitle);
+            m.put("newTitle", item.getTitle());
+            logChecklistChange(board, actor, ActivityAction.CHECKLIST_RENAMED, item.getId(), m);
+        }
+        if (!java.util.Objects.equals(oldStart, item.getStartDate())
+                || !java.util.Objects.equals(oldDue, item.getDueDate())) {
+            Map<String, Object> m = new java.util.HashMap<>();
+            m.put("checklistTitle", item.getTitle());
+            m.put("oldStart", oldStart != null ? oldStart.toString() : null);
+            m.put("newStart", item.getStartDate() != null ? item.getStartDate().toString() : null);
+            m.put("oldDue", oldDue != null ? oldDue.toString() : null);
+            m.put("newDue", item.getDueDate() != null ? item.getDueDate().toString() : null);
+            logChecklistChange(board, actor, ActivityAction.CHECKLIST_RESCHEDULED, item.getId(), m);
+        }
+        String newAssignee = assigneeDisplay(item);
+        if (!java.util.Objects.equals(oldAssignee, newAssignee)) {
+            Map<String, Object> m = new java.util.HashMap<>();
+            m.put("checklistTitle", item.getTitle());
+            m.put("oldAssignee", oldAssignee);
+            m.put("newAssignee", newAssignee);
+            logChecklistChange(board, actor, ActivityAction.CHECKLIST_REASSIGNED, item.getId(), m);
+        }
     }
 
     private static LocalDate minDate(LocalDate a, LocalDate b) {

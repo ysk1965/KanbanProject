@@ -65,6 +65,7 @@ import {
   Lightbulb,
   ArrowRightLeft,
   GitMerge,
+  History,
   MoreVertical,
   GripVertical,
   ArrowRight,
@@ -80,6 +81,7 @@ import {
 } from "lucide-react";
 import { TaskMoveModal } from "./TaskMoveModal";
 import { TaskAIChecklistModal } from "./TaskAIChecklistModal";
+import { ChecklistHistoryModal } from "./ChecklistHistoryModal";
 import { TaskHeaderActionsMenu } from "./TaskHeaderActionsMenu";
 import { BlockStatusPicker } from "./BlockStatusPicker";
 import { CommentPanel } from "./CommentPanel";
@@ -3576,6 +3578,7 @@ function ChecklistItemRow({
   const [editedTitle, setEditedTitle] = useState(item.title);
   const [showOptions, setShowOptions] = useState(false);
   const [showTimeBlocks, setShowTimeBlocks] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   // 부모에서 벌크로 로드된 타임블록 사용 (최근 날짜·늦은 시간 순 정렬)
   const timeBlocks = [...(preloadedTimeBlocks || [])].sort((a, b) => {
@@ -4183,6 +4186,18 @@ function ChecklistItemRow({
                 align="end"
                 className="bg-bridge-surface border-bridge-border"
               >
+                {boardId && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => setShowHistory(true)}
+                      className="text-bridge-accent hover:bg-bridge-surface-hover hover:text-bridge-accent focus:text-bridge-accent text-xs"
+                    >
+                      <History className="h-3.5 w-3.5 mr-2" />
+                      {t("checklistHistory.menu", "이력")}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-bridge-border" />
+                  </>
+                )}
                 {onMerge && (
                   <DropdownMenuItem
                     onClick={onMerge}
@@ -4216,6 +4231,17 @@ function ChecklistItemRow({
           </div>
         )}
       </div>
+
+      {/* 변경 이력 모달 */}
+      {boardId && (
+        <ChecklistHistoryModal
+          open={showHistory}
+          onClose={() => setShowHistory(false)}
+          boardId={boardId}
+          itemId={item.id}
+          itemTitle={item.title}
+        />
+      )}
 
       {/* 타임블록 리스트 */}
       {showTimeBlocks && (

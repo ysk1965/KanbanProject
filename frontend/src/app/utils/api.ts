@@ -2585,6 +2585,17 @@ export const activityAPI = {
       `/boards/${boardId}/activities${queryString ? `?${queryString}` : ""}`,
     );
   },
+
+  // 특정 대상(체크리스트 항목 등)의 변경 이력 조회 — 최신순 정렬
+  getTargetActivities: async (
+    boardId: string,
+    targetType: string,
+    targetId: string,
+  ) => {
+    return apiClient.get<ActivityLogResponse[]>(
+      `/boards/${boardId}/activities/target/${targetType}/${targetId}`,
+    );
+  },
 };
 
 // ========================================

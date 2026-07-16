@@ -604,6 +604,7 @@ export interface SprintItemCard {
   feature_id: string | null;
   feature_title: string | null;
   feature_color: string | null;
+  feature_created_at: string | null; // Feature 생성 순서 정렬용
   task_id: string | null;
   task_title: string | null;
   // ── JIRA 뷰 전용 (컬럼=JIRA 상태 그루핑용) ──
@@ -615,6 +616,14 @@ export interface SprintItemCard {
     id: string;
     name: string;
     profile_image: string | null;
+  } | null;
+  // 외주 담당(있으면). 내부 assignee와 배타적. 구성원 뷰에서 manager_user_id 컬럼으로 라우팅한다.
+  contractor?: {
+    id: string;
+    name: string;
+    color: string | null;
+    manager_user_id: string | null; // 관리 담당 내부 멤버의 user id (컬럼 라우팅 키)
+    manager_name: string | null;
   } | null;
   completed_by?: {
     id: string;
@@ -778,6 +787,12 @@ export type ActivityAction =
   | "TASK_REOPENED"
   | "CHECKLIST_CREATED"
   | "CHECKLIST_CHECKED"
+  | "CHECKLIST_RENAMED"
+  | "CHECKLIST_REASSIGNED"
+  | "CHECKLIST_RESCHEDULED"
+  | "CHECKLIST_MOVED"
+  | "CHECKLIST_MERGED"
+  | "CHECKLIST_DELETED"
   | "TAG_CREATED"
   | "TAG_DELETED"
   | "MEMBER_INVITED"

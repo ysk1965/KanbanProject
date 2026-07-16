@@ -27,17 +27,14 @@ import {
   AlertTriangle,
   Layers,
   Users,
+  UserCheck,
   Diamond,
   PanelLeftClose,
   PanelLeftOpen,
   X,
 } from "lucide-react";
 import { sprintAPI, checklistAPI, taskAPI, jiraAPI } from "../utils/api";
-import type {
-  JiraStatus,
-  JiraMeta,
-  JiraBlockStatusEntry,
-} from "../utils/api";
+import type { JiraStatus, JiraMeta, JiraBlockStatusEntry } from "../utils/api";
 import type {
   SprintBoard as SprintBoardData,
   SprintColumn,
@@ -54,6 +51,7 @@ import {
   getDDay,
 } from "../utils/dateUtils";
 import { MotionModal } from "./ui/MotionModal";
+import { SprintMemberGanttModal } from "./SprintMemberGanttModal";
 
 interface SprintBoardProps {
   boardId: string;
@@ -82,6 +80,7 @@ interface TreeFeature {
   featureId: string;
   featureTitle: string;
   featureColor: string | null;
+  featureCreatedAt: string | null; // Feature 생성 순서 정렬 키
   tasks: TreeTask[];
   total: number;
   taken: number;
@@ -201,6 +200,9 @@ export function SprintBoard({
   const [reactivateTarget, setReactivateTarget] = useState<SprintInfo | null>(
     null,
   );
+
+  // 구성원 간트 모달 — 구성원 컬럼 헤더 클릭 시 해당 구성원 id. null이면 닫힘.
+  const [ganttMemberId, setGanttMemberId] = useState<string | null>(null);
 
   // 좌측 트리 "보임 필터": 스프린트에 담긴(Sprint·Done 배지) 체크리스트 항목 숨김 토글.
   // 초기값은 localStorage에서 복원(기본 = 보임), 변경 시 저장하여 새로고침해도 유지.
@@ -448,7 +450,8 @@ export function SprintBoard({
     const hasNoAssignee = members.includes("__no_members__");
     const names = new Set(members.filter((m) => m !== "__no_members__"));
     const matches = (it: SprintItemCard) => {
-      const name = it.assignee?.name;
+      // 외주 카드는 관리 담당(manager)의 이름으로 필터 — 컬럼 라우팅과 일관.
+      const name = it.assignee?.name ?? it.contractor?.manager_name;
       if (!name) return hasNoAssignee;
       return names.has(name);
     };
@@ -506,6 +509,7 @@ export function SprintBoard({
           featureId: fid,
           featureTitle: it.feature_title ?? "기타",
           featureColor: it.feature_color ?? null,
+          featureCreatedAt: it.feature_created_at ?? null,
           tasks: [],
           total: 0,
           taken: 0,
@@ -524,7 +528,22 @@ export function SprintBoard({
       if (it.sprint_column_id) feat.taken += 1;
       if (it.completed) feat.completed += 1;
     }
-    return Array.from(featMap.values());
+    // Feature 생성 순서(created_at 오름차순)로 컬럼/트리 정렬.
+    // 생성일 동률이거나 없으면 안정 정렬로 첫 등장 순서를 유지하고, "기타"(피쳐 없음)는 항상 맨 뒤로.
+    return Array.from(featMap.values())
+      .map((feat, idx) => ({ feat, idx }))
+      .sort((a, b) => {
+        const aNone = a.feat.featureId === "__none__";
+        const bNone = b.feat.featureId === "__none__";
+        if (aNone !== bNone) return aNone ? 1 : -1;
+        const ac = a.feat.featureCreatedAt;
+        const bc = b.feat.featureCreatedAt;
+        if (ac && bc && ac !== bc) return ac < bc ? -1 : 1;
+        if (ac && !bc) return -1;
+        if (!ac && bc) return 1;
+        return a.idx - b.idx; // 안정 정렬 폴백(첫 등장 순서)
+      })
+      .map(({ feat }) => feat);
   }, [filteredBoard]);
 
   // 보임 필터 적용 후 트리에 표시할 항목이 하나라도 남는지(빈 상태 안내용)
@@ -668,6 +687,12 @@ export function SprintBoard({
   }
   const memberColumns = useMemo<MemberColumn[]>(() => {
     if (!startColumn) return [];
+    // 컬럼 라우팅 키/이름 — 내부 담당자는 그 담당자, 외주는 "관리 담당(manager)"의 컬럼으로 귀속시킨다.
+    // 관리자 미지정 외주(manager_user_id 없음)는 미배정으로 폴백해 진짜 미배정과 섞이되 배지로 구분된다.
+    const keyOf = (it: SprintItemCard) =>
+      it.assignee?.id ?? it.contractor?.manager_user_id ?? "__none__";
+    const nameOf = (it: SprintItemCard) =>
+      it.assignee?.name ?? it.contractor?.manager_name ?? "미배정";
     // 담긴 항목 전체를 담당자별 진척으로 집계
     const stat = new Map<
       string,
@@ -676,10 +701,10 @@ export function SprintBoard({
     for (const c of columns) {
       for (const it of c.items) {
         if (!it.sprint_column_id) continue;
-        const id = it.assignee?.id ?? "__none__";
+        const id = keyOf(it);
         let s = stat.get(id);
         if (!s) {
-          s = { name: it.assignee?.name ?? "미배정", done: 0, total: 0 };
+          s = { name: nameOf(it), done: 0, total: 0 };
           stat.set(id, s);
         }
         s.total += 1;
@@ -690,7 +715,7 @@ export function SprintBoard({
     // 컬럼에 노출할 카드는 START 단계 항목뿐(순서 유지)
     const startByMember = new Map<string, SprintItemCard[]>();
     for (const it of startColumn.items) {
-      const id = it.assignee?.id ?? "__none__";
+      const id = keyOf(it);
       const arr = startByMember.get(id);
       if (arr) arr.push(it);
       else startByMember.set(id, [it]);
@@ -720,6 +745,26 @@ export function SprintBoard({
       total: stat.get(id)?.total ?? 0,
     }));
   }, [startColumn, columns, columnById, memberOrder]);
+
+  // 구성원 간트 모달 데이터 — 선택 구성원의 스프린트 항목(모든 컬럼)을 모은다.
+  // 배치/미배치는 모달이 start_date·due_date로 판정한다.
+  const ganttData = useMemo(() => {
+    if (!ganttMemberId || ganttMemberId === "__none__") return null;
+    const mc = memberColumns.find((m) => m.memberId === ganttMemberId);
+    const its = columns
+      .flatMap((c) => c.items)
+      .filter((it) => (it.assignee?.id ?? "__none__") === ganttMemberId);
+    return {
+      member: { id: ganttMemberId, name: mc?.memberName ?? "" },
+      items: its,
+    };
+  }, [ganttMemberId, memberColumns, columns]);
+
+  // 닫힘 애니메이션 동안 마지막 데이터 유지(모달 콘텐츠 깜빡임 방지)
+  const [retainedGantt, setRetainedGantt] = useState<typeof ganttData>(null);
+  useEffect(() => {
+    if (ganttData) setRetainedGantt(ganttData);
+  }, [ganttData]);
 
   // ==================== JIRA 뷰 (컬럼 = JIRA 상태) ====================
   // Feature/구성원 뷰가 스프린트 자체 워크플로(진행중/In Review/Done)를 컬럼으로 세운다면,
@@ -1138,7 +1183,7 @@ export function SprintBoard({
     const names = new Set(members.filter((m) => m !== "__no_members__"));
     const matches = (it: SprintItemCard) => {
       if (members.length === 0) return true;
-      const name = it.assignee?.name;
+      const name = it.assignee?.name ?? it.contractor?.manager_name;
       return name ? names.has(name) : hasNoAssignee;
     };
     const items = previewItems.filter(
@@ -1191,6 +1236,20 @@ export function SprintBoard({
     // 마감 D-day — 완료된 카드는 긴급도 표시 안 함(완료 배지로 대체).
     const dday = !isDoneItem && it.due_date ? getDDay(it.due_date) : null;
     const overdue = dday?.urgency === "overdue";
+    // 시작 D-day(양수 diff = 아직 시작 전). start_date/due_date/completed만으로 진행 상태 파생.
+    const startDday =
+      !isDoneItem && it.start_date ? getDDay(it.start_date) : null;
+    // 예정 = 시작일이 아직 안 옴. 진행 중 = 기간 안(시작 지남·마감 안 지남), 날짜 정보가 있을 때만 배지.
+    const upcoming =
+      !isDoneItem && !overdue && !!startDday && startDday.diff > 0;
+    const inProgress =
+      !isDoneItem && !overdue && !upcoming && (!!startDday || !!dday);
+    // 마감 임박(D-3 이내·D-Day)이면 진행 중 배지를 앰버로 승격.
+    const soon = dday?.urgency === "soon" || dday?.urgency === "today";
+    const liveBadge = soon
+      ? "bg-amber-500/15 text-amber-500"
+      : "bg-bridge-secondary/15 text-bridge-secondary";
+    const liveDot = soon ? "bg-amber-500" : "bg-bridge-secondary";
     // 리뷰 = 첫 MIDDLE(기본 "In Review")로 이동. 이미 그 컬럼이거나 완료면 숨김.
     const showReview =
       canEdit &&
@@ -1275,6 +1334,20 @@ export function SprintBoard({
           >
             {it.feature_title ?? "기타"}
           </span>
+          {/* 외주 표식 — 담당 주체가 외부임을 라벨 옆에서 알린다(앰버 전용 컬러, 상태 뱃지와 구분). */}
+          {it.contractor && (
+            <span
+              className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 bg-amber-500/15 text-amber-500 border border-amber-500/30"
+              title={
+                it.contractor.manager_name
+                  ? `외주 · 관리 ${it.contractor.manager_name}`
+                  : "외주"
+              }
+            >
+              <UserCheck className="w-2.5 h-2.5" />
+              외주
+            </span>
+          )}
           {/* 빼기 = 왼쪽 업무 리스트로 드래그. 호버 시 액션 버튼에 자리를 내준다. */}
           {canEdit && !readOnly && (
             <span
@@ -1294,15 +1367,45 @@ export function SprintBoard({
           {it.title}
         </div>
         <div className="flex items-center gap-2 text-[10px] text-slate-500">
+          {/* 진행 상태 칩 — 기간 안(진행 중) / 시작 전(예정). 완료·지남 카드엔 표시 안 함. */}
+          {inProgress && (
+            <span
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${liveBadge}`}
+            >
+              <span className="relative inline-flex w-1.5 h-1.5">
+                <span
+                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${liveDot}`}
+                />
+                <span
+                  className={`relative inline-flex rounded-full w-1.5 h-1.5 ${liveDot}`}
+                />
+              </span>
+              진행 중
+            </span>
+          )}
+          {upcoming && (
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold shrink-0 bg-foreground/[0.06] text-slate-400">
+              <Clock className="w-2.5 h-2.5" />
+              예정
+            </span>
+          )}
           {it.task_title && <span className="truncate">{it.task_title}</span>}
           <div className="ml-auto flex items-center gap-1.5 shrink-0">
-            {dday ? (
+            {upcoming ? (
+              <span
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold tabular-nums bg-foreground/[0.06] text-slate-400"
+                title={formatDate(it.start_date)}
+              >
+                <Calendar className="w-2.5 h-2.5" />
+                {formatDate(it.start_date, "M/d")} 시작 · {startDday!.text}
+              </span>
+            ) : dday ? (
               <span
                 className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold tabular-nums ${DDAY_BADGE[dday.urgency]}`}
                 title={formatDate(it.due_date)}
               >
                 <Calendar className="w-2.5 h-2.5" />
-                {dday.text}
+                {overdue ? `${dday.text} 지연` : dday.text}
               </span>
             ) : it.due_date && !it.completed ? (
               <span className="tabular-nums">{formatDate(it.due_date)}</span>
@@ -1317,6 +1420,19 @@ export function SprintBoard({
                 style={{ background: getAssigneeHex(it.assignee.name) }}
               >
                 {getInitials(it.assignee.name)}
+              </span>
+            ) : it.contractor ? (
+              // 외주 담당 칩 — 미배정처럼 비어 보이지 않게 외주사명을 앰버 칩으로 노출.
+              <span
+                className="inline-flex items-center gap-1 min-w-0"
+                title={`외주 · ${it.contractor.name}`}
+              >
+                <span className="w-4 h-4 rounded-full grid place-items-center text-[8px] font-bold shrink-0 bg-amber-500 text-amber-950">
+                  {getInitials(it.contractor.name)}
+                </span>
+                <span className="truncate max-w-[72px] text-amber-500 font-bold">
+                  {it.contractor.name}
+                </span>
               </span>
             ) : null}
           </div>
@@ -1501,8 +1617,29 @@ export function SprintBoard({
             : "border-foreground/[0.08]"
         }`}
       >
-        {/* 담당자 컬럼 헤더 + 진척 바 */}
-        <div className="px-3 pt-2.5 pb-2 border-b border-foreground/[0.06]">
+        {/* 담당자 컬럼 헤더 + 진척 바 — 클릭 시 개인 간트 모달 오픈(미배정 제외) */}
+        <div
+          role={isNone ? undefined : "button"}
+          tabIndex={isNone ? undefined : 0}
+          aria-label={isNone ? undefined : `${mc.memberName} 간트 열기`}
+          title={isNone ? undefined : `${mc.memberName} 간트 · 업무 배치`}
+          onClick={isNone ? undefined : () => setGanttMemberId(mc.memberId)}
+          onKeyDown={
+            isNone
+              ? undefined
+              : (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setGanttMemberId(mc.memberId);
+                  }
+                }
+          }
+          className={`group px-3 pt-2.5 pb-2 border-b border-foreground/[0.06] ${
+            isNone
+              ? ""
+              : "cursor-pointer hover:bg-foreground/[0.03] focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 rounded-t-2xl transition-colors"
+          }`}
+        >
           <div className="flex items-center gap-2">
             <span
               className="w-5 h-5 rounded-full grid place-items-center text-[9px] font-bold shrink-0"
@@ -1519,6 +1656,9 @@ export function SprintBoard({
             >
               {mc.memberName}
             </span>
+            {!isNone && (
+              <Calendar className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+            )}
             <span className="text-[9px] font-bold text-slate-500 tracking-wide shrink-0">
               담당
             </span>
@@ -1552,12 +1692,23 @@ export function SprintBoard({
   const renderQaBadge = (qa: "REVIEW" | "VERIFIED" | "REJECTED") => {
     const cfg =
       qa === "VERIFIED"
-        ? { label: "검증완료", cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" }
+        ? {
+            label: "검증완료",
+            cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+          }
         : qa === "REJECTED"
-          ? { label: "반려", cls: "bg-rose-500/15 text-rose-600 dark:text-rose-400" }
-          : { label: "검토중", cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400" };
+          ? {
+              label: "반려",
+              cls: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+            }
+          : {
+              label: "검토중",
+              cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+            };
     return (
-      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${cfg.cls}`}>
+      <span
+        className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${cfg.cls}`}
+      >
         {cfg.label}
       </span>
     );
@@ -1896,7 +2047,8 @@ export function SprintBoard({
                             (() => {
                               const vPct =
                                 jiraStats.linked > 0
-                                  ? (jiraStats.verified / jiraStats.linked) * 100
+                                  ? (jiraStats.verified / jiraStats.linked) *
+                                    100
                                   : 0;
                               const rPct =
                                 jiraStats.linked > 0
@@ -1936,7 +2088,8 @@ export function SprintBoard({
                                   style={{
                                     left: `${sprintProgress.segEarlier}%`,
                                     width: `${sprintProgress.segToday}%`,
-                                    boxShadow: "0 0 8px var(--bridge-secondary)",
+                                    boxShadow:
+                                      "0 0 8px var(--bridge-secondary)",
                                   }}
                                 />
                               )}
@@ -3044,6 +3197,21 @@ export function SprintBoard({
           )}
         </div>
       </MotionModal>
+
+      {/* 구성원 개인 간트 · 업무 배치 모달 — 체크리스트 start/due를 간트로 편집(즉시 저장) */}
+      <SprintMemberGanttModal
+        open={!!ganttMemberId}
+        onClose={() => setGanttMemberId(null)}
+        boardId={boardId}
+        canEdit={canEdit}
+        member={retainedGantt?.member ?? null}
+        items={retainedGantt?.items ?? []}
+        sprintName={activeSprint?.name ?? null}
+        sprintStart={activeSprint?.start_date ?? null}
+        sprintEnd={activeSprint?.end_date ?? null}
+        onOpenChecklistItem={onOpenChecklistItem}
+        onSaved={silentReload}
+      />
     </div>
   );
 }

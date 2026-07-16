@@ -666,6 +666,31 @@
     "noTask": "태스크 없음",
     "selectFooter": "이 시간대에 배정할 체크리스트 항목을 선택하세요"
   },
+  "checklistHistory": {
+    "menu": "이력",
+    "title": "변경 이력",
+    "subtitle": "총 {{count}}건의 변경",
+    "empty": "아직 기록된 변경이 없습니다",
+    "error": "이력을 불러오지 못했습니다",
+    "none": "없음",
+    "filterAll": "전체",
+    "filterAssignee": "담당자",
+    "filterDate": "기간",
+    "filterStatus": "상태",
+    "filterName": "이름",
+    "verb": {
+      "created": "이 항목을 만들었습니다",
+      "checkedDone": "완료로 표시했습니다",
+      "checkedUndone": "미완료로 되돌렸습니다",
+      "renamed": "이름을 변경했습니다",
+      "reassigned": "담당자를 변경했습니다",
+      "rescheduled": "기간을 변경했습니다",
+      "moved": "다른 Task로 이동했습니다",
+      "merged": "항목을 병합했습니다",
+      "deleted": "항목을 삭제했습니다",
+      "changed": "변경했습니다"
+    }
+  },
   "milestone": {
     "onboardingTitle": "마일스톤으로 프로젝트를 관리하세요",
     "onboardingDesc": "Feature를 마일스톤으로 묶어 일정과 진행률을 한눈에 파악할 수 있어요.",
