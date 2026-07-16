@@ -42,6 +42,7 @@ import type {
   SprintColumn,
   SprintInfo,
   SprintItemCard,
+  SprintJiraTask,
 } from "../types";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
 import { useSprintRealtime } from "../hooks/useSprintRealtime";
@@ -176,6 +177,11 @@ export function SprintBoard({
   );
   // 보드: Feature 컬럼 안 Task 소그룹 접기 상태 (key = `${featureId}:${taskId}`)
   const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
+  // 업무 리스트: 항목이 전부 정리(담김·완료)된 Feature는 한 줄 스트립으로 남기고,
+  // 펼친 스트립(정리된 항목 미리보기)만 이 집합에 담는다. 기본은 접힘.
+  const [expandedCleared, setExpandedCleared] = useState<Set<string>>(
+    new Set(),
+  );
   // Feature 필터 — 상단 요약 스트립 칩 선택 집합. 비어 있으면 전체 표시.
   // Feature는 스프린트 상위 개념이라 타임라인 위에 두고, 선택 시 아래 보드 컬럼(Feature/구성원/JIRA)을 좁힌다.
   const [featureFilter, setFeatureFilter] = useState<Set<string>>(new Set());
@@ -571,18 +577,6 @@ export function SprintBoard({
       .map(({ feat }) => feat);
   }, [filteredBoard]);
 
-  // 보임 필터 적용 후 트리에 표시할 항목이 하나라도 남는지(빈 상태 안내용)
-  // "정리된" = 스프린트 컬럼에 담겼거나(sprint_column_id) 완료 처리된(completed) 항목.
-  // 스프린트에 담지 않고 좌측 트리에서 바로 완료 체크한 경우도 숨김 대상에 포함.
-  const treeHasVisible = useMemo(() => {
-    if (showTakenInTree) return tree.length > 0;
-    return tree.some((f) =>
-      f.tasks.some((t) =>
-        t.items.some((it) => !it.sprint_column_id && !it.completed),
-      ),
-    );
-  }, [tree, showTakenInTree]);
-
   const toggleFeature = (fid: string) => {
     setCollapsedFeatures((prev) => {
       const next = new Set(prev);
@@ -596,6 +590,14 @@ export function SprintBoard({
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
+      return next;
+    });
+  };
+  const toggleClearedFeature = (fid: string) => {
+    setExpandedCleared((prev) => {
+      const next = new Set(prev);
+      if (next.has(fid)) next.delete(fid);
+      else next.add(fid);
       return next;
     });
   };
@@ -892,47 +894,45 @@ export function SprintBoard({
       }
     }
 
-    // 1) 스프린트 전체 아이템 → JIRA 연동 Task만 태스크 단위로 집계(중복 제거)
+    // 1) 보드 전체 JIRA 연동 Task를 태스크 카드로 변환.
+    //    JIRA 뷰는 스프린트 스코프가 아니라 "보드 스코프" — 스프린트에 담기지 않은 이슈도
+    //    JIRA 보드처럼 그대로 비춘다(재동기화로 import된 카드가 바로 보이도록). done/total은
+    //    스프린트 담김 수가 아니라 그 Task의 체크리스트 전체 진행도(백엔드 집계).
+    // 담당자 필터(구성원 필터바)는 아이템이 아니라 Task 단위로 적용: 담당자 중 하나라도 걸리면 통과.
+    const memberSel = memberFilter ?? [];
+    const memberWantsNone = memberSel.includes("__no_members__");
+    const memberNames = new Set(
+      memberSel.filter((m) => m !== "__no_members__"),
+    );
+    const memberMatch = (jt: SprintJiraTask) => {
+      if (memberSel.length === 0) return true;
+      if (jt.assignees.length === 0) return memberWantsNone;
+      return jt.assignees.some((a) => memberNames.has(a.name));
+    };
     const taskMap = new Map<string, JiraTaskCard>();
-    for (const c of columns) {
-      for (const it of c.items) {
-        if (!it.jira_issue_key || !it.task_id) continue;
-        if (
-          featureFilter.size > 0 &&
-          !featureFilter.has(it.feature_id ?? "__none__")
-        )
-          continue;
-        let card = taskMap.get(it.task_id);
-        if (!card) {
-          const resolved =
-            (it.block_id ? statusByBlock.get(it.block_id) : undefined) ??
-            it.jira_status_id ??
-            null;
-          card = {
-            taskId: it.task_id,
-            taskTitle: it.task_title ?? "Task",
-            jiraKey: it.jira_issue_key,
-            qaState: it.qa_state ?? null,
-            statusId: resolved,
-            blockId: it.block_id ?? null,
-            assignees: [],
-            done: 0,
-            total: 0,
-          };
-          taskMap.set(it.task_id, card);
-        }
-        card.total += 1;
-        const kind = it.sprint_column_id
-          ? columnById.get(it.sprint_column_id)?.kind
-          : undefined;
-        if (it.completed || kind === "END") card.done += 1;
-        if (
-          it.assignee &&
-          !card.assignees.some((a) => a.id === it.assignee!.id)
-        ) {
-          card.assignees.push({ id: it.assignee.id, name: it.assignee.name });
-        }
-      }
+    for (const jt of board?.jira_tasks ?? []) {
+      if (!jt.jira_issue_key || !jt.task_id) continue;
+      if (
+        featureFilter.size > 0 &&
+        !featureFilter.has(jt.feature_id ?? "__none__")
+      )
+        continue;
+      if (!memberMatch(jt)) continue;
+      const resolved =
+        (jt.block_id ? statusByBlock.get(jt.block_id) : undefined) ??
+        jt.jira_status_id ??
+        null;
+      taskMap.set(jt.task_id, {
+        taskId: jt.task_id,
+        taskTitle: jt.task_title ?? "Task",
+        jiraKey: jt.jira_issue_key,
+        qaState: jt.qa_state ?? null,
+        statusId: resolved,
+        blockId: jt.block_id ?? null,
+        assignees: jt.assignees.map((a) => ({ id: a.id, name: a.name })),
+        done: jt.done,
+        total: jt.total,
+      });
     }
 
     let cols: JiraColumnDef[];
@@ -943,17 +943,19 @@ export function SprintBoard({
       const mirrorBlocks = (jiraMeta.blocks ?? []).filter(
         (b) => !!b.jira_status_id,
       );
-      cols = mirrorBlocks.map((b) => ({
-        statusId: b.jira_status_id as string,
-        statusIds:
-          b.jira_status_ids && b.jira_status_ids.length > 0
-            ? b.jira_status_ids
-            : [b.jira_status_id as string],
-        label: b.name,
-        draggable: true,
-        targetBlockId: b.id,
-        tone: "push" as const,
-      })).map((c) => ({ ...c, cards: [] as JiraTaskCard[] }));
+      cols = mirrorBlocks
+        .map((b) => ({
+          statusId: b.jira_status_id as string,
+          statusIds:
+            b.jira_status_ids && b.jira_status_ids.length > 0
+              ? b.jira_status_ids
+              : [b.jira_status_id as string],
+          label: b.name,
+          draggable: true,
+          targetBlockId: b.id,
+          tone: "push" as const,
+        }))
+        .map((c) => ({ ...c, cards: [] as JiraTaskCard[] }));
       const colByBlock = new Map(cols.map((c) => [c.targetBlockId, c]));
       placeCard = (card) =>
         card.blockId ? colByBlock.get(card.blockId) : undefined;
@@ -978,7 +980,8 @@ export function SprintBoard({
       const toneOf = (statusId: string): JiraColumnDef["tone"] => {
         const e = entryByStatus.get(statusId);
         if (!e) return "muted";
-        if (e.dir === "pull") return e.qa === "VERIFIED" ? "verified" : "review";
+        if (e.dir === "pull")
+          return e.qa === "VERIFIED" ? "verified" : "review";
         return "push";
       };
       const ordered = (jiraMeta.statuses ?? [])
@@ -1022,9 +1025,9 @@ export function SprintBoard({
     jiraConnected,
     jiraStatus,
     jiraMeta,
-    columns,
-    columnById,
+    board,
     featureFilter,
+    memberFilter,
   ]);
 
   // JIRA 게이지/헤더용 집계 — 검증완료 + 검토중 2색 세그먼트
@@ -1065,7 +1068,8 @@ export function SprintBoard({
   // 이 카드가 이 컬럼으로 드롭 가능한지 (pre-block). 컬럼에 묶인 상태 중 하나라도 허용 전환이면 OK.
   // allowed 미로딩(null)이면 낙관적 허용.
   const isJiraDropAllowed = (col: JiraColumnDef) =>
-    jiraDragAllowed == null || col.statusIds.some((s) => jiraDragAllowed.has(s));
+    jiraDragAllowed == null ||
+    col.statusIds.some((s) => jiraDragAllowed.has(s));
   // 컬럼 드롭 → 태스크 블록 이동 → 백엔드 이벤트로 JIRA 전이 자동 발동
   const onDropJiraColumn = async (e: React.DragEvent, col: JiraColumnDef) => {
     e.preventDefault();
@@ -2584,9 +2588,10 @@ export function SprintBoard({
       </div>
 
       {/* 스플릿: 좌 소스 트리 / 우 스프린트 보드 (미리보기 중엔 트리 숨김 → 스냅샷 풀폭) */}
+      {/* JIRA 뷰: 컬럼=JIRA 상태·카드=JIRA에서 유입 → 좌측 업무 리스트(체크리스트 담기)는 의미 없어 숨김 */}
       <div className="flex-1 min-h-0 flex">
         {/* 좌: 소스 트리 — Feature 섹션 ▸ Task 라벨 ▸ 체크리스트 행(클릭 진입 + 인라인 완료) */}
-        {!previewSprintId && (
+        {!previewSprintId && groupBy !== "jira" && (
           <aside
             style={panelCollapsed ? undefined : { width: panelWidth }}
             onDragOver={(e) => {
@@ -2683,19 +2688,6 @@ export function SprintBoard({
                     항목이 없습니다.
                   </p>
                 )}
-                {tree.length > 0 && !treeHasVisible && (
-                  <p className="text-xs text-slate-500 text-center py-8 leading-relaxed">
-                    정리된 항목만 있어 모두 숨겨졌어요.
-                    <br />
-                    <button
-                      type="button"
-                      onClick={() => setShowTakenInTree(true)}
-                      className="mt-1 text-bridge-accent font-bold hover:underline"
-                    >
-                      정리된 항목 보이기
-                    </button>
-                  </p>
-                )}
                 {tree.map((feat) => {
                   // 보임 필터: 정리된 항목 숨김 시, 표시할 항목이 남은 Task만 유지
                   // (담김·완료 모두 숨김 — 스프린트 미담김이라도 완료 처리된 항목 포함)
@@ -2709,9 +2701,21 @@ export function SprintBoard({
                           ),
                     }))
                     .filter((t) => t.items.length > 0);
-                  // 표시할 항목이 하나도 없으면 Feature 섹션 자체를 숨김
-                  if (visibleTasks.length === 0) return null;
+                  // 항목이 전부 정리(담김·완료)되면 피쳐를 숨기지 않고 "정리됨 스트립"으로 남긴다.
+                  // 정리됨 ≠ 완료 — 게이지는 실제 완료율을 그대로 두고, 배지로만 상태를 구분한다.
+                  const allCleared = visibleTasks.length === 0;
+                  const clearedExpanded = expandedCleared.has(feat.featureId);
+                  const isComplete =
+                    feat.total > 0 && feat.completed === feat.total;
+                  // 정리된 피쳐를 펼치면 전체 항목(정리된 것 포함)을 미리보기로 노출
+                  const bodyTasks = allCleared
+                    ? feat.tasks
+                        .map((task) => ({ task, items: task.items }))
+                        .filter((t) => t.items.length > 0)
+                    : visibleTasks;
                   const collapsed = collapsedFeatures.has(feat.featureId);
+                  // 본문 펼침 여부: 진행중 피쳐는 collapsedFeatures, 정리된 피쳐는 expandedCleared로 제어
+                  const bodyOpen = allCleared ? clearedExpanded : !collapsed;
                   const pct =
                     feat.total > 0
                       ? Math.round((feat.completed / feat.total) * 100)
@@ -2727,20 +2731,43 @@ export function SprintBoard({
                       {/* 헤더: 좌측 토글 버튼 + 우측 피쳐 열기 버튼 (버튼 중첩 방지 위해 분리) */}
                       <div className="flex items-stretch">
                         <button
-                          onClick={() => toggleFeature(feat.featureId)}
+                          onClick={() =>
+                            allCleared
+                              ? toggleClearedFeature(feat.featureId)
+                              : toggleFeature(feat.featureId)
+                          }
                           className="flex-1 min-w-0 flex items-center gap-2 pl-2 pr-1.5 py-2 text-left hover:bg-foreground/[0.03] transition-colors"
+                          title={
+                            allCleared
+                              ? "정리된 항목 · 클릭하면 펼쳐서 볼 수 있어요"
+                              : undefined
+                          }
                         >
-                          {collapsed ? (
-                            <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                          ) : (
+                          {bodyOpen ? (
                             <ChevronDown className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                          ) : (
+                            <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                           )}
                           <span
-                            className="text-xs font-bold text-foreground truncate flex-1"
+                            className={`text-xs font-bold truncate flex-1 ${
+                              allCleared ? "text-slate-400" : "text-foreground"
+                            }`}
                             title={feat.featureTitle}
                           >
                             {feat.featureTitle}
                           </span>
+                          {/* 정리됨 스트립: 실제 완료율 미니 게이지를 인라인으로 병기(의미 유지) */}
+                          {allCleared && (
+                            <span className="w-9 h-1.5 rounded-full overflow-hidden bg-foreground/[0.06] shrink-0">
+                              <span
+                                className="block h-full rounded-full"
+                                style={{
+                                  width: `${pct}%`,
+                                  background: featColor,
+                                }}
+                              />
+                            </span>
+                          )}
                           <span className="text-xs text-slate-500 tabular-nums shrink-0">
                             {feat.completed}/{feat.total}
                           </span>
@@ -2750,6 +2777,21 @@ export function SprintBoard({
                           >
                             {pct}%
                           </span>
+                          {/* 상태 배지: 정리됨(중립) vs 완료(초록). 담김을 완료로 표시하지 않는다. */}
+                          {allCleared &&
+                            (isComplete ? (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+                                <Check
+                                  className="w-2.5 h-2.5"
+                                  strokeWidth={3}
+                                />
+                                완료
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-foreground/[0.08] text-slate-400 border border-foreground/10 shrink-0">
+                                정리됨
+                              </span>
+                            ))}
                         </button>
                         {onOpenFeature && (
                           <button
@@ -2764,22 +2806,27 @@ export function SprintBoard({
                         )}
                       </div>
 
-                      {/* 헤더 게이지: 진척을 헤더 바로 아래 인라인으로 표시 */}
-                      <div className="px-2.5 pt-0.5 pb-2">
-                        <div
-                          className="h-1.5 rounded-full overflow-hidden bg-foreground/[0.06]"
-                          title={`완료 ${feat.completed}/${feat.total} · 담김 ${feat.taken}/${feat.total} · ${pct}%`}
-                        >
+                      {/* 헤더 게이지: 진척을 헤더 바로 아래 인라인으로 표시 (정리됨 스트립은 헤더 인라인 게이지로 대체) */}
+                      {!allCleared && (
+                        <div className="px-2.5 pt-0.5 pb-2">
                           <div
-                            className="h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none"
-                            style={{ width: `${pct}%`, background: featColor }}
-                          />
+                            className="h-1.5 rounded-full overflow-hidden bg-foreground/[0.06]"
+                            title={`완료 ${feat.completed}/${feat.total} · 담김 ${feat.taken}/${feat.total} · ${pct}%`}
+                          >
+                            <div
+                              className="h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none"
+                              style={{
+                                width: `${pct}%`,
+                                background: featColor,
+                              }}
+                            />
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      {!collapsed && (
+                      {bodyOpen && (
                         <div className="space-y-2 px-2 pb-2">
-                          {visibleTasks.map(({ task, items }) => {
+                          {bodyTasks.map(({ task, items }) => {
                             const hasTask =
                               task.taskId !== "__none__" &&
                               !!onOpenChecklistItem;

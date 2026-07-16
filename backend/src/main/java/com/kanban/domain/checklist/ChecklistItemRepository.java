@@ -19,6 +19,12 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     @Query("SELECT c FROM ChecklistItem c WHERE c.task.id = :taskId ORDER BY c.position ASC")
     List<ChecklistItem> findByTaskIdOrderByPositionAsc(@Param("taskId") String taskId);
 
+    /** JIRA 뷰(보드 스코프) — 여러 Task의 체크리스트를 담당자와 함께 조회(진행도·담당자 집계, N+1 방지). */
+    @Query("SELECT c FROM ChecklistItem c " +
+           "LEFT JOIN FETCH c.assignee " +
+           "WHERE c.task.id IN :taskIds")
+    List<ChecklistItem> findByTaskIdInWithAssignee(@Param("taskIds") List<String> taskIds);
+
     @Query("SELECT MAX(c.position) FROM ChecklistItem c WHERE c.task.id = :taskId")
     Integer findMaxPositionByTaskId(@Param("taskId") String taskId);
 

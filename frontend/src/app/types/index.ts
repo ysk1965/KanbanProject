@@ -664,6 +664,21 @@ export interface SprintColumn {
   items: SprintItemCard[];
 }
 
+// JIRA 뷰(컬럼=JIRA 상태) 전용 — 스프린트 담김 여부와 무관한 "보드 전체" JIRA 연동 Task.
+// 카드 단위가 체크리스트가 아니라 Task(=JIRA 이슈 1건)이며, done/total은 그 Task의 체크리스트 진행도.
+export interface SprintJiraTask {
+  task_id: string;
+  task_title: string | null;
+  jira_issue_key: string; // 연동 이슈 키 (항상 존재 — 링크된 Task만 내려옴)
+  qa_state?: "REVIEW" | "VERIFIED" | "REJECTED" | null; // JIRA pull QA 상태 (읽기전용)
+  block_id: string | null; // 현재 칸반 블록(미러 컬럼 배치 키)
+  jira_status_id: string | null; // 마지막 pull 시점의 JIRA 상태 id (매뉴얼 매핑 배치 키)
+  feature_id: string | null; // 피쳐 칩 필터용
+  assignees: { id: string; name: string; profile_image: string | null }[]; // 체크리스트 담당자(중복 제거)
+  done: number; // 완료 체크리스트 수
+  total: number; // 전체 체크리스트 수
+}
+
 export interface SprintBoard {
   sprint_enabled: boolean;
   active_sprint: SprintInfo | null;
@@ -671,6 +686,8 @@ export interface SprintBoard {
   gauge: SprintGauge;
   columns: SprintColumn[]; // 동적 컬럼 (position 순, 앞뒤 고정 + 중간 자유)
   backlog: SprintItemCard[];
+  // JIRA 미연동 보드면 없음/빈 배열. JIRA 뷰는 스프린트 컬럼이 아니라 이 보드 전체 목록을 집계한다.
+  jira_tasks?: SprintJiraTask[];
 }
 
 // ========================================
