@@ -6,6 +6,10 @@ import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
+import com.kanban.domain.integration.jira.JiraIntegrationConfigRepository;
+import com.kanban.domain.integration.jira.JiraIssueLink;
+import com.kanban.domain.integration.jira.JiraIssueLinkRepository;
+import com.kanban.domain.integration.jira.JiraLinkTargetType;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.sprint.Sprint;
@@ -28,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +51,8 @@ public class SprintService {
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final WebSocketEventService webSocketEventService;
+    private final JiraIssueLinkRepository jiraIssueLinkRepository;
+    private final JiraIntegrationConfigRepository jiraIntegrationConfigRepository;
 
     // 기본 컬럼 시드 (앞뒤 고정 + 기본 중간 1개)
     private static final String COL_SPRINT = "Sprint";
@@ -506,6 +513,31 @@ public class SprintService {
         return sprintRepository.save(sprint);
     }
 
+    /**
+     * 스프린트 항목들의 부모 Task 중 JIRA에 연동된 것의 이슈 키를 배치 조회.
+     * JIRA 미연동 보드면 빈 맵(추가 쿼리 없음).
+     */
+    private Map<String, String> resolveJiraKeys(String boardId, List<ChecklistItem> items) {
+        if (jiraIntegrationConfigRepository.findActiveByBoardId(boardId).isEmpty()) {
+            return Map.of();
+        }
+        List<String> taskIds = items.stream()
+                .map(ChecklistItem::getTask)
+                .filter(java.util.Objects::nonNull)
+                .map(com.kanban.domain.task.Task::getId)
+                .distinct()
+                .toList();
+        if (taskIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, String> map = new HashMap<>();
+        for (JiraIssueLink link : jiraIssueLinkRepository
+                .findByBoardIdAndTargetTypeAndTargetIdIn(boardId, JiraLinkTargetType.TASK, taskIds)) {
+            map.put(link.getTargetId(), link.getJiraIssueKey());
+        }
+        return map;
+    }
+
     private SprintResponse.Board buildBoard(Milestone milestone) {
         String milestoneId = milestone.getId();
         List<Sprint> sprints = sprintRepository.findByMilestoneIdOrderBySequenceNoAsc(milestoneId);
@@ -539,6 +571,8 @@ public class SprintService {
 
         if (active != null) {
             List<ChecklistItem> items = checklistItemRepository.findBySprintId(active.getId());
+            // JIRA 뷰(컬럼=JIRA 상태)용 — 연동 보드일 때만 부모 Task의 JIRA 키를 배치 조회(N+1 방지)
+            Map<String, String> jiraKeyByTaskId = resolveJiraKeys(milestone.getBoard().getId(), items);
             Map<String, List<SprintResponse.ItemCard>> byCol = new LinkedHashMap<>();
             for (SprintColumn c : cols) {
                 byCol.put(c.getId(), new ArrayList<>());
@@ -546,7 +580,8 @@ public class SprintService {
             String fallbackColId = cols.isEmpty() ? null : cols.get(0).getId();
             int done = 0;
             for (ChecklistItem c : items) {
-                SprintResponse.ItemCard card = SprintResponse.ItemCard.of(c);
+                String taskId = c.getTask() != null ? c.getTask().getId() : null;
+                SprintResponse.ItemCard card = SprintResponse.ItemCard.of(c, taskId != null ? jiraKeyByTaskId.get(taskId) : null);
                 SprintColumn ic = c.getSprintColumn();
                 if (ic != null && byCol.containsKey(ic.getId())) {
                     byCol.get(ic.getId()).add(card);

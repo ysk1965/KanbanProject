@@ -22,6 +22,13 @@ public interface JiraIssueLinkRepository extends JpaRepository<JiraIssueLink, St
     /** 완료 역동기화 역참조 — 완료된 BRIDGE Task id로 원본 이슈 링크 조회. */
     Optional<JiraIssueLink> findByTargetTypeAndTargetId(JiraLinkTargetType targetType, String targetId);
 
+    /** 스프린트 JIRA 뷰 — 여러 Task id의 JIRA 링크를 한 번에 조회(N+1 방지). */
+    @Query("SELECT l FROM JiraIssueLink l WHERE l.board.id = :boardId AND l.targetType = :type AND l.targetId IN :ids")
+    List<JiraIssueLink> findByBoardIdAndTargetTypeAndTargetIdIn(
+            @Param("boardId") String boardId,
+            @Param("type") JiraLinkTargetType type,
+            @Param("ids") List<String> ids);
+
     /** 완료 역동기화 후보 — 아직 JIRA로 넘기지 않은 Task 링크. */
     @Query("SELECT l FROM JiraIssueLink l WHERE l.board.id = :boardId AND l.targetType = :type AND l.writeBackDoneAt IS NULL")
     List<JiraIssueLink> findWriteBackCandidates(@Param("boardId") String boardId, @Param("type") JiraLinkTargetType type);
