@@ -171,8 +171,8 @@ public class BlockService {
             throw new BusinessException(ErrorCode.BLOCK_NOT_FOUND);
         }
 
-        // 고정 블록 수정 불가
-        if (block.isFixed()) {
+        // 고정 블록 / JIRA 미러 컬럼 수정 불가
+        if (block.isFixed() || block.isJiraMirror()) {
             throw new BusinessException(ErrorCode.BLOCK_CANNOT_MODIFY_FIXED);
         }
 
@@ -204,8 +204,8 @@ public class BlockService {
             throw new BusinessException(ErrorCode.BLOCK_NOT_FOUND);
         }
 
-        // 고정 블록 삭제 불가
-        if (block.isFixed()) {
+        // 고정 블록 / JIRA 미러 컬럼 삭제 불가 (연동 해제 시 자동 정리)
+        if (block.isFixed() || block.isJiraMirror()) {
             throw new BusinessException(ErrorCode.BLOCK_CANNOT_DELETE_FIXED);
         }
 

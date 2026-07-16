@@ -29,6 +29,27 @@ public class JiraResponse {
         /** 웹훅 수신 토큰(Phase 4). FE가 웹훅 URL을 조립해 안내. */
         private String webhookToken;
         private String connectedByName;
+        /** 동기화 방식 MANUAL/MIRROR. 신규 UI는 MIRROR만 노출. */
+        private String syncMode;
+        /** 미러 준비 완료 여부(MIRROR + 상태별 블록 생성됨). 가이드/JIRA뷰 진입 판단용. */
+        private boolean mirrorReady;
+    }
+
+    /** 미러 셋업 결과 — 생성/재사용된 미러 컬럼 수. */
+    @Getter @Builder @AllArgsConstructor
+    public static class MirrorSetup {
+        private int columns;   // 미러 컬럼 총 개수
+        private int created;   // 신규 생성
+        private int reused;    // 기존 블록 재사용
+        private Status status; // 갱신된 연동 상태
+    }
+
+    /** pre-block용 — 특정 태스크(=JIRA 이슈)에서 전환 가능한 대상 상태 id 목록. */
+    @Getter @Builder @AllArgsConstructor
+    public static class Transitions {
+        private String taskId;
+        private String currentStatusId;
+        private List<String> allowedStatusIds;  // 이 카드가 드롭 가능한 JIRA 상태 id들
     }
 
     @Getter @Builder @AllArgsConstructor
@@ -57,6 +78,7 @@ public class JiraResponse {
         private String id;
         private String name;
         private String fixedType;   // TASK / SPRINT / DONE / CUSTOM 등 (nullable)
+        private String jiraStatusId; // 미러 컬럼이면 대응 JIRA 상태 id (nullable)
     }
 
     /** OAuth 인증 URL. */

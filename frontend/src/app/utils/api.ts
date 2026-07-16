@@ -5819,6 +5819,10 @@ export interface JiraStatus {
   /** 웹훅 수신 토큰(Phase 4). 근실시간 pull URL 조립용. */
   webhook_token: string | null;
   connected_by_name: string | null;
+  /** 동기화 방식 MANUAL/MIRROR. 신규 UI는 MIRROR만. */
+  sync_mode: string | null;
+  /** 미러 준비 완료(MIRROR + 상태별 컬럼 생성됨). 가이드/JIRA뷰 진입 판단. */
+  mirror_ready: boolean;
 }
 
 /** 매핑 항목: key=blockId(블록 매핑) 또는 "__rejected"(반려 전환 규칙). */
@@ -5853,11 +5857,27 @@ export interface JiraBlockRef {
   id: string;
   name: string;
   fixed_type: string | null;
+  /** 미러 컬럼이면 대응 JIRA 상태 id. */
+  jira_status_id: string | null;
 }
 
 export interface JiraMeta {
   statuses: JiraNameRef[];
   blocks: JiraBlockRef[];
+}
+
+export interface JiraMirrorSetup {
+  columns: number;
+  created: number;
+  reused: number;
+  status: JiraStatus;
+}
+
+export interface JiraTransitions {
+  task_id: string;
+  current_status_id: string | null;
+  /** 이 카드가 드롭 가능한 JIRA 상태 id들. */
+  allowed_status_ids: string[];
 }
 
 export interface JiraPreviewItem {
@@ -5961,6 +5981,20 @@ export const jiraAPI = {
     return apiClient.put<JiraStatus>(
       `/boards/${boardId}/jira/block-status-map`,
       { block_status_map: blockStatusMap },
+    );
+  },
+
+  /** 미러 셋업 — JIRA 상태별 미러 컬럼 생성 + 미러 모드 전환 (멱등). */
+  setupMirror: async (boardId: string) => {
+    return apiClient.post<JiraMirrorSetup>(
+      `/boards/${boardId}/jira/mirror/setup`,
+    );
+  },
+
+  /** pre-block — 이 태스크에서 드롭 가능한 JIRA 상태 id 목록. */
+  getTaskTransitions: async (boardId: string, taskId: string) => {
+    return apiClient.get<JiraTransitions>(
+      `/boards/${boardId}/jira/tasks/${taskId}/transitions`,
     );
   },
 

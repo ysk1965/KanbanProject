@@ -18,6 +18,17 @@
   --surface-overlay: #1A2235;
   --surface-hover: #1E2A42;
 
+  /* Sprint Board Elevation Ladder (Dark)
+     floor(bg) → rail → column → card 순으로 명도를 한 단씩 올려
+     블록/업무 리스트/카드 구분점을 명확히 한다. (역전 해소) */
+  --sprint-bg:           #10141d;
+  --sprint-rail:         #171d29;
+  --sprint-col:          #1b2333;
+  --sprint-card:         #232d42;
+  --sprint-card-hover:   #2b3752;
+  --sprint-border:       rgba(148,163,184,0.16);
+  --sprint-border-hover: rgba(148,163,184,0.30);
+
   /* Border Scale (4-level semantic borders) */
   --border-subtle: rgba(255,255,255,0.05);
   --border-default: rgba(255,255,255,0.08);
@@ -128,6 +139,16 @@
   --surface-raised: #F8F2EB;
   --surface-overlay: #FFFFFF;
   --surface-hover: #F0E9E0;
+
+  /* Sprint Board Elevation Ladder (Light)
+     라이트 모드는 반대로 떠오를수록 밝아진다(크림 floor → 화이트 card). */
+  --sprint-bg:           #f1ebe1;
+  --sprint-rail:         #f8f3ec;
+  --sprint-col:          #fffcf8;
+  --sprint-card:         #ffffff;
+  --sprint-card-hover:   #fbf7f0;
+  --sprint-border:       rgba(60,50,40,0.12);
+  --sprint-border-hover: rgba(60,50,40,0.22);
 
   /* Border Scale */
   --border-subtle: rgba(0,0,0,0.05);
@@ -289,6 +310,15 @@
   --color-surface-raised: var(--surface-raised);
   --color-surface-overlay: var(--surface-overlay);
   --color-surface-hover: var(--surface-hover);
+
+  /* Sprint Board Elevation Utilities */
+  --color-sprint-bg: var(--sprint-bg);
+  --color-sprint-rail: var(--sprint-rail);
+  --color-sprint-col: var(--sprint-col);
+  --color-sprint-card: var(--sprint-card);
+  --color-sprint-card-hover: var(--sprint-card-hover);
+  --color-sprint-border: var(--sprint-border);
+  --color-sprint-border-hover: var(--sprint-border-hover);
 
   /* Border Scale Utilities */
   --color-border-subtle: var(--border-subtle);

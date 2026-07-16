@@ -30,6 +30,7 @@ public class BlockResponse {
         private Boolean showProgressBar;
         private String milestoneId;
         private String milestoneTitle;
+        private String jiraStatusId;   // 미러 컬럼이면 대응 JIRA 상태 id (FE가 메인 보드에서 숨김)
 
         public static Detail of(Block block) {
             return Detail.builder()
@@ -42,6 +43,7 @@ public class BlockResponse {
                     .showProgressBar(block.getShowProgressBar())
                     .milestoneId(block.getMilestone() != null ? block.getMilestone().getId() : null)
                     .milestoneTitle(block.getMilestone() != null ? block.getMilestone().getTitle() : null)
+                    .jiraStatusId(block.getJiraStatusId())
                     .build();
         }
     }

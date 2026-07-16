@@ -11,7 +11,9 @@ import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.integration.jira.JiraAuthType;
 import com.kanban.domain.integration.jira.JiraIntegrationConfig;
 import com.kanban.domain.integration.jira.JiraIntegrationConfigRepository;
+import com.kanban.domain.integration.jira.JiraIssueLink;
 import com.kanban.domain.integration.jira.JiraIssueLinkRepository;
+import com.kanban.domain.integration.jira.JiraLinkTargetType;
 import com.kanban.domain.integration.jira.JiraUserMappingRepository;
 import com.kanban.domain.integration.jira.dto.JiraRequest;
 import com.kanban.domain.integration.jira.dto.JiraResponse;
@@ -22,6 +24,7 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +45,7 @@ public class JiraConnectionService {
 
     private final JiraApiClient jiraApiClient;
     private final JiraOAuthService oauthService;
+    private final JiraImportService importService;
     private final JiraIntegrationConfigRepository configRepository;
     private final JiraIssueLinkRepository issueLinkRepository;
     private final JiraUserMappingRepository userMappingRepository;
@@ -135,10 +139,27 @@ public class JiraConnectionService {
         config.ensureWebhookToken();   // 패널 진입 시 웹훅 토큰 보장(멱등)
         String token = oauthService.resolveToken(config);
 
+        List<JiraResponse.NameRef> statusList = fetchProjectStatuses(config, token);
+
+        // 매핑 UI 좌측: BRIDGE 블록 (Feature 블록 제외 — 카드가 흐르는 칸반 블록만).
+        // jiraStatusId 포함 → FE가 미러 컬럼을 식별.
+        List<JiraResponse.BlockRef> blockList = blockRepository.findByBoardIdOrderByPositionAsc(boardId).stream()
+            .filter(b -> !b.isFeatureBlock())
+            .map(b -> JiraResponse.BlockRef.builder()
+                .id(b.getId())
+                .name(b.getName())
+                .fixedType(b.getFixedType() != null ? b.getFixedType().name() : null)
+                .jiraStatusId(b.getJiraStatusId())
+                .build())
+            .toList();
+
+        return JiraResponse.Meta.builder().statuses(statusList).blocks(blockList).build();
+    }
+
+    /** /project/{key}/statuses 를 유니크 상태 목록(등장 순서 유지)으로 평탄화. */
+    private List<JiraResponse.NameRef> fetchProjectStatuses(JiraIntegrationConfig config, String token) {
         JsonNode statusGroups = jiraApiClient.getProjectStatuses(
             JiraAuthContext.of(config, token), config.getProjectKey());
-
-        // /project/{key}/statuses = [ {name(issuetype), statuses:[{id,name}]}, ... ] → 유니크 상태로 평탄화
         Map<String, String> uniqueStatuses = new LinkedHashMap<>();
         if (statusGroups != null && statusGroups.isArray()) {
             for (JsonNode group : statusGroups) {
@@ -154,18 +175,104 @@ public class JiraConnectionService {
         }
         List<JiraResponse.NameRef> statusList = new ArrayList<>();
         uniqueStatuses.forEach((id, name) -> statusList.add(JiraResponse.NameRef.builder().id(id).name(name).build()));
+        return statusList;
+    }
 
-        // 매핑 UI 좌측: BRIDGE 블록 (Feature 블록 제외 — 카드가 흐르는 칸반 블록만)
-        List<JiraResponse.BlockRef> blockList = blockRepository.findByBoardIdOrderByPositionAsc(boardId).stream()
-            .filter(b -> !b.isFeatureBlock())
-            .map(b -> JiraResponse.BlockRef.builder()
-                .id(b.getId())
-                .name(b.getName())
-                .fixedType(b.getFixedType() != null ? b.getFixedType().name() : null)
-                .build())
-            .toList();
+    // ── 미러 셋업 (JIRA 상태 → 블록 1:1) ────────────
 
-        return JiraResponse.Meta.builder().statuses(statusList).blocks(blockList).build();
+    /**
+     * JIRA 상태별로 미러 컬럼(블록)을 생성하고 미러 모드로 전환. 멱등 — 이미 있는 미러 컬럼은 재사용.
+     * 미러 블록은 JIRA 뷰 전용(메인 보드에서 숨김)이며 jiraStatusId로 식별된다.
+     */
+    @Transactional
+    @CacheEvict(value = "blocks", allEntries = true)
+    public JiraResponse.MirrorSetup setupMirror(String boardId, String userId) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        JiraIntegrationConfig config = getActiveConfigOrThrow(boardId);
+        config.ensureWebhookToken();
+        String token = oauthService.resolveToken(config);
+        Board board = boardRepository.findById(boardId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        List<JiraResponse.NameRef> statuses = fetchProjectStatuses(config, token);
+
+        // 미러 컬럼은 메인 보드 정상 블록(0..~)과 위치 충돌을 피하려고 500번대에 배치. DONE(999) 앞.
+        int position = 500;
+        int created = 0, reused = 0;
+        String[] palette = {"#818cf8", "#6366F1", "#2DD4BF", "#14B8A6", "#10B981", "#F59E0B", "#F43F5E", "#A78BFA"};
+        int idx = 0;
+        for (JiraResponse.NameRef st : statuses) {
+            Block existing = blockRepository.findByBoardIdAndJiraStatusId(boardId, st.getId()).orElse(null);
+            if (existing != null) {
+                reused++;
+            } else {
+                String color = palette[idx % palette.length];
+                Block mirror = Block.createJiraMirrorBlock(board, truncate50(st.getName()), color, position++, st.getId());
+                blockRepository.save(mirror);
+                created++;
+            }
+            idx++;
+        }
+
+        config.enableMirror();
+
+        // 미러 컬럼이 채워지도록 초기 가져오기(멱등). 실패해도 셋업 자체는 성공 처리.
+        try {
+            importService.importIssues(boardId, userId, new JiraRequest.Import(null, false));
+        } catch (Exception e) {
+            log.warn("JIRA mirror setup: initial import failed for board {}: {}", boardId, e.getMessage());
+        }
+
+        long total = blockRepository.countJiraMirrorBlocksByBoardId(boardId);
+        log.info("JIRA mirror setup for board {}: {} columns ({} created, {} reused) by user {}",
+            boardId, total, created, reused, userId);
+
+        return JiraResponse.MirrorSetup.builder()
+            .columns((int) total)
+            .created(created)
+            .reused(reused)
+            .status(toStatus(config))
+            .build();
+    }
+
+    // ── pre-block: 태스크의 전환 가능 상태 ──────────
+
+    /** 특정 태스크(=JIRA 이슈)에서 전환 가능한 JIRA 상태 id 목록. FE 드래그 시 유효 컬럼만 활성화. */
+    @Transactional
+    public JiraResponse.Transitions getTaskTransitions(String boardId, String userId, String taskId) {
+        boardService.checkViewerOrAbove(boardId, userId);
+        JiraIntegrationConfig config = getActiveConfigOrThrow(boardId);
+        JiraIssueLink link = issueLinkRepository
+            .findByTargetTypeAndTargetId(JiraLinkTargetType.TASK, taskId).orElse(null);
+        List<String> allowed = new ArrayList<>();
+        String currentStatusId = null;
+        if (link != null) {
+            currentStatusId = link.getLastJiraStatusId();
+            try {
+                String token = oauthService.resolveToken(config);
+                JsonNode result = jiraApiClient.getTransitions(JiraAuthContext.of(config, token), link.getJiraIssueKey());
+                JsonNode transitions = result != null ? result.get("transitions") : null;
+                if (transitions != null && transitions.isArray()) {
+                    for (JsonNode tr : transitions) {
+                        String toId = tr.path("to").path("id").asText(null);
+                        if (toId != null && !allowed.contains(toId)) allowed.add(toId);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("JIRA transitions fetch failed for task {}: {}", taskId, e.getMessage());
+            }
+            if (currentStatusId != null && !allowed.contains(currentStatusId)) allowed.add(currentStatusId);
+        }
+        return JiraResponse.Transitions.builder()
+            .taskId(taskId)
+            .currentStatusId(currentStatusId)
+            .allowedStatusIds(allowed)
+            .build();
+    }
+
+    private String truncate50(String s) {
+        if (s == null) return "";
+        return s.length() > 50 ? s.substring(0, 50) : s;
     }
 
     // ── 블록↔status 양방향 매핑 저장 ────────────────
@@ -211,11 +318,14 @@ public class JiraConnectionService {
     }
 
     @Transactional
+    @CacheEvict(value = "blocks", allEntries = true)
     public void disconnect(String boardId, String userId) {
         boardService.checkAdminOrAbove(boardId, userId);
         if (!configRepository.existsByBoardId(boardId)) {
             throw new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED);
         }
+        // 미러 컬럼은 삭제하지 않고 일반 블록으로 전환(연동 해제해도 카드/컬럼 보존, 메인 보드에 노출).
+        blockRepository.findJiraMirrorBlocksByBoardId(boardId).forEach(Block::unlinkJiraStatus);
         issueLinkRepository.deleteByBoardId(boardId);
         userMappingRepository.deleteByBoardId(boardId);
         configRepository.deleteByBoardId(boardId);
@@ -279,6 +389,8 @@ public class JiraConnectionService {
             .blockStatusMap(readNested(c.getBlockStatusMapJson()))
             .webhookToken(c.getWebhookToken())
             .connectedByName(c.getConnectedBy() != null ? c.getConnectedBy().getId() : null)
+            .syncMode(c.getSyncMode() != null ? c.getSyncMode().name() : null)
+            .mirrorReady(c.isMirror() && blockRepository.countJiraMirrorBlocksByBoardId(c.getBoard().getId()) > 0)
             .build();
     }
 }

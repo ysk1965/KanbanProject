@@ -100,6 +100,15 @@ public class JiraIntegrationConfig {
     @Column(name = "block_status_map_json", columnDefinition = "TEXT")
     private String blockStatusMapJson;
 
+    /**
+     * 동기화 방식. MIRROR=JIRA 상태를 블록에 1:1 미러링(신규 기본), MANUAL=블록별 수동 매핑(레거시).
+     * 기존 config는 MANUAL로 유지되어 하위 호환. 미러 셋업 시 MIRROR로 전환.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sync_mode", nullable = false, length = 20)
+    @Builder.Default
+    private JiraSyncMode syncMode = JiraSyncMode.MANUAL;
+
     @Column(name = "milestone_auto_assign", nullable = false)
     @Builder.Default
     private Boolean milestoneAutoAssign = true;
@@ -213,6 +222,17 @@ public class JiraIntegrationConfig {
     /** 블록↔status 양방향 매핑(JSON) 저장. null이면 매핑 없음(기본 블록으로 fallback). */
     public void updateBlockStatusMap(String blockStatusMapJson) {
         this.blockStatusMapJson = blockStatusMapJson;
+    }
+
+    /** 미러 모드로 전환. JIRA 상태를 블록에 1:1 미러링. */
+    public void enableMirror() {
+        this.syncMode = JiraSyncMode.MIRROR;
+        this.status = JiraConnectionStatus.CONNECTED;
+        this.lastError = null;
+    }
+
+    public boolean isMirror() {
+        return this.syncMode == JiraSyncMode.MIRROR;
     }
 
     /** 웹훅 토큰이 없으면 생성해 반환(멱등). */

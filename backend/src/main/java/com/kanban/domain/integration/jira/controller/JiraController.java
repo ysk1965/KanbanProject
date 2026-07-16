@@ -146,6 +146,23 @@ public class JiraController {
         return ResponseEntity.ok(connectionService.getStatus(boardId, principal.getUserId()));
     }
 
+    /** 미러 셋업 — JIRA 상태별 미러 컬럼 생성 + 미러 모드 전환 (멱등). */
+    @PostMapping("/api/v1/boards/{boardId}/jira/mirror/setup")
+    public ResponseEntity<JiraResponse.MirrorSetup> setupMirror(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(connectionService.setupMirror(boardId, principal.getUserId()));
+    }
+
+    /** pre-block — 이 태스크(JIRA 이슈)에서 드롭 가능한 JIRA 상태 id 목록. */
+    @GetMapping("/api/v1/boards/{boardId}/jira/tasks/{taskId}/transitions")
+    public ResponseEntity<JiraResponse.Transitions> taskTransitions(
+            @PathVariable String boardId,
+            @PathVariable String taskId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(connectionService.getTaskTransitions(boardId, principal.getUserId(), taskId));
+    }
+
     @DeleteMapping("/api/v1/boards/{boardId}/jira")
     public ResponseEntity<Map<String, String>> disconnect(
             @PathVariable String boardId,

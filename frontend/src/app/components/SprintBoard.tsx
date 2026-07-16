@@ -33,6 +33,7 @@ import {
   PanelLeftOpen,
   X,
 } from "lucide-react";
+import { toast } from "sonner";
 import { sprintAPI, checklistAPI, taskAPI, jiraAPI } from "../utils/api";
 import type { JiraStatus, JiraMeta, JiraBlockStatusEntry } from "../utils/api";
 import type {
@@ -52,6 +53,7 @@ import {
 } from "../utils/dateUtils";
 import { MotionModal } from "./ui/MotionModal";
 import { SprintMemberGanttModal } from "./SprintMemberGanttModal";
+import { JiraOnboardingGuide } from "./JiraOnboardingGuide";
 
 interface SprintBoardProps {
   boardId: string;
@@ -173,6 +175,13 @@ export function SprintBoard({
   );
   // 보드: Feature 컬럼 안 Task 소그룹 접기 상태 (key = `${featureId}:${taskId}`)
   const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
+  // Feature 필터 — 상단 요약 스트립 칩 선택 집합. 비어 있으면 전체 표시.
+  // Feature는 스프린트 상위 개념이라 타임라인 위에 두고, 선택 시 아래 보드 컬럼(Feature/구성원/JIRA)을 좁힌다.
+  const [featureFilter, setFeatureFilter] = useState<Set<string>>(new Set());
+  // 스프린트(마일스톤) 전환 시 필터 초기화 — 다른 스프린트로 넘어가며 빈 보드가 되는 혼란 방지.
+  useEffect(() => {
+    setFeatureFilter(new Set());
+  }, [milestoneId]);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   // 드래그 중 드롭 존 안내용 — 카드→리스트(빼기) / 리스트→보드(담기) 방향을 구분한다.
   const [dragOverList, setDragOverList] = useState(false);
@@ -247,6 +256,12 @@ export function SprintBoard({
   const [jiraMeta, setJiraMeta] = useState<JiraMeta | null>(null);
   const [jiraMetaLoading, setJiraMetaLoading] = useState(false);
   const jiraConnected = !!jiraStatus?.connected;
+  const jiraMirrorReady = !!jiraStatus?.mirror_ready;
+  // pre-block: 드래그 중인 카드에서 전환 가능한 JIRA 상태 id 집합(null=아직 로딩/미확인 → 낙관적 허용)
+  const [jiraDragTaskId, setJiraDragTaskId] = useState<string | null>(null);
+  const [jiraDragAllowed, setJiraDragAllowed] = useState<Set<string> | null>(
+    null,
+  );
   // 블록↔JIRA 상태 매핑이 하나라도 있는지 — 빈 상태 분기 기준은 "카드 유무"가 아니라 "매핑 유무".
   // 매핑이 됐으면 카드가 0건이어도 JIRA 상태 그대로 컬럼 골격을 보여준다.
   const hasBlockMapping = useMemo(() => {
@@ -684,6 +699,47 @@ export function SprintBoard({
     return result;
   }, [tree, startColumn, columnById]);
 
+  // Feature 요약 스트립 데이터 — 스프린트에 "담긴" 항목(sprint_column_id) 기준 Feature별 완료/전체/지연.
+  // 스트립은 항상 전체 Feature를 보여줘야 하므로 featureFilter와 무관하게 tree(멤버 필터만 반영)에서 집계한다.
+  // N/M은 featureColumns 헤더와 같은 스프린트 스코프라 컬럼 숫자와 일관된다.
+  const featureSummaries = useMemo(() => {
+    return tree
+      .map((feat) => {
+        let total = 0;
+        let done = 0;
+        let overdue = 0;
+        for (const task of feat.tasks) {
+          for (const it of task.items) {
+            if (!it.sprint_column_id) continue; // 스프린트에 담긴 항목만
+            total += 1;
+            const kind = columnById.get(it.sprint_column_id)?.kind;
+            const isDone = it.completed || kind === "END";
+            if (isDone) done += 1;
+            else if (it.due_date && getDDay(it.due_date)?.urgency === "overdue")
+              overdue += 1;
+          }
+        }
+        return {
+          featureId: feat.featureId,
+          featureTitle: feat.featureTitle,
+          featureColor: feat.featureColor,
+          done,
+          total,
+          overdue,
+        };
+      })
+      .filter((f) => f.total > 0);
+  }, [tree, columnById]);
+
+  const toggleFeatureFilter = (fid: string) =>
+    setFeatureFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(fid)) next.delete(fid);
+      else next.add(fid);
+      return next;
+    });
+  const clearFeatureFilter = () => setFeatureFilter(new Set());
+
   // 구성원 기준 컬럼 — 위 featureColumns와 같은 소스(START 단계 카드)를 담당자로 재그룹핑.
   // Feature 뷰가 Feature를 컬럼으로 세우고 담당자를 카드 뱃지로 내렸다면, 여기선 그 반대다.
   // 진척(완료/전체)은 담당자가 담은 전체 항목(모든 컬럼) 기준으로 집계한다.
@@ -710,6 +766,11 @@ export function SprintBoard({
     for (const c of columns) {
       for (const it of c.items) {
         if (!it.sprint_column_id) continue;
+        if (
+          featureFilter.size > 0 &&
+          !featureFilter.has(it.feature_id ?? "__none__")
+        )
+          continue;
         const id = keyOf(it);
         let s = stat.get(id);
         if (!s) {
@@ -724,6 +785,11 @@ export function SprintBoard({
     // 컬럼에 노출할 카드는 START 단계 항목뿐(순서 유지)
     const startByMember = new Map<string, SprintItemCard[]>();
     for (const it of startColumn.items) {
+      if (
+        featureFilter.size > 0 &&
+        !featureFilter.has(it.feature_id ?? "__none__")
+      )
+        continue;
       const id = keyOf(it);
       const arr = startByMember.get(id);
       if (arr) arr.push(it);
@@ -753,7 +819,7 @@ export function SprintBoard({
       doneTotal: stat.get(id)?.done ?? 0,
       total: stat.get(id)?.total ?? 0,
     }));
-  }, [startColumn, columns, columnById, memberOrder]);
+  }, [startColumn, columns, columnById, memberOrder, featureFilter]);
 
   // 구성원 간트 모달 데이터 — 선택 구성원의 스프린트 항목(모든 컬럼)을 모은다.
   // 배치/미배치는 모달이 start_date·due_date로 판정한다.
@@ -799,28 +865,35 @@ export function SprintBoard({
     cards: JiraTaskCard[];
   }
   const jiraColumns = useMemo<JiraColumnDef[]>(() => {
-    if (
-      groupBy !== "jira" ||
-      !jiraConnected ||
-      !jiraStatus?.block_status_map ||
-      !jiraMeta
-    )
-      return [];
-    const map = jiraStatus.block_status_map as Record<
-      string,
-      JiraBlockStatusEntry
-    >;
+    if (groupBy !== "jira" || !jiraConnected || !jiraMeta) return [];
+    const isMirror =
+      !!jiraStatus?.mirror_ready || jiraStatus?.sync_mode === "MIRROR";
+    // 매뉴얼(레거시)은 매핑이 있어야, 미러는 메타 블록으로 컬럼을 세운다.
+    if (!isMirror && !jiraStatus?.block_status_map) return [];
 
-    // 매핑 인덱스: 블록→상태(배치용), 상태→push블록(드롭 타깃), 상태→엔트리(색상/드래그 판정)
+    // 매핑 인덱스: 블록→상태(배치용), 상태→드롭타깃블록, 상태→엔트리(레거시 색상/순서)
     const statusByBlock = new Map<string, string>();
-    const pushBlockByStatus = new Map<string, string>();
+    const targetBlockByStatus = new Map<string, string>();
     const entryByStatus = new Map<string, JiraBlockStatusEntry>();
-    for (const [blockId, entry] of Object.entries(map)) {
-      if (blockId === "__rejected" || !entry.jira_status_id) continue;
-      statusByBlock.set(blockId, entry.jira_status_id);
-      entryByStatus.set(entry.jira_status_id, entry);
-      if (entry.dir !== "pull")
-        pushBlockByStatus.set(entry.jira_status_id, blockId);
+    if (isMirror) {
+      // 미러: JIRA 상태별 미러 블록이 곧 드롭 타깃. 모든 컬럼 양방향 드래그 가능.
+      for (const b of jiraMeta.blocks ?? []) {
+        if (!b.jira_status_id) continue;
+        statusByBlock.set(b.id, b.jira_status_id);
+        targetBlockByStatus.set(b.jira_status_id, b.id);
+      }
+    } else {
+      const map = jiraStatus!.block_status_map as Record<
+        string,
+        JiraBlockStatusEntry
+      >;
+      for (const [blockId, entry] of Object.entries(map)) {
+        if (blockId === "__rejected" || !entry.jira_status_id) continue;
+        statusByBlock.set(blockId, entry.jira_status_id);
+        entryByStatus.set(entry.jira_status_id, entry);
+        if (entry.dir !== "pull")
+          targetBlockByStatus.set(entry.jira_status_id, blockId);
+      }
     }
 
     // 1) 스프린트 전체 아이템 → JIRA 연동 Task만 태스크 단위로 집계(중복 제거)
@@ -829,6 +902,11 @@ export function SprintBoard({
     for (const c of columns) {
       for (const it of c.items) {
         if (!it.jira_issue_key || !it.task_id) continue;
+        if (
+          featureFilter.size > 0 &&
+          !featureFilter.has(it.feature_id ?? "__none__")
+        )
+          continue;
         let card = taskMap.get(it.task_id);
         if (!card) {
           const resolved =
@@ -861,14 +939,16 @@ export function SprintBoard({
       }
     }
 
-    // 2) 컬럼 = JIRA 상태 전체 미러링. 매핑된 상태를 앞으로(push→검토중→검증완료), 나머지는 meta 순서.
+    // 2) 컬럼 = JIRA 상태 전체 미러링. 미러는 meta 순서 그대로, 매뉴얼은 push→검토중→검증완료 순.
     const rankOf = (statusId: string) => {
+      if (isMirror) return 0; // 미러: JIRA 상태 순서 유지
       const e = entryByStatus.get(statusId);
       if (!e) return 3;
       if (e.dir === "pull") return e.qa === "VERIFIED" ? 2 : 1;
       return 0;
     };
     const toneOf = (statusId: string): JiraColumnDef["tone"] => {
+      if (isMirror) return "push"; // 미러: 균일 액센트
       const e = entryByStatus.get(statusId);
       if (!e) return "muted";
       if (e.dir === "pull") return e.qa === "VERIFIED" ? "verified" : "review";
@@ -881,8 +961,8 @@ export function SprintBoard({
     const cols: JiraColumnDef[] = ordered.map((s) => ({
       statusId: s.id,
       label: s.name,
-      draggable: pushBlockByStatus.has(s.id),
-      targetBlockId: pushBlockByStatus.get(s.id) ?? null,
+      draggable: targetBlockByStatus.has(s.id),
+      targetBlockId: targetBlockByStatus.get(s.id) ?? null,
       tone: toneOf(s.id),
       cards: [],
     }));
@@ -906,7 +986,15 @@ export function SprintBoard({
       });
     }
     return cols;
-  }, [groupBy, jiraConnected, jiraStatus, jiraMeta, columns, columnById]);
+  }, [
+    groupBy,
+    jiraConnected,
+    jiraStatus,
+    jiraMeta,
+    columns,
+    columnById,
+    featureFilter,
+  ]);
 
   // JIRA 게이지/헤더용 집계 — 검증완료 + 검토중 2색 세그먼트
   const jiraStats = useMemo(() => {
@@ -919,30 +1007,54 @@ export function SprintBoard({
     };
   }, [jiraColumns]);
 
-  // JIRA 태스크 카드 드래그 시작 — 태스크 단위 이동임을 별도 소스로 구분
+  // JIRA 태스크 카드 드래그 시작 — 태스크 단위 이동임을 별도 소스로 구분.
+  // pre-block: 드래그 시작과 동시에 이 카드의 전환 가능 상태를 조회해 유효 컬럼만 활성화.
   const onDragStartJiraTask = (e: React.DragEvent, card: JiraTaskCard) => {
     if (!canEdit) return;
     e.dataTransfer.setData(DRAG_ITEM, card.taskId);
     e.dataTransfer.setData(DRAG_SOURCE, "jira-task");
     e.dataTransfer.effectAllowed = "move";
     setDraggingSource("sprint");
+    setJiraDragTaskId(card.taskId);
+    setJiraDragAllowed(null);
+    jiraAPI
+      .getTaskTransitions(boardId, card.taskId)
+      .then((r) => {
+        const allow = new Set(r.allowed_status_ids || []);
+        if (r.current_status_id) allow.add(r.current_status_id);
+        if (card.statusId) allow.add(card.statusId); // 현재 컬럼(제자리)은 항상 허용
+        setJiraDragAllowed(allow);
+      })
+      .catch(() => setJiraDragAllowed(null));
   };
-  // push 가능 상태 컬럼 드롭 → 태스크 블록 이동 → 백엔드 이벤트로 JIRA 전이 자동 발동
+  const onDragEndJiraTask = () => {
+    setJiraDragTaskId(null);
+    setJiraDragAllowed(null);
+  };
+  // 이 카드가 이 컬럼(JIRA 상태)으로 드롭 가능한지 (pre-block). allowed 미로딩(null)이면 낙관적 허용.
+  const isJiraDropAllowed = (statusId: string) =>
+    jiraDragAllowed == null || jiraDragAllowed.has(statusId);
+  // 컬럼 드롭 → 태스크 블록 이동 → 백엔드 이벤트로 JIRA 전이 자동 발동
   const onDropJiraColumn = async (e: React.DragEvent, col: JiraColumnDef) => {
     e.preventDefault();
     setDragOverCol(null);
     if (!canEdit) return;
     const taskId = e.dataTransfer.getData(DRAG_ITEM);
     const source = e.dataTransfer.getData(DRAG_SOURCE);
+    onDragEndJiraTask();
     if (!taskId || source !== "jira-task") return;
-    // 읽기전용 상태(매핑 없음·QA 소유)는 드롭 무시
+    // 미러 컬럼이 아니거나 드롭 타깃 없으면 무시
     if (!col.draggable || !col.targetBlockId) return;
     const targetBlockId = col.targetBlockId;
-    // 이미 그 상태면 무시
     const card = jiraColumns
       .flatMap((c) => c.cards)
       .find((c) => c.taskId === taskId);
-    if (card?.statusId === col.statusId) return;
+    if (card?.statusId === col.statusId) return; // 이미 그 상태
+    // pre-block: JIRA가 허용하지 않는 전환이면 차단 + 안내
+    if (!isJiraDropAllowed(col.statusId)) {
+      toast.error("JIRA에서 허용되지 않는 이동입니다.");
+      return;
+    }
     await run(async () => {
       await taskAPI.moveTask(boardId, taskId, {
         target_block_id: targetBlockId,
@@ -1282,8 +1394,10 @@ export function SprintBoard({
             ? { borderLeftColor: "#f43f5e", borderLeftWidth: 3 }
             : undefined
         }
-        className={`group relative rounded-xl border border-foreground/[0.08] bg-bridge-dark p-2.5 space-y-2 shadow-[0_2px_5px_rgba(0,0,0,0.25)] transition-colors ${
-          readOnly ? "cursor-default" : "hover:border-bridge-border cursor-grab"
+        className={`group relative rounded-xl border border-sprint-border bg-sprint-card p-2.5 space-y-2 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.45)] transition-colors ${
+          readOnly
+            ? "cursor-default"
+            : "hover:border-sprint-border-hover hover:bg-sprint-card-hover cursor-grab"
         }`}
       >
         {/* 호버 액션 — 리뷰/완료 원클릭 이동 + 상세 열기. 호버 시 힌트와 교체 노출. */}
@@ -1470,12 +1584,14 @@ export function SprintBoard({
         onDrop={(e) => {
           if (startColumn) void onDropColumn(e, startColumn);
         }}
-        className={`w-[270px] shrink-0 flex flex-col rounded-2xl border bg-bridge-obsidian transition-colors ${
+        className={`w-[270px] shrink-0 flex flex-col rounded-2xl border bg-sprint-col overflow-hidden transition-colors ${
           dragOverCol === key
             ? "border-bridge-accent/60"
-            : "border-foreground/[0.08]"
+            : "border-sprint-border"
         }`}
       >
+        {/* 컬럼 상단 Feature 색 레일 — 가로 스크롤 중에도 어느 Feature인지 즉시 식별 */}
+        <div className="h-[3px] shrink-0" style={{ background: accent }} />
         {/* Feature 컬럼 헤더 + 진척 바 */}
         <div className="px-3 pt-2.5 pb-2 border-b border-foreground/[0.06]">
           <div className="flex items-center gap-2">
@@ -1631,12 +1747,14 @@ export function SprintBoard({
         onDrop={(e) => {
           if (startColumn) void onDropColumn(e, startColumn);
         }}
-        className={`w-[270px] shrink-0 flex flex-col rounded-2xl border bg-bridge-obsidian transition-colors ${
+        className={`w-[270px] shrink-0 flex flex-col rounded-2xl border bg-sprint-col overflow-hidden transition-colors ${
           dragOverCol === key
             ? "border-bridge-accent/60"
-            : "border-foreground/[0.08]"
+            : "border-sprint-border"
         }`}
       >
+        {/* 컬럼 상단 담당자 색 레일 */}
+        <div className="h-[3px] shrink-0" style={{ background: accent }} />
         {/* 담당자 컬럼 헤더 + 진척 바 — 아이콘 클릭 시 개인 간트 모달 오픈(미배정 제외) */}
         <div className="px-3 pt-2.5 pb-2 border-b border-foreground/[0.06]">
           <div className="flex items-center gap-2">
@@ -1729,9 +1847,12 @@ export function SprintBoard({
         key={card.taskId}
         draggable={canDrag}
         onDragStart={(e) => canDrag && onDragStartJiraTask(e, card)}
-        onDragEnd={onDragEndItem}
+        onDragEnd={(e) => {
+          onDragEndItem(e);
+          onDragEndJiraTask();
+        }}
         onClick={() => openTask(card.taskId)}
-        className={`group rounded-xl border border-foreground/[0.08] bg-bridge-dark p-2.5 transition-colors hover:border-foreground/[0.14] ${
+        className={`group rounded-xl border border-sprint-border bg-sprint-card p-2.5 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.45)] transition-colors hover:border-sprint-border-hover hover:bg-sprint-card-hover ${
           canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
         }`}
       >
@@ -1763,7 +1884,7 @@ export function SprintBoard({
               {card.assignees.slice(0, 3).map((a) => (
                 <span
                   key={a.id}
-                  className="w-4 h-4 rounded-full grid place-items-center text-[8px] font-bold ring-1 ring-bridge-dark"
+                  className="w-4 h-4 rounded-full grid place-items-center text-[8px] font-bold ring-1 ring-sprint-card"
                   style={{ background: getAssigneeHex(a.name), color: "#fff" }}
                   title={a.name}
                 >
@@ -1780,6 +1901,10 @@ export function SprintBoard({
   const renderJiraColumn = (col: JiraColumnDef) => {
     const key = `jira-${col.statusId}`;
     const isPush = col.draggable;
+    // pre-block: JIRA 드래그 중이고 이 컬럼이 허용 전환이 아니면 비활성(회색+드롭 차단)
+    const dragActive = jiraDragTaskId != null && draggingSource === "sprint";
+    const dropAllowed = isPush && isJiraDropAllowed(col.statusId);
+    const dimmed = dragActive && !dropAllowed;
     const accent =
       col.tone === "push"
         ? "#6366F1"
@@ -1792,19 +1917,21 @@ export function SprintBoard({
       <div
         key={key}
         onDragOver={(e) => {
-          if (canEdit && isPush && draggingSource === "sprint") {
+          if (canEdit && dropAllowed && draggingSource === "sprint") {
             e.preventDefault();
             setDragOverCol(key);
           }
         }}
         onDragLeave={() => setDragOverCol((c) => (c === key ? null : c))}
         onDrop={(e) => onDropJiraColumn(e, col)}
-        className={`w-[270px] shrink-0 flex flex-col rounded-2xl border bg-bridge-obsidian transition-colors ${
+        className={`w-[270px] shrink-0 flex flex-col rounded-2xl border bg-sprint-col overflow-hidden transition-all ${
           dragOverCol === key
             ? "border-bridge-accent/60"
-            : "border-foreground/[0.08]"
-        }`}
+            : "border-sprint-border"
+        } ${dimmed ? "opacity-40" : ""}`}
       >
+        {/* 컬럼 상단 JIRA 상태 색 레일 */}
+        <div className="h-[3px] shrink-0" style={{ background: accent }} />
         <div className="px-3 pt-2.5 pb-2 border-b border-foreground/[0.06]">
           <div className="flex items-center gap-2">
             <span
@@ -1863,6 +1990,87 @@ export function SprintBoard({
                 ))}
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+        )}
+
+        {/* Feature 요약 스트립 — Feature는 스프린트 상위 개념이라 타임라인 위에 배치.
+            얇은 칩(이름·N/M·진척 바) = 보기, 클릭 = 아래 보드 컬럼 필터 토글(다중 선택). */}
+        {featureSummaries.length > 0 && (
+          <div className="mb-3 rounded-xl border border-foreground/[0.08] bg-foreground/[0.02] px-3 py-2.5">
+            <div className="flex items-center gap-2 mb-2 pl-0.5">
+              <span className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+                Feature{" "}
+                <span className="text-bridge-accent">
+                  {featureSummaries.length}
+                </span>
+              </span>
+              {featureFilter.size > 0 && (
+                <button
+                  type="button"
+                  onClick={clearFeatureFilter}
+                  className="ml-auto text-xs font-bold text-bridge-accent hover:bg-bridge-accent/10 px-2 py-0.5 rounded-md transition-colors"
+                >
+                  필터 해제 ({featureFilter.size})
+                </button>
+              )}
+            </div>
+            <div className="flex items-stretch gap-2 overflow-x-auto custom-scrollbar pb-1">
+              {featureSummaries.map((f) => {
+                const accent = f.featureColor ?? "#6366F1";
+                const selected = featureFilter.has(f.featureId);
+                const dimmed = featureFilter.size > 0 && !selected;
+                const pct =
+                  f.total > 0 ? Math.round((f.done / f.total) * 100) : 0;
+                return (
+                  <button
+                    key={f.featureId}
+                    type="button"
+                    onClick={() => toggleFeatureFilter(f.featureId)}
+                    aria-pressed={selected}
+                    title={
+                      f.overdue > 0
+                        ? `${f.featureTitle} · 지연 ${f.overdue}건`
+                        : f.featureTitle
+                    }
+                    className={`shrink-0 w-[128px] text-left rounded-lg border px-2.5 py-2 transition-all focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                      selected
+                        ? "border-transparent"
+                        : "bg-foreground/[0.03] border-foreground/[0.08] hover:border-foreground/[0.16] hover:-translate-y-px"
+                    } ${dimmed ? "opacity-40 hover:opacity-75" : ""}`}
+                    style={
+                      selected
+                        ? {
+                            boxShadow: `inset 0 0 0 1.5px ${accent}`,
+                            background: `${accent}1f`,
+                          }
+                        : undefined
+                    }
+                  >
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ background: accent }}
+                      />
+                      <span className="text-xs font-bold text-foreground truncate flex-1">
+                        {f.featureTitle}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs font-bold tabular-nums text-slate-400 shrink-0">
+                        {f.overdue > 0 && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-rose-500/20 shrink-0" />
+                        )}
+                        {f.done}/{f.total}
+                      </span>
+                    </div>
+                    <div className="h-1 rounded-full bg-foreground/10 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, background: accent }}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -2310,7 +2518,7 @@ export function SprintBoard({
                 setDragOverList(false);
             }}
             onDrop={onDropList}
-            className={`shrink-0 border-r border-foreground/[0.08] flex flex-col bg-bridge-dark relative ${
+            className={`shrink-0 border-r border-sprint-border flex flex-col bg-sprint-rail relative shadow-[inset_-8px_0_12px_-10px_rgba(0,0,0,0.6)] ${
               panelCollapsed ? "w-[46px]" : ""
             } ${resizing ? "" : "transition-[width] duration-200"}`}
           >
@@ -2744,7 +2952,7 @@ export function SprintBoard({
         )}
 
         {/* 우: 동적 컬럼 보드 (미리보기 중엔 읽기 전용 스냅샷) */}
-        <div className="flex-1 min-w-0 overflow-x-auto custom-scrollbar">
+        <div className="flex-1 min-w-0 overflow-x-auto custom-scrollbar bg-sprint-bg">
           {previewColumns ? (
             <div className="flex gap-3 p-3 md:p-4 h-full min-w-max">
               {previewColumns.map((col) => {
@@ -2757,8 +2965,13 @@ export function SprintBoard({
                 return (
                   <div
                     key={col.id}
-                    className="w-[260px] shrink-0 flex flex-col rounded-2xl border border-foreground/[0.08] bg-bridge-obsidian"
+                    className="w-[260px] shrink-0 flex flex-col rounded-2xl border border-sprint-border bg-sprint-col overflow-hidden"
                   >
+                    {/* 컬럼 상단 상태 색 레일 */}
+                    <div
+                      className="h-[3px] shrink-0"
+                      style={{ background: accent }}
+                    />
                     <div className="px-3 py-2.5 border-b border-foreground/[0.06] flex items-center gap-2">
                       <span
                         className="w-2 h-2 rounded-full shrink-0"
@@ -2797,18 +3010,28 @@ export function SprintBoard({
               <div className="flex items-center justify-center h-full">
                 <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
               </div>
-            ) : !hasBlockMapping ? (
-              // 매핑 자체가 없을 때만 안내. 매핑이 있으면 카드 0건이어도 아래 컬럼 골격을 그린다.
-              <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-6">
-                <Diamond className="w-8 h-8 text-slate-600" />
-                <p className="text-sm text-slate-400 font-medium">
-                  아직 블록↔JIRA 상태 매핑이 없습니다.
-                </p>
-                <p className="text-xs text-slate-600 max-w-xs leading-relaxed">
-                  상단 알림·설정 → JIRA 연동에서 칸반 블록을 JIRA 상태에
-                  매핑하면, 여기에 JIRA 상태 그대로 컬럼이 나타납니다.
-                </p>
-              </div>
+            ) : !(jiraMirrorReady || hasBlockMapping) ? (
+              // 미러 미준비(레거시 매핑도 없음) → 온보딩 가이드로 셋업 안내
+              <JiraOnboardingGuide
+                boardId={boardId}
+                status={jiraStatus}
+                onOpenSettings={() =>
+                  toast.info("상단 알림·설정 › JIRA 연동에서 연결하세요.")
+                }
+                onReady={() => {
+                  jiraAPI
+                    .getStatus(boardId)
+                    .then(setJiraStatus)
+                    .catch(() => {});
+                  jiraAPI
+                    .getMeta(boardId)
+                    .then(setJiraMeta)
+                    .catch(() => {});
+                  void run(async () =>
+                    sprintAPI.getSprintBoard(boardId, milestoneId),
+                  );
+                }}
+              />
             ) : (
               <div className="flex gap-3 p-3 md:p-4 h-full min-w-max">
                 {jiraColumns.map((col) => renderJiraColumn(col))}
@@ -2827,7 +3050,13 @@ export function SprintBoard({
                       <Fragment key={col.id}>
                         {groupBy === "member"
                           ? memberColumns.map((mc) => renderMemberColumn(mc))
-                          : featureColumns.map((fc) => renderFeatureColumn(fc))}
+                          : featureColumns
+                              .filter(
+                                (fc) =>
+                                  featureFilter.size === 0 ||
+                                  featureFilter.has(fc.featureId),
+                              )
+                              .map((fc) => renderFeatureColumn(fc))}
                       </Fragment>
                     );
                   }
@@ -2853,12 +3082,17 @@ export function SprintBoard({
                       setDragOverCol((c) => (c === col.id ? null : c))
                     }
                     onDrop={(e) => onDropColumn(e, col)}
-                    className={`w-[260px] shrink-0 flex flex-col rounded-2xl border bg-bridge-obsidian transition-colors ${
+                    className={`w-[260px] shrink-0 flex flex-col rounded-2xl border bg-sprint-col overflow-hidden transition-colors ${
                       dragOverCol === col.id
                         ? "border-bridge-accent/60"
-                        : "border-foreground/[0.08]"
+                        : "border-sprint-border"
                     }`}
                   >
+                    {/* 컬럼 상단 상태 색 레일 */}
+                    <div
+                      className="h-[3px] shrink-0"
+                      style={{ background: accent }}
+                    />
                     {/* 컬럼 헤더 */}
                     <div className="px-3 py-2.5 border-b border-foreground/[0.06] flex items-center gap-2">
                       <span

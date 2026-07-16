@@ -48,6 +48,11 @@ public class Block {
     @JoinColumn(name = "milestone_id")
     private Milestone milestone;
 
+    // JIRA 미러 컬럼 표시용 — 이 블록이 특정 JIRA 상태를 미러링하면 그 상태 id.
+    // null이면 일반 블록. non-null이면 JIRA 뷰 전용(메인 보드에서 숨김) + 사용자 편집 잠금.
+    @Column(name = "jira_status_id", length = 64)
+    private String jiraStatusId;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -93,6 +98,18 @@ public class Block {
         return this.fixedType == FixedBlockType.DONE;
     }
 
+    public boolean isJiraMirror() {
+        return this.jiraStatusId != null;
+    }
+
+    public void linkJiraStatus(String jiraStatusId) {
+        this.jiraStatusId = jiraStatusId;
+    }
+
+    public void unlinkJiraStatus() {
+        this.jiraStatusId = null;
+    }
+
     public static Block createFixedBlock(Board board, FixedBlockType fixedType, int position) {
         String name = switch (fixedType) {
             case FEATURE -> "Feature";
@@ -116,6 +133,17 @@ public class Block {
                 .type(BlockType.CUSTOM)
                 .color(color)
                 .position(position)
+                .build();
+    }
+
+    public static Block createJiraMirrorBlock(Board board, String name, String color, int position, String jiraStatusId) {
+        return Block.builder()
+                .board(board)
+                .name(name)
+                .type(BlockType.CUSTOM)
+                .color(color)
+                .position(position)
+                .jiraStatusId(jiraStatusId)
                 .build();
     }
 

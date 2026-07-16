@@ -311,7 +311,8 @@ export const blockService = {
   ): Promise<Block[]> => {
     try {
       const response = await blockAPI.getBlocks(boardId, milestoneId);
-      return response.blocks;
+      // JIRA 미러 컬럼은 메인 보드에서 숨김(JIRA 뷰 탭 전용)
+      return response.blocks.filter((b) => !b.jira_status_id);
     } catch (error) {
       console.warn("API failed, using mock data for blocks", error);
       if (USE_MOCK_ON_ERROR) {
@@ -327,9 +328,12 @@ export const blockService = {
   ): Promise<{ blocks: Block[]; hiddenBlocks: Block[] }> => {
     try {
       const response = await blockAPI.getBlocks(boardId, milestoneId);
+      // JIRA 미러 컬럼은 메인 보드에서 숨김(JIRA 뷰 탭 전용)
       return {
-        blocks: response.blocks,
-        hiddenBlocks: response.hidden_blocks || [],
+        blocks: response.blocks.filter((b) => !b.jira_status_id),
+        hiddenBlocks: (response.hidden_blocks || []).filter(
+          (b) => !b.jira_status_id,
+        ),
       };
     } catch (error) {
       console.warn("API failed for getBlocksWithHidden", error);
@@ -3341,7 +3345,11 @@ export const myNoteCommentService = {
   deleteComment: async (scopeId: string, noteId: string, commentId: string) => {
     return await myNoteCommentAPI.deleteComment(scopeId, noteId, commentId);
   },
-  toggleResolved: async (scopeId: string, noteId: string, commentId: string) => {
+  toggleResolved: async (
+    scopeId: string,
+    noteId: string,
+    commentId: string,
+  ) => {
     return await myNoteCommentAPI.toggleResolved(scopeId, noteId, commentId);
   },
   toggleReaction: async (
