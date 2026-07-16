@@ -5823,6 +5823,16 @@ export interface JiraStatus {
   sync_mode: string | null;
   /** 미러 준비 완료(MIRROR + 상태별 컬럼 생성됨). 가이드/JIRA뷰 진입 판단. */
   mirror_ready: boolean;
+  /** 미러 대상으로 선택된 JIRA Agile 보드 id (null=자동선택). 보드 드롭다운 초기값. */
+  agile_board_id: string | null;
+}
+
+/** 프로젝트의 JIRA Agile 보드 (미러 대상 선택 드롭다운용). */
+export interface JiraAgileBoard {
+  id: string;
+  name: string;
+  type: string; // kanban / scrum / simple
+  selected: boolean;
 }
 
 /** 매핑 항목: key=blockId(블록 매핑) 또는 "__rejected"(반려 전환 규칙). */
@@ -5984,6 +5994,18 @@ export const jiraAPI = {
       `/boards/${boardId}/jira/block-status-map`,
       { block_status_map: blockStatusMap },
     );
+  },
+
+  /** 미러 대상으로 고를 수 있는 프로젝트의 JIRA Agile 보드 목록. */
+  getBoards: async (boardId: string) => {
+    return apiClient.get<JiraAgileBoard[]>(`/boards/${boardId}/jira/boards`);
+  },
+
+  /** 미러 대상 Agile 보드 선택 (빈 문자열이면 자동 선택). 저장 후 재동기화 필요. */
+  selectAgileBoard: async (boardId: string, agileBoardId: string) => {
+    return apiClient.put<JiraStatus>(`/boards/${boardId}/jira/agile-board`, {
+      agile_board_id: agileBoardId || undefined,
+    });
   },
 
   /** 미러 셋업 — JIRA 상태별 미러 컬럼 생성 + 미러 모드 전환 (멱등). */

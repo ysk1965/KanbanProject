@@ -28,6 +28,7 @@ import {
   JiraNameRef,
   JiraBlockRef,
   JiraSiteRef,
+  JiraAgileBoard,
 } from "../utils/api";
 
 interface JiraSettingsPanelProps {
@@ -73,6 +74,9 @@ export function JiraSettingsPanel({
   // 미러 컬럼 (JIRA 상태 ↔ BRIDGE 미러 블록)
   const [mirrorBlocks, setMirrorBlocks] = useState<JiraBlockRef[]>([]);
   const [isSettingUpMirror, setIsSettingUpMirror] = useState(false);
+  // 미러 대상 JIRA Agile 보드 선택 (프로젝트에 보드 여러 개일 때)
+  const [agileBoards, setAgileBoards] = useState<JiraAgileBoard[]>([]);
+  const [isSavingBoard, setIsSavingBoard] = useState(false);
   const [webhookCopied, setWebhookCopied] = useState(false);
 
   // OAuth
@@ -112,6 +116,15 @@ export function JiraSettingsPanel({
         setMirrorBlocks([]);
       });
   }, [boardId, status?.connected, status?.mirror_ready]);
+
+  // 미러 대상 Agile 보드 목록 (연결된 뒤에만)
+  useEffect(() => {
+    if (!status?.connected) return;
+    jiraAPI
+      .getBoards(boardId)
+      .then((b) => setAgileBoards(b || []))
+      .catch(() => setAgileBoards([]));
+  }, [boardId, status?.connected]);
 
   // OAuth 콜백 결과 처리 (?jira=oauth_success|oauth_error)
   useEffect(() => {
@@ -325,6 +338,29 @@ export function JiraSettingsPanel({
       );
     } finally {
       setIsSettingUpMirror(false);
+    }
+  };
+
+  // ── 미러 대상 보드 선택 → 저장 후 즉시 재동기화 ──
+  const handleSelectBoard = async (agileBoardId: string) => {
+    setIsSavingBoard(true);
+    setErrorMessage(null);
+    try {
+      const s = await jiraAPI.selectAgileBoard(boardId, agileBoardId);
+      setStatus(s);
+      setAgileBoards((prev) =>
+        prev.map((b) => ({ ...b, selected: b.id === agileBoardId })),
+      );
+      // 선택 즉시 그 보드의 컬럼으로 재동기화
+      await handleSetupMirror();
+    } catch (e) {
+      setErrorMessage(
+        e instanceof Error
+          ? e.message
+          : t("jiraIntegration.saveFailed", "저장에 실패했습니다"),
+      );
+    } finally {
+      setIsSavingBoard(false);
     }
   };
 
@@ -866,6 +902,37 @@ export function JiraSettingsPanel({
               "컬럼이 JIRA 상태와 자동으로 맞춰집니다. 카드를 옮기면 JIRA 상태도 같이 바뀌고, JIRA에서 바뀌면 여기도 반영됩니다. 미러 컬럼은 JIRA 뷰 탭에만 표시돼요.",
             )}
           </div>
+
+          {/* 미러 대상 JIRA 보드 선택 — 프로젝트에 보드가 여러 개일 때 어느 보드의 컬럼을 미러링할지 */}
+          {agileBoards.length > 1 && (
+            <div className="mb-2.5">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
+                {t("jiraIntegration.mirrorBoardLabel", "미러 대상 JIRA 보드")}
+              </label>
+              <select
+                value={status.agile_board_id || ""}
+                onChange={(e) => handleSelectBoard(e.target.value)}
+                disabled={isSavingBoard || isSettingUpMirror}
+                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg py-2 px-3 text-xs text-foreground outline-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all disabled:opacity-50"
+              >
+                <option value="">
+                  {t("jiraIntegration.mirrorBoardAuto", "자동 선택 (첫 칸반 보드)")}
+                </option>
+                {agileBoards.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                    {b.type ? ` (${b.type})` : ""}
+                  </option>
+                ))}
+              </select>
+              <div className="text-xs text-slate-500 mt-1 leading-relaxed">
+                {t(
+                  "jiraIntegration.mirrorBoardHint",
+                  "보드를 고르면 그 보드의 컬럼 구성으로 자동 재동기화됩니다.",
+                )}
+              </div>
+            </div>
+          )}
 
           {status.mirror_ready && mirrorBlocks.length > 0 ? (
             <div className="rounded-lg border border-foreground/10 overflow-hidden">

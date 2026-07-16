@@ -117,6 +117,14 @@ public class JiraIntegrationConfig {
     @Column(name = "mirror_columns_json", columnDefinition = "TEXT")
     private String mirrorColumnsJson;
 
+    /**
+     * 미러 대상으로 선택한 JIRA Agile 보드 id. 프로젝트에 보드가 여러 개일 때
+     * (예: "현재 QA 보드" vs "잔존 이슈 보드") 어느 보드의 컬럼 구성을 미러링할지 확정.
+     * null이면 자동 선택(첫 kanban 보드). 사용자가 패널에서 고르면 저장.
+     */
+    @Column(name = "agile_board_id", length = 30)
+    private String agileBoardId;
+
     @Column(name = "milestone_auto_assign", nullable = false)
     @Builder.Default
     private Boolean milestoneAutoAssign = true;
@@ -241,6 +249,11 @@ public class JiraIntegrationConfig {
 
     public void updateMirrorColumns(String mirrorColumnsJson) {
         this.mirrorColumnsJson = mirrorColumnsJson;
+    }
+
+    /** 미러 대상 Agile 보드 선택(빈 값이면 자동 선택으로 복귀). */
+    public void updateAgileBoardId(String agileBoardId) {
+        this.agileBoardId = (agileBoardId == null || agileBoardId.isBlank()) ? null : agileBoardId;
     }
 
     public boolean isMirror() {

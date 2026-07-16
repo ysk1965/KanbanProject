@@ -158,6 +158,10 @@ public class JiraImportService {
         }
         if (!orphans.isEmpty()) {
             issueLinkRepository.deleteAll(orphans);
+            // DELETE를 즉시 반영 — flush가 없으면 Hibernate 기본 액션 순서(INSERT→DELETE)로 인해
+            // 같은 (board_id, jira_issue_key)의 신규 saveLink INSERT가 고아 DELETE보다 먼저 실행되어
+            // uq_jira_link_board_key 중복키 위반(500)이 난다. deleteAll 직후 강제 flush로 방지.
+            issueLinkRepository.flush();
             log.info("JIRA reconcile board {}: {} orphan link(s) removed (BRIDGE에서 삭제됨)", boardId, orphans.size());
         }
 

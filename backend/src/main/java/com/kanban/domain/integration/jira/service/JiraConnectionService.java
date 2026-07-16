@@ -259,18 +259,11 @@ public class JiraConnectionService {
     private List<ColumnSpec> fetchBoardColumns(JiraIntegrationConfig config, String token) {
         try {
             JiraAuthContext ctx = JiraAuthContext.of(config, token);
-            JsonNode boards = jiraApiClient.getAgileBoards(ctx, config.getProjectKey());
-            JsonNode values = boards != null ? boards.get("values") : null;
-            if (values == null || !values.isArray() || values.isEmpty()) return List.of();
-            // 첫 번째 보드(칸반 우선)를 선택
-            String boardIdJira = null;
-            for (JsonNode b : values) {
-                if ("kanban".equalsIgnoreCase(b.path("type").asText(""))) {
-                    boardIdJira = b.path("id").asText(null);
-                    break;
-                }
+            // 사용자가 미러 대상 보드를 골랐으면 그 보드를 사용, 없으면 자동 선택(첫 kanban 보드).
+            String boardIdJira = config.getAgileBoardId();
+            if (boardIdJira == null || boardIdJira.isBlank()) {
+                boardIdJira = autoPickAgileBoardId(ctx, config.getProjectKey());
             }
-            if (boardIdJira == null) boardIdJira = values.get(0).path("id").asText(null);
             if (boardIdJira == null) return List.of();
 
             JsonNode cfg = jiraApiClient.getBoardConfiguration(ctx, boardIdJira);
@@ -296,6 +289,58 @@ public class JiraConnectionService {
                 config.getProjectKey(), e.getMessage());
             return List.of();
         }
+    }
+
+    /** 프로젝트의 Agile 보드 중 자동으로 하나 선택 — kanban 우선, 없으면 첫 보드. 실패 시 null. */
+    private String autoPickAgileBoardId(JiraAuthContext ctx, String projectKey) {
+        JsonNode boards = jiraApiClient.getAgileBoards(ctx, projectKey);
+        JsonNode values = boards != null ? boards.get("values") : null;
+        if (values == null || !values.isArray() || values.isEmpty()) return null;
+        for (JsonNode b : values) {
+            if ("kanban".equalsIgnoreCase(b.path("type").asText(""))) {
+                return b.path("id").asText(null);
+            }
+        }
+        return values.get(0).path("id").asText(null);
+    }
+
+    /** 미러 대상으로 고를 수 있는 프로젝트의 Agile 보드 목록. 현재 선택된 보드를 selected로 표시. */
+    @Transactional(readOnly = true)
+    public List<JiraResponse.AgileBoard> listAgileBoards(String boardId, String userId) {
+        boardService.checkViewerOrAbove(boardId, userId);
+        JiraIntegrationConfig config = getActiveConfigOrThrow(boardId);
+        String token = oauthService.resolveToken(config);
+        String selectedId = config.getAgileBoardId();
+        List<JiraResponse.AgileBoard> result = new ArrayList<>();
+        try {
+            JiraAuthContext ctx = JiraAuthContext.of(config, token);
+            JsonNode boards = jiraApiClient.getAgileBoards(ctx, config.getProjectKey());
+            JsonNode values = boards != null ? boards.get("values") : null;
+            if (values != null && values.isArray()) {
+                for (JsonNode b : values) {
+                    String id = b.path("id").asText(null);
+                    if (id == null) continue;
+                    result.add(JiraResponse.AgileBoard.builder()
+                        .id(id)
+                        .name(b.path("name").asText(""))
+                        .type(b.path("type").asText(""))
+                        .selected(id.equals(selectedId))
+                        .build());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("JIRA agile board list fetch failed for {}: {}", config.getProjectKey(), e.getMessage());
+        }
+        return result;
+    }
+
+    /** 미러 대상 Agile 보드 저장. 셋업/재동기화 시 이 보드의 컬럼을 미러링. */
+    @Transactional
+    public JiraResponse.Status selectAgileBoard(String boardId, String userId, String agileBoardId) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        JiraIntegrationConfig config = getActiveConfigOrThrow(boardId);
+        config.updateAgileBoardId(agileBoardId);
+        return toStatus(config);
     }
 
     private String toJsonList(List<Map<String, Object>> list) {
@@ -462,6 +507,7 @@ public class JiraConnectionService {
             .connectedByName(c.getConnectedBy() != null ? c.getConnectedBy().getId() : null)
             .syncMode(c.getSyncMode() != null ? c.getSyncMode().name() : null)
             .mirrorReady(c.isMirror() && blockRepository.countJiraMirrorBlocksByBoardId(c.getBoard().getId()) > 0)
+            .agileBoardId(c.getAgileBoardId())
             .build();
     }
 }
