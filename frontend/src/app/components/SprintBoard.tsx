@@ -247,6 +247,15 @@ export function SprintBoard({
   const [jiraMeta, setJiraMeta] = useState<JiraMeta | null>(null);
   const [jiraMetaLoading, setJiraMetaLoading] = useState(false);
   const jiraConnected = !!jiraStatus?.connected;
+  // 블록↔JIRA 상태 매핑이 하나라도 있는지 — 빈 상태 분기 기준은 "카드 유무"가 아니라 "매핑 유무".
+  // 매핑이 됐으면 카드가 0건이어도 JIRA 상태 그대로 컬럼 골격을 보여준다.
+  const hasBlockMapping = useMemo(() => {
+    const map = jiraStatus?.block_status_map;
+    if (!map) return false;
+    return Object.entries(map).some(
+      ([blockId, entry]) => blockId !== "__rejected" && !!entry.jira_status_id,
+    );
+  }, [jiraStatus]);
 
   // 연동 여부만 먼저 확인해 JIRA 탭 노출 결정 (마운트 시 1회, viewer+ 접근)
   useEffect(() => {
@@ -1394,10 +1403,10 @@ export function SprintBoard({
             {upcoming ? (
               <span
                 className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold tabular-nums bg-foreground/[0.06] text-slate-400"
-                title={formatDate(it.start_date)}
+                title={`${formatDate(it.start_date, "M/d")} 시작`}
               >
                 <Calendar className="w-2.5 h-2.5" />
-                {formatDate(it.start_date, "M/d")} 시작 · {startDday!.text}
+                {startDday!.text}
               </span>
             ) : dday ? (
               <span
@@ -1486,6 +1495,17 @@ export function SprintBoard({
             <span className="text-[10px] font-bold text-slate-500 tabular-nums bg-bridge-dark rounded-full px-1.5 shrink-0">
               {fc.doneTotal}/{fc.total}
             </span>
+            {onOpenFeature && fc.featureId !== "__none__" && (
+              <button
+                type="button"
+                onClick={() => onOpenFeature(fc.featureId)}
+                title="피쳐 열기"
+                aria-label="피쳐 열기"
+                className="shrink-0 w-5 h-5 grid place-items-center rounded-md text-slate-500 hover:text-bridge-accent hover:bg-bridge-accent/[0.12] focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           <div className="mt-2 h-1 rounded-full bg-foreground/10 overflow-hidden">
             <div
@@ -1617,29 +1637,8 @@ export function SprintBoard({
             : "border-foreground/[0.08]"
         }`}
       >
-        {/* 담당자 컬럼 헤더 + 진척 바 — 클릭 시 개인 간트 모달 오픈(미배정 제외) */}
-        <div
-          role={isNone ? undefined : "button"}
-          tabIndex={isNone ? undefined : 0}
-          aria-label={isNone ? undefined : `${mc.memberName} 간트 열기`}
-          title={isNone ? undefined : `${mc.memberName} 간트 · 업무 배치`}
-          onClick={isNone ? undefined : () => setGanttMemberId(mc.memberId)}
-          onKeyDown={
-            isNone
-              ? undefined
-              : (e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setGanttMemberId(mc.memberId);
-                  }
-                }
-          }
-          className={`group px-3 pt-2.5 pb-2 border-b border-foreground/[0.06] ${
-            isNone
-              ? ""
-              : "cursor-pointer hover:bg-foreground/[0.03] focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 rounded-t-2xl transition-colors"
-          }`}
-        >
+        {/* 담당자 컬럼 헤더 + 진척 바 — 아이콘 클릭 시 개인 간트 모달 오픈(미배정 제외) */}
+        <div className="px-3 pt-2.5 pb-2 border-b border-foreground/[0.06]">
           <div className="flex items-center gap-2">
             <span
               className="w-5 h-5 rounded-full grid place-items-center text-[9px] font-bold shrink-0"
@@ -1656,15 +1655,23 @@ export function SprintBoard({
             >
               {mc.memberName}
             </span>
-            {!isNone && (
-              <Calendar className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-            )}
             <span className="text-[9px] font-bold text-slate-500 tracking-wide shrink-0">
               담당
             </span>
             <span className="text-[10px] font-bold text-slate-500 tabular-nums bg-bridge-dark rounded-full px-1.5 shrink-0">
               {mc.doneTotal}/{mc.total}
             </span>
+            {!isNone && (
+              <button
+                type="button"
+                onClick={() => setGanttMemberId(mc.memberId)}
+                title={`${mc.memberName} 간트 · 업무 배치`}
+                aria-label={`${mc.memberName} 간트 열기`}
+                className="shrink-0 w-5 h-5 grid place-items-center rounded-md text-slate-500 hover:text-bridge-accent hover:bg-bridge-accent/[0.12] focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-colors"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           <div className="mt-2 h-1 rounded-full bg-foreground/10 overflow-hidden">
             <div
@@ -2790,15 +2797,16 @@ export function SprintBoard({
               <div className="flex items-center justify-center h-full">
                 <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
               </div>
-            ) : jiraColumns.every((c) => c.cards.length === 0) ? (
+            ) : !hasBlockMapping ? (
+              // 매핑 자체가 없을 때만 안내. 매핑이 있으면 카드 0건이어도 아래 컬럼 골격을 그린다.
               <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-6">
                 <Diamond className="w-8 h-8 text-slate-600" />
                 <p className="text-sm text-slate-400 font-medium">
-                  이 스프린트에 JIRA 연동 항목이 없습니다.
+                  아직 블록↔JIRA 상태 매핑이 없습니다.
                 </p>
-                <p className="text-xs text-slate-600 max-w-xs">
-                  JIRA 이슈를 가져오거나 태스크를 연결하면 여기에 상태별로
-                  나타납니다.
+                <p className="text-xs text-slate-600 max-w-xs leading-relaxed">
+                  상단 알림·설정 → JIRA 연동에서 칸반 블록을 JIRA 상태에
+                  매핑하면, 여기에 JIRA 상태 그대로 컬럼이 나타납니다.
                 </p>
               </div>
             ) : (

@@ -26,6 +26,7 @@ import com.kanban.domain.invite.InviteLinkRepository;
 import com.kanban.domain.milestone.MilestoneAllocationRepository;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
 import com.kanban.domain.calendar.CalendarEventRepository;
+import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.notification.NotificationPreferenceRepository;
 import com.kanban.domain.notification.NotificationRepository;
@@ -56,6 +57,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -143,6 +146,9 @@ public class BoardService {
         // 기본 블록 3개 생성 (Feature, Task, Done)
         createDefaultBlocks(board);
 
+        // 기본 마일스톤 1개 자동 생성 (이름=보드명, 기간=오늘~+60일)
+        createDefaultMilestone(board, user);
+
         // 구독 생성 (TESTER는 PREMIUM, 일반 사용자/ADMIN은 Trial)
         Subscription subscription = skipBilling
                 ? Subscription.createPremium(board)
@@ -194,6 +200,9 @@ public class BoardService {
         // 기본 블록 생성
         createDefaultBlocks(board);
 
+        // 기본 마일스톤 1개 자동 생성 (개인 보드도 동일)
+        createDefaultMilestone(board, user);
+
         // 구독 생성 (PREMIUM)
         Subscription subscription = Subscription.createPremium(board);
         subscriptionRepository.save(subscription);
@@ -201,6 +210,17 @@ public class BoardService {
         log.info("Personal board created: {} for user: {}", board.getId(), user.getId());
 
         return board;
+    }
+
+    /**
+     * 보드 생성 직후 기본 마일스톤 1개를 만든다 (팀/개인 공통).
+     * 이름은 보드명 그대로, 기간은 오늘~+60일. isDefault=true 라 사용자가 편집하기 전까지 overdue 경고를 띄우지 않는다.
+     */
+    private void createDefaultMilestone(Board board, User user) {
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        Milestone defaultMilestone = Milestone.createDefault(
+                board, board.getName(), today, today.plusDays(60), user);
+        milestoneRepository.save(defaultMilestone);
     }
 
     public List<BoardResponse.Simple> getMyBoards(String userId) {

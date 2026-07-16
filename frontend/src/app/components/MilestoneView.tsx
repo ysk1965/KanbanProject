@@ -97,6 +97,8 @@ export function getMilestoneStatus(
   startDate: string,
   endDate: string,
   progress: number,
+  // 손 안 댄 기본 마일스톤(is_default)은 기간이 지나도 overdue 경고를 띄우지 않는다.
+  suppressOverdue: boolean = false,
 ): { key: MilestoneStatusKey; barColor: string; badgeClasses: string } {
   const now = new Date();
   const start = new Date(startDate);
@@ -118,7 +120,7 @@ export function getMilestoneStatus(
         "bg-slate-500/20 text-slate-600 dark:text-slate-400 border-slate-500/30",
     };
   }
-  if (now > end) {
+  if (now > end && !suppressOverdue) {
     return {
       key: "overdue",
       barColor: "bg-red-500",
@@ -138,16 +140,19 @@ function MilestoneStatusBadge({
   startDate,
   endDate,
   progress,
+  isDefault = false,
 }: {
   startDate: string;
   endDate: string;
   progress: number;
+  isDefault?: boolean;
 }) {
   const { t } = useTranslation();
   const { key, badgeClasses } = getMilestoneStatus(
     startDate,
     endDate,
     progress,
+    isDefault,
   );
 
   const label =
@@ -714,6 +719,7 @@ export function MilestoneView({
                   startDate={milestone.start_date}
                   endDate={milestone.end_date}
                   progress={milestone.progress_percentage}
+                  isDefault={milestone.is_default}
                 />
               </div>
 

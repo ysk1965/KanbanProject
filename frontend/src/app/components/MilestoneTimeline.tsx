@@ -280,6 +280,7 @@ export function MilestoneTimeline({
           milestone.start_date,
           milestone.end_date,
           milestone.progress_percentage,
+          milestone.is_default,
         )
       : null;
     const barOffset = hasDates
