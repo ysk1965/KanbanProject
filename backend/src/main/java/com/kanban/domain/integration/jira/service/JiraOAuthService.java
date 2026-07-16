@@ -41,7 +41,10 @@ public class JiraOAuthService {
 
     private static final String AUTH_BASE = "https://auth.atlassian.com";
     private static final String API_BASE = "https://api.atlassian.com";
-    private static final String SCOPES = "read:jira-work write:jira-work offline_access";
+    // read:board-scope(.admin) = Jira Software(Agile) 보드/컬럼 구성 읽기 — 미러 컬럼을 JIRA 보드 그대로 가져오기 위함.
+    // classic(read:jira-work)만으론 /rest/agile/1.0 이 401 → granular board-scope 필요. classic+granular 혼용 허용됨.
+    private static final String SCOPES = "read:jira-work write:jira-work "
+        + "read:board-scope:jira-software read:board-scope.admin:jira-software offline_access";
     private static final long STATE_EXPIRY_SECONDS = 600; // 10분
     private static final long REFRESH_BUFFER_SECONDS = 60;
 
