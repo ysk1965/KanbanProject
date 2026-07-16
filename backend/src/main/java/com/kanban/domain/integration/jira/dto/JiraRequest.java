@@ -61,6 +61,14 @@ public class JiraRequest {
         private boolean preview; // true면 건수만 계산
     }
 
+    /** 미러 대상 Agile 보드 선택. 빈 값이면 자동 선택으로 복귀. */
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AgileBoardSelect {
+        private String agileBoardId;   // JIRA Agile 보드 id (예: "83")
+    }
+
     /** OAuth 사이트/프로젝트 확정. */
     @Getter
     @NoArgsConstructor

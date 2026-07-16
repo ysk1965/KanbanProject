@@ -33,6 +33,17 @@ public class JiraResponse {
         private String syncMode;
         /** 미러 준비 완료 여부(MIRROR + 상태별 블록 생성됨). 가이드/JIRA뷰 진입 판단용. */
         private boolean mirrorReady;
+        /** 미러 대상으로 선택된 JIRA Agile 보드 id (null=자동선택). 보드 드롭다운 초기값. */
+        private String agileBoardId;
+    }
+
+    /** 프로젝트의 JIRA Agile 보드 (미러 대상 선택 드롭다운용). */
+    @Getter @Builder @AllArgsConstructor
+    public static class AgileBoard {
+        private String id;
+        private String name;
+        private String type;       // kanban / scrum / simple
+        private boolean selected;  // 현재 미러 대상으로 선택됨
     }
 
     /** 미러 셋업 결과 — 생성/재사용된 미러 컬럼 수. */

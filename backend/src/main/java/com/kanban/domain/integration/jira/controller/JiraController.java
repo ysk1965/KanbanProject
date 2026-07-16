@@ -146,6 +146,24 @@ public class JiraController {
         return ResponseEntity.ok(connectionService.getStatus(boardId, principal.getUserId()));
     }
 
+    /** 미러 대상으로 고를 수 있는 프로젝트의 JIRA Agile 보드 목록. */
+    @GetMapping("/api/v1/boards/{boardId}/jira/boards")
+    public ResponseEntity<List<JiraResponse.AgileBoard>> agileBoards(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(connectionService.listAgileBoards(boardId, principal.getUserId()));
+    }
+
+    /** 미러 대상 Agile 보드 선택 (빈 값이면 자동 선택). 저장 후 재동기화 필요. */
+    @PutMapping("/api/v1/boards/{boardId}/jira/agile-board")
+    public ResponseEntity<JiraResponse.Status> selectAgileBoard(
+            @PathVariable String boardId,
+            @RequestBody JiraRequest.AgileBoardSelect request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(
+            connectionService.selectAgileBoard(boardId, principal.getUserId(), request.getAgileBoardId()));
+    }
+
     /** 미러 셋업 — JIRA 상태별 미러 컬럼 생성 + 미러 모드 전환 (멱등). */
     @PostMapping("/api/v1/boards/{boardId}/jira/mirror/setup")
     public ResponseEntity<JiraResponse.MirrorSetup> setupMirror(
