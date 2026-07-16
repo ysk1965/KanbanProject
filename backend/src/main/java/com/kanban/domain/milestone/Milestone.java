@@ -50,6 +50,15 @@ public class Milestone extends BaseTimeEntity {
     @Builder.Default
     private Boolean sprintEnabled = false;
 
+    /**
+     * 보드 생성 시 시스템이 자동으로 만든 "기본 마일스톤" 여부.
+     * 사용자가 한 번도 손대지 않은 기본 마일스톤은 기간이 지나도 overdue(빨강) 경고를 띄우지 않는다.
+     * updateInfo로 제목/기간을 편집하는 순간 false로 전환된다.
+     */
+    @Column(name = "is_default", nullable = false)
+    @Builder.Default
+    private Boolean isDefault = false;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -60,6 +69,9 @@ public class Milestone extends BaseTimeEntity {
         }
         if (this.sprintEnabled == null) {
             this.sprintEnabled = false;
+        }
+        if (this.isDefault == null) {
+            this.isDefault = false;
         }
     }
 
@@ -80,6 +92,20 @@ public class Milestone extends BaseTimeEntity {
         if (endDate != null) {
             this.endDate = endDate;
         }
+        // 사용자가 직접 편집한 순간부터는 기본 마일스톤이 아니다 → overdue 경고 정상 노출
+        this.isDefault = false;
+    }
+
+    /** 보드 생성 시 시스템이 만드는 기본 마일스톤 팩토리. */
+    public static Milestone createDefault(Board board, String title, LocalDate startDate, LocalDate endDate, User createdBy) {
+        return Milestone.builder()
+                .board(board)
+                .title(title)
+                .startDate(startDate)
+                .endDate(endDate)
+                .createdBy(createdBy)
+                .isDefault(true)
+                .build();
     }
 
     public void updateDefaultHoursPerDay(Double defaultHoursPerDay) {

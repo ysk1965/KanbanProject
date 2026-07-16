@@ -19,7 +19,7 @@ import { getTodayDateString } from "../utils/dateUtils";
  * - 두 레이아웃: 플렉서블(Feature 스윔레인 + 레인 패킹) / 업무별(1항목 1행).
  */
 
-const DAY_W = 44; // 하루 컬럼 폭(px)
+const DAY_W = 92; // 하루 컬럼 폭(px) — 넓게 잡아 바 안에 제목이 온전히 들어가게
 const LABEL_W = 180; // 좌측 라벨 컬럼 폭(px)
 const MS = 86400000;
 const GANTT_MODE_KEY = "bridge:sprint-gantt-mode";
@@ -90,6 +90,8 @@ export function SprintMemberGanttModal({
   const [overlay, setOverlay] = useState<Record<string, Overlay>>({});
   const [error, setError] = useState<string | null>(null);
   const [dropDay, setDropDay] = useState<number | null>(null);
+  // 하단 백로그 서랍 펼침/접힘
+  const [drawerOpen, setDrawerOpen] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const rowsRef = useRef<HTMLDivElement>(null);
@@ -367,12 +369,12 @@ export function SprintMemberGanttModal({
           style={{ width: DAY_W }}
         >
           <div
-            className={`text-[9px] ${isToday ? "text-bridge-secondary" : "text-slate-500"}`}
+            className={`text-xs ${isToday ? "text-bridge-secondary" : "text-slate-500"}`}
           >
             {DOW[dow]}
           </div>
           <div
-            className={`text-[11px] font-medium tabular-nums ${isToday ? "text-bridge-secondary" : "text-foreground"}`}
+            className={`text-sm font-medium tabular-nums ${isToday ? "text-bridge-secondary" : "text-foreground"}`}
           >
             {iso.split("-")[2].replace(/^0/, "")}
           </div>
@@ -411,7 +413,7 @@ export function SprintMemberGanttModal({
             className="absolute left-0 top-0 h-full w-2 cursor-ew-resize"
           />
         )}
-        <span className="flex-1 truncate text-[11px] font-medium text-white drop-shadow-sm">
+        <span className="flex-1 truncate text-xs font-medium text-white drop-shadow-sm">
           {withTitle
             ? card.title
             : `${mdLabel(idxToDate(s))}–${mdLabel(idxToDate(s + dur - 1))}`}
@@ -488,7 +490,7 @@ export function SprintMemberGanttModal({
                 <div className="text-[12px] font-medium text-foreground truncate">
                   {card.title}
                 </div>
-                <div className="text-[9.5px] text-slate-500 truncate">
+                <div className="text-xs text-slate-500 truncate">
                   {card.feature_title ?? "미분류"} · {durOf(card)}일
                 </div>
               </div>
@@ -547,7 +549,7 @@ export function SprintMemberGanttModal({
               >
                 {g.title}
               </div>
-              <div className="text-[10px] text-slate-500">
+              <div className="text-xs text-slate-500">
                 {g.list.length}건 · {lanes.length}행
               </div>
             </div>
@@ -605,19 +607,19 @@ export function SprintMemberGanttModal({
               <div className="text-base font-bold text-foreground tabular-nums leading-none">
                 {totalCount}
               </div>
-              <div className="text-[10px] text-slate-500 mt-1">담당</div>
+              <div className="text-xs text-slate-500 mt-1">담당</div>
             </div>
             <div className="text-center px-3 py-1.5 rounded-xl bg-bridge-dark border border-foreground/[0.08]">
               <div className="text-base font-bold text-bridge-secondary tabular-nums leading-none">
                 {placedCount}
               </div>
-              <div className="text-[10px] text-slate-500 mt-1">배치됨</div>
+              <div className="text-xs text-slate-500 mt-1">배치됨</div>
             </div>
             <div className="text-center px-3 py-1.5 rounded-xl bg-bridge-dark border border-foreground/[0.08]">
               <div className="text-base font-bold text-amber-500 tabular-nums leading-none">
                 {leftCount}
               </div>
-              <div className="text-[10px] text-slate-500 mt-1">미배치</div>
+              <div className="text-xs text-slate-500 mt-1">미배치</div>
             </div>
             <button
               type="button"
@@ -630,84 +632,13 @@ export function SprintMemberGanttModal({
           </div>
         </div>
 
-        {/* 바디 */}
-        <div className="flex-1 flex min-h-0">
-          {/* 백로그 */}
-          <aside className="w-64 shrink-0 border-r border-foreground/[0.08] flex flex-col min-h-0 bg-bridge-dark/40">
-            <div className="px-4 pt-3 pb-1.5 flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
-                나에게 부여된 일
-              </span>
-              <span className="text-[11px] font-bold text-bridge-accent bg-bridge-accent/15 rounded-full px-2">
-                {leftCount}
-              </span>
-            </div>
-            <div className="px-4 pb-2 text-[11px] text-slate-500">
-              {canEdit
-                ? "카드를 오른쪽 타임라인으로 끌어 배치하세요."
-                : "읽기 전용입니다."}
-            </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-4 space-y-2">
-              {backlog.length === 0 ? (
-                <div className="text-center text-[11.5px] text-slate-600 py-10 leading-relaxed">
-                  모든 업무가 배치되었습니다. 🎉
-                  <br />
-                  바를 끌어 일정을 조정하세요.
-                </div>
-              ) : (
-                backlog.map((card) => {
-                  const color = card.feature_color ?? DEFAULT_FEATURE_COLOR;
-                  return (
-                    <div
-                      key={card.id}
-                      draggable={canEdit}
-                      onDragStart={(e) => {
-                        dragItemRef.current = card.id;
-                        e.dataTransfer.setData("text/plain", card.id);
-                        e.dataTransfer.effectAllowed = "move";
-                      }}
-                      onDragEnd={() => {
-                        dragItemRef.current = null;
-                        setDropDay(null);
-                      }}
-                      onClick={() =>
-                        card.task_id &&
-                        onOpenChecklistItem?.(card.task_id, card.id)
-                      }
-                      className={`rounded-xl border border-foreground/[0.08] bg-bridge-obsidian p-2.5 transition-colors hover:border-foreground/[0.14] ${
-                        canEdit
-                          ? "cursor-grab active:cursor-grabbing"
-                          : "cursor-pointer"
-                      }`}
-                      style={{ borderLeft: `3px solid ${color}` }}
-                    >
-                      <div
-                        className="text-[10px] font-bold mb-1 flex items-center gap-1.5"
-                        style={{ color }}
-                      >
-                        <span
-                          className="w-1.5 h-1.5 rounded-sm"
-                          style={{ background: color }}
-                        />
-                        {card.feature_title ?? "미분류"}
-                      </div>
-                      <div className="text-[12.5px] font-medium text-foreground leading-snug">
-                        {card.title}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </aside>
-
-          {/* 간트 */}
-          <section className="flex-1 flex flex-col min-w-0">
+        {/* 바디 = 간트 (가로 전체) */}
+        <section className="flex-1 flex flex-col min-w-0 min-h-0">
             <div className="flex items-center gap-3 px-4 py-2.5 border-b border-foreground/[0.08]">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 개인 간트
               </span>
-              <div className="flex gap-2.5 items-center flex-wrap text-[10.5px] text-slate-500">
+              <div className="flex gap-2.5 items-center flex-wrap text-xs text-slate-500">
                 {legendFeatures.map((f, i) => (
                   <span key={i} className="inline-flex items-center gap-1">
                     <i
@@ -722,7 +653,7 @@ export function SprintMemberGanttModal({
                 <button
                   type="button"
                   onClick={() => switchMode("flex")}
-                  className={`flex items-center gap-1 text-[11.5px] font-medium px-2.5 py-1 rounded-md transition-colors ${
+                  className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors ${
                     mode === "flex"
                       ? "bg-bridge-accent text-white"
                       : "text-slate-400 hover:text-foreground"
@@ -733,7 +664,7 @@ export function SprintMemberGanttModal({
                 <button
                   type="button"
                   onClick={() => switchMode("task")}
-                  className={`flex items-center gap-1 text-[11.5px] font-medium px-2.5 py-1 rounded-md transition-colors ${
+                  className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors ${
                     mode === "task"
                       ? "bg-bridge-accent text-white"
                       : "text-slate-400 hover:text-foreground"
@@ -755,7 +686,7 @@ export function SprintMemberGanttModal({
                 {/* 날짜 헤더 */}
                 <div className="sticky top-0 z-20 flex bg-bridge-obsidian border-b border-foreground/[0.08]">
                   <div
-                    className="sticky left-0 z-[21] flex items-center px-3.5 text-[11px] text-slate-500 bg-bridge-obsidian border-r border-foreground/[0.08]"
+                    className="sticky left-0 z-[21] flex items-center px-3.5 text-xs text-slate-500 bg-bridge-obsidian border-r border-foreground/[0.08]"
                     style={{ width: LABEL_W, flex: `0 0 ${LABEL_W}px` }}
                   >
                     업무
@@ -799,7 +730,7 @@ export function SprintMemberGanttModal({
                       className="absolute top-0 bottom-0 w-0.5 bg-bridge-secondary z-[5] pointer-events-none shadow-[0_0_10px_var(--tw-shadow-color)] shadow-bridge-secondary"
                       style={{ left: LABEL_W + todayIdx * DAY_W + DAY_W / 2 }}
                     >
-                      <span className="absolute top-0.5 left-1 text-[9px] font-bold text-bridge-secondary whitespace-nowrap">
+                      <span className="absolute top-0.5 left-1 text-xs font-bold text-bridge-secondary whitespace-nowrap">
                         오늘
                       </span>
                     </div>
@@ -810,7 +741,7 @@ export function SprintMemberGanttModal({
                       className="absolute top-0 bottom-0 rounded-lg border-[1.5px] border-dashed border-bridge-accent bg-bridge-accent/10 z-[4] pointer-events-none"
                       style={{ left: LABEL_W + dropDay * DAY_W, width: DAY_W }}
                     >
-                      <span className="absolute top-1 left-1.5 text-[10px] font-bold text-bridge-accent bg-bridge-obsidian px-1.5 rounded whitespace-nowrap">
+                      <span className="absolute top-1 left-1.5 text-xs font-bold text-bridge-accent bg-bridge-obsidian px-1.5 rounded whitespace-nowrap">
                         {mdLabel(idxToDate(dropDay))}
                       </span>
                     </div>
@@ -818,12 +749,12 @@ export function SprintMemberGanttModal({
 
                   {placed.length === 0 ? (
                     <div
-                      className="py-12 text-[12px] text-slate-500 leading-relaxed relative z-[1]"
+                      className="py-12 text-xs text-slate-500 leading-relaxed relative z-[1]"
                       style={{ paddingLeft: LABEL_W + 20 }}
                     >
                       아직 배치된 업무가 없습니다.
                       <br />
-                      왼쪽 카드를 타임라인으로 끌어오세요.
+                      아래 카드를 타임라인으로 끌어오세요.
                     </div>
                   ) : mode === "task" ? (
                     renderTaskRows()
@@ -834,24 +765,102 @@ export function SprintMemberGanttModal({
                   {/* 드롭 힌트 행 */}
                   {canEdit && placed.length > 0 && (
                     <div
-                      className="flex items-center gap-2 h-11 text-[11.5px] text-slate-500 relative z-[1]"
+                      className="flex items-center gap-2 h-11 text-xs text-slate-500 relative z-[1]"
                       style={{ paddingLeft: LABEL_W + 12 }}
                     >
-                      <span className="w-5 h-5 rounded-md border border-dashed border-foreground/20 grid place-items-center text-[13px]">
+                      <span className="w-5 h-5 rounded-md border border-dashed border-foreground/20 grid place-items-center text-sm">
                         +
                       </span>
-                      왼쪽 업무를 이 곳으로 끌어와 배치
+                      아래 업무를 이 곳으로 끌어와 배치
                     </div>
                   )}
                 </div>
               </div>
             </div>
-          </section>
+        </section>
+
+        {/* 하단 백로그 서랍 */}
+        <div className="shrink-0 border-t border-foreground/[0.08] bg-bridge-dark/40">
+          <div className="flex items-center gap-2 px-4 pt-2.5 pb-1.5 flex-wrap">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              나에게 부여된 일
+            </span>
+            <span className="text-xs font-bold text-bridge-accent bg-bridge-accent/15 rounded-full px-2">
+              {leftCount}
+            </span>
+            {canEdit && backlog.length > 0 && (
+              <span className="text-xs text-slate-500 inline-flex items-center gap-1.5">
+                <span className="text-bridge-secondary font-bold">▲</span>
+                카드를 위 타임라인으로 끌어 배치
+              </span>
+            )}
+            {backlog.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setDrawerOpen((v) => !v)}
+                className="ml-auto text-xs text-slate-400 hover:text-foreground border border-foreground/10 rounded-lg px-2.5 py-1 transition-colors"
+              >
+                {drawerOpen ? "접기 ▾" : "펼치기 ▴"}
+              </button>
+            )}
+          </div>
+          {drawerOpen && (
+            <div className="flex gap-2.5 px-4 pb-3 overflow-x-auto custom-scrollbar">
+              {backlog.length === 0 ? (
+                <div className="text-xs text-slate-600 py-6 px-1">
+                  모든 업무가 배치되었습니다 🎉 · 바를 끌어 일정을 조정하세요.
+                </div>
+              ) : (
+                backlog.map((card) => {
+                  const color = card.feature_color ?? DEFAULT_FEATURE_COLOR;
+                  return (
+                    <div
+                      key={card.id}
+                      draggable={canEdit}
+                      onDragStart={(e) => {
+                        dragItemRef.current = card.id;
+                        e.dataTransfer.setData("text/plain", card.id);
+                        e.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragEnd={() => {
+                        dragItemRef.current = null;
+                        setDropDay(null);
+                      }}
+                      onClick={() =>
+                        card.task_id &&
+                        onOpenChecklistItem?.(card.task_id, card.id)
+                      }
+                      className={`shrink-0 w-56 rounded-xl border border-foreground/[0.08] bg-bridge-obsidian p-2.5 transition-colors hover:border-foreground/[0.14] ${
+                        canEdit
+                          ? "cursor-grab active:cursor-grabbing"
+                          : "cursor-pointer"
+                      }`}
+                      style={{ borderLeft: `3px solid ${color}` }}
+                    >
+                      <div
+                        className="text-xs font-bold mb-1 flex items-center gap-1.5"
+                        style={{ color }}
+                      >
+                        <span
+                          className="w-1.5 h-1.5 rounded-sm"
+                          style={{ background: color }}
+                        />
+                        {card.feature_title ?? "미분류"}
+                      </div>
+                      <div className="text-xs font-medium text-foreground leading-snug line-clamp-2">
+                        {card.title}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
 
         {/* 푸터 */}
         <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-          <span className="text-[11px] text-slate-500 flex items-center gap-2">
+          <span className="text-xs text-slate-500 flex items-center gap-2">
             {error ? (
               <span className="text-rose-400 flex items-center gap-1.5">
                 <Loader2 className="w-3 h-3 animate-spin" /> {error}

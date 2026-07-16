@@ -37,39 +37,51 @@ export function AddFeatureModal({
   const [milestoneId, setMilestoneId] = useState("");
   const [calendarOpen, setCalendarOpen] = useState(false);
 
+  // 'yyyy-MM-dd' → Date (로컬 파싱, 오프바이원 방지)
+  const parseYmd = (s: string) => {
+    const [y, m, d] = s.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  };
+
+  // 모달 열릴 때 기본 소속 결정 — 지정된 마일스톤(활성 탭) 우선, 없으면 첫 마일스톤(=보드 기본)
+  // Model C: 피처는 항상 마일스톤에 소속된 상태로 시작하되, "없음"으로 뗄 수 있다.
   useEffect(() => {
     if (open) {
-      setMilestoneId(
+      const initial =
         defaultMilestoneId && defaultMilestoneId !== "all"
           ? defaultMilestoneId
-          : "",
-      );
+          : (milestones[0]?.id ?? "");
+      setMilestoneId(initial);
     }
+    // milestones는 deps에서 제외 — 모달이 열린 중 마일스톤 목록이 갱신돼도 유저 선택을 리셋하지 않기 위함
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, defaultMilestoneId]);
 
-  // 선택된 마일스톤 (있으면 기간은 마일스톤을 따름)
+  // 선택된 마일스톤
   const selectedMilestone = milestones.find((m) => m.id === milestoneId);
 
-  // 'yyyy-MM-dd' → 'yyyy. MM. dd.' (로컬 파싱, 오프바이원 방지)
-  const fmtYmd = (s: string) => {
-    const [y, m, d] = s.split("-").map(Number);
-    return format(new Date(y, m - 1, d), "yyyy. MM. dd.", { locale: ko });
-  };
+  // 마일스톤을 선택하면 기간을 그 마일스톤 기간으로 상속(기본값). 잠그지 않고 유저가 좁힐 수 있다.
+  useEffect(() => {
+    if (!open) return;
+    if (selectedMilestone?.start_date && selectedMilestone?.end_date) {
+      setDateRange({
+        from: parseYmd(selectedMilestone.start_date),
+        to: parseYmd(selectedMilestone.end_date),
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [milestoneId, open]);
 
   const handleSubmit = () => {
     if (title.trim()) {
       onAdd({
         title: title.trim(),
         description: description.trim() || undefined,
-        // 마일스톤에 속하면 기간은 마일스톤을 따르므로 피처 자체 날짜는 보내지 않음
-        startDate:
-          !selectedMilestone && dateRange?.from
-            ? format(dateRange.from, "yyyy-MM-dd")
-            : undefined,
-        dueDate:
-          !selectedMilestone && dateRange?.to
-            ? format(dateRange.to, "yyyy-MM-dd")
-            : undefined,
+        // 마일스톤 기간을 기본값으로 상속하되 좁힐 수 있음 — 선택된 기간을 그대로 전송
+        startDate: dateRange?.from
+          ? format(dateRange.from, "yyyy-MM-dd")
+          : undefined,
+        dueDate: dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
         milestoneId: milestoneId || undefined,
       });
       setTitle("");
@@ -159,81 +171,69 @@ export function AddFeatureModal({
           <label className="kanban-label block">
             {t("featureDetail.dateRange")}
           </label>
-          {selectedMilestone ? (
-            /* 마일스톤에 속하면 기간은 마일스톤을 따름 — 편집 불가 */
-            <>
-              <div className="w-full flex items-center bg-foreground/[0.03] border border-foreground/10 rounded-lg px-4 py-2.5 text-xs font-bold text-slate-400 cursor-not-allowed opacity-70">
-                <CalendarIcon className="mr-2 h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-                <span>
-                  {fmtYmd(selectedMilestone.start_date)}
-                  {" ~ "}
-                  {fmtYmd(selectedMilestone.end_date)}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500">
-                {t(
-                  "feature.periodFollowsMilestone",
-                  "마일스톤 기간을 따릅니다",
-                )}
-              </p>
-            </>
-          ) : (
-            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="w-full flex items-center bg-bridge-surface-hover border border-foreground/10 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 text-xs font-bold text-foreground transition-all text-left"
-                >
-                  <CalendarIcon className="mr-2 h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-                  {dateRange?.from ? (
-                    <span>
-                      {format(dateRange.from, "yyyy. MM. dd.", { locale: ko })}
-                      {" ~ "}
-                      {dateRange.to
-                        ? format(dateRange.to, "yyyy. MM. dd.", { locale: ko })
-                        : "?"}
-                    </span>
-                  ) : (
-                    <span className="text-slate-500">
-                      {t("featureDetail.selectDateRange")}
-                    </span>
-                  )}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-auto p-0 bg-bridge-obsidian border-foreground/10"
-                align="start"
+          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="w-full flex items-center bg-bridge-surface-hover border border-foreground/10 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 text-xs font-bold text-foreground transition-all text-left"
               >
-                <Calendar
-                  mode="range"
-                  selected={dateRange}
-                  onSelect={setDateRange}
-                  numberOfMonths={2}
-                  locale={ko}
-                  className="bg-bridge-obsidian text-foreground"
-                />
-                {dateRange && (
-                  <div className="p-2 border-t border-foreground/10 flex gap-2">
+                <CalendarIcon className="mr-2 h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                {dateRange?.from ? (
+                  <span>
+                    {format(dateRange.from, "yyyy. MM. dd.", { locale: ko })}
+                    {" ~ "}
+                    {dateRange.to
+                      ? format(dateRange.to, "yyyy. MM. dd.", { locale: ko })
+                      : "?"}
+                  </span>
+                ) : (
+                  <span className="text-slate-500">
+                    {t("featureDetail.selectDateRange")}
+                  </span>
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-auto p-0 bg-bridge-obsidian border-foreground/10"
+              align="start"
+            >
+              <Calendar
+                mode="range"
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={2}
+                locale={ko}
+                className="bg-bridge-obsidian text-foreground"
+              />
+              {dateRange && (
+                <div className="p-2 border-t border-foreground/10 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDateRange(undefined)}
+                    className="flex-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-md py-1.5 transition-colors"
+                  >
+                    {t("featureDetail.removeDate")}
+                  </button>
+                  {dateRange.from && dateRange.to && (
                     <button
                       type="button"
-                      onClick={() => setDateRange(undefined)}
-                      className="flex-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-md py-1.5 transition-colors"
+                      onClick={() => setCalendarOpen(false)}
+                      className="flex-1 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-md py-1.5 transition-colors font-bold"
                     >
-                      {t("featureDetail.removeDate")}
+                      {t("common.confirm", "확인")}
                     </button>
-                    {dateRange.from && dateRange.to && (
-                      <button
-                        type="button"
-                        onClick={() => setCalendarOpen(false)}
-                        className="flex-1 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-md py-1.5 transition-colors font-bold"
-                      >
-                        {t("common.confirm", "확인")}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </PopoverContent>
-            </Popover>
+                  )}
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+          {selectedMilestone && (
+            <p className="text-xs text-slate-500">
+              {t(
+                "feature.periodInheritsMilestone",
+                "마일스톤 기간이 기본값으로 채워졌어요. 좁혀도 됩니다.",
+              )}
+            </p>
           )}
         </div>
       </div>

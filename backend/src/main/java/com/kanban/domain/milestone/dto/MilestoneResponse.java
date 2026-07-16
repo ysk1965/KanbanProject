@@ -55,6 +55,7 @@ public class MilestoneResponse {
         private LocalDate endDate;
         private int featureCount;
         private int progressPercentage;
+        private Boolean isDefault;
         private List<FeatureInfo> features;
         private CreatorInfo createdBy;
         private LocalDateTime createdAt;
@@ -77,6 +78,7 @@ public class MilestoneResponse {
                     .endDate(milestone.getEndDate())
                     .featureCount(links.size())
                     .progressPercentage(progressPercentage)
+                    .isDefault(milestone.getIsDefault())
                     .features(featureInfos)
                     .createdBy(CreatorInfo.of(milestone.getCreatedBy()))
                     .createdAt(milestone.getCreatedAt())
@@ -95,6 +97,7 @@ public class MilestoneResponse {
         private LocalDate endDate;
         private int featureCount;
         private int progressPercentage;
+        private Boolean isDefault;
         private List<FeatureInfo> features;
         private CreatorInfo createdBy;
         private LocalDateTime createdAt;
@@ -117,6 +120,7 @@ public class MilestoneResponse {
                     .endDate(milestone.getEndDate())
                     .featureCount(links.size())
                     .progressPercentage(progressPercentage)
+                    .isDefault(milestone.getIsDefault())
                     .features(featureInfos)
                     .createdBy(CreatorInfo.of(milestone.getCreatedBy()))
                     .createdAt(milestone.getCreatedAt())

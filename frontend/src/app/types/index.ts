@@ -529,6 +529,8 @@ export interface Milestone {
   end_date: string;
   feature_count: number;
   progress_percentage: number;
+  /** 보드 생성 시 자동 생성된 기본 마일스톤 여부. true(미편집)면 overdue 경고를 숨긴다. */
+  is_default?: boolean;
   features?: MilestoneFeatureInfo[];
   created_by?: { id: string; name: string };
   created_at?: string;
