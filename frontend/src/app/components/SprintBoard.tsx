@@ -57,6 +57,7 @@ import {
 import { MotionModal } from "./ui/MotionModal";
 import { SprintMemberGanttModal } from "./SprintMemberGanttModal";
 import { JiraOnboardingGuide } from "./JiraOnboardingGuide";
+import type { FilterOptions } from "./FilterModal";
 
 interface SprintBoardProps {
   boardId: string;
@@ -71,8 +72,12 @@ interface SprintBoardProps {
   onOpenFeature?: (featureId: string) => void;
   /** 좌측 업무 리스트 헤더 "+" → 새 피쳐 생성(제목만). 반환된 피쳐는 곧바로 상세 모달로 이어진다. */
   onCreateFeature?: (data: { title: string }) => Promise<{ id: string } | null>;
-  /** 담당자 필터(칸반 탭 필터바 연동). 이름 배열(+ '__no_members__'). 빈 배열이면 전체 */
-  memberFilter?: string[];
+  /** 칸반 탭 필터바 전체(담당자·피쳐·라벨·상태·검색). 스프린트 뷰 3종(Feature/구성원/JIRA) 공용 적용 */
+  filterOptions?: FilterOptions;
+  /** 라벨 필터 판정용 — feature_id → 태그 id 배열. SprintItemCard/JiraTask에 태그가 없어 부모가 주입 */
+  featureTagsMap?: Record<string, string[]>;
+  /** 라벨 필터 판정용 — task_id → 태그 id 배열. */
+  taskTagsMap?: Record<string, string[]>;
   /** 구성원 컬럼 정렬 기준 — 보드 멤버 관리(직군 관리) 순서의 userId 배열. 미지정 시 카드 수 내림차순 */
   memberOrder?: string[];
 }
@@ -164,7 +169,9 @@ export function SprintBoard({
   onOpenChecklistItem,
   onOpenFeature,
   onCreateFeature,
-  memberFilter,
+  filterOptions,
+  featureTagsMap = {},
+  taskTagsMap = {},
   memberOrder,
 }: SprintBoardProps) {
   const controlled = !!controlledMilestoneId;
@@ -480,23 +487,75 @@ export function SprintBoard({
     }
   }, []);
 
-  // 담당자 필터 — 칸반 탭 필터바(filterOptions.members)와 동일 규칙으로 카드 걸러내기.
-  // 컬럼/백로그/좌측 트리 및 게이지가 모두 filteredBoard에서 파생되어 필터를 반영한다.
+  // ── 통합 필터(칸반 탭 필터바) — 담당자·피쳐·라벨·상태·검색을 스프린트 뷰 전반에 적용 ──
+  // 항목(SprintItemCard) 단위 매칭 함수: Feature/구성원 뷰·백로그·게이지·트리·미리보기 공용.
+  // SprintItemCard에는 태그가 없어 부모가 준 featureTagsMap/taskTagsMap로 라벨을 판정한다.
+  const itemMatchesFilter = useMemo(() => {
+    const fo = filterOptions;
+    const kw = fo?.keyword?.trim().toLowerCase() ?? "";
+    const members = fo?.members ?? [];
+    const memberWantsNone = members.includes("__no_members__");
+    const memberNames = new Set(members.filter((m) => m !== "__no_members__"));
+    const featSel = new Set(fo?.features ?? []);
+    const tagSel = new Set(fo?.tags ?? []);
+    const statusSel = fo?.cardStatus ?? [];
+    const endColIds = new Set(
+      (board?.columns ?? []).filter((c) => c.kind === "END").map((c) => c.id),
+    );
+    return (it: SprintItemCard): boolean => {
+      if (kw) {
+        const hay =
+          `${it.title} ${it.task_title ?? ""} ${it.feature_title ?? ""}`.toLowerCase();
+        if (!hay.includes(kw)) return false;
+      }
+      if (members.length > 0) {
+        // 외주 카드는 관리 담당(manager) 이름으로 매칭 — 컬럼 라우팅과 일관.
+        const name = it.assignee?.name ?? it.contractor?.manager_name;
+        const ok = name ? memberNames.has(name) : memberWantsNone;
+        if (!ok) return false;
+      }
+      if (featSel.size > 0 && !featSel.has(it.feature_id ?? "__none__"))
+        return false;
+      if (tagSel.size > 0) {
+        const fTags = it.feature_id ? featureTagsMap[it.feature_id] : undefined;
+        const tTags = it.task_id ? taskTagsMap[it.task_id] : undefined;
+        const hit =
+          (fTags?.some((t) => tagSel.has(t)) ?? false) ||
+          (tTags?.some((t) => tagSel.has(t)) ?? false);
+        if (!hit) return false;
+      }
+      if (statusSel.length > 0) {
+        const isDone =
+          it.completed ||
+          (!!it.sprint_column_id && endColIds.has(it.sprint_column_id));
+        const ok =
+          (statusSel.includes("completed") && isDone) ||
+          (statusSel.includes("incomplete") && !isDone);
+        if (!ok) return false;
+      }
+      return true;
+    };
+  }, [filterOptions, featureTagsMap, taskTagsMap, board]);
+
+  const hasActiveFilter = useMemo(() => {
+    const fo = filterOptions;
+    if (!fo) return false;
+    return (
+      !!fo.keyword?.trim() ||
+      fo.members.length > 0 ||
+      fo.features.length > 0 ||
+      fo.tags.length > 0 ||
+      fo.cardStatus.length > 0
+    );
+  }, [filterOptions]);
+
+  // 필터 반영 보드 — 컬럼/백로그/좌측 트리 및 게이지가 모두 여기서 파생되어 필터를 반영한다.
   const filteredBoard = useMemo<SprintBoardData | null>(() => {
     if (!board) return null;
-    const members = memberFilter ?? [];
-    if (members.length === 0) return board;
-    const hasNoAssignee = members.includes("__no_members__");
-    const names = new Set(members.filter((m) => m !== "__no_members__"));
-    const matches = (it: SprintItemCard) => {
-      // 외주 카드는 관리 담당(manager)의 이름으로 필터 — 컬럼 라우팅과 일관.
-      const name = it.assignee?.name ?? it.contractor?.manager_name;
-      if (!name) return hasNoAssignee;
-      return names.has(name);
-    };
+    if (!hasActiveFilter) return board;
     const filteredColumns = board.columns.map((c) => ({
       ...c,
-      items: c.items.filter(matches),
+      items: c.items.filter(itemMatchesFilter),
     }));
     // 게이지 재계산: 담긴 항목(sprint_column_id) 중 완료/Done 컬럼 도달분
     const endColIds = new Set(
@@ -513,7 +572,7 @@ export function SprintBoard({
     }
     return {
       ...board,
-      backlog: board.backlog.filter(matches),
+      backlog: board.backlog.filter(itemMatchesFilter),
       columns: filteredColumns,
       gauge: {
         done,
@@ -521,7 +580,51 @@ export function SprintBoard({
         percentage: total > 0 ? Math.round((done / total) * 100) : 0,
       },
     };
-  }, [board, memberFilter]);
+  }, [board, hasActiveFilter, itemMatchesFilter]);
+
+  // JIRA 뷰(Task 단위) 필터 매칭 — 카드가 체크리스트가 아니라 Task(=JIRA 이슈)라 별도 판정.
+  // 담당자는 태스크 담당자 중 하나라도 걸리면 통과, 상태는 체크리스트 전체 완료(done>=total) 기준.
+  const taskMatchesFilter = useMemo(() => {
+    const fo = filterOptions;
+    const kw = fo?.keyword?.trim().toLowerCase() ?? "";
+    const members = fo?.members ?? [];
+    const memberWantsNone = members.includes("__no_members__");
+    const memberNames = new Set(members.filter((m) => m !== "__no_members__"));
+    const featSel = new Set(fo?.features ?? []);
+    const tagSel = new Set(fo?.tags ?? []);
+    const statusSel = fo?.cardStatus ?? [];
+    return (jt: SprintJiraTask): boolean => {
+      if (kw) {
+        const hay = `${jt.task_title ?? ""} ${jt.jira_issue_key}`.toLowerCase();
+        if (!hay.includes(kw)) return false;
+      }
+      if (members.length > 0) {
+        const ok =
+          jt.assignees.length === 0
+            ? memberWantsNone
+            : jt.assignees.some((a) => memberNames.has(a.name));
+        if (!ok) return false;
+      }
+      if (featSel.size > 0 && !featSel.has(jt.feature_id ?? "__none__"))
+        return false;
+      if (tagSel.size > 0) {
+        const fTags = jt.feature_id ? featureTagsMap[jt.feature_id] : undefined;
+        const tTags = jt.task_id ? taskTagsMap[jt.task_id] : undefined;
+        const hit =
+          (fTags?.some((t) => tagSel.has(t)) ?? false) ||
+          (tTags?.some((t) => tagSel.has(t)) ?? false);
+        if (!hit) return false;
+      }
+      if (statusSel.length > 0) {
+        const isDone = jt.total > 0 && jt.done >= jt.total;
+        const ok =
+          (statusSel.includes("completed") && isDone) ||
+          (statusSel.includes("incomplete") && !isDone);
+        if (!ok) return false;
+      }
+      return true;
+    };
+  }, [filterOptions, featureTagsMap, taskTagsMap]);
 
   const activeSprint = filteredBoard?.active_sprint ?? null;
   const columns = useMemo(
@@ -942,17 +1045,7 @@ export function SprintBoard({
     //    JIRA 뷰는 스프린트 스코프가 아니라 "보드 스코프" — 스프린트에 담기지 않은 이슈도
     //    JIRA 보드처럼 그대로 비춘다(재동기화로 import된 카드가 바로 보이도록). done/total은
     //    스프린트 담김 수가 아니라 그 Task의 체크리스트 전체 진행도(백엔드 집계).
-    // 담당자 필터(구성원 필터바)는 아이템이 아니라 Task 단위로 적용: 담당자 중 하나라도 걸리면 통과.
-    const memberSel = memberFilter ?? [];
-    const memberWantsNone = memberSel.includes("__no_members__");
-    const memberNames = new Set(
-      memberSel.filter((m) => m !== "__no_members__"),
-    );
-    const memberMatch = (jt: SprintJiraTask) => {
-      if (memberSel.length === 0) return true;
-      if (jt.assignees.length === 0) return memberWantsNone;
-      return jt.assignees.some((a) => memberNames.has(a.name));
-    };
+    // 필터바(담당자·피쳐·라벨·상태·검색)는 아이템이 아니라 Task 단위로 적용.
     const taskMap = new Map<string, JiraTaskCard>();
     for (const jt of board?.jira_tasks ?? []) {
       if (!jt.jira_issue_key || !jt.task_id) continue;
@@ -961,7 +1054,7 @@ export function SprintBoard({
         !featureFilter.has(jt.feature_id ?? "__none__")
       )
         continue;
-      if (!memberMatch(jt)) continue;
+      if (!taskMatchesFilter(jt)) continue;
       const resolved =
         (jt.block_id ? statusByBlock.get(jt.block_id) : undefined) ??
         jt.jira_status_id ??
@@ -1071,7 +1164,7 @@ export function SprintBoard({
     jiraMeta,
     board,
     featureFilter,
-    memberFilter,
+    taskMatchesFilter,
   ]);
 
   // JIRA 게이지/헤더용 집계 — 검증완료 + 검토중 2색 세그먼트
@@ -1379,16 +1472,8 @@ export function SprintBoard({
   // 컬럼 정의는 마일스톤 소속이라 스프린트 간 공유 → 활성 보드의 columns를 그대로 재사용.
   const previewColumns = useMemo(() => {
     if (!previewSprintId || !previewItems) return null;
-    const members = memberFilter ?? [];
-    const hasNoAssignee = members.includes("__no_members__");
-    const names = new Set(members.filter((m) => m !== "__no_members__"));
-    const matches = (it: SprintItemCard) => {
-      if (members.length === 0) return true;
-      const name = it.assignee?.name ?? it.contractor?.manager_name;
-      return name ? names.has(name) : hasNoAssignee;
-    };
     const items = previewItems.filter(
-      (it) => it.sprint_column_id && matches(it),
+      (it) => it.sprint_column_id && itemMatchesFilter(it),
     );
     return columns.map((col) => ({
       ...col,
@@ -1396,7 +1481,7 @@ export function SprintBoard({
         .filter((it) => it.sprint_column_id === col.id)
         .sort((a, b) => a.position - b.position),
     }));
-  }, [previewSprintId, previewItems, columns, memberFilter]);
+  }, [previewSprintId, previewItems, columns, itemMatchesFilter]);
 
   const openReactivateModal = (target: SprintInfo) => {
     setReactivateTarget(target);
@@ -2792,7 +2877,23 @@ export function SprintBoard({
                     항목이 없습니다.
                   </p>
                 )}
-                {orderedTree.map((feat) => {
+                {(() => {
+                  // "정리됨 · N" 구분선 위치 계산 — 숨김 모드에선 정리된 피쳐가 하단에 모이므로
+                  // 첫 정리 피쳐 바로 앞에 구분선을 1회 삽입한다. (보임 모드에선 정리됨이 거의 없어 미출력)
+                  const featCleared = (f: TreeFeature) =>
+                    f.tasks
+                      .map((task) =>
+                        showTakenInTree
+                          ? task.items
+                          : task.items.filter(
+                              (it) => !it.sprint_column_id && !it.completed,
+                            ),
+                      )
+                      .filter((items) => items.length > 0).length === 0;
+                  const clearedFlags = orderedTree.map(featCleared);
+                  const clearedCount = clearedFlags.filter(Boolean).length;
+                  const firstClearedIdx = clearedFlags.indexOf(true);
+                  return orderedTree.map((feat, idx) => {
                   // 보임 필터: 정리된 항목 숨김 시, 표시할 항목이 남은 Task만 유지
                   // (담김·완료 모두 숨김 — 스프린트 미담김이라도 완료 처리된 항목 포함)
                   const visibleTasks = feat.tasks
@@ -2826,8 +2927,16 @@ export function SprintBoard({
                       : 0;
                   const featColor = feat.featureColor ?? "#6366F1";
                   return (
-                    <div
-                      key={feat.featureId}
+                    <Fragment key={feat.featureId}>
+                      {idx === firstClearedIdx && clearedCount > 0 && (
+                        <div className="flex items-center gap-2 px-1 pt-3 pb-1">
+                          <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500 shrink-0">
+                            정리됨 · {clearedCount}
+                          </span>
+                          <span className="flex-1 h-px bg-foreground/[0.06]" />
+                        </div>
+                      )}
+                      <div
                       className={`rounded-xl border overflow-hidden transition-colors ${
                         bodyOpen
                           ? "bg-bridge-obsidian border-foreground/[0.08]"
@@ -3162,8 +3271,10 @@ export function SprintBoard({
                         </div>
                       )}
                     </div>
+                    </Fragment>
                   );
-                })}
+                  });
+                })()}
               </div>
             )}
             {/* 리사이즈 핸들 — 경계 드래그로 폭 조절(240~480px). 접힘 상태에선 숨김. */}

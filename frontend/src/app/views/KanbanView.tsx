@@ -213,6 +213,22 @@ export const KanbanView = memo(function KanbanView({
     return map;
   }, [filteredTasks, sortedBlocks, selectedFeatureIds, scheduledTaskIds]);
 
+  // 스프린트 뷰 라벨(태그) 필터 판정용 맵 — SprintItemCard/JiraTask엔 태그가 없어 부모가 주입.
+  const featureTagsMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    features.forEach((f) => {
+      if (f.tags?.length) map[f.id] = f.tags.map((t) => t.id);
+    });
+    return map;
+  }, [features]);
+  const taskTagsMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    tasks.forEach((t) => {
+      if (t.tags?.length) map[t.id] = t.tags.map((tag) => tag.id);
+    });
+    return map;
+  }, [tasks]);
+
   // 숨긴 블록의 원래 상대 위치를 유지하면서 보이는 블록의 새 순서를 백엔드에 저장
   const persistBlockReorder = (newVisibleOrder: Block[]) => {
     if (!boardId) return;
@@ -375,7 +391,9 @@ export const KanbanView = memo(function KanbanView({
                     ? selectedMilestoneId
                     : undefined
                 }
-                memberFilter={filterOptions.members}
+                filterOptions={filterOptions}
+                featureTagsMap={featureTagsMap}
+                taskTagsMap={taskTagsMap}
                 memberOrder={boardMembersData.map((m) => m.userId)}
               />
             </div>
