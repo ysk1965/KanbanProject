@@ -18,6 +18,8 @@ import com.kanban.domain.integration.jira.JiraUserMappingRepository;
 import com.kanban.domain.integration.jira.dto.JiraRequest;
 import com.kanban.domain.integration.jira.dto.JiraResponse;
 import com.kanban.domain.integration.slack.service.SlackTokenEncryptor;
+import com.kanban.domain.block.FixedBlockType;
+import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
@@ -51,6 +53,7 @@ public class JiraConnectionService {
     private final BoardService boardService;
     private final BoardRepository boardRepository;
     private final BlockRepository blockRepository;
+    private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final SlackTokenEncryptor tokenEncryptor;
     private final ObjectMapper objectMapper;
@@ -141,7 +144,8 @@ public class JiraConnectionService {
         List<JiraResponse.NameRef> statusList = fetchProjectStatuses(config, token);
 
         // 매핑 UI 좌측: BRIDGE 블록 (Feature 블록 제외 — 카드가 흐르는 칸반 블록만).
-        // jiraStatusId 포함 → FE가 미러 컬럼을 식별.
+        // 미러 컬럼은 jiraStatusId(대표) + jiraStatusIds(묶인 상태 전체) 포함 → FE가 컬럼/배치를 구성.
+        MirrorColumns mirror = MirrorColumns.parse(objectMapper, config.getMirrorColumnsJson());
         List<JiraResponse.BlockRef> blockList = blockRepository.findByBoardIdOrderByPositionAsc(boardId).stream()
             .filter(b -> !b.isFeatureBlock())
             .map(b -> JiraResponse.BlockRef.builder()
@@ -149,6 +153,7 @@ public class JiraConnectionService {
                 .name(b.getName())
                 .fixedType(b.getFixedType() != null ? b.getFixedType().name() : null)
                 .jiraStatusId(b.getJiraStatusId())
+                .jiraStatusIds(b.isJiraMirror() ? mirror.statusIdsForBlock(b.getId()) : null)
                 .build())
             .toList();
 
@@ -179,9 +184,14 @@ public class JiraConnectionService {
 
     // ── 미러 셋업 (JIRA 상태 → 블록 1:1) ────────────
 
+    /** 셋업용 컬럼 스펙 — 컬럼 이름 + 묶인 JIRA 상태 id들(우선순위 순). */
+    private record ColumnSpec(String name, List<String> statusIds) {}
+
     /**
-     * JIRA 상태별로 미러 컬럼(블록)을 생성하고 미러 모드로 전환. 멱등 — 이미 있는 미러 컬럼은 재사용.
-     * 미러 블록은 JIRA 뷰 전용(메인 보드에서 숨김)이며 jiraStatusId로 식별된다.
+     * JIRA Agile 보드 컬럼을 그대로 미러 컬럼(블록)으로 재생성하고 미러 모드로 전환.
+     * 한 컬럼이 여러 상태를 묶을 수 있고(완료=완료+Resolved), 보드에 없는 상태는 제외한다.
+     * 재실행 시 기존 미러 컬럼을 전부 정리(태스크는 TASK 블록으로 대피 후 초기 import가 재배치)하고 새로 만든다.
+     * 보드 구성 조회가 실패하면 프로젝트 상태 전체를 상태당 1컬럼으로 폴백.
      */
     @Transactional
     @CacheEvict(value = "blocks", allEntries = true)
@@ -193,39 +203,107 @@ public class JiraConnectionService {
         Board board = boardRepository.findById(boardId)
             .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        List<JiraResponse.NameRef> statuses = fetchProjectStatuses(config, token);
+        // 1) 컬럼 스펙 결정: Agile 보드 구성 우선, 실패 시 상태 목록 폴백
+        List<ColumnSpec> specs = fetchBoardColumns(config, token);
+        if (specs.isEmpty()) {
+            specs = fetchProjectStatuses(config, token).stream()
+                .map(s -> new ColumnSpec(s.getName(), List.of(s.getId())))
+                .toList();
+        }
 
-        // 미러 컬럼은 메인 보드 정상 블록(0..~)과 위치 충돌을 피하려고 500번대에 배치. DONE(999) 앞.
+        // 2) 기존 미러 컬럼 정리 — 태스크는 TASK 고정 블록으로 대피 후 삭제(초기 import가 새 컬럼으로 재배치)
+        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
+        for (Block old : blockRepository.findJiraMirrorBlocksByBoardId(boardId)) {
+            if (taskBlock != null) taskRepository.moveTasksToBlock(old.getId(), taskBlock);
+            blockRepository.delete(old);
+        }
+        blockRepository.flush();
+
+        // 3) 컬럼 스펙 → 미러 블록 생성 + mirrorColumnsJson 조립
         int position = 500;
-        int created = 0, reused = 0;
         String[] palette = {"#818cf8", "#6366F1", "#2DD4BF", "#14B8A6", "#10B981", "#F59E0B", "#F43F5E", "#A78BFA"};
+        List<Map<String, Object>> mirrorCols = new ArrayList<>();
         int idx = 0;
-        for (JiraResponse.NameRef st : statuses) {
-            Block existing = blockRepository.findByBoardIdAndJiraStatusId(boardId, st.getId()).orElse(null);
-            if (existing != null) {
-                reused++;
-            } else {
-                String color = palette[idx % palette.length];
-                Block mirror = Block.createJiraMirrorBlock(board, truncate50(st.getName()), color, position++, st.getId());
-                blockRepository.save(mirror);
-                created++;
-            }
+        for (ColumnSpec spec : specs) {
+            if (spec.statusIds().isEmpty()) continue;   // 상태 없는 빈 컬럼은 스킵
+            String primary = spec.statusIds().get(0);
+            Block mirror = Block.createJiraMirrorBlock(
+                board, truncate50(spec.name()), palette[idx % palette.length], position++, primary);
+            blockRepository.save(mirror);
+            Map<String, Object> col = new LinkedHashMap<>();
+            col.put("block_id", mirror.getId());
+            col.put("name", spec.name());
+            col.put("status_ids", spec.statusIds());
+            col.put("primary", primary);
+            mirrorCols.add(col);
             idx++;
         }
 
+        config.updateMirrorColumns(toJsonList(mirrorCols));
         config.enableMirror();
         // 초기 가져오기는 이 트랜잭션 밖(컨트롤러)에서 별도로 수행 — 중첩 @Transactional 롤백 오염 방지.
 
-        long total = blockRepository.countJiraMirrorBlocksByBoardId(boardId);
-        log.info("JIRA mirror setup for board {}: {} columns ({} created, {} reused) by user {}",
-            boardId, total, created, reused, userId);
+        int total = mirrorCols.size();
+        log.info("JIRA mirror setup for board {}: {} columns from {} by user {}",
+            boardId, total, specs.size() > total ? "board(filtered)" : "board/fallback", userId);
 
         return JiraResponse.MirrorSetup.builder()
-            .columns((int) total)
-            .created(created)
-            .reused(reused)
+            .columns(total)
+            .created(total)
+            .reused(0)
             .status(toStatus(config))
             .build();
+    }
+
+    /** Agile 보드 구성에서 컬럼(이름+상태 id들)을 뽑는다. 보드 없음/권한 없음/파싱 실패 시 빈 목록. */
+    private List<ColumnSpec> fetchBoardColumns(JiraIntegrationConfig config, String token) {
+        try {
+            JiraAuthContext ctx = JiraAuthContext.of(config, token);
+            JsonNode boards = jiraApiClient.getAgileBoards(ctx, config.getProjectKey());
+            JsonNode values = boards != null ? boards.get("values") : null;
+            if (values == null || !values.isArray() || values.isEmpty()) return List.of();
+            // 첫 번째 보드(칸반 우선)를 선택
+            String boardIdJira = null;
+            for (JsonNode b : values) {
+                if ("kanban".equalsIgnoreCase(b.path("type").asText(""))) {
+                    boardIdJira = b.path("id").asText(null);
+                    break;
+                }
+            }
+            if (boardIdJira == null) boardIdJira = values.get(0).path("id").asText(null);
+            if (boardIdJira == null) return List.of();
+
+            JsonNode cfg = jiraApiClient.getBoardConfiguration(ctx, boardIdJira);
+            JsonNode columns = cfg != null ? cfg.path("columnConfig").path("columns") : null;
+            if (columns == null || !columns.isArray()) return List.of();
+
+            List<ColumnSpec> specs = new ArrayList<>();
+            for (JsonNode col : columns) {
+                String name = col.path("name").asText(null);
+                List<String> statusIds = new ArrayList<>();
+                JsonNode sts = col.get("statuses");
+                if (sts != null && sts.isArray()) {
+                    for (JsonNode s : sts) {
+                        String id = s.path("id").asText(null);
+                        if (id != null) statusIds.add(id);
+                    }
+                }
+                if (name != null && !statusIds.isEmpty()) specs.add(new ColumnSpec(name, statusIds));
+            }
+            return specs;
+        } catch (Exception e) {
+            log.warn("JIRA agile board config fetch failed for {}: {} — falling back to status list",
+                config.getProjectKey(), e.getMessage());
+            return List.of();
+        }
+    }
+
+    private String toJsonList(List<Map<String, Object>> list) {
+        try {
+            return objectMapper.writeValueAsString(list);
+        } catch (JsonProcessingException e) {
+            throw new BusinessException(ErrorCode.JIRA_IMPORT_FAILED, "미러 컬럼 직렬화 실패");
+        }
     }
 
     // ── pre-block: 태스크의 전환 가능 상태 ──────────

@@ -44,31 +44,58 @@ public class JiraWriteBackService {
         JiraIntegrationConfig config = configRepository.findActiveByBoardId(boardId).orElse(null);
         if (config == null) return;
 
-        // 대상 status 결정: MIRROR면 대상 블록의 jiraStatusId, MANUAL이면 블록별 push 매핑.
-        String targetStatusId;
+        // 대상 status 후보 결정: MIRROR면 대상 컬럼에 묶인 상태들(우선순위 순), MANUAL이면 블록별 push 매핑.
+        List<String> targetStatuses;
         if (config.isMirror()) {
-            Block targetBlock = blockRepository.findById(targetBlockId).orElse(null);
-            targetStatusId = (targetBlock != null) ? targetBlock.getJiraStatusId() : null;
+            MirrorColumns mirror = MirrorColumns.parse(objectMapper, config.getMirrorColumnsJson());
+            targetStatuses = mirror.statusIdsForBlock(targetBlockId);
+            if (targetStatuses.isEmpty()) {
+                Block tb = blockRepository.findById(targetBlockId).orElse(null);
+                if (tb != null && tb.getJiraStatusId() != null) targetStatuses = List.of(tb.getJiraStatusId());
+            }
         } else {
             if (config.getBlockStatusMapJson() == null) return;
             BlockStatusMap map = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
-            targetStatusId = map.pushTargetForBlock(targetBlockId);
+            String s = map.pushTargetForBlock(targetBlockId);
+            targetStatuses = s != null ? List.of(s) : List.of();
         }
-        if (targetStatusId == null) return;   // 미러 컬럼이 아니거나 push 매핑 아님
+        if (targetStatuses.isEmpty()) return;   // 미러 컬럼이 아니거나 push 매핑 아님
 
         JiraIssueLink link = issueLinkRepository
             .findByTargetTypeAndTargetId(JiraLinkTargetType.TASK, taskId).orElse(null);
         if (link == null) return;             // JIRA 연동 카드 아님
 
+        // 이미 이 컬럼의 상태 중 하나면 전환 불필요(제자리)
+        if (link.getLastJiraStatusId() != null && targetStatuses.contains(link.getLastJiraStatusId())) return;
+
         try {
             String token = oauthService.resolveToken(config);
-            transitionToTarget(JiraAuthContext.of(config, token), link.getJiraIssueKey(), targetStatusId);
-            link.markJiraStatus(targetStatusId);   // 에코 방지 + pre-block 현재상태 갱신
-            log.info("JIRA push: task {} → status {} ({})", taskId, targetStatusId, link.getJiraIssueKey());
+            String applied = transitionToFirst(JiraAuthContext.of(config, token),
+                link.getJiraIssueKey(), targetStatuses);
+            if (applied != null) {
+                link.markJiraStatus(applied);   // 에코 방지 + pre-block 현재상태 갱신
+                log.info("JIRA push: task {} → status {} ({})", taskId, applied, link.getJiraIssueKey());
+            }
         } catch (Exception e) {
             log.warn("JIRA push failed for {}: {}", link.getJiraIssueKey(), e.getMessage());
             config.markError("push 실패: " + link.getJiraIssueKey());
         }
+    }
+
+    /** 후보 상태들 중 전환 가능한 첫 상태로 전환. 실행한 상태 id 반환(없으면 null). */
+    private String transitionToFirst(JiraAuthContext ctx, String issueKey, List<String> statusIds) {
+        JsonNode result = jiraApiClient.getTransitions(ctx, issueKey);
+        JsonNode transitions = result != null ? result.get("transitions") : null;
+        if (transitions == null || !transitions.isArray()) return null;
+        for (String target : statusIds) {
+            for (JsonNode tr : transitions) {
+                if (target.equals(tr.path("to").path("id").asText(null))) {
+                    jiraApiClient.transitionIssue(ctx, issueKey, tr.path("id").asText(null));
+                    return target;
+                }
+            }
+        }
+        return null;
     }
 
     /** 한 보드의 완료 역동기화. 스케줄러가 configId로 호출 → 각자 트랜잭션에서 재로딩. */

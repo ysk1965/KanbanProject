@@ -52,6 +52,20 @@ public class JiraApiClient {
         return exchange(ctx, HttpMethod.GET, "/project/" + projectKey + "/statuses", null);
     }
 
+    // ── Agile 보드 (컬럼 구성 = 사용자가 보는 칸반 컬럼) ──
+
+    /** 프로젝트에 연결된 Agile 보드 목록. /rest/agile/1.0/board?projectKeyOrId= */
+    public JsonNode getAgileBoards(JiraAuthContext ctx, String projectKey) {
+        return exchangeUrl(ctx, HttpMethod.GET,
+            agileBase(ctx) + "/board?projectKeyOrId=" + projectKey + "&maxResults=50", null);
+    }
+
+    /** 보드 컬럼 구성 — columnConfig.columns[].{name, statuses[].id}. 각 컬럼에 묶인 JIRA 상태들. */
+    public JsonNode getBoardConfiguration(JiraAuthContext ctx, String boardId) {
+        return exchangeUrl(ctx, HttpMethod.GET,
+            agileBase(ctx) + "/board/" + boardId + "/configuration", null);
+    }
+
     // ── 이슈 검색 (Enhanced JQL search, nextPageToken 페이지네이션) ──
 
     public JsonNode searchIssues(JiraAuthContext ctx, String jql, String nextPageToken, int maxResults) {
@@ -102,7 +116,10 @@ public class JiraApiClient {
     // ── 공통 호출 ──────────────────────────────────
 
     private JsonNode exchange(JiraAuthContext ctx, HttpMethod method, String path, JsonNode body) {
-        String url = apiBase(ctx) + path;
+        return exchangeUrl(ctx, method, apiBase(ctx) + path, body);
+    }
+
+    private JsonNode exchangeUrl(JiraAuthContext ctx, HttpMethod method, String url, JsonNode body) {
         for (int attempt = 0; attempt < MAX_RETRIES; attempt++) {
             try {
                 HttpHeaders headers = authHeaders(ctx);
@@ -132,17 +149,17 @@ public class JiraApiClient {
                     sleep(waitMs);
                     continue;
                 }
-                log.error("JIRA API call {} {} failed: {} {}", method, path, code, e.getMessage());
+                log.error("JIRA API call {} {} failed: {} {}", method, url, code, e.getMessage());
                 throw new BusinessException(ErrorCode.JIRA_API_ERROR);
 
             } catch (BusinessException e) {
                 throw e;
             } catch (Exception e) {
                 if (attempt == MAX_RETRIES - 1) {
-                    log.error("JIRA API call {} {} failed after {} retries: {}", method, path, MAX_RETRIES, e.getMessage());
+                    log.error("JIRA API call {} {} failed after {} retries: {}", method, url, MAX_RETRIES, e.getMessage());
                     throw new BusinessException(ErrorCode.JIRA_API_ERROR);
                 }
-                log.warn("JIRA API call {} {} failed (attempt {}): {}", method, path, attempt + 1, e.getMessage());
+                log.warn("JIRA API call {} {} failed (attempt {}): {}", method, url, attempt + 1, e.getMessage());
             }
         }
         throw new BusinessException(ErrorCode.JIRA_API_ERROR);
@@ -166,6 +183,15 @@ public class JiraApiClient {
         }
         String host = ctx.baseUrl().trim().replaceFirst("^https?://", "").replaceAll("/+$", "");
         return "https://" + host + "/rest/api/3";
+    }
+
+    /** Agile(Jira Software) API 베이스. 보드 컬럼 구성 등. */
+    private String agileBase(JiraAuthContext ctx) {
+        if (ctx.isOAuth()) {
+            return "https://api.atlassian.com/ex/jira/" + ctx.cloudId() + "/rest/agile/1.0";
+        }
+        String host = ctx.baseUrl().trim().replaceFirst("^https?://", "").replaceAll("/+$", "");
+        return "https://" + host + "/rest/agile/1.0";
     }
 
     private void sleep(long ms) {

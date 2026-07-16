@@ -5857,8 +5857,10 @@ export interface JiraBlockRef {
   id: string;
   name: string;
   fixed_type: string | null;
-  /** 미러 컬럼이면 대응 JIRA 상태 id. */
+  /** 미러 컬럼이면 대표 JIRA 상태 id. */
   jira_status_id: string | null;
+  /** 미러 컬럼에 묶인 JIRA 상태 id 전체 (카드 배치용). */
+  jira_status_ids: string[] | null;
 }
 
 export interface JiraMeta {

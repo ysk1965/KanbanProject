@@ -78,7 +78,8 @@ public class JiraResponse {
         private String id;
         private String name;
         private String fixedType;   // TASK / SPRINT / DONE / CUSTOM 등 (nullable)
-        private String jiraStatusId; // 미러 컬럼이면 대응 JIRA 상태 id (nullable)
+        private String jiraStatusId; // 미러 컬럼이면 대표(primary) JIRA 상태 id (nullable)
+        private List<String> jiraStatusIds; // 미러 컬럼에 묶인 JIRA 상태 id 전체 (카드 배치용)
     }
 
     /** OAuth 인증 URL. */

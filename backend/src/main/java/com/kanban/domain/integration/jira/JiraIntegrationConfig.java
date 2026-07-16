@@ -109,6 +109,14 @@ public class JiraIntegrationConfig {
     @Builder.Default
     private JiraSyncMode syncMode = JiraSyncMode.MANUAL;
 
+    /**
+     * 미러 컬럼 정의 (JSON). JIRA Agile 보드 컬럼을 그대로 미러링.
+     * [{ "block_id":"...", "name":"완료", "status_ids":["10004","10007"], "primary":"10004" }]
+     * 한 컬럼이 여러 JIRA 상태를 묶을 수 있다(완료=완료+Resolved 등). pull은 status_ids로 배치, push는 primary로 전환.
+     */
+    @Column(name = "mirror_columns_json", columnDefinition = "TEXT")
+    private String mirrorColumnsJson;
+
     @Column(name = "milestone_auto_assign", nullable = false)
     @Builder.Default
     private Boolean milestoneAutoAssign = true;
@@ -224,11 +232,15 @@ public class JiraIntegrationConfig {
         this.blockStatusMapJson = blockStatusMapJson;
     }
 
-    /** 미러 모드로 전환. JIRA 상태를 블록에 1:1 미러링. */
+    /** 미러 모드로 전환. JIRA 보드 컬럼을 블록에 미러링. */
     public void enableMirror() {
         this.syncMode = JiraSyncMode.MIRROR;
         this.status = JiraConnectionStatus.CONNECTED;
         this.lastError = null;
+    }
+
+    public void updateMirrorColumns(String mirrorColumnsJson) {
+        this.mirrorColumnsJson = mirrorColumnsJson;
     }
 
     public boolean isMirror() {

@@ -123,6 +123,7 @@ public class JiraImportService {
         Map<String, String> priorityToTag = readMap(config.getPriorityToTagJson());
         Map<String, String> componentToTag = readMap(config.getComponentToTagJson());
         BlockStatusMap blockMap = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
+        MirrorColumns mirror = MirrorColumns.parse(objectMapper, config.getMirrorColumnsJson());
 
         Milestone currentMilestone = Boolean.TRUE.equals(config.getMilestoneAutoAssign())
             ? resolveCurrentMilestone(boardId) : null;
@@ -169,7 +170,7 @@ public class JiraImportService {
                 // 대상 Task가 살아있음 → JIRA 최신값으로 갱신(제목/설명/상태→블록)
                 Task existingTask = taskRepository.findById(taskLink.getTargetId()).orElse(null);
                 if (existingTask != null) {
-                    updateTaskFromIssue(existingTask, board, importer, issue, blockMap, statusToBlock, taskBlock, ctx, taskLink);
+                    updateTaskFromIssue(existingTask, board, importer, issue, blockMap, mirror, statusToBlock, taskBlock, ctx, taskLink);
                     taskLink.touchImport(JiraLinkTargetType.TASK, existingTask.getId(), issue.updated());
                     c.updated++;
                     continue;
@@ -178,7 +179,7 @@ public class JiraImportService {
 
             // 신규 생성 (또는 삭제 후 재생성)
             Feature feature = resolveProjectFeature(board, importer, issue, projectKeyToFeatureId, c);
-            Task task = createTask(board, importer, feature, issue, blockMap, statusToBlock, taskBlock, currentMilestone);
+            Task task = createTask(board, importer, feature, issue, blockMap, mirror, statusToBlock, taskBlock, currentMilestone);
             saveLink(board, issue, JiraLinkTargetType.TASK, task.getId());
             c.tasks++;
             c.created++;
@@ -249,9 +250,10 @@ public class JiraImportService {
         User importer = userRepository.findById(actorUserId).orElse(task.getCreatedBy());
         Map<String, String> statusToBlock = readMap(config.getStatusToBlockJson());
         BlockStatusMap blockMap = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
+        MirrorColumns mirror = MirrorColumns.parse(objectMapper, config.getMirrorColumnsJson());
         Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
 
-        updateTaskFromIssue(task, board, importer, issue, blockMap, statusToBlock, taskBlock, ctx, link);
+        updateTaskFromIssue(task, board, importer, issue, blockMap, mirror, statusToBlock, taskBlock, ctx, link);
         link.touchImport(JiraLinkTargetType.TASK, task.getId(), issue.updated());
         config.markSynced();
 
@@ -270,13 +272,13 @@ public class JiraImportService {
      *  · 매핑이 없으면(레거시) 기존 statusName→block 단방향 동작.
      */
     private void updateTaskFromIssue(Task task, Board board, User importer, ParsedJiraIssue issue,
-                                     BlockStatusMap blockMap, Map<String, String> statusToBlock,
+                                     BlockStatusMap blockMap, MirrorColumns mirrorCols, Map<String, String> statusToBlock,
                                      Block taskBlock, JiraAuthContext ctx, JiraIssueLink link) {
         task.updateInfo(truncate(issue.summary(), 200), issue.description(),
             task.getStartDate(), task.getDueDate(), task.getEstimatedMinutes());
 
         // 미러 모드: 상태=위치. 대응 미러 컬럼으로 이동, QA/반려 로직 없음.
-        Block mirror = blockRepository.findByBoardIdAndJiraStatusId(board.getId(), issue.statusId()).orElse(null);
+        Block mirror = resolveMirrorBlock(board.getId(), issue.statusId(), mirrorCols);
         if (mirror != null) {
             moveTaskToBlockEnd(task, mirror);
         } else if (!blockMap.isEmpty()) {
@@ -369,6 +371,7 @@ public class JiraImportService {
         }
         Map<String, String> statusToBlock = readMap(config.getStatusToBlockJson());
         BlockStatusMap blockMap = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
+        MirrorColumns mirror = MirrorColumns.parse(objectMapper, config.getMirrorColumnsJson());
         List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
         Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
         Milestone currentMilestone = Boolean.TRUE.equals(config.getMilestoneAutoAssign())
@@ -385,7 +388,7 @@ public class JiraImportService {
             boolean hasAssignee = issue.assigneeAccountId() != null;
             int attCount = issue.attachments() != null ? issue.attachments().size() : 0;
 
-            Block block = resolvePlacementBlock(boardId, issue, blockMap, statusToBlock, taskBlock);
+            Block block = resolvePlacementBlock(boardId, issue, blockMap, mirror, statusToBlock, taskBlock);
             String blockName = block != null ? block.getName() : null;
 
             if (willUpdate) {
@@ -493,8 +496,9 @@ public class JiraImportService {
     }
 
     private Task createTask(Board board, User importer, Feature feature, ParsedJiraIssue issue,
-                            BlockStatusMap blockMap, Map<String, String> statusToBlock, Block taskBlock, Milestone milestone) {
-        Block block = resolvePlacementBlock(board.getId(), issue, blockMap, statusToBlock, taskBlock);
+                            BlockStatusMap blockMap, MirrorColumns mirrorCols, Map<String, String> statusToBlock,
+                            Block taskBlock, Milestone milestone) {
+        Block block = resolvePlacementBlock(board.getId(), issue, blockMap, mirrorCols, statusToBlock, taskBlock);
 
         if (board.getKeyPrefix() == null || board.getKeyPrefix().isBlank()) {
             board.assignKeyPrefixIfAbsent(taskKeyAllocator.allocateUniquePrefix(board.getName()));
@@ -530,10 +534,19 @@ public class JiraImportService {
     }
 
     /** 신규 배치 블록 — 매핑이 있으면 status→block(방향 무관), 없으면 레거시 statusName 매핑, 최후엔 기본 블록. */
+    /** 미러 컬럼 리졸브 — 이슈 상태가 속한 컬럼의 블록(보드 소속 검증). 없으면 null. */
+    private Block resolveMirrorBlock(String boardId, String statusId, MirrorColumns mirrorCols) {
+        if (mirrorCols == null || mirrorCols.isEmpty()) return null;
+        String blockId = mirrorCols.blockForStatus(statusId);
+        if (blockId == null) return null;
+        Block b = blockRepository.findById(blockId).orElse(null);
+        return (b != null && b.getBoard() != null && boardId.equals(b.getBoard().getId())) ? b : null;
+    }
+
     private Block resolvePlacementBlock(String boardId, ParsedJiraIssue issue, BlockStatusMap blockMap,
-                                        Map<String, String> statusToBlock, Block defaultBlock) {
-        // 미러 모드: 상태 id에 대응하는 미러 컬럼이 있으면 그리로. (미러 블록은 미러 보드에만 존재)
-        Block mirror = blockRepository.findByBoardIdAndJiraStatusId(boardId, issue.statusId()).orElse(null);
+                                        MirrorColumns mirrorCols, Map<String, String> statusToBlock, Block defaultBlock) {
+        // 미러 모드: 상태가 속한 컬럼이 있으면 그리로. (미러 컬럼은 미러 보드에만 존재)
+        Block mirror = resolveMirrorBlock(boardId, issue.statusId(), mirrorCols);
         if (mirror != null) return mirror;
         if (!blockMap.isEmpty()) {
             String blockId = blockMap.blockForStatusId(issue.statusId());
