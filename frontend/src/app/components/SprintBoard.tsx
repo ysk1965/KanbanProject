@@ -32,6 +32,7 @@ import {
   Diamond,
   PanelLeftClose,
   PanelLeftOpen,
+  Plus,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -68,6 +69,8 @@ interface SprintBoardProps {
   onOpenChecklistItem?: (taskId: string, checklistItemId?: string) => void;
   /** 좌측 트리 피쳐 카드 헤더의 "열기" 버튼 → 피쳐 상세 모달 */
   onOpenFeature?: (featureId: string) => void;
+  /** 좌측 업무 리스트 헤더 "+" → 새 피쳐 생성(제목만). 반환된 피쳐는 곧바로 상세 모달로 이어진다. */
+  onCreateFeature?: (data: { title: string }) => Promise<{ id: string } | null>;
   /** 담당자 필터(칸반 탭 필터바 연동). 이름 배열(+ '__no_members__'). 빈 배열이면 전체 */
   memberFilter?: string[];
   /** 구성원 컬럼 정렬 기준 — 보드 멤버 관리(직군 관리) 순서의 userId 배열. 미지정 시 카드 수 내림차순 */
@@ -160,6 +163,7 @@ export function SprintBoard({
   milestoneId: controlledMilestoneId,
   onOpenChecklistItem,
   onOpenFeature,
+  onCreateFeature,
   memberFilter,
   memberOrder,
 }: SprintBoardProps) {
@@ -182,6 +186,10 @@ export function SprintBoard({
   const [expandedCleared, setExpandedCleared] = useState<Set<string>>(
     new Set(),
   );
+  // 업무 리스트 헤더 "+" → 인라인 새 피쳐 입력. 제목만 받고 생성 후 상세 모달로 이어 작성한다.
+  const [addingFeature, setAddingFeature] = useState(false);
+  const [newFeatureTitle, setNewFeatureTitle] = useState("");
+  const [creatingFeature, setCreatingFeature] = useState(false);
   // Feature 필터 — 상단 요약 스트립 칩 선택 집합. 비어 있으면 전체 표시.
   // Feature는 스프린트 상위 개념이라 타임라인 위에 두고, 선택 시 아래 보드 컬럼(Feature/구성원/JIRA)을 좁힌다.
   const [featureFilter, setFeatureFilter] = useState<Set<string>>(new Set());
@@ -577,6 +585,23 @@ export function SprintBoard({
       .map(({ feat }) => feat);
   }, [filteredBoard]);
 
+  // 표시 순서: 정리된 항목 숨김 시, 할 일이 남은 피쳐를 위로 / 전부 정리된 피쳐를 아래로.
+  // 그룹 내부 순서는 tree의 생성일 정렬을 안정적으로 유지한다. 보임 모드에선 재정렬하지 않는다.
+  const orderedTree = useMemo<TreeFeature[]>(() => {
+    if (showTakenInTree) return tree;
+    const hasRemaining = (feat: TreeFeature) =>
+      feat.tasks.some((t) =>
+        t.items.some((it) => !it.sprint_column_id && !it.completed),
+      );
+    return tree
+      .map((feat, idx) => ({ feat, idx, remaining: hasRemaining(feat) }))
+      .sort((a, b) => {
+        if (a.remaining !== b.remaining) return a.remaining ? -1 : 1;
+        return a.idx - b.idx;
+      })
+      .map(({ feat }) => feat);
+  }, [tree, showTakenInTree]);
+
   const toggleFeature = (fid: string) => {
     setCollapsedFeatures((prev) => {
       const next = new Set(prev);
@@ -600,6 +625,25 @@ export function SprintBoard({
       else next.add(fid);
       return next;
     });
+  };
+
+  // 새 피쳐 생성: 제목만으로 만들고(색상은 서버에서 랜덤 자동), 곧바로 상세 모달을 연다.
+  // 신규 피쳐는 체크리스트가 0개라 이 패널(체크리스트 항목 기반)엔 나타나지 않으므로,
+  // 상세 모달로 이어 태스크/체크리스트를 채우도록 유도한다.
+  const submitNewFeature = async () => {
+    const title = newFeatureTitle.trim();
+    if (!title || creatingFeature || !onCreateFeature) return;
+    setCreatingFeature(true);
+    try {
+      const created = await onCreateFeature({ title });
+      setNewFeatureTitle("");
+      setAddingFeature(false);
+      if (created?.id) onOpenFeature?.(created.id);
+    } catch (e) {
+      toast.error(errMessage(e, "피쳐 생성에 실패했어요"));
+    } finally {
+      setCreatingFeature(false);
+    }
   };
 
   // 담긴 항목의 소속 컬럼 조회(칩 표시용)
@@ -2030,9 +2074,8 @@ export function SprintBoard({
           </div>
         )}
 
-        {/* Feature 요약 스트립 — Feature는 스프린트 상위 개념이라 타임라인 위에 배치.
-            얇은 칩(이름·N/M·진척 바) = 보기, 클릭 = 아래 보드 컬럼 필터 토글(다중 선택). */}
-        {featureSummaries.length > 0 && (
+        {/* Feature 요약 스트립 — 숨김(피쳐 필터 UI 제거). featureFilter 상태는 유지되나 UI 미노출. */}
+        {false && featureSummaries.length > 0 && (
           <div className="mb-3 rounded-xl border border-foreground/[0.08] bg-foreground/[0.02] px-3 py-2.5">
             <div className="flex items-center gap-2 mb-2 pl-0.5">
               <span className="text-xs font-bold tracking-wider text-slate-400 uppercase">
@@ -2669,6 +2712,21 @@ export function SprintBoard({
                   )}
                   {showTakenInTree ? "정리된 항목" : "정리된 항목 숨김"}
                 </button>
+                {/* 새 피쳐 추가 — 인라인 입력 토글 */}
+                {canEdit && onCreateFeature && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddingFeature(true);
+                      setNewFeatureTitle("");
+                    }}
+                    title="새 피쳐 추가"
+                    aria-label="새 피쳐 추가"
+                    className="shrink-0 inline-grid place-items-center w-7 h-7 rounded-lg border border-bridge-accent/35 bg-bridge-accent/15 text-bridge-accent hover:bg-bridge-accent hover:text-white transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                )}
                 {/* 패널 접기 */}
                 <button
                   type="button"
@@ -2683,12 +2741,58 @@ export function SprintBoard({
             )}
             {!panelCollapsed && (
               <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
-                {tree.length === 0 && (
+                {/* 새 피쳐 인라인 입력 — 제목만 받고 Enter 생성 · Esc 취소 */}
+                {addingFeature && (
+                  <div className="flex items-center gap-2 px-2.5 py-2 rounded-xl border border-bridge-accent/50 bg-bridge-accent/[0.06] shadow-[0_0_0_3px_rgba(99,102,241,0.12)]">
+                    <span className="w-2 h-2 rounded-sm shrink-0 bg-bridge-accent" />
+                    <input
+                      autoFocus
+                      value={newFeatureTitle}
+                      disabled={creatingFeature}
+                      onChange={(e) => setNewFeatureTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          submitNewFeature();
+                        } else if (e.key === "Escape") {
+                          setAddingFeature(false);
+                          setNewFeatureTitle("");
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!newFeatureTitle.trim() && !creatingFeature)
+                          setAddingFeature(false);
+                      }}
+                      placeholder="새 피쳐 이름…"
+                      aria-label="새 피쳐 이름"
+                      className="flex-1 min-w-0 bg-transparent outline-none text-xs font-medium text-foreground placeholder-slate-500"
+                    />
+                    {creatingFeature ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-bridge-accent shrink-0" />
+                    ) : (
+                      <>
+                        <span className="text-[11px] text-slate-500 shrink-0">
+                          Enter
+                        </span>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={submitNewFeature}
+                          disabled={!newFeatureTitle.trim()}
+                          className="shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-bridge-accent text-white disabled:opacity-40 hover:bg-bridge-accent/90 transition-all"
+                        >
+                          추가
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+                {orderedTree.length === 0 && !addingFeature && (
                   <p className="text-xs text-slate-500 text-center py-8">
                     항목이 없습니다.
                   </p>
                 )}
-                {tree.map((feat) => {
+                {orderedTree.map((feat) => {
                   // 보임 필터: 정리된 항목 숨김 시, 표시할 항목이 남은 Task만 유지
                   // (담김·완료 모두 숨김 — 스프린트 미담김이라도 완료 처리된 항목 포함)
                   const visibleTasks = feat.tasks
@@ -2724,8 +2828,18 @@ export function SprintBoard({
                   return (
                     <div
                       key={feat.featureId}
-                      className="rounded-xl border border-foreground/[0.08] hover:border-foreground/[0.12] bg-bridge-obsidian overflow-hidden transition-colors"
-                      style={{ borderLeftWidth: 3, borderLeftColor: featColor }}
+                      className={`rounded-xl border overflow-hidden transition-colors ${
+                        bodyOpen
+                          ? "bg-bridge-obsidian border-foreground/[0.08]"
+                          : "border-foreground/[0.08] hover:border-foreground/[0.12] hover:bg-foreground/[0.02]"
+                      } ${allCleared ? "opacity-70" : ""}`}
+                      style={{
+                        borderLeftWidth: 3,
+                        borderLeftColor: featColor,
+                        ...(bodyOpen
+                          ? { boxShadow: `inset 0 0 0 1px ${featColor}30` }
+                          : {}),
+                      }}
                     >
                       {/* Feature 카드: 좌측 컬러 레일 · 헤더(토글 + 열기) · 헤더 게이지 · 본문 */}
                       {/* 헤더: 좌측 토글 버튼 + 우측 피쳐 열기 버튼 (버튼 중첩 방지 위해 분리) */}
@@ -2756,31 +2870,22 @@ export function SprintBoard({
                           >
                             {feat.featureTitle}
                           </span>
-                          {/* 정리됨 스트립: 실제 완료율 미니 게이지를 인라인으로 병기(의미 유지) */}
-                          {allCleared && (
-                            <span className="w-9 h-1.5 rounded-full overflow-hidden bg-foreground/[0.06] shrink-0">
-                              <span
-                                className="block h-full rounded-full"
-                                style={{
-                                  width: `${pct}%`,
-                                  background: featColor,
-                                }}
-                              />
-                            </span>
-                          )}
-                          <span className="text-xs text-slate-500 tabular-nums shrink-0">
-                            {feat.completed}/{feat.total}
-                          </span>
+                          {/* C-1: 진행 신호는 % 하나로 통일(강조) + 완료수(보조). 미니 게이지·중복 제거 */}
                           <span
-                            className="text-xs font-bold tabular-nums shrink-0"
-                            style={{ color: featColor }}
+                            className="text-sm font-bold tabular-nums shrink-0"
+                            style={{
+                              color: allCleared ? "#94a3b8" : featColor,
+                            }}
                           >
                             {pct}%
+                          </span>
+                          <span className="text-xs text-slate-500 tabular-nums shrink-0">
+                            {feat.completed}/{feat.total}
                           </span>
                           {/* 상태 배지: 정리됨(중립) vs 완료(초록). 담김을 완료로 표시하지 않는다. */}
                           {allCleared &&
                             (isComplete ? (
-                              <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+                              <span className="inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
                                 <Check
                                   className="w-2.5 h-2.5"
                                   strokeWidth={3}
@@ -2788,7 +2893,7 @@ export function SprintBoard({
                                 완료
                               </span>
                             ) : (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-foreground/[0.08] text-slate-400 border border-foreground/10 shrink-0">
+                              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-foreground/[0.08] text-slate-400 border border-foreground/10 shrink-0">
                                 정리됨
                               </span>
                             ))}
@@ -2806,26 +2911,24 @@ export function SprintBoard({
                         )}
                       </div>
 
-                      {/* 헤더 게이지: 진척을 헤더 바로 아래 인라인으로 표시 (정리됨 스트립은 헤더 인라인 게이지로 대체) */}
-                      {!allCleared && (
-                        <div className="px-2.5 pt-0.5 pb-2">
+                      {/* C-1 진행 바: 펼친 카드에서만 헤더 바로 아래 얇은 바(flush). 접힌 요약 줄은 % 숫자로 대체 */}
+                      {bodyOpen && (
+                        <div
+                          className="h-[3px] bg-foreground/[0.06]"
+                          title={`완료 ${feat.completed}/${feat.total} · 담김 ${feat.taken}/${feat.total} · ${pct}%`}
+                        >
                           <div
-                            className="h-1.5 rounded-full overflow-hidden bg-foreground/[0.06]"
-                            title={`완료 ${feat.completed}/${feat.total} · 담김 ${feat.taken}/${feat.total} · ${pct}%`}
-                          >
-                            <div
-                              className="h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none"
-                              style={{
-                                width: `${pct}%`,
-                                background: featColor,
-                              }}
-                            />
-                          </div>
+                            className="h-full transition-[width] duration-300 motion-reduce:transition-none"
+                            style={{
+                              width: `${pct}%`,
+                              background: featColor,
+                            }}
+                          />
                         </div>
                       )}
 
                       {bodyOpen && (
-                        <div className="space-y-2 px-2 pb-2">
+                        <div className="space-y-2 px-2 pb-2 pt-2">
                           {bodyTasks.map(({ task, items }) => {
                             const hasTask =
                               task.taskId !== "__none__" &&
@@ -2878,7 +2981,7 @@ export function SprintBoard({
                                       className="w-1.5 h-1.5 rounded-sm shrink-0"
                                       style={{ background: tColor }}
                                     />
-                                    <span className="text-[11px] font-bold uppercase tracking-wide text-slate-300 truncate">
+                                    <span className="text-xs font-bold uppercase tracking-wide text-slate-300 truncate">
                                       {task.taskTitle}
                                     </span>
                                   </button>
@@ -2886,10 +2989,11 @@ export function SprintBoard({
                                     <button
                                       type="button"
                                       onClick={() => openTask(task.taskId)}
-                                      className="text-[10px] font-bold text-bridge-accent opacity-0 group-hover/task:opacity-100 transition-opacity shrink-0"
+                                      className="shrink-0 w-6 h-6 grid place-items-center rounded text-slate-500 opacity-0 group-hover/task:opacity-100 hover:text-bridge-accent hover:bg-bridge-accent/10 transition-all"
                                       title="태스크 열기"
+                                      aria-label="태스크 열기"
                                     >
-                                      열기 ↗
+                                      <ExternalLink className="w-3 h-3" />
                                     </button>
                                   )}
                                   <span className="w-8 h-1 rounded-full bg-foreground/10 overflow-hidden shrink-0">
@@ -2901,7 +3005,7 @@ export function SprintBoard({
                                       }}
                                     />
                                   </span>
-                                  <span className="text-[10px] font-bold text-slate-500 tabular-nums shrink-0">
+                                  <span className="text-[11px] font-bold text-slate-500 tabular-nums shrink-0">
                                     {tDone}/{tTotal}
                                   </span>
                                 </div>
@@ -2986,7 +3090,7 @@ export function SprintBoard({
                                           <span className="flex items-center gap-1 shrink-0">
                                             {taken && col && (
                                               <span
-                                                className="inline-flex items-center gap-1 text-[10px] font-bold rounded px-1.5 py-0.5 max-w-[76px]"
+                                                className="inline-flex items-center gap-1 text-[11px] font-bold rounded px-1.5 py-0.5 max-w-[76px]"
                                                 style={{
                                                   background: `${columnAccent(col)}26`,
                                                   color: columnAccent(col),
@@ -3038,7 +3142,7 @@ export function SprintBoard({
                                               <button
                                                 type="button"
                                                 onClick={() => addToSprint(it)}
-                                                className="absolute right-1.5 top-1/2 -translate-y-1/2 z-10 inline-flex items-center gap-0.5 text-[10px] font-bold rounded-full pl-1 pr-1.5 py-0.5 bg-bridge-accent/15 text-bridge-accent border border-bridge-accent/30 opacity-0 group-hover:opacity-100 hover:bg-bridge-accent hover:text-white transition-all"
+                                                className="absolute right-1.5 top-1/2 -translate-y-1/2 z-10 inline-flex items-center gap-0.5 text-[11px] font-bold rounded-full pl-1 pr-1.5 py-0.5 bg-bridge-accent/15 text-bridge-accent border border-bridge-accent/30 opacity-0 group-hover:opacity-100 hover:bg-bridge-accent hover:text-white transition-all"
                                                 title="스프린트에 담기"
                                                 aria-label="스프린트에 담기"
                                               >

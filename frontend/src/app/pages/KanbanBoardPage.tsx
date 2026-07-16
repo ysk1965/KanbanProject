@@ -3076,6 +3076,7 @@ export function KanbanBoardPage() {
             onToggleFeatureChip={handleToggleFeatureChip}
             onSelectAllFeatureChips={handleSelectAllFeatureChips}
             onFeatureClick={handleFeatureClick}
+            onCreateFeature={createFeatureCore}
             onOpenAddFeature={handleOpenAddFeatureModal}
             onOpenAddBlock={handleOpenAddBlockModal}
             onTaskClick={handleTaskClick}
