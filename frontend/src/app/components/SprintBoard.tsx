@@ -39,6 +39,7 @@ import type {
   SprintItemCard,
 } from "../types";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
+import { useSprintRealtime } from "../hooks/useSprintRealtime";
 import {
   formatDate,
   formatRelativeTime,
@@ -316,6 +317,22 @@ export function SprintBoard({
     void load();
   }, [load]);
 
+  // 무음 재조회 — 실시간 이벤트 수신 시 스피너/깜빡임 없이 최신 보드로 교체한다.
+  // (load는 loading=true로 전체 스켈레톤을 띄우므로 실시간 갱신엔 부적합)
+  const silentReload = useCallback(async () => {
+    if (!milestoneId) return;
+    try {
+      const data = await sprintAPI.getSprintBoard(boardId, milestoneId);
+      setBoard(data);
+    } catch {
+      /* 무음 재조회 실패는 조용히 무시(다음 이벤트/수동 조작 시 복구) */
+    }
+  }, [boardId, milestoneId]);
+
+  // 실시간 동기화 — 체크리스트 완료/담당자 변경(모달 포함)·태스크·피쳐 이벤트가
+  // 도착하면 디바운스 후 스프린트 보드를 재조회한다. 본인 변경도 반영된다(훅 주석 참고).
+  useSprintRealtime({ boardId, onRelevantEvent: silentReload });
+
   useEffect(() => {
     if (!controlled && !internalMid && milestones[0]?.id) {
       setInternalMid(milestones[0].id);
@@ -461,10 +478,14 @@ export function SprintBoard({
   }, [filteredBoard]);
 
   // 보임 필터 적용 후 트리에 표시할 항목이 하나라도 남는지(빈 상태 안내용)
+  // "정리된" = 스프린트 컬럼에 담겼거나(sprint_column_id) 완료 처리된(completed) 항목.
+  // 스프린트에 담지 않고 좌측 트리에서 바로 완료 체크한 경우도 숨김 대상에 포함.
   const treeHasVisible = useMemo(() => {
     if (showTakenInTree) return tree.length > 0;
     return tree.some((f) =>
-      f.tasks.some((t) => t.items.some((it) => !it.sprint_column_id)),
+      f.tasks.some((t) =>
+        t.items.some((it) => !it.sprint_column_id && !it.completed),
+      ),
     );
   }, [tree, showTakenInTree]);
 
@@ -1729,15 +1750,15 @@ export function SprintBoard({
                 <span className="text-xs font-bold uppercase tracking-widest text-slate-400 truncate flex-1">
                   업무 리스트
                 </span>
-                {/* 보임 필터 — 담긴(Sprint·Done) 항목 숨기기/보이기 (상태 유지) */}
+                {/* 보임 필터 — 정리된(완료·담김) 항목 숨기기/보이기 (상태 유지) */}
                 <button
                   type="button"
                   onClick={() => setShowTakenInTree((v) => !v)}
                   aria-pressed={!showTakenInTree}
                   title={
                     showTakenInTree
-                      ? "담긴(Sprint·Done) 항목 숨기기"
-                      : "담긴(Sprint·Done) 항목 보이기"
+                      ? "정리된(완료·담김) 항목 숨기기"
+                      : "정리된(완료·담김) 항목 보이기"
                   }
                   className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
                     showTakenInTree
@@ -1750,7 +1771,7 @@ export function SprintBoard({
                   ) : (
                     <EyeOff className="w-3 h-3" />
                   )}
-                  {showTakenInTree ? "담긴 항목" : "담긴 항목 숨김"}
+                  {showTakenInTree ? "정리된 항목" : "정리된 항목 숨김"}
                 </button>
                 {/* 패널 접기 */}
                 <button
@@ -1773,25 +1794,28 @@ export function SprintBoard({
                 )}
                 {tree.length > 0 && !treeHasVisible && (
                   <p className="text-xs text-slate-500 text-center py-8 leading-relaxed">
-                    담긴 항목만 있어 모두 숨겨졌어요.
+                    정리된 항목만 있어 모두 숨겨졌어요.
                     <br />
                     <button
                       type="button"
                       onClick={() => setShowTakenInTree(true)}
                       className="mt-1 text-bridge-accent font-bold hover:underline"
                     >
-                      담긴 항목 보이기
+                      정리된 항목 보이기
                     </button>
                   </p>
                 )}
                 {tree.map((feat) => {
-                  // 보임 필터: 담김 항목 숨김 시, 표시할 항목이 남은 Task만 유지
+                  // 보임 필터: 정리된 항목 숨김 시, 표시할 항목이 남은 Task만 유지
+                  // (담김·완료 모두 숨김 — 스프린트 미담김이라도 완료 처리된 항목 포함)
                   const visibleTasks = feat.tasks
                     .map((task) => ({
                       task,
                       items: showTakenInTree
                         ? task.items
-                        : task.items.filter((it) => !it.sprint_column_id),
+                        : task.items.filter(
+                            (it) => !it.sprint_column_id && !it.completed,
+                          ),
                     }))
                     .filter((t) => t.items.length > 0);
                   // 표시할 항목이 하나도 없으면 Feature 섹션 자체를 숨김

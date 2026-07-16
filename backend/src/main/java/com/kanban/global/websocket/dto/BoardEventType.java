@@ -37,6 +37,10 @@ public enum BoardEventType {
     CHECKLIST_TOGGLED,
     CHECKLIST_MOVED,
 
+    // Sprint events (스프린트 네이티브 뮤테이션: 담기/빼기/컬럼 이동·CRUD/라이프사이클)
+    // 페이로드 없이 "스프린트 보드가 바뀌었으니 재조회하라"는 신호. useSprintRealtime 훅이 소비.
+    SPRINT_UPDATED,
+
     // Board events
     BOARD_UPDATED,
 

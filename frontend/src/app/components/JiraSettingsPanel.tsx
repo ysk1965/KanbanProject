@@ -894,72 +894,85 @@ export function JiraSettingsPanel({
             <div className="text-xs text-slate-500 mb-2.5 leading-relaxed">
               {t(
                 "jiraIntegration.mappingDesc",
-                "Push=개발이 옮기면 JIRA로 전환 · Pull=QA의 JIRA 변경을 읽기전용으로 반영",
+                "Push=개발이 옮기면 JIRA로 전환 · Pull=QA의 JIRA 변경을 읽기전용으로 반영. 연동할 블록만 상태를 고르면 됩니다(나머지는 미동기화).",
               )}
             </div>
 
             {blocks.map((block) => {
               const entry = blockMap[block.id] || {};
               const dir = entry.dir || "push";
+              const mapped = !!entry.jira_status_id;
               return (
                 <div
                   key={block.id}
-                  className="flex items-center gap-1.5 mb-1.5"
+                  className={`rounded-lg border p-2 mb-1.5 transition-colors ${
+                    mapped
+                      ? "border-foreground/10 bg-foreground/[0.03]"
+                      : "border-foreground/[0.06] bg-foreground/[0.015]"
+                  }`}
                 >
-                  <span className="w-16 shrink-0 text-xs font-medium text-foreground truncate">
-                    {block.name}
-                  </span>
-                  <div className="flex rounded-lg bg-foreground/[0.04] border border-foreground/10 p-0.5 shrink-0">
-                    {(["push", "pull"] as const).map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => patchEntry(block.id, { dir: d })}
-                        className={`px-2 py-1 rounded-md text-xs font-bold transition-colors ${
-                          dir === d
-                            ? d === "push"
-                              ? "bg-bridge-accent text-white"
-                              : "bg-blue-500 text-white"
-                            : "text-slate-400 hover:text-foreground"
-                        }`}
-                      >
-                        {d === "push" ? "PUSH" : "PULL"}
-                      </button>
-                    ))}
+                  {/* 1줄: 블록 이름 + 방향 */}
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-xs font-bold text-foreground truncate min-w-0">
+                      {block.name}
+                    </span>
+                    <div className="flex rounded-lg bg-foreground/[0.04] border border-foreground/10 p-0.5 shrink-0">
+                      {(["push", "pull"] as const).map((d) => (
+                        <button
+                          key={d}
+                          onClick={() => patchEntry(block.id, { dir: d })}
+                          className={`px-2.5 py-0.5 rounded-md text-xs font-bold transition-colors ${
+                            dir === d
+                              ? d === "push"
+                                ? "bg-bridge-accent text-white"
+                                : "bg-blue-500 text-white"
+                              : "text-slate-400 hover:text-foreground"
+                          }`}
+                        >
+                          {d === "push" ? "PUSH" : "PULL"}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <select
-                    className={`${inputCls} flex-1`}
-                    value={entry.jira_status_id || ""}
-                    onChange={(e) =>
-                      patchEntry(block.id, { jira_status_id: e.target.value })
-                    }
-                  >
-                    <option value="">
-                      {t("jiraIntegration.selectStatus", "상태 선택")}
-                    </option>
-                    {statuses.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                  {dir === "pull" && (
+                  {/* 2줄: JIRA 상태(+ pull이면 QA 뱃지 종류) */}
+                  <div className="flex items-center gap-1.5">
                     <select
-                      className={`${inputCls} w-20 shrink-0`}
-                      value={entry.qa || "REVIEW"}
+                      className={`${inputCls} flex-1`}
+                      value={entry.jira_status_id || ""}
                       onChange={(e) =>
                         patchEntry(block.id, {
-                          qa: e.target.value as "REVIEW" | "VERIFIED",
+                          jira_status_id: e.target.value,
                         })
                       }
                     >
-                      <option value="REVIEW">
-                        {t("jiraIntegration.qaReview", "검토중")}
+                      <option value="">
+                        {t("jiraIntegration.selectStatus", "JIRA 상태 선택")}
                       </option>
-                      <option value="VERIFIED">
-                        {t("jiraIntegration.qaVerified", "완료")}
-                      </option>
+                      {statuses.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
                     </select>
-                  )}
+                    {dir === "pull" && (
+                      <select
+                        className={`${inputCls} w-24 shrink-0`}
+                        value={entry.qa || "REVIEW"}
+                        onChange={(e) =>
+                          patchEntry(block.id, {
+                            qa: e.target.value as "REVIEW" | "VERIFIED",
+                          })
+                        }
+                      >
+                        <option value="REVIEW">
+                          {t("jiraIntegration.qaReview", "검토중 뱃지")}
+                        </option>
+                        <option value="VERIFIED">
+                          {t("jiraIntegration.qaVerified", "완료 뱃지")}
+                        </option>
+                      </select>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -969,42 +982,56 @@ export function JiraSettingsPanel({
               <div className="text-xs font-bold text-rose-400 mb-1.5">
                 {t("jiraIntegration.rejectionTitle", "반려 감지 (전환 기반)")}
               </div>
-              <div className="flex items-center gap-1.5">
-                <select
-                  className={`${inputCls} flex-1`}
-                  value={blockMap[REJECTED_KEY]?.from_status_id || ""}
-                  onChange={(e) =>
-                    patchEntry(REJECTED_KEY, { from_status_id: e.target.value })
-                  }
-                >
-                  <option value="">
-                    {t("jiraIntegration.selectReviewStatus", "검토중 상태 선택")}
-                  </option>
-                  {statuses.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-16 shrink-0 text-xs text-slate-500">
+                    {t("jiraIntegration.rejectionFrom", "검토중")}
+                  </span>
+                  <select
+                    className={`${inputCls} flex-1`}
+                    value={blockMap[REJECTED_KEY]?.from_status_id || ""}
+                    onChange={(e) =>
+                      patchEntry(REJECTED_KEY, {
+                        from_status_id: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="">
+                      {t(
+                        "jiraIntegration.selectReviewStatus",
+                        "검토중 JIRA 상태 선택",
+                      )}
                     </option>
-                  ))}
-                </select>
-                <span className="text-xs text-slate-500 shrink-0">
-                  {t("jiraIntegration.rejectionArrow", "에서 되돌리면 →")}
-                </span>
-                <select
-                  className={`${inputCls} w-24 shrink-0`}
-                  value={blockMap[REJECTED_KEY]?.return_block_id || ""}
-                  onChange={(e) =>
-                    patchEntry(REJECTED_KEY, { return_block_id: e.target.value })
-                  }
-                >
-                  <option value="">
-                    {t("jiraIntegration.returnBlock", "복귀 블록")}
-                  </option>
-                  {blocks.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
+                    {statuses.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-16 shrink-0 text-xs text-slate-500">
+                    {t("jiraIntegration.rejectionTo", "→ 복귀")}
+                  </span>
+                  <select
+                    className={`${inputCls} flex-1`}
+                    value={blockMap[REJECTED_KEY]?.return_block_id || ""}
+                    onChange={(e) =>
+                      patchEntry(REJECTED_KEY, {
+                        return_block_id: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="">
+                      {t("jiraIntegration.returnBlock", "복귀할 블록 선택")}
                     </option>
-                  ))}
-                </select>
+                    {blocks.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="text-xs text-slate-500 mt-1.5 leading-relaxed">
                 {t(
