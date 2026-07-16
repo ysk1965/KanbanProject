@@ -26,6 +26,7 @@ import {
   RotateCcw,
   AlertTriangle,
   Layers,
+  Filter,
   Users,
   UserCheck,
   Diamond,
@@ -2005,6 +2006,9 @@ export function SprintBoard({
                   {featureSummaries.length}
                 </span>
               </span>
+              <span className="hidden sm:inline text-xs text-slate-600">
+                칩 클릭 = 피쳐 열기 · 깔때기 = 필터
+              </span>
               {featureFilter.size > 0 && (
                 <button
                   type="button"
@@ -2022,21 +2026,16 @@ export function SprintBoard({
                 const dimmed = featureFilter.size > 0 && !selected;
                 const pct =
                   f.total > 0 ? Math.round((f.done / f.total) * 100) : 0;
+                // 주 동작 = 피쳐 상세 모달 열기. 모달 대상이 없는 "기타"(__none__)나
+                // onOpenFeature 미제공 시엔 본체 클릭을 필터 토글로 폴백한다.
+                const canOpen = !!onOpenFeature && f.featureId !== "__none__";
                 return (
-                  <button
+                  <div
                     key={f.featureId}
-                    type="button"
-                    onClick={() => toggleFeatureFilter(f.featureId)}
-                    aria-pressed={selected}
-                    title={
-                      f.overdue > 0
-                        ? `${f.featureTitle} · 지연 ${f.overdue}건`
-                        : f.featureTitle
-                    }
-                    className={`shrink-0 w-[128px] text-left rounded-lg border px-2.5 py-2 transition-all focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                    className={`group/chip relative shrink-0 w-[136px] rounded-lg border transition-all ${
                       selected
                         ? "border-transparent"
-                        : "bg-foreground/[0.03] border-foreground/[0.08] hover:border-foreground/[0.16] hover:-translate-y-px"
+                        : "bg-foreground/[0.03] border-foreground/[0.08] hover:border-foreground/[0.16]"
                     } ${dimmed ? "opacity-40 hover:opacity-75" : ""}`}
                     style={
                       selected
@@ -2047,28 +2046,83 @@ export function SprintBoard({
                         : undefined
                     }
                   >
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ background: accent }}
-                      />
-                      <span className="text-xs font-bold text-foreground truncate flex-1">
-                        {f.featureTitle}
-                      </span>
-                      <span className="flex items-center gap-1 text-xs font-bold tabular-nums text-slate-400 shrink-0">
-                        {f.overdue > 0 && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-rose-500/20 shrink-0" />
-                        )}
-                        {f.done}/{f.total}
-                      </span>
-                    </div>
-                    <div className="h-1 rounded-full bg-foreground/10 overflow-hidden">
+                    {/* 본체 — 클릭 시 피쳐 상세 모달(주 동작) */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        canOpen
+                          ? onOpenFeature!(f.featureId)
+                          : toggleFeatureFilter(f.featureId)
+                      }
+                      title={
+                        canOpen
+                          ? `${f.featureTitle} 열기${f.overdue > 0 ? ` · 지연 ${f.overdue}건` : ""}`
+                          : f.featureTitle
+                      }
+                      aria-label={
+                        canOpen
+                          ? `${f.featureTitle} 피쳐 열기`
+                          : `${f.featureTitle} 필터`
+                      }
+                      className="w-full text-left px-2.5 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                    >
                       <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${pct}%`, background: accent }}
-                      />
-                    </div>
-                  </button>
+                        className={`flex items-center gap-1.5 mb-1.5 ${canOpen ? "pr-5" : ""}`}
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ background: accent }}
+                        />
+                        <span className="text-xs font-bold text-foreground truncate flex-1">
+                          {f.featureTitle}
+                        </span>
+                        <span className="flex items-center gap-1 text-xs font-bold tabular-nums text-slate-400 shrink-0">
+                          {f.overdue > 0 && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-rose-500/20 shrink-0" />
+                          )}
+                          {f.done}/{f.total}
+                        </span>
+                      </div>
+                      <div className="h-1 rounded-full bg-foreground/10 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, background: accent }}
+                        />
+                      </div>
+                    </button>
+
+                    {/* 필터 토글 — 우상단 깔때기. 평소 숨김, 호버·활성 시 노출. 본체(모달)와 독립 */}
+                    {canOpen && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFeatureFilter(f.featureId);
+                        }}
+                        aria-pressed={selected}
+                        title={
+                          selected ? "이 피쳐 필터 해제" : "이 피쳐만 보기"
+                        }
+                        aria-label={
+                          selected
+                            ? `${f.featureTitle} 필터 해제`
+                            : `${f.featureTitle}만 보기`
+                        }
+                        className={`absolute top-1 right-1 w-5 h-5 grid place-items-center rounded-md transition-opacity focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                          selected
+                            ? "opacity-100"
+                            : "text-slate-400 opacity-0 group-hover/chip:opacity-100 hover:bg-foreground/10"
+                        }`}
+                        style={
+                          selected
+                            ? { color: accent, background: `${accent}2e` }
+                            : undefined
+                        }
+                      >
+                        <Filter className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>

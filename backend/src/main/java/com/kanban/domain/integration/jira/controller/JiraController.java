@@ -151,7 +151,16 @@ public class JiraController {
     public ResponseEntity<JiraResponse.MirrorSetup> setupMirror(
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(connectionService.setupMirror(boardId, principal.getUserId()));
+        // 1) 컬럼 생성 + 미러 전환 (독립 트랜잭션에서 커밋)
+        JiraResponse.MirrorSetup result = connectionService.setupMirror(boardId, principal.getUserId());
+        // 2) 초기 가져오기 — 별도 트랜잭션. 실패해도 셋업은 유지(컬럼만 비어있을 뿐).
+        try {
+            importService.importIssues(boardId, principal.getUserId(),
+                new JiraRequest.Import(null, false));
+        } catch (Exception e) {
+            log.warn("JIRA mirror setup: initial import failed for board {}: {}", boardId, e.getMessage());
+        }
+        return ResponseEntity.ok(result);
     }
 
     /** pre-block — 이 태스크(JIRA 이슈)에서 드롭 가능한 JIRA 상태 id 목록. */

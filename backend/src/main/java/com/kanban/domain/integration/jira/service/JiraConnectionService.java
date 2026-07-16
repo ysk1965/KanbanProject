@@ -45,7 +45,6 @@ public class JiraConnectionService {
 
     private final JiraApiClient jiraApiClient;
     private final JiraOAuthService oauthService;
-    private final JiraImportService importService;
     private final JiraIntegrationConfigRepository configRepository;
     private final JiraIssueLinkRepository issueLinkRepository;
     private final JiraUserMappingRepository userMappingRepository;
@@ -215,13 +214,7 @@ public class JiraConnectionService {
         }
 
         config.enableMirror();
-
-        // 미러 컬럼이 채워지도록 초기 가져오기(멱등). 실패해도 셋업 자체는 성공 처리.
-        try {
-            importService.importIssues(boardId, userId, new JiraRequest.Import(null, false));
-        } catch (Exception e) {
-            log.warn("JIRA mirror setup: initial import failed for board {}: {}", boardId, e.getMessage());
-        }
+        // 초기 가져오기는 이 트랜잭션 밖(컨트롤러)에서 별도로 수행 — 중첩 @Transactional 롤백 오염 방지.
 
         long total = blockRepository.countJiraMirrorBlocksByBoardId(boardId);
         log.info("JIRA mirror setup for board {}: {} columns ({} created, {} reused) by user {}",
