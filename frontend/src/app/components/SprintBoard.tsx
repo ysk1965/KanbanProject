@@ -27,11 +27,17 @@ import {
   AlertTriangle,
   Layers,
   Users,
+  Diamond,
   PanelLeftClose,
   PanelLeftOpen,
   X,
 } from "lucide-react";
-import { sprintAPI, checklistAPI } from "../utils/api";
+import { sprintAPI, checklistAPI, taskAPI, jiraAPI } from "../utils/api";
+import type {
+  JiraStatus,
+  JiraMeta,
+  JiraBlockStatusEntry,
+} from "../utils/api";
 import type {
   SprintBoard as SprintBoardData,
   SprintColumn,
@@ -216,11 +222,11 @@ export function SprintBoard({
   // 진행 컬럼 그룹 기준: Feature별 컬럼(기본) ↔ 담당자별 컬럼.
   // In Review·Done 고정 컬럼은 두 뷰에서 그대로 공유되고, 카드/데이터는 변하지 않는다.
   // (순수 클라이언트 표시 전환 — 서버/드래그 상태는 두 뷰가 동일하게 공유)
-  const [groupBy, setGroupBy] = useState<"feature" | "member">(() => {
+  const [groupBy, setGroupBy] = useState<"feature" | "member" | "jira">(() => {
     try {
-      return localStorage.getItem(SPRINT_VIEW_KEY) === "member"
-        ? "member"
-        : "feature";
+      const saved = localStorage.getItem(SPRINT_VIEW_KEY);
+      if (saved === "member" || saved === "jira") return saved;
+      return "feature";
     } catch {
       return "feature";
     }
@@ -232,6 +238,50 @@ export function SprintBoard({
       /* 프라이빗 모드 등 localStorage 접근 불가 시 무시 */
     }
   }, [groupBy]);
+
+  // ── JIRA 뷰: 연동 상태(탭 노출 판정) + 메타(상태명) ──
+  // status는 block_status_map(블록→JIRA상태) 제공, meta는 상태 id→name 제공.
+  const [jiraStatus, setJiraStatus] = useState<JiraStatus | null>(null);
+  const [jiraMeta, setJiraMeta] = useState<JiraMeta | null>(null);
+  const [jiraMetaLoading, setJiraMetaLoading] = useState(false);
+  const jiraConnected = !!jiraStatus?.connected;
+
+  // 연동 여부만 먼저 확인해 JIRA 탭 노출 결정 (마운트 시 1회, viewer+ 접근)
+  useEffect(() => {
+    let alive = true;
+    jiraAPI
+      .getStatus(boardId)
+      .then((s) => {
+        if (alive) setJiraStatus(s);
+      })
+      .catch(() => {
+        /* 미연동/권한없음 → JIRA 탭 숨김 */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [boardId]);
+
+  // JIRA 탭 진입 시 메타(상태·블록명) 로드 (최초 1회)
+  useEffect(() => {
+    if (groupBy !== "jira" || !jiraConnected || jiraMeta || jiraMetaLoading)
+      return;
+    setJiraMetaLoading(true);
+    jiraAPI
+      .getMeta(boardId)
+      .then((m) => setJiraMeta(m))
+      .catch(() => {
+        /* 메타 로드 실패 시 컬럼 라벨은 상태 id 폴백 */
+      })
+      .finally(() => setJiraMetaLoading(false));
+  }, [groupBy, jiraConnected, jiraMeta, jiraMetaLoading, boardId]);
+
+  // JIRA 탭이 저장돼 있었는데 연동이 끊긴 경우 Feature로 폴백
+  useEffect(() => {
+    if (groupBy === "jira" && jiraStatus && !jiraConnected) {
+      setGroupBy("feature");
+    }
+  }, [groupBy, jiraStatus, jiraConnected]);
 
   // 좌측 업무 리스트 패널: 접힘 여부 + 폭(px). 둘 다 localStorage에서 복원해 새로고침 유지.
   const [panelCollapsed, setPanelCollapsed] = useState<boolean>(() => {
@@ -670,6 +720,149 @@ export function SprintBoard({
       total: stat.get(id)?.total ?? 0,
     }));
   }, [startColumn, columns, columnById, memberOrder]);
+
+  // ==================== JIRA 뷰 (컬럼 = JIRA 상태) ====================
+  // Feature/구성원 뷰가 스프린트 자체 워크플로(진행중/In Review/Done)를 컬럼으로 세운다면,
+  // JIRA 뷰는 그와 무관하게 "부모 Task의 칸반 블록(=JIRA 상태 매핑)"으로 태스크를 재그룹핑한다.
+  // 카드 단위도 체크리스트가 아니라 Task(= JIRA 이슈 1건)다. push 컬럼으로 드래그하면
+  // taskAPI.moveTask → 블록 변경 → 백엔드 TaskBlockChangedEvent → JIRA 전이가 자동 발동한다.
+  interface JiraTaskCard {
+    taskId: string;
+    taskTitle: string;
+    jiraKey: string;
+    qaState: "REVIEW" | "VERIFIED" | "REJECTED" | null;
+    blockId: string | null;
+    assignees: { id: string; name: string }[];
+    done: number; // 스프린트에 담긴 체크리스트 중 완료 수
+    total: number; // 스프린트에 담긴 체크리스트 수
+  }
+  interface JiraColumnDef {
+    blockId: string; // "__unmapped__" = 매핑 밖 leftover
+    label: string; // JIRA 상태명
+    dir: "push" | "pull"; // push=개발 소유(드래그 가능), pull=QA 소유(읽기전용)
+    qa?: "REVIEW" | "VERIFIED";
+    statusId: string;
+    cards: JiraTaskCard[];
+  }
+  const jiraColumns = useMemo<JiraColumnDef[]>(() => {
+    if (groupBy !== "jira" || !jiraConnected || !jiraStatus?.block_status_map)
+      return [];
+    const map = jiraStatus.block_status_map as Record<
+      string,
+      JiraBlockStatusEntry
+    >;
+    const statusName = (id?: string) =>
+      jiraMeta?.statuses.find((s) => s.id === id)?.name ?? id ?? "상태";
+
+    // 1) 스프린트 전체 아이템 → JIRA 연동 Task만 태스크 단위로 집계(중복 제거)
+    const taskMap = new Map<string, JiraTaskCard>();
+    for (const c of columns) {
+      for (const it of c.items) {
+        if (!it.jira_issue_key || !it.task_id) continue;
+        let card = taskMap.get(it.task_id);
+        if (!card) {
+          card = {
+            taskId: it.task_id,
+            taskTitle: it.task_title ?? "Task",
+            jiraKey: it.jira_issue_key,
+            qaState: it.qa_state ?? null,
+            blockId: it.block_id ?? null,
+            assignees: [],
+            done: 0,
+            total: 0,
+          };
+          taskMap.set(it.task_id, card);
+        }
+        card.total += 1;
+        const kind = it.sprint_column_id
+          ? columnById.get(it.sprint_column_id)?.kind
+          : undefined;
+        if (it.completed || kind === "END") card.done += 1;
+        if (
+          it.assignee &&
+          !card.assignees.some((a) => a.id === it.assignee!.id)
+        ) {
+          card.assignees.push({ id: it.assignee.id, name: it.assignee.name });
+        }
+      }
+    }
+
+    // 2) 매핑된 블록 → 컬럼. 워크플로 순서: push(개발) → pull REVIEW(검토중) → pull VERIFIED(검증완료)
+    const dirRank = (e: JiraBlockStatusEntry) =>
+      e.dir === "pull" ? (e.qa === "VERIFIED" ? 2 : 1) : 0;
+    const entries = Object.entries(map)
+      .filter(([k]) => k !== "__rejected")
+      .sort((a, b) => dirRank(a[1]) - dirRank(b[1]));
+
+    const cols: JiraColumnDef[] = entries.map(([blockId, entry]) => ({
+      blockId,
+      label: statusName(entry.jira_status_id),
+      dir: entry.dir === "pull" ? "pull" : "push",
+      qa: entry.qa,
+      statusId: entry.jira_status_id ?? "",
+      cards: [],
+    }));
+    const colByBlock = new Map(cols.map((c) => [c.blockId, c]));
+
+    // 3) 태스크를 자기 블록 컬럼에 배치. 매핑 밖 태스크는 leftover 컬럼(무음 누락 방지)
+    const leftover: JiraTaskCard[] = [];
+    for (const card of taskMap.values()) {
+      const col = card.blockId ? colByBlock.get(card.blockId) : undefined;
+      if (col) col.cards.push(card);
+      else leftover.push(card);
+    }
+    if (leftover.length) {
+      cols.push({
+        blockId: "__unmapped__",
+        label: "기타(미매핑)",
+        dir: "pull",
+        statusId: "",
+        cards: leftover,
+      });
+    }
+    return cols;
+  }, [groupBy, jiraConnected, jiraStatus, jiraMeta, columns, columnById]);
+
+  // JIRA 게이지/헤더용 집계 — 검증완료 + 검토중 2색 세그먼트
+  const jiraStats = useMemo(() => {
+    const all = jiraColumns.flatMap((c) => c.cards);
+    return {
+      linked: all.length,
+      verified: all.filter((c) => c.qaState === "VERIFIED").length,
+      review: all.filter((c) => c.qaState === "REVIEW").length,
+      rejected: all.filter((c) => c.qaState === "REJECTED").length,
+    };
+  }, [jiraColumns]);
+
+  // JIRA 태스크 카드 드래그 시작 — 태스크 단위 이동임을 별도 소스로 구분
+  const onDragStartJiraTask = (e: React.DragEvent, card: JiraTaskCard) => {
+    if (!canEdit) return;
+    e.dataTransfer.setData(DRAG_ITEM, card.taskId);
+    e.dataTransfer.setData(DRAG_SOURCE, "jira-task");
+    e.dataTransfer.effectAllowed = "move";
+    setDraggingSource("sprint");
+  };
+  // push 컬럼 드롭 → 태스크 블록 이동 → 백엔드 이벤트로 JIRA 전이 자동 발동
+  const onDropJiraColumn = async (e: React.DragEvent, col: JiraColumnDef) => {
+    e.preventDefault();
+    setDragOverCol(null);
+    if (!canEdit) return;
+    const taskId = e.dataTransfer.getData(DRAG_ITEM);
+    const source = e.dataTransfer.getData(DRAG_SOURCE);
+    if (!taskId || source !== "jira-task") return;
+    // pull(QA 소유) 컬럼·미매핑 컬럼은 읽기전용 — 드롭 무시
+    if (col.dir !== "push" || col.blockId === "__unmapped__") return;
+    // 이미 그 블록이면 무시
+    const card = jiraColumns.flatMap((c) => c.cards).find((c) => c.taskId === taskId);
+    if (card?.blockId === col.blockId) return;
+    await run(async () => {
+      await taskAPI.moveTask(boardId, taskId, {
+        target_block_id: col.blockId,
+        position: 0,
+      });
+      return sprintAPI.getSprintBoard(boardId, milestoneId);
+    });
+  };
 
   // 좌측 행: 체크박스 → 완료 토글(체크리스트 API 재사용 후 보드 갱신)
   const toggleDone = (it: SprintItemCard) => {
@@ -1321,6 +1514,143 @@ export function SprintBoard({
     );
   };
 
+  // ── JIRA 뷰 렌더 (컬럼=JIRA 상태, 카드=Task) ──
+  const renderQaBadge = (qa: "REVIEW" | "VERIFIED" | "REJECTED") => {
+    const cfg =
+      qa === "VERIFIED"
+        ? { label: "검증완료", cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" }
+        : qa === "REJECTED"
+          ? { label: "반려", cls: "bg-rose-500/15 text-rose-600 dark:text-rose-400" }
+          : { label: "검토중", cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400" };
+    return (
+      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${cfg.cls}`}>
+        {cfg.label}
+      </span>
+    );
+  };
+
+  const renderJiraTaskCard = (card: JiraTaskCard, draggable: boolean) => {
+    const pct = card.total > 0 ? Math.round((card.done / card.total) * 100) : 0;
+    const canDrag = canEdit && draggable;
+    return (
+      <div
+        key={card.taskId}
+        draggable={canDrag}
+        onDragStart={(e) => canDrag && onDragStartJiraTask(e, card)}
+        onDragEnd={onDragEndItem}
+        onClick={() => openTask(card.taskId)}
+        className={`group rounded-xl border border-foreground/[0.08] bg-bridge-dark p-2.5 transition-colors hover:border-foreground/[0.14] ${
+          canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+        }`}
+      >
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <span
+            className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums"
+            style={{ background: "rgba(38,132,255,0.16)", color: "#7fb0ff" }}
+          >
+            <Diamond className="w-2.5 h-2.5" />
+            {card.jiraKey}
+          </span>
+          {card.qaState && renderQaBadge(card.qaState)}
+        </div>
+        <div className="text-xs font-medium text-foreground leading-snug line-clamp-2">
+          {card.taskTitle}
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <div className="flex-1 h-1 rounded-full bg-foreground/10 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-bridge-accent to-bridge-secondary transition-all"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <span className="text-[10px] text-slate-500 tabular-nums shrink-0">
+            {card.done}/{card.total}
+          </span>
+          {card.assignees.length > 0 && (
+            <div className="flex -space-x-1 shrink-0">
+              {card.assignees.slice(0, 3).map((a) => (
+                <span
+                  key={a.id}
+                  className="w-4 h-4 rounded-full grid place-items-center text-[8px] font-bold ring-1 ring-bridge-dark"
+                  style={{ background: getAssigneeHex(a.name), color: "#fff" }}
+                  title={a.name}
+                >
+                  {getInitials(a.name)}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderJiraColumn = (col: JiraColumnDef) => {
+    const key = `jira-${col.blockId}`;
+    const isPush = col.dir === "push" && col.blockId !== "__unmapped__";
+    const accent =
+      col.blockId === "__unmapped__"
+        ? "#64748b"
+        : col.dir === "pull"
+          ? col.qa === "VERIFIED"
+            ? "#34d399"
+            : "#f59e0b"
+          : "#6366F1";
+    return (
+      <div
+        key={key}
+        onDragOver={(e) => {
+          if (canEdit && isPush && draggingSource === "sprint") {
+            e.preventDefault();
+            setDragOverCol(key);
+          }
+        }}
+        onDragLeave={() => setDragOverCol((c) => (c === key ? null : c))}
+        onDrop={(e) => onDropJiraColumn(e, col)}
+        className={`w-[270px] shrink-0 flex flex-col rounded-2xl border bg-bridge-obsidian transition-colors ${
+          dragOverCol === key
+            ? "border-bridge-accent/60"
+            : "border-foreground/[0.08]"
+        }`}
+      >
+        <div className="px-3 pt-2.5 pb-2 border-b border-foreground/[0.06]">
+          <div className="flex items-center gap-2">
+            <span
+              className="w-2 h-2 rounded-sm shrink-0"
+              style={{ background: accent }}
+            />
+            <span
+              className="text-xs font-bold text-foreground truncate flex-1"
+              title={col.label}
+            >
+              {col.label}
+            </span>
+            {!isPush && (
+              <span
+                className="text-[9px] font-bold text-slate-500 tracking-wide shrink-0"
+                title="QA 소유 상태 · 여기로는 옮길 수 없어요"
+              >
+                읽기전용
+              </span>
+            )}
+            <span className="text-[10px] font-bold text-slate-500 tabular-nums bg-bridge-dark rounded-full px-1.5 shrink-0">
+              {col.cards.length}
+            </span>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2 min-h-[120px]">
+          {col.cards.length === 0 ? (
+            <div className="h-full min-h-[80px] grid place-items-center text-[11px] text-slate-600">
+              비어 있음
+            </div>
+          ) : (
+            col.cards.map((card) => renderJiraTaskCard(card, isPush))
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* 상단 컨트롤 바 */}
@@ -1458,11 +1788,32 @@ export function SprintBoard({
                         진행중
                       </span>
                       <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
-                        {pct}
+                        {groupBy === "jira"
+                          ? jiraStats.linked > 0
+                            ? Math.round(
+                                (jiraStats.verified / jiraStats.linked) * 100,
+                              )
+                            : 0
+                          : pct}
                         <span className="text-sm text-slate-400">%</span>
                       </span>
                       <span className="text-xs font-medium text-slate-400 tabular-nums">
-                        {doneN} / {totalN} 항목
+                        {groupBy === "jira" ? (
+                          <>
+                            검증 {jiraStats.verified} · 검토중{" "}
+                            {jiraStats.review} / 연동 {jiraStats.linked}건
+                            {jiraStats.rejected > 0 && (
+                              <span className="text-rose-400">
+                                {" "}
+                                · 반려 {jiraStats.rejected}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {doneN} / {totalN} 항목
+                          </>
+                        )}
                       </span>
                       {sprintProgress.nToday > 0 && (
                         <span className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0 tabular-nums">
@@ -1507,28 +1858,64 @@ export function SprintBoard({
                         className="group/bar flex-1 min-w-[80px] flex items-center -mx-0.5 px-0.5 py-1 rounded"
                       >
                         <div className="flex-1 h-[5px] rounded-full bg-slate-600 overflow-hidden relative">
-                          <div
-                            className="absolute left-0 top-0 h-full bg-bridge-accent transition-all duration-500"
-                            style={{ width: `${sprintProgress.segEarlier}%` }}
-                          />
-                          {sprintProgress.segToday > 0 && (
-                            <div
-                              className="absolute top-0 h-full bg-bridge-secondary transition-all duration-500"
-                              style={{
-                                left: `${sprintProgress.segEarlier}%`,
-                                width: `${sprintProgress.segToday}%`,
-                                boxShadow: "0 0 8px var(--bridge-secondary)",
-                              }}
-                            />
-                          )}
-                          {sprintProgress.segProg > 0 && (
-                            <div
-                              className="absolute top-0 h-full bg-amber-500 transition-all duration-500"
-                              style={{
-                                left: `${sprintProgress.segEarlier + sprintProgress.segToday}%`,
-                                width: `${sprintProgress.segProg}%`,
-                              }}
-                            />
+                          {groupBy === "jira" ? (
+                            (() => {
+                              const vPct =
+                                jiraStats.linked > 0
+                                  ? (jiraStats.verified / jiraStats.linked) * 100
+                                  : 0;
+                              const rPct =
+                                jiraStats.linked > 0
+                                  ? (jiraStats.review / jiraStats.linked) * 100
+                                  : 0;
+                              return (
+                                <>
+                                  {/* 검증완료 */}
+                                  <div
+                                    className="absolute left-0 top-0 h-full bg-gradient-to-r from-bridge-accent to-bridge-secondary transition-all duration-500"
+                                    style={{ width: `${vPct}%` }}
+                                  />
+                                  {/* 검토중(QA 대기) */}
+                                  {rPct > 0 && (
+                                    <div
+                                      className="absolute top-0 h-full bg-amber-500 transition-all duration-500"
+                                      style={{
+                                        left: `${vPct}%`,
+                                        width: `${rPct}%`,
+                                      }}
+                                    />
+                                  )}
+                                </>
+                              );
+                            })()
+                          ) : (
+                            <>
+                              <div
+                                className="absolute left-0 top-0 h-full bg-bridge-accent transition-all duration-500"
+                                style={{
+                                  width: `${sprintProgress.segEarlier}%`,
+                                }}
+                              />
+                              {sprintProgress.segToday > 0 && (
+                                <div
+                                  className="absolute top-0 h-full bg-bridge-secondary transition-all duration-500"
+                                  style={{
+                                    left: `${sprintProgress.segEarlier}%`,
+                                    width: `${sprintProgress.segToday}%`,
+                                    boxShadow: "0 0 8px var(--bridge-secondary)",
+                                  }}
+                                />
+                              )}
+                              {sprintProgress.segProg > 0 && (
+                                <div
+                                  className="absolute top-0 h-full bg-amber-500 transition-all duration-500"
+                                  style={{
+                                    left: `${sprintProgress.segEarlier + sprintProgress.segToday}%`,
+                                    width: `${sprintProgress.segProg}%`,
+                                  }}
+                                />
+                              )}
+                            </>
                           )}
                         </div>
                       </button>
@@ -1570,6 +1957,23 @@ export function SprintBoard({
                           <Users className="w-3 h-3" />
                           구성원
                         </button>
+                        {jiraConnected && (
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={groupBy === "jira"}
+                            onClick={() => setGroupBy("jira")}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                              groupBy === "jira"
+                                ? "bg-bridge-accent text-white"
+                                : "text-slate-400 hover:text-foreground"
+                            }`}
+                            title="JIRA 상태 단위로 컬럼 보기 (연동 항목만)"
+                          >
+                            <Diamond className="w-3 h-3" />
+                            JIRA
+                          </button>
+                        )}
                       </div>
 
                       {isAdminOrOwner && (
@@ -2194,6 +2598,27 @@ export function SprintBoard({
             <div className="flex items-center justify-center h-full text-slate-500 text-sm">
               진행 중인 스프린트가 없습니다.
             </div>
+          ) : groupBy === "jira" ? (
+            jiraMetaLoading && !jiraMeta ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+              </div>
+            ) : jiraColumns.every((c) => c.cards.length === 0) ? (
+              <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-6">
+                <Diamond className="w-8 h-8 text-slate-600" />
+                <p className="text-sm text-slate-400 font-medium">
+                  이 스프린트에 JIRA 연동 항목이 없습니다.
+                </p>
+                <p className="text-xs text-slate-600 max-w-xs">
+                  JIRA 이슈를 가져오거나 태스크를 연결하면 여기에 상태별로
+                  나타납니다.
+                </p>
+              </div>
+            ) : (
+              <div className="flex gap-3 p-3 md:p-4 h-full min-w-max">
+                {jiraColumns.map((col) => renderJiraColumn(col))}
+              </div>
+            )
           ) : (
             <div className="flex gap-3 p-3 md:p-4 h-full min-w-max">
               {columns.map((col) => {
