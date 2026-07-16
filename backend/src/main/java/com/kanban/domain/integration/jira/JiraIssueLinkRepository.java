@@ -29,6 +29,12 @@ public interface JiraIssueLinkRepository extends JpaRepository<JiraIssueLink, St
             @Param("type") JiraLinkTargetType type,
             @Param("ids") List<String> ids);
 
+    /** JIRA 뷰(보드 스코프) — 보드의 모든 Task 링크. 스프린트 담김 무관하게 전체 이슈를 비추기 위함. */
+    @Query("SELECT l FROM JiraIssueLink l WHERE l.board.id = :boardId AND l.targetType = :type")
+    List<JiraIssueLink> findByBoardIdAndTargetType(
+            @Param("boardId") String boardId,
+            @Param("type") JiraLinkTargetType type);
+
     /** 완료 역동기화 후보 — 아직 JIRA로 넘기지 않은 Task 링크. */
     @Query("SELECT l FROM JiraIssueLink l WHERE l.board.id = :boardId AND l.targetType = :type AND l.writeBackDoneAt IS NULL")
     List<JiraIssueLink> findWriteBackCandidates(@Param("boardId") String boardId, @Param("type") JiraLinkTargetType type);

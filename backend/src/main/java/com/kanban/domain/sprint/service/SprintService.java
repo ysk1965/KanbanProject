@@ -53,6 +53,7 @@ public class SprintService {
     private final WebSocketEventService webSocketEventService;
     private final JiraIssueLinkRepository jiraIssueLinkRepository;
     private final JiraIntegrationConfigRepository jiraIntegrationConfigRepository;
+    private final com.kanban.domain.task.TaskRepository taskRepository;
 
     // 기본 컬럼 시드 (앞뒤 고정 + 기본 중간 1개)
     private static final String COL_SPRINT = "Sprint";
@@ -611,6 +612,9 @@ public class SprintService {
         List<SprintResponse.ItemCard> backlog = checklistItemRepository.findBacklogByMilestoneId(milestoneId)
                 .stream().map(SprintResponse.ItemCard::of).toList();
 
+        // JIRA 뷰(컬럼=JIRA 상태)용 — 스프린트 담김과 무관한 보드 전체 JIRA 연동 Task.
+        List<SprintResponse.JiraTask> jiraTasks = buildJiraTasks(milestone.getBoard().getId());
+
         return SprintResponse.Board.builder()
                 .sprintEnabled(Boolean.TRUE.equals(milestone.getSprintEnabled()))
                 .activeSprint(activeInfo)
@@ -618,6 +622,66 @@ public class SprintService {
                 .gauge(gauge)
                 .columns(columnDtos)
                 .backlog(backlog)
+                .jiraTasks(jiraTasks)
                 .build();
+    }
+
+    /**
+     * JIRA 뷰(보드 스코프) 카드 목록. 보드의 모든 JIRA 연동 Task를 스프린트 담김 여부와 무관하게
+     * 태스크 단위로 내려준다 — 재동기화로 import된 이슈가 스프린트에 담기지 않아도 JIRA 컬럼에 바로 보이도록.
+     * 미연동 보드면 빈 목록(추가 쿼리 없음).
+     */
+    private List<SprintResponse.JiraTask> buildJiraTasks(String boardId) {
+        if (jiraIntegrationConfigRepository.findActiveByBoardId(boardId).isEmpty()) {
+            return List.of();
+        }
+        List<JiraIssueLink> links = jiraIssueLinkRepository
+                .findByBoardIdAndTargetType(boardId, JiraLinkTargetType.TASK);
+        if (links.isEmpty()) {
+            return List.of();
+        }
+        List<String> taskIds = links.stream()
+                .map(JiraIssueLink::getTargetId).distinct().toList();
+
+        // Task(제목/블록/피쳐/QA) + 체크리스트(진행도·담당자) 배치 조회(N+1 방지).
+        Map<String, com.kanban.domain.task.Task> taskById = new HashMap<>();
+        for (com.kanban.domain.task.Task t : taskRepository.findByIdInWithBlockAndFeature(taskIds)) {
+            taskById.put(t.getId(), t);
+        }
+        Map<String, List<ChecklistItem>> checklistsByTask = new HashMap<>();
+        for (ChecklistItem c : checklistItemRepository.findByTaskIdInWithAssignee(taskIds)) {
+            if (c.getTask() == null) continue;
+            checklistsByTask.computeIfAbsent(c.getTask().getId(), k -> new ArrayList<>()).add(c);
+        }
+
+        List<SprintResponse.JiraTask> out = new ArrayList<>();
+        for (JiraIssueLink link : links) {
+            com.kanban.domain.task.Task task = taskById.get(link.getTargetId());
+            if (task == null) continue; // 고아 링크(Task 삭제됨) 방어
+            List<ChecklistItem> cls = checklistsByTask.getOrDefault(task.getId(), List.of());
+            int total = cls.size();
+            int done = 0;
+            Map<String, SprintResponse.AssigneeInfo> assignees = new LinkedHashMap<>();
+            for (ChecklistItem c : cls) {
+                if (Boolean.TRUE.equals(c.getIsCompleted())) done++;
+                if (c.getAssignee() != null) {
+                    assignees.putIfAbsent(c.getAssignee().getId(),
+                            SprintResponse.AssigneeInfo.of(c.getAssignee()));
+                }
+            }
+            out.add(SprintResponse.JiraTask.builder()
+                    .taskId(task.getId())
+                    .taskTitle(task.getTitle())
+                    .jiraIssueKey(link.getJiraIssueKey())
+                    .qaState(task.getQaState() != null ? task.getQaState().name() : null)
+                    .blockId(task.getBlock() != null ? task.getBlock().getId() : null)
+                    .jiraStatusId(link.getLastJiraStatusId())
+                    .featureId(task.getFeature() != null ? task.getFeature().getId() : null)
+                    .assignees(new ArrayList<>(assignees.values()))
+                    .done(done)
+                    .total(total)
+                    .build());
+        }
+        return out;
     }
 }

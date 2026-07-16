@@ -31,6 +31,28 @@ public class SprintResponse {
         private Gauge gauge;                   // 스코프 게이지 (활성 기준)
         private List<Column> columns;          // 동적 컬럼 (START..MIDDLE..END), 각 컬럼에 담긴 카드 포함
         private List<ItemCard> backlog;        // 담기 후보 (아직 미담긴 마일스톤 항목)
+        private List<JiraTask> jiraTasks;      // JIRA 뷰용 — 보드 전체 JIRA 연동 Task (스프린트 담김 무관). 미연동이면 빈 목록.
+    }
+
+    /**
+     * JIRA 뷰(컬럼=JIRA 상태) 전용 카드. 스프린트 스코프가 아니라 "보드 스코프" — 스프린트에
+     * 담기지 않은 이슈도 JIRA 보드처럼 그대로 비춘다(재동기화 import 카드가 바로 보이도록).
+     * 카드 단위가 체크리스트가 아니라 Task(=JIRA 이슈 1건)이며, done/total은 그 Task의 체크리스트 진행도.
+     */
+    @Getter
+    @AllArgsConstructor
+    @Builder
+    public static class JiraTask {
+        private String taskId;
+        private String taskTitle;
+        private String jiraIssueKey;      // 연동 이슈 키 (항상 존재)
+        private String qaState;           // REVIEW/VERIFIED/REJECTED, 없으면 null
+        private String blockId;           // 현재 칸반 블록 = 미러 컬럼 배치 키
+        private String jiraStatusId;      // 마지막 pull 시점의 JIRA 상태 id (매뉴얼 매핑 배치 키)
+        private String featureId;         // 피쳐 칩 필터용
+        private List<AssigneeInfo> assignees; // 체크리스트 담당자(중복 제거)
+        private int done;                 // 완료 체크리스트 수
+        private int total;                // 전체 체크리스트 수
     }
 
     /** 스프린트 보드 컬럼 (마일스톤 단위). kind: START | MIDDLE | END */

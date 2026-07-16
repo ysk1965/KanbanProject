@@ -44,6 +44,13 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "WHERE t.block.id = :blockId ORDER BY t.position ASC")
     List<Task> findByBlockIdWithFetch(@Param("blockId") String blockId);
 
+    /** JIRA 뷰(보드 스코프) — 여러 Task를 block/feature와 함께 조회(N+1 방지). */
+    @Query("SELECT t FROM Task t " +
+           "LEFT JOIN FETCH t.block " +
+           "LEFT JOIN FETCH t.feature " +
+           "WHERE t.id IN :ids")
+    List<Task> findByIdInWithBlockAndFeature(@Param("ids") List<String> ids);
+
     @Query("SELECT t FROM Task t " +
            "JOIN FETCH t.feature " +
            "JOIN FETCH t.block " +
