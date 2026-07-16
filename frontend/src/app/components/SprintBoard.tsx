@@ -731,42 +731,62 @@ export function SprintBoard({
     taskTitle: string;
     jiraKey: string;
     qaState: "REVIEW" | "VERIFIED" | "REJECTED" | null;
-    blockId: string | null;
+    statusId: string | null; // 해석된 현재 JIRA 상태 id
     assignees: { id: string; name: string }[];
     done: number; // 스프린트에 담긴 체크리스트 중 완료 수
     total: number; // 스프린트에 담긴 체크리스트 수
   }
   interface JiraColumnDef {
-    blockId: string; // "__unmapped__" = 매핑 밖 leftover
+    statusId: string; // JIRA 상태 id ("__unmapped__" = 상태 미상 leftover)
     label: string; // JIRA 상태명
-    dir: "push" | "pull"; // push=개발 소유(드래그 가능), pull=QA 소유(읽기전용)
-    qa?: "REVIEW" | "VERIFIED";
-    statusId: string;
+    draggable: boolean; // 이 상태로 push 가능한 블록이 있으면 true
+    targetBlockId: string | null; // draggable일 때 드롭 시 이동할 블록
+    tone: "push" | "review" | "verified" | "muted"; // 컬럼 액센트
     cards: JiraTaskCard[];
   }
   const jiraColumns = useMemo<JiraColumnDef[]>(() => {
-    if (groupBy !== "jira" || !jiraConnected || !jiraStatus?.block_status_map)
+    if (
+      groupBy !== "jira" ||
+      !jiraConnected ||
+      !jiraStatus?.block_status_map ||
+      !jiraMeta
+    )
       return [];
     const map = jiraStatus.block_status_map as Record<
       string,
       JiraBlockStatusEntry
     >;
-    const statusName = (id?: string) =>
-      jiraMeta?.statuses.find((s) => s.id === id)?.name ?? id ?? "상태";
+
+    // 매핑 인덱스: 블록→상태(배치용), 상태→push블록(드롭 타깃), 상태→엔트리(색상/드래그 판정)
+    const statusByBlock = new Map<string, string>();
+    const pushBlockByStatus = new Map<string, string>();
+    const entryByStatus = new Map<string, JiraBlockStatusEntry>();
+    for (const [blockId, entry] of Object.entries(map)) {
+      if (blockId === "__rejected" || !entry.jira_status_id) continue;
+      statusByBlock.set(blockId, entry.jira_status_id);
+      entryByStatus.set(entry.jira_status_id, entry);
+      if (entry.dir !== "pull")
+        pushBlockByStatus.set(entry.jira_status_id, blockId);
+    }
 
     // 1) 스프린트 전체 아이템 → JIRA 연동 Task만 태스크 단위로 집계(중복 제거)
+    //    현재 JIRA 상태 = 매핑된 블록 상태(push 후 최신) ?? 마지막 pull 상태
     const taskMap = new Map<string, JiraTaskCard>();
     for (const c of columns) {
       for (const it of c.items) {
         if (!it.jira_issue_key || !it.task_id) continue;
         let card = taskMap.get(it.task_id);
         if (!card) {
+          const resolved =
+            (it.block_id ? statusByBlock.get(it.block_id) : undefined) ??
+            it.jira_status_id ??
+            null;
           card = {
             taskId: it.task_id,
             taskTitle: it.task_title ?? "Task",
             jiraKey: it.jira_issue_key,
             qaState: it.qa_state ?? null,
-            blockId: it.block_id ?? null,
+            statusId: resolved,
             assignees: [],
             done: 0,
             total: 0,
@@ -787,36 +807,47 @@ export function SprintBoard({
       }
     }
 
-    // 2) 매핑된 블록 → 컬럼. 워크플로 순서: push(개발) → pull REVIEW(검토중) → pull VERIFIED(검증완료)
-    const dirRank = (e: JiraBlockStatusEntry) =>
-      e.dir === "pull" ? (e.qa === "VERIFIED" ? 2 : 1) : 0;
-    const entries = Object.entries(map)
-      .filter(([k]) => k !== "__rejected")
-      .sort((a, b) => dirRank(a[1]) - dirRank(b[1]));
+    // 2) 컬럼 = JIRA 상태 전체 미러링. 매핑된 상태를 앞으로(push→검토중→검증완료), 나머지는 meta 순서.
+    const rankOf = (statusId: string) => {
+      const e = entryByStatus.get(statusId);
+      if (!e) return 3;
+      if (e.dir === "pull") return e.qa === "VERIFIED" ? 2 : 1;
+      return 0;
+    };
+    const toneOf = (statusId: string): JiraColumnDef["tone"] => {
+      const e = entryByStatus.get(statusId);
+      if (!e) return "muted";
+      if (e.dir === "pull") return e.qa === "VERIFIED" ? "verified" : "review";
+      return "push";
+    };
+    const ordered = (jiraMeta.statuses ?? [])
+      .slice()
+      .sort((a, b) => rankOf(a.id) - rankOf(b.id));
 
-    const cols: JiraColumnDef[] = entries.map(([blockId, entry]) => ({
-      blockId,
-      label: statusName(entry.jira_status_id),
-      dir: entry.dir === "pull" ? "pull" : "push",
-      qa: entry.qa,
-      statusId: entry.jira_status_id ?? "",
+    const cols: JiraColumnDef[] = ordered.map((s) => ({
+      statusId: s.id,
+      label: s.name,
+      draggable: pushBlockByStatus.has(s.id),
+      targetBlockId: pushBlockByStatus.get(s.id) ?? null,
+      tone: toneOf(s.id),
       cards: [],
     }));
-    const colByBlock = new Map(cols.map((c) => [c.blockId, c]));
+    const colByStatus = new Map(cols.map((c) => [c.statusId, c]));
 
-    // 3) 태스크를 자기 블록 컬럼에 배치. 매핑 밖 태스크는 leftover 컬럼(무음 누락 방지)
+    // 3) 태스크 배치. 상태 미상/메타에 없는 상태는 leftover 컬럼(무음 누락 방지)
     const leftover: JiraTaskCard[] = [];
     for (const card of taskMap.values()) {
-      const col = card.blockId ? colByBlock.get(card.blockId) : undefined;
+      const col = card.statusId ? colByStatus.get(card.statusId) : undefined;
       if (col) col.cards.push(card);
       else leftover.push(card);
     }
     if (leftover.length) {
       cols.push({
-        blockId: "__unmapped__",
-        label: "기타(미매핑)",
-        dir: "pull",
-        statusId: "",
+        statusId: "__unmapped__",
+        label: "기타",
+        draggable: false,
+        targetBlockId: null,
+        tone: "muted",
         cards: leftover,
       });
     }
@@ -842,7 +873,7 @@ export function SprintBoard({
     e.dataTransfer.effectAllowed = "move";
     setDraggingSource("sprint");
   };
-  // push 컬럼 드롭 → 태스크 블록 이동 → 백엔드 이벤트로 JIRA 전이 자동 발동
+  // push 가능 상태 컬럼 드롭 → 태스크 블록 이동 → 백엔드 이벤트로 JIRA 전이 자동 발동
   const onDropJiraColumn = async (e: React.DragEvent, col: JiraColumnDef) => {
     e.preventDefault();
     setDragOverCol(null);
@@ -850,14 +881,17 @@ export function SprintBoard({
     const taskId = e.dataTransfer.getData(DRAG_ITEM);
     const source = e.dataTransfer.getData(DRAG_SOURCE);
     if (!taskId || source !== "jira-task") return;
-    // pull(QA 소유) 컬럼·미매핑 컬럼은 읽기전용 — 드롭 무시
-    if (col.dir !== "push" || col.blockId === "__unmapped__") return;
-    // 이미 그 블록이면 무시
-    const card = jiraColumns.flatMap((c) => c.cards).find((c) => c.taskId === taskId);
-    if (card?.blockId === col.blockId) return;
+    // 읽기전용 상태(매핑 없음·QA 소유)는 드롭 무시
+    if (!col.draggable || !col.targetBlockId) return;
+    const targetBlockId = col.targetBlockId;
+    // 이미 그 상태면 무시
+    const card = jiraColumns
+      .flatMap((c) => c.cards)
+      .find((c) => c.taskId === taskId);
+    if (card?.statusId === col.statusId) return;
     await run(async () => {
       await taskAPI.moveTask(boardId, taskId, {
-        target_block_id: col.blockId,
+        target_block_id: targetBlockId,
         position: 0,
       });
       return sprintAPI.getSprintBoard(boardId, milestoneId);
@@ -1586,16 +1620,16 @@ export function SprintBoard({
   };
 
   const renderJiraColumn = (col: JiraColumnDef) => {
-    const key = `jira-${col.blockId}`;
-    const isPush = col.dir === "push" && col.blockId !== "__unmapped__";
+    const key = `jira-${col.statusId}`;
+    const isPush = col.draggable;
     const accent =
-      col.blockId === "__unmapped__"
-        ? "#64748b"
-        : col.dir === "pull"
-          ? col.qa === "VERIFIED"
+      col.tone === "push"
+        ? "#6366F1"
+        : col.tone === "review"
+          ? "#f59e0b"
+          : col.tone === "verified"
             ? "#34d399"
-            : "#f59e0b"
-          : "#6366F1";
+            : "#64748b";
     return (
       <div
         key={key}

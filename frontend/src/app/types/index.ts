@@ -607,9 +607,10 @@ export interface SprintItemCard {
   task_id: string | null;
   task_title: string | null;
   // ── JIRA 뷰 전용 (컬럼=JIRA 상태 그루핑용) ──
-  block_id?: string | null; // 부모 Task의 현재 칸반 블록 = JIRA 상태 매핑 키
+  block_id?: string | null; // 부모 Task의 현재 칸반 블록 = 매핑된 JIRA 상태(push 시 최신)
   qa_state?: "REVIEW" | "VERIFIED" | "REJECTED" | null; // JIRA pull QA 상태 (읽기전용)
   jira_issue_key?: string | null; // 연동된 JIRA 이슈 키(QASA-123), 미연동이면 null
+  jira_status_id?: string | null; // 마지막 pull 시점의 실제 JIRA 상태 id (미러링 컬럼 배치용)
   assignee?: {
     id: string;
     name: string;
