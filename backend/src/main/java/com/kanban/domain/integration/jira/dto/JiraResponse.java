@@ -53,6 +53,10 @@ public class JiraResponse {
         private int created;   // 신규 생성
         private int reused;    // 기존 블록 재사용
         private Status status; // 갱신된 연동 상태
+        /** 컬럼 출처: BOARD_CONFIG(JIRA 보드 구성 그대로) / STATUS_FALLBACK(보드 구성 실패→상태 목록). */
+        private String columnSource;
+        /** 출처 상세 — BOARD_CONFIG면 보드명, STATUS_FALLBACK면 폴백 사유(에러 메시지 등). */
+        private String columnSourceDetail;
     }
 
     /** pre-block용 — 특정 태스크(=JIRA 이슈)에서 전환 가능한 대상 상태 id 목록. */

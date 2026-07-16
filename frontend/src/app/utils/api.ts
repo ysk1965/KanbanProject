@@ -5877,6 +5877,10 @@ export interface JiraMirrorSetup {
   created: number;
   reused: number;
   status: JiraStatus;
+  /** 컬럼 출처: BOARD_CONFIG(JIRA 보드 구성) / STATUS_FALLBACK(보드 구성 실패→상태 목록). */
+  column_source: string | null;
+  /** 출처 상세 — BOARD_CONFIG면 보드명, STATUS_FALLBACK면 폴백 사유. */
+  column_source_detail: string | null;
 }
 
 export interface JiraTransitions {

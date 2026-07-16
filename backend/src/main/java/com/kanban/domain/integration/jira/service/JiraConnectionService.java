@@ -204,11 +204,18 @@ public class JiraConnectionService {
             .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         // 1) 컬럼 스펙 결정: Agile 보드 구성 우선, 실패 시 상태 목록 폴백
-        List<ColumnSpec> specs = fetchBoardColumns(config, token);
+        ColumnFetch fetch = fetchBoardColumns(config, token);
+        List<ColumnSpec> specs = fetch.specs();
+        String columnSource = "BOARD_CONFIG";
+        String columnSourceDetail = fetch.detail();
         if (specs.isEmpty()) {
             specs = fetchProjectStatuses(config, token).stream()
                 .map(s -> new ColumnSpec(s.getName(), List.of(s.getId())))
                 .toList();
+            columnSource = "STATUS_FALLBACK";
+            // 폴백 사유: 보드 조회 실패 상세가 있으면 그걸, 없으면 일반 안내.
+            columnSourceDetail = fetch.detail() != null ? fetch.detail()
+                : "JIRA 보드 구성을 읽지 못해 프로젝트 상태 목록으로 대체했습니다.";
         }
 
         // 2) 기존 미러 컬럼 정리 — 태스크는 TASK 고정 블록으로 대피 후 삭제(초기 import가 새 컬럼으로 재배치)
@@ -244,31 +251,52 @@ public class JiraConnectionService {
         // 초기 가져오기는 이 트랜잭션 밖(컨트롤러)에서 별도로 수행 — 중첩 @Transactional 롤백 오염 방지.
 
         int total = mirrorCols.size();
-        log.info("JIRA mirror setup for board {}: {} columns from {} by user {}",
-            boardId, total, specs.size() > total ? "board(filtered)" : "board/fallback", userId);
+        log.info("JIRA mirror setup for board {}: {} columns, source={}, detail={}, by user {}",
+            boardId, total, columnSource, columnSourceDetail, userId);
 
         return JiraResponse.MirrorSetup.builder()
             .columns(total)
             .created(total)
             .reused(0)
             .status(toStatus(config))
+            .columnSource(columnSource)
+            .columnSourceDetail(columnSourceDetail)
             .build();
     }
 
-    /** Agile 보드 구성에서 컬럼(이름+상태 id들)을 뽑는다. 보드 없음/권한 없음/파싱 실패 시 빈 목록. */
-    private List<ColumnSpec> fetchBoardColumns(JiraIntegrationConfig config, String token) {
+    /** 컬럼 조회 결과 — specs(빈 목록이면 폴백 필요)와 사유/출처 상세. */
+    private record ColumnFetch(List<ColumnSpec> specs, String detail) {
+        static ColumnFetch ok(List<ColumnSpec> specs, String detail) { return new ColumnFetch(specs, detail); }
+        static ColumnFetch fail(String detail) { return new ColumnFetch(List.of(), detail); }
+    }
+
+    /**
+     * Agile 보드 구성에서 컬럼(이름+상태 id들)을 뽑는다. 실패하면 빈 specs + 사유 detail을 반환해
+     * 셋업에서 상태 목록으로 폴백하되 사용자에게 이유를 노출한다.
+     */
+    private ColumnFetch fetchBoardColumns(JiraIntegrationConfig config, String token) {
+        String boardIdJira;
         try {
             JiraAuthContext ctx = JiraAuthContext.of(config, token);
             // 사용자가 미러 대상 보드를 골랐으면 그 보드를 사용, 없으면 자동 선택(첫 kanban 보드).
-            String boardIdJira = config.getAgileBoardId();
+            boardIdJira = config.getAgileBoardId();
             if (boardIdJira == null || boardIdJira.isBlank()) {
                 boardIdJira = autoPickAgileBoardId(ctx, config.getProjectKey());
+                if (boardIdJira == null) {
+                    return ColumnFetch.fail("프로젝트 '" + config.getProjectKey()
+                        + "'에 연결된 JIRA Agile 보드를 찾지 못했습니다. (보드 미선택 + 자동탐색 실패)");
+                }
             }
-            if (boardIdJira == null) return List.of();
 
             JsonNode cfg = jiraApiClient.getBoardConfiguration(ctx, boardIdJira);
-            JsonNode columns = cfg != null ? cfg.path("columnConfig").path("columns") : null;
-            if (columns == null || !columns.isArray()) return List.of();
+            if (cfg == null) {
+                return ColumnFetch.fail("보드 " + boardIdJira + " 구성 응답이 비어 있습니다.");
+            }
+            JsonNode columns = cfg.path("columnConfig").path("columns");
+            if (!columns.isArray() || columns.isEmpty()) {
+                return ColumnFetch.fail("보드 " + boardIdJira + "에 컬럼 구성(columnConfig)이 없습니다. "
+                    + "칸반 보드가 맞는지, 접근 권한이 있는지 확인하세요.");
+            }
 
             List<ColumnSpec> specs = new ArrayList<>();
             for (JsonNode col : columns) {
@@ -283,11 +311,15 @@ public class JiraConnectionService {
                 }
                 if (name != null && !statusIds.isEmpty()) specs.add(new ColumnSpec(name, statusIds));
             }
-            return specs;
+            if (specs.isEmpty()) {
+                return ColumnFetch.fail("보드 " + boardIdJira + " 컬럼에 매핑된 JIRA 상태가 없습니다.");
+            }
+            String boardName = cfg.path("name").asText(boardIdJira);
+            return ColumnFetch.ok(specs, "JIRA 보드 '" + boardName + "' 구성");
         } catch (Exception e) {
             log.warn("JIRA agile board config fetch failed for {}: {} — falling back to status list",
                 config.getProjectKey(), e.getMessage());
-            return List.of();
+            return ColumnFetch.fail("JIRA 보드 구성 조회 실패: " + e.getMessage());
         }
     }
 

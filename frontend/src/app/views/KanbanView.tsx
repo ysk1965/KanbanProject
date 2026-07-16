@@ -77,6 +77,8 @@ interface KanbanViewProps {
   onSelectAllFeatureChips: () => void;
   onFeatureClick: (feature: Feature) => void;
   onOpenAddFeature: () => void;
+  /** 스프린트 좌측 업무 리스트 "+" → 새 피쳐 생성(제목만) 후 상세 모달로 이어짐 */
+  onCreateFeature?: (data: { title: string }) => Promise<Feature | null>;
   onOpenAddBlock: () => void;
   onTaskClick: (task: Task) => void;
   /** 스프린트 좌측 트리에서 체크리스트 행 클릭 → 태스크 모달(+ 해당 항목 하이라이트) */
@@ -125,6 +127,7 @@ export const KanbanView = memo(function KanbanView({
   onToggleFeatureChip,
   onSelectAllFeatureChips,
   onFeatureClick,
+  onCreateFeature,
   onOpenAddFeature,
   onOpenAddBlock,
   onTaskClick,
@@ -147,9 +150,7 @@ export const KanbanView = memo(function KanbanView({
     if (typeof window === "undefined") return "blocks";
     return (
       (localStorage.getItem(`kanbanBoardMode:${boardId}`) as
-        | "blocks"
-        | "sprint"
-        | null) ?? "blocks"
+        "blocks" | "sprint" | null) ?? "blocks"
     );
   });
   const setBoardMode = (mode: "blocks" | "sprint") => {
@@ -367,8 +368,10 @@ export const KanbanView = memo(function KanbanView({
                   const feature = features.find((f) => f.id === featureId);
                   if (feature) onFeatureClick(feature);
                 }}
+                onCreateFeature={onCreateFeature}
                 milestoneId={
-                  selectedMilestoneId !== "all" && selectedMilestoneId !== "none"
+                  selectedMilestoneId !== "all" &&
+                  selectedMilestoneId !== "none"
                     ? selectedMilestoneId
                     : undefined
                 }
@@ -377,136 +380,136 @@ export const KanbanView = memo(function KanbanView({
               />
             </div>
           ) : (
-          /* 칸반 보드 */
-          <div className="flex-1 p-3 md:p-6 overflow-x-auto overflow-y-hidden min-h-0 custom-scrollbar">
-            <DndContext
-              sensors={blockSensors}
-              collisionDetection={closestCenter}
-              modifiers={[restrictToHorizontalAxis]}
-              onDragStart={handleBlockDragStart}
-              onDragEnd={handleBlockDragEnd}
-            >
-              <div className="flex gap-3 md:gap-4 min-w-max h-full">
-                {/* TASK 블록 (고정, SortableContext 밖) */}
-                {taskBlock && (
-                  <div className="flex items-stretch gap-4">
-                    <KanbanBlock
-                      block={taskBlock}
-                      tasks={blockTasksMap[taskBlock.id] || []}
-                      onTaskClick={onTaskClick}
-                      features={features}
-                      onMoveTask={onMoveTask}
-                      onReorderTask={onReorderTask}
-                      boardId={boardId}
-                      expandedChecklistTaskIds={expandedChecklistTaskIds}
-                      onToggleChecklistExpand={onToggleChecklistExpand}
-                      checklistDataMap={checklistDataMap}
-                      memberColorMap={memberColorMap}
-                      showFeatureLabel={showFeatureLabel}
-                      scheduledTaskIds={scheduledTaskIds}
-                      onQuickAddTask={canEdit ? onQuickAddTask : undefined}
-                      recentlyCompletedTaskIds={recentlyCompletedTaskIds}
-                      assigneeFilter={filterOptions.members}
-                    />
-                    <div className="flex flex-col gap-2 mt-4 self-start">
-                      <button
-                        onClick={onOpenAddBlock}
-                        className="h-10 w-10 flex items-center justify-center rounded-xl border border-dashed border-bridge-border text-zinc-500 hover:text-foreground hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all"
-                      >
-                        <Plus className="h-5 w-5" />
-                      </button>
-                      {hiddenBlocks.length > 0 && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="h-10 w-10 flex items-center justify-center rounded-xl border border-dashed border-bridge-border text-slate-400 hover:text-foreground hover:border-bridge-secondary/50 hover:bg-bridge-secondary/10 transition-all relative">
-                              <Eye className="h-4 w-4" />
-                              <span className="absolute -top-1 -right-1 text-xs font-bold bg-bridge-secondary text-white rounded-full w-4 h-4 flex items-center justify-center">
-                                {hiddenBlocks.length}
-                              </span>
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="start"
-                            className="bg-bridge-surface border-bridge-border"
-                          >
-                            {hiddenBlocks.map((hb) => (
-                              <DropdownMenuItem
-                                key={hb.id}
-                                onClick={() => onShowBlock(hb.id)}
-                                className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
-                              >
-                                <Eye className="h-3 w-3 mr-2" />
-                                {hb.name}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
+            /* 칸반 보드 */
+            <div className="flex-1 p-3 md:p-6 overflow-x-auto overflow-y-hidden min-h-0 custom-scrollbar">
+              <DndContext
+                sensors={blockSensors}
+                collisionDetection={closestCenter}
+                modifiers={[restrictToHorizontalAxis]}
+                onDragStart={handleBlockDragStart}
+                onDragEnd={handleBlockDragEnd}
+              >
+                <div className="flex gap-3 md:gap-4 min-w-max h-full">
+                  {/* TASK 블록 (고정, SortableContext 밖) */}
+                  {taskBlock && (
+                    <div className="flex items-stretch gap-4">
+                      <KanbanBlock
+                        block={taskBlock}
+                        tasks={blockTasksMap[taskBlock.id] || []}
+                        onTaskClick={onTaskClick}
+                        features={features}
+                        onMoveTask={onMoveTask}
+                        onReorderTask={onReorderTask}
+                        boardId={boardId}
+                        expandedChecklistTaskIds={expandedChecklistTaskIds}
+                        onToggleChecklistExpand={onToggleChecklistExpand}
+                        checklistDataMap={checklistDataMap}
+                        memberColorMap={memberColorMap}
+                        showFeatureLabel={showFeatureLabel}
+                        scheduledTaskIds={scheduledTaskIds}
+                        onQuickAddTask={canEdit ? onQuickAddTask : undefined}
+                        recentlyCompletedTaskIds={recentlyCompletedTaskIds}
+                        assigneeFilter={filterOptions.members}
+                      />
+                      <div className="flex flex-col gap-2 mt-4 self-start">
+                        <button
+                          onClick={onOpenAddBlock}
+                          className="h-10 w-10 flex items-center justify-center rounded-xl border border-dashed border-bridge-border text-zinc-500 hover:text-foreground hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all"
+                        >
+                          <Plus className="h-5 w-5" />
+                        </button>
+                        {hiddenBlocks.length > 0 && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="h-10 w-10 flex items-center justify-center rounded-xl border border-dashed border-bridge-border text-slate-400 hover:text-foreground hover:border-bridge-secondary/50 hover:bg-bridge-secondary/10 transition-all relative">
+                                <Eye className="h-4 w-4" />
+                                <span className="absolute -top-1 -right-1 text-xs font-bold bg-bridge-secondary text-white rounded-full w-4 h-4 flex items-center justify-center">
+                                  {hiddenBlocks.length}
+                                </span>
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="start"
+                              className="bg-bridge-surface border-bridge-border"
+                            >
+                              {hiddenBlocks.map((hb) => (
+                                <DropdownMenuItem
+                                  key={hb.id}
+                                  onClick={() => onShowBlock(hb.id)}
+                                  className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
+                                >
+                                  <Eye className="h-3 w-3 mr-2" />
+                                  {hb.name}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* 커스텀 블록 + Done (SortableContext 내부) */}
-                <SortableContext
-                  items={sortableBlocks.map((b) => b.id)}
-                  strategy={horizontalListSortingStrategy}
-                >
-                  {sortableBlocks.map((block) => (
-                    <KanbanBlock
-                      key={block.id}
-                      block={block}
-                      tasks={blockTasksMap[block.id] || []}
-                      onTaskClick={onTaskClick}
-                      features={features}
-                      onMoveTask={onMoveTask}
-                      onReorderTask={onReorderTask}
-                      onEditBlock={onEditBlock}
-                      onDeleteBlock={onDeleteBlock}
-                      onToggleProgressBar={onToggleProgressBar}
-                      onHideBlock={onHideBlock}
-                      selectedMilestoneId={
-                        selectedMilestoneId !== "all" &&
-                        selectedMilestoneId !== "none"
-                          ? selectedMilestoneId
-                          : undefined
-                      }
-                      boardId={boardId}
-                      expandedChecklistTaskIds={expandedChecklistTaskIds}
-                      onToggleChecklistExpand={onToggleChecklistExpand}
-                      checklistDataMap={checklistDataMap}
-                      memberColorMap={memberColorMap}
-                      showFeatureLabel={showFeatureLabel}
-                      scheduledTaskIds={scheduledTaskIds}
-                      onQuickAddTask={canEdit ? onQuickAddTask : undefined}
-                      recentlyCompletedTaskIds={recentlyCompletedTaskIds}
-                      assigneeFilter={filterOptions.members}
-                    />
-                  ))}
-                </SortableContext>
-              </div>
-              <DragOverlay>
-                {activeBlock && (
-                  <div className="bg-bridge-surface rounded-2xl border border-bridge-accent/50 shadow-2xl shadow-bridge-accent/20 min-w-[260px] max-w-[280px] px-4 py-3 opacity-90">
-                    <div className="flex items-center gap-2">
-                      <GripVertical className="h-4 w-4 text-bridge-accent" />
-                      {activeBlock.color && (
-                        <div
-                          className="w-2.5 h-2.5 rounded-full"
-                          style={{ backgroundColor: activeBlock.color }}
-                        />
-                      )}
-                      <h3 className="font-bold text-sm text-foreground">
-                        {activeBlock.name}
-                      </h3>
-                      <span className="text-xs font-medium text-zinc-400 bg-bridge-surface-hover px-2 py-0.5 rounded-md">
-                        {(blockTasksMap[activeBlock.id] || []).length}
-                      </span>
+                  {/* 커스텀 블록 + Done (SortableContext 내부) */}
+                  <SortableContext
+                    items={sortableBlocks.map((b) => b.id)}
+                    strategy={horizontalListSortingStrategy}
+                  >
+                    {sortableBlocks.map((block) => (
+                      <KanbanBlock
+                        key={block.id}
+                        block={block}
+                        tasks={blockTasksMap[block.id] || []}
+                        onTaskClick={onTaskClick}
+                        features={features}
+                        onMoveTask={onMoveTask}
+                        onReorderTask={onReorderTask}
+                        onEditBlock={onEditBlock}
+                        onDeleteBlock={onDeleteBlock}
+                        onToggleProgressBar={onToggleProgressBar}
+                        onHideBlock={onHideBlock}
+                        selectedMilestoneId={
+                          selectedMilestoneId !== "all" &&
+                          selectedMilestoneId !== "none"
+                            ? selectedMilestoneId
+                            : undefined
+                        }
+                        boardId={boardId}
+                        expandedChecklistTaskIds={expandedChecklistTaskIds}
+                        onToggleChecklistExpand={onToggleChecklistExpand}
+                        checklistDataMap={checklistDataMap}
+                        memberColorMap={memberColorMap}
+                        showFeatureLabel={showFeatureLabel}
+                        scheduledTaskIds={scheduledTaskIds}
+                        onQuickAddTask={canEdit ? onQuickAddTask : undefined}
+                        recentlyCompletedTaskIds={recentlyCompletedTaskIds}
+                        assigneeFilter={filterOptions.members}
+                      />
+                    ))}
+                  </SortableContext>
+                </div>
+                <DragOverlay>
+                  {activeBlock && (
+                    <div className="bg-bridge-surface rounded-2xl border border-bridge-accent/50 shadow-2xl shadow-bridge-accent/20 min-w-[260px] max-w-[280px] px-4 py-3 opacity-90">
+                      <div className="flex items-center gap-2">
+                        <GripVertical className="h-4 w-4 text-bridge-accent" />
+                        {activeBlock.color && (
+                          <div
+                            className="w-2.5 h-2.5 rounded-full"
+                            style={{ backgroundColor: activeBlock.color }}
+                          />
+                        )}
+                        <h3 className="font-bold text-sm text-foreground">
+                          {activeBlock.name}
+                        </h3>
+                        <span className="text-xs font-medium text-zinc-400 bg-bridge-surface-hover px-2 py-0.5 rounded-md">
+                          {(blockTasksMap[activeBlock.id] || []).length}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </DragOverlay>
-            </DndContext>
-          </div>
+                  )}
+                </DragOverlay>
+              </DndContext>
+            </div>
           )}
         </>
       )}

@@ -77,6 +77,11 @@ export function JiraSettingsPanel({
   // 미러 대상 JIRA Agile 보드 선택 (프로젝트에 보드 여러 개일 때)
   const [agileBoards, setAgileBoards] = useState<JiraAgileBoard[]>([]);
   const [isSavingBoard, setIsSavingBoard] = useState(false);
+  // 마지막 재동기화의 컬럼 출처 (BOARD_CONFIG / STATUS_FALLBACK + 상세)
+  const [mirrorSource, setMirrorSource] = useState<{
+    source: string | null;
+    detail: string | null;
+  } | null>(null);
   const [webhookCopied, setWebhookCopied] = useState(false);
 
   // OAuth
@@ -325,6 +330,10 @@ export function JiraSettingsPanel({
     try {
       const result = await jiraAPI.setupMirror(boardId);
       setStatus(result.status);
+      setMirrorSource({
+        source: result.column_source,
+        detail: result.column_source_detail,
+      });
       onJiraStatusChange?.(!!result.status?.connected);
       // 미러 컬럼 갱신
       const m = await jiraAPI.getMeta(boardId).catch(() => null);
@@ -902,6 +911,27 @@ export function JiraSettingsPanel({
               "컬럼이 JIRA 상태와 자동으로 맞춰집니다. 카드를 옮기면 JIRA 상태도 같이 바뀌고, JIRA에서 바뀌면 여기도 반영됩니다. 미러 컬럼은 JIRA 뷰 탭에만 표시돼요.",
             )}
           </div>
+
+          {/* 재동기화 컬럼 출처 — 폴백이면 이유를 노출해 원인 진단 */}
+          {mirrorSource &&
+            (mirrorSource.source === "STATUS_FALLBACK" ? (
+              <div className="mb-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                <div className="text-xs font-bold text-amber-600 dark:text-amber-400 mb-0.5">
+                  {t(
+                    "jiraIntegration.mirrorFallbackTitle",
+                    "JIRA 보드 구성을 못 읽어 상태 목록으로 대체됨",
+                  )}
+                </div>
+                <div className="text-xs text-slate-500 leading-relaxed break-words">
+                  {mirrorSource.detail}
+                </div>
+              </div>
+            ) : mirrorSource.source === "BOARD_CONFIG" ? (
+              <div className="mb-2.5 flex items-center gap-1.5 text-xs text-bridge-secondary">
+                <Check size={12} />
+                <span className="truncate">{mirrorSource.detail}</span>
+              </div>
+            ) : null)}
 
           {/* 미러 대상 JIRA 보드 선택 — 프로젝트에 보드가 여러 개일 때 어느 보드의 컬럼을 미러링할지 */}
           {agileBoards.length > 1 && (
