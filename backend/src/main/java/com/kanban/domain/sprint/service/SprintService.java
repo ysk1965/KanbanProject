@@ -83,6 +83,7 @@ public class SprintService {
             inSprint.forEach(ChecklistItem::removeFromSprint);
             sprintRepository.deleteByMilestoneId(milestoneId);
         }
+        broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone);
     }
 
@@ -107,6 +108,7 @@ public class SprintService {
                 ? requireColumn(milestone, SprintColumnKind.END)
                 : requireColumn(milestone, SprintColumnKind.START);
         item.assignToSprint(sprint, target);
+        broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone);
     }
 
@@ -117,6 +119,7 @@ public class SprintService {
         ChecklistItem item = checklistItemRepository.findById(itemId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
         item.removeFromSprint();
+        broadcastSprintChanged(boardId, userId);
         return buildBoard(sprint.getMilestone());
     }
 
@@ -145,6 +148,7 @@ public class SprintService {
         if (completionChanged) {
             broadcastChecklistToggle(boardId, item, userId);
         }
+        broadcastSprintChanged(boardId, userId);
         return buildBoard(sprint.getMilestone());
     }
 
@@ -170,6 +174,7 @@ public class SprintService {
                 .color(color)
                 .build();
         sprintColumnRepository.save(col);
+        broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone);
     }
 
@@ -187,6 +192,7 @@ public class SprintService {
         if (color != null) {
             col.updateColor(color.isBlank() ? null : color);
         }
+        broadcastSprintChanged(boardId, userId);
         return buildBoard(col.getMilestone());
     }
 
@@ -212,6 +218,7 @@ public class SprintService {
             items.forEach(ChecklistItem::removeFromSprint);
         }
         sprintColumnRepository.delete(col);
+        broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone);
     }
 
@@ -235,6 +242,7 @@ public class SprintService {
         // START/END 앵커 위치 고정
         requireColumn(milestone, SprintColumnKind.START).updatePosition(0);
         requireColumn(milestone, SprintColumnKind.END).updatePosition(pos);
+        broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone);
     }
 
@@ -266,6 +274,7 @@ public class SprintService {
         } else {
             latest.reactivate();
         }
+        broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone);
     }
 
@@ -293,6 +302,7 @@ public class SprintService {
         }
 
         target.reactivate();
+        broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone);
     }
 
@@ -313,6 +323,7 @@ public class SprintService {
         Sprint latest = sprintRepository.findFirstByMilestoneIdOrderBySequenceNoDesc(milestone.getId())
                 .orElse(reactivated);
         latest.reactivate();
+        broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone);
     }
 
@@ -337,6 +348,7 @@ public class SprintService {
         ensureColumns(milestone);
         item.assignToSprint(active, requireColumn(milestone, SprintColumnKind.START));
         item.uncomplete();
+        broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone);
     }
 
@@ -407,6 +419,18 @@ public class SprintService {
         String userName = userRepository.findById(userId).map(u -> u.getName()).orElse(null);
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_TOGGLED, userId, userName,
                 Map.of("task_id", taskId, "item", detail));
+    }
+
+    /**
+     * 스프린트 네이티브 뮤테이션(담기/빼기/컬럼 이동·CRUD/스프린트 on-off·라이프사이클) 후,
+     * 스프린트 보드를 보고 있는 다른 클라이언트가 재조회하도록 SPRINT_UPDATED를 브로드캐스트한다.
+     * 페이로드가 필요 없는 "재조회 신호" — useSprintRealtime 훅이 받아 디바운스 재조회한다.
+     * 완료 플래그가 바뀌는 이동은 broadcastChecklistToggle로 CHECKLIST_TOGGLED도 함께 쏴서
+     * 블록 보드·태스크 모달의 체크박스까지 동기화한다(둘 다 와도 프론트에서 재조회 1회로 합쳐짐).
+     */
+    private void broadcastSprintChanged(String boardId, String userId) {
+        String userName = userRepository.findById(userId).map(u -> u.getName()).orElse(null);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SPRINT_UPDATED, userId, userName, Map.of());
     }
 
     /** 마일스톤에 컬럼이 없으면 기본 3컬럼(Sprint/In Review/Done) 시드 */
