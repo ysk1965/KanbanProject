@@ -26,6 +26,16 @@ public interface BlockRepository extends JpaRepository<Block, String> {
 
     int countByBoardId(String boardId);
 
+    // JIRA 미러 컬럼 조회
+    @Query("SELECT b FROM Block b WHERE b.board.id = :boardId AND b.jiraStatusId = :jiraStatusId")
+    Optional<Block> findByBoardIdAndJiraStatusId(@Param("boardId") String boardId, @Param("jiraStatusId") String jiraStatusId);
+
+    @Query("SELECT b FROM Block b WHERE b.board.id = :boardId AND b.jiraStatusId IS NOT NULL ORDER BY b.position ASC")
+    List<Block> findJiraMirrorBlocksByBoardId(@Param("boardId") String boardId);
+
+    @Query("SELECT COUNT(b) FROM Block b WHERE b.board.id = :boardId AND b.jiraStatusId IS NOT NULL")
+    long countJiraMirrorBlocksByBoardId(@Param("boardId") String boardId);
+
     /**
      * Pessimistic Lock을 사용하여 Block 조회
      * Task 생성 시 position 동시성 문제 방지

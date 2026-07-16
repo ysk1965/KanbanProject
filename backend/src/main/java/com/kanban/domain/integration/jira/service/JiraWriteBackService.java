@@ -2,6 +2,8 @@ package com.kanban.domain.integration.jira.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kanban.domain.block.Block;
+import com.kanban.domain.block.BlockRepository;
 import com.kanban.domain.integration.jira.*;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
@@ -26,6 +28,7 @@ public class JiraWriteBackService {
     private final JiraIntegrationConfigRepository configRepository;
     private final JiraIssueLinkRepository issueLinkRepository;
     private final TaskRepository taskRepository;
+    private final BlockRepository blockRepository;
     private final JiraApiClient jiraApiClient;
     private final JiraOAuthService oauthService;
     private final ObjectMapper objectMapper;
@@ -39,11 +42,19 @@ public class JiraWriteBackService {
     @Transactional
     public void pushBlockStatus(String boardId, String taskId, String targetBlockId) {
         JiraIntegrationConfig config = configRepository.findActiveByBoardId(boardId).orElse(null);
-        if (config == null || config.getBlockStatusMapJson() == null) return;
+        if (config == null) return;
 
-        BlockStatusMap map = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
-        String targetStatusId = map.pushTargetForBlock(targetBlockId);
-        if (targetStatusId == null) return;   // 이 블록은 push 매핑 아님(또는 pull 소유)
+        // 대상 status 결정: MIRROR면 대상 블록의 jiraStatusId, MANUAL이면 블록별 push 매핑.
+        String targetStatusId;
+        if (config.isMirror()) {
+            Block targetBlock = blockRepository.findById(targetBlockId).orElse(null);
+            targetStatusId = (targetBlock != null) ? targetBlock.getJiraStatusId() : null;
+        } else {
+            if (config.getBlockStatusMapJson() == null) return;
+            BlockStatusMap map = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
+            targetStatusId = map.pushTargetForBlock(targetBlockId);
+        }
+        if (targetStatusId == null) return;   // 미러 컬럼이 아니거나 push 매핑 아님
 
         JiraIssueLink link = issueLinkRepository
             .findByTargetTypeAndTargetId(JiraLinkTargetType.TASK, taskId).orElse(null);
@@ -52,6 +63,7 @@ public class JiraWriteBackService {
         try {
             String token = oauthService.resolveToken(config);
             transitionToTarget(JiraAuthContext.of(config, token), link.getJiraIssueKey(), targetStatusId);
+            link.markJiraStatus(targetStatusId);   // 에코 방지 + pre-block 현재상태 갱신
             log.info("JIRA push: task {} → status {} ({})", taskId, targetStatusId, link.getJiraIssueKey());
         } catch (Exception e) {
             log.warn("JIRA push failed for {}: {}", link.getJiraIssueKey(), e.getMessage());

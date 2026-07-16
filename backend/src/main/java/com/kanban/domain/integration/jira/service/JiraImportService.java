@@ -275,7 +275,11 @@ public class JiraImportService {
         task.updateInfo(truncate(issue.summary(), 200), issue.description(),
             task.getStartDate(), task.getDueDate(), task.getEstimatedMinutes());
 
-        if (!blockMap.isEmpty()) {
+        // 미러 모드: 상태=위치. 대응 미러 컬럼으로 이동, QA/반려 로직 없음.
+        Block mirror = blockRepository.findByBoardIdAndJiraStatusId(board.getId(), issue.statusId()).orElse(null);
+        if (mirror != null) {
+            moveTaskToBlockEnd(task, mirror);
+        } else if (!blockMap.isEmpty()) {
             applyPullReflection(task, board, importer, issue, blockMap, ctx, link.getLastJiraStatusId());
         } else {
             moveTaskToBlockEnd(task, resolveBlock(board.getId(), issue.statusName(), statusToBlock, taskBlock));
@@ -528,6 +532,9 @@ public class JiraImportService {
     /** 신규 배치 블록 — 매핑이 있으면 status→block(방향 무관), 없으면 레거시 statusName 매핑, 최후엔 기본 블록. */
     private Block resolvePlacementBlock(String boardId, ParsedJiraIssue issue, BlockStatusMap blockMap,
                                         Map<String, String> statusToBlock, Block defaultBlock) {
+        // 미러 모드: 상태 id에 대응하는 미러 컬럼이 있으면 그리로. (미러 블록은 미러 보드에만 존재)
+        Block mirror = blockRepository.findByBoardIdAndJiraStatusId(boardId, issue.statusId()).orElse(null);
+        if (mirror != null) return mirror;
         if (!blockMap.isEmpty()) {
             String blockId = blockMap.blockForStatusId(issue.statusId());
             if (blockId != null) {

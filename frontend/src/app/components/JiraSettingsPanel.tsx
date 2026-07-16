@@ -27,11 +27,8 @@ import {
   JiraImportResult,
   JiraNameRef,
   JiraBlockRef,
-  JiraBlockStatusEntry,
   JiraSiteRef,
 } from "../utils/api";
-
-const REJECTED_KEY = "__rejected";
 
 interface JiraSettingsPanelProps {
   boardId: string;
@@ -73,13 +70,9 @@ export function JiraSettingsPanel({
   );
   const [statuses, setStatuses] = useState<JiraNameRef[]>([]);
 
-  // 블록↔status 매핑
-  const [blocks, setBlocks] = useState<JiraBlockRef[]>([]);
-  const [blockMap, setBlockMap] = useState<
-    Record<string, JiraBlockStatusEntry>
-  >({});
-  const [isSavingMap, setIsSavingMap] = useState(false);
-  const [mapSaved, setMapSaved] = useState(false);
+  // 미러 컬럼 (JIRA 상태 ↔ BRIDGE 미러 블록)
+  const [mirrorBlocks, setMirrorBlocks] = useState<JiraBlockRef[]>([]);
+  const [isSettingUpMirror, setIsSettingUpMirror] = useState(false);
   const [webhookCopied, setWebhookCopied] = useState(false);
 
   // OAuth
@@ -105,25 +98,20 @@ export function JiraSettingsPanel({
     fetchStatus();
   }, [fetchStatus]);
 
-  // meta(상태 목록)는 연결된 뒤에만 (역동기화 대상 선택용)
+  // meta(상태 목록 + 미러 컬럼)는 연결된 뒤에만
   useEffect(() => {
     if (!status?.connected) return;
     jiraAPI
       .getMeta(boardId)
       .then((m) => {
         setStatuses(m.statuses || []);
-        setBlocks(m.blocks || []);
+        setMirrorBlocks((m.blocks || []).filter((b) => !!b.jira_status_id));
       })
       .catch(() => {
         setStatuses([]);
-        setBlocks([]);
+        setMirrorBlocks([]);
       });
-  }, [boardId, status?.connected]);
-
-  // 저장된 매핑을 편집 상태로 로드
-  useEffect(() => {
-    setBlockMap(status?.block_status_map ?? {});
-  }, [status?.block_status_map]);
+  }, [boardId, status?.connected, status?.mirror_ready]);
 
   // OAuth 콜백 결과 처리 (?jira=oauth_success|oauth_error)
   useEffect(() => {
@@ -317,33 +305,18 @@ export function JiraSettingsPanel({
     }
   };
 
-  // ── 블록↔status 매핑 편집 ──
-  const patchEntry = (key: string, patch: Partial<JiraBlockStatusEntry>) => {
-    setBlockMap((prev) => {
-      const next = { ...prev, [key]: { ...prev[key], ...patch } };
-      // 방향을 push로 바꾸면 qa 값 제거
-      if (patch.dir === "push" && next[key]) delete next[key].qa;
-      return next;
-    });
-  };
-
-  const handleSaveMap = async () => {
-    setIsSavingMap(true);
+  // ── 미러 셋업 / 재동기화 ──
+  const handleSetupMirror = async () => {
+    setIsSettingUpMirror(true);
     setErrorMessage(null);
     try {
-      // 비어있는 항목은 제거하고 저장 (__rejected는 from_status_id+return_block_id 기준)
-      const cleaned: Record<string, JiraBlockStatusEntry> = {};
-      for (const [k, v] of Object.entries(blockMap)) {
-        if (k === REJECTED_KEY) {
-          if (v?.from_status_id && v?.return_block_id) cleaned[k] = v;
-        } else if (v?.jira_status_id) {
-          cleaned[k] = v;
-        }
-      }
-      const result = await jiraAPI.updateBlockStatusMap(boardId, cleaned);
-      setStatus(result);
-      setMapSaved(true);
-      window.setTimeout(() => setMapSaved(false), 1800);
+      const result = await jiraAPI.setupMirror(boardId);
+      setStatus(result.status);
+      onJiraStatusChange?.(!!result.status?.connected);
+      // 미러 컬럼 갱신
+      const m = await jiraAPI.getMeta(boardId).catch(() => null);
+      if (m)
+        setMirrorBlocks((m.blocks || []).filter((b) => !!b.jira_status_id));
     } catch (e) {
       setErrorMessage(
         e instanceof Error
@@ -351,7 +324,7 @@ export function JiraSettingsPanel({
           : t("jiraIntegration.saveFailed", "저장에 실패했습니다"),
       );
     } finally {
-      setIsSavingMap(false);
+      setIsSettingUpMirror(false);
     }
   };
 
@@ -866,182 +839,74 @@ export function JiraSettingsPanel({
           )}
         </div>
 
-        {/* 블록 ↔ JIRA 상태 매핑 (양방향) */}
-        {blocks.length > 0 && (
-          <div className="border-t border-foreground/[0.08] pt-3">
-            <div className="flex items-center justify-between mb-1">
-              <div className="text-xs text-foreground font-medium">
-                {t("jiraIntegration.mappingTitle", "블록 ↔ JIRA 상태 매핑")}
-              </div>
-              <div className="flex items-center gap-2">
-                {mapSaved && (
-                  <span className="text-xs font-bold text-emerald-500">
-                    {t("jiraIntegration.saved", "✓ 저장됨")}
-                  </span>
-                )}
-                <button
-                  onClick={handleSaveMap}
-                  disabled={isSavingMap}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors disabled:opacity-50"
-                >
-                  {isSavingMap && (
-                    <Loader2 size={11} className="animate-spin" />
-                  )}
-                  {t("jiraIntegration.mappingSave", "매핑 저장")}
-                </button>
-              </div>
+        {/* 미러 컬럼 — JIRA 상태를 블록에 1:1 자동 미러링 (설정 불필요) */}
+        <div className="border-t border-foreground/[0.08] pt-3">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-xs text-foreground font-medium">
+              {t("jiraIntegration.mirrorTitle", "컬럼 ↔ JIRA 상태")}
             </div>
-            <div className="text-xs text-slate-500 mb-2.5 leading-relaxed">
-              {t(
-                "jiraIntegration.mappingDesc",
-                "Push=개발이 옮기면 JIRA로 전환 · Pull=QA의 JIRA 변경을 읽기전용으로 반영. 연동할 블록만 상태를 고르면 됩니다(나머지는 미동기화).",
+            <button
+              onClick={handleSetupMirror}
+              disabled={isSettingUpMirror}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors disabled:opacity-50"
+            >
+              {isSettingUpMirror ? (
+                <Loader2 size={11} className="animate-spin" />
+              ) : (
+                <RefreshCw size={11} />
               )}
-            </div>
+              {status.mirror_ready
+                ? t("jiraIntegration.mirrorResync", "재동기화")
+                : t("jiraIntegration.mirrorSetup", "미러 시작")}
+            </button>
+          </div>
+          <div className="text-xs text-slate-500 mb-2.5 leading-relaxed">
+            {t(
+              "jiraIntegration.mirrorDesc",
+              "컬럼이 JIRA 상태와 자동으로 맞춰집니다. 카드를 옮기면 JIRA 상태도 같이 바뀌고, JIRA에서 바뀌면 여기도 반영됩니다. 미러 컬럼은 JIRA 뷰 탭에만 표시돼요.",
+            )}
+          </div>
 
-            {blocks.map((block) => {
-              const entry = blockMap[block.id] || {};
-              const dir = entry.dir || "push";
-              const mapped = !!entry.jira_status_id;
-              return (
-                <div
-                  key={block.id}
-                  className={`rounded-lg border p-2 mb-1.5 transition-colors ${
-                    mapped
-                      ? "border-foreground/10 bg-foreground/[0.03]"
-                      : "border-foreground/[0.06] bg-foreground/[0.015]"
-                  }`}
-                >
-                  {/* 1줄: 블록 이름 + 방향 */}
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-xs font-bold text-foreground truncate min-w-0">
+          {status.mirror_ready && mirrorBlocks.length > 0 ? (
+            <div className="rounded-lg border border-foreground/10 overflow-hidden">
+              {mirrorBlocks.map((block) => {
+                const st = statuses.find((s) => s.id === block.jira_status_id);
+                return (
+                  <div
+                    key={block.id}
+                    className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2 border-t border-foreground/[0.06] first:border-t-0"
+                  >
+                    <span className="text-xs font-bold text-foreground truncate">
                       {block.name}
                     </span>
-                    <div className="flex rounded-lg bg-foreground/[0.04] border border-foreground/10 p-0.5 shrink-0">
-                      {(["push", "pull"] as const).map((d) => (
-                        <button
-                          key={d}
-                          onClick={() => patchEntry(block.id, { dir: d })}
-                          className={`px-2.5 py-0.5 rounded-md text-xs font-bold transition-colors ${
-                            dir === d
-                              ? d === "push"
-                                ? "bg-bridge-accent text-white"
-                                : "bg-blue-500 text-white"
-                              : "text-slate-400 hover:text-foreground"
-                          }`}
-                        >
-                          {d === "push" ? "PUSH" : "PULL"}
-                        </button>
-                      ))}
-                    </div>
+                    <span className="text-bridge-secondary text-xs font-bold">
+                      ↔
+                    </span>
+                    <span className="text-xs text-slate-500 truncate text-right">
+                      {st?.name || block.jira_status_id}
+                    </span>
                   </div>
-                  {/* 2줄: JIRA 상태(+ pull이면 QA 뱃지 종류) */}
-                  <div className="flex items-center gap-1.5">
-                    <select
-                      className={`${inputCls} flex-1`}
-                      value={entry.jira_status_id || ""}
-                      onChange={(e) =>
-                        patchEntry(block.id, {
-                          jira_status_id: e.target.value,
-                        })
-                      }
-                    >
-                      <option value="">
-                        {t("jiraIntegration.selectStatus", "JIRA 상태 선택")}
-                      </option>
-                      {statuses.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                    {dir === "pull" && (
-                      <select
-                        className={`${inputCls} w-24 shrink-0`}
-                        value={entry.qa || "REVIEW"}
-                        onChange={(e) =>
-                          patchEntry(block.id, {
-                            qa: e.target.value as "REVIEW" | "VERIFIED",
-                          })
-                        }
-                      >
-                        <option value="REVIEW">
-                          {t("jiraIntegration.qaReview", "검토중 뱃지")}
-                        </option>
-                        <option value="VERIFIED">
-                          {t("jiraIntegration.qaVerified", "완료 뱃지")}
-                        </option>
-                      </select>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* 반려 행 — "검토중 status에서 개발 블록으로 되돌아온 전환"을 반려로 감지 */}
-            <div className="mt-2 pt-2 border-t border-foreground/[0.06]">
-              <div className="text-xs font-bold text-rose-400 mb-1.5">
-                {t("jiraIntegration.rejectionTitle", "반려 감지 (전환 기반)")}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="w-16 shrink-0 text-xs text-slate-500">
-                    {t("jiraIntegration.rejectionFrom", "검토중")}
-                  </span>
-                  <select
-                    className={`${inputCls} flex-1`}
-                    value={blockMap[REJECTED_KEY]?.from_status_id || ""}
-                    onChange={(e) =>
-                      patchEntry(REJECTED_KEY, {
-                        from_status_id: e.target.value,
-                      })
-                    }
-                  >
-                    <option value="">
-                      {t(
-                        "jiraIntegration.selectReviewStatus",
-                        "검토중 JIRA 상태 선택",
-                      )}
-                    </option>
-                    {statuses.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-16 shrink-0 text-xs text-slate-500">
-                    {t("jiraIntegration.rejectionTo", "→ 복귀")}
-                  </span>
-                  <select
-                    className={`${inputCls} flex-1`}
-                    value={blockMap[REJECTED_KEY]?.return_block_id || ""}
-                    onChange={(e) =>
-                      patchEntry(REJECTED_KEY, {
-                        return_block_id: e.target.value,
-                      })
-                    }
-                  >
-                    <option value="">
-                      {t("jiraIntegration.returnBlock", "복귀할 블록 선택")}
-                    </option>
-                    {blocks.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                );
+              })}
+              <div className="px-3 py-2 text-xs text-slate-500 bg-foreground/[0.03] border-t border-foreground/[0.06] flex items-center gap-1.5">
+                🔒{" "}
                 {t(
-                  "jiraIntegration.rejectionDesc",
-                  "QA가 검토중에서 개발 블록으로 되돌리면 반려로 표시하고 사유를 가져옵니다. (QASA엔 전용 반려 상태가 없어 전환으로 감지)",
+                  "jiraIntegration.mirrorLocked",
+                  "JIRA 상태를 그대로 미러링 — 고를 게 없습니다.",
                 )}
               </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="rounded-lg border border-dashed border-foreground/15 px-3 py-4 text-center">
+              <div className="text-xs text-slate-500 leading-relaxed">
+                {t(
+                  "jiraIntegration.mirrorNotReady",
+                  "아직 미러 컬럼이 없습니다. '미러 시작'을 누르면 JIRA 상태별 컬럼을 자동 생성합니다.",
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* 완료 역동기화 */}
         <div className="border-t border-foreground/[0.08] pt-3">

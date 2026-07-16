@@ -332,6 +332,8 @@ export interface Block {
   show_progress_bar?: boolean;
   milestone_id?: string | null;
   milestone_title?: string | null;
+  /** 미러 컬럼이면 대응 JIRA 상태 id. 메인 보드에서는 숨긴다(JIRA 뷰 전용). */
+  jira_status_id?: string | null;
 }
 
 // ========================================

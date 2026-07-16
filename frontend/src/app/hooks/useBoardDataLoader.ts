@@ -150,15 +150,18 @@ export function useBoardDataLoader(boardId: string | undefined) {
         setKanbanSelectedMilestoneId(fullData.selected_milestone_id);
       }
       // 칸반 계열 뷰용 블록(마일스톤 필터 반영). 마일스톤 미선택 시 전체와 동일.
+      // JIRA 미러 컬럼(jira_status_id)은 메인 보드에서 숨긴다(JIRA 뷰 탭 전용).
       if (blocksResult) {
-        setBlocks(blocksResult.blocks);
-        setHiddenBlocks(blocksResult.hiddenBlocks);
+        setBlocks(blocksResult.blocks.filter((b) => !b.jira_status_id));
+        setHiddenBlocks(
+          blocksResult.hiddenBlocks.filter((b) => !b.jira_status_id),
+        );
       } else {
-        setBlocks(fullData.blocks);
+        setBlocks(fullData.blocks.filter((b) => !b.jira_status_id));
         setHiddenBlocks([]);
       }
       // 독립 서브탭용 전체 블록 (마일스톤 필터와 무관)
-      setAllBlocks(fullData.blocks);
+      setAllBlocks(fullData.blocks.filter((b) => !b.jira_status_id));
 
       // 단일 소스 = 전체(full). 마일스톤 필터는 KanbanBoardPage에서 파생 계산.
       // 모든 데이터를 동시에 set → 카드 렌더링 시 checklistDataMap이 이미 존재
@@ -311,9 +314,15 @@ export function useBoardDataLoader(boardId: string | undefined) {
         setFeatures(featuresData);
         setAllFeatures(featuresData);
         setTasks(tasksData);
-        setBlocks(blockResult.blocks);
-        setHiddenBlocks(blockResult.hiddenBlocks);
-        setAllBlocks((allBlockResult ?? blockResult).blocks);
+        setBlocks(blockResult.blocks.filter((b) => !b.jira_status_id));
+        setHiddenBlocks(
+          blockResult.hiddenBlocks.filter((b) => !b.jira_status_id),
+        );
+        setAllBlocks(
+          (allBlockResult ?? blockResult).blocks.filter(
+            (b) => !b.jira_status_id,
+          ),
+        );
         setChecklistDataMap(batchChecklistMap);
         setScheduledTaskIds(new Set(scheduledData.task_ids));
       } catch (error) {
