@@ -665,6 +665,31 @@
     "noTask": "No Task",
     "selectFooter": "Select a checklist item to schedule in this time slot"
   },
+  "checklistHistory": {
+    "menu": "History",
+    "title": "Change History",
+    "subtitle": "{{count}} changes total",
+    "empty": "No changes recorded yet",
+    "error": "Failed to load history",
+    "none": "None",
+    "filterAll": "All",
+    "filterAssignee": "Assignee",
+    "filterDate": "Dates",
+    "filterStatus": "Status",
+    "filterName": "Name",
+    "verb": {
+      "created": "created this item",
+      "checkedDone": "marked as done",
+      "checkedUndone": "reverted to not done",
+      "renamed": "renamed the item",
+      "reassigned": "changed the assignee",
+      "rescheduled": "changed the dates",
+      "moved": "moved to another Task",
+      "merged": "merged items in",
+      "deleted": "deleted the item",
+      "changed": "made a change"
+    }
+  },
   "milestone": {
     "onboardingTitle": "Manage your project with milestones",
     "onboardingDesc": "Group Features into milestones to track schedules and progress at a glance.",

@@ -1,6 +1,7 @@
 package com.kanban.domain.sprint.dto;
 
 import com.kanban.domain.checklist.ChecklistItem;
+import com.kanban.domain.contractor.entity.BoardContractor;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.sprint.Sprint;
 import com.kanban.domain.sprint.SprintColumn;
@@ -119,9 +120,11 @@ public class SprintResponse {
         private String featureId;
         private String featureTitle;
         private String featureColor;
+        private LocalDateTime featureCreatedAt; // Feature 생성 순서 정렬용
         private String taskId;
         private String taskTitle;
         private AssigneeInfo assignee;
+        private ContractorInfo contractor; // 외주 담당(있으면). 내부 assignee와 배타적으로 채워진다.
         private AssigneeInfo completedBy; // B안: 완료자 (담당자와 다르면 "대신 완료")
         // ── JIRA 뷰 전용 (컬럼=JIRA 상태 그루핑용) ──
         private String blockId;           // 부모 Task의 현재 칸반 블록 = 매핑된 JIRA 상태(push 시 최신)
@@ -151,9 +154,11 @@ public class SprintResponse {
                     .featureId(feature != null ? feature.getId() : null)
                     .featureTitle(feature != null ? feature.getTitle() : null)
                     .featureColor(feature != null ? feature.getColor() : null)
+                    .featureCreatedAt(feature != null ? feature.getCreatedAt() : null)
                     .taskId(task != null ? task.getId() : null)
                     .taskTitle(task != null ? task.getTitle() : null)
                     .assignee(c.getAssignee() != null ? AssigneeInfo.of(c.getAssignee()) : null)
+                    .contractor(c.getContractor() != null ? ContractorInfo.of(c.getContractor()) : null)
                     .completedBy(c.getCompletedBy() != null ? AssigneeInfo.of(c.getCompletedBy()) : null)
                     .blockId(task != null && task.getBlock() != null ? task.getBlock().getId() : null)
                     .qaState(task != null && task.getQaState() != null ? task.getQaState().name() : null)
@@ -176,6 +181,37 @@ public class SprintResponse {
                     .id(u.getId())
                     .name(u.getName())
                     .profileImage(u.getProfileImage())
+                    .build();
+        }
+    }
+
+    /**
+     * 외주(BoardContractor) 담당 정보. 구성원 뷰에서 이 카드를 "관리 담당(내부 멤버)"의 컬럼으로
+     * 라우팅하기 위해 managerUserId(관리자의 user id)를 함께 내려준다. 관리자 미지정이면 null → 미배정 폴백.
+     */
+    @Getter
+    @AllArgsConstructor
+    @Builder
+    public static class ContractorInfo {
+        private String id;
+        private String name;
+        private String color;
+        private String managerUserId; // 관리 담당 내부 멤버의 user id (구성원 뷰 컬럼 라우팅 키)
+        private String managerName;
+
+        public static ContractorInfo of(BoardContractor c) {
+            String managerUserId = null;
+            String managerName = null;
+            if (c.getManager() != null && c.getManager().getUser() != null) {
+                managerUserId = c.getManager().getUser().getId();
+                managerName = c.getManager().getUser().getName();
+            }
+            return ContractorInfo.builder()
+                    .id(c.getId())
+                    .name(c.getName())
+                    .color(c.getColor())
+                    .managerUserId(managerUserId)
+                    .managerName(managerName)
                     .build();
         }
     }
