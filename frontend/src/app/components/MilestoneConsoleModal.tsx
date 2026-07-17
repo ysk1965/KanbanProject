@@ -502,7 +502,7 @@ export function MilestoneConsoleModal({
 
       {/* Feature chips */}
       <div className="flex items-center gap-2 px-5 py-2.5 border-b border-foreground/[0.08] overflow-x-auto shrink-0 custom-scrollbar">
-        <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 shrink-0">
+        <span className="text-xs font-bold uppercase tracking-widest text-slate-400 shrink-0">
           피쳐
         </span>
         <div className="flex items-center gap-1.5 shrink-0 pr-1.5 mr-0.5 border-r border-foreground/10">
@@ -529,7 +529,7 @@ export function MilestoneConsoleModal({
               key={f.featureId}
               type="button"
               onClick={() => toggleFeature(f.featureId)}
-              className={`shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border transition-colors ${
+              className={`shrink-0 inline-flex items-center gap-2 min-h-[40px] px-3.5 py-2 rounded-full text-[13px] border transition-colors ${
                 on
                   ? "text-white border-transparent font-bold"
                   : "bg-foreground/[0.03] text-slate-400 border-foreground/10 hover:border-foreground/25 font-medium"
@@ -538,12 +538,12 @@ export function MilestoneConsoleModal({
               aria-pressed={on}
             >
               {on ? (
-                <CheckSquare className="w-3.5 h-3.5" />
+                <CheckSquare className="w-4 h-4" />
               ) : (
-                <Square className="w-3.5 h-3.5" style={{ color }} />
+                <Square className="w-4 h-4" style={{ color }} />
               )}
               {f.featureTitle}
-              <span className="font-mono text-[10px] opacity-80">
+              <span className="font-mono text-xs tabular-nums opacity-80">
                 {f.done}/{f.total}
               </span>
             </button>
@@ -597,42 +597,42 @@ export function MilestoneConsoleModal({
                         dragRef.current = null;
                       }
                     }}
-                    className={`w-64 shrink-0 bg-bridge-obsidian rounded-xl border flex flex-col max-h-[68dvh] transition-colors ${
+                    className={`w-72 shrink-0 bg-bridge-obsidian rounded-xl border flex flex-col max-h-[68dvh] transition-colors ${
                       isOver
                         ? "border-bridge-accent ring-2 ring-bridge-accent/40"
                         : "border-foreground/[0.08]"
                     }`}
                     style={{ borderTopColor: color, borderTopWidth: 3 }}
                   >
-                    <div className="px-3 py-2.5 border-b border-foreground/[0.06]">
+                    <div className="px-4 py-3 border-b border-foreground/[0.06]">
                       {multi && (
                         <div
-                          className="flex items-center gap-1.5 text-[10px] font-bold mb-1.5"
+                          className="flex items-center gap-1.5 text-[11px] font-bold mb-1.5"
                           style={{ color }}
                         >
                           <span
-                            className="w-1.5 h-1.5 rounded-full"
+                            className="w-2 h-2 rounded-full"
                             style={{ background: color }}
                           />
                           {f.featureTitle}
                         </div>
                       )}
-                      <div className="text-xs font-bold text-foreground leading-snug">
+                      <div className="text-[15px] font-bold text-foreground leading-snug tracking-tight">
                         {task.taskTitle}
                       </div>
-                      <div className="flex items-center gap-1.5 mt-2 text-[10px] text-slate-500 font-mono">
-                        <span className="flex-1 h-1 rounded-full bg-foreground/10 overflow-hidden">
+                      <div className="flex items-center gap-2 mt-2.5 text-xs text-slate-400 font-mono tabular-nums">
+                        <span className="flex-1 h-[7px] rounded-full bg-foreground/10 overflow-hidden">
                           <span
                             className="block h-full rounded-full bg-gradient-to-r from-bridge-accent to-bridge-secondary"
                             style={{ width: `${pct}%` }}
                           />
                         </span>
-                        {done}/{task.items.length}
+                        {done}/{task.items.length} · {pct}%
                       </div>
                     </div>
-                    <div className="p-2 flex flex-col gap-1.5 overflow-y-auto custom-scrollbar">
+                    <div className="p-2 flex flex-col gap-2 overflow-y-auto custom-scrollbar">
                       {vis.length === 0 ? (
-                        <div className="text-[11px] text-slate-500 text-center py-3 border border-dashed border-foreground/10 rounded-lg">
+                        <div className="text-xs text-slate-400 text-center py-3 border border-dashed border-foreground/10 rounded-lg">
                           {task.items.length
                             ? "필터에 맞는 항목 없음"
                             : "항목 없음"}
@@ -647,17 +647,22 @@ export function MilestoneConsoleModal({
                               : null;
                           const ddayCls =
                             dday?.urgency === "overdue"
-                              ? "text-rose-500"
+                              ? "bg-rose-500/15 text-rose-500"
                               : dday?.urgency === "today" ||
                                   dday?.urgency === "soon"
-                                ? "text-amber-600 dark:text-amber-400"
-                                : "text-slate-500";
+                                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                : "text-slate-400";
                           const st = statusOf(it);
                           const stopDrag = (e: {
                             stopPropagation: () => void;
                           }) => e.stopPropagation();
                           const ddayLabel = dday
-                            ? dday.text
+                            ? dday.urgency === "overdue"
+                              ? `${dday.text} 지연`
+                              : dday.urgency === "today" ||
+                                  dday.urgency === "soon"
+                                ? `${dday.text} 임박`
+                                : dday.text
                             : it.due_date
                               ? "마감"
                               : canEdit
@@ -683,13 +688,13 @@ export function MilestoneConsoleModal({
                                 it.task_id &&
                                 onOpenChecklistItem?.(it.task_id, it.id)
                               }
-                              className={`bg-bridge-dark rounded-lg border border-foreground/[0.08] p-2.5 hover:border-foreground/[0.14] transition-all ${
+                              className={`bg-bridge-dark rounded-lg border border-foreground/[0.08] p-3.5 hover:border-foreground/[0.14] transition-all ${
                                 canEdit
                                   ? "cursor-grab active:cursor-grabbing"
                                   : "cursor-pointer"
                               } ${draggingId === it.id ? "opacity-40" : ""}`}
                             >
-                              <div className="flex items-start gap-2 mb-2">
+                              <div className="flex items-start gap-2.5 mb-2.5">
                                 <button
                                   type="button"
                                   disabled={!canEdit}
@@ -702,21 +707,18 @@ export function MilestoneConsoleModal({
                                   aria-label={
                                     it.completed ? "완료 해제" : "완료로 표시"
                                   }
-                                  className={`mt-0.5 shrink-0 w-4 h-4 rounded-full grid place-items-center border transition-colors ${
+                                  className={`mt-0.5 shrink-0 w-5 h-5 rounded-full grid place-items-center border transition-colors ${
                                     it.completed
                                       ? "bg-emerald-500 border-emerald-500 text-white"
                                       : "border-foreground/25 text-transparent hover:border-emerald-500"
                                   } ${canEdit ? "cursor-pointer" : ""}`}
                                 >
-                                  <Check
-                                    className="w-2.5 h-2.5"
-                                    strokeWidth={3}
-                                  />
+                                  <Check className="w-3 h-3" strokeWidth={3} />
                                 </button>
                                 <div
-                                  className={`text-[11.5px] font-medium leading-snug line-clamp-2 ${
+                                  className={`text-[14px] font-medium leading-snug line-clamp-2 ${
                                     it.completed
-                                      ? "line-through text-slate-500"
+                                      ? "line-through text-slate-400"
                                       : "text-foreground"
                                   }`}
                                 >
@@ -725,12 +727,12 @@ export function MilestoneConsoleModal({
                               </div>
                               <div className="flex items-center justify-between gap-2">
                                 <span
-                                  className="relative inline-flex items-center gap-1.5 min-w-0"
+                                  className="relative inline-flex items-center gap-2 min-w-0"
                                   draggable={false}
                                   onMouseDown={stopDrag}
                                 >
                                   <span
-                                    className="inline-grid place-items-center w-4 h-4 rounded-full text-[8.5px] font-bold text-white shrink-0"
+                                    className="inline-grid place-items-center w-6 h-6 rounded-lg text-[11px] font-bold text-white shrink-0"
                                     style={{
                                       background: isContractor
                                         ? "#f59e0b"
@@ -741,7 +743,7 @@ export function MilestoneConsoleModal({
                                   >
                                     {who ? getInitials(who) : "·"}
                                   </span>
-                                  <span className="text-[10.5px] text-slate-400 truncate">
+                                  <span className="text-[13px] text-slate-400 truncate">
                                     {who ?? "미배정"}
                                   </span>
                                   {canEdit && members.length > 0 && (
@@ -771,8 +773,8 @@ export function MilestoneConsoleModal({
                                       onMouseDown={stopDrag}
                                     >
                                       <span
-                                        className={`font-mono text-[10px] font-medium ${
-                                          dday ? ddayCls : "text-slate-500"
+                                        className={`inline-block tabular-nums text-xs font-bold px-2 py-0.5 rounded-md ${
+                                          dday ? ddayCls : "text-slate-400"
                                         }`}
                                       >
                                         {ddayLabel}
@@ -792,7 +794,7 @@ export function MilestoneConsoleModal({
                                     </span>
                                   )}
                                   <span
-                                    className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full ${st.cls}`}
+                                    className={`text-xs font-bold px-2 py-0.5 rounded-full ${st.cls}`}
                                   >
                                     {st.label}
                                   </span>

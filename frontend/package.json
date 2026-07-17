@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@blocknote/core": "^0.28.0",
@@ -112,6 +113,7 @@
     "yjs": "^13.6.29"
   },
   "devDependencies": {
+    "@sentry/vite-plugin": "^5.4.0",
     "@tailwindcss/vite": "4.1.12",
     "@types/canvas-confetti": "^1.9.0",
     "@types/dompurify": "^3.0.5",

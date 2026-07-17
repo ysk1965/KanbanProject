@@ -5,7 +5,7 @@ import { FEATURE_COLORS } from '../../constants';
 import {
   Plus, Flame, CheckCircle2, Trash2, X, Loader2, ChevronDown,
   Pencil, MoreHorizontal,
-  TrendingUp, Calendar, Zap, RotateCcw, ListTodo,
+  TrendingUp, Calendar, Zap, RotateCcw, ListTodo, Target,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
