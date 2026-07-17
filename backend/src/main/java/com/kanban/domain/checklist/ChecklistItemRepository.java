@@ -162,6 +162,17 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     @Query("SELECT c FROM ChecklistItem c WHERE c.sprint.milestone.id = :milestoneId AND c.sprint IS NOT NULL")
     List<ChecklistItem> findInSprintByMilestoneId(@Param("milestoneId") String milestoneId);
 
+    /** 마일스톤 관리 콘솔: 마일스톤 내 전체 체크리스트(스프린트 담김 여부 무관) — Feature ▸ Task ▸ 체크리스트 트리 소스 */
+    @Query("SELECT c FROM ChecklistItem c " +
+           "JOIN FETCH c.task t " +
+           "JOIN FETCH t.feature " +
+           "LEFT JOIN FETCH c.assignee " +
+           "LEFT JOIN FETCH c.contractor " +
+           "LEFT JOIN FETCH c.sprintColumn " +
+           "WHERE t.milestone.id = :milestoneId " +
+           "ORDER BY t.id, c.position")
+    List<ChecklistItem> findAllByMilestoneId(@Param("milestoneId") String milestoneId);
+
     /** 특정 컬럼에 담긴 카드 (컬럼 삭제 시 재배치용) */
     @Query("SELECT c FROM ChecklistItem c WHERE c.sprintColumn.id = :columnId")
     List<ChecklistItem> findBySprintColumnId(@Param("columnId") String columnId);
