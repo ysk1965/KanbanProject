@@ -41,10 +41,28 @@ public class JiraOAuthService {
 
     private static final String AUTH_BASE = "https://auth.atlassian.com";
     private static final String API_BASE = "https://api.atlassian.com";
-    // read:board-scope(.admin) = Jira Software(Agile) 보드/컬럼 구성 읽기 — 미러 컬럼을 JIRA 보드 그대로 가져오기 위함.
-    // classic(read:jira-work)만으론 /rest/agile/1.0 이 401 → granular board-scope 필요. classic+granular 혼용 허용됨.
-    private static final String SCOPES = "read:jira-work write:jira-work "
-        + "read:board-scope:jira-software read:board-scope.admin:jira-software offline_access";
+    /**
+     * 전면 granular 스코프. classic(read:jira-work)과 granular(board-scope)을 혼용하면
+     * Atlassian이 토큰을 classic 모드로 평가해 agile board 스코프를 무시 → "scope does not match" 401.
+     * 따라서 요청 스코프를 순수 granular로 통일한다(콘솔엔 classic이 남아 있어도 무방 — 요청 안 하면 토큰 미포함).
+     * BRIDGE가 호출하는 10종 작업(myself/project/statuses/search-jql/getIssue/transitions R·W/attachment/
+     * agile board/board configuration)을 모두 커버하도록 구성.
+     */
+    private static final String SCOPES = String.join(" ",
+        // 이슈 읽기 · 검색(JQL) — 가져오기 핵심
+        "read:jql:jira", "read:issue:jira", "read:issue-details:jira", "read:issue-meta:jira",
+        "read:issue.changelog:jira", "read:issue.transition:jira", "read:issue-type:jira",
+        "read:issue-link:jira", "read:comment:jira", "read:attachment:jira",
+        // 프로젝트 · 상태 · 필드 · 사용자
+        "read:project:jira", "read:project.component:jira", "read:project-version:jira",
+        "read:status:jira", "read:workflow:jira", "read:field:jira", "read:priority:jira", "read:label:jira",
+        "read:user:jira", "read:avatar:jira", "read:application-role:jira", "read:group:jira",
+        // Jira Software(Agile) 보드 · 컬럼 구성
+        "read:board-scope:jira-software", "read:board-scope.admin:jira-software",
+        // 쓰기(블록 이동 → JIRA 상태 전이)
+        "write:issue:jira",
+        // 토큰 자동 갱신
+        "offline_access");
     private static final long STATE_EXPIRY_SECONDS = 600; // 10분
     private static final long REFRESH_BUFFER_SECONDS = 60;
 
