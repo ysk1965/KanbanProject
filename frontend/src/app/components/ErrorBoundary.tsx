@@ -1,7 +1,7 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import i18n from 'i18next';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
-import { captureException, setContext } from '../../lib/sentry';
+import React, { Component, ErrorInfo, ReactNode } from "react";
+import i18n from "i18next";
+import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import { captureException, setContext } from "../../lib/sentry";
 
 interface Props {
   children: ReactNode;
@@ -39,14 +39,14 @@ class ErrorBoundary extends Component<Props, State> {
     this.setState({ errorInfo });
 
     // Sentry에 에러 컨텍스트 추가
-    setContext('errorBoundary', {
+    setContext("errorBoundary", {
       componentStack: errorInfo.componentStack,
     });
 
     // Sentry에 에러 전송
     const eventId = captureException(error, {
       componentStack: errorInfo.componentStack,
-      source: 'ErrorBoundary',
+      source: "ErrorBoundary",
     });
 
     if (eventId) {
@@ -54,7 +54,7 @@ class ErrorBoundary extends Component<Props, State> {
     }
 
     // 콘솔에 로깅 (프로덕션 포함)
-    console.error('Error caught by boundary:', error, errorInfo);
+    console.error("Error caught by boundary:", error, errorInfo);
   }
 
   handleRefresh = (): void => {
@@ -62,7 +62,7 @@ class ErrorBoundary extends Component<Props, State> {
   };
 
   handleGoHome = (): void => {
-    window.location.href = '/boards';
+    window.location.href = "/boards";
   };
 
   handleRetry = (): void => {
@@ -87,11 +87,9 @@ class ErrorBoundary extends Component<Props, State> {
             </div>
 
             <h1 className="text-xl font-bold text-foreground mb-2">
-              {i18n.t('error.title')}
+              {i18n.t("error.title")}
             </h1>
-            <p className="text-slate-400 mb-6">
-              {i18n.t('error.description')}
-            </p>
+            <p className="text-slate-400 mb-6">{i18n.t("error.description")}</p>
 
             {/* Sentry Event ID 표시 (프로덕션에서 지원 문의 시 사용) */}
             {this.state.eventId && (
@@ -100,14 +98,19 @@ class ErrorBoundary extends Component<Props, State> {
               </p>
             )}
 
-            {/* 개발 환경에서만 에러 상세 정보 표시 */}
-            {import.meta.env.DEV && this.state.error && (
+            {/* [임시 진단] 프로드 크래시 원인 특정을 위해 에러 상세를 항상 노출한다. 원인 확인 후 `import.meta.env.DEV &&` 가드로 복구할 것. */}
+            {this.state.error && (
               <div className="mb-6 p-4 bg-red-500/10 rounded-xl border border-red-500/20 text-left">
                 <p className="text-red-400 text-sm font-mono break-all">
                   {this.state.error.message}
                 </p>
+                {this.state.error.stack && (
+                  <pre className="mt-2 text-xs text-slate-400 overflow-auto max-h-40">
+                    {this.state.error.stack}
+                  </pre>
+                )}
                 {this.state.errorInfo && (
-                  <pre className="mt-2 text-xs text-slate-400 overflow-auto max-h-32">
+                  <pre className="mt-2 text-xs text-slate-500 overflow-auto max-h-40">
                     {this.state.errorInfo.componentStack}
                   </pre>
                 )}
@@ -121,7 +124,7 @@ class ErrorBoundary extends Component<Props, State> {
                   hover:bg-bridge-accent/90 transition-colors flex items-center justify-center gap-2"
               >
                 <RefreshCw className="w-4 h-4" />
-                {i18n.t('error.retry')}
+                {i18n.t("error.retry")}
               </button>
 
               <button
@@ -129,7 +132,7 @@ class ErrorBoundary extends Component<Props, State> {
                 className="w-full px-4 py-3 bg-foreground/5 border border-bridge-border text-foreground rounded-xl
                   hover:bg-foreground/10 transition-colors"
               >
-                {i18n.t('error.refresh')}
+                {i18n.t("error.refresh")}
               </button>
 
               <button
@@ -138,7 +141,7 @@ class ErrorBoundary extends Component<Props, State> {
                   flex items-center justify-center gap-2"
               >
                 <Home className="w-4 h-4" />
-                {i18n.t('error.goHome')}
+                {i18n.t("error.goHome")}
               </button>
             </div>
           </div>
