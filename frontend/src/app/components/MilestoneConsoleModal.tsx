@@ -264,11 +264,15 @@ export function MilestoneConsoleModal({
       return next;
     });
   };
-  const selectAll = () => setSelected(new Set(features.map((f) => f.featureId)));
+  const selectAll = () =>
+    setSelected(new Set(features.map((f) => f.featureId)));
   const clearAll = () => setSelected(new Set());
 
   // ── DnD: 카드를 다른 Task 컬럼으로 이동 ──
-  const handleDrop = async (target: ConsoleTask, targetFeat: ConsoleFeature) => {
+  const handleDrop = async (
+    target: ConsoleTask,
+    targetFeat: ConsoleFeature,
+  ) => {
     const ref = dragRef.current;
     setDragOverTask(null);
     setDraggingId(null);
@@ -366,9 +370,7 @@ export function MilestoneConsoleModal({
     }
   };
 
-  const statusOf = (
-    it: SprintItemCard,
-  ): { label: string; cls: string } => {
+  const statusOf = (it: SprintItemCard): { label: string; cls: string } => {
     if (it.completed)
       return {
         label: "완료",
@@ -380,7 +382,10 @@ export function MilestoneConsoleModal({
         cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
       };
     if (it.sprint_column_id)
-      return { label: "진행", cls: "bg-teal-500/15 text-teal-600 dark:text-teal-400" };
+      return {
+        label: "진행",
+        cls: "bg-teal-500/15 text-teal-600 dark:text-teal-400",
+      };
     return {
       label: "예정",
       cls: "bg-foreground/[0.06] text-slate-500 border border-foreground/10",
@@ -402,7 +407,7 @@ export function MilestoneConsoleModal({
       onClose={onClose}
       accentColor
       aria-label="마일스톤 관리 콘솔"
-      className="sm:max-w-[1120px] w-full p-0 overflow-hidden max-h-[88dvh] flex flex-col"
+      className="sm:max-w-[1440px] w-full p-0 overflow-hidden max-h-[94dvh] flex flex-col"
     >
       {/* Header */}
       <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08] shrink-0">
@@ -410,8 +415,8 @@ export function MilestoneConsoleModal({
           <h2 className="text-sm md:text-base font-bold text-foreground truncate tracking-tight">
             {milestoneTitle ? (
               <>
-                <span className="text-bridge-accent">{milestoneTitle}</span> 관리
-                콘솔
+                <span className="text-bridge-accent">{milestoneTitle}</span>{" "}
+                관리 콘솔
               </>
             ) : (
               "마일스톤 관리 콘솔"
@@ -547,7 +552,7 @@ export function MilestoneConsoleModal({
       </div>
 
       {/* Board */}
-      <div className="flex-1 overflow-auto bg-foreground/[0.02] p-4 min-h-[220px]">
+      <div className="flex-1 overflow-auto bg-foreground/[0.02] p-4 min-h-[420px]">
         {loading && items.length === 0 ? (
           <div className="h-full grid place-items-center">
             <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
@@ -592,7 +597,7 @@ export function MilestoneConsoleModal({
                         dragRef.current = null;
                       }
                     }}
-                    className={`w-56 shrink-0 bg-bridge-obsidian rounded-xl border flex flex-col max-h-[440px] transition-colors ${
+                    className={`w-64 shrink-0 bg-bridge-obsidian rounded-xl border flex flex-col max-h-[68dvh] transition-colors ${
                       isOver
                         ? "border-bridge-accent ring-2 ring-bridge-accent/40"
                         : "border-foreground/[0.08]"
@@ -679,7 +684,9 @@ export function MilestoneConsoleModal({
                                 onOpenChecklistItem?.(it.task_id, it.id)
                               }
                               className={`bg-bridge-dark rounded-lg border border-foreground/[0.08] p-2.5 hover:border-foreground/[0.14] transition-all ${
-                                canEdit ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+                                canEdit
+                                  ? "cursor-grab active:cursor-grabbing"
+                                  : "cursor-pointer"
                               } ${draggingId === it.id ? "opacity-40" : ""}`}
                             >
                               <div className="flex items-start gap-2 mb-2">
@@ -701,7 +708,10 @@ export function MilestoneConsoleModal({
                                       : "border-foreground/25 text-transparent hover:border-emerald-500"
                                   } ${canEdit ? "cursor-pointer" : ""}`}
                                 >
-                                  <Check className="w-2.5 h-2.5" strokeWidth={3} />
+                                  <Check
+                                    className="w-2.5 h-2.5"
+                                    strokeWidth={3}
+                                  />
                                 </button>
                                 <div
                                   className={`text-[11.5px] font-medium leading-snug line-clamp-2 ${
