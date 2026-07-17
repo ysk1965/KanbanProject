@@ -96,6 +96,8 @@ public class JiraOAuthService {
         String accessToken = text(tokens, "access_token");
         String refreshToken = text(tokens, "refresh_token");
         long expiresIn = tokens.path("expires_in").asLong(3600);
+        // 진단: 토큰이 실제로 부여받은 스코프 (board-scope 포함 여부 확인용)
+        log.info("JIRA OAuth granted scopes for board {}: {}", sd.boardId, tokens.path("scope").asText("(none)"));
         if (accessToken == null) {
             throw new BusinessException(ErrorCode.JIRA_CONNECTION_FAILED);
         }
