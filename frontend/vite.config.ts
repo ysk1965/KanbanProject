@@ -173,17 +173,12 @@ export default defineConfig({
     generateBrandedIndex(),
   ],
   build: {
-    // [임시 진단] 프로드 크래시 스택을 소스맵으로 원본 위치까지 매핑하기 위해 한시적으로 켠다.
-    // 원인 확인 후 제거(또는 'hidden')할 것.
-    sourcemap: true,
     rollupOptions: {
       external: ["@ebarooni/capacitor-calendar"],
     },
   },
   esbuild: {
-    // [임시 진단] 프로드에서 console.* 유지 — ErrorBoundary의 console.error가 크래시 스택을 콘솔에 남긴다.
-    // 원인 확인 후 ['console', 'debugger']로 복구할 것.
-    drop: process.env.NODE_ENV === "production" ? ["debugger"] : ["debugger"],
+    drop: process.env.NODE_ENV === "production" ? ["console", "debugger"] : [],
   },
   resolve: {
     alias: {

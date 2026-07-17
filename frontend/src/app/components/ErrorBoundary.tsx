@@ -98,19 +98,14 @@ class ErrorBoundary extends Component<Props, State> {
               </p>
             )}
 
-            {/* [임시 진단] 프로드 크래시 원인 특정을 위해 에러 상세를 항상 노출한다. 원인 확인 후 `import.meta.env.DEV &&` 가드로 복구할 것. */}
-            {this.state.error && (
+            {/* 개발 환경에서만 에러 상세 정보 표시 */}
+            {import.meta.env.DEV && this.state.error && (
               <div className="mb-6 p-4 bg-red-500/10 rounded-xl border border-red-500/20 text-left">
                 <p className="text-red-400 text-sm font-mono break-all">
                   {this.state.error.message}
                 </p>
-                {this.state.error.stack && (
-                  <pre className="mt-2 text-xs text-slate-400 overflow-auto max-h-40">
-                    {this.state.error.stack}
-                  </pre>
-                )}
                 {this.state.errorInfo && (
-                  <pre className="mt-2 text-xs text-slate-500 overflow-auto max-h-40">
+                  <pre className="mt-2 text-xs text-slate-400 overflow-auto max-h-32">
                     {this.state.errorInfo.componentStack}
                   </pre>
                 )}
