@@ -1888,7 +1888,7 @@ export function SprintBoard({
                   )}
                   {/* Task 단위 빼기 — 담기와 대칭. 이 태스크 전체를 스프린트에서 뺀다.
                       카드 드래그가 아니라 헤더 버튼이 빼기의 유일한 주체다. */}
-                  {canEdit && !readOnly && task.taskId !== "__none__" && (
+                  {canEdit && task.taskId !== "__none__" && (
                     <button
                       type="button"
                       onClick={() => removeTaskFromSprint(task.taskId)}
