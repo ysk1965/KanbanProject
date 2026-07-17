@@ -602,10 +602,11 @@ export function SprintBoard({
         if (!hay.includes(kw)) return false;
       }
       if (members.length > 0) {
+        const asg = jt.assignees ?? [];
         const ok =
-          jt.assignees.length === 0
+          asg.length === 0
             ? memberWantsNone
-            : jt.assignees.some((a) => memberNames.has(a.name));
+            : asg.some((a) => memberNames.has(a.name));
         if (!ok) return false;
       }
       if (featSel.size > 0 && !featSel.has(jt.feature_id ?? "__none__"))
@@ -1069,7 +1070,10 @@ export function SprintBoard({
         qaState: jt.qa_state ?? null,
         statusId: resolved,
         blockId: jt.block_id ?? null,
-        assignees: jt.assignees.map((a) => ({ id: a.id, name: a.name })),
+        assignees: (jt.assignees ?? []).map((a) => ({
+          id: a.id,
+          name: a.name,
+        })),
         done: jt.done,
         total: jt.total,
       });
