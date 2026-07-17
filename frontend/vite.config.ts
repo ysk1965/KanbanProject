@@ -5,9 +5,14 @@ import { execSync } from "child_process";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 
 const commitHash = execSync("git rev-parse --short HEAD").toString().trim();
 const buildTime = new Date().toISOString();
+
+// 소스맵 업로드는 CI(SENTRY_AUTH_TOKEN 존재)에서만 활성화한다.
+// 로컬 빌드는 소스맵을 생성하지 않아 기존 동작 그대로 유지된다.
+const uploadSourceMaps = !!process.env.SENTRY_AUTH_TOKEN;
 
 /**
  * Vite plugin: 빌드 후 index-bridgespots.html + manifest-bridgespots.webmanifest 자동 생성
@@ -171,8 +176,26 @@ export default defineConfig({
       },
     }),
     generateBrandedIndex(),
+    // Sentry: 빌드 시 소스맵을 릴리스(commitHash)에 업로드해 minify 스택을 복원.
+    // 업로드 후 dist의 .map을 삭제하여 S3(공개 버킷)로 소스맵이 새어나가지 않게 한다.
+    ...(uploadSourceMaps
+      ? [
+          sentryVitePlugin({
+            org: process.env.SENTRY_ORG,
+            project: process.env.SENTRY_PROJECT,
+            authToken: process.env.SENTRY_AUTH_TOKEN,
+            release: { name: commitHash },
+            sourcemaps: {
+              filesToDeleteAfterUpload: ["./dist/**/*.map"],
+            },
+            telemetry: false,
+          }),
+        ]
+      : []),
   ],
   build: {
+    // 소스맵 업로드 시에만 hidden 소스맵 생성 (번들에 sourceMappingURL 미참조 → 사용자 노출 X)
+    sourcemap: uploadSourceMaps ? "hidden" : false,
     rollupOptions: {
       external: ["@ebarooni/capacitor-calendar"],
     },

@@ -7,6 +7,7 @@ import {
   Suspense,
 } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { setTag } from "../../lib/sentry";
 import {
   Plus,
   GripVertical,
@@ -260,6 +261,12 @@ export function KanbanBoardPage() {
       .then((d) => setBeCommit(d.commit || ""))
       .catch(() => {});
   }, []);
+
+  // Sentry: 현재 보고 있는 board_id를 태그로 첨부 → 에러 발생 시 어느 보드였는지 자동 식별
+  useEffect(() => {
+    if (boardId) setTag("board_id", boardId);
+    return () => setTag("board_id", "");
+  }, [boardId]);
 
   // localStorage 마이그레이션 (기존 사용자 호환: weekly→gantt, scheduleSubMode→boardSubMode)
   useEffect(() => {

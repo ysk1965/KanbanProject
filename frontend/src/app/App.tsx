@@ -490,6 +490,7 @@ function HomeRoute() {
 // 메인 앱 라우터
 function AppRoutes() {
   const appNavigate = useNavigate();
+  const location = useLocation();
 
   // Initialize deep link handler for Capacitor native apps
   useEffect(() => {
@@ -501,7 +502,10 @@ function AppRoutes() {
   return (
     <>
       <ThemeSync />
-      <Routes>
+      {/* 라우트 단위 경계: 한 화면 크래시가 앱 전체를 블랭크시키지 않도록 격리하고,
+          경로 변경/뒤로가기 시 리로드 없이 자동 복구한다. App 최상단 ErrorBoundary는 최후 방어. */}
+      <ErrorBoundary resetKeys={[location.pathname]}>
+        <Routes>
         {/* 루트: 로그인 상태면 /boards, 아니면 /login */}
         <Route path="/" element={<HomeRoute />} />
 
@@ -686,7 +690,8 @@ function AppRoutes() {
 
         {/* 404 - 존재하지 않는 경로 */}
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+        </Routes>
+      </ErrorBoundary>
     </>
   );
 }

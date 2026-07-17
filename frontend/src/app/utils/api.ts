@@ -1,5 +1,6 @@
 import { nowUTC } from "./dateUtils";
 import { domainBrandName } from "./domain";
+import { addBreadcrumb } from "../../lib/sentry";
 
 // API Base URL - BE 서버
 const API_BASE_URL =
@@ -200,6 +201,15 @@ class ApiClient {
           error: errorData,
         });
 
+        // Sentry breadcrumb: 에러 직전 어떤 API가 실패했는지 자동 첨부 (민감 body 제외)
+        addBreadcrumb({
+          category: "api",
+          type: "http",
+          level: response.status >= 500 ? "error" : "warning",
+          message: `${options?.method || "GET"} ${endpoint} → ${response.status}`,
+          data: { status: response.status, code: errorData.code },
+        });
+
         // Rate Limit (429 Too Many Requests) — exponential backoff
         if (response.status === 429) {
           const currentBackoff = this.rateLimitBackoff.get(backoffKey);
@@ -290,6 +300,16 @@ class ApiClient {
       return data;
     } catch (error) {
       console.error(`💥 [API Request failed] ${endpoint}`, error);
+
+      // 네트워크 계층 실패(fetch reject)도 breadcrumb로 흔적 남김
+      if (error instanceof TypeError) {
+        addBreadcrumb({
+          category: "api",
+          type: "http",
+          level: "error",
+          message: `${options?.method || "GET"} ${endpoint} → network error`,
+        });
+      }
 
       // 네트워크 에러 + 점검 시간대이면 점검 이벤트 발행
       if (error instanceof TypeError && isMaintenanceWindow()) {
@@ -3969,7 +3989,7 @@ export const dailyChecklistAPI = {
     endDate: string,
     assigneeId: string,
   ) => {
-    return apiClient.get<DailyChecklistItem[]>(
+    return apiClient.get<DailyChecklistItemResponse[]>(
       `/boards/${boardId}/daily-checklists/range?startDate=${startDate}&endDate=${endDate}&assigneeId=${assigneeId}`,
     );
   },

@@ -298,6 +298,14 @@ jobs:
           VITE_API_BASE_URL: ${{ vars.DEV_API_URL }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           VITE_CLOUDFRONT_DOMAIN: ${{ vars.DEV_CLOUDFRONT_ATTACHMENTS_DOMAIN }}
+          # Sentry 런타임: DSN 있어야 에러가 실제로 수집되고 Error ID가 발급됨
+          VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          VITE_SENTRY_ENVIRONMENT: development
+          # Sentry 소스맵 업로드: AUTH_TOKEN 존재 시에만 hidden 소스맵 생성+업로드+삭제 (vite.config.ts)
+          # 릴리스는 vite.config의 commitHash로 자동 태깅되므로 VITE_SENTRY_RELEASE는 주입하지 않는다.
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -308,7 +316,10 @@ jobs:
       - name: Deploy to S3 (bridgespots.com + milkyway.pe.kr)
         run: |
           # 해시된 에셋: --delete 없이 업로드 (구버전 chunk 유지로 기존 세션 보호)
+          # --exclude "*.map": 소스맵은 Sentry에만 업로드하고 공개 S3에는 절대 노출하지 않는다
+          # (플러그인 업로드가 실패해 dist에 .map이 남아도 안전).
           aws s3 sync frontend/dist/assets s3://${{ env.S3_BUCKET_DEV }}/assets \
+            --exclude "*.map" \
             --cache-control "max-age=31536000,public"
 
           # 나머지 (HTML, SW, manifest 등) no-cache
