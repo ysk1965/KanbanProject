@@ -137,6 +137,11 @@ public class JiraApiClient {
             } catch (HttpClientErrorException e) {
                 int code = e.getStatusCode().value();
                 if (code == 401 || code == 403) {
+                    // 진단: Atlassian이 401/403 시 응답 본문/WWW-Authenticate에 "필요한 스코프"를 담아줌.
+                    String wwwAuth = e.getResponseHeaders() != null
+                        ? e.getResponseHeaders().getFirst("WWW-Authenticate") : null;
+                    log.warn("JIRA {} {} → {} | body={} | WWW-Authenticate={}",
+                        method, url, code, e.getResponseBodyAsString(), wwwAuth);
                     throw new BusinessException(ErrorCode.JIRA_AUTH_FAILED);
                 }
                 if (code == 404) {
