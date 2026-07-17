@@ -15,6 +15,7 @@ import {
   Check,
   Clock,
   Calendar,
+  Ban,
   Circle,
   CornerUpLeft,
   Flag,
@@ -1268,6 +1269,22 @@ export function SprintBoard({
       return sprintAPI.getSprintBoard(boardId, milestoneId);
     });
   };
+  // Task 단위 빼기 — 태스크의 담긴 항목을 한 번에 스프린트에서 뺀다.
+  // taskId로 전 컬럼(In Review·Done 포함)의 담긴 항목을 모아 순차 제거하므로,
+  // 소그룹에 보이는 START 카드뿐 아니라 태스크 전체가 통째로 빠진다.
+  const removeTaskFromSprint = (taskId: string) => {
+    if (!canEdit || !activeSprint || !taskId || taskId === "__none__") return;
+    const targets = columns
+      .flatMap((c) => c.items)
+      .filter((i) => i.task_id === taskId && i.sprint_column_id);
+    if (targets.length === 0) return;
+    void run(async () => {
+      for (const it of targets) {
+        await sprintAPI.removeItem(boardId, activeSprint.id, it.id);
+      }
+      return sprintAPI.getSprintBoard(boardId, milestoneId);
+    });
+  };
   // 카드 호버 액션(리뷰·완료) — 드래그 없이 원클릭으로 목표 컬럼(In Review/Done)에 이동.
   const moveItemToColumn = (it: SprintItemCard, col: SprintColumn | null) => {
     if (!canEdit || !activeSprint || !col || it.sprint_column_id === col.id)
@@ -1293,36 +1310,12 @@ export function SprintBoard({
     setDragOverCol(null);
   };
 
-  // 카드 → 업무 리스트 드롭 = 스프린트에서 빼기(Task 단위).
-  // 담기가 Task 단위로 원자화됐으므로 빼기도 카드 1개가 아니라 그 카드가 속한
-  // Task의 스프린트 항목 전체를 제거한다. 빠진 항목은 sprint_column_id가 비워져
-  // 트리의 원래 Feature/Task 자리로 자동 복귀한다.
-  const onDropList = async (e: React.DragEvent) => {
+  // 카드 → 업무 리스트 드롭은 더 이상 빼기가 아니다.
+  // 빼기는 Task 헤더의 "빼기" 버튼(원클릭)이 유일한 주체 — 카드 드래그는 컬럼(상태)
+  // 이동 전용이다. 좌측 패널은 비-드롭 대상이므로 여기선 상태만 정리한다.
+  const onDropList = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOverList(false);
-    if (!canEdit || !activeSprint) return;
-    const itemId = e.dataTransfer.getData(DRAG_ITEM);
-    const source = e.dataTransfer.getData(DRAG_SOURCE);
-    // 리스트에서 온 항목(backlog)은 이미 리스트에 있으므로 무시
-    if (!itemId || source !== "sprint") return;
-    // 드롭된 카드가 속한 Task의 담긴 항목을 모두 모아 한 번에 제거한다.
-    // (task_id가 없는 낱개 항목은 그 항목만 제거.)
-    const allItems = columns.flatMap((c) => c.items);
-    const dropped = allItems.find((i) => i.id === itemId);
-    const taskId = dropped?.task_id ?? null;
-    const targets =
-      taskId != null
-        ? allItems.filter((i) => i.task_id === taskId && i.sprint_column_id)
-        : dropped
-          ? [dropped]
-          : [];
-    if (targets.length === 0) return;
-    await run(async () => {
-      for (const it of targets) {
-        await sprintAPI.removeItem(boardId, activeSprint.id, it.id);
-      }
-      return sprintAPI.getSprintBoard(boardId, milestoneId);
-    });
   };
 
   const onDropColumn = async (e: React.DragEvent, col: SprintColumn) => {
@@ -1887,6 +1880,20 @@ export function SprintBoard({
                       aria-label="태스크 열기"
                     >
                       <ExternalLink className="w-3 h-3" />
+                    </button>
+                  )}
+                  {/* Task 단위 빼기 — 담기와 대칭. 이 태스크 전체를 스프린트에서 뺀다.
+                      카드 드래그가 아니라 헤더 버튼이 빼기의 유일한 주체다. */}
+                  {canEdit && !readOnly && task.taskId !== "__none__" && (
+                    <button
+                      type="button"
+                      onClick={() => removeTaskFromSprint(task.taskId)}
+                      className="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-bold rounded-full pl-1 pr-1.5 py-0.5 border border-amber-500/30 bg-amber-500/10 text-amber-500 opacity-0 group-hover/task:opacity-100 hover:bg-amber-500 hover:text-white transition-all"
+                      title="이 태스크를 스프린트에서 빼기"
+                      aria-label="태스크를 스프린트에서 빼기"
+                    >
+                      <CornerUpLeft className="w-3 h-3" strokeWidth={2.5} />
+                      빼기
                     </button>
                   )}
                   {/* 태스크별 진행률 미니바 — 밀린 태스크를 스캔 한 번에 파악 */}
@@ -2752,12 +2759,13 @@ export function SprintBoard({
           <aside
             style={panelCollapsed ? undefined : { width: panelWidth }}
             onDragOver={(e) => {
-              // 스프린트 카드를 끌고 온 경우에만 드롭 허용(빼기)
+              // 카드 드래그로는 빼기가 안 된다(빼기 = Task 헤더 버튼). 좌측 패널은
+              // 비-드롭 대상 — preventDefault로 dragover는 받되 dropEffect="none"으로
+              // not-allowed 커서를 켜고, 호버 오버레이로 "여기선 못 뺀다"를 알린다.
               if (canEdit && draggingSource === "sprint") {
                 e.preventDefault();
+                e.dataTransfer.dropEffect = "none";
                 setDragOverList(true);
-                // 접힌 상태에서 카드를 끌어오면 되돌릴 곳이 안 보이므로 자동 펼침
-                if (panelCollapsed) setPanelCollapsed(false);
               }
             }}
             onDragLeave={(e) => {
@@ -2783,19 +2791,25 @@ export function SprintBoard({
                 </button>
               </div>
             )}
-            {/* 카드→리스트 드롭 존 오버레이 (스프린트 카드 드래그 중에만) */}
-            {!panelCollapsed && draggingSource === "sprint" && (
-              <div
-                className={`pointer-events-none absolute inset-2 z-20 rounded-2xl border-[1.5px] border-dashed flex items-start justify-center transition-colors ${
-                  dragOverList
-                    ? "border-bridge-accent bg-bridge-accent/10"
-                    : "border-bridge-accent/50 bg-bridge-accent/[0.04]"
-                }`}
-              >
-                <span className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-bold text-bridge-accent bg-bridge-obsidian/90 border border-bridge-accent/40 rounded-full px-3 py-1.5 shadow-lg">
-                  <CornerUpLeft className="w-3.5 h-3.5" />
-                  태스크를 리스트로 되돌리기 · 통째로 빼기
-                </span>
+            {/* 비-드롭 차단 오버레이 — 카드를 좌측 위로 가져온 순간(dragOverList)에만
+                차분히 dim + not-allowed. 빼기는 카드 드래그가 아니라 Task 헤더 버튼임을 안내. */}
+            {!panelCollapsed && draggingSource === "sprint" && dragOverList && (
+              <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-bridge-dark/55 backdrop-blur-[1px] px-6">
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <span className="w-10 h-10 rounded-full grid place-items-center bg-foreground/[0.06] border border-foreground/15 text-slate-400">
+                    <Ban className="w-5 h-5" />
+                  </span>
+                  <p className="text-xs font-bold text-slate-300">
+                    여기로는 뺄 수 없어요
+                  </p>
+                  <p className="text-[11px] font-medium text-slate-500">
+                    빼기는{" "}
+                    <span className="text-amber-500 font-bold">
+                      태스크 헤더의 빼기
+                    </span>{" "}
+                    버튼으로
+                  </p>
+                </div>
               </div>
             )}
             {!panelCollapsed && (
