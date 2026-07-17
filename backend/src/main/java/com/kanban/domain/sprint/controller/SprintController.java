@@ -29,6 +29,17 @@ public class SprintController {
         return ResponseEntity.ok(sprintService.getSprintBoard(boardId, milestoneId, userPrincipal.getUserId()));
     }
 
+    /** 마일스톤 관리 콘솔 — 마일스톤 전체 체크리스트(스프린트 무관) Feature ▸ Task ▸ 체크리스트 소스 */
+    @GetMapping("/milestones/{milestoneId}/console")
+    public ResponseEntity<List<SprintResponse.ItemCard>> getMilestoneConsole(
+            @PathVariable String boardId,
+            @PathVariable String milestoneId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(
+                sprintService.getMilestoneConsole(boardId, milestoneId, userPrincipal.getUserId()));
+    }
+
     /** 스프린트 모드 on/off (관리자) — off 시 담긴 카드 병합 */
     @PatchMapping("/milestones/{milestoneId}/sprint-mode")
     public ResponseEntity<SprintResponse.Board> toggleSprintMode(

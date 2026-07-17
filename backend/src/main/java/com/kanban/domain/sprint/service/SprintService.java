@@ -369,6 +369,18 @@ public class SprintService {
                 .toList();
     }
 
+    /**
+     * 마일스톤 관리 콘솔용 — 마일스톤에 속한 전체 체크리스트를 스프린트 담김 여부와 무관하게 반환한다.
+     * FE에서 Feature ▸ Task ▸ 체크리스트 트리로 재구성해 피쳐 칩/태스크 칸반을 렌더한다.
+     */
+    public List<SprintResponse.ItemCard> getMilestoneConsole(String boardId, String milestoneId, String userId) {
+        boardService.checkViewerOrAbove(boardId, userId);
+        loadMilestone(boardId, milestoneId);
+        return checklistItemRepository.findAllByMilestoneId(milestoneId).stream()
+                .map(SprintResponse.ItemCard::of)
+                .toList();
+    }
+
     // ==================== 완료 토글 동기화 (ChecklistService에서 호출) ====================
 
     /**

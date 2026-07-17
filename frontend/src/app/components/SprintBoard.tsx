@@ -17,7 +17,6 @@ import {
   Calendar,
   Circle,
   CornerUpLeft,
-  ArrowRight,
   Flag,
   ChevronLeft,
   Eye,
@@ -34,6 +33,7 @@ import {
   PanelLeftOpen,
   Plus,
   X,
+  LayoutGrid,
 } from "lucide-react";
 import { toast } from "sonner";
 import { sprintAPI, checklistAPI, taskAPI, jiraAPI } from "../utils/api";
@@ -56,6 +56,7 @@ import {
 } from "../utils/dateUtils";
 import { MotionModal } from "./ui/MotionModal";
 import { SprintMemberGanttModal } from "./SprintMemberGanttModal";
+import { MilestoneConsoleModal } from "./MilestoneConsoleModal";
 import { JiraOnboardingGuide } from "./JiraOnboardingGuide";
 import type { FilterOptions } from "./FilterModal";
 
@@ -234,6 +235,7 @@ export function SprintBoard({
 
   // 구성원 간트 모달 — 구성원 컬럼 헤더 클릭 시 해당 구성원 id. null이면 닫힘.
   const [ganttMemberId, setGanttMemberId] = useState<string | null>(null);
+  const [consoleOpen, setConsoleOpen] = useState(false);
 
   // 좌측 트리 "보임 필터": 스프린트에 담긴(Sprint·Done 배지) 체크리스트 항목 숨김 토글.
   // 초기값은 localStorage에서 복원(기본 = 보임), 변경 시 저장하여 새로고침해도 유지.
@@ -1252,15 +1254,6 @@ export function SprintBoard({
   const openTask = (taskId: string) => {
     if (taskId !== "__none__") onOpenChecklistItem?.(taskId);
   };
-  // 원클릭 담기 — 드래그 없이 버튼 한 번으로 스프린트(START)에 담는다.
-  // 항목은 자신의 Feature/Task 컬럼으로 자동 배치된다.
-  const addToSprint = (it: SprintItemCard) => {
-    if (!canEdit || !activeSprint || it.sprint_column_id) return;
-    void run(async () => {
-      await sprintAPI.addItem(boardId, activeSprint.id, it.id);
-      return sprintAPI.getSprintBoard(boardId, milestoneId);
-    });
-  };
   // Task 단위 담기 — 태스크의 미담김 항목을 한 번에 스프린트로 올린다.
   // 데이터 모델은 그대로(항목별 sprint_column_id)이며, 기존 addItem을 순차 호출해
   // 백엔드 위치 배정 경쟁을 피하고 마지막에 1회만 보드를 갱신한다.
@@ -1300,8 +1293,10 @@ export function SprintBoard({
     setDragOverCol(null);
   };
 
-  // 카드 → 업무 리스트 드롭 = 스프린트에서 빼기.
-  // 빠진 항목은 sprint_column_id가 비워져 트리의 원래 Feature/Task 자리로 자동 복귀한다.
+  // 카드 → 업무 리스트 드롭 = 스프린트에서 빼기(Task 단위).
+  // 담기가 Task 단위로 원자화됐으므로 빼기도 카드 1개가 아니라 그 카드가 속한
+  // Task의 스프린트 항목 전체를 제거한다. 빠진 항목은 sprint_column_id가 비워져
+  // 트리의 원래 Feature/Task 자리로 자동 복귀한다.
   const onDropList = async (e: React.DragEvent) => {
     e.preventDefault();
     setDragOverList(false);
@@ -1310,7 +1305,24 @@ export function SprintBoard({
     const source = e.dataTransfer.getData(DRAG_SOURCE);
     // 리스트에서 온 항목(backlog)은 이미 리스트에 있으므로 무시
     if (!itemId || source !== "sprint") return;
-    await run(() => sprintAPI.removeItem(boardId, activeSprint.id, itemId));
+    // 드롭된 카드가 속한 Task의 담긴 항목을 모두 모아 한 번에 제거한다.
+    // (task_id가 없는 낱개 항목은 그 항목만 제거.)
+    const allItems = columns.flatMap((c) => c.items);
+    const dropped = allItems.find((i) => i.id === itemId);
+    const taskId = dropped?.task_id ?? null;
+    const targets =
+      taskId != null
+        ? allItems.filter((i) => i.task_id === taskId && i.sprint_column_id)
+        : dropped
+          ? [dropped]
+          : [];
+    if (targets.length === 0) return;
+    await run(async () => {
+      for (const it of targets) {
+        await sprintAPI.removeItem(boardId, activeSprint.id, it.id);
+      }
+      return sprintAPI.getSprintBoard(boardId, milestoneId);
+    });
   };
 
   const onDropColumn = async (e: React.DragEvent, col: SprintColumn) => {
@@ -1650,14 +1662,16 @@ export function SprintBoard({
               외주
             </span>
           )}
-          {/* 빼기 = 왼쪽 업무 리스트로 드래그. 호버 시 액션 버튼에 자리를 내준다. */}
+          {/* 빼기 = 왼쪽 업무 리스트로 드래그. 담기가 Task 단위이므로 이 카드를 끌면
+              같은 태스크가 통째로 빠진다. 호버 시 액션 버튼에 자리를 내준다. */}
           {canEdit && !readOnly && (
             <span
               className="ml-auto inline-flex items-center gap-0.5 text-[9px] font-bold text-slate-600 opacity-100 group-hover:opacity-0 transition-opacity shrink-0"
               aria-hidden="true"
+              title="리스트로 끌면 이 태스크가 통째로 스프린트에서 빠집니다"
             >
               <CornerUpLeft className="w-3 h-3" />
-              리스트로 끌기
+              태스크 빼기
             </span>
           )}
         </div>
@@ -1868,10 +1882,11 @@ export function SprintBoard({
                     <button
                       type="button"
                       onClick={() => openTask(task.taskId)}
-                      className="text-[10px] font-bold text-bridge-accent opacity-0 group-hover/task:opacity-100 transition-opacity shrink-0"
+                      className="shrink-0 w-6 h-6 grid place-items-center rounded text-slate-500 opacity-0 group-hover/task:opacity-100 hover:text-bridge-accent hover:bg-bridge-accent/10 transition-all"
                       title="태스크 열기"
+                      aria-label="태스크 열기"
                     >
-                      열기 ↗
+                      <ExternalLink className="w-3 h-3" />
                     </button>
                   )}
                   {/* 태스크별 진행률 미니바 — 밀린 태스크를 스캔 한 번에 파악 */}
@@ -2779,7 +2794,7 @@ export function SprintBoard({
               >
                 <span className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-bold text-bridge-accent bg-bridge-obsidian/90 border border-bridge-accent/40 rounded-full px-3 py-1.5 shadow-lg">
                   <CornerUpLeft className="w-3.5 h-3.5" />
-                  업무 리스트로 되돌리기 · 원래 자리로
+                  태스크를 리스트로 되돌리기 · 통째로 빼기
                 </span>
               </div>
             )}
@@ -2811,6 +2826,18 @@ export function SprintBoard({
                   )}
                   {showTakenInTree ? "정리된 항목" : "정리된 항목 숨김"}
                 </button>
+                {/* 마일스톤 관리 콘솔 열기 */}
+                {milestoneId && (
+                  <button
+                    type="button"
+                    onClick={() => setConsoleOpen(true)}
+                    title="마일스톤 관리 콘솔"
+                    aria-label="마일스톤 관리 콘솔 열기"
+                    className="shrink-0 inline-grid place-items-center w-7 h-7 rounded-lg border border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:text-bridge-accent hover:border-bridge-accent/40 transition-colors"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                )}
                 {/* 새 피쳐 추가 — 인라인 입력 토글 */}
                 {canEdit && onCreateFeature && (
                   <button
@@ -2839,7 +2866,7 @@ export function SprintBoard({
               </div>
             )}
             {!panelCollapsed && (
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-3">
                 {/* 새 피쳐 인라인 입력 — 제목만 받고 Enter 생성 · Esc 취소 */}
                 {addingFeature && (
                   <div className="flex items-center gap-2 px-2.5 py-2 rounded-xl border border-bridge-accent/50 bg-bridge-accent/[0.06] shadow-[0_0_0_3px_rgba(99,102,241,0.12)]">
@@ -2951,29 +2978,20 @@ export function SprintBoard({
                           </div>
                         )}
                         <div
-                          className={`rounded-xl border overflow-hidden transition-colors ${
-                            bodyOpen
-                              ? "bg-bridge-obsidian border-foreground/[0.08]"
-                              : "border-foreground/[0.08] hover:border-foreground/[0.12] hover:bg-foreground/[0.02]"
-                          } ${allCleared ? "opacity-70" : ""}`}
-                          style={{
-                            borderLeftWidth: 3,
-                            borderLeftColor: featColor,
-                            ...(bodyOpen
-                              ? { boxShadow: `inset 0 0 0 1px ${featColor}30` }
-                              : {}),
-                          }}
+                          className={`transition-opacity ${
+                            allCleared ? "opacity-70" : ""
+                          }`}
                         >
-                          {/* Feature 카드: 좌측 컬러 레일 · 헤더(토글 + 열기) · 헤더 게이지 · 본문 */}
-                          {/* 헤더: 좌측 토글 버튼 + 우측 피쳐 열기 버튼 (버튼 중첩 방지 위해 분리) */}
-                          <div className="flex items-stretch">
+                          {/* Feature 섹션 헤더(납작): 카드 프레임 없이 컬러 점 + 제목 + % + 열기.
+                              계층은 레일 대신 컬러 점과 featColor 헤어라인으로 표현한다. */}
+                          <div className="flex items-center">
                             <button
                               onClick={() =>
                                 allCleared
                                   ? toggleClearedFeature(feat.featureId)
                                   : toggleFeature(feat.featureId)
                               }
-                              className="flex-1 min-w-0 flex items-center gap-2 pl-2 pr-1.5 py-2 text-left hover:bg-foreground/[0.03] transition-colors"
+                              className="flex-1 min-w-0 flex items-center gap-2 px-1.5 py-1.5 rounded-lg text-left hover:bg-foreground/[0.03] transition-colors"
                               title={
                                 allCleared
                                   ? "정리된 항목 · 클릭하면 펼쳐서 볼 수 있어요"
@@ -2985,6 +3003,14 @@ export function SprintBoard({
                               ) : (
                                 <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                               )}
+                              <span
+                                className="w-2 h-2 rounded-[3px] shrink-0"
+                                style={{
+                                  background: allCleared
+                                    ? "#94a3b8"
+                                    : featColor,
+                                }}
+                              />
                               <span
                                 className={`text-xs font-bold truncate flex-1 ${
                                   allCleared
@@ -3029,31 +3055,26 @@ export function SprintBoard({
                                 onClick={() => onOpenFeature(feat.featureId)}
                                 title="피쳐 열기"
                                 aria-label="피쳐 열기"
-                                className="shrink-0 w-9 grid place-items-center text-slate-500 border-l border-foreground/[0.06] hover:text-bridge-accent hover:bg-bridge-accent/[0.08] transition-colors"
+                                className="shrink-0 w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-bridge-accent hover:bg-bridge-accent/[0.08] transition-colors"
                               >
                                 <ExternalLink className="w-3.5 h-3.5" />
                               </button>
                             )}
                           </div>
 
-                          {/* C-1 진행 바: 펼친 카드에서만 헤더 바로 아래 얇은 바(flush). 접힌 요약 줄은 % 숫자로 대체 */}
+                          {/* featColor 헤어라인 — 카드 레일을 대체하는 섹션 구분선(펼친 경우). */}
                           {bodyOpen && (
                             <div
-                              className="h-[3px] bg-foreground/[0.06]"
+                              className="h-px mx-1 mt-0.5 mb-1"
+                              style={{
+                                background: `linear-gradient(90deg, ${featColor}59, transparent)`,
+                              }}
                               title={`완료 ${feat.completed}/${feat.total} · 담김 ${feat.taken}/${feat.total} · ${pct}%`}
-                            >
-                              <div
-                                className="h-full transition-[width] duration-300 motion-reduce:transition-none"
-                                style={{
-                                  width: `${pct}%`,
-                                  background: featColor,
-                                }}
-                              />
-                            </div>
+                            />
                           )}
 
                           {bodyOpen && (
-                            <div className="space-y-2 px-2 pb-2 pt-2">
+                            <div className="space-y-2 pl-2 pr-0.5 pb-2 pt-0.5">
                               {bodyTasks.map(({ task, items }) => {
                                 const hasTask =
                                   task.taskId !== "__none__" &&
@@ -3072,24 +3093,23 @@ export function SprintBoard({
                                   tTotal > 0
                                     ? Math.round((tDone / tTotal) * 100)
                                     : 0;
-                                // 스프린트 담김 상태 — 완료율과 독립적으로 태스크 전체(task.items) 기준.
-                                // none(미담김) / partial(일부) / in(전체). 보임 필터와 무관하게 판정한다.
+                                // 스프린트 담김 상태 — 담기/빼기가 Task 단위로 원자화돼 "부분" 상태는
+                                // 새 플로우에선 발생하지 않는다. 완료율과 독립적으로 태스크 전체 기준 판정.
                                 const tTaken = task.items.filter(
                                   (i) => i.sprint_column_id,
                                 ).length;
                                 const tRemaining = tTotal - tTaken;
-                                const taskSprintState =
-                                  tTaken === 0
-                                    ? "none"
-                                    : tTaken >= tTotal
-                                      ? "in"
-                                      : "partial";
+                                // 전체 담김(모든 항목이 컬럼에 있음). 그 외엔 "담기" 하나로 흡수 —
+                                // 레거시 부분 담김도 한 번 누르면 전체 담김으로 완성된다.
+                                const taskInSprint =
+                                  tTotal > 0 && tTaken >= tTotal;
                                 // Task 담기 버튼 노출: 활성 스프린트 · 편집권한 · 실제 태스크 · 미담김 항목 존재.
                                 // (담기 동작은 태스크 열기 핸들러와 무관하므로 hasTask가 아닌 taskId로 판정)
                                 const showTaskAdd =
                                   canEdit &&
                                   !!activeSprint &&
                                   task.taskId !== "__none__" &&
+                                  !taskInSprint &&
                                   tRemaining > 0;
                                 return (
                                   <div
@@ -3155,39 +3175,24 @@ export function SprintBoard({
                                         {tDone}/{tTotal}
                                       </span>
 
-                                      {/* Task 단위 담기 — none: 전체 담기 / partial: 나머지 담기 / in: 담김 표시.
-                                      항목 단위 세밀 담기는 아래 체크리스트 행 버튼으로 그대로 가능. */}
+                                      {/* Task 단위 담기 — 담기(미담김/레거시 부분) / 담김(전체). 이분법. */}
                                       {showTaskAdd ? (
                                         <button
                                           type="button"
                                           onClick={() =>
                                             addTaskToSprint(task.items)
                                           }
-                                          className={`shrink-0 inline-flex items-center gap-0.5 text-[11px] font-bold rounded-full pl-1 pr-1.5 py-0.5 border transition-all ${
-                                            taskSprintState === "partial"
-                                              ? "bg-amber-500/15 text-amber-500 border-amber-500/30 hover:bg-amber-500 hover:text-white"
-                                              : "bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30 hover:bg-bridge-accent hover:text-white"
-                                          }`}
-                                          title={
-                                            taskSprintState === "partial"
-                                              ? `나머지 ${tRemaining}개 담기 (담김 ${tTaken}/${tTotal})`
-                                              : "태스크 전체를 스프린트에 담기"
-                                          }
-                                          aria-label={
-                                            taskSprintState === "partial"
-                                              ? `나머지 ${tRemaining}개 스프린트에 담기`
-                                              : "태스크 전체 스프린트에 담기"
-                                          }
+                                          className="shrink-0 inline-flex items-center gap-0.5 text-[11px] font-bold rounded-full pl-1 pr-1.5 py-0.5 border bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30 hover:bg-bridge-accent hover:text-white transition-all"
+                                          title="태스크 전체를 스프린트에 담기"
+                                          aria-label="태스크 전체 스프린트에 담기"
                                         >
                                           <Plus
                                             className="w-3 h-3"
                                             strokeWidth={2.5}
                                           />
-                                          {taskSprintState === "partial"
-                                            ? tRemaining
-                                            : "담기"}
+                                          담기
                                         </button>
-                                      ) : taskSprintState === "in" ? (
+                                      ) : taskInSprint ? (
                                         <span
                                           className="shrink-0 inline-flex items-center gap-0.5 text-[11px] font-bold rounded-full px-1.5 py-0.5 bg-bridge-secondary/15 text-bridge-secondary"
                                           title="태스크 전체가 스프린트에 담김"
@@ -3211,15 +3216,11 @@ export function SprintBoard({
                                                 it.sprint_column_id,
                                               )
                                             : undefined;
-                                          // 담기 가능 조건(미담김 · 편집권한). 리스트→보드 드래그는
-                                          // 제거되고, 담기는 호버 버튼(원클릭)으로만 수행한다.
-                                          const canAdd = canEdit && !taken;
+                                          // 담기 단위는 Task로 통일됐다. 체크리스트 개별 담기(원클릭
+                                          // 버튼·드래그)는 제거 — 이 행은 완료 토글·상태 표시·진입만 담당.
                                           const clickable =
                                             !!it.task_id &&
                                             !!onOpenChecklistItem;
-                                          // 원클릭 담기 버튼 노출 조건(미담김 · 편집권한 · 활성 스프린트)
-                                          const showAddBtn =
-                                            canAdd && !!activeSprint;
                                           return (
                                             <div
                                               key={it.id}
@@ -3307,11 +3308,7 @@ export function SprintBoard({
                                                 )}
                                                 {it.assignee && (
                                                   <span
-                                                    className={`w-4 h-4 rounded-full grid place-items-center text-[9px] font-bold text-white shrink-0 ${
-                                                      showAddBtn
-                                                        ? "transition-opacity group-hover:opacity-0"
-                                                        : ""
-                                                    }`}
+                                                    className="w-4 h-4 rounded-full grid place-items-center text-[9px] font-bold text-white shrink-0"
                                                     style={{
                                                       background:
                                                         getAssigneeHex(
@@ -3325,33 +3322,10 @@ export function SprintBoard({
                                                     )}
                                                   </span>
                                                 )}
-                                                {clickable && !showAddBtn && (
+                                                {clickable && (
                                                   <ChevronRight className="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                                                 )}
                                               </span>
-
-                                              {/* E. 원클릭 담기 (오버레이) — 레이아웃 폭을 점유하지 않고 제목 위로 겹침 */}
-                                              {showAddBtn && (
-                                                <>
-                                                  {/* 제목 우측 끝을 행 배경색으로 페이드 → 버튼 뒤로 자연스럽게 사라짐 */}
-                                                  <span
-                                                    aria-hidden="true"
-                                                    className="pointer-events-none absolute inset-y-0 right-0 w-24 rounded-r-lg bg-gradient-to-l from-bridge-dark from-45% to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
-                                                  />
-                                                  <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                      addToSprint(it)
-                                                    }
-                                                    className="absolute right-1.5 top-1/2 -translate-y-1/2 z-10 inline-flex items-center gap-0.5 text-[11px] font-bold rounded-full pl-1 pr-1.5 py-0.5 bg-bridge-accent/15 text-bridge-accent border border-bridge-accent/30 opacity-0 group-hover:opacity-100 hover:bg-bridge-accent hover:text-white transition-all"
-                                                    title="스프린트에 담기"
-                                                    aria-label="스프린트에 담기"
-                                                  >
-                                                    <ArrowRight className="w-3 h-3" />
-                                                    스프린트
-                                                  </button>
-                                                </>
-                                              )}
                                             </div>
                                           );
                                         })}
@@ -3893,6 +3867,20 @@ export function SprintBoard({
         onOpenChecklistItem={onOpenChecklistItem}
         onSaved={silentReload}
       />
+      {milestoneId && (
+        <MilestoneConsoleModal
+          open={consoleOpen}
+          onClose={() => {
+            setConsoleOpen(false);
+            silentReload();
+          }}
+          boardId={boardId}
+          milestoneId={milestoneId}
+          milestoneTitle={milestones.find((m) => m.id === milestoneId)?.title}
+          canEdit={canEdit}
+          onOpenChecklistItem={onOpenChecklistItem}
+        />
+      )}
     </div>
   );
 }

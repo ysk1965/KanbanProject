@@ -3620,6 +3620,26 @@ export const sprintAPI = {
     );
   },
 
+  /** 마일스톤 관리 콘솔 — 마일스톤 전체 체크리스트(스프린트 무관) */
+  getMilestoneConsole: async (boardId: string, milestoneId: string) => {
+    return apiClient.get<SprintItemCard[]>(
+      `/boards/${boardId}/milestones/${milestoneId}/console`,
+    );
+  },
+
+  /** 체크리스트 항목을 다른 Task로 이동 (콘솔 DnD — 피쳐가 바뀔 수 있음) */
+  moveChecklistTask: async (
+    boardId: string,
+    taskId: string,
+    itemId: string,
+    targetTaskId: string,
+  ) => {
+    return apiClient.put<void>(
+      `/boards/${boardId}/tasks/${taskId}/checklist/${itemId}/move-task`,
+      { target_task_id: targetTaskId },
+    );
+  },
+
   /** 스프린트 모드 on/off (관리자) — off 시 담긴 카드 병합 */
   toggleSprintMode: async (
     boardId: string,
