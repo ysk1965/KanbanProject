@@ -3124,6 +3124,9 @@ export function KanbanBoardPage() {
             onItemDetailClick={handleChecklistItemDetailClick}
             onOpenContractorManager={handleOpenContractorManager}
             onMilestoneClick={handleOpenMilestoneWithCheck}
+            onUpdateMilestoneDates={
+              canEdit ? handleUpdateMilestoneDates : undefined
+            }
           />
         ) : viewMode === "calendar" ? (
           <main className="flex-1 flex flex-col overflow-hidden">

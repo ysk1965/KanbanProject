@@ -122,6 +122,12 @@ interface ScheduleResourceViewProps {
   highlightedTaskId?: string | null;
   /** 바 우클릭 메뉴에서 하이라이트 토글 */
   onToggleHighlight?: (taskId: string) => void;
+  /** 마일스톤 밴드 바 드래그/리사이즈로 기간 조정 (없으면 읽기전용 — 드래그 비활성) */
+  onUpdateMilestoneDates?: (
+    id: string,
+    start_date: string,
+    end_date: string,
+  ) => void | Promise<void>;
 }
 
 /** 빈 행을 드래그해 업무 생성 바를 그리는 중의 상태 */
@@ -150,6 +156,19 @@ interface DragState {
   targetRowIndex: number;
   /** Cross-row drag: target row's assignee ID */
   targetAssigneeId: string | null;
+}
+
+/** 상단 밴드(마일스톤/이벤트) 바 이동·리사이즈 드래그 상태 */
+interface BandDragState {
+  kind: "milestone" | "event";
+  id: string;
+  /** 원본 시작/종료일 (드래그 델타 적용 전) */
+  startDate: string;
+  endDate: string;
+  dragType: "move" | "resize-left" | "resize-right";
+  /** mousedown 시점 커서의 일(day) 컬럼 인덱스 (그리드 스냅 기준) */
+  initialCursorDayIndex: number;
+  currentDeltaDays: number;
 }
 
 interface TooltipState {
@@ -251,6 +270,7 @@ export function ScheduleResourceView({
   features = [],
   highlightedTaskId = null,
   onToggleHighlight,
+  onUpdateMilestoneDates,
 }: ScheduleResourceViewProps) {
   const { t, i18n } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -400,6 +420,15 @@ export function ScheduleResourceView({
     currentDayIndex: number;
   } | null>(null);
   const eventDrawRef = useRef<typeof eventDraw>(null);
+  // ─── 상단 밴드(마일스톤/이벤트) 바 이동·리사이즈 드래그 상태 ───
+  const [bandDrag, setBandDrag] = useState<BandDragState | null>(null);
+  const bandDragRef = useRef<BandDragState | null>(null);
+  /** 밴드 바 드래그 후 click(모달 오픈) 방지용 ref */
+  const bandWasDraggedRef = useRef(false);
+  /** 마일스톤 바 낙관적 기간 오버라이드 (저장 왕복 중 깜빡임 방지) */
+  const [milestoneDateOverride, setMilestoneDateOverride] = useState<
+    Record<string, { start_date: string; end_date: string }>
+  >({});
   /** 그리기 완료 후 업무 생성 모달 (확정된 기간/행) */
   const [pendingCreate, setPendingCreate] = useState<{
     rowId: string;
@@ -1097,11 +1126,37 @@ export function ScheduleResourceView({
     return milestones
       .filter((m) => m.start_date && m.end_date)
       .map((m) => {
-        const pos = getBarPosition(m.start_date, m.end_date);
-        return { milestone: m, pos };
+        // 저장 왕복 중에는 낙관적 오버라이드 기간으로 표시
+        const ov = milestoneDateOverride[m.id];
+        const startDate = ov?.start_date ?? m.start_date;
+        const endDate = ov?.end_date ?? m.end_date;
+        const pos = getBarPosition(startDate, endDate);
+        return { milestone: m, pos, startDate, endDate };
       })
       .filter((d) => d.pos !== null);
-  }, [milestones, getBarPosition]);
+  }, [milestones, milestoneDateOverride, getBarPosition]);
+
+  // 마일스톤 prop 이 오버라이드와 일치하면(=저장 반영됨) 오버라이드 정리
+  useEffect(() => {
+    setMilestoneDateOverride((prev) => {
+      const ids = Object.keys(prev);
+      if (ids.length === 0) return prev;
+      let changed = false;
+      const next = { ...prev };
+      for (const id of ids) {
+        const m = milestones.find((x) => x.id === id);
+        if (
+          m &&
+          m.start_date === prev[id].start_date &&
+          m.end_date === prev[id].end_date
+        ) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [milestones]);
 
   // 마일스톤 id → 색 (배열 순서 기준 — 다른 뷰와 동일)
   const milestoneColorMap = useMemo(
@@ -1695,6 +1750,180 @@ export function ScheduleResourceView({
     [dragState, getBarPosition],
   );
 
+  // ─── 상단 밴드(마일스톤/이벤트) 바 이동·리사이즈 ───
+  /** 드래그 델타를 원본 기간에 적용 (역전 방지 · 최소 1일) */
+  const applyBandDelta = useCallback(
+    (
+      startDate: string,
+      endDate: string,
+      dragType: BandDragState["dragType"],
+      deltaDays: number,
+    ): { start: string; end: string } => {
+      let start = startDate;
+      let end = endDate;
+      if (dragType === "move") {
+        start = addDaysToDate(startDate, deltaDays);
+        end = addDaysToDate(endDate, deltaDays);
+      } else if (dragType === "resize-left") {
+        start = addDaysToDate(startDate, deltaDays);
+        if (diffDays(start, end) < 0) start = end;
+      } else if (dragType === "resize-right") {
+        end = addDaysToDate(endDate, deltaDays);
+        if (diffDays(start, end) < 0) end = start;
+      }
+      return { start, end };
+    },
+    [],
+  );
+
+  /** 드래그 중인 밴드 바의 실시간 위치 (없으면 원본 기간 위치) */
+  const computeBandBarPosition = useCallback(
+    (
+      kind: BandDragState["kind"],
+      id: string,
+      origStart: string,
+      origEnd: string,
+    ) => {
+      const ds = bandDrag;
+      if (!ds || ds.kind !== kind || ds.id !== id)
+        return getBarPosition(origStart, origEnd);
+      const { start, end } = applyBandDelta(
+        ds.startDate,
+        ds.endDate,
+        ds.dragType,
+        ds.currentDeltaDays,
+      );
+      return getBarPosition(start, end);
+    },
+    [bandDrag, applyBandDelta, getBarPosition],
+  );
+
+  const handleBandBarMouseDown = useCallback(
+    (
+      e: React.MouseEvent,
+      kind: BandDragState["kind"],
+      id: string,
+      startDate: string,
+      endDate: string,
+      dragType: BandDragState["dragType"],
+    ) => {
+      if (e.button !== 0) return;
+      // 마일스톤은 편집 콜백이 없으면(읽기전용) 드래그 비활성
+      if (kind === "milestone" && !onUpdateMilestoneDates) return;
+      e.stopPropagation();
+      e.preventDefault();
+
+      const container = scrollContainerRef.current;
+      const containerRect = container?.getBoundingClientRect();
+      const scrollLeft = container?.scrollLeft || 0;
+      const cursorContentX =
+        e.clientX - (containerRect?.left || 0) - LEFT_COL_WIDTH + scrollLeft;
+      const initialCursorDayIndex = Math.floor(cursorContentX / dayWidth);
+
+      const next: BandDragState = {
+        kind,
+        id,
+        startDate,
+        endDate,
+        dragType,
+        initialCursorDayIndex,
+        currentDeltaDays: 0,
+      };
+      bandDragRef.current = next;
+      bandWasDraggedRef.current = false;
+      setBandDrag(next);
+      document.body.style.userSelect = "none";
+      document.body.style.cursor =
+        dragType === "move" ? "grabbing" : "ew-resize";
+
+      const handleMove = (moveEvent: MouseEvent) => {
+        const ds = bandDragRef.current;
+        if (!ds) return;
+        const cont = scrollContainerRef.current;
+        const rect = cont?.getBoundingClientRect();
+        const sl = cont?.scrollLeft || 0;
+        const contentX =
+          moveEvent.clientX - (rect?.left || 0) - LEFT_COL_WIDTH + sl;
+        const currentDayIndex = Math.floor(contentX / dayWidth);
+        const deltaDays = currentDayIndex - ds.initialCursorDayIndex;
+        if (deltaDays === ds.currentDeltaDays) return;
+        bandWasDraggedRef.current = true;
+        const updated = { ...ds, currentDeltaDays: deltaDays };
+        bandDragRef.current = updated;
+        setBandDrag(updated);
+      };
+
+      const handleUp = async () => {
+        document.removeEventListener("mousemove", handleMove);
+        document.removeEventListener("mouseup", handleUp);
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+
+        const ds = bandDragRef.current;
+        bandDragRef.current = null;
+        if (!ds || ds.currentDeltaDays === 0) {
+          setBandDrag(null);
+          return;
+        }
+
+        const { start, end } = applyBandDelta(
+          ds.startDate,
+          ds.endDate,
+          ds.dragType,
+          ds.currentDeltaDays,
+        );
+
+        if (ds.kind === "milestone") {
+          // 낙관적 오버라이드 → 저장(부모가 milestones prop 갱신) → 효과에서 정리
+          setMilestoneDateOverride((prev) => ({
+            ...prev,
+            [ds.id]: { start_date: start, end_date: end },
+          }));
+          setBandDrag(null);
+          try {
+            await onUpdateMilestoneDates?.(ds.id, start, end);
+          } catch {
+            // 실패 시 오버라이드 제거 → 원본 기간으로 복원
+            setMilestoneDateOverride((prev) => {
+              const n = { ...prev };
+              delete n[ds.id];
+              return n;
+            });
+          }
+        } else {
+          // 이벤트: 로컬 상태 낙관적 갱신 후 저장, 실패 시 재조회
+          setBandDrag(null);
+          setCalendarEvents((prev) =>
+            prev.map((ev) =>
+              ev.id === ds.id
+                ? { ...ev, start_date: start, end_date: end }
+                : ev,
+            ),
+          );
+          try {
+            await calendarEventAPI.update(boardId, ds.id, {
+              start_date: start,
+              end_date: end,
+            });
+          } catch (err) {
+            console.warn("Failed to update calendar event dates", err);
+            reloadCalendarEvents();
+          }
+        }
+      };
+
+      document.addEventListener("mousemove", handleMove);
+      document.addEventListener("mouseup", handleUp);
+    },
+    [
+      onUpdateMilestoneDates,
+      dayWidth,
+      applyBandDelta,
+      boardId,
+      reloadCalendarEvents,
+    ],
+  );
+
   // ─── Header drag-to-scroll ───
   const headerDragRef = useRef<{
     isDown: boolean;
@@ -2029,33 +2258,98 @@ export function ScheduleResourceView({
                 })}
 
                 {/* Milestone bars */}
-                {milestoneBarData.map(
-                  ({ milestone, pos }) =>
-                    pos && (
-                      <div
-                        key={milestone.id}
-                        className="absolute rounded-lg flex items-center px-2 text-xs font-medium
-                        text-white hover:shadow-lg transition-all cursor-pointer"
-                        style={{
-                          left: pos.left,
-                          width: pos.width,
-                          top: bandBarTop(
-                            milestoneLanes[milestone.id] || 0,
-                            milestoneLaneCount,
-                          ),
-                          height: BAND_BAR_HEIGHT,
-                          backgroundColor: resolveMilestoneColor(
-                            milestone.id,
-                            milestoneColorMap,
-                          ).hex,
-                        }}
-                        title={`${milestone.title} (${milestone.start_date} ~ ${milestone.end_date})`}
-                        onClick={() => onMilestoneClick?.(milestone)}
-                      >
-                        <span className="truncate">{milestone.title}</span>
-                      </div>
-                    ),
-                )}
+                {milestoneBarData.map(({ milestone, startDate, endDate }) => {
+                  const editable = !!onUpdateMilestoneDates;
+                  const pos = computeBandBarPosition(
+                    "milestone",
+                    milestone.id,
+                    startDate,
+                    endDate,
+                  );
+                  if (!pos) return null;
+                  const isDragging =
+                    bandDrag?.kind === "milestone" &&
+                    bandDrag.id === milestone.id;
+                  return (
+                    <div
+                      key={milestone.id}
+                      data-bar="true"
+                      className={`absolute rounded-lg flex items-center px-2 text-xs font-medium
+                        text-white transition-shadow overflow-hidden
+                        ${editable ? "cursor-grab" : "cursor-pointer"}
+                        ${isDragging ? "shadow-lg ring-2 ring-white/60 z-30" : "hover:shadow-lg"}`}
+                      style={{
+                        left: pos.left,
+                        width: pos.width,
+                        top: bandBarTop(
+                          milestoneLanes[milestone.id] || 0,
+                          milestoneLaneCount,
+                        ),
+                        height: BAND_BAR_HEIGHT,
+                        backgroundColor: resolveMilestoneColor(
+                          milestone.id,
+                          milestoneColorMap,
+                        ).hex,
+                      }}
+                      title={`${milestone.title} (${startDate} ~ ${endDate})`}
+                      onMouseDown={(e) => {
+                        if ((e.target as HTMLElement).dataset.resizeHandle)
+                          return;
+                        handleBandBarMouseDown(
+                          e,
+                          "milestone",
+                          milestone.id,
+                          startDate,
+                          endDate,
+                          "move",
+                        );
+                      }}
+                      onClick={() => {
+                        if (bandWasDraggedRef.current) {
+                          bandWasDraggedRef.current = false;
+                          return;
+                        }
+                        onMilestoneClick?.(milestone);
+                      }}
+                    >
+                      {editable && (
+                        <div
+                          data-resize-handle="true"
+                          className="absolute top-0 left-0 w-2 h-full cursor-ew-resize
+                            hover:bg-white/30 rounded-l-lg"
+                          onMouseDown={(e) =>
+                            handleBandBarMouseDown(
+                              e,
+                              "milestone",
+                              milestone.id,
+                              startDate,
+                              endDate,
+                              "resize-left",
+                            )
+                          }
+                        />
+                      )}
+                      <span className="truncate flex-1">{milestone.title}</span>
+                      {editable && (
+                        <div
+                          data-resize-handle="true"
+                          className="absolute top-0 right-0 w-2 h-full cursor-ew-resize
+                            hover:bg-white/30 rounded-r-lg"
+                          onMouseDown={(e) =>
+                            handleBandBarMouseDown(
+                              e,
+                              "milestone",
+                              milestone.id,
+                              startDate,
+                              endDate,
+                              "resize-right",
+                            )
+                          }
+                        />
+                      )}
+                    </div>
+                  );
+                })}
 
                 {/* Hatching overlays (milestone row) */}
                 {timelineDays.map((day, idx) => {
@@ -2143,19 +2437,28 @@ export function ScheduleResourceView({
                 })}
 
                 {/* Event chips */}
-                {teamEventBarData.map(({ event, pos }) => {
+                {teamEventBarData.map(({ event }) => {
+                  const pos = computeBandBarPosition(
+                    "event",
+                    event.id,
+                    event.start_date,
+                    event.end_date,
+                  );
                   if (!pos) return null;
                   const meta = calendarTypeMeta(event.event_type);
                   const singleDay = event.start_date === event.end_date;
                   const narrow = pos.width < 40;
+                  const isDragging =
+                    bandDrag?.kind === "event" && bandDrag.id === event.id;
                   return (
                     <div
                       key={event.id}
                       data-bar="true"
                       className={`absolute rounded-lg flex items-center gap-1 ${
                         narrow ? "px-1" : "px-2"
-                      } text-xs font-medium text-white
-                        hover:shadow-lg transition-all cursor-pointer overflow-hidden`}
+                      } text-xs font-medium text-white transition-shadow
+                        cursor-grab overflow-hidden
+                        ${isDragging ? "shadow-lg ring-2 ring-white/60 z-30" : "hover:shadow-lg"}`}
                       style={{
                         left: pos.left,
                         width: pos.width,
@@ -2171,13 +2474,60 @@ export function ScheduleResourceView({
                       } (${event.start_date}${
                         singleDay ? "" : " ~ " + event.end_date
                       })`}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onClick={() => openEventModal(undefined, event)}
+                      onMouseDown={(e) => {
+                        if ((e.target as HTMLElement).dataset.resizeHandle)
+                          return;
+                        handleBandBarMouseDown(
+                          e,
+                          "event",
+                          event.id,
+                          event.start_date,
+                          event.end_date,
+                          "move",
+                        );
+                      }}
+                      onClick={() => {
+                        if (bandWasDraggedRef.current) {
+                          bandWasDraggedRef.current = false;
+                          return;
+                        }
+                        openEventModal(undefined, event);
+                      }}
                     >
+                      <div
+                        data-resize-handle="true"
+                        className="absolute top-0 left-0 w-2 h-full cursor-ew-resize
+                          hover:bg-white/30 rounded-l-lg z-10"
+                        onMouseDown={(e) =>
+                          handleBandBarMouseDown(
+                            e,
+                            "event",
+                            event.id,
+                            event.start_date,
+                            event.end_date,
+                            "resize-left",
+                          )
+                        }
+                      />
                       <span className="shrink-0">{meta.icon}</span>
                       <span className="truncate">
                         {event.title || meta.label}
                       </span>
+                      <div
+                        data-resize-handle="true"
+                        className="absolute top-0 right-0 w-2 h-full cursor-ew-resize
+                          hover:bg-white/30 rounded-r-lg z-10"
+                        onMouseDown={(e) =>
+                          handleBandBarMouseDown(
+                            e,
+                            "event",
+                            event.id,
+                            event.start_date,
+                            event.end_date,
+                            "resize-right",
+                          )
+                        }
+                      />
                     </div>
                   );
                 })}
