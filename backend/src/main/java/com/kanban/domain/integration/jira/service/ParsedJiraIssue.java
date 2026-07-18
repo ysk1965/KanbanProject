@@ -15,6 +15,7 @@ public record ParsedJiraIssue(
     String description,         // ADF → 평문
     String statusId,
     String statusName,          // "1. 할 일"
+    String statusCategory,      // statusCategory.key: new / indeterminate / done (반려 역행 판정용)
     String priorityName,        // "Normal"
     List<String> componentNames,// ["QA"]
     List<String> labels,

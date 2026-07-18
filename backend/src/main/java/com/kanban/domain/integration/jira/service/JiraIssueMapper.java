@@ -40,6 +40,7 @@ public class JiraIssueMapper {
             JiraAdfConverter.toPlainText(fields.get("description")),
             status.path("id").asText(null),
             textOrNull(status, "name"),
+            textOrNull(status.path("statusCategory"), "key"),
             priority.isMissingNode() || priority.isNull() ? null : textOrNull(priority, "name"),
             names(fields.get("components")),
             strings(fields.get("labels")),
