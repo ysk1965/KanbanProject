@@ -9,6 +9,7 @@ import {
   CheckSquare,
   Square,
   Check,
+  ChevronDown,
 } from "lucide-react";
 import { MotionModal } from "./ui/MotionModal";
 import type { SprintItemCard } from "../types";
@@ -97,6 +98,14 @@ export function MilestoneConsoleModal({
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [unassignedOnly, setUnassignedOnly] = useState(false);
   const [memberFilter, setMemberFilter] = useState<string | null>(null);
+  const [memberMenuOpen, setMemberMenuOpen] = useState(false);
+  const memberMenuRef = useRef<HTMLDivElement | null>(null);
+  // 완료 여부: all(전체) / done(완료만) / todo(미완료만)
+  const [completionFilter, setCompletionFilter] = useState<
+    "all" | "done" | "todo"
+  >("all");
+  const [completionMenuOpen, setCompletionMenuOpen] = useState(false);
+  const completionMenuRef = useRef<HTMLDivElement | null>(null);
 
   // DnD
   const dragRef = useRef<{ id: string; taskId: string } | null>(null);
@@ -215,11 +224,29 @@ export function MilestoneConsoleModal({
     return Array.from(s).sort((a, b) => a.localeCompare(b, "ko"));
   }, [items]);
 
-  const cycleMember = () => {
-    const cycle = [null, ...memberOptions];
-    const cur = cycle.indexOf(memberFilter);
-    setMemberFilter(cycle[(cur + 1) % cycle.length]);
-  };
+  // 담당자 드롭다운 바깥 클릭 시 닫기
+  useEffect(() => {
+    if (!memberMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!memberMenuRef.current?.contains(e.target as Node)) {
+        setMemberMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [memberMenuOpen]);
+
+  // 완료 여부 드롭다운 바깥 클릭 시 닫기
+  useEffect(() => {
+    if (!completionMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!completionMenuRef.current?.contains(e.target as Node)) {
+        setCompletionMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [completionMenuOpen]);
 
   const match = useCallback(
     (it: SprintItemCard): boolean => {
@@ -228,6 +255,8 @@ export function MilestoneConsoleModal({
         if (!d || d.urgency !== "overdue") return false;
       }
       if (unassignedOnly && (it.assignee || it.contractor)) return false;
+      if (completionFilter === "done" && !it.completed) return false;
+      if (completionFilter === "todo" && it.completed) return false;
       if (memberFilter && assigneeName(it) !== memberFilter) return false;
       if (q.trim()) {
         const hay = `${it.title} ${it.task_title ?? ""}`.toLowerCase();
@@ -235,7 +264,7 @@ export function MilestoneConsoleModal({
       }
       return true;
     },
-    [overdueOnly, unassignedOnly, memberFilter, q],
+    [overdueOnly, unassignedOnly, completionFilter, memberFilter, q],
   );
 
   const selectedFeatures = useMemo(
@@ -407,7 +436,7 @@ export function MilestoneConsoleModal({
       onClose={onClose}
       accentColor
       aria-label="마일스톤 관리 콘솔"
-      className="sm:max-w-[1440px] w-full p-0 overflow-hidden max-h-[94dvh] flex flex-col"
+      className="sm:max-w-[1440px] w-full p-0 overflow-hidden h-[92dvh] max-h-[92dvh] flex flex-col"
     >
       {/* Header */}
       <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08] shrink-0">
@@ -476,25 +505,150 @@ export function MilestoneConsoleModal({
         >
           <UserX className="w-3 h-3" /> 미배정
         </button>
-        <button
-          type="button"
-          onClick={cycleMember}
-          className={filterBtn(!!memberFilter)}
-        >
-          {memberFilter ? (
-            <>
-              <span
-                className="inline-grid place-items-center w-4 h-4 rounded-full text-[9px] font-bold text-white"
-                style={{ background: getAssigneeHex(memberFilter) }}
-              >
-                {getInitials(memberFilter)}
-              </span>
-              {memberFilter}
-            </>
-          ) : (
-            "담당자: 전체 ▾"
+        <div className="relative shrink-0" ref={completionMenuRef}>
+          <button
+            type="button"
+            onClick={() => setCompletionMenuOpen((v) => !v)}
+            className={filterBtn(completionFilter !== "all")}
+            aria-haspopup="listbox"
+            aria-expanded={completionMenuOpen}
+          >
+            {completionFilter === "done" ? (
+              <>
+                <CheckSquare className="w-3 h-3" /> 완료만
+              </>
+            ) : completionFilter === "todo" ? (
+              <>
+                <Square className="w-3 h-3" /> 미완료만
+              </>
+            ) : (
+              <>
+                <CheckSquare className="w-3 h-3" /> 완료: 전체
+              </>
+            )}
+            <ChevronDown className="w-3 h-3 opacity-70" />
+          </button>
+          {completionMenuOpen && (
+            <div
+              role="listbox"
+              className="absolute left-0 top-full mt-1 z-20 min-w-[150px] rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-2xl py-1"
+            >
+              {(
+                [
+                  { key: "all", label: "완료: 전체", Icon: CheckSquare },
+                  { key: "done", label: "완료만", Icon: CheckSquare },
+                  { key: "todo", label: "미완료만", Icon: Square },
+                ] as const
+              ).map(({ key, label, Icon }) => {
+                const active = completionFilter === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    onClick={() => {
+                      setCompletionFilter(key);
+                      setCompletionMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left text-slate-300 hover:bg-foreground/5 transition-colors"
+                  >
+                    <span className="w-4 h-4 shrink-0">
+                      {active && (
+                        <Check className="w-3.5 h-3.5 text-bridge-accent" />
+                      )}
+                    </span>
+                    <Icon className="w-3 h-3 shrink-0 opacity-70" />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           )}
-        </button>
+        </div>
+        <div className="relative shrink-0" ref={memberMenuRef}>
+          <button
+            type="button"
+            onClick={() => setMemberMenuOpen((v) => !v)}
+            className={filterBtn(!!memberFilter)}
+            aria-haspopup="listbox"
+            aria-expanded={memberMenuOpen}
+          >
+            {memberFilter ? (
+              <>
+                <span
+                  className="inline-grid place-items-center w-4 h-4 rounded-full text-[9px] font-bold text-white"
+                  style={{ background: getAssigneeHex(memberFilter) }}
+                >
+                  {getInitials(memberFilter)}
+                </span>
+                {memberFilter}
+              </>
+            ) : (
+              "담당자: 전체"
+            )}
+            <ChevronDown className="w-3 h-3 opacity-70" />
+          </button>
+          {memberMenuOpen && (
+            <div
+              role="listbox"
+              className="absolute left-0 top-full mt-1 z-20 min-w-[180px] max-h-[280px] overflow-y-auto custom-scrollbar rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-2xl py-1"
+            >
+              <button
+                type="button"
+                role="option"
+                aria-selected={!memberFilter}
+                onClick={() => {
+                  setMemberFilter(null);
+                  setMemberMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left text-slate-300 hover:bg-foreground/5 transition-colors"
+              >
+                <span className="w-4 h-4 shrink-0">
+                  {!memberFilter && (
+                    <Check className="w-3.5 h-3.5 text-bridge-accent" />
+                  )}
+                </span>
+                담당자: 전체
+              </button>
+              {memberOptions.length === 0 ? (
+                <div className="px-3 py-1.5 text-xs text-slate-500">
+                  담당자 없음
+                </div>
+              ) : (
+                memberOptions.map((name) => {
+                  const active = memberFilter === name;
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      role="option"
+                      aria-selected={active}
+                      onClick={() => {
+                        setMemberFilter(name);
+                        setMemberMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left text-slate-300 hover:bg-foreground/5 transition-colors"
+                    >
+                      <span className="w-4 h-4 shrink-0">
+                        {active && (
+                          <Check className="w-3.5 h-3.5 text-bridge-accent" />
+                        )}
+                      </span>
+                      <span
+                        className="inline-grid place-items-center w-4 h-4 rounded-full text-[9px] font-bold text-white shrink-0"
+                        style={{ background: getAssigneeHex(name) }}
+                      >
+                        {getInitials(name)}
+                      </span>
+                      <span className="truncate">{name}</span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
         <span className="ml-auto text-xs text-slate-500 tabular-nums">
           {total > 0 ? `표시 ${shown} / ${total}` : ""}
         </span>
@@ -552,7 +706,7 @@ export function MilestoneConsoleModal({
       </div>
 
       {/* Board */}
-      <div className="flex-1 overflow-auto bg-foreground/[0.02] p-4 min-h-[420px]">
+      <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden bg-foreground/[0.02] p-4">
         {loading && items.length === 0 ? (
           <div className="h-full grid place-items-center">
             <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
@@ -562,7 +716,7 @@ export function MilestoneConsoleModal({
             위에서 피쳐 칩을 하나 이상 선택하세요
           </div>
         ) : (
-          <div className="flex gap-3 items-start min-h-full">
+          <div className="flex gap-3 items-stretch h-full">
             {selectedFeatures.map((f) => {
               const color = featureColor(f);
               return f.tasks.map((task) => {
@@ -597,14 +751,14 @@ export function MilestoneConsoleModal({
                         dragRef.current = null;
                       }
                     }}
-                    className={`w-72 shrink-0 bg-bridge-obsidian rounded-xl border flex flex-col max-h-[68dvh] transition-colors ${
+                    className={`w-72 shrink-0 bg-bridge-obsidian rounded-xl border flex flex-col min-h-0 transition-colors ${
                       isOver
                         ? "border-bridge-accent ring-2 ring-bridge-accent/40"
                         : "border-foreground/[0.08]"
                     }`}
                     style={{ borderTopColor: color, borderTopWidth: 3 }}
                   >
-                    <div className="px-4 py-3 border-b border-foreground/[0.06]">
+                    <div className="px-4 py-3 border-b border-foreground/[0.06] shrink-0">
                       {multi && (
                         <div
                           className="flex items-center gap-1.5 text-[11px] font-bold mb-1.5"
@@ -630,7 +784,7 @@ export function MilestoneConsoleModal({
                         {done}/{task.items.length} · {pct}%
                       </div>
                     </div>
-                    <div className="p-2 flex flex-col gap-2 overflow-y-auto custom-scrollbar">
+                    <div className="p-2 flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar">
                       {vis.length === 0 ? (
                         <div className="text-xs text-slate-400 text-center py-3 border border-dashed border-foreground/10 rounded-lg">
                           {task.items.length
