@@ -20,6 +20,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.Mac;
@@ -187,8 +189,29 @@ public class JiraOAuthService {
         String token = resolveToken(config);
         try {
             new JiraApiClientProbe().verifyProject(cloudId, token, projectKey);
+        } catch (HttpStatusCodeException e) {
+            // Atlassian이 비-2xx 반환 → RestTemplate 기본 핸들러가 HttpClientErrorException/HttpServerErrorException를 던진다.
+            // BusinessException만 잡으면 이게 그대로 새어나가 500이 되므로 상태코드별로 명시 매핑한다.
+            int status = e.getStatusCode().value();
+            String body = e.getResponseBodyAsString();
+            log.warn("JIRA 프로젝트 검증 실패 board={} cloudId={} projectKey={} status={} body={}",
+                boardId, cloudId, projectKey, status, body);
+            if (status == 401 || status == 403) {
+                // 토큰 만료·스코프 불일치(예: "scope does not match") → 재인증 필요
+                // (예외로 트랜잭션이 롤백되므로 lastError는 저장하지 않는다.)
+                throw new BusinessException(ErrorCode.JIRA_AUTH_FAILED, "JIRA 권한/스코프 오류 — 연결을 해제하고 다시 인증하세요");
+            }
+            if (status == 404) {
+                throw new BusinessException(ErrorCode.JIRA_PROJECT_NOT_FOUND);
+            }
+            throw new BusinessException(ErrorCode.JIRA_API_ERROR);
         } catch (BusinessException e) {
             throw new BusinessException(ErrorCode.JIRA_PROJECT_NOT_FOUND);
+        } catch (RestClientException e) {
+            // 타임아웃·네트워크 오류(ResourceAccessException 등)
+            log.warn("JIRA 프로젝트 검증 통신 실패 board={} cloudId={} projectKey={}: {}",
+                boardId, cloudId, projectKey, e.getMessage());
+            throw new BusinessException(ErrorCode.JIRA_CONNECTION_FAILED);
         }
         config.finalizeOAuthTarget(normalizeHost(baseUrl), cloudId, projectKey);
         log.info("JIRA OAuth finalized for board {} → {} / {}", boardId, cloudId, projectKey);
