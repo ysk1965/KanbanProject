@@ -129,6 +129,9 @@ public class ChecklistService {
 
         checklistItemRepository.save(item);
 
+        // 태스크 단위 스프린트 편입: 부모 태스크가 이미 활성 스프린트에 담겨 있으면 새 항목도 자동으로 담는다.
+        sprintService.inheritSprintForNewItem(item);
+
         // 활동 로그 기록
         User creator = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -532,6 +535,9 @@ public class ChecklistService {
 
         checklistItemRepository.save(item);
 
+        // 태스크 단위 스프린트 편입: 대상 태스크가 이미 활성 스프린트에 담겨 있으면 새 항목도 자동으로 담는다.
+        sprintService.inheritSprintForNewItem(item);
+
         User creator = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
@@ -689,6 +695,9 @@ public class ChecklistService {
         int newPosition = (maxPosition != null) ? maxPosition + 1 : 0;
 
         item.moveToTask(targetTask, newPosition);
+
+        // 태스크 단위 스프린트 재정합: 대상 태스크의 스프린트 편입 여부에 맞춰 항목의 스프린트를 조정한다.
+        sprintService.reconcileSprintAfterMove(item);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));

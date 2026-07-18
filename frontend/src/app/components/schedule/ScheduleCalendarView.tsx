@@ -145,8 +145,8 @@ function computeBarSegments(items: BarItem[], weeks: Date[][]): BarSegment[][] {
 
 // 셀 높이에 맞춰 표시할 바 개수를 동적으로 결정 (최소 3, 상한 없음 — 셀에 들어가는 만큼)
 const MIN_VISIBLE_BARS = 3;
-const BAR_HEIGHT = 18;
-const BAR_GAP = 2;
+const BAR_HEIGHT = 25;
+const BAR_GAP = 4;
 const HEADER_HEIGHT = 28;
 const MORE_LABEL_HEIGHT = 16;
 
@@ -274,9 +274,15 @@ export function ScheduleCalendarView({
 
   const showHolidayLayer = !hiddenLayers.has("holiday");
 
-  // ------ 셀 높이 기반 동적 표시 개수 (최대 4, 셀 작아지면 감소) ------
+  // ------ 셀 높이 기반 동적 표시 개수 ------
+  // full: "+N more" 라벨 없이 물리적으로 들어가는 최대 바 개수
+  // withLabel: 넘쳐서 라벨 자리를 확보해야 할 때 표시 가능한 바 개수
+  // → 실제로 넘칠 때만 라벨 높이를 차감하므로 공간을 낭비하지 않고, 넘칠 때만 정확히 "+N" 표시
   const rowGroupRef = useRef<HTMLDivElement>(null);
-  const [maxVisibleBars, setMaxVisibleBars] = useState(MIN_VISIBLE_BARS);
+  const [barFit, setBarFit] = useState({
+    full: MIN_VISIBLE_BARS,
+    withLabel: MIN_VISIBLE_BARS,
+  });
   useEffect(() => {
     const el = rowGroupRef.current;
     if (!el) return;
@@ -284,9 +290,18 @@ export function ScheduleCalendarView({
       const rowCount = weeks.length || 1;
       const rowH = el.clientHeight / rowCount;
       if (rowH <= 0) return; // 레이아웃 미확정 시 기존값 유지
-      const usable = rowH - HEADER_HEIGHT - MORE_LABEL_HEIGHT;
-      const fit = Math.floor(usable / (BAR_HEIGHT + BAR_GAP));
-      setMaxVisibleBars(Math.max(MIN_VISIBLE_BARS, fit));
+      const avail = rowH - HEADER_HEIGHT;
+      const unit = BAR_HEIGHT + BAR_GAP;
+      const full = Math.max(MIN_VISIBLE_BARS, Math.floor(avail / unit));
+      const withLabel = Math.max(
+        MIN_VISIBLE_BARS,
+        Math.floor((avail - MORE_LABEL_HEIGHT) / unit),
+      );
+      setBarFit((prev) =>
+        prev.full === full && prev.withLabel === withLabel
+          ? prev
+          : { full, withLabel },
+      );
     };
     compute();
     const ro = new ResizeObserver(compute);
@@ -536,8 +551,8 @@ export function ScheduleCalendarView({
           role="button"
           tabIndex={0}
           aria-label={item.title}
-          className={`h-full rounded-md px-1.5 flex items-center gap-1 text-xs font-medium
-            truncate cursor-pointer hover:brightness-110 transition-all text-white ${
+          className={`h-full rounded-lg px-2 flex items-center gap-1.5 text-[13px] font-bold
+            truncate cursor-pointer shadow-sm hover:brightness-110 transition-all text-white ${
               isMilestone ? "border border-white/20" : ""
             }`}
           style={{ backgroundColor: item.color }}
@@ -556,12 +571,12 @@ export function ScheduleCalendarView({
             <img
               src={item.avatar}
               alt=""
-              className="w-4 h-4 rounded-full shrink-0"
+              className="w-[18px] h-[18px] rounded-full shrink-0"
             />
           ) : isMilestone ? (
-            <Flag className="w-3 h-3 shrink-0" />
+            <Flag className="w-3.5 h-3.5 shrink-0" />
           ) : (
-            <span className="text-[11px] leading-none shrink-0">
+            <span className="text-[13px] leading-none shrink-0">
               {item.icon}
             </span>
           )}
@@ -687,6 +702,15 @@ export function ScheduleCalendarView({
           >
             {weeks.map((week, weekIdx) => {
               const segments = barSegmentsByWeek[weekIdx] || [];
+
+              // 이 주의 가장 깊은 바 스택(겹친 개수)
+              const stackDepth = segments.reduce(
+                (m, s) => Math.max(m, s.row + 1),
+                0,
+              );
+              // 라벨 없이 다 들어가면 full(공간 최대 활용), 넘치면 라벨 자리 확보한 withLabel
+              const maxVisibleBars =
+                stackDepth <= barFit.full ? barFit.full : barFit.withLabel;
 
               return (
                 <div

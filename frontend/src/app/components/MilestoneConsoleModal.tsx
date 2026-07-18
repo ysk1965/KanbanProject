@@ -717,11 +717,17 @@ export function MilestoneConsoleModal({
           </div>
         ) : (
           <div className="flex gap-3 items-stretch h-full">
-            {selectedFeatures.map((f) => {
-              const color = featureColor(f);
-              return f.tasks.map((task) => {
+            {selectedFeatures
+              .flatMap((f) => f.tasks.map((task) => ({ f, task })))
+              .map((col) => ({ ...col, vis: col.task.items.filter(match) }))
+              // 필터에 맞는 항목이 없는 컬럼은 뒤로 (안정 정렬로 원래 순서 유지)
+              .sort(
+                (a, b) =>
+                  (a.vis.length === 0 ? 1 : 0) - (b.vis.length === 0 ? 1 : 0),
+              )
+              .map(({ f, task, vis }) => {
+                const color = featureColor(f);
                 const done = task.items.filter((i) => i.completed).length;
-                const vis = task.items.filter(match);
                 const pct = task.items.length
                   ? Math.round((done / task.items.length) * 100)
                   : 0;
@@ -961,8 +967,7 @@ export function MilestoneConsoleModal({
                     </div>
                   </div>
                 );
-              });
-            })}
+              })}
           </div>
         )}
       </div>

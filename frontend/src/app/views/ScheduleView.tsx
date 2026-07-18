@@ -61,6 +61,12 @@ interface ScheduleViewProps {
   onItemDetailClick: (item: { task: { id: string } | null }) => void;
   onOpenContractorManager: () => void;
   onMilestoneClick: (milestone?: Milestone) => void;
+  /** 워크로드 마일스톤 바 드래그/리사이즈로 기간 조정 (권한 없으면 undefined) */
+  onUpdateMilestoneDates?: (
+    id: string,
+    start_date: string,
+    end_date: string,
+  ) => void | Promise<void>;
 }
 
 // 일정 뷰 (타임블록 / 캘린더 / 워크로드) — 패널 DnD 상태를 자체 소유
@@ -87,6 +93,7 @@ export function ScheduleView({
   onItemDetailClick,
   onOpenContractorManager,
   onMilestoneClick,
+  onUpdateMilestoneDates,
 }: ScheduleViewProps) {
   // ChecklistItemPanel drag state (calendar/resource DnD integration)
   const [panelDragState, setPanelDragState] = useState<PanelDragState | null>(
@@ -212,6 +219,7 @@ export function ScheduleView({
               }
               refreshTrigger={scheduleRefreshPanel}
               onMilestoneClick={onMilestoneClick}
+              onUpdateMilestoneDates={onUpdateMilestoneDates}
               scrollToItem={scrollToItem}
               features={allFeatures}
               highlightedTaskId={highlightedTaskId}

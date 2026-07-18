@@ -158,6 +158,12 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     int countBySprintIdAndColumnKind(@Param("sprintId") String sprintId,
                                      @Param("kind") com.kanban.domain.sprint.SprintColumnKind kind);
 
+    /** 태스크 단위 스프린트 편입 판정: 해당 태스크에 이 스프린트로 담긴 항목이 하나라도 있는지 */
+    boolean existsByTaskIdAndSprintId(String taskId, String sprintId);
+
+    /** 위와 동일하되 특정 항목(방금 옮긴 항목) 제외 — 이동 후 재정합용 */
+    boolean existsByTaskIdAndSprintIdAndIdNot(String taskId, String sprintId, String id);
+
     /** 스프린트 모드 off 병합용: 마일스톤 내 담긴 카드 전체 조회 */
     @Query("SELECT c FROM ChecklistItem c WHERE c.sprint.milestone.id = :milestoneId AND c.sprint IS NOT NULL")
     List<ChecklistItem> findInSprintByMilestoneId(@Param("milestoneId") String milestoneId);

@@ -19,6 +19,7 @@ import com.kanban.domain.sprint.SprintColumnRepository;
 import com.kanban.domain.sprint.SprintRepository;
 import com.kanban.domain.sprint.SprintStatus;
 import com.kanban.domain.sprint.dto.SprintResponse;
+import com.kanban.domain.task.Task;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
@@ -407,6 +408,74 @@ public class SprintService {
                 cols.stream().filter(c -> !c.isEnd()).reduce((a, b) -> b)
                         .ifPresent(item::moveToSprintColumn);
             }
+        }
+    }
+
+    // ==================== 태스크 단위 스프린트 편입 (체크리스트 생성/이동 훅) ====================
+
+    /**
+     * 신규 체크리스트가 부모 태스크의 활성 스프린트에 자동 편입되도록 한다.
+     * 스프린트 멤버십은 "태스크 단위" — 태스크가 이미 활성 스프린트에 담겨 있으면
+     * 새로 추가된 체크리스트도 같은 스프린트의 Sprint(START) 컬럼에 자동으로 담는다.
+     * (item 은 이미 저장된 managed 엔티티 — 별도 save 불필요.)
+     */
+    @Transactional
+    public void inheritSprintForNewItem(ChecklistItem item) {
+        Task task = item.getTask();
+        if (task == null || task.getMilestone() == null) {
+            return;
+        }
+        Milestone milestone = task.getMilestone();
+        if (!Boolean.TRUE.equals(milestone.getSprintEnabled())) {
+            return;
+        }
+        Sprint active = sprintRepository
+                .findFirstByMilestoneIdAndStatusOrderBySequenceNoDesc(milestone.getId(), SprintStatus.ACTIVE)
+                .orElse(null);
+        if (active == null) {
+            return;
+        }
+        // 부모 태스크가 이미 활성 스프린트에 담겨 있을 때만 새 항목을 편입한다.
+        if (!checklistItemRepository.existsByTaskIdAndSprintId(task.getId(), active.getId())) {
+            return;
+        }
+        ensureColumns(milestone);
+        // 신규 항목은 미완료 상태 → Sprint(START) 컬럼
+        item.assignToSprint(active, requireColumn(milestone, SprintColumnKind.START));
+    }
+
+    /**
+     * 체크리스트를 다른 태스크로 옮긴 뒤 스프린트 멤버십을 대상 태스크 기준으로 재정합한다.
+     *  - 대상 태스크가 활성 스프린트에 담겨 있으면 → 옮긴 항목도 같은 스프린트로 편입(완료면 END, 아니면 START).
+     *  - 담겨 있지 않으면(백로그 태스크) → 스프린트에서 빼서 유령 카드/마일스톤 불일치를 방지한다.
+     * (item 은 이미 대상 태스크로 이동된 managed 엔티티.)
+     */
+    @Transactional
+    public void reconcileSprintAfterMove(ChecklistItem item) {
+        Task task = item.getTask(); // 이미 대상 태스크로 이동된 상태
+        Milestone milestone = task != null ? task.getMilestone() : null;
+        Sprint active = (milestone != null && Boolean.TRUE.equals(milestone.getSprintEnabled()))
+                ? sprintRepository.findFirstByMilestoneIdAndStatusOrderBySequenceNoDesc(milestone.getId(), SprintStatus.ACTIVE).orElse(null)
+                : null;
+
+        // 대상 태스크에 (옮긴 항목 외에) 활성 스프린트로 담긴 형제가 있는가?
+        boolean targetInSprint = active != null
+                && checklistItemRepository.existsByTaskIdAndSprintIdAndIdNot(task.getId(), active.getId(), item.getId());
+
+        if (targetInSprint) {
+            String curSprintId = item.getSprint() != null ? item.getSprint().getId() : null;
+            // 이미 같은 활성 스프린트에 올바른 컬럼으로 담겨 있으면 그대로 둔다.
+            if (active.getId().equals(curSprintId) && item.getSprintColumn() != null) {
+                return;
+            }
+            ensureColumns(milestone);
+            SprintColumn target = Boolean.TRUE.equals(item.getIsCompleted())
+                    ? requireColumn(milestone, SprintColumnKind.END)
+                    : requireColumn(milestone, SprintColumnKind.START);
+            item.assignToSprint(active, target);
+        } else if (item.isInSprint()) {
+            // 대상 태스크가 스프린트에 없으면 옮긴 항목도 스프린트에서 제외한다.
+            item.removeFromSprint();
         }
     }
 
