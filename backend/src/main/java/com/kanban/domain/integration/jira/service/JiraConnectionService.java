@@ -160,26 +160,68 @@ public class JiraConnectionService {
         return JiraResponse.Meta.builder().statuses(statusList).blocks(blockList).build();
     }
 
-    /** /project/{key}/statuses 를 유니크 상태 목록(등장 순서 유지)으로 평탄화. */
+    /** 반려/재작업 계열 상태 — 이름으로 감지해 '진행 중'(indeterminate)으로 재분류(오분류 방지). */
+    private static final java.util.regex.Pattern REJECT_PATTERN = java.util.regex.Pattern.compile(
+        "반려|반송|반품|재작업|재오픈|다시\\s*열기|reopen|re-?work|rejected?|declined|sent\\s*back",
+        java.util.regex.Pattern.CASE_INSENSITIVE);
+    /** 에픽/서브태스크 전용 이슈타입 — 칸반 컬럼 노이즈라 상태 목록에서 제외. */
+    private static final java.util.regex.Pattern EPIC_ISSUETYPE_PATTERN = java.util.regex.Pattern.compile(
+        "에픽|epic", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    /**
+     * /project/{key}/statuses 를 유니크 상태 목록(등장 순서 유지)으로 평탄화하며 statusCategory를 함께 추출한다.
+     * - 에픽/서브태스크 전용 이슈타입 그룹은 스킵(칸반 노이즈 제거). 다른 이슈타입에도 있는 상태는 유지됨.
+     * - 반려/재작업 계열 상태명은 statusCategory와 무관하게 '진행 중'(indeterminate)으로 재분류.
+     */
     private List<JiraResponse.NameRef> fetchProjectStatuses(JiraIntegrationConfig config, String token) {
         JsonNode statusGroups = jiraApiClient.getProjectStatuses(
             JiraAuthContext.of(config, token), config.getProjectKey());
-        Map<String, String> uniqueStatuses = new LinkedHashMap<>();
+        Map<String, JiraResponse.NameRef> unique = new LinkedHashMap<>();
         if (statusGroups != null && statusGroups.isArray()) {
             for (JsonNode group : statusGroups) {
+                String issueType = group.path("name").asText("");
+                boolean subtask = group.path("subtask").asBoolean(false);
+                if (subtask || EPIC_ISSUETYPE_PATTERN.matcher(issueType).find()) continue;  // 에픽/서브태스크 필터
                 JsonNode statuses = group.get("statuses");
-                if (statuses != null && statuses.isArray()) {
-                    for (JsonNode s : statuses) {
-                        if (s.hasNonNull("id") && s.hasNonNull("name")) {
-                            uniqueStatuses.putIfAbsent(s.get("id").asText(), s.get("name").asText());
-                        }
-                    }
+                if (statuses == null || !statuses.isArray()) continue;
+                for (JsonNode s : statuses) {
+                    if (!s.hasNonNull("id") || !s.hasNonNull("name")) continue;
+                    String id = s.get("id").asText();
+                    if (unique.containsKey(id)) continue;
+                    String name = s.get("name").asText();
+                    JsonNode cat = s.path("statusCategory");
+                    String catKey = cat.path("key").asText(null);        // new | indeterminate | done
+                    String catColor = cat.path("colorName").asText(null);
+                    if (REJECT_PATTERN.matcher(name).find()) catKey = "indeterminate";  // 반려 → 진행 중
+                    unique.put(id, JiraResponse.NameRef.builder()
+                        .id(id).name(name).category(catKey).categoryColor(catColor).build());
                 }
             }
         }
-        List<JiraResponse.NameRef> statusList = new ArrayList<>();
-        uniqueStatuses.forEach((id, name) -> statusList.add(JiraResponse.NameRef.builder().id(id).name(name).build()));
-        return statusList;
+        return new ArrayList<>(unique.values());
+    }
+
+    /**
+     * statusCategory 기준으로 상태들을 3컬럼(할 일·진행 중·완료)으로 그룹핑(전략1 스마트 디폴트).
+     * 카테고리 미상은 진행 중으로. 반려 계열은 fetchProjectStatuses에서 이미 진행 중으로 재분류됨.
+     * 빈 카테고리는 컬럼을 만들지 않는다.
+     */
+    private List<ColumnSpec> groupStatusesByCategory(List<JiraResponse.NameRef> statuses) {
+        LinkedHashMap<String, List<String>> buckets = new LinkedHashMap<>();
+        buckets.put("new", new ArrayList<>());
+        buckets.put("indeterminate", new ArrayList<>());
+        buckets.put("done", new ArrayList<>());
+        Map<String, String> label = Map.of("new", "할 일", "indeterminate", "진행 중", "done", "완료");
+        for (JiraResponse.NameRef s : statuses) {
+            String cat = s.getCategory();
+            if (cat == null || !buckets.containsKey(cat)) cat = "indeterminate";  // 미상 → 진행 중
+            buckets.get(cat).add(s.getId());
+        }
+        List<ColumnSpec> specs = new ArrayList<>();
+        buckets.forEach((cat, ids) -> {
+            if (!ids.isEmpty()) specs.add(new ColumnSpec(label.get(cat), ids));
+        });
+        return specs;
     }
 
     // ── 미러 셋업 (JIRA 상태 → 블록 1:1) ────────────
@@ -209,13 +251,12 @@ public class JiraConnectionService {
         String columnSource = "BOARD_CONFIG";
         String columnSourceDetail = fetch.detail();
         if (specs.isEmpty()) {
-            specs = fetchProjectStatuses(config, token).stream()
-                .map(s -> new ColumnSpec(s.getName(), List.of(s.getId())))
-                .toList();
+            // 상태 1:1 대신 statusCategory로 3컬럼(할 일·진행 중·완료) 그룹핑(전략1). 반려 계열은 진행 중으로 재분류됨.
+            specs = groupStatusesByCategory(fetchProjectStatuses(config, token));
             columnSource = "STATUS_FALLBACK";
             // 폴백 사유: 보드 조회 실패 상세가 있으면 그걸, 없으면 일반 안내.
             columnSourceDetail = fetch.detail() != null ? fetch.detail()
-                : "JIRA 보드 구성을 읽지 못해 프로젝트 상태 목록으로 대체했습니다.";
+                : "JIRA 보드 구성을 읽지 못해 상태 카테고리(할 일·진행 중·완료)로 컬럼을 구성했습니다.";
         }
 
         // 2) 기존 미러 컬럼 정리 — 태스크는 TASK 고정 블록으로 대피 후 삭제(초기 import가 새 컬럼으로 재배치)
