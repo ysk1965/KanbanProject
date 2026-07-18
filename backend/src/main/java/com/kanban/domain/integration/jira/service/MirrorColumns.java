@@ -72,6 +72,20 @@ public final class MirrorColumns {
         return List.of();
     }
 
+    /** 컬럼명이 QA 검토 계열(QA/검토/review)인 컬럼에 묶인 상태 id 전체 — 반려(QA→할 일) 판정 기준. */
+    private static final java.util.regex.Pattern QA_REVIEW_PATTERN =
+        java.util.regex.Pattern.compile("QA|검토|review", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    public List<String> qaReviewStatusIds() {
+        List<String> ids = new ArrayList<>();
+        for (Col c : cols) {
+            if (c.name() != null && QA_REVIEW_PATTERN.matcher(c.name()).find()) {
+                ids.addAll(c.statusIds());
+            }
+        }
+        return ids;
+    }
+
     private static String str(Object o) {
         return o == null ? null : String.valueOf(o);
     }

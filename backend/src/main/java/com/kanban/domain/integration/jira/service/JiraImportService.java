@@ -281,10 +281,11 @@ public class JiraImportService {
         task.updateInfo(truncate(issue.summary(), 200), issue.description(),
             task.getStartDate(), task.getDueDate(), task.getEstimatedMinutes());
 
-        // 미러 모드: 상태=위치. 대응 미러 컬럼으로 이동, QA/반려 로직 없음.
+        // 미러 모드: 상태=위치. 대응 미러 컬럼으로 이동 후, QA 검토 중 → 할 일 역행이면 반려 처리.
         Block mirror = resolveMirrorBlock(board.getId(), issue.statusId(), mirrorCols);
         if (mirror != null) {
             moveTaskToBlockEnd(task, mirror);
+            applyMirrorRejection(task, board, importer, issue, mirrorCols, ctx, link.getLastJiraStatusId());
         } else if (!blockMap.isEmpty()) {
             applyPullReflection(task, board, importer, issue, blockMap, ctx, link.getLastJiraStatusId());
         } else {
@@ -321,6 +322,26 @@ public class JiraImportService {
         // 검토중/완료는 QA가 위치를 소유 → 매핑 블록으로 유지 + 뱃지 반영.
         moveToPullBlock(task, board, pull.blockId());
         task.applyQaState(pull.qaState());
+    }
+
+    /**
+     * 미러 모드 반려 감지(정밀). 직전 상태가 QA 검토 컬럼이었는데 현재가 '할 일'(statusCategory=new)로
+     * 역행하면 반려로 본다. 카드는 이미 할 일 미러 컬럼으로 이동됐으므로 여기선 뱃지+사유 댓글만 붙인다.
+     * 반대로 반려 뱃지 카드가 다시 앞으로 진행(할 일 밖)하면 뱃지를 해제한다.
+     *
+     * @param prevStatusId 직전 pull 때의 JIRA status(없으면 null)
+     */
+    private void applyMirrorRejection(Task task, Board board, User importer, ParsedJiraIssue issue,
+                                      MirrorColumns mirrorCols, JiraAuthContext ctx, String prevStatusId) {
+        boolean cameFromQaReview = prevStatusId != null
+            && mirrorCols.qaReviewStatusIds().contains(prevStatusId);
+        boolean nowTodo = "new".equalsIgnoreCase(issue.statusCategory());
+        if (cameFromQaReview && nowTodo) {
+            task.applyQaState(com.kanban.domain.task.QaState.REJECTED);
+            pullRejectionReason(task, board, importer, issue, ctx);
+        } else if (task.getQaState() == com.kanban.domain.task.QaState.REJECTED && !nowTodo) {
+            task.applyQaState(null);   // 다시 앞으로 진행 → 반려 뱃지 해제
+        }
     }
 
     private void moveToPullBlock(Task task, Board board, String blockId) {
