@@ -85,6 +85,10 @@ public class JiraResponse {
     public static class NameRef {
         private String id;
         private String name;
+        /** JIRA statusCategory.key: new(할 일) / indeterminate(진행 중) / done(완료). nullable. */
+        private String category;
+        /** JIRA statusCategory.colorName (blue-gray/yellow/green 등). 색 칩 표시용. nullable. */
+        private String categoryColor;
     }
 
     /** 매핑 UI용 BRIDGE 블록 (Feature 블록 제외). */

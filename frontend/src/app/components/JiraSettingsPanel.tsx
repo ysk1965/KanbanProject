@@ -36,6 +36,15 @@ interface JiraSettingsPanelProps {
   onJiraStatusChange?: (connected: boolean) => void;
 }
 
+/** JIRA statusCategory → 색 점 hex (할 일=회청 / 진행 중=파랑 / 완료=초록). */
+const CATEGORY_HEX: Record<string, string> = {
+  new: "#64748b",
+  indeterminate: "#3b82f6",
+  done: "#22c55e",
+};
+const categoryHex = (cat?: string | null): string =>
+  (cat && CATEGORY_HEX[cat]) || "#94a3b8";
+
 export function JiraSettingsPanel({
   boardId,
   onJiraStatusChange,
@@ -967,12 +976,30 @@ export function JiraSettingsPanel({
           {status.mirror_ready && mirrorBlocks.length > 0 ? (
             <div className="rounded-lg border border-foreground/10 overflow-hidden">
               {mirrorBlocks.map((block) => {
-                const st = statuses.find((s) => s.id === block.jira_status_id);
+                const primary = statuses.find(
+                  (s) => s.id === block.jira_status_id,
+                );
+                // 이 미러 컬럼에 묶인 JIRA 상태 전체를 이름으로 표시 (없으면 대표 상태).
+                const boundIds =
+                  block.jira_status_ids && block.jira_status_ids.length > 0
+                    ? block.jira_status_ids
+                    : block.jira_status_id
+                      ? [block.jira_status_id]
+                      : [];
+                const boundNames =
+                  boundIds
+                    .map((id) => statuses.find((s) => s.id === id)?.name || id)
+                    .join(" · ") || block.jira_status_id;
                 return (
                   <div
                     key={block.id}
-                    className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2 border-t border-foreground/[0.06] first:border-t-0"
+                    className="grid grid-cols-[auto_1fr_auto_1.4fr] items-center gap-2 px-3 py-2 border-t border-foreground/[0.06] first:border-t-0"
                   >
+                    <span
+                      className="w-2 h-2 rounded-full flex-none"
+                      style={{ background: categoryHex(primary?.category) }}
+                      title={primary?.category || ""}
+                    />
                     <span className="text-xs font-bold text-foreground truncate">
                       {block.name}
                     </span>
@@ -980,7 +1007,7 @@ export function JiraSettingsPanel({
                       ↔
                     </span>
                     <span className="text-xs text-slate-500 truncate text-right">
-                      {st?.name || block.jira_status_id}
+                      {boundNames}
                     </span>
                   </div>
                 );

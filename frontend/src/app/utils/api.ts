@@ -5901,6 +5901,10 @@ export interface JiraTestResult {
 export interface JiraNameRef {
   id: string;
   name: string;
+  /** JIRA statusCategory: new(할 일) / indeterminate(진행 중) / done(완료). */
+  category?: string | null;
+  /** JIRA statusCategory.colorName. */
+  category_color?: string | null;
 }
 
 export interface JiraBlockRef {
