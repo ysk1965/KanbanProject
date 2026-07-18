@@ -6421,7 +6421,13 @@ export const noteAPI = {
       tagIds?: string[];
     },
   ) => {
-    return apiClient.post<NoteDetail>(`/boards/${boardId}/notes`, data);
+    return apiClient.post<NoteDetail>(`/boards/${boardId}/notes`, {
+      title: data.title,
+      type: data.type,
+      parent_id: data.parentId,
+      content: data.content,
+      tag_ids: data.tagIds,
+    });
   },
 
   update: async (
@@ -6645,7 +6651,13 @@ export const orgNoteAPI = {
       tagIds?: string[];
     },
   ) => {
-    return apiClient.post<NoteDetail>(`/organizations/${orgId}/notes`, data);
+    return apiClient.post<NoteDetail>(`/organizations/${orgId}/notes`, {
+      title: data.title,
+      type: data.type,
+      parent_id: data.parentId,
+      content: data.content,
+      tag_ids: data.tagIds,
+    });
   },
 
   update: async (
@@ -6907,7 +6919,13 @@ export const myNoteAPI = {
       tagIds?: string[];
     },
   ) => {
-    return apiClient.post<NoteDetail>(`/me/notes`, data);
+    return apiClient.post<NoteDetail>(`/me/notes`, {
+      title: data.title,
+      type: data.type,
+      parent_id: data.parentId,
+      content: data.content,
+      tag_ids: data.tagIds,
+    });
   },
 
   update: async (
