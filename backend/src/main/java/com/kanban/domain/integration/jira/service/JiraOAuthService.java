@@ -44,27 +44,19 @@ public class JiraOAuthService {
     private static final String AUTH_BASE = "https://auth.atlassian.com";
     private static final String API_BASE = "https://api.atlassian.com";
     /**
-     * 전면 granular 스코프. classic(read:jira-work)과 granular(board-scope)을 혼용하면
-     * Atlassian이 토큰을 classic 모드로 평가해 agile board 스코프를 무시 → "scope does not match" 401.
-     * 따라서 요청 스코프를 순수 granular로 통일한다(콘솔엔 classic이 남아 있어도 무방 — 요청 안 하면 토큰 미포함).
-     * BRIDGE가 호출하는 10종 작업(myself/project/statuses/search-jql/getIssue/transitions R·W/attachment/
-     * agile board/board configuration)을 모두 커버하도록 구성.
+     * 순수 classic 스코프. granular 전환(e1062e1c) 후 실측 결과, granular 토큰은 scope claim에
+     * read:project:jira 가 있어도 /rest/api/3/project 를 포함한 코어 API가 "scope does not match" 401로
+     * 거부됐다(운영 로그 확인). classic read:jira-work 는 이 앱에서 이력상 정상 동작하며 project·issue·
+     * status·JQL·transition 읽기/쓰기를 모두 커버한다.
+     *   - read:jira-work  : project/issue/status/JQL/getIssue/attachment 읽기
+     *   - write:jira-work : 이슈 전이(블록 이동 → JIRA 상태) 쓰기
+     *   - read:jira-user  : myself 조회
+     * NOTE: /rest/agile/1.0/board(미러 컬럼)는 3LO에서 classic·granular 모두 401이라 여기서 커버하지 않는다.
+     *       미러 컬럼은 /rest/api/3/project/{key}/statuses(= read:jira-work) 기반으로 별도 재구현 대상.
+     * ⚠️ classic 과 granular 를 혼용하면 Atlassian 이 토큰을 잘못된 모드로 평가하므로,
+     *    콘솔에서도 granular 스코프를 모두 제거하고 순수 classic 으로 맞춘 뒤 재연결해야 한다.
      */
-    private static final String SCOPES = String.join(" ",
-        // 이슈 읽기 · 검색(JQL) — 가져오기 핵심
-        "read:jql:jira", "read:issue:jira", "read:issue-details:jira", "read:issue-meta:jira",
-        "read:issue.changelog:jira", "read:issue.transition:jira", "read:issue-type:jira",
-        "read:issue-link:jira", "read:comment:jira", "read:attachment:jira",
-        // 프로젝트 · 상태 · 필드 · 사용자
-        "read:project:jira", "read:project.component:jira", "read:project-version:jira",
-        "read:status:jira", "read:workflow:jira", "read:field:jira", "read:priority:jira", "read:label:jira",
-        "read:user:jira", "read:avatar:jira", "read:application-role:jira", "read:group:jira",
-        // Jira Software(Agile) 보드 · 컬럼 구성
-        "read:board-scope:jira-software", "read:board-scope.admin:jira-software",
-        // 쓰기(블록 이동 → JIRA 상태 전이)
-        "write:issue:jira",
-        // 토큰 자동 갱신
-        "offline_access");
+    private static final String SCOPES = "read:jira-work write:jira-work read:jira-user offline_access";
     private static final long STATE_EXPIRY_SECONDS = 600; // 10분
     private static final long REFRESH_BUFFER_SECONDS = 60;
 
