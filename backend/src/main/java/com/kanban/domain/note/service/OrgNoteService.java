@@ -240,7 +240,8 @@ public class OrgNoteService {
                backoff = @Backoff(delay = 50, multiplier = 2.0))
     @Transactional
     public NoteResponse.Detail updateNote(String orgId, String noteId, String userId,
-                                           NoteRequest.Update request, boolean createVersion) {
+                                           NoteRequest.Update request, boolean createVersion,
+                                           boolean discardDraft) {
         organizationService.getOrgMemberOrThrow(orgId, userId);
 
         Note note = getNoteOrThrow(orgId, noteId);
@@ -285,12 +286,18 @@ public class OrgNoteService {
         // 그렇지 않으면 다음 ws joiner가 이전 시점의 storedState로 hydration 되어
         // 편집 모드 진입 시 발행본보다 오래된 화면이 잠깐 보이는 race를 유발한다.
         if (publishedNewSnapshot) {
-            noteCollabService.deleteState(noteId);
-            eventPublisher.publishEvent(new NoteDraftDiscardedEvent(noteId));
+            // Only tear down the shared Yjs draft when the publisher is the sole
+            // editor (discardDraft=true). With other editors live, keep the draft so
+            // their in-flight edits keep persisting; still notify View clients.
+            if (discardDraft) {
+                noteCollabService.deleteState(noteId);
+                eventPublisher.publishEvent(new NoteDraftDiscardedEvent(noteId));
+            }
             eventPublisher.publishEvent(new NoteSnapshotSavedEvent(noteId));
         }
 
-        boolean hasDraft = !publishedNewSnapshot
+        boolean draftDiscarded = publishedNewSnapshot && discardDraft;
+        boolean hasDraft = !draftDiscarded
                 && noteCollabService.hasUnpublishedDraft(noteId, note.getUpdatedAt());
         return NoteResponse.Detail.of(note, tags, versionCount, hasDraft);
     }

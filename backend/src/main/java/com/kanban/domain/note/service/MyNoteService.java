@@ -163,7 +163,8 @@ public class MyNoteService {
                backoff = @Backoff(delay = 50, multiplier = 2.0))
     @Transactional
     public NoteResponse.Detail updateNote(String noteId, String userId,
-                                           NoteRequest.Update request, boolean createVersion) {
+                                           NoteRequest.Update request, boolean createVersion,
+                                           boolean discardDraft) {
         Note note = getNoteOrThrow(noteId, userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -201,12 +202,18 @@ public class MyNoteService {
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
 
         if (publishedNewSnapshot) {
-            noteCollabService.deleteState(noteId);
-            eventPublisher.publishEvent(new NoteDraftDiscardedEvent(noteId));
+            // Only tear down the shared Yjs draft when the publisher is the sole
+            // editor (discardDraft=true). With other editors live, keep the draft so
+            // their in-flight edits keep persisting; still notify View clients.
+            if (discardDraft) {
+                noteCollabService.deleteState(noteId);
+                eventPublisher.publishEvent(new NoteDraftDiscardedEvent(noteId));
+            }
             eventPublisher.publishEvent(new NoteSnapshotSavedEvent(noteId));
         }
 
-        boolean hasDraft = !publishedNewSnapshot
+        boolean draftDiscarded = publishedNewSnapshot && discardDraft;
+        boolean hasDraft = !draftDiscarded
                 && noteCollabService.hasUnpublishedDraft(noteId, note.getUpdatedAt());
         return NoteResponse.Detail.of(note, tags, versionCount, hasDraft);
     }

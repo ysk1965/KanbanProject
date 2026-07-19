@@ -34,9 +34,12 @@ import java.util.concurrent.atomic.AtomicLong;
  * Native WebSocket handler for Yjs-based real-time note collaboration.
  *
  * Protocol (custom binary):
- *   Type 0 (MSG_SYNC_FULL)   - Full Y.Doc state for persistence/initial load
- *   Type 1 (MSG_SYNC_UPDATE) - Incremental Y.Doc update (relayed to peers)
- *   Type 2 (MSG_AWARENESS)   - Awareness update: cursors, presence (relayed)
+ *   Type 0 (MSG_SYNC_FULL)    - Full Y.Doc state for persistence/initial load
+ *   Type 1 (MSG_SYNC_UPDATE)  - Incremental Y.Doc update (relayed to peers)
+ *   Type 2 (MSG_AWARENESS)    - Awareness update: cursors, presence (relayed)
+ *   Type 3 (MSG_SNAPSHOT_UPDATED) - Server → client: a new published snapshot exists
+ *   Type 4 (MSG_SEED_REQUEST) - Client → server: may I hydrate the empty doc from REST?
+ *   Type 5 (MSG_SEED_GRANT)   - Server → client: [1]=granted, [0]=denied
  *
  * Endpoint: /ws-collab/{noteId}?token={jwt}
  *
@@ -58,6 +61,10 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
     private static final byte MSG_AWARENESS = 2;
     /** Server → client: a new published snapshot exists; View clients should refetch. */
     private static final byte MSG_SNAPSHOT_UPDATED = 3;
+    /** Client → server: request permission to hydrate the empty doc from the REST snapshot. */
+    private static final byte MSG_SEED_REQUEST = 4;
+    /** Server → client: seed-permission reply. Payload[0]: 1 = granted, 0 = denied. */
+    private static final byte MSG_SEED_GRANT = 5;
 
     private static final String REDIS_CHANNEL_PREFIX = "ws-collab:";
 
@@ -104,6 +111,16 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
          */
         final Queue<byte[]> pendingUpdates = new ConcurrentLinkedQueue<>();
         final AtomicLong pendingBytes = new AtomicLong(0);
+        /**
+         * True once this room's Yjs doc has been (or is being) seeded — either it
+         * already carries persisted state, or exactly one client has been granted
+         * permission to hydrate it from the published REST snapshot. Guards against
+         * multiple EDIT clients concurrently injecting the same snapshot into the
+         * empty doc and duplicating its content. Reset to false when the draft is
+         * discarded (published/reverted) so the next editor re-seeds from the new
+         * published content. All check-and-set access is synchronized on the Room.
+         */
+        volatile boolean seeded = false;
 
         Room(String noteId) {
             this.noteId = noteId;
@@ -127,7 +144,14 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
         // 구독 시점에 아직 storedState가 비어있는 레이스 윈도우를 제거
         Room room = rooms.computeIfAbsent(noteId, k -> {
             Room newRoom = new Room(k);
-            noteCollabService.loadState(k).ifPresent(state -> newRoom.storedState = state);
+            noteCollabService.loadState(k).ifPresent(state -> {
+                newRoom.storedState = state;
+                // A persisted draft already exists → the doc is already seeded;
+                // new joiners receive it via MSG_SYNC_FULL, no REST hydration.
+                if (state.length > 0) {
+                    newRoom.seeded = true;
+                }
+            });
             subscribeRedisChannel(k);
             return newRoom;
         });
@@ -189,6 +213,11 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
                 byte[] state = new byte[data.length - 1];
                 System.arraycopy(data, 1, state, 0, state.length);
                 room.storedState = state;
+                // Real content now exists in the doc — mark seeded so a late joiner
+                // does not try to re-hydrate from the REST snapshot on top of it.
+                if (state.length > 0) {
+                    room.seeded = true;
+                }
                 noteCollabService.saveState(noteId, state);
                 log.debug("Collab state persisted: noteId={}, size={}", noteId, state.length);
             }
@@ -203,6 +232,24 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
                 // (replaying stale cursors would resurrect ghosts of departed peers).
                 relayToOthers(room, session.getId(), data);
                 publishToRedis(noteId, session.getId(), data);
+            }
+            case MSG_SEED_REQUEST -> {
+                // Leader-election hydration. Grant permission to seed the empty
+                // Y.Doc from the published REST snapshot to EXACTLY ONE client per
+                // empty-room lifetime. Without this, two EDIT clients that both
+                // observe an empty doc within the relay window each inject the same
+                // snapshot with distinct Yjs itemIDs, merging into a duplicate. The
+                // first requester wins; the rest are denied and instead receive the
+                // seeded content through normal Yjs sync.
+                boolean granted = false;
+                synchronized (room) {
+                    boolean stateEmpty = room.storedState == null || room.storedState.length == 0;
+                    if (!room.seeded && stateEmpty) {
+                        room.seeded = true;
+                        granted = true;
+                    }
+                }
+                sendTo(session, new byte[] { MSG_SEED_GRANT, (byte) (granted ? 1 : 0) });
             }
             default -> log.warn("Unknown collab message type: {}", msgType);
         }
@@ -264,7 +311,13 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
     public void onNoteDraftDiscarded(NoteDraftDiscardedEvent event) {
         Room room = rooms.get(event.noteId());
         if (room != null) {
-            room.storedState = null;
+            synchronized (room) {
+                room.storedState = null;
+                // The published snapshot is now the source of truth. Re-open seed
+                // election so the next EDIT client re-hydrates the fresh empty doc
+                // from the new published content instead of staying blank.
+                room.seeded = false;
+            }
             // Drop buffered increments too, else replaying them would resurrect the
             // just-discarded draft for the next (re)connecting client.
             clearPending(room);
@@ -281,7 +334,13 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
     public void onNoteDraftRestored(NoteDraftRestoredEvent event) {
         Room room = rooms.get(event.noteId());
         if (room != null) {
-            room.storedState = noteCollabService.loadState(event.noteId()).orElse(null);
+            byte[] restored = noteCollabService.loadState(event.noteId()).orElse(null);
+            synchronized (room) {
+                room.storedState = restored;
+                // Restored draft carries content → already seeded. If somehow empty,
+                // re-open election so a joiner can hydrate from the snapshot.
+                room.seeded = restored != null && restored.length > 0;
+            }
             clearPending(room);
         }
     }
@@ -409,6 +468,18 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
     }
 
     // --- Local relay ---
+
+    /** Send a single frame to one session, serialized on the session monitor. */
+    private void sendTo(WebSocketSession session, byte[] data) {
+        if (!session.isOpen()) return;
+        try {
+            synchronized (session) {
+                session.sendMessage(new BinaryMessage(data));
+            }
+        } catch (IOException e) {
+            log.error("Failed to send to collab session: {}", session.getId(), e);
+        }
+    }
 
     private void relayToOthers(Room room, String senderSessionId, byte[] data) {
         BinaryMessage msg = new BinaryMessage(data);

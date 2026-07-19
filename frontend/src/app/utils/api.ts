@@ -6398,6 +6398,23 @@ export const noteCommentAPI = {
   },
 };
 
+/**
+ * Build the query string for a note update (PUT). Both flags default to true on
+ * the server, so only the false cases are emitted.
+ *   createVersion=false → title-only autosaves that must not snapshot a version.
+ *   discardDraft=false  → publish while other editors are live; keep the shared
+ *                         Yjs draft instead of nuking it out from under them.
+ */
+function buildNoteUpdateParams(
+  createVersion: boolean,
+  discardDraft: boolean,
+): string {
+  const parts: string[] = [];
+  if (!createVersion) parts.push("createVersion=false");
+  if (!discardDraft) parts.push("discardDraft=false");
+  return parts.length ? `?${parts.join("&")}` : "";
+}
+
 export const noteAPI = {
   getTree: async (boardId: string) => {
     return apiClient.get<NoteTreeItem[]>(`/boards/${boardId}/notes`);
@@ -6439,8 +6456,9 @@ export const noteAPI = {
       tagIds?: string[];
     },
     createVersion = true,
+    discardDraft = true,
   ) => {
-    const params = createVersion ? "" : "?createVersion=false";
+    const params = buildNoteUpdateParams(createVersion, discardDraft);
     return apiClient.put<NoteDetail>(
       `/boards/${boardId}/notes/${noteId}${params}`,
       data,
@@ -6669,8 +6687,9 @@ export const orgNoteAPI = {
       tagIds?: string[];
     },
     createVersion = true,
+    discardDraft = true,
   ) => {
-    const params = createVersion ? "" : "?createVersion=false";
+    const params = buildNoteUpdateParams(createVersion, discardDraft);
     return apiClient.put<NoteDetail>(
       `/organizations/${orgId}/notes/${noteId}${params}`,
       data,
@@ -6937,8 +6956,9 @@ export const myNoteAPI = {
       tagIds?: string[];
     },
     createVersion = true,
+    discardDraft = true,
   ) => {
-    const params = createVersion ? "" : "?createVersion=false";
+    const params = buildNoteUpdateParams(createVersion, discardDraft);
     return apiClient.put<NoteDetail>(`/me/notes/${noteId}${params}`, data);
   },
 
