@@ -115,41 +115,43 @@ public class SlackOAuthService {
         Board board = null;
         Organization organization = null;
         String redirectPath;
+        Optional<SlackInstallation> existingInstall;
 
         if (scope == SlackInstallScope.BOARD) {
             board = boardRepository.findById(entityId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
             redirectPath = "/boards/" + entityId + "?slack=connected";
-
-            // Deactivate existing installation for this team+board
-            installationRepository.findActiveByTeamIdAndBoardId(slackTeamId, entityId)
-                    .ifPresent(existing -> existing.deactivate());
+            existingInstall = installationRepository.findBySlackTeamIdAndBoardId(slackTeamId, entityId);
         } else {
             organization = organizationRepository.findById(entityId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.ORG_NOT_FOUND));
             redirectPath = "/organization/" + entityId + "/settings?slack=connected";
-
-            // Deactivate existing installation for this team+org
-            installationRepository.findActiveByTeamIdAndOrgId(slackTeamId, entityId)
-                    .ifPresent(existing -> existing.deactivate());
+            existingInstall = installationRepository.findBySlackTeamIdAndOrgId(slackTeamId, entityId);
         }
 
-        // Create new installation
-        SlackInstallation installation = SlackInstallation.builder()
-                .board(board)
-                .organization(organization)
-                .scope(scope)
-                .slackTeamId(slackTeamId)
-                .slackTeamName(slackTeamName)
-                .botTokenEncrypted(encryptedToken)
-                .botUserId(botUserId)
-                .installedBy(user)
-                .slackInstallerUserId(authedUserId)
-                .scopes(grantedScopes)
-                .active(true)
-                .build();
-
-        installationRepository.save(installation);
+        // Upsert: re-install onto the existing row when the same team is re-installed
+        // (the unique constraint spans (team, entity) and ignores `active`, so inserting
+        // a new row would violate it). Otherwise create a fresh installation.
+        SlackInstallation installation;
+        if (existingInstall.isPresent()) {
+            installation = existingInstall.get();
+            installation.reinstall(slackTeamName, encryptedToken, botUserId, user, authedUserId, grantedScopes);
+        } else {
+            installation = SlackInstallation.builder()
+                    .board(board)
+                    .organization(organization)
+                    .scope(scope)
+                    .slackTeamId(slackTeamId)
+                    .slackTeamName(slackTeamName)
+                    .botTokenEncrypted(encryptedToken)
+                    .botUserId(botUserId)
+                    .installedBy(user)
+                    .slackInstallerUserId(authedUserId)
+                    .scopes(grantedScopes)
+                    .active(true)
+                    .build();
+            installationRepository.save(installation);
+        }
 
         log.info("Slack App installed for {} {} by user {} (team: {})",
                 scope, entityId, userId, slackTeamName);

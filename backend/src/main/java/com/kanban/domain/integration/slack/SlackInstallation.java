@@ -93,6 +93,24 @@ public class SlackInstallation {
         this.active = false;
     }
 
+    /**
+     * Re-install onto the existing row (same team + board/org) instead of inserting
+     * a new row. The unique constraint uk_slack_install_team_{board,org} spans only
+     * (slack_team_id, board_id/organization_id) and ignores {@code active}, so the old
+     * "deactivate + insert new" flow collided on re-install. Updating in place keeps a
+     * single row per (team, entity) and reactivates it with the fresh OAuth grant.
+     */
+    public void reinstall(String slackTeamName, String botTokenEncrypted, String botUserId,
+                          User installedBy, String slackInstallerUserId, String scopes) {
+        this.slackTeamName = slackTeamName;
+        this.botTokenEncrypted = botTokenEncrypted;
+        this.botUserId = botUserId;
+        this.installedBy = installedBy;
+        this.slackInstallerUserId = slackInstallerUserId;
+        this.scopes = scopes;
+        this.active = true;
+    }
+
     public void updateDefaultChannel(String channelId, String channelName) {
         this.defaultChannelId = channelId;
         this.defaultChannelName = channelName;
