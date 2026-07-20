@@ -1,7 +1,11 @@
 package com.kanban.domain.integration.slack.service;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardMember;
+import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
+import com.kanban.domain.organization.OrganizationMember;
+import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.integration.FrontendOriginResolver;
 import com.kanban.domain.integration.slack.*;
 import com.kanban.domain.integration.slack.config.SlackAppConfig;
@@ -41,6 +45,8 @@ public class SlackOAuthService {
     private final BoardRepository boardRepository;
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
+    private final BoardMemberRepository boardMemberRepository;
+    private final OrgMemberRepository orgMemberRepository;
 
     /**
      * Generate Slack OAuth install URL with signed state
@@ -115,26 +121,26 @@ public class SlackOAuthService {
         Board board = null;
         Organization organization = null;
         String redirectPath;
-        Optional<SlackInstallation> existingInstall;
 
+        // Reuse the existing (team + entity) row if any — deactivated rows still occupy the
+        // uk_slack_install_team_board/org slot, so a fresh INSERT would violate the constraint.
+        // Reinstall in place; only INSERT when no prior row exists.
+        Optional<SlackInstallation> existing;
         if (scope == SlackInstallScope.BOARD) {
             board = boardRepository.findById(entityId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
             redirectPath = "/boards/" + entityId + "?slack=connected";
-            existingInstall = installationRepository.findBySlackTeamIdAndBoardId(slackTeamId, entityId);
+            existing = installationRepository.findByTeamIdAndBoardId(slackTeamId, entityId);
         } else {
             organization = organizationRepository.findById(entityId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.ORG_NOT_FOUND));
             redirectPath = "/organization/" + entityId + "/settings?slack=connected";
-            existingInstall = installationRepository.findBySlackTeamIdAndOrgId(slackTeamId, entityId);
+            existing = installationRepository.findByTeamIdAndOrgId(slackTeamId, entityId);
         }
 
-        // Upsert: re-install onto the existing row when the same team is re-installed
-        // (the unique constraint spans (team, entity) and ignores `active`, so inserting
-        // a new row would violate it). Otherwise create a fresh installation.
         SlackInstallation installation;
-        if (existingInstall.isPresent()) {
-            installation = existingInstall.get();
+        if (existing.isPresent()) {
+            installation = existing.get();
             installation.reinstall(slackTeamName, encryptedToken, botUserId, user, authedUserId, grantedScopes);
         } else {
             installation = SlackInstallation.builder()
@@ -205,6 +211,23 @@ public class SlackOAuthService {
     public void revokeInstallation(String installationId, String userId) {
         SlackInstallation installation = installationRepository.findById(installationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SLACK_APP_NOT_INSTALLED));
+
+        // 워크스페이스 연결 해제(uninstall)는 OWNER/ADMIN만 가능 — 일반 멤버 차단
+        if (installation.getScope() == SlackInstallScope.ORGANIZATION && installation.getOrganization() != null) {
+            OrganizationMember member = orgMemberRepository
+                    .findByOrganizationIdAndUserId(installation.getOrganization().getId(), userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.ORG_ACCESS_DENIED));
+            if (!member.isAdminOrAbove()) {
+                throw new BusinessException(ErrorCode.ORG_ADMIN_REQUIRED);
+            }
+        } else if (installation.getBoard() != null) {
+            BoardMember member = boardMemberRepository
+                    .findByBoardIdAndUserId(installation.getBoard().getId(), userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_ACCESS_DENIED));
+            if (!member.isAdminOrAbove()) {
+                throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
+            }
+        }
 
         // Revoke token on Slack side
         try {

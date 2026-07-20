@@ -94,11 +94,9 @@ public class SlackInstallation {
     }
 
     /**
-     * Re-install onto the existing row (same team + board/org) instead of inserting
-     * a new row. The unique constraint uk_slack_install_team_{board,org} spans only
-     * (slack_team_id, board_id/organization_id) and ignores {@code active}, so the old
-     * "deactivate + insert new" flow collided on re-install. Updating in place keeps a
-     * single row per (team, entity) and reactivates it with the fresh OAuth grant.
+     * Reinstall onto an existing record (same slack_team_id + board/org).
+     * Refreshes token/team/installer info and reactivates, avoiding a duplicate INSERT
+     * that would violate uk_slack_install_team_board / uk_slack_install_team_org.
      */
     public void reinstall(String slackTeamName, String botTokenEncrypted, String botUserId,
                           User installedBy, String slackInstallerUserId, String scopes) {
