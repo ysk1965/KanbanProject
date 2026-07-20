@@ -14,6 +14,7 @@ import com.kanban.domain.dailychecklist.dto.DailyChecklistRequest;
 import com.kanban.domain.dailychecklist.dto.DailyChecklistResponse;
 import com.kanban.domain.meeting.dto.MeetingResponse;
 import com.kanban.domain.meeting.service.MeetingService;
+import com.kanban.domain.sprint.service.SprintService;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
@@ -49,6 +50,7 @@ public class DailyChecklistService {
     private final ChecklistService checklistService;
     private final MeetingService meetingService;
     private final WebSocketEventService webSocketEventService;
+    private final SprintService sprintService;
 
     /**
      * 타임블록 모달용 통합 데이터 조회
@@ -228,6 +230,8 @@ public class DailyChecklistService {
                 .build();
 
         checklistItemRepository.save(checklistItem);
+        // 태스크 단위 스프린트 편입: 부모 태스크가 이미 활성 스프린트에 담겨 있으면 새 항목도 자동으로 담는다.
+        sprintService.inheritSprintForNewItem(checklistItem);
 
         // 데일리 체크리스트에 추가
         Integer maxDailyPosition = dailyChecklistRepository.findMaxPositionByBoardIdAndAssignedDateAndAssigneeId(
