@@ -215,20 +215,16 @@ function SortableMemberRow({
             <span
               className="shrink-0"
               title={
-                webhookStatus
-                  ? webhookStatus.enabled
-                    ? `Slack ${t('share.webhookConnected')}${webhookStatus.channel_name ? ` (#${webhookStatus.channel_name})` : ''}`
-                    : `Slack ${t('share.webhookDisabled')}`
+                webhookStatus?.reachable
+                  ? `Slack ${t('share.webhookConnected')}${webhookStatus.channel_name ? ` (#${webhookStatus.channel_name})` : ''}`
                   : `Slack ${t('share.webhookNotConnected')}`
               }
             >
               <SlackIcon
                 className={`h-3.5 w-3.5 ${
-                  webhookStatus?.enabled
+                  webhookStatus?.reachable
                     ? 'text-[#36C5F0]'
-                    : webhookStatus
-                      ? 'text-slate-500'
-                      : 'text-slate-700'
+                    : 'text-slate-700'
                 }`}
               />
             </span>

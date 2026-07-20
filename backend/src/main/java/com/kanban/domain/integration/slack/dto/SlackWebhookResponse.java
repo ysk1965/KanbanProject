@@ -60,9 +60,12 @@ public class SlackWebhookResponse {
     @AllArgsConstructor
     public static class MemberStatus {
         private String userId;
-        private boolean connected;
-        private boolean enabled;
+        private boolean connected;      // 개인 웹훅 행 존재 여부 (레거시 호환)
+        private boolean enabled;        // 개인 웹훅 enabled (레거시 호환)
         private String channelName;
+        private boolean accountLinked;  // Slack 계정 연동(SlackUserLink) 여부 → 봇 DM 수신 가능
+        private boolean botInstalled;   // 이 보드에 Slack 앱(SlackInstallation) 설치 여부
+        private boolean reachable;      // 실제로 Slack 알림을 받는 상태 (봇 DM 또는 웹훅)
 
         public static MemberStatus of(MemberSlackWebhook webhook) {
             return MemberStatus.builder()

@@ -1,11 +1,15 @@
 package com.kanban.domain.integration.slack.service;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardMember;
+import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.integration.BrandResolver;
 import com.kanban.domain.integration.slack.MemberSlackWebhook;
 import com.kanban.domain.integration.slack.MemberSlackWebhookRepository;
+import com.kanban.domain.integration.slack.SlackInstallationRepository;
+import com.kanban.domain.integration.slack.SlackUserLinkRepository;
 import com.kanban.domain.integration.slack.dto.SlackWebhookRequest;
 import com.kanban.domain.integration.slack.dto.SlackWebhookResponse;
 import com.kanban.domain.user.User;
@@ -35,6 +39,9 @@ public class SlackWebhookService {
     private final MemberSlackWebhookRepository webhookRepository;
     private final BoardService boardService;
     private final BoardRepository boardRepository;
+    private final BoardMemberRepository boardMemberRepository;
+    private final SlackInstallationRepository installationRepository;
+    private final SlackUserLinkRepository userLinkRepository;
     private final UserRepository userRepository;
     private final RestTemplate restTemplate;
 
@@ -47,10 +54,43 @@ public class SlackWebhookService {
     public List<SlackWebhookResponse.MemberStatus> getWebhookStatuses(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
 
-        List<MemberSlackWebhook> webhooks = webhookRepository.findByBoardId(boardId);
-        return webhooks.stream()
-                .map(SlackWebhookResponse.MemberStatus::of)
-                .toList();
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        // "실제로 Slack 알림을 받는가"를 기준으로 각 멤버 상태 계산.
+        // 노티 라우팅(SlackNotificationService)과 동일: 앱 설치 시 봇 DM(계정연동 필요),
+        // 미설치 시 개인 웹훅 fallback. 계정연동만 한 멤버(웹훅 미등록)도 포함해야 하므로
+        // 웹훅 행이 아니라 보드 멤버 전체를 순회한다.
+        boolean canAccessSlack = board.canAccessSlack();
+        boolean botInstalled = installationRepository.findActiveByBoardId(boardId).isPresent();
+
+        List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
+        List<String> memberUserIds = members.stream().map(m -> m.getUser().getId()).toList();
+
+        Map<String, MemberSlackWebhook> webhookByUser = webhookRepository.findByBoardId(boardId).stream()
+                .collect(java.util.stream.Collectors.toMap(w -> w.getUser().getId(), w -> w, (a, b) -> a));
+        java.util.Set<String> linkedUserIds = memberUserIds.isEmpty()
+                ? java.util.Set.of()
+                : userLinkRepository.findByUserIdIn(memberUserIds).stream()
+                        .map(l -> l.getUser().getId())
+                        .collect(java.util.stream.Collectors.toSet());
+
+        return members.stream().map(m -> {
+            String uid = m.getUser().getId();
+            MemberSlackWebhook wh = webhookByUser.get(uid);
+            boolean webhookEnabled = wh != null && Boolean.TRUE.equals(wh.getEnabled());
+            boolean accountLinked = linkedUserIds.contains(uid);
+            boolean reachable = canAccessSlack && (botInstalled ? accountLinked : webhookEnabled);
+            return SlackWebhookResponse.MemberStatus.builder()
+                    .userId(uid)
+                    .connected(wh != null)
+                    .enabled(webhookEnabled)
+                    .channelName(wh != null ? wh.getChannelName() : null)
+                    .accountLinked(accountLinked)
+                    .botInstalled(botInstalled)
+                    .reachable(reachable)
+                    .build();
+        }).toList();
     }
 
     public SlackWebhookResponse.Detail getMyWebhook(String boardId, String userId) {
