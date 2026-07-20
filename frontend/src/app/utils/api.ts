@@ -5497,6 +5497,9 @@ export interface SlackWebhookMemberStatus {
   connected: boolean;
   enabled: boolean;
   channel_name: string | null;
+  account_linked?: boolean;  // Slack 계정 연동(봇 DM 수신 가능) 여부
+  bot_installed?: boolean;   // 보드에 Slack 앱 설치 여부
+  reachable?: boolean;       // 실제 Slack 알림 수신 상태 (봇 DM 또는 웹훅)
 }
 
 export const notificationPreferenceAPI = {
