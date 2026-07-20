@@ -67,9 +67,10 @@ public class NoteController {
             @PathVariable String noteId,
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "true") boolean createVersion,
+            @RequestParam(defaultValue = "true") boolean discardDraft,
             @Valid @RequestBody NoteRequest.Update request) {
         NoteResponse.Detail updated = noteService.updateNote(
-                boardId, noteId, principal.getUserId(), request, createVersion);
+                boardId, noteId, principal.getUserId(), request, createVersion, discardDraft);
         return ResponseEntity.ok(updated);
     }
 

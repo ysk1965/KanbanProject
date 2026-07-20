@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * JIRA 동기화 스케줄러.
  *  · syncWriteBack — 완료 역동기화(백스톱, 2분).
- *  · pullSync — 블록↔status 매핑 보드의 JIRA status 변화를 BRIDGE로 pull(검토중/완료/반려, 5분).
+ *  · pullSync — 블록↔status 매핑/미러 보드의 JIRA status 변화를 BRIDGE로 pull(검토중/완료/반려, 2분).
  * DailyStandupScheduler 패턴을 따른다. (웹훅 근실시간은 Phase 4에서 이 폴링을 백업으로 병행)
  */
 @Slf4j
@@ -42,12 +42,13 @@ public class JiraSyncScheduler {
     }
 
     /**
-     * 매 5분 pull 폴링 — 매핑된 보드의 JIRA 이슈를 재동기화(업서트)해 status 변화를 반영한다.
+     * 매 2분 pull 폴링 — 매핑된 보드의 JIRA 이슈를 재동기화(업서트)해 status 변화를 반영한다.
      * 업서트가 곧 pull이므로 재가져오기를 그대로 재사용(연결한 사용자를 행위자로).
+     * write-back(2분)과 주기를 정렬. 웹훅 미설정 보드(미러 포함)의 백업 반영 지연을 줄인다.
      */
-    @Scheduled(cron = "0 */5 * * * *")
+    @Scheduled(cron = "0 */2 * * * *")
     public void pullSync() {
-        List<JiraIntegrationConfig> configs = configRepository.findAllActiveWithBlockStatusMap();
+        List<JiraIntegrationConfig> configs = configRepository.findAllActivePollable();
         if (configs.isEmpty()) return;
 
         for (JiraIntegrationConfig config : configs) {

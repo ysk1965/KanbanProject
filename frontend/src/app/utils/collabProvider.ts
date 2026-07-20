@@ -5,6 +5,8 @@ const MSG_SYNC_FULL = 0;
 const MSG_SYNC_UPDATE = 1;
 const MSG_AWARENESS = 2;
 const MSG_SNAPSHOT_UPDATED = 3;
+const MSG_SEED_REQUEST = 4;
+const MSG_SEED_GRANT = 5;
 
 export type CollabStatus = 'connecting' | 'connected' | 'disconnected';
 
@@ -27,6 +29,9 @@ export class CollabProvider {
   private statusListeners = new Set<(status: CollabStatus) => void>();
   private snapshotListeners = new Set<() => void>();
   private syncedListeners = new Set<() => void>();
+  // FIFO queue of pending seed-permission requests. Each MSG_SEED_GRANT reply
+  // resolves exactly one (the oldest) so concurrent requests pair 1:1 with replies.
+  private seedResolvers: Array<(granted: boolean) => void> = [];
   private hasSynced = false;
   private status: CollabStatus = 'disconnected';
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -116,12 +121,22 @@ export class CollabProvider {
           // Server signaled that someone hit "Save" — View clients refetch.
           this.snapshotListeners.forEach((l) => l());
           break;
+        case MSG_SEED_GRANT: {
+          // Resolve exactly the oldest in-flight requestSeed() call.
+          const granted = payload.length > 0 && payload[0] === 1;
+          const resolve = this.seedResolvers.shift();
+          if (resolve) resolve(granted);
+          break;
+        }
       }
     };
 
     this.ws.onclose = () => {
       this.updateStatus('disconnected');
       this.stopAutoSave();
+      // Fail any in-flight seed requests so an awaiting hydration doesn't hang;
+      // it re-requests after the next reconnect + sync.
+      this.flushSeedResolvers(false);
       if (this.shouldConnect) {
         this.scheduleReconnect();
       }
@@ -156,6 +171,7 @@ export class CollabProvider {
 
   destroy(): void {
     this.disconnect();
+    this.flushSeedResolvers(false);
     this.doc.off('update', this.handleDocUpdate);
     this.awareness.off('update', this.handleAwarenessUpdate);
     this.awareness.destroy();
@@ -196,6 +212,28 @@ export class CollabProvider {
     if (this.readOnly) return;
     const state = Y.encodeStateAsUpdate(this.doc);
     this.send(MSG_SYNC_FULL, state);
+  }
+
+  /**
+   * Ask the server for permission to hydrate the (empty) Y.Doc from the published
+   * REST snapshot. The server grants to exactly one client per empty-room lifetime,
+   * so concurrent EDIT clients cannot each inject the same content and duplicate it.
+   * Resolves false when denied, when read-only, or when the socket is not open —
+   * in every "false" case the caller must NOT hydrate (content arrives via Yjs sync).
+   */
+  requestSeed(): Promise<boolean> {
+    if (this.readOnly) return Promise.resolve(false);
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return Promise.resolve(false);
+    return new Promise<boolean>((resolve) => {
+      this.seedResolvers.push(resolve);
+      this.send(MSG_SEED_REQUEST, new Uint8Array(0));
+    });
+  }
+
+  private flushSeedResolvers(granted: boolean): void {
+    const resolvers = this.seedResolvers;
+    this.seedResolvers = [];
+    resolvers.forEach((r) => r(granted));
   }
 
   /**

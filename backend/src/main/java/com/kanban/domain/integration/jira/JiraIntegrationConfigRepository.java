@@ -21,9 +21,19 @@ public interface JiraIntegrationConfigRepository extends JpaRepository<JiraInteg
     @Query("SELECT c FROM JiraIntegrationConfig c WHERE c.active = true AND c.writeBackEnabled = true")
     List<JiraIntegrationConfig> findAllActiveWithWriteBack();
 
-    /** pull 폴링 스케줄러용 — 블록↔status 매핑이 설정된 활성 config 목록. */
-    @Query("SELECT c FROM JiraIntegrationConfig c WHERE c.active = true AND c.blockStatusMapJson IS NOT NULL")
-    List<JiraIntegrationConfig> findAllActiveWithBlockStatusMap();
+    /**
+     * pull 폴링 스케줄러용 — status 변화를 pull할 수 있는 활성 config 목록.
+     * MANUAL: blockStatusMapJson 매핑이 설정된 보드.
+     * MIRROR: 미러 컬럼(mirrorColumnsJson)이 설정된 보드 — 웹훅 미설정 시 백업 폴링 대상.
+     */
+    @Query("""
+        SELECT c FROM JiraIntegrationConfig c
+        WHERE c.active = true
+          AND (c.blockStatusMapJson IS NOT NULL
+               OR (c.syncMode = com.kanban.domain.integration.jira.JiraSyncMode.MIRROR
+                   AND c.mirrorColumnsJson IS NOT NULL))
+        """)
+    List<JiraIntegrationConfig> findAllActivePollable();
 
     @Modifying
     @Query("DELETE FROM JiraIntegrationConfig c WHERE c.board.id = :boardId")

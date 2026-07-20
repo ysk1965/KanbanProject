@@ -2887,8 +2887,15 @@ export const noteService = {
       tagIds?: string[];
     },
     createVersion = true,
+    discardDraft = true,
   ) => {
-    return await noteAPI.update(boardId, noteId, data, createVersion);
+    return await noteAPI.update(
+      boardId,
+      noteId,
+      data,
+      createVersion,
+      discardDraft,
+    );
   },
 
   delete: async (boardId: string, noteId: string) => {
@@ -3082,8 +3089,15 @@ export const orgNoteService = {
     noteId: string,
     data: { title?: string; content?: string; tagIds?: string[] },
     createVersion = true,
+    discardDraft = true,
   ) => {
-    return await orgNoteAPI.update(orgId, noteId, data, createVersion);
+    return await orgNoteAPI.update(
+      orgId,
+      noteId,
+      data,
+      createVersion,
+      discardDraft,
+    );
   },
   delete: async (orgId: string, noteId: string) => {
     return await orgNoteAPI.delete(orgId, noteId);
@@ -3239,8 +3253,15 @@ export const myNoteService = {
     noteId: string,
     data: { title?: string; content?: string; tagIds?: string[] },
     createVersion = true,
+    discardDraft = true,
   ) => {
-    return await myNoteAPI.update(scopeId, noteId, data, createVersion);
+    return await myNoteAPI.update(
+      scopeId,
+      noteId,
+      data,
+      createVersion,
+      discardDraft,
+    );
   },
   delete: async (scopeId: string, noteId: string) => {
     return await myNoteAPI.delete(scopeId, noteId);

@@ -65,9 +65,10 @@ public class OrgNoteController {
             @PathVariable String noteId,
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "true") boolean createVersion,
+            @RequestParam(defaultValue = "true") boolean discardDraft,
             @Valid @RequestBody NoteRequest.Update request) {
         return ResponseEntity.ok(orgNoteService.updateNote(
-                orgId, noteId, principal.getUserId(), request, createVersion));
+                orgId, noteId, principal.getUserId(), request, createVersion, discardDraft));
     }
 
     @DeleteMapping("/{noteId}")

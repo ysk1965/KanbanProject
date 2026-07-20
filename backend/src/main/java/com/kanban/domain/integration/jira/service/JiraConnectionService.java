@@ -31,9 +31,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * JIRA 연결 설정(config)의 생성·검증·매핑·해제. 이슈 가져오기는 {@link JiraImportService} 담당.
@@ -291,6 +293,11 @@ public class JiraConnectionService {
         config.enableMirror();
         // 초기 가져오기는 이 트랜잭션 밖(컨트롤러)에서 별도로 수행 — 중첩 @Transactional 롤백 오염 방지.
 
+        // 과거 연결 사이클에서 unlink된 잉여(고아) 미러 블록 청소 — 빈 것만.
+        Set<String> newColumnNames = new HashSet<>();
+        for (Map<String, Object> c : mirrorCols) newColumnNames.add((String) c.get("name"));
+        cleanupOrphanMirrorBlocks(boardId, newColumnNames, config, token);
+
         int total = mirrorCols.size();
         log.info("JIRA mirror setup for board {}: {} columns, source={}, detail={}, by user {}",
             boardId, total, columnSource, columnSourceDetail, userId);
@@ -464,6 +471,37 @@ public class JiraConnectionService {
         return s.length() > 50 ? s.substring(0, 50) : s;
     }
 
+    /**
+     * 과거 연결 사이클에서 unlink(jiraStatusId=null)된 채 남은 잉여 미러 블록을 청소한다.
+     * 안전 조건(전부 충족해야 삭제): 비고정 · 비Feature · 현재 미러 아님(jiraStatusId=null) ·
+     * 이름이 JIRA 상태명/카테고리 라벨/현재 컬럼명과 일치 · 카드 0개(빈 블록).
+     * 카드가 있는 블록·고정 블록·사용자 커스텀 블록은 건드리지 않는다.
+     */
+    private void cleanupOrphanMirrorBlocks(String boardId, Set<String> currentColumnNames,
+                                           JiraIntegrationConfig config, String token) {
+        Set<String> mirrorNames = new HashSet<>(currentColumnNames);
+        mirrorNames.add("할 일");
+        mirrorNames.add("진행 중");
+        mirrorNames.add("완료");
+        try {
+            for (JiraResponse.NameRef s : fetchProjectStatuses(config, token)) mirrorNames.add(s.getName());
+        } catch (Exception e) {
+            log.warn("고아 블록 청소용 상태 목록 조회 실패 board={}: {}", boardId, e.getMessage());
+        }
+        int removed = 0;
+        for (Block b : blockRepository.findByBoardIdOrderByPositionAsc(boardId)) {
+            if (b.getFixedType() != null || b.isFeatureBlock() || b.isJiraMirror()) continue;
+            if (!mirrorNames.contains(b.getName())) continue;
+            if (taskRepository.findMaxPositionByBlockId(b.getId()) != null) continue;  // 카드 있으면 보존
+            blockRepository.delete(b);
+            removed++;
+        }
+        if (removed > 0) {
+            blockRepository.flush();
+            log.info("Removed {} orphan JIRA mirror blocks on board {}", removed, boardId);
+        }
+    }
+
     // ── 블록↔status 양방향 매핑 저장 ────────────────
 
     @Transactional
@@ -513,8 +551,14 @@ public class JiraConnectionService {
         if (!configRepository.existsByBoardId(boardId)) {
             throw new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED);
         }
-        // 미러 컬럼은 삭제하지 않고 일반 블록으로 전환(연동 해제해도 카드/컬럼 보존, 메인 보드에 노출).
-        blockRepository.findJiraMirrorBlocksByBoardId(boardId).forEach(Block::unlinkJiraStatus);
+        // 미러 컬럼 삭제 — 태스크는 TASK 고정 블록으로 대피(카드 보존).
+        // (unlink 후 블록을 남기면 jiraStatusId=null이 되어 재연결 시 청소 대상에서 빠져 잉여 블록이 누적됨.)
+        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
+        for (Block mirror : blockRepository.findJiraMirrorBlocksByBoardId(boardId)) {
+            if (taskBlock != null) taskRepository.moveTasksToBlock(mirror.getId(), taskBlock);
+            blockRepository.delete(mirror);
+        }
+        blockRepository.flush();
         issueLinkRepository.deleteByBoardId(boardId);
         userMappingRepository.deleteByBoardId(boardId);
         configRepository.deleteByBoardId(boardId);

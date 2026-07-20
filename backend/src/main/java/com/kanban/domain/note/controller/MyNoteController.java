@@ -57,9 +57,10 @@ public class MyNoteController {
             @PathVariable String noteId,
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "true") boolean createVersion,
+            @RequestParam(defaultValue = "true") boolean discardDraft,
             @Valid @RequestBody NoteRequest.Update request) {
         return ResponseEntity.ok(myNoteService.updateNote(
-                noteId, principal.getUserId(), request, createVersion));
+                noteId, principal.getUserId(), request, createVersion, discardDraft));
     }
 
     @DeleteMapping("/{noteId}")

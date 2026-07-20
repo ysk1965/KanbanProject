@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>노트 실시간 협업 동기화 문제 분석</title>
+<style>
+  :root{
+    --bg:#191f2d; --obsidian:#151B28; --surface:#1e2a42; --border:#384d6e;
+    --accent:#6366F1; --secondary:#2DD4BF; --fg:#f1f3f8; --muted:#94a3b8; --dim:#64748b;
+    --rose:#f43f5e; --amber:#f59e0b; --emerald:#10b981; --card:#1b2334;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    line-height:1.7;font-size:15px}
+  .wrap{max-width:1000px;margin:0 auto;padding:48px 24px 96px}
+  header.hero{padding:36px 32px;border-radius:20px;
+    background:linear-gradient(135deg,rgba(99,102,241,.18),rgba(45,212,191,.08));
+    border:1px solid var(--border);margin-bottom:40px}
+  .hero .kicker{font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--secondary);font-weight:700}
+  .hero h1{margin:.4em 0 .2em;font-size:28px;line-height:1.3}
+  .hero p{margin:0;color:var(--muted)}
+  h2{font-size:21px;margin:52px 0 16px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.08);
+    display:flex;align-items:center;gap:10px}
+  h2 .n{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;
+    background:var(--accent);color:#fff;font-size:14px;font-weight:700;flex:none}
+  h3{font-size:16px;margin:28px 0 10px;color:#e2e8f0}
+  p{margin:10px 0}
+  code{background:rgba(255,255,255,.07);padding:2px 6px;border-radius:5px;font-size:.86em;
+    font-family:"SF Mono", Menlo,Consolas,monospace;color:#c7d2fe}
+  .path{color:var(--secondary);font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.82em}
+  pre{background:#0f1420;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px 18px;
+    overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace}
+  pre .cmt{color:#5b6b8c}
+  pre .warn{color:var(--amber)}
+  .card{background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:22px 24px;margin:18px 0}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid{grid-template-columns:1fr}}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;vertical-align:middle}
+  .b-crit{background:rgba(244,63,94,.15);color:#fb7185}
+  .b-high{background:rgba(245,158,11,.15);color:#fbbf24}
+  .b-mid{background:rgba(99,102,241,.15);color:#a5b4fc}
+  .b-design{background:rgba(45,212,191,.15);color:#5eead4}
+  .b-ok{background:rgba(16,185,129,.15);color:#6ee7b7}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.07);vertical-align:top}
+  th{color:var(--muted);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+  .flow{display:flex;flex-direction:column;gap:8px;margin:16px 0}
+  .step{display:flex;gap:12px;align-items:flex-start;background:#0f1420;border:1px solid rgba(255,255,255,.06);
+    border-radius:10px;padding:12px 14px}
+  .step .num{flex:none;width:24px;height:24px;border-radius:7px;background:rgba(99,102,241,.2);color:#a5b4fc;
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+  .step.bad .num{background:rgba(244,63,94,.2);color:#fb7185}
+  .callout{border-left:3px solid var(--accent);background:rgba(99,102,241,.07);padding:14px 18px;border-radius:0 10px 10px 0;margin:16px 0}
+  .callout.warn{border-color:var(--amber);background:rgba(245,158,11,.07)}
+  .callout.crit{border-color:var(--rose);background:rgba(244,63,94,.08)}
+  .callout.ok{border-color:var(--emerald);background:rgba(16,185,129,.07)}
+  ul{padding-left:20px}li{margin:6px 0}
+  .muted{color:var(--muted)}
+  .tag{font-size:11px;font-family:"SF Mono",Menlo,monospace;color:var(--dim)}
+  .diag{display:flex;gap:16px;flex-wrap:wrap;margin:16px 0}
+  .win{flex:1;min-width:240px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--obsidian)}
+  .win .bar{background:#0f1420;padding:8px 12px;font-size:12px;color:var(--muted);border-bottom:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between}
+  .win .body{padding:16px;min-height:80px;font-size:13px}
+  .pill{display:inline-flex;gap:5px;align-items:center;background:rgba(45,212,191,.12);color:#5eead4;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
+  hr{border:none;border-top:1px solid rgba(255,255,255,.08);margin:40px 0}
+  .fixnum{color:var(--secondary);font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="kicker">BRIDGE · 코드 분석 리포트</div>
+  <h1>노트 실시간 협업 동기화 문제 진단</h1>
+  <p>같은 문서를 두 창에서 편집했을 때 본문이 서로 반영되지 않는 현상의 원인 분석 — 백엔드 WebSocket, 프론트 Yjs 협업, REST 저장 흐름 전수 조사</p>
+</header>
+
+<!-- 증상 -->
+<h2><span class="n">0</span>관찰된 증상</h2>
+<div class="diag">
+  <div class="win">
+    <div class="bar"><span>창 A · 편집 모드</span><span class="pill">👤 상건 · 상건</span></div>
+    <div class="body muted"><em>텍스트를 입력하거나 /를 입력하여…</em><br><span class="tag">— 본문 비어 있음 —</span></div>
+  </div>
+  <div class="win">
+    <div class="bar"><span>창 B · 편집 모드</span><span class="pill">👤 상건 · 상건</span></div>
+    <div class="body">&lt;롬4:8-12&gt;<br>하나님의 은혜는 그리스도의 의를 부여 받은 것<br><span class="tag">— 본문 존재 —</span></div>
+  </div>
+</div>
+
+<div class="callout crit">
+  <strong>핵심 단서 — 전송은 살아 있고 "문서"만 안 맞는다.</strong><br>
+  두 창 모두 <b>편집 모드</b>이고, 양쪽 헤더에 프레즌스 아바타(상건·상건)가 <b>둘 다</b> 떠 있습니다.
+  이는 WebSocket 연결 · 룸(<code>noteId</code>) 조인 · awareness 릴레이가 <b>정상 작동</b> 중이라는 뜻입니다.
+  같은 릴레이 경로(<code>relayToOthers</code>)를 쓰는데 <b>커서/프레즌스는 오가고 본문(Y.Doc)만 안 맞는다</b>는 것은,
+  문제가 "네트워크 전송"이 아니라 <b>문서의 초기 하이드레이션(seeding)과 적용 로직</b>에 있음을 가리킵니다.
+</div>
+
+<!-- 아키텍처 -->
+<h2><span class="n">1</span>아키텍처 요약 — 이중 저장소가 근본 배경</h2>
+<p>노트 본문은 <b>서로 다른 두 곳</b>에 저장됩니다. 이 이중 구조와 그 사이의 "수동 단방향 동기화"가 모든 문제의 뿌리입니다.</p>
+<table>
+  <tr><th>저장소</th><th>내용</th><th>소유 채널</th><th>언제 갱신</th></tr>
+  <tr>
+    <td><code>notes.content</code><br><span class="tag">TEXT (BlockNote JSON)</span></td>
+    <td>발행 스냅샷 — <b>VIEW 모드</b>가 보는 것</td>
+    <td>REST <code>PUT</code></td>
+    <td>사용자가 <b>"저장" 클릭</b> 시에만</td>
+  </tr>
+  <tr>
+    <td><code>note_collab_states.yjs_state</code><br><span class="tag">byte[] (Yjs CRDT)</span></td>
+    <td>라이브 드래프트 — <b>EDIT 모드</b> 실시간 상태</td>
+    <td>WebSocket <code>/ws-collab/{noteId}</code></td>
+    <td>1.5초 디바운스 / 30초 주기 자동</td>
+  </tr>
+</table>
+<p class="muted">서버는 CRDT 병합을 하지 않습니다. Yjs 상태를 <em>불투명 blob</em>으로 릴레이·저장만 합니다
+(<span class="path">NoteCollabService.java:69</span> — "no server-side CRDT"). 병합 책임은 전적으로 클라이언트(Yjs)에 있습니다.</p>
+
+<div class="callout">
+<b>초기 문서를 Yjs 프로토콜로 받지 않습니다.</b> 표준 y-websocket의 sync step1/step2(stateVector 교환)가 <b>없고</b>,
+접속 시 서버가 무조건 <code>MSG_SYNC_FULL</code>(전체 상태)을 push합니다(<span class="path">NoteCollabHandler.java:113-162</span>).
+그리고 그 상태가 비어 있으면 <b>각 클라이언트가 REST <code>note.content</code>를 자기 Y.Doc에 직접 주입</b>합니다. 바로 여기서 사고가 납니다.
+</div>
+
+<!-- 원인 1 -->
+<h2><span class="n">2</span>원인 ① 이중 하이드레이션 &rarr; 본문 중복/분기 <span class="badge b-crit">치명적 버그</span></h2>
+<p>초기 문서를 서버가 한 번만 시딩하는 게 아니라, <b>각 클라이언트가 각자 REST content를 Y.Doc에 <code>replaceBlocks</code>로 삽입</b>합니다.
+가드는 "내 로컬 에디터가 비어 있을 때만 주입"인데, 이 검사는 <b>onSynced 순간의 로컬 스냅샷만</b> 봅니다.</p>
+
+<pre><span class="cmt">// NoteEditor.tsx:571-614 (요약)</span>
+const unsubscribe = collaboration.provider.onSynced(async () =&gt; {
+  if (initialContentLoaded.current) return;
+  const isEmpty = <span class="warn">/* 내 로컬 Y.Doc이 비었나? — 릴레이 지연은 못 봄 */</span>;
+  if (!isEmpty || !note.content?.trim()) { initialContentLoaded.current = true; return; }
+  await loadIntoEditor(editor, note.content);  <span class="warn">// ← REST content를 Y.Doc에 주입</span>
+});
+<span class="cmt">// loadIntoEditor → editor.replaceBlocks(...) → y-prosemirror가 Y.Doc 삽입 연산으로 변환</span></pre>
+
+<h3>충돌 시나리오 (서버 저장본이 아직 빈 새 노트)</h3>
+<div class="flow">
+  <div class="step"><div class="num">1</div><div>사용자 A 진입 → 로컬 Y.Doc 비어 있음 확인 → <code>replaceBlocks(note.content)</code> 주입. A의 clientID로 된 CRDT 연산 생성. <code>MSG_SYNC_UPDATE</code> 즉시 전송, full-state는 <b>1.5초 뒤</b> 전송.</div></div>
+  <div class="step bad"><div class="num">2</div><div><b>1.5초의 창</b> 동안 서버 <code>storedState</code>는 여전히 비어 있음 (UPDATE는 relay-only, 저장 안 됨).</div></div>
+  <div class="step bad"><div class="num">3</div><div>이 창 안에서 사용자 B 진입 → B의 로컬 Y.Doc도 아직 비어 있음(A의 update 미반영) → B도 <code>replaceBlocks(note.content)</code> 주입.</div></div>
+  <div class="step bad"><div class="num">4</div><div>B의 삽입은 A와 같은 텍스트지만 <b>다른 Yjs itemID</b>. CRDT는 dedupe하지 않고 둘 다 병합 → <b>본문이 통째로 2배 복제</b>되거나, 타이밍에 따라 한쪽만 반영되어 분기.</div></div>
+</div>
+
+<div class="callout warn">
+서버가 <code>MSG_SYNC_UPDATE</code>를 <b>릴레이만 하고 저장을 1.5초 지연</b>시키는 설계(<span class="path">collabProvider.ts:43-47</span>)가 이 충돌 창을 넓힙니다.
+스크린샷처럼 한쪽은 비고 한쪽은 채워진 상태도, 이 하이드레이션 레이스의 한 결과(한 창은 주입, 다른 창은 "비었음" 판정을 놓쳐 미반영)로 설명됩니다.
+</div>
+<p class="tag">근거: NoteEditor.tsx:571-644 · blocknoteContent.ts:142-173 · collabProvider.ts:225-230</p>
+
+<!-- 원인 2 -->
+<h2><span class="n">3</span>원인 ② EDIT ↔ VIEW 비대칭 <span class="badge b-high">설계상 제약</span></h2>
+<p>VIEW 모드 사용자는 <b>Y.Doc을 아예 보지 않습니다.</b> REST <code>note.content</code>(마지막 발행 스냅샷)를 정적 HTML로 렌더할 뿐입니다
+(<span class="path">NoteEditor.tsx:552-561</span>). 따라서:</p>
+<ul>
+  <li>한 사람이 EDIT로 타이핑해도 상대가 <b>VIEW면 실시간으로 안 보입니다.</b></li>
+  <li>편집자가 <b>"저장(발행)"</b>을 눌러야 <code>MSG_SNAPSHOT_UPDATED</code>가 브로드캐스트되고, 그때서야 VIEW 창이 REST를 refetch합니다.</li>
+  <li>즉 <b>실시간 협업은 "양쪽 모두 EDIT 모드"일 때만</b> 성립합니다.</li>
+</ul>
+<div class="callout">사용자 입장에선 "저장 전까지 상대 화면에 아무것도 안 뜬다 = 동기화 안 됨"으로 느껴집니다. 이번 스크린샷은 둘 다 EDIT라 이 항목보단 원인 ①이 더 유력하지만, 평소 "동기화 안 되는 느낌"의 상당 부분이 이 비대칭에서 옵니다.</div>
+
+<!-- 원인 3 -->
+<h2><span class="n">4</span>원인 ③ 낙관적 락 부재 &rarr; 저장(발행) Last-Write-Wins <span class="badge b-high">데이터 손실 위험</span></h2>
+<p><span class="path">Note.java</span>에 <code>@Version</code> 필드가 <b>전혀 없고</b>, <code>PUT</code> 요청에도 기대 버전/타임스탬프가 없습니다.
+서버는 받은 content를 <b>무조건 덮어씁니다.</b></p>
+<pre><span class="cmt">// NoteService.java:216-221 — 충돌 감지 없음</span>
+if (request.getTitle() != null)   note.updateTitle(request.getTitle());
+if (request.getContent() != null) note.updateContent(request.getContent(), user);
+<span class="cmt">// @Retryable(:182)은 note_versions UNIQUE 충돌 재시도용일 뿐, content 충돌은 처리 안 함</span></pre>
+<p>두 사용자가 거의 동시에 저장하면 <b>마지막 PUT이 승리</b>합니다. 한쪽 화면이 미수렴 상태(직전 keystroke 미반영)에서 저장하면 그 스냅샷이 이겨 상대 편집이 발행본에서 누락될 수 있습니다.</p>
+
+<h3>더 위험한 지점 — 발행이 진행 중인 드래프트를 삭제</h3>
+<p>A가 저장하면 <code>deleteState(noteId)</code> + <code>NoteDraftDiscardedEvent</code>로 룸의 <code>storedState=null</code> + 리플레이 버퍼를 clear합니다
+(<span class="path">NoteService.java:237-241</span> → <span class="path">NoteCollabHandler.java:263-272</span>).
+이때 B가 여전히 EDIT 중이면 B의 다음 1.5초 자동저장이 <b>삭제된 드래프트를 되살려</b> 발행본과 드래프트가 재분기합니다.
+폐기(discard)에는 "다른 편집자 있으면 차단" 가드가 있지만(<span class="path">NoteEditor.tsx:971-986</span>), <b>저장(발행) 경로엔 그 가드가 없습니다.</b></p>
+
+<!-- 원인 4 -->
+<h2><span class="n">5</span>원인 ④ 다중 인스턴스 &mdash; Redis 미설정 시 완전 분리 <span class="badge b-high">배포 환경 의존</span></h2>
+<p>인스턴스 간 브로드캐스트는 Redis Pub/Sub인데 <b>조건부</b>입니다. 기본값이 <code>simple</code>(in-memory)이라 명시 설정이 없으면 단일 인스턴스에서만 동작합니다.</p>
+<pre><span class="cmt"># application.yml:181</span>
+app.websocket.broker-type: ${WS_BROKER_TYPE:<span class="warn">simple</span>}   <span class="cmt"># ← redis 아니면 in-memory 릴레이</span></pre>
+<div class="callout warn">
+Elastic Beanstalk에서 <b>인스턴스가 2대 이상 + sticky session 없음 + <code>WS_BROKER_TYPE≠redis</code></b>이면,
+두 편집자가 서로 다른 인스턴스에 붙었을 때 UPDATE/awareness가 아예 안 오갑니다. 각 인스턴스의 <code>rooms</code>·<code>storedState</code>가 영구 분기합니다.
+<br><b>단, 이번 스크린샷은 awareness가 양쪽에 보이므로 이 케이스는 아닙니다</b> — 같은 인스턴스(또는 Redis 정상)입니다. 그래도 프로덕션 다중 인스턴스에서 재현되는 별개 원인이므로 반드시 확인하세요.
+</div>
+<p class="tag">추가: publishToRedis는 UPDATE/AWARENESS에서만 호출되고 SYNC_FULL 저장은 로컬 storedState만 갱신(NoteCollabHandler.java:195-206) → 인스턴스별 storedState 불일치 가능.</p>
+
+<!-- 원인 5 -->
+<h2><span class="n">6</span>원인 ⑤ relay-only + 지연 저장으로 인한 편집 유실 <span class="badge b-mid">경합</span></h2>
+<ul>
+  <li><code>MSG_SYNC_UPDATE</code>는 릴레이만 되고 서버에 저장 안 됨. 늦게 접속한 클라이언트는 <b>마지막 full-state까지만</b> 받음.</li>
+  <li>편집자가 저장 없이 하드 디스커넥트하면 <b>최대 1.5초~30초</b> 편집분이 서버에 없어 다음 접속자에게 누락 가능.</li>
+  <li>모든 세션이 나가면 룸과 <code>pendingUpdates</code> 버퍼가 통째 제거 → 마지막 auto-save 이후 in-flight 증분 소실.</li>
+</ul>
+
+<hr>
+
+<!-- 종합 -->
+<h2><span class="n">7</span>원인 우선순위 종합</h2>
+<table>
+  <tr><th>#</th><th>원인</th><th>이번 증상 연관도</th><th>성격</th></tr>
+  <tr><td>①</td><td>이중 하이드레이션(각 클라가 REST content를 각자 주입) → 중복/분기</td><td><span class="badge b-crit">매우 높음</span></td><td>버그</td></tr>
+  <tr><td>②</td><td>EDIT↔VIEW 비대칭 (VIEW는 라이브 미수신)</td><td><span class="badge b-mid">중간</span> (둘 다 EDIT라 이번엔 아님)</td><td>설계</td></tr>
+  <tr><td>③</td><td>낙관적 락 부재 → 발행 LWW · 진행 중 드래프트 삭제 레이스</td><td><span class="badge b-high">높음</span></td><td>버그/설계</td></tr>
+  <tr><td>④</td><td>다중 인스턴스 Redis 미설정</td><td><span class="badge b-ok">이번엔 배제</span> (awareness 정상)</td><td>배포</td></tr>
+  <tr><td>⑤</td><td>relay-only + 지연 저장 유실</td><td><span class="badge b-mid">중간</span></td><td>경합</td></tr>
+</table>
+
+<div class="callout crit">
+<b>이번 스크린샷의 가장 유력한 원인은 ①</b>입니다. awareness는 오가는데 본문만 안 맞고 한쪽이 비어 있는 상태는,
+"각 클라이언트가 초기 문서를 스스로 시딩하는" 구조에서 하이드레이션 가드가 릴레이 지연 창을 못 보고 어긋난 전형적 결과입니다.
+근본 치료는 <b>초기 시딩을 클라이언트가 각자 하지 않게</b> 만드는 것입니다.
+</div>
+
+<!-- 해결 -->
+<h2><span class="n">8</span>권장 해결 방향</h2>
+
+<div class="grid">
+  <div class="card">
+    <h3><span class="fixnum">Fix 1.</span> 서버 측 1회 시딩 (권장·근본)</h3>
+    <p>클라이언트가 <code>replaceBlocks(note.content)</code>로 초기 문서를 넣는 방식을 폐기하고, <b>서버가 룸 최초 생성 시</b> <code>note.content</code>를 Yjs state로 변환해 <code>storedState</code>에 한 번만 시딩합니다. 이후 모든 클라이언트는 순수 Yjs sync로만 문서를 받습니다.</p>
+    <p class="muted">→ 원인 ① 완전 제거. 단, BlockNote JSON ↔ Yjs state 변환을 서버(또는 공유 seeding 클라 1명)에서 수행해야 함.</p>
+  </div>
+  <div class="card">
+    <h3><span class="fixnum">Fix 1-lite.</span> 리더 선출 하이드레이션 (경량)</h3>
+    <p>서버가 룸의 <b>첫 접속자에게만</b> "시딩 권한" 플래그를 내려주고, 나머지는 절대 <code>replaceBlocks</code>하지 않게 합니다. <code>MSG_SYNC_FULL</code> 헤더에 <code>isSeeder</code> 1바이트 추가로 구현 가능.</p>
+    <p class="muted">→ 서버 변환 없이 원인 ① 차단. 가장 적은 변경으로 즉효.</p>
+  </div>
+  <div class="card">
+    <h3><span class="fixnum">Fix 2.</span> 하이드레이션 가드 강화</h3>
+    <p>onSynced 로컬 스냅샷 대신 <b>서버가 "storedState가 실제로 비었다"고 확정한 신호</b>가 있을 때만, 그리고 그 순간 <b>내가 유일한 접속자</b>일 때만 주입하도록 조건을 좁힙니다.</p>
+  </div>
+  <div class="card">
+    <h3><span class="fixnum">Fix 3.</span> 저장 낙관적 락</h3>
+    <p><code>Note</code>에 <code>@Version</code> 추가 + <code>PUT</code>에 <code>expectedVersion</code> 전달. 충돌 시 409 반환 → 프론트 머지 프롬프트. 최소한 발행 경로에도 "다른 편집자 있으면 확인" 가드 추가(폐기 경로와 동일).</p>
+  </div>
+  <div class="card">
+    <h3><span class="fixnum">Fix 4.</span> VIEW 실시간화(선택)</h3>
+    <p>VIEW 모드도 Yjs 문서를 read-only로 구독해 라이브 반영. 현재의 "스냅샷 격리"를 유지하려면, 최소한 상대가 편집 중일 때 "편집 중 · 저장 시 갱신" 배너를 명확히 노출.</p>
+  </div>
+  <div class="card">
+    <h3><span class="fixnum">Fix 5.</span> 다중 인스턴스 확정</h3>
+    <p>프로덕션에서 <code>WS_BROKER_TYPE=redis</code> 설정 확인, 또는 로드밸런서 <b>sticky session</b> 적용. 배포 환경에서만 재현되는 협업 실패의 대비책.</p>
+  </div>
+</div>
+
+<div class="callout ok">
+<b>가장 빠른 실전 순서:</b> ① <b>Fix 1-lite(리더 선출 시딩)</b>로 본문 중복/분기부터 잡고 → ② <b>Fix 3의 발행 경로 편집자 가드</b>로 저장 시 손실을 막은 뒤 → ③ 프로덕션 <b>Redis/sticky</b>를 점검하는 것을 권합니다.
+</div>
+
+<!-- 검증 -->
+<h2><span class="n">9</span>재현·검증 체크리스트</h2>
+<ul>
+  <li><b>단일 인스턴스 재현:</b> 로컬에서 새 노트를 두 탭으로 동시에 EDIT 진입 → 한쪽에 타이핑 → 다른 쪽 반영/중복 여부 확인. (원인 ① 격리)</li>
+  <li><b>DevTools Network → WS 프레임:</b> 두 탭에서 <code>/ws-collab/{noteId}</code> 연결 여부, <code>MSG_SYNC_UPDATE</code>(type 1) 프레임이 상대에게 relay되는지 확인.</li>
+  <li><b>중복 확인:</b> 저장 후 <code>note.content</code> JSON에 같은 블록이 2배로 들어갔는지 확인(원인 ① 확정 증거).</li>
+  <li><b>프로덕션:</b> <code>WS_BROKER_TYPE</code> 환경변수 값, EB 인스턴스 수, ALB sticky session 설정 확인.</li>
+  <li><b>CORS:</b> 배포 도메인이 <span class="path">NoteCollabWebSocketConfig.java:29-44</span> 화이트리스트(<code>FRONTEND_URL</code> 등)에 있는지.</li>
+</ul>
+
+<hr>
+<p class="muted" style="font-size:13px">
+분석 범위: <span class="path">NoteCollabHandler.java</span> · <span class="path">NoteCollabService.java</span> · <span class="path">NoteService.java</span> ·
+<span class="path">useCollaboration.ts</span> · <span class="path">collabProvider.ts</span> · <span class="path">NoteEditor.tsx</span> · <span class="path">blocknoteContent.ts</span> ·
+<span class="path">application.yml</span> · <span class="path">RedisWebSocketConfig.java</span>
+</p>
+
+</div>
+</body>
+</html>

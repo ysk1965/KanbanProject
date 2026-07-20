@@ -108,6 +108,7 @@ interface NoteEditorProps {
     noteId: string,
     data: { title?: string; content?: string; tagIds?: string[] },
     createVersion?: boolean,
+    discardDraft?: boolean,
   ) => void;
   onTagsChange: () => void;
   onNoteUpdate?: (note: NoteDetail) => void;
@@ -117,6 +118,18 @@ interface NoteEditorProps {
   currentUserColor: string;
   breadcrumbs?: BreadcrumbItem[];
   onBreadcrumbClick?: (noteId: string) => void;
+}
+
+/** True when the editor holds only a single empty paragraph (a pristine doc). */
+function isEditorEmpty(editor: {
+  document: Array<{ type: string; content?: unknown[] }>;
+}): boolean {
+  const doc = editor.document;
+  return (
+    doc.length === 1 &&
+    doc[0].type === "paragraph" &&
+    (!doc[0].content || doc[0].content.length === 0)
+  );
 }
 
 export function NoteEditor({
@@ -246,6 +259,7 @@ interface CollabEditorProps {
     noteId: string,
     data: { title?: string; content?: string; tagIds?: string[] },
     createVersion?: boolean,
+    discardDraft?: boolean,
   ) => void;
   onTagsChange: () => void;
   onNoteUpdate?: (note: NoteDetail) => void;
@@ -332,10 +346,10 @@ function CollabNoteEditor({
         const updated = personal
           ? await myNoteService.getDetail("me", note.id)
           : boardId
-          ? await noteService.getDetail(boardId, note.id)
-          : orgId
-            ? await orgNoteService.getDetail(orgId, note.id)
-            : null;
+            ? await noteService.getDetail(boardId, note.id)
+            : orgId
+              ? await orgNoteService.getDetail(orgId, note.id)
+              : null;
         if (updated) {
           onNoteUpdate?.(updated);
           setTitle(updated.title);
@@ -359,10 +373,10 @@ function CollabNoteEditor({
         const res = personal
           ? await myNoteAPI.hasArchivedDraft("me", note.id)
           : boardId
-          ? await noteAPI.hasArchivedDraft(boardId, note.id)
-          : orgId
-            ? await orgNoteAPI.hasArchivedDraft(orgId, note.id)
-            : null;
+            ? await noteAPI.hasArchivedDraft(boardId, note.id)
+            : orgId
+              ? await orgNoteAPI.hasArchivedDraft(orgId, note.id)
+              : null;
         if (!cancelled) setHasDiscardedDraft(!!res?.available);
       } catch {
         if (!cancelled) setHasDiscardedDraft(false);
@@ -371,7 +385,15 @@ function CollabNoteEditor({
     return () => {
       cancelled = true;
     };
-  }, [mode, canEdit, note.has_unpublished_draft, note.id, boardId, orgId, personal]);
+  }, [
+    mode,
+    canEdit,
+    note.has_unpublished_draft,
+    note.id,
+    boardId,
+    orgId,
+    personal,
+  ]);
 
   const editorPeers = useMemo(
     () => collaboration.connectedUsers.filter((u) => u.mode === "edit"),
@@ -596,12 +618,7 @@ function CollabNoteEditor({
     let cancelled = false;
     const unsubscribe = collaboration.provider.onSynced(async () => {
       if (cancelled || initialContentLoaded.current) return;
-      const doc = editor.document;
-      const isEmpty =
-        doc.length === 1 &&
-        doc[0].type === "paragraph" &&
-        (!doc[0].content || doc[0].content.length === 0);
-      if (!isEmpty || !note.content?.trim()) {
+      if (!isEditorEmpty(editor) || !note.content?.trim()) {
         initialContentLoaded.current = true;
         return;
       }
@@ -617,6 +634,23 @@ function CollabNoteEditor({
       if (modeRef.current !== "edit") return;
       hydratingRef.current = true;
       try {
+        // Leader-election seeding: only ONE client may inject the published
+        // snapshot into the shared empty doc. If the server denies us, a peer is
+        // seeding — wait for that content to arrive over Yjs sync instead of
+        // injecting a duplicate copy (the root cause of doubled/diverged docs).
+        const granted = await collaboration.provider.requestSeed();
+        if (cancelled || initialContentLoaded.current) return;
+        if (!granted) {
+          initialContentLoaded.current = true;
+          return;
+        }
+        // Re-check emptiness after the grant round-trip: the user (or a peer's
+        // relayed edit) may have populated the doc meanwhile, and replaceBlocks
+        // would clobber it. If it's no longer empty, real content already exists.
+        if (!isEditorEmpty(editor)) {
+          initialContentLoaded.current = true;
+          return;
+        }
         const ok = await loadIntoEditor(editor, note.content);
         if (ok) initialContentLoaded.current = true;
         // Intentionally do NOT sendFullState here. Hydrating the Y.Doc from the
@@ -642,20 +676,25 @@ function CollabNoteEditor({
   // the BlockNoteView so y-prosemirror's view callback has attached its
   // EditorView reference — only then does replaceBlocks() propagate to Y.Doc.
   useEffect(() => {
-    if (mode !== "edit" || !editor || !note.content?.trim()) return;
+    if (mode !== "edit" || !editor || !collaboration || !note.content?.trim())
+      return;
     if (initialContentLoaded.current || hydratingRef.current) return;
     const raf = requestAnimationFrame(async () => {
-      const doc = editor.document;
-      const isEmpty =
-        doc.length === 1 &&
-        doc[0].type === "paragraph" &&
-        (!doc[0].content || doc[0].content.length === 0);
-      if (!isEmpty) {
+      if (initialContentLoaded.current || hydratingRef.current) return;
+      if (!isEditorEmpty(editor)) {
         initialContentLoaded.current = true;
         return;
       }
       hydratingRef.current = true;
       try {
+        // Same leader-election guard as the onSynced path: only the granted
+        // client seeds from the snapshot; everyone else waits for Yjs sync.
+        const granted = await collaboration.provider.requestSeed();
+        if (initialContentLoaded.current) return;
+        if (!granted || !isEditorEmpty(editor)) {
+          initialContentLoaded.current = true;
+          return;
+        }
         const ok = await loadIntoEditor(editor, note.content);
         if (ok) initialContentLoaded.current = true;
       } finally {
@@ -663,7 +702,7 @@ function CollabNoteEditor({
       }
     });
     return () => cancelAnimationFrame(raf);
-  }, [mode, editor, note.content]);
+  }, [mode, editor, note.content, collaboration]);
 
   useEffect(() => {
     return () => {
@@ -899,6 +938,11 @@ function CollabNoteEditor({
     try {
       collaboration.provider.sendFullState();
       const json = getContentForSave();
+      // Only discard the shared Yjs draft on publish when no OTHER editor is live.
+      // editorPeers excludes our own client, so an empty list means we're the sole
+      // editor and it's safe to clear the draft. With peers present we keep it so
+      // their in-flight edits aren't nuked out from under them.
+      const discardDraft = editorPeers.length === 0;
       await onSave(
         note.id,
         {
@@ -907,6 +951,7 @@ function CollabNoteEditor({
           tagIds: note.tags.map((t) => t.id),
         },
         true,
+        discardDraft,
       );
       // Update VIEW mode's static HTML preview immediately so the snapshot
       // shows without waiting for the note.content prop useEffect.
@@ -929,6 +974,7 @@ function CollabNoteEditor({
     title,
     note.tags,
     viewConverter,
+    editorPeers,
   ]);
 
   const handleEnterEdit = useCallback(() => {
@@ -1024,10 +1070,10 @@ function CollabNoteEditor({
       const updated = personal
         ? await myNoteService.getDetail("me", note.id)
         : boardId
-        ? await noteService.getDetail(boardId, note.id)
-        : orgId
-          ? await orgNoteService.getDetail(orgId, note.id)
-          : null;
+          ? await noteService.getDetail(boardId, note.id)
+          : orgId
+            ? await orgNoteService.getDetail(orgId, note.id)
+            : null;
       if (updated) onNoteUpdate?.(updated);
       // A restorable archive now exists — surface 되돌리기 immediately.
       setHasDiscardedDraft(true);
@@ -1068,10 +1114,10 @@ function CollabNoteEditor({
       const updated = personal
         ? await myNoteService.getDetail("me", note.id)
         : boardId
-        ? await noteService.getDetail(boardId, note.id)
-        : orgId
-          ? await orgNoteService.getDetail(orgId, note.id)
-          : null;
+          ? await noteService.getDetail(boardId, note.id)
+          : orgId
+            ? await orgNoteService.getDetail(orgId, note.id)
+            : null;
       if (updated) onNoteUpdate?.(updated);
       setHasDiscardedDraft(false);
       initialContentLoaded.current = false;
@@ -1291,12 +1337,12 @@ function CollabNoteEditor({
                       (m) => m.myNoteService,
                     )
                   : boardId
-                  ? await import("../../utils/services").then(
-                      (m) => m.noteService,
-                    )
-                  : await import("../../utils/services").then(
-                      (m) => m.orgNoteService,
-                    );
+                    ? await import("../../utils/services").then(
+                        (m) => m.noteService,
+                      )
+                    : await import("../../utils/services").then(
+                        (m) => m.orgNoteService,
+                      );
                 const updated = await svcMod.toggleLike(
                   (boardId || orgId || "me")!,
                   note.id,
@@ -1399,10 +1445,10 @@ function CollabNoteEditor({
                 const updated = personal
                   ? await myNoteService.getDetail("me", note.id)
                   : boardId
-                  ? await noteService.getDetail(boardId, note.id)
-                  : orgId
-                    ? await orgNoteService.getDetail(orgId, note.id)
-                    : null;
+                    ? await noteService.getDetail(boardId, note.id)
+                    : orgId
+                      ? await orgNoteService.getDetail(orgId, note.id)
+                      : null;
                 if (!updated) return;
                 setTitle(updated.title);
                 setHasChanges(false);
@@ -1414,7 +1460,8 @@ function CollabNoteEditor({
               }}
               onVersionsChanged={async () => {
                 if (personal) {
-                  const { myNoteService } = await import("../../utils/services");
+                  const { myNoteService } =
+                    await import("../../utils/services");
                   const updated = await myNoteService.getDetail("me", note.id);
                   onNoteUpdate?.(updated);
                 } else if (boardId) {
@@ -1422,9 +1469,8 @@ function CollabNoteEditor({
                   const updated = await noteService.getDetail(boardId, note.id);
                   onNoteUpdate?.(updated);
                 } else if (orgId) {
-                  const { orgNoteService } = await import(
-                    "../../utils/services"
-                  );
+                  const { orgNoteService } =
+                    await import("../../utils/services");
                   const updated = await orgNoteService.getDetail(
                     orgId,
                     note.id,

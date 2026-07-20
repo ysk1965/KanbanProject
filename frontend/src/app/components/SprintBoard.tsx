@@ -59,6 +59,7 @@ import { MotionModal } from "./ui/MotionModal";
 import { SprintMemberGanttModal } from "./SprintMemberGanttModal";
 import { MilestoneConsoleModal } from "./MilestoneConsoleModal";
 import { JiraOnboardingGuide } from "./JiraOnboardingGuide";
+import { JiraSyncIndicator } from "./JiraSyncIndicator";
 import type { FilterOptions } from "./FilterModal";
 
 interface SprintBoardProps {
@@ -161,6 +162,26 @@ const DDAY_BADGE: Record<string, string> = {
   normal: "bg-bridge-secondary/15 text-bridge-secondary",
   none: "",
 };
+
+// 스프린트 카드 긴급도 tier — 지연(0) → 진행 중(1) → 예정(2) → 완료·기간 미설정(3).
+// renderCard의 상태 파생(overdue/inProgress/upcoming)과 동일 규칙을 정렬용으로 재사용한다.
+function sprintCardTier(it: SprintItemCard, isDone: boolean): number {
+  if (isDone) return 3;
+  const dday = it.due_date ? getDDay(it.due_date) : null;
+  if (dday?.urgency === "overdue") return 0; // 지연 — 종료일이 오늘보다 이전
+  const startDday = it.start_date ? getDDay(it.start_date) : null;
+  if (startDday && startDday.diff > 0) return 2; // 예정 — 아직 시작 전
+  if (startDday || dday) return 1; // 진행 중 — 기간 안(시작 지남·마감 안 지남)
+  return 3; // 날짜 정보 없음 → 맨 아래
+}
+
+// 같은 tier 안 2차 정렬 키 — 마감일(없으면 시작일)이 빠를수록 위로.
+// getDDay(...).diff: 지연은 음수(더 지날수록 작음=위) · 예정은 양수(가까울수록 작음=위).
+function sprintCardUrgencyKey(it: SprintItemCard): number {
+  if (it.due_date) return getDDay(it.due_date).diff;
+  if (it.start_date) return getDDay(it.start_date).diff;
+  return Number.POSITIVE_INFINITY; // 날짜 없는 카드는 tier 내 맨 뒤
+}
 
 export function SprintBoard({
   boardId,
@@ -759,6 +780,29 @@ export function SprintBoard({
     for (const c of columns) m.set(c.id, c);
     return m;
   }, [columns]);
+
+  // 스프린트 카드 정렬 — 지연·진행 중을 위로, 예정·미설정을 아래로(tier), tier 안은 마감 임박 순.
+  // Feature 뷰 소그룹·구성원 뷰 컬럼에 공통 적용. 동일 tier·키는 원래 순서를 유지(안정 정렬).
+  const sprintUrgencyCmp = useCallback(
+    (a: SprintItemCard, b: SprintItemCard) => {
+      const doneA =
+        a.completed ||
+        (a.sprint_column_id
+          ? columnById.get(a.sprint_column_id)?.kind === "END"
+          : false);
+      const doneB =
+        b.completed ||
+        (b.sprint_column_id
+          ? columnById.get(b.sprint_column_id)?.kind === "END"
+          : false);
+      const ta = sprintCardTier(a, doneA);
+      const tb = sprintCardTier(b, doneB);
+      if (ta !== tb) return ta - tb;
+      return sprintCardUrgencyKey(a) - sprintCardUrgencyKey(b);
+    },
+    [columnById],
+  );
+
   const columnAccent = (c: SprintColumn) =>
     c.kind === "START"
       ? "#6366F1"
@@ -828,9 +872,9 @@ export function SprintBoard({
         // 전부 Done인 Task 소그룹은 숨김(Done 컬럼에 모임)
         if (notInDoneColumn === 0) continue;
 
-        const startItems = taken.filter(
-          (it) => it.sprint_column_id === startColumn.id,
-        );
+        const startItems = taken
+          .filter((it) => it.sprint_column_id === startColumn.id)
+          .sort(sprintUrgencyCmp);
         taskGroups.push({
           taskId: task.taskId,
           taskTitle: task.taskTitle,
@@ -851,7 +895,7 @@ export function SprintBoard({
       });
     }
     return result;
-  }, [tree, startColumn, columnById]);
+  }, [tree, startColumn, columnById, sprintUrgencyCmp]);
 
   // Feature 요약 스트립 데이터 — 스프린트에 "담긴" 항목(sprint_column_id) 기준 Feature별 완료/전체/지연.
   // 스트립은 항상 전체 Feature를 보여줘야 하므로 featureFilter와 무관하게 tree(멤버 필터만 반영)에서 집계한다.
@@ -969,11 +1013,18 @@ export function SprintBoard({
     return ids.map((id) => ({
       memberId: id,
       memberName: stat.get(id)?.name ?? (id === "__none__" ? "미배정" : id),
-      items: startByMember.get(id) ?? [],
+      items: (startByMember.get(id) ?? []).slice().sort(sprintUrgencyCmp),
       doneTotal: stat.get(id)?.done ?? 0,
       total: stat.get(id)?.total ?? 0,
     }));
-  }, [startColumn, columns, columnById, memberOrder, featureFilter]);
+  }, [
+    startColumn,
+    columns,
+    columnById,
+    memberOrder,
+    featureFilter,
+    sprintUrgencyCmp,
+  ]);
 
   // 구성원 간트 모달 데이터 — 선택 구성원의 스프린트 항목(모든 컬럼)을 모은다.
   // 배치/미배치는 모달이 start_date·due_date로 판정한다.
@@ -1680,7 +1731,13 @@ export function SprintBoard({
           {it.title}
         </div>
         <div className="flex items-center gap-2 text-[10px] text-slate-500">
-          {/* 진행 상태 칩 — 기간 안(진행 중) / 시작 전(예정). 완료·지남 카드엔 표시 안 함. */}
+          {/* 진행 상태 칩 — 지연(종료일 지남) / 진행 중(기간 안) / 예정(시작 전). 완료 카드엔 표시 안 함. */}
+          {overdue && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold shrink-0 bg-rose-500/15 text-rose-500">
+              <span className="inline-flex rounded-full w-1.5 h-1.5 bg-rose-500" />
+              지연
+            </span>
+          )}
           {inProgress && (
             <span
               className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${liveBadge}`}
@@ -1718,7 +1775,7 @@ export function SprintBoard({
                 title={formatDate(it.due_date)}
               >
                 <Calendar className="w-2.5 h-2.5" />
-                {overdue ? `${dday.text} 지연` : dday.text}
+                {dday.text}
               </span>
             ) : it.due_date && !it.completed ? (
               <span className="tabular-nums">{formatDate(it.due_date)}</span>
@@ -2635,7 +2692,16 @@ export function SprintBoard({
                         )}
                       </div>
 
-                      {isAdminOrOwner && (
+                      {/* JIRA 뷰: 2분 폴링 동기화 상태 인디케이터 (남은개수·종료 대신 노출) */}
+                      {groupBy === "jira" && jiraConnected && jiraStatus && (
+                        <JiraSyncIndicator
+                          boardId={boardId}
+                          status={jiraStatus}
+                          onStatusRefetch={setJiraStatus}
+                        />
+                      )}
+
+                      {isAdminOrOwner && groupBy !== "jira" && (
                         <>
                           <span className="hidden text-[11px] text-slate-500 tabular-nums whitespace-nowrap lg:inline">
                             {canClose ? "종료 가능" : `남은 ${remaining}개`}
