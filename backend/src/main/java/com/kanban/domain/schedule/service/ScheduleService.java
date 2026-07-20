@@ -13,6 +13,7 @@ import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.schedule.dto.ScheduleRequest;
 import com.kanban.domain.schedule.dto.ScheduleResponse;
+import com.kanban.domain.sprint.service.SprintService;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
@@ -50,6 +51,7 @@ public class ScheduleService {
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final WebSocketEventService webSocketEventService;
+    private final SprintService sprintService;
 
     public ScheduleResponse.DailySchedule getDailySchedule(String boardId, LocalDate date, List<String> assigneeIds, String userId, boolean includeOrgSchedules) {
         boardService.checkViewerOrAbove(boardId, userId);
@@ -329,6 +331,8 @@ public class ScheduleService {
                 .build();
 
         checklistItemRepository.save(checklistItem);
+        // 태스크 단위 스프린트 편입: 부모 태스크가 이미 활성 스프린트에 담겨 있으면 새 항목도 자동으로 담는다.
+        sprintService.inheritSprintForNewItem(checklistItem);
 
         ScheduleBlock block = ScheduleBlock.builder()
                 .board(board)
