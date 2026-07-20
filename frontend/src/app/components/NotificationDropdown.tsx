@@ -988,6 +988,7 @@ export function NotificationDropdown({
                     onSlackStatusChange={setSlackConnected}
                     canAccessSlack={canAccessSlack}
                     onUpgrade={onSlackUpgrade}
+                    canManage={isAdmin}
                   />
                 )}
                 {settingsSubTab === "discord" && (

@@ -93,6 +93,22 @@ public class SlackInstallation {
         this.active = false;
     }
 
+    /**
+     * Reinstall onto an existing record (same slack_team_id + board/org).
+     * Refreshes token/team/installer info and reactivates, avoiding a duplicate INSERT
+     * that would violate uk_slack_install_team_board / uk_slack_install_team_org.
+     */
+    public void reinstall(String slackTeamName, String botTokenEncrypted, String botUserId,
+                          User installedBy, String slackInstallerUserId, String scopes) {
+        this.slackTeamName = slackTeamName;
+        this.botTokenEncrypted = botTokenEncrypted;
+        this.botUserId = botUserId;
+        this.installedBy = installedBy;
+        this.slackInstallerUserId = slackInstallerUserId;
+        this.scopes = scopes;
+        this.active = true;
+    }
+
     public void updateDefaultChannel(String channelId, String channelName) {
         this.defaultChannelId = channelId;
         this.defaultChannelName = channelName;

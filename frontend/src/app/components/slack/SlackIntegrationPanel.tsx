@@ -30,6 +30,8 @@ interface SlackIntegrationPanelProps {
   onSlackStatusChange?: (connected: boolean) => void;
   canAccessSlack?: boolean;
   onUpgrade?: () => void;
+  /** 워크스페이스 연결/해제 권한 (OWNER/ADMIN만). 일반 멤버는 채널/개인 연동만 가능 */
+  canManage?: boolean;
 }
 
 export function SlackIntegrationPanel({
@@ -37,6 +39,7 @@ export function SlackIntegrationPanel({
   onSlackStatusChange,
   canAccessSlack = true,
   onUpgrade,
+  canManage = false,
 }: SlackIntegrationPanelProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"app" | "webhook">("app");
@@ -293,17 +296,19 @@ export function SlackIntegrationPanel({
                     {t("slackApp.installedStatus", "Connected")}
                   </span>
                 </div>
-                <button
-                  onClick={handleDisconnect}
-                  disabled={isDisconnecting}
-                  className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
-                >
-                  {isDisconnecting ? (
-                    <Loader2 size={11} className="animate-spin" />
-                  ) : (
-                    t("slackApp.disconnectButton", "Disconnect")
-                  )}
-                </button>
+                {canManage && (
+                  <button
+                    onClick={handleDisconnect}
+                    disabled={isDisconnecting}
+                    className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                  >
+                    {isDisconnecting ? (
+                      <Loader2 size={11} className="animate-spin" />
+                    ) : (
+                      t("slackApp.disconnectButton", "Disconnect")
+                    )}
+                  </button>
+                )}
               </div>
 
               {/* Workspace info */}

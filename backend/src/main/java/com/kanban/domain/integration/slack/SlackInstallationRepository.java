@@ -24,5 +24,12 @@ public interface SlackInstallationRepository extends JpaRepository<SlackInstalla
     @Query("SELECT si FROM SlackInstallation si WHERE si.slackTeamId = :teamId AND si.active = true")
     List<SlackInstallation> findActiveByTeamId(@Param("teamId") String teamId);
 
+    // Active 여부와 무관하게 조회 — 재설치 upsert용 (uk_slack_install_team_board/org 위반 방지)
+    @Query("SELECT si FROM SlackInstallation si WHERE si.slackTeamId = :teamId AND si.board.id = :boardId")
+    Optional<SlackInstallation> findByTeamIdAndBoardId(@Param("teamId") String teamId, @Param("boardId") String boardId);
+
+    @Query("SELECT si FROM SlackInstallation si WHERE si.slackTeamId = :teamId AND si.organization.id = :orgId")
+    Optional<SlackInstallation> findByTeamIdAndOrgId(@Param("teamId") String teamId, @Param("orgId") String orgId);
+
     void deleteByBoardId(String boardId);
 }
