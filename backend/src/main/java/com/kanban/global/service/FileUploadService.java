@@ -40,6 +40,13 @@ public interface FileUploadService {
     /** 지정된 key 경로에 직접 업로드 (temp 단계 없음) */
     String uploadDirect(MultipartFile file, String key);
 
+    /**
+     * 타입 화이트리스트·매직바이트 검증 없이 스트리밍 업로드.
+     * 임의 파일 타입을 허용하는 경로(개인 스토리지 등) 전용. 크기 제한은 호출측 책임.
+     * 댓글/사진첩 등 공용 업로드는 여전히 uploadDirect(검증 포함)를 사용해야 한다.
+     */
+    String uploadDirectNoValidation(MultipartFile file, String key);
+
     /** byte 배열을 지정된 key 경로에 직접 업로드 (썸네일 등) */
     String uploadDirect(byte[] data, String key, String contentType);
 

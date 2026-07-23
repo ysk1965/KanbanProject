@@ -144,6 +144,25 @@ public class S3FileUploadService implements FileUploadService {
     }
 
     @Override
+    public String uploadDirectNoValidation(MultipartFile file, String key) {
+        try {
+            String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
+            PutObjectRequest putRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .contentType(contentType)
+                    .contentLength(file.getSize())
+                    .build();
+            s3Client.putObject(putRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+            log.info("File uploaded (no-validation) to S3: {}", key);
+            return buildUrl(key);
+        } catch (IOException e) {
+            log.error("Failed to upload file (no-validation): {}", key, e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Override
     public String uploadDirect(byte[] data, String key, String contentType) {
         try {
             PutObjectRequest putRequest = PutObjectRequest.builder()
@@ -207,19 +226,19 @@ public class S3FileUploadService implements FileUploadService {
 
     @Override
     public PresignResult presignUploadToKey(String key, String contentType, long fileSize, long maxSize) {
-        if (contentType == null || !allowedTypes.contains(contentType)) {
-            throw new BusinessException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
-        }
+        // 스토리지 전용 경로 — 타입 화이트리스트를 적용하지 않고 크기 제한만 강제 (임의 파일 허용)
         if (fileSize > maxSize) {
             throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
         }
+        String effectiveType = contentType != null && !contentType.isBlank()
+                ? contentType : "application/octet-stream";
 
         PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
                 .signatureDuration(Duration.ofMinutes(15))
                 .putObjectRequest(PutObjectRequest.builder()
                         .bucket(bucketName)
                         .key(key)
-                        .contentType(contentType)
+                        .contentType(effectiveType)
                         .build())
                 .build();
 

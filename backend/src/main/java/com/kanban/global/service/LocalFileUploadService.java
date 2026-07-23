@@ -122,6 +122,22 @@ public class LocalFileUploadService implements FileUploadService {
     }
 
     @Override
+    public String uploadDirectNoValidation(MultipartFile file, String key) {
+        try {
+            Path filePath = Paths.get(localDir, key);
+            Files.createDirectories(filePath.getParent());
+            try (InputStream is = file.getInputStream()) {
+                Files.copy(is, filePath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            log.info("File uploaded (no-validation) to local: {}", filePath);
+            return String.format("/uploads/%s", key);
+        } catch (IOException e) {
+            log.error("Failed to upload file (no-validation): {}", key, e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Override
     public String uploadDirect(byte[] data, String key, String contentType) {
         try {
             Path filePath = Paths.get(localDir, key);
