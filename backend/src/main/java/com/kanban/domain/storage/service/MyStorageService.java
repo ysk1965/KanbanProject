@@ -197,7 +197,14 @@ public class MyStorageService {
     @Transactional
     public StorageResponse.FileItem uploadFile(String userId, String folderId, MultipartFile file) {
         User user = getUser(userId);
-        fileUploadService.validateFile(file);
+
+        // 스토리지는 임의 파일 타입 허용 — 타입 화이트리스트/매직바이트 검증 없이 크기 제한만 강제
+        if (file.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "빈 파일은 업로드할 수 없습니다");
+        }
+        if (file.getSize() > storageMaxFileSize) {
+            throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
+        }
 
         StorageFolder folder = resolveFolder(folderId, userId);
         checkQuota(userId, file.getSize());
@@ -206,9 +213,9 @@ public class MyStorageService {
         String uuid = UUID.randomUUID().toString();
         String s3Key = String.format("storage/%s/%s%s", userId, uuid, ext);
 
-        fileUploadService.uploadDirect(file, s3Key);
+        fileUploadService.uploadDirectNoValidation(file, s3Key);
 
-        String contentType = file.getContentType();
+        String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
         String thumbnailKey = maybeQueueThumbnail(s3Key, uuid, userId, contentType);
 
         StorageFile saved = fileRepository.save(StorageFile.builder()
@@ -513,9 +520,10 @@ public class MyStorageService {
         }
     }
 
-    /** 이미지/영상이면 썸네일을 비동기 생성 큐잉하고 thumbnailKey 반환. 문서는 null. */
+    /** 이미지/영상만 썸네일을 비동기 생성 큐잉하고 thumbnailKey 반환. 그 외(문서·압축·임의 타입)는 null. */
     private String maybeQueueThumbnail(String s3Key, String uuid, String userId, String contentType) {
-        if (contentType == null || MediaUtils.isDocumentType(contentType)) {
+        if (contentType == null
+                || !(contentType.startsWith("image/") || contentType.startsWith("video/"))) {
             return null;
         }
         String thumbnailKey = String.format("storage/%s/%s_thumb.jpg", userId, uuid);

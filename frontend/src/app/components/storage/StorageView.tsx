@@ -485,7 +485,7 @@ export function StorageView(_props: StorageViewProps) {
                   파일을 여기에 끌어다 놓으세요
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
-                  이미지 · 영상 · 문서를 업로드할 수 있어요
+                  이미지 · 영상 · 문서 · 압축파일 등 모든 형식을 올릴 수 있어요
                 </p>
               </div>
             </motion.div>
