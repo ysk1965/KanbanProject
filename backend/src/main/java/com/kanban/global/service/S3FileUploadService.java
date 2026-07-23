@@ -206,6 +206,43 @@ public class S3FileUploadService implements FileUploadService {
     }
 
     @Override
+    public PresignResult presignUploadToKey(String key, String contentType, long fileSize, long maxSize) {
+        if (contentType == null || !allowedTypes.contains(contentType)) {
+            throw new BusinessException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
+        }
+        if (fileSize > maxSize) {
+            throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
+        }
+
+        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(15))
+                .putObjectRequest(PutObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(key)
+                        .contentType(contentType)
+                        .build())
+                .build();
+
+        PresignedPutObjectRequest presigned = s3Presigner.presignPutObject(presignRequest);
+        log.info("Presigned URL (direct-to-key) generated: {}", key);
+        return new PresignResult(key, presigned.url().toString(), "presigned");
+    }
+
+    @Override
+    public long probeObjectSize(String key) {
+        try {
+            HeadObjectResponse head = s3Client.headObject(HeadObjectRequest.builder()
+                    .bucket(bucketName).key(key).build());
+            return head.contentLength();
+        } catch (NoSuchKeyException e) {
+            return -1L;
+        } catch (Exception e) {
+            log.warn("Failed to probe object size: {}", key, e);
+            return -1L;
+        }
+    }
+
+    @Override
     public PermanentResult moveToPermanent(String tempKey, String boardId, String commentId) {
         try {
             HeadObjectResponse head = s3Client.headObject(HeadObjectRequest.builder()

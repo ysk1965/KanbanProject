@@ -4110,3 +4110,47 @@ export const orgPhotoService = {
   downloadPhoto: orgPhotoAPI.downloadPhoto,
   downloadPhotos: orgPhotoAPI.downloadPhotos,
 };
+
+// ========================================
+// Storage Service (마이스페이스 개인 파일 보관함)
+// ========================================
+import { myStorageAPI } from "./api";
+
+export const myStorageService = {
+  getFolders: myStorageAPI.getFolders,
+  createFolder: myStorageAPI.createFolder,
+  renameFolder: myStorageAPI.renameFolder,
+  moveFolder: myStorageAPI.moveFolder,
+  deleteFolder: myStorageAPI.deleteFolder,
+  enableFolderShare: myStorageAPI.enableFolderShare,
+  disableFolderShare: myStorageAPI.disableFolderShare,
+
+  getFiles: myStorageAPI.getFiles,
+  uploadFile: myStorageAPI.uploadFile,
+  moveFile: myStorageAPI.moveFile,
+  deleteFile: myStorageAPI.deleteFile,
+  enableFileShare: myStorageAPI.enableFileShare,
+  disableFileShare: myStorageAPI.disableFileShare,
+
+  getUsage: myStorageAPI.getUsage,
+  getUsageDetail: myStorageAPI.getUsageDetail,
+  getTrash: myStorageAPI.getTrash,
+  restoreFile: myStorageAPI.restoreFile,
+  restoreFolder: myStorageAPI.restoreFolder,
+  permanentDeleteFile: myStorageAPI.permanentDeleteFile,
+  permanentDeleteFolder: myStorageAPI.permanentDeleteFolder,
+  emptyTrash: myStorageAPI.emptyTrash,
+
+  /** 인증 다운로드 후 브라우저 저장 트리거 */
+  downloadAndSave: async (fileId: string, filename: string): Promise<void> => {
+    const blob = await myStorageAPI.downloadFile(fileId);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
+};

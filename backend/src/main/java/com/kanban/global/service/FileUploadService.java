@@ -23,6 +23,20 @@ public interface FileUploadService {
         return null;
     }
 
+    /**
+     * 지정한 최종(영구) key 로 바로 PUT 하는 presigned URL 생성 (S3 전용, 미지원 시 null 반환).
+     * temp→permanent 복사 없이 클라이언트가 최종 위치에 직접 업로드한다. 대용량 파일(영상 등)에 사용.
+     * maxSize 는 이 호출에 한해 적용할 용량 상한(바이트).
+     */
+    default PresignResult presignUploadToKey(String key, String contentType, long fileSize, long maxSize) {
+        return null;
+    }
+
+    /** S3 객체의 실제 크기(바이트) 조회. 존재하지 않거나 미지원이면 -1. */
+    default long probeObjectSize(String key) {
+        return -1L;
+    }
+
     /** 지정된 key 경로에 직접 업로드 (temp 단계 없음) */
     String uploadDirect(MultipartFile file, String key);
 
