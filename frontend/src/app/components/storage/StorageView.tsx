@@ -12,7 +12,12 @@ import {
   Check,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { myStorageService } from "../../utils/services";
+import {
+  myStorageAPI,
+  makeBoardStorageAPI,
+  makeOrgStorageAPI,
+  type StorageApi,
+} from "../../utils/api";
 import type {
   StorageFolderTree as FolderNode,
   StorageFileItem,
@@ -26,8 +31,12 @@ import { StorageUsageDetailModal } from "./StorageUsageDetailModal";
 import { formatBytes, folderPath } from "./storageUtils";
 
 interface StorageViewProps {
-  /** 개인 스코프 여부 (현재는 개인 전용) */
+  /** 개인 스코프 (마이스페이스) */
   personal?: boolean;
+  /** 보드 스코프 */
+  boardId?: string;
+  /** 조직 스코프 */
+  orgId?: string;
 }
 
 const API_ORIGIN = (
@@ -38,7 +47,13 @@ function publicFileLink(shareCode: string): string {
   return `${API_ORIGIN}/public/storage/files/${shareCode}/download`;
 }
 
-export function StorageView(_props: StorageViewProps) {
+export function StorageView({ boardId, orgId }: StorageViewProps) {
+  const api: StorageApi = useMemo(() => {
+    if (boardId) return makeBoardStorageAPI(boardId);
+    if (orgId) return makeOrgStorageAPI(orgId);
+    return myStorageAPI;
+  }, [boardId, orgId]);
+
   const [folders, setFolders] = useState<FolderNode[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [files, setFiles] = useState<StorageFileItem[]>([]);
@@ -62,10 +77,7 @@ export function StorageView(_props: StorageViewProps) {
 
   const loadFolders = useCallback(async () => {
     try {
-      const [f, u] = await Promise.all([
-        myStorageService.getFolders(),
-        myStorageService.getUsage(),
-      ]);
+      const [f, u] = await Promise.all([api.getFolders(), api.getUsage()]);
       setFolders(f);
       setUsage(u);
     } catch (e) {
@@ -76,7 +88,7 @@ export function StorageView(_props: StorageViewProps) {
   const loadFiles = useCallback(async (folderId: string | null) => {
     setFilesLoading(true);
     try {
-      setFiles(await myStorageService.getFiles(folderId));
+      setFiles(await api.getFiles(folderId));
     } catch (e) {
       console.error("Failed to load files:", e);
     } finally {
@@ -111,7 +123,7 @@ export function StorageView(_props: StorageViewProps) {
         const key = `${file.name}-${file.size}-${Date.now()}`;
         setUploads((prev) => ({ ...prev, [key]: 0 }));
         try {
-          await myStorageService.uploadFile(file, currentFolderId, (p) =>
+          await api.uploadFile(file, currentFolderId, (p) =>
             setUploads((prev) => ({ ...prev, [key]: p })),
           );
         } catch (e: unknown) {
@@ -147,7 +159,7 @@ export function StorageView(_props: StorageViewProps) {
       return;
     }
     try {
-      await myStorageService.createFolder(name, currentFolderId);
+      await api.createFolder(name, currentFolderId);
       setNewFolderName("");
       setCreatingFolder(false);
       await loadFolders();
@@ -163,7 +175,7 @@ export function StorageView(_props: StorageViewProps) {
     const name = window.prompt("폴더 이름", current?.name ?? "");
     if (!name || name.trim() === current?.name) return;
     try {
-      await myStorageService.renameFolder(currentFolderId, name.trim());
+      await api.renameFolder(currentFolderId, name.trim());
       await loadFolders();
     } catch (e) {
       console.error("Rename failed:", e);
@@ -174,7 +186,7 @@ export function StorageView(_props: StorageViewProps) {
     if (!currentFolderId) return;
     if (!window.confirm("이 폴더와 안의 파일을 휴지통으로 이동할까요?")) return;
     try {
-      await myStorageService.deleteFolder(currentFolderId);
+      await api.deleteFolder(currentFolderId);
       setCurrentFolderId(
         breadcrumb.length > 1 ? breadcrumb[breadcrumb.length - 2].id : null,
       );
@@ -191,7 +203,7 @@ export function StorageView(_props: StorageViewProps) {
     targetFolderId: string | null,
   ) => {
     try {
-      await myStorageService.moveFile(fileId, targetFolderId);
+      await api.moveFile(fileId, targetFolderId);
       await loadFiles(currentFolderId);
       showFlash("이동되었습니다");
     } catch (e) {
@@ -201,7 +213,7 @@ export function StorageView(_props: StorageViewProps) {
 
   const handleDownload = async (file: StorageFileItem) => {
     try {
-      await myStorageService.downloadAndSave(file.id, file.original_filename);
+      await api.downloadAndSave(file.id, file.original_filename);
     } catch (e) {
       console.error("Download failed:", e);
       showFlash("다운로드에 실패했습니다");
@@ -211,10 +223,10 @@ export function StorageView(_props: StorageViewProps) {
   const handleToggleShare = async (file: StorageFileItem) => {
     try {
       if (file.is_shared) {
-        await myStorageService.disableFileShare(file.id);
+        await api.disableFileShare(file.id);
         showFlash("공유가 해제되었습니다");
       } else {
-        const updated = await myStorageService.enableFileShare(file.id);
+        const updated = await api.enableFileShare(file.id);
         if (updated.share_code) {
           await navigator.clipboard
             ?.writeText(publicFileLink(updated.share_code))
@@ -233,7 +245,7 @@ export function StorageView(_props: StorageViewProps) {
 
   const handleDeleteFile = async (file: StorageFileItem) => {
     try {
-      await myStorageService.deleteFile(file.id);
+      await api.deleteFile(file.id);
       setFiles((prev) => prev.filter((f) => f.id !== file.id));
       loadFolders();
     } catch (e) {
@@ -533,10 +545,12 @@ export function StorageView(_props: StorageViewProps) {
         onToggleShare={handleToggleShare}
       />
       <StorageUsageDetailModal
+        api={api}
         open={usageDetailOpen}
         onClose={() => setUsageDetailOpen(false)}
       />
       <StorageTrashModal
+        api={api}
         open={trashOpen}
         onClose={() => setTrashOpen(false)}
         onChanged={() => {

@@ -18,6 +18,7 @@ import { notificationAPI } from "../utils/api";
 import { SlackIntegrationPanel } from "./slack/SlackIntegrationPanel";
 import { DiscordSettingsPanel } from "./DiscordSettingsPanel";
 import { JiraSettingsPanel } from "./JiraSettingsPanel";
+import { AutoReportSettingsPanel } from "./AutoReportSettingsPanel";
 import { McpConnectModal } from "./McpConnectModal";
 import { NotificationPreferencesPanel } from "./NotificationPreferencesPanel";
 import { StandupConfigPanel } from "./StandupConfigPanel";
@@ -479,7 +480,7 @@ export function NotificationDropdown({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoadingMoreActivities, setIsLoadingMoreActivities] = useState(false);
   const [settingsSubTab, setSettingsSubTab] = useState<
-    "slack" | "discord" | "jira" | "mcp" | "preferences" | "standup"
+    "slack" | "discord" | "jira" | "report" | "mcp" | "preferences" | "standup"
   >("slack");
   const [mcpModalOpen, setMcpModalOpen] = useState(false);
 
@@ -947,6 +948,16 @@ export function NotificationDropdown({
                   </span>
                 </button>
                 <button
+                  onClick={() => setSettingsSubTab("report")}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                    settingsSubTab === "report"
+                      ? "bg-bridge-accent/15 text-bridge-accent"
+                      : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                  }`}
+                >
+                  보고서
+                </button>
+                <button
                   onClick={() => setSettingsSubTab("mcp")}
                   className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
                     settingsSubTab === "mcp"
@@ -1003,6 +1014,12 @@ export function NotificationDropdown({
                   <JiraSettingsPanel
                     boardId={boardId}
                     onJiraStatusChange={setJiraConnected}
+                  />
+                )}
+                {settingsSubTab === "report" && (
+                  <AutoReportSettingsPanel
+                    boardId={boardId}
+                    canManage={isAdmin}
                   />
                 )}
                 {settingsSubTab === "mcp" && (

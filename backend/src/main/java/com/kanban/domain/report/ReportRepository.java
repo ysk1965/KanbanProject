@@ -19,6 +19,9 @@ public interface ReportRepository extends JpaRepository<WeeklyReport, String> {
 
     List<WeeklyReport> findByBoardIdOrderByCreatedAtDesc(String boardId);
 
+    /** 공유 링크 조회 — 로그인 없이 들어오는 경로라 토큰이 유일한 열쇠다. */
+    Optional<WeeklyReport> findByShareToken(String shareToken);
+
     Optional<WeeklyReport> findByBoardIdAndReportTypeAndPeriodStartAndPeriodEnd(
             String boardId, ReportType reportType, LocalDate periodStart, LocalDate periodEnd);
 

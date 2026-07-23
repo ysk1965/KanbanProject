@@ -7,18 +7,26 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * 스코프 제네릭 쿼리. type ∈ {OWNER, BOARD, ORG}, sid = 해당 스코프 id.
+ */
 public interface StorageFileRepository extends JpaRepository<StorageFile, String> {
 
-    // ===== owner 스코프 (쿼리 레벨 격리) =====
+    String SCOPE_MATCH =
+            "((:type = 'OWNER' AND f.owner.id = :sid) " +
+            "OR (:type = 'BOARD' AND f.boardId = :sid) " +
+            "OR (:type = 'ORG' AND f.organizationId = :sid))";
 
-    @Query("SELECT f FROM StorageFile f WHERE f.id = :id AND f.owner.id = :userId")
-    Optional<StorageFile> findByIdAndOwnerUserId(@Param("id") String id, @Param("userId") String userId);
+    @Query("SELECT f FROM StorageFile f WHERE f.id = :id AND " + SCOPE_MATCH)
+    Optional<StorageFile> findByIdAndScope(@Param("id") String id,
+                                           @Param("type") String type, @Param("sid") String sid);
 
-    @Query("SELECT f FROM StorageFile f WHERE f.owner.id = :userId AND f.folder IS NULL AND f.isDeleted = false ORDER BY f.createdAt DESC")
-    List<StorageFile> findRootFilesByOwnerUserId(@Param("userId") String userId);
+    @Query("SELECT f FROM StorageFile f WHERE f.folder IS NULL AND f.isDeleted = false AND " + SCOPE_MATCH + " ORDER BY f.createdAt DESC")
+    List<StorageFile> findRootFilesByScope(@Param("type") String type, @Param("sid") String sid);
 
-    @Query("SELECT f FROM StorageFile f WHERE f.owner.id = :userId AND f.folder.id = :folderId AND f.isDeleted = false ORDER BY f.createdAt DESC")
-    List<StorageFile> findByOwnerUserIdAndFolderId(@Param("userId") String userId, @Param("folderId") String folderId);
+    @Query("SELECT f FROM StorageFile f WHERE f.folder.id = :folderId AND f.isDeleted = false AND " + SCOPE_MATCH + " ORDER BY f.createdAt DESC")
+    List<StorageFile> findByScopeAndFolderId(@Param("type") String type, @Param("sid") String sid,
+                                             @Param("folderId") String folderId);
 
     @Query("SELECT f FROM StorageFile f WHERE f.folder.id = :folderId AND f.isDeleted = false")
     List<StorageFile> findActiveByFolderId(@Param("folderId") String folderId);
@@ -26,23 +34,15 @@ public interface StorageFileRepository extends JpaRepository<StorageFile, String
     @Query("SELECT f FROM StorageFile f WHERE f.folder.id = :folderId")
     List<StorageFile> findAllByFolderIdIncludingDeleted(@Param("folderId") String folderId);
 
-    // ===== 용량 집계 =====
+    @Query("SELECT COALESCE(SUM(f.fileSize), 0) FROM StorageFile f WHERE f.isDeleted = false AND " + SCOPE_MATCH)
+    long sumFileSizeByScope(@Param("type") String type, @Param("sid") String sid);
 
-    @Query("SELECT COALESCE(SUM(f.fileSize), 0) FROM StorageFile f WHERE f.owner.id = :userId AND f.isDeleted = false")
-    long sumFileSizeByOwnerUserId(@Param("userId") String userId);
+    @Query("SELECT f.contentType, COUNT(f), COALESCE(SUM(f.fileSize), 0) FROM StorageFile f " +
+            "WHERE f.isDeleted = false AND " + SCOPE_MATCH + " GROUP BY f.contentType")
+    List<Object[]> aggregateByContentTypeByScope(@Param("type") String type, @Param("sid") String sid);
 
-    /** content_type 별 집계 (개수·용량). 카테고리 분류는 서비스에서 수행. → [contentType, count, sumSize] */
-    @Query("SELECT f.contentType, COUNT(f), COALESCE(SUM(f.fileSize), 0) " +
-            "FROM StorageFile f WHERE f.owner.id = :userId AND f.isDeleted = false " +
-            "GROUP BY f.contentType")
-    List<Object[]> aggregateByContentType(@Param("userId") String userId);
-
-    // ===== Trash =====
-
-    @Query("SELECT f FROM StorageFile f WHERE f.owner.id = :userId AND f.isDeleted = true ORDER BY f.deletedAt DESC")
-    List<StorageFile> findTrashByOwnerUserId(@Param("userId") String userId);
-
-    // ===== Public share =====
+    @Query("SELECT f FROM StorageFile f WHERE f.isDeleted = true AND " + SCOPE_MATCH + " ORDER BY f.deletedAt DESC")
+    List<StorageFile> findTrashByScope(@Param("type") String type, @Param("sid") String sid);
 
     Optional<StorageFile> findByShareCodeAndIsSharedTrue(String shareCode);
 }

@@ -1,0 +1,118 @@
+package com.kanban.global.scheduler;
+
+import com.kanban.domain.board.Board;
+import com.kanban.domain.report.BoardReportConfig;
+import com.kanban.domain.report.BoardReportConfigRepository;
+import com.kanban.domain.report.ReportType;
+import com.kanban.domain.report.service.ReportDispatchLock;
+import com.kanban.domain.report.service.ReportDispatchService;
+import com.kanban.domain.report.service.ReportPersistenceService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.time.*;
+import java.util.List;
+
+/**
+ * 자동 보고서 발송 스케줄러.
+ *
+ * <p>매분 도는 이유는 보드마다 발송 시각과 타임존이 다르기 때문이다
+ * ({@code DailyStandupScheduler}와 같은 방식). 설정은 UTC 시·분으로 저장돼 있어
+ * 현재 UTC 시각과 일치하는 것만 집어간다.
+ *
+ * <p>중복 발송은 두 겹으로 막는다 — Redis 분산 락(인스턴스 간)과
+ * {@code lastSentAt} 시각 비교(같은 인스턴스 내).
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class ReportDispatchScheduler {
+
+    /** 같은 보고서를 다시 보내지 않기 위한 최소 간격 */
+    private static final Duration MIN_RESEND_INTERVAL = Duration.ofHours(12);
+
+    private final BoardReportConfigRepository configRepository;
+    private final ReportDispatchService dispatchService;
+    private final ReportPersistenceService persistence;
+    private final ReportDispatchLock dispatchLock;
+
+    @Scheduled(cron = "0 * * * * *")
+    public void dispatchReports() {
+        LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
+        int hour = nowUtc.getHour();
+        int minute = nowUtc.getMinute();
+
+        List<BoardReportConfig> daily = configRepository.findEnabledDailyByUtcTime(hour, minute);
+        List<BoardReportConfig> weekly = configRepository.findEnabledWeeklyByUtcTime(
+                nowUtc.getDayOfWeek().getValue(), hour, minute);
+
+        if (daily.isEmpty() && weekly.isEmpty()) {
+            return;
+        }
+        log.info("자동 보고서: 일일 {}건, 주간 {}건 처리 시작 ({}:{} UTC)",
+                daily.size(), weekly.size(), hour, minute);
+
+        daily.forEach(config -> runSafely(config, ReportType.DAILY_DEV, nowUtc));
+        weekly.forEach(config -> runSafely(config, ReportType.WEEKLY_INTEGRATED, nowUtc));
+    }
+
+    private void runSafely(BoardReportConfig config, ReportType reportType, LocalDateTime nowUtc) {
+        String boardId;
+        try {
+            boardId = config.getBoard().getId();
+        } catch (Exception e) {
+            log.warn("보고서 설정의 보드를 읽을 수 없습니다: {}", e.getMessage());
+            return;
+        }
+
+        try {
+            processOne(config, reportType, nowUtc);
+        } catch (Exception e) {
+            log.error("보고서 발송 실패 board={} type={}: {}", boardId, reportType, e.getMessage(), e);
+            dispatchLock.release(boardId, reportType.name(), nowUtc.toLocalDate());
+        }
+    }
+
+    /**
+     * 트랜잭션 없이 돈다 — 수집(HTTP)과 AI 호출이 수십 초 걸리므로 커넥션을 붙들면 안 된다.
+     * 보드는 조회 쿼리에서 {@code JOIN FETCH}로 이미 가져와 뒀다.
+     */
+    private void processOne(BoardReportConfig config, ReportType reportType, LocalDateTime nowUtc) {
+        Board board = config.getBoard();
+        String boardId = board.getId();
+
+        if (isRecentlySent(config, reportType, nowUtc)) {
+            return;
+        }
+        // 인스턴스가 여러 대여도 하루 1회만 통과한다.
+        if (!dispatchLock.acquire(boardId, reportType.name(), nowUtc.toLocalDate())) {
+            log.debug("다른 인스턴스가 이미 발송 중 board={} type={}", boardId, reportType);
+            return;
+        }
+
+        ZonedDateTime sendAt = ReportDispatchService.sendAtIn(config, nowUtc);
+        ReportDispatchService.DispatchResult result =
+                dispatchService.dispatch(board, config, reportType, sendAt);
+
+        if (result.isSent()) {
+            persistence.markSent(boardId, reportType, nowUtc);
+            log.info("보고서 발송 완료 board={} type={} status={}", boardId, reportType, result.status());
+        } else {
+            // 실패했으면 락을 풀어 다음 기회에 다시 시도할 수 있게 한다.
+            dispatchLock.release(boardId, reportType.name(), nowUtc.toLocalDate());
+            log.info("보고서 미발송 board={} type={} status={} reason={}",
+                    boardId, reportType, result.status(), result.message());
+        }
+    }
+
+    private boolean isRecentlySent(BoardReportConfig config, ReportType reportType, LocalDateTime nowUtc) {
+        LocalDateTime lastSent = reportType == ReportType.WEEKLY_INTEGRATED
+                ? config.getWeeklyLastSentAt() : config.getDailyLastSentAt();
+        if (lastSent == null) {
+            return false;
+        }
+        return Duration.between(lastSent, nowUtc).compareTo(MIN_RESEND_INTERVAL) < 0;
+    }
+}

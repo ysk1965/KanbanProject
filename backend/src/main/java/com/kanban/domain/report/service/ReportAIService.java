@@ -62,6 +62,8 @@ public class ReportAIService {
     private static final int MAX_TOKENS_TEAM = 4096;
     private static final int MAX_TOKENS_PERSONAL = 2048;
     private static final int MAX_TOKENS_STANDUP = 1024;
+    private static final int MAX_TOKENS_AUTO_DAILY = 2048;
+    private static final int MAX_TOKENS_AUTO_WEEKLY = 4096;
 
     public ReportAIService(AIProvider aiProvider, AiUsageLogRepository aiUsageLogRepository, AiCreditService aiCreditService) {
         this.aiProvider = aiProvider;
@@ -127,6 +129,98 @@ public class ReportAIService {
 
         logAiUsage("STANDUP", model, boardId, userId, aiResult);
         return aiResult.content();
+    }
+
+    /**
+     * 자동 보고서(일일/주간)의 구조화 JSON 본문을 만든다.
+     *
+     * <p>산문이 아니라 고정 스키마 JSON을 받는 이유는, 같은 결과물에서 슬랙 요약과 웹 페이지가
+     * 함께 나와야 하기 때문이다. 그래서 AI 호출은 보고서당 1회로 끝난다.
+     *
+     * <p><b>크레딧을 차감하지 않는다.</b> 시스템이 스케줄에 따라 보내는 것이라 사용자가 유발한 호출이 아니다.
+     * 다만 비용 추적을 위해 사용량 로그는 남긴다.
+     */
+    public String generateAutoReportJson(ReportType reportType, String dataJson, String language, String boardId) {
+        String lang = language != null ? language : "ko";
+        boolean weekly = reportType == ReportType.WEEKLY_INTEGRATED;
+        String featureType = weekly ? "REPORT_WEEKLY_AUTO" : "REPORT_DAILY_AUTO";
+
+        String systemPrompt = buildAutoReportSystemPrompt(weekly, lang);
+        String userPrompt = ("ko".equals(lang)
+                ? "다음 수집 데이터로 보고서 JSON을 작성하세요.\n\n"
+                : "Produce the report JSON from the following collected data.\n\n") + dataJson;
+
+        String model = weekly ? getTeamModel() : getStandupModel();
+        int maxTokens = weekly ? MAX_TOKENS_AUTO_WEEKLY : MAX_TOKENS_AUTO_DAILY;
+
+        log.info("Generating {} auto report JSON (board: {}, language: {})", reportType, boardId, lang);
+        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, maxTokens);
+
+        logAiUsage(featureType, model, boardId, null, aiResult);
+        return aiResult.content();
+    }
+
+    private String buildAutoReportSystemPrompt(boolean weekly, String lang) {
+        String schema = """
+                {
+                  "headline": "한 줄 요약 (60자 이내)",
+                  "lede": "2~3문장 리드 문단",
+                  "highlights": ["가장 중요한 것 3개", "...", "..."],
+                  "sections": [
+                    {"title": "섹션 제목", "body": "본문", "sources": ["GITHUB"]}
+                  ],
+                  "risks": ["확인이 필요한 것", "..."]
+                }
+                """;
+
+        String sectionRule = weekly
+                ? "sections는 반드시 4개: 성과 / 진행 중 / 리스크 / 다음 주 계획."
+                : "sections는 1~2개. 어제 무엇이 바뀌었는지에 집중한다.";
+
+        if ("ko".equals(lang)) {
+            return """
+                    당신은 개발팀의 보고서 작성자입니다. 수집된 원본 데이터(커밋, 칸반 태스크, Confluence 주간보고)를
+                    받아 팀이 아침에 30초 안에 읽을 수 있는 보고서를 만듭니다.
+
+                    <output>
+                    반드시 아래 스키마의 JSON만 출력하세요. 코드펜스, 설명, 인사말을 붙이지 마세요.
+                    %s
+                    </output>
+
+                    <rules>
+                    - %s
+                    - 숫자를 지어내지 마세요. 지표는 시스템이 계산해 붙이므로 metrics 필드는 출력하지 않습니다.
+                    - 커밋 메시지를 그대로 나열하지 마세요. 무엇이 왜 바뀌었는지로 묶어 서술하세요.
+                    - sources에는 그 섹션의 근거가 된 소스만 적으세요: GITHUB, KANBAN, CONFLUENCE.
+                    - Confluence 주간보고 원문은 요약하지 말고 인용이 필요하면 그대로 두세요. 사람이 쓴 문장과
+                      당신이 쓴 문장이 섞이면 보고서를 신뢰할 수 없게 됩니다.
+                    - 같은 파일을 반복 수정했거나 되돌린 흔적(예: 설정을 바꿨다가 되돌림)이 보이면 risks에 적으세요.
+                    - 수집 실패한 소스가 있으면 risks 첫 줄에 그 사실을 적으세요.
+                    - highlights는 정확히 3개, 각 60자 이내로 쓰세요. 슬랙 메시지에 그대로 나갑니다.
+                    </rules>
+                    """.formatted(schema, sectionRule);
+        }
+        return """
+                You are a development team's report writer. From raw collected data (commits, kanban tasks,
+                Confluence weekly notes), produce a report the team can read in 30 seconds.
+
+                <output>
+                Output ONLY JSON matching this schema. No code fences, no preamble.
+                %s
+                </output>
+
+                <rules>
+                - %s
+                - Never invent numbers. Metrics are computed by the system, so do not output a metrics field.
+                - Do not list commit messages verbatim. Group them by what changed and why.
+                - In sources, name only the sources that back that section: GITHUB, KANBAN, CONFLUENCE.
+                - Keep Confluence prose as written when quoting. Mixing human-written and AI-written sentences
+                  makes the report untrustworthy.
+                - If you see repeated edits or a revert (e.g. a setting changed then rolled back), put it in risks.
+                - If a source failed to collect, say so in the first risks entry.
+                - highlights must be exactly 3 items, each under 60 characters. They go straight into Slack.
+                </rules>
+                """.formatted(schema, sectionRule);
     }
 
     private void logAiUsage(String featureType, String model, String boardId, String userId, AIResponse aiResult) {

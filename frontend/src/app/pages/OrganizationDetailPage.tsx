@@ -10,6 +10,7 @@ import {
   CalendarOff,
   BarChart3,
   Camera,
+  HardDrive,
   FileText,
   Loader2,
 } from "lucide-react";
@@ -37,6 +38,7 @@ import { OrgChartTab } from "../components/organization/tabs/OrgChartTab";
 import { OrgOkrTab } from "../components/organization/tabs/OrgOkrTab";
 import { OrgPhotoGalleryTab } from "../components/organization/tabs/OrgPhotoGalleryTab";
 import { OrgDocumentsTab } from "../components/organization/tabs/OrgDocumentsTab";
+import { OrgStorageTab } from "../components/organization/tabs/OrgStorageTab";
 import { MemberDetailModal } from "../components/organization/MemberDetailModal";
 
 // ─── Tab types ───
@@ -51,6 +53,7 @@ type TabKey =
   | "insights"
   | "okr"
   | "documents"
+  | "storage"
   | "photos"
   | "settings"
   | "settings_structure"
@@ -64,6 +67,7 @@ type GroupKey =
   | "leave"
   | "workspace"
   | "documents"
+  | "storage"
   | "photos"
   | "settings";
 
@@ -127,6 +131,12 @@ const TAB_GROUPS: TabGroup[] = [
     labelKey: "organization.tabs.documents",
     icon: FileText,
     defaultTab: "documents",
+  },
+  {
+    key: "storage",
+    labelKey: "organization.tabs.storage",
+    icon: HardDrive,
+    defaultTab: "storage",
   },
   {
     key: "photos",
@@ -611,6 +621,26 @@ function OrgDetailPageContent() {
               </motion.div>
             ) : (
               <OrgDocumentsTab orgId={orgId} role={myRole} />
+            )}
+          </div>
+        )}
+
+        {/* Storage tab — full width/height, no max-w constraint */}
+        {visitedTabs.has("storage") && (
+          <div
+            className={`flex-1 overflow-hidden ${activeTab === "storage" ? "" : "hidden"}`}
+          >
+            {activeTab === "storage" ? (
+              <motion.div
+                className="h-full"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <OrgStorageTab orgId={orgId} />
+              </motion.div>
+            ) : (
+              <OrgStorageTab orgId={orgId} />
             )}
           </div>
         )}

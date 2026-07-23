@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { RotateCcw, Trash2, X, Loader2, Folder, FileText } from "lucide-react";
 import { MotionModal } from "../ui/MotionModal";
-import { myStorageService } from "../../utils/services";
-import type { StorageTrashItem } from "../../utils/api";
+import type { StorageTrashItem, StorageApi } from "../../utils/api";
 import { formatRelativeTime } from "../../utils/dateUtils";
 
 interface StorageTrashModalProps {
+  api: StorageApi;
   open: boolean;
   onClose: () => void;
   /** 복원/삭제 후 상위 뷰 새로고침 */
@@ -13,6 +13,7 @@ interface StorageTrashModalProps {
 }
 
 export function StorageTrashModal({
+  api,
   open,
   onClose,
   onChanged,
@@ -24,13 +25,13 @@ export function StorageTrashModal({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setItems(await myStorageService.getTrash());
+      setItems(await api.getTrash());
     } catch (e) {
       console.error("Failed to load trash:", e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [api]);
 
   useEffect(() => {
     if (open) load();
@@ -39,8 +40,8 @@ export function StorageTrashModal({
   const restore = async (item: StorageTrashItem) => {
     setBusy(item.id);
     try {
-      if (item.type === "FOLDER") await myStorageService.restoreFolder(item.id);
-      else await myStorageService.restoreFile(item.id);
+      if (item.type === "FOLDER") await api.restoreFolder(item.id);
+      else await api.restoreFile(item.id);
       await load();
       onChanged();
     } catch (e) {
@@ -54,8 +55,8 @@ export function StorageTrashModal({
     setBusy(item.id);
     try {
       if (item.type === "FOLDER")
-        await myStorageService.permanentDeleteFolder(item.id);
-      else await myStorageService.permanentDeleteFile(item.id);
+        await api.permanentDeleteFolder(item.id);
+      else await api.permanentDeleteFile(item.id);
       await load();
       onChanged();
     } catch (e) {
@@ -68,7 +69,7 @@ export function StorageTrashModal({
   const emptyAll = async () => {
     setBusy("__all__");
     try {
-      await myStorageService.emptyTrash();
+      await api.emptyTrash();
       await load();
       onChanged();
     } catch (e) {

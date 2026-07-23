@@ -1,7 +1,7 @@
 package com.kanban.domain.storage.controller;
 
 import com.kanban.domain.storage.dto.StorageResponse;
-import com.kanban.domain.storage.service.MyStorageService;
+import com.kanban.domain.storage.service.StorageService;
 import com.kanban.domain.storage.service.StoragePublicService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
@@ -27,7 +27,7 @@ public class PublicStorageController {
 
     @GetMapping("/files/{shareCode}/download")
     public ResponseEntity<InputStreamResource> downloadSharedFile(@PathVariable String shareCode) {
-        MyStorageService.DownloadResource resource = publicService.downloadSharedFile(shareCode);
+        StorageService.DownloadResource resource = publicService.downloadSharedFile(shareCode);
         return MyStorageController.buildDownload(resource);
     }
 
@@ -40,7 +40,7 @@ public class PublicStorageController {
     @GetMapping("/folders/{shareCode}/files/{fileId}/download")
     public ResponseEntity<InputStreamResource> downloadSharedFolderFile(
             @PathVariable String shareCode, @PathVariable String fileId) {
-        MyStorageService.DownloadResource resource = publicService.downloadSharedFolderFile(shareCode, fileId);
+        StorageService.DownloadResource resource = publicService.downloadSharedFolderFile(shareCode, fileId);
         return MyStorageController.buildDownload(resource);
     }
 }

@@ -4,6 +4,7 @@ import com.kanban.domain.storage.StorageFile;
 import com.kanban.domain.storage.StorageFileRepository;
 import com.kanban.domain.storage.StorageFolder;
 import com.kanban.domain.storage.StorageFolderRepository;
+import com.kanban.domain.storage.StorageScope;
 import com.kanban.domain.storage.dto.StorageRequest;
 import com.kanban.domain.storage.dto.StorageResponse;
 import com.kanban.domain.user.User;
@@ -29,14 +30,15 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * 개인(마이 스페이스) 스토리지 서비스. 노트의 owner-스코프 격리 + OrgPhoto 의 파일 업로드/썸네일 패턴을 결합.
- * 모든 조회/수정은 (resourceId, userId) 시그니처로 소유권을 강제한다.
+ * 스코프 제네릭 스토리지 코어 서비스 (개인/보드/조직 공통).
+ * 권한 검증은 {@link StoragePermissionService} 로 위임하고, 리소스 격리는 스코프 제네릭 쿼리로 수행한다.
+ * 스코프별 진입점은 얇은 컨트롤러(My/Board/Org StorageController)가 스코프를 만들어 호출한다.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class MyStorageService {
+public class StorageService {
 
     private final StorageFolderRepository folderRepository;
     private final StorageFileRepository fileRepository;
@@ -44,18 +46,21 @@ public class MyStorageService {
     private final FileUploadService fileUploadService;
     private final AsyncThumbnailService asyncThumbnailService;
     private final StorageQuotaService quotaService;
+    private final StoragePermissionService permissionService;
 
     private static final int THUMB_W = 400;
     private static final int THUMB_H = 400;
 
-    /** presigned 대용량 업로드 상한 (기본 2GB). direct(multipart) 경로는 FileUploadService.validateFile 의 제한을 따른다. */
     @Value("${app.storage.max-file-size:2147483648}")
     private long storageMaxFileSize;
 
+    public record DownloadResource(InputStream stream, String filename, String contentType) {}
+
     // ==================== Folder ====================
 
-    public List<StorageResponse.FolderTree> getFolderTree(String userId) {
-        List<StorageFolder> all = folderRepository.findAllByOwnerUserIdNotDeleted(userId);
+    public List<StorageResponse.FolderTree> getFolderTree(StorageScope scope, String userId) {
+        permissionService.checkRead(scope, userId);
+        List<StorageFolder> all = folderRepository.findAllByScopeNotDeleted(scope.typeName(), scope.scopeId());
 
         Map<String, List<StorageFolder>> childrenMap = all.stream()
                 .filter(f -> f.getParent() != null)
@@ -77,53 +82,54 @@ public class MyStorageService {
     }
 
     @Transactional
-    public StorageResponse.FolderTree createFolder(String userId, StorageRequest.CreateFolder request) {
+    public StorageResponse.FolderTree createFolder(StorageScope scope, String userId, StorageRequest.CreateFolder request) {
+        permissionService.checkWrite(scope, userId);
         User user = getUser(userId);
 
         StorageFolder parent = null;
         int depth = 0;
         int position;
         if (request.parentId() != null && !request.parentId().isBlank()) {
-            parent = getFolderOrThrow(request.parentId(), userId);
+            parent = getFolderOrThrow(scope, request.parentId());
             depth = parent.getDepth() + 1;
             if (depth > StorageFolder.getMaxDepth()) {
                 throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "폴더 깊이는 최대 5단계입니다");
             }
             position = folderRepository.findNextChildPosition(parent.getId());
         } else {
-            position = folderRepository.findNextRootPositionByOwnerUserId(userId);
+            position = folderRepository.findNextRootPositionByScope(scope.typeName(), scope.scopeId());
         }
 
-        StorageFolder folder = StorageFolder.builder()
-                .owner(user)
+        StorageFolder.StorageFolderBuilder builder = StorageFolder.builder()
                 .parent(parent)
                 .name(request.name())
                 .position(position)
                 .depth(depth)
                 .createdBy(user)
-                .updatedBy(user)
-                .build();
-        folderRepository.save(folder);
+                .updatedBy(user);
+        applyScope(builder, scope, user);
+        StorageFolder folder = folderRepository.save(builder.build());
 
         return StorageResponse.FolderTree.of(folder, List.of());
     }
 
     @Transactional
-    public StorageResponse.FolderTree renameFolder(String userId, String folderId, StorageRequest.RenameFolder request) {
-        User user = getUser(userId);
-        StorageFolder folder = getFolderOrThrow(folderId, userId);
-        folder.rename(request.name(), user);
+    public StorageResponse.FolderTree renameFolder(StorageScope scope, String userId, String folderId, StorageRequest.RenameFolder request) {
+        permissionService.checkWrite(scope, userId);
+        StorageFolder folder = getFolderOrThrow(scope, folderId);
+        folder.rename(request.name(), getUser(userId));
         return StorageResponse.FolderTree.of(folder, List.of());
     }
 
     @Transactional
-    public StorageResponse.FolderTree moveFolder(String userId, String folderId, StorageRequest.MoveFolder request) {
-        StorageFolder folder = getFolderOrThrow(folderId, userId);
+    public StorageResponse.FolderTree moveFolder(StorageScope scope, String userId, String folderId, StorageRequest.MoveFolder request) {
+        permissionService.checkWrite(scope, userId);
+        StorageFolder folder = getFolderOrThrow(scope, folderId);
 
         StorageFolder newParent = null;
         int newDepth = 0;
         if (request.parentId() != null && !request.parentId().isBlank()) {
-            newParent = getFolderOrThrow(request.parentId(), userId);
+            newParent = getFolderOrThrow(scope, request.parentId());
             if (isDescendantOrSelf(folder.getId(), request.parentId())) {
                 throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "하위 폴더로 이동할 수 없습니다");
             }
@@ -136,7 +142,7 @@ public class MyStorageService {
 
         List<StorageFolder> siblings = new ArrayList<>(newParent != null
                 ? folderRepository.findChildrenByParentId(newParent.getId())
-                : folderRepository.findRootsByOwnerUserId(userId));
+                : folderRepository.findRootsByScope(scope.typeName(), scope.scopeId()));
         siblings.removeIf(f -> f.getId().equals(folderId));
 
         int index = request.position() != null
@@ -156,10 +162,10 @@ public class MyStorageService {
     }
 
     @Transactional
-    public void deleteFolder(String userId, String folderId) {
-        StorageFolder folder = getFolderOrThrow(folderId, userId);
-        User actor = getUser(userId);
-        softDeleteFolderRecursive(folder, actor);
+    public void deleteFolder(StorageScope scope, String userId, String folderId) {
+        permissionService.checkWrite(scope, userId);
+        StorageFolder folder = getFolderOrThrow(scope, folderId);
+        softDeleteFolderRecursive(folder, getUser(userId));
     }
 
     private void softDeleteFolderRecursive(StorageFolder folder, User actor) {
@@ -174,13 +180,14 @@ public class MyStorageService {
 
     // ==================== File listing ====================
 
-    public List<StorageResponse.FileItem> getFiles(String userId, String folderId) {
+    public List<StorageResponse.FileItem> getFiles(StorageScope scope, String userId, String folderId) {
+        permissionService.checkRead(scope, userId);
         List<StorageFile> files;
         if (folderId != null && !folderId.isBlank()) {
-            getFolderOrThrow(folderId, userId); // 소유권 확인
-            files = fileRepository.findByOwnerUserIdAndFolderId(userId, folderId);
+            getFolderOrThrow(scope, folderId);
+            files = fileRepository.findByScopeAndFolderId(scope.typeName(), scope.scopeId(), folderId);
         } else {
-            files = fileRepository.findRootFilesByOwnerUserId(userId);
+            files = fileRepository.findRootFilesByScope(scope.typeName(), scope.scopeId());
         }
         return files.stream().map(this::toFileItem).toList();
     }
@@ -195,7 +202,8 @@ public class MyStorageService {
     // ==================== Upload (direct multipart) ====================
 
     @Transactional
-    public StorageResponse.FileItem uploadFile(String userId, String folderId, MultipartFile file) {
+    public StorageResponse.FileItem uploadFile(StorageScope scope, String userId, String folderId, MultipartFile file) {
+        permissionService.checkWrite(scope, userId);
         User user = getUser(userId);
 
         // 스토리지는 임의 파일 타입 허용 — 타입 화이트리스트/매직바이트 검증 없이 크기 제한만 강제
@@ -206,142 +214,142 @@ public class MyStorageService {
             throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
         }
 
-        StorageFolder folder = resolveFolder(folderId, userId);
-        checkQuota(userId, file.getSize());
+        StorageFolder folder = resolveFolder(scope, folderId);
+        checkQuota(scope, file.getSize());
 
         String ext = MediaUtils.getExtension(file.getOriginalFilename());
         String uuid = UUID.randomUUID().toString();
-        String s3Key = String.format("storage/%s/%s%s", userId, uuid, ext);
+        String s3Key = String.format("storage/%s/%s%s", scope.keySegment(), uuid, ext);
 
         fileUploadService.uploadDirectNoValidation(file, s3Key);
 
         String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
-        String thumbnailKey = maybeQueueThumbnail(s3Key, uuid, userId, contentType);
+        String thumbnailKey = maybeQueueThumbnail(s3Key, scope, uuid, contentType);
 
-        StorageFile saved = fileRepository.save(StorageFile.builder()
-                .owner(user)
+        StorageFile.StorageFileBuilder builder = StorageFile.builder()
                 .folder(folder)
                 .originalFilename(file.getOriginalFilename())
                 .s3Key(s3Key)
                 .thumbnailKey(thumbnailKey)
                 .contentType(contentType)
                 .fileSize(file.getSize())
-                .createdBy(user)
-                .build());
+                .createdBy(user);
+        applyScope(builder, scope, user);
+        StorageFile saved = fileRepository.save(builder.build());
 
-        log.info("Storage file uploaded (direct): userId={}, fileId={}, size={}", userId, saved.getId(), file.getSize());
+        log.info("Storage file uploaded (direct): scope={}, fileId={}, size={}", scope.typeName(), saved.getId(), file.getSize());
         return toFileItem(saved);
     }
 
     // ==================== Upload (presigned, 대용량) ====================
 
-    public StorageResponse.PresignResult presign(String userId, StorageRequest.Presign request) {
+    public StorageResponse.PresignResult presign(StorageScope scope, String userId, StorageRequest.Presign request) {
+        permissionService.checkWrite(scope, userId);
         if (request.fileSize() > storageMaxFileSize) {
             throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
         }
-        checkQuota(userId, request.fileSize());
+        checkQuota(scope, request.fileSize());
 
         String ext = MediaUtils.getExtension(request.fileName());
-        String key = String.format("storage/%s/%s%s", userId, UUID.randomUUID(), ext);
+        String key = String.format("storage/%s/%s%s", scope.keySegment(), UUID.randomUUID(), ext);
 
         FileUploadService.PresignResult presigned =
                 fileUploadService.presignUploadToKey(key, request.contentType(), request.fileSize(), storageMaxFileSize);
 
         if (presigned == null) {
-            // 로컬 등 presigned 미지원 → 클라이언트는 multipart(uploadFile) 로 폴백
             return StorageResponse.PresignResult.builder().mode("direct").uploadUrl(null).s3Key(null).build();
         }
         return StorageResponse.PresignResult.builder()
                 .mode(presigned.getMode())
                 .uploadUrl(presigned.getUploadUrl())
-                .s3Key(presigned.getTempKey()) // presignUploadToKey 에서는 최종 key 를 그대로 담아 반환
+                .s3Key(presigned.getTempKey())
                 .build();
     }
 
     @Transactional
-    public StorageResponse.FileItem confirmUpload(String userId, StorageRequest.Confirm request) {
+    public StorageResponse.FileItem confirmUpload(StorageScope scope, String userId, StorageRequest.Confirm request) {
+        permissionService.checkWrite(scope, userId);
         User user = getUser(userId);
 
-        if (!request.s3Key().startsWith("storage/" + userId + "/")) {
+        String expectedPrefix = "storage/" + scope.keySegment() + "/";
+        if (!request.s3Key().startsWith(expectedPrefix)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "잘못된 업로드 키입니다");
         }
 
-        // 실제 업로드된 크기로 검증 (S3 headObject). 미지원(-1)이면 선언값 신뢰.
         long actualSize = fileUploadService.probeObjectSize(request.s3Key());
         if (actualSize == -1L) {
             throw new BusinessException(ErrorCode.TEMP_FILE_NOT_FOUND);
         }
-        long effectiveSize = actualSize >= 0 ? actualSize : request.fileSize();
-        if (effectiveSize > storageMaxFileSize) {
+        if (actualSize > storageMaxFileSize) {
             throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
         }
-        checkQuota(userId, effectiveSize);
+        checkQuota(scope, actualSize);
 
-        StorageFolder folder = resolveFolder(request.folderId(), userId);
+        StorageFolder folder = resolveFolder(scope, request.folderId());
         String uuid = extractUuid(request.s3Key());
-        String thumbnailKey = maybeQueueThumbnail(request.s3Key(), uuid, userId, request.contentType());
+        String thumbnailKey = maybeQueueThumbnail(request.s3Key(), scope, uuid, request.contentType());
 
-        StorageFile saved = fileRepository.save(StorageFile.builder()
-                .owner(user)
+        StorageFile.StorageFileBuilder builder = StorageFile.builder()
                 .folder(folder)
                 .originalFilename(request.originalFilename())
                 .s3Key(request.s3Key())
                 .thumbnailKey(thumbnailKey)
                 .contentType(request.contentType())
-                .fileSize(effectiveSize)
+                .fileSize(actualSize)
                 .width(request.width())
                 .height(request.height())
-                .createdBy(user)
-                .build());
+                .createdBy(user);
+        applyScope(builder, scope, user);
+        StorageFile saved = fileRepository.save(builder.build());
 
-        log.info("Storage file confirmed (presigned): userId={}, fileId={}, size={}", userId, saved.getId(), effectiveSize);
+        log.info("Storage file confirmed (presigned): scope={}, fileId={}, size={}", scope.typeName(), saved.getId(), actualSize);
         return toFileItem(saved);
     }
 
     // ==================== File ops ====================
 
     @Transactional
-    public StorageResponse.FileItem moveFile(String userId, String fileId, StorageRequest.MoveFile request) {
-        StorageFile file = getFileOrThrow(fileId, userId);
-        StorageFolder folder = resolveFolder(request.folderId(), userId);
+    public StorageResponse.FileItem moveFile(StorageScope scope, String userId, String fileId, StorageRequest.MoveFile request) {
+        permissionService.checkWrite(scope, userId);
+        StorageFile file = getFileOrThrow(scope, fileId);
+        StorageFolder folder = resolveFolder(scope, request.folderId());
         file.moveToFolder(folder);
         return toFileItem(file);
     }
 
     @Transactional
-    public void deleteFile(String userId, String fileId) {
-        StorageFile file = getFileOrThrow(fileId, userId);
+    public void deleteFile(StorageScope scope, String userId, String fileId) {
+        permissionService.checkWrite(scope, userId);
+        StorageFile file = getFileOrThrow(scope, fileId);
         file.softDelete(getUser(userId));
     }
 
-    public DownloadResource downloadFile(String userId, String fileId) {
-        StorageFile file = fileRepository.findByIdAndOwnerUserId(fileId, userId)
+    public DownloadResource downloadFile(StorageScope scope, String userId, String fileId) {
+        permissionService.checkRead(scope, userId);
+        StorageFile file = fileRepository.findByIdAndScope(fileId, scope.typeName(), scope.scopeId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FILE_NOT_FOUND));
         InputStream stream = fileUploadService.getAsStream(file.getS3Key());
         return new DownloadResource(stream, file.getOriginalFilename(), file.getContentType());
     }
 
-    public record DownloadResource(InputStream stream, String filename, String contentType) {}
-
     // ==================== Usage ====================
 
-    public StorageResponse.Usage getUsage(String userId) {
-        long used = fileRepository.sumFileSizeByOwnerUserId(userId);
-        StorageQuotaService.Quota quota = quotaService.resolve(userId);
-        return StorageResponse.Usage.builder()
-                .used(used).quota(quota.bytes()).tier(quota.tier())
-                .build();
+    public StorageResponse.Usage getUsage(StorageScope scope, String userId) {
+        permissionService.checkRead(scope, userId);
+        long used = fileRepository.sumFileSizeByScope(scope.typeName(), scope.scopeId());
+        StorageQuotaService.Quota quota = quotaService.resolve(scope);
+        return StorageResponse.Usage.builder().used(used).quota(quota.bytes()).tier(quota.tier()).build();
     }
 
-    /** 타입별 분해가 포함된 상세 사용량 (상세 보기 모달용). */
-    public StorageResponse.UsageDetail getUsageDetail(String userId) {
-        StorageQuotaService.Quota quota = quotaService.resolve(userId);
+    public StorageResponse.UsageDetail getUsageDetail(StorageScope scope, String userId) {
+        permissionService.checkRead(scope, userId);
+        StorageQuotaService.Quota quota = quotaService.resolve(scope);
 
         long[] bytes = new long[4];   // 0=IMAGE 1=VIDEO 2=DOCUMENT 3=OTHER
         long[] counts = new long[4];
         long totalBytes = 0, totalCount = 0;
 
-        for (Object[] row : fileRepository.aggregateByContentType(userId)) {
+        for (Object[] row : fileRepository.aggregateByContentTypeByScope(scope.typeName(), scope.scopeId())) {
             String contentType = (String) row[0];
             long count = ((Number) row[1]).longValue();
             long size = ((Number) row[2]).longValue();
@@ -360,11 +368,8 @@ public class MyStorageService {
         }
 
         return StorageResponse.UsageDetail.builder()
-                .used(totalBytes)
-                .quota(quota.bytes())
-                .tier(quota.tier())
-                .fileCount(totalCount)
-                .categories(categories)
+                .used(totalBytes).quota(quota.bytes()).tier(quota.tier())
+                .fileCount(totalCount).categories(categories)
                 .build();
     }
 
@@ -385,11 +390,12 @@ public class MyStorageService {
 
     // ==================== Trash ====================
 
-    public List<StorageResponse.TrashItem> getTrash(String userId) {
+    public List<StorageResponse.TrashItem> getTrash(StorageScope scope, String userId) {
+        permissionService.checkRead(scope, userId);
         List<StorageResponse.TrashItem> items = new ArrayList<>();
-        folderRepository.findTrashByOwnerUserId(userId)
+        folderRepository.findTrashByScope(scope.typeName(), scope.scopeId())
                 .forEach(f -> items.add(StorageResponse.TrashItem.ofFolder(f)));
-        fileRepository.findTrashByOwnerUserId(userId)
+        fileRepository.findTrashByScope(scope.typeName(), scope.scopeId())
                 .forEach(f -> items.add(StorageResponse.TrashItem.ofFile(f)));
         items.sort(Comparator.comparing(StorageResponse.TrashItem::deletedAt,
                 Comparator.nullsLast(Comparator.reverseOrder())));
@@ -397,10 +403,10 @@ public class MyStorageService {
     }
 
     @Transactional
-    public void restoreFile(String userId, String fileId) {
-        StorageFile file = fileRepository.findByIdAndOwnerUserId(fileId, userId)
+    public void restoreFile(StorageScope scope, String userId, String fileId) {
+        permissionService.checkWrite(scope, userId);
+        StorageFile file = fileRepository.findByIdAndScope(fileId, scope.typeName(), scope.scopeId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FILE_NOT_FOUND));
-        // 부모 폴더가 삭제 상태면 루트로 복원
         if (file.getFolder() != null && Boolean.TRUE.equals(file.getFolder().getIsDeleted())) {
             file.moveToFolder(null);
         }
@@ -408,15 +414,15 @@ public class MyStorageService {
     }
 
     @Transactional
-    public void restoreFolder(String userId, String folderId) {
-        StorageFolder folder = folderRepository.findByIdAndOwnerUserId(folderId, userId)
+    public void restoreFolder(StorageScope scope, String userId, String folderId) {
+        permissionService.checkWrite(scope, userId);
+        StorageFolder folder = folderRepository.findByIdAndScope(folderId, scope.typeName(), scope.scopeId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FOLDER_NOT_FOUND));
         if (folder.getParent() != null && Boolean.TRUE.equals(folder.getParent().getIsDeleted())) {
-            int rootPos = folderRepository.findNextRootPositionByOwnerUserId(userId);
+            int rootPos = folderRepository.findNextRootPositionByScope(scope.typeName(), scope.scopeId());
             folder.moveTo(null, rootPos);
         }
         folder.restore();
-        // 직속 파일만 복원 (하위 폴더는 사용자가 개별 복원)
         for (StorageFile file : fileRepository.findAllByFolderIdIncludingDeleted(folder.getId())) {
             if (Boolean.TRUE.equals(file.getIsDeleted())) {
                 file.restore();
@@ -425,30 +431,32 @@ public class MyStorageService {
     }
 
     @Transactional
-    public void permanentDeleteFile(String userId, String fileId) {
-        StorageFile file = fileRepository.findByIdAndOwnerUserId(fileId, userId)
+    public void permanentDeleteFile(StorageScope scope, String userId, String fileId) {
+        permissionService.checkStrong(scope, userId);
+        StorageFile file = fileRepository.findByIdAndScope(fileId, scope.typeName(), scope.scopeId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FILE_NOT_FOUND));
         hardDeleteFile(file);
     }
 
     @Transactional
-    public void permanentDeleteFolder(String userId, String folderId) {
-        StorageFolder folder = folderRepository.findByIdAndOwnerUserId(folderId, userId)
+    public void permanentDeleteFolder(StorageScope scope, String userId, String folderId) {
+        permissionService.checkStrong(scope, userId);
+        StorageFolder folder = folderRepository.findByIdAndScope(folderId, scope.typeName(), scope.scopeId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FOLDER_NOT_FOUND));
         hardDeleteFolderRecursive(folder);
     }
 
     @Transactional
-    public int emptyTrash(String userId) {
+    public int emptyTrash(StorageScope scope, String userId) {
+        permissionService.checkStrong(scope, userId);
         int count = 0;
-        for (StorageFolder folder : folderRepository.findTrashByOwnerUserId(userId)) {
-            // 트리 루트만 처리 (부모도 휴지통이면 부모가 처리)
+        for (StorageFolder folder : folderRepository.findTrashByScope(scope.typeName(), scope.scopeId())) {
             StorageFolder parent = folder.getParent();
             if (parent == null || !Boolean.TRUE.equals(parent.getIsDeleted())) {
                 count += hardDeleteFolderRecursive(folder);
             }
         }
-        for (StorageFile file : fileRepository.findTrashByOwnerUserId(userId)) {
+        for (StorageFile file : fileRepository.findTrashByScope(scope.typeName(), scope.scopeId())) {
             hardDeleteFile(file);
             count++;
         }
@@ -483,50 +491,70 @@ public class MyStorageService {
     // ==================== Sharing ====================
 
     @Transactional
-    public StorageResponse.FileItem enableFileShare(String userId, String fileId) {
-        StorageFile file = getFileOrThrow(fileId, userId);
+    public StorageResponse.FileItem enableFileShare(StorageScope scope, String userId, String fileId) {
+        permissionService.checkWrite(scope, userId);
+        StorageFile file = getFileOrThrow(scope, fileId);
         file.enableShare();
         return toFileItem(file);
     }
 
     @Transactional
-    public StorageResponse.FileItem disableFileShare(String userId, String fileId) {
-        StorageFile file = getFileOrThrow(fileId, userId);
+    public StorageResponse.FileItem disableFileShare(StorageScope scope, String userId, String fileId) {
+        permissionService.checkWrite(scope, userId);
+        StorageFile file = getFileOrThrow(scope, fileId);
         file.disableShare();
         return toFileItem(file);
     }
 
     @Transactional
-    public StorageResponse.FolderTree enableFolderShare(String userId, String folderId) {
-        StorageFolder folder = getFolderOrThrow(folderId, userId);
+    public StorageResponse.FolderTree enableFolderShare(StorageScope scope, String userId, String folderId) {
+        permissionService.checkWrite(scope, userId);
+        StorageFolder folder = getFolderOrThrow(scope, folderId);
         folder.enableShare();
         return StorageResponse.FolderTree.of(folder, List.of());
     }
 
     @Transactional
-    public StorageResponse.FolderTree disableFolderShare(String userId, String folderId) {
-        StorageFolder folder = getFolderOrThrow(folderId, userId);
+    public StorageResponse.FolderTree disableFolderShare(StorageScope scope, String userId, String folderId) {
+        permissionService.checkWrite(scope, userId);
+        StorageFolder folder = getFolderOrThrow(scope, folderId);
         folder.disableShare();
         return StorageResponse.FolderTree.of(folder, List.of());
     }
 
     // ==================== Helpers ====================
 
-    private void checkQuota(String userId, long addBytes) {
-        long used = fileRepository.sumFileSizeByOwnerUserId(userId);
-        long quota = quotaService.resolve(userId).bytes();
+    private void applyScope(StorageFolder.StorageFolderBuilder builder, StorageScope scope, User user) {
+        switch (scope.type()) {
+            case OWNER -> builder.owner(user);
+            case BOARD -> builder.boardId(scope.boardId());
+            case ORG -> builder.organizationId(scope.organizationId());
+        }
+    }
+
+    private void applyScope(StorageFile.StorageFileBuilder builder, StorageScope scope, User user) {
+        switch (scope.type()) {
+            case OWNER -> builder.owner(user);
+            case BOARD -> builder.boardId(scope.boardId());
+            case ORG -> builder.organizationId(scope.organizationId());
+        }
+    }
+
+    private void checkQuota(StorageScope scope, long addBytes) {
+        long used = fileRepository.sumFileSizeByScope(scope.typeName(), scope.scopeId());
+        long quota = quotaService.resolve(scope).bytes();
         if (used + addBytes > quota) {
             throw new BusinessException(ErrorCode.STORAGE_QUOTA_EXCEEDED);
         }
     }
 
-    /** 이미지/영상만 썸네일을 비동기 생성 큐잉하고 thumbnailKey 반환. 그 외(문서·압축·임의 타입)는 null. */
-    private String maybeQueueThumbnail(String s3Key, String uuid, String userId, String contentType) {
+    /** 이미지/영상만 썸네일을 비동기 생성 큐잉하고 thumbnailKey 반환. 그 외는 null. */
+    private String maybeQueueThumbnail(String s3Key, StorageScope scope, String uuid, String contentType) {
         if (contentType == null
                 || !(contentType.startsWith("image/") || contentType.startsWith("video/"))) {
             return null;
         }
-        String thumbnailKey = String.format("storage/%s/%s_thumb.jpg", userId, uuid);
+        String thumbnailKey = String.format("storage/%s/%s_thumb.jpg", scope.keySegment(), uuid);
         asyncThumbnailService.generateAndUploadThumbnail(s3Key, thumbnailKey, contentType, THUMB_W, THUMB_H);
         return thumbnailKey;
     }
@@ -537,11 +565,11 @@ public class MyStorageService {
         return dot > 0 ? name.substring(0, dot) : name;
     }
 
-    private StorageFolder resolveFolder(String folderId, String userId) {
+    private StorageFolder resolveFolder(StorageScope scope, String folderId) {
         if (folderId == null || folderId.isBlank()) {
             return null;
         }
-        return getFolderOrThrow(folderId, userId);
+        return getFolderOrThrow(scope, folderId);
     }
 
     private User getUser(String userId) {
@@ -549,8 +577,8 @@ public class MyStorageService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
     }
 
-    private StorageFolder getFolderOrThrow(String folderId, String userId) {
-        StorageFolder folder = folderRepository.findByIdAndOwnerUserId(folderId, userId)
+    private StorageFolder getFolderOrThrow(StorageScope scope, String folderId) {
+        StorageFolder folder = folderRepository.findByIdAndScope(folderId, scope.typeName(), scope.scopeId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FOLDER_NOT_FOUND));
         if (Boolean.TRUE.equals(folder.getIsDeleted())) {
             throw new BusinessException(ErrorCode.STORAGE_FOLDER_NOT_FOUND);
@@ -558,8 +586,8 @@ public class MyStorageService {
         return folder;
     }
 
-    private StorageFile getFileOrThrow(String fileId, String userId) {
-        StorageFile file = fileRepository.findByIdAndOwnerUserId(fileId, userId)
+    private StorageFile getFileOrThrow(StorageScope scope, String fileId) {
+        StorageFile file = fileRepository.findByIdAndScope(fileId, scope.typeName(), scope.scopeId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FILE_NOT_FOUND));
         if (Boolean.TRUE.equals(file.getIsDeleted())) {
             throw new BusinessException(ErrorCode.STORAGE_FILE_NOT_FOUND);

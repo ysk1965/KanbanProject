@@ -39,11 +39,16 @@ public class ReportResponse {
                     .periodEnd(report.getPeriodEnd().format(DATE_FORMATTER))
                     .content(report.getContent())
                     .dataSnapshot(report.getDataSnapshot())
-                    .generatedBy(report.getGeneratedBy().getId())
-                    .generatedByName(report.getGeneratedBy().getName())
+                    .generatedBy(report.getGeneratedBy() != null ? report.getGeneratedBy().getId() : null)
+                    .generatedByName(generatedByName(report))
                     .createdAt(report.getCreatedAt().format(DATETIME_FORMATTER))
                     .build();
         }
+    }
+
+    /** 스케줄러가 만든 보고서는 생성 주체가 없다. */
+    private static String generatedByName(WeeklyReport report) {
+        return report.getGeneratedBy() != null ? report.getGeneratedBy().getName() : "BRIDGE";
     }
 
     @Data
@@ -68,7 +73,7 @@ public class ReportResponse {
                     .targetUserName(report.getTargetUserName())
                     .periodStart(report.getPeriodStart().format(DATE_FORMATTER))
                     .periodEnd(report.getPeriodEnd().format(DATE_FORMATTER))
-                    .generatedByName(report.getGeneratedBy().getName())
+                    .generatedByName(generatedByName(report))
                     .createdAt(report.getCreatedAt().format(DATETIME_FORMATTER))
                     .build();
         }

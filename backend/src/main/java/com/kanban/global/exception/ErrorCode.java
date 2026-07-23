@@ -423,7 +423,29 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     // Storage (마이스페이스 개인 파일 보관함)
     STORAGE_FOLDER_NOT_FOUND(HttpStatus.NOT_FOUND, "ST001", "폴더를 찾을 수 없습니다"),
     STORAGE_FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "ST002", "파일을 찾을 수 없습니다"),
-    STORAGE_QUOTA_EXCEEDED(HttpStatus.PAYMENT_REQUIRED, "ST003", "스토리지 용량이 부족합니다. 파일을 정리하거나 플랜을 업그레이드해주세요");
+    STORAGE_QUOTA_EXCEEDED(HttpStatus.PAYMENT_REQUIRED, "ST003", "스토리지 용량이 부족합니다. 파일을 정리하거나 플랜을 업그레이드해주세요"),
+
+    // GitHub (자동 보고서 커밋 수집)
+    GITHUB_APP_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "GH001", "GitHub App이 서버에 설정되지 않았습니다"),
+    GITHUB_NOT_CONNECTED(HttpStatus.NOT_FOUND, "GH002", "GitHub이 연결되지 않았습니다"),
+    GITHUB_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "GH003", "GitHub 인증에 실패했습니다. 설치를 다시 연결해주세요"),
+    GITHUB_API_ERROR(HttpStatus.BAD_GATEWAY, "GH004", "GitHub API 호출에 실패했습니다"),
+    GITHUB_REPO_NOT_FOUND(HttpStatus.NOT_FOUND, "GH005", "저장소를 찾을 수 없거나 설치에 포함되어 있지 않습니다"),
+    GITHUB_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "GH006", "GitHub API 호출 한도를 초과했습니다. 잠시 후 다시 시도해주세요"),
+
+    // 자동 보고서
+    REPORT_CONFIG_NOT_FOUND(HttpStatus.NOT_FOUND, "RP001", "보고서 발송 설정을 찾을 수 없습니다"),
+    REPORT_NO_SOURCE_CONNECTED(HttpStatus.UNPROCESSABLE_ENTITY, "RP002", "연결된 소스가 없습니다. GitHub 또는 Confluence를 먼저 연결해주세요"),
+    REPORT_SHARE_LINK_EXPIRED(HttpStatus.NOT_FOUND, "RP003", "만료되었거나 사용할 수 없는 공유 링크입니다"),
+
+    // Confluence (주간보고 수집) — JIRA와 별개의 연결이다
+    CONFLUENCE_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "CF001", "Confluence OAuth 앱이 서버에 설정되지 않았습니다"),
+    CONFLUENCE_NOT_CONNECTED(HttpStatus.NOT_FOUND, "CF002", "Confluence가 연결되지 않았습니다"),
+    CONFLUENCE_CONNECTION_FAILED(HttpStatus.BAD_GATEWAY, "CF003", "Confluence 연결에 실패했습니다"),
+    CONFLUENCE_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "CF004", "Confluence 인증에 실패했습니다. 연결을 다시 해주세요"),
+    CONFLUENCE_API_ERROR(HttpStatus.BAD_GATEWAY, "CF005", "Confluence API 호출에 실패했습니다"),
+    CONFLUENCE_NOT_FOUND(HttpStatus.NOT_FOUND, "CF006", "Confluence 사이트 또는 페이지를 찾을 수 없습니다"),
+    CONFLUENCE_SITE_NOT_SELECTED(HttpStatus.UNPROCESSABLE_ENTITY, "CF007", "Confluence 사이트를 먼저 선택해주세요");
 
     private final HttpStatus status;
     private final String code;

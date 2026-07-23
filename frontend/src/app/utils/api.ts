@@ -5497,9 +5497,9 @@ export interface SlackWebhookMemberStatus {
   connected: boolean;
   enabled: boolean;
   channel_name: string | null;
-  account_linked?: boolean;  // Slack 계정 연동(봇 DM 수신 가능) 여부
-  bot_installed?: boolean;   // 보드에 Slack 앱 설치 여부
-  reachable?: boolean;       // 실제 Slack 알림 수신 상태 (봇 DM 또는 웹훅)
+  account_linked?: boolean; // Slack 계정 연동(봇 DM 수신 가능) 여부
+  bot_installed?: boolean; // 보드에 Slack 앱 설치 여부
+  reachable?: boolean; // 실제 Slack 알림 수신 상태 (봇 DM 또는 웹훅)
 }
 
 export const notificationPreferenceAPI = {
@@ -9373,7 +9373,7 @@ export const trashAPI = {
 
 // ========================================
 // Storage API (마이스페이스 개인 파일 보관함)
-// 경로는 /me/storage 고정, 스코프는 JWT 사용자로 결정된다.
+// 경로는 ${base} 고정, 스코프는 JWT 사용자로 결정된다.
 // ========================================
 
 export interface StorageFolderTree {
@@ -9446,7 +9446,10 @@ function putToS3WithProgress(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", uploadUrl);
-    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    xhr.setRequestHeader(
+      "Content-Type",
+      file.type || "application/octet-stream",
+    );
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) {
         onProgress(Math.round((e.loaded / e.total) * 100));
@@ -9461,132 +9464,466 @@ function putToS3WithProgress(
   });
 }
 
-export const myStorageAPI = {
-  // Folders
-  getFolders: () => apiClient.get<StorageFolderTree[]>(`/me/storage/folders`),
+export function makeStorageAPI(base: string) {
+  return {
+    // Folders
+    getFolders: () => apiClient.get<StorageFolderTree[]>(`${base}/folders`),
 
-  createFolder: (name: string, parentId?: string | null) =>
-    apiClient.post<StorageFolderTree>(`/me/storage/folders`, {
-      name,
-      parent_id: parentId ?? null,
-    }),
+    createFolder: (name: string, parentId?: string | null) =>
+      apiClient.post<StorageFolderTree>(`${base}/folders`, {
+        name,
+        parent_id: parentId ?? null,
+      }),
 
-  renameFolder: (folderId: string, name: string) =>
-    apiClient.put<StorageFolderTree>(`/me/storage/folders/${folderId}`, { name }),
+    renameFolder: (folderId: string, name: string) =>
+      apiClient.put<StorageFolderTree>(`${base}/folders/${folderId}`, { name }),
 
-  moveFolder: (folderId: string, parentId: string | null, position?: number) =>
-    apiClient.put<StorageFolderTree>(`/me/storage/folders/${folderId}/move`, {
-      parent_id: parentId,
-      position: position ?? null,
-    }),
+    moveFolder: (
+      folderId: string,
+      parentId: string | null,
+      position?: number,
+    ) =>
+      apiClient.put<StorageFolderTree>(`${base}/folders/${folderId}/move`, {
+        parent_id: parentId,
+        position: position ?? null,
+      }),
 
-  deleteFolder: (folderId: string) =>
-    apiClient.delete<{ message: string }>(`/me/storage/folders/${folderId}`),
+    deleteFolder: (folderId: string) =>
+      apiClient.delete<{ message: string }>(`${base}/folders/${folderId}`),
 
-  enableFolderShare: (folderId: string) =>
-    apiClient.post<StorageFolderTree>(`/me/storage/folders/${folderId}/share`, {}),
+    enableFolderShare: (folderId: string) =>
+      apiClient.post<StorageFolderTree>(
+        `${base}/folders/${folderId}/share`,
+        {},
+      ),
 
-  disableFolderShare: (folderId: string) =>
-    apiClient.delete<StorageFolderTree>(`/me/storage/folders/${folderId}/share`),
+    disableFolderShare: (folderId: string) =>
+      apiClient.delete<StorageFolderTree>(`${base}/folders/${folderId}/share`),
 
-  // Files
-  getFiles: (folderId?: string | null) => {
-    const q = folderId ? `?folder_id=${encodeURIComponent(folderId)}` : "";
-    return apiClient.get<StorageFileItem[]>(`/me/storage/files${q}`);
+    // Files
+    getFiles: (folderId?: string | null) => {
+      const q = folderId ? `?folder_id=${encodeURIComponent(folderId)}` : "";
+      return apiClient.get<StorageFileItem[]>(`${base}/files${q}`);
+    },
+
+    /**
+     * 파일 업로드: presigned(S3 직접, 대용량/진행률) 우선, 미지원(로컬)이면 multipart 폴백.
+     */
+    uploadFile: async (
+      file: File,
+      folderId?: string | null,
+      onProgress?: (percent: number) => void,
+    ): Promise<StorageFileItem> => {
+      const presign = await apiClient.post<StoragePresignResult>(
+        `${base}/files/presign`,
+        {
+          file_name: file.name,
+          content_type: file.type || "application/octet-stream",
+          file_size: file.size,
+          folder_id: folderId ?? null,
+        },
+      );
+
+      if (
+        presign.mode === "presigned" &&
+        presign.upload_url &&
+        presign.s3_key
+      ) {
+        await putToS3WithProgress(presign.upload_url, file, onProgress);
+        return apiClient.post<StorageFileItem>(`${base}/files/confirm`, {
+          s3_key: presign.s3_key,
+          folder_id: folderId ?? null,
+          original_filename: file.name,
+          content_type: file.type || "application/octet-stream",
+          file_size: file.size,
+        });
+      }
+
+      // 폴백: 서버 경유 multipart
+      const formData = new FormData();
+      formData.append("file", file);
+      if (folderId) formData.append("folder_id", folderId);
+      const response = await authenticatedFetch(
+        `${API_BASE_URL}${base}/files`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+      if (!response.ok) {
+        const errData = await response
+          .json()
+          .catch(() => ({ code: "UNKNOWN", message: response.statusText }));
+        throw errData;
+      }
+      onProgress?.(100);
+      return response.json();
+    },
+
+    moveFile: (fileId: string, folderId: string | null) =>
+      apiClient.put<StorageFileItem>(`${base}/files/${fileId}/move`, {
+        folder_id: folderId,
+      }),
+
+    deleteFile: (fileId: string) =>
+      apiClient.delete<{ message: string }>(`${base}/files/${fileId}`),
+
+    enableFileShare: (fileId: string) =>
+      apiClient.post<StorageFileItem>(`${base}/files/${fileId}/share`, {}),
+
+    disableFileShare: (fileId: string) =>
+      apiClient.delete<StorageFileItem>(`${base}/files/${fileId}/share`),
+
+    /** 인증 다운로드 → Blob (브라우저 저장은 서비스 레이어에서 트리거) */
+    downloadFile: async (fileId: string): Promise<Blob> => {
+      const response = await authenticatedFetch(
+        `${API_BASE_URL}${base}/files/${fileId}/download`,
+        { method: "GET" },
+      );
+      if (!response.ok) throw new Error("다운로드에 실패했습니다");
+      return response.blob();
+    },
+
+    // Usage
+    getUsage: () => apiClient.get<StorageUsage>(`${base}/usage`),
+
+    getUsageDetail: () =>
+      apiClient.get<StorageUsageDetail>(`${base}/usage/detail`),
+
+    // Trash
+    getTrash: () => apiClient.get<StorageTrashItem[]>(`${base}/trash`),
+
+    restoreFile: (fileId: string) =>
+      apiClient.post<{ message: string }>(
+        `${base}/trash/files/${fileId}/restore`,
+        {},
+      ),
+
+    restoreFolder: (folderId: string) =>
+      apiClient.post<{ message: string }>(
+        `${base}/trash/folders/${folderId}/restore`,
+        {},
+      ),
+
+    permanentDeleteFile: (fileId: string) =>
+      apiClient.delete<{ message: string }>(`${base}/trash/files/${fileId}`),
+
+    permanentDeleteFolder: (folderId: string) =>
+      apiClient.delete<{ message: string }>(
+        `${base}/trash/folders/${folderId}`,
+      ),
+
+    emptyTrash: () =>
+      apiClient.delete<{ deleted_count: number }>(`${base}/trash`),
+
+    /** 인증 다운로드 후 브라우저 저장 트리거 */
+    downloadAndSave: async (
+      fileId: string,
+      filename: string,
+    ): Promise<void> => {
+      const response = await authenticatedFetch(
+        `${API_BASE_URL}${base}/files/${fileId}/download`,
+        { method: "GET" },
+      );
+      if (!response.ok) throw new Error("다운로드에 실패했습니다");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+  };
+}
+
+export type StorageApi = ReturnType<typeof makeStorageAPI>;
+export const myStorageAPI = makeStorageAPI("/me/storage");
+export const makeBoardStorageAPI = (boardId: string) =>
+  makeStorageAPI(`/boards/${boardId}/storage`);
+export const makeOrgStorageAPI = (orgId: string) =>
+  makeStorageAPI(`/organizations/${orgId}/storage`);
+
+// ========================================
+// 자동 보고서 (일일/주간) API
+// ========================================
+
+/** 보고서 본문의 고정 스키마 — 슬랙 요약과 이 페이지가 같은 데이터에서 나온다 */
+export interface AutoReportMetric {
+  label: string;
+  value: string;
+  delta: string | null;
+}
+
+export interface AutoReportSection {
+  title: string;
+  body: string;
+  sources: string[] | null;
+}
+
+export interface AutoReportContent {
+  headline: string | null;
+  lede: string | null;
+  metrics: AutoReportMetric[] | null;
+  highlights: string[] | null;
+  sections: AutoReportSection[] | null;
+  risks: string[] | null;
+}
+
+export interface AutoReportSourceStatus {
+  source: string;
+  success: boolean;
+  has_data: boolean;
+  summary: string | null;
+  error: string | null;
+}
+
+export interface AutoReport {
+  id: string;
+  board_id: string;
+  board_name: string;
+  report_type: string;
+  period_start: string;
+  period_end: string;
+  created_at: string | null;
+  content: AutoReportContent | null;
+  markdown: string | null;
+  source_status: AutoReportSourceStatus[] | null;
+  raw_data: string | null;
+  shared?: boolean;
+}
+
+export interface ReportPreviewSource {
+  kind: string;
+  configured: boolean;
+  success: boolean;
+  has_data: boolean;
+  summary: string | null;
+  error_message: string | null;
+  metrics: Record<string, unknown> | null;
+}
+
+export interface ReportPreview {
+  report_type: string;
+  period_start: string;
+  period_end: string;
+  period_label: string;
+  timezone: string;
+  sources: ReportPreviewSource[];
+}
+
+export interface ReportConfig {
+  daily_enabled: boolean;
+  daily_hour: number;
+  daily_minute: number;
+  weekly_enabled: boolean;
+  weekly_hour: number;
+  weekly_minute: number;
+  weekly_day_of_week: number;
+  timezone: string;
+  language: string;
+  slack_channel_id: string | null;
+  slack_channel_name: string | null;
+  source_github_enabled: boolean;
+  source_kanban_enabled: boolean;
+  source_confluence_enabled: boolean;
+  share_link_enabled: boolean;
+}
+
+export const autoReportAPI = {
+  /** 공유 링크 — 로그인 없이 열린다 */
+  getByShareToken: async (shareToken: string) => {
+    return apiClient.get<AutoReport>(`/reports/share/${shareToken}`, true);
   },
 
-  /**
-   * 파일 업로드: presigned(S3 직접, 대용량/진행률) 우선, 미지원(로컬)이면 multipart 폴백.
-   */
-  uploadFile: async (
-    file: File,
-    folderId?: string | null,
-    onProgress?: (percent: number) => void,
-  ): Promise<StorageFileItem> => {
-    const presign = await apiClient.post<StoragePresignResult>(
-      `/me/storage/files/presign`,
-      {
-        file_name: file.name,
-        content_type: file.type || "application/octet-stream",
-        file_size: file.size,
-        folder_id: folderId ?? null,
-      },
+  /** 자동 보고서 이력 (본문 제외) */
+  list: async (boardId: string, limit = 20) => {
+    return apiClient.get<AutoReport[]>(
+      `/boards/${boardId}/reports/auto?limit=${limit}`,
     );
-
-    if (presign.mode === "presigned" && presign.upload_url && presign.s3_key) {
-      await putToS3WithProgress(presign.upload_url, file, onProgress);
-      return apiClient.post<StorageFileItem>(`/me/storage/files/confirm`, {
-        s3_key: presign.s3_key,
-        folder_id: folderId ?? null,
-        original_filename: file.name,
-        content_type: file.type || "application/octet-stream",
-        file_size: file.size,
-      });
-    }
-
-    // 폴백: 서버 경유 multipart
-    const formData = new FormData();
-    formData.append("file", file);
-    if (folderId) formData.append("folder_id", folderId);
-    const response = await authenticatedFetch(`${API_BASE_URL}/me/storage/files`, {
-      method: "POST",
-      body: formData,
-    });
-    if (!response.ok) {
-      const errData = await response
-        .json()
-        .catch(() => ({ code: "UNKNOWN", message: response.statusText }));
-      throw errData;
-    }
-    onProgress?.(100);
-    return response.json();
   },
 
-  moveFile: (fileId: string, folderId: string | null) =>
-    apiClient.put<StorageFileItem>(`/me/storage/files/${fileId}/move`, {
-      folder_id: folderId,
+  getForMember: async (boardId: string, reportId: string) => {
+    return apiClient.get<AutoReport>(
+      `/boards/${boardId}/reports/auto/${reportId}`,
+    );
+  },
+
+  revokeShareLink: async (boardId: string, reportId: string) => {
+    return apiClient.delete<void>(
+      `/boards/${boardId}/reports/auto/${reportId}/share`,
+    );
+  },
+
+  getConfig: async (boardId: string) => {
+    return apiClient.get<ReportConfig>(`/boards/${boardId}/reports/config`);
+  },
+
+  updateConfig: async (boardId: string, config: Partial<ReportConfig>) => {
+    return apiClient.put<ReportConfig>(
+      `/boards/${boardId}/reports/config`,
+      config,
+    );
+  },
+
+  /** 수집만 실행 — AI 미호출, 저장 안 함 */
+  preview: async (boardId: string, type: "DAILY_DEV" | "WEEKLY_INTEGRATED") => {
+    return apiClient.post<ReportPreview>(
+      `/boards/${boardId}/reports/preview?type=${type}`,
+      {},
+    );
+  },
+
+  /** 스케줄을 기다리지 않고 지금 발송 */
+  dispatchNow: async (
+    boardId: string,
+    type: "DAILY_DEV" | "WEEKLY_INTEGRATED",
+  ) => {
+    return apiClient.post<{ report_id: string }>(
+      `/boards/${boardId}/reports/dispatch?type=${type}`,
+      {},
+    );
+  },
+};
+
+// ========================================
+// GitHub 연동 API (자동 보고서 커밋 수집)
+// ========================================
+
+export interface GithubSelectedRepo {
+  repo_full_name: string;
+  branch: string | null;
+  exclude_authors: string[];
+  active: boolean;
+}
+
+export interface GithubStatus {
+  status: string | null;
+  connected: boolean;
+  account_login: string | null;
+  scope: string | null;
+  installation_id: string | null;
+  selected_repos: GithubSelectedRepo[];
+  last_error: string | null;
+  app_configured: boolean;
+}
+
+export interface GithubAvailableRepo {
+  full_name: string;
+  name: string;
+  default_branch: string;
+  is_private: boolean;
+  html_url: string | null;
+  selected: boolean;
+}
+
+export const githubAPI = {
+  getStatus: async (boardId: string) =>
+    apiClient.get<GithubStatus>(`/boards/${boardId}/github/status`),
+
+  getInstallUrl: async (boardId: string) =>
+    apiClient.get<{ url: string }>(`/boards/${boardId}/github/install-url`),
+
+  linkInstallation: async (
+    boardId: string,
+    installationId: string,
+    shareWithOrganization = true,
+  ) =>
+    apiClient.post<GithubStatus>(`/boards/${boardId}/github/installations`, {
+      installation_id: installationId,
+      share_with_organization: shareWithOrganization,
     }),
 
-  deleteFile: (fileId: string) =>
-    apiClient.delete<{ message: string }>(`/me/storage/files/${fileId}`),
+  listRepos: async (boardId: string) =>
+    apiClient.get<GithubAvailableRepo[]>(`/boards/${boardId}/github/repos`),
 
-  enableFileShare: (fileId: string) =>
-    apiClient.post<StorageFileItem>(`/me/storage/files/${fileId}/share`, {}),
+  selectRepos: async (
+    boardId: string,
+    repos: { repo_full_name: string; branch?: string | null }[],
+  ) =>
+    apiClient.put<GithubStatus>(`/boards/${boardId}/github/repos`, { repos }),
 
-  disableFileShare: (fileId: string) =>
-    apiClient.delete<StorageFileItem>(`/me/storage/files/${fileId}/share`),
+  disconnect: async (boardId: string) =>
+    apiClient.delete<void>(`/boards/${boardId}/github`),
+};
 
-  /** 인증 다운로드 → Blob (브라우저 저장은 서비스 레이어에서 트리거) */
-  downloadFile: async (fileId: string): Promise<Blob> => {
-    const response = await authenticatedFetch(
-      `${API_BASE_URL}/me/storage/files/${fileId}/download`,
-      { method: "GET" },
-    );
-    if (!response.ok) throw new Error("다운로드에 실패했습니다");
-    return response.blob();
-  },
+// ========================================
+// Confluence 연동 API (주간보고 수집)
+// ========================================
 
-  // Usage
-  getUsage: () => apiClient.get<StorageUsage>(`/me/storage/usage`),
+export interface ConfluenceSiteRef {
+  cloud_id: string;
+  url: string;
+  name: string;
+  confluence_available: boolean;
+}
 
-  getUsageDetail: () =>
-    apiClient.get<StorageUsageDetail>(`/me/storage/usage/detail`),
+export interface ConfluenceSpaceRef {
+  key: string;
+  name: string;
+  type: string | null;
+}
 
-  // Trash
-  getTrash: () => apiClient.get<StorageTrashItem[]>(`/me/storage/trash`),
+export interface ConfluenceSelectedSpace {
+  space_key: string;
+  space_name: string | null;
+  match_rule: string;
+  label: string | null;
+  parent_page_id: string | null;
+  title_pattern: string | null;
+  active: boolean;
+}
 
-  restoreFile: (fileId: string) =>
-    apiClient.post<{ message: string }>(`/me/storage/trash/files/${fileId}/restore`, {}),
+export interface ConfluenceStatus {
+  status: string | null;
+  connected: boolean;
+  site_name: string | null;
+  base_url: string | null;
+  cloud_id: string | null;
+  auth_type: string | null;
+  spaces: ConfluenceSelectedSpace[];
+  last_error: string | null;
+  app_configured: boolean;
+}
 
-  restoreFolder: (folderId: string) =>
-    apiClient.post<{ message: string }>(`/me/storage/trash/folders/${folderId}/restore`, {}),
+export const confluenceAPI = {
+  getStatus: async (boardId: string) =>
+    apiClient.get<ConfluenceStatus>(`/boards/${boardId}/confluence/status`),
 
-  permanentDeleteFile: (fileId: string) =>
-    apiClient.delete<{ message: string }>(`/me/storage/trash/files/${fileId}`),
+  getOAuthUrl: async (boardId: string, origin: string) =>
+    apiClient.get<{ oauth_url: string }>(
+      `/boards/${boardId}/confluence/oauth/url?origin=${encodeURIComponent(origin)}`,
+    ),
 
-  permanentDeleteFolder: (folderId: string) =>
-    apiClient.delete<{ message: string }>(`/me/storage/trash/folders/${folderId}`),
+  listSites: async (boardId: string) =>
+    apiClient.get<ConfluenceSiteRef[]>(`/boards/${boardId}/confluence/sites`),
 
-  emptyTrash: () =>
-    apiClient.delete<{ deleted_count: number }>(`/me/storage/trash`),
+  selectSite: async (
+    boardId: string,
+    site: { cloud_id: string; base_url?: string; site_name?: string },
+  ) =>
+    apiClient.post<ConfluenceStatus>(`/boards/${boardId}/confluence/site`, site),
+
+  listSpaces: async (boardId: string) =>
+    apiClient.get<ConfluenceSpaceRef[]>(`/boards/${boardId}/confluence/spaces`),
+
+  selectSpaces: async (
+    boardId: string,
+    spaces: {
+      space_key: string;
+      space_name?: string | null;
+      match_rule?: string;
+      label?: string | null;
+      parent_page_id?: string | null;
+      title_pattern?: string | null;
+    }[],
+  ) =>
+    apiClient.put<ConfluenceStatus>(`/boards/${boardId}/confluence/spaces`, {
+      spaces,
+    }),
+
+  disconnect: async (boardId: string) =>
+    apiClient.delete<void>(`/boards/${boardId}/confluence`),
 };

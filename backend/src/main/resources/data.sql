@@ -67,23 +67,23 @@ VALUES (
 -- ============================================================================
 -- 2-1. 블록 (칸반 컬럼)
 -- ============================================================================
-MERGE INTO blocks (id, board_id, name, type, fixed_type, position) KEY(id) VALUES
-  ('cccccccc-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000001', 'Feature',     'FIXED',  'FEATURE', 0);
-MERGE INTO blocks (id, board_id, name, type, fixed_type, position) KEY(id) VALUES
-  ('cccccccc-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000001', 'Task',        'FIXED',  'TASK',    1);
-MERGE INTO blocks (id, board_id, name, type, fixed_type, color, position) KEY(id) VALUES
-  ('cccccccc-0000-0000-0000-000000000003', 'bbbbbbbb-0000-0000-0000-000000000001', 'In Progress', 'CUSTOM', NULL, '#3B82F6', 2);
-MERGE INTO blocks (id, board_id, name, type, fixed_type, color, position) KEY(id) VALUES
-  ('cccccccc-0000-0000-0000-000000000004', 'bbbbbbbb-0000-0000-0000-000000000001', 'Code Review', 'CUSTOM', NULL, '#F59E0B', 3);
-MERGE INTO blocks (id, board_id, name, type, fixed_type, position) KEY(id) VALUES
-  ('cccccccc-0000-0000-0000-000000000005', 'bbbbbbbb-0000-0000-0000-000000000001', 'Done',        'FIXED',  'DONE',    4);
+MERGE INTO blocks (id, board_id, name, type, fixed_type, position, show_progress_bar) KEY(id) VALUES
+  ('cccccccc-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000001', 'Feature',     'FIXED',  'FEATURE', 0, FALSE);
+MERGE INTO blocks (id, board_id, name, type, fixed_type, position, show_progress_bar) KEY(id) VALUES
+  ('cccccccc-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000001', 'Task',        'FIXED',  'TASK',    1, FALSE);
+MERGE INTO blocks (id, board_id, name, type, fixed_type, color, position, show_progress_bar) KEY(id) VALUES
+  ('cccccccc-0000-0000-0000-000000000003', 'bbbbbbbb-0000-0000-0000-000000000001', 'In Progress', 'CUSTOM', NULL, '#3B82F6', 2, FALSE);
+MERGE INTO blocks (id, board_id, name, type, fixed_type, color, position, show_progress_bar) KEY(id) VALUES
+  ('cccccccc-0000-0000-0000-000000000004', 'bbbbbbbb-0000-0000-0000-000000000001', 'Code Review', 'CUSTOM', NULL, '#F59E0B', 3, FALSE);
+MERGE INTO blocks (id, board_id, name, type, fixed_type, position, show_progress_bar) KEY(id) VALUES
+  ('cccccccc-0000-0000-0000-000000000005', 'bbbbbbbb-0000-0000-0000-000000000001', 'Done',        'FIXED',  'DONE',    4, FALSE);
 
 -- ============================================================================
 -- 2-2. 피처 (Feature Cards)
 -- ============================================================================
 -- Feature 1: 사용자 인증 개선
 MERGE INTO features (id, board_id, title, description, color, assignee_id,
-  start_date, due_date, status, total_tasks, completed_tasks, position, created_by, created_at, updated_at)
+  start_date, due_date, status, total_tasks, completed_tasks, position, is_inbox, created_by, created_at, updated_at)
 KEY(id) VALUES (
   'dddddddd-0000-0000-0000-000000000001',
   'bbbbbbbb-0000-0000-0000-000000000001',
@@ -94,7 +94,7 @@ KEY(id) VALUES (
   DATE '2026-02-10',
   DATE '2026-03-07',
   'ACTIVE',
-  3, 1, 0,
+  3, 1, 0, FALSE,
   'aaaaaaaa-0000-0000-0000-000000000001',
   TIMESTAMP '2026-02-10 02:00:00',
   TIMESTAMP '2026-02-18 05:00:00'
@@ -102,7 +102,7 @@ KEY(id) VALUES (
 
 -- Feature 2: 대시보드 v2
 MERGE INTO features (id, board_id, title, description, color, assignee_id,
-  start_date, due_date, status, total_tasks, completed_tasks, position, created_by, created_at, updated_at)
+  start_date, due_date, status, total_tasks, completed_tasks, position, is_inbox, created_by, created_at, updated_at)
 KEY(id) VALUES (
   'dddddddd-0000-0000-0000-000000000002',
   'bbbbbbbb-0000-0000-0000-000000000001',
@@ -113,7 +113,7 @@ KEY(id) VALUES (
   DATE '2026-02-03',
   DATE '2026-02-28',
   'ACTIVE',
-  4, 1, 1,
+  4, 1, 1, FALSE,
   'aaaaaaaa-0000-0000-0000-000000000001',
   TIMESTAMP '2026-02-03 01:00:00',
   TIMESTAMP '2026-02-19 03:00:00'
@@ -121,7 +121,7 @@ KEY(id) VALUES (
 
 -- Feature 3: 알림 시스템
 MERGE INTO features (id, board_id, title, description, color, assignee_id,
-  start_date, due_date, status, total_tasks, completed_tasks, position, created_by, created_at, updated_at)
+  start_date, due_date, status, total_tasks, completed_tasks, position, is_inbox, created_by, created_at, updated_at)
 KEY(id) VALUES (
   'dddddddd-0000-0000-0000-000000000003',
   'bbbbbbbb-0000-0000-0000-000000000001',
@@ -132,7 +132,7 @@ KEY(id) VALUES (
   DATE '2026-02-17',
   DATE '2026-03-14',
   'ACTIVE',
-  3, 0, 2,
+  3, 0, 2, FALSE,
   'aaaaaaaa-0000-0000-0000-000000000001',
   TIMESTAMP '2026-02-17 01:00:00',
   TIMESTAMP '2026-02-19 01:00:00'
@@ -144,7 +144,7 @@ KEY(id) VALUES (
 -- Feature 1 태스크 (사용자 인증 개선)
 -- T1: Done
 MERGE INTO tasks (id, feature_id, board_id, block_id, title, description,
-  start_date, due_date, estimated_minutes, is_completed, position, created_by, completed_at, created_at, updated_at)
+  start_date, due_date, estimated_minutes, is_completed, position, feature_position, created_by, completed_at, created_at, updated_at)
 KEY(id) VALUES (
   'eeeeeeee-0000-0000-0000-000000000001',
   'dddddddd-0000-0000-0000-000000000001',
@@ -155,7 +155,7 @@ KEY(id) VALUES (
   DATE '2026-02-10',
   DATE '2026-02-14',
   240,
-  true, 0,
+  true, 0, 0,
   'aaaaaaaa-0000-0000-0000-000000000001',
   TIMESTAMP '2026-02-13 08:00:00',
   TIMESTAMP '2026-02-10 02:00:00',
@@ -164,7 +164,7 @@ KEY(id) VALUES (
 
 -- T2: In Progress
 MERGE INTO tasks (id, feature_id, board_id, block_id, title, description,
-  start_date, due_date, estimated_minutes, is_completed, position, created_by, created_at, updated_at)
+  start_date, due_date, estimated_minutes, is_completed, position, feature_position, created_by, created_at, updated_at)
 KEY(id) VALUES (
   'eeeeeeee-0000-0000-0000-000000000002',
   'dddddddd-0000-0000-0000-000000000001',
@@ -175,7 +175,7 @@ KEY(id) VALUES (
   DATE '2026-02-14',
   DATE '2026-02-21',
   480,
-  false, 0,
+  false, 0, 0,
   'aaaaaaaa-0000-0000-0000-000000000001',
   TIMESTAMP '2026-02-14 01:00:00',
   TIMESTAMP '2026-02-18 06:00:00'
@@ -183,7 +183,7 @@ KEY(id) VALUES (
 
 -- T3: Code Review
 MERGE INTO tasks (id, feature_id, board_id, block_id, title, description,
-  start_date, due_date, estimated_minutes, is_completed, position, created_by, created_at, updated_at)
+  start_date, due_date, estimated_minutes, is_completed, position, feature_position, created_by, created_at, updated_at)
 KEY(id) VALUES (
   'eeeeeeee-0000-0000-0000-000000000003',
   'dddddddd-0000-0000-0000-000000000001',
@@ -194,7 +194,7 @@ KEY(id) VALUES (
   DATE '2026-02-15',
   DATE '2026-02-20',
   180,
-  false, 0,
+  false, 0, 0,
   'aaaaaaaa-0000-0000-0000-000000000001',
   TIMESTAMP '2026-02-15 01:00:00',
   TIMESTAMP '2026-02-18 03:00:00'
@@ -203,7 +203,7 @@ KEY(id) VALUES (
 -- Feature 2 태스크 (대시보드 v2)
 -- T4: Done
 MERGE INTO tasks (id, feature_id, board_id, block_id, title, description,
-  start_date, due_date, estimated_minutes, is_completed, position, created_by, completed_at, created_at, updated_at)
+  start_date, due_date, estimated_minutes, is_completed, position, feature_position, created_by, completed_at, created_at, updated_at)
 KEY(id) VALUES (
   'eeeeeeee-0000-0000-0000-000000000004',
   'dddddddd-0000-0000-0000-000000000002',
@@ -214,7 +214,7 @@ KEY(id) VALUES (
   DATE '2026-02-03',
   DATE '2026-02-10',
   600,
-  true, 1,
+  true, 1, 1,
   'aaaaaaaa-0000-0000-0000-000000000001',
   TIMESTAMP '2026-02-09 07:00:00',
   TIMESTAMP '2026-02-03 01:00:00',
@@ -223,7 +223,7 @@ KEY(id) VALUES (
 
 -- T5: In Progress
 MERGE INTO tasks (id, feature_id, board_id, block_id, title, description,
-  start_date, due_date, estimated_minutes, is_completed, position, created_by, created_at, updated_at)
+  start_date, due_date, estimated_minutes, is_completed, position, feature_position, created_by, created_at, updated_at)
 KEY(id) VALUES (
   'eeeeeeee-0000-0000-0000-000000000005',
   'dddddddd-0000-0000-0000-000000000002',
@@ -234,7 +234,7 @@ KEY(id) VALUES (
   DATE '2026-02-10',
   DATE '2026-02-21',
   480,
-  false, 1,
+  false, 1, 1,
   'aaaaaaaa-0000-0000-0000-000000000001',
   TIMESTAMP '2026-02-10 01:00:00',
   TIMESTAMP '2026-02-18 04:00:00'
@@ -242,7 +242,7 @@ KEY(id) VALUES (
 
 -- T6: Code Review
 MERGE INTO tasks (id, feature_id, board_id, block_id, title, description,
-  start_date, due_date, estimated_minutes, is_completed, position, created_by, created_at, updated_at)
+  start_date, due_date, estimated_minutes, is_completed, position, feature_position, created_by, created_at, updated_at)
 KEY(id) VALUES (
   'eeeeeeee-0000-0000-0000-000000000006',
   'dddddddd-0000-0000-0000-000000000002',
@@ -253,7 +253,7 @@ KEY(id) VALUES (
   DATE '2026-02-14',
   DATE '2026-02-22',
   360,
-  false, 1,
+  false, 1, 1,
   'aaaaaaaa-0000-0000-0000-000000000001',
   TIMESTAMP '2026-02-14 01:00:00',
   TIMESTAMP '2026-02-17 05:00:00'
@@ -261,7 +261,7 @@ KEY(id) VALUES (
 
 -- T7: Task (backlog)
 MERGE INTO tasks (id, feature_id, board_id, block_id, title, description,
-  due_date, estimated_minutes, is_completed, position, created_by, created_at, updated_at)
+  due_date, estimated_minutes, is_completed, position, feature_position, created_by, created_at, updated_at)
 KEY(id) VALUES (
   'eeeeeeee-0000-0000-0000-000000000007',
   'dddddddd-0000-0000-0000-000000000002',
@@ -271,7 +271,7 @@ KEY(id) VALUES (
   'Bridge 디자인 시스템에 맞게 모든 위젯 다크모드 스타일 조정',
   DATE '2026-02-28',
   120,
-  false, 0,
+  false, 0, 0,
   'aaaaaaaa-0000-0000-0000-000000000001',
   TIMESTAMP '2026-02-17 01:00:00',
   TIMESTAMP '2026-02-17 01:00:00'
@@ -280,7 +280,7 @@ KEY(id) VALUES (
 -- Feature 3 태스크 (알림 시스템)
 -- T8: Task
 MERGE INTO tasks (id, feature_id, board_id, block_id, title, description,
-  due_date, estimated_minutes, is_completed, position, created_by, created_at, updated_at)
+  due_date, estimated_minutes, is_completed, position, feature_position, created_by, created_at, updated_at)
 KEY(id) VALUES (
   'eeeeeeee-0000-0000-0000-000000000008',
   'dddddddd-0000-0000-0000-000000000003',
@@ -290,7 +290,7 @@ KEY(id) VALUES (
   '일간/주간 알림 요약 이메일 발송 스케줄러 구현',
   DATE '2026-03-07',
   360,
-  false, 1,
+  false, 1, 1,
   'aaaaaaaa-0000-0000-0000-000000000001',
   TIMESTAMP '2026-02-17 02:00:00',
   TIMESTAMP '2026-02-17 02:00:00'
@@ -298,7 +298,7 @@ KEY(id) VALUES (
 
 -- T9: Task
 MERGE INTO tasks (id, feature_id, board_id, block_id, title, description,
-  due_date, estimated_minutes, is_completed, position, created_by, created_at, updated_at)
+  due_date, estimated_minutes, is_completed, position, feature_position, created_by, created_at, updated_at)
 KEY(id) VALUES (
   'eeeeeeee-0000-0000-0000-000000000009',
   'dddddddd-0000-0000-0000-000000000003',
@@ -308,7 +308,7 @@ KEY(id) VALUES (
   '슬랙 웹훅 실패 시 재시도 및 에러 알림 로직',
   DATE '2026-03-10',
   240,
-  false, 2,
+  false, 2, 2,
   'aaaaaaaa-0000-0000-0000-000000000001',
   TIMESTAMP '2026-02-18 01:00:00',
   TIMESTAMP '2026-02-18 01:00:00'
@@ -316,7 +316,7 @@ KEY(id) VALUES (
 
 -- T10: In Progress
 MERGE INTO tasks (id, feature_id, board_id, block_id, title, description,
-  start_date, due_date, estimated_minutes, is_completed, position, created_by, created_at, updated_at)
+  start_date, due_date, estimated_minutes, is_completed, position, feature_position, created_by, created_at, updated_at)
 KEY(id) VALUES (
   'eeeeeeee-0000-0000-0000-000000000010',
   'dddddddd-0000-0000-0000-000000000003',
@@ -327,7 +327,7 @@ KEY(id) VALUES (
   DATE '2026-02-17',
   DATE '2026-02-25',
   600,
-  false, 2,
+  false, 2, 2,
   'aaaaaaaa-0000-0000-0000-000000000001',
   TIMESTAMP '2026-02-17 01:00:00',
   TIMESTAMP '2026-02-19 02:00:00'
