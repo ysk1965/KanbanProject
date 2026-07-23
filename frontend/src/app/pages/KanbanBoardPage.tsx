@@ -39,6 +39,7 @@ type ViewMode =
   | "milestone"
   | "meeting"
   | "notes"
+  | "storage"
   | "statistics"
   | "ai_report"
   | "list"
@@ -141,6 +142,13 @@ const NotesView = lazyWithRetry(
       default: m.NotesView,
     })),
   "NotesView",
+);
+const StorageView = lazyWithRetry(
+  () =>
+    import("../components/storage/StorageView").then((m) => ({
+      default: m.StorageView,
+    })),
+  "StorageView",
 );
 const MilestoneView = lazyWithRetry(
   () =>
@@ -3181,6 +3189,18 @@ export function KanbanBoardPage() {
                 boardId={boardId || ""}
                 currentUserRole={currentUserRole}
               />
+            </Suspense>
+          </main>
+        ) : viewMode === "storage" ? (
+          <main className="flex-1 overflow-hidden">
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-64">
+                  <div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" />
+                </div>
+              }
+            >
+              <StorageView boardId={boardId || ""} />
             </Suspense>
           </main>
         ) : viewMode === "statistics" ? (

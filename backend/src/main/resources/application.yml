@@ -169,6 +169,26 @@ jira:
     client-secret: ${JIRA_OAUTH_CLIENT_SECRET:}
     redirect-uri: ${JIRA_OAUTH_REDIRECT_URI:http://localhost:8080/api/v1/jira/oauth/callback}
 
+# Confluence Cloud OAuth 2.0 (3LO) — 주간보고 수집
+# JIRA와 같은 Atlassian 앱을 써도 되지만, 보는 사이트가 다를 수 있어 설정을 분리해 둔다.
+confluence:
+  oauth:
+    client-id: ${CONFLUENCE_OAUTH_CLIENT_ID:}
+    client-secret: ${CONFLUENCE_OAUTH_CLIENT_SECRET:}
+    redirect-uri: ${CONFLUENCE_OAUTH_REDIRECT_URI:http://localhost:8080/api/v1/confluence/oauth/callback}
+
+# GitHub App (자동 보고서 커밋 수집)
+# github.com/settings/apps 에서 등록. 권한은 Contents: Read + Metadata: Read 만 있으면 된다.
+# private-key는 PKCS#1(BEGIN RSA PRIVATE KEY) 그대로 넣어도 되고, 줄바꿈은 \n 이스케이프를 허용한다.
+github:
+  app:
+    app-id: ${GITHUB_APP_ID:}
+    private-key: ${GITHUB_APP_PRIVATE_KEY:}
+    slug: ${GITHUB_APP_SLUG:}
+    api-base-url: ${GITHUB_API_BASE_URL:https://api.github.com}
+    commit-detail-limit: ${GITHUB_COMMIT_DETAIL_LIMIT:50}
+    max-commits-per-repo: ${GITHUB_MAX_COMMITS_PER_REPO:300}
+
 # Firebase (FCM Push Notifications)
 firebase:
   credentials-json: ${FIREBASE_CREDENTIALS_JSON:}

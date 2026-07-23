@@ -35,11 +35,11 @@ public class StoragePublicService {
         return toPublicFile(file);
     }
 
-    public MyStorageService.DownloadResource downloadSharedFile(String shareCode) {
+    public StorageService.DownloadResource downloadSharedFile(String shareCode) {
         StorageFile file = fileRepository.findByShareCodeAndIsSharedTrue(shareCode)
                 .filter(f -> !Boolean.TRUE.equals(f.getIsDeleted()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FILE_NOT_FOUND));
-        return new MyStorageService.DownloadResource(
+        return new StorageService.DownloadResource(
                 fileUploadService.getAsStream(file.getS3Key()),
                 file.getOriginalFilename(), file.getContentType());
     }
@@ -62,7 +62,7 @@ public class StoragePublicService {
                 .build();
     }
 
-    public MyStorageService.DownloadResource downloadSharedFolderFile(String shareCode, String fileId) {
+    public StorageService.DownloadResource downloadSharedFolderFile(String shareCode, String fileId) {
         StorageFolder folder = folderRepository.findByShareCodeAndIsSharedTrue(shareCode)
                 .filter(f -> !Boolean.TRUE.equals(f.getIsDeleted()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FOLDER_NOT_FOUND));
@@ -72,7 +72,7 @@ public class StoragePublicService {
                 .filter(f -> f.getFolder() != null && f.getFolder().getId().equals(folder.getId()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FILE_NOT_FOUND));
 
-        return new MyStorageService.DownloadResource(
+        return new StorageService.DownloadResource(
                 fileUploadService.getAsStream(file.getS3Key()),
                 file.getOriginalFilename(), file.getContentType());
     }

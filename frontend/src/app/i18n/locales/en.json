@@ -1861,6 +1861,7 @@
     "viewGantt": "Gantt Chart",
     "viewCalendar": "Calendar",
     "viewNotes": "Notes",
+    "viewStorage": "Storage",
     "viewAIAnalysisTab": "AI Analysis",
     "viewStatistics": "Milestones",
     "viewAIReport": "AI Report",
@@ -3909,7 +3910,8 @@
       "workspace": "Workspace",
       "okr": "OKR",
       "photos": "Photos",
-      "documents": "Documents"
+      "documents": "Documents",
+      "storage": "Storage"
     },
     "chart": {
       "searchPlaceholder": "Search members...",

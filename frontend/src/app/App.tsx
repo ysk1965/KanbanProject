@@ -32,6 +32,7 @@ import { PaymentSuccessPage } from "./pages/PaymentSuccessPage";
 import { PaymentFailPage } from "./pages/PaymentFailPage";
 import { AnnouncementsPage } from "./pages/AnnouncementsPage";
 import { SharedNotePage } from "./pages/SharedNotePage";
+import AutoReportPage from "./pages/AutoReportPage";
 import { SharedAlbumPage } from "./pages/SharedAlbumPage";
 import { SharedGalleryPage } from "./pages/SharedGalleryPage";
 import { PublicUploadPage } from "./pages/PublicUploadPage";
@@ -533,6 +534,9 @@ function AppRoutes() {
 
         {/* 공유 노트 (공개 - 인증 불필요) */}
         {/* 신규 단축 경로 + 레거시 /shared/note 별칭(기존 링크 호환) */}
+        {/* 자동 보고서 — 슬랙 버튼이 가리키는 공유 링크 (로그인 불필요) */}
+        <Route path="/r/:shareToken" element={<AutoReportPage />} />
+
         <Route path="/n/:shareToken" element={<SharedNotePage />} />
         <Route path="/shared/note/:shareToken" element={<SharedNotePage />} />
 
@@ -622,6 +626,16 @@ function AppRoutes() {
           element={
             <PrivateRoute>
               <KanbanBoardPage />
+            </PrivateRoute>
+          }
+        />
+
+        {/* 자동 보고서 — 보드 멤버용 (공유 링크와 같은 화면, 권한만 다르다) */}
+        <Route
+          path="/boards/:boardId/reports/:reportId"
+          element={
+            <PrivateRoute>
+              <AutoReportPage />
             </PrivateRoute>
           }
         />

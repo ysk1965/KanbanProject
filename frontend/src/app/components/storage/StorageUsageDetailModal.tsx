@@ -1,47 +1,63 @@
-import { useEffect, useState, useCallback } from 'react';
-import { X, Loader2, HardDrive, Image, Film, FileText, File as FileIcon } from 'lucide-react';
-import { MotionModal } from '../ui/MotionModal';
-import { myStorageService } from '../../utils/services';
-import type { StorageUsageDetail, StorageCategoryUsage } from '../../utils/api';
-import { formatBytes } from './storageUtils';
+import { useEffect, useState, useCallback } from "react";
+import {
+  X,
+  Loader2,
+  HardDrive,
+  Image,
+  Film,
+  FileText,
+  File as FileIcon,
+} from "lucide-react";
+import { MotionModal } from "../ui/MotionModal";
+import type {
+  StorageUsageDetail,
+  StorageCategoryUsage,
+  StorageApi,
+} from "../../utils/api";
+import { formatBytes } from "./storageUtils";
 
 interface StorageUsageDetailModalProps {
+  api: StorageApi;
   open: boolean;
   onClose: () => void;
 }
 
 const CATEGORY_META: Record<
-  StorageCategoryUsage['category'],
+  StorageCategoryUsage["category"],
   { label: string; color: string; Icon: typeof Image }
 > = {
-  IMAGE: { label: '이미지', color: 'var(--tw-image, #6366f1)', Icon: Image },
-  VIDEO: { label: '영상', color: '#14b8a6', Icon: Film },
-  DOCUMENT: { label: '문서', color: '#d97706', Icon: FileText },
-  OTHER: { label: '기타', color: '#8a93a1', Icon: FileIcon },
+  IMAGE: { label: "이미지", color: "var(--tw-image, #6366f1)", Icon: Image },
+  VIDEO: { label: "영상", color: "#14b8a6", Icon: Film },
+  DOCUMENT: { label: "문서", color: "#d97706", Icon: FileText },
+  OTHER: { label: "기타", color: "#8a93a1", Icon: FileIcon },
 };
 
 // 세그먼트 바 색상 (테마 무관 고정 — 브랜드 팔레트)
-const SEG_COLOR: Record<StorageCategoryUsage['category'], string> = {
-  IMAGE: '#6366f1',
-  VIDEO: '#14b8a6',
-  DOCUMENT: '#d97706',
-  OTHER: '#94a3b8',
+const SEG_COLOR: Record<StorageCategoryUsage["category"], string> = {
+  IMAGE: "#6366f1",
+  VIDEO: "#14b8a6",
+  DOCUMENT: "#d97706",
+  OTHER: "#94a3b8",
 };
 
-export function StorageUsageDetailModal({ open, onClose }: StorageUsageDetailModalProps) {
+export function StorageUsageDetailModal({
+  api,
+  open,
+  onClose,
+}: StorageUsageDetailModalProps) {
   const [detail, setDetail] = useState<StorageUsageDetail | null>(null);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setDetail(await myStorageService.getUsageDetail());
+      setDetail(await api.getUsageDetail());
     } catch (e) {
-      console.error('Failed to load usage detail:', e);
+      console.error("Failed to load usage detail:", e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [api]);
 
   useEffect(() => {
     if (open) load();
@@ -66,7 +82,9 @@ export function StorageUsageDetailModal({ open, onClose }: StorageUsageDetailMod
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
         <div className="flex items-center gap-2">
           <HardDrive className="w-4 h-4 text-slate-400" />
-          <span className="text-sm font-bold text-foreground">스토리지 사용량</span>
+          <span className="text-sm font-bold text-foreground">
+            스토리지 사용량
+          </span>
         </div>
         <button
           type="button"
@@ -91,22 +109,26 @@ export function StorageUsageDetailModal({ open, onClose }: StorageUsageDetailMod
                 <span className="text-2xl font-bold text-foreground tabular-nums">
                   {formatBytes(used)}
                 </span>
-                <span className="text-sm text-slate-500 tabular-nums">/ {formatBytes(quota)}</span>
+                <span className="text-sm text-slate-500 tabular-nums">
+                  / {formatBytes(quota)}
+                </span>
               </div>
               <span
                 className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                  detail?.tier === 'PREMIUM'
-                    ? 'bg-bridge-secondary/15 text-bridge-secondary'
-                    : 'bg-bridge-accent/15 text-bridge-accent'
+                  detail?.tier === "PREMIUM"
+                    ? "bg-bridge-secondary/15 text-bridge-secondary"
+                    : "bg-bridge-accent/15 text-bridge-accent"
                 }`}
               >
-                {detail?.tier ?? '—'}
+                {detail?.tier ?? "—"}
               </span>
             </div>
-            <p className={`text-xs mb-3 ${nearFull ? 'text-amber-500' : 'text-slate-500'}`}>
-              <b className={nearFull ? 'text-amber-500' : 'text-emerald-500'}>
+            <p
+              className={`text-xs mb-3 ${nearFull ? "text-amber-500" : "text-slate-500"}`}
+            >
+              <b className={nearFull ? "text-amber-500" : "text-emerald-500"}>
                 {formatBytes(remaining)}
-              </b>{' '}
+              </b>{" "}
               남음 · 파일 {detail?.file_count ?? 0}개
             </p>
 
@@ -146,8 +168,12 @@ export function StorageUsageDetailModal({ open, onClose }: StorageUsageDetailMod
                       style={{ background: SEG_COLOR[c.category] }}
                     />
                     <Icon className="w-4 h-4 text-slate-400 flex-none" />
-                    <span className="text-xs font-medium text-foreground flex-1">{meta.label}</span>
-                    <span className="text-xs text-slate-500 tabular-nums">{c.count}개</span>
+                    <span className="text-xs font-medium text-foreground flex-1">
+                      {meta.label}
+                    </span>
+                    <span className="text-xs text-slate-500 tabular-nums">
+                      {c.count}개
+                    </span>
                     <span className="text-xs font-bold text-foreground tabular-nums w-16 text-right">
                       {formatBytes(c.bytes)}
                     </span>

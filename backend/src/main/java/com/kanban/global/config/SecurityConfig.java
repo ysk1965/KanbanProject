@@ -63,6 +63,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/org-invites/**").permitAll()
                         // Public shared content (no auth required)
                         .requestMatchers("/api/v1/public/**").permitAll()
+
+                        // 자동 보고서 공유 링크 — 토큰만으로 열린다. 만료·무효화는 서비스에서 확인한다.
+                        .requestMatchers("/api/v1/reports/share/**").permitAll()
                         // System status (maintenance check, active announcements)
                         .requestMatchers("/api/v1/system/**").permitAll()
                         // Custom icon generated files (S3 proxy)
@@ -85,6 +88,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/discord/oauth/callback").permitAll()
                         // JIRA OAuth callback (HMAC state-verified in service)
                         .requestMatchers("/api/v1/jira/oauth/callback").permitAll()
+
+                        // Confluence OAuth 콜백 — JIRA와 별개의 연결이다
+                        .requestMatchers("/api/v1/confluence/oauth/callback").permitAll()
                         // JIRA webhook receiver (per-board secret token verified in service)
                         .requestMatchers("/api/v1/jira/webhook/**").permitAll()
                         // WebSocket endpoints
