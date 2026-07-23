@@ -211,6 +211,14 @@ app:
       max-size: 52428800
       ffmpeg-path: ${FFMPEG_PATH:/usr/bin/ffmpeg}
       ffprobe-path: ${FFPROBE_PATH:/usr/bin/ffprobe}
+  storage:
+    # presigned 대용량 업로드 상한 (기본 2GB). direct(multipart) 경로는 app.file 제한을 따른다.
+    max-file-size: ${STORAGE_MAX_FILE_SIZE:2147483648}
+    quota:
+      # 사용자 구독 티어별 스토리지 용량 한도 (바이트)
+      base-bytes: ${STORAGE_QUOTA_BASE:1073741824}       # 1GB (체험)
+      standard-bytes: ${STORAGE_QUOTA_STANDARD:5368709120}  # 5GB
+      premium-bytes: ${STORAGE_QUOTA_PREMIUM:21474836480}   # 20GB
 
 ---
 # Local Profile (H2)

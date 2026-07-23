@@ -9370,3 +9370,223 @@ export const trashAPI = {
   emptyTrash: (boardId: string): Promise<void> =>
     apiClient.delete<void>(`/boards/${boardId}/trash`),
 };
+
+// ========================================
+// Storage API (마이스페이스 개인 파일 보관함)
+// 경로는 /me/storage 고정, 스코프는 JWT 사용자로 결정된다.
+// ========================================
+
+export interface StorageFolderTree {
+  id: string;
+  parent_id: string | null;
+  name: string;
+  position: number;
+  depth: number;
+  is_shared: boolean;
+  share_code: string | null;
+  children: StorageFolderTree[];
+}
+
+export interface StorageFileItem {
+  id: string;
+  folder_id: string | null;
+  original_filename: string;
+  content_type: string | null;
+  file_size: number;
+  url: string;
+  thumbnail_url: string | null;
+  width: number | null;
+  height: number | null;
+  is_image: boolean;
+  is_video: boolean;
+  is_shared: boolean;
+  share_code: string | null;
+  created_at: string;
+}
+
+export interface StorageUsage {
+  used: number;
+  quota: number;
+  tier: string;
+}
+
+export interface StorageCategoryUsage {
+  category: "IMAGE" | "VIDEO" | "DOCUMENT" | "OTHER";
+  bytes: number;
+  count: number;
+}
+
+export interface StorageUsageDetail {
+  used: number;
+  quota: number;
+  tier: string;
+  file_count: number;
+  categories: StorageCategoryUsage[];
+}
+
+export interface StoragePresignResult {
+  mode: string; // "presigned" | "direct"
+  upload_url: string | null;
+  s3_key: string | null;
+}
+
+export interface StorageTrashItem {
+  id: string;
+  type: "FOLDER" | "FILE";
+  name: string;
+  deleted_at: string | null;
+}
+
+// S3 직접 PUT (진행률 콜백 지원 — XHR 사용)
+function putToS3WithProgress(
+  uploadUrl: string,
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", uploadUrl);
+    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+    xhr.onload = () =>
+      xhr.status >= 200 && xhr.status < 300
+        ? resolve()
+        : reject(new Error(`S3 업로드 실패 (${xhr.status})`));
+    xhr.onerror = () => reject(new Error("S3 업로드 네트워크 오류"));
+    xhr.send(file);
+  });
+}
+
+export const myStorageAPI = {
+  // Folders
+  getFolders: () => apiClient.get<StorageFolderTree[]>(`/me/storage/folders`),
+
+  createFolder: (name: string, parentId?: string | null) =>
+    apiClient.post<StorageFolderTree>(`/me/storage/folders`, {
+      name,
+      parent_id: parentId ?? null,
+    }),
+
+  renameFolder: (folderId: string, name: string) =>
+    apiClient.put<StorageFolderTree>(`/me/storage/folders/${folderId}`, { name }),
+
+  moveFolder: (folderId: string, parentId: string | null, position?: number) =>
+    apiClient.put<StorageFolderTree>(`/me/storage/folders/${folderId}/move`, {
+      parent_id: parentId,
+      position: position ?? null,
+    }),
+
+  deleteFolder: (folderId: string) =>
+    apiClient.delete<{ message: string }>(`/me/storage/folders/${folderId}`),
+
+  enableFolderShare: (folderId: string) =>
+    apiClient.post<StorageFolderTree>(`/me/storage/folders/${folderId}/share`, {}),
+
+  disableFolderShare: (folderId: string) =>
+    apiClient.delete<StorageFolderTree>(`/me/storage/folders/${folderId}/share`),
+
+  // Files
+  getFiles: (folderId?: string | null) => {
+    const q = folderId ? `?folder_id=${encodeURIComponent(folderId)}` : "";
+    return apiClient.get<StorageFileItem[]>(`/me/storage/files${q}`);
+  },
+
+  /**
+   * 파일 업로드: presigned(S3 직접, 대용량/진행률) 우선, 미지원(로컬)이면 multipart 폴백.
+   */
+  uploadFile: async (
+    file: File,
+    folderId?: string | null,
+    onProgress?: (percent: number) => void,
+  ): Promise<StorageFileItem> => {
+    const presign = await apiClient.post<StoragePresignResult>(
+      `/me/storage/files/presign`,
+      {
+        file_name: file.name,
+        content_type: file.type || "application/octet-stream",
+        file_size: file.size,
+        folder_id: folderId ?? null,
+      },
+    );
+
+    if (presign.mode === "presigned" && presign.upload_url && presign.s3_key) {
+      await putToS3WithProgress(presign.upload_url, file, onProgress);
+      return apiClient.post<StorageFileItem>(`/me/storage/files/confirm`, {
+        s3_key: presign.s3_key,
+        folder_id: folderId ?? null,
+        original_filename: file.name,
+        content_type: file.type || "application/octet-stream",
+        file_size: file.size,
+      });
+    }
+
+    // 폴백: 서버 경유 multipart
+    const formData = new FormData();
+    formData.append("file", file);
+    if (folderId) formData.append("folder_id", folderId);
+    const response = await authenticatedFetch(`${API_BASE_URL}/me/storage/files`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!response.ok) {
+      const errData = await response
+        .json()
+        .catch(() => ({ code: "UNKNOWN", message: response.statusText }));
+      throw errData;
+    }
+    onProgress?.(100);
+    return response.json();
+  },
+
+  moveFile: (fileId: string, folderId: string | null) =>
+    apiClient.put<StorageFileItem>(`/me/storage/files/${fileId}/move`, {
+      folder_id: folderId,
+    }),
+
+  deleteFile: (fileId: string) =>
+    apiClient.delete<{ message: string }>(`/me/storage/files/${fileId}`),
+
+  enableFileShare: (fileId: string) =>
+    apiClient.post<StorageFileItem>(`/me/storage/files/${fileId}/share`, {}),
+
+  disableFileShare: (fileId: string) =>
+    apiClient.delete<StorageFileItem>(`/me/storage/files/${fileId}/share`),
+
+  /** 인증 다운로드 → Blob (브라우저 저장은 서비스 레이어에서 트리거) */
+  downloadFile: async (fileId: string): Promise<Blob> => {
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/me/storage/files/${fileId}/download`,
+      { method: "GET" },
+    );
+    if (!response.ok) throw new Error("다운로드에 실패했습니다");
+    return response.blob();
+  },
+
+  // Usage
+  getUsage: () => apiClient.get<StorageUsage>(`/me/storage/usage`),
+
+  getUsageDetail: () =>
+    apiClient.get<StorageUsageDetail>(`/me/storage/usage/detail`),
+
+  // Trash
+  getTrash: () => apiClient.get<StorageTrashItem[]>(`/me/storage/trash`),
+
+  restoreFile: (fileId: string) =>
+    apiClient.post<{ message: string }>(`/me/storage/trash/files/${fileId}/restore`, {}),
+
+  restoreFolder: (folderId: string) =>
+    apiClient.post<{ message: string }>(`/me/storage/trash/folders/${folderId}/restore`, {}),
+
+  permanentDeleteFile: (fileId: string) =>
+    apiClient.delete<{ message: string }>(`/me/storage/trash/files/${fileId}`),
+
+  permanentDeleteFolder: (folderId: string) =>
+    apiClient.delete<{ message: string }>(`/me/storage/trash/folders/${folderId}`),
+
+  emptyTrash: () =>
+    apiClient.delete<{ deleted_count: number }>(`/me/storage/trash`),
+};

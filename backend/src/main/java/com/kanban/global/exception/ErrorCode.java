@@ -418,7 +418,12 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     PHOTO_UPLOAD_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "P003", "사진 업로드 제한 초과 (최대 20장)"),
     PHOTO_BATCH_DOWNLOAD_LIMIT(HttpStatus.BAD_REQUEST, "P004", "일괄 다운로드 제한 초과 (최대 100장)"),
     PHOTO_SHARE_LINK_NOT_FOUND(HttpStatus.NOT_FOUND, "P005", "공유 링크를 찾을 수 없습니다"),
-    PHOTO_SHARE_LINK_INVALID_TYPE(HttpStatus.BAD_REQUEST, "P006", "유효하지 않은 링크 종류입니다");
+    PHOTO_SHARE_LINK_INVALID_TYPE(HttpStatus.BAD_REQUEST, "P006", "유효하지 않은 링크 종류입니다"),
+
+    // Storage (마이스페이스 개인 파일 보관함)
+    STORAGE_FOLDER_NOT_FOUND(HttpStatus.NOT_FOUND, "ST001", "폴더를 찾을 수 없습니다"),
+    STORAGE_FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "ST002", "파일을 찾을 수 없습니다"),
+    STORAGE_QUOTA_EXCEEDED(HttpStatus.PAYMENT_REQUIRED, "ST003", "스토리지 용량이 부족합니다. 파일을 정리하거나 플랜을 업그레이드해주세요");
 
     private final HttpStatus status;
     private final String code;
