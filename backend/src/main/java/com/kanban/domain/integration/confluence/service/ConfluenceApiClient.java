@@ -18,9 +18,11 @@ import java.util.List;
 /**
  * Confluence Cloud REST 호출.
  *
- * <p>검색은 CQL이 필요해 v1({@code /wiki/rest/api/search})을 쓴다. v2에는 CQL 검색이 없어서,
- * "그 주에 올라온 주간보고 페이지"를 라벨·부모·제목으로 찾으려면 v1이 유일한 길이다.
- * 본문 조회도 같은 계열로 맞춰 {@code expand=body.storage}를 쓴다.
+ * <p>스페이스 목록·본문 조회는 v2({@code /wiki/api/v2/*})를 쓴다. v1의
+ * {@code /wiki/rest/api/space}·{@code /content}는 제거되어 410 Gone을 반환하기 때문이다.
+ *
+ * <p>검색만은 CQL이 필요해 v1({@code /wiki/rest/api/search})을 쓴다. v2에는 CQL 검색 대체가
+ * 없어 Atlassian이 이 엔드포인트를 존치했다("그 주에 올라온 주간보고 페이지"를 라벨·부모·제목으로 찾는 길).
  */
 @Slf4j
 @Component
@@ -33,7 +35,8 @@ public class ConfluenceApiClient {
     private final RestTemplate restTemplate;
 
     public List<ConfluenceResponse.SpaceRef> listSpaces(String cloudId, String token) {
-        String url = base(cloudId) + "/wiki/rest/api/space?limit=100&status=current";
+        // v2 spaces. 응답은 v1과 동일하게 results[]에 key/name/type가 그대로 실린다.
+        String url = base(cloudId) + "/wiki/api/v2/spaces?limit=100&status=current";
         JsonNode body = get(url, token);
 
         List<ConfluenceResponse.SpaceRef> spaces = new ArrayList<>();
@@ -78,7 +81,8 @@ public class ConfluenceApiClient {
 
     /** 페이지 본문(storage 포맷 HTML). 변환은 {@link ConfluenceStorageConverter}가 맡는다. */
     public String getPageStorageBody(String cloudId, String token, String pageId) {
-        String url = base(cloudId) + "/wiki/rest/api/content/" + pageId + "?expand=body.storage";
+        // v2 pages. body-format=storage 를 빼면 body가 {}로 와서 본문이 사라지므로 필수.
+        String url = base(cloudId) + "/wiki/api/v2/pages/" + pageId + "?body-format=storage";
         JsonNode body = get(url, token);
         return body.path("body").path("storage").path("value").asText(null);
     }
