@@ -179,7 +179,8 @@ public class ConfluenceOAuthService {
         String token = resolveToken(config);
 
         try {
-            getJson(API_BASE + "/ex/confluence/" + cloudId + "/wiki/rest/api/space?limit=1", token);
+            // v1 /wiki/rest/api/space 는 제거되어 410 Gone → v2 spaces 로 검증한다.
+            getJson(API_BASE + "/ex/confluence/" + cloudId + "/wiki/api/v2/spaces?limit=1", token);
         } catch (Exception e) {
             log.warn("Confluence 사이트 검증 실패 board={} cloudId={}: {}", boardId, cloudId, e.getMessage());
             throw new BusinessException(ErrorCode.CONFLUENCE_CONNECTION_FAILED,
