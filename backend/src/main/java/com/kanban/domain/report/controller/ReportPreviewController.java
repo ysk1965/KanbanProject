@@ -1,6 +1,7 @@
 package com.kanban.domain.report.controller;
 
 import com.kanban.domain.report.ReportType;
+import com.kanban.domain.report.dto.AutoReportResponse;
 import com.kanban.domain.report.dto.ReportConfigDto;
 import com.kanban.domain.report.dto.ReportPreviewResponse;
 import com.kanban.domain.report.service.ReportConfigService;
@@ -66,6 +67,21 @@ public class ReportPreviewController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(
                 previewService.preview(boardId, principal.getUserId(), parseType(type)));
+    }
+
+    /**
+     * 발송하지 않고 실제 보고서를 만들어 돌려준다 (AI 호출, 저장·슬랙 게시 없음).
+     * 소스 수집 결과가 비어 있으면 AI를 태우지 않는다 — 본문 없는 응답으로 온다.
+     *
+     * @param type DAILY_DEV | WEEKLY_INTEGRATED
+     */
+    @PostMapping("/render-preview")
+    public ResponseEntity<AutoReportResponse> renderPreview(
+            @PathVariable String boardId,
+            @RequestParam(value = "type", defaultValue = "DAILY_DEV") String type,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(
+                configService.renderPreview(boardId, principal.getUserId(), parseType(type)));
     }
 
     private ReportType parseType(String type) {

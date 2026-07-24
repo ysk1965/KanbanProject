@@ -6,6 +6,7 @@ import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.report.BoardReportConfig;
 import com.kanban.domain.report.BoardReportConfigRepository;
 import com.kanban.domain.report.ReportType;
+import com.kanban.domain.report.dto.AutoReportResponse;
 import com.kanban.domain.report.dto.ReportConfigDto;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
@@ -90,6 +91,26 @@ public class ReportConfigService {
                     result.message() != null ? result.message() : "보고서를 만들지 못했습니다");
         }
         return result.reportId();
+    }
+
+    /**
+     * 지금 발송하면 나올 보고서를 <b>실제로 만들어서</b> 보여준다 — 저장도, 슬랙 게시도 하지 않는다.
+     * 발송({@link #dispatchNow})과 같은 수집·AI 작성을 거치되 결과를 화면에만 돌려준다.
+     *
+     * <p>수집된 데이터가 없으면 AI를 태우지 않고 빈 본문으로 돌아온다(소스 상태만 채워서).
+     */
+    @Transactional
+    public AutoReportResponse renderPreview(String boardId, String userId, ReportType reportType) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        BoardReportConfig config = getOrCreate(boardId);
+        Board board = config.getBoard();
+
+        ZonedDateTime sendAt = ZonedDateTime.now(parseZone(config.getTimezone()));
+        ReportDispatchService.RenderResult result =
+                dispatchService.renderPreview(board, config, reportType, sendAt);
+
+        return AutoReportResponse.preview(board.getId(), board.getName(), reportType,
+                result.period(), result.content(), result.chunks(), result.mergedInput());
     }
 
     private BoardReportConfig getOrCreate(String boardId) {

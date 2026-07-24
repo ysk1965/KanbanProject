@@ -1,6 +1,9 @@
 package com.kanban.domain.report.dto;
 
+import com.kanban.domain.report.ReportType;
 import com.kanban.domain.report.WeeklyReport;
+import com.kanban.domain.report.source.ReportPeriod;
+import com.kanban.domain.report.source.SourceChunk;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -53,6 +56,34 @@ public class AutoReportResponse {
         private boolean hasData;
         private String summary;
         private String error;
+    }
+
+    /**
+     * 저장되지 않은 렌더링 미리보기. 실제 보고서 페이지와 <b>같은 형태</b>로 내려
+     * 프론트가 발행본과 동일한 렌더러를 재사용하게 한다. id·createdAt은 없다(저장 전이므로).
+     */
+    public static AutoReportResponse preview(String boardId, String boardName, ReportType reportType,
+                                             ReportPeriod period, ReportContent content,
+                                             List<SourceChunk> chunks, String rawData) {
+        return AutoReportResponse.builder()
+                .boardId(boardId)
+                .boardName(boardName)
+                .reportType(reportType.name())
+                .periodStart(period.startDate().format(DATE))
+                .periodEnd(period.endDate().format(DATE))
+                .content(content)
+                .rawData(rawData)
+                .sourceStatus(chunks.stream()
+                        .map(c -> SourceStatus.builder()
+                                .source(c.kind().name())
+                                .success(c.success())
+                                .hasData(c.hasData())
+                                .summary(c.summary())
+                                .error(c.errorMessage())
+                                .build())
+                        .toList())
+                .shared(false)
+                .build();
     }
 
     public static AutoReportResponse.AutoReportResponseBuilder base(WeeklyReport report) {
