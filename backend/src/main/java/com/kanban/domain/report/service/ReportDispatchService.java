@@ -46,6 +46,17 @@ public class ReportDispatchService {
         }
     }
 
+    /**
+     * 렌더링 미리보기 결과. 저장·발송 없이 "실제로 이렇게 나온다"만 담는다.
+     *
+     * @param content   AI 작성 본문. 수집된 데이터가 없으면 null (그땐 AI를 호출하지 않는다).
+     * @param chunks    소스별 수집 결과 — 페이지의 소스 배지·실패 경고에 쓴다.
+     * @param mergedInput 커밋 목록 등 수집 원본 JSON. 페이지 하단 상세 표에 쓴다.
+     */
+    public record RenderResult(ReportContent content, List<SourceChunk> chunks,
+                               String mergedInput, ReportPeriod period, boolean hasData) {
+    }
+
     public DispatchResult dispatch(Board board, BoardReportConfig config, ReportType reportType,
                                    ZonedDateTime sendAt) {
         ReportPeriod period = reportType == ReportType.WEEKLY_INTEGRATED
@@ -95,6 +106,29 @@ public class ReportDispatchService {
         persistence.recordLog(board, report, reportType, status,
                 config.getSlackChannelId(), chunks, published ? null : "슬랙 게시 실패");
         return new DispatchResult(status, report.getId(), null);
+    }
+
+    /**
+     * 발송과 같은 과정을 저장·게시 직전까지만 밟는다: 수집 → 작성. DB에 남기지도, 슬랙에 보내지도 않는다.
+     *
+     * <p>수집된 게 하나도 없으면 AI를 호출하지 않고 바로 돌아온다 — 라벨·브랜치 오작동을 공짜로 잡아내는
+     * 기존 미리보기의 성질을 그대로 유지한다.
+     */
+    public RenderResult renderPreview(Board board, BoardReportConfig config, ReportType reportType,
+                                      ZonedDateTime sendAt) {
+        ReportPeriod period = reportType == ReportType.WEEKLY_INTEGRATED
+                ? ReportPeriod.weekly(sendAt)
+                : ReportPeriod.daily(sendAt);
+
+        List<SourceChunk> chunks = collectAll(board.getId(), config, period);
+
+        if (chunks.stream().noneMatch(SourceChunk::hasData)) {
+            return new RenderResult(null, chunks, null, period, false);
+        }
+
+        ReportComposer.Composed composed =
+                composer.compose(board.getId(), reportType, config.getLanguage(), period, chunks);
+        return new RenderResult(composed.content(), chunks, composed.mergedInput(), period, true);
     }
 
     private List<SourceChunk> collectAll(String boardId, BoardReportConfig config, ReportPeriod period) {

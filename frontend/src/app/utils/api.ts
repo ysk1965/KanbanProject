@@ -9776,6 +9776,20 @@ export const autoReportAPI = {
     );
   },
 
+  /**
+   * 발송하지 않고 실제 보고서를 렌더링 — AI 호출, 저장·슬랙 게시 없음.
+   * 수집 데이터가 없으면 content 없이 소스 상태만 돌아온다(AI 미호출).
+   */
+  renderPreview: async (
+    boardId: string,
+    type: "DAILY_DEV" | "WEEKLY_INTEGRATED",
+  ) => {
+    return apiClient.post<AutoReport>(
+      `/boards/${boardId}/reports/render-preview?type=${type}`,
+      {},
+    );
+  },
+
   /** 스케줄을 기다리지 않고 지금 발송 */
   dispatchNow: async (
     boardId: string,
