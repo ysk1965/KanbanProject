@@ -11,6 +11,8 @@ import {
   RefreshCw,
   Send,
   Trello,
+  Unlink,
+  X,
 } from "lucide-react";
 
 import {
@@ -24,8 +26,9 @@ import {
   type GithubAvailableRepo,
   type GithubStatus,
   type ReportConfig,
-  type ReportPreview,
 } from "../utils/api";
+import { MotionModal } from "./ui/MotionModal";
+import { AutoReportView } from "./AutoReportView";
 
 interface AutoReportSettingsPanelProps {
   boardId: string;
@@ -36,7 +39,8 @@ interface AutoReportSettingsPanelProps {
 const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 
 /** 연결 카드가 공유하는 상태 어휘 — 백엔드 IntegrationConnectionStatus와 같다 */
-type CardState = "not_connected" | "target_not_selected" | "connected" | "error";
+type CardState =
+  "not_connected" | "target_not_selected" | "connected" | "error";
 
 function StatusPill({ state }: { state: CardState }) {
   const map: Record<CardState, { label: string; className: string }> = {
@@ -112,10 +116,21 @@ export function AutoReportSettingsPanel({
   const [sites, setSites] = useState<ConfluenceSiteRef[] | null>(null);
   const [spaces, setSpaces] = useState<ConfluenceSpaceRef[] | null>(null);
   const [spaceKey, setSpaceKey] = useState("");
-  const [label, setLabel] = useState("weekly-report");
+  // 주간보고 페이지 식별 규칙. 백엔드는 LABEL / PARENT_PAGE / TITLE_PATTERN 를 지원한다.
+  // Confluence가 라벨이 아니라 페이지 계층(년→월→주차)으로 구성된 경우가 많아 규칙을 고르게 한다.
+  const [matchRule, setMatchRule] = useState<
+    "LABEL" | "PARENT_PAGE" | "TITLE_PATTERN"
+  >("LABEL");
+  const [ruleValue, setRuleValue] = useState("");
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
-  const [preview, setPreview] = useState<ReportPreview | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
+  const [rendered, setRendered] = useState<AutoReport | null>(null);
+  const [renderOpen, setRenderOpen] = useState(false);
+  const [renderLoading, setRenderLoading] = useState(false);
+  const [renderError, setRenderError] = useState<string | null>(null);
+  const [renderType, setRenderType] = useState<
+    "DAILY_DEV" | "WEEKLY_INTEGRATED"
+  >("DAILY_DEV");
   const [dispatching, setDispatching] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [history, setHistory] = useState<AutoReport[] | null>(null);
@@ -313,16 +328,21 @@ export function AutoReportSettingsPanel({
   };
 
   const handleSaveSpace = async () => {
-    if (!spaceKey.trim() || !label.trim()) return;
+    if (!spaceKey.trim() || !ruleValue.trim()) return;
     try {
+      const v = ruleValue.trim();
       const status = await confluenceAPI.selectSpaces(boardId, [
         {
           space_key: spaceKey.trim(),
-          match_rule: "LABEL",
-          label: label.trim(),
+          match_rule: matchRule,
+          label: matchRule === "LABEL" ? v : null,
+          parent_page_id: matchRule === "PARENT_PAGE" ? v : null,
+          title_pattern: matchRule === "TITLE_PATTERN" ? v : null,
         },
       ]);
       setConfluence(status);
+      setSpaceKey("");
+      setRuleValue("");
     } catch (e) {
       setError(
         (e as { message?: string })?.message ?? "스페이스 저장에 실패했습니다.",
@@ -330,18 +350,35 @@ export function AutoReportSettingsPanel({
     }
   };
 
-  const runPreview = async (type: "DAILY_DEV" | "WEEKLY_INTEGRATED") => {
-    setPreviewLoading(true);
-    setPreview(null);
-    setError(null);
+  const handleDisconnect = async () => {
     try {
-      setPreview(await autoReportAPI.preview(boardId, type));
+      await confluenceAPI.disconnect(boardId);
+      setConfluence(await confluenceAPI.getStatus(boardId));
+      setSites(null);
+      setSpaces(null);
+      setConfirmDisconnect(false);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "미리보기에 실패했습니다.",
+        (e as { message?: string })?.message ?? "연결 해제에 실패했습니다.",
+      );
+    }
+  };
+
+  /** 실제 보고서를 만들어 모달에 렌더링한다 (발송 없음). 수집 0건이면 AI를 태우지 않고 안내만 뜬다. */
+  const runRenderPreview = async (type: "DAILY_DEV" | "WEEKLY_INTEGRATED") => {
+    setRenderType(type);
+    setRenderOpen(true);
+    setRenderLoading(true);
+    setRendered(null);
+    setRenderError(null);
+    try {
+      setRendered(await autoReportAPI.renderPreview(boardId, type));
+    } catch (e) {
+      setRenderError(
+        (e as { message?: string })?.message ?? "미리보기 생성에 실패했습니다.",
       );
     } finally {
-      setPreviewLoading(false);
+      setRenderLoading(false);
     }
   };
 
@@ -353,9 +390,7 @@ export function AutoReportSettingsPanel({
       const { report_id } = await autoReportAPI.dispatchNow(boardId, type);
       setNotice(`보고서를 발송했습니다. (${report_id.slice(0, 8)})`);
     } catch (e) {
-      setError(
-        (e as { message?: string })?.message ?? "발송에 실패했습니다.",
-      );
+      setError((e as { message?: string })?.message ?? "발송에 실패했습니다.");
     } finally {
       setDispatching(false);
     }
@@ -373,8 +408,8 @@ export function AutoReportSettingsPanel({
     <div className="flex flex-col gap-4 py-2">
       <p className="text-xs text-slate-400 leading-relaxed">
         매일 아침 전날 커밋으로 일일보고서를, 주말에 칸반·커밋·Confluence를 합쳐
-        주간보고서를 만들어 슬랙에 올립니다. 본문은 웹 페이지로 발행되고 슬랙에는
-        요약만 나갑니다.
+        주간보고서를 만들어 슬랙에 올립니다. 본문은 웹 페이지로 발행되고
+        슬랙에는 요약만 나갑니다.
       </p>
 
       {error && (
@@ -491,13 +526,40 @@ export function AutoReportSettingsPanel({
                 Confluence 연결
               </button>
             ) : (
-              <button
-                onClick={handleLoadSites}
-                className="px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl text-xs font-medium hover:bg-foreground/10 transition-all inline-flex items-center gap-1.5"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                사이트 선택
-              </button>
+              <>
+                <button
+                  onClick={handleLoadSites}
+                  className="px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl text-xs font-medium hover:bg-foreground/10 transition-all inline-flex items-center gap-1.5"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  사이트 선택
+                </button>
+                {confirmDisconnect ? (
+                  <>
+                    <button
+                      onClick={handleDisconnect}
+                      className="px-4 py-2 bg-rose-500/15 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-bold hover:bg-rose-500/25 transition-all inline-flex items-center gap-1.5"
+                    >
+                      <Unlink className="w-3.5 h-3.5" />
+                      정말 해제
+                    </button>
+                    <button
+                      onClick={() => setConfirmDisconnect(false)}
+                      className="px-3 py-2 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-xl text-xs font-medium transition-colors"
+                    >
+                      취소
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDisconnect(true)}
+                    className="px-4 py-2 text-slate-400 hover:text-rose-500 hover:bg-rose-500/5 rounded-xl text-xs font-medium transition-colors inline-flex items-center gap-1.5"
+                  >
+                    <Unlink className="w-3.5 h-3.5" />
+                    연결 해제
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
@@ -527,18 +589,37 @@ export function AutoReportSettingsPanel({
 
         {confluence?.cloud_id && canManage && (
           <div className="flex flex-col gap-2">
+            <input
+              value={spaceKey}
+              onChange={(e) => setSpaceKey(e.target.value)}
+              placeholder="스페이스 키 (URL의 /wiki/spaces/키/ — 스페이스 이름 아님)"
+              list="confluence-space-keys"
+              className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+            />
             <div className="flex flex-col sm:flex-row gap-2">
+              <select
+                value={matchRule}
+                onChange={(e) =>
+                  setMatchRule(
+                    e.target.value as "LABEL" | "PARENT_PAGE" | "TITLE_PATTERN",
+                  )
+                }
+                className="bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+              >
+                <option value="LABEL">라벨</option>
+                <option value="PARENT_PAGE">부모 페이지</option>
+                <option value="TITLE_PATTERN">제목 패턴</option>
+              </select>
               <input
-                value={spaceKey}
-                onChange={(e) => setSpaceKey(e.target.value)}
-                placeholder="스페이스 키 (예: TEAM)"
-                list="confluence-space-keys"
-                className="flex-1 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-              />
-              <input
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="주간보고 라벨"
+                value={ruleValue}
+                onChange={(e) => setRuleValue(e.target.value)}
+                placeholder={
+                  matchRule === "LABEL"
+                    ? "라벨 (예: weekly-report)"
+                    : matchRule === "PARENT_PAGE"
+                      ? "부모 페이지 ID (예: 123456789)"
+                      : "제목 포함 문구 (예: 주간 업무 현황)"
+                }
                 className="flex-1 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               />
               <button
@@ -558,8 +639,14 @@ export function AutoReportSettingsPanel({
               </datalist>
             )}
             <p className="text-xs text-slate-600">
-              라벨이 붙은 페이지만 읽습니다. 라벨을 비우면 저장되지 않습니다 —
-              스페이스 전체가 딸려오는 것을 막기 위해서입니다.
+              {matchRule === "LABEL"
+                ? "그 라벨이 붙은 페이지만 읽습니다. 매주 페이지가 달라도 라벨만 같으면 자동으로 찾습니다."
+                : matchRule === "PARENT_PAGE"
+                  ? "그 부모 페이지 밑의 자식 페이지를 읽습니다. 페이지 ID는 페이지 URL의 /pages/{ID}/ 에 있습니다."
+                  : "제목에 이 문구가 들어간 페이지를 읽습니다. 그 주 기간과 결합해 해당 주 주간보고를 자동으로 찾습니다."}
+              {
+                " 값을 비우면 저장되지 않습니다 — 스페이스 전체가 딸려오는 것을 막기 위해서입니다."
+              }
             </p>
           </div>
         )}
@@ -573,8 +660,22 @@ export function AutoReportSettingsPanel({
               >
                 <Check className="w-3.5 h-3.5 text-emerald-500" />
                 <span className="text-foreground">{space.space_key}</span>
-                <span>· {space.match_rule}</span>
-                {space.label && <span>· {space.label}</span>}
+                <span>
+                  ·{" "}
+                  {space.match_rule === "PARENT_PAGE"
+                    ? "부모 페이지"
+                    : space.match_rule === "TITLE_PATTERN"
+                      ? "제목 패턴"
+                      : "라벨"}
+                </span>
+                {(space.label ||
+                  space.parent_page_id ||
+                  space.title_pattern) && (
+                  <span className="text-foreground/80">
+                    ·{" "}
+                    {space.label ?? space.parent_page_id ?? space.title_pattern}
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -697,16 +798,17 @@ export function AutoReportSettingsPanel({
           </div>
           <div className="bg-bridge-dark p-3 md:p-5 flex flex-col gap-3">
             <p className="text-xs text-slate-500">
-              미리보기는 수집만 해봅니다(AI 미호출). 0건이 나오면 라벨이나
-              브랜치 설정이 잘못된 것입니다.
+              미리보기는 실제 발송과 똑같이 수집하고 AI로 작성해 결과를 모달에
+              보여줍니다(저장·슬랙 발송은 하지 않음). 수집된 게 없으면 AI를
+              호출하지 않고, 라벨·브랜치 설정 점검 안내가 뜹니다.
             </p>
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => runPreview("DAILY_DEV")}
-                disabled={previewLoading}
+                onClick={() => runRenderPreview("DAILY_DEV")}
+                disabled={renderLoading}
                 className="px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl text-xs font-medium hover:bg-foreground/10 transition-all inline-flex items-center gap-1.5 disabled:opacity-50"
               >
-                {previewLoading ? (
+                {renderLoading && renderType === "DAILY_DEV" ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   <Play className="w-3.5 h-3.5" />
@@ -714,11 +816,15 @@ export function AutoReportSettingsPanel({
                 일일 미리보기
               </button>
               <button
-                onClick={() => runPreview("WEEKLY_INTEGRATED")}
-                disabled={previewLoading}
+                onClick={() => runRenderPreview("WEEKLY_INTEGRATED")}
+                disabled={renderLoading}
                 className="px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl text-xs font-medium hover:bg-foreground/10 transition-all inline-flex items-center gap-1.5 disabled:opacity-50"
               >
-                <Play className="w-3.5 h-3.5" />
+                {renderLoading && renderType === "WEEKLY_INTEGRATED" ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Play className="w-3.5 h-3.5" />
+                )}
                 주간 미리보기
               </button>
               <button
@@ -734,38 +840,6 @@ export function AutoReportSettingsPanel({
                 지금 발송
               </button>
             </div>
-
-            {preview && (
-              <div className="flex flex-col gap-2 pt-2 border-t border-foreground/[0.08]">
-                <span className="text-xs text-slate-500">
-                  {preview.period_label} · {preview.timezone}
-                </span>
-                {preview.sources.map((source) => (
-                  <div
-                    key={source.kind}
-                    className="flex items-center gap-2 text-xs"
-                  >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        !source.configured
-                          ? "bg-slate-600"
-                          : source.success && source.has_data
-                            ? "bg-emerald-500"
-                            : source.success
-                              ? "bg-amber-500"
-                              : "bg-rose-500"
-                      }`}
-                    />
-                    <span className="text-foreground font-medium">
-                      {source.kind}
-                    </span>
-                    <span className="text-slate-400">
-                      {source.summary ?? source.error_message ?? "—"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -817,6 +891,90 @@ export function AutoReportSettingsPanel({
           )}
         </div>
       </div>
+
+      {/* ── 렌더링 미리보기 모달 ──────────────────── */}
+      <MotionModal
+        open={renderOpen}
+        onClose={() => setRenderOpen(false)}
+        className="sm:max-w-3xl"
+        accentColor
+        aria-label="보고서 미리보기"
+      >
+        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+          <FileText className="w-4 h-4 text-bridge-accent" />
+          <span className="text-sm font-bold text-foreground flex-1">
+            {renderType === "WEEKLY_INTEGRATED" ? "주간" : "일일"} 보고서
+            미리보기
+          </span>
+          <span className="text-xs text-slate-600">발송 안 함</span>
+          <button
+            onClick={() => setRenderOpen(false)}
+            aria-label="닫기"
+            className="text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg p-1 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="bg-bridge-dark">
+          {renderLoading ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16">
+              <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+              <span className="text-xs text-slate-500">
+                보고서를 생성하는 중… (수집 + AI 작성)
+              </span>
+            </div>
+          ) : renderError ? (
+            <div className="flex flex-col items-center gap-2 py-16 px-5 text-center">
+              <AlertCircle className="w-6 h-6 text-rose-500" />
+              <span className="text-xs text-slate-400">{renderError}</span>
+            </div>
+          ) : rendered?.content ? (
+            <AutoReportView
+              report={rendered}
+              className="px-5 py-6 flex flex-col gap-5"
+            />
+          ) : rendered ? (
+            <div className="flex flex-col gap-3 py-10 px-5">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <FileText className="w-6 h-6 text-slate-500" />
+                <span className="text-sm font-bold text-foreground">
+                  수집된 데이터가 없습니다
+                </span>
+                <span className="text-xs text-slate-500">
+                  이 기간에 잡힌 활동이 없어 보고서를 만들지 않았습니다.
+                  라벨·브랜치 설정을 확인하세요.
+                </span>
+              </div>
+              {(rendered.source_status ?? []).length > 0 && (
+                <div className="flex flex-col gap-2 pt-3 border-t border-foreground/[0.08]">
+                  {(rendered.source_status ?? []).map((source) => (
+                    <div
+                      key={source.source}
+                      className="flex items-center gap-2 text-xs"
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          source.success && source.has_data
+                            ? "bg-emerald-500"
+                            : source.success
+                              ? "bg-amber-500"
+                              : "bg-rose-500"
+                        }`}
+                      />
+                      <span className="text-foreground font-medium">
+                        {source.source}
+                      </span>
+                      <span className="text-slate-400">
+                        {source.summary ?? source.error ?? "—"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </MotionModal>
     </div>
   );
 }

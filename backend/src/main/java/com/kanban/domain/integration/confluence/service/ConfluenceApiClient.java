@@ -31,21 +31,29 @@ public class ConfluenceApiClient {
 
     private static final String API_BASE = "https://api.atlassian.com";
     private static final int SEARCH_LIMIT = 25;
+    /** 스페이스 목록 페이지네이션 상한 (100개/페이지 × 10 = 1000개) */
+    private static final int SPACE_PAGE_GUARD = 10;
 
     private final RestTemplate restTemplate;
 
     public List<ConfluenceResponse.SpaceRef> listSpaces(String cloudId, String token) {
         // v2 spaces. 응답은 v1과 동일하게 results[]에 key/name/type가 그대로 실린다.
-        String url = base(cloudId) + "/wiki/api/v2/spaces?limit=100&status=current";
-        JsonNode body = get(url, token);
-
+        // 사이트에 스페이스가 100개를 넘을 수 있어 _links.next 커서를 따라 끝까지 모은다
+        // (최대 SPACE_PAGE_GUARD 페이지 = 1000개 상한 — 무한 루프 방지).
         List<ConfluenceResponse.SpaceRef> spaces = new ArrayList<>();
-        for (JsonNode node : body.path("results")) {
-            spaces.add(ConfluenceResponse.SpaceRef.builder()
-                    .key(node.path("key").asText())
-                    .name(node.path("name").asText())
-                    .type(node.path("type").asText(null))
-                    .build());
+        String url = base(cloudId) + "/wiki/api/v2/spaces?limit=100&status=current";
+        for (int page = 0; url != null && page < SPACE_PAGE_GUARD; page++) {
+            JsonNode body = get(url, token);
+            for (JsonNode node : body.path("results")) {
+                spaces.add(ConfluenceResponse.SpaceRef.builder()
+                        .key(node.path("key").asText())
+                        .name(node.path("name").asText())
+                        .type(node.path("type").asText(null))
+                        .build());
+            }
+            // v2의 next는 사이트 상대 경로(예: /wiki/api/v2/spaces?cursor=...). base를 붙여 절대 URL로.
+            String next = body.path("_links").path("next").asText(null);
+            url = (next != null && !next.isBlank()) ? base(cloudId) + next : null;
         }
         return spaces;
     }
