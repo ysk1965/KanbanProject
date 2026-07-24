@@ -47,12 +47,24 @@ public class ConfluenceOAuthService {
     private static final String API_BASE = "https://api.atlassian.com";
 
     /**
-     * classic 스코프로 통일한다. JIRA에서 granular로 전환했다가 401로 되돌린 이력이 있어
-     * (e1062e1c → 9083af14) 같은 함정을 반복하지 않는다.
+     * 순수 granular 스코프.
+     *
+     * <p>Confluence는 v2 API(spaces/pages)를 써야 하는데, v2는 classic 스코프를 거부한다
+     * ("Unauthorized; scope does not match" 401). 반대로 v1 CQL 검색은 granular를 받아준다.
+     * → granular 하나로 v2·v1을 모두 커버할 수 있다.
+     *
+     * <p><b>classic과 절대 혼용하지 않는다.</b> 혼용하면 Atlassian이 토큰을 classic 모드로
+     * 평가해 granular를 무시 → v2가 401. JIRA에서 실측으로 확인된 함정이다(9083af14).
+     *
+     * <pre>
+     *   read:space:confluence            → GET /wiki/api/v2/spaces
+     *   read:page:confluence             → GET /wiki/api/v2/pages/{id}?body-format=storage
+     *   read:content-details:confluence  → GET /wiki/rest/api/search?cql=...  (v1, 존치)
+     * </pre>
      */
     private static final String SCOPES =
-            "read:confluence-content.all read:confluence-space.summary "
-            + "read:confluence-content.summary search:confluence offline_access";
+            "read:space:confluence read:page:confluence "
+            + "read:content-details:confluence offline_access";
 
     private static final long STATE_EXPIRY_SECONDS = 600;
     private static final long REFRESH_BUFFER_SECONDS = 60;
