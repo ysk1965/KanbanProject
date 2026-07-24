@@ -622,6 +622,44 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.jira_oauth_redirect_uri
   }
 
+  # GitHub App Integration (자동 보고서 커밋 수집)
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "GITHUB_APP_ID"
+    value     = var.github_app_id
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "GITHUB_APP_PRIVATE_KEY"
+    value     = var.github_app_private_key
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "GITHUB_APP_SLUG"
+    value     = var.github_app_slug
+  }
+
+  # Confluence OAuth Integration (주간보고 수집) — JIRA와 별개의 앱
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "CONFLUENCE_OAUTH_CLIENT_ID"
+    value     = var.confluence_oauth_client_id
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "CONFLUENCE_OAUTH_CLIENT_SECRET"
+    value     = var.confluence_oauth_client_secret
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "CONFLUENCE_OAUTH_REDIRECT_URI"
+    value     = var.confluence_oauth_redirect_uri
+  }
+
   # Slack App Integration
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"

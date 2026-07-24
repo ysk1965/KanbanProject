@@ -259,6 +259,16 @@ module "elastic_beanstalk" {
   jira_oauth_client_secret = var.jira_oauth_client_secret
   jira_oauth_redirect_uri  = var.jira_oauth_redirect_uri
 
+  # GitHub App Integration
+  github_app_id          = var.github_app_id
+  github_app_private_key = var.github_app_private_key
+  github_app_slug        = var.github_app_slug
+
+  # Confluence OAuth Integration
+  confluence_oauth_client_id     = var.confluence_oauth_client_id
+  confluence_oauth_client_secret = var.confluence_oauth_client_secret
+  confluence_oauth_redirect_uri  = var.confluence_oauth_redirect_uri
+
   # Slack App Integration
   slack_client_id            = var.slack_client_id
   slack_client_secret        = local.secret.slack_client_secret

@@ -247,6 +247,48 @@ variable "jira_oauth_redirect_uri" {
   default     = "https://api.bridgespots.com/api/v1/jira/oauth/callback"
 }
 
+# GitHub App Integration (자동 보고서 커밋 수집)
+variable "github_app_id" {
+  description = "GitHub App ID"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "github_app_private_key" {
+  description = "GitHub App private key (PEM). 줄바꿈은 \\n 이스케이프 허용"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "github_app_slug" {
+  description = "GitHub App slug (설치 페이지 주소에 쓰임)"
+  type        = string
+  default     = ""
+}
+
+# Confluence OAuth Integration (주간보고 수집) — JIRA와 별개의 앱
+variable "confluence_oauth_client_id" {
+  description = "Confluence OAuth2 client ID"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "confluence_oauth_client_secret" {
+  description = "Confluence OAuth2 client secret"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "confluence_oauth_redirect_uri" {
+  description = "Confluence OAuth2 redirect URI"
+  type        = string
+  default     = "https://api.bridgespots.com/api/v1/confluence/oauth/callback"
+}
+
 # Slack App Integration
 variable "slack_client_id" {
   description = "Slack App Client ID"

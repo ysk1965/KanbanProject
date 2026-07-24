@@ -33,6 +33,7 @@ import { PaymentFailPage } from "./pages/PaymentFailPage";
 import { AnnouncementsPage } from "./pages/AnnouncementsPage";
 import { SharedNotePage } from "./pages/SharedNotePage";
 import AutoReportPage from "./pages/AutoReportPage";
+import GithubSetupPage from "./pages/GithubSetupPage";
 import { SharedAlbumPage } from "./pages/SharedAlbumPage";
 import { SharedGalleryPage } from "./pages/SharedGalleryPage";
 import { PublicUploadPage } from "./pages/PublicUploadPage";
@@ -626,6 +627,16 @@ function AppRoutes() {
           element={
             <PrivateRoute>
               <KanbanBoardPage />
+            </PrivateRoute>
+          }
+        />
+
+        {/* GitHub App 설치 착지점 — Setup URL은 앱당 하나뿐이라 state(boardId)로 보드를 찾는다 */}
+        <Route
+          path="/github/setup"
+          element={
+            <PrivateRoute>
+              <GithubSetupPage />
             </PrivateRoute>
           }
         />

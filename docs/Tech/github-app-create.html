@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BRIDGE Report — GitHub App 생성</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+      background: #0e1116; color: #e6e9ef; max-width: 40rem; margin: 0 auto; padding: 3rem 1.5rem; line-height: 1.7; }
+    h1 { font-size: 1.4rem; letter-spacing: -0.02em; }
+    p { color: #97a1b3; font-size: 0.95rem; }
+    label { display: block; margin: 1.2rem 0 0.3rem; font-size: 0.85rem; color: #cbd5e1; font-weight: 600; }
+    input { width: 100%; box-sizing: border-box; background: #151920; border: 1px solid #262c37;
+      border-radius: 10px; padding: 0.7rem 0.9rem; color: #e6e9ef; font-size: 0.9rem; }
+    button { margin-top: 1.6rem; width: 100%; background: #6366F1; color: #fff; border: none;
+      border-radius: 12px; padding: 0.85rem; font-size: 0.95rem; font-weight: 700; cursor: pointer; }
+    button:hover { background: #5457e0; }
+    code { background: #1c222c; padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.85em; }
+    .hint { font-size: 0.8rem; color: #6d7789; margin-top: 0.3rem; }
+  </style>
+</head>
+<body>
+  <h1>BRIDGE Report — GitHub App 생성</h1>
+  <p>
+    이 페이지의 버튼을 누르면 <strong>권한(Contents·Metadata Read)·Setup URL·웹훅 해제</strong>가
+    이미 채워진 GitHub App 생성 화면으로 이동합니다. GitHub에서 "Create GitHub App"만 누르면 됩니다.
+    손으로 권한을 토글할 필요가 없습니다.
+  </p>
+  <p>
+    조직에 만들려면 조직명을, 개인 계정에 만들려면 비워 두세요.
+  </p>
+
+  <label for="org">GitHub 조직명 (개인 계정이면 비움)</label>
+  <input id="org" placeholder="예: cookapps" />
+  <div class="hint">이 값에 따라 <code>github.com/organizations/&lt;org&gt;/settings/apps/new</code> 또는 개인 <code>settings/apps/new</code>로 제출됩니다.</div>
+
+  <button id="go">GitHub App 생성 화면으로 이동</button>
+
+  <form id="manifestForm" method="post" style="display:none">
+    <input type="text" name="manifest" id="manifestInput" />
+  </form>
+
+  <script>
+    const manifest = {
+      name: "BRIDGE Report",
+      url: "https://bridgespots.com",
+      hook_attributes: { active: false },
+      redirect_url: "https://bridgespots.com/github/setup",
+      setup_url: "https://bridgespots.com/github/setup",
+      setup_on_update: true,
+      public: false,
+      default_permissions: { contents: "read", metadata: "read" },
+      default_events: []
+    };
+
+    document.getElementById("go").addEventListener("click", () => {
+      const org = document.getElementById("org").value.trim();
+      const action = org
+        ? `https://github.com/organizations/${encodeURIComponent(org)}/settings/apps/new`
+        : "https://github.com/settings/apps/new";
+      const form = document.getElementById("manifestForm");
+      form.action = action;
+      document.getElementById("manifestInput").value = JSON.stringify(manifest);
+      form.submit();
+    });
+  </script>
+</body>
+</html>
