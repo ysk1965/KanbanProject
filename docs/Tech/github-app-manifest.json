@@ -1,0 +1,16 @@
+{
+  "name": "BRIDGE Report",
+  "url": "https://bridgespots.com",
+  "hook_attributes": {
+    "active": false
+  },
+  "redirect_url": "https://bridgespots.com/github/setup",
+  "setup_url": "https://bridgespots.com/github/setup",
+  "setup_on_update": true,
+  "public": false,
+  "default_permissions": {
+    "contents": "read",
+    "metadata": "read"
+  },
+  "default_events": []
+}
