@@ -72,6 +72,48 @@ resource "aws_iam_role_policy" "eb_s3_attachments" {
   })
 }
 
+# GitHub App 개인키 — EB 환경변수 4KB 한도를 넘으므로 SSM SecureString에 둔다.
+# 백엔드가 인스턴스 역할로 GetParameter(withDecryption)해서 시작 시 읽는다.
+resource "aws_ssm_parameter" "github_app_private_key" {
+  count = var.github_app_private_key != "" ? 1 : 0
+  name  = "/${var.project_name}/${var.environment}/github-app-private-key"
+  type  = "SecureString"
+  value = var.github_app_private_key
+
+  tags = {
+    Name        = "${var.project_name}-${var.environment}-github-app-private-key"
+    Environment = var.environment
+  }
+}
+
+# 인스턴스 역할에 위 파라미터 읽기 권한. kms:Decrypt는 SSM 경유 호출로만 제한한다.
+resource "aws_iam_role_policy" "eb_ssm_github_key" {
+  count = var.github_app_private_key != "" ? 1 : 0
+  name  = "${var.project_name}-${var.environment}-eb-ssm-github-key"
+  role  = aws_iam_role.eb_ec2.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["ssm:GetParameter"]
+        Resource = [aws_ssm_parameter.github_app_private_key[0].arn]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.ap-northeast-2.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
+}
+
 # Instance Profile
 resource "aws_iam_instance_profile" "eb_ec2" {
   name = "${var.project_name}-${var.environment}-eb-ec2-profile"
@@ -623,6 +665,8 @@ resource "aws_elastic_beanstalk_environment" "main" {
   }
 
   # GitHub App Integration (자동 보고서 커밋 수집)
+  # 개인키(PEM ~1.7KB)는 EB 환경변수 4KB 총량 한도를 넘으므로 SSM Parameter Store에 두고,
+  # EB에는 짧은 값(App ID·slug·SSM 파라미터 이름)만 넣는다.
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"
     name      = "GITHUB_APP_ID"
@@ -631,14 +675,14 @@ resource "aws_elastic_beanstalk_environment" "main" {
 
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "GITHUB_APP_PRIVATE_KEY"
-    value     = var.github_app_private_key
+    name      = "GITHUB_APP_SLUG"
+    value     = var.github_app_slug
   }
 
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "GITHUB_APP_SLUG"
-    value     = var.github_app_slug
+    name      = "GITHUB_APP_PRIVATE_KEY_SSM_NAME"
+    value     = var.github_app_private_key != "" ? aws_ssm_parameter.github_app_private_key[0].name : ""
   }
 
   # Confluence OAuth Integration (주간보고 수집) — JIRA와 별개의 앱

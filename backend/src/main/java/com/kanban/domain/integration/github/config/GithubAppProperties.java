@@ -18,8 +18,16 @@ public class GithubAppProperties {
     /** App ID (숫자) */
     private String appId = "";
 
-    /** PEM 개인키 전문. 환경변수로 넣을 때 줄바꿈은 \n으로 이스케이프해도 된다. */
+    /**
+     * PEM 개인키 전문. 환경변수로 넣을 때 줄바꿈은 \n으로 이스케이프해도 된다.
+     *
+     * <p>EB 환경변수는 전체 합쳐 4KB를 못 넘어 PEM(~1.7KB)을 직접 넣기 어렵다.
+     * 이 값이 비어 있으면 {@link #privateKeySsmName}의 SSM Parameter Store에서 읽는다.
+     */
     private String privateKey = "";
+
+    /** SSM Parameter Store 파라미터 이름 (SecureString). privateKey가 비어 있을 때 사용. */
+    private String privateKeySsmName = "";
 
     /** 설치 페이지 주소 — 사용자를 보낼 곳. https://github.com/apps/{slug}/installations/new */
     private String slug = "";
@@ -34,6 +42,14 @@ public class GithubAppProperties {
 
     public boolean isConfigured() {
         return appId != null && !appId.isBlank()
-            && privateKey != null && !privateKey.isBlank();
+            && (hasInlineKey() || hasSsmKey());
+    }
+
+    public boolean hasInlineKey() {
+        return privateKey != null && !privateKey.isBlank();
+    }
+
+    public boolean hasSsmKey() {
+        return privateKeySsmName != null && !privateKeySsmName.isBlank();
     }
 }
