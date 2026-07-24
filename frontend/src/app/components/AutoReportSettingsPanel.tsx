@@ -222,6 +222,9 @@ export function AutoReportSettingsPanel({
   const handleGithubConnect = async () => {
     try {
       const { url } = await githubAPI.getInstallUrl(boardId);
+      // GitHub이 재구성(update) 리다이렉트에서는 state(boardId)를 빼므로,
+      // 착지 페이지가 복구할 수 있도록 보드 ID를 저장해 둔다.
+      sessionStorage.setItem("bridge_github_setup_board", boardId);
       // 같은 탭으로 보낸다. 새 탭으로 열면 설치 후 돌아오는 리다이렉트가
       // 그 탭에 떨어져서 여기서 installation_id를 받을 수 없다.
       window.location.href = url;

@@ -17,7 +17,11 @@ export default function GithubSetupPage() {
   const [error, setError] = useState<string | null>(null);
 
   const installationId = params.get("installation_id");
-  const boardId = params.get("state");
+  // GitHub은 최초 설치 리다이렉트에만 state(boardId)를 실어준다.
+  // 이미 설치된 앱을 재구성하면 setup_action=update로 오면서 state가 빠지므로,
+  // 설치 버튼을 누를 때 저장해 둔 boardId를 대비책으로 쓴다.
+  const boardId =
+    params.get("state") || sessionStorage.getItem("bridge_github_setup_board");
 
   const link = useCallback(async () => {
     if (!installationId || !boardId) {
@@ -28,6 +32,7 @@ export default function GithubSetupPage() {
     }
     try {
       await githubAPI.linkInstallation(boardId, installationId);
+      sessionStorage.removeItem("bridge_github_setup_board");
       navigate(`/boards/${boardId}?github=installed`, { replace: true });
     } catch (e) {
       setError(
