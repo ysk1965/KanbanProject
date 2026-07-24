@@ -183,7 +183,10 @@ confluence:
 github:
   app:
     app-id: ${GITHUB_APP_ID:}
+    # 로컬 개발용 인라인 키. 운영에서는 비워 두고 private-key-ssm-name을 쓴다
+    # (EB 환경변수는 전체 4KB 한도라 PEM을 직접 넣지 못한다).
     private-key: ${GITHUB_APP_PRIVATE_KEY:}
+    private-key-ssm-name: ${GITHUB_APP_PRIVATE_KEY_SSM_NAME:}
     slug: ${GITHUB_APP_SLUG:}
     api-base-url: ${GITHUB_API_BASE_URL:https://api.github.com}
     commit-detail-limit: ${GITHUB_COMMIT_DETAIL_LIMIT:50}

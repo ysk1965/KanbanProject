@@ -55,6 +55,9 @@ dependencies {
     // AWS CloudWatch
     implementation 'software.amazon.awssdk:cloudwatch:2.25.0'
 
+    // AWS SSM Parameter Store (GitHub App 개인키 등 EB 환경변수 4KB 한도를 넘는 비밀값 보관)
+    implementation 'software.amazon.awssdk:ssm:2.25.0'
+
     // Image Thumbnail
     implementation 'net.coobird:thumbnailator:0.4.20'
 

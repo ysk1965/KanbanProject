@@ -41,6 +41,7 @@ public class GithubAppTokenService {
 
     private final GithubAppProperties properties;
     private final RestTemplate restTemplate;
+    private final GithubPrivateKeyProvider privateKeyProvider;
 
     private final Map<String, CachedToken> tokenCache = new ConcurrentHashMap<>();
     private volatile PrivateKey cachedPrivateKey;
@@ -129,7 +130,7 @@ public class GithubAppTokenService {
         }
         synchronized (this) {
             if (cachedPrivateKey == null) {
-                cachedPrivateKey = parsePrivateKey(properties.getPrivateKey());
+                cachedPrivateKey = parsePrivateKey(privateKeyProvider.getPem());
             }
             return cachedPrivateKey;
         }
