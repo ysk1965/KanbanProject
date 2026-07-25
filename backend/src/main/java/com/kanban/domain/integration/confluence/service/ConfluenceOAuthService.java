@@ -57,14 +57,18 @@ public class ConfluenceOAuthService {
      * 평가해 granular를 무시 → v2가 401. JIRA에서 실측으로 확인된 함정이다(9083af14).
      *
      * <pre>
-     *   read:space:confluence            → GET /wiki/api/v2/spaces
-     *   read:page:confluence             → GET /wiki/api/v2/pages/{id}?body-format=storage
-     *   read:content-details:confluence  → GET /wiki/rest/api/search?cql=...  (v1, 존치)
+     *   read:space:confluence               → GET /wiki/api/v2/spaces
+     *   read:page:confluence                → GET /wiki/api/v2/pages/{id}?body-format=storage
+     *   read:content-details:confluence     → GET /wiki/rest/api/search?cql=...  (v1, 존치)
+     *   read:hierarchical-content:confluence → GET /wiki/api/v2/pages/{id}/descendants
+     *                                          (부모 트리 변경 수집. 이 스코프가 없으면 401
+     *                                           "scope does not match" 로 트리 조회가 통째 실패한다.)
      * </pre>
      */
     private static final String SCOPES =
             "read:space:confluence read:page:confluence "
-            + "read:content-details:confluence offline_access";
+            + "read:content-details:confluence read:hierarchical-content:confluence "
+            + "offline_access";
 
     private static final long STATE_EXPIRY_SECONDS = 600;
     private static final long REFRESH_BUFFER_SECONDS = 60;
