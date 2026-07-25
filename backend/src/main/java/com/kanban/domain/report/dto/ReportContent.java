@@ -58,8 +58,25 @@ public class ReportContent {
     /**
      * 슬랙 채널에 공유된 이미지·영상. AI가 아니라 시스템이 슬랙 수집 결과에서 모아 우리 스토리지로 옮긴
      * URL을 담는다. 페이지에서 "공유된 자료" 갤러리로 보여준다.
+     *
+     * @deprecated 커밋-우선 개편 후 슬랙 미디어는 {@link Member}의 메시지 안으로 흡수된다.
+     *             전환기 하위호환을 위해 필드는 유지한다.
      */
+    @Deprecated
     private List<Attachment> attachments;
+
+    /**
+     * 커밋 클러스터. 커밋을 scope·파일경로·키워드로 <b>결정론적으로 군집화</b>한 뒤, 각 군집에 AI가
+     * 제목·요약·신뢰도를 붙인다. 태스크·Confluence 문서는 키워드가 일치할 때만 부가로 붙는다.
+     * 커밋-우선 개편에서 {@link #features}를 대체하는 "기능별 진행 현황"의 새 축이다.
+     */
+    private List<Cluster> clusters;
+
+    /**
+     * 구성원별 활동. 커밋(author)·슬랙(user)·Confluence(author)·칸반 체크리스트(assignee)를
+     * <b>사람 기준으로 재묶은</b> 뷰. AI 없이 시스템이 결정론적으로 집계하며, 활동량 내림차순으로 정렬한다.
+     */
+    private List<Member> members;
 
     @Data
     @Builder
@@ -228,5 +245,114 @@ public class ReportContent {
         /** 표시 라벨 — "버그 수정" 등 */
         private String label;
         private List<FeatureCommit> commits;
+    }
+
+    /**
+     * 커밋 클러스터 하나. 커밋을 결정론적으로 묶은 군집이며, 어떤 신호로 묶였는지를 {@link #signals}로 드러내
+     * 사람이 미스매칭을 눈으로 검증할 수 있게 한다. 제목·요약은 AI가, 나머지는 시스템이 채운다.
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Cluster {
+        /** 군집의 안정적 식별 키(scope 또는 경로). 정렬·중복 판단에 쓴다. */
+        private String key;
+        /** 사람이 읽을 제목. AI가 생성하며, 실패 시 key로 폴백한다. */
+        private String title;
+        /** 이 군집에서 그 기간 무엇이 만들어졌는지 2~4문장 요약. AI 생성, 실패 시 null. */
+        private String summary;
+        /** "HIGH" | "MID" — 붙은 결정론적 신호 개수 기반 신뢰도. */
+        private String confidence;
+        /** "infra"면 미분류·인프라 군집(기능 아님). 그 외 null. */
+        private String kind;
+        /** 무엇으로 묶였는지 — scope/path/keyword 신호. 검증용. */
+        private List<ClusterSignal> signals;
+        private List<FeatureCommit> commits;
+        /** 키워드로 부착된 Confluence 문서. 매칭 없으면 빈 목록. */
+        private List<ConfluenceDoc> confluenceDocs;
+        /** 키워드로 부착된 칸반 태스크(+체크리스트). 매칭 없으면 빈 목록. */
+        private List<FeatureTask> tasks;
+        /** 부착된 태스크의 완료/전체 체크리스트 수. 없으면 0/0. */
+        private int taskDone;
+        private int taskTotal;
+    }
+
+    /** 클러스터가 어떤 신호로 묶였는지 한 건. */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ClusterSignal {
+        /** "scope" | "path" | "keyword" */
+        private String kind;
+        private String value;
+    }
+
+    /**
+     * 구성원 한 명의 활동 묶음. 커밋·슬랙·문서·체크리스트를 사람 기준으로 모은다.
+     * {@link #activity}는 정렬용 합계다.
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Member {
+        private String name;
+        /** GitHub 로그인(없으면 슬랙 표시명 등 대체 식별자). */
+        private String login;
+        private int commitCount;
+        private int slackCount;
+        private int docCount;
+        private int checklistCount;
+        /** 네 소스 합계 — 활동량 내림차순 정렬 기준. */
+        private int activity;
+        private List<MemberCommit> commits;
+        private List<MemberSlackMessage> slackMessages;
+        private List<ConfluenceDoc> confluenceDocs;
+        private List<MemberChecklistChange> checklistChanges;
+    }
+
+    /** 구성원 뷰의 커밋 한 건. 소속 클러스터 태그로 사람↔기능을 잇는다. */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class MemberCommit {
+        private String subject;
+        private String sha;
+        private String at;
+        private String url;
+        /** feat/fix/refactor/chore/... */
+        private String type;
+        /** 이 커밋이 속한 클러스터 키(미분류면 null). */
+        private String clusterKey;
+        /** 표시용 클러스터 제목(미분류면 null). */
+        private String clusterTitle;
+    }
+
+    /** 구성원 뷰의 슬랙 메시지 한 건(+첨부 미디어). */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class MemberSlackMessage {
+        private String channel;
+        private String text;
+        private String at;
+        /** 이 메시지에 붙은 이미지/영상. 없으면 빈 목록. */
+        private List<Attachment> media;
+    }
+
+    /** 구성원 뷰의 칸반 체크리스트 변경 한 건. */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class MemberChecklistChange {
+        private String title;
+        private boolean done;
+        /** 이 항목이 속한 태스크/기능 이름(맥락 표시용). 없으면 null. */
+        private String context;
     }
 }

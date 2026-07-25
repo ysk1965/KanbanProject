@@ -2,6 +2,7 @@ package com.kanban.domain.report.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.kanban.domain.report.ReportType;
 import com.kanban.domain.report.dto.ReportContent;
 import com.kanban.domain.report.source.ReportPeriod;
@@ -12,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 수집 결과를 하나로 합쳐 AI에 넣고, 돌아온 JSON을 {@link ReportContent}로 만든다.
@@ -26,6 +28,8 @@ public class ReportComposer {
 
     private final ReportAIService reportAIService;
     private final BoardProgressCollector progressCollector;
+    private final CommitClusterCollector clusterCollector;
+    private final MemberActivityCollector memberCollector;
     private final ReportMemberDirectory memberDirectory;
     private final ObjectMapper objectMapper;
 
@@ -49,29 +53,192 @@ public class ReportComposer {
                             ReportPeriod period, List<SourceChunk> chunks,
                             List<WeeklyRollupCollector.DailyDigest> dailyDigests) {
         String mergedInput = mergeInput(boardId, period, chunks, dailyDigests);
-        String raw = reportAIService.generateAutoReportJson(reportType, mergedInput, language, boardId);
+
+        // 본문 생성(AI#1: 헤드라인·리드·주요 변화)과 아래의 시스템 집계는 서로 독립이라 병렬로 돌린다.
+        CompletableFuture<String> rawFuture = CompletableFuture.supplyAsync(
+                () -> reportAIService.generateAutoReportJson(reportType, mergedInput, language, boardId));
+
+        // 스프린트 게이지는 계속 시스템 집계로 채운다(비-AI). 기능 카드 축은 커밋 클러스터로 대체하지만
+        // 스프린트 진행 자체는 그대로 유지한다.
+        ProgressBundle progress = computeProgress(boardId, period, chunks, language);
+
+        // 커밋-우선 개편의 두 축: 커밋을 결정론적으로 군집화(clusters)하고, 활동을 사람 기준으로 집계(members).
+        // 둘 다 AI가 아니라 규칙으로 정한다 — 소속 결정을 AI에 맡기면 기존 미스매칭이 재발한다.
+        List<BoardProgressCollector.CommitInfo> commits = parseCommits(chunks);
+        List<ReportContent.Cluster> clusters = computeClusters(boardId, commits, chunks);
+        List<ReportContent.Member> members = computeMembers(boardId, commits, clusters, chunks);
+
+        String raw;
+        try {
+            raw = rawFuture.join();
+        } catch (Exception e) {
+            log.warn("본문 생성 AI 실패 — 빈 본문으로 진행 board={}: {}", boardId, e.getMessage());
+            raw = null;
+        }
 
         ReportContent content = parse(raw);
         content.setMetrics(buildMetrics(chunks, reportType));
-        content.setAttachments(harvestSlackAttachments(chunks));
-        prependSourceFailures(content, chunks);
 
-        // 기능별 진행·스프린트는 AI가 아니라 시스템이 집계해 주입한다(metrics와 동일). 실패해도 보고서는 진행.
-        try {
-            BoardProgressCollector.Progress progress =
-                    progressCollector.compute(boardId, period, parseCommits(chunks), parseConfluenceDocs(chunks));
-            content.setFeatures(progress.features());
+        // 개발 내역(sections)·확인 필요(risks)는 커밋-우선 개편에서 제거한다 — 클러스터 요약이 서술을 대체하고
+        // 리스크는 노이즈만 컸다. 리드·주요 변화(highlights)는 유지한다. 슬랙 미디어는 구성원 뷰로 흡수된다.
+        content.setSections(List.of());
+        content.setRisks(List.of());
+
+        if (progress != null) {
             content.setSprint(progress.sprint());
-            content.setCommitCategories(progress.commitCategories());
-            // 담당자·키워드로 못 붙인 잔여 커밋은 AI가 의미 기반으로 기능에 배정(추정). 트랜잭션 밖에서 호출.
-            classifyLeftoverCommits(content, progress, language, boardId);
-            // 근거(태스크·체크리스트·커밋·문서)가 다 붙은 뒤, 기능별 요약을 AI가 한 번에 생성해 채운다.
-            summarizeFeatures(content, language, boardId);
-        } catch (Exception e) {
-            log.warn("보드 진행 집계 실패 — 기능/스프린트 없이 진행 board={}: {}", boardId, e.getMessage());
         }
+        content.setClusters(clusters);
+        content.setMembers(members);
+
+        // 클러스터별 제목·요약(AI 배치 1회)을 채우고, 그 요약을 종합해 상단 리드를 다시 쓴다.
+        labelAndSynthesize(content, clusters, language, boardId);
 
         return new Composed(content, serialize(content, raw), mergedInput);
+    }
+
+    /** 커밋 클러스터를 결정론적으로 집계한다. 실패해도 보고서는 진행(빈 목록). */
+    private List<ReportContent.Cluster> computeClusters(String boardId,
+                                                        List<BoardProgressCollector.CommitInfo> commits,
+                                                        List<SourceChunk> chunks) {
+        try {
+            return clusterCollector.compute(boardId, commits, parseConfluenceDocs(chunks)).clusters();
+        } catch (Exception e) {
+            log.warn("커밋 클러스터 집계 실패 board={}: {}", boardId, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /** 구성원별 활동을 집계한다. 각 커밋에 소속 클러스터 태그를 달아 사람↔기능을 잇는다. 실패 시 빈 목록. */
+    private List<ReportContent.Member> computeMembers(String boardId,
+                                                      List<BoardProgressCollector.CommitInfo> commits,
+                                                      List<ReportContent.Cluster> clusters,
+                                                      List<SourceChunk> chunks) {
+        try {
+            Map<String, MemberActivityCollector.ClusterTag> tagBySha = buildClusterTagBySha(clusters);
+            return memberCollector.compute(boardId, commits, tagBySha, parseSlackMessages(chunks)).members();
+        } catch (Exception e) {
+            log.warn("구성원 활동 집계 실패 board={}: {}", boardId, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /** sha → 소속 클러스터 태그. 구성원 뷰가 커밋에 기능 태그를 다는 데 쓴다. 인프라 군집은 태그하지 않는다. */
+    private Map<String, MemberActivityCollector.ClusterTag> buildClusterTagBySha(List<ReportContent.Cluster> clusters) {
+        Map<String, MemberActivityCollector.ClusterTag> map = new HashMap<>();
+        if (clusters == null) {
+            return map;
+        }
+        for (ReportContent.Cluster c : clusters) {
+            if ("infra".equals(c.getKind()) || c.getCommits() == null) {
+                continue;
+            }
+            MemberActivityCollector.ClusterTag tag =
+                    new MemberActivityCollector.ClusterTag(c.getKey(), c.getTitle());
+            for (ReportContent.FeatureCommit fc : c.getCommits()) {
+                if (fc.getSha() != null) {
+                    map.put(fc.getSha(), tag);
+                }
+            }
+        }
+        return map;
+    }
+
+    /**
+     * 클러스터별 제목·요약을 AI 배치 1회로 채우고(인프라 제외), 채워진 요약을 종합해 상단 리드를 다시 쓴다.
+     * AI 실패 시 폴백 제목(scope/경로)과 첫 패스 리드를 그대로 둔다. DB 트랜잭션 밖에서 호출한다.
+     */
+    private void labelAndSynthesize(ReportContent content, List<ReportContent.Cluster> clusters,
+                                    String language, String boardId) {
+        if (clusters == null || clusters.isEmpty()) {
+            return;
+        }
+        List<ReportContent.Cluster> targets = clusters.stream()
+                .filter(c -> !"infra".equals(c.getKind()))
+                .toList();
+        if (targets.isEmpty()) {
+            return;
+        }
+        List<String> briefs = targets.stream().map(this::clusterBrief).toList();
+        List<ReportAIService.ClusterLabel> labels = reportAIService.labelClusters(briefs, language, boardId);
+
+        List<String> digests = new ArrayList<>();
+        for (int i = 0; i < targets.size(); i++) {
+            ReportContent.Cluster c = targets.get(i);
+            if (i < labels.size() && labels.get(i) != null) {
+                ReportAIService.ClusterLabel label = labels.get(i);
+                if (label.title() != null && !label.title().isBlank()) {
+                    c.setTitle(label.title().trim());
+                }
+                if (label.summary() != null && !label.summary().isBlank()) {
+                    c.setSummary(label.summary().trim());
+                }
+            }
+            if (c.getSummary() != null && !c.getSummary().isBlank()) {
+                digests.add("FEATURE: " + c.getTitle() + "\nSUMMARY: " + c.getSummary());
+            }
+        }
+
+        if (!digests.isEmpty()) {
+            String overview = reportAIService.synthesizeOverview(digests, language, boardId);
+            if (overview != null && !overview.isBlank()) {
+                content.setLede(overview.trim());
+            }
+        }
+    }
+
+    /** 클러스터 하나의 라벨링 근거를 한 덩어리 텍스트로. 대표 커밋·부착 태스크·문서를 담아 AI가 대조하게 한다. */
+    private String clusterBrief(ReportContent.Cluster c) {
+        StringBuilder sb = new StringBuilder();
+        if (c.getSignals() != null && !c.getSignals().isEmpty()) {
+            List<String> sig = new ArrayList<>();
+            for (ReportContent.ClusterSignal s : c.getSignals()) {
+                sig.add(s.getKind() + "=" + s.getValue());
+            }
+            sb.append("SIGNALS: ").append(String.join(", ", sig));
+        }
+        if (c.getCommits() != null && !c.getCommits().isEmpty()) {
+            sb.append("\nCOMMITS:");
+            for (ReportContent.FeatureCommit fc : c.getCommits()) {
+                sb.append("\n  - ").append(fc.getSubject());
+            }
+        }
+        if (c.getTasks() != null && !c.getTasks().isEmpty()) {
+            sb.append("\nTASKS:");
+            for (ReportContent.FeatureTask t : c.getTasks()) {
+                sb.append("\n  - ").append(t.getTitle());
+            }
+        }
+        if (c.getConfluenceDocs() != null && !c.getConfluenceDocs().isEmpty()) {
+            sb.append("\nDOCS:");
+            for (ReportContent.ConfluenceDoc d : c.getConfluenceDocs()) {
+                sb.append("\n  - ").append(d.getTitle());
+            }
+        }
+        return sb.toString();
+    }
+
+    /** compose의 병렬 구간이 본문에 주입할 기능 집계 결과 묶음. content를 건드리지 않고 값만 넘긴다. */
+    private record ProgressBundle(List<ReportContent.Feature> features,
+                                  ReportContent.Sprint sprint,
+                                  List<ReportContent.CommitCategory> categories) {
+    }
+
+    /**
+     * 기능/스프린트 집계(비-AI)와 잔여 커밋 AI 분류(AI#2)를 함께 수행한다. AI#1과 병렬로 돌기 위해 분리했고,
+     * content가 아니라 결과 묶음만 돌려 병렬 구간끼리 공유 상태를 없앴다. 실패 시 null(기능/스프린트 없이 진행).
+     */
+    private ProgressBundle computeProgress(String boardId, ReportPeriod period,
+                                           List<SourceChunk> chunks, String language) {
+        try {
+            // 커밋-우선 개편 후 이 집계는 스프린트 게이지만 쓴다. 기능 카드 축은 커밋 클러스터가 대체하므로
+            // 잔여 커밋 AI 배정(AI#2)은 호출하지 않는다 — 추정 매칭을 폐기한 것이 개편의 핵심이다.
+            BoardProgressCollector.Progress progress =
+                    progressCollector.compute(boardId, period, parseCommits(chunks), parseConfluenceDocs(chunks));
+            return new ProgressBundle(progress.features(), progress.sprint(), progress.commitCategories());
+        } catch (Exception e) {
+            log.warn("보드 진행 집계 실패 — 스프린트 없이 진행 board={}: {}", boardId, e.getMessage());
+            return null;
+        }
     }
 
     /** 보강된 본문을 저장용 JSON으로. 실패 시 AI 원문으로 폴백해 보고서가 빈 채로 나가지 않게 한다. */
@@ -85,33 +252,48 @@ public class ReportComposer {
     }
 
     /**
-     * 담당자·키워드로 기능에 못 붙인 잔여 커밋을 AI가 의미 기반으로 기능에 배정한다(추정).
+     * 담당자로 기능에 못 붙인 잔여 커밋을 AI가 의미 기반으로 기능에 배정한다(추정). content가 아니라
+     * progress를 받아 병렬 구간 안에서 안전하게 돌고, 본문에 넣을 <b>최종 커밋 카테고리</b>를 돌려준다.
      * DB 트랜잭션 밖에서 호출한다 — AI 네트워크 호출을 트랜잭션에 넣지 않기 위해서다.
-     * 실패하거나 배정이 없으면 기존(담당자·키워드) 결과와 카테고리를 그대로 둔다.
+     *
+     * <p>파일 경로·본문(내역) 신호가 하나도 없는 커밋은 AI에 넣지 않는다 — 근거 없이 찍게 하면 토큰만 쓰고
+     * 오분류를 부른다. 그런 커밋과 AI가 못 붙인 커밋, 잡무(chore) 커밋은 그대로 카테고리에 남는다.
+     *
+     * @return 본문에 세팅할 커밋 카테고리. 배정이 없거나 AI 실패면 집계 단계의 기본 카테고리를 그대로 돌려준다.
      */
-    private void classifyLeftoverCommits(ReportContent content, BoardProgressCollector.Progress progress,
-                                         String language, String boardId) {
+    private List<ReportContent.CommitCategory> classifyLeftoverCommits(
+            BoardProgressCollector.Progress progress, String language, String boardId) {
         List<BoardProgressCollector.CommitInfo> leftover = progress.leftover();
         List<ReportContent.Feature> features = progress.features();
         if (leftover == null || leftover.isEmpty() || features == null || features.isEmpty()) {
-            return;
+            return progress.commitCategories();
+        }
+
+        // 파일·본문 신호가 있는 커밋만 AI 분류 대상. 신호 없는 커밋은 잔여로 남긴다(카테고리로만 표시).
+        List<BoardProgressCollector.CommitInfo> classifiable = leftover.stream()
+                .filter(this::hasClassifySignal)
+                .toList();
+        List<BoardProgressCollector.CommitInfo> stillLeft = new ArrayList<>(leftover.stream()
+                .filter(c -> !hasClassifySignal(c))
+                .toList());
+        if (classifiable.isEmpty()) {
+            return progress.commitCategories(); // 넣을 신호 있는 커밋이 없음 — AI 호출 생략
         }
 
         List<String> featureLabels = features.stream()
                 .map(this::buildFeatureLabel)
                 .toList();
-        List<String> commitLabels = leftover.stream()
+        List<String> commitLabels = classifiable.stream()
                 .map(this::buildCommitLabel)
                 .toList();
 
         int[] assign = reportAIService.classifyCommits(featureLabels, commitLabels, language, boardId);
         if (assign.length == 0) {
-            return; // AI 실패 — 기존 결과 유지
+            return progress.commitCategories(); // AI 실패 — 기존 결과 유지
         }
 
-        List<BoardProgressCollector.CommitInfo> stillLeft = new ArrayList<>();
         boolean anyAssigned = false;
-        for (int i = 0; i < leftover.size(); i++) {
+        for (int i = 0; i < classifiable.size(); i++) {
             int fi = i < assign.length ? assign[i] : -1;
             if (fi >= 0 && fi < features.size()) {
                 ReportContent.Feature feat = features.get(fi);
@@ -119,19 +301,27 @@ public class ReportComposer {
                     feat.setCommits(new ArrayList<>());
                 }
                 if (feat.getCommits().size() < 40) {
-                    feat.getCommits().add(progressCollector.toCommit(leftover.get(i), true));
+                    feat.getCommits().add(progressCollector.toCommit(classifiable.get(i), true));
                     anyAssigned = true;
                 } else {
-                    stillLeft.add(leftover.get(i));
+                    stillLeft.add(classifiable.get(i));
                 }
             } else {
-                stillLeft.add(leftover.get(i));
+                stillLeft.add(classifiable.get(i));
             }
         }
 
-        if (anyAssigned) {
-            content.setCommitCategories(progressCollector.buildCategories(stillLeft));
+        if (!anyAssigned) {
+            return progress.commitCategories();
         }
+        // 기능에 새로 붙은 커밋을 뺀 나머지(신호 없는 잔여 + AI 미배정 + 잡무)로 카테고리를 다시 만든다.
+        stillLeft.addAll(progress.choreCommits());
+        return progressCollector.buildCategories(stillLeft);
+    }
+
+    /** AI 커밋 분류에 넣을 만한 신호가 있는지 — 변경 파일 경로나 커밋 본문(내역) 중 하나라도 있으면 참. */
+    private boolean hasClassifySignal(BoardProgressCollector.CommitInfo c) {
+        return !c.filesOrEmpty().isEmpty() || !c.bodyOrEmpty().isBlank();
     }
 
     /** AI 커밋 분류에 넣을 기능당 태스크 라벨 상한. 커밋과 겹칠 어휘 근거만 있으면 되므로 앞쪽 몇 개면 충분. */
@@ -209,7 +399,13 @@ public class ReportComposer {
             if (!chunk.hasData()) {
                 continue;
             }
-            root.put(chunk.kind().name().toLowerCase(Locale.ROOT), readTree(chunk.dataJson()));
+            Object tree = readTree(chunk.dataJson());
+            // 커밋 body는 잔여 커밋 분류(AI#2)용 신호일 뿐이라, 본문 생성(AI#1) 입력에선 뺀다(토큰 절약).
+            // parseCommits는 원본 chunk.dataJson()을 따로 읽으므로 여기서 지워도 분류에는 body가 그대로 간다.
+            if (chunk.kind() == SourceKind.GITHUB) {
+                stripCommitBodies(tree);
+            }
+            root.put(chunk.kind().name().toLowerCase(Locale.ROOT), tree);
         }
         if (!failures.isEmpty()) {
             root.put("collection_failures", failures);
@@ -229,6 +425,26 @@ public class ReportComposer {
         } catch (Exception e) {
             return json;
         }
+    }
+
+    /** 병합된 GITHUB 입력 트리에서 커밋 body를 제거한다(AI#1은 body 없이, AI#2 분류만 body 사용). */
+    private void stripCommitBodies(Object githubTree) {
+        if (!(githubTree instanceof JsonNode node)) {
+            return;
+        }
+        JsonNode byRepo = node.get("commits_by_repo");
+        if (byRepo == null || !byRepo.isObject()) {
+            return;
+        }
+        byRepo.forEach(commits -> {
+            if (commits.isArray()) {
+                commits.forEach(item -> {
+                    if (item instanceof ObjectNode obj) {
+                        obj.remove("body");
+                    }
+                });
+            }
+        });
     }
 
     /**
@@ -318,6 +534,26 @@ public class ReportComposer {
             }
         }
         return List.of();
+    }
+
+    /**
+     * SLACK 소스의 messages 배열을 그대로 꺼낸다. 구성원별 활동 집계가 user·text·files를 사람 기준으로 묶는다.
+     * 미연결·수집 실패·파싱 실패면 null(구성원 슬랙 집계 생략).
+     */
+    private JsonNode parseSlackMessages(List<SourceChunk> chunks) {
+        for (SourceChunk chunk : chunks) {
+            if (chunk.kind() != SourceKind.SLACK || !chunk.success() || !chunk.hasData()) {
+                continue;
+            }
+            try {
+                JsonNode messages = objectMapper.readTree(chunk.dataJson()).get("messages");
+                return messages != null && messages.isArray() ? messages : null;
+            } catch (Exception e) {
+                log.warn("슬랙 메시지 파싱 실패 — 구성원 슬랙 집계 생략: {}", e.getMessage());
+                return null;
+            }
+        }
+        return null;
     }
 
     private void addConfluenceDocs(JsonNode arr, String changeType,

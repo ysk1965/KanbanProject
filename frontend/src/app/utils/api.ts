@@ -9748,6 +9748,68 @@ export interface AutoReportFeature {
   confluence_docs?: AutoReportConfluenceDoc[] | null;
 }
 
+/** 클러스터가 어떤 신호로 묶였는지 한 건 */
+export interface AutoReportClusterSignal {
+  kind: string; // "scope" | "path" | "keyword"
+  value: string;
+}
+
+/** 커밋 클러스터 하나 — 커밋을 결정론적으로 묶은 기능 군집 */
+export interface AutoReportCluster {
+  key: string;
+  title: string;
+  summary: string | null;
+  confidence: string | null; // "HIGH" | "MID"
+  kind: string | null; // "infra"면 미분류·인프라 군집
+  signals: AutoReportClusterSignal[] | null;
+  commits: AutoReportFeatureCommit[] | null;
+  confluence_docs: AutoReportConfluenceDoc[] | null;
+  tasks: AutoReportFeatureTask[] | null;
+  task_done: number;
+  task_total: number;
+}
+
+/** 구성원 뷰의 커밋 한 건 (소속 클러스터 태그 포함) */
+export interface AutoReportMemberCommit {
+  subject: string | null;
+  sha: string | null;
+  at: string | null;
+  url: string | null;
+  type: string | null;
+  cluster_key: string | null;
+  cluster_title: string | null;
+}
+
+/** 구성원 뷰의 슬랙 메시지 한 건 (+첨부 미디어) */
+export interface AutoReportMemberSlackMessage {
+  channel: string | null;
+  text: string | null;
+  at: string | null;
+  media: AutoReportAttachment[] | null;
+}
+
+/** 구성원 뷰의 칸반 체크리스트 변경 한 건 */
+export interface AutoReportMemberChecklistChange {
+  title: string;
+  done: boolean;
+  context: string | null;
+}
+
+/** 구성원 한 명의 활동 묶음 (커밋·슬랙·문서·체크리스트) */
+export interface AutoReportMember {
+  name: string;
+  login: string | null;
+  commit_count: number;
+  slack_count: number;
+  doc_count: number;
+  checklist_count: number;
+  activity: number;
+  commits: AutoReportMemberCommit[] | null;
+  slack_messages: AutoReportMemberSlackMessage[] | null;
+  confluence_docs: AutoReportConfluenceDoc[] | null;
+  checklist_changes: AutoReportMemberChecklistChange[] | null;
+}
+
 export interface AutoReportContent {
   headline: string | null;
   lede: string | null;
@@ -9759,6 +9821,10 @@ export interface AutoReportContent {
   features?: AutoReportFeature[] | null;
   commit_categories?: AutoReportCommitCategory[] | null;
   attachments?: AutoReportAttachment[] | null;
+  /** 커밋-우선 개편: 기능별 진행 현황의 새 축 */
+  clusters?: AutoReportCluster[] | null;
+  /** 커밋-우선 개편: 구성원별 활동 */
+  members?: AutoReportMember[] | null;
 }
 
 export interface AutoReportAttachment {

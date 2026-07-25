@@ -1,5 +1,6 @@
 package com.kanban.domain.report.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.monitoring.entity.AiUsageLog;
 import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
@@ -62,6 +63,16 @@ public class ReportAIService {
 
     @Value("${ai.openai.model.standup:gpt-4o-mini}")
     private String openaiStandupModel;
+
+    /**
+     * 자동 보고서 페르소나에 들어갈 "이 팀이 무엇을 만드는지" 설명. 특정 게임에 하드코딩하지 않고 설정으로 뺀다.
+     * 기본값은 현행 게임팀. 다른 성격의 팀/배포에선 이 값만 바꾸면 페르소나가 따라온다.
+     */
+    @Value("${report.product-context:오토배틀러 팀배틀 수집형 RPG를 만드는 게임 개발팀}")
+    private String productContext;
+
+    @Value("${report.product-context-en:a game team building an auto-battler team-battle collection RPG}")
+    private String productContextEn;
 
     private static final int MAX_TOKENS_TEAM = 4096;
     private static final int MAX_TOKENS_PERSONAL = 2048;
@@ -140,6 +151,98 @@ public class ReportAIService {
         } catch (Exception e) {
             log.warn("커밋 분류 AI 호출 실패: {}", e.getMessage());
             return new int[0];
+        }
+    }
+
+    private static final int MAX_TOKENS_CLUSTER_LABEL = 3072;
+
+    /** 클러스터 한 개의 AI 라벨 — 사람이 읽을 제목과 그 기간 무엇이 만들어졌는지 요약. */
+    public record ClusterLabel(String title, String summary) {
+    }
+
+    /**
+     * 커밋 클러스터별로 <b>제목·요약만</b> 배치 1회로 생성한다. 커밋을 어느 군집에 넣을지(소속)는
+     * {@link CommitClusterCollector}가 규칙으로 이미 정했다 — AI는 사람이 읽을 이름과 서술만 붙인다.
+     * 소속 결정을 AI에 맡기지 않는 게 커밋-우선 개편의 핵심이다.
+     *
+     * <p>시스템 호출이라 크레딧은 차감하지 않고 사용량 로그만 남긴다. 실패하면 빈 목록을 돌려
+     * 호출부가 폴백 제목(scope/경로)으로 진행하게 한다.
+     *
+     * @param clusterBriefs 군집별 근거 라벨(대표 커밋·부착 태스크·문서). 순서가 결과 순서와 일치.
+     * @return clusterBriefs 길이의 목록. i번째가 군집 i의 {제목, 요약}. 실패 시 빈 목록.
+     */
+    public List<ClusterLabel> labelClusters(List<String> clusterBriefs, String language, String boardId) {
+        if (clusterBriefs == null || clusterBriefs.isEmpty()) {
+            return List.of();
+        }
+        String langName = getLanguageName(language);
+
+        StringBuilder sb = new StringBuilder("CLUSTERS:\n");
+        for (int i = 0; i < clusterBriefs.size(); i++) {
+            sb.append("=== CLUSTER ").append(i).append(" ===\n")
+                    .append(clusterBriefs.get(i)).append("\n\n");
+        }
+
+        String systemPrompt = """
+                You name and summarize clusters of git commits for %s.
+                Each cluster is a group of commits the system already grouped deterministically by their
+                conventional-commit scope, changed file paths, and keywords — you do NOT reassign commits.
+                Each CLUSTER lists its representative COMMITS (subject, and body after " — " when present),
+                the file PATHS they touched, and any attached TASKS and DOCS.
+
+                For each cluster, produce:
+                - "title": a short, human-readable name (2-6 words) for the game content or system this cluster
+                  is about — e.g. "전투 카메라·연출", "텍틱스 PVP 매치메이킹", "텔레메트리 데이터 정합성". Infer it
+                  from what the commits and paths actually touch. Never output a raw scope token or file path.
+                - "summary": 2-4 sentences describing what was actually built or fixed in this cluster during the
+                  period, grounded ONLY in the commits/tasks/docs shown. Be specific; never invent work, numbers,
+                  or feature names. If the cluster is too thin to say anything concrete, use an empty string "".
+
+                Write both title and summary in %s. Output ONLY a JSON array whose length equals the number of
+                clusters; the i-th element is {"title": "...", "summary": "..."} for cluster i.
+                No prose, no code fences, no keys other than title/summary.
+                """.formatted(productContextEn, langName);
+
+        String model = getStandupModel();
+        try {
+            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_CLUSTER_LABEL);
+            logAiUsage("REPORT_CLUSTER_LABEL", model, boardId, null, aiResult);
+            return parseClusterLabels(aiResult.content(), clusterBriefs.size());
+        } catch (Exception e) {
+            log.warn("클러스터 라벨링 AI 호출 실패: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<ClusterLabel> parseClusterLabels(String raw, int count) {
+        if (raw == null) {
+            return List.of();
+        }
+        int start = raw.indexOf('[');
+        int end = raw.lastIndexOf(']');
+        if (start < 0 || end <= start) {
+            return List.of();
+        }
+        try {
+            JsonNode arr = objectMapper.readTree(raw.substring(start, end + 1));
+            if (!arr.isArray()) {
+                return List.of();
+            }
+            List<ClusterLabel> result = new java.util.ArrayList<>(count);
+            for (int i = 0; i < count; i++) {
+                if (i < arr.size() && arr.get(i) != null && arr.get(i).isObject()) {
+                    JsonNode o = arr.get(i);
+                    String title = o.hasNonNull("title") ? o.get("title").asText().trim() : "";
+                    String summary = o.hasNonNull("summary") ? o.get("summary").asText().trim() : "";
+                    result.add(new ClusterLabel(title, summary));
+                } else {
+                    result.add(new ClusterLabel("", ""));
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("클러스터 라벨 응답 파싱 실패: {}", e.getMessage());
+            return List.of();
         }
     }
 
@@ -222,8 +325,8 @@ public class ReportAIService {
         }
 
         String systemPrompt = """
-                You write the opening overview paragraph of a game team's daily/weekly development report for
-                an auto-battler team-battle collection RPG. You receive per-feature progress summaries — each
+                You write the opening overview paragraph of the daily/weekly development report for %s.
+                You receive per-feature progress summaries — each
                 already grounded in that feature's tasks, checklists, commits, and docs (what was actually
                 built in this period).
 
@@ -243,7 +346,7 @@ public class ReportAIService {
                   built this period.
                 Write the paragraph in %s. Output ONLY the paragraph text — no title, no headings, no labels,
                 no JSON, no bullet points, no code fences.
-                """.formatted(langName);
+                """.formatted(productContextEn, langName);
 
         String model = getStandupModel();
         try {
@@ -391,7 +494,7 @@ public class ReportAIService {
         String schema = """
                 {
                   "headline": "한 줄 요약 (60자 이내)",
-                  "lede": "2~3문장 리드 문단",
+                  "lede": "1~2문장 리드(임시 — 기능 근거가 모이면 뒤 단계에서 종합 리드로 대체될 수 있으니 짧게)",
                   "highlights": ["가장 중요한 것 (중요도 순, 최대 10개)", "...", "..."],
                   "sections": [
                     {"title": "섹션 제목", "body": "본문", "sources": ["GITHUB"]}
@@ -419,7 +522,7 @@ public class ReportAIService {
 
         if ("ko".equals(lang)) {
             return """
-                    당신은 오토배틀러 팀배틀 수집형 RPG를 만드는 게임 개발팀의 보고서 작성자입니다. 수집된 원본
+                    당신은 %s의 보고서 작성자입니다. 수집된 원본
                     데이터(커밋, 칸반 태스크, Confluence 문서(주간보고 또는 부모 문서 하위의 추가·수정·삭제 변경 내역),
                     슬랙 채널 논의)를 "어떤 게임 콘텐츠·시스템이 만들어지고 다듬어지고 있는지"의 관점으로 해석해,
                     팀이 아침에 30초 안에 읽을 수 있는 보고서를 만듭니다.
@@ -460,10 +563,10 @@ public class ReportAIService {
                     - highlights는 중요도 순으로 최대 10개까지 쓰세요. 그날 정리할 게 적으면 적게 쓰고 억지로 채우지 마세요.
                       각 60자 이내로, 슬랙 메시지에 그대로 나갑니다.
                     </rules>
-                    """.formatted(schema, sectionRule, digestRuleKo);
+                    """.formatted(productContext, schema, sectionRule, digestRuleKo);
         }
         return """
-                You are the report writer for a game team building an auto-battler team-battle collection RPG.
+                You are the report writer for %s.
                 From raw collected data (commits, kanban tasks, Confluence documents (weekly notes, or
                 added/modified/deleted changes under a parent page), Slack channel discussion), interpret
                 "what game content and systems are being built and refined" and produce a report the team can
@@ -507,7 +610,7 @@ public class ReportAIService {
                 - If a source failed to collect, say so in the first risks entry.
                 - highlights: up to 10 items ordered by importance. Write fewer when there's little to report; don't pad. Each under 60 characters. They go straight into Slack.
                 </rules>
-                """.formatted(schema, sectionRule, digestRuleEn);
+                """.formatted(productContextEn, schema, sectionRule, digestRuleEn);
     }
 
     private void logAiUsage(String featureType, String model, String boardId, String userId, AIResponse aiResult) {

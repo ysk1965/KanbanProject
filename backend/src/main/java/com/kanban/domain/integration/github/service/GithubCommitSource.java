@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * 보드에 연결된 저장소들의 기간 내 커밋을 모은다.
@@ -218,14 +219,34 @@ public class GithubCommitSource implements ReportSource {
     }
 
     /**
-     * 변경 파일 수는 커밋당 API 1회를 더 써야 해서 상한까지만 채운다.
-     * 상한을 넘으면 그 아래 커밋들의 파일 수가 0으로 남으므로, 지표에 집계 범위를 함께 실어 보낸다.
+     * 변경 파일 수·경로는 커밋당 API 1회를 더 써야 해서 상한까지만 채운다.
+     * 상한을 넘으면 나머지 커밋의 파일이 비므로, 지표에 집계 범위를 함께 실어 보낸다.
+     *
+     * <p>예산이 부족할 때는 최신순이 아니라 <b>텍스트 신호가 약한 커밋부터</b> 파일을 확보한다 —
+     * 본문 없고 제목이 짧은 커밋일수록 기능 매칭에 파일 경로가 결정적이기 때문이다(리치한 본문은 그 자체가 신호).
      */
     private void enrichStats(String installationId, List<GithubCommit> commits) {
         int limit = Math.min(properties.getCommitDetailLimit(), commits.size());
-        for (int i = 0; i < limit; i++) {
-            commits.set(i, apiClient.enrichWithStats(installationId, commits.get(i)));
+        if (limit >= commits.size()) {
+            for (int i = 0; i < commits.size(); i++) {
+                commits.set(i, apiClient.enrichWithStats(installationId, commits.get(i)));
+            }
+            return;
         }
+        int[] order = IntStream.range(0, commits.size()).boxed()
+                .sorted(Comparator.comparingInt(i -> textSignalStrength(commits.get(i))))
+                .limit(limit)
+                .mapToInt(Integer::intValue)
+                .toArray();
+        for (int idx : order) {
+            commits.set(idx, apiClient.enrichWithStats(installationId, commits.get(idx)));
+        }
+    }
+
+    /** 커밋의 텍스트 신호 세기 — 본문 길이 + 제목 길이(상한). 값이 작을수록 파일 경로가 더 필요한 커밋. */
+    private int textSignalStrength(GithubCommit c) {
+        int subjectLen = c.subject() != null ? Math.min(c.subject().length(), 60) : 0;
+        return c.bodyText().length() + subjectLen;
     }
 
     private Map<String, Object> buildMetrics(List<GithubCommit> commits) {

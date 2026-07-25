@@ -79,7 +79,8 @@ public class BoardProgressCollector {
     public record Progress(ReportContent.Sprint sprint,
                            List<ReportContent.Feature> features,
                            List<ReportContent.CommitCategory> commitCategories,
-                           List<CommitInfo> leftover) {
+                           List<CommitInfo> leftover,
+                           List<CommitInfo> choreCommits) {
     }
 
     /** 파싱된 커밋 하나(표시·매칭에 필요한 필드만). ReportComposer가 GITHUB 소스에서 만들어 넘긴다. */
@@ -103,7 +104,8 @@ public class BoardProgressCollector {
 
     private record FeatureResult(List<ReportContent.Feature> features,
                                  List<ReportContent.CommitCategory> categories,
-                                 List<CommitInfo> leftover) {
+                                 List<CommitInfo> leftover,
+                                 List<CommitInfo> chore) {
     }
 
     @Transactional(readOnly = true)
@@ -112,6 +114,7 @@ public class BoardProgressCollector {
         List<ReportContent.Feature> features = List.of();
         List<ReportContent.CommitCategory> categories = List.of();
         List<CommitInfo> leftover = List.of();
+        List<CommitInfo> chore = List.of();
         try {
             FeatureResult fr = computeFeatures(boardId, period,
                     commits != null ? commits : List.of(),
@@ -119,6 +122,7 @@ public class BoardProgressCollector {
             features = fr.features();
             categories = fr.categories();
             leftover = fr.leftover();
+            chore = fr.chore();
         } catch (Exception e) {
             log.warn("기능별 진행 집계 실패 board={}: {}", boardId, e.getMessage());
         }
@@ -130,7 +134,7 @@ public class BoardProgressCollector {
             log.warn("스프린트 진행 집계 실패 board={}: {}", boardId, e.getMessage());
         }
 
-        return new Progress(sprint, features, categories, leftover);
+        return new Progress(sprint, features, categories, leftover, chore);
     }
 
     /** 진행 중 feature + 기간 내 완료된 feature. lastActivity 내림차순, 최대 {@value #MAX_FEATURES}개. */
@@ -218,8 +222,15 @@ public class BoardProgressCollector {
         }
 
         // 커밋 → 기능 상관: author 로그인이 단일 기능과 맞으면 확정. 나머지는 잔여로 모아 AI가 의미 배정(추정)한다.
+        // 단, 인프라·빌드·잡무(chore/ci/build/deps) 커밋은 기능에 귀속하지 않는다 — 담당자가 한 기능만 맡았어도
+        // 그 사람의 잡무 커밋까지 그 기능 "작업"으로 잡히던 오귀속을 막는다. 카테고리에는 남겨 활동은 보이게 한다.
         List<CommitInfo> leftover = new ArrayList<>();
+        List<CommitInfo> chore = new ArrayList<>();
         for (CommitInfo c : commits) {
+            if (isNonFeatureCommit(c)) {
+                chore.add(c);
+                continue;
+            }
             Hit hit = attribute(c, ctxs);
             if (hit != null) {
                 if (hit.ctx().bucket.size() < MAX_COMMITS_PER_FEATURE) {
@@ -251,7 +262,21 @@ public class BoardProgressCollector {
             result = new ArrayList<>(result.subList(0, MAX_FEATURES));
         }
 
-        return new FeatureResult(result, buildCategories(leftover), leftover);
+        // 카테고리(미분류 커밋 목록)에는 잔여 + 잡무 커밋을 모두 담는다 — 기능엔 안 붙어도 무엇을 했는지는 남긴다.
+        List<CommitInfo> categoryPool = new ArrayList<>(leftover);
+        categoryPool.addAll(chore);
+        return new FeatureResult(result, buildCategories(categoryPool), leftover, chore);
+    }
+
+    /**
+     * 인프라·빌드·잡무 타입(chore/ci/build/deps) 커밋인지. 특정 기능의 작업으로 보기 어려워 기능 귀속에서 뺀다.
+     * (카테고리 집계에는 그대로 들어간다 — {@link #categoryKey}가 같은 타입을 "인프라·설정"으로 묶는다.)
+     */
+    private boolean isNonFeatureCommit(CommitInfo c) {
+        return switch (commitType(c.subject())) {
+            case "chore", "ci", "build", "deps" -> true;
+            default -> false;
+        };
     }
 
     /**

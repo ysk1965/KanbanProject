@@ -59,6 +59,38 @@ public class ReportMemberDirectory {
         return roster;
     }
 
+    /** 한 사람의 정체성 묶음 — 구성원별 활동 집계가 소스를 가로질러 같은 사람을 잇는 데 쓴다. */
+    public record MemberIdentity(String userId, String name, String githubLogin, String slackUserId) {
+    }
+
+    /**
+     * 보드 구성원의 정체성 목록(userId·이름·github·slack). 구성원별 활동 집계용.
+     * roster()와 달리 github/slack이 없어도 포함한다 — 이름만 있어도 칸반 체크리스트 활동은 잇힌다.
+     */
+    @Transactional(readOnly = true)
+    public List<MemberIdentity> identities(String boardId) {
+        List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
+        if (members.isEmpty()) {
+            return List.of();
+        }
+        List<String> userIds = members.stream().map(m -> m.getUser().getId()).toList();
+        Map<String, String> slackByUser = new HashMap<>();
+        for (SlackUserLink link : slackUserLinkRepository.findByUserIdIn(userIds)) {
+            slackByUser.put(link.getUser().getId(), link.getSlackUserId());
+        }
+        List<MemberIdentity> result = new ArrayList<>();
+        for (BoardMember member : members) {
+            String userId = member.getUser().getId();
+            String github = member.getGithubLogin();
+            result.add(new MemberIdentity(
+                    userId,
+                    member.getUser().getName(),
+                    github != null && !github.isBlank() ? github : null,
+                    slackByUser.get(userId)));
+        }
+        return result;
+    }
+
     /**
      * 슬랙 사용자 ID → 표시 이름. BRIDGE에 슬랙 계정을 연동한 사람만 해석된다
      * (채널의 외부 참여자는 ID 그대로 남는다). {@code users:read} 스코프 없이 동작한다.
