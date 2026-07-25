@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarDays,
   Clock,
   FileText,
   Settings,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -13,8 +13,8 @@ import {
   type AutoReport,
   type ReportConfig,
 } from "../../utils/api";
-import { useReducedMotion } from "../../hooks/useReducedMotion";
 import { AutoReportSettingsPanel } from "../AutoReportSettingsPanel";
+import { MotionModal } from "../ui/MotionModal";
 import { ReportGallery } from "./ReportGallery";
 
 const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -30,7 +30,7 @@ interface BoardReportSpaceProps {
 
 /**
  * 스토리지 '보고서' 탭의 최상위 화면. 갤러리를 기본으로 보여주고,
- * 데이터 소스·발송·보관 설정은 ⚙ 설정 드로어로 접어 둔다.
+ * 데이터 소스·발송·보관 설정은 ⚙ 설정 모달로 분리한다.
  */
 export function BoardReportSpace({
   boardId,
@@ -40,7 +40,6 @@ export function BoardReportSpace({
   const [config, setConfig] = useState<ReportConfig | null>(null);
   const [count, setCount] = useState<number | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     void autoReportAPI
@@ -84,16 +83,12 @@ export function BoardReportSpace({
           </div>
           <button
             type="button"
-            onClick={() => setSettingsOpen((v) => !v)}
-            aria-expanded={settingsOpen}
-            className={`ml-auto shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              settingsOpen
-                ? "bg-bridge-accent text-white"
-                : "bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10"
-            }`}
+            onClick={() => setSettingsOpen(true)}
+            aria-haspopup="dialog"
+            className="ml-auto shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10 transition-all"
           >
             <Settings className="w-4 h-4" />
-            {settingsOpen ? "설정 닫기" : "설정"}
+            설정
           </button>
         </div>
 
@@ -121,32 +116,40 @@ export function BoardReportSpace({
           />
         </div>
 
-        {/* ⚙ 설정 드로어 */}
-        <AnimatePresence initial={false}>
-          {settingsOpen && (
-            <motion.div
-              key="settings-drawer"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: reduceMotion ? 0 : 0.3 }}
-              className="overflow-hidden"
-            >
-              <div className="rounded-2xl border border-foreground/[0.08] bg-foreground/[0.02] px-4 pt-2 pb-1">
-                <AutoReportSettingsPanel
-                  boardId={boardId}
-                  canManage={canManage}
-                  hideIntro
-                  hideHistory
-                />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* 보관된 보고서 갤러리 */}
         <ReportGallery boardId={boardId} onLoaded={handleLoaded} />
       </div>
+
+      {/* ⚙ 설정 모달 */}
+      <MotionModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        className="sm:max-w-2xl"
+        accentColor
+        aria-label="보고서 설정"
+      >
+        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+          <Settings className="w-4 h-4 text-bridge-accent" />
+          <span className="text-sm font-bold text-foreground flex-1">
+            보고서 설정
+          </span>
+          <button
+            onClick={() => setSettingsOpen(false)}
+            aria-label="닫기"
+            className="text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg p-1 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="bg-bridge-dark max-h-[75vh] overflow-y-auto custom-scrollbar px-5 pb-5">
+          <AutoReportSettingsPanel
+            boardId={boardId}
+            canManage={canManage}
+            hideIntro
+            hideHistory
+          />
+        </div>
+      </MotionModal>
     </div>
   );
 }
