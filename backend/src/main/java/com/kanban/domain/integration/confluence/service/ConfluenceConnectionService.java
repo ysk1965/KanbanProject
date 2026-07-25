@@ -164,7 +164,7 @@ public class ConfluenceConnectionService {
             return ConfluenceMatchRule.valueOf(rule.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE,
-                    "match_rule은 LABEL, PARENT_PAGE, TITLE_PATTERN 중 하나여야 합니다");
+                    "match_rule은 LABEL, PARENT_PAGE, TITLE_PATTERN, PARENT_TREE_CHANGELOG 중 하나여야 합니다");
         }
     }
 
@@ -172,7 +172,8 @@ public class ConfluenceConnectionService {
     private void validateRule(ConfluenceMatchRule rule, ConfluenceRequest.SpaceSelection selection) {
         boolean valid = switch (rule) {
             case LABEL -> selection.getLabel() != null && !selection.getLabel().isBlank();
-            case PARENT_PAGE -> selection.getParentPageId() != null && !selection.getParentPageId().isBlank();
+            case PARENT_PAGE, PARENT_TREE_CHANGELOG ->
+                    selection.getParentPageId() != null && !selection.getParentPageId().isBlank();
             case TITLE_PATTERN -> selection.getTitlePattern() != null && !selection.getTitlePattern().isBlank();
         };
         if (!valid) {

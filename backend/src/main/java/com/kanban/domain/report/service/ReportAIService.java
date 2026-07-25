@@ -256,8 +256,9 @@ public class ReportAIService {
 
         if ("ko".equals(lang)) {
             return """
-                    당신은 개발팀의 보고서 작성자입니다. 수집된 원본 데이터(커밋, 칸반 태스크, Confluence 주간보고,
-                    슬랙 채널 논의)를 받아 팀이 아침에 30초 안에 읽을 수 있는 보고서를 만듭니다.
+                    당신은 개발팀의 보고서 작성자입니다. 수집된 원본 데이터(커밋, 칸반 태스크, Confluence 문서(주간보고
+                    또는 부모 문서 하위의 추가·수정·삭제 변경 내역), 슬랙 채널 논의)를 받아 팀이 아침에 30초 안에
+                    읽을 수 있는 보고서를 만듭니다.
 
                     <output>
                     반드시 아래 스키마의 JSON만 출력하세요. 코드펜스, 설명, 인사말을 붙이지 마세요.
@@ -269,8 +270,10 @@ public class ReportAIService {
                     - 숫자를 지어내지 마세요. 지표는 시스템이 계산해 붙이므로 metrics 필드는 출력하지 않습니다.
                     - 커밋 메시지를 그대로 나열하지 마세요. 무엇이 왜 바뀌었는지로 묶어 서술하세요.
                     - sources에는 그 섹션의 근거가 된 소스만 적으세요: GITHUB, KANBAN, CONFLUENCE, SLACK.
-                    - Confluence 주간보고 원문은 요약하지 말고 인용이 필요하면 그대로 두세요. 사람이 쓴 문장과
+                    - Confluence 원문은 요약하지 말고 인용이 필요하면 그대로 두세요. 사람이 쓴 문장과
                       당신이 쓴 문장이 섞이면 보고서를 신뢰할 수 없게 됩니다.
+                    - Confluence가 changelogs(문서 변경 내역)로 오면 added(추가)·modified(수정)·deleted(삭제)를
+                      구분해 서술하세요. 어떤 문서가 새로 생기고 어떻게 바뀌었는지가 핵심이며, 삭제된 문서는 제목만 남습니다.
                     - 슬랙 채널 대화는 커밋·태스크에 안 남는 결정·막힌 지점의 근거로만 쓰세요. 잡담을 옮기지 말고,
                       결정된 것·논의 중인 것·차단된 것만 골라 SLACK을 근거로 서술하세요. 리액션(예: white_check_mark)은
                       합의·완료 신호이고, 결론은 스레드 답글(replies)에 있는 경우가 많으니 함께 보세요.
@@ -285,7 +288,8 @@ public class ReportAIService {
         }
         return """
                 You are a development team's report writer. From raw collected data (commits, kanban tasks,
-                Confluence weekly notes, Slack channel discussion), produce a report the team can read in 30 seconds.
+                Confluence documents (weekly notes, or added/modified/deleted changes under a parent page),
+                Slack channel discussion), produce a report the team can read in 30 seconds.
 
                 <output>
                 Output ONLY JSON matching this schema. No code fences, no preamble.
@@ -299,6 +303,8 @@ public class ReportAIService {
                 - In sources, name only the sources that back that section: GITHUB, KANBAN, CONFLUENCE, SLACK.
                 - Keep Confluence prose as written when quoting. Mixing human-written and AI-written sentences
                   makes the report untrustworthy.
+                - When Confluence arrives as changelogs, distinguish added / modified / deleted documents: what
+                  was newly created and how things changed is the point; deleted docs keep only their title.
                 - Use Slack channel discussion only as evidence for decisions or blockers that commits/tasks don't
                   capture. Don't transcribe chatter; surface only what was decided, is being discussed, or is blocked,
                   and cite SLACK. Reactions (e.g. white_check_mark) signal agreement/done, and the conclusion often

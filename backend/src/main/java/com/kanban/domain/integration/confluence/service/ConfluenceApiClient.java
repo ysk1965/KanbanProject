@@ -34,6 +34,8 @@ public class ConfluenceApiClient {
     private static final int SEARCH_LIMIT = 25;
     /** 스페이스 목록 페이지네이션 상한 (100개/페이지 × 10 = 1000개) */
     private static final int SPACE_PAGE_GUARD = 10;
+    /** 하위 트리 조회 페이지네이션 상한 (250개/페이지 × 8 = 2000개) */
+    private static final int DESCENDANT_PAGE_GUARD = 8;
 
     private final RestTemplate restTemplate;
 
@@ -94,6 +96,60 @@ public class ConfluenceApiClient {
         String url = base(cloudId) + "/wiki/api/v2/pages/" + pageId + "?body-format=storage";
         JsonNode body = get(url, token);
         return body.path("body").path("storage").path("value").asText(null);
+    }
+
+    /**
+     * 부모 페이지 하위 <b>트리 전체</b>의 현재 페이지 목록(id·title). 삭제 감지의 기준선이 되므로
+     * 변경 여부와 무관하게 전부 모은다. 커서로 끝까지 따라가되 {@link #DESCENDANT_PAGE_GUARD}로 막는다.
+     */
+    public List<ConfluenceResponse.PageRef> listDescendants(String cloudId, String token, String parentPageId) {
+        List<ConfluenceResponse.PageRef> pages = new ArrayList<>();
+        // depth 미지정 = 트리 전체 후손(엔드포인트 기본). 상태/타입은 아래에서 코드로 거른다.
+        String url = base(cloudId) + "/wiki/api/v2/pages/" + parentPageId
+                + "/descendants?limit=250";
+        for (int page = 0; url != null && page < DESCENDANT_PAGE_GUARD; page++) {
+            JsonNode body = get(url, token);
+            for (JsonNode node : body.path("results")) {
+                // 페이지만 (댓글/첨부 등 다른 타입 제외), 현재 상태만.
+                if (!"page".equals(node.path("type").asText(null))) {
+                    continue;
+                }
+                if (node.has("status") && !"current".equals(node.path("status").asText(null))) {
+                    continue;
+                }
+                String id = node.path("id").asText(null);
+                if (id == null) {
+                    continue;
+                }
+                pages.add(ConfluenceResponse.PageRef.builder()
+                        .id(id)
+                        .title(node.path("title").asText(""))
+                        .build());
+            }
+            String next = body.path("_links").path("next").asText(null);
+            url = (next != null && !next.isBlank()) ? base(cloudId) + next : null;
+        }
+        return pages;
+    }
+
+    /**
+     * 추가/수정 분류와 본문 수집에 필요한 페이지 상세를 한 번에 가져온다.
+     * ({@code createdAt} · {@code version} · {@code body.storage})
+     */
+    public ConfluenceResponse.PageDetail getPageDetail(String cloudId, String token, String pageId) {
+        String url = base(cloudId) + "/wiki/api/v2/pages/" + pageId + "?body-format=storage";
+        JsonNode body = get(url, token);
+        JsonNode version = body.path("version");
+        return ConfluenceResponse.PageDetail.builder()
+                .id(body.path("id").asText(pageId))
+                .title(body.path("title").asText(""))
+                .createdAt(body.path("createdAt").asText(null))
+                .versionNumber(version.path("number").isMissingNode() ? null : version.path("number").asInt())
+                .versionCreatedAt(version.path("createdAt").asText(null))
+                .authorId(version.path("authorId").asText(body.path("authorId").asText(null)))
+                .storageBody(body.path("body").path("storage").path("value").asText(null))
+                .webUrl(body.path("_links").path("webui").asText(null))
+                .build();
     }
 
     private String base(String cloudId) {

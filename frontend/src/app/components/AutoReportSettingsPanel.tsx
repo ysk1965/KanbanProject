@@ -129,10 +129,11 @@ export function AutoReportSettingsPanel({
   const [sites, setSites] = useState<ConfluenceSiteRef[] | null>(null);
   const [spaces, setSpaces] = useState<ConfluenceSpaceRef[] | null>(null);
   const [spaceKey, setSpaceKey] = useState("");
-  // 주간보고 페이지 식별 규칙. 백엔드는 LABEL / PARENT_PAGE / TITLE_PATTERN 를 지원한다.
+  // 주간보고 페이지 식별 규칙. 백엔드는 LABEL / PARENT_PAGE / TITLE_PATTERN / PARENT_TREE_CHANGELOG 를 지원한다.
   // Confluence가 라벨이 아니라 페이지 계층(년→월→주차)으로 구성된 경우가 많아 규칙을 고르게 한다.
+  // PARENT_TREE_CHANGELOG: 부모 하나를 잡고 그 하위 트리에서 기간 내 추가·수정·삭제 변경만 수집.
   const [matchRule, setMatchRule] = useState<
-    "LABEL" | "PARENT_PAGE" | "TITLE_PATTERN"
+    "LABEL" | "PARENT_PAGE" | "TITLE_PATTERN" | "PARENT_TREE_CHANGELOG"
   >("LABEL");
   const [ruleValue, setRuleValue] = useState("");
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
@@ -520,7 +521,10 @@ export function AutoReportSettingsPanel({
           space_key: spaceKey.trim(),
           match_rule: matchRule,
           label: matchRule === "LABEL" ? v : null,
-          parent_page_id: matchRule === "PARENT_PAGE" ? v : null,
+          parent_page_id:
+            matchRule === "PARENT_PAGE" || matchRule === "PARENT_TREE_CHANGELOG"
+              ? v
+              : null,
           title_pattern: matchRule === "TITLE_PATTERN" ? v : null,
         },
       ]);
@@ -851,7 +855,11 @@ export function AutoReportSettingsPanel({
                 value={matchRule}
                 onChange={(e) =>
                   setMatchRule(
-                    e.target.value as "LABEL" | "PARENT_PAGE" | "TITLE_PATTERN",
+                    e.target.value as
+                      | "LABEL"
+                      | "PARENT_PAGE"
+                      | "TITLE_PATTERN"
+                      | "PARENT_TREE_CHANGELOG",
                   )
                 }
                 className="bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
@@ -859,6 +867,7 @@ export function AutoReportSettingsPanel({
                 <option value="LABEL">라벨</option>
                 <option value="PARENT_PAGE">부모 페이지</option>
                 <option value="TITLE_PATTERN">제목 패턴</option>
+                <option value="PARENT_TREE_CHANGELOG">부모 트리 변경</option>
               </select>
               <input
                 value={ruleValue}
@@ -866,7 +875,8 @@ export function AutoReportSettingsPanel({
                 placeholder={
                   matchRule === "LABEL"
                     ? "라벨 (예: weekly-report)"
-                    : matchRule === "PARENT_PAGE"
+                    : matchRule === "PARENT_PAGE" ||
+                        matchRule === "PARENT_TREE_CHANGELOG"
                       ? "부모 페이지 ID (예: 123456789)"
                       : "제목 포함 문구 (예: 주간 업무 현황)"
                 }
@@ -893,7 +903,9 @@ export function AutoReportSettingsPanel({
                 ? "그 라벨이 붙은 페이지만 읽습니다. 매주 페이지가 달라도 라벨만 같으면 자동으로 찾습니다."
                 : matchRule === "PARENT_PAGE"
                   ? "그 부모 페이지 밑의 자식 페이지를 읽습니다. 페이지 ID는 페이지 URL의 /pages/{ID}/ 에 있습니다."
-                  : "제목에 이 문구가 들어간 페이지를 읽습니다. 그 주 기간과 결합해 해당 주 주간보고를 자동으로 찾습니다."}
+                  : matchRule === "PARENT_TREE_CHANGELOG"
+                    ? "그 부모 페이지 아래 문서 전체에서 해당 기간에 추가·수정·삭제된 변경만 모아 전달합니다. 문서 한 장이 아니라 프로젝트 문서의 변화를 봅니다. 페이지 ID는 URL의 /pages/{ID}/ 에 있습니다."
+                    : "제목에 이 문구가 들어간 페이지를 읽습니다. 그 주 기간과 결합해 해당 주 주간보고를 자동으로 찾습니다."}
               {
                 " 값을 비우면 저장되지 않습니다 — 스페이스 전체가 딸려오는 것을 막기 위해서입니다."
               }
@@ -914,9 +926,11 @@ export function AutoReportSettingsPanel({
                   ·{" "}
                   {space.match_rule === "PARENT_PAGE"
                     ? "부모 페이지"
-                    : space.match_rule === "TITLE_PATTERN"
-                      ? "제목 패턴"
-                      : "라벨"}
+                    : space.match_rule === "PARENT_TREE_CHANGELOG"
+                      ? "부모 트리 변경"
+                      : space.match_rule === "TITLE_PATTERN"
+                        ? "제목 패턴"
+                        : "라벨"}
                 </span>
                 {(space.label ||
                   space.parent_page_id ||
