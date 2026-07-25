@@ -82,4 +82,29 @@ public class ConfluenceResponse {
         private String url;
         private String lastUpdated;
     }
+
+    /**
+     * 트리 변경 수집에 필요한 페이지 상세. 생성 시각으로 추가/수정을 가르고,
+     * 버전으로 편집 여부를, storage 본문으로 내용을 담는다.
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PageDetail {
+        private String id;
+        private String title;
+        /** 문서가 처음 만들어진 시각 (ISO-8601). 이 값이 기간 안이면 '추가'. */
+        private String createdAt;
+        /** 현재 버전 번호 */
+        private Integer versionNumber;
+        /** 현재 버전이 만들어진(마지막 편집) 시각 */
+        private String versionCreatedAt;
+        /** 마지막 편집자 accountId */
+        private String authorId;
+        /** storage 포맷(XHTML) 원문 */
+        private String storageBody;
+        /** 웹 UI 경로 (baseUrl 상대) */
+        private String webUrl;
+    }
 }

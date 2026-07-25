@@ -39,7 +39,7 @@ public class ConfluenceRequest {
         @NotBlank
         private String spaceKey;
         private String spaceName;
-        /** LABEL(기본) | PARENT_PAGE | TITLE_PATTERN */
+        /** LABEL(기본) | PARENT_PAGE | TITLE_PATTERN | PARENT_TREE_CHANGELOG */
         private String matchRule;
         private String label;
         private String parentPageId;
