@@ -3,6 +3,7 @@ package com.kanban.domain.report.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.report.ReportDeliveryLogRepository;
 import com.kanban.domain.report.ReportType;
 import com.kanban.domain.report.WeeklyReport;
 import com.kanban.domain.report.ReportRepository;
@@ -30,6 +31,7 @@ import java.util.Map;
 public class AutoReportQueryService {
 
     private final ReportRepository reportRepository;
+    private final ReportDeliveryLogRepository deliveryLogRepository;
     private final BoardService boardService;
     private final ObjectMapper objectMapper;
 
@@ -89,6 +91,22 @@ public class AutoReportQueryService {
             throw new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND);
         }
         report.revokeShareLink();
+    }
+
+    /**
+     * 보관된 보고서 삭제 — 관리자 이상만 가능.
+     * 발송 로그(감사 기록)는 참조만 끊어 남기고 보고서 본문을 지운다.
+     */
+    @Transactional
+    public void deleteReport(String boardId, String reportId, String userId) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        WeeklyReport report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND));
+        if (!report.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND);
+        }
+        deliveryLogRepository.detachReport(reportId);
+        reportRepository.delete(report);
     }
 
     private AutoReportResponse toResponse(WeeklyReport report) {

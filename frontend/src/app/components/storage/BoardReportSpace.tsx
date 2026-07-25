@@ -117,7 +117,13 @@ export function BoardReportSpace({
         </div>
 
         {/* 보관된 보고서 갤러리 */}
-        <ReportGallery boardId={boardId} onLoaded={handleLoaded} />
+        <ReportGallery
+          boardId={boardId}
+          canManage={canManage}
+          config={config}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onLoaded={handleLoaded}
+        />
       </div>
 
       {/* ⚙ 설정 모달 */}
