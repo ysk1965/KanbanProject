@@ -3200,7 +3200,11 @@ export function KanbanBoardPage() {
                 </div>
               }
             >
-              <StorageView boardId={boardId || ""} />
+              <StorageView
+                boardId={boardId || ""}
+                canManage={isAdminOrOwner}
+                boardName={board?.name}
+              />
             </Suspense>
           </main>
         ) : viewMode === "statistics" ? (

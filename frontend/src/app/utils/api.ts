@@ -9831,15 +9831,19 @@ export const autoReportAPI = {
     );
   },
 
-  /** 스케줄을 기다리지 않고 지금 발송 */
+  /**
+   * 스케줄을 기다리지 않고 지금 발송.
+   * status가 SKIPPED면 "기간 내 활동 없음"으로 발송을 건너뛴 정상 결과다(report_id는 null).
+   */
   dispatchNow: async (
     boardId: string,
     type: "DAILY_DEV" | "WEEKLY_INTEGRATED",
   ) => {
-    return apiClient.post<{ report_id: string }>(
-      `/boards/${boardId}/reports/dispatch?type=${type}`,
-      {},
-    );
+    return apiClient.post<{
+      status: "SUCCESS" | "PARTIAL" | "FAILED" | "SKIPPED";
+      report_id: string | null;
+      message: string | null;
+    }>(`/boards/${boardId}/reports/dispatch?type=${type}`, {});
   },
 };
 
