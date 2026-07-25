@@ -123,6 +123,8 @@ export function AutoReportSettingsPanel({
   const [error, setError] = useState<string | null>(null);
 
   const [repos, setRepos] = useState<GithubAvailableRepo[] | null>(null);
+  const [branchLists, setBranchLists] = useState<Record<string, string[]>>({});
+  const [branchLoading, setBranchLoading] = useState<string | null>(null);
   const [sites, setSites] = useState<ConfluenceSiteRef[] | null>(null);
   const [spaces, setSpaces] = useState<ConfluenceSpaceRef[] | null>(null);
   const [spaceKey, setSpaceKey] = useState("");
@@ -356,6 +358,18 @@ export function AutoReportSettingsPanel({
     }
   };
 
+  // 선택된 저장소의 현재 브랜치("" 이면 저장소 기본 브랜치)
+  const selectedBranchOf = (fullName: string): string =>
+    github?.selected_repos.find((r) => r.repo_full_name === fullName)?.branch ??
+    "";
+
+  const persistRepoSelection = async (
+    selections: { repo_full_name: string; branch: string }[],
+  ) => {
+    const status = await githubAPI.selectRepos(boardId, selections);
+    setGithub(status);
+  };
+
   const toggleRepo = async (repo: GithubAvailableRepo) => {
     if (!repos) return;
     const next = repos.map((r) =>
@@ -363,18 +377,57 @@ export function AutoReportSettingsPanel({
     );
     setRepos(next);
     try {
-      const status = await githubAPI.selectRepos(
-        boardId,
+      // 각 저장소의 브랜치를 함께 실어 보내 다른 저장소의 선택이 초기화되지 않게 한다.
+      await persistRepoSelection(
         next
           .filter((r) => r.selected)
-          .map((r) => ({ repo_full_name: r.full_name })),
+          .map((r) => ({
+            repo_full_name: r.full_name,
+            branch: selectedBranchOf(r.full_name),
+          })),
       );
-      setGithub(status);
     } catch (e) {
       setRepos(repos); // 실패하면 되돌린다
       setError(
         (e as { message?: string })?.message ?? "저장소 선택에 실패했습니다.",
       );
+    }
+  };
+
+  const changeRepoBranch = async (
+    repo: GithubAvailableRepo,
+    branch: string,
+  ) => {
+    if (!repos) return;
+    try {
+      await persistRepoSelection(
+        repos
+          .filter((r) => r.selected)
+          .map((r) => ({
+            repo_full_name: r.full_name,
+            branch:
+              r.full_name === repo.full_name
+                ? branch
+                : selectedBranchOf(r.full_name),
+          })),
+      );
+    } catch (e) {
+      setError(
+        (e as { message?: string })?.message ?? "브랜치 변경에 실패했습니다.",
+      );
+    }
+  };
+
+  const loadBranches = async (repo: GithubAvailableRepo) => {
+    if (branchLists[repo.full_name] || branchLoading === repo.full_name) return;
+    setBranchLoading(repo.full_name);
+    try {
+      const list = await githubAPI.listBranches(boardId, repo.full_name);
+      setBranchLists((prev) => ({ ...prev, [repo.full_name]: list }));
+    } catch {
+      // 목록을 못 가져와도 기본 브랜치는 쓸 수 있으니 조용히 넘어간다.
+    } finally {
+      setBranchLoading(null);
     }
   };
 
@@ -586,25 +639,59 @@ export function AutoReportSettingsPanel({
                 확인해주세요.
               </span>
             )}
-            {repos.map((repo) => (
-              <label
-                key={repo.full_name}
-                className="flex items-center gap-2 py-1.5 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={repo.selected}
-                  onChange={() => toggleRepo(repo)}
-                  className="accent-bridge-accent"
-                />
-                <span className="text-xs text-foreground flex-1 truncate">
-                  {repo.full_name}
-                </span>
-                <span className="text-xs text-slate-600">
-                  {repo.default_branch}
-                </span>
-              </label>
-            ))}
+            {repos.map((repo) => {
+              const branch = selectedBranchOf(repo.full_name);
+              const branchOptions = Array.from(
+                new Set([
+                  ...(branch ? [branch] : []),
+                  ...(branchLists[repo.full_name] ?? []),
+                ]),
+              );
+              return (
+                <div
+                  key={repo.full_name}
+                  className="flex items-center gap-2 py-1.5"
+                >
+                  <label className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={repo.selected}
+                      onChange={() => toggleRepo(repo)}
+                      className="accent-bridge-accent"
+                    />
+                    <span className="text-xs text-foreground flex-1 truncate">
+                      {repo.full_name}
+                    </span>
+                  </label>
+                  {repo.selected ? (
+                    <select
+                      value={branch}
+                      onFocus={() => loadBranches(repo)}
+                      onMouseDown={() => loadBranches(repo)}
+                      onChange={(e) => changeRepoBranch(repo, e.target.value)}
+                      className="max-w-[45%] bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                      title="보고서에 집계할 브랜치"
+                    >
+                      <option value="">기본 ({repo.default_branch})</option>
+                      {branchOptions.map((b) => (
+                        <option key={b} value={b}>
+                          {b}
+                        </option>
+                      ))}
+                      {branchLoading === repo.full_name && (
+                        <option value="" disabled>
+                          불러오는 중…
+                        </option>
+                      )}
+                    </select>
+                  ) : (
+                    <span className="text-xs text-slate-600">
+                      {repo.default_branch}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </SourceCard>

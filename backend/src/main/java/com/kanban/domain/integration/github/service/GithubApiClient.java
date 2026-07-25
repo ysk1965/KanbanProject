@@ -74,6 +74,35 @@ public class GithubApiClient {
         return repos;
     }
 
+    /** 저장소의 브랜치 목록 — 보드 설정에서 보고서에 쓸 브랜치를 고를 후보 */
+    public List<String> listBranches(String installationId, String repoFullName) {
+        String token = tokenService.getInstallationToken(installationId);
+        List<String> branches = new ArrayList<>();
+
+        for (int page = 1; page <= 10; page++) {
+            String url = UriComponentsBuilder
+                    .fromUriString(properties.getApiBaseUrl() + "/repos/" + repoFullName + "/branches")
+                    .queryParam("per_page", PAGE_SIZE)
+                    .queryParam("page", page)
+                    .toUriString();
+
+            JsonNode body = get(url, token);
+            if (!body.isArray() || body.isEmpty()) {
+                break;
+            }
+            for (JsonNode node : body) {
+                String name = node.path("name").asText(null);
+                if (name != null) {
+                    branches.add(name);
+                }
+            }
+            if (body.size() < PAGE_SIZE) {
+                break;
+            }
+        }
+        return branches;
+    }
+
     /**
      * 기간 내 커밋. {@code since}는 포함, {@code until}은 GitHub도 포함으로 다루므로
      * 끝점 중복을 피하려면 호출부가 1초를 빼서 넘긴다.

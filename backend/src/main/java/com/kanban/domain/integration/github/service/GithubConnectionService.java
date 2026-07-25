@@ -169,6 +169,22 @@ public class GithubConnectionService {
                 .toList();
     }
 
+    /** 한 저장소의 브랜치 목록 — 브랜치 드롭다운 후보. 선택된 저장소만 on-demand로 부른다. */
+    @Transactional(readOnly = true)
+    public List<String> listBranches(String boardId, String userId, String repoFullName) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        GithubInstallation installation = targetResolver.resolveInstallation(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.GITHUB_NOT_CONNECTED));
+
+        // 설치에 없는 저장소를 몰래 조회하지 못하게 실제 목록과 대조한다.
+        boolean allowed = apiClient.listInstallationRepositories(installation.getInstallationId())
+                .stream().anyMatch(r -> r.fullName().equals(repoFullName));
+        if (!allowed) {
+            throw new BusinessException(ErrorCode.GITHUB_REPO_NOT_FOUND, repoFullName);
+        }
+        return apiClient.listBranches(installation.getInstallationId(), repoFullName);
+    }
+
     /**
      * 선택 목록을 통째로 교체한다. 빠진 저장소는 지우고, 남은 것은 브랜치·제외 작성자를 갱신한다.
      */

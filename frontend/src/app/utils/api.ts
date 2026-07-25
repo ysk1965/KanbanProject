@@ -9898,6 +9898,11 @@ export const githubAPI = {
   listRepos: async (boardId: string) =>
     apiClient.get<GithubAvailableRepo[]>(`/boards/${boardId}/github/repos`),
 
+  listBranches: async (boardId: string, repoFullName: string) =>
+    apiClient.get<string[]>(
+      `/boards/${boardId}/github/repos/branches?repo_full_name=${encodeURIComponent(repoFullName)}`,
+    ),
+
   selectRepos: async (
     boardId: string,
     repos: { repo_full_name: string; branch?: string | null }[],
@@ -9963,7 +9968,10 @@ export const confluenceAPI = {
     boardId: string,
     site: { cloud_id: string; base_url?: string; site_name?: string },
   ) =>
-    apiClient.post<ConfluenceStatus>(`/boards/${boardId}/confluence/site`, site),
+    apiClient.post<ConfluenceStatus>(
+      `/boards/${boardId}/confluence/site`,
+      site,
+    ),
 
   listSpaces: async (boardId: string) =>
     apiClient.get<ConfluenceSpaceRef[]>(`/boards/${boardId}/confluence/spaces`),
