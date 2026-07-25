@@ -46,9 +46,13 @@ public class ReportComposer {
 
         // 기능별 진행·스프린트는 AI가 아니라 시스템이 집계해 주입한다(metrics와 동일). 실패해도 보고서는 진행.
         try {
-            BoardProgressCollector.Progress progress = progressCollector.compute(boardId, period);
+            BoardProgressCollector.Progress progress =
+                    progressCollector.compute(boardId, period, parseCommits(chunks));
             content.setFeatures(progress.features());
             content.setSprint(progress.sprint());
+            content.setCommitCategories(progress.commitCategories());
+            // 담당자·키워드로 못 붙인 잔여 커밋은 AI가 의미 기반으로 기능에 배정(추정). 트랜잭션 밖에서 호출.
+            classifyLeftoverCommits(content, progress, language, boardId);
         } catch (Exception e) {
             log.warn("보드 진행 집계 실패 — 기능/스프린트 없이 진행 board={}: {}", boardId, e.getMessage());
         }
@@ -63,6 +67,58 @@ public class ReportComposer {
         } catch (Exception e) {
             log.warn("보고서 본문 직렬화 실패 — AI 원문으로 대체: {}", e.getMessage());
             return fallbackRaw;
+        }
+    }
+
+    /**
+     * 담당자·키워드로 기능에 못 붙인 잔여 커밋을 AI가 의미 기반으로 기능에 배정한다(추정).
+     * DB 트랜잭션 밖에서 호출한다 — AI 네트워크 호출을 트랜잭션에 넣지 않기 위해서다.
+     * 실패하거나 배정이 없으면 기존(담당자·키워드) 결과와 카테고리를 그대로 둔다.
+     */
+    private void classifyLeftoverCommits(ReportContent content, BoardProgressCollector.Progress progress,
+                                         String language, String boardId) {
+        List<BoardProgressCollector.CommitInfo> leftover = progress.leftover();
+        List<ReportContent.Feature> features = progress.features();
+        if (leftover == null || leftover.isEmpty() || features == null || features.isEmpty()) {
+            return;
+        }
+
+        List<String> featureLabels = features.stream()
+                .map(f -> f.getDescription() != null && !f.getDescription().isBlank()
+                        ? f.getName() + " — " + f.getDescription()
+                        : f.getName())
+                .toList();
+        List<String> commitLabels = leftover.stream()
+                .map(c -> c.author() != null ? c.subject() + " [" + c.author() + "]" : c.subject())
+                .toList();
+
+        int[] assign = reportAIService.classifyCommits(featureLabels, commitLabels, language, boardId);
+        if (assign.length == 0) {
+            return; // AI 실패 — 기존 결과 유지
+        }
+
+        List<BoardProgressCollector.CommitInfo> stillLeft = new ArrayList<>();
+        boolean anyAssigned = false;
+        for (int i = 0; i < leftover.size(); i++) {
+            int fi = i < assign.length ? assign[i] : -1;
+            if (fi >= 0 && fi < features.size()) {
+                ReportContent.Feature feat = features.get(fi);
+                if (feat.getCommits() == null) {
+                    feat.setCommits(new ArrayList<>());
+                }
+                if (feat.getCommits().size() < 40) {
+                    feat.getCommits().add(progressCollector.toCommit(leftover.get(i), true));
+                    anyAssigned = true;
+                } else {
+                    stillLeft.add(leftover.get(i));
+                }
+            } else {
+                stillLeft.add(leftover.get(i));
+            }
+        }
+
+        if (anyAssigned) {
+            content.setCommitCategories(progressCollector.buildCategories(stillLeft));
         }
     }
 
@@ -101,6 +157,49 @@ public class ReportComposer {
         } catch (Exception e) {
             return json;
         }
+    }
+
+    /**
+     * GITHUB 소스의 commits_by_repo를 커밋 목록으로 되살린다. 기능별 커밋 매핑에 쓴다.
+     * GitHub 미연결·수집 실패·파싱 실패면 빈 목록(매핑 생략).
+     */
+    private List<BoardProgressCollector.CommitInfo> parseCommits(List<SourceChunk> chunks) {
+        for (SourceChunk chunk : chunks) {
+            if (chunk.kind() != SourceKind.GITHUB || !chunk.success() || !chunk.hasData()) {
+                continue;
+            }
+            try {
+                JsonNode root = objectMapper.readTree(chunk.dataJson());
+                JsonNode byRepo = root.get("commits_by_repo");
+                if (byRepo == null || !byRepo.isObject()) {
+                    return List.of();
+                }
+                List<BoardProgressCollector.CommitInfo> commits = new ArrayList<>();
+                byRepo.fields().forEachRemaining(entry -> {
+                    String repo = entry.getKey();
+                    for (JsonNode item : entry.getValue()) {
+                        commits.add(new BoardProgressCollector.CommitInfo(
+                                repo,
+                                text(item, "sha"),
+                                text(item, "subject"),
+                                text(item, "author"),
+                                text(item, "at"),
+                                text(item, "url"),
+                                item.hasNonNull("changed_files") ? item.get("changed_files").asInt() : null));
+                    }
+                });
+                return commits;
+            } catch (Exception e) {
+                log.warn("커밋 파싱 실패 — 기능별 커밋 매핑 생략: {}", e.getMessage());
+                return List.of();
+            }
+        }
+        return List.of();
+    }
+
+    private String text(JsonNode node, String field) {
+        JsonNode v = node.get(field);
+        return v != null && !v.isNull() ? v.asText() : null;
     }
 
     /**

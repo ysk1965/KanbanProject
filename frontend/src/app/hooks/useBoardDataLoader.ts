@@ -143,6 +143,7 @@ export function useBoardDataLoader(boardId: string | undefined) {
           role: m.role.toLowerCase() as MemberRole,
           assigneeColor: m.assignee_color || null,
           jobRole: m.job_role || null,
+          githubLogin: m.github_login || null,
         })),
       );
 
@@ -346,6 +347,7 @@ export function useBoardDataLoader(boardId: string | undefined) {
           role: m.role.toLowerCase() as MemberRole,
           assigneeColor: m.assignee_color,
           jobRole: m.job_role || null,
+          githubLogin: m.github_login || null,
         })),
       );
     } catch (error) {

@@ -49,6 +49,12 @@ public class ReportContent {
      */
     private List<Feature> features;
 
+    /**
+     * 어느 기능에도 연결되지 않은 나머지 커밋을 유형(fix/refactor/chore…)별로 묶은 카테고리.
+     * 기능 탭 옆의 "기타 커밋" 탭에 쓰인다.
+     */
+    private List<CommitCategory> commitCategories;
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -103,6 +109,11 @@ public class ReportContent {
         /** 마지막 활동 시각(ISO). 태스크 완료 시각의 최댓값 등. */
         private String lastActivity;
         private List<FeatureTask> tasks;
+        /**
+         * 이 기능에 연결된 GitHub 커밋. 담당자(연결된 github_login)·활동 기간·키워드 기준으로 추정 매핑한다.
+         * 커밋마다 estimated 플래그로 확정/추정을 구분한다.
+         */
+        private List<FeatureCommit> commits;
     }
 
     /** 기능에 속한 개별 태스크(펼치기 목록용). */
@@ -114,5 +125,37 @@ public class ReportContent {
         private String title;
         /** "DONE" | "IN_PROGRESS" | "TODO" */
         private String status;
+    }
+
+    /** 기능/카테고리에 연결된 커밋 하나. GitHub 수집 결과에서 표시에 필요한 필드만 담는다. */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class FeatureCommit {
+        private String repo;
+        private String sha;
+        private String subject;
+        private String author;
+        private String at;
+        private String url;
+        private Integer changedFiles;
+        /** 커밋 메시지 접두어로 판별한 유형 — feat/fix/refactor/chore/docs/test/other */
+        private String type;
+        /** true면 담당자 확정이 아니라 키워드/AI로 추정 연결된 커밋 */
+        private boolean estimated;
+    }
+
+    /** 기능에 매핑되지 않은 커밋을 유형별로 묶은 카테고리. */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CommitCategory {
+        /** "fix" | "refactor" | "chore" | "feat" | "docs" | "other" */
+        private String key;
+        /** 표시 라벨 — "버그 수정" 등 */
+        private String label;
+        private List<FeatureCommit> commits;
     }
 }

@@ -31,6 +31,7 @@ public class MemberResponse {
         private String assigneeColor;
         private Integer displayOrder;
         private JobRoleResponse.JobRoleInfo jobRole;
+        private String githubLogin;
 
         public static Detail of(BoardMember member) {
             return Detail.builder()
@@ -44,6 +45,7 @@ public class MemberResponse {
                     .jobRole(member.getJobRole() != null
                             ? JobRoleResponse.JobRoleInfo.of(member.getJobRole())
                             : null)
+                    .githubLogin(member.getGithubLogin())
                     .build();
         }
     }

@@ -52,6 +52,10 @@ public class BoardMember {
     @JoinColumn(name = "job_role_id")
     private JobRole jobRole;
 
+    /** 이 멤버의 GitHub 로그인(계정 아이디). 리포트에서 commit.authorLogin 매칭에 사용. nullable. */
+    @Column(name = "github_login", length = 100)
+    private String githubLogin;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -76,6 +80,10 @@ public class BoardMember {
 
     public void updateJobRole(JobRole jobRole) {
         this.jobRole = jobRole;
+    }
+
+    public void updateGithubLogin(String githubLogin) {
+        this.githubLogin = githubLogin;
     }
 
     public boolean isOwner() {

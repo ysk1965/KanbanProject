@@ -276,6 +276,42 @@ public class MemberService {
 
     @Transactional
     @CacheEvict(value = "members", key = "#boardId")
+    public MemberResponse.Detail updateMemberGithubLogin(String boardId, String memberId, String userId, MemberRequest.UpdateGithubLogin request) {
+        boardService.checkViewerOrAbove(boardId, userId);
+
+        BoardMember member = boardMemberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        if (!member.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
+        }
+
+        // 본인 또는 Admin 이상만 GitHub 계정 연결 가능
+        boolean isSelf = member.getUser().getId().equals(userId);
+        if (!isSelf) {
+            boardService.checkAdminOrAbove(boardId, userId);
+        }
+
+        String login = request.getGithubLogin();
+        if (login != null) {
+            login = login.trim();
+            if (login.isEmpty()) login = null;
+        }
+        member.updateGithubLogin(login);
+
+        log.info("Member githubLogin updated: {} to {} in board: {} by user: {}",
+                memberId, login, boardId, userId);
+
+        MemberResponse.Detail response = MemberResponse.Detail.of(member);
+        User user = userRepository.findById(userId).orElse(null);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEMBER_UPDATED,
+                userId, user != null ? user.getName() : null, response);
+
+        return response;
+    }
+
+    @Transactional
+    @CacheEvict(value = "members", key = "#boardId")
     public MemberResponse.Detail updateMemberJobRole(String boardId, String memberId, String userId, MemberRequest.UpdateJobRole request) {
         boardService.checkAdminOrAbove(boardId, userId);
 

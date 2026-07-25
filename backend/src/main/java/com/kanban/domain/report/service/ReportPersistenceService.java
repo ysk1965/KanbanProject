@@ -71,9 +71,16 @@ public class ReportPersistenceService {
                           ReportDeliveryStatus status, String channelId,
                           List<SourceChunk> chunks, String error) {
         try {
+            // report는 별도 트랜잭션({@link #save}, REQUIRES_NEW)에서 이미 커밋됐으므로 이 트랜잭션에는
+            // detached 상태로 들어온다. 그대로 참조하면 flush 시점에 Hibernate가 이를 transient로 오판해
+            // TransientObjectException으로 터진다(그마저 이 try 밖 커밋 단계라 아래 catch가 못 잡는다).
+            // 이미 커밋된 행이라 FK는 유효하니, 이 세션에 붙은 프록시로 다시 엮어 넣는다.
+            WeeklyReport reportRef = (report != null && report.getId() != null)
+                    ? reportRepository.getReferenceById(report.getId())
+                    : null;
             deliveryLogRepository.save(ReportDeliveryLog.builder()
                     .board(board)
-                    .report(report)
+                    .report(reportRef)
                     .reportType(reportType)
                     .status(status)
                     .slackChannelId(channelId)

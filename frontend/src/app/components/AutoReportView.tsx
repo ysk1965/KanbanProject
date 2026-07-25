@@ -5,14 +5,15 @@ import {
   ArrowUpRight,
   CalendarDays,
   Check,
-  ChevronDown,
   FileText,
   GitCommit,
 } from "lucide-react";
 
 import type {
   AutoReport,
+  AutoReportCommitCategory,
   AutoReportFeature,
+  AutoReportFeatureCommit,
   AutoReportSourceStatus,
   AutoReportSprint,
 } from "../utils/api";
@@ -202,76 +203,146 @@ function TaskMark({ status }: { status: string }) {
   );
 }
 
-/* ── 기능 카드 ── */
-function FeatureCard({ feature }: { feature: AutoReportFeature }) {
-  const [open, setOpen] = useState(false);
+/* ── 커밋 목록 (레포별 그룹) ── */
+function CommitList({ commits }: { commits: AutoReportFeatureCommit[] }) {
+  if (commits.length === 0) {
+    return (
+      <p className="text-xs text-slate-500 py-1">연결된 커밋이 없습니다.</p>
+    );
+  }
+  const byRepo = new Map<string, AutoReportFeatureCommit[]>();
+  for (const c of commits) {
+    const repo = c.repo ?? "기타";
+    if (!byRepo.has(repo)) byRepo.set(repo, []);
+    byRepo.get(repo)!.push(c);
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      {[...byRepo.entries()].map(([repo, list]) => (
+        <div key={repo} className="flex flex-col">
+          <span className="text-xs text-slate-600 uppercase tracking-widest pt-2 first:pt-0">
+            {repo}
+          </span>
+          {list.map((c, i) => (
+            <div
+              key={`${c.sha}-${i}`}
+              className="flex flex-col gap-0.5 py-2 border-t border-foreground/[0.06]"
+            >
+              <div className="flex items-center gap-2">
+                {c.sha && (
+                  <span className="text-xs font-mono text-bridge-accent">
+                    {c.sha}
+                  </span>
+                )}
+                {c.estimated && (
+                  <span
+                    className="text-xs font-bold px-1.5 rounded-full bg-amber-500/15 text-amber-500 ml-auto"
+                    title="담당자 확정이 아닌 키워드 기반 추정 연결"
+                  >
+                    추정
+                  </span>
+                )}
+              </div>
+              {c.url ? (
+                <a
+                  href={c.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-foreground hover:text-bridge-accent leading-snug inline-flex items-start gap-1"
+                >
+                  <span>{c.subject}</span>
+                  <ArrowUpRight className="w-3 h-3 shrink-0 mt-1" />
+                </a>
+              ) : (
+                <span className="text-sm text-foreground leading-snug">
+                  {c.subject}
+                </span>
+              )}
+              <div className="text-xs text-slate-500 tabular-nums flex gap-2 flex-wrap">
+                {c.author && <span>{c.author}</span>}
+                {c.at && <span>· {c.at}</span>}
+                {c.changed_files != null && (
+                  <span>· {c.changed_files} files</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── 기능 상세 (헤더 + 보드 태스크 + GitHub 커밋 근거) ── */
+function FeatureDetail({ feature }: { feature: AutoReportFeature }) {
   const status = FEATURE_STATUS[feature.status] ?? FEATURE_STATUS.IN_PROGRESS;
   const barColor =
     feature.status === "DONE" ? "bg-emerald-500" : "bg-bridge-accent";
   const assignees = (feature.assignees ?? []).filter(Boolean);
   const tasks = feature.tasks ?? [];
+  const commits = feature.commits ?? [];
 
   return (
-    <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <h3 className="text-sm font-bold text-foreground flex-1">
-          {feature.name}
-        </h3>
-        <span
-          className={`text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 ${status.chip}`}
-        >
-          {status.label}
-        </span>
-      </div>
-
-      {feature.description && (
-        <p className="text-sm text-slate-400 leading-relaxed">
-          {feature.description}
-        </p>
-      )}
-
-      <div className="flex items-center gap-2.5">
-        <span className="flex-1 h-1.5 rounded-full bg-foreground/10 overflow-hidden">
+    <div className="flex flex-col gap-3">
+      {/* 헤더 */}
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <h3 className="text-base font-bold text-foreground flex-1">
+            {feature.name}
+          </h3>
           <span
-            className={`block h-full ${barColor}`}
-            style={{ width: `${pct(feature.task_done, feature.task_total)}%` }}
-          />
-        </span>
-        <span className="text-xs font-bold text-slate-400 tabular-nums whitespace-nowrap">
-          {feature.task_done} / {feature.task_total} 태스크
-        </span>
+            className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${status.chip}`}
+          >
+            {status.label}
+          </span>
+        </div>
+        {feature.description && (
+          <p className="text-sm text-slate-400 leading-relaxed">
+            {feature.description}
+          </p>
+        )}
+        <div className="flex items-center gap-2.5">
+          <span className="flex-1 h-1.5 rounded-full bg-foreground/10 overflow-hidden">
+            <span
+              className={`block h-full ${barColor}`}
+              style={{
+                width: `${pct(feature.task_done, feature.task_total)}%`,
+              }}
+            />
+          </span>
+          <span className="text-xs font-bold text-slate-400 tabular-nums whitespace-nowrap">
+            {feature.task_done} / {feature.task_total} 태스크
+          </span>
+        </div>
+        {(assignees.length > 0 || feature.last_activity) && (
+          <div className="flex items-center gap-2 pt-1.5 border-t border-foreground/[0.06]">
+            <AssigneeAvatars names={assignees} />
+            {feature.last_activity && (
+              <span className="text-xs text-slate-500 ml-auto">
+                {formatRelativeTime(feature.last_activity)}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      {(assignees.length > 0 || feature.last_activity) && (
-        <div className="flex items-center gap-2 pt-1.5 border-t border-foreground/[0.06]">
-          <AssigneeAvatars names={assignees} />
-          {feature.last_activity && (
-            <span className="text-xs text-slate-500 ml-auto">
-              {formatRelativeTime(feature.last_activity)}
+      {/* 근거: 보드 태스크 + GitHub 커밋 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 flex flex-col gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-slate-400">
+            보드 태스크
+            <span className="ml-auto text-xs font-bold px-1.5 rounded-full bg-bridge-accent/15 text-bridge-accent normal-case tracking-normal">
+              {tasks.length}
             </span>
-          )}
-        </div>
-      )}
-
-      {tasks.length > 0 && (
-        <div>
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-foreground transition-colors py-1"
-          >
-            태스크 {tasks.length}개
-            <ChevronDown
-              className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`}
-            />
-          </button>
-          {open && (
+          </div>
+          {tasks.length === 0 ? (
+            <p className="text-xs text-slate-500 py-1">태스크가 없습니다.</p>
+          ) : (
             <div className="flex flex-col">
               {tasks.map((task, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-2.5 py-1.5 text-sm border-t border-foreground/[0.06]"
+                  className="flex items-center gap-2.5 py-1.5 text-sm border-t border-foreground/[0.06] first:border-t-0"
                 >
                   <TaskMark status={task.status} />
                   <span
@@ -287,6 +358,146 @@ function FeatureCard({ feature }: { feature: AutoReportFeature }) {
               ))}
             </div>
           )}
+        </div>
+
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 flex flex-col gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-slate-400">
+            <GitCommit className="w-3.5 h-3.5" /> GitHub 커밋
+            <span className="ml-auto text-xs font-bold px-1.5 rounded-full bg-slate-500/15 text-slate-400 normal-case tracking-normal">
+              {commits.length}
+            </span>
+          </div>
+          <CommitList commits={commits} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type FeatureTabItem =
+  | { id: string; kind: "feature"; feature: AutoReportFeature }
+  | { id: string; kind: "category"; category: AutoReportCommitCategory };
+
+/* ── 기능별 진행 현황: 기능 탭 + 미매핑 커밋 카테고리 탭 ── */
+function FeatureProgressTabs({
+  features,
+  categories,
+}: {
+  features: AutoReportFeature[];
+  categories: AutoReportCommitCategory[];
+}) {
+  const items = useMemo<FeatureTabItem[]>(() => {
+    const fx: FeatureTabItem[] = features.map((f, i) => ({
+      id: `f${i}`,
+      kind: "feature",
+      feature: f,
+    }));
+    const cx: FeatureTabItem[] = categories
+      .filter((c) => (c.commits?.length ?? 0) > 0)
+      .map((c, i) => ({ id: `c${i}`, kind: "category", category: c }));
+    return [...fx, ...cx];
+  }, [features, categories]);
+
+  const [active, setActive] = useState<string>(items[0]?.id ?? "");
+  const activeItem = items.find((it) => it.id === active) ?? items[0];
+  if (!activeItem) return null;
+
+  const featureItems = items.filter((it) => it.kind === "feature");
+  const categoryItems = items.filter((it) => it.kind === "category");
+
+  const tabClass = (selected: boolean) =>
+    `flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+      selected
+        ? "bg-bridge-obsidian text-foreground shadow"
+        : "text-slate-400 hover:text-foreground"
+    }`;
+  const countClass = (selected: boolean, accent: boolean) =>
+    `text-xs font-bold px-1.5 rounded-full tabular-nums ${
+      selected
+        ? accent
+          ? "bg-bridge-accent/15 text-bridge-accent"
+          : "bg-slate-500/15 text-slate-400"
+        : "bg-foreground/[0.06] text-slate-500"
+    }`;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <h2 className="text-xs md:text-sm font-bold text-foreground">
+        기능별 진행 현황
+      </h2>
+
+      <div
+        role="tablist"
+        aria-label="기능 및 커밋 카테고리"
+        className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08]"
+      >
+        {featureItems.map((it) => {
+          if (it.kind !== "feature") return null;
+          const selected = it.id === activeItem.id;
+          const done = it.feature.status === "DONE";
+          return (
+            <button
+              key={it.id}
+              role="tab"
+              type="button"
+              aria-selected={selected}
+              onClick={() => setActive(it.id)}
+              className={tabClass(selected)}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${done ? "bg-emerald-500" : "bg-bridge-accent"}`}
+              />
+              {it.feature.name}
+              <span className={countClass(selected, true)}>
+                {it.feature.task_done}/{it.feature.task_total}
+              </span>
+            </button>
+          );
+        })}
+
+        {categoryItems.length > 0 && (
+          <span className="basis-full text-xs font-bold uppercase tracking-widest text-slate-600 px-1.5 pt-1.5 mt-1 border-t border-dashed border-foreground/[0.08]">
+            기타 커밋 · 기능 미매핑
+          </span>
+        )}
+
+        {categoryItems.map((it) => {
+          if (it.kind !== "category") return null;
+          const selected = it.id === activeItem.id;
+          return (
+            <button
+              key={it.id}
+              role="tab"
+              type="button"
+              aria-selected={selected}
+              onClick={() => setActive(it.id)}
+              className={tabClass(selected)}
+            >
+              {it.category.label}
+              <span className={countClass(selected, false)}>
+                {it.category.commits?.length ?? 0}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {activeItem.kind === "feature" ? (
+        <FeatureDetail feature={activeItem.feature} />
+      ) : (
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-bold text-foreground">
+              {activeItem.category.label}
+            </h3>
+            <span className="text-xs text-slate-500 ml-auto tabular-nums">
+              커밋 {activeItem.category.commits?.length ?? 0}건
+            </span>
+          </div>
+          <p className="text-xs text-slate-500">
+            어느 기능에도 연결되지 않은 커밋입니다.
+          </p>
+          <CommitList commits={activeItem.category.commits ?? []} />
         </div>
       )}
     </div>
@@ -494,18 +705,12 @@ export function AutoReportView({
             </div>
           )}
 
-          {/* 기능별 진행 현황 */}
+          {/* 기능별 진행 현황 (탭 + 보드·커밋 근거) */}
           {content?.features && content.features.length > 0 && (
-            <div className="flex flex-col gap-3">
-              <h2 className="text-xs md:text-sm font-bold text-foreground">
-                기능별 진행 현황
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
-                {content.features.map((feature, i) => (
-                  <FeatureCard key={`${feature.name}-${i}`} feature={feature} />
-                ))}
-              </div>
-            </div>
+            <FeatureProgressTabs
+              features={content.features}
+              categories={content.commit_categories ?? []}
+            />
           )}
 
           {/* 주요 변화 (기능 카드가 없을 때 폴백) */}

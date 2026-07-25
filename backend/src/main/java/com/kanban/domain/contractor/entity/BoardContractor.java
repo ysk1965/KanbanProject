@@ -45,6 +45,10 @@ public class BoardContractor {
     @Column(name = "color", length = 20)
     private String color;
 
+    /** 이 외주의 GitHub 로그인(계정 아이디). 리포트에서 commit.authorLogin 매칭에 사용. nullable. */
+    @Column(name = "github_login", length = 100)
+    private String githubLogin;
+
     @Column(name = "display_order")
     private Integer displayOrder;
 
@@ -81,6 +85,11 @@ public class BoardContractor {
     public void updateInfo(String name, String color) {
         if (name != null) this.name = name;
         if (color != null) this.color = color;
+        this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    public void updateGithubLogin(String githubLogin) {
+        this.githubLogin = githubLogin;
         this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 

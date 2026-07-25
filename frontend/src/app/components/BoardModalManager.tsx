@@ -260,6 +260,10 @@ interface BoardModalManagerProps {
   // 직군(JobRole)
   jobRoles?: JobRole[];
   onUpdateMemberJobRole?: (memberId: string, jobRoleId: string | null) => void;
+  onUpdateMemberGithubLogin?: (
+    memberId: string,
+    githubLogin: string | null,
+  ) => void;
   canManageJobRoles?: boolean;
   onJobRolesChanged?: (roles: JobRole[]) => void;
   // Subscription Modal
@@ -605,6 +609,7 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         onTransferOwnership={props.onTransferOwnership}
         jobRoles={props.jobRoles}
         onUpdateMemberJobRole={props.onUpdateMemberJobRole}
+        onUpdateMemberGithubLogin={props.onUpdateMemberGithubLogin}
         onOpenJobRoleManager={() => setIsJobRoleManagerOpen(true)}
         canManageJobRoles={props.canManageJobRoles}
       />

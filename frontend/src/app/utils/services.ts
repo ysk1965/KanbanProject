@@ -1176,6 +1176,14 @@ export const memberService = {
     return memberAPI.updateMemberJobRole(boardId, memberId, jobRoleId);
   },
 
+  updateMemberGithubLogin: async (
+    boardId: string,
+    memberId: string,
+    githubLogin: string | null,
+  ) => {
+    return memberAPI.updateMemberGithubLogin(boardId, memberId, githubLogin);
+  },
+
   reorderMembers: async (boardId: string, memberIds: string[]) => {
     return memberAPI.reorderMembers(boardId, memberIds);
   },
