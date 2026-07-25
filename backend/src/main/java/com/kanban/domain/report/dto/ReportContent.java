@@ -28,7 +28,7 @@ public class ReportContent {
     /** 지표 카드. 값은 수집 단계에서 계산한 숫자를 그대로 쓴다(AI가 지어내지 않게). */
     private List<Metric> metrics;
 
-    /** 슬랙에 나가는 3줄. 페이지에서는 "주요 변화"로 쓴다. */
+    /** 슬랙에 나가는 주요 항목(중요도 순, 최대 10개). 페이지에서는 "주요 변화"로 쓴다. */
     private List<String> highlights;
 
     /** 본문 섹션. 일일은 1~2개, 주간은 성과/진행 중/리스크/다음 주 계획 4개. */

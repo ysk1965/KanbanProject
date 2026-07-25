@@ -62,7 +62,7 @@ public class ReportAIService {
     private static final int MAX_TOKENS_TEAM = 4096;
     private static final int MAX_TOKENS_PERSONAL = 2048;
     private static final int MAX_TOKENS_STANDUP = 1024;
-    private static final int MAX_TOKENS_AUTO_DAILY = 2048;
+    private static final int MAX_TOKENS_AUTO_DAILY = 4096;
     private static final int MAX_TOKENS_AUTO_WEEKLY = 4096;
 
     public ReportAIService(AIProvider aiProvider, AiUsageLogRepository aiUsageLogRepository, AiCreditService aiCreditService) {
@@ -165,7 +165,7 @@ public class ReportAIService {
                 {
                   "headline": "한 줄 요약 (60자 이내)",
                   "lede": "2~3문장 리드 문단",
-                  "highlights": ["가장 중요한 것 3개", "...", "..."],
+                  "highlights": ["가장 중요한 것 (중요도 순, 최대 10개)", "...", "..."],
                   "sections": [
                     {"title": "섹션 제목", "body": "본문", "sources": ["GITHUB"]}
                   ],
@@ -196,7 +196,8 @@ public class ReportAIService {
                       당신이 쓴 문장이 섞이면 보고서를 신뢰할 수 없게 됩니다.
                     - 같은 파일을 반복 수정했거나 되돌린 흔적(예: 설정을 바꿨다가 되돌림)이 보이면 risks에 적으세요.
                     - 수집 실패한 소스가 있으면 risks 첫 줄에 그 사실을 적으세요.
-                    - highlights는 정확히 3개, 각 60자 이내로 쓰세요. 슬랙 메시지에 그대로 나갑니다.
+                    - highlights는 중요도 순으로 최대 10개까지 쓰세요. 그날 정리할 게 적으면 적게 쓰고 억지로 채우지 마세요.
+                      각 60자 이내로, 슬랙 메시지에 그대로 나갑니다.
                     </rules>
                     """.formatted(schema, sectionRule);
         }
@@ -218,7 +219,7 @@ public class ReportAIService {
                   makes the report untrustworthy.
                 - If you see repeated edits or a revert (e.g. a setting changed then rolled back), put it in risks.
                 - If a source failed to collect, say so in the first risks entry.
-                - highlights must be exactly 3 items, each under 60 characters. They go straight into Slack.
+                - highlights: up to 10 items ordered by importance. Write fewer when there's little to report; don't pad. Each under 60 characters. They go straight into Slack.
                 </rules>
                 """.formatted(schema, sectionRule);
     }
