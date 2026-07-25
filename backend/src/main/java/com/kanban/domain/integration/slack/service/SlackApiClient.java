@@ -90,6 +90,27 @@ public class SlackApiClient {
     }
 
     /**
+     * 채널 메시지 이력을 한 페이지 읽어온다 ({@code conversations.history}).
+     *
+     * <p>{@code oldest}/{@code latest}는 Slack ts(유닉스 초). 구간은 [oldest, latest)로,
+     * {@code inclusive=false}라 경계 메시지가 양쪽 보고서에 중복되지 않는다. 읽으려면 봇 토큰에
+     * {@code channels:history}(공개)/{@code groups:history}(비공개) 스코프가 있어야 하고,
+     * 봇이 그 채널에 초대돼 있어야 한다 — 없으면 Slack이 {@code missing_scope}/{@code not_in_channel}을 돌려준다.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> conversationsHistory(String botToken, String channelId,
+                                                    long oldestEpochSec, long latestEpochSec,
+                                                    String cursor, int limit) {
+        String url = SLACK_API_BASE + "/conversations.history?channel=" + channelId
+                + "&oldest=" + oldestEpochSec + "&latest=" + latestEpochSec
+                + "&inclusive=false&limit=" + limit;
+        if (cursor != null && !cursor.isBlank()) {
+            url += "&cursor=" + cursor;
+        }
+        return callSlackApiGet(botToken, url);
+    }
+
+    /**
      * Test authentication
      */
     @SuppressWarnings("unchecked")

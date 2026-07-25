@@ -152,6 +152,7 @@ public class ReportDispatchService {
             case GITHUB -> Boolean.TRUE.equals(config.getSourceGithubEnabled());
             case KANBAN -> Boolean.TRUE.equals(config.getSourceKanbanEnabled());
             case CONFLUENCE -> Boolean.TRUE.equals(config.getSourceConfluenceEnabled());
+            case SLACK -> Boolean.TRUE.equals(config.getSourceSlackEnabled());
         };
     }
 

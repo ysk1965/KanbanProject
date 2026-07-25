@@ -68,7 +68,8 @@ public class ReportConfigService {
         }
 
         config.updateSources(request.getSourceGithubEnabled(), request.getSourceKanbanEnabled(),
-                request.getSourceConfluenceEnabled());
+                request.getSourceConfluenceEnabled(), request.getSourceSlackEnabled());
+        config.updateSlackSource(request.getSourceSlackChannelId(), request.getSourceSlackChannelName());
         config.updateShareLink(request.getShareLinkEnabled());
 
         return ReportConfigDto.Detail.from(config);

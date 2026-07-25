@@ -9804,6 +9804,10 @@ export interface ReportConfig {
   source_github_enabled: boolean;
   source_kanban_enabled: boolean;
   source_confluence_enabled: boolean;
+  source_slack_enabled: boolean;
+  /** 봇이 대화를 읽어올 채널 (발송 채널과 별개) */
+  source_slack_channel_id: string | null;
+  source_slack_channel_name: string | null;
   share_link_enabled: boolean;
 }
 

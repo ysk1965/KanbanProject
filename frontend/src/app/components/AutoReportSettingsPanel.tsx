@@ -8,6 +8,7 @@ import {
   Github,
   Hash,
   Loader2,
+  MessageSquare,
   Play,
   RefreshCw,
   Send,
@@ -144,6 +145,10 @@ export function AutoReportSettingsPanel({
   const [channelQuery, setChannelQuery] = useState("");
   const [manualChannel, setManualChannel] = useState("");
   const [resolvingChannel, setResolvingChannel] = useState(false);
+
+  // 수집 채널(슬랙): 발송과 별개로, 봇이 대화를 "읽어올" 채널을 지정한다.
+  const [collectChannel, setCollectChannel] = useState("");
+  const [resolvingCollect, setResolvingCollect] = useState(false);
 
   const [rendered, setRendered] = useState<AutoReport | null>(null);
   const [renderOpen, setRenderOpen] = useState(false);
@@ -314,6 +319,35 @@ export function AutoReportSettingsPanel({
     }
   };
 
+  /** 수집 대상 슬랙 채널 지정. 발송 채널과 같은 방식(ID·링크 → conversations.info 검증)이되 별도 필드에 저장. */
+  const applyCollectChannel = async () => {
+    const raw = collectChannel.trim();
+    const m =
+      raw.match(/\/archives\/(C[A-Z0-9]+)/i) || raw.match(/^(C[A-Z0-9]{6,})$/i);
+    const channelId = m ? m[1].toUpperCase() : null;
+    if (!channelId) {
+      setError("채널 ID(C로 시작) 또는 슬랙 채널 링크를 입력하세요.");
+      return;
+    }
+    setResolvingCollect(true);
+    setError(null);
+    try {
+      const ch = await slackAppAPI.getChannelInfo(boardId, channelId);
+      setCollectChannel("");
+      await patchConfig({
+        source_slack_channel_id: ch.id,
+        source_slack_channel_name: ch.name,
+      });
+    } catch (e) {
+      setError(
+        (e as { message?: string })?.message ??
+          "채널을 찾을 수 없거나 봇이 접근할 수 없습니다. 채널에 MILKYWAY를 초대했는지 확인하세요.",
+      );
+    } finally {
+      setResolvingCollect(false);
+    }
+  };
+
   const githubState: CardState = !github?.connected
     ? "not_connected"
     : github.status === "DISCONNECTED"
@@ -329,6 +363,12 @@ export function AutoReportSettingsPanel({
       : !confluence.cloud_id || confluence.spaces.length === 0
         ? "target_not_selected"
         : "connected";
+
+  const slackCollectState: CardState = !slackApp
+    ? "not_connected"
+    : !config?.source_slack_channel_id
+      ? "target_not_selected"
+      : "connected";
 
   const handleGithubConnect = async () => {
     try {
@@ -892,6 +932,101 @@ export function AutoReportSettingsPanel({
               </div>
             ))}
           </div>
+        )}
+      </SourceCard>
+
+      {/* ── 슬랙 채널 수집 ─────────────────────── */}
+      <SourceCard
+        icon={<MessageSquare className="w-4 h-4" />}
+        title="슬랙 채널"
+        state={slackCollectState}
+        description={
+          config?.source_slack_channel_id
+            ? `#${config.source_slack_channel_name ?? config.source_slack_channel_id} 의 대화를 읽어옵니다.`
+            : "특정 채널의 논의·결정을 근거로 읽어옵니다. 발송 채널과 별개로 지정합니다."
+        }
+      >
+        {!slackApp ? (
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            슬랙 앱이 이 보드에 연결되어 있지 않습니다. 먼저 슬랙을 연결하세요.
+          </p>
+        ) : (
+          <>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config?.source_slack_enabled ?? false}
+                disabled={!canManage}
+                onChange={(e) =>
+                  void patchConfig({ source_slack_enabled: e.target.checked })
+                }
+                className="accent-bridge-accent"
+              />
+              <span className="text-xs text-foreground">
+                이 채널을 보고서 근거로 수집
+              </span>
+            </label>
+
+            {config?.source_slack_channel_id && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-foreground/[0.03] border border-foreground/10">
+                  <Hash className="w-3.5 h-3.5 text-bridge-accent" />
+                  <span className="text-xs font-bold text-foreground">
+                    {config.source_slack_channel_name ??
+                      config.source_slack_channel_id}
+                  </span>
+                </div>
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void patchConfig({
+                        source_slack_channel_id: "",
+                        source_slack_channel_name: "",
+                      })
+                    }
+                    className="text-xs text-slate-500 hover:text-foreground"
+                  >
+                    지정 해제
+                  </button>
+                )}
+              </div>
+            )}
+
+            {canManage && (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={collectChannel}
+                    onChange={(e) => setCollectChannel(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void applyCollectChannel();
+                    }}
+                    placeholder="수집할 채널 ID·링크 (C09… 또는 …/archives/C09…)"
+                    className="flex-1 min-w-0 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-1.5 px-3 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void applyCollectChannel()}
+                    disabled={resolvingCollect || !collectChannel.trim()}
+                    className="shrink-0 text-xs font-bold text-bridge-accent hover:underline disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {resolvingCollect ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      "지정"
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-slate-600">
+                  봇이 채널 대화를 <b>읽으려면</b> 슬랙 앱을 다시 승인해
+                  히스토리 권한을 켜고(최초 1회), 그 채널에 MILKYWAY를 초대해야
+                  합니다.
+                </p>
+              </div>
+            )}
+          </>
         )}
       </SourceCard>
 

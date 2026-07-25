@@ -269,6 +269,9 @@ public class ReportComposer {
         if (reportType == ReportType.WEEKLY_INTEGRATED) {
             addMetric(metrics, "지연", kanban.get("overdue_tasks"), null);
         }
+
+        Map<String, Object> slack = byKind.getOrDefault(SourceKind.SLACK, Map.of());
+        addMetric(metrics, "슬랙 메시지", slack.get("messages"), null);
         return metrics;
     }
 
