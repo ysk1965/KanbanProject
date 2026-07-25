@@ -2,8 +2,8 @@ package com.kanban.domain.integration.slack.service;
 
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
@@ -15,13 +15,20 @@ import java.util.Map;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class SlackApiClient {
 
     private static final String SLACK_API_BASE = "https://slack.com/api";
     private static final int MAX_RETRIES = 3;
 
     private final RestTemplate restTemplate;
+    /** 대용량 파일 다운로드 전용(넉넉한 read timeout). 기본 restTemplate은 빠른 API 호출용. */
+    private final RestTemplate fileDownloadRestTemplate;
+
+    public SlackApiClient(RestTemplate restTemplate,
+                          @Qualifier("fileDownloadRestTemplate") RestTemplate fileDownloadRestTemplate) {
+        this.restTemplate = restTemplate;
+        this.fileDownloadRestTemplate = fileDownloadRestTemplate;
+    }
 
     /**
      * Exchange OAuth code for bot token
@@ -133,7 +140,7 @@ public class SlackApiClient {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(botToken);
         HttpEntity<Void> request = new HttpEntity<>(headers);
-        ResponseEntity<byte[]> response = restTemplate.exchange(urlPrivate, HttpMethod.GET, request, byte[].class);
+        ResponseEntity<byte[]> response = fileDownloadRestTemplate.exchange(urlPrivate, HttpMethod.GET, request, byte[].class);
         if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
             throw new BusinessException(ErrorCode.SLACK_API_ERROR);
         }

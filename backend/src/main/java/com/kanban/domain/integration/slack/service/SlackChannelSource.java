@@ -8,6 +8,8 @@ import com.kanban.domain.report.source.ReportSource;
 import com.kanban.domain.report.source.SourceChunk;
 import com.kanban.domain.report.source.SourceKind;
 import com.kanban.global.service.FileUploadService;
+import com.kanban.global.service.VideoCompressionService;
+import com.kanban.global.util.MediaUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -39,9 +41,9 @@ public class SlackChannelSource implements ReportSource {
     /** 답글을 펼칠 스레드 수 상한 (API 폭주 방지) */
     private static final int MAX_THREADS = 12;
     private static final int MAX_REPLIES_PER_THREAD = 20;
-    /** 보고서당 옮길 이미지/영상 상한과 파일 크기 상한 */
-    private static final int MAX_FILES = 8;
-    private static final long MAX_FILE_BYTES = 15L * 1024 * 1024;
+    /** 보고서당 옮길 이미지/영상 개수 상한(사실상 무제한)과 파일당 크기 상한 */
+    private static final int MAX_FILES = Integer.MAX_VALUE;
+    private static final long MAX_FILE_BYTES = 300L * 1024 * 1024;
 
     private static final DateTimeFormatter AT = DateTimeFormatter.ofPattern("MM-dd HH:mm");
 
@@ -49,6 +51,7 @@ public class SlackChannelSource implements ReportSource {
     private final SlackApiClient apiClient;
     private final ReportMemberDirectory memberDirectory;
     private final FileUploadService fileUploadService;
+    private final VideoCompressionService videoCompressionService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -391,8 +394,28 @@ public class SlackChannelSource implements ReportSource {
             }
             try {
                 SlackApiClient.FileContent content = apiClient.downloadFile(plan.botToken(), urlPrivate);
-                String key = storageKey(plan.channelId(), str(file.get("id")), mimetype);
-                String url = fileUploadService.uploadDirect(content.bytes(), key, content.contentType());
+                byte[] bytes = content.bytes();
+                String storeMime = mimetype;                        // S3 키 확장자 기준
+                String uploadContentType = content.contentType();   // 업로드 컨텐츠 타입
+                if ("image".equals(type)) {
+                    // 이미지 압축: 최대 1600px, JPEG 품질 0.8 (투명 PNG·GIF·WebP는 원본 유지)
+                    MediaUtils.ProcessedImage processed = MediaUtils.compressImage(bytes, mimetype, 1600, 0.8);
+                    if (processed.changed()) {
+                        bytes = processed.bytes();
+                        storeMime = processed.contentType();
+                        uploadContentType = processed.contentType();
+                    }
+                } else if ("video".equals(type)) {
+                    // 영상 압축(best-effort): FFmpeg로 720p/H.264 재인코딩. 미설치·실패 시 원본 유지.
+                    byte[] compressed = videoCompressionService.compress(bytes, ext(mimetype));
+                    if (compressed != null) {
+                        bytes = compressed;
+                        storeMime = "video/mp4";
+                        uploadContentType = "video/mp4";
+                    }
+                }
+                String key = storageKey(plan.channelId(), str(file.get("id")), storeMime);
+                String url = fileUploadService.uploadDirect(bytes, key, uploadContentType);
                 Map<String, Object> item = new LinkedHashMap<>();
                 String title = str(file.get("title"));
                 item.put("title", title != null ? title : str(file.get("name")));
@@ -419,6 +442,18 @@ public class SlackChannelSource implements ReportSource {
             return "video";
         }
         return null;
+    }
+
+    /** 영상 mimetype → FFmpeg 입력 임시파일 확장자(디먹서 힌트). */
+    private String ext(String mimetype) {
+        if (mimetype == null) {
+            return ".mp4";
+        }
+        return switch (mimetype) {
+            case "video/quicktime" -> ".mov";
+            case "video/webm" -> ".webm";
+            default -> ".mp4";
+        };
     }
 
     /** 재실행 시 같은 파일은 같은 키로 덮어쓴다 — 매번 새 사본이 쌓이지 않게. */
