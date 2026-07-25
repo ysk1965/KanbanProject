@@ -38,6 +38,10 @@ interface AutoReportSettingsPanelProps {
   boardId: string;
   /** 관리자만 연결·설정을 바꿀 수 있다 */
   canManage: boolean;
+  /** 스토리지 보고서 탭 드로어에서는 인트로 문구를 헤더가 대신하므로 숨긴다 */
+  hideIntro?: boolean;
+  /** 스토리지 보고서 탭에서는 갤러리가 지난 보고서를 대신하므로 숨긴다 */
+  hideHistory?: boolean;
 }
 
 const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -108,6 +112,8 @@ function SourceCard({
 export function AutoReportSettingsPanel({
   boardId,
   canManage,
+  hideIntro = false,
+  hideHistory = false,
 }: AutoReportSettingsPanelProps) {
   const [config, setConfig] = useState<ReportConfig | null>(null);
   const [github, setGithub] = useState<GithubStatus | null>(null);
@@ -472,8 +478,17 @@ export function AutoReportSettingsPanel({
     setNotice(null);
     setError(null);
     try {
-      const { report_id } = await autoReportAPI.dispatchNow(boardId, type);
-      setNotice(`보고서를 발송했습니다. (${report_id.slice(0, 8)})`);
+      const { status, report_id, message } = await autoReportAPI.dispatchNow(
+        boardId,
+        type,
+      );
+      if (status === "SKIPPED") {
+        setNotice(message ?? "기간 내 활동이 없어 이번 발송은 건너뛰었습니다.");
+      } else if (report_id) {
+        setNotice(`보고서를 발송했습니다. (${report_id.slice(0, 8)})`);
+      } else {
+        setNotice(message ?? "보고서를 발송했습니다.");
+      }
     } catch (e) {
       setError((e as { message?: string })?.message ?? "발송에 실패했습니다.");
     } finally {
@@ -491,11 +506,13 @@ export function AutoReportSettingsPanel({
 
   return (
     <div className="flex flex-col gap-4 py-2">
-      <p className="text-xs text-slate-400 leading-relaxed">
-        매일 아침 전날 커밋으로 일일보고서를, 주말에 칸반·커밋·Confluence를 합쳐
-        주간보고서를 만들어 슬랙에 올립니다. 본문은 웹 페이지로 발행되고
-        슬랙에는 요약만 나갑니다.
-      </p>
+      {!hideIntro && (
+        <p className="text-xs text-slate-400 leading-relaxed">
+          매일 아침 전날 커밋으로 일일보고서를, 주말에 칸반·커밋·Confluence를
+          합쳐 주간보고서를 만들어 슬랙에 올립니다. 본문은 웹 페이지로 발행되고
+          슬랙에는 요약만 나갑니다.
+        </p>
+      )}
 
       {error && (
         <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20">
@@ -1082,52 +1099,56 @@ export function AutoReportSettingsPanel({
       )}
 
       {/* ── 지난 보고서 ────────────────────────── */}
-      <div className="rounded-2xl border border-foreground/[0.08] overflow-hidden">
-        <div className="px-3 md:px-5 py-2 md:py-3 bg-foreground/[0.06] border-b border-foreground/[0.06] flex items-center gap-2">
-          <span className="text-xs md:text-sm font-bold text-foreground flex-1">
-            지난 보고서
-          </span>
-          <button
-            onClick={loadHistory}
-            className="text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg p-1 transition-colors"
-            aria-label="이력 새로고침"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
-        </div>
-        <div className="bg-bridge-dark p-3 md:p-5 flex flex-col gap-1">
-          {history === null ? (
-            <span className="text-xs text-slate-500">
-              새로고침을 눌러 이력을 불러옵니다.
+      {!hideHistory && (
+        <div className="rounded-2xl border border-foreground/[0.08] overflow-hidden">
+          <div className="px-3 md:px-5 py-2 md:py-3 bg-foreground/[0.06] border-b border-foreground/[0.06] flex items-center gap-2">
+            <span className="text-xs md:text-sm font-bold text-foreground flex-1">
+              지난 보고서
             </span>
-          ) : history.length === 0 ? (
-            <span className="text-xs text-slate-500">
-              아직 생성된 보고서가 없습니다.
-            </span>
-          ) : (
-            history.map((report) => (
-              <a
-                key={report.id}
-                href={`/boards/${boardId}/reports/${report.id}`}
-                className="flex items-center gap-2 py-1.5 text-xs hover:bg-foreground/5 rounded-lg px-2 -mx-2 transition-colors"
-              >
-                <span className="text-bridge-accent font-medium">
-                  {report.report_type === "WEEKLY_INTEGRATED" ? "주간" : "일일"}
-                </span>
-                <span className="text-foreground flex-1 truncate">
-                  {report.period_start} ~ {report.period_end}
-                </span>
-                {report.source_status?.some((s) => !s.success) && (
-                  <span className="text-amber-600 dark:text-amber-400">
-                    일부 실패
+            <button
+              onClick={loadHistory}
+              className="text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg p-1 transition-colors"
+              aria-label="이력 새로고침"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="bg-bridge-dark p-3 md:p-5 flex flex-col gap-1">
+            {history === null ? (
+              <span className="text-xs text-slate-500">
+                새로고침을 눌러 이력을 불러옵니다.
+              </span>
+            ) : history.length === 0 ? (
+              <span className="text-xs text-slate-500">
+                아직 생성된 보고서가 없습니다.
+              </span>
+            ) : (
+              history.map((report) => (
+                <a
+                  key={report.id}
+                  href={`/boards/${boardId}/reports/${report.id}`}
+                  className="flex items-center gap-2 py-1.5 text-xs hover:bg-foreground/5 rounded-lg px-2 -mx-2 transition-colors"
+                >
+                  <span className="text-bridge-accent font-medium">
+                    {report.report_type === "WEEKLY_INTEGRATED"
+                      ? "주간"
+                      : "일일"}
                   </span>
-                )}
-                <ExternalLink className="w-3 h-3 text-slate-600" />
-              </a>
-            ))
-          )}
+                  <span className="text-foreground flex-1 truncate">
+                    {report.period_start} ~ {report.period_end}
+                  </span>
+                  {report.source_status?.some((s) => !s.success) && (
+                    <span className="text-amber-600 dark:text-amber-400">
+                      일부 실패
+                    </span>
+                  )}
+                  <ExternalLink className="w-3 h-3 text-slate-600" />
+                </a>
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── 렌더링 미리보기 모달 ──────────────────── */}
       <MotionModal

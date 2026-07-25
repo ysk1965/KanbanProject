@@ -5,6 +5,7 @@ import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.report.BoardReportConfig;
 import com.kanban.domain.report.BoardReportConfigRepository;
+import com.kanban.domain.report.ReportDeliveryStatus;
 import com.kanban.domain.report.ReportType;
 import com.kanban.domain.report.dto.AutoReportResponse;
 import com.kanban.domain.report.dto.ReportConfigDto;
@@ -75,9 +76,13 @@ public class ReportConfigService {
 
     /**
      * 스케줄과 무관하게 지금 한 번 보낸다. 설정을 마친 뒤 "정말 이렇게 나가는지" 확인하는 용도.
+     *
+     * <p>"기간 내 활동 없음"({@link ReportDeliveryStatus#SKIPPED})은 <b>정상 결과</b>다 —
+     * 예외로 올리면 프론트가 서버 장애로 오인한다. 그대로 돌려주고, 발송본이 하나도
+     * 남지 않은 진짜 실패({@code reportId == null})만 예외로 처리한다.
      */
     @Transactional
-    public String dispatchNow(String boardId, String userId, ReportType reportType) {
+    public ReportDispatchService.DispatchResult dispatchNow(String boardId, String userId, ReportType reportType) {
         boardService.checkAdminOrAbove(boardId, userId);
         BoardReportConfig config = getOrCreate(boardId);
         Board board = config.getBoard();
@@ -86,11 +91,14 @@ public class ReportConfigService {
         ReportDispatchService.DispatchResult result =
                 dispatchService.dispatch(board, config, reportType, sendAt);
 
+        if (result.status() == ReportDeliveryStatus.SKIPPED) {
+            return result;
+        }
         if (result.reportId() == null) {
             throw new BusinessException(ErrorCode.AI_REPORT_GENERATION_FAILED,
                     result.message() != null ? result.message() : "보고서를 만들지 못했습니다");
         }
-        return result.reportId();
+        return result;
     }
 
     /**

@@ -5,6 +5,7 @@ import com.kanban.domain.report.dto.AutoReportResponse;
 import com.kanban.domain.report.dto.ReportConfigDto;
 import com.kanban.domain.report.dto.ReportPreviewResponse;
 import com.kanban.domain.report.service.ReportConfigService;
+import com.kanban.domain.report.service.ReportDispatchService;
 import com.kanban.domain.report.service.ReportSourcePreviewService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
@@ -14,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -51,8 +53,13 @@ public class ReportPreviewController {
             @PathVariable String boardId,
             @RequestParam(value = "type", defaultValue = "DAILY_DEV") String type,
             @AuthenticationPrincipal UserPrincipal principal) {
-        String reportId = configService.dispatchNow(boardId, principal.getUserId(), parseType(type));
-        return ResponseEntity.ok(Map.of("report_id", reportId));
+        ReportDispatchService.DispatchResult result =
+                configService.dispatchNow(boardId, principal.getUserId(), parseType(type));
+        Map<String, String> body = new HashMap<>();
+        body.put("status", result.status().name());
+        body.put("report_id", result.reportId());
+        body.put("message", result.message());
+        return ResponseEntity.ok(body);
     }
 
     /**
