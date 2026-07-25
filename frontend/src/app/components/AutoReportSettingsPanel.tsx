@@ -134,6 +134,8 @@ export function AutoReportSettingsPanel({
   const [loadingChannels, setLoadingChannels] = useState(false);
   const [showChannelPicker, setShowChannelPicker] = useState(false);
   const [channelQuery, setChannelQuery] = useState("");
+  const [manualChannel, setManualChannel] = useState("");
+  const [resolvingChannel, setResolvingChannel] = useState(false);
 
   const [rendered, setRendered] = useState<AutoReport | null>(null);
   const [renderOpen, setRenderOpen] = useState(false);
@@ -270,6 +272,38 @@ export function AutoReportSettingsPanel({
       slack_channel_id: ch ? ch.id : "",
       slack_channel_name: ch ? ch.name : "",
     });
+  };
+
+  /**
+   * 채널 ID·링크 직접 지정. 워크스페이스 채널이 많아 목록/검색에 안 잡히는 채널을
+   * ID(C…)나 슬랙 링크(.../archives/C…)로 붙여넣어 conversations.info로 검증 후 저장.
+   */
+  const applyManualChannel = async () => {
+    const raw = manualChannel.trim();
+    const m =
+      raw.match(/\/archives\/(C[A-Z0-9]+)/i) || raw.match(/^(C[A-Z0-9]{6,})$/i);
+    const channelId = m ? m[1].toUpperCase() : null;
+    if (!channelId) {
+      setError("채널 ID(C로 시작) 또는 슬랙 채널 링크를 입력하세요.");
+      return;
+    }
+    setResolvingChannel(true);
+    setError(null);
+    try {
+      const ch = await slackAppAPI.getChannelInfo(boardId, channelId);
+      setManualChannel("");
+      await patchConfig({
+        slack_channel_id: ch.id,
+        slack_channel_name: ch.name,
+      });
+    } catch (e) {
+      setError(
+        (e as { message?: string })?.message ??
+          "채널을 찾을 수 없거나 봇이 접근할 수 없습니다. 채널에 MILKYWAY를 초대했는지 확인하세요.",
+      );
+    } finally {
+      setResolvingChannel(false);
+    }
   };
 
   const githubState: CardState = !github?.connected
@@ -843,6 +877,40 @@ export function AutoReportSettingsPanel({
                       채널이 없습니다. 봇을 채널에 초대했는지 확인하세요.
                     </p>
                   ))}
+
+                {canManage && (
+                  <div className="flex flex-col gap-1.5 pt-1 border-t border-foreground/[0.06] mt-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={manualChannel}
+                        onChange={(e) => setManualChannel(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void applyManualChannel();
+                        }}
+                        placeholder="목록에 없으면 채널 ID·링크 직접 입력 (C09… 또는 …/archives/C09…)"
+                        className="flex-1 min-w-0 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-1.5 px-3 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void applyManualChannel()}
+                        disabled={resolvingChannel || !manualChannel.trim()}
+                        className="shrink-0 text-xs font-bold text-bridge-accent hover:underline disabled:opacity-50 flex items-center gap-1"
+                      >
+                        {resolvingChannel ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          "지정"
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-600">
+                      채널이 아주 많은 워크스페이스라 목록엔 일부만 보입니다. 안
+                      보이면 슬랙에서 채널 열기 → 채널명 클릭 → 하단 채널 ID
+                      복사(또는 링크 붙여넣기).
+                    </p>
+                  </div>
+                )}
               </>
             ) : (
               <p className="text-xs text-amber-600 dark:text-amber-400">

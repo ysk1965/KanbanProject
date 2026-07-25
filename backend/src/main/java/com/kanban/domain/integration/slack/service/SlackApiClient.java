@@ -81,6 +81,15 @@ public class SlackApiClient {
     }
 
     /**
+     * Get a single conversation's info by channel ID. 목록에 없는(=워크스페이스가 커서
+     * conversations.list 앞부분에 안 잡히는) 채널을 ID로 직접 조회·검증할 때 쓴다.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getConversationInfo(String botToken, String channelId) {
+        return callSlackApiGet(botToken, SLACK_API_BASE + "/conversations.info?channel=" + channelId);
+    }
+
+    /**
      * Test authentication
      */
     @SuppressWarnings("unchecked")

@@ -5719,6 +5719,13 @@ export const slackAppAPI = {
     );
   },
 
+  // 목록에 없는 채널(대형 워크스페이스)을 ID로 직접 조회·검증
+  getChannelInfo: async (boardId: string, channelId: string) => {
+    return apiClient.get<SlackChannel>(
+      `/slack/app/channel-info?board_id=${boardId}&channel_id=${channelId}`,
+    );
+  },
+
   setDefaultChannel: async (
     installationId: string,
     channelId: string,
