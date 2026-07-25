@@ -43,7 +43,7 @@ public class BoardConfluenceSource extends BaseTimeEntity {
     private String spaceName;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "match_rule", nullable = false, length = 20)
+    @Column(name = "match_rule", nullable = false, length = 40)
     private ConfluenceMatchRule matchRule = ConfluenceMatchRule.LABEL;
 
     /** LABEL 규칙일 때의 라벨명 (예: weekly-report) */
