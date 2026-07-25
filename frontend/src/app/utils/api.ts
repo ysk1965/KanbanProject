@@ -9670,6 +9670,32 @@ export interface AutoReportSection {
   sources: string[] | null;
 }
 
+export interface AutoReportSprint {
+  name: string;
+  status: string; // "IN_PROGRESS"
+  done: number;
+  total: number;
+  in_progress: number;
+  delayed: number;
+  percentage: number;
+}
+
+export interface AutoReportFeatureTask {
+  title: string;
+  status: string; // "DONE" | "IN_PROGRESS" | "TODO"
+}
+
+export interface AutoReportFeature {
+  name: string;
+  status: string; // "DONE" | "IN_PROGRESS"
+  description: string | null;
+  task_done: number;
+  task_total: number;
+  assignees: string[] | null;
+  last_activity: string | null;
+  tasks: AutoReportFeatureTask[] | null;
+}
+
 export interface AutoReportContent {
   headline: string | null;
   lede: string | null;
@@ -9677,6 +9703,8 @@ export interface AutoReportContent {
   highlights: string[] | null;
   sections: AutoReportSection[] | null;
   risks: string[] | null;
+  sprint?: AutoReportSprint | null;
+  features?: AutoReportFeature[] | null;
 }
 
 export interface AutoReportSourceStatus {
