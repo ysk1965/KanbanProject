@@ -618,13 +618,23 @@ export function AutoReportSettingsPanel({
                 GitHub App 설치
               </button>
             ) : (
-              <button
-                onClick={handleLoadRepos}
-                className="px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl text-xs font-medium hover:bg-foreground/10 transition-all inline-flex items-center gap-1.5"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                저장소 목록
-              </button>
+              <>
+                <button
+                  onClick={handleLoadRepos}
+                  className="px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl text-xs font-medium hover:bg-foreground/10 transition-all inline-flex items-center gap-1.5"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  저장소 목록
+                </button>
+                <button
+                  onClick={handleGithubConnect}
+                  title="GitHub에서 설치의 저장소 접근 권한을 추가·변경합니다"
+                  className="px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl text-xs font-medium hover:bg-foreground/10 transition-all inline-flex items-center gap-1.5"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  저장소 추가
+                </button>
+              </>
             )}
           </div>
         )}
@@ -632,8 +642,8 @@ export function AutoReportSettingsPanel({
           <div className="flex flex-col gap-1 max-h-56 overflow-y-auto custom-scrollbar">
             {repos.length === 0 && (
               <span className="text-xs text-slate-500">
-                설치에 포함된 저장소가 없습니다. GitHub에서 저장소 접근 권한을
-                확인해주세요.
+                설치에 포함된 저장소가 없습니다. 위 "저장소 추가"로 GitHub에서
+                저장소 접근 권한을 추가해주세요.
               </span>
             )}
             {repos.map((repo) => {
