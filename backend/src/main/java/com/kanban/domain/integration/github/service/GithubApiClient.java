@@ -28,6 +28,9 @@ public class GithubApiClient {
 
     private static final int PAGE_SIZE = 100;
 
+    /** 커밋당 AI 매칭에 넘길 파일 경로 상한. 너무 많으면 토큰만 먹고 신호는 앞쪽 몇 개면 충분하다. */
+    private static final int MAX_FILES_PER_COMMIT = 12;
+
     private final GithubAppProperties properties;
     private final GithubAppTokenService tokenService;
     private final RestTemplate restTemplate;
@@ -157,10 +160,25 @@ public class GithubApiClient {
         try {
             JsonNode body = get(url, token);
             JsonNode stats = body.path("stats");
+            JsonNode filesNode = body.path("files");
+            int changedFiles = filesNode.isArray() ? filesNode.size() : 0;
+            List<String> files = new ArrayList<>();
+            if (filesNode.isArray()) {
+                for (JsonNode f : filesNode) {
+                    String name = f.path("filename").asText(null);
+                    if (name != null && !name.isBlank()) {
+                        files.add(name);
+                    }
+                    if (files.size() >= MAX_FILES_PER_COMMIT) {
+                        break;
+                    }
+                }
+            }
             return commit.withStats(
-                    body.path("files").isArray() ? body.path("files").size() : 0,
+                    changedFiles,
                     stats.path("additions").asInt(0),
-                    stats.path("deletions").asInt(0));
+                    stats.path("deletions").asInt(0),
+                    files);
         } catch (BusinessException e) {
             // 상세 조회 실패는 보고서를 막을 만한 일이 아니다 — 지표만 비워 둔다.
             log.debug("커밋 상세 조회 실패 {} {}: {}", commit.repoFullName(), commit.sha(), e.getMessage());
@@ -190,7 +208,8 @@ public class GithubApiClient {
                 dateText != null ? OffsetDateTime.parse(dateText) : null,
                 node.path("html_url").asText(null),
                 merge,
-                0, 0, 0
+                0, 0, 0,
+                List.of()
         );
     }
 

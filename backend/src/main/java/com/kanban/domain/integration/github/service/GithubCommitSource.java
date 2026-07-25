@@ -269,6 +269,9 @@ public class GithubCommitSource implements ReportSource {
             if (c.changedFiles() > 0) {
                 item.put("changed_files", c.changedFiles());
             }
+            if (!c.filesOrEmpty().isEmpty()) {
+                item.put("files", c.filesOrEmpty());
+            }
             item.put("url", c.htmlUrl());
             byRepo.computeIfAbsent(c.repoFullName(), k -> new ArrayList<>()).add(item);
         }

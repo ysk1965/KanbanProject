@@ -7,6 +7,7 @@ import com.kanban.domain.report.source.ReportPeriod;
 import com.kanban.domain.report.source.ReportSource;
 import com.kanban.domain.report.source.SourceChunk;
 import com.kanban.domain.report.source.SourceKind;
+import com.kanban.domain.storage.service.StorageService;
 import com.kanban.global.service.FileUploadService;
 import com.kanban.global.service.VideoCompressionService;
 import com.kanban.global.util.MediaUtils;
@@ -52,6 +53,7 @@ public class SlackChannelSource implements ReportSource {
     private final ReportMemberDirectory memberDirectory;
     private final FileUploadService fileUploadService;
     private final VideoCompressionService videoCompressionService;
+    private final StorageService storageService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -169,7 +171,7 @@ public class SlackChannelSource implements ReportSource {
         Set<String> participants = new HashSet<>();
 
         for (Map<String, Object> raw : rawMessages) {
-            Map<String, Object> item = toItem(raw, zone, nameMap, plan, fileBudget);
+            Map<String, Object> item = toItem(raw, zone, nameMap, plan, fileBudget, boardId);
             if (item == null) {
                 continue;
             }
@@ -181,7 +183,7 @@ public class SlackChannelSource implements ReportSource {
             if (replies != null && !replies.isEmpty()) {
                 List<Map<String, Object>> replyItems = new ArrayList<>();
                 for (Map<String, Object> reply : replies) {
-                    Map<String, Object> replyItem = toItem(reply, zone, nameMap, plan, fileBudget);
+                    Map<String, Object> replyItem = toItem(reply, zone, nameMap, plan, fileBudget, boardId);
                     if (replyItem != null) {
                         replyItems.add(replyItem);
                     }
@@ -297,7 +299,7 @@ public class SlackChannelSource implements ReportSource {
     }
 
     private Map<String, Object> toItem(Map<String, Object> msg, ZoneId zone, Map<String, String> nameMap,
-                                       SlackReportTargetResolver.CollectionPlan plan, int[] fileBudget) {
+                                       SlackReportTargetResolver.CollectionPlan plan, int[] fileBudget, String boardId) {
         Object user = msg.get("user");
         if (user == null) {
             return null;
@@ -321,7 +323,7 @@ public class SlackChannelSource implements ReportSource {
             item.put("reactions", reactions);
         }
 
-        List<Map<String, Object>> files = extractFiles(msg, plan, fileBudget);
+        List<Map<String, Object>> files = extractFiles(msg, plan, fileBudget, boardId);
         if (!files.isEmpty()) {
             item.put("files", files);
         }
@@ -365,7 +367,8 @@ public class SlackChannelSource implements ReportSource {
      */
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> extractFiles(Map<String, Object> msg,
-                                                   SlackReportTargetResolver.CollectionPlan plan, int[] fileBudget) {
+                                                   SlackReportTargetResolver.CollectionPlan plan, int[] fileBudget,
+                                                   String boardId) {
         Object raw = msg.get("files");
         if (!(raw instanceof List<?> list) || list.isEmpty()) {
             return List.of();
@@ -418,11 +421,19 @@ public class SlackChannelSource implements ReportSource {
                 String url = fileUploadService.uploadDirect(bytes, key, uploadContentType);
                 Map<String, Object> item = new LinkedHashMap<>();
                 String title = str(file.get("title"));
-                item.put("title", title != null ? title : str(file.get("name")));
+                String displayName = title != null ? title : str(file.get("name"));
+                item.put("title", displayName);
                 item.put("type", type);
                 item.put("url", url);
                 results.add(item);
                 fileBudget[0]--;
+
+                // 보드 스토리지("전체 파일")에도 노출 — 관리·용량 파악용. best-effort(실패해도 수집 계속).
+                try {
+                    storageService.registerReportFile(boardId, key, displayName, uploadContentType, bytes.length);
+                } catch (Exception e) {
+                    log.debug("보고서 파일 스토리지 등록 실패 key={}: {}", key, e.getMessage());
+                }
             } catch (Exception e) {
                 log.debug("슬랙 파일 이관 실패 file={}: {}", file.get("id"), e.getMessage());
             }

@@ -693,35 +693,56 @@ function CommitList({ commits }: { commits: AutoReportFeatureCommit[] }) {
 }
 
 /* ── 근거 그룹 헤더 (연결된 태스크 / 커밋 / 문서 공통) ── */
-function EvidenceHeader({
+/* ── 근거 섹션: 헤더 클릭으로 섹션 전체를 접고 펼치는 드롭다운 (기본 펼침) ── */
+function EvidenceSection({
   icon,
   label,
   count,
   countClass,
   isNew,
+  defaultOpen = true,
+  children,
 }: {
   icon: React.ReactNode;
   label: string;
   count: number;
   countClass: string;
   isNew?: boolean;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="flex items-center gap-1.5 px-4 py-3 bg-foreground/[0.03] border-b border-foreground/[0.06]">
-      {icon}
-      <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-        {label}
-      </span>
-      {isNew && (
-        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
-          신규
-        </span>
-      )}
-      <span
-        className={`ml-auto text-xs font-bold px-1.5 rounded-full tabular-nums ${countClass}`}
+    <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className={`w-full flex items-center gap-1.5 px-4 py-3 bg-foreground/[0.03] text-left transition-colors hover:bg-foreground/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-accent/50 ${
+          open ? "border-b border-foreground/[0.06]" : ""
+        }`}
       >
-        {count}
-      </span>
+        {icon}
+        <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+          {label}
+        </span>
+        {isNew && (
+          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+            신규
+          </span>
+        )}
+        <span
+          className={`ml-auto text-xs font-bold px-1.5 rounded-full tabular-nums ${countClass}`}
+        >
+          {count}
+        </span>
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-slate-500 shrink-0 transition-transform ${
+            open ? "" : "-rotate-90"
+          }`}
+        />
+      </button>
+      {open && children}
     </div>
   );
 }
@@ -928,13 +949,12 @@ function FeatureDetail({ feature }: { feature: AutoReportFeature }) {
       </div>
 
       {/* 근거 1: 연결된 태스크 + 체크리스트 */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
-        <EvidenceHeader
-          icon={<ListChecks className="w-3.5 h-3.5 text-bridge-accent" />}
-          label="연결된 태스크"
-          count={tasks.length}
-          countClass="bg-bridge-accent/15 text-bridge-accent"
-        />
+      <EvidenceSection
+        icon={<ListChecks className="w-3.5 h-3.5 text-bridge-accent" />}
+        label="연결된 태스크"
+        count={tasks.length}
+        countClass="bg-bridge-accent/15 text-bridge-accent"
+      >
         <div className="px-4 pb-2">
           {tasks.length === 0 ? (
             <p className="text-xs text-slate-500 py-3">태스크가 없습니다.</p>
@@ -942,37 +962,35 @@ function FeatureDetail({ feature }: { feature: AutoReportFeature }) {
             tasks.map((task, i) => <FeatureTaskRow key={i} task={task} />)
           )}
         </div>
-      </div>
+      </EvidenceSection>
 
       {/* 근거 2: 연결된 커밋 */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
-        <EvidenceHeader
-          icon={<GitCommit className="w-3.5 h-3.5 text-slate-400" />}
-          label="연결된 커밋"
-          count={commits.length}
-          countClass="bg-slate-500/15 text-slate-400"
-        />
+      <EvidenceSection
+        icon={<GitCommit className="w-3.5 h-3.5 text-slate-400" />}
+        label="연결된 커밋"
+        count={commits.length}
+        countClass="bg-slate-500/15 text-slate-400"
+      >
         <div className="px-4 pb-3 pt-1">
           <CommitList commits={commits} />
         </div>
-      </div>
+      </EvidenceSection>
 
       {/* 근거 3: 연관 문서 (Confluence) — 매칭된 게 있을 때만 */}
       {docs.length > 0 && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
-          <EvidenceHeader
-            icon={<FileText className="w-3.5 h-3.5 text-bridge-secondary" />}
-            label="연관 문서"
-            count={docs.length}
-            countClass="bg-bridge-secondary/15 text-bridge-secondary"
-            isNew
-          />
+        <EvidenceSection
+          icon={<FileText className="w-3.5 h-3.5 text-bridge-secondary" />}
+          label="연관 문서"
+          count={docs.length}
+          countClass="bg-bridge-secondary/15 text-bridge-secondary"
+          isNew
+        >
           <div className="px-4 pb-2">
             {docs.map((doc, i) => (
               <FeatureConfluenceRow key={i} doc={doc} />
             ))}
           </div>
-        </div>
+        </EvidenceSection>
       )}
     </div>
   );

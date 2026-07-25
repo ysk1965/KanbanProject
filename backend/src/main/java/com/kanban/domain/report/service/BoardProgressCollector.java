@@ -84,7 +84,11 @@ public class BoardProgressCollector {
 
     /** 파싱된 커밋 하나(표시·매칭에 필요한 필드만). ReportComposer가 GITHUB 소스에서 만들어 넘긴다. */
     public record CommitInfo(String repo, String sha, String subject, String author,
-                             String at, String url, Integer changedFiles) {
+                             String at, String url, Integer changedFiles, List<String> files) {
+        /** null-safe 파일 목록 접근자. 상세 조회 전이면 빈 목록. */
+        public List<String> filesOrEmpty() {
+            return files != null ? files : List.of();
+        }
     }
 
     /** 파싱된 Confluence 문서 하나. ReportComposer가 CONFLUENCE 변경내역에서 만들어 넘긴다. */
@@ -208,7 +212,7 @@ public class BoardProgressCollector {
             ctxs.add(ctx);
         }
 
-        // 커밋 → 기능 상관: (1) 연결된 담당자 로그인 (2) 커밋 메시지 키워드. 못 붙이면 카테고리로.
+        // 커밋 → 기능 상관: author 로그인이 단일 기능과 맞으면 확정. 나머지는 잔여로 모아 AI가 의미 배정(추정)한다.
         List<CommitInfo> leftover = new ArrayList<>();
         for (CommitInfo c : commits) {
             Hit hit = attribute(c, ctxs);
@@ -246,44 +250,23 @@ public class BoardProgressCollector {
     }
 
     /**
-     * 커밋 하나를 기능에 매핑한다.
-     * <ol>
-     *   <li>연결된 담당자 로그인이 딱 하나의 기능과 맞으면 그 기능(확정).</li>
-     *   <li>여러 기능에 걸치면 키워드로 좁히고, 실패하면 첫 기능에 추정으로 붙인다.</li>
-     *   <li>담당자 매칭이 없으면 커밋 메시지 키워드로만 추정 매핑한다.</li>
-     * </ol>
-     * 어디에도 안 붙으면 null(→ 카테고리로).
+     * 커밋 하나를 기능에 <b>확정</b> 매핑한다. 커밋 author의 GitHub 로그인이 정확히 한 기능의
+     * 담당자와 맞을 때만 확정(estimated=false)으로 붙인다 — 유일하게 정밀도가 높은 신호다.
+     *
+     * <p>그 외(담당자 매칭 0개 또는 복수 기능에 걸침)는 여기서 붙이지 않고 null을 돌려 잔여로 넘긴다.
+     * 잔여 커밋은 {@code ReportComposer}가 파일 경로·태스크를 근거로 AI에 의미 배정(추정)시킨다.
+     * 얕은 키워드 substring 매칭은 노이즈가 커서 폐기했다.
      */
     private Hit attribute(CommitInfo c, List<Ctx> ctxs) {
         String author = c.author() == null ? null : c.author().toLowerCase(Locale.ROOT);
+        if (author == null) {
+            return null;
+        }
         List<Ctx> byAuthor = new ArrayList<>();
-        if (author != null) {
-            for (Ctx x : ctxs) {
-                if (x.logins.contains(author)) byAuthor.add(x);
-            }
-        }
-        if (byAuthor.size() == 1) {
-            return new Hit(byAuthor.get(0), false);
-        }
-        if (byAuthor.size() > 1) {
-            for (Ctx x : byAuthor) {
-                if (keywordMatch(c, x)) return new Hit(x, false);
-            }
-            return new Hit(byAuthor.get(0), true); // 담당자는 알지만 어느 기능인지 불확실 → 추정
-        }
         for (Ctx x : ctxs) {
-            if (keywordMatch(c, x)) return new Hit(x, true);
+            if (x.logins.contains(author)) byAuthor.add(x);
         }
-        return null;
-    }
-
-    private boolean keywordMatch(CommitInfo c, Ctx x) {
-        if (x.tokens.isEmpty() || c.subject() == null) return false;
-        String hay = c.subject().toLowerCase(Locale.ROOT);
-        for (String tok : x.tokens) {
-            if (hay.contains(tok)) return true;
-        }
-        return false;
+        return byAuthor.size() == 1 ? new Hit(byAuthor.get(0), false) : null;
     }
 
     private List<String> tokenize(String title) {
