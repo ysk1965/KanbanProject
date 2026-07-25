@@ -1,9 +1,23 @@
-import { useMemo } from "react";
+import { useMemo, useState, type KeyboardEvent } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangle, ArrowUpRight, CalendarDays, GitCommit } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  FileText,
+  GitCommit,
+} from "lucide-react";
 
-import type { AutoReport, AutoReportSourceStatus } from "../utils/api";
-import { formatDate } from "../utils/dateUtils";
+import type {
+  AutoReport,
+  AutoReportFeature,
+  AutoReportSourceStatus,
+  AutoReportSprint,
+} from "../utils/api";
+import { formatDate, formatRelativeTime } from "../utils/dateUtils";
+import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 
 /** 수집 원본에서 커밋 목록만 꺼낸다. 형태가 다르면 조용히 비운다 — 화면이 깨지면 안 된다. */
@@ -26,6 +40,26 @@ function parseCommits(rawData: string | null): Record<string, CommitRow[]> {
     return byRepo as Record<string, CommitRow[]>;
   } catch {
     return {};
+  }
+}
+
+/** 수집 원본에서 Confluence 주간보고 페이지를 꺼낸다. 원문은 요약하지 않고 그대로 보여준다. */
+interface ConfluencePage {
+  title: string;
+  space?: string | null;
+  url?: string | null;
+  last_updated?: string | null;
+  body?: string | null;
+}
+
+function parseConfluencePages(rawData: string | null): ConfluencePage[] {
+  if (!rawData) return [];
+  try {
+    const parsed = JSON.parse(rawData);
+    const pages = parsed?.confluence?.pages;
+    return Array.isArray(pages) ? (pages as ConfluencePage[]) : [];
+  } catch {
+    return [];
   }
 }
 
@@ -53,9 +87,220 @@ function SourceChip({ source }: { source: string }) {
   );
 }
 
+/* ── 기능 상태 표기 ── */
+const FEATURE_STATUS: Record<string, { label: string; chip: string }> = {
+  DONE: {
+    label: "완료",
+    chip: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  },
+  IN_PROGRESS: {
+    label: "진행 중",
+    chip: "bg-bridge-accent/15 text-bridge-accent",
+  },
+};
+
+function pct(value: number, total: number): number {
+  if (!total || total <= 0) return 0;
+  return Math.round((value / total) * 100);
+}
+
+/* ── 담당자 아바타 ── */
+function AssigneeAvatars({ names }: { names: string[] }) {
+  if (names.length === 0) return null;
+  return (
+    <span className="flex">
+      {names.slice(0, 4).map((name, i) => (
+        <span
+          key={`${name}-${i}`}
+          className="w-[22px] h-[22px] rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-bridge-obsidian"
+          style={{
+            backgroundColor: getAssigneeHex(name),
+            marginLeft: i === 0 ? 0 : -6,
+          }}
+          title={name}
+        >
+          {getInitials(name)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/* ── 스프린트 진행바 ── */
+function SprintBar({ sprint }: { sprint: AutoReportSprint }) {
+  const { done, total, in_progress, delayed } = sprint;
+  const remaining = Math.max(0, total - done - in_progress - delayed);
+  const segments = [
+    { key: "done", value: done, cls: "bg-bridge-accent" },
+    { key: "prog", value: in_progress, cls: "bg-bridge-secondary" },
+    { key: "delayed", value: delayed, cls: "bg-amber-500" },
+  ];
+  return (
+    <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
+      <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1">
+        <span className="text-sm font-bold text-foreground">{sprint.name}</span>
+        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-bridge-secondary">
+          <span className="w-1.5 h-1.5 rounded-full bg-bridge-secondary" />
+          진행중
+        </span>
+        <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
+          {sprint.percentage}
+          <span className="text-sm ml-0.5">%</span>
+        </span>
+        <span className="text-xs text-slate-500 tabular-nums">
+          {done} / {total} 항목
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-foreground/10 overflow-hidden flex">
+        {segments.map((s) =>
+          s.value > 0 ? (
+            <span
+              key={s.key}
+              className={`${s.cls} h-full`}
+              style={{ width: `${pct(s.value, total)}%` }}
+            />
+          ) : null,
+        )}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-slate-400">
+        <Legend cls="bg-bridge-accent" label="완료" n={done} />
+        <Legend cls="bg-bridge-secondary" label="진행 중" n={in_progress} />
+        <Legend cls="bg-amber-500" label="지연" n={delayed} />
+        <Legend cls="bg-foreground/20" label="남은" n={remaining} />
+      </div>
+    </div>
+  );
+}
+
+function Legend({ cls, label, n }: { cls: string; label: string; n: number }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 tabular-nums">
+      <span className={`w-2.5 h-2.5 rounded-sm ${cls}`} />
+      {label} {n}
+    </span>
+  );
+}
+
+/* ── 태스크 상태 마커 ── */
+function TaskMark({ status }: { status: string }) {
+  if (status === "DONE") {
+    return (
+      <span className="w-[15px] h-[15px] rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+        <Check
+          className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400"
+          strokeWidth={3}
+        />
+      </span>
+    );
+  }
+  const ring =
+    status === "IN_PROGRESS" ? "border-bridge-accent" : "border-foreground/20";
+  return (
+    <span
+      className={`w-[15px] h-[15px] rounded-full border-2 ${ring} shrink-0`}
+    />
+  );
+}
+
+/* ── 기능 카드 ── */
+function FeatureCard({ feature }: { feature: AutoReportFeature }) {
+  const [open, setOpen] = useState(false);
+  const status = FEATURE_STATUS[feature.status] ?? FEATURE_STATUS.IN_PROGRESS;
+  const barColor =
+    feature.status === "DONE" ? "bg-emerald-500" : "bg-bridge-accent";
+  const assignees = (feature.assignees ?? []).filter(Boolean);
+  const tasks = feature.tasks ?? [];
+
+  return (
+    <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <h3 className="text-sm font-bold text-foreground flex-1">
+          {feature.name}
+        </h3>
+        <span
+          className={`text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 ${status.chip}`}
+        >
+          {status.label}
+        </span>
+      </div>
+
+      {feature.description && (
+        <p className="text-sm text-slate-400 leading-relaxed">
+          {feature.description}
+        </p>
+      )}
+
+      <div className="flex items-center gap-2.5">
+        <span className="flex-1 h-1.5 rounded-full bg-foreground/10 overflow-hidden">
+          <span
+            className={`block h-full ${barColor}`}
+            style={{ width: `${pct(feature.task_done, feature.task_total)}%` }}
+          />
+        </span>
+        <span className="text-xs font-bold text-slate-400 tabular-nums whitespace-nowrap">
+          {feature.task_done} / {feature.task_total} 태스크
+        </span>
+      </div>
+
+      {(assignees.length > 0 || feature.last_activity) && (
+        <div className="flex items-center gap-2 pt-1.5 border-t border-foreground/[0.06]">
+          <AssigneeAvatars names={assignees} />
+          {feature.last_activity && (
+            <span className="text-xs text-slate-500 ml-auto">
+              {formatRelativeTime(feature.last_activity)}
+            </span>
+          )}
+        </div>
+      )}
+
+      {tasks.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-foreground transition-colors py-1"
+          >
+            태스크 {tasks.length}개
+            <ChevronDown
+              className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`}
+            />
+          </button>
+          {open && (
+            <div className="flex flex-col">
+              {tasks.map((task, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2.5 py-1.5 text-sm border-t border-foreground/[0.06]"
+                >
+                  <TaskMark status={task.status} />
+                  <span
+                    className={
+                      task.status === "DONE"
+                        ? "text-slate-400"
+                        : "text-foreground"
+                    }
+                  >
+                    {task.title}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type TabKey = "summary" | "github" | "confluence";
+
 /**
  * 자동 보고서 본문 렌더러. 발행된 공유 페이지({@link AutoReportPage})와 설정 화면의
  * 렌더링 미리보기 모달이 <b>같은 컴포넌트</b>를 써서 발송본과 미리보기가 어긋나지 않게 한다.
+ *
+ * <p>내용은 세 갈래로 나뉜다: <b>요약</b>(스프린트·기능별 진행·리드·지표·확인 필요),
+ * <b>GitHub</b>(수집한 커밋), <b>Confluence</b>(주간보고 원문).
  */
 export function AutoReportView({
   report,
@@ -65,9 +310,14 @@ export function AutoReportView({
   className?: string;
 }) {
   const reduceMotion = useReducedMotion();
+  const [tab, setTab] = useState<TabKey>("summary");
 
   const commitsByRepo = useMemo(
     () => parseCommits(report.raw_data ?? null),
+    [report],
+  );
+  const confluencePages = useMemo(
+    () => parseConfluencePages(report.raw_data ?? null),
     [report],
   );
 
@@ -76,20 +326,48 @@ export function AutoReportView({
     [report],
   );
 
-  const enter = (index: number) =>
-    reduceMotion
-      ? {}
-      : {
-          initial: { opacity: 0, y: 8 },
-          animate: { opacity: 1, y: 0 },
-          transition: { delay: index * 0.04 },
-        };
-
   const content = report.content;
   const isWeekly = report.report_type === "WEEKLY_INTEGRATED";
   const usedSources = (report.source_status ?? [])
     .filter((s) => s.has_data)
     .map((s) => s.source);
+
+  const commitCount = useMemo(
+    () =>
+      Object.values(commitsByRepo).reduce((sum, list) => sum + list.length, 0),
+    [commitsByRepo],
+  );
+
+  const tabs = useMemo(() => {
+    const list: Array<{ key: TabKey; label: string; count?: number }> = [
+      { key: "summary", label: "요약" },
+    ];
+    if (commitCount > 0)
+      list.push({ key: "github", label: "GitHub", count: commitCount });
+    if (confluencePages.length > 0)
+      list.push({
+        key: "confluence",
+        label: "Confluence",
+        count: confluencePages.length,
+      });
+    return list;
+  }, [commitCount, confluencePages.length]);
+
+  const activeTab = tabs.some((t) => t.key === tab) ? tab : "summary";
+
+  const onTabKeyDown = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault();
+    const next =
+      e.key === "ArrowRight"
+        ? (index + 1) % tabs.length
+        : (index - 1 + tabs.length) % tabs.length;
+    setTab(tabs[next].key);
+  };
+
+  const fade = reduceMotion
+    ? {}
+    : { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 } };
 
   return (
     <div
@@ -97,8 +375,8 @@ export function AutoReportView({
         className ?? "max-w-3xl mx-auto px-5 py-8 md:py-12 flex flex-col gap-6"
       }
     >
-      {/* 헤더 */}
-      <motion.header {...enter(0)} className="flex flex-col gap-2">
+      {/* 헤더 (탭 위 고정) */}
+      <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
             {isWeekly ? "주간 보고서" : "일일 개발 보고서"}
@@ -117,159 +395,216 @@ export function AutoReportView({
             {formatDate(report.period_end)}
           </span>
         </div>
-      </motion.header>
+      </header>
 
-      {/* 수집 실패 경고 — 조용히 빠진 소스가 있는 보고서가 가장 위험하다 */}
-      {failedSources.length > 0 && (
-        <motion.div
-          {...enter(1)}
-          className="bg-bridge-obsidian rounded-2xl border border-amber-500/30 p-4 flex gap-3"
+      {/* 탭 바 */}
+      {tabs.length > 1 && (
+        <div
+          role="tablist"
+          aria-label="보고서 섹션"
+          className="flex gap-1 p-1 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08]"
         >
-          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">
-              일부 소스 수집 실패
-            </span>
-            {failedSources.map((s: AutoReportSourceStatus) => (
-              <p key={s.source} className="text-xs text-slate-400">
-                {SOURCE_LABEL[s.source] ?? s.source} —{" "}
-                {s.error ?? "연결 확인 필요"}
-              </p>
-            ))}
-          </div>
-        </motion.div>
+          {tabs.map((t, index) => {
+            const selected = t.key === activeTab;
+            return (
+              <button
+                key={t.key}
+                role="tab"
+                type="button"
+                aria-selected={selected}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setTab(t.key)}
+                onKeyDown={(e) => onTabKeyDown(e, index)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs md:text-sm font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                  selected
+                    ? "bg-bridge-obsidian text-foreground shadow"
+                    : "text-slate-400 hover:text-foreground"
+                }`}
+              >
+                {t.label}
+                {t.count != null && (
+                  <span
+                    className={`text-xs font-bold px-1.5 rounded-full tabular-nums ${
+                      selected
+                        ? "bg-bridge-accent/15 text-bridge-accent"
+                        : "bg-foreground/[0.06] text-slate-500"
+                    }`}
+                  >
+                    {t.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       )}
 
-      {/* 리드 */}
-      {content?.lede && (
-        <motion.p
-          {...enter(2)}
-          className="text-base font-normal leading-relaxed text-foreground border-l-2 border-bridge-accent pl-4"
-        >
-          {content.lede}
-        </motion.p>
-      )}
-
-      {/* 지표 */}
-      {content?.metrics && content.metrics.length > 0 && (
-        <motion.div
-          {...enter(3)}
-          className="grid grid-cols-2 sm:grid-cols-4 gap-3"
-        >
-          {content.metrics.map((metric) => (
-            <div
-              key={metric.label}
-              className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 flex flex-col gap-0.5"
-            >
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                {metric.label}
-              </span>
-              <span className="text-xl font-bold text-foreground tabular-nums">
-                {metric.value}
-              </span>
-              {metric.delta && (
-                <span className="text-xs text-slate-500">{metric.delta}</span>
-              )}
+      {/* ── 요약 탭 ── */}
+      {activeTab === "summary" && (
+        <motion.div key="summary" {...fade} className="flex flex-col gap-6">
+          {/* 수집 실패 경고 — 조용히 빠진 소스가 있는 보고서가 가장 위험하다 */}
+          {failedSources.length > 0 && (
+            <div className="bg-bridge-obsidian rounded-2xl border border-amber-500/30 p-4 flex gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">
+                  일부 소스 수집 실패
+                </span>
+                {failedSources.map((s: AutoReportSourceStatus) => (
+                  <p key={s.source} className="text-xs text-slate-400">
+                    {SOURCE_LABEL[s.source] ?? s.source} —{" "}
+                    {s.error ?? "연결 확인 필요"}
+                  </p>
+                ))}
+              </div>
             </div>
+          )}
+
+          {/* 스프린트 진행 현황 */}
+          {content?.sprint && <SprintBar sprint={content.sprint} />}
+
+          {/* 리드 */}
+          {content?.lede && (
+            <p className="text-base font-normal leading-relaxed text-foreground border-l-2 border-bridge-accent pl-4">
+              {content.lede}
+            </p>
+          )}
+
+          {/* 지표 */}
+          {content?.metrics && content.metrics.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {content.metrics.map((metric) => (
+                <div
+                  key={metric.label}
+                  className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 flex flex-col gap-0.5"
+                >
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                    {metric.label}
+                  </span>
+                  <span className="text-xl font-bold text-foreground tabular-nums">
+                    {metric.value}
+                  </span>
+                  {metric.delta && (
+                    <span className="text-xs text-slate-500">
+                      {metric.delta}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 기능별 진행 현황 */}
+          {content?.features && content.features.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <h2 className="text-xs md:text-sm font-bold text-foreground">
+                기능별 진행 현황
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                {content.features.map((feature, i) => (
+                  <FeatureCard key={`${feature.name}-${i}`} feature={feature} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 주요 변화 (기능 카드가 없을 때 폴백) */}
+          {(!content?.features || content.features.length === 0) &&
+            content?.highlights &&
+            content.highlights.length > 0 && (
+              <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
+                <h2 className="text-xs md:text-sm font-bold text-foreground">
+                  주요 변화
+                </h2>
+                <ul className="flex flex-col gap-2">
+                  {content.highlights.map((item, index) => (
+                    <li
+                      key={index}
+                      className="flex gap-2 text-sm text-foreground"
+                    >
+                      <span className="text-bridge-accent">•</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+          {/* 섹션 */}
+          {content?.sections?.map((section) => (
+            <section
+              key={section.title}
+              className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xs md:text-sm font-bold text-foreground">
+                  {section.title}
+                </h2>
+                {section.sources?.map((source) => (
+                  <SourceChip key={source} source={source} />
+                ))}
+              </div>
+              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                {section.body}
+              </p>
+            </section>
           ))}
+
+          {/* 확인 필요 */}
+          {content?.risks && content.risks.length > 0 && (
+            <section className="bg-bridge-obsidian rounded-2xl border border-amber-500/25 p-5 flex flex-col gap-3">
+              <h2 className="text-xs md:text-sm font-bold text-amber-500 uppercase tracking-widest">
+                확인 필요
+              </h2>
+              <ul className="flex flex-col gap-2">
+                {content.risks.map((risk, index) => (
+                  <li key={index} className="flex gap-2 text-sm text-slate-400">
+                    <span className="text-amber-500">•</span>
+                    <span>{risk}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {/* 구조화 본문이 없으면 마크다운 원문이라도 보여준다 */}
+          {!content && report.markdown && (
+            <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5">
+              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                {report.markdown}
+              </p>
+            </section>
+          )}
         </motion.div>
       )}
 
-      {/* 주요 변화 */}
-      {content?.highlights && content.highlights.length > 0 && (
-        <motion.section
-          {...enter(4)}
-          className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3"
-        >
-          <h2 className="text-xs md:text-sm font-bold text-foreground">
-            주요 변화
-          </h2>
-          <ul className="flex flex-col gap-2">
-            {content.highlights.map((item, index) => (
-              <li key={index} className="flex gap-2 text-sm text-foreground">
-                <span className="text-bridge-accent">•</span>
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </motion.section>
-      )}
-
-      {/* 섹션 */}
-      {content?.sections?.map((section, index) => (
-        <motion.section
-          key={section.title}
-          {...enter(5 + index)}
-          className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3"
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xs md:text-sm font-bold text-foreground">
-              {section.title}
-            </h2>
-            {section.sources?.map((source) => (
-              <SourceChip key={source} source={source} />
-            ))}
-          </div>
-          <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-            {section.body}
-          </p>
-        </motion.section>
-      ))}
-
-      {/* 확인 필요 */}
-      {content?.risks && content.risks.length > 0 && (
-        <motion.section
-          {...enter(9)}
-          className="bg-bridge-obsidian rounded-2xl border border-amber-500/25 p-5 flex flex-col gap-3"
-        >
-          <h2 className="text-xs md:text-sm font-bold text-amber-500 uppercase tracking-widest">
-            확인 필요
-          </h2>
-          <ul className="flex flex-col gap-2">
-            {content.risks.map((risk, index) => (
-              <li key={index} className="flex gap-2 text-sm text-slate-400">
-                <span className="text-amber-500">•</span>
-                <span>{risk}</span>
-              </li>
-            ))}
-          </ul>
-        </motion.section>
-      )}
-
-      {/* 구조화 본문이 없으면 마크다운 원문이라도 보여준다 */}
-      {!content && report.markdown && (
-        <motion.section
-          {...enter(5)}
-          className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5"
-        >
-          <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-            {report.markdown}
-          </p>
-        </motion.section>
-      )}
-
-      {/* 커밋 목록 */}
-      {Object.keys(commitsByRepo).length > 0 && (
-        <motion.section
-          {...enter(10)}
-          className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-4"
-        >
+      {/* ── GitHub 탭 ── */}
+      {activeTab === "github" && (
+        <motion.div key="github" {...fade} className="flex flex-col gap-4">
           <div className="flex items-center gap-2">
             <GitCommit className="w-4 h-4 text-slate-400" />
             <h2 className="text-xs md:text-sm font-bold text-foreground">
-              커밋 목록
+              커밋
             </h2>
           </div>
           {Object.entries(commitsByRepo).map(([repo, commits]) => (
-            <div key={repo} className="flex flex-col gap-1">
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                {repo}
-              </span>
+            <div
+              key={repo}
+              className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-2"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                  {repo}
+                </span>
+                <span className="text-xs text-slate-500 ml-auto tabular-nums">
+                  {commits.length} 커밋
+                </span>
+              </div>
               <div className="flex flex-col">
                 {commits.map((commit) => (
                   <div
                     key={commit.sha}
-                    className="py-2 border-b border-foreground/[0.06] last:border-b-0 flex flex-col gap-0.5"
+                    className="py-2 border-t border-foreground/[0.06] flex flex-col gap-0.5"
                   >
                     <div className="flex items-start gap-2">
                       <span className="text-xs font-mono text-bridge-accent shrink-0 pt-0.5">
@@ -302,7 +637,59 @@ export function AutoReportView({
               </div>
             </div>
           ))}
-        </motion.section>
+        </motion.div>
+      )}
+
+      {/* ── Confluence 탭 ── */}
+      {activeTab === "confluence" && (
+        <motion.div key="confluence" {...fade} className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-bridge-secondary" />
+            <h2 className="text-xs md:text-sm font-bold text-foreground">
+              주간보고 원문
+            </h2>
+            <span className="text-xs text-slate-500">요약하지 않음</span>
+          </div>
+          {confluencePages.map((page, i) => (
+            <article
+              key={`${page.title}-${i}`}
+              className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-2.5"
+            >
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-bridge-secondary shrink-0" />
+                <h3 className="text-sm font-bold text-foreground">
+                  {page.title}
+                </h3>
+              </div>
+              {(page.space || page.last_updated) && (
+                <div className="text-xs text-slate-500">
+                  {[
+                    page.space,
+                    page.last_updated ? formatDate(page.last_updated) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </div>
+              )}
+              {page.body && (
+                <p className="text-sm text-slate-400 whitespace-pre-wrap leading-relaxed">
+                  {page.body}
+                </p>
+              )}
+              {page.url && (
+                <a
+                  href={page.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-bridge-secondary hover:underline"
+                >
+                  Confluence에서 열기
+                  <ArrowUpRight className="w-3 h-3" />
+                </a>
+              )}
+            </article>
+          ))}
+        </motion.div>
       )}
 
       <footer className="pt-4 border-t border-foreground/[0.08] flex flex-wrap gap-x-4 gap-y-1">

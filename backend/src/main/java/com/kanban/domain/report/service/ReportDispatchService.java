@@ -93,7 +93,7 @@ public class ReportDispatchService {
                 : null;
         ReportContent content = composed.content();
         WeeklyReport report = persistence.save(board, reportType, period, content,
-                composed.rawJson(), composed.mergedInput(), chunks, shareToken);
+                composed.contentJson(), composed.mergedInput(), chunks, shareToken);
 
         // 4. 게시 — 1회 재시도
         boolean published = publishWithRetry(board, config, reportType, content, period, shareToken);

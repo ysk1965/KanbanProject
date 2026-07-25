@@ -27,6 +27,14 @@ public interface FeatureRepository extends JpaRepository<Feature, String> {
     @Query("SELECT f FROM Feature f WHERE f.board.id = :boardId AND f.status = :status ORDER BY f.position ASC")
     List<Feature> findByBoardIdAndStatus(@Param("boardId") String boardId, @Param("status") FeatureStatus status);
 
+    /** 기간 내 완료된 feature — 리포트 "기능별 진행 현황"에 완료분을 포함하기 위함. */
+    @Query("SELECT f FROM Feature f WHERE f.board.id = :boardId AND f.status = :status " +
+           "AND f.completedAt >= :start AND f.completedAt < :end ORDER BY f.completedAt DESC")
+    List<Feature> findByBoardIdAndStatusAndCompletedAtBetween(@Param("boardId") String boardId,
+                                                              @Param("status") FeatureStatus status,
+                                                              @Param("start") LocalDateTime start,
+                                                              @Param("end") LocalDateTime end);
+
     @Query("SELECT MAX(f.position) FROM Feature f WHERE f.board.id = :boardId")
     Integer findMaxPositionByBoardId(@Param("boardId") String boardId);
 

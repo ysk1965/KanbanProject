@@ -25,9 +25,14 @@ import java.util.*;
 public class ReportComposer {
 
     private final ReportAIService reportAIService;
+    private final BoardProgressCollector progressCollector;
     private final ObjectMapper objectMapper;
 
-    public record Composed(ReportContent content, String rawJson, String mergedInput) {
+    /**
+     * @param contentJson 저장·조회에 쓰는 <b>보강된</b> 본문 JSON. AI 원문이 아니라 지표·기능·스프린트까지
+     *                    주입된 {@link ReportContent}를 직렬화한 것이라, 웹 페이지가 이 한 벌만 읽으면 된다.
+     */
+    public record Composed(ReportContent content, String contentJson, String mergedInput) {
     }
 
     public Composed compose(String boardId, ReportType reportType, String language,
@@ -39,7 +44,26 @@ public class ReportComposer {
         content.setMetrics(buildMetrics(chunks, reportType));
         prependSourceFailures(content, chunks);
 
-        return new Composed(content, raw, mergedInput);
+        // 기능별 진행·스프린트는 AI가 아니라 시스템이 집계해 주입한다(metrics와 동일). 실패해도 보고서는 진행.
+        try {
+            BoardProgressCollector.Progress progress = progressCollector.compute(boardId, period);
+            content.setFeatures(progress.features());
+            content.setSprint(progress.sprint());
+        } catch (Exception e) {
+            log.warn("보드 진행 집계 실패 — 기능/스프린트 없이 진행 board={}: {}", boardId, e.getMessage());
+        }
+
+        return new Composed(content, serialize(content, raw), mergedInput);
+    }
+
+    /** 보강된 본문을 저장용 JSON으로. 실패 시 AI 원문으로 폴백해 보고서가 빈 채로 나가지 않게 한다. */
+    private String serialize(ReportContent content, String fallbackRaw) {
+        try {
+            return objectMapper.writeValueAsString(content);
+        } catch (Exception e) {
+            log.warn("보고서 본문 직렬화 실패 — AI 원문으로 대체: {}", e.getMessage());
+            return fallbackRaw;
+        }
     }
 
     /** 소스별 원본을 한 덩어리로 묶는다. 실패한 소스도 사실로 남겨 AI가 언급할 수 있게 한다. */

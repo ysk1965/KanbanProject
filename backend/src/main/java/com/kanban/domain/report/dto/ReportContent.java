@@ -28,7 +28,7 @@ public class ReportContent {
     /** 지표 카드. 값은 수집 단계에서 계산한 숫자를 그대로 쓴다(AI가 지어내지 않게). */
     private List<Metric> metrics;
 
-    /** 슬랙에 나가는 3줄. 페이지에서는 "주요 변화"로 쓴다. */
+    /** 슬랙에 나가는 주요 항목(중요도 순, 최대 10개). 페이지에서는 "주요 변화"로 쓴다. */
     private List<String> highlights;
 
     /** 본문 섹션. 일일은 1~2개, 주간은 성과/진행 중/리스크/다음 주 계획 4개. */
@@ -36,6 +36,18 @@ public class ReportContent {
 
     /** 확인이 필요한 것들. 앰버로 분리해 표시한다. */
     private List<String> risks;
+
+    /**
+     * 활성 스프린트 진행 현황. AI가 아니라 시스템이 스프린트 도메인에서 집계한다(metrics와 동일 원칙).
+     * 활성 스프린트가 없으면 null.
+     */
+    private Sprint sprint;
+
+    /**
+     * 기능(feature)별 진행 현황. AI가 아니라 시스템이 feature/task 도메인에서 집계한다.
+     * 진행 중 feature + 기간 내 완료된 feature를 담는다.
+     */
+    private List<Feature> features;
 
     @Data
     @Builder
@@ -57,5 +69,50 @@ public class ReportContent {
         private String body;
         /** 이 섹션이 어느 소스에서 나왔는지 — GITHUB / KANBAN / CONFLUENCE */
         private List<String> sources;
+    }
+
+    /** 활성 스프린트의 스코프 게이지. 값은 스프린트 도메인(체크리스트 항목) 집계다. */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Sprint {
+        private String name;
+        /** 스프린트 상태 — 활성은 "IN_PROGRESS" */
+        private String status;
+        private int done;
+        private int total;
+        private int inProgress;
+        private int delayed;
+        private int percentage;
+    }
+
+    /** 기능 하나의 진행 현황. 진행률·담당자·태스크는 feature/task 도메인에서 그대로 가져온다. */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Feature {
+        private String name;
+        /** "DONE" | "IN_PROGRESS" (feature 도메인엔 REVIEW 없음) */
+        private String status;
+        private String description;
+        private int taskDone;
+        private int taskTotal;
+        private List<String> assignees;
+        /** 마지막 활동 시각(ISO). 태스크 완료 시각의 최댓값 등. */
+        private String lastActivity;
+        private List<FeatureTask> tasks;
+    }
+
+    /** 기능에 속한 개별 태스크(펼치기 목록용). */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class FeatureTask {
+        private String title;
+        /** "DONE" | "IN_PROGRESS" | "TODO" */
+        private String status;
     }
 }
