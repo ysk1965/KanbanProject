@@ -122,6 +122,22 @@ public class SlackOAuthController {
     }
 
     /**
+     * Resolve a single channel by ID (목록에 없는 채널 직접 지정용)
+     */
+    @GetMapping("/app/channel-info")
+    public ResponseEntity<SlackAppResponse.Channel> channelInfo(
+            @RequestParam(value = "board_id", required = false) String boardId,
+            @RequestParam(value = "organization_id", required = false) String orgId,
+            @RequestParam("channel_id") String channelId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        SlackInstallation installation = resolveInstallation(boardId, orgId);
+        if (installation == null) {
+            throw new BusinessException(ErrorCode.SLACK_APP_NOT_INSTALLED);
+        }
+        return ResponseEntity.ok(slackOAuthService.resolveChannel(installation, channelId));
+    }
+
+    /**
      * Set default notification channel
      */
     @PutMapping("/app/channel")

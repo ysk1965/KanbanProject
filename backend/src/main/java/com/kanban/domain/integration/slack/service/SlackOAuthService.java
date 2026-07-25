@@ -282,6 +282,27 @@ public class SlackOAuthService {
     }
 
     /**
+     * 채널 ID로 단건 조회. 목록에 없는 채널을 직접 지정할 때 검증 + 이름 확보용.
+     */
+    public SlackAppResponse.Channel resolveChannel(SlackInstallation installation, String channelId) {
+        String botToken = tokenEncryptor.decrypt(installation.getBotTokenEncrypted());
+        Map<String, Object> response = slackApiClient.getConversationInfo(botToken, channelId);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ch = (Map<String, Object>) response.get("channel");
+        if (ch == null || ch.get("id") == null) {
+            throw new BusinessException(ErrorCode.SLACK_API_ERROR);
+        }
+        return SlackAppResponse.Channel.builder()
+                .id(String.valueOf(ch.get("id")))
+                .name(String.valueOf(ch.get("name")))
+                .isPrivate(Boolean.TRUE.equals(ch.get("is_private")))
+                .isArchived(Boolean.TRUE.equals(ch.get("is_archived")))
+                .memberCount(ch.get("num_members") != null ? ((Number) ch.get("num_members")).intValue() : 0)
+                .build();
+    }
+
+    /**
      * Update default channel for an installation
      */
     @Transactional
