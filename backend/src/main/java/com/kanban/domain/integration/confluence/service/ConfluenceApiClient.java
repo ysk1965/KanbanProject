@@ -12,6 +12,7 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -105,8 +106,12 @@ public class ConfluenceApiClient {
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
 
         try {
+            // url은 이미 UriComponentsBuilder.encode()로 인코딩돼 있다. String 오버로드로 넘기면
+            // RestTemplate(TEMPLATE_AND_VALUES)이 %22 등을 %2522로 재인코딩해 검색 CQL이 깨진다.
+            // URI 객체로 넘겨 재인코딩을 차단한다(build(true) = 이미 인코딩됨).
+            URI uri = UriComponentsBuilder.fromUriString(url).build(true).toUri();
             ResponseEntity<JsonNode> response = restTemplate.exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class);
+                    uri, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class);
             JsonNode body = response.getBody();
             if (body == null) {
                 throw new BusinessException(ErrorCode.CONFLUENCE_API_ERROR, "응답이 비어 있습니다");
