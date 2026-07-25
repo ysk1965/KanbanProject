@@ -96,6 +96,20 @@ public class BoardReportConfig extends BaseTimeEntity {
     @Column(name = "source_confluence_enabled", nullable = false)
     private Boolean sourceConfluenceEnabled = true;
 
+    // ── 슬랙 채널 수집 소스 ──────────────────────
+    /**
+     * 봇이 대화를 <b>읽어올</b> 채널. 발송용 {@link #slackChannelId}과 별개다 —
+     * 게시 채널과 수집 채널이 다를 수 있어 재활용하지 않는다. 채널이 없으면 슬랙 수집은 건너뛴다.
+     */
+    @Column(name = "source_slack_enabled", nullable = false)
+    private Boolean sourceSlackEnabled = true;
+
+    @Column(name = "source_slack_channel_id", length = 40)
+    private String sourceSlackChannelId;
+
+    @Column(name = "source_slack_channel_name", length = 100)
+    private String sourceSlackChannelName;
+
     /**
      * 공유 링크 발급 여부. 슬랙 버튼이 {@code /r/{shareToken}}을 가리키므로 기본 true다.
      * 유출 시 이 값을 내리면 기존 링크까지 한 번에 막힌다.
@@ -125,6 +139,7 @@ public class BoardReportConfig extends BaseTimeEntity {
         this.sourceGithubEnabled = true;
         this.sourceKanbanEnabled = true;
         this.sourceConfluenceEnabled = true;
+        this.sourceSlackEnabled = true;
         this.shareLinkEnabled = true;
     }
 
@@ -154,10 +169,23 @@ public class BoardReportConfig extends BaseTimeEntity {
         }
     }
 
-    public void updateSources(Boolean github, Boolean kanban, Boolean confluence) {
+    public void updateSources(Boolean github, Boolean kanban, Boolean confluence, Boolean slack) {
         if (github != null) this.sourceGithubEnabled = github;
         if (kanban != null) this.sourceKanbanEnabled = kanban;
         if (confluence != null) this.sourceConfluenceEnabled = confluence;
+        if (slack != null) this.sourceSlackEnabled = slack;
+    }
+
+    /**
+     * 수집 대상 슬랙 채널 지정. slackChannelId(발송)와 같은 부분 업데이트 규칙을 쓴다 —
+     * null이면 유지, 빈 문자열이면 "지정 해제"로 보고 지운다.
+     */
+    public void updateSlackSource(String channelId, String channelName) {
+        if (channelId != null) {
+            this.sourceSlackChannelId = channelId.isBlank() ? null : channelId;
+            this.sourceSlackChannelName = (channelName == null || channelName.isBlank())
+                    ? null : channelName;
+        }
     }
 
     public void updateShareLink(Boolean enabled) {

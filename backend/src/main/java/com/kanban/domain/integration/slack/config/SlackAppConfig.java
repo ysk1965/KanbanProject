@@ -14,7 +14,7 @@ public class SlackAppConfig {
     private String clientSecret;
     private String signingSecret;
     private String tokenEncryptionKey;
-    private String botScopes = "chat:write,channels:read,groups:read,commands,reactions:read,im:write";
+    private String botScopes = "chat:write,channels:read,groups:read,channels:history,groups:history,commands,reactions:read,im:write";
     private String userScopes = "identity.basic,identity.email";
     private String redirectUri = "http://localhost:8080/api/v1/slack/oauth/callback";
     private String userRedirectUri = "http://localhost:8080/api/v1/slack/oauth/user-callback";

@@ -42,6 +42,10 @@ public class ReportConfigDto {
         private boolean sourceGithubEnabled;
         private boolean sourceKanbanEnabled;
         private boolean sourceConfluenceEnabled;
+        private boolean sourceSlackEnabled;
+        /** 봇이 대화를 읽어올 채널 (발송 채널과 별개) */
+        private String sourceSlackChannelId;
+        private String sourceSlackChannelName;
         private boolean shareLinkEnabled;
 
         public static Detail from(BoardReportConfig config) {
@@ -67,6 +71,9 @@ public class ReportConfigDto {
                     .sourceGithubEnabled(Boolean.TRUE.equals(config.getSourceGithubEnabled()))
                     .sourceKanbanEnabled(Boolean.TRUE.equals(config.getSourceKanbanEnabled()))
                     .sourceConfluenceEnabled(Boolean.TRUE.equals(config.getSourceConfluenceEnabled()))
+                    .sourceSlackEnabled(Boolean.TRUE.equals(config.getSourceSlackEnabled()))
+                    .sourceSlackChannelId(config.getSourceSlackChannelId())
+                    .sourceSlackChannelName(config.getSourceSlackChannelName())
                     .shareLinkEnabled(Boolean.TRUE.equals(config.getShareLinkEnabled()))
                     .build();
         }
@@ -107,6 +114,9 @@ public class ReportConfigDto {
         private Boolean sourceGithubEnabled;
         private Boolean sourceKanbanEnabled;
         private Boolean sourceConfluenceEnabled;
+        private Boolean sourceSlackEnabled;
+        private String sourceSlackChannelId;
+        private String sourceSlackChannelName;
         private Boolean shareLinkEnabled;
     }
 }
