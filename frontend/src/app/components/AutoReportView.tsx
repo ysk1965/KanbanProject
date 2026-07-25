@@ -20,11 +20,18 @@ import {
 
 import type {
   AutoReport,
+  AutoReportAttachment,
+  AutoReportCluster,
+  AutoReportClusterSignal,
   AutoReportCommitCategory,
   AutoReportConfluenceDoc,
   AutoReportFeature,
   AutoReportFeatureCommit,
   AutoReportFeatureTask,
+  AutoReportMember,
+  AutoReportMemberChecklistChange,
+  AutoReportMemberCommit,
+  AutoReportMemberSlackMessage,
   AutoReportMetric,
   AutoReportSourceStatus,
   AutoReportSprint,
@@ -1181,6 +1188,545 @@ function FeatureProgressTabs({
   );
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   커밋-우선 개편: 클러스터 탭 + 구성원 탭
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── 클러스터가 어떤 신호로 묶였는지 칩 ── */
+function ClusterSignalChips({ signals }: { signals: AutoReportClusterSignal[] }) {
+  if (signals.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {signals.map((s, i) => (
+        <span
+          key={i}
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-lg border border-foreground/10 text-slate-400"
+        >
+          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-600">
+            {s.kind}
+          </span>
+          <span className="font-mono text-foreground">{s.value}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/* ── 클러스터 신뢰도 뱃지 ── */
+function ConfidenceBadge({
+  confidence,
+  kind,
+}: {
+  confidence: string | null;
+  kind: string | null;
+}) {
+  if (kind === "infra") {
+    return (
+      <span className="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full bg-slate-500/15 text-slate-400">
+        귀속 안 함
+      </span>
+    );
+  }
+  const high = confidence === "HIGH";
+  return (
+    <span
+      className={`shrink-0 inline-flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full ${
+        high
+          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+          : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+      }`}
+    >
+      <span
+        className={`w-1.5 h-1.5 rounded-full ${high ? "bg-emerald-500" : "bg-amber-500"}`}
+      />
+      신뢰도 {high ? "높음" : "보통"}
+    </span>
+  );
+}
+
+/* ── 클러스터 상세 (헤더 + 요약 + 신호칩 + 근거: 커밋 / 태스크 / 문서) ── */
+function ClusterDetail({ cluster }: { cluster: AutoReportCluster }) {
+  const commits = cluster.commits ?? [];
+  const tasks = cluster.tasks ?? [];
+  const docs = cluster.confluence_docs ?? [];
+  const signals = cluster.signals ?? [];
+  const isInfra = cluster.kind === "infra";
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* 헤더 + 요약 + 신호 */}
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
+        <div className="flex items-start gap-2">
+          <h3 className="text-base font-bold text-foreground flex-1">
+            {cluster.title}
+          </h3>
+          <ConfidenceBadge confidence={cluster.confidence} kind={cluster.kind} />
+        </div>
+        {cluster.summary && (
+          <div
+            className={
+              isInfra
+                ? "text-sm text-slate-400 leading-relaxed"
+                : "rounded-xl bg-bridge-accent/[0.06] border border-bridge-accent/20 p-4 flex flex-col gap-1.5"
+            }
+          >
+            {!isInfra && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-bridge-accent">
+                <Sparkles className="w-3.5 h-3.5" />
+                요약
+              </span>
+            )}
+            <p
+              className={
+                isInfra
+                  ? ""
+                  : "text-sm text-foreground leading-relaxed whitespace-pre-wrap"
+              }
+            >
+              {cluster.summary}
+            </p>
+          </div>
+        )}
+        {!isInfra && signals.length > 0 && (
+          <div className="pt-1 border-t border-foreground/[0.06]">
+            <ClusterSignalChips signals={signals} />
+          </div>
+        )}
+      </div>
+
+      {/* 근거 1: 커밋 */}
+      <EvidenceSection
+        icon={<GitCommit className="w-3.5 h-3.5 text-slate-400" />}
+        label="커밋"
+        count={commits.length}
+        countClass="bg-slate-500/15 text-slate-400"
+      >
+        <div className="px-4 pb-3 pt-1">
+          <CommitList commits={commits} />
+        </div>
+      </EvidenceSection>
+
+      {/* 근거 2: 부착된 태스크 — 있을 때만 */}
+      {!isInfra && tasks.length > 0 && (
+        <EvidenceSection
+          icon={<ListChecks className="w-3.5 h-3.5 text-bridge-accent" />}
+          label="연결된 태스크"
+          count={tasks.length}
+          countClass="bg-bridge-accent/15 text-bridge-accent"
+        >
+          <div className="px-4 pb-2">
+            {tasks.map((task, i) => (
+              <FeatureTaskRow key={i} task={task} />
+            ))}
+          </div>
+        </EvidenceSection>
+      )}
+
+      {/* 근거 3: 연관 문서 — 있을 때만 */}
+      {!isInfra && docs.length > 0 && (
+        <EvidenceSection
+          icon={<FileText className="w-3.5 h-3.5 text-bridge-secondary" />}
+          label="연관 문서"
+          count={docs.length}
+          countClass="bg-bridge-secondary/15 text-bridge-secondary"
+          isNew
+        >
+          <div className="px-4 pb-2">
+            {docs.map((doc, i) => (
+              <FeatureConfluenceRow key={i} doc={doc} />
+            ))}
+          </div>
+        </EvidenceSection>
+      )}
+    </div>
+  );
+}
+
+/* ── 기능별 진행 현황: 커밋 클러스터 가로 탭 ── */
+function ClusterTabs({ clusters }: { clusters: AutoReportCluster[] }) {
+  // 인프라 군집은 항상 맨 뒤로.
+  const ordered = useMemo(() => {
+    const feature = clusters.filter((c) => c.kind !== "infra");
+    const infra = clusters.filter((c) => c.kind === "infra");
+    return [...feature, ...infra];
+  }, [clusters]);
+
+  const [active, setActive] = useState<string>(ordered[0]?.key ?? "");
+  const activeCluster =
+    ordered.find((c) => c.key === active) ?? ordered[0];
+  if (!activeCluster) return null;
+
+  const dotColor = (c: AutoReportCluster) => {
+    if (c.kind === "infra") return "bg-slate-500";
+    const t = (c.commits ?? [])[0]?.type;
+    if (t === "fix") return "bg-amber-500";
+    if (t === "refactor" || t === "perf") return "bg-bridge-secondary";
+    return "bg-bridge-accent";
+  };
+
+  const tabClass = (selected: boolean) =>
+    `shrink-0 whitespace-nowrap flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+      selected
+        ? "bg-bridge-obsidian text-foreground shadow"
+        : "text-slate-400 hover:text-foreground"
+    }`;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-baseline gap-2">
+        <h2 className="text-xs md:text-sm font-bold text-foreground">
+          기능별 진행 현황
+        </h2>
+        <span className="text-xs text-slate-500">
+          커밋을 {clusters.length}개 기능군으로 자동 분류
+        </span>
+      </div>
+
+      <div
+        role="tablist"
+        aria-label="커밋 클러스터"
+        className="flex items-stretch gap-1 p-1 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08] overflow-x-auto custom-scrollbar"
+      >
+        {ordered.map((c) => {
+          const selected = c.key === activeCluster.key;
+          return (
+            <button
+              key={c.key}
+              role="tab"
+              type="button"
+              aria-selected={selected}
+              onClick={() => setActive(c.key)}
+              className={tabClass(selected)}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${dotColor(c)}`} />
+              {c.title}
+              <span
+                className={`text-xs font-bold px-1.5 rounded-full tabular-nums ${
+                  selected
+                    ? "bg-bridge-accent/15 text-bridge-accent"
+                    : "bg-foreground/[0.06] text-slate-500"
+                }`}
+              >
+                {(c.commits ?? []).length}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="rounded-[18px] border border-foreground/[0.08] bg-foreground/[0.03] p-3">
+        <ClusterDetail cluster={activeCluster} />
+      </div>
+    </div>
+  );
+}
+
+/* ── 구성원 뷰: 커밋 한 줄 (소속 클러스터 태그) ── */
+function MemberCommitRow({ commit }: { commit: AutoReportMemberCommit }) {
+  const type = commit.type ?? "other";
+  const typeClass =
+    type === "fix"
+      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+      : type === "refactor" || type === "perf"
+        ? "bg-bridge-secondary/15 text-bridge-secondary"
+        : type === "chore" || type === "ci" || type === "build"
+          ? "bg-slate-500/15 text-slate-400"
+          : "bg-bridge-accent/15 text-bridge-accent";
+  return (
+    <div className="py-2.5 border-t border-foreground/[0.06] first:border-t-0 flex items-start gap-2.5">
+      <span
+        className={`shrink-0 mt-0.5 font-mono text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${typeClass}`}
+      >
+        {type}
+      </span>
+      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+        {commit.url ? (
+          <a
+            href={commit.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="text-sm text-foreground hover:text-bridge-accent break-words"
+          >
+            {commit.subject}
+          </a>
+        ) : (
+          <span className="text-sm text-foreground break-words">
+            {commit.subject}
+          </span>
+        )}
+        <span className="text-xs text-slate-500 flex flex-wrap gap-x-2 gap-y-0.5">
+          {commit.sha && (
+            <span className="font-mono text-bridge-accent">
+              {commit.sha.slice(0, 8)}
+            </span>
+          )}
+          {commit.at && <span>{formatDate(commit.at)}</span>}
+          {commit.cluster_title && (
+            <span className="text-slate-600">→ {commit.cluster_title}</span>
+          )}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ── 구성원 뷰: 슬랙 메시지 한 줄 (+미디어 썸네일) ── */
+function MemberSlackRow({ msg }: { msg: AutoReportMemberSlackMessage }) {
+  const media = msg.media ?? [];
+  return (
+    <div className="py-2.5 border-t border-foreground/[0.06] first:border-t-0 flex flex-col gap-2">
+      <div className="text-sm text-foreground">
+        {msg.channel && (
+          <span className="font-mono text-xs text-bridge-secondary mr-1.5">
+            #{msg.channel}
+          </span>
+        )}
+        {msg.text}
+      </div>
+      {media.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {media.map((m, i) => (
+            <MemberMediaThumb key={i} media={m} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MemberMediaThumb({ media }: { media: AutoReportAttachment }) {
+  const isVideo = media.type === "video";
+  const href = isVideo ? (media.link ?? media.url ?? undefined) : (media.url ?? undefined);
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer noopener"
+      title={media.title ?? undefined}
+      className="group relative block w-24 aspect-[4/3] rounded-lg overflow-hidden border border-foreground/[0.08] bg-bridge-dark"
+    >
+      {media.url ? (
+        <img
+          src={media.url}
+          alt={media.title ?? "공유 자료"}
+          loading="lazy"
+          className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+        />
+      ) : (
+        <span className="absolute inset-0 flex items-center justify-center text-slate-600">
+          <Paperclip className="w-4 h-4" />
+        </span>
+      )}
+      {isVideo && (
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span className="flex items-center justify-center w-7 h-7 rounded-full bg-black/60">
+            <Play className="w-3.5 h-3.5 text-white translate-x-[1px]" fill="currentColor" />
+          </span>
+        </span>
+      )}
+    </a>
+  );
+}
+
+/* ── 구성원 상세 (헤더 + 소스별 활동) ── */
+function MemberDetail({ member }: { member: AutoReportMember }) {
+  const commits = member.commits ?? [];
+  const slack = member.slack_messages ?? [];
+  const docs = member.confluence_docs ?? [];
+  const checklist = member.checklist_changes ?? [];
+  const hex = getAssigneeHex(member.name);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* 헤더 */}
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex items-center gap-3">
+        <span
+          className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
+          style={{ backgroundColor: `${hex}33`, color: hex }}
+        >
+          {getInitials(member.name)}
+        </span>
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="text-base font-bold text-foreground truncate">
+            {member.name}
+          </span>
+          {member.login && (
+            <span className="text-xs text-slate-500 font-mono">
+              @{member.login}
+            </span>
+          )}
+        </div>
+        <div className="flex gap-3 shrink-0">
+          {[
+            { n: member.commit_count, c: "커밋" },
+            { n: member.slack_count, c: "슬랙" },
+            { n: member.checklist_count, c: "체크리스트" },
+          ].map((t) => (
+            <div key={t.c} className="text-center">
+              <div className="text-base font-bold text-foreground tabular-nums">
+                {t.n}
+              </div>
+              <div className="text-[10px] text-slate-500">{t.c}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* GitHub 커밋 */}
+      <EvidenceSection
+        icon={<GitCommit className="w-3.5 h-3.5 text-slate-400" />}
+        label="GitHub 커밋"
+        count={commits.length}
+        countClass="bg-slate-500/15 text-slate-400"
+      >
+        <div className="px-4 pb-2 pt-1">
+          {commits.length === 0 ? (
+            <p className="text-xs text-slate-500 py-3">커밋이 없습니다.</p>
+          ) : (
+            commits.map((c, i) => <MemberCommitRow key={i} commit={c} />)
+          )}
+        </div>
+      </EvidenceSection>
+
+      {/* 슬랙 */}
+      {slack.length > 0 && (
+        <EvidenceSection
+          icon={<MessagesSquare className="w-3.5 h-3.5 text-bridge-secondary" />}
+          label="슬랙"
+          count={slack.length}
+          countClass="bg-bridge-secondary/15 text-bridge-secondary"
+        >
+          <div className="px-4 pb-2 pt-1">
+            {slack.map((m, i) => (
+              <MemberSlackRow key={i} msg={m} />
+            ))}
+          </div>
+        </EvidenceSection>
+      )}
+
+      {/* Confluence 작성 — 매핑되면 표시(현재는 클러스터 단위에만 붙음) */}
+      {docs.length > 0 && (
+        <EvidenceSection
+          icon={<FileText className="w-3.5 h-3.5 text-bridge-secondary" />}
+          label="Confluence"
+          count={docs.length}
+          countClass="bg-bridge-secondary/15 text-bridge-secondary"
+        >
+          <div className="px-4 pb-2">
+            {docs.map((doc, i) => (
+              <FeatureConfluenceRow key={i} doc={doc} />
+            ))}
+          </div>
+        </EvidenceSection>
+      )}
+
+      {/* 칸반 체크리스트 변경 */}
+      {checklist.length > 0 && (
+        <EvidenceSection
+          icon={<ListChecks className="w-3.5 h-3.5 text-bridge-accent" />}
+          label="칸반 체크리스트"
+          count={checklist.length}
+          countClass="bg-bridge-accent/15 text-bridge-accent"
+        >
+          <ul className="px-4 py-2 flex flex-col gap-1.5">
+            {checklist.map((item: AutoReportMemberChecklistChange, i) => (
+              <li key={i} className="flex items-center gap-2 text-sm">
+                <span className="shrink-0 w-4 h-4 rounded flex items-center justify-center border bg-emerald-500 border-emerald-500">
+                  <Check className="w-2.5 h-2.5 text-white" strokeWidth={3.5} />
+                </span>
+                <span className="text-slate-400 line-through">{item.title}</span>
+                {item.context && (
+                  <span className="ml-auto shrink-0 text-xs text-slate-500 truncate max-w-[40%]">
+                    {item.context}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </EvidenceSection>
+      )}
+    </div>
+  );
+}
+
+/* ── 구성원별 활동: 사람 가로 탭 (활동량 순) ── */
+function MemberTabs({ members }: { members: AutoReportMember[] }) {
+  const [active, setActive] = useState<string>(
+    members[0] ? memberKey(members[0], 0) : "",
+  );
+  const activeIndex = Math.max(
+    0,
+    members.findIndex((m, i) => memberKey(m, i) === active),
+  );
+  const activeMember = members[activeIndex];
+  if (!activeMember) return null;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-baseline gap-2">
+        <h2 className="text-xs md:text-sm font-bold text-foreground">
+          구성원별 활동
+        </h2>
+        <span className="text-xs text-slate-500">
+          깃 · 슬랙 · 칸반을 사람 기준으로
+        </span>
+      </div>
+
+      <div
+        role="tablist"
+        aria-label="구성원"
+        className="flex items-stretch gap-1 p-1 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08] overflow-x-auto custom-scrollbar"
+      >
+        {members.map((m, i) => {
+          const key = memberKey(m, i);
+          const selected = key === active;
+          const hex = getAssigneeHex(m.name);
+          return (
+            <button
+              key={key}
+              role="tab"
+              type="button"
+              aria-selected={selected}
+              onClick={() => setActive(key)}
+              className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 py-1 px-2 rounded-lg text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                selected
+                  ? "bg-bridge-obsidian text-foreground shadow"
+                  : "text-slate-400 hover:text-foreground"
+              }`}
+            >
+              <span
+                className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                style={{ backgroundColor: `${hex}33`, color: hex }}
+              >
+                {getInitials(m.name)}
+              </span>
+              {m.name}
+              <span
+                className={`text-xs font-bold px-1.5 rounded-full tabular-nums ${
+                  selected
+                    ? "bg-bridge-accent/15 text-bridge-accent"
+                    : "bg-foreground/[0.06] text-slate-500"
+                }`}
+              >
+                {m.activity}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="rounded-[18px] border border-foreground/[0.08] bg-foreground/[0.03] p-3">
+        <MemberDetail member={activeMember} />
+      </div>
+    </div>
+  );
+}
+
+/** 구성원 탭 식별 키 — 로그인/이름이 겹칠 수 있어 인덱스를 함께 쓴다. */
+function memberKey(m: AutoReportMember, i: number): string {
+  return `${m.login ?? m.name}#${i}`;
+}
+
 /* ── 지표 스트립: 라벨별 아이콘 + 증감 의미색 ── */
 function metricIcon(label: string) {
   if (label.includes("커밋")) return GitCommit;
@@ -1462,133 +2008,143 @@ export function AutoReportView({
             <MetricStrip metrics={content.metrics} />
           )}
 
-          {/* 기능별 진행 현황 (탭 + 보드·커밋 근거) */}
-          {content?.features && content.features.length > 0 && (
-            <FeatureProgressTabs
-              features={content.features}
-              categories={content.commit_categories ?? []}
-            />
-          )}
-
-          {/* 주요 변화 (기능 카드가 없을 때 폴백) */}
-          {(!content?.features || content.features.length === 0) &&
-            content?.highlights &&
-            content.highlights.length > 0 && (
-              <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
-                <h2 className="text-xs md:text-sm font-bold text-foreground">
-                  주요 변화
-                </h2>
-                <ul className="flex flex-col gap-2">
-                  {content.highlights.map((item, index) => (
-                    <li
-                      key={index}
-                      className="flex gap-2 text-sm text-foreground"
-                    >
-                      <span className="text-bridge-accent">•</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-          {/* 섹션 */}
-          {content?.sections?.map((section) => (
-            <section
-              key={section.title}
-              className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xs md:text-sm font-bold text-foreground">
-                  {section.title}
-                </h2>
-                {section.sources?.map((source) => (
-                  <SourceChip key={source} source={source} />
-                ))}
-              </div>
-              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                {section.body}
-              </p>
-            </section>
-          ))}
-
-          {/* 공유된 자료 (슬랙 이미지·영상) */}
-          {content?.attachments && content.attachments.length > 0 && (
+          {/* 주요 변화 (항상 표시) */}
+          {content?.highlights && content.highlights.length > 0 && (
             <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <h2 className="text-xs md:text-sm font-bold text-foreground">
-                  공유된 자료
-                </h2>
-                <SourceChip source="SLACK" />
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {content.attachments.map((att, index) => (
-                  <figure
-                    key={index}
-                    className="flex flex-col gap-1.5 rounded-xl overflow-hidden border border-foreground/[0.08] bg-bridge-dark"
-                  >
-                    {att.type === "video" ? (
-                      // 영상은 저장하지 않고 포스터 썸네일만 보여준다. 재생은 슬랙 원문으로 이동.
-                      <a
-                        href={att.link ?? att.url ?? undefined}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        title="슬랙에서 영상 보기"
-                        className="group relative block w-full aspect-video bg-black"
-                      >
-                        {att.url ? (
-                          <img
-                            src={att.url}
-                            alt={att.title ?? "공유된 영상"}
-                            loading="lazy"
-                            className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
-                          />
-                        ) : null}
-                        <span className="absolute inset-0 flex items-center justify-center">
-                          <span className="flex items-center justify-center w-11 h-11 rounded-full bg-black/60 backdrop-blur-sm">
-                            <Play
-                              className="w-5 h-5 text-white translate-x-[1px]"
-                              fill="currentColor"
-                            />
-                          </span>
-                        </span>
-                      </a>
-                    ) : (
-                      <a href={att.url ?? undefined} target="_blank" rel="noreferrer">
-                        <img
-                          src={att.url ?? undefined}
-                          alt={att.title ?? "공유된 이미지"}
-                          loading="lazy"
-                          className="w-full aspect-video object-cover hover:opacity-90 transition-opacity"
-                        />
-                      </a>
-                    )}
-                    {att.title && (
-                      <figcaption className="px-2 pb-1.5 text-xs text-slate-500 truncate">
-                        {att.title}
-                      </figcaption>
-                    )}
-                  </figure>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* 확인 필요 */}
-          {content?.risks && content.risks.length > 0 && (
-            <section className="bg-bridge-obsidian rounded-2xl border border-amber-500/25 p-5 flex flex-col gap-3">
-              <h2 className="text-xs md:text-sm font-bold text-amber-500 uppercase tracking-widest">
-                확인 필요
+              <h2 className="text-xs md:text-sm font-bold text-foreground">
+                주요 변화
               </h2>
               <ul className="flex flex-col gap-2">
-                {content.risks.map((risk, index) => (
-                  <li key={index} className="flex gap-2 text-sm text-slate-400">
-                    <span className="text-amber-500">•</span>
-                    <span>{risk}</span>
+                {content.highlights.map((item, index) => (
+                  <li key={index} className="flex gap-2 text-sm text-foreground">
+                    <span className="text-bridge-accent">•</span>
+                    <span>{item}</span>
                   </li>
                 ))}
               </ul>
             </section>
+          )}
+
+          {/* 기능별 진행 현황 — 커밋 클러스터 탭(신규). 옛 보고서는 기능 탭으로 폴백 */}
+          {content?.clusters && content.clusters.length > 0 ? (
+            <ClusterTabs clusters={content.clusters} />
+          ) : content?.features && content.features.length > 0 ? (
+            <FeatureProgressTabs
+              features={content.features}
+              categories={content.commit_categories ?? []}
+            />
+          ) : null}
+
+          {/* 구성원별 활동 (사람 기준 탭) */}
+          {content?.members && content.members.length > 0 && (
+            <MemberTabs members={content.members} />
+          )}
+
+          {/* ── 레거시 하위호환: 클러스터가 없는 옛 보고서에만 개발 내역·공유 자료·확인 필요를 그대로 렌더 ── */}
+          {(!content?.clusters || content.clusters.length === 0) && (
+            <>
+              {content?.sections?.map((section) => (
+                <section
+                  key={section.title}
+                  className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-xs md:text-sm font-bold text-foreground">
+                      {section.title}
+                    </h2>
+                    {section.sources?.map((source) => (
+                      <SourceChip key={source} source={source} />
+                    ))}
+                  </div>
+                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                    {section.body}
+                  </p>
+                </section>
+              ))}
+
+              {content?.attachments && content.attachments.length > 0 && (
+                <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xs md:text-sm font-bold text-foreground">
+                      공유된 자료
+                    </h2>
+                    <SourceChip source="SLACK" />
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {content.attachments.map((att, index) => (
+                      <figure
+                        key={index}
+                        className="flex flex-col gap-1.5 rounded-xl overflow-hidden border border-foreground/[0.08] bg-bridge-dark"
+                      >
+                        {att.type === "video" ? (
+                          <a
+                            href={att.link ?? att.url ?? undefined}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            title="슬랙에서 영상 보기"
+                            className="group relative block w-full aspect-video bg-black"
+                          >
+                            {att.url ? (
+                              <img
+                                src={att.url}
+                                alt={att.title ?? "공유된 영상"}
+                                loading="lazy"
+                                className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+                              />
+                            ) : null}
+                            <span className="absolute inset-0 flex items-center justify-center">
+                              <span className="flex items-center justify-center w-11 h-11 rounded-full bg-black/60 backdrop-blur-sm">
+                                <Play
+                                  className="w-5 h-5 text-white translate-x-[1px]"
+                                  fill="currentColor"
+                                />
+                              </span>
+                            </span>
+                          </a>
+                        ) : (
+                          <a
+                            href={att.url ?? undefined}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <img
+                              src={att.url ?? undefined}
+                              alt={att.title ?? "공유된 이미지"}
+                              loading="lazy"
+                              className="w-full aspect-video object-cover hover:opacity-90 transition-opacity"
+                            />
+                          </a>
+                        )}
+                        {att.title && (
+                          <figcaption className="px-2 pb-1.5 text-xs text-slate-500 truncate">
+                            {att.title}
+                          </figcaption>
+                        )}
+                      </figure>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {content?.risks && content.risks.length > 0 && (
+                <section className="bg-bridge-obsidian rounded-2xl border border-amber-500/25 p-5 flex flex-col gap-3">
+                  <h2 className="text-xs md:text-sm font-bold text-amber-500 uppercase tracking-widest">
+                    확인 필요
+                  </h2>
+                  <ul className="flex flex-col gap-2">
+                    {content.risks.map((risk, index) => (
+                      <li
+                        key={index}
+                        className="flex gap-2 text-sm text-slate-400"
+                      >
+                        <span className="text-amber-500">•</span>
+                        <span>{risk}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </>
           )}
 
           {/* 구조화 본문이 없으면 마크다운 원문이라도 보여준다 */}
