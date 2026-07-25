@@ -68,12 +68,14 @@ const SOURCE_LABEL: Record<string, string> = {
   GITHUB: "GitHub",
   KANBAN: "칸반",
   CONFLUENCE: "Confluence",
+  SLACK: "슬랙",
 };
 
 const SOURCE_CHIP: Record<string, string> = {
   GITHUB: "bg-slate-500/15 text-slate-400",
   KANBAN: "bg-bridge-accent/15 text-bridge-accent",
   CONFLUENCE: "bg-bridge-secondary/15 text-bridge-secondary",
+  SLACK: "bg-purple-500/15 text-purple-600 dark:text-purple-400",
 };
 
 function SourceChip({ source }: { source: string }) {
@@ -754,6 +756,48 @@ export function AutoReportView({
               </p>
             </section>
           ))}
+
+          {/* 공유된 자료 (슬랙 이미지·영상) */}
+          {content?.attachments && content.attachments.length > 0 && (
+            <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xs md:text-sm font-bold text-foreground">
+                  공유된 자료
+                </h2>
+                <SourceChip source="SLACK" />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {content.attachments.map((att, index) => (
+                  <figure
+                    key={index}
+                    className="flex flex-col gap-1.5 rounded-xl overflow-hidden border border-foreground/[0.08] bg-bridge-dark"
+                  >
+                    {att.type === "video" ? (
+                      <video
+                        src={att.url}
+                        controls
+                        className="w-full aspect-video object-cover bg-black"
+                      />
+                    ) : (
+                      <a href={att.url} target="_blank" rel="noreferrer">
+                        <img
+                          src={att.url}
+                          alt={att.title ?? "공유된 이미지"}
+                          loading="lazy"
+                          className="w-full aspect-video object-cover hover:opacity-90 transition-opacity"
+                        />
+                      </a>
+                    )}
+                    {att.title && (
+                      <figcaption className="px-2 pb-1.5 text-xs text-slate-500 truncate">
+                        {att.title}
+                      </figcaption>
+                    )}
+                  </figure>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* 확인 필요 */}
           {content?.risks && content.risks.length > 0 && (

@@ -55,6 +55,12 @@ public class ReportContent {
      */
     private List<CommitCategory> commitCategories;
 
+    /**
+     * 슬랙 채널에 공유된 이미지·영상. AI가 아니라 시스템이 슬랙 수집 결과에서 모아 우리 스토리지로 옮긴
+     * URL을 담는다. 페이지에서 "공유된 자료" 갤러리로 보여준다.
+     */
+    private List<Attachment> attachments;
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -84,6 +90,8 @@ public class ReportContent {
     @AllArgsConstructor
     public static class Sprint {
         private String name;
+        /** 이 스프린트가 속한 마일스톤 이름(제목). 스프린트는 마일스톤에 필수로 속한다. */
+        private String milestone;
         /** 스프린트 상태 — 활성은 "IN_PROGRESS" */
         private String status;
         private int done;
@@ -144,6 +152,18 @@ public class ReportContent {
         private String type;
         /** true면 담당자 확정이 아니라 키워드/AI로 추정 연결된 커밋 */
         private boolean estimated;
+    }
+
+    /** 슬랙에 공유된 이미지/영상 한 건. url은 우리 스토리지로 옮긴 주소라 로그인 없이 열린다. */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Attachment {
+        private String title;
+        /** "image" | "video" */
+        private String type;
+        private String url;
     }
 
     /** 기능에 매핑되지 않은 커밋을 유형별로 묶은 카테고리. */

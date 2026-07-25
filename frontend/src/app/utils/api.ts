@@ -9739,6 +9739,14 @@ export interface AutoReportContent {
   sprint?: AutoReportSprint | null;
   features?: AutoReportFeature[] | null;
   commit_categories?: AutoReportCommitCategory[] | null;
+  attachments?: AutoReportAttachment[] | null;
+}
+
+export interface AutoReportAttachment {
+  title: string | null;
+  /** "image" | "video" */
+  type: string | null;
+  url: string;
 }
 
 export interface AutoReportSourceStatus {
