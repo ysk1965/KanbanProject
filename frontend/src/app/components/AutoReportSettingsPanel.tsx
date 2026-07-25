@@ -133,6 +133,7 @@ export function AutoReportSettingsPanel({
   const [channels, setChannels] = useState<SlackChannel[] | null>(null);
   const [loadingChannels, setLoadingChannels] = useState(false);
   const [showChannelPicker, setShowChannelPicker] = useState(false);
+  const [channelQuery, setChannelQuery] = useState("");
 
   const [rendered, setRendered] = useState<AutoReport | null>(null);
   const [renderOpen, setRenderOpen] = useState(false);
@@ -239,8 +240,17 @@ export function AutoReportSettingsPanel({
     setLoadingChannels(true);
     setError(null);
     try {
-      const data = await slackAppAPI.listChannels(boardId);
-      setChannels(data.channels);
+      // 커서를 따라 전체 채널을 모은다(한 페이지 100개). 검색이 첫 100개에만
+      // 걸리지 않도록. 폭주 방지로 최대 10페이지(1000개)까지만.
+      const all: SlackChannel[] = [];
+      let cursor: string | undefined;
+      for (let page = 0; page < 10; page++) {
+        const data = await slackAppAPI.listChannels(boardId, cursor);
+        all.push(...data.channels);
+        if (!data.next_cursor) break;
+        cursor = data.next_cursor;
+      }
+      setChannels(all);
       setShowChannelPicker(true);
     } catch (e) {
       setError(
@@ -255,6 +265,7 @@ export function AutoReportSettingsPanel({
   /** 채널 선택. null이면 지정 해제(설치 기본 채널로 발송). */
   const selectChannel = (ch: SlackChannel | null) => {
     setShowChannelPicker(false);
+    setChannelQuery("");
     void patchConfig({
       slack_channel_id: ch ? ch.id : "",
       slack_channel_name: ch ? ch.name : "",
@@ -785,21 +796,47 @@ export function AutoReportSettingsPanel({
                 {showChannelPicker &&
                   channels &&
                   (channels.length > 0 ? (
-                    <div className="max-h-40 overflow-y-auto custom-scrollbar bg-bridge-dark rounded-lg border border-foreground/10">
-                      {channels.map((ch) => (
-                        <button
-                          key={ch.id}
-                          type="button"
-                          onClick={() => selectChannel(ch)}
-                          className="w-full flex items-center gap-1.5 px-3 py-1.5 text-left hover:bg-foreground/5 transition-colors"
-                        >
-                          <Hash className="w-3 h-3 text-slate-400 shrink-0" />
-                          <span className="text-xs text-foreground truncate">
-                            {ch.name}
-                          </span>
-                          {ch.is_private && <span className="text-xs">🔒</span>}
-                        </button>
-                      ))}
+                    <div className="flex flex-col gap-1.5">
+                      <input
+                        type="text"
+                        value={channelQuery}
+                        onChange={(e) => setChannelQuery(e.target.value)}
+                        placeholder="채널 이름 검색..."
+                        autoFocus
+                        className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-1.5 px-3 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                      />
+                      {(() => {
+                        const q = channelQuery.trim().toLowerCase();
+                        const filtered = q
+                          ? channels.filter((ch) =>
+                              ch.name.toLowerCase().includes(q),
+                            )
+                          : channels;
+                        return filtered.length > 0 ? (
+                          <div className="max-h-40 overflow-y-auto custom-scrollbar bg-bridge-dark rounded-lg border border-foreground/10">
+                            {filtered.map((ch) => (
+                              <button
+                                key={ch.id}
+                                type="button"
+                                onClick={() => selectChannel(ch)}
+                                className="w-full flex items-center gap-1.5 px-3 py-1.5 text-left hover:bg-foreground/5 transition-colors"
+                              >
+                                <Hash className="w-3 h-3 text-slate-400 shrink-0" />
+                                <span className="text-xs text-foreground truncate">
+                                  {ch.name}
+                                </span>
+                                {ch.is_private && (
+                                  <span className="text-xs">🔒</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-500">
+                            "{channelQuery}"에 맞는 채널이 없습니다.
+                          </p>
+                        );
+                      })()}
                     </div>
                   ) : (
                     <p className="text-xs text-slate-500">
