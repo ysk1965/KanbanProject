@@ -63,7 +63,7 @@ export function BoardReportSpace({
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-      <div className="flex flex-col gap-5 max-w-6xl pb-4">
+      <div className="flex flex-col gap-5 max-w-[120rem] pb-4">
         {/* 헤더 */}
         <div className="flex items-start gap-4 flex-wrap">
           <div className="min-w-0">

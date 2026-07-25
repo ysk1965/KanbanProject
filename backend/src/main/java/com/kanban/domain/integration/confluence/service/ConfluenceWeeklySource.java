@@ -1,5 +1,6 @@
 package com.kanban.domain.integration.confluence.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.integration.confluence.ConfluenceMatchRule;
 import com.kanban.domain.integration.confluence.dto.ConfluenceResponse;
@@ -57,6 +58,114 @@ public class ConfluenceWeeklySource implements ReportSource {
     @Override
     public boolean isConfigured(String boardId) {
         return !targetResolver.resolve(boardId).isEmpty();
+    }
+
+    @Override
+    public boolean supportsWeeklyRollup() {
+        return true;
+    }
+
+    /**
+     * 일일 Confluence 수집분을 주간 한 벌로 합친다.
+     * <ul>
+     *   <li><b>단일 문서(pages)</b> — URL로 중복 제거해 잇는다. 한 페이지가 여러 날 갱신돼도 한 번만.</li>
+     *   <li><b>트리 변경(changelogs)</b> — 같은 (space, parent_page_id)끼리 묶어 added/modified/deleted를
+     *       합치고, 문서는 URL로 중복 제거한다. 같은 문서가 월·수 이틀 수정됐어도 한 건으로 센다.</li>
+     * </ul>
+     * 최신 조각이 먼저 오므로 그 순서를 살린다. 첫 수집 판정(삭제 기준선)은 일일 쪽에서 이미 끝났다.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public SourceChunk rollup(List<JsonNode> dailyData, ReportPeriod period) {
+        String site = null;
+        List<Map<String, Object>> pages = new ArrayList<>();
+        Set<String> pageUrls = new HashSet<>();
+        // (space|parent) -> 합쳐지는 changelog
+        Map<String, Map<String, Object>> changelogByKey = new LinkedHashMap<>();
+
+        for (JsonNode day : dailyData) {
+            if (site == null && day.hasNonNull("site")) {
+                site = day.get("site").asText();
+            }
+            JsonNode dayPages = day.get("pages");
+            if (dayPages != null && dayPages.isArray()) {
+                for (JsonNode page : dayPages) {
+                    String url = page.hasNonNull("url") ? page.get("url").asText() : null;
+                    if (url != null && !pageUrls.add(url)) {
+                        continue;
+                    }
+                    pages.add(objectMapper.convertValue(page, Map.class));
+                }
+            }
+            JsonNode dayLogs = day.get("changelogs");
+            if (dayLogs != null && dayLogs.isArray()) {
+                for (JsonNode log : dayLogs) {
+                    mergeChangelog(changelogByKey, log, period);
+                }
+            }
+        }
+
+        List<Map<String, Object>> changelogs = new ArrayList<>(changelogByKey.values());
+        changelogs.forEach(c -> c.remove("_seen")); // 중복 판정용 임시 키 — 저장 JSON엔 남기지 않는다
+        int changeCount = changelogs.stream().mapToInt(ConfluenceWeeklySource::changeCount).sum();
+        if (pages.isEmpty() && changeCount == 0) {
+            return SourceChunk.empty(SourceKind.CONFLUENCE, "기간 내 Confluence 변경 없음");
+        }
+
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        if (!pages.isEmpty()) {
+            metrics.put("pages", pages.size());
+        }
+        if (!changelogs.isEmpty()) {
+            metrics.put("changed_docs", changelogs.stream()
+                    .mapToInt(c -> listSize(c, "added") + listSize(c, "modified")).sum());
+            metrics.put("deleted_docs", changelogs.stream().mapToInt(c -> listSize(c, "deleted")).sum());
+        }
+
+        return SourceChunk.ok(SourceKind.CONFLUENCE, toJson(site, pages, changelogs),
+                metrics, buildSummary(pages, changelogs, List.of()));
+    }
+
+    /** 같은 (space, parent_page_id) changelog를 하나로 합친다. 문서는 URL로 중복 제거. */
+    @SuppressWarnings("unchecked")
+    private void mergeChangelog(Map<String, Map<String, Object>> byKey, JsonNode log, ReportPeriod period) {
+        String space = log.hasNonNull("space") ? log.get("space").asText() : "";
+        String parent = log.hasNonNull("parent_page_id") ? log.get("parent_page_id").asText() : "";
+        Map<String, Object> target = byKey.computeIfAbsent(space + '|' + parent, k -> {
+            Map<String, Object> fresh = new LinkedHashMap<>();
+            fresh.put("space", space);
+            fresh.put("parent_page_id", parent);
+            fresh.put("period", period.label());
+            fresh.put("added", new ArrayList<Map<String, Object>>());
+            fresh.put("modified", new ArrayList<Map<String, Object>>());
+            fresh.put("deleted", new ArrayList<Map<String, Object>>());
+            fresh.put("_seen", new HashSet<String>());
+            return fresh;
+        });
+        Set<String> seen = (Set<String>) target.get("_seen");
+        if (Boolean.TRUE.equals(booleanNode(log, "truncated"))) {
+            target.put("truncated", true);
+        }
+        for (String bucket : List.of("added", "modified", "deleted")) {
+            JsonNode items = log.get(bucket);
+            if (items == null || !items.isArray()) {
+                continue;
+            }
+            List<Map<String, Object>> into = (List<Map<String, Object>>) target.get(bucket);
+            for (JsonNode item : items) {
+                String key = item.hasNonNull("url") ? item.get("url").asText()
+                        : (item.hasNonNull("id") ? item.get("id").asText() : null);
+                if (key != null && !seen.add(bucket + '|' + key)) {
+                    continue;
+                }
+                into.add(objectMapper.convertValue(item, Map.class));
+            }
+        }
+    }
+
+    private Boolean booleanNode(JsonNode node, String field) {
+        JsonNode v = node.get(field);
+        return v != null && v.asBoolean();
     }
 
     @Override

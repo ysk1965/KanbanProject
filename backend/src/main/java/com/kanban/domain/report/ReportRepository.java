@@ -25,6 +25,19 @@ public interface ReportRepository extends JpaRepository<WeeklyReport, String> {
     Optional<WeeklyReport> findByBoardIdAndReportTypeAndPeriodStartAndPeriodEnd(
             String boardId, ReportType reportType, LocalDate periodStart, LocalDate periodEnd);
 
+    /**
+     * 주간 롤업용 — 그 주에 발행된 일일 보고서를 시작일(=수집 구간 시작일)로 훑는다.
+     * 같은 날 재생성본이 여러 개면 최신이 먼저 오도록 정렬해, 호출부가 하루당 한 벌만 집는다.
+     */
+    @Query("SELECT r FROM WeeklyReport r WHERE r.board.id = :boardId "
+            + "AND r.reportType = com.kanban.domain.report.ReportType.DAILY_DEV "
+            + "AND r.periodStart >= :from AND r.periodStart <= :to "
+            + "ORDER BY r.periodStart DESC, r.createdAt DESC")
+    List<WeeklyReport> findDailyReportsForRollup(
+            @Param("boardId") String boardId,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to);
+
     Optional<WeeklyReport> findByBoardIdAndTargetUserIdAndReportTypeAndPeriodStartAndPeriodEnd(
             String boardId, String targetUserId, ReportType reportType,
             LocalDate periodStart, LocalDate periodEnd);
