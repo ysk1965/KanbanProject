@@ -9838,6 +9838,11 @@ export const autoReportAPI = {
     );
   },
 
+  /** 보관된 보고서 삭제 — 관리자 이상만 */
+  remove: async (boardId: string, reportId: string) => {
+    return apiClient.delete<void>(`/boards/${boardId}/reports/auto/${reportId}`);
+  },
+
   getConfig: async (boardId: string) => {
     return apiClient.get<ReportConfig>(`/boards/${boardId}/reports/config`);
   },

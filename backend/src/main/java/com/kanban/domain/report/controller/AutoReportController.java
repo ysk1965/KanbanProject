@@ -59,4 +59,14 @@ public class AutoReportController {
         queryService.revokeShareLink(boardId, reportId, principal.getUserId());
         return ResponseEntity.noContent().build();
     }
+
+    /** 보관된 보고서 삭제 — 관리자 이상만 */
+    @DeleteMapping("/api/v1/boards/{boardId}/reports/auto/{reportId}")
+    public ResponseEntity<Void> deleteReport(
+            @PathVariable String boardId,
+            @PathVariable String reportId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        queryService.deleteReport(boardId, reportId, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
 }
