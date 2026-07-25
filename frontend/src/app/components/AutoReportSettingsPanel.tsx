@@ -487,8 +487,19 @@ export function AutoReportSettingsPanel({
       );
       if (status === "SKIPPED") {
         setNotice(message ?? "기간 내 활동이 없어 이번 발송은 건너뛰었습니다.");
+      } else if (status === "FAILED") {
+        // 보고서는 만들어졌어도(REQUIRES_NEW) 슬랙 게시가 실패하면 FAILED다.
+        // 성공처럼 보이지 않게 오류로 정직하게 알린다.
+        setError(
+          message ??
+            "보고서는 만들었지만 슬랙 게시에 실패했습니다. 발송 채널에 봇(MILKYWAY)이 초대돼 있는지 확인하세요.",
+        );
       } else if (report_id) {
-        setNotice(`보고서를 발송했습니다. (${report_id.slice(0, 8)})`);
+        setNotice(
+          status === "PARTIAL"
+            ? `보고서를 발송했습니다 — 일부 소스는 수집에 실패했습니다. (${report_id.slice(0, 8)})`
+            : `보고서를 발송했습니다. (${report_id.slice(0, 8)})`,
+        );
       } else {
         setNotice(message ?? "보고서를 발송했습니다.");
       }
@@ -1097,6 +1108,24 @@ export function AutoReportSettingsPanel({
                 지금 발송
               </button>
             </div>
+
+            {/* 발송/미리보기 결과 — 스크롤된 모달에서도 버튼 옆에서 바로 보이도록 여기에도 띄운다 */}
+            {(notice || error) && (
+              <div
+                className={`flex items-start gap-2 p-3 rounded-xl border text-xs ${
+                  error
+                    ? "bg-rose-500/10 border-rose-500/20 text-rose-500"
+                    : "bg-bridge-accent/10 border-bridge-accent/20 text-bridge-accent"
+                }`}
+              >
+                {error ? (
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                ) : (
+                  <Check className="w-4 h-4 shrink-0 mt-0.5" />
+                )}
+                <span>{error ?? notice}</span>
+              </div>
+            )}
           </div>
         </div>
       )}
