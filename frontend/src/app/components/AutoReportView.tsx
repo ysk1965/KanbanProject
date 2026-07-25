@@ -3,10 +3,14 @@ import { motion } from "framer-motion";
 import {
   AlertTriangle,
   ArrowUpRight,
+  Ban,
   CalendarDays,
   Check,
+  Columns3,
   FileText,
   GitCommit,
+  MessagesSquare,
+  Paperclip,
 } from "lucide-react";
 
 import type {
@@ -44,7 +48,11 @@ function parseCommits(rawData: string | null): Record<string, CommitRow[]> {
   }
 }
 
-/** 수집 원본에서 Confluence 주간보고 페이지를 꺼낸다. 원문은 요약하지 않고 그대로 보여준다. */
+/**
+ * 수집 원본에서 Confluence 소스를 꺼낸다. 두 갈래를 모두 보여준다:
+ * <b>pages</b>(주간보고 원문, 요약하지 않음)와 <b>changelogs</b>(부모 문서 하위에서
+ * 그 기간에 추가/수정/삭제된 실제 문서들).
+ */
 interface ConfluencePage {
   title: string;
   space?: string | null;
@@ -53,15 +61,380 @@ interface ConfluencePage {
   body?: string | null;
 }
 
-function parseConfluencePages(rawData: string | null): ConfluencePage[] {
-  if (!rawData) return [];
+/** 변경내역의 문서 한 건 — 추가/수정은 본문·링크까지, 삭제는 제목만 온다. */
+interface ConfluenceDoc {
+  id?: string | null;
+  title: string;
+  url?: string | null;
+  author_id?: string | null;
+  updated_at?: string | null;
+  body?: string | null;
+  version?: number | null;
+}
+
+interface ConfluenceChangelog {
+  space?: string | null;
+  parent_page_id?: string | null;
+  period?: string | null;
+  added?: ConfluenceDoc[];
+  modified?: ConfluenceDoc[];
+  deleted?: ConfluenceDoc[];
+  truncated?: boolean;
+}
+
+interface ConfluenceData {
+  pages: ConfluencePage[];
+  changelogs: ConfluenceChangelog[];
+}
+
+function parseConfluence(rawData: string | null): ConfluenceData {
+  const empty: ConfluenceData = { pages: [], changelogs: [] };
+  if (!rawData) return empty;
   try {
-    const parsed = JSON.parse(rawData);
-    const pages = parsed?.confluence?.pages;
-    return Array.isArray(pages) ? (pages as ConfluencePage[]) : [];
+    const c = JSON.parse(rawData)?.confluence;
+    if (!c || typeof c !== "object") return empty;
+    return {
+      pages: Array.isArray(c.pages) ? c.pages : [],
+      changelogs: Array.isArray(c.changelogs) ? c.changelogs : [],
+    };
   } catch {
-    return [];
+    return empty;
   }
+}
+
+/** 변경내역 그룹 표기 — 추가/수정/삭제. 상태 텍스트만 dark: 분기(디자인 가이드). */
+const CONFLUENCE_CHANGE_META: Array<{
+  key: "added" | "modified" | "deleted";
+  label: string;
+  pill: string;
+}> = [
+  {
+    key: "added",
+    label: "추가된 문서",
+    pill: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  },
+  {
+    key: "modified",
+    label: "수정된 문서",
+    pill: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  },
+  {
+    key: "deleted",
+    label: "삭제된 문서",
+    pill: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+  },
+];
+
+/** 변경내역 문서 한 장 — 삭제 문서는 제목만 취소선으로 남긴다. */
+function ConfluenceDocCard({
+  doc,
+  deleted,
+}: {
+  doc: ConfluenceDoc;
+  deleted?: boolean;
+}) {
+  return (
+    <article className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-2.5">
+      <div className="flex items-center gap-2">
+        <FileText className="w-4 h-4 text-bridge-secondary shrink-0" />
+        <h3
+          className={`text-sm font-bold break-words ${
+            deleted ? "text-slate-500 line-through" : "text-foreground"
+          }`}
+        >
+          {doc.title}
+        </h3>
+      </div>
+      {!deleted && (doc.author_id || doc.updated_at) && (
+        <div className="text-xs text-slate-500">
+          {[doc.author_id, doc.updated_at ? formatDate(doc.updated_at) : null]
+            .filter(Boolean)
+            .join(" · ")}
+        </div>
+      )}
+      {!deleted && doc.body && (
+        <p className="text-sm text-slate-400 whitespace-pre-wrap leading-relaxed break-words">
+          {doc.body}
+        </p>
+      )}
+      {!deleted && doc.url && (
+        <a
+          href={doc.url}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="inline-flex items-center gap-1 text-xs font-bold text-bridge-secondary hover:underline"
+        >
+          Confluence에서 열기
+          <ArrowUpRight className="w-3 h-3" />
+        </a>
+      )}
+    </article>
+  );
+}
+
+/** 수집 원본에서 칸반 태스크를 완료/진행 중/지연 그룹으로 꺼낸다. 체크리스트 항목까지 그대로 보여준다. */
+interface KanbanChecklistItem {
+  title: string;
+  done: boolean;
+  assignee?: string | null;
+}
+
+interface KanbanTask {
+  title: string;
+  key?: string | null;
+  feature?: string | null;
+  column?: string | null;
+  description?: string | null;
+  checklist_done?: number;
+  checklist_total?: number;
+  checklist?: KanbanChecklistItem[];
+  assignees?: string[];
+  blocked_by?: string[];
+  qa_state?: string | null;
+  due_date?: string | null;
+  days_overdue?: number;
+  completed_at?: string | null;
+}
+
+interface KanbanGroups {
+  completed: KanbanTask[];
+  in_progress: KanbanTask[];
+  overdue: KanbanTask[];
+}
+
+function parseKanban(rawData: string | null): KanbanGroups {
+  const empty: KanbanGroups = { completed: [], in_progress: [], overdue: [] };
+  if (!rawData) return empty;
+  try {
+    const k = JSON.parse(rawData)?.kanban;
+    if (!k || typeof k !== "object") return empty;
+    return {
+      completed: Array.isArray(k.completed) ? k.completed : [],
+      in_progress: Array.isArray(k.in_progress) ? k.in_progress : [],
+      overdue: Array.isArray(k.overdue) ? k.overdue : [],
+    };
+  } catch {
+    return empty;
+  }
+}
+
+/** 수집 원본에서 슬랙 채널 대화를 꺼낸다. 스레드 답글(replies)까지 중첩 구조 그대로 유지한다. */
+interface SlackFile {
+  title?: string | null;
+  type?: string | null;
+  url?: string | null;
+}
+
+interface SlackMessage {
+  user?: string | null;
+  author?: string | null;
+  at?: string | null;
+  text?: string | null;
+  reactions?: string[];
+  files?: SlackFile[];
+  replies?: SlackMessage[];
+}
+
+interface SlackChannel {
+  channel?: string | null;
+  channel_name?: string | null;
+  message_count?: number;
+  messages: SlackMessage[];
+}
+
+function parseSlack(rawData: string | null): SlackChannel | null {
+  if (!rawData) return null;
+  try {
+    const s = JSON.parse(rawData)?.slack;
+    if (!s || typeof s !== "object" || !Array.isArray(s.messages)) return null;
+    return s as SlackChannel;
+  } catch {
+    return null;
+  }
+}
+
+/** 칸반 그룹 표기 — 상태 뱃지 텍스트만 dark: 분기(디자인 가이드). */
+const KANBAN_GROUP_META: Array<{
+  key: keyof KanbanGroups;
+  label: string;
+  pill: string;
+}> = [
+  {
+    key: "completed",
+    label: "완료",
+    pill: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  },
+  {
+    key: "in_progress",
+    label: "진행 중",
+    pill: "bg-bridge-accent/15 text-bridge-accent",
+  },
+  {
+    key: "overdue",
+    label: "지연",
+    pill: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+  },
+];
+
+/** 태스크 한 장 — 체크리스트 항목으로 "무슨 작업인지"와 커밋 매칭 단서를 드러낸다. */
+function KanbanTaskCard({
+  task,
+  overdue,
+}: {
+  task: KanbanTask;
+  overdue?: boolean;
+}) {
+  const done = task.checklist_done ?? 0;
+  const total = task.checklist_total ?? 0;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  return (
+    <article
+      className={`bg-bridge-obsidian rounded-2xl border p-5 flex flex-col gap-2.5 ${
+        overdue ? "border-rose-500/25" : "border-foreground/[0.08]"
+      }`}
+    >
+      <h3 className="text-sm font-bold text-foreground break-words">
+        {task.title}
+      </h3>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+        {task.key && (
+          <span className="font-mono text-slate-400">{task.key}</span>
+        )}
+        {task.feature && (
+          <span className="px-1.5 py-0.5 rounded bg-foreground/[0.06] text-slate-400">
+            {task.feature}
+          </span>
+        )}
+        {task.column && (
+          <span className="px-1.5 py-0.5 rounded bg-foreground/[0.06] text-slate-400">
+            {task.column}
+          </span>
+        )}
+        {task.assignees?.length ? (
+          <span>{task.assignees.join(", ")}</span>
+        ) : null}
+        {overdue && task.due_date && (
+          <span className="text-rose-600 dark:text-rose-400">
+            마감 {formatDate(task.due_date)}
+            {task.days_overdue ? ` · ${task.days_overdue}일 지연` : ""}
+          </span>
+        )}
+        {!overdue && task.completed_at && (
+          <span>완료 {formatDate(task.completed_at)}</span>
+        )}
+      </div>
+      {task.description && (
+        <p className="text-xs text-slate-400 leading-relaxed break-words">
+          {task.description}
+        </p>
+      )}
+      {total > 0 && (
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span className="tabular-nums">
+            체크리스트 {done}/{total}
+          </span>
+          <span className="flex-1 max-w-[120px] h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
+            <span
+              className="block h-full bg-emerald-500 rounded-full"
+              style={{ width: `${pct}%` }}
+            />
+          </span>
+        </div>
+      )}
+      {task.checklist?.length ? (
+        <ul className="flex flex-col gap-1.5 mt-0.5">
+          {task.checklist.map((item, i) => (
+            <li key={i} className="flex items-center gap-2 text-sm">
+              <span
+                className={`shrink-0 w-4 h-4 rounded flex items-center justify-center border ${
+                  item.done
+                    ? "bg-emerald-500 border-emerald-500"
+                    : "border-slate-600"
+                }`}
+              >
+                {item.done && (
+                  <Check className="w-2.5 h-2.5 text-white" strokeWidth={3.5} />
+                )}
+              </span>
+              <span
+                className={
+                  item.done ? "text-slate-500 line-through" : "text-foreground"
+                }
+              >
+                {item.title}
+              </span>
+              {item.assignee && (
+                <span className="ml-auto shrink-0 text-xs text-slate-500">
+                  {item.assignee}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {task.blocked_by?.length ? (
+        <span className="inline-flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400">
+          <Ban className="w-3.5 h-3.5 shrink-0" />
+          {task.blocked_by.join(", ")}에 막힘
+        </span>
+      ) : null}
+    </article>
+  );
+}
+
+/** 슬랙 메시지 한 줄 — 답글(replies)은 자기 자신을 재귀 렌더해 스레드 결론까지 보여준다. */
+function SlackMessageItem({ msg }: { msg: SlackMessage }) {
+  const name = msg.author || msg.user || "알 수 없음";
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline gap-2">
+        <span className="text-sm font-bold text-foreground">{name}</span>
+        {msg.at && (
+          <span className="text-xs text-slate-500 tabular-nums">{msg.at}</span>
+        )}
+      </div>
+      {msg.text && (
+        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
+          {msg.text}
+        </p>
+      )}
+      {msg.reactions?.length ? (
+        <div className="flex flex-wrap gap-1.5">
+          {msg.reactions.map((r, i) => (
+            <span
+              key={i}
+              className="text-xs px-2 py-0.5 rounded-full bg-foreground/[0.06] text-slate-400"
+            >
+              {r}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {msg.files?.length ? (
+        <div className="flex flex-col gap-1.5">
+          {msg.files.map((f, i) => (
+            <a
+              key={i}
+              href={f.url ?? undefined}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-1.5 text-xs text-slate-400 bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg px-2.5 py-1.5 w-fit hover:text-foreground transition-colors"
+            >
+              <Paperclip className="w-3 h-3 text-bridge-secondary shrink-0" />
+              {f.title || f.type || "첨부"}
+            </a>
+          ))}
+        </div>
+      ) : null}
+      {msg.replies?.length ? (
+        <div className="mt-1 pl-3.5 border-l-2 border-foreground/[0.08] flex flex-col gap-3">
+          {msg.replies.map((rep, i) => (
+            <SlackMessageItem key={i} msg={rep} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -506,14 +879,16 @@ function FeatureProgressTabs({
   );
 }
 
-type TabKey = "summary" | "github" | "confluence";
+type TabKey = "summary" | "github" | "kanban" | "confluence" | "slack";
 
 /**
  * 자동 보고서 본문 렌더러. 발행된 공유 페이지({@link AutoReportPage})와 설정 화면의
  * 렌더링 미리보기 모달이 <b>같은 컴포넌트</b>를 써서 발송본과 미리보기가 어긋나지 않게 한다.
  *
- * <p>내용은 세 갈래로 나뉜다: <b>요약</b>(스프린트·기능별 진행·리드·지표·확인 필요),
- * <b>GitHub</b>(수집한 커밋), <b>Confluence</b>(주간보고 원문).
+ * <p>내용은 요약과 소스별 탭으로 나뉜다: <b>요약</b>(스프린트·기능별 진행·리드·지표·확인 필요),
+ * <b>GitHub</b>(수집한 커밋), <b>보드 태스크</b>(칸반 완료/진행/지연 + 체크리스트),
+ * <b>Confluence</b>(주간보고 원문), <b>채널 대화</b>(슬랙 스레드·리액션·첨부). 각 소스는
+ * 데이터가 있을 때만 탭으로 노출된다.
  */
 export function AutoReportView({
   report,
@@ -529,8 +904,16 @@ export function AutoReportView({
     () => parseCommits(report.raw_data ?? null),
     [report],
   );
-  const confluencePages = useMemo(
-    () => parseConfluencePages(report.raw_data ?? null),
+  const kanbanGroups = useMemo(
+    () => parseKanban(report.raw_data ?? null),
+    [report],
+  );
+  const confluence = useMemo(
+    () => parseConfluence(report.raw_data ?? null),
+    [report],
+  );
+  const slackChannel = useMemo(
+    () => parseSlack(report.raw_data ?? null),
     [report],
   );
 
@@ -550,6 +933,29 @@ export function AutoReportView({
       Object.values(commitsByRepo).reduce((sum, list) => sum + list.length, 0),
     [commitsByRepo],
   );
+  const kanbanCount = useMemo(
+    () =>
+      kanbanGroups.completed.length +
+      kanbanGroups.in_progress.length +
+      kanbanGroups.overdue.length,
+    [kanbanGroups],
+  );
+  const slackCount = slackChannel
+    ? (slackChannel.message_count ?? slackChannel.messages.length)
+    : 0;
+  const confluenceCount = useMemo(
+    () =>
+      confluence.pages.length +
+      confluence.changelogs.reduce(
+        (sum, cl) =>
+          sum +
+          (cl.added?.length ?? 0) +
+          (cl.modified?.length ?? 0) +
+          (cl.deleted?.length ?? 0),
+        0,
+      ),
+    [confluence],
+  );
 
   const tabs = useMemo(() => {
     const list: Array<{ key: TabKey; label: string; count?: number }> = [
@@ -557,14 +963,18 @@ export function AutoReportView({
     ];
     if (commitCount > 0)
       list.push({ key: "github", label: "GitHub", count: commitCount });
-    if (confluencePages.length > 0)
+    if (kanbanCount > 0)
+      list.push({ key: "kanban", label: "보드 태스크", count: kanbanCount });
+    if (confluenceCount > 0)
       list.push({
         key: "confluence",
         label: "Confluence",
-        count: confluencePages.length,
+        count: confluenceCount,
       });
+    if (slackCount > 0)
+      list.push({ key: "slack", label: "채널 대화", count: slackCount });
     return list;
-  }, [commitCount, confluencePages.length]);
+  }, [commitCount, kanbanCount, confluenceCount, slackCount]);
 
   const activeTab = tabs.some((t) => t.key === tab) ? tab : "summary";
 
@@ -889,55 +1299,175 @@ export function AutoReportView({
         </motion.div>
       )}
 
+      {/* ── 보드 태스크 탭 ── */}
+      {activeTab === "kanban" && (
+        <motion.div key="kanban" {...fade} className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <Columns3 className="w-4 h-4 text-bridge-accent" />
+            <h2 className="text-xs md:text-sm font-bold text-foreground">
+              보드 태스크
+            </h2>
+          </div>
+          {KANBAN_GROUP_META.map(({ key, label, pill }) => {
+            const tasks = kanbanGroups[key];
+            if (tasks.length === 0) return null;
+            return (
+              <div key={key} className="flex flex-col gap-2">
+                <span
+                  className={`self-start text-xs font-bold px-2 py-0.5 rounded-full tabular-nums ${pill}`}
+                >
+                  {label} {tasks.length}
+                </span>
+                {tasks.map((task, i) => (
+                  <KanbanTaskCard
+                    key={task.key ?? `${key}-${i}`}
+                    task={task}
+                    overdue={key === "overdue"}
+                  />
+                ))}
+              </div>
+            );
+          })}
+        </motion.div>
+      )}
+
       {/* ── Confluence 탭 ── */}
       {activeTab === "confluence" && (
         <motion.div key="confluence" {...fade} className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-bridge-secondary" />
-            <h2 className="text-xs md:text-sm font-bold text-foreground">
-              주간보고 원문
-            </h2>
-            <span className="text-xs text-slate-500">요약하지 않음</span>
-          </div>
-          {confluencePages.map((page, i) => (
-            <article
-              key={`${page.title}-${i}`}
-              className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-2.5"
-            >
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-bridge-secondary shrink-0" />
-                <h3 className="text-sm font-bold text-foreground">
-                  {page.title}
-                </h3>
-              </div>
-              {(page.space || page.last_updated) && (
-                <div className="text-xs text-slate-500">
-                  {[
-                    page.space,
-                    page.last_updated ? formatDate(page.last_updated) : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+          {/* 문서 변경내역 — 부모 문서 하위에서 그 기간에 바뀐 실제 문서들 */}
+          {confluence.changelogs.map((cl, ci) => {
+            const groups = CONFLUENCE_CHANGE_META.filter(
+              (g) => (cl[g.key]?.length ?? 0) > 0,
+            );
+            if (groups.length === 0) return null;
+            return (
+              <div key={ci} className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-bridge-secondary" />
+                  <h2 className="text-xs md:text-sm font-bold text-foreground">
+                    문서 변경내역
+                  </h2>
+                  {cl.space && (
+                    <span className="text-xs text-slate-500">{cl.space}</span>
+                  )}
                 </div>
-              )}
-              {page.body && (
-                <p className="text-sm text-slate-400 whitespace-pre-wrap leading-relaxed">
-                  {page.body}
-                </p>
-              )}
-              {page.url && (
-                <a
-                  href={page.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="inline-flex items-center gap-1 text-xs font-bold text-bridge-secondary hover:underline"
+                {groups.map((g) => {
+                  const docs = cl[g.key] ?? [];
+                  return (
+                    <div key={g.key} className="flex flex-col gap-2">
+                      <span
+                        className={`self-start text-xs font-bold px-2 py-0.5 rounded-full tabular-nums ${g.pill}`}
+                      >
+                        {g.label} {docs.length}
+                      </span>
+                      {docs.map((doc, di) => (
+                        <ConfluenceDocCard
+                          key={doc.id ?? `${doc.title}-${di}`}
+                          doc={doc}
+                          deleted={g.key === "deleted"}
+                        />
+                      ))}
+                    </div>
+                  );
+                })}
+                {cl.truncated && (
+                  <span className="text-xs text-slate-600">
+                    일부 문서는 분량 제한으로 생략됨
+                  </span>
+                )}
+              </div>
+            );
+          })}
+
+          {/* 주간보고 원문 — 요약하지 않고 사람이 쓴 원문 그대로 */}
+          {confluence.pages.length > 0 && (
+            <>
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-bridge-secondary" />
+                <h2 className="text-xs md:text-sm font-bold text-foreground">
+                  주간보고 원문
+                </h2>
+                <span className="text-xs text-slate-500">요약하지 않음</span>
+              </div>
+              {confluence.pages.map((page, i) => (
+                <article
+                  key={`${page.title}-${i}`}
+                  className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-2.5"
                 >
-                  Confluence에서 열기
-                  <ArrowUpRight className="w-3 h-3" />
-                </a>
-              )}
-            </article>
-          ))}
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-bridge-secondary shrink-0" />
+                    <h3 className="text-sm font-bold text-foreground">
+                      {page.title}
+                    </h3>
+                  </div>
+                  {(page.space || page.last_updated) && (
+                    <div className="text-xs text-slate-500">
+                      {[
+                        page.space,
+                        page.last_updated
+                          ? formatDate(page.last_updated)
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </div>
+                  )}
+                  {page.body && (
+                    <p className="text-sm text-slate-400 whitespace-pre-wrap leading-relaxed">
+                      {page.body}
+                    </p>
+                  )}
+                  {page.url && (
+                    <a
+                      href={page.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="inline-flex items-center gap-1 text-xs font-bold text-bridge-secondary hover:underline"
+                    >
+                      Confluence에서 열기
+                      <ArrowUpRight className="w-3 h-3" />
+                    </a>
+                  )}
+                </article>
+              ))}
+            </>
+          )}
+        </motion.div>
+      )}
+
+      {/* ── 채널 대화 탭 ── */}
+      {activeTab === "slack" && slackChannel && (
+        <motion.div key="slack" {...fade} className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <MessagesSquare className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+            <h2 className="text-xs md:text-sm font-bold text-foreground">
+              채널 대화
+            </h2>
+            <span className="text-xs text-slate-500">
+              {[
+                slackChannel.channel_name
+                  ? `#${slackChannel.channel_name}`
+                  : null,
+                slackChannel.message_count != null
+                  ? `${slackChannel.message_count} 메시지`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </div>
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-4">
+            {slackChannel.messages.map((msg, i) => (
+              <div
+                key={i}
+                className={
+                  i > 0 ? "pt-4 border-t border-foreground/[0.06]" : undefined
+                }
+              >
+                <SlackMessageItem msg={msg} />
+              </div>
+            ))}
+          </div>
         </motion.div>
       )}
 
