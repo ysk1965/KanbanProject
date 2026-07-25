@@ -55,6 +55,14 @@ public class MemberRequest {
 
     @Getter
     @NoArgsConstructor
+    public static class UpdateGithubLogin {
+        // null/빈 문자열 허용 (연결 해제). GitHub 로그인: 영숫자와 하이픈, 최대 39자.
+        @Pattern(regexp = "^$|^[A-Za-z0-9-]{1,39}$", message = "올바른 GitHub 아이디가 아닙니다")
+        private String githubLogin;
+    }
+
+    @Getter
+    @NoArgsConstructor
     public static class TransferOwnership {
         @NotBlank(message = "새 소유자의 사용자 ID는 필수입니다")
         private String newOwnerUserId;

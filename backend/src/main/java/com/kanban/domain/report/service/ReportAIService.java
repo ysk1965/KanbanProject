@@ -1,5 +1,6 @@
 package com.kanban.domain.report.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.monitoring.entity.AiUsageLog;
 import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
 import com.kanban.domain.report.ReportType;
@@ -10,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -37,6 +40,7 @@ public class ReportAIService {
     private final AIProvider aiProvider;
     private final AiUsageLogRepository aiUsageLogRepository;
     private final AiCreditService aiCreditService;
+    private final ObjectMapper objectMapper;
 
     @Value("${ai.provider:claude}")
     private String provider;
@@ -65,10 +69,83 @@ public class ReportAIService {
     private static final int MAX_TOKENS_AUTO_DAILY = 4096;
     private static final int MAX_TOKENS_AUTO_WEEKLY = 4096;
 
-    public ReportAIService(AIProvider aiProvider, AiUsageLogRepository aiUsageLogRepository, AiCreditService aiCreditService) {
+    public ReportAIService(AIProvider aiProvider, AiUsageLogRepository aiUsageLogRepository,
+                           AiCreditService aiCreditService, ObjectMapper objectMapper) {
         this.aiProvider = aiProvider;
         this.aiUsageLogRepository = aiUsageLogRepository;
         this.aiCreditService = aiCreditService;
+        this.objectMapper = objectMapper;
+    }
+
+    private static final int MAX_TOKENS_CLASSIFY = 1024;
+
+    /**
+     * 담당자·키워드로 기능에 매핑되지 않은 잔여 커밋을 AI가 의미 기반으로 기능에 배정한다.
+     * 한/영 교차(예: 커밋 scope "guild" ↔ 기능명 "길드전")를 보완하는 용도.
+     *
+     * <p>시스템 호출이라 크레딧은 차감하지 않고 사용량 로그만 남긴다. 실패하면 빈 배열을 돌려
+     * 호출부가 기존(담당자·키워드) 결과를 그대로 쓰게 한다.
+     *
+     * @return commitLabels 길이의 배열. i번째 값은 커밋 i가 속한 기능 인덱스, 없으면 -1.
+     */
+    public int[] classifyCommits(List<String> featureLabels, List<String> commitLabels,
+                                 String language, String boardId) {
+        if (featureLabels == null || featureLabels.isEmpty()
+                || commitLabels == null || commitLabels.isEmpty()) {
+            return new int[0];
+        }
+
+        StringBuilder sb = new StringBuilder("FEATURES:\n");
+        for (int i = 0; i < featureLabels.size(); i++) {
+            sb.append(i).append(": ").append(featureLabels.get(i)).append('\n');
+        }
+        sb.append("\nCOMMITS:\n");
+        for (int i = 0; i < commitLabels.size(); i++) {
+            sb.append(i).append(": ").append(commitLabels.get(i)).append('\n');
+        }
+
+        String systemPrompt = """
+                You map git commits to product features by meaning.
+                You get a numbered FEATURES list and a numbered COMMITS list. For each commit,
+                decide which feature it most likely belongs to, judging the commit message
+                (type/scope/keywords, in any language) against the feature name/description.
+
+                Output ONLY a JSON array of integers whose length equals the number of commits;
+                the i-th value is the feature index for commit i, or -1 if it does not clearly
+                belong to any feature. No prose, no code fences.
+
+                Be conservative: use -1 when unsure. Match across languages
+                (e.g. "guild"↔"길드", "receipt"↔"영수증", "crash"↔"크래시").
+                """;
+
+        String model = getStandupModel();
+        try {
+            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_CLASSIFY);
+            logAiUsage("REPORT_COMMIT_CLASSIFY", model, boardId, null, aiResult);
+            return parseAssignments(aiResult.content(), commitLabels.size(), featureLabels.size());
+        } catch (Exception e) {
+            log.warn("커밋 분류 AI 호출 실패: {}", e.getMessage());
+            return new int[0];
+        }
+    }
+
+    private int[] parseAssignments(String raw, int commitCount, int featureCount) {
+        int[] result = new int[commitCount];
+        Arrays.fill(result, -1);
+        if (raw == null) return result;
+        int start = raw.indexOf('[');
+        int end = raw.lastIndexOf(']');
+        if (start < 0 || end <= start) return result;
+        try {
+            int[] parsed = objectMapper.readValue(raw.substring(start, end + 1), int[].class);
+            for (int i = 0; i < commitCount && i < parsed.length; i++) {
+                int fi = parsed[i];
+                result[i] = (fi >= 0 && fi < featureCount) ? fi : -1;
+            }
+        } catch (Exception e) {
+            log.warn("커밋 분류 응답 파싱 실패: {}", e.getMessage());
+        }
+        return result;
     }
 
     private String getTeamModel() {

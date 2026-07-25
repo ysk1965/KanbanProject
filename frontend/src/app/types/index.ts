@@ -261,6 +261,7 @@ export interface BoardMember {
   invited_by?: { id: string; name: string } | null;
   assignee_color?: string | null;
   job_role?: JobRoleInfo | null;
+  github_login?: string | null;
 }
 
 // ========================================

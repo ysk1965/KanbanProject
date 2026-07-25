@@ -40,6 +40,7 @@ export interface BoardMember {
   avatar?: string;
   assigneeColor?: string | null;
   jobRole?: JobRoleInfo | null;
+  githubLogin?: string | null;
 }
 
 interface ShareBoardModalProps {
@@ -79,6 +80,8 @@ interface ShareBoardModalProps {
   onUpdateMemberJobRole?: (memberId: string, jobRoleId: string | null) => void;
   onOpenJobRoleManager?: () => void;
   canManageJobRoles?: boolean;
+  // GitHub 계정 연결
+  onUpdateMemberGithubLogin?: (memberId: string, githubLogin: string | null) => void;
 }
 
 const ROLE_LABELS: Record<MemberRole, string> = {
@@ -111,6 +114,14 @@ function DiscordIcon({ className }: { className?: string }) {
   );
 }
 
+function GithubIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.014 2.898-.014 3.293 0 .322.216.694.825.576C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+    </svg>
+  );
+}
+
 interface SortableMemberRowProps {
   member: BoardMember;
   canDrag: boolean;
@@ -126,6 +137,8 @@ interface SortableMemberRowProps {
   jobRoles?: JobRole[];
   canChangeJobRole?: boolean;
   onUpdateMemberJobRole?: (memberId: string, jobRoleId: string | null) => void;
+  canEditGithub?: boolean;
+  onUpdateMemberGithubLogin?: (memberId: string, githubLogin: string | null) => void;
   t: (key: string, options?: Record<string, unknown>) => string;
   isCurrentUserOwner?: boolean;
   onTransferClick?: () => void;
@@ -135,9 +148,17 @@ function SortableMemberRow({
   member, canDrag, isCurrentMember, isOnline, canEdit, canChangeColor, webhookStatus, discordStatus,
   onUpdateMemberRole, onRemoveMember, onUpdateMemberColor,
   jobRoles, canChangeJobRole, onUpdateMemberJobRole,
+  canEditGithub, onUpdateMemberGithubLogin,
   t, isCurrentUserOwner, onTransferClick,
 }: SortableMemberRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: member.id, disabled: !canDrag });
+  const [editingGithub, setEditingGithub] = useState(false);
+  const [githubDraft, setGithubDraft] = useState(member.githubLogin ?? '');
+  const commitGithub = () => {
+    const val = githubDraft.trim();
+    onUpdateMemberGithubLogin?.(member.id, val || null);
+    setEditingGithub(false);
+  };
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -247,6 +268,60 @@ function SortableMemberRow({
                       : 'text-slate-700'
                 }`}
               />
+            </span>
+            {/* GitHub 계정 연결 (본인/Admin 편집 가능) */}
+            <span className="relative shrink-0">
+              <button
+                type="button"
+                disabled={!canEditGithub}
+                onClick={() => {
+                  if (!canEditGithub) return;
+                  setGithubDraft(member.githubLogin ?? '');
+                  setEditingGithub((v) => !v);
+                }}
+                title={member.githubLogin ? `GitHub @${member.githubLogin}` : 'GitHub 미연결'}
+                className={canEditGithub ? 'cursor-pointer' : 'cursor-default'}
+              >
+                <GithubIcon
+                  className={`h-3.5 w-3.5 ${member.githubLogin ? 'text-foreground' : 'text-slate-700'} ${canEditGithub ? 'hover:text-bridge-accent transition-colors' : ''}`}
+                />
+              </button>
+              {editingGithub && (
+                <div className="absolute z-50 top-full left-0 mt-1.5 w-56 p-2.5 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl">
+                  <p className="text-xs text-slate-400 mb-1.5">GitHub 계정 연결</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-500">@</span>
+                    <input
+                      autoFocus
+                      value={githubDraft}
+                      onChange={(e) => setGithubDraft(e.target.value)}
+                      placeholder="octocat"
+                      className="flex-1 min-w-0 bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1 px-2 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                      onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing) return;
+                        if (e.key === 'Enter') commitGithub();
+                        if (e.key === 'Escape') setEditingGithub(false);
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-end gap-1.5 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingGithub(false)}
+                      className="px-2 py-1 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="button"
+                      onClick={commitGithub}
+                      className="px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors"
+                    >
+                      저장
+                    </button>
+                  </div>
+                </div>
+              )}
             </span>
             <span className="text-xs text-slate-500 truncate min-w-0">{member.email}</span>
           </div>
@@ -386,6 +461,8 @@ export function ShareBoardModal({
   jobRoles,
   onUpdateMemberJobRole,
   onOpenJobRoleManager,
+  // GitHub 계정 연결
+  onUpdateMemberGithubLogin,
 }: ShareBoardModalProps) {
   const { t } = useTranslation();
   const [inviteEmail, setInviteEmail] = useState('');
@@ -885,6 +962,7 @@ export function ShareBoardModal({
                     const canDrag = !!onReorderMembers && isCurrentUserAdmin;
 
                     const canChangeJobRole = isCurrentUserAdmin && !!onUpdateMemberJobRole;
+                    const canEditGithub = !!onUpdateMemberGithubLogin && (isCurrentMember || isCurrentUserAdmin);
                     return (
                       <SortableMemberRow
                         key={member.id}
@@ -902,6 +980,8 @@ export function ShareBoardModal({
                         jobRoles={jobRoles}
                         canChangeJobRole={canChangeJobRole}
                         onUpdateMemberJobRole={onUpdateMemberJobRole}
+                        canEditGithub={canEditGithub}
+                        onUpdateMemberGithubLogin={onUpdateMemberGithubLogin}
                         t={t}
                         isCurrentUserOwner={isCurrentUserOwner}
                         onTransferClick={onTransferOwnership ? () => setShowTransferSection(true) : undefined}

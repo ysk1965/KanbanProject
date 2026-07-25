@@ -776,6 +776,7 @@ export interface MemberResponse {
     color?: string | null;
     icon?: string | null;
   } | null;
+  github_login?: string | null;
 }
 
 export interface JobRoleResponse {
@@ -2376,6 +2377,17 @@ export const memberAPI = {
     return apiClient.put<MemberResponse>(
       `/boards/${boardId}/members/${memberId}/job-role`,
       { job_role_id: jobRoleId },
+    );
+  },
+
+  updateMemberGithubLogin: async (
+    boardId: string,
+    memberId: string,
+    githubLogin: string | null,
+  ) => {
+    return apiClient.put<MemberResponse>(
+      `/boards/${boardId}/members/${memberId}/github`,
+      { github_login: githubLogin ?? "" },
     );
   },
 
@@ -9691,6 +9703,26 @@ export interface AutoReportFeatureTask {
   status: string; // "DONE" | "IN_PROGRESS" | "TODO"
 }
 
+/** 기능/카테고리에 연결된 커밋 하나 */
+export interface AutoReportFeatureCommit {
+  repo: string | null;
+  sha: string | null;
+  subject: string | null;
+  author: string | null;
+  at: string | null;
+  url: string | null;
+  changed_files?: number | null;
+  type: string | null; // feat/fix/refactor/chore/docs/test/other
+  estimated: boolean; // true면 담당자 확정이 아닌 키워드/AI 추정
+}
+
+/** 기능에 매핑되지 않은 커밋을 유형별로 묶은 카테고리 */
+export interface AutoReportCommitCategory {
+  key: string; // fix/refactor/chore/feat/docs/other
+  label: string;
+  commits: AutoReportFeatureCommit[] | null;
+}
+
 export interface AutoReportFeature {
   name: string;
   status: string; // "DONE" | "IN_PROGRESS"
@@ -9700,6 +9732,7 @@ export interface AutoReportFeature {
   assignees: string[] | null;
   last_activity: string | null;
   tasks: AutoReportFeatureTask[] | null;
+  commits?: AutoReportFeatureCommit[] | null;
 }
 
 export interface AutoReportContent {
@@ -9711,6 +9744,7 @@ export interface AutoReportContent {
   risks: string[] | null;
   sprint?: AutoReportSprint | null;
   features?: AutoReportFeature[] | null;
+  commit_categories?: AutoReportCommitCategory[] | null;
 }
 
 export interface AutoReportSourceStatus {

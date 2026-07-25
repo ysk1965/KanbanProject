@@ -458,6 +458,7 @@ export function useBoardWebSocketHandlers(
           id?: string;
           user?: { id?: string };
           assignee_color?: string | null;
+          github_login?: string | null;
           role?: string;
           job_role?: {
             id: string;
@@ -473,6 +474,10 @@ export function useBoardWebSocketHandlers(
                 ? {
                     ...m,
                     assigneeColor: memberData.assignee_color ?? null,
+                    githubLogin:
+                      memberData.github_login !== undefined
+                        ? memberData.github_login
+                        : m.githubLogin,
                     role:
                       (memberData.role?.toLowerCase() as MemberRole) || m.role,
                     jobRole:
@@ -506,6 +511,7 @@ export function useBoardWebSocketHandlers(
                   role: m.role.toLowerCase() as MemberRole,
                   assigneeColor: m.assignee_color || null,
                   jobRole: m.job_role || null,
+                  githubLogin: m.github_login || null,
                 })),
               );
             })

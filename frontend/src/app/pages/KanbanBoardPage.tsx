@@ -557,6 +557,7 @@ export function KanbanBoardPage() {
               email: m.user.email,
               role: m.role.toLowerCase(),
               assigneeColor: m.assignee_color || null,
+              githubLogin: m.github_login || null,
             })),
           );
         })
@@ -1418,6 +1419,29 @@ export function KanbanBoardPage() {
       await memberService.updateMemberColor(boardId, memberId, color);
     } catch (error: any) {
       console.error("Failed to update member color:", error);
+      setBoardMembersData(prevMembers);
+    }
+  };
+
+  const handleUpdateMemberGithubLogin = async (
+    memberId: string,
+    githubLogin: string | null,
+  ) => {
+    if (!boardId) return;
+    const prevMembers = [...boardMembersData];
+    setBoardMembersData(
+      boardMembersData.map((m) =>
+        m.id === memberId ? { ...m, githubLogin } : m,
+      ),
+    );
+    try {
+      await memberService.updateMemberGithubLogin(
+        boardId,
+        memberId,
+        githubLogin,
+      );
+    } catch (error: any) {
+      console.error("Failed to update member github login:", error);
       setBoardMembersData(prevMembers);
     }
   };
@@ -3662,6 +3686,7 @@ export function KanbanBoardPage() {
           hideBillingForUser={hideBillingForUser}
           jobRoles={jobRoles}
           onUpdateMemberJobRole={handleUpdateMemberJobRole}
+          onUpdateMemberGithubLogin={handleUpdateMemberGithubLogin}
           canManageJobRoles={isAdminOrOwner}
           onJobRolesChanged={(roles) => setJobRoles(roles)}
           // Subscription Modal

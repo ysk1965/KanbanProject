@@ -71,6 +71,16 @@ public class MemberController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/{memberId}/github")
+    public ResponseEntity<MemberResponse.Detail> updateMemberGithubLogin(
+            @PathVariable String boardId,
+            @PathVariable String memberId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody MemberRequest.UpdateGithubLogin request) {
+        MemberResponse.Detail response = memberService.updateMemberGithubLogin(boardId, memberId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/reorder")
     public ResponseEntity<MemberResponse.ListResponse> reorderMembers(
             @PathVariable String boardId,
