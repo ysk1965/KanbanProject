@@ -34,13 +34,24 @@ public class KanbanBoardSource implements ReportSource {
     /** 태스크 설명이 프롬프트를 채우지 않도록 앞부분만 남긴다 */
     private static final int MAX_DESCRIPTION_CHARS = 300;
 
+    /**
+     * 태스크 하나가 실제로 어떤 하위 작업인지 드러내고(=태스크의 실체),
+     * 커밋 subject를 항목과 대조해 소속 태스크를 짚을 수 있도록 체크리스트 내용을 넘긴다.
+     * 다만 프롬프트가 항목으로 넘치지 않도록 태스크당 상한을 둔다.
+     */
+    private static final int MAX_CHECKLIST_ITEMS_PER_TASK = 15;
+
     private final TaskRepository taskRepository;
     private final ChecklistItemRepository checklistItemRepository;
     private final TaskDependencyRepository taskDependencyRepository;
     private final ObjectMapper objectMapper;
 
-    /** 태스크 하나의 체크리스트 집계 — 진척(done/total)과 담당자(체크리스트 항목 기준) */
-    private record ChecklistAgg(int total, int done, List<String> assignees) {
+    /** 태스크 하나의 체크리스트 집계 — 진척(done/total), 담당자, 그리고 항목 내용 목록. */
+    private record ChecklistAgg(int total, int done, List<String> assignees, List<ChecklistLine> items) {
+    }
+
+    /** 체크리스트 항목 한 줄 — 내용·완료 여부·담당자. 커밋↔태스크 매칭의 단서가 된다. */
+    private record ChecklistLine(String title, boolean done, String assignee) {
     }
 
     @Override
@@ -118,30 +129,39 @@ public class KanbanBoardSource implements ReportSource {
                 toJson(completed, inProgress, overdue, today, checklistMap, blockedMap), metrics, summary);
     }
 
-    /** 표시할 태스크들의 체크리스트를 한 번에 조회해 태스크별 진척·담당자로 집계한다. */
+    /** 표시할 태스크들의 체크리스트를 한 번에 조회해 태스크별 진척·담당자·항목 내용으로 집계한다. */
     private Map<String, ChecklistAgg> buildChecklistMap(List<Task> tasks) {
         List<String> taskIds = tasks.stream().map(Task::getId).toList();
         if (taskIds.isEmpty()) {
             return Map.of();
         }
-        Map<String, int[]> counts = new HashMap<>();          // taskId → [total, done]
-        Map<String, LinkedHashSet<String>> assignees = new HashMap<>();
+        Map<String, List<ChecklistItem>> byTask = new HashMap<>();
         for (ChecklistItem item : checklistItemRepository.findByTaskIdInWithAssignee(taskIds)) {
-            String taskId = item.getTask().getId();
-            int[] c = counts.computeIfAbsent(taskId, k -> new int[2]);
-            c[0]++;
-            if (Boolean.TRUE.equals(item.getIsCompleted())) {
-                c[1]++;
-            }
-            String name = assigneeName(item);
-            if (name != null) {
-                assignees.computeIfAbsent(taskId, k -> new LinkedHashSet<>()).add(name);
-            }
+            byTask.computeIfAbsent(item.getTask().getId(), k -> new ArrayList<>()).add(item);
         }
         Map<String, ChecklistAgg> result = new HashMap<>();
-        for (Map.Entry<String, int[]> e : counts.entrySet()) {
-            result.put(e.getKey(), new ChecklistAgg(e.getValue()[0], e.getValue()[1],
-                    new ArrayList<>(assignees.getOrDefault(e.getKey(), new LinkedHashSet<>()))));
+        for (Map.Entry<String, List<ChecklistItem>> e : byTask.entrySet()) {
+            List<ChecklistItem> items = e.getValue();
+            // 화면과 같은 순서(position)로 정렬해 항목 흐름이 자연스럽게 읽히도록.
+            items.sort(Comparator.comparing(ci -> ci.getPosition() == null ? 0 : ci.getPosition()));
+            int done = 0;
+            LinkedHashSet<String> assignees = new LinkedHashSet<>();
+            List<ChecklistLine> lines = new ArrayList<>();
+            for (ChecklistItem item : items) {
+                boolean itemDone = Boolean.TRUE.equals(item.getIsCompleted());
+                if (itemDone) {
+                    done++;
+                }
+                String name = assigneeName(item);
+                if (name != null) {
+                    assignees.add(name);
+                }
+                if (lines.size() < MAX_CHECKLIST_ITEMS_PER_TASK) {
+                    lines.add(new ChecklistLine(item.getTitle(), itemDone, name));
+                }
+            }
+            result.put(e.getKey(), new ChecklistAgg(items.size(), done,
+                    new ArrayList<>(assignees), lines));
         }
         return result;
     }
@@ -226,6 +246,9 @@ public class KanbanBoardSource implements ReportSource {
                     if (agg != null && agg.total() > 0) {
                         item.put("checklist_done", agg.done());
                         item.put("checklist_total", agg.total());
+                        if (!agg.items().isEmpty()) {
+                            item.put("checklist", describeChecklist(agg.items()));
+                        }
                         if (!agg.assignees().isEmpty()) {
                             item.put("assignees", agg.assignees());
                         }
@@ -247,6 +270,21 @@ public class KanbanBoardSource implements ReportSource {
                         item.put("completed_at", task.getCompletedAt().toString());
                     }
                     return item;
+                })
+                .toList();
+    }
+
+    /** 체크리스트 항목을 {title, done, assignee} 형태로 펼친다 — 태스크의 실체와 커밋 매칭 단서. */
+    private List<Map<String, Object>> describeChecklist(List<ChecklistLine> lines) {
+        return lines.stream()
+                .map(line -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("title", line.title());
+                    m.put("done", line.done());
+                    if (line.assignee() != null) {
+                        m.put("assignee", line.assignee());
+                    }
+                    return m;
                 })
                 .toList();
     }

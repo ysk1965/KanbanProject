@@ -269,6 +269,9 @@ public class ReportAIService {
                     - %s
                     - 숫자를 지어내지 마세요. 지표는 시스템이 계산해 붙이므로 metrics 필드는 출력하지 않습니다.
                     - 커밋 메시지를 그대로 나열하지 마세요. 무엇이 왜 바뀌었는지로 묶어 서술하세요.
+                    - 태스크의 checklist(항목 title·done)는 그 태스크가 실제로 어떤 하위 작업인지 보여줍니다.
+                      이걸 근거로 태스크의 실체를 파악하고, 커밋 subject를 해당 태스크·항목과 대조해
+                      "어떤 커밋이 어떤 태스크의 어떤 작업인지"를 연결해 서술하세요.
                     - sources에는 그 섹션의 근거가 된 소스만 적으세요: GITHUB, KANBAN, CONFLUENCE, SLACK.
                     - Confluence 원문은 요약하지 말고 인용이 필요하면 그대로 두세요. 사람이 쓴 문장과
                       당신이 쓴 문장이 섞이면 보고서를 신뢰할 수 없게 됩니다.
@@ -300,6 +303,9 @@ public class ReportAIService {
                 - %s
                 - Never invent numbers. Metrics are computed by the system, so do not output a metrics field.
                 - Do not list commit messages verbatim. Group them by what changed and why.
+                - A task's checklist (item title · done) shows what the task actually consists of. Use it to
+                  understand what each task really is, and match commit subjects against the task and its items to
+                  connect "which commit belongs to which task and which piece of work."
                 - In sources, name only the sources that back that section: GITHUB, KANBAN, CONFLUENCE, SLACK.
                 - Keep Confluence prose as written when quoting. Mixing human-written and AI-written sentences
                   makes the report untrustworthy.
