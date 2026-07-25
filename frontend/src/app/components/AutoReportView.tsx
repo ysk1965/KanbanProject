@@ -14,6 +14,7 @@ import {
   ListChecks,
   MessagesSquare,
   Paperclip,
+  Play,
   Sparkles,
 } from "lucide-react";
 
@@ -230,6 +231,8 @@ interface SlackFile {
   title?: string | null;
   type?: string | null;
   url?: string | null;
+  /** 영상 재생을 위한 슬랙 원문(permalink). */
+  link?: string | null;
 }
 
 interface SlackMessage {
@@ -422,12 +425,16 @@ function SlackMessageItem({ msg }: { msg: SlackMessage }) {
           {msg.files.map((f, i) => (
             <a
               key={i}
-              href={f.url ?? undefined}
+              href={f.link ?? f.url ?? undefined}
               target="_blank"
               rel="noreferrer noopener"
               className="inline-flex items-center gap-1.5 text-xs text-slate-400 bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg px-2.5 py-1.5 w-fit hover:text-foreground transition-colors"
             >
-              <Paperclip className="w-3 h-3 text-bridge-secondary shrink-0" />
+              {f.type === "video" ? (
+                <Play className="w-3 h-3 text-bridge-secondary shrink-0" />
+              ) : (
+                <Paperclip className="w-3 h-3 text-bridge-secondary shrink-0" />
+              )}
               {f.title || f.type || "첨부"}
             </a>
           ))}
@@ -1521,15 +1528,35 @@ export function AutoReportView({
                     className="flex flex-col gap-1.5 rounded-xl overflow-hidden border border-foreground/[0.08] bg-bridge-dark"
                   >
                     {att.type === "video" ? (
-                      <video
-                        src={att.url}
-                        controls
-                        className="w-full aspect-video object-cover bg-black"
-                      />
+                      // 영상은 저장하지 않고 포스터 썸네일만 보여준다. 재생은 슬랙 원문으로 이동.
+                      <a
+                        href={att.link ?? att.url ?? undefined}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        title="슬랙에서 영상 보기"
+                        className="group relative block w-full aspect-video bg-black"
+                      >
+                        {att.url ? (
+                          <img
+                            src={att.url}
+                            alt={att.title ?? "공유된 영상"}
+                            loading="lazy"
+                            className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+                          />
+                        ) : null}
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <span className="flex items-center justify-center w-11 h-11 rounded-full bg-black/60 backdrop-blur-sm">
+                            <Play
+                              className="w-5 h-5 text-white translate-x-[1px]"
+                              fill="currentColor"
+                            />
+                          </span>
+                        </span>
+                      </a>
                     ) : (
-                      <a href={att.url} target="_blank" rel="noreferrer">
+                      <a href={att.url ?? undefined} target="_blank" rel="noreferrer">
                         <img
-                          src={att.url}
+                          src={att.url ?? undefined}
                           alt={att.title ?? "공유된 이미지"}
                           loading="lazy"
                           className="w-full aspect-video object-cover hover:opacity-90 transition-opacity"

@@ -198,7 +198,11 @@ public class ReportContent {
         private boolean estimated;
     }
 
-    /** 슬랙에 공유된 이미지/영상 한 건. url은 우리 스토리지로 옮긴 주소라 로그인 없이 열린다. */
+    /**
+     * 슬랙에 공유된 이미지/영상 한 건.
+     * <p>이미지: url은 우리 스토리지로 옮긴 주소라 로그인 없이 열린다.
+     * <p>영상: url은 포스터 썸네일(없을 수 있음), link는 슬랙 원문 — 재생은 슬랙에서 한다.
+     */
     @Data
     @Builder
     @NoArgsConstructor
@@ -207,7 +211,10 @@ public class ReportContent {
         private String title;
         /** "image" | "video" */
         private String type;
+        /** 이미지 원본 / 영상 포스터 썸네일. 영상은 썸네일이 없으면 null일 수 있다. */
         private String url;
+        /** 영상 재생을 위한 슬랙 원문(permalink). 이미지는 null. */
+        private String link;
     }
 
     /** 기능에 매핑되지 않은 커밋을 유형별로 묶은 카테고리. */

@@ -9,7 +9,6 @@ import com.kanban.domain.report.source.SourceChunk;
 import com.kanban.domain.report.source.SourceKind;
 import com.kanban.domain.storage.service.StorageService;
 import com.kanban.global.service.FileUploadService;
-import com.kanban.global.service.VideoCompressionService;
 import com.kanban.global.util.MediaUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,7 +51,6 @@ public class SlackChannelSource implements ReportSource {
     private final SlackApiClient apiClient;
     private final ReportMemberDirectory memberDirectory;
     private final FileUploadService fileUploadService;
-    private final VideoCompressionService videoCompressionService;
     private final StorageService storageService;
     private final ObjectMapper objectMapper;
 
@@ -362,8 +360,13 @@ public class SlackChannelSource implements ReportSource {
     }
 
     /**
-     * 메시지의 이미지/영상 첨부를 우리 스토리지로 옮기고 URL을 넣는다. url_private는 봇 인증이 필요해
-     * 페이지에 바로 못 박으므로, 받아서 우리 CDN 주소로 바꿔야 로그인 없이 열리는 보고서에서 보인다.
+     * 메시지의 이미지/영상 첨부를 갤러리 아이템으로 만든다.
+     *
+     * <p><b>이미지</b>는 우리 스토리지로 옮겨 CDN URL을 넣는다 — url_private는 봇 인증이 필요해
+     * 로그인 없이 열리는 보고서에 바로 못 박기 때문이다.
+     *
+     * <p><b>영상</b>은 용량 부담이 커서 원본을 옮기지 않는다. 포스터 썸네일(작은 JPEG)만 옮겨
+     * 미리보기를 보여주고, 재생은 슬랙 원문(permalink)으로 넘긴다.
      */
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> extractFiles(Map<String, Object> msg,
@@ -379,66 +382,127 @@ public class SlackChannelSource implements ReportSource {
                 break;
             }
             Map<String, Object> file = (Map<String, Object>) f;
-            String mimetype = str(file.get("mimetype"));
-            String type = mediaType(mimetype);
+            String type = mediaType(str(file.get("mimetype")));
             if (type == null) {
-                continue;   // 이미지·영상만 옮긴다
-            }
-            Object size = file.get("size");
-            if (size instanceof Number n && n.longValue() > MAX_FILE_BYTES) {
-                continue;
-            }
-            String urlPrivate = str(file.get("url_private_download"));
-            if (urlPrivate == null) {
-                urlPrivate = str(file.get("url_private"));
-            }
-            if (urlPrivate == null) {
-                continue;
+                continue;   // 이미지·영상만 다룬다
             }
             try {
-                SlackApiClient.FileContent content = apiClient.downloadFile(plan.botToken(), urlPrivate);
-                byte[] bytes = content.bytes();
-                String storeMime = mimetype;                        // S3 키 확장자 기준
-                String uploadContentType = content.contentType();   // 업로드 컨텐츠 타입
-                if ("image".equals(type)) {
-                    // 이미지 압축: 최대 1600px, JPEG 품질 0.8 (투명 PNG·GIF·WebP는 원본 유지)
-                    MediaUtils.ProcessedImage processed = MediaUtils.compressImage(bytes, mimetype, 1600, 0.8);
-                    if (processed.changed()) {
-                        bytes = processed.bytes();
-                        storeMime = processed.contentType();
-                        uploadContentType = processed.contentType();
-                    }
-                } else if ("video".equals(type)) {
-                    // 영상 압축(best-effort): FFmpeg로 720p/H.264 재인코딩. 미설치·실패 시 원본 유지.
-                    byte[] compressed = videoCompressionService.compress(bytes, ext(mimetype));
-                    if (compressed != null) {
-                        bytes = compressed;
-                        storeMime = "video/mp4";
-                        uploadContentType = "video/mp4";
-                    }
+                Map<String, Object> item = "video".equals(type)
+                        ? toVideoItem(file, plan, boardId)
+                        : toImageItem(file, plan, boardId);
+                if (item == null) {
+                    continue;
                 }
-                String key = storageKey(plan.channelId(), str(file.get("id")), storeMime);
-                String url = fileUploadService.uploadDirect(bytes, key, uploadContentType);
-                Map<String, Object> item = new LinkedHashMap<>();
-                String title = str(file.get("title"));
-                String displayName = title != null ? title : str(file.get("name"));
-                item.put("title", displayName);
-                item.put("type", type);
-                item.put("url", url);
                 results.add(item);
                 fileBudget[0]--;
-
-                // 보드 스토리지("전체 파일")에도 노출 — 관리·용량 파악용. best-effort(실패해도 수집 계속).
-                try {
-                    storageService.registerReportFile(boardId, key, displayName, uploadContentType, bytes.length);
-                } catch (Exception e) {
-                    log.debug("보고서 파일 스토리지 등록 실패 key={}: {}", key, e.getMessage());
-                }
             } catch (Exception e) {
                 log.debug("슬랙 파일 이관 실패 file={}: {}", file.get("id"), e.getMessage());
             }
         }
         return results;
+    }
+
+    /** 이미지를 압축해 우리 스토리지로 옮기고 갤러리 아이템을 만든다. 너무 크거나 URL이 없으면 null. */
+    private Map<String, Object> toImageItem(Map<String, Object> file,
+                                            SlackReportTargetResolver.CollectionPlan plan, String boardId) {
+        Object size = file.get("size");
+        if (size instanceof Number n && n.longValue() > MAX_FILE_BYTES) {
+            return null;
+        }
+        String urlPrivate = privateUrl(file);
+        if (urlPrivate == null) {
+            return null;
+        }
+        String mimetype = str(file.get("mimetype"));
+        SlackApiClient.FileContent content = apiClient.downloadFile(plan.botToken(), urlPrivate);
+        byte[] bytes = content.bytes();
+        String storeMime = mimetype;                        // S3 키 확장자 기준
+        String uploadContentType = content.contentType();   // 업로드 컨텐츠 타입
+        // 이미지 압축: 최대 1600px, JPEG 품질 0.8 (투명 PNG·GIF·WebP는 원본 유지)
+        MediaUtils.ProcessedImage processed = MediaUtils.compressImage(bytes, mimetype, 1600, 0.8);
+        if (processed.changed()) {
+            bytes = processed.bytes();
+            storeMime = processed.contentType();
+            uploadContentType = processed.contentType();
+        }
+        String key = storageKey(plan.channelId(), str(file.get("id")), storeMime);
+        String url = fileUploadService.uploadDirect(bytes, key, uploadContentType);
+        String displayName = displayName(file);
+        registerReportFile(boardId, key, displayName, uploadContentType, bytes.length);
+
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("title", displayName);
+        item.put("type", "image");
+        item.put("url", url);
+        return item;
+    }
+
+    /**
+     * 영상 포스터 썸네일만 옮기고, 재생 링크(슬랙 permalink)를 넣은 갤러리 아이템을 만든다.
+     * 썸네일도 링크도 없으면(보여줄·이동할 것이 없으면) null.
+     */
+    private Map<String, Object> toVideoItem(Map<String, Object> file,
+                                            SlackReportTargetResolver.CollectionPlan plan, String boardId) {
+        String displayName = displayName(file);
+        String link = str(file.get("permalink"));   // 슬랙 원문 — 클릭 시 이동해 재생
+        String posterUrl = null;
+
+        String thumb = videoThumbUrl(file);
+        if (thumb != null) {
+            try {
+                SlackApiClient.FileContent content = apiClient.downloadFile(plan.botToken(), thumb);
+                byte[] bytes = content.bytes();
+                String key = storageKey(plan.channelId(), str(file.get("id")) + "_poster", content.contentType());
+                posterUrl = fileUploadService.uploadDirect(bytes, key, content.contentType());
+                registerReportFile(boardId, key, displayName, content.contentType(), bytes.length);
+            } catch (Exception e) {
+                log.debug("슬랙 영상 썸네일 이관 실패 file={}: {}", file.get("id"), e.getMessage());
+            }
+        }
+
+        if (posterUrl == null && link == null) {
+            return null;
+        }
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("title", displayName);
+        item.put("type", "video");
+        if (posterUrl != null) {
+            item.put("url", posterUrl);
+        }
+        if (link != null) {
+            item.put("link", link);
+        }
+        return item;
+    }
+
+    private String privateUrl(Map<String, Object> file) {
+        String url = str(file.get("url_private_download"));
+        return url != null ? url : str(file.get("url_private"));
+    }
+
+    private String displayName(Map<String, Object> file) {
+        String title = str(file.get("title"));
+        return title != null ? title : str(file.get("name"));
+    }
+
+    /** 영상 포스터로 쓸 JPEG 썸네일 URL을 큰 것부터 고른다. 없으면 null(포스터 없이 링크만). */
+    private String videoThumbUrl(Map<String, Object> file) {
+        for (String k : new String[]{"thumb_1024", "thumb_960", "thumb_800", "thumb_720", "thumb_480", "thumb_360"}) {
+            String url = str(file.get(k));
+            if (url != null) {
+                return url;
+            }
+        }
+        return null;
+    }
+
+    /** 보드 스토리지("전체 파일")에도 노출 — 관리·용량 파악용. best-effort(실패해도 수집 계속). */
+    private void registerReportFile(String boardId, String key, String name, String contentType, long size) {
+        try {
+            storageService.registerReportFile(boardId, key, name, contentType, size);
+        } catch (Exception e) {
+            log.debug("보고서 파일 스토리지 등록 실패 key={}: {}", key, e.getMessage());
+        }
     }
 
     /** image/* → "image", video/* → "video", 그 외 → null(옮기지 않음) */
@@ -453,18 +517,6 @@ public class SlackChannelSource implements ReportSource {
             return "video";
         }
         return null;
-    }
-
-    /** 영상 mimetype → FFmpeg 입력 임시파일 확장자(디먹서 힌트). */
-    private String ext(String mimetype) {
-        if (mimetype == null) {
-            return ".mp4";
-        }
-        return switch (mimetype) {
-            case "video/quicktime" -> ".mov";
-            case "video/webm" -> ".webm";
-            default -> ".mp4";
-        };
     }
 
     /** 재실행 시 같은 파일은 같은 키로 덮어쓴다 — 매번 새 사본이 쌓이지 않게. */
