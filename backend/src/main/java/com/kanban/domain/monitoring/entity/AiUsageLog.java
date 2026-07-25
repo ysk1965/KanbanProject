@@ -25,7 +25,7 @@ public class AiUsageLog {
     @Column(name = "user_id", length = 36)
     private String userId;
 
-    @Column(name = "feature_type", nullable = false, length = 20)
+    @Column(name = "feature_type", nullable = false, length = 40)
     private String featureType;
 
     @Column(name = "provider", nullable = false, length = 20)
