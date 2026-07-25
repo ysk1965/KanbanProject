@@ -9,15 +9,19 @@ import {
   Columns3,
   FileText,
   GitCommit,
+  ListChecks,
   MessagesSquare,
   Paperclip,
+  Sparkles,
 } from "lucide-react";
 
 import type {
   AutoReport,
   AutoReportCommitCategory,
+  AutoReportConfluenceDoc,
   AutoReportFeature,
   AutoReportFeatureCommit,
+  AutoReportFeatureTask,
   AutoReportSourceStatus,
   AutoReportSprint,
 } from "../utils/api";
@@ -648,7 +652,141 @@ function CommitList({ commits }: { commits: AutoReportFeatureCommit[] }) {
   );
 }
 
-/* ── 기능 상세 (헤더 + 보드 태스크 + GitHub 커밋 근거) ── */
+/* ── 근거 그룹 헤더 (연결된 태스크 / 커밋 / 문서 공통) ── */
+function EvidenceHeader({
+  icon,
+  label,
+  count,
+  countClass,
+  isNew,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  count: number;
+  countClass: string;
+  isNew?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 px-4 py-3 bg-foreground/[0.03] border-b border-foreground/[0.06]">
+      {icon}
+      <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+        {label}
+      </span>
+      {isNew && (
+        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+          신규
+        </span>
+      )}
+      <span
+        className={`ml-auto text-xs font-bold px-1.5 rounded-full tabular-nums ${countClass}`}
+      >
+        {count}
+      </span>
+    </div>
+  );
+}
+
+/* ── 태스크 한 줄 + 체크리스트 (기능 근거) ── */
+function FeatureTaskRow({ task }: { task: AutoReportFeatureTask }) {
+  const checklist = task.checklist ?? [];
+  return (
+    <div className="py-3 border-t border-foreground/[0.06] first:border-t-0">
+      <div className="flex items-center gap-2.5">
+        <TaskMark status={task.status} />
+        <span
+          className={`text-sm font-medium ${
+            task.status === "DONE" ? "text-slate-400" : "text-foreground"
+          }`}
+        >
+          {task.title}
+        </span>
+      </div>
+      {checklist.length > 0 && (
+        <ul className="flex flex-col gap-1.5 mt-2 pl-[26px]">
+          {checklist.map((item, i) => (
+            <li key={i} className="flex items-center gap-2 text-sm">
+              <span
+                className={`shrink-0 w-4 h-4 rounded flex items-center justify-center border ${
+                  item.done
+                    ? "bg-emerald-500 border-emerald-500"
+                    : "border-slate-600"
+                }`}
+              >
+                {item.done && (
+                  <Check className="w-2.5 h-2.5 text-white" strokeWidth={3.5} />
+                )}
+              </span>
+              <span
+                className={
+                  item.done ? "text-slate-500 line-through" : "text-foreground"
+                }
+              >
+                {item.title}
+              </span>
+              {item.assignee && (
+                <span className="ml-auto shrink-0 text-xs text-slate-500">
+                  {item.assignee}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* ── 연관 문서 한 줄 (Confluence, 기능 근거용 컴팩트 뷰) ── */
+function FeatureConfluenceRow({ doc }: { doc: AutoReportConfluenceDoc }) {
+  const meta =
+    CONFLUENCE_CHANGE_META.find((m) => m.key === doc.change_type) ??
+    CONFLUENCE_CHANGE_META[1];
+  const deleted = doc.change_type === "deleted";
+  const label =
+    doc.change_type === "added"
+      ? "추가"
+      : doc.change_type === "deleted"
+        ? "삭제"
+        : "수정";
+  return (
+    <div className="py-3 border-t border-foreground/[0.06] first:border-t-0 flex items-start gap-2.5">
+      <span
+        className={`shrink-0 mt-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full ${meta.pill}`}
+      >
+        {label}
+      </span>
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span
+          className={`text-sm font-medium break-words ${
+            deleted ? "text-slate-500 line-through" : "text-foreground"
+          }`}
+        >
+          {doc.title}
+        </span>
+        {(doc.author || doc.updated_at) && (
+          <span className="text-xs text-slate-500">
+            {[doc.author, doc.updated_at ? formatDate(doc.updated_at) : null]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+        )}
+        {!deleted && doc.url && (
+          <a
+            href={doc.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-flex items-center gap-1 text-xs font-bold text-bridge-secondary hover:underline w-fit"
+          >
+            Confluence에서 열기
+            <ArrowUpRight className="w-3 h-3" />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── 기능 상세 (헤더 + 요약 + 근거: 태스크·체크리스트 / 커밋 / 연관 문서) ── */
 function FeatureDetail({ feature }: { feature: AutoReportFeature }) {
   const status = FEATURE_STATUS[feature.status] ?? FEATURE_STATUS.IN_PROGRESS;
   const barColor =
@@ -656,10 +794,11 @@ function FeatureDetail({ feature }: { feature: AutoReportFeature }) {
   const assignees = (feature.assignees ?? []).filter(Boolean);
   const tasks = feature.tasks ?? [];
   const commits = feature.commits ?? [];
+  const docs = feature.confluence_docs ?? [];
 
   return (
     <div className="flex flex-col gap-3">
-      {/* 헤더 */}
+      {/* 헤더 + 요약 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <h3 className="text-base font-bold text-foreground flex-1">
@@ -699,52 +838,68 @@ function FeatureDetail({ feature }: { feature: AutoReportFeature }) {
             )}
           </div>
         )}
+
+        {/* 기능 요약 — 이 기능에서 그 기간에 실제로 무엇이 만들어졌는지 */}
+        {feature.summary && (
+          <div className="rounded-xl bg-bridge-accent/[0.06] border border-bridge-accent/20 p-4 flex flex-col gap-1.5">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-bridge-accent">
+              <Sparkles className="w-3.5 h-3.5" />
+              요약
+            </span>
+            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+              {feature.summary}
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* 근거: 보드 태스크 + GitHub 커밋 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 flex flex-col gap-2">
-          <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-slate-400">
-            보드 태스크
-            <span className="ml-auto text-xs font-bold px-1.5 rounded-full bg-bridge-accent/15 text-bridge-accent normal-case tracking-normal">
-              {tasks.length}
-            </span>
-          </div>
+      {/* 근거 1: 연결된 태스크 + 체크리스트 */}
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
+        <EvidenceHeader
+          icon={<ListChecks className="w-3.5 h-3.5 text-bridge-accent" />}
+          label="연결된 태스크"
+          count={tasks.length}
+          countClass="bg-bridge-accent/15 text-bridge-accent"
+        />
+        <div className="px-4 pb-2">
           {tasks.length === 0 ? (
-            <p className="text-xs text-slate-500 py-1">태스크가 없습니다.</p>
+            <p className="text-xs text-slate-500 py-3">태스크가 없습니다.</p>
           ) : (
-            <div className="flex flex-col">
-              {tasks.map((task, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2.5 py-1.5 text-sm border-t border-foreground/[0.06] first:border-t-0"
-                >
-                  <TaskMark status={task.status} />
-                  <span
-                    className={
-                      task.status === "DONE"
-                        ? "text-slate-400"
-                        : "text-foreground"
-                    }
-                  >
-                    {task.title}
-                  </span>
-                </div>
-              ))}
-            </div>
+            tasks.map((task, i) => <FeatureTaskRow key={i} task={task} />)
           )}
         </div>
+      </div>
 
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 flex flex-col gap-2">
-          <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-slate-400">
-            <GitCommit className="w-3.5 h-3.5" /> GitHub 커밋
-            <span className="ml-auto text-xs font-bold px-1.5 rounded-full bg-slate-500/15 text-slate-400 normal-case tracking-normal">
-              {commits.length}
-            </span>
-          </div>
+      {/* 근거 2: 연결된 커밋 */}
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
+        <EvidenceHeader
+          icon={<GitCommit className="w-3.5 h-3.5 text-slate-400" />}
+          label="연결된 커밋"
+          count={commits.length}
+          countClass="bg-slate-500/15 text-slate-400"
+        />
+        <div className="px-4 pb-3 pt-1">
           <CommitList commits={commits} />
         </div>
       </div>
+
+      {/* 근거 3: 연관 문서 (Confluence) — 매칭된 게 있을 때만 */}
+      {docs.length > 0 && (
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
+          <EvidenceHeader
+            icon={<FileText className="w-3.5 h-3.5 text-bridge-secondary" />}
+            label="연관 문서"
+            count={docs.length}
+            countClass="bg-bridge-secondary/15 text-bridge-secondary"
+            isNew
+          />
+          <div className="px-4 pb-2">
+            {docs.map((doc, i) => (
+              <FeatureConfluenceRow key={i} doc={doc} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

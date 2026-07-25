@@ -1,5 +1,6 @@
 package com.kanban.domain.integration.slack.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.report.service.ReportMemberDirectory;
 import com.kanban.domain.report.source.ReportPeriod;
@@ -58,6 +59,73 @@ public class SlackChannelSource implements ReportSource {
     @Override
     public boolean isConfigured(String boardId) {
         return targetResolver.resolve(boardId).isPresent();
+    }
+
+    @Override
+    public boolean supportsWeeklyRollup() {
+        return true;
+    }
+
+    /**
+     * 일일 채널 수집분을 주간 한 벌로 이어붙인다. 일일 구간은 겹치지 않으므로(같은 기준 시각) 메시지가
+     * 두 번 실릴 일은 없어 별도 중복 제거 없이 잇는다. 최신 조각이 먼저 오므로 그 순서를 살리고,
+     * 프롬프트가 넘치지 않게 {@link #MAX_MESSAGES}까지만 남긴다. 첨부 이미지는 이미 우리 스토리지로
+     * 옮겨진 URL이라 그대로 재사용된다.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public SourceChunk rollup(List<JsonNode> dailyData, ReportPeriod period) {
+        String channelId = null;
+        String channelName = null;
+        List<Map<String, Object>> messages = new ArrayList<>();
+        Set<String> participants = new HashSet<>();
+
+        for (JsonNode day : dailyData) {
+            if (channelId == null && day.hasNonNull("channel")) {
+                channelId = day.get("channel").asText();
+            }
+            if (channelName == null && day.hasNonNull("channel_name")) {
+                channelName = day.get("channel_name").asText();
+            }
+            JsonNode msgs = day.get("messages");
+            if (msgs == null || !msgs.isArray()) {
+                continue;
+            }
+            for (JsonNode msg : msgs) {
+                if (messages.size() >= MAX_MESSAGES) {
+                    break;
+                }
+                messages.add(objectMapper.convertValue(msg, Map.class));
+                if (msg.hasNonNull("user")) {
+                    participants.add(msg.get("user").asText());
+                }
+            }
+        }
+
+        if (messages.isEmpty()) {
+            return SourceChunk.empty(SourceKind.SLACK, "기간 내 채널 메시지 없음");
+        }
+
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        metrics.put("messages", messages.size());
+        metrics.put("participants", participants.size());
+        String summary = "슬랙 메시지 " + messages.size() + "건 · 참여자 " + participants.size() + "명";
+        return SourceChunk.ok(SourceKind.SLACK, rollupJson(channelId, channelName, messages),
+                metrics, summary);
+    }
+
+    private String rollupJson(String channelId, String channelName, List<Map<String, Object>> messages) {
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("channel", channelId);
+        root.put("channel_name", channelName);
+        root.put("message_count", messages.size());
+        root.put("messages", messages);
+        try {
+            return objectMapper.writeValueAsString(root);
+        } catch (Exception e) {
+            log.error("슬랙 채널 롤업 JSON 직렬화 실패: {}", e.getMessage());
+            return null;
+        }
     }
 
     @Override

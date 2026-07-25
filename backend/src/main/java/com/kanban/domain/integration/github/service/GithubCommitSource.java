@@ -1,5 +1,6 @@
 package com.kanban.domain.integration.github.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.integration.github.config.GithubAppProperties;
 import com.kanban.domain.integration.github.dto.GithubCommit;
@@ -46,6 +47,115 @@ public class GithubCommitSource implements ReportSource {
     @Override
     public boolean isConfigured(String boardId) {
         return !targetResolver.resolve(boardId).isEmpty();
+    }
+
+    @Override
+    public boolean supportsWeeklyRollup() {
+        return true;
+    }
+
+    /**
+     * 일일 커밋 수집분을 주간 한 벌로 합친다. 저장소별 커밋을 이어붙이되 <b>sha로 중복을 제거</b>한다 —
+     * 일일 구간이 겹치거나 재생성으로 같은 커밋이 두 조각에 들어와도 한 번만 센다.
+     * 입력 조각은 최신 날짜가 먼저 오므로, 그 순서를 그대로 살려 최신 커밋이 위로 온다.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public SourceChunk rollup(List<JsonNode> dailyData, ReportPeriod period) {
+        // repo -> 커밋 항목들. sha(+repo)로 중복 제거.
+        Map<String, List<Map<String, Object>>> byRepo = new LinkedHashMap<>();
+        Set<String> seen = new HashSet<>();
+        List<String> failedRepos = new ArrayList<>();
+        Set<String> failedSeen = new HashSet<>();
+
+        for (JsonNode day : dailyData) {
+            JsonNode failed = day.get("failed_repos");
+            if (failed != null && failed.isArray()) {
+                failed.forEach(r -> {
+                    if (failedSeen.add(r.asText())) {
+                        failedRepos.add(r.asText());
+                    }
+                });
+            }
+            JsonNode repos = day.get("commits_by_repo");
+            if (repos == null || !repos.isObject()) {
+                continue;
+            }
+            repos.fields().forEachRemaining(entry -> {
+                String repo = entry.getKey();
+                for (JsonNode item : entry.getValue()) {
+                    String sha = item.hasNonNull("sha") ? item.get("sha").asText() : null;
+                    // sha가 없으면(방어) 중복 판정 불가 — 그대로 둔다.
+                    if (sha != null && !seen.add(repo + '@' + sha)) {
+                        continue;
+                    }
+                    byRepo.computeIfAbsent(repo, k -> new ArrayList<>())
+                            .add(objectMapper.convertValue(item, Map.class));
+                }
+            });
+        }
+
+        int total = byRepo.values().stream().mapToInt(List::size).sum();
+        if (total == 0) {
+            return SourceChunk.empty(SourceKind.GITHUB, "기간 내 커밋 없음");
+        }
+
+        Map<String, Object> metrics = rollupMetrics(byRepo);
+        String summary = "커밋 " + total + "건 · 기여자 " + metrics.get("contributors") + "명"
+                + (failedRepos.isEmpty() ? "" : " (일부 저장소 조회 실패: " + String.join(", ", failedRepos) + ")");
+        return SourceChunk.ok(SourceKind.GITHUB, rollupJson(byRepo, period, failedRepos, total),
+                metrics, summary);
+    }
+
+    /**
+     * 병합된 커밋에서 지표를 다시 센다. 변경 파일 수는 일일 수집 때 상위 N건만 채워진 값이라
+     * 조각을 합쳐도 전체가 아니다 — 표본으로 표시한다(additions/deletions는 스냅샷에 없어 뺀다).
+     */
+    private Map<String, Object> rollupMetrics(Map<String, List<Map<String, Object>>> byRepo) {
+        Map<String, Long> byAuthor = new LinkedHashMap<>();
+        int total = 0;
+        int changedFiles = 0;
+        int sampled = 0;
+        for (List<Map<String, Object>> commits : byRepo.values()) {
+            for (Map<String, Object> c : commits) {
+                total++;
+                Object author = c.get("author");
+                if (author != null) {
+                    byAuthor.merge(String.valueOf(author), 1L, Long::sum);
+                }
+                Object cf = c.get("changed_files");
+                if (cf instanceof Number n) {
+                    changedFiles += n.intValue();
+                    sampled++;
+                }
+            }
+        }
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        metrics.put("commits", total);
+        metrics.put("contributors", byAuthor.size());
+        metrics.put("repos", byRepo.size());
+        metrics.put("changed_files", changedFiles);
+        metrics.put("stats_sampled_commits", sampled);
+        metrics.put("stats_complete", sampled == total);
+        metrics.put("by_author", byAuthor);
+        return metrics;
+    }
+
+    private String rollupJson(Map<String, List<Map<String, Object>>> byRepo, ReportPeriod period,
+                              List<String> failedRepos, int total) {
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("period", period.label());
+        root.put("total_commits", total);
+        if (!failedRepos.isEmpty()) {
+            root.put("failed_repos", failedRepos);
+        }
+        root.put("commits_by_repo", byRepo);
+        try {
+            return objectMapper.writeValueAsString(root);
+        } catch (Exception e) {
+            log.error("커밋 롤업 JSON 직렬화 실패: {}", e.getMessage());
+            return null;
+        }
     }
 
     @Override

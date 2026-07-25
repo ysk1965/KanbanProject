@@ -111,6 +111,12 @@ public class ReportContent {
         /** "DONE" | "IN_PROGRESS" (feature 도메인엔 REVIEW 없음) */
         private String status;
         private String description;
+        /**
+         * 이 기능에서 그 기간에 실제로 무엇이 만들어졌는지 3~5문장으로 정리한 요약.
+         * description(원본 이슈 설명)과 달리, 태스크·체크리스트·커밋·문서를 근거로 AI가 생성한다.
+         * ReportComposer가 진행 집계 후(커밋 배정까지 끝난 뒤) 배치로 채운다. 실패하면 null.
+         */
+        private String summary;
         private int taskDone;
         private int taskTotal;
         private List<String> assignees;
@@ -122,6 +128,11 @@ public class ReportContent {
          * 커밋마다 estimated 플래그로 확정/추정을 구분한다.
          */
         private List<FeatureCommit> commits;
+        /**
+         * 이 기능과 연관된 Confluence 문서. 그 기간에 추가/수정된 문서를 커밋과 같은 키워드 방식으로 매핑한다.
+         * 삭제 문서는 제목만 온다(변경내역 규칙). 매칭 없으면 빈 목록.
+         */
+        private List<ConfluenceDoc> confluenceDocs;
     }
 
     /** 기능에 속한 개별 태스크(펼치기 목록용). */
@@ -133,6 +144,39 @@ public class ReportContent {
         private String title;
         /** "DONE" | "IN_PROGRESS" | "TODO" */
         private String status;
+        /**
+         * 이 태스크의 체크리스트 항목(하위 작업). "무슨 작업인지"를 드러내고 커밋 매칭의 근거가 된다.
+         * 최대 개수는 수집 단계에서 제한한다.
+         */
+        private List<ChecklistLine> checklist;
+    }
+
+    /** 체크리스트 항목 하나 — 태스크가 실제로 어떤 하위 작업들로 이뤄졌는지 보여준다. */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ChecklistLine {
+        private String title;
+        private boolean done;
+        /** 담당자 표시 이름. 없으면 null. */
+        private String assignee;
+    }
+
+    /** 기능에 연관된 Confluence 문서 하나(변경내역 기반). */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ConfluenceDoc {
+        private String title;
+        private String url;
+        /** "added" | "modified" | "deleted" */
+        private String changeType;
+        /** 문서 작성/수정자 표시 이름. 없으면 null. */
+        private String author;
+        /** 마지막 수정 시각(ISO). 없으면 null. */
+        private String updatedAt;
     }
 
     /** 기능/카테고리에 연결된 커밋 하나. GitHub 수집 결과에서 표시에 필요한 필드만 담는다. */

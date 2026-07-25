@@ -9692,9 +9692,25 @@ export interface AutoReportSprint {
   percentage: number;
 }
 
+export interface AutoReportChecklistLine {
+  title: string;
+  done: boolean;
+  assignee: string | null;
+}
+
 export interface AutoReportFeatureTask {
   title: string;
   status: string; // "DONE" | "IN_PROGRESS" | "TODO"
+  checklist?: AutoReportChecklistLine[] | null;
+}
+
+/** 기능에 연관된 Confluence 문서 하나(변경내역 기반) */
+export interface AutoReportConfluenceDoc {
+  title: string;
+  url: string | null;
+  change_type: string; // "added" | "modified" | "deleted"
+  author: string | null;
+  updated_at: string | null;
 }
 
 /** 기능/카테고리에 연결된 커밋 하나 */
@@ -9721,12 +9737,15 @@ export interface AutoReportFeature {
   name: string;
   status: string; // "DONE" | "IN_PROGRESS"
   description: string | null;
+  /** 그 기간에 이 기능에서 실제로 무엇이 만들어졌는지 AI가 정리한 요약. 없으면 null. */
+  summary?: string | null;
   task_done: number;
   task_total: number;
   assignees: string[] | null;
   last_activity: string | null;
   tasks: AutoReportFeatureTask[] | null;
   commits?: AutoReportFeatureCommit[] | null;
+  confluence_docs?: AutoReportConfluenceDoc[] | null;
 }
 
 export interface AutoReportContent {

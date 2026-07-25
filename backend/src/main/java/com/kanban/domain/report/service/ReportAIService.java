@@ -129,6 +129,78 @@ public class ReportAIService {
         }
     }
 
+    private static final int MAX_TOKENS_FEATURE_SUMMARY = 3072;
+
+    /**
+     * 기능별 요약을 한 번의 호출로 생성한다. 각 기능의 근거(태스크·체크리스트·커밋·연관 문서)를 담은 라벨을
+     * 순서대로 받아, 기능마다 "그 기간에 실제로 무엇이 만들어졌는지"를 3~5문장으로 서술한 문자열 배열을 돌려준다.
+     *
+     * <p>시스템 호출이라 크레딧은 차감하지 않고 사용량 로그만 남긴다. 실패하면 빈 목록을 돌려
+     * 호출부가 요약 없이(기존 description만으로) 진행하게 한다.
+     *
+     * @return featureBriefs 길이의 목록. i번째 값은 기능 i의 요약(없으면 빈 문자열). 실패 시 빈 목록.
+     */
+    public List<String> summarizeFeatures(List<String> featureBriefs, String language, String boardId) {
+        if (featureBriefs == null || featureBriefs.isEmpty()) {
+            return List.of();
+        }
+        String langName = getLanguageName(language);
+
+        StringBuilder sb = new StringBuilder("FEATURES:\n");
+        for (int i = 0; i < featureBriefs.size(); i++) {
+            sb.append("=== FEATURE ").append(i).append(" ===\n")
+                    .append(featureBriefs.get(i)).append("\n\n");
+        }
+
+        String systemPrompt = """
+                You summarize what each product feature actually got built during a reporting period.
+                You receive a numbered list of FEATURES; each has its NAME, DESCRIPTION, TASKS with their
+                checklist items ([x] done / [ ] not done), connected COMMITS, and related DOCS.
+
+                For each feature, write a summary of 3-5 sentences describing what was actually done in this
+                period: which concrete pieces of work advanced or completed, cross-referencing the checklist
+                items against the commit subjects and docs so the reader sees "what was built and how far it got."
+                Be specific and grounded — never invent work that the tasks/commits/docs don't show. If a feature
+                has little evidence, say briefly that it saw little activity. Do not just restate the feature name.
+                Write every summary in %s.
+
+                Output ONLY a JSON array of strings whose length equals the number of features; the i-th string
+                is the summary for feature i. No prose, no code fences, no keys — just the array.
+                """.formatted(langName);
+
+        String model = getStandupModel();
+        try {
+            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_FEATURE_SUMMARY);
+            logAiUsage("REPORT_FEATURE_SUMMARY", model, boardId, null, aiResult);
+            return parseSummaries(aiResult.content(), featureBriefs.size());
+        } catch (Exception e) {
+            log.warn("기능 요약 AI 호출 실패: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<String> parseSummaries(String raw, int featureCount) {
+        if (raw == null) {
+            return List.of();
+        }
+        int start = raw.indexOf('[');
+        int end = raw.lastIndexOf(']');
+        if (start < 0 || end <= start) {
+            return List.of();
+        }
+        try {
+            String[] parsed = objectMapper.readValue(raw.substring(start, end + 1), String[].class);
+            List<String> result = new java.util.ArrayList<>(featureCount);
+            for (int i = 0; i < featureCount; i++) {
+                result.add(i < parsed.length && parsed[i] != null ? parsed[i] : "");
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("기능 요약 응답 파싱 실패: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
     private int[] parseAssignments(String raw, int commitCount, int featureCount) {
         int[] result = new int[commitCount];
         Arrays.fill(result, -1);
@@ -254,11 +326,25 @@ public class ReportAIService {
                 ? "sections는 반드시 4개: 성과 / 진행 중 / 리스크 / 다음 주 계획."
                 : "sections는 1~2개. 어제 무엇이 바뀌었는지에 집중한다.";
 
+        String digestRuleKo = weekly
+                ? "- daily_digests는 이번 주에 이미 나간 일일 보고서 요약(날짜별 headline·highlights)입니다. "
+                  + "이걸 참고해 한 주의 흐름(무엇이 어떤 순서로 이어졌는지)을 파악하고 서술을 매끄럽게 이으세요. "
+                  + "다만 지표와 서술의 근거는 반드시 소스 데이터에서 확인하고, 일일 요약을 그대로 복사하지 말고 "
+                  + "한 주 관점으로 다시 엮으세요."
+                : "";
+        String digestRuleEn = weekly
+                ? "- daily_digests are summaries (headline · highlights per day) of the daily reports already "
+                  + "sent this week. Use them to grasp the week's arc — what progressed in what order — and make "
+                  + "the narrative flow. Still verify metrics and claims against the source data, and do not copy "
+                  + "the daily summaries verbatim; re-weave them from a whole-week perspective."
+                : "";
+
         if ("ko".equals(lang)) {
             return """
-                    당신은 개발팀의 보고서 작성자입니다. 수집된 원본 데이터(커밋, 칸반 태스크, Confluence 문서(주간보고
-                    또는 부모 문서 하위의 추가·수정·삭제 변경 내역), 슬랙 채널 논의)를 받아 팀이 아침에 30초 안에
-                    읽을 수 있는 보고서를 만듭니다.
+                    당신은 오토배틀러 팀배틀 수집형 RPG를 만드는 게임 개발팀의 보고서 작성자입니다. 수집된 원본
+                    데이터(커밋, 칸반 태스크, Confluence 문서(주간보고 또는 부모 문서 하위의 추가·수정·삭제 변경 내역),
+                    슬랙 채널 논의)를 "어떤 게임 콘텐츠·시스템이 만들어지고 다듬어지고 있는지"의 관점으로 해석해,
+                    팀이 아침에 30초 안에 읽을 수 있는 보고서를 만듭니다.
 
                     <output>
                     반드시 아래 스키마의 JSON만 출력하세요. 코드펜스, 설명, 인사말을 붙이지 마세요.
@@ -267,8 +353,14 @@ public class ReportAIService {
 
                     <rules>
                     - %s
+                    %s
                     - 숫자를 지어내지 마세요. 지표는 시스템이 계산해 붙이므로 metrics 필드는 출력하지 않습니다.
                     - 커밋 메시지를 그대로 나열하지 마세요. 무엇이 왜 바뀌었는지로 묶어 서술하세요.
+                    - 커밋·태스크·논의를 게임 요소 단위로 묶어 "무엇이 만들어지고 있는지"를 서술하세요. 예:
+                      수집 유닛/캐릭터, 팀 조합·시너지, 전투·오토배틀 로직, 스킬·효과, 밸런스, 몹·보스, 맵·스테이지,
+                      뽑기·수집 시스템, UI/UX, 인프라/툴. 커밋 type·scope(feat, fix, mob, map, skill 등)와 태스크·
+                      체크리스트를 근거로 그 작업이 어떤 콘텐츠의 어느 단계인지 연결하세요. 게임 용어는 근거가
+                      있을 때만 쓰고 지어내지 마세요.
                     - 태스크의 checklist(항목 title·done)는 그 태스크가 실제로 어떤 하위 작업인지 보여줍니다.
                       이걸 근거로 태스크의 실체를 파악하고, 커밋 subject를 해당 태스크·항목과 대조해
                       "어떤 커밋이 어떤 태스크의 어떤 작업인지"를 연결해 서술하세요.
@@ -282,17 +374,22 @@ public class ReportAIService {
                       합의·완료 신호이고, 결론은 스레드 답글(replies)에 있는 경우가 많으니 함께 보세요.
                     - members는 같은 사람의 여러 계정(이름·GitHub 로그인·슬랙 ID)을 잇는 명단입니다. 이걸로 한 사람의
                       활동을 소스 넘어 연결하세요 — GitHub author, 태스크 담당자, 슬랙 발화자가 같은 사람일 수 있습니다.
-                    - 같은 파일을 반복 수정했거나 되돌린 흔적(예: 설정을 바꿨다가 되돌림)이 보이면 risks에 적으세요.
+                    - risks에는 정말 확인이 필요한 것만 적으세요: 막힌 지점(블로커), 팀의 결정이 필요한 사안,
+                      설정을 바꿨다 되돌리는 등 방향이 오락가락한 흔적. 이미지·GIF·스프라이트·맵 등 리소스/에셋이
+                      자주 바뀌거나 교체되는 것은 게임 개발의 정상 과정이므로 리스크로 적지 마세요. 적을 게 없으면
+                      risks는 비워 두세요.
                     - 수집 실패한 소스가 있으면 risks 첫 줄에 그 사실을 적으세요.
                     - highlights는 중요도 순으로 최대 10개까지 쓰세요. 그날 정리할 게 적으면 적게 쓰고 억지로 채우지 마세요.
                       각 60자 이내로, 슬랙 메시지에 그대로 나갑니다.
                     </rules>
-                    """.formatted(schema, sectionRule);
+                    """.formatted(schema, sectionRule, digestRuleKo);
         }
         return """
-                You are a development team's report writer. From raw collected data (commits, kanban tasks,
-                Confluence documents (weekly notes, or added/modified/deleted changes under a parent page),
-                Slack channel discussion), produce a report the team can read in 30 seconds.
+                You are the report writer for a game team building an auto-battler team-battle collection RPG.
+                From raw collected data (commits, kanban tasks, Confluence documents (weekly notes, or
+                added/modified/deleted changes under a parent page), Slack channel discussion), interpret
+                "what game content and systems are being built and refined" and produce a report the team can
+                read in 30 seconds.
 
                 <output>
                 Output ONLY JSON matching this schema. No code fences, no preamble.
@@ -301,8 +398,15 @@ public class ReportAIService {
 
                 <rules>
                 - %s
+                %s
                 - Never invent numbers. Metrics are computed by the system, so do not output a metrics field.
                 - Do not list commit messages verbatim. Group them by what changed and why.
+                - Group commits, tasks, and discussion by game element and describe "what is being built." e.g.
+                  collectible units/characters, team comps & synergies, combat/auto-battle logic, skills/effects,
+                  balance, mobs/bosses, maps/stages, gacha/collection systems, UI/UX, infra/tooling. Use commit
+                  type/scope (feat, fix, mob, map, skill, ...) and tasks/checklists to connect each piece of work
+                  to which content it belongs to and what stage it's at. Use game terms only when the data
+                  supports them; don't invent.
                 - A task's checklist (item title · done) shows what the task actually consists of. Use it to
                   understand what each task really is, and match commit subjects against the task and its items to
                   connect "which commit belongs to which task and which piece of work."
@@ -318,11 +422,14 @@ public class ReportAIService {
                 - members is a roster linking one person's identities (name · GitHub login · Slack ID). Use it to
                   connect a person's activity across sources — the GitHub author, task assignee, and Slack speaker may
                   be the same person.
-                - If you see repeated edits or a revert (e.g. a setting changed then rolled back), put it in risks.
+                - Put in risks only what genuinely needs attention: blockers, decisions the team must make, or
+                  signs of flip-flopping direction (a setting changed then rolled back). Frequently changing or
+                  swapping resource/asset files (images, GIFs, sprites, maps) is a normal part of game
+                  development, so do NOT flag it as a risk. Leave risks empty when there is nothing to raise.
                 - If a source failed to collect, say so in the first risks entry.
                 - highlights: up to 10 items ordered by importance. Write fewer when there's little to report; don't pad. Each under 60 characters. They go straight into Slack.
                 </rules>
-                """.formatted(schema, sectionRule);
+                """.formatted(schema, sectionRule, digestRuleEn);
     }
 
     private void logAiUsage(String featureType, String model, String boardId, String userId, AIResponse aiResult) {

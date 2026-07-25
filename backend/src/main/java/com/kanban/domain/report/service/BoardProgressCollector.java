@@ -52,8 +52,10 @@ public class BoardProgressCollector {
 
     private static final int MAX_FEATURES = 15;
     private static final int MAX_TASKS_PER_FEATURE = 10;
+    private static final int MAX_CHECKLIST_PER_TASK = 15;
     private static final int MAX_COMMITS_PER_FEATURE = 30;
     private static final int MAX_COMMITS_PER_CATEGORY = 40;
+    private static final int MAX_CONFLUENCE_PER_FEATURE = 12;
 
     /** 컨벤셔널 커밋 접두어 판별 — "type(scope)!: ..." 의 type 추출 */
     private static final Pattern TYPE_RE = Pattern.compile("^\\s*([a-zA-Z]+)(?:\\([^)]*\\))?!?:");
@@ -85,18 +87,26 @@ public class BoardProgressCollector {
                              String at, String url, Integer changedFiles) {
     }
 
+    /** 파싱된 Confluence 문서 하나. ReportComposer가 CONFLUENCE 변경내역에서 만들어 넘긴다. */
+    public record ConfluenceDocInfo(String title, String url, String changeType,
+                                    String author, String updatedAt) {
+    }
+
     private record FeatureResult(List<ReportContent.Feature> features,
                                  List<ReportContent.CommitCategory> categories,
                                  List<CommitInfo> leftover) {
     }
 
     @Transactional(readOnly = true)
-    public Progress compute(String boardId, ReportPeriod period, List<CommitInfo> commits) {
+    public Progress compute(String boardId, ReportPeriod period, List<CommitInfo> commits,
+                            List<ConfluenceDocInfo> confluenceDocs) {
         List<ReportContent.Feature> features = List.of();
         List<ReportContent.CommitCategory> categories = List.of();
         List<CommitInfo> leftover = List.of();
         try {
-            FeatureResult fr = computeFeatures(boardId, period, commits != null ? commits : List.of());
+            FeatureResult fr = computeFeatures(boardId, period,
+                    commits != null ? commits : List.of(),
+                    confluenceDocs != null ? confluenceDocs : List.of());
             features = fr.features();
             categories = fr.categories();
             leftover = fr.leftover();
@@ -115,7 +125,8 @@ public class BoardProgressCollector {
     }
 
     /** 진행 중 feature + 기간 내 완료된 feature. lastActivity 내림차순, 최대 {@value #MAX_FEATURES}개. */
-    private FeatureResult computeFeatures(String boardId, ReportPeriod period, List<CommitInfo> commits) {
+    private FeatureResult computeFeatures(String boardId, ReportPeriod period, List<CommitInfo> commits,
+                                          List<ConfluenceDocInfo> confluenceDocs) {
         LocalDateTime startUtc = period.startInclusive().withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
         LocalDateTime endUtc = period.endExclusive().withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
@@ -141,6 +152,9 @@ public class BoardProgressCollector {
         for (Feature f : byId.values()) {
             List<Task> tasks = taskRepository.findByFeatureIdOrderByPositionAsc(f.getId());
 
+            // 체크리스트를 태스크별로 한 번에 로드해 두 용도(표시 DTO·매칭 토큰)로 함께 쓴다.
+            Map<String, List<ChecklistItem>> checklistByTask = loadChecklistByTask(tasks);
+
             LocalDateTime lastActivity = tasks.stream()
                     .map(Task::getCompletedAt)
                     .filter(java.util.Objects::nonNull)
@@ -160,6 +174,7 @@ public class BoardProgressCollector {
                     .map(t -> ReportContent.FeatureTask.builder()
                             .title(t.getTitle())
                             .status(taskStatus(t, today))
+                            .checklist(toChecklistLines(checklistByTask.get(t.getId())))
                             .build())
                     .toList();
 
@@ -173,6 +188,7 @@ public class BoardProgressCollector {
                     .lastActivity(lastActivity != null ? lastActivity.toString() : null)
                     .tasks(taskDtos)
                     .commits(new ArrayList<>())
+                    .confluenceDocs(new ArrayList<>())
                     .build();
 
             Set<String> logins = new HashSet<>();
@@ -188,7 +204,7 @@ public class BoardProgressCollector {
             Ctx ctx = new Ctx();
             ctx.dto = dto;
             ctx.logins = logins;
-            ctx.tokens = buildMatchTokens(f, tasks);
+            ctx.tokens = buildMatchTokens(f, tasks, checklistByTask);
             ctxs.add(ctx);
         }
 
@@ -205,9 +221,19 @@ public class BoardProgressCollector {
             }
         }
 
+        // Confluence 문서 → 기능 상관: 문서 제목 키워드로만 매핑(작성자 계정은 github 로그인과 별개라 신뢰 못 함).
+        // 매칭 안 되면 기능에 붙이지 않는다 — 전역 Confluence 탭엔 이미 다 나오므로 여기선 확실한 것만 건다.
+        for (ConfluenceDocInfo doc : confluenceDocs) {
+            Ctx match = matchConfluence(doc, ctxs);
+            if (match != null && match.confluenceBucket.size() < MAX_CONFLUENCE_PER_FEATURE) {
+                match.confluenceBucket.add(toConfluenceDoc(doc));
+            }
+        }
+
         List<ReportContent.Feature> result = new ArrayList<>();
         for (Ctx ctx : ctxs) {
             ctx.dto.setCommits(ctx.bucket);
+            ctx.dto.setConfluenceDocs(ctx.confluenceBucket);
             result.add(ctx.dto);
         }
         result.sort(Comparator.comparing(ReportContent.Feature::getLastActivity,
@@ -275,23 +301,83 @@ public class BoardProgressCollector {
     /**
      * 기능 매칭용 키워드 집합. 기능 제목만으로는 부족하다 — 실제 작업 단위는 <b>태스크와 그 안의 체크리스트</b>에
      * 적혀 있어서, 커밋 메시지가 체크리스트 항목 이름과 겹치는 경우가 많다. 셋을 모두 어휘로 삼아 매칭 정확도를 높인다.
+     * 체크리스트는 이미 로드해 둔 것을 재사용한다(태스크별 표시 DTO와 같은 데이터).
      */
-    private List<String> buildMatchTokens(Feature f, List<Task> tasks) {
+    private List<String> buildMatchTokens(Feature f, List<Task> tasks,
+                                          Map<String, List<ChecklistItem>> checklistByTask) {
         Set<String> tokens = new LinkedHashSet<>(tokenize(f.getTitle()));
         for (Task t : tasks) {
             tokens.addAll(tokenize(t.getTitle()));
         }
-        List<String> taskIds = tasks.stream().map(Task::getId).toList();
-        if (!taskIds.isEmpty()) {
-            for (ChecklistItem item : checklistItemRepository.findByTaskIdInWithAssignee(taskIds)) {
+        outer:
+        for (List<ChecklistItem> items : checklistByTask.values()) {
+            for (ChecklistItem item : items) {
                 tokens.addAll(tokenize(item.getTitle()));
                 if (tokens.size() >= MAX_MATCH_TOKENS) {
-                    break;
+                    break outer;
                 }
             }
         }
         List<String> result = new ArrayList<>(tokens);
         return result.size() > MAX_MATCH_TOKENS ? result.subList(0, MAX_MATCH_TOKENS) : result;
+    }
+
+    /** 태스크별 체크리스트를 한 번의 쿼리로 로드해 task_id로 묶는다. 태스크가 없으면 빈 맵. */
+    private Map<String, List<ChecklistItem>> loadChecklistByTask(List<Task> tasks) {
+        List<String> taskIds = tasks.stream().map(Task::getId).toList();
+        Map<String, List<ChecklistItem>> byTask = new HashMap<>();
+        if (taskIds.isEmpty()) {
+            return byTask;
+        }
+        for (ChecklistItem item : checklistItemRepository.findByTaskIdInWithAssignee(taskIds)) {
+            // getTask().getId()는 FK 값이라 프록시를 초기화하지 않고 얻는다(추가 쿼리 없음).
+            byTask.computeIfAbsent(item.getTask().getId(), k -> new ArrayList<>()).add(item);
+        }
+        return byTask;
+    }
+
+    /** 체크리스트 항목을 표시용 DTO로. 순서는 로드된 순서(position 정렬은 저장소에 위임). 태스크당 상한 적용. */
+    private List<ReportContent.ChecklistLine> toChecklistLines(List<ChecklistItem> items) {
+        if (items == null || items.isEmpty()) {
+            return List.of();
+        }
+        return items.stream()
+                .limit(MAX_CHECKLIST_PER_TASK)
+                .map(it -> ReportContent.ChecklistLine.builder()
+                        .title(it.getTitle())
+                        .done(Boolean.TRUE.equals(it.getIsCompleted()))
+                        .assignee(it.getAssignee() != null ? it.getAssignee().getName() : null)
+                        .build())
+                .toList();
+    }
+
+    /** Confluence 문서 하나를 문서 제목 키워드로 기능에 매핑한다. 삭제 문서 포함(제목만 있어도 매칭). 없으면 null. */
+    private Ctx matchConfluence(ConfluenceDocInfo doc, List<Ctx> ctxs) {
+        List<String> docTokens = tokenize(doc.title());
+        if (docTokens.isEmpty()) {
+            return null;
+        }
+        for (Ctx x : ctxs) {
+            if (x.tokens.isEmpty()) {
+                continue;
+            }
+            for (String tok : docTokens) {
+                if (x.tokens.contains(tok)) {
+                    return x;
+                }
+            }
+        }
+        return null;
+    }
+
+    private ReportContent.ConfluenceDoc toConfluenceDoc(ConfluenceDocInfo doc) {
+        return ReportContent.ConfluenceDoc.builder()
+                .title(doc.title())
+                .url(doc.url())
+                .changeType(doc.changeType())
+                .author(doc.author())
+                .updatedAt(doc.updatedAt())
+                .build();
     }
 
     public ReportContent.FeatureCommit toCommit(CommitInfo c, boolean estimated) {
@@ -351,6 +437,7 @@ public class BoardProgressCollector {
         Set<String> logins;
         List<String> tokens;
         final List<ReportContent.FeatureCommit> bucket = new ArrayList<>();
+        final List<ReportContent.ConfluenceDoc> confluenceBucket = new ArrayList<>();
     }
 
     private record Hit(Ctx ctx, boolean estimated) {

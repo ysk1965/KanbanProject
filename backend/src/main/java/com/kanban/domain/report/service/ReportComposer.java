@@ -38,7 +38,17 @@ public class ReportComposer {
 
     public Composed compose(String boardId, ReportType reportType, String language,
                             ReportPeriod period, List<SourceChunk> chunks) {
-        String mergedInput = mergeInput(boardId, period, chunks);
+        return compose(boardId, reportType, language, period, chunks, List.of());
+    }
+
+    /**
+     * @param dailyDigests 주간 작성 시 참고로 넣는 그 주 일일 보고서 요약들. 서술의 연속성·톤을 잇는
+     *                     용도이며 지표·본문 근거는 아니다. 일일/수동 보고서는 빈 목록.
+     */
+    public Composed compose(String boardId, ReportType reportType, String language,
+                            ReportPeriod period, List<SourceChunk> chunks,
+                            List<WeeklyRollupCollector.DailyDigest> dailyDigests) {
+        String mergedInput = mergeInput(boardId, period, chunks, dailyDigests);
         String raw = reportAIService.generateAutoReportJson(reportType, mergedInput, language, boardId);
 
         ReportContent content = parse(raw);
@@ -49,12 +59,14 @@ public class ReportComposer {
         // 기능별 진행·스프린트는 AI가 아니라 시스템이 집계해 주입한다(metrics와 동일). 실패해도 보고서는 진행.
         try {
             BoardProgressCollector.Progress progress =
-                    progressCollector.compute(boardId, period, parseCommits(chunks));
+                    progressCollector.compute(boardId, period, parseCommits(chunks), parseConfluenceDocs(chunks));
             content.setFeatures(progress.features());
             content.setSprint(progress.sprint());
             content.setCommitCategories(progress.commitCategories());
             // 담당자·키워드로 못 붙인 잔여 커밋은 AI가 의미 기반으로 기능에 배정(추정). 트랜잭션 밖에서 호출.
             classifyLeftoverCommits(content, progress, language, boardId);
+            // 근거(태스크·체크리스트·커밋·문서)가 다 붙은 뒤, 기능별 요약을 AI가 한 번에 생성해 채운다.
+            summarizeFeatures(content, language, boardId);
         } catch (Exception e) {
             log.warn("보드 진행 집계 실패 — 기능/스프린트 없이 진행 board={}: {}", boardId, e.getMessage());
         }
@@ -125,7 +137,8 @@ public class ReportComposer {
     }
 
     /** 소스별 원본을 한 덩어리로 묶는다. 실패한 소스도 사실로 남겨 AI가 언급할 수 있게 한다. */
-    private String mergeInput(String boardId, ReportPeriod period, List<SourceChunk> chunks) {
+    private String mergeInput(String boardId, ReportPeriod period, List<SourceChunk> chunks,
+                             List<WeeklyRollupCollector.DailyDigest> dailyDigests) {
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("period", period.label());
 
@@ -133,6 +146,11 @@ public class ReportComposer {
         List<Map<String, Object>> members = memberDirectory.roster(boardId);
         if (!members.isEmpty()) {
             root.put("members", members);
+        }
+
+        // 그 주 일일 보고서 요약 — 주간 서술이 흐름을 이어 쓰도록 참고로만 넣는다(근거는 소스 데이터).
+        if (dailyDigests != null && !dailyDigests.isEmpty()) {
+            root.put("daily_digests", dailyDigests);
         }
 
         List<Map<String, Object>> failures = new ArrayList<>();
@@ -208,6 +226,109 @@ public class ReportComposer {
     private String text(JsonNode node, String field) {
         JsonNode v = node.get(field);
         return v != null && !v.isNull() ? v.asText() : null;
+    }
+
+    /**
+     * CONFLUENCE 소스의 changelogs에서 추가/수정/삭제 문서를 꺼내 기능 매핑용 목록으로 되살린다.
+     * pages(주간보고 원문)는 제외한다 — 기능 단위 변경이 아니라 사람이 쓴 보고서 원문이라 매핑 대상이 아니다.
+     * 미연결·수집 실패·파싱 실패면 빈 목록(매핑 생략).
+     */
+    private List<BoardProgressCollector.ConfluenceDocInfo> parseConfluenceDocs(List<SourceChunk> chunks) {
+        for (SourceChunk chunk : chunks) {
+            if (chunk.kind() != SourceKind.CONFLUENCE || !chunk.success() || !chunk.hasData()) {
+                continue;
+            }
+            try {
+                JsonNode changelogs = objectMapper.readTree(chunk.dataJson()).get("changelogs");
+                if (changelogs == null || !changelogs.isArray()) {
+                    return List.of();
+                }
+                List<BoardProgressCollector.ConfluenceDocInfo> docs = new ArrayList<>();
+                for (JsonNode cl : changelogs) {
+                    addConfluenceDocs(cl.get("added"), "added", docs);
+                    addConfluenceDocs(cl.get("modified"), "modified", docs);
+                    addConfluenceDocs(cl.get("deleted"), "deleted", docs);
+                }
+                return docs;
+            } catch (Exception e) {
+                log.warn("Confluence 문서 파싱 실패 — 기능별 문서 매핑 생략: {}", e.getMessage());
+                return List.of();
+            }
+        }
+        return List.of();
+    }
+
+    private void addConfluenceDocs(JsonNode arr, String changeType,
+                                   List<BoardProgressCollector.ConfluenceDocInfo> into) {
+        if (arr == null || !arr.isArray()) {
+            return;
+        }
+        for (JsonNode d : arr) {
+            String title = text(d, "title");
+            if (title == null || title.isBlank()) {
+                continue;
+            }
+            into.add(new BoardProgressCollector.ConfluenceDocInfo(
+                    title, text(d, "url"), changeType, text(d, "author_id"), text(d, "updated_at")));
+        }
+    }
+
+    /**
+     * 기능별 요약을 AI가 한 번의 호출로 채운다. 각 기능의 근거(태스크·체크리스트·커밋·연관 문서)를 라벨로 만들어
+     * 넘기면, AI가 "그 기간에 이 기능에서 실제로 무엇이 만들어졌는지"를 기능마다 몇 문장으로 돌려준다.
+     * DB 트랜잭션 밖에서 호출한다. 실패하면 요약 없이(기존 description만으로) 진행한다.
+     */
+    private void summarizeFeatures(ReportContent content, String language, String boardId) {
+        List<ReportContent.Feature> features = content.getFeatures();
+        if (features == null || features.isEmpty()) {
+            return;
+        }
+        List<String> briefs = features.stream().map(this::featureBrief).toList();
+        List<String> summaries = reportAIService.summarizeFeatures(briefs, language, boardId);
+        if (summaries.isEmpty()) {
+            return; // AI 실패 — 요약 없이 진행
+        }
+        for (int i = 0; i < features.size() && i < summaries.size(); i++) {
+            String s = summaries.get(i);
+            if (s != null && !s.isBlank()) {
+                features.get(i).setSummary(s.trim());
+            }
+        }
+    }
+
+    /** 기능 하나의 요약 근거를 한 덩어리 텍스트로. 태스크·체크리스트·커밋·연관 문서를 모두 담아 AI가 대조하게 한다. */
+    private String featureBrief(ReportContent.Feature f) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("NAME: ").append(f.getName());
+        if (f.getDescription() != null && !f.getDescription().isBlank()) {
+            sb.append("\nDESCRIPTION: ").append(f.getDescription());
+        }
+        sb.append("\nPROGRESS: ").append(f.getTaskDone()).append('/').append(f.getTaskTotal())
+                .append(" tasks, status=").append(f.getStatus());
+        if (f.getTasks() != null && !f.getTasks().isEmpty()) {
+            sb.append("\nTASKS:");
+            for (ReportContent.FeatureTask t : f.getTasks()) {
+                sb.append("\n  - [").append(t.getStatus()).append("] ").append(t.getTitle());
+                if (t.getChecklist() != null && !t.getChecklist().isEmpty()) {
+                    for (ReportContent.ChecklistLine c : t.getChecklist()) {
+                        sb.append("\n      ").append(c.isDone() ? "[x] " : "[ ] ").append(c.getTitle());
+                    }
+                }
+            }
+        }
+        if (f.getCommits() != null && !f.getCommits().isEmpty()) {
+            sb.append("\nCOMMITS:");
+            for (ReportContent.FeatureCommit c : f.getCommits()) {
+                sb.append("\n  - ").append(c.getSubject());
+            }
+        }
+        if (f.getConfluenceDocs() != null && !f.getConfluenceDocs().isEmpty()) {
+            sb.append("\nDOCS:");
+            for (ReportContent.ConfluenceDoc d : f.getConfluenceDocs()) {
+                sb.append("\n  - (").append(d.getChangeType()).append(") ").append(d.getTitle());
+            }
+        }
+        return sb.toString();
     }
 
     /**
