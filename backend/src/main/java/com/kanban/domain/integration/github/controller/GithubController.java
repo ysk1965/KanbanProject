@@ -59,6 +59,16 @@ public class GithubController {
         return ResponseEntity.ok(connectionService.listAvailableRepos(boardId, principal.getUserId()));
     }
 
+    /** 한 저장소의 브랜치 목록 — 브랜치 드롭다운 후보 */
+    @GetMapping("/repos/branches")
+    public ResponseEntity<List<String>> repoBranches(
+            @PathVariable String boardId,
+            @RequestParam("repo_full_name") String repoFullName,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(
+                connectionService.listBranches(boardId, principal.getUserId(), repoFullName));
+    }
+
     /** 선택 목록 통째 교체 */
     @PutMapping("/repos")
     public ResponseEntity<GithubResponse.Status> selectRepos(
