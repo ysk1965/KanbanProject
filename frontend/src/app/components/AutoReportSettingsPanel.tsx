@@ -6,6 +6,7 @@ import {
   ExternalLink,
   FileText,
   Github,
+  Hash,
   Loader2,
   Play,
   RefreshCw,
@@ -19,6 +20,7 @@ import {
   autoReportAPI,
   confluenceAPI,
   githubAPI,
+  slackAppAPI,
   type ConfluenceSiteRef,
   type ConfluenceSpaceRef,
   type AutoReport,
@@ -26,6 +28,8 @@ import {
   type GithubAvailableRepo,
   type GithubStatus,
   type ReportConfig,
+  type SlackAppInstallation,
+  type SlackChannel,
 } from "../utils/api";
 import { MotionModal } from "./ui/MotionModal";
 import { AutoReportView } from "./AutoReportView";
@@ -124,6 +128,12 @@ export function AutoReportSettingsPanel({
   const [ruleValue, setRuleValue] = useState("");
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
+  // 발송 채널(슬랙): 설치 상태로 기본 채널을 보여주고, 채널 목록에서 리포트 전용 채널을 고른다.
+  const [slackApp, setSlackApp] = useState<SlackAppInstallation | null>(null);
+  const [channels, setChannels] = useState<SlackChannel[] | null>(null);
+  const [loadingChannels, setLoadingChannels] = useState(false);
+  const [showChannelPicker, setShowChannelPicker] = useState(false);
+
   const [rendered, setRendered] = useState<AutoReport | null>(null);
   const [renderOpen, setRenderOpen] = useState(false);
   const [renderLoading, setRenderLoading] = useState(false);
@@ -148,15 +158,18 @@ export function AutoReportSettingsPanel({
     setError(null);
     try {
       // 연동이 하나 실패해도 나머지 카드는 그려야 한다.
-      const [configRes, githubRes, confluenceRes] = await Promise.allSettled([
-        autoReportAPI.getConfig(boardId),
-        githubAPI.getStatus(boardId),
-        confluenceAPI.getStatus(boardId),
-      ]);
+      const [configRes, githubRes, confluenceRes, slackRes] =
+        await Promise.allSettled([
+          autoReportAPI.getConfig(boardId),
+          githubAPI.getStatus(boardId),
+          confluenceAPI.getStatus(boardId),
+          slackAppAPI.getStatus(boardId),
+        ]);
       if (configRes.status === "fulfilled") setConfig(configRes.value);
       if (githubRes.status === "fulfilled") setGithub(githubRes.value);
       if (confluenceRes.status === "fulfilled")
         setConfluence(confluenceRes.value);
+      if (slackRes.status === "fulfilled") setSlackApp(slackRes.value);
       if (configRes.status === "rejected") {
         setError("발송 설정을 불러오지 못했습니다.");
       }
@@ -216,6 +229,36 @@ export function AutoReportSettingsPanel({
     } finally {
       setSaving(false);
     }
+  };
+
+  const loadChannels = async () => {
+    if (channels) {
+      setShowChannelPicker((v) => !v);
+      return;
+    }
+    setLoadingChannels(true);
+    setError(null);
+    try {
+      const data = await slackAppAPI.listChannels(boardId);
+      setChannels(data.channels);
+      setShowChannelPicker(true);
+    } catch (e) {
+      setError(
+        (e as { message?: string })?.message ??
+          "슬랙 채널 목록을 불러오지 못했습니다. 슬랙 연결을 확인하세요.",
+      );
+    } finally {
+      setLoadingChannels(false);
+    }
+  };
+
+  /** 채널 선택. null이면 지정 해제(설치 기본 채널로 발송). */
+  const selectChannel = (ch: SlackChannel | null) => {
+    setShowChannelPicker(false);
+    void patchConfig({
+      slack_channel_id: ch ? ch.id : "",
+      slack_channel_name: ch ? ch.name : "",
+    });
   };
 
   const githubState: CardState = !github?.connected
@@ -678,6 +721,98 @@ export function AutoReportSettingsPanel({
           </div>
         )}
       </SourceCard>
+
+      {/* ── 발송 채널 ──────────────────────────── */}
+      {config && (
+        <div className="rounded-2xl border border-foreground/[0.08] overflow-hidden">
+          <div className="px-3 md:px-5 py-2 md:py-3 bg-foreground/[0.06] border-b border-foreground/[0.06] flex items-center gap-2">
+            <Hash className="w-4 h-4 text-slate-400" />
+            <span className="text-xs md:text-sm font-bold text-foreground flex-1">
+              발송 채널
+            </span>
+            {saving && (
+              <Loader2 className="w-4 h-4 animate-spin text-bridge-accent" />
+            )}
+          </div>
+          <div className="bg-bridge-dark p-3 md:p-5 flex flex-col gap-3">
+            <p className="text-xs text-slate-500">
+              보고서를 게시할 슬랙 채널입니다. 지정하지 않으면 슬랙 설치의 기본
+              채널로 발송됩니다.
+            </p>
+
+            {slackApp ? (
+              <>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-foreground/[0.03] border border-foreground/10">
+                    <Hash className="w-3.5 h-3.5 text-bridge-accent" />
+                    <span className="text-xs font-bold text-foreground">
+                      {config.slack_channel_name
+                        ? config.slack_channel_name
+                        : slackApp.default_channel_name
+                          ? `${slackApp.default_channel_name} (기본)`
+                          : "미지정 (기본 채널)"}
+                    </span>
+                  </div>
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={loadChannels}
+                      disabled={loadingChannels}
+                      className="text-xs font-bold text-bridge-accent hover:underline disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {loadingChannels ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-3.5 h-3.5" />
+                      )}
+                      {config.slack_channel_id ? "변경" : "채널 선택"}
+                    </button>
+                  )}
+                  {canManage && config.slack_channel_id && (
+                    <button
+                      type="button"
+                      onClick={() => selectChannel(null)}
+                      className="text-xs text-slate-500 hover:text-foreground"
+                    >
+                      기본 채널로 초기화
+                    </button>
+                  )}
+                </div>
+
+                {showChannelPicker &&
+                  channels &&
+                  (channels.length > 0 ? (
+                    <div className="max-h-40 overflow-y-auto custom-scrollbar bg-bridge-dark rounded-lg border border-foreground/10">
+                      {channels.map((ch) => (
+                        <button
+                          key={ch.id}
+                          type="button"
+                          onClick={() => selectChannel(ch)}
+                          className="w-full flex items-center gap-1.5 px-3 py-1.5 text-left hover:bg-foreground/5 transition-colors"
+                        >
+                          <Hash className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span className="text-xs text-foreground truncate">
+                            {ch.name}
+                          </span>
+                          {ch.is_private && <span className="text-xs">🔒</span>}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500">
+                      채널이 없습니다. 봇을 채널에 초대했는지 확인하세요.
+                    </p>
+                  ))}
+              </>
+            ) : (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                슬랙 앱이 이 보드에 연결되어 있지 않아 채널을 선택할 수
+                없습니다. 먼저 슬랙을 연결하세요.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── 발송 시각 ──────────────────────────── */}
       {config && (

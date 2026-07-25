@@ -145,8 +145,13 @@ public class BoardReportConfig extends BaseTimeEntity {
                              String slackChannelId, String slackChannelName) {
         if (timezone != null) this.timezone = timezone;
         if (language != null) this.language = language;
-        this.slackChannelId = slackChannelId;
-        this.slackChannelName = slackChannelName;
+        // 부분 업데이트 보호: null이면 기존 채널을 유지한다(발송 시각만 바꿔도 채널이 지워지던 문제).
+        // 빈 문자열이 오면 "기본 채널로 초기화" 의도로 보고 지운다.
+        if (slackChannelId != null) {
+            this.slackChannelId = slackChannelId.isBlank() ? null : slackChannelId;
+            this.slackChannelName = (slackChannelName == null || slackChannelName.isBlank())
+                    ? null : slackChannelName;
+        }
     }
 
     public void updateSources(Boolean github, Boolean kanban, Boolean confluence) {
