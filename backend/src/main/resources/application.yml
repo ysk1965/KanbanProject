@@ -234,10 +234,6 @@ app:
       max-size: 52428800
       ffmpeg-path: ${FFMPEG_PATH:/usr/bin/ffmpeg}
       ffprobe-path: ${FFPROBE_PATH:/usr/bin/ffprobe}
-      # 보고서 수집 시 슬랙 영상 재인코딩(best-effort). FFmpeg 미설치 시 원본 그대로 사용.
-      compress-max-dimension: ${VIDEO_COMPRESS_MAX_DIM:1280}
-      compress-crf: ${VIDEO_COMPRESS_CRF:28}
-      compress-timeout-seconds: ${VIDEO_COMPRESS_TIMEOUT:600}
   storage:
     # presigned 대용량 업로드 상한 (기본 2GB). direct(multipart) 경로는 app.file 제한을 따른다.
     max-file-size: ${STORAGE_MAX_FILE_SIZE:2147483648}

@@ -164,11 +164,15 @@ public class ReportComposer {
     }
 
     /**
-     * AI 커밋 분류용 커밋 라벨. 커밋 제목 + author에 더해 <b>변경 파일 경로</b>를 붙인다 —
-     * 파일 경로가 어느 기능/영역을 건드렸는지 보여주는 가장 강한 신호다(예: assets/bigmouse/** → "빅마우스").
+     * AI 커밋 분류용 커밋 라벨. 커밋 제목 + <b>본문(내역)</b> + author에 더해 <b>변경 파일 경로</b>를 붙인다.
+     * 커밋 내역("무엇을/왜")과 파일 경로("어디를")가 어느 기능을 진전시켰는지 보여주는 가장 강한 두 신호다
+     * (예: 본문에 "빅마우스 밸런스 재조정" + 경로 assets/bigmouse/** → "빅마우스" 기능).
      */
     private String buildCommitLabel(BoardProgressCollector.CommitInfo c) {
         StringBuilder sb = new StringBuilder(c.subject() != null ? c.subject() : "");
+        if (!c.bodyOrEmpty().isBlank()) {
+            sb.append(" — ").append(c.bodyOrEmpty());
+        }
         if (c.author() != null) {
             sb.append(" [").append(c.author()).append("]");
         }
@@ -250,6 +254,7 @@ public class ReportComposer {
                                 repo,
                                 text(item, "sha"),
                                 text(item, "subject"),
+                                text(item, "body"),
                                 text(item, "author"),
                                 text(item, "at"),
                                 text(item, "url"),
@@ -478,13 +483,17 @@ public class ReportComposer {
         }
         for (JsonNode file : files) {
             String url = text(file, "url");
-            if (url == null || !seen.add(url)) {
+            String link = text(file, "link");
+            // 영상은 포스터(url)가 없을 수 있어 link까지 중복 기준으로 본다. 둘 다 없으면 담을 게 없다.
+            String dedupKey = url != null ? url : link;
+            if (dedupKey == null || !seen.add(dedupKey)) {
                 continue;
             }
             into.add(ReportContent.Attachment.builder()
                     .title(text(file, "title"))
                     .type(text(file, "type"))
                     .url(url)
+                    .link(link)
                     .build());
         }
     }

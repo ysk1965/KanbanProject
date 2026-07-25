@@ -9765,7 +9765,10 @@ export interface AutoReportAttachment {
   title: string | null;
   /** "image" | "video" */
   type: string | null;
-  url: string;
+  /** 이미지 원본 / 영상 포스터 썸네일. 영상은 썸네일이 없으면 null일 수 있다. */
+  url: string | null;
+  /** 영상 재생을 위한 슬랙 원문(permalink). 이미지는 null. */
+  link?: string | null;
 }
 
 export interface AutoReportSourceStatus {

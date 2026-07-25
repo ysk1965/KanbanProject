@@ -264,6 +264,10 @@ public class GithubCommitSource implements ReportSource {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("sha", c.shortSha());
             item.put("subject", c.subject());
+            String body = c.bodyText();
+            if (!body.isBlank()) {
+                item.put("body", body);
+            }
             item.put("author", c.displayAuthor());
             item.put("at", c.committedAt() != null ? c.committedAt().format(TIME) : null);
             if (c.changedFiles() > 0) {

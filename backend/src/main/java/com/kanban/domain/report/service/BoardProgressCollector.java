@@ -83,11 +83,16 @@ public class BoardProgressCollector {
     }
 
     /** 파싱된 커밋 하나(표시·매칭에 필요한 필드만). ReportComposer가 GITHUB 소스에서 만들어 넘긴다. */
-    public record CommitInfo(String repo, String sha, String subject, String author,
+    public record CommitInfo(String repo, String sha, String subject, String body, String author,
                              String at, String url, Integer changedFiles, List<String> files) {
         /** null-safe 파일 목록 접근자. 상세 조회 전이면 빈 목록. */
         public List<String> filesOrEmpty() {
             return files != null ? files : List.of();
+        }
+
+        /** null-safe 커밋 본문 접근자. 본문이 없으면 빈 문자열. */
+        public String bodyOrEmpty() {
+            return body != null ? body : "";
         }
     }
 

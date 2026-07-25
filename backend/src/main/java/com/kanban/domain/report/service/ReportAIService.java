@@ -109,14 +109,20 @@ public class ReportAIService {
 
                 You receive a numbered FEATURES list and a numbered COMMITS list.
                 - Each FEATURE has a name, a description, and the concrete tasks it covers (after "tasks:").
-                - Each COMMIT has its message, its author in [brackets], and the file paths it changed (after "files:").
+                - Each COMMIT has its message (subject, then the body after " — " when present), its author
+                  in [brackets], and the file paths it changed (after "files:").
 
                 For each commit, decide which single feature it most plausibly belongs to by asking
-                "what part of the product does this change touch?" — weigh the changed file paths and the
-                message against each feature's name, description, and tasks. The file paths are the STRONGEST
-                signal: a commit touching assets/bigmouse/** belongs to a "빅마우스" feature even if its message
-                is terse or generic. Match meaning across languages and across code vs. art/asset work
-                (e.g. "guild"↔"길드", "receipt"↔"영수증", a path like art/story/** ↔ a "스토리 모드" feature).
+                "what part of the product does this change touch?". The commit message (subject AND body)
+                and the changed file paths are the TWO STRONGEST signals — read them together: the message
+                says WHAT and WHY, the paths say WHERE. Trust them over the feature name alone.
+                - The body often names the exact feature/system reworked ("빅마우스 밸런스 재조정", "영수증 검증 로직")
+                  even when the subject is a terse "fix bug" or "wip".
+                - The file paths pin the area: a commit touching assets/bigmouse/** belongs to a "빅마우스" feature;
+                  art/story/** ↔ a "스토리 모드" feature.
+                When message and paths point the same way, that is a strong match. When only one is informative,
+                use it. Match meaning across languages and across code vs. art/asset work
+                (e.g. "guild"↔"길드", "receipt"↔"영수증").
 
                 If a commit could fit several features, pick the one whose tasks or file paths overlap most
                 specifically. Use -1 ONLY when the commit clearly belongs to NONE of the listed features
