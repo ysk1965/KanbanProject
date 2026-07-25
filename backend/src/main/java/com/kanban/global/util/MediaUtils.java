@@ -2,6 +2,8 @@ package com.kanban.global.util;
 
 import net.coobird.thumbnailator.Thumbnails;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -203,5 +205,76 @@ public class MediaUtils {
     public static String getExtension(String fileName) {
         if (fileName == null || !fileName.contains(".")) return "";
         return fileName.substring(fileName.lastIndexOf("."));
+    }
+
+    /** 이미지 압축 결과. changed=false면 원본을 그대로 쓰라는 뜻. */
+    public record ProcessedImage(byte[] bytes, String contentType, boolean changed) {}
+
+    /**
+     * 이미지를 최대 변 {@code maxDim}px로 축소하고 JPEG 품질 {@code quality}로 재인코딩한다.
+     *
+     * <p>안전 규칙:
+     * <ul>
+     *   <li>JPEG / 불투명 PNG → JPEG(품질 적용)로 압축 — 사진·스크린샷 절감 효과 큼</li>
+     *   <li>투명도가 있는 PNG(스프라이트 등) → PNG(무손실) 유지 — JPEG로 바꾸면 투명 배경이 깨짐</li>
+     *   <li>GIF·WebP 등 그 외 → 손대지 않음 — 애니메이션 프레임이 날아감</li>
+     *   <li>디코드 실패·원본보다 커지는 경우 → 원본 유지</li>
+     * </ul>
+     *
+     * @return 압축된 바이트/컨텐츠 타입. 압축이 이득 없거나 불가하면 {@code changed=false}로 원본을 담아 반환.
+     */
+    public static ProcessedImage compressImage(byte[] original, String contentType, int maxDim, double quality) {
+        boolean isJpeg = "image/jpeg".equals(contentType);
+        boolean isPng = "image/png".equals(contentType);
+        if (!isJpeg && !isPng) {
+            return new ProcessedImage(original, contentType, false);  // gif/webp 등은 원본 유지
+        }
+        try {
+            BufferedImage img = ImageIO.read(new ByteArrayInputStream(original));
+            if (img == null) {
+                return new ProcessedImage(original, contentType, false);  // 디코드 실패 → 원본
+            }
+            int longest = Math.max(img.getWidth(), img.getHeight());
+            double scale = longest > maxDim ? (double) maxDim / longest : 1.0;
+            boolean keepPng = isPng && hasTransparency(img);  // 투명 PNG는 JPEG 변환 금지
+
+            ByteArrayOutputStream os = new ByteArrayOutputStream();
+            Thumbnails.Builder<BufferedImage> b = Thumbnails.of(img).scale(scale);
+            String outType;
+            if (keepPng) {
+                b.outputFormat("png");
+                outType = "image/png";
+            } else {
+                b.outputFormat("jpg").outputQuality(quality);
+                outType = "image/jpeg";
+            }
+            b.toOutputStream(os);
+            byte[] out = os.toByteArray();
+
+            // 리사이즈도 없는데 결과가 더 크면(이미 최적화된 작은 이미지) 원본 유지
+            if (scale == 1.0 && out.length >= original.length) {
+                return new ProcessedImage(original, contentType, false);
+            }
+            return new ProcessedImage(out, outType, true);
+        } catch (IOException e) {
+            return new ProcessedImage(original, contentType, false);  // 실패 시 원본
+        }
+    }
+
+    /** 실제로 반투명/투명 픽셀이 하나라도 있는지 검사(불투명 ARGB는 JPEG 압축 대상으로 취급). */
+    private static boolean hasTransparency(BufferedImage img) {
+        if (!img.getColorModel().hasAlpha()) {
+            return false;
+        }
+        int w = img.getWidth();
+        int h = img.getHeight();
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                if ((img.getRGB(x, y) >>> 24) < 255) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

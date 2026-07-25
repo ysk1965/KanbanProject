@@ -283,17 +283,36 @@ public class ReportComposer {
         if (features == null || features.isEmpty()) {
             return;
         }
-        List<String> briefs = features.stream().map(this::featureBrief).toList();
+        // 그 기간에 실제로 변경/추가된 근거(커밋·연관 문서·완료 태스크)가 있는 기능만 요약한다.
+        // 활동이 없던 기능은 summary=null로 남겨, 프론트가 "변경 있는 기능"을 앞에 구분해 정렬할 수 있게 한다.
+        // 요약 대상이 줄어 AI 토큰도 아낀다.
+        List<ReportContent.Feature> targets = features.stream()
+                .filter(ReportComposer::hasEvidence)
+                .toList();
+        if (targets.isEmpty()) {
+            return;
+        }
+        List<String> briefs = targets.stream().map(this::featureBrief).toList();
         List<String> summaries = reportAIService.summarizeFeatures(briefs, language, boardId);
         if (summaries.isEmpty()) {
             return; // AI 실패 — 요약 없이 진행
         }
-        for (int i = 0; i < features.size() && i < summaries.size(); i++) {
+        for (int i = 0; i < targets.size() && i < summaries.size(); i++) {
             String s = summaries.get(i);
             if (s != null && !s.isBlank()) {
-                features.get(i).setSummary(s.trim());
+                targets.get(i).setSummary(s.trim());
             }
         }
+    }
+
+    /**
+     * 그 기간에 실제로 변경/추가된 근거가 있는 기능인지. 연결된 커밋·연관 문서·완료 태스크 중
+     * 하나라도 있으면 true. 요약 생성 대상과 프론트 정렬(근거 있는 기능 우선)의 공통 기준이다.
+     */
+    private static boolean hasEvidence(ReportContent.Feature f) {
+        return (f.getCommits() != null && !f.getCommits().isEmpty())
+                || (f.getConfluenceDocs() != null && !f.getConfluenceDocs().isEmpty())
+                || f.getTaskDone() > 0;
     }
 
     /** 기능 하나의 요약 근거를 한 덩어리 텍스트로. 태스크·체크리스트·커밋·연관 문서를 모두 담아 AI가 대조하게 한다. */
@@ -434,25 +453,44 @@ public class ReportComposer {
             byKind.put(chunk.kind(), chunk.metrics());
         }
 
+        // 지표 스트립은 4칸(커밋·변경 파일·슬랙 메시지·Confluence 변경)으로 고정 노출한다.
         List<ReportContent.Metric> metrics = new ArrayList<>();
         Map<String, Object> github = byKind.getOrDefault(SourceKind.GITHUB, Map.of());
         addMetric(metrics, "커밋", github.get("commits"), null);
-        addMetric(metrics, "기여자", github.get("contributors"), null);
 
         Object changedFiles = github.get("changed_files");
         boolean complete = Boolean.TRUE.equals(github.get("stats_complete"));
         addMetric(metrics, "변경 파일", changedFiles,
                 complete ? null : "상위 " + github.get("stats_sampled_commits") + "건 집계");
 
-        Map<String, Object> kanban = byKind.getOrDefault(SourceKind.KANBAN, Map.of());
-        addMetric(metrics, "완료 태스크", kanban.get("completed_tasks"), null);
-        if (reportType == ReportType.WEEKLY_INTEGRATED) {
-            addMetric(metrics, "지연", kanban.get("overdue_tasks"), null);
-        }
-
         Map<String, Object> slack = byKind.getOrDefault(SourceKind.SLACK, Map.of());
         addMetric(metrics, "슬랙 메시지", slack.get("messages"), null);
+
+        // Confluence 변경 수 = 추가·수정 문서 + 삭제 문서. 삭제가 있으면 서브에 표기.
+        Map<String, Object> confluence = byKind.getOrDefault(SourceKind.CONFLUENCE, Map.of());
+        int changedDocs = toInt(confluence.get("changed_docs"));
+        int deletedDocs = toInt(confluence.get("deleted_docs"));
+        int confluenceChanges = changedDocs + deletedDocs;
+        if (confluenceChanges > 0) {
+            addMetric(metrics, "Confluence 변경", confluenceChanges,
+                    deletedDocs > 0 ? "삭제 " + deletedDocs : null);
+        }
         return metrics;
+    }
+
+    /** 수집 지표는 Integer/Long/String 등으로 섞여 오므로 안전하게 int로 변환한다. 없거나 파싱 실패 시 0. */
+    private int toInt(Object value) {
+        if (value instanceof Number n) {
+            return n.intValue();
+        }
+        if (value != null) {
+            try {
+                return Integer.parseInt(String.valueOf(value).trim());
+            } catch (NumberFormatException ignored) {
+                return 0;
+            }
+        }
+        return 0;
     }
 
     private void addMetric(List<ReportContent.Metric> metrics, String label, Object value, String delta) {
