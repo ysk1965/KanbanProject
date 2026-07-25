@@ -111,6 +111,37 @@ public class SlackApiClient {
     }
 
     /**
+     * 스레드 답글을 읽어온다 ({@code conversations.replies}). 반환 messages의 첫 항목은 부모 글이다.
+     * {@code channels:history}/{@code groups:history} 스코프로 동작한다.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> conversationsReplies(String botToken, String channelId,
+                                                    String threadTs, int limit) {
+        String url = SLACK_API_BASE + "/conversations.replies?channel=" + channelId
+                + "&ts=" + threadTs + "&limit=" + limit;
+        return callSlackApiGet(botToken, url);
+    }
+
+    /** 다운로드한 파일의 바이트와 콘텐츠 타입 */
+    public record FileContent(byte[] bytes, String contentType) {}
+
+    /**
+     * 슬랙에 올라온 파일을 봇 토큰으로 내려받는다. {@code url_private}는 Bearer 인증이 필요해
+     * 페이지에 바로 못 박으므로, 받아서 우리 스토리지로 옮겨야 한다. {@code files:read} 스코프가 필요하다.
+     */
+    public FileContent downloadFile(String botToken, String urlPrivate) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(botToken);
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+        ResponseEntity<byte[]> response = restTemplate.exchange(urlPrivate, HttpMethod.GET, request, byte[].class);
+        if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+            throw new BusinessException(ErrorCode.SLACK_API_ERROR);
+        }
+        MediaType type = response.getHeaders().getContentType();
+        return new FileContent(response.getBody(), type != null ? type.toString() : "application/octet-stream");
+    }
+
+    /**
      * Test authentication
      */
     @SuppressWarnings("unchecked")

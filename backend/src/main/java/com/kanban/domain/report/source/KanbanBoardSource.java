@@ -1,7 +1,11 @@
 package com.kanban.domain.report.source;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kanban.domain.checklist.ChecklistItem;
+import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.task.Task;
+import com.kanban.domain.task.TaskDependency;
+import com.kanban.domain.task.TaskDependencyRepository;
 import com.kanban.domain.task.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 /**
@@ -26,8 +31,17 @@ public class KanbanBoardSource implements ReportSource {
     /** AI 입력이 지나치게 길어지지 않도록 종류별 상한을 둔다 */
     private static final int MAX_ITEMS_PER_GROUP = 40;
 
+    /** 태스크 설명이 프롬프트를 채우지 않도록 앞부분만 남긴다 */
+    private static final int MAX_DESCRIPTION_CHARS = 300;
+
     private final TaskRepository taskRepository;
+    private final ChecklistItemRepository checklistItemRepository;
+    private final TaskDependencyRepository taskDependencyRepository;
     private final ObjectMapper objectMapper;
+
+    /** 태스크 하나의 체크리스트 집계 — 진척(done/total)과 담당자(체크리스트 항목 기준) */
+    private record ChecklistAgg(int total, int done, List<String> assignees) {
+    }
 
     @Override
     public SourceKind kind() {
@@ -93,8 +107,72 @@ public class KanbanBoardSource implements ReportSource {
         String summary = "완료 " + completed.size() + "건 · 진행 중 " + inProgress.size()
                 + "건 · 지연 " + overdue.size() + "건";
 
+        List<Task> displayed = new ArrayList<>();
+        displayed.addAll(completed);
+        displayed.addAll(inProgress);
+        displayed.addAll(overdue);
+        Map<String, ChecklistAgg> checklistMap = buildChecklistMap(displayed);
+        Map<String, List<String>> blockedMap = buildBlockedMap(boardId, displayed);
+
         return SourceChunk.ok(SourceKind.KANBAN,
-                toJson(completed, inProgress, overdue), metrics, summary);
+                toJson(completed, inProgress, overdue, today, checklistMap, blockedMap), metrics, summary);
+    }
+
+    /** 표시할 태스크들의 체크리스트를 한 번에 조회해 태스크별 진척·담당자로 집계한다. */
+    private Map<String, ChecklistAgg> buildChecklistMap(List<Task> tasks) {
+        List<String> taskIds = tasks.stream().map(Task::getId).toList();
+        if (taskIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, int[]> counts = new HashMap<>();          // taskId → [total, done]
+        Map<String, LinkedHashSet<String>> assignees = new HashMap<>();
+        for (ChecklistItem item : checklistItemRepository.findByTaskIdInWithAssignee(taskIds)) {
+            String taskId = item.getTask().getId();
+            int[] c = counts.computeIfAbsent(taskId, k -> new int[2]);
+            c[0]++;
+            if (Boolean.TRUE.equals(item.getIsCompleted())) {
+                c[1]++;
+            }
+            String name = assigneeName(item);
+            if (name != null) {
+                assignees.computeIfAbsent(taskId, k -> new LinkedHashSet<>()).add(name);
+            }
+        }
+        Map<String, ChecklistAgg> result = new HashMap<>();
+        for (Map.Entry<String, int[]> e : counts.entrySet()) {
+            result.put(e.getKey(), new ChecklistAgg(e.getValue()[0], e.getValue()[1],
+                    new ArrayList<>(assignees.getOrDefault(e.getKey(), new LinkedHashSet<>()))));
+        }
+        return result;
+    }
+
+    /** 체크리스트 항목의 담당자 이름 — 멤버(User) 또는 외주(Contractor). */
+    private String assigneeName(ChecklistItem item) {
+        if (item.getAssignee() != null && item.getAssignee().getName() != null) {
+            return item.getAssignee().getName();
+        }
+        if (item.getContractor() != null && item.getContractor().getName() != null) {
+            return item.getContractor().getName();
+        }
+        return null;
+    }
+
+    /** 아직 완료되지 않은 선행 태스크가 있으면 "막힌 것"으로 본다 — risks의 근거가 된다. */
+    private Map<String, List<String>> buildBlockedMap(String boardId, List<Task> tasks) {
+        Set<String> displayedIds = tasks.stream().map(Task::getId).collect(java.util.stream.Collectors.toSet());
+        Map<String, List<String>> blocked = new HashMap<>();
+        for (TaskDependency dep : taskDependencyRepository.findByBoardIdWithFetch(boardId)) {
+            Task predecessor = dep.getPredecessor();
+            Task successor = dep.getSuccessor();
+            if (successor == null || predecessor == null || !displayedIds.contains(successor.getId())) {
+                continue;
+            }
+            if (Boolean.TRUE.equals(predecessor.getIsCompleted())) {
+                continue;   // 선행이 끝났으면 막힌 게 아니다
+            }
+            blocked.computeIfAbsent(successor.getId(), k -> new ArrayList<>()).add(predecessor.getTitle());
+        }
+        return blocked;
     }
 
     /**
@@ -109,11 +187,13 @@ public class KanbanBoardSource implements ReportSource {
         return task.getDueDate() != null && !task.getDueDate().isBefore(today.minusDays(7));
     }
 
-    private String toJson(List<Task> completed, List<Task> inProgress, List<Task> overdue) {
+    private String toJson(List<Task> completed, List<Task> inProgress, List<Task> overdue,
+                          LocalDate today, Map<String, ChecklistAgg> checklistMap,
+                          Map<String, List<String>> blockedMap) {
         Map<String, Object> root = new LinkedHashMap<>();
-        root.put("completed", describe(completed));
-        root.put("in_progress", describe(inProgress));
-        root.put("overdue", describe(overdue));
+        root.put("completed", describe(completed, today, checklistMap, blockedMap));
+        root.put("in_progress", describe(inProgress, today, checklistMap, blockedMap));
+        root.put("overdue", describe(overdue, today, checklistMap, blockedMap));
         try {
             return objectMapper.writeValueAsString(root);
         } catch (Exception e) {
@@ -122,7 +202,9 @@ public class KanbanBoardSource implements ReportSource {
         }
     }
 
-    private List<Map<String, Object>> describe(List<Task> tasks) {
+    private List<Map<String, Object>> describe(List<Task> tasks, LocalDate today,
+                                               Map<String, ChecklistAgg> checklistMap,
+                                               Map<String, List<String>> blockedMap) {
         return tasks.stream()
                 .limit(MAX_ITEMS_PER_GROUP)
                 .map(task -> {
@@ -137,8 +219,29 @@ public class KanbanBoardSource implements ReportSource {
                     if (task.getBlock() != null) {
                         item.put("column", task.getBlock().getName());
                     }
+                    if (task.getDescription() != null && !task.getDescription().isBlank()) {
+                        item.put("description", truncate(task.getDescription()));
+                    }
+                    ChecklistAgg agg = checklistMap.get(task.getId());
+                    if (agg != null && agg.total() > 0) {
+                        item.put("checklist_done", agg.done());
+                        item.put("checklist_total", agg.total());
+                        if (!agg.assignees().isEmpty()) {
+                            item.put("assignees", agg.assignees());
+                        }
+                    }
+                    List<String> blockedBy = blockedMap.get(task.getId());
+                    if (blockedBy != null && !blockedBy.isEmpty()) {
+                        item.put("blocked_by", blockedBy);
+                    }
+                    if (task.getQaState() != null) {
+                        item.put("qa_state", task.getQaState().name());
+                    }
                     if (task.getDueDate() != null) {
                         item.put("due_date", task.getDueDate().toString());
+                        if (task.getDueDate().isBefore(today)) {
+                            item.put("days_overdue", ChronoUnit.DAYS.between(task.getDueDate(), today));
+                        }
                     }
                     if (task.getCompletedAt() != null) {
                         item.put("completed_at", task.getCompletedAt().toString());
@@ -146,5 +249,12 @@ public class KanbanBoardSource implements ReportSource {
                     return item;
                 })
                 .toList();
+    }
+
+    private String truncate(String text) {
+        String trimmed = text.strip();
+        return trimmed.length() > MAX_DESCRIPTION_CHARS
+                ? trimmed.substring(0, MAX_DESCRIPTION_CHARS) + "…"
+                : trimmed;
     }
 }

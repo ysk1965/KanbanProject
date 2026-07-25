@@ -272,7 +272,10 @@ public class ReportAIService {
                     - Confluence 주간보고 원문은 요약하지 말고 인용이 필요하면 그대로 두세요. 사람이 쓴 문장과
                       당신이 쓴 문장이 섞이면 보고서를 신뢰할 수 없게 됩니다.
                     - 슬랙 채널 대화는 커밋·태스크에 안 남는 결정·막힌 지점의 근거로만 쓰세요. 잡담을 옮기지 말고,
-                      결정된 것·논의 중인 것·차단된 것만 골라 SLACK을 근거로 서술하세요.
+                      결정된 것·논의 중인 것·차단된 것만 골라 SLACK을 근거로 서술하세요. 리액션(예: white_check_mark)은
+                      합의·완료 신호이고, 결론은 스레드 답글(replies)에 있는 경우가 많으니 함께 보세요.
+                    - members는 같은 사람의 여러 계정(이름·GitHub 로그인·슬랙 ID)을 잇는 명단입니다. 이걸로 한 사람의
+                      활동을 소스 넘어 연결하세요 — GitHub author, 태스크 담당자, 슬랙 발화자가 같은 사람일 수 있습니다.
                     - 같은 파일을 반복 수정했거나 되돌린 흔적(예: 설정을 바꿨다가 되돌림)이 보이면 risks에 적으세요.
                     - 수집 실패한 소스가 있으면 risks 첫 줄에 그 사실을 적으세요.
                     - highlights는 중요도 순으로 최대 10개까지 쓰세요. 그날 정리할 게 적으면 적게 쓰고 억지로 채우지 마세요.
@@ -298,7 +301,11 @@ public class ReportAIService {
                   makes the report untrustworthy.
                 - Use Slack channel discussion only as evidence for decisions or blockers that commits/tasks don't
                   capture. Don't transcribe chatter; surface only what was decided, is being discussed, or is blocked,
-                  and cite SLACK.
+                  and cite SLACK. Reactions (e.g. white_check_mark) signal agreement/done, and the conclusion often
+                  lives in the thread replies, so read those too.
+                - members is a roster linking one person's identities (name · GitHub login · Slack ID). Use it to
+                  connect a person's activity across sources — the GitHub author, task assignee, and Slack speaker may
+                  be the same person.
                 - If you see repeated edits or a revert (e.g. a setting changed then rolled back), put it in risks.
                 - If a source failed to collect, say so in the first risks entry.
                 - highlights: up to 10 items ordered by importance. Write fewer when there's little to report; don't pad. Each under 60 characters. They go straight into Slack.

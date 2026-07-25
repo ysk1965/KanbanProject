@@ -28,6 +28,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -187,7 +188,7 @@ public class BoardProgressCollector {
             Ctx ctx = new Ctx();
             ctx.dto = dto;
             ctx.logins = logins;
-            ctx.tokens = tokenize(f.getTitle());
+            ctx.tokens = buildMatchTokens(f, tasks);
             ctxs.add(ctx);
         }
 
@@ -266,6 +267,31 @@ public class BoardProgressCollector {
             if (part.length() >= 2) tokens.add(part);
         }
         return tokens;
+    }
+
+    /** 커밋 키워드 매칭 후보 어휘 상한 — 한 기능에 너무 많은 토큰이 붙어 아무 커밋이나 걸리는 걸 막는다. */
+    private static final int MAX_MATCH_TOKENS = 80;
+
+    /**
+     * 기능 매칭용 키워드 집합. 기능 제목만으로는 부족하다 — 실제 작업 단위는 <b>태스크와 그 안의 체크리스트</b>에
+     * 적혀 있어서, 커밋 메시지가 체크리스트 항목 이름과 겹치는 경우가 많다. 셋을 모두 어휘로 삼아 매칭 정확도를 높인다.
+     */
+    private List<String> buildMatchTokens(Feature f, List<Task> tasks) {
+        Set<String> tokens = new LinkedHashSet<>(tokenize(f.getTitle()));
+        for (Task t : tasks) {
+            tokens.addAll(tokenize(t.getTitle()));
+        }
+        List<String> taskIds = tasks.stream().map(Task::getId).toList();
+        if (!taskIds.isEmpty()) {
+            for (ChecklistItem item : checklistItemRepository.findByTaskIdInWithAssignee(taskIds)) {
+                tokens.addAll(tokenize(item.getTitle()));
+                if (tokens.size() >= MAX_MATCH_TOKENS) {
+                    break;
+                }
+            }
+        }
+        List<String> result = new ArrayList<>(tokens);
+        return result.size() > MAX_MATCH_TOKENS ? result.subList(0, MAX_MATCH_TOKENS) : result;
     }
 
     public ReportContent.FeatureCommit toCommit(CommitInfo c, boolean estimated) {
@@ -378,6 +404,7 @@ public class BoardProgressCollector {
         int percentage = total == 0 ? 0 : (int) Math.round(done * 100.0 / total);
         return ReportContent.Sprint.builder()
                 .name(sprint.getName())
+                .milestone(sprint.getMilestone() != null ? sprint.getMilestone().getTitle() : null)
                 .status("IN_PROGRESS")
                 .done(done)
                 .total(total)

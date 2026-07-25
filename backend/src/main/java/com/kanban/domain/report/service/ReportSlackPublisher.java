@@ -95,9 +95,9 @@ public class ReportSlackPublisher {
             blocks.add(section("*" + content.getHeadline() + "*"));
         }
 
-        String metricLine = buildMetricLine(content);
-        if (metricLine != null) {
-            blocks.add(section(metricLine));
+        String sprintLine = buildSprintLine(content.getSprint());
+        if (sprintLine != null) {
+            blocks.add(section(sprintLine));
         }
 
         if (content.getHighlights() != null && !content.getHighlights().isEmpty()) {
@@ -125,15 +125,59 @@ public class ReportSlackPublisher {
         return blocks;
     }
 
-    /** 지표는 한 줄에 인라인으로 — 카드로 만들면 슬랙에서 세로로 길어진다. */
-    private String buildMetricLine(ReportContent content) {
-        if (content.getMetrics() == null || content.getMetrics().isEmpty()) {
+    /** 스프린트 진행 바의 칸 수. 슬랙 모바일에서도 한 줄에 들어가는 폭. */
+    private static final int SPRINT_BAR_WIDTH = 20;
+
+    /**
+     * 커밋·기여자 같은 "얼마나 움직였나"가 아니라 "목표에 얼마나 가까워졌나"를 헤더에 둔다.
+     * 값은 시스템이 스프린트 도메인에서 집계한 것(AI 미개입)이라 지어낸 숫자가 아니다.
+     * 활성 스프린트가 없으면 null — 이때는 헤더에 진행 라인을 넣지 않는다.
+     *
+     * <pre>
+     * 🎯 2분기 로드맵 › *Sprint 3* · 진행중
+     * ████████▓▓▒▒░░░░░░░░ *40%*  (65/164)
+     * └ 완료 *65* · 진행 *10* · 지연 *10* · 남은 *79*
+     * </pre>
+     *
+     * 슬랙 mrkdwn은 색을 못 넣으므로 구간은 음영 문자(█ 완료 / ▓ 진행 / ▒ 지연 / ░ 남은)로 구분한다.
+     */
+    private String buildSprintLine(ReportContent.Sprint sprint) {
+        if (sprint == null || sprint.getTotal() <= 0) {
             return null;
         }
-        return content.getMetrics().stream()
-                .limit(4)
-                .map(m -> m.getLabel() + " *" + m.getValue() + "*")
-                .collect(Collectors.joining("   ·   "));
+        int total = sprint.getTotal();
+        int done = Math.max(0, sprint.getDone());
+        int inProgress = Math.max(0, sprint.getInProgress());
+        int delayed = Math.max(0, sprint.getDelayed());
+        int remaining = Math.max(0, total - done - inProgress - delayed);
+
+        String name = sprint.getName() != null && !sprint.getName().isBlank()
+                ? sprint.getName() : "스프린트";
+        // 마일스톤은 스프린트의 상위 맥락 — 브레드크럼(마일스톤 › 스프린트)으로 앞에 둔다.
+        String prefix = sprint.getMilestone() != null && !sprint.getMilestone().isBlank()
+                ? sprint.getMilestone() + " › " : "";
+        String bar = buildSprintBar(done, inProgress, delayed, total);
+
+        return "🎯 " + prefix + "*" + name + "* · 진행중"
+                + "\n" + bar + "  *" + sprint.getPercentage() + "%*  (" + done + "/" + total + ")"
+                + "\n└ 완료 *" + done + "* · 진행 *" + inProgress
+                + "* · 지연 *" + delayed + "* · 남은 *" + remaining + "*";
+    }
+
+    /**
+     * 누적 반올림으로 각 구간 폭을 계산해 합이 항상 {@link #SPRINT_BAR_WIDTH}가 되게 한다.
+     * 구간별로 따로 반올림하면 합이 폭을 넘거나 모자란다.
+     */
+    private String buildSprintBar(int done, int inProgress, int delayed, int total) {
+        int w = SPRINT_BAR_WIDTH;
+        int c1 = Math.round((float) done / total * w);
+        int c2 = Math.round((float) (done + inProgress) / total * w);
+        int c3 = Math.round((float) (done + inProgress + delayed) / total * w);
+        int dw = c1;
+        int iw = Math.max(0, c2 - c1);
+        int lw = Math.max(0, c3 - c2);
+        int rw = Math.max(0, w - dw - iw - lw);
+        return "█".repeat(dw) + "▓".repeat(iw) + "▒".repeat(lw) + "░".repeat(rw);
     }
 
     /** 진행 중·완료 같은 섹션 본문. 지금까지 웹 페이지에만 있던 것을 슬랙에도 노출한다. */

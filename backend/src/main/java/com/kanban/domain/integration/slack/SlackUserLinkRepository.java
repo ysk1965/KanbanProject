@@ -18,5 +18,8 @@ public interface SlackUserLinkRepository extends JpaRepository<SlackUserLink, St
     @Query("SELECT l FROM SlackUserLink l WHERE l.user.id IN :userIds")
     List<SlackUserLink> findByUserIdIn(@Param("userIds") List<String> userIds);
 
+    @Query("SELECT l FROM SlackUserLink l JOIN FETCH l.user WHERE l.slackUserId IN :slackUserIds")
+    List<SlackUserLink> findBySlackUserIdIn(@Param("slackUserIds") List<String> slackUserIds);
+
     void deleteByUserId(String userId);
 }

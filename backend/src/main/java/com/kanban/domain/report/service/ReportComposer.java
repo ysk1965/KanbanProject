@@ -26,6 +26,7 @@ public class ReportComposer {
 
     private final ReportAIService reportAIService;
     private final BoardProgressCollector progressCollector;
+    private final ReportMemberDirectory memberDirectory;
     private final ObjectMapper objectMapper;
 
     /**
@@ -37,11 +38,12 @@ public class ReportComposer {
 
     public Composed compose(String boardId, ReportType reportType, String language,
                             ReportPeriod period, List<SourceChunk> chunks) {
-        String mergedInput = mergeInput(period, chunks);
+        String mergedInput = mergeInput(boardId, period, chunks);
         String raw = reportAIService.generateAutoReportJson(reportType, mergedInput, language, boardId);
 
         ReportContent content = parse(raw);
         content.setMetrics(buildMetrics(chunks, reportType));
+        content.setAttachments(harvestSlackAttachments(chunks));
         prependSourceFailures(content, chunks);
 
         // 기능별 진행·스프린트는 AI가 아니라 시스템이 집계해 주입한다(metrics와 동일). 실패해도 보고서는 진행.
@@ -123,9 +125,15 @@ public class ReportComposer {
     }
 
     /** 소스별 원본을 한 덩어리로 묶는다. 실패한 소스도 사실로 남겨 AI가 언급할 수 있게 한다. */
-    private String mergeInput(ReportPeriod period, List<SourceChunk> chunks) {
+    private String mergeInput(String boardId, ReportPeriod period, List<SourceChunk> chunks) {
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("period", period.label());
+
+        // 소스를 가로질러 같은 사람을 잇는 명단. 없으면 넣지 않는다.
+        List<Map<String, Object>> members = memberDirectory.roster(boardId);
+        if (!members.isEmpty()) {
+            root.put("members", members);
+        }
 
         List<Map<String, Object>> failures = new ArrayList<>();
         for (SourceChunk chunk : chunks) {
@@ -200,6 +208,57 @@ public class ReportComposer {
     private String text(JsonNode node, String field) {
         JsonNode v = node.get(field);
         return v != null && !v.isNull() ? v.asText() : null;
+    }
+
+    /**
+     * 슬랙 수집 결과에서 이미지/영상 첨부를 모은다. 상위 메시지와 스레드 답글 양쪽의 files를 훑고,
+     * 같은 URL은 한 번만 담는다. 페이지의 "공유된 자료" 갤러리가 이걸 읽는다.
+     */
+    private List<ReportContent.Attachment> harvestSlackAttachments(List<SourceChunk> chunks) {
+        for (SourceChunk chunk : chunks) {
+            if (chunk.kind() != SourceKind.SLACK || !chunk.success() || !chunk.hasData()) {
+                continue;
+            }
+            try {
+                JsonNode messages = objectMapper.readTree(chunk.dataJson()).get("messages");
+                if (messages == null || !messages.isArray()) {
+                    return List.of();
+                }
+                List<ReportContent.Attachment> attachments = new ArrayList<>();
+                Set<String> seen = new HashSet<>();
+                for (JsonNode message : messages) {
+                    addFiles(message.get("files"), attachments, seen);
+                    JsonNode replies = message.get("replies");
+                    if (replies != null && replies.isArray()) {
+                        for (JsonNode reply : replies) {
+                            addFiles(reply.get("files"), attachments, seen);
+                        }
+                    }
+                }
+                return attachments;
+            } catch (Exception e) {
+                log.warn("슬랙 첨부 수집 실패 — 갤러리 생략: {}", e.getMessage());
+                return List.of();
+            }
+        }
+        return List.of();
+    }
+
+    private void addFiles(JsonNode files, List<ReportContent.Attachment> into, Set<String> seen) {
+        if (files == null || !files.isArray()) {
+            return;
+        }
+        for (JsonNode file : files) {
+            String url = text(file, "url");
+            if (url == null || !seen.add(url)) {
+                continue;
+            }
+            into.add(ReportContent.Attachment.builder()
+                    .title(text(file, "title"))
+                    .type(text(file, "type"))
+                    .url(url)
+                    .build());
+        }
     }
 
     /**
