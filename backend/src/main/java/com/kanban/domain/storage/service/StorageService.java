@@ -5,6 +5,8 @@ import com.kanban.domain.storage.StorageFileRepository;
 import com.kanban.domain.storage.StorageFolder;
 import com.kanban.domain.storage.StorageFolderRepository;
 import com.kanban.domain.storage.StorageScope;
+import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.storage.dto.StorageRequest;
 import com.kanban.domain.storage.dto.StorageResponse;
 import com.kanban.domain.user.User;
@@ -18,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -47,6 +50,7 @@ public class StorageService {
     private final AsyncThumbnailService asyncThumbnailService;
     private final StorageQuotaService quotaService;
     private final StoragePermissionService permissionService;
+    private final BoardRepository boardRepository;
 
     private static final int THUMB_W = 400;
     private static final int THUMB_H = 400;
@@ -239,6 +243,48 @@ public class StorageService {
 
         log.info("Storage file uploaded (direct): scope={}, fileId={}, size={}", scope.typeName(), saved.getId(), file.getSize());
         return toFileItem(saved);
+    }
+
+    /**
+     * 보고서 자동 수집으로 이미 S3에 올라간 파일(키: {@code reports/slack/...})을 그 보드의 스토리지에 노출한다.
+     * "전체 파일"에서 보이고 관리(용량 파악·정리)할 수 있게 하는 것이 목적.
+     *
+     * <p>설계:
+     * <ul>
+     *   <li><b>멱등</b>: 같은 (board, s3Key) row가 이미 있으면(사용자가 지운 것 포함) 아무것도 하지 않는다.
+     *       일일·주간 보고서가 같은 S3 객체를 공유하고 재실행이 같은 키를 덮어써도 row가 중복 생성되지 않는다.</li>
+     *   <li><b>quota 미강제</b>: 수집이 용량 한도로 실패하면 안 되므로 {@code checkQuota}를 호출하지 않는다.
+     *       다만 생성된 row는 이후 usage 합산에는 포함된다(= 사용자에게 용량이 보인다).</li>
+     *   <li><b>독립 트랜잭션</b>: {@code REQUIRES_NEW}로 호출부(보고서 생성) 트랜잭션과 분리 — 등록 실패가
+     *       보고서 생성을 롤백시키지 않는다. 호출부도 예외를 삼킨다.</li>
+     *   <li>{@code createdBy}는 보드 소유자로 채운다(자동 수집이라 행위자 사용자가 없음).
+     *       소유자를 못 찾으면(=보드 없음) 조용히 건너뛴다.</li>
+     * </ul>
+     * 삭제 안전성은 {@link #hardDeleteFile}가 {@code reports/} 프리픽스 객체의 S3 삭제를 건너뛰어 보장한다.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void registerReportFile(String boardId, String s3Key, String filename,
+                                   String contentType, long size) {
+        if (boardId == null || s3Key == null) {
+            return;
+        }
+        if (fileRepository.findByBoardIdAndS3Key(boardId, s3Key).isPresent()) {
+            return;   // 멱등: 이미 등록됨(또는 사용자가 지운 뒤 재수집)
+        }
+        Board board = boardRepository.findById(boardId).orElse(null);
+        if (board == null || board.getOwner() == null) {
+            return;   // createdBy를 채울 수 없으면 건너뛴다
+        }
+        StorageFile file = StorageFile.builder()
+                .boardId(boardId)
+                .originalFilename(filename != null && !filename.isBlank() ? filename : "report-file")
+                .s3Key(s3Key)
+                .contentType(contentType)
+                .fileSize(Math.max(0L, size))
+                .createdBy(board.getOwner())
+                .build();
+        fileRepository.save(file);
+        log.info("Report file registered to board storage: board={}, key={}, size={}", boardId, s3Key, size);
     }
 
     // ==================== Upload (presigned, 대용량) ====================
@@ -477,13 +523,19 @@ public class StorageService {
     }
 
     private void hardDeleteFile(StorageFile file) {
-        try {
-            fileUploadService.delete(file.getS3Key());
-            if (file.getThumbnailKey() != null) {
-                fileUploadService.delete(file.getThumbnailKey());
+        String key = file.getS3Key();
+        // 보고서 자동 수집 파일(reports/ 프리픽스)은 일일·주간 보고서가 같은 S3 객체를 공유한다.
+        // 스토리지에서 지워도 S3 객체는 남겨 보고서 이미지/영상이 깨지지 않게 한다(객체 정리는 보고서 측 책임).
+        boolean reportOwned = key != null && key.startsWith("reports/");
+        if (!reportOwned) {
+            try {
+                fileUploadService.delete(key);
+                if (file.getThumbnailKey() != null) {
+                    fileUploadService.delete(file.getThumbnailKey());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to delete storage object: key={}, error={}", key, e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("Failed to delete storage object: key={}, error={}", file.getS3Key(), e.getMessage());
         }
         fileRepository.delete(file);
     }

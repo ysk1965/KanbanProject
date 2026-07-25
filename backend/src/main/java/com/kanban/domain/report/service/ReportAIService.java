@@ -105,17 +105,25 @@ public class ReportAIService {
         }
 
         String systemPrompt = """
-                You map git commits to product features by meaning.
-                You get a numbered FEATURES list and a numbered COMMITS list. For each commit,
-                decide which feature it most likely belongs to, judging the commit message
-                (type/scope/keywords, in any language) against the feature name/description.
+                You assign each git commit to the product feature it advances.
+
+                You receive a numbered FEATURES list and a numbered COMMITS list.
+                - Each FEATURE has a name, a description, and the concrete tasks it covers (after "tasks:").
+                - Each COMMIT has its message, its author in [brackets], and the file paths it changed (after "files:").
+
+                For each commit, decide which single feature it most plausibly belongs to by asking
+                "what part of the product does this change touch?" — weigh the changed file paths and the
+                message against each feature's name, description, and tasks. The file paths are the STRONGEST
+                signal: a commit touching assets/bigmouse/** belongs to a "빅마우스" feature even if its message
+                is terse or generic. Match meaning across languages and across code vs. art/asset work
+                (e.g. "guild"↔"길드", "receipt"↔"영수증", a path like art/story/** ↔ a "스토리 모드" feature).
+
+                If a commit could fit several features, pick the one whose tasks or file paths overlap most
+                specifically. Use -1 ONLY when the commit clearly belongs to NONE of the listed features
+                (infra, build, chore, or an unrelated area) — do NOT use -1 merely because the message is short.
 
                 Output ONLY a JSON array of integers whose length equals the number of commits;
-                the i-th value is the feature index for commit i, or -1 if it does not clearly
-                belong to any feature. No prose, no code fences.
-
-                Be conservative: use -1 when unsure. Match across languages
-                (e.g. "guild"↔"길드", "receipt"↔"영수증", "crash"↔"크래시").
+                the i-th value is the feature index for commit i, or -1. No prose, no code fences.
                 """;
 
         String model = getStandupModel();
@@ -161,7 +169,10 @@ public class ReportAIService {
                 period: which concrete pieces of work advanced or completed, cross-referencing the checklist
                 items against the commit subjects and docs so the reader sees "what was built and how far it got."
                 Be specific and grounded — never invent work that the tasks/commits/docs don't show. If a feature
-                has little evidence, say briefly that it saw little activity. Do not just restate the feature name.
+                shows no concrete work advanced or completed in this period (e.g. only planned or not-started tasks
+                and no relevant commits or docs), output an EMPTY STRING "" for it — do NOT write filler such as
+                "saw little activity", "still in progress", "no related commits found", or restate the feature name.
+                A summary must earn its place by naming something that was actually built or finished.
                 Write every summary in %s.
 
                 Output ONLY a JSON array of strings whose length equals the number of features; the i-th string
@@ -176,6 +187,67 @@ public class ReportAIService {
         } catch (Exception e) {
             log.warn("기능 요약 AI 호출 실패: {}", e.getMessage());
             return List.of();
+        }
+    }
+
+    private static final int MAX_TOKENS_OVERVIEW = 1536;
+
+    /**
+     * 기능별 요약을 종합해 보고서 상단 리드 문단을 다시 쓴다. 첫 패스의 리드는 원본 소스(커밋·슬랙)만
+     * 보고 짧게 쓰지만, 이 단계는 근거(태스크·체크리스트·커밋·문서)가 다 붙은 기능별 요약을 종합하므로,
+     * "그 기간에 각 기능에서 무엇이 진전됐는지"를 폭넓고 구체적으로 담은 리드를 만든다.
+     *
+     * <p>시스템 호출이라 크레딧은 차감하지 않고 사용량 로그만 남긴다. 실패하거나 입력이 비면 null을 돌려
+     * 호출부가 기존(첫 패스) 리드를 그대로 쓰게 한다.
+     *
+     * @param featureDigests 요약이 채워진 기능들의 라벨(기능명·진행·요약). 중요도 순 권장.
+     * @return 종합 리드 문단. 실패·빈 입력 시 null.
+     */
+    public String synthesizeOverview(List<String> featureDigests, String language, String boardId) {
+        if (featureDigests == null || featureDigests.isEmpty()) {
+            return null;
+        }
+        String langName = getLanguageName(language);
+
+        StringBuilder sb = new StringBuilder("FEATURE PROGRESS:\n");
+        for (int i = 0; i < featureDigests.size(); i++) {
+            sb.append("=== ").append(i).append(" ===\n")
+                    .append(featureDigests.get(i)).append("\n\n");
+        }
+
+        String systemPrompt = """
+                You write the opening overview paragraph of a game team's daily/weekly development report for
+                an auto-battler team-battle collection RPG. You receive per-feature progress summaries — each
+                already grounded in that feature's tasks, checklists, commits, and docs (what was actually
+                built in this period).
+
+                Synthesize them into ONE cohesive overview that lets the reader grasp the whole period at a
+                glance:
+                - Write flowing prose of about 4-6 sentences (roughly 200-320 characters for CJK languages).
+                  It is the lede of the report, so it must read richer and more specific than a one-line headline.
+                - Cover the BREADTH of the work — weave several distinct areas together (e.g. collectible
+                  units/characters, combat/auto-battle logic, skills/effects, balance, mobs/bosses, maps/stages,
+                  story mode, gacha/collection, UI/UX, live ops, infra/tooling). Lead with what mattered most and
+                  let smaller items share a sentence, but do not collapse the whole period into a single topic.
+                - Name the concrete content and systems that advanced, so the reader sees "what got built,"
+                  not vague activity. Only state what the feature summaries actually show — never invent work,
+                  numbers, feature names, or game terms.
+                - This is an overview, NOT a list. Do not enumerate every feature, do not use bullet points, and
+                  do not copy the summaries verbatim; connect them into one readable narrative of what the team
+                  built this period.
+                Write the paragraph in %s. Output ONLY the paragraph text — no title, no headings, no labels,
+                no JSON, no bullet points, no code fences.
+                """.formatted(langName);
+
+        String model = getStandupModel();
+        try {
+            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_OVERVIEW);
+            logAiUsage("REPORT_OVERVIEW", model, boardId, null, aiResult);
+            String text = aiResult.content();
+            return text != null && !text.isBlank() ? text.trim() : null;
+        } catch (Exception e) {
+            log.warn("보고서 리드 종합 AI 호출 실패: {}", e.getMessage());
+            return null;
         }
     }
 

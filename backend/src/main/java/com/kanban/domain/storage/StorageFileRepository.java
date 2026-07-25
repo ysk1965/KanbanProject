@@ -45,4 +45,10 @@ public interface StorageFileRepository extends JpaRepository<StorageFile, String
     List<StorageFile> findTrashByScope(@Param("type") String type, @Param("sid") String sid);
 
     Optional<StorageFile> findByShareCodeAndIsSharedTrue(String shareCode);
+
+    /**
+     * 보드 스코프에서 같은 S3 키를 가진 파일(삭제된 것 포함). 보고서 자동 수집 파일의 멱등 등록에 쓴다 —
+     * 같은 (board, s3Key)가 이미 있으면 재생성하지 않는다(사용자가 지운 파일 부활 방지 포함).
+     */
+    Optional<StorageFile> findByBoardIdAndS3Key(String boardId, String s3Key);
 }

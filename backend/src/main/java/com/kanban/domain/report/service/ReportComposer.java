@@ -98,12 +98,10 @@ public class ReportComposer {
         }
 
         List<String> featureLabels = features.stream()
-                .map(f -> f.getDescription() != null && !f.getDescription().isBlank()
-                        ? f.getName() + " — " + f.getDescription()
-                        : f.getName())
+                .map(this::buildFeatureLabel)
                 .toList();
         List<String> commitLabels = leftover.stream()
-                .map(c -> c.author() != null ? c.subject() + " [" + c.author() + "]" : c.subject())
+                .map(this::buildCommitLabel)
                 .toList();
 
         int[] assign = reportAIService.classifyCommits(featureLabels, commitLabels, language, boardId);
@@ -134,6 +132,50 @@ public class ReportComposer {
         if (anyAssigned) {
             content.setCommitCategories(progressCollector.buildCategories(stillLeft));
         }
+    }
+
+    /** AI 커밋 분류에 넣을 기능당 태스크 라벨 상한. 커밋과 겹칠 어휘 근거만 있으면 되므로 앞쪽 몇 개면 충분. */
+    private static final int MAX_TASKS_IN_LABEL = 8;
+
+    /**
+     * AI 커밋 분류용 기능 라벨. 기능명 + 설명에 더해 <b>태스크 제목</b>까지 붙인다 —
+     * 실제 작업 단위가 태스크라, 커밋 메시지/파일경로가 태스크 이름과 겹치는 경우가 많다.
+     */
+    private String buildFeatureLabel(ReportContent.Feature f) {
+        StringBuilder sb = new StringBuilder(f.getName() != null ? f.getName() : "");
+        if (f.getDescription() != null && !f.getDescription().isBlank()) {
+            sb.append(" — ").append(f.getDescription());
+        }
+        if (f.getTasks() != null && !f.getTasks().isEmpty()) {
+            List<String> taskTitles = new ArrayList<>();
+            for (ReportContent.FeatureTask t : f.getTasks()) {
+                if (t.getTitle() != null && !t.getTitle().isBlank()) {
+                    taskTitles.add(t.getTitle());
+                }
+                if (taskTitles.size() >= MAX_TASKS_IN_LABEL) {
+                    break;
+                }
+            }
+            if (!taskTitles.isEmpty()) {
+                sb.append(" | tasks: ").append(String.join(", ", taskTitles));
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * AI 커밋 분류용 커밋 라벨. 커밋 제목 + author에 더해 <b>변경 파일 경로</b>를 붙인다 —
+     * 파일 경로가 어느 기능/영역을 건드렸는지 보여주는 가장 강한 신호다(예: assets/bigmouse/** → "빅마우스").
+     */
+    private String buildCommitLabel(BoardProgressCollector.CommitInfo c) {
+        StringBuilder sb = new StringBuilder(c.subject() != null ? c.subject() : "");
+        if (c.author() != null) {
+            sb.append(" [").append(c.author()).append("]");
+        }
+        if (!c.filesOrEmpty().isEmpty()) {
+            sb.append(" | files: ").append(String.join(", ", c.filesOrEmpty()));
+        }
+        return sb.toString();
     }
 
     /** 소스별 원본을 한 덩어리로 묶는다. 실패한 소스도 사실로 남겨 AI가 언급할 수 있게 한다. */
@@ -211,7 +253,8 @@ public class ReportComposer {
                                 text(item, "author"),
                                 text(item, "at"),
                                 text(item, "url"),
-                                item.hasNonNull("changed_files") ? item.get("changed_files").asInt() : null));
+                                item.hasNonNull("changed_files") ? item.get("changed_files").asInt() : null,
+                                parseFiles(item.get("files"))));
                     }
                 });
                 return commits;
@@ -226,6 +269,20 @@ public class ReportComposer {
     private String text(JsonNode node, String field) {
         JsonNode v = node.get(field);
         return v != null && !v.isNull() ? v.asText() : null;
+    }
+
+    /** 커밋 item의 files 배열(문자열 경로)을 목록으로. 없거나 배열이 아니면 빈 목록. */
+    private List<String> parseFiles(JsonNode filesNode) {
+        if (filesNode == null || !filesNode.isArray()) {
+            return List.of();
+        }
+        List<String> files = new ArrayList<>();
+        for (JsonNode f : filesNode) {
+            if (f != null && !f.isNull()) {
+                files.add(f.asText());
+            }
+        }
+        return files;
     }
 
     /**
@@ -297,12 +354,43 @@ public class ReportComposer {
         if (summaries.isEmpty()) {
             return; // AI 실패 — 요약 없이 진행
         }
+        List<String> digests = new ArrayList<>();
         for (int i = 0; i < targets.size() && i < summaries.size(); i++) {
             String s = summaries.get(i);
             if (s != null && !s.isBlank()) {
-                targets.get(i).setSummary(s.trim());
+                ReportContent.Feature f = targets.get(i);
+                f.setSummary(s.trim());
+                digests.add(featureDigest(f));
             }
         }
+        // 근거 있는 기능별 요약이 모이면, 그걸 종합해 상단 리드를 더 풍부하게 다시 쓴다.
+        rewriteLedeFromFeatures(content, digests, language, boardId);
+    }
+
+    /**
+     * 기능별 요약을 종합해 보고서 상단 리드를 다시 쓴다. 첫 패스 리드는 원본 소스만 보고 짧게 쓰지만,
+     * 근거가 다 붙은 기능별 요약을 종합하면 "각 기능에서 무엇이 진전됐는지"를 폭넓게 담은 리드가 된다.
+     * DB 트랜잭션 밖에서 호출한다. 종합할 요약이 없거나 AI 실패 시 기존 리드를 그대로 둔다.
+     */
+    private void rewriteLedeFromFeatures(ReportContent content, List<String> digests,
+                                         String language, String boardId) {
+        if (digests.isEmpty()) {
+            return;
+        }
+        String overview = reportAIService.synthesizeOverview(digests, language, boardId);
+        if (overview != null && !overview.isBlank()) {
+            content.setLede(overview.trim());
+        }
+    }
+
+    /**
+     * 리드 종합용 기능 라벨: 기능명 · 진행 · 요약. 요약이 이미 태스크·커밋·문서 근거를 담고 있어
+     * 원문 태스크까지는 붙이지 않는다(중복·토큰 절약).
+     */
+    private String featureDigest(ReportContent.Feature f) {
+        return "FEATURE: " + f.getName()
+                + " (" + f.getTaskDone() + '/' + f.getTaskTotal() + " tasks, " + f.getStatus() + ')'
+                + "\nSUMMARY: " + f.getSummary();
     }
 
     /**

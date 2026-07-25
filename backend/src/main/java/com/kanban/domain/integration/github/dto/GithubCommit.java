@@ -1,6 +1,7 @@
 package com.kanban.domain.integration.github.dto;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 /**
  * 수집한 커밋 하나. AI에 넣기 전의 원본이자, 보고서 페이지의 커밋 목록에 그대로 쓰인다.
@@ -16,11 +17,13 @@ public record GithubCommit(
         boolean merge,
         int changedFiles,
         int additions,
-        int deletions
+        int deletions,
+        /** 변경 파일 경로(상세 조회 시에만 채워짐, 상위 일부). 기능-커밋 매칭의 핵심 신호. */
+        List<String> files
 ) {
-    public GithubCommit withStats(int changedFiles, int additions, int deletions) {
+    public GithubCommit withStats(int changedFiles, int additions, int deletions, List<String> files) {
         return new GithubCommit(repoFullName, sha, message, authorLogin, authorName,
-                committedAt, htmlUrl, merge, changedFiles, additions, deletions);
+                committedAt, htmlUrl, merge, changedFiles, additions, deletions, files);
     }
 
     public String shortSha() {
@@ -39,5 +42,10 @@ public record GithubCommit(
     /** 작성자 표시명 — login이 있으면 그쪽을 쓴다 (칸반 멤버 매칭에 유리) */
     public String displayAuthor() {
         return authorLogin != null && !authorLogin.isBlank() ? authorLogin : authorName;
+    }
+
+    /** null-safe 파일 목록 접근자. 상세 조회 전이면 빈 목록. */
+    public List<String> filesOrEmpty() {
+        return files != null ? files : List.of();
     }
 }
