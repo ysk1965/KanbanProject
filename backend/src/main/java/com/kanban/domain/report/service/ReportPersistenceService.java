@@ -36,7 +36,18 @@ public class ReportPersistenceService {
     private final BoardReportConfigRepository configRepository;
     private final ObjectMapper objectMapper;
 
-    @Transactional
+    /**
+     * 보고서 저장. <b>독립 트랜잭션(REQUIRES_NEW)으로 즉시 커밋</b>한다.
+     *
+     * <p>수동 발송(dispatchNow)은 바깥이 {@code @Transactional}이라, 여기서 REQUIRED로
+     * 저장하면 보고서가 바깥 트랜잭션에 묶인 채 커밋 전 상태로 남는다. 그러면 뒤이어
+     * REQUIRES_NEW로 도는 {@link #recordLog}가 아직 저장 안 된(=transient) 보고서를 참조해
+     * {@code TransientObjectException}으로 터지고, 그 여파로 바깥 트랜잭션이 통째로 롤백돼
+     * 슬랙에는 공유 버튼이 나갔는데 정작 보고서는 사라지는 사고가 난다.
+     * 여기서 먼저 커밋해 두면 recordLog는 실제 행을 참조하고, 슬랙 게시 전에 보고서가
+     * 확정되어 공유 링크가 항상 유효하다.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public WeeklyReport save(Board board, ReportType reportType, ReportPeriod period,
                              ReportContent content, String contentJson, String mergedInput,
                              List<SourceChunk> chunks, String shareToken) {
