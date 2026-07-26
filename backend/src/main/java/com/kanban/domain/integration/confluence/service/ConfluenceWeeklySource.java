@@ -43,6 +43,8 @@ public class ConfluenceWeeklySource implements ReportSource {
     private static final int MAX_CHANGED_DOCS = 20;
     /** 트리 변경 수집 본문 전체 예산(문자) — 넘으면 자르고 truncated 표시 */
     private static final int CHANGELOG_BODY_BUDGET = 40_000;
+    /** 변경 후보 상세 조회 호출 상한 — 검색이 수백 건이어도 API 호출 폭주를 막는다(넘으면 truncated) */
+    private static final int MAX_DETAIL_FETCHES = 60;
 
     private final ConfluenceTargetResolver targetResolver;
     private final ConfluenceApiClient apiClient;
@@ -117,9 +119,7 @@ public class ConfluenceWeeklySource implements ReportSource {
             metrics.put("pages", pages.size());
         }
         if (!changelogs.isEmpty()) {
-            metrics.put("changed_docs", changelogs.stream()
-                    .mapToInt(c -> listSize(c, "added") + listSize(c, "modified")).sum());
-            metrics.put("deleted_docs", changelogs.stream().mapToInt(c -> listSize(c, "deleted")).sum());
+            putChangelogMetrics(metrics, changelogs);
         }
 
         return SourceChunk.ok(SourceKind.CONFLUENCE, toJson(site, pages, changelogs),
@@ -146,6 +146,11 @@ public class ConfluenceWeeklySource implements ReportSource {
         if (Boolean.TRUE.equals(booleanNode(log, "truncated"))) {
             target.put("truncated", true);
         }
+        int daySkipped = intNode(log, "skipped_empty");
+        if (daySkipped > 0) {
+            target.merge("skipped_empty", daySkipped,
+                    (a, b) -> ((Number) a).intValue() + ((Number) b).intValue());
+        }
         for (String bucket : List.of("added", "modified", "deleted")) {
             JsonNode items = log.get(bucket);
             if (items == null || !items.isArray()) {
@@ -166,6 +171,11 @@ public class ConfluenceWeeklySource implements ReportSource {
     private Boolean booleanNode(JsonNode node, String field) {
         JsonNode v = node.get(field);
         return v != null && v.asBoolean();
+    }
+
+    private int intNode(JsonNode node, String field) {
+        JsonNode v = node.get(field);
+        return v != null && v.isNumber() ? v.asInt() : 0;
     }
 
     @Override
@@ -214,9 +224,7 @@ public class ConfluenceWeeklySource implements ReportSource {
             metrics.put("pages", pages.size());
         }
         if (!changelogs.isEmpty()) {
-            metrics.put("changed_docs", changelogs.stream()
-                    .mapToInt(c -> listSize(c, "added") + listSize(c, "modified")).sum());
-            metrics.put("deleted_docs", changelogs.stream().mapToInt(c -> listSize(c, "deleted")).sum());
+            putChangelogMetrics(metrics, changelogs);
         }
 
         return SourceChunk.ok(SourceKind.CONFLUENCE,
@@ -265,21 +273,29 @@ public class ConfluenceWeeklySource implements ReportSource {
         List<Map<String, Object>> modified = new ArrayList<>();
         boolean truncated = false;
         int budget = 0;
+        int detailFetches = 0;
+        int skippedEmpty = 0; // 본문 텍스트가 없어(이미지·표·화이트보드) 넘긴 변경 문서 수
 
         List<ConfluenceResponse.PageRef> changed =
                 apiClient.searchPages(plan.cloudId(), plan.token(), buildChangelogCql(target, period));
 
         for (ConfluenceResponse.PageRef ref : changed) {
-            if (!currentIdToTitle.containsKey(ref.getId())) {
-                continue; // 검색이 트리 밖을 잡는 방어 (ancestor로 이미 걸러지지만)
-            }
-            if (added.size() + modified.size() >= MAX_CHANGED_DOCS || budget >= CHANGELOG_BODY_BUDGET) {
+            if (added.size() + modified.size() >= MAX_CHANGED_DOCS
+                    || budget >= CHANGELOG_BODY_BUDGET
+                    || detailFetches >= MAX_DETAIL_FETCHES) {
                 truncated = true;
                 break;
             }
 
             ConfluenceResponse.PageDetail detail =
                     apiClient.getPageDetail(plan.cloudId(), plan.token(), ref.getId());
+            detailFetches++;
+
+            // CQL ancestor가 트리 멤버십을 보장하므로 별도 재필터는 두지 않는다.
+            // 다만 삭제 기준선(스냅샷)이 v2 /descendants 누락으로 불완전할 수 있어,
+            // CQL이 찾은 문서는 기준선에 채워 넣어 다음 수집의 오탐(허위 삭제)을 막는다.
+            currentIdToTitle.putIfAbsent(ref.getId(),
+                    detail.getTitle() != null ? detail.getTitle() : ref.getTitle());
 
             // 실제 편집 시각이 기간 밖이면 제외 — CQL 날짜가 일 단위라 경계에서 딸려오는 것을 막는다.
             Instant lastEdit = parseInstant(detail.getVersionCreatedAt());
@@ -292,6 +308,7 @@ public class ConfluenceWeeklySource implements ReportSource {
 
             String text = converter.toPlainText(detail.getStorageBody());
             if (text.isBlank()) {
+                skippedEmpty++; // 이미지·표만 있는 문서 — 변경은 있었으나 인용할 본문이 없다
                 continue;
             }
             budget += text.length();
@@ -329,6 +346,9 @@ public class ConfluenceWeeklySource implements ReportSource {
         changelog.put("deleted", deleted);
         if (truncated) {
             changelog.put("truncated", true);
+        }
+        if (skippedEmpty > 0) {
+            changelog.put("skipped_empty", skippedEmpty);
         }
         return changelog;
     }
@@ -419,6 +439,25 @@ public class ConfluenceWeeklySource implements ReportSource {
 
     // ── 공통 ────────────────────────────────────────────────
 
+    /** changelog 집계를 metrics에 채운다. changed_docs·deleted_docs에 더해 누락 투명화 지표까지. */
+    private void putChangelogMetrics(Map<String, Object> metrics, List<Map<String, Object>> changelogs) {
+        metrics.put("changed_docs", changelogs.stream()
+                .mapToInt(c -> listSize(c, "added") + listSize(c, "modified")).sum());
+        metrics.put("deleted_docs", changelogs.stream().mapToInt(c -> listSize(c, "deleted")).sum());
+        int skippedEmpty = changelogs.stream().mapToInt(c -> asInt(c.get("skipped_empty"))).sum();
+        if (skippedEmpty > 0) {
+            metrics.put("skipped_empty", skippedEmpty); // 이미지·표만 있어 본문 없이 넘긴 변경 문서
+        }
+        boolean truncated = changelogs.stream().anyMatch(c -> Boolean.TRUE.equals(c.get("truncated")));
+        if (truncated) {
+            metrics.put("truncated", true); // 상한에 걸려 일부 변경이 잘렸음
+        }
+    }
+
+    private static int asInt(Object value) {
+        return value instanceof Number ? ((Number) value).intValue() : 0;
+    }
+
     private int changeCountForSummary(List<Map<String, Object>> changelogs, String key) {
         return changelogs.stream().mapToInt(c -> listSize(c, key)).sum();
     }
@@ -434,7 +473,15 @@ public class ConfluenceWeeklySource implements ReportSource {
             int added = changeCountForSummary(changelogs, "added");
             int modified = changeCountForSummary(changelogs, "modified");
             int deleted = changeCountForSummary(changelogs, "deleted");
-            parts.add("문서 변경 추가 " + added + " · 수정 " + modified + " · 삭제 " + deleted);
+            String part = "문서 변경 추가 " + added + " · 수정 " + modified + " · 삭제 " + deleted;
+            int skippedEmpty = changelogs.stream().mapToInt(c -> asInt(c.get("skipped_empty"))).sum();
+            if (skippedEmpty > 0) {
+                part += " · 이미지 문서 " + skippedEmpty; // 본문 없이 변경만 있던 문서
+            }
+            if (changelogs.stream().anyMatch(c -> Boolean.TRUE.equals(c.get("truncated")))) {
+                part += " (상한 초과 일부 생략)";
+            }
+            parts.add(part);
         }
         String summary = parts.isEmpty() ? "Confluence 변경 없음" : String.join(" / ", parts);
         if (!failedSpaces.isEmpty()) {

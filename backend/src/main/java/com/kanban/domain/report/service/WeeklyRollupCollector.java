@@ -76,8 +76,8 @@ public class WeeklyRollupCollector {
                 chunks.add(collectSource(source, boardId, weekPeriod, daySlots, snapshotByDay));
             } catch (Exception e) {
                 log.warn("주간 롤업 수집 중 예외 board={} source={}: {}",
-                        boardId, source.kind(), e.getMessage());
-                chunks.add(SourceChunk.failed(source.kind(), e.getMessage()));
+                        boardId, source.kind(), e.toString(), e);
+                chunks.add(SourceChunk.failed(source.kind(), e.toString()));
             }
         }
         return new RollupResult(chunks, digests);
@@ -100,6 +100,9 @@ public class WeeklyRollupCollector {
         }
 
         List<JsonNode> perDay = new ArrayList<>();
+        // 보충 수집에서 새로 옮긴 파일. 롤업 청크에 실어 보내야 이 주간 보고서 폴더로 들어간다
+        // (재사용한 날의 파일은 이미 그날 일일 보고서 폴더에 들어가 있다).
+        List<String> gapFileKeys = new ArrayList<>();
         int reused = 0;
         int gapFilled = 0;
 
@@ -110,6 +113,7 @@ public class WeeklyRollupCollector {
                 reused++;
             } else {
                 SourceChunk day = source.collect(boardId, slot);   // 빠진 날만 원본 보충
+                gapFileKeys.addAll(day.collectedFileKeys());
                 if (day.hasData()) {
                     JsonNode parsed = readTree(day.dataJson());
                     if (parsed != null) {
@@ -124,9 +128,10 @@ public class WeeklyRollupCollector {
                 boardId, source.kind(), reused, gapFilled);
 
         if (perDay.isEmpty()) {
-            return SourceChunk.empty(source.kind(), "기간 내 활동 없음");
+            return SourceChunk.empty(source.kind(), "기간 내 활동 없음")
+                    .withCollectedFileKeys(gapFileKeys);
         }
-        return source.rollup(perDay, weekPeriod);
+        return source.rollup(perDay, weekPeriod).withCollectedFileKeys(gapFileKeys);
     }
 
     private boolean hasSource(JsonNode snapshot, String key) {

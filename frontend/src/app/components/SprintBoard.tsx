@@ -35,6 +35,7 @@ import {
   Plus,
   X,
   LayoutGrid,
+  Settings2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { sprintAPI, checklistAPI, taskAPI, jiraAPI } from "../utils/api";
@@ -59,6 +60,7 @@ import { MotionModal } from "./ui/MotionModal";
 import { SprintMemberGanttModal } from "./SprintMemberGanttModal";
 import { MilestoneConsoleModal } from "./MilestoneConsoleModal";
 import { JiraOnboardingGuide } from "./JiraOnboardingGuide";
+import { JiraSettingsPanel } from "./JiraSettingsPanel";
 import { JiraSyncIndicator } from "./JiraSyncIndicator";
 import type { FilterOptions } from "./FilterModal";
 
@@ -301,6 +303,8 @@ export function SprintBoard({
   const [jiraStatus, setJiraStatus] = useState<JiraStatus | null>(null);
   const [jiraMeta, setJiraMeta] = useState<JiraMeta | null>(null);
   const [jiraMetaLoading, setJiraMetaLoading] = useState(false);
+  // 스프린트 보드에서 JIRA 연결/해제/미러보드 선택을 직접 하는 관리 모달 (설정 패널 재사용)
+  const [showJiraModal, setShowJiraModal] = useState(false);
   const jiraConnected = !!jiraStatus?.connected;
   const jiraMirrorReady = !!jiraStatus?.mirror_ready;
   // pre-block: 드래그 중인 카드에서 전환 가능한 JIRA 상태 id 집합(null=아직 로딩/미확인 → 낙관적 허용)
@@ -510,6 +514,30 @@ export function SprintBoard({
       busyRef.current = false;
     }
   }, []);
+
+  // 관리 모달에서 연결/해제/미러보드 선택 후 스프린트의 JIRA 상태·메타·보드를 최신화.
+  // 연결 상태만 바뀌면(onJiraStatusChange) 상태만, 모달을 닫을 땐 메타+보드까지 풀 리프레시.
+  const refreshJiraState = useCallback(
+    (full: boolean) => {
+      jiraAPI
+        .getStatus(boardId)
+        .then((s) => {
+          setJiraStatus(s);
+          if (!s?.connected) setJiraMeta(null);
+          else if (full) {
+            jiraAPI
+              .getMeta(boardId)
+              .then(setJiraMeta)
+              .catch(() => {});
+          }
+        })
+        .catch(() => {});
+      if (full) {
+        void run(async () => sprintAPI.getSprintBoard(boardId, milestoneId));
+      }
+    },
+    [boardId, milestoneId, run],
+  );
 
   // ── 통합 필터(칸반 탭 필터바) — 담당자·피쳐·라벨·상태·검색을 스프린트 뷰 전반에 적용 ──
   // 항목(SprintItemCard) 단위 매칭 함수: Feature/구성원 뷰·백로그·게이지·트리·미리보기 공용.
@@ -2692,6 +2720,30 @@ export function SprintBoard({
                         )}
                       </div>
 
+                      {/* JIRA 연결/관리 — 스프린트에서 직접 연결·미러보드 선택·해제 (관리 권한자만) */}
+                      {isAdminOrOwner &&
+                        (jiraConnected ? (
+                          <button
+                            type="button"
+                            onClick={() => setShowJiraModal(true)}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-colors shrink-0"
+                            title="JIRA 연동 관리 (미러 보드·해제)"
+                            aria-label="JIRA 연동 관리"
+                          >
+                            <Settings2 className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setShowJiraModal(true)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-bridge-accent bg-bridge-accent/15 hover:bg-bridge-accent/25 transition-colors shrink-0"
+                            title="이 스프린트 보드에 JIRA를 연결합니다"
+                          >
+                            <Diamond className="w-3 h-3" />
+                            JIRA 연결
+                          </button>
+                        ))}
+
                       {/* JIRA 뷰: 2분 폴링 동기화 상태 인디케이터 (남은개수·종료 대신 노출) */}
                       {groupBy === "jira" && jiraConnected && jiraStatus && (
                         <JiraSyncIndicator
@@ -3512,22 +3564,8 @@ export function SprintBoard({
               <JiraOnboardingGuide
                 boardId={boardId}
                 status={jiraStatus}
-                onOpenSettings={() =>
-                  toast.info("상단 알림·설정 › JIRA 연동에서 연결하세요.")
-                }
-                onReady={() => {
-                  jiraAPI
-                    .getStatus(boardId)
-                    .then(setJiraStatus)
-                    .catch(() => {});
-                  jiraAPI
-                    .getMeta(boardId)
-                    .then(setJiraMeta)
-                    .catch(() => {});
-                  void run(async () =>
-                    sprintAPI.getSprintBoard(boardId, milestoneId),
-                  );
-                }}
+                onOpenSettings={() => setShowJiraModal(true)}
+                onReady={() => refreshJiraState(true)}
               />
             ) : (
               <div className="flex gap-3 p-3 md:p-4 h-full min-w-max">
@@ -3965,6 +4003,43 @@ export function SprintBoard({
           onOpenChecklistItem={onOpenChecklistItem}
         />
       )}
+
+      {/* JIRA 연동 관리 모달 — 알림 드롭다운의 설정 패널을 스프린트에서 그대로 재사용.
+          연결·미러 대상 보드 선택·미러 시작·해제까지 한 곳에서. (같은 boardId라 드롭다운과 자동 동기화) */}
+      <MotionModal
+        open={showJiraModal}
+        onClose={() => {
+          setShowJiraModal(false);
+          // 연결/해제/미러보드 선택 결과를 스프린트에 반영 (상태·메타·보드 풀 리프레시)
+          refreshJiraState(true);
+        }}
+        accentColor
+        aria-labelledby="sprint-jira-title"
+        className="w-full sm:max-w-md"
+      >
+        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+          <span className="w-8 h-8 rounded-lg bg-bridge-accent/15 text-bridge-accent grid place-items-center shrink-0">
+            <Diamond className="w-4 h-4" />
+          </span>
+          <div className="min-w-0">
+            <h4
+              id="sprint-jira-title"
+              className="text-sm font-bold text-foreground"
+            >
+              JIRA 연동
+            </h4>
+            <p className="text-xs text-slate-500 truncate">
+              이 스프린트 보드에 맞는 JIRA 보드를 연결하세요
+            </p>
+          </div>
+        </div>
+        <div className="px-4 pb-5 pt-4">
+          <JiraSettingsPanel
+            boardId={boardId}
+            onJiraStatusChange={() => refreshJiraState(false)}
+          />
+        </div>
+      </MotionModal>
     </div>
   );
 }

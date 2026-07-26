@@ -6214,6 +6214,12 @@ export interface NoteTreeItem {
   children: NoteTreeItem[];
   /** type === "FILE"인 합성 노드에만 존재 — 원본 스토리지 파일 */
   file?: StorageFileItem;
+  /**
+   * 보고서가 자동으로 만든 폴더 노드 표시용. 자료실에서 시스템 폴더를 구분해 그리고,
+   * 사용자 폴더와 이름이 같아도 합치지 않기 위해 쓴다.
+   * @see components/library/libraryTree.ts
+   */
+  system_key?: string | null;
 }
 
 export interface BoardNoteSection {
@@ -9410,6 +9416,13 @@ export interface StorageFolderTree {
   depth: number;
   is_shared: boolean;
   share_code: string | null;
+  /**
+   * 시스템이 관리하는 폴더의 키. "REPORT_ROOT" | "REPORT_MONTH:2026-07" | "REPORT_UNSORTED".
+   * 사용자가 만든 폴더는 null.
+   */
+  system_key: string | null;
+  /** 이 폴더를 소유한 보고서 id. 보고서 폴더가 아니면 null */
+  report_id: string | null;
   children: StorageFolderTree[];
 }
 

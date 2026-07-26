@@ -133,6 +133,20 @@ public class SlackChannelSource implements ReportSource {
 
     @Override
     public SourceChunk collect(String boardId, ReportPeriod period) {
+        return collect(boardId, period, FileSink.registering(boardId));
+    }
+
+    /**
+     * 미리보기는 자료실 등록을 건너뛴다. 첨부를 S3로 옮기는 것까지는 그대로 하되(키가 파일 id로
+     * 정해져 있어 실제 발송 때 같은 객체를 그대로 재사용한다), 스토리지에 <b>등록만</b> 하지 않는다.
+     * 발송하지 않은 회차의 이미지가 자료실에 쌓이던 문제를 여기서 끊는다.
+     */
+    @Override
+    public SourceChunk collectForPreview(String boardId, ReportPeriod period) {
+        return collect(boardId, period, FileSink.previewing(boardId));
+    }
+
+    private SourceChunk collect(String boardId, ReportPeriod period, FileSink sink) {
         SlackReportTargetResolver.CollectionPlan plan = targetResolver.resolve(boardId).orElse(null);
         if (plan == null) {
             return SourceChunk.notConnected(SourceKind.SLACK);
@@ -169,7 +183,7 @@ public class SlackChannelSource implements ReportSource {
         Set<String> participants = new HashSet<>();
 
         for (Map<String, Object> raw : rawMessages) {
-            Map<String, Object> item = toItem(raw, zone, nameMap, plan, fileBudget, boardId);
+            Map<String, Object> item = toItem(raw, zone, nameMap, plan, fileBudget, sink);
             if (item == null) {
                 continue;
             }
@@ -181,7 +195,7 @@ public class SlackChannelSource implements ReportSource {
             if (replies != null && !replies.isEmpty()) {
                 List<Map<String, Object>> replyItems = new ArrayList<>();
                 for (Map<String, Object> reply : replies) {
-                    Map<String, Object> replyItem = toItem(reply, zone, nameMap, plan, fileBudget, boardId);
+                    Map<String, Object> replyItem = toItem(reply, zone, nameMap, plan, fileBudget, sink);
                     if (replyItem != null) {
                         replyItems.add(replyItem);
                     }
@@ -202,7 +216,7 @@ public class SlackChannelSource implements ReportSource {
         metrics.put("participants", participants.size());
 
         String summary = "슬랙 메시지 " + messages.size() + "건 · 참여자 " + participants.size() + "명";
-        return SourceChunk.ok(SourceKind.SLACK, toJson(plan, messages), metrics, summary);
+        return SourceChunk.ok(SourceKind.SLACK, toJson(plan, messages), metrics, summary, sink.keys());
     }
 
     // ── 수집 ────────────────────────────────────────
@@ -297,7 +311,8 @@ public class SlackChannelSource implements ReportSource {
     }
 
     private Map<String, Object> toItem(Map<String, Object> msg, ZoneId zone, Map<String, String> nameMap,
-                                       SlackReportTargetResolver.CollectionPlan plan, int[] fileBudget, String boardId) {
+                                       SlackReportTargetResolver.CollectionPlan plan, int[] fileBudget,
+                                       FileSink sink) {
         Object user = msg.get("user");
         if (user == null) {
             return null;
@@ -321,7 +336,7 @@ public class SlackChannelSource implements ReportSource {
             item.put("reactions", reactions);
         }
 
-        List<Map<String, Object>> files = extractFiles(msg, plan, fileBudget, boardId);
+        List<Map<String, Object>> files = extractFiles(msg, plan, fileBudget, sink);
         if (!files.isEmpty()) {
             item.put("files", files);
         }
@@ -371,7 +386,7 @@ public class SlackChannelSource implements ReportSource {
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> extractFiles(Map<String, Object> msg,
                                                    SlackReportTargetResolver.CollectionPlan plan, int[] fileBudget,
-                                                   String boardId) {
+                                                   FileSink sink) {
         Object raw = msg.get("files");
         if (!(raw instanceof List<?> list) || list.isEmpty()) {
             return List.of();
@@ -388,8 +403,8 @@ public class SlackChannelSource implements ReportSource {
             }
             try {
                 Map<String, Object> item = "video".equals(type)
-                        ? toVideoItem(file, plan, boardId)
-                        : toImageItem(file, plan, boardId);
+                        ? toVideoItem(file, plan, sink)
+                        : toImageItem(file, plan, sink);
                 if (item == null) {
                     continue;
                 }
@@ -404,7 +419,7 @@ public class SlackChannelSource implements ReportSource {
 
     /** 이미지를 압축해 우리 스토리지로 옮기고 갤러리 아이템을 만든다. 너무 크거나 URL이 없으면 null. */
     private Map<String, Object> toImageItem(Map<String, Object> file,
-                                            SlackReportTargetResolver.CollectionPlan plan, String boardId) {
+                                            SlackReportTargetResolver.CollectionPlan plan, FileSink sink) {
         Object size = file.get("size");
         if (size instanceof Number n && n.longValue() > MAX_FILE_BYTES) {
             return null;
@@ -428,7 +443,7 @@ public class SlackChannelSource implements ReportSource {
         String key = storageKey(plan.channelId(), str(file.get("id")), storeMime);
         String url = fileUploadService.uploadDirect(bytes, key, uploadContentType);
         String displayName = displayName(file);
-        registerReportFile(boardId, key, displayName, uploadContentType, bytes.length);
+        trackFile(sink, key, displayName, uploadContentType, bytes.length);
 
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("title", displayName);
@@ -442,7 +457,7 @@ public class SlackChannelSource implements ReportSource {
      * 썸네일도 링크도 없으면(보여줄·이동할 것이 없으면) null.
      */
     private Map<String, Object> toVideoItem(Map<String, Object> file,
-                                            SlackReportTargetResolver.CollectionPlan plan, String boardId) {
+                                            SlackReportTargetResolver.CollectionPlan plan, FileSink sink) {
         String displayName = displayName(file);
         String link = str(file.get("permalink"));   // 슬랙 원문 — 클릭 시 이동해 재생
         String posterUrl = null;
@@ -454,7 +469,7 @@ public class SlackChannelSource implements ReportSource {
                 byte[] bytes = content.bytes();
                 String key = storageKey(plan.channelId(), str(file.get("id")) + "_poster", content.contentType());
                 posterUrl = fileUploadService.uploadDirect(bytes, key, content.contentType());
-                registerReportFile(boardId, key, displayName, content.contentType(), bytes.length);
+                trackFile(sink, key, displayName, content.contentType(), bytes.length);
             } catch (Exception e) {
                 log.debug("슬랙 영상 썸네일 이관 실패 file={}: {}", file.get("id"), e.getMessage());
             }
@@ -500,12 +515,34 @@ public class SlackChannelSource implements ReportSource {
         return null;
     }
 
-    /** 보드 스토리지("전체 파일")에도 노출 — 관리·용량 파악용. best-effort(실패해도 수집 계속). */
-    private void registerReportFile(String boardId, String key, String name, String contentType, long size) {
+    /**
+     * 옮긴 파일을 수집 컨텍스트에 기록하고, 발송 수집이면 보드 스토리지("자료실")에도 등록한다.
+     * 등록은 best-effort — 실패해도 수집은 계속한다. 여기서 모은 키는 청크에 실려 나가,
+     * 보고서가 저장된 뒤 그 보고서 폴더로 파일을 모으는 데 쓰인다.
+     */
+    private void trackFile(FileSink sink, String key, String name, String contentType, long size) {
+        sink.keys().add(key);
+        if (!sink.register()) {
+            return;
+        }
         try {
-            storageService.registerReportFile(boardId, key, name, contentType, size);
+            storageService.registerReportFile(sink.boardId(), key, name, contentType, size);
         } catch (Exception e) {
             log.debug("보고서 파일 스토리지 등록 실패 key={}: {}", key, e.getMessage());
+        }
+    }
+
+    /**
+     * 이번 수집에서 옮긴 파일을 어떻게 처리할지와, 옮긴 키 목록.
+     * {@code register=false}(미리보기)면 S3로 옮기기는 하되 자료실에 등록하지 않는다.
+     */
+    private record FileSink(String boardId, boolean register, List<String> keys) {
+        static FileSink registering(String boardId) {
+            return new FileSink(boardId, true, new ArrayList<>());
+        }
+
+        static FileSink previewing(String boardId) {
+            return new FileSink(boardId, false, new ArrayList<>());
         }
     }
 

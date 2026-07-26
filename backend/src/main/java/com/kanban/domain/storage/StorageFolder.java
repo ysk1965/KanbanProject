@@ -50,6 +50,21 @@ public class StorageFolder extends BaseTimeEntity {
     @Column(name = "name", nullable = false, length = 255)
     private String name;
 
+    /**
+     * 시스템이 관리하는 폴더의 식별자. {@code REPORT_ROOT} · {@code REPORT_MONTH:2026-07} ·
+     * {@code REPORT_UNSORTED}. 이름이 아니라 이 키로 찾으므로 사용자가 폴더 이름을 바꿔도 안전하다.
+     * 사용자가 만든 폴더는 null.
+     */
+    @Column(name = "system_key", length = 60)
+    private String systemKey;
+
+    /**
+     * 이 폴더를 소유한 보고서(weekly_reports.id). 보고서를 지우면 이 폴더도 휴지통으로 내려간다.
+     * 보고서는 하드 삭제되고 폴더는 휴지통에 남아야 하므로 FK 없는 느슨한 참조로 둔다.
+     */
+    @Column(name = "report_id", length = 36)
+    private String reportId;
+
     @Column(name = "position", nullable = false)
     @Builder.Default
     private Integer position = 0;
@@ -109,6 +124,14 @@ public class StorageFolder extends BaseTimeEntity {
 
     public void updatePosition(int position) {
         this.position = position;
+    }
+
+    /**
+     * 주인 보고서와의 연결을 끊는다. 보고서를 삭제할 때 폴더는 휴지통에 남기므로,
+     * 이미 사라진 보고서를 가리키는 참조를 남기지 않기 위해 호출한다.
+     */
+    public void detachReport() {
+        this.reportId = null;
     }
 
     public void softDelete(User actor) {

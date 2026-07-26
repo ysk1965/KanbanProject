@@ -309,6 +309,10 @@ export function ReportGallery({
             이 보고서를 삭제하면 되돌릴 수 없어요. 보관된 HTML 본문이 영구
             삭제됩니다.
           </p>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            이 보고서가 모아 온 이미지·썸네일 폴더도 자료실 휴지통으로
+            이동합니다. 필요하면 휴지통에서 되살릴 수 있어요.
+          </p>
           {deleteError && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20">
               <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />

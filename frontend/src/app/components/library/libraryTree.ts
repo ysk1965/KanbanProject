@@ -14,6 +14,8 @@ import type {
  *
  * 병합 규칙
  * - 같은 계층에서 이름이 같은 폴더는 하나로 본다 (trim + 대소문자 무시).
+ * - 단, 보고서가 자동으로 만든 시스템 폴더(system_key)는 이름이 같아도 합치지 않는다 —
+ *   사용자가 만든 "보고서 자료" 노트 폴더가 시스템 폴더를 삼켜버리면 안 된다.
  * - 짝이 없는 스토리지 폴더는 합성 폴더 노드로 남겨 파일에 접근할 수 있게 한다.
  * - 파일은 대응되는 폴더의 자식으로 붙는다. 폴더 없는 파일은 루트에 붙는다.
  *
@@ -22,6 +24,14 @@ import type {
 
 export const FILE_NODE_PREFIX = "file:";
 export const STORAGE_FOLDER_NODE_PREFIX = "sfolder:";
+
+/** 보고서 자료 루트 폴더의 system_key (백엔드 ReportFileFiler와 맞춘 값) */
+export const REPORT_ROOT_KEY = "REPORT_ROOT";
+const REPORT_MONTH_PREFIX = "REPORT_MONTH:";
+
+export function isReportFolderNode(item: NoteTreeItem): boolean {
+  return !!item.system_key;
+}
 
 export function isFileNodeId(nodeId: string): boolean {
   return nodeId.startsWith(FILE_NODE_PREFIX);
@@ -55,6 +65,27 @@ const SYSTEM_USER: NoteUserInfo = {
 };
 
 const normalize = (name: string) => name.trim().toLowerCase();
+
+/**
+ * 보고서 폴더는 최신이 위에 오는 게 자연스럽다.
+ * - 보고서 자료 아래: 월 폴더를 최신순(2026-07 → 2026-06), "미분류"는 맨 끝.
+ * - 월 폴더 아래: 나중에 만들어진 보고서(= position이 큰 쪽)가 위로.
+ * 그 밖의 폴더는 서버 순서를 그대로 둔다.
+ */
+function orderReportChildren(folder: StorageFolderTree): StorageFolderTree[] {
+  if (folder.system_key === REPORT_ROOT_KEY) {
+    return [...folder.children].sort((a, b) => {
+      const aMonth = a.system_key?.startsWith(REPORT_MONTH_PREFIX) ?? false;
+      const bMonth = b.system_key?.startsWith(REPORT_MONTH_PREFIX) ?? false;
+      if (aMonth !== bMonth) return aMonth ? -1 : 1; // 미분류는 뒤로
+      return b.name.localeCompare(a.name);
+    });
+  }
+  if (folder.system_key?.startsWith(REPORT_MONTH_PREFIX)) {
+    return [...folder.children].sort((a, b) => b.position - a.position);
+  }
+  return folder.children;
+}
 
 function toFileNode(
   file: StorageFileItem,
@@ -118,11 +149,12 @@ export function buildLibraryTree(
       created_at: "",
       updated_at: "",
       children: [
-        ...folder.children.map((child) =>
+        ...orderReportChildren(folder).map((child) =>
           toStorageFolderNode(child, nodeId, depth + 1),
         ),
         ...filesOf(folder.id, nodeId, depth + 1),
       ],
+      system_key: folder.system_key,
     };
   };
 
@@ -133,8 +165,10 @@ export function buildLibraryTree(
     depth: number,
   ): NoteTreeItem[] => {
     // 같은 이름이 여럿이면 앞에서부터 하나씩 짝지어 나간다.
+    // 시스템 폴더(보고서 자료…)는 짝짓기 대상에서 빼 항상 독립 노드로 남긴다.
     const queueByName = new Map<string, StorageFolderTree[]>();
     folders.forEach((folder) => {
+      if (folder.system_key) return;
       const key = normalize(folder.name);
       const queue = queueByName.get(key);
       if (queue) queue.push(folder);
@@ -172,6 +206,8 @@ export function buildLibraryTree(
 
     const leftovers = folders
       .filter((folder) => !consumed.has(folder.id))
+      // 자동 생성된 "보고서 자료"는 사용자가 만든 폴더 뒤로 보낸다.
+      .sort((a, b) => Number(!!a.system_key) - Number(!!b.system_key))
       .map((folder) => toStorageFolderNode(folder, parentNodeId, depth));
 
     return [...merged, ...leftovers];

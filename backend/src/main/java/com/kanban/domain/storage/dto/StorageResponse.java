@@ -22,6 +22,10 @@ public class StorageResponse {
             int depth,
             boolean isShared,
             String shareCode,
+            /** 시스템이 관리하는 폴더의 키(REPORT_ROOT 등). 사용자가 만든 폴더는 null */
+            String systemKey,
+            /** 이 폴더를 소유한 보고서 id. 보고서 폴더가 아니면 null */
+            String reportId,
             List<FolderTree> children
     ) {
         public static FolderTree of(StorageFolder folder, List<FolderTree> children) {
@@ -33,6 +37,8 @@ public class StorageResponse {
                     .depth(folder.getDepth())
                     .isShared(Boolean.TRUE.equals(folder.getIsShared()))
                     .shareCode(folder.getShareCode())
+                    .systemKey(folder.getSystemKey())
+                    .reportId(folder.getReportId())
                     .children(children)
                     .build();
         }
