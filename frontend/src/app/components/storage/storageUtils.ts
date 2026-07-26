@@ -8,6 +8,15 @@ import {
 } from "lucide-react";
 import type { StorageFolderTree } from "../../utils/api";
 
+const API_ORIGIN = (
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1"
+).replace(/\/$/, "");
+
+/** 공유 코드로 만드는 공개 다운로드 링크 */
+export function publicFileLink(shareCode: string): string {
+  return `${API_ORIGIN}/public/storage/files/${shareCode}/download`;
+}
+
 /** 바이트를 사람이 읽는 단위로 포맷 */
 export function formatBytes(n: number): string {
   if (!n || n < 0) return "0 B";

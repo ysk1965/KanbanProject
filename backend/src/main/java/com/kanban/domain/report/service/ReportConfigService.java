@@ -34,6 +34,7 @@ public class ReportConfigService {
     private final BoardReportConfigRepository configRepository;
     private final ReportDispatchService dispatchService;
     private final ReportSlackPublisher slackPublisher;
+    private final ReportModelCatalog modelCatalog;
 
     /** 발송 테스트 결과. success=true면 channelId로 실제 게시에 성공해 자동 예약 잠금이 풀린다. */
     public record TestDispatchResult(boolean success, String channelId, String channelName, String message) {}
@@ -41,7 +42,14 @@ public class ReportConfigService {
     @Transactional
     public ReportConfigDto.Detail get(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
-        return ReportConfigDto.Detail.from(getOrCreate(boardId));
+        return withModelCatalog(ReportConfigDto.Detail.from(getOrCreate(boardId)));
+    }
+
+    /** 선택된 모델 값(config에서 온다) 외에, 화면이 드롭다운을 그리는 데 필요한 목록·기본값을 채운다. */
+    private ReportConfigDto.Detail withModelCatalog(ReportConfigDto.Detail detail) {
+        detail.setAvailableModels(modelCatalog.available());
+        detail.setAiModelDefault(modelCatalog.defaultModelId());
+        return detail;
     }
 
     @Transactional
@@ -75,8 +83,24 @@ public class ReportConfigService {
                 request.getSourceConfluenceEnabled(), request.getSourceSlackEnabled());
         config.updateSlackSource(request.getSourceSlackChannelId(), request.getSourceSlackChannelName());
         config.updateShareLink(request.getShareLinkEnabled());
+        config.updateAiModel(validateAiModel(request.getAiModel()));
 
-        return ReportConfigDto.Detail.from(config);
+        return withModelCatalog(ReportConfigDto.Detail.from(config));
+    }
+
+    /**
+     * 요청된 모델 값을 저장 전에 검증한다. null(미지정)·빈 문자열(기본으로 초기화)은 그대로 통과시켜
+     * 엔티티의 부분 업데이트 규칙에 맡기고, 구체적인 id는 반드시 활성 프로바이더 목록에 있어야 한다 —
+     * 잘못된/다른 프로바이더 모델을 저장하면 발송 시 AI 호출이 통째로 실패한다.
+     */
+    private String validateAiModel(String requested) {
+        if (requested == null || requested.isBlank()) {
+            return requested;
+        }
+        if (!modelCatalog.isAllowed(requested)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "지원하지 않는 AI 모델입니다: " + requested);
+        }
+        return requested;
     }
 
     /**

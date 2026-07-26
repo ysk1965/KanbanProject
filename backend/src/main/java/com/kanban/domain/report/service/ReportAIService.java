@@ -41,6 +41,7 @@ public class ReportAIService {
     private final AiUsageLogRepository aiUsageLogRepository;
     private final AiCreditService aiCreditService;
     private final ObjectMapper objectMapper;
+    private final ReportModelCatalog modelCatalog;
 
     @Value("${ai.provider:claude}")
     private String provider;
@@ -86,11 +87,25 @@ public class ReportAIService {
     private static final int MAX_TOKENS_AUTO_WEEKLY = 4096;
 
     public ReportAIService(AIProvider aiProvider, AiUsageLogRepository aiUsageLogRepository,
-                           AiCreditService aiCreditService, ObjectMapper objectMapper) {
+                           AiCreditService aiCreditService, ObjectMapper objectMapper,
+                           ReportModelCatalog modelCatalog) {
         this.aiProvider = aiProvider;
         this.aiUsageLogRepository = aiUsageLogRepository;
         this.aiCreditService = aiCreditService;
         this.objectMapper = objectMapper;
+        this.modelCatalog = modelCatalog;
+    }
+
+    /**
+     * 자동 보고서 계열 호출의 모델을 정한다. 보드 설정에서 고른 {@code modelOverride}가 있고
+     * 활성 프로바이더에서 허용된 모델이면 그걸 쓰고, 아니면 티어 기본값을 쓴다. 프로바이더가 바뀐 뒤
+     * 남아있는 옛 모델 id 같은 stale 값은 여기서 걸러져 티어 기본으로 안전하게 폴백한다.
+     */
+    private String resolveAutoModel(String modelOverride, String tierDefault) {
+        if (modelOverride != null && !modelOverride.isBlank() && modelCatalog.isAllowed(modelOverride)) {
+            return modelOverride;
+        }
+        return tierDefault;
     }
 
     private static final int MAX_TOKENS_CLUSTER_LABEL = 3072;
@@ -117,7 +132,8 @@ public class ReportAIService {
      * @param clusterBriefs 군집별 근거 라벨(대표 커밋·부착 태스크·문서). 순서가 결과 순서와 일치.
      * @return clusterBriefs 길이의 목록. i번째가 군집 i의 {제목, 요약}. 실패 시 빈 목록.
      */
-    public List<ClusterLabel> labelClusters(List<String> clusterBriefs, String language, String boardId) {
+    public List<ClusterLabel> labelClusters(List<String> clusterBriefs, String language, String boardId,
+                                            String modelOverride) {
         if (clusterBriefs == null || clusterBriefs.isEmpty()) {
             return List.of();
         }
@@ -132,7 +148,8 @@ public class ReportAIService {
         String systemPrompt = """
                 You name and summarize clusters of git commits for %s.
                 Each cluster is a group of commits the system already grouped deterministically by their
-                conventional-commit scope, changed file paths, and keywords — you do NOT reassign commits.
+                commit title/body keywords (and conventional-commit scope when present), falling back to
+                changed file NAMES — you do NOT reassign commits.
                 Each CLUSTER lists its representative COMMITS (subject, and body after " — " when present),
                 the file PATHS they touched, and any attached TASKS and DOCS.
 
@@ -149,7 +166,7 @@ public class ReportAIService {
                 No prose, no code fences, no keys other than title/summary.
                 """.formatted(productContextEn, langName);
 
-        String model = getStandupModel();
+        String model = resolveAutoModel(modelOverride, getStandupModel());
         try {
             AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_CLUSTER_LABEL, REPORT_TEMPERATURE);
             logAiUsage("REPORT_CLUSTER_LABEL", model, boardId, null, aiResult);
@@ -208,7 +225,7 @@ public class ReportAIService {
      * @return 잔여 커밋별 배치 결정. 실패·빈 입력 시 빈 목록.
      */
     public List<ResiduePlacement> placeResidueCommits(List<String> clusterLabels, List<String> orphanSubjects,
-                                                      String language, String boardId) {
+                                                      String language, String boardId, String modelOverride) {
         if (orphanSubjects == null || orphanSubjects.isEmpty()) {
             return List.of();
         }
@@ -243,7 +260,7 @@ public class ReportAIService {
                 No prose, no code fences.
                 """.formatted(productContextEn, langName);
 
-        String model = getStandupModel();
+        String model = resolveAutoModel(modelOverride, getStandupModel());
         try {
             AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_RESIDUE, REPORT_TEMPERATURE);
             logAiUsage("REPORT_RESIDUE_PLACE", model, boardId, null, aiResult);
@@ -302,7 +319,8 @@ public class ReportAIService {
      * @param featureDigests 요약이 채워진 기능들의 라벨(기능명·진행·요약). 중요도 순 권장.
      * @return 종합 리드 문단. 실패·빈 입력 시 null.
      */
-    public String synthesizeOverview(List<String> featureDigests, String language, String boardId) {
+    public String synthesizeOverview(List<String> featureDigests, String language, String boardId,
+                                     String modelOverride) {
         if (featureDigests == null || featureDigests.isEmpty()) {
             return null;
         }
@@ -338,7 +356,7 @@ public class ReportAIService {
                 no JSON, no bullet points, no code fences.
                 """.formatted(productContextEn, langName);
 
-        String model = getStandupModel();
+        String model = resolveAutoModel(modelOverride, getStandupModel());
         try {
             AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_OVERVIEW, REPORT_TEMPERATURE);
             logAiUsage("REPORT_OVERVIEW", model, boardId, null, aiResult);
@@ -419,7 +437,8 @@ public class ReportAIService {
      * <p><b>크레딧을 차감하지 않는다.</b> 시스템이 스케줄에 따라 보내는 것이라 사용자가 유발한 호출이 아니다.
      * 다만 비용 추적을 위해 사용량 로그는 남긴다.
      */
-    public String generateAutoReportJson(ReportType reportType, String dataJson, String language, String boardId) {
+    public String generateAutoReportJson(ReportType reportType, String dataJson, String language, String boardId,
+                                         String modelOverride) {
         String lang = language != null ? language : "ko";
         boolean weekly = reportType == ReportType.WEEKLY_INTEGRATED;
         String featureType = weekly ? "REPORT_WEEKLY_AUTO" : "REPORT_DAILY_AUTO";
@@ -429,7 +448,7 @@ public class ReportAIService {
                 ? "다음 수집 데이터로 보고서 JSON을 작성하세요.\n\n"
                 : "Produce the report JSON from the following collected data.\n\n") + dataJson;
 
-        String model = weekly ? getTeamModel() : getStandupModel();
+        String model = resolveAutoModel(modelOverride, weekly ? getTeamModel() : getStandupModel());
         int maxTokens = weekly ? MAX_TOKENS_AUTO_WEEKLY : MAX_TOKENS_AUTO_DAILY;
 
         log.info("Generating {} auto report JSON (board: {}, language: {})", reportType, boardId, lang);

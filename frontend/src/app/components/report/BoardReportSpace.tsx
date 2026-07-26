@@ -147,7 +147,7 @@ export function BoardReportSpace({
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="bg-bridge-dark max-h-[75vh] overflow-y-auto custom-scrollbar px-5 pb-5">
+        <div className="bg-bridge-dark h-[75vh] overflow-y-auto custom-scrollbar px-5 pb-5">
           <AutoReportSettingsPanel
             boardId={boardId}
             canManage={canManage}

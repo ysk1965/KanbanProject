@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -13,16 +13,37 @@ import {
   Loader2,
   Menu,
   Trash2,
+  Upload,
+  HardDrive,
 } from "lucide-react";
 import { NoteTreeSidebar } from "./NoteTreeSidebar";
 import { NoteEditor } from "./NoteEditor";
 import { NoteListView } from "./NoteListView";
 import { NoteTrashModal } from "./NoteTrashModal";
+import { LibraryFilePane } from "../library/LibraryFilePane";
+import { LibraryTrashModal } from "../library/LibraryTrashModal";
+import {
+  buildLibraryTree,
+  fileIdFromNodeId,
+  findStorageChild,
+  folderNodeOf,
+  folderTitlePath,
+  isFileNodeId,
+  isStorageFolderNodeId,
+} from "../library/libraryTree";
+import { StorageUsageDetailModal } from "../storage/StorageUsageDetailModal";
+import { formatBytes, publicFileLink } from "../storage/storageUtils";
 import {
   noteService,
   orgNoteService,
   myNoteService,
 } from "../../utils/services";
+import {
+  makeBoardStorageAPI,
+  makeOrgStorageAPI,
+  myStorageAPI,
+  type StorageApi,
+} from "../../utils/api";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCollaboration } from "../../hooks/useCollaboration";
 import { getAssigneeHex } from "../../utils/assigneeColor";
@@ -34,6 +55,9 @@ import type {
   NoteListItem,
   NoteTagInfo,
   BoardNoteSection,
+  StorageFileItem,
+  StorageFolderTree,
+  StorageUsage,
 } from "../../utils/api";
 import type { BreadcrumbItem } from "./NoteEditor";
 
@@ -43,6 +67,12 @@ interface NotesViewProps {
   /** 마이 스페이스 개인 노트 스코프. board/org 대신 현재 사용자 소유 노트를 사용. */
   personal?: boolean;
   currentUserRole: string;
+  /**
+   * 자료실 모드. 스토리지 파일을 같은 트리에 얹고 업로드·용량·통합 휴지통을 켠다.
+   * 끄면 기존 노트 탭과 동일하게 동작한다.
+   * @see components/library/LibraryView.tsx
+   */
+  withFiles?: boolean;
 }
 
 /**
@@ -112,6 +142,7 @@ export function NotesView({
   orgId,
   personal,
   currentUserRole,
+  withFiles = false,
 }: NotesViewProps) {
   const { t } = useTranslation();
   const { currentUser } = useAuth();
@@ -190,7 +221,14 @@ export function NotesView({
     while (current?.parent_id) {
       const parent = flatMap.get(current.parent_id);
       if (!parent) break;
-      chain.unshift({ id: parent.id, title: parent.title, type: parent.type });
+      // FILE은 자료실 합성 노드라 노트 경로에 등장하지 않는다.
+      if (parent.type !== "FILE") {
+        chain.unshift({
+          id: parent.id,
+          title: parent.title,
+          type: parent.type,
+        });
+      }
       current = parent;
     }
     return chain;
@@ -512,6 +550,204 @@ export function NotesView({
     [scopeId, svc, loadTree, t],
   );
 
+  // ===================================================================
+  // 자료실 모드 — 스토리지 파일을 같은 트리에 얹는 레이어 (withFiles)
+  // ===================================================================
+
+  const storageApi: StorageApi = useMemo(() => {
+    if (personal) return myStorageAPI;
+    if (orgId) return makeOrgStorageAPI(orgId);
+    return makeBoardStorageAPI(boardId || "");
+  }, [personal, orgId, boardId]);
+
+  const [storageFolders, setStorageFolders] = useState<StorageFolderTree[]>([]);
+  const [filesByFolder, setFilesByFolder] = useState<
+    Map<string | null, StorageFileItem[]>
+  >(() => new Map());
+  const [usage, setUsage] = useState<StorageUsage | null>(null);
+  const [selectedFileNodeId, setSelectedFileNodeId] = useState<string | null>(
+    null,
+  );
+  const [uploads, setUploads] = useState<Record<string, number>>({});
+  const [usageDetailOpen, setUsageDetailOpen] = useState(false);
+  const [dragOverMain, setDragOverMain] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadStorage = useCallback(async () => {
+    if (!withFiles) return;
+    try {
+      const [folders, nextUsage] = await Promise.all([
+        storageApi.getFolders(),
+        storageApi.getUsage(),
+      ]);
+      const flat: StorageFolderTree[] = [];
+      const walk = (items: StorageFolderTree[]) => {
+        items.forEach((folder) => {
+          flat.push(folder);
+          walk(folder.children ?? []);
+        });
+      };
+      walk(folders);
+
+      // 폴더별 파일 목록 API라 폴더 수만큼 병렬 조회한다.
+      const lists = await Promise.all([
+        storageApi.getFiles(null),
+        ...flat.map((folder) => storageApi.getFiles(folder.id)),
+      ]);
+      const nextFiles = new Map<string | null, StorageFileItem[]>();
+      nextFiles.set(null, lists[0]);
+      flat.forEach((folder, index) =>
+        nextFiles.set(folder.id, lists[index + 1]),
+      );
+
+      setStorageFolders(folders);
+      setFilesByFolder(nextFiles);
+      setUsage(nextUsage);
+    } catch (err) {
+      console.error("Failed to load library storage:", err);
+    }
+  }, [withFiles, storageApi]);
+
+  useEffect(() => {
+    void loadStorage();
+  }, [loadStorage]);
+
+  const library = useMemo(
+    () =>
+      withFiles
+        ? buildLibraryTree(tree, storageFolders, filesByFolder)
+        : { tree, storageFolderByNode: new Map(), fileByNodeId: new Map() },
+    [withFiles, tree, storageFolders, filesByFolder],
+  );
+
+  const selectedFile = selectedFileNodeId
+    ? (library.fileByNodeId.get(selectedFileNodeId) ?? null)
+    : null;
+
+  /** 파일 노드 / 스토리지 전용 폴더 / 노트를 한 핸들러에서 갈라 보낸다. */
+  const handleSelectTreeNode = useCallback(
+    (nodeId: string) => {
+      if (withFiles && isFileNodeId(nodeId)) {
+        setSelectedFileNodeId(nodeId);
+        setMobileSidebarOpen(false);
+        return;
+      }
+      if (withFiles && isStorageFolderNodeId(nodeId)) {
+        // 스토리지 전용 폴더는 노트 상세가 없다 — 펼치기만 한다.
+        setSelectedFileNodeId(null);
+        return;
+      }
+      setSelectedFileNodeId(null);
+      handleSelectNote(nodeId);
+    },
+    [withFiles, handleSelectNote],
+  );
+
+  /**
+   * 업로드 목적지 스토리지 폴더. 노트 폴더에 짝이 없으면 같은 이름·같은 계층으로
+   * 만들어 짝을 맞춘다 (이름 병합 규칙과 동일).
+   */
+  const resolveUploadFolderId = useCallback(async (): Promise<
+    string | null
+  > => {
+    const anchor = selectedFileNodeId ?? selectedNoteId;
+    const folderNode = folderNodeOf(library.tree, anchor);
+    if (!folderNode) return null;
+
+    const mapped = library.storageFolderByNode.get(folderNode.id);
+    if (mapped) return mapped;
+
+    let parentId: string | null = null;
+    for (const title of folderTitlePath(library.tree, folderNode.id)) {
+      const existing = findStorageChild(storageFolders, parentId, title);
+      parentId = existing
+        ? existing.id
+        : (await storageApi.createFolder(title, parentId)).id;
+    }
+    return parentId;
+  }, [selectedFileNodeId, selectedNoteId, library, storageFolders, storageApi]);
+
+  const handleUploadFiles = useCallback(
+    async (fileList: FileList | File[]) => {
+      if (!canEdit) return;
+      let folderId: string | null = null;
+      try {
+        folderId = await resolveUploadFolderId();
+      } catch (err) {
+        console.error("Failed to prepare upload folder:", err);
+      }
+
+      for (const file of Array.from(fileList)) {
+        const key = `${file.name}-${file.size}-${Date.now()}`;
+        setUploads((prev) => ({ ...prev, [key]: 0 }));
+        try {
+          await storageApi.uploadFile(file, folderId, (percent) =>
+            setUploads((prev) => ({ ...prev, [key]: percent })),
+          );
+        } catch (err: unknown) {
+          const code = (err as { code?: string })?.code;
+          toast.error(
+            code === "ST003"
+              ? t("library.quotaExceeded", "스토리지 용량이 부족합니다")
+              : ((err as { message?: string })?.message ??
+                  t("library.uploadFailed", "업로드에 실패했습니다")),
+          );
+        } finally {
+          setUploads((prev) => {
+            const next = { ...prev };
+            delete next[key];
+            return next;
+          });
+        }
+      }
+      await loadStorage();
+    },
+    [canEdit, resolveUploadFolderId, storageApi, loadStorage, t],
+  );
+
+  const fileActions = useMemo(
+    () => ({
+      onDownload: (file: StorageFileItem) => {
+        void storageApi
+          .downloadAndSave(file.id, file.original_filename)
+          .catch(() =>
+            toast.error(t("library.downloadFailed", "다운로드에 실패했습니다")),
+          );
+      },
+      onToggleShare: async (file: StorageFileItem) => {
+        try {
+          if (file.is_shared) {
+            await storageApi.disableFileShare(file.id);
+            toast.success(t("library.unshared", "공유가 해제되었습니다"));
+          } else {
+            const updated = await storageApi.enableFileShare(file.id);
+            if (updated.share_code) {
+              await navigator.clipboard
+                ?.writeText(publicFileLink(updated.share_code))
+                .catch(() => {});
+            }
+            toast.success(t("library.shared", "공유 링크가 복사되었습니다"));
+          }
+          await loadStorage();
+        } catch (err) {
+          console.error("Failed to toggle file share:", err);
+        }
+      },
+      onDelete: async (file: StorageFileItem) => {
+        try {
+          await storageApi.deleteFile(file.id);
+          setSelectedFileNodeId((prev) =>
+            prev && fileIdFromNodeId(prev) === file.id ? null : prev,
+          );
+          await loadStorage();
+        } catch (err) {
+          console.error("Failed to delete file:", err);
+        }
+      },
+    }),
+    [storageApi, loadStorage, t],
+  );
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -527,7 +763,9 @@ export function NotesView({
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-bold text-foreground flex items-center gap-2">
             <FileText size={18} className="text-bridge-accent" />
-            {t("notes.title", "노트")}
+            {withFiles
+              ? t("library.title", "자료실")
+              : t("notes.title", "노트")}
           </h3>
           <div className="flex items-center gap-1">
             <button
@@ -556,7 +794,11 @@ export function NotesView({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t("notes.searchPlaceholder", "검색...")}
+            placeholder={
+              withFiles
+                ? t("library.searchPlaceholder", "노트 · 파일 검색")
+                : t("notes.searchPlaceholder", "검색...")
+            }
             className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 pl-9 pr-3 text-sm text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 transition-all"
           />
         </div>
@@ -570,14 +812,25 @@ export function NotesView({
               <FilePlus size={15} />
               {t("notes.newDocument", "새 문서")}
             </button>
-            <button
-              onClick={() => handleCreateBoard(null)}
-              aria-label={t("notes.newBoard", "새 보드")}
-              title={t("notes.newBoard", "새 보드")}
-              className="flex items-center justify-center w-9 text-bridge-secondary bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-colors"
-            >
-              <PenTool size={16} />
-            </button>
+            {withFiles ? (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                aria-label={t("library.upload", "파일 업로드")}
+                title={t("library.upload", "파일 업로드")}
+                className="flex items-center justify-center w-9 text-bridge-secondary bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-colors"
+              >
+                <Upload size={16} />
+              </button>
+            ) : (
+              <button
+                onClick={() => handleCreateBoard(null)}
+                aria-label={t("notes.newBoard", "새 보드")}
+                title={t("notes.newBoard", "새 보드")}
+                className="flex items-center justify-center w-9 text-bridge-secondary bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-colors"
+              >
+                <PenTool size={16} />
+              </button>
+            )}
             <button
               onClick={() => handleCreateFolder(null)}
               aria-label={t("notes.newFolder", "새 폴더")}
@@ -588,16 +841,35 @@ export function NotesView({
             </button>
           </div>
         )}
+
+        {/* 업로드 진행 */}
+        {withFiles && Object.keys(uploads).length > 0 && (
+          <div className="mt-3 flex flex-col gap-1.5">
+            {Object.entries(uploads).map(([key, percent]) => (
+              <div key={key} className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 rounded-full bg-foreground/10 overflow-hidden">
+                  <div
+                    className="h-full bg-bridge-secondary rounded-full transition-all"
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+                <span className="text-xs text-slate-500 tabular-nums w-9 text-right">
+                  {percent}%
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Tree or List Content */}
       <div className="flex-1 overflow-y-auto p-3">
         {viewType === "tree" ? (
           <NoteTreeSidebar
-            tree={tree}
-            selectedNoteId={selectedNoteId}
+            tree={library.tree}
+            selectedNoteId={selectedFileNodeId ?? selectedNoteId}
             searchQuery={searchQuery}
-            onSelect={handleSelectNote}
+            onSelect={handleSelectTreeNode}
             onCreateFolder={handleCreateFolder}
             onCreateDocument={handleCreateDocument}
             onCreateBoard={handleCreateBoard}
@@ -608,6 +880,7 @@ export function NotesView({
             canEdit={canEdit}
             boardNoteSections={orgId ? boardNoteSections : undefined}
             onSelectBoardNote={orgId ? handleSelectBoardNote : undefined}
+            fileActions={withFiles ? fileActions : undefined}
           />
         ) : (
           <NoteListView
@@ -620,18 +893,47 @@ export function NotesView({
         )}
       </div>
 
-      {/* Trash entry */}
-      {canEdit && (
-        <div className="border-t border-foreground/5 p-2 flex-shrink-0">
-          <button
-            onClick={() => setTrashOpen(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-          >
-            <Trash2 size={14} />
-            <span className="flex-1 text-left">
-              {t("notes.trash.title", "휴지통")}
-            </span>
-          </button>
+      {/* 하단 — 자료실은 용량 미터를 함께 둔다 */}
+      {(canEdit || (withFiles && usage)) && (
+        <div className="border-t border-foreground/5 p-2 flex-shrink-0 flex flex-col gap-1">
+          {withFiles && usage && (
+            <button
+              onClick={() => setUsageDetailOpen(true)}
+              className="w-full flex flex-col gap-1.5 px-3 py-2 rounded-lg hover:bg-foreground/5 transition-colors"
+            >
+              <span className="flex items-center gap-2 text-xs text-slate-400">
+                <HardDrive size={13} />
+                <span className="font-bold text-foreground">
+                  {formatBytes(usage.used)}
+                </span>
+                <span>/ {formatBytes(usage.quota)}</span>
+                <span className="ml-auto">자세히 ›</span>
+              </span>
+              <span className="h-1.5 w-full rounded-full bg-foreground/10 overflow-hidden">
+                <span
+                  className="block h-full rounded-full bg-gradient-to-r from-bridge-secondary to-bridge-accent"
+                  style={{
+                    width: `${
+                      usage.quota > 0
+                        ? Math.min(100, (usage.used / usage.quota) * 100)
+                        : 0
+                    }%`,
+                  }}
+                />
+              </span>
+            </button>
+          )}
+          {canEdit && (
+            <button
+              onClick={() => setTrashOpen(true)}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            >
+              <Trash2 size={14} />
+              <span className="flex-1 text-left">
+                {t("notes.trash.title", "휴지통")}
+              </span>
+            </button>
+          )}
         </div>
       )}
     </>
@@ -657,22 +959,92 @@ export function NotesView({
         </SheetContent>
       </Sheet>
 
-      {/* Trash Modal */}
-      <NoteTrashModal
-        open={trashOpen}
-        onClose={() => setTrashOpen(false)}
-        scopeType={scopeType}
-        scopeId={scopeId}
-        canPermanentDelete={canManageTrash}
-        onChanged={() => {
-          loadTree();
-          if (orgId) loadBoardNotes();
-        }}
-      />
+      {/* Trash Modal — 자료실은 노트와 파일을 한 목록에서 되돌린다 */}
+      {withFiles ? (
+        <LibraryTrashModal
+          open={trashOpen}
+          onClose={() => setTrashOpen(false)}
+          scopeType={scopeType}
+          scopeId={scopeId}
+          storageApi={storageApi}
+          canPermanentDelete={canManageTrash}
+          onChanged={() => {
+            loadTree();
+            void loadStorage();
+            if (orgId) loadBoardNotes();
+          }}
+        />
+      ) : (
+        <NoteTrashModal
+          open={trashOpen}
+          onClose={() => setTrashOpen(false)}
+          scopeType={scopeType}
+          scopeId={scopeId}
+          canPermanentDelete={canManageTrash}
+          onChanged={() => {
+            loadTree();
+            if (orgId) loadBoardNotes();
+          }}
+        />
+      )}
 
-      {/* Right Content - Editor */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-bridge-dark">
-        {selectedNote ? (
+      {withFiles && (
+        <>
+          <StorageUsageDetailModal
+            api={storageApi}
+            open={usageDetailOpen}
+            onClose={() => setUsageDetailOpen(false)}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            hidden
+            onChange={(e) => {
+              if (e.target.files?.length)
+                void handleUploadFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+        </>
+      )}
+
+      {/* Right Content - Editor / File */}
+      <div
+        className={`flex-1 flex flex-col overflow-hidden bg-bridge-dark ${
+          dragOverMain ? "ring-2 ring-inset ring-bridge-secondary" : ""
+        }`}
+        onDragOver={
+          withFiles && canEdit
+            ? (e) => {
+                e.preventDefault();
+                setDragOverMain(true);
+              }
+            : undefined
+        }
+        onDragLeave={withFiles ? () => setDragOverMain(false) : undefined}
+        onDrop={
+          withFiles && canEdit
+            ? (e) => {
+                e.preventDefault();
+                setDragOverMain(false);
+                if (e.dataTransfer.files?.length) {
+                  void handleUploadFiles(e.dataTransfer.files);
+                }
+              }
+            : undefined
+        }
+      >
+        {selectedFile ? (
+          <LibraryFilePane
+            file={selectedFile}
+            canEdit={canEdit}
+            onDownload={fileActions.onDownload}
+            onToggleShare={fileActions.onToggleShare}
+            onDelete={fileActions.onDelete}
+            onOpenSidebar={() => setMobileSidebarOpen(true)}
+          />
+        ) : selectedNote ? (
           <>
             {/* Mobile top bar with sidebar toggle */}
             <div className="flex md:hidden items-center gap-2 px-3 py-2 border-b border-foreground/5">
@@ -732,16 +1104,35 @@ export function NotesView({
             </button>
             <FileText size={48} className="mb-4 opacity-30" />
             <p className="text-sm">
-              {t("notes.selectOrCreate", "문서를 선택하거나 새로 만들어주세요")}
+              {withFiles
+                ? t(
+                    "library.selectOrCreate",
+                    "왼쪽에서 노트나 파일을 고르세요. 파일은 여기에 끌어다 놓아도 됩니다",
+                  )
+                : t(
+                    "notes.selectOrCreate",
+                    "문서를 선택하거나 새로 만들어주세요",
+                  )}
             </p>
             {canEdit && (
-              <button
-                onClick={() => handleCreateDocument(null)}
-                className="mt-4 px-4 py-2 bg-bridge-accent text-white rounded-xl text-xs font-bold hover:bg-bridge-accent/90 transition-all"
-              >
-                <FilePlus size={14} className="inline mr-1.5" />
-                {t("notes.createFirstDocument", "첫 문서 만들기")}
-              </button>
+              <div className="mt-4 flex items-center gap-2">
+                <button
+                  onClick={() => handleCreateDocument(null)}
+                  className="px-4 py-2 bg-bridge-accent text-white rounded-xl text-xs font-bold hover:bg-bridge-accent/90 transition-all"
+                >
+                  <FilePlus size={14} className="inline mr-1.5" />
+                  {t("notes.createFirstDocument", "첫 문서 만들기")}
+                </button>
+                {withFiles && (
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl text-xs font-bold hover:bg-foreground/10 transition-all"
+                  >
+                    <Upload size={14} className="inline mr-1.5" />
+                    {t("library.upload", "파일 업로드")}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}

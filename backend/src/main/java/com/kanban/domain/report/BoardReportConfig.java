@@ -79,6 +79,13 @@ public class BoardReportConfig extends BaseTimeEntity {
     @Column(name = "language", nullable = false, length = 10)
     private String language = "ko";
 
+    /**
+     * 리포트 생성에 쓸 AI 모델 id. {@code null}이면 서버 기본(티어별 설정값)을 쓴다.
+     * 활성 프로바이더 계열의 모델만 저장된다({@code ReportModelCatalog}가 검증).
+     */
+    @Column(name = "ai_model", length = 60)
+    private String aiModel;
+
     /** 봇이 게시할 공용 채널. 멤버 개인 웹훅 발송은 지원하지 않는다. */
     @Column(name = "slack_channel_id", length = 40)
     private String slackChannelId;
@@ -198,6 +205,16 @@ public class BoardReportConfig extends BaseTimeEntity {
 
     public void updateShareLink(Boolean enabled) {
         if (enabled != null) this.shareLinkEnabled = enabled;
+    }
+
+    /**
+     * 리포트 AI 모델 지정. 부분 업데이트 규칙은 슬랙 채널과 같다 —
+     * null이면 유지, 빈 문자열이면 "기본으로 초기화"(=null)로 본다.
+     */
+    public void updateAiModel(String modelId) {
+        if (modelId != null) {
+            this.aiModel = modelId.isBlank() ? null : modelId;
+        }
     }
 
     /** 발송 테스트가 성공한 채널을 기록한다. 이후 이 채널과 발송 채널이 같을 때만 자동 예약을 켤 수 있다. */

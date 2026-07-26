@@ -6197,7 +6197,12 @@ export const reportAPI = {
 export interface NoteTreeItem {
   id: string;
   parent_id: string | null;
-  type: "FOLDER" | "DOCUMENT" | "BOARD";
+  /**
+   * FILE은 서버가 내려주지 않는다. 자료실(노트+스토리지 통합 탭)에서 스토리지 파일을
+   * 노트 트리에 얹기 위해 프론트에서 합성하는 노드 타입이다.
+   * @see components/library/libraryTree.ts
+   */
+  type: "FOLDER" | "DOCUMENT" | "BOARD" | "FILE";
   title: string;
   position: number;
   depth: number;
@@ -6207,6 +6212,8 @@ export interface NoteTreeItem {
   created_at: string;
   updated_at: string;
   children: NoteTreeItem[];
+  /** type === "FILE"인 합성 노드에만 존재 — 원본 스토리지 파일 */
+  file?: StorageFileItem;
 }
 
 export interface BoardNoteSection {
@@ -9750,7 +9757,7 @@ export interface AutoReportFeature {
 
 /** 클러스터가 어떤 신호로 묶였는지 한 건 */
 export interface AutoReportClusterSignal {
-  kind: string; // "scope" | "path" | "keyword"
+  kind: string; // "scope" | "keyword" | "file" | "ai"
   value: string;
 }
 
@@ -9904,6 +9911,12 @@ export interface ReportConfig {
   weekly_day_of_week: number;
   timezone: string;
   language: string;
+  /** 선택된 리포트 AI 모델 id. null이면 기본(서버 티어 설정값) 사용 */
+  ai_model: string | null;
+  /** ai_model이 null일 때 실제로 쓰이는 기본 모델 id — "기본 (…)" 표시용 */
+  ai_model_default: string | null;
+  /** 활성 프로바이더에서 고를 수 있는 모델 목록 */
+  available_models: { id: string; label: string }[];
   slack_channel_id: string | null;
   slack_channel_name: string | null;
   source_github_enabled: boolean;
@@ -9945,7 +9958,9 @@ export const autoReportAPI = {
 
   /** 보관된 보고서 삭제 — 관리자 이상만 */
   remove: async (boardId: string, reportId: string) => {
-    return apiClient.delete<void>(`/boards/${boardId}/reports/auto/${reportId}`);
+    return apiClient.delete<void>(
+      `/boards/${boardId}/reports/auto/${reportId}`,
+    );
   },
 
   getConfig: async (boardId: string) => {

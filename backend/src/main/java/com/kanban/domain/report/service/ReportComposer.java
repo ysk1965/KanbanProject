@@ -42,21 +42,29 @@ public class ReportComposer {
 
     public Composed compose(String boardId, ReportType reportType, String language,
                             ReportPeriod period, List<SourceChunk> chunks) {
-        return compose(boardId, reportType, language, period, chunks, List.of());
+        return compose(boardId, reportType, language, period, chunks, List.of(), null);
     }
 
-    /**
-     * @param dailyDigests 주간 작성 시 참고로 넣는 그 주 일일 보고서 요약들. 서술의 연속성·톤을 잇는
-     *                     용도이며 지표·본문 근거는 아니다. 일일/수동 보고서는 빈 목록.
-     */
     public Composed compose(String boardId, ReportType reportType, String language,
                             ReportPeriod period, List<SourceChunk> chunks,
                             List<WeeklyRollupCollector.DailyDigest> dailyDigests) {
+        return compose(boardId, reportType, language, period, chunks, dailyDigests, null);
+    }
+
+    /**
+     * @param dailyDigests  주간 작성 시 참고로 넣는 그 주 일일 보고서 요약들. 서술의 연속성·톤을 잇는
+     *                      용도이며 지표·본문 근거는 아니다. 일일/수동 보고서는 빈 목록.
+     * @param modelOverride 보드 설정에서 고른 리포트 AI 모델. null이면 서버 티어 기본을 쓴다.
+     */
+    public Composed compose(String boardId, ReportType reportType, String language,
+                            ReportPeriod period, List<SourceChunk> chunks,
+                            List<WeeklyRollupCollector.DailyDigest> dailyDigests,
+                            String modelOverride) {
         String mergedInput = mergeInput(boardId, period, chunks, dailyDigests);
 
         // 본문 생성(AI#1: 헤드라인·리드·주요 변화)과 아래의 시스템 집계는 서로 독립이라 병렬로 돌린다.
         CompletableFuture<String> rawFuture = CompletableFuture.supplyAsync(
-                () -> reportAIService.generateAutoReportJson(reportType, mergedInput, language, boardId));
+                () -> reportAIService.generateAutoReportJson(reportType, mergedInput, language, boardId, modelOverride));
 
         // 스프린트 게이지는 계속 시스템 집계로 채운다(비-AI). 기능 카드 축은 커밋 클러스터로 대체하지만
         // 스프린트 진행 자체는 그대로 유지한다.
@@ -68,7 +76,7 @@ public class ReportComposer {
         List<ReportContent.Cluster> clusters = computeClusters(boardId, commits, chunks);
         // 규칙이 "기타"로 남긴 잔여 커밋만 AI가 재배치한다(합류 또는 잔여들끼리 새 군집). 확정 군집은 안 건드린다.
         // members가 커밋의 소속 클러스터 태그를 쓰므로 반드시 집계 전에 재배치를 끝낸다.
-        clusters = placeResidueCommits(clusters, language, boardId);
+        clusters = placeResidueCommits(clusters, language, boardId, modelOverride);
         List<ReportContent.Member> members = computeMembers(boardId, period, commits, clusters, chunks);
 
         String raw;
@@ -94,7 +102,7 @@ public class ReportComposer {
         content.setMembers(members);
 
         // 클러스터별 제목·요약(AI 배치 1회)을 채우고, 그 요약을 종합해 상단 리드를 다시 쓴다.
-        labelAndSynthesize(content, clusters, language, boardId);
+        labelAndSynthesize(content, clusters, language, boardId, modelOverride);
 
         return new Composed(content, serialize(content, raw), mergedInput);
     }
@@ -129,7 +137,8 @@ public class ReportComposer {
      * <p>AI 호출이라 DB 트랜잭션 밖(compose)에서 부른다. 잔여 없음·AI 실패 시 입력을 그대로 돌려준다(현행 유지).
      */
     private List<ReportContent.Cluster> placeResidueCommits(List<ReportContent.Cluster> clusters,
-                                                            String language, String boardId) {
+                                                            String language, String boardId,
+                                                            String modelOverride) {
         try {
             if (clusters == null || clusters.size() < 2) {
                 return clusters;
@@ -161,7 +170,7 @@ public class ReportComposer {
                     .map(fc -> fc.getSubject() != null ? fc.getSubject() : "").toList();
 
             List<ReportAIService.ResiduePlacement> placements =
-                    reportAIService.placeResidueCommits(clusterLabels, orphanSubjects, language, boardId);
+                    reportAIService.placeResidueCommits(clusterLabels, orphanSubjects, language, boardId, modelOverride);
             if (placements.isEmpty()) {
                 return clusters; // 폴백: 잔여물을 기타로 그대로 둔다
             }
@@ -293,7 +302,7 @@ public class ReportComposer {
      * AI 실패 시 폴백 제목(scope/경로)과 첫 패스 리드를 그대로 둔다. DB 트랜잭션 밖에서 호출한다.
      */
     private void labelAndSynthesize(ReportContent content, List<ReportContent.Cluster> clusters,
-                                    String language, String boardId) {
+                                    String language, String boardId, String modelOverride) {
         if (clusters == null || clusters.isEmpty()) {
             return;
         }
@@ -304,7 +313,7 @@ public class ReportComposer {
             return;
         }
         List<String> briefs = targets.stream().map(this::clusterBrief).toList();
-        List<ReportAIService.ClusterLabel> labels = reportAIService.labelClusters(briefs, language, boardId);
+        List<ReportAIService.ClusterLabel> labels = reportAIService.labelClusters(briefs, language, boardId, modelOverride);
 
         List<String> digests = new ArrayList<>();
         for (int i = 0; i < targets.size(); i++) {
@@ -324,7 +333,7 @@ public class ReportComposer {
         }
 
         if (!digests.isEmpty()) {
-            String overview = reportAIService.synthesizeOverview(digests, language, boardId);
+            String overview = reportAIService.synthesizeOverview(digests, language, boardId, modelOverride);
             if (overview != null && !overview.isBlank()) {
                 content.setLede(overview.trim());
             }
