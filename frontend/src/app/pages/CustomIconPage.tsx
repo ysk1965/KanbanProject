@@ -1,14 +1,17 @@
-import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Loader2 } from 'lucide-react';
-import { ReferenceUpload } from '../components/customicon/ReferenceUpload';
-import { StyleOptions, type StyleOptionsData } from '../components/customicon/StyleOptions';
-import { IconNameInput } from '../components/customicon/IconNameInput';
-import { CustomPrompt } from '../components/customicon/CustomPrompt';
-import { ResultGallery } from '../components/customicon/ResultGallery';
-import { customIconAPI } from '../utils/api';
+import { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, Sparkles, Loader2 } from "lucide-react";
+import { ReferenceUpload } from "../components/customicon/ReferenceUpload";
+import {
+  StyleOptions,
+  type StyleOptionsData,
+} from "../components/customicon/StyleOptions";
+import { IconNameInput } from "../components/customicon/IconNameInput";
+import { CustomPrompt } from "../components/customicon/CustomPrompt";
+import { ResultGallery } from "../components/customicon/ResultGallery";
+import { customIconAPI } from "../utils/api";
 
-type Step = 'upload' | 'configure' | 'generating' | 'result';
+type Step = "upload" | "configure" | "generating" | "result";
 
 interface StyleAnalysis {
   style: string;
@@ -34,22 +37,24 @@ export function CustomIconPage() {
   const navigate = useNavigate();
 
   // State
-  const [step, setStep] = useState<Step>('upload');
+  const [step, setStep] = useState<Step>("upload");
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [referenceUrl, setReferenceUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [styleAnalysis, setStyleAnalysis] = useState<StyleAnalysis | null>(null);
+  const [styleAnalysis, setStyleAnalysis] = useState<StyleAnalysis | null>(
+    null,
+  );
   const [styleOptions, setStyleOptions] = useState<StyleOptionsData>({
-    type: 'line',
-    stroke_weight: 'medium',
-    corner_radius: 'rounded',
+    type: "line",
+    stroke_weight: "medium",
+    corner_radius: "rounded",
     padding_ratio: 0.15,
-    background: 'transparent',
+    background: "transparent",
   });
   const [iconNames, setIconNames] = useState<string[]>([]);
-  const [layout, setLayout] = useState('4x4');
-  const [customPrompt, setCustomPrompt] = useState('');
+  const [layout, setLayout] = useState("4x4");
+  const [customPrompt, setCustomPrompt] = useState("");
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,14 +84,14 @@ export function CustomIconPage() {
         }));
       } catch {
         // Style analysis failure is non-critical
-        console.warn('Style analysis failed, using defaults');
+        console.warn("Style analysis failed, using defaults");
       } finally {
         setIsAnalyzing(false);
       }
 
-      setStep('configure');
+      setStep("configure");
     } catch (err: any) {
-      setError(err?.message || 'Upload failed');
+      setError(err?.message || "Upload failed");
     } finally {
       setIsUploading(false);
     }
@@ -95,7 +100,7 @@ export function CustomIconPage() {
   // Generate icons
   const handleGenerate = useCallback(async () => {
     if (!referenceId || iconNames.length === 0) return;
-    setStep('generating');
+    setStep("generating");
     setError(null);
     try {
       const data = await customIconAPI.generate({
@@ -113,28 +118,28 @@ export function CustomIconPage() {
         custom_prompt: customPrompt || undefined,
       });
       setResult(data);
-      setStep('result');
+      setStep("result");
     } catch (err: any) {
-      setError(err?.message || 'Generation failed');
-      setStep('configure');
+      setError(err?.message || "Generation failed");
+      setStep("configure");
     }
   }, [referenceId, iconNames, layout, styleOptions, customPrompt]);
 
   // Reset to start
   const handleReset = () => {
-    setStep('upload');
+    setStep("upload");
     setReferenceId(null);
     setReferenceUrl(null);
     setStyleAnalysis(null);
     setStyleOptions({
-      type: 'line',
-      stroke_weight: 'medium',
-      corner_radius: 'rounded',
+      type: "line",
+      stroke_weight: "medium",
+      corner_radius: "rounded",
       padding_ratio: 0.15,
-      background: 'transparent',
+      background: "transparent",
     });
     setIconNames([]);
-    setCustomPrompt('');
+    setCustomPrompt("");
     setResult(null);
     setError(null);
   };
@@ -146,13 +151,15 @@ export function CustomIconPage() {
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
-            className="text-slate-400 hover:text-white transition-colors"
+            className="min-w-11 min-h-11 flex items-center justify-center -ml-2 text-slate-400 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-bridge-accent" />
-            <h1 className="font-serif font-bold text-white">Custom Icon Generator</h1>
+            <h1 className="font-serif font-bold text-white">
+              Custom Icon Generator
+            </h1>
           </div>
         </div>
       </header>
@@ -161,25 +168,31 @@ export function CustomIconPage() {
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         {/* Step Indicator */}
         <div className="flex items-center gap-2">
-          {(['upload', 'configure', 'result'] as const).map((s, i) => (
+          {(["upload", "configure", "result"] as const).map((s, i) => (
             <div key={s} className="flex items-center gap-2">
               <div
                 className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all
-                  ${step === s || (step === 'generating' && s === 'configure')
-                    ? 'bg-bridge-accent text-white'
-                    : (step === 'result' || (step === 'configure' && s === 'upload'))
-                      ? 'bg-bridge-accent/20 text-bridge-accent'
-                      : 'bg-white/5 text-slate-600'}
+                  ${
+                    step === s || (step === "generating" && s === "configure")
+                      ? "bg-bridge-accent text-white"
+                      : step === "result" ||
+                          (step === "configure" && s === "upload")
+                        ? "bg-bridge-accent/20 text-bridge-accent"
+                        : "bg-white/5 text-slate-600"
+                  }
                 `}
               >
                 {i + 1}
               </div>
               {i < 2 && (
-                <div className={`w-8 h-px ${
-                  (i === 0 && step !== 'upload') || (i === 1 && step === 'result')
-                    ? 'bg-bridge-accent/50'
-                    : 'bg-white/10'
-                }`} />
+                <div
+                  className={`w-8 h-px ${
+                    (i === 0 && step !== "upload") ||
+                    (i === 1 && step === "result")
+                      ? "bg-bridge-accent/50"
+                      : "bg-white/10"
+                  }`}
+                />
               )}
             </div>
           ))}
@@ -193,7 +206,9 @@ export function CustomIconPage() {
         )}
 
         {/* Step: Upload */}
-        {(step === 'upload' || step === 'configure' || step === 'generating') && (
+        {(step === "upload" ||
+          step === "configure" ||
+          step === "generating") && (
           <ReferenceUpload
             referenceId={referenceId}
             referenceUrl={referenceUrl}
@@ -206,12 +221,14 @@ export function CustomIconPage() {
         {isAnalyzing && (
           <div className="flex items-center gap-2 p-3 bg-bridge-accent/10 border border-bridge-accent/20 rounded-xl">
             <Loader2 className="w-4 h-4 text-bridge-accent animate-spin" />
-            <span className="text-sm text-bridge-accent">Analyzing reference style...</span>
+            <span className="text-sm text-bridge-accent">
+              Analyzing reference style...
+            </span>
           </div>
         )}
 
         {/* Step: Configure */}
-        {step === 'configure' && (
+        {step === "configure" && (
           <>
             <StyleOptions
               options={styleOptions}
@@ -226,10 +243,7 @@ export function CustomIconPage() {
               onLayoutChange={setLayout}
             />
 
-            <CustomPrompt
-              value={customPrompt}
-              onChange={setCustomPrompt}
-            />
+            <CustomPrompt value={customPrompt} onChange={setCustomPrompt} />
 
             <button
               onClick={handleGenerate}
@@ -246,7 +260,7 @@ export function CustomIconPage() {
         )}
 
         {/* Step: Generating */}
-        {step === 'generating' && (
+        {step === "generating" && (
           <div className="flex flex-col items-center gap-4 py-12">
             <div className="relative">
               <div className="w-16 h-16 rounded-2xl bg-bridge-accent/10 flex items-center justify-center">
@@ -256,13 +270,15 @@ export function CustomIconPage() {
             </div>
             <div className="text-center">
               <p className="text-white font-bold">Generating icons...</p>
-              <p className="text-sm text-slate-500 mt-1">This may take 15-30 seconds</p>
+              <p className="text-sm text-slate-500 mt-1">
+                This may take 15-30 seconds
+              </p>
             </div>
           </div>
         )}
 
         {/* Step: Result */}
-        {step === 'result' && result && (
+        {step === "result" && result && (
           <>
             <ResultGallery
               jobId={result.job_id}
@@ -280,7 +296,7 @@ export function CustomIconPage() {
               </button>
               <button
                 onClick={() => {
-                  setStep('configure');
+                  setStep("configure");
                   setResult(null);
                 }}
                 className="flex-1 px-6 py-3 bg-bridge-accent text-white rounded-xl font-bold

@@ -1,6 +1,12 @@
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
-import { CheckCircle2, Share2, MessageCircle, Link, Trophy } from "lucide-react";
+import {
+  CheckCircle2,
+  Share2,
+  MessageCircle,
+  Link,
+  Trophy,
+} from "lucide-react";
 import { Book } from "../../data/bibleData";
 
 interface CompletedChapter {
@@ -14,27 +20,34 @@ interface BibleReadingChartProps {
   completedChapters: CompletedChapter[];
 }
 
-export function BibleReadingChart({ books, completedChapters }: BibleReadingChartProps) {
+export function BibleReadingChart({
+  books,
+  completedChapters,
+}: BibleReadingChartProps) {
   const isChapterCompleted = (bookName: string, chapterNumber: number) => {
     return completedChapters.some(
-      (c) => c.book === bookName && c.chapter === chapterNumber
+      (c) => c.book === bookName && c.chapter === chapterNumber,
     );
   };
 
-  const totalChapters = books.reduce((sum, book) => sum + book.chapters.length, 0);
+  const totalChapters = books.reduce(
+    (sum, book) => sum + book.chapters.length,
+    0,
+  );
   const completedCount = completedChapters.length;
-  const progress = totalChapters > 0 ? (completedCount / totalChapters) * 100 : 0;
+  const progress =
+    totalChapters > 0 ? (completedCount / totalChapters) * 100 : 0;
   const isAllCompleted = completedCount === totalChapters && totalChapters > 0;
 
   // 완료된 책 이름들
   const completedBookNames = books
     .filter((book) =>
-      book.chapters.every((ch) => isChapterCompleted(book.name, ch.chapter))
+      book.chapters.every((ch) => isChapterCompleted(book.name, ch.chapter)),
     )
     .map((book) => book.name)
     .join(", ");
 
-  const shareMessage = `${completedBookNames || books.map(b => b.name).join(", ")} 타자 성경 통독 완료!\n온라인으로 성경을 타이핑하며 통독했습니다.\n\n`;
+  const shareMessage = `${completedBookNames || books.map((b) => b.name).join(", ")} 타자 성경 통독 완료!\n온라인으로 성경을 타이핑하며 통독했습니다.\n\n`;
   const siteUrl = window.location.href;
 
   const handleShareKakao = () => {
@@ -46,7 +59,10 @@ export function BibleReadingChart({ books, completedChapters }: BibleReadingChar
       });
     } else {
       const text = encodeURIComponent(shareMessage + siteUrl);
-      window.open(`https://story.kakao.com/share?url=${encodeURIComponent(siteUrl)}&text=${text}`, "_blank");
+      window.open(
+        `https://story.kakao.com/share?url=${encodeURIComponent(siteUrl)}&text=${text}`,
+        "_blank",
+      );
     }
   };
 
@@ -87,16 +103,22 @@ export function BibleReadingChart({ books, completedChapters }: BibleReadingChar
         <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
           {books.map((book) => {
             const bookCompletedCount = book.chapters.filter((ch) =>
-              isChapterCompleted(book.name, ch.chapter)
+              isChapterCompleted(book.name, ch.chapter),
             ).length;
-            const bookProgress = (bookCompletedCount / book.chapters.length) * 100;
+            const bookProgress =
+              (bookCompletedCount / book.chapters.length) * 100;
 
             return (
-              <div key={book.name} className="space-y-3 pb-4 border-b border-gray-200 last:border-b-0">
+              <div
+                key={book.name}
+                className="space-y-3 pb-4 border-b border-gray-200 last:border-b-0"
+              >
                 {/* 책 제목 및 진행률 */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-lg text-gray-800">{book.name}</h4>
+                    <h4 className="font-bold text-lg text-gray-800">
+                      {book.name}
+                    </h4>
                     <span className="text-sm text-gray-600">
                       {bookCompletedCount}/{book.chapters.length}장
                     </span>
@@ -110,9 +132,12 @@ export function BibleReadingChart({ books, completedChapters }: BibleReadingChar
                 </div>
 
                 {/* 장 번호 그리드 */}
-                <div className="grid grid-cols-10 gap-2">
+                <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-10 sm:gap-2">
                   {book.chapters.map((chapter) => {
-                    const completed = isChapterCompleted(book.name, chapter.chapter);
+                    const completed = isChapterCompleted(
+                      book.name,
+                      chapter.chapter,
+                    );
                     return (
                       <div
                         key={chapter.chapter}
@@ -136,12 +161,16 @@ export function BibleReadingChart({ books, completedChapters }: BibleReadingChar
         </div>
 
         {/* 공유하기 버튼 */}
-        <div className={`pt-4 border-t border-gray-200 ${isAllCompleted ? "" : "opacity-50"}`}>
+        <div
+          className={`pt-4 border-t border-gray-200 ${isAllCompleted ? "" : "opacity-50"}`}
+        >
           {isAllCompleted ? (
             <div className="space-y-3">
               <div className="flex items-center justify-center gap-2 text-green-600">
                 <Trophy className="w-6 h-6" />
-                <span className="font-bold text-lg">축하합니다! 통독을 완료했습니다!</span>
+                <span className="font-bold text-lg">
+                  축하합니다! 통독을 완료했습니다!
+                </span>
               </div>
               <p className="text-center text-sm text-gray-500 mb-3">
                 완료 소식을 공유해보세요
@@ -154,10 +183,7 @@ export function BibleReadingChart({ books, completedChapters }: BibleReadingChar
                   <MessageCircle className="w-4 h-4 mr-2" />
                   카카오톡 공유
                 </Button>
-                <Button
-                  onClick={handleCopyLink}
-                  variant="outline"
-                >
+                <Button onClick={handleCopyLink} variant="outline">
                   <Link className="w-4 h-4 mr-2" />
                   링크 복사
                 </Button>

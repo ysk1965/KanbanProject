@@ -1,9 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams } from 'react-router-dom';
-import { Upload, Loader2, Check, ImagePlus, X, AlertCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { publicUploadAPI, type ChunkedUploadProgress } from '../utils/api';
-import type { UploadAlbumInfo } from '../types';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useParams } from "react-router-dom";
+import {
+  Upload,
+  Loader2,
+  Check,
+  ImagePlus,
+  X,
+  AlertCircle,
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { publicUploadAPI, type ChunkedUploadProgress } from "../utils/api";
+import type { UploadAlbumInfo } from "../types";
 
 export function PublicUploadPage() {
   const { uploadToken } = useParams<{ uploadToken: string }>();
@@ -15,7 +22,8 @@ export function PublicUploadPage() {
   const [uploading, setUploading] = useState(false);
   const [uploaded, setUploaded] = useState(false);
   const [uploadCount, setUploadCount] = useState(0);
-  const [uploadProgress, setUploadProgress] = useState<ChunkedUploadProgress | null>(null);
+  const [uploadProgress, setUploadProgress] =
+    useState<ChunkedUploadProgress | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -27,7 +35,7 @@ export function PublicUploadPage() {
         const info = await publicUploadAPI.getUploadAlbumInfo(uploadToken);
         setAlbumInfo(info);
       } catch {
-        setError('This upload link is invalid or has expired.');
+        setError("This upload link is invalid or has expired.");
       } finally {
         setLoading(false);
       }
@@ -36,7 +44,7 @@ export function PublicUploadPage() {
   }, [uploadToken]);
 
   const addFiles = useCallback((newFiles: File[]) => {
-    const imageFiles = newFiles.filter((f) => f.type.startsWith('image/'));
+    const imageFiles = newFiles.filter((f) => f.type.startsWith("image/"));
     setFiles((prev) => [...prev, ...imageFiles]);
     imageFiles.forEach((f) => {
       const reader = new FileReader();
@@ -67,10 +75,8 @@ export function PublicUploadPage() {
     try {
       setUploading(true);
       setUploadProgress(null);
-      await publicUploadAPI.uploadPhotos(
-        uploadToken,
-        files,
-        (progress) => setUploadProgress(progress),
+      await publicUploadAPI.uploadPhotos(uploadToken, files, (progress) =>
+        setUploadProgress(progress),
       );
       setUploadCount(files.length);
       setUploaded(true);
@@ -79,7 +85,7 @@ export function PublicUploadPage() {
       setPreviews([]);
     } catch {
       setUploadProgress(null);
-      setError('Upload failed. Please try again.');
+      setError("Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -91,14 +97,25 @@ export function PublicUploadPage() {
   }, []);
 
   // Expiry info
-  const expiresAt = albumInfo?.expires_at ? new Date(albumInfo.expires_at) : null;
+  const expiresAt = albumInfo?.expires_at
+    ? new Date(albumInfo.expires_at)
+    : null;
   const now = new Date();
-  const hoursLeft = expiresAt ? Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60))) : 0;
+  const hoursLeft = expiresAt
+    ? Math.max(
+        0,
+        Math.floor((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60)),
+      )
+    : 0;
   const daysLeft = Math.floor(hoursLeft / 24);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bridge-dark flex items-center justify-center" role="status" aria-label="로딩 중">
+      <div
+        className="min-h-screen bg-bridge-dark flex items-center justify-center"
+        role="status"
+        aria-label="로딩 중"
+      >
         <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
       </div>
     );
@@ -115,8 +132,12 @@ export function PublicUploadPage() {
           <div className="w-16 h-16 rounded-2xl bg-red-500/15 flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-8 h-8 text-red-400" />
           </div>
-          <h1 className="text-xl font-bold text-foreground mb-2">Link Expired</h1>
-          <p className="text-sm text-slate-400">{error || 'This upload link is no longer valid.'}</p>
+          <h1 className="text-xl font-bold text-foreground mb-2">
+            Link Expired
+          </h1>
+          <p className="text-sm text-slate-400">
+            {error || "This upload link is no longer valid."}
+          </p>
         </motion.div>
       </div>
     );
@@ -133,9 +154,14 @@ export function PublicUploadPage() {
           <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 flex items-center justify-center mx-auto mb-4">
             <Check className="w-8 h-8 text-emerald-400" />
           </div>
-          <h1 className="text-xl font-bold text-foreground mb-2">Upload Complete!</h1>
+          <h1 className="text-xl font-bold text-foreground mb-2">
+            Upload Complete!
+          </h1>
           <p className="text-sm text-slate-400 mb-6">
-            {uploadCount} photo{uploadCount !== 1 ? 's' : ''} uploaded to <span className="text-foreground font-medium">{albumInfo.album_name}</span>
+            {uploadCount} photo{uploadCount !== 1 ? "s" : ""} uploaded to{" "}
+            <span className="text-foreground font-medium">
+              {albumInfo.album_name}
+            </span>
           </p>
           <button
             onClick={handleUploadMore}
@@ -156,7 +182,7 @@ export function PublicUploadPage() {
           {albumInfo.organization_logo_url ? (
             <img
               src={albumInfo.organization_logo_url}
-              alt={albumInfo.organization_name || '조직 로고'}
+              alt={albumInfo.organization_name || "조직 로고"}
               className="w-8 h-8 rounded-lg object-cover"
             />
           ) : (
@@ -180,7 +206,10 @@ export function PublicUploadPage() {
 
       {/* Upload Area */}
       <div className="max-w-2xl mx-auto px-4 py-8">
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           {/* Drop zone */}
           <div
             onDragOver={(e) => {
@@ -192,8 +221,8 @@ export function PublicUploadPage() {
             onClick={() => fileInputRef.current?.click()}
             className={`border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all ${
               dragOver
-                ? 'border-bridge-accent bg-bridge-accent/5'
-                : 'border-foreground/[0.12] hover:border-foreground/[0.2] hover:bg-foreground/[0.02]'
+                ? "border-bridge-accent bg-bridge-accent/5"
+                : "border-foreground/[0.12] hover:border-foreground/[0.2] hover:bg-foreground/[0.02]"
             }`}
           >
             <div className="w-12 h-12 rounded-2xl bg-bridge-accent/15 flex items-center justify-center mx-auto mb-4">
@@ -216,7 +245,7 @@ export function PublicUploadPage() {
             onChange={(e) => {
               if (e.target.files) {
                 addFiles(Array.from(e.target.files));
-                e.target.value = '';
+                e.target.value = "";
               }
             }}
           />
@@ -226,10 +255,13 @@ export function PublicUploadPage() {
             <div className="mt-6 space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                  {files.length} photo{files.length !== 1 ? 's' : ''} selected
+                  {files.length} photo{files.length !== 1 ? "s" : ""} selected
                 </span>
                 <button
-                  onClick={() => { setFiles([]); setPreviews([]); }}
+                  onClick={() => {
+                    setFiles([]);
+                    setPreviews([]);
+                  }}
                   className="text-xs text-slate-500 hover:text-foreground transition-colors"
                 >
                   Clear all
@@ -255,7 +287,7 @@ export function PublicUploadPage() {
                         e.stopPropagation();
                         removeFile(i);
                       }}
-                      className="absolute top-1 right-1 p-1 rounded-lg bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-black/60 text-white opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                     >
                       <X size={12} />
                     </button>
@@ -276,7 +308,7 @@ export function PublicUploadPage() {
                 ) : (
                   <>
                     <Upload size={16} />
-                    Upload {files.length} Photo{files.length !== 1 ? 's' : ''}
+                    Upload {files.length} Photo{files.length !== 1 ? "s" : ""}
                   </>
                 )}
               </button>
@@ -300,9 +332,12 @@ export function PublicUploadPage() {
                   <Loader2 className="w-5 h-5 animate-spin text-bridge-accent" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-foreground">Uploading...</p>
+                  <p className="text-sm font-bold text-foreground">
+                    Uploading...
+                  </p>
                   <p className="text-xs text-slate-500">
-                    {uploadProgress.uploadedFiles} / {uploadProgress.totalFiles} photos
+                    {uploadProgress.uploadedFiles} / {uploadProgress.totalFiles}{" "}
+                    photos
                   </p>
                 </div>
               </div>
@@ -311,12 +346,15 @@ export function PublicUploadPage() {
                 <motion.div
                   className="h-full bg-bridge-accent rounded-full"
                   initial={{ width: 0 }}
-                  animate={{ width: `${(uploadProgress.uploadedFiles / uploadProgress.totalFiles) * 100}%` }}
+                  animate={{
+                    width: `${(uploadProgress.uploadedFiles / uploadProgress.totalFiles) * 100}%`,
+                  }}
                   transition={{ duration: 0.3 }}
                 />
               </div>
               <p className="text-xs text-slate-600 text-center">
-                Batch {uploadProgress.currentBatch} / {uploadProgress.totalBatches}
+                Batch {uploadProgress.currentBatch} /{" "}
+                {uploadProgress.totalBatches}
               </p>
             </div>
           </motion.div>

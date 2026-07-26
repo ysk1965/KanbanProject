@@ -475,7 +475,7 @@ function OrgDetailPageContent() {
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => navigate("/boards")}
-              className="p-2 rounded-lg text-slate-400 hover:text-foreground hover:bg-bridge-surface-hover transition-colors shrink-0"
+              className="min-w-11 min-h-11 flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-foreground hover:bg-bridge-surface-hover transition-colors shrink-0"
             >
               <ArrowLeft size={18} />
             </button>
@@ -553,7 +553,7 @@ function OrgDetailPageContent() {
             {currentUser && (
               <button
                 onClick={() => setShowProfileModal(true)}
-                className="cursor-pointer hover:opacity-80 transition-opacity shrink-0"
+                className="min-w-11 min-h-11 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity shrink-0"
                 title={t("organization.profile.edit", "Edit Profile")}
               >
                 {currentUser.profile_image ? (

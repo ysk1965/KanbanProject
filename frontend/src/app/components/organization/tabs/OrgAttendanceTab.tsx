@@ -204,7 +204,7 @@ export function OrgAttendanceTab({
         <div className="flex items-center gap-2">
           <button
             onClick={goPrev}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+            className="min-w-11 min-h-11 flex items-center justify-center p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
           >
             <ChevronLeft size={18} />
           </button>
@@ -213,7 +213,7 @@ export function OrgAttendanceTab({
           </span>
           <button
             onClick={goNext}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+            className="min-w-11 min-h-11 flex items-center justify-center p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
           >
             <ChevronRight size={18} />
           </button>
@@ -334,81 +334,81 @@ export function OrgAttendanceTab({
           <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
             {/* Header */}
             <div className="overflow-x-auto">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 px-4 py-2.5 border-b border-foreground/[0.08] bg-foreground/[0.02] min-w-[500px]">
-              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                {t("organization.attendance.date", "Date")}
-              </span>
-              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                {t("organization.attendance.clockInTime", "Clock In")}
-              </span>
-              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                {t("organization.attendance.clockOutTime", "Clock Out")}
-              </span>
-              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                {t("organization.attendance.workHours", "Work Hours")}
-              </span>
-              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                {t("organization.attendance.status", "Status")}
-              </span>
-            </div>
-            {/* Rows */}
-            <div className="divide-y divide-foreground/[0.04]">
-              {records.map((record, index) => (
-                <motion.div
-                  key={record.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: index * 0.02 }}
-                  className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 px-4 py-2.5 items-center hover:bg-foreground/[0.02] transition-colors min-w-[500px]"
-                >
-                  <span className="text-sm text-foreground font-medium">
-                    {record.record_date}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {extractTime(record.clock_in)}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {record.is_auto_clocked_out ? (
-                      <span className="flex items-center gap-1">
-                        {extractTime(record.clock_out)}
-                        <span
-                          className="text-xs text-amber-500"
-                          title={t(
-                            "organization.attendance.autoClockOut",
-                            "Auto",
-                          )}
-                        >
-                          (A)
-                        </span>
-                      </span>
-                    ) : (
-                      extractTime(record.clock_out)
-                    )}
-                  </span>
-                  <span className="text-sm text-foreground">
-                    {formatMinutes(record.work_minutes, t)}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${STATUS_BADGE[record.status]}`}
-                    >
-                      {t(getStatusLabelKey(record.status), record.status)}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 px-4 py-2.5 border-b border-foreground/[0.08] bg-foreground/[0.02] min-w-[500px]">
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  {t("organization.attendance.date", "Date")}
+                </span>
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  {t("organization.attendance.clockInTime", "Clock In")}
+                </span>
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  {t("organization.attendance.clockOutTime", "Clock Out")}
+                </span>
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  {t("organization.attendance.workHours", "Work Hours")}
+                </span>
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  {t("organization.attendance.status", "Status")}
+                </span>
+              </div>
+              {/* Rows */}
+              <div className="divide-y divide-foreground/[0.04]">
+                {records.map((record, index) => (
+                  <motion.div
+                    key={record.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: index * 0.02 }}
+                    className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 px-4 py-2.5 items-center hover:bg-foreground/[0.02] transition-colors min-w-[500px]"
+                  >
+                    <span className="text-sm text-foreground font-medium">
+                      {record.record_date}
                     </span>
-                    {record.is_late && (
-                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
-                        <AlertTriangle size={10} />
-                        {t("organization.attendance.late", "Late")}
+                    <span className="text-sm text-muted-foreground">
+                      {extractTime(record.clock_in)}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {record.is_auto_clocked_out ? (
+                        <span className="flex items-center gap-1">
+                          {extractTime(record.clock_out)}
+                          <span
+                            className="text-xs text-amber-500"
+                            title={t(
+                              "organization.attendance.autoClockOut",
+                              "Auto",
+                            )}
+                          >
+                            (A)
+                          </span>
+                        </span>
+                      ) : (
+                        extractTime(record.clock_out)
+                      )}
+                    </span>
+                    <span className="text-sm text-foreground">
+                      {formatMinutes(record.work_minutes, t)}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${STATUS_BADGE[record.status]}`}
+                      >
+                        {t(getStatusLabelKey(record.status), record.status)}
                       </span>
-                    )}
-                    {record.leave_info && (
-                      <span className="text-xs text-muted-foreground">
-                        ({record.leave_info.policy_name})
-                      </span>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                      {record.is_late && (
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
+                          <AlertTriangle size={10} />
+                          {t("organization.attendance.late", "Late")}
+                        </span>
+                      )}
+                      {record.leave_info && (
+                        <span className="text-xs text-muted-foreground">
+                          ({record.leave_info.policy_name})
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -460,88 +460,91 @@ export function OrgAttendanceTab({
           ) : teamMembers.length === 0 ? (
             <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-8 text-center">
               <p className="text-sm text-muted-foreground">
-                {t("organization.attendance.noTeamData", "No team data for this month")}
+                {t(
+                  "organization.attendance.noTeamData",
+                  "No team data for this month",
+                )}
               </p>
             </div>
           ) : (
             <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
               <div className="overflow-x-auto">
-              {/* Header */}
-              <div className="grid grid-cols-7 gap-2 px-4 py-2.5 border-b border-foreground/[0.08] bg-foreground/[0.02] min-w-[700px]">
-                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {t("organization.attendance.name", "Name")}
-                </span>
-                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {t("organization.attendance.department", "Dept")}
-                </span>
-                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {t("organization.attendance.monthlyTotal", "This Month")}
-                </span>
-                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {t("organization.attendance.average", "Average")}
-                </span>
-                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {t("organization.attendance.late", "Late")}
-                </span>
-                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {t("organization.attendance.overtime", "Overtime")}
-                </span>
-                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {t("organization.attendance.present", "Present")} /{" "}
-                  {t("organization.attendance.onLeave", "Leave")} /{" "}
-                  {t("organization.attendance.absent", "Absent")}
-                </span>
-              </div>
-              {/* Rows */}
-              <div className="divide-y divide-foreground/[0.04]">
-                {teamMembers.map((member, index) => (
-                  <motion.div
-                    key={member.member_id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: index * 0.02 }}
-                    className="grid grid-cols-7 gap-2 px-4 py-2.5 items-center hover:bg-foreground/[0.02] transition-colors min-w-[700px]"
-                  >
-                    <span className="text-sm text-foreground font-medium truncate">
-                      {member.member_name}
-                    </span>
-                    <span className="text-xs text-muted-foreground truncate">
-                      {member.department_name || "-"}
-                    </span>
-                    <span className="text-sm text-foreground">
-                      {formatMinutes(member.total_work_minutes, t)}
-                    </span>
-                    <span className="text-sm text-foreground">
-                      {formatMinutes(member.avg_work_minutes_per_day, t)}
-                    </span>
-                    <span className="text-sm text-foreground">
-                      {member.late_count > 0 ? (
-                        <span className="text-amber-600 dark:text-amber-400 font-medium">
-                          {member.late_count}
+                {/* Header */}
+                <div className="grid grid-cols-7 gap-2 px-4 py-2.5 border-b border-foreground/[0.08] bg-foreground/[0.02] min-w-[700px]">
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    {t("organization.attendance.name", "Name")}
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    {t("organization.attendance.department", "Dept")}
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    {t("organization.attendance.monthlyTotal", "This Month")}
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    {t("organization.attendance.average", "Average")}
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    {t("organization.attendance.late", "Late")}
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    {t("organization.attendance.overtime", "Overtime")}
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    {t("organization.attendance.present", "Present")} /{" "}
+                    {t("organization.attendance.onLeave", "Leave")} /{" "}
+                    {t("organization.attendance.absent", "Absent")}
+                  </span>
+                </div>
+                {/* Rows */}
+                <div className="divide-y divide-foreground/[0.04]">
+                  {teamMembers.map((member, index) => (
+                    <motion.div
+                      key={member.member_id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: index * 0.02 }}
+                      className="grid grid-cols-7 gap-2 px-4 py-2.5 items-center hover:bg-foreground/[0.02] transition-colors min-w-[700px]"
+                    >
+                      <span className="text-sm text-foreground font-medium truncate">
+                        {member.member_name}
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {member.department_name || "-"}
+                      </span>
+                      <span className="text-sm text-foreground">
+                        {formatMinutes(member.total_work_minutes, t)}
+                      </span>
+                      <span className="text-sm text-foreground">
+                        {formatMinutes(member.avg_work_minutes_per_day, t)}
+                      </span>
+                      <span className="text-sm text-foreground">
+                        {member.late_count > 0 ? (
+                          <span className="text-amber-600 dark:text-amber-400 font-medium">
+                            {member.late_count}
+                          </span>
+                        ) : (
+                          "0"
+                        )}
+                      </span>
+                      <span className="text-sm text-foreground">
+                        {formatMinutes(member.overtime_minutes, t)}
+                      </span>
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                          {member.present_days}
                         </span>
-                      ) : (
-                        "0"
-                      )}
-                    </span>
-                    <span className="text-sm text-foreground">
-                      {formatMinutes(member.overtime_minutes, t)}
-                    </span>
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                        {member.present_days}
-                      </span>
-                      <span className="text-muted-foreground">/</span>
-                      <span className="text-blue-600 dark:text-blue-400 font-medium">
-                        {member.leave_days}
-                      </span>
-                      <span className="text-muted-foreground">/</span>
-                      <span className="text-red-600 dark:text-red-400 font-medium">
-                        {member.absent_days}
-                      </span>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+                        <span className="text-muted-foreground">/</span>
+                        <span className="text-blue-600 dark:text-blue-400 font-medium">
+                          {member.leave_days}
+                        </span>
+                        <span className="text-muted-foreground">/</span>
+                        <span className="text-red-600 dark:text-red-400 font-medium">
+                          {member.absent_days}
+                        </span>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
             </div>
           )}

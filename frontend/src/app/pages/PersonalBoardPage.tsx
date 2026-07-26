@@ -416,14 +416,14 @@ export function PersonalBoardPage() {
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-foreground/10"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="flex items-center justify-around px-1 pt-2 pb-1.5">
+        <div className="flex items-center justify-around px-1 pt-2 pb-1.5 overflow-x-hidden">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.key;
             return (
               <button
                 key={tab.key}
                 onClick={() => changeTab(tab.key)}
-                className="relative flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg"
+                className="relative flex flex-col items-center gap-0.5 min-w-[3rem] min-h-[44px] px-2 py-1 rounded-lg"
               >
                 {isActive && (
                   <motion.div
@@ -451,7 +451,7 @@ export function PersonalBoardPage() {
                   />
                 </motion.div>
                 <motion.span
-                  className={`text-xs font-medium transition-colors duration-200 ${isActive ? "text-bridge-secondary" : "text-slate-500"}`}
+                  className={`text-xs font-medium truncate max-w-full transition-colors duration-200 ${isActive ? "text-bridge-secondary" : "text-slate-500"}`}
                   animate={
                     isActive ? { opacity: 1, y: 0 } : { opacity: 0.7, y: 0 }
                   }

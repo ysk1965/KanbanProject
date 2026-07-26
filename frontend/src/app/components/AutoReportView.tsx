@@ -1193,7 +1193,11 @@ function FeatureProgressTabs({
    ══════════════════════════════════════════════════════════════════════ */
 
 /* ── 클러스터가 어떤 신호로 묶였는지 칩 ── */
-function ClusterSignalChips({ signals }: { signals: AutoReportClusterSignal[] }) {
+function ClusterSignalChips({
+  signals,
+}: {
+  signals: AutoReportClusterSignal[];
+}) {
   if (signals.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -1260,7 +1264,10 @@ function ClusterDetail({ cluster }: { cluster: AutoReportCluster }) {
           <h3 className="text-base font-bold text-foreground flex-1">
             {cluster.title}
           </h3>
-          <ConfidenceBadge confidence={cluster.confidence} kind={cluster.kind} />
+          <ConfidenceBadge
+            confidence={cluster.confidence}
+            kind={cluster.kind}
+          />
         </div>
         {cluster.summary && (
           <div
@@ -1352,8 +1359,7 @@ function ClusterTabs({ clusters }: { clusters: AutoReportCluster[] }) {
   }, [clusters]);
 
   const [active, setActive] = useState<string>(ordered[0]?.key ?? "");
-  const activeCluster =
-    ordered.find((c) => c.key === active) ?? ordered[0];
+  const activeCluster = ordered.find((c) => c.key === active) ?? ordered[0];
   if (!activeCluster) return null;
 
   const dotColor = (c: AutoReportCluster) => {
@@ -1496,7 +1502,9 @@ function MemberSlackRow({ msg }: { msg: AutoReportMemberSlackMessage }) {
 
 function MemberMediaThumb({ media }: { media: AutoReportAttachment }) {
   const isVideo = media.type === "video";
-  const href = isVideo ? (media.link ?? media.url ?? undefined) : (media.url ?? undefined);
+  const href = isVideo
+    ? (media.link ?? media.url ?? undefined)
+    : (media.url ?? undefined);
   return (
     <a
       href={href}
@@ -1520,7 +1528,10 @@ function MemberMediaThumb({ media }: { media: AutoReportAttachment }) {
       {isVideo && (
         <span className="absolute inset-0 flex items-center justify-center">
           <span className="flex items-center justify-center w-7 h-7 rounded-full bg-black/60">
-            <Play className="w-3.5 h-3.5 text-white translate-x-[1px]" fill="currentColor" />
+            <Play
+              className="w-3.5 h-3.5 text-white translate-x-[1px]"
+              fill="currentColor"
+            />
           </span>
         </span>
       )}
@@ -1591,7 +1602,9 @@ function MemberDetail({ member }: { member: AutoReportMember }) {
       {/* 슬랙 */}
       {slack.length > 0 && (
         <EvidenceSection
-          icon={<MessagesSquare className="w-3.5 h-3.5 text-bridge-secondary" />}
+          icon={
+            <MessagesSquare className="w-3.5 h-3.5 text-bridge-secondary" />
+          }
           label="슬랙"
           count={slack.length}
           countClass="bg-bridge-secondary/15 text-bridge-secondary"
@@ -1634,7 +1647,9 @@ function MemberDetail({ member }: { member: AutoReportMember }) {
                 <span className="shrink-0 w-4 h-4 rounded flex items-center justify-center border bg-emerald-500 border-emerald-500">
                   <Check className="w-2.5 h-2.5 text-white" strokeWidth={3.5} />
                 </span>
-                <span className="text-slate-400 line-through">{item.title}</span>
+                <span className="text-slate-400 line-through">
+                  {item.title}
+                </span>
                 {item.context && (
                   <span className="ml-auto shrink-0 text-xs text-slate-500 truncate max-w-[40%]">
                     {item.context}
@@ -1756,7 +1771,7 @@ function MetricStrip({ metrics }: { metrics: AutoReportMetric[] }) {
     n >= 4
       ? "grid-cols-2 sm:grid-cols-4"
       : n === 3
-        ? "grid-cols-3"
+        ? "grid-cols-1 sm:grid-cols-3"
         : n === 2
           ? "grid-cols-2"
           : "grid-cols-1";
@@ -1935,7 +1950,7 @@ export function AutoReportView({
         <div
           role="tablist"
           aria-label="보고서 섹션"
-          className="flex gap-1 p-1 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08]"
+          className="flex gap-1 p-1 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08] overflow-x-auto"
         >
           {tabs.map((t, index) => {
             const selected = t.key === activeTab;
@@ -2016,7 +2031,10 @@ export function AutoReportView({
               </h2>
               <ul className="flex flex-col gap-2">
                 {content.highlights.map((item, index) => (
-                  <li key={index} className="flex gap-2 text-sm text-foreground">
+                  <li
+                    key={index}
+                    className="flex gap-2 text-sm text-foreground"
+                  >
                     <span className="text-bridge-accent">•</span>
                     <span>{item}</span>
                   </li>

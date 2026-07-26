@@ -1403,6 +1403,11 @@ table:hover [data-table-handle],
   border-collapse: collapse;
   margin: 0.75rem 0;
   font-size: 0.9rem;
+  /* 모바일: 컬럼이 많은 표는 뷰포트를 밀어내지 않고 가로 스크롤되도록 */
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .note-view-render th,
 .shared-note-viewer th {
