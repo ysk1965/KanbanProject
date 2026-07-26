@@ -10,6 +10,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -36,21 +37,29 @@ public class ClaudeAIProvider implements AIProvider {
 
     @Override
     public AIResponse chatWithUsage(String systemPrompt, String userPrompt, String model, int maxTokens) {
+        return chatWithUsage(systemPrompt, userPrompt, model, maxTokens, null);
+    }
+
+    @Override
+    public AIResponse chatWithUsage(String systemPrompt, String userPrompt, String model, int maxTokens,
+                                    Double temperature) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
         }
 
         try {
-            Map<String, Object> requestBody = Map.of(
-                    "model", model,
-                    "max_tokens", maxTokens,
-                    "system", List.of(Map.of(
-                            "type", "text",
-                            "text", systemPrompt,
-                            "cache_control", Map.of("type", "ephemeral")
-                    )),
-                    "messages", List.of(Map.of("role", "user", "content", userPrompt))
-            );
+            Map<String, Object> requestBody = new LinkedHashMap<>();
+            requestBody.put("model", model);
+            requestBody.put("max_tokens", maxTokens);
+            if (temperature != null) {
+                requestBody.put("temperature", temperature);
+            }
+            requestBody.put("system", List.of(Map.of(
+                    "type", "text",
+                    "text", systemPrompt,
+                    "cache_control", Map.of("type", "ephemeral")
+            )));
+            requestBody.put("messages", List.of(Map.of("role", "user", "content", userPrompt)));
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);

@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -74,6 +73,12 @@ public class ReportAIService {
     @Value("${report.product-context-en:a game team building an auto-battler team-battle collection RPG}")
     private String productContextEn;
 
+    /**
+     * 보고서 계열 AI 호출의 temperature. 0으로 고정해 <b>재현성</b>을 확보한다 — 같은 수집 데이터를
+     * 재생성(미리보기·재발송)해도 헤드라인·리드·클러스터 소속(잔여 배치 포함)이 실행마다 흔들리지 않는다.
+     */
+    private static final double REPORT_TEMPERATURE = 0.0;
+
     private static final int MAX_TOKENS_TEAM = 4096;
     private static final int MAX_TOKENS_PERSONAL = 2048;
     private static final int MAX_TOKENS_STANDUP = 1024;
@@ -88,76 +93,17 @@ public class ReportAIService {
         this.objectMapper = objectMapper;
     }
 
-    private static final int MAX_TOKENS_CLASSIFY = 1024;
-
-    /**
-     * 담당자·키워드로 기능에 매핑되지 않은 잔여 커밋을 AI가 의미 기반으로 기능에 배정한다.
-     * 한/영 교차(예: 커밋 scope "guild" ↔ 기능명 "길드전")를 보완하는 용도.
-     *
-     * <p>시스템 호출이라 크레딧은 차감하지 않고 사용량 로그만 남긴다. 실패하면 빈 배열을 돌려
-     * 호출부가 기존(담당자·키워드) 결과를 그대로 쓰게 한다.
-     *
-     * @return commitLabels 길이의 배열. i번째 값은 커밋 i가 속한 기능 인덱스, 없으면 -1.
-     */
-    public int[] classifyCommits(List<String> featureLabels, List<String> commitLabels,
-                                 String language, String boardId) {
-        if (featureLabels == null || featureLabels.isEmpty()
-                || commitLabels == null || commitLabels.isEmpty()) {
-            return new int[0];
-        }
-
-        StringBuilder sb = new StringBuilder("FEATURES:\n");
-        for (int i = 0; i < featureLabels.size(); i++) {
-            sb.append(i).append(": ").append(featureLabels.get(i)).append('\n');
-        }
-        sb.append("\nCOMMITS:\n");
-        for (int i = 0; i < commitLabels.size(); i++) {
-            sb.append(i).append(": ").append(commitLabels.get(i)).append('\n');
-        }
-
-        String systemPrompt = """
-                You assign each git commit to the product feature it advances.
-
-                You receive a numbered FEATURES list and a numbered COMMITS list.
-                - Each FEATURE has a name, a description, and the concrete tasks it covers (after "tasks:").
-                - Each COMMIT has its message (subject, then the body after " — " when present), its author
-                  in [brackets], and the file paths it changed (after "files:").
-
-                For each commit, decide which single feature it most plausibly belongs to by asking
-                "what part of the product does this change touch?". The commit message (subject AND body)
-                and the changed file paths are the TWO STRONGEST signals — read them together: the message
-                says WHAT and WHY, the paths say WHERE. Trust them over the feature name alone.
-                - The body often names the exact feature/system reworked ("빅마우스 밸런스 재조정", "영수증 검증 로직")
-                  even when the subject is a terse "fix bug" or "wip".
-                - The file paths pin the area: a commit touching assets/bigmouse/** belongs to a "빅마우스" feature;
-                  art/story/** ↔ a "스토리 모드" feature.
-                When message and paths point the same way, that is a strong match. When only one is informative,
-                use it. Match meaning across languages and across code vs. art/asset work
-                (e.g. "guild"↔"길드", "receipt"↔"영수증").
-
-                If a commit could fit several features, pick the one whose tasks or file paths overlap most
-                specifically. Use -1 ONLY when the commit clearly belongs to NONE of the listed features
-                (infra, build, chore, or an unrelated area) — do NOT use -1 merely because the message is short.
-
-                Output ONLY a JSON array of integers whose length equals the number of commits;
-                the i-th value is the feature index for commit i, or -1. No prose, no code fences.
-                """;
-
-        String model = getStandupModel();
-        try {
-            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_CLASSIFY);
-            logAiUsage("REPORT_COMMIT_CLASSIFY", model, boardId, null, aiResult);
-            return parseAssignments(aiResult.content(), commitLabels.size(), featureLabels.size());
-        } catch (Exception e) {
-            log.warn("커밋 분류 AI 호출 실패: {}", e.getMessage());
-            return new int[0];
-        }
-    }
-
     private static final int MAX_TOKENS_CLUSTER_LABEL = 3072;
 
     /** 클러스터 한 개의 AI 라벨 — 사람이 읽을 제목과 그 기간 무엇이 만들어졌는지 요약. */
     public record ClusterLabel(String title, String summary) {
+    }
+
+    /**
+     * 잔여(미분류) 커밋 1건의 배치 결정.
+     * clusterIndex &ge; 0이면 기존 군집 index에 합류, &lt; 0이면 group 라벨로 잔여들끼리 새 군집.
+     */
+    public record ResiduePlacement(int commitIndex, int clusterIndex, String group) {
     }
 
     /**
@@ -205,7 +151,7 @@ public class ReportAIService {
 
         String model = getStandupModel();
         try {
-            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_CLUSTER_LABEL);
+            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_CLUSTER_LABEL, REPORT_TEMPERATURE);
             logAiUsage("REPORT_CLUSTER_LABEL", model, boardId, null, aiResult);
             return parseClusterLabels(aiResult.content(), clusterBriefs.size());
         } catch (Exception e) {
@@ -246,55 +192,99 @@ public class ReportAIService {
         }
     }
 
-    private static final int MAX_TOKENS_FEATURE_SUMMARY = 3072;
+    private static final int MAX_TOKENS_RESIDUE = 2048;
 
     /**
-     * 기능별 요약을 한 번의 호출로 생성한다. 각 기능의 근거(태스크·체크리스트·커밋·연관 문서)를 담은 라벨을
-     * 순서대로 받아, 기능마다 "그 기간에 실제로 무엇이 만들어졌는지"를 3~5문장으로 서술한 문자열 배열을 돌려준다.
+     * 규칙이 확신 있게 배치하지 못해 "기타"로 남긴 잔여 커밋을, 기존 군집에 합류시키거나 서로 묶어 새 군집으로
+     * 만들도록 AI에 <b>배치만</b> 위임한다. 소속을 처음부터 AI에 맡기는 게 아니라, 규칙이 <b>이미 약하다고 판정한</b>
+     * 잔여물에 대해서만 개입한다 — 확정 군집(scope/경로)·인프라는 이 입력에 넣지 않아 건드리지 않는다.
+     * 잔여물이 홀로 떠도는(고아) 것을 줄이는 게 목적이다.
      *
-     * <p>시스템 호출이라 크레딧은 차감하지 않고 사용량 로그만 남긴다. 실패하면 빈 목록을 돌려
-     * 호출부가 요약 없이(기존 description만으로) 진행하게 한다.
+     * <p>시스템 호출이라 크레딧은 차감하지 않고 사용량 로그만 남긴다. 실패하면 빈 목록을 돌려 호출부가
+     * 잔여물을 지금처럼 "기타"로 두게 한다.
      *
-     * @return featureBriefs 길이의 목록. i번째 값은 기능 i의 요약(없으면 빈 문자열). 실패 시 빈 목록.
+     * @param clusterLabels  기존 군집 라벨(제목 :: 대표 커밋). 인덱스가 {@code clusterIndex}와 일치.
+     * @param orphanSubjects 잔여 커밋 제목. 인덱스가 {@code commitIndex}와 일치.
+     * @return 잔여 커밋별 배치 결정. 실패·빈 입력 시 빈 목록.
      */
-    public List<String> summarizeFeatures(List<String> featureBriefs, String language, String boardId) {
-        if (featureBriefs == null || featureBriefs.isEmpty()) {
+    public List<ResiduePlacement> placeResidueCommits(List<String> clusterLabels, List<String> orphanSubjects,
+                                                      String language, String boardId) {
+        if (orphanSubjects == null || orphanSubjects.isEmpty()) {
             return List.of();
         }
         String langName = getLanguageName(language);
 
-        StringBuilder sb = new StringBuilder("FEATURES:\n");
-        for (int i = 0; i < featureBriefs.size(); i++) {
-            sb.append("=== FEATURE ").append(i).append(" ===\n")
-                    .append(featureBriefs.get(i)).append("\n\n");
+        StringBuilder sb = new StringBuilder("EXISTING CLUSTERS:\n");
+        if (clusterLabels == null || clusterLabels.isEmpty()) {
+            sb.append("(none)\n");
+        } else {
+            for (int i = 0; i < clusterLabels.size(); i++) {
+                sb.append("[").append(i).append("] ").append(clusterLabels.get(i)).append("\n");
+            }
+        }
+        sb.append("\nORPHAN COMMITS:\n");
+        for (int i = 0; i < orphanSubjects.size(); i++) {
+            sb.append("[").append(i).append("] ").append(orphanSubjects.get(i)).append("\n");
         }
 
         String systemPrompt = """
-                You summarize what each product feature actually got built during a reporting period.
-                You receive a numbered list of FEATURES; each has its NAME, DESCRIPTION, TASKS with their
-                checklist items ([x] done / [ ] not done), connected COMMITS, and related DOCS.
-
-                For each feature, write a summary of 3-5 sentences describing what was actually done in this
-                period: which concrete pieces of work advanced or completed, cross-referencing the checklist
-                items against the commit subjects and docs so the reader sees "what was built and how far it got."
-                Be specific and grounded — never invent work that the tasks/commits/docs don't show. If a feature
-                shows no concrete work advanced or completed in this period (e.g. only planned or not-started tasks
-                and no relevant commits or docs), output an EMPTY STRING "" for it — do NOT write filler such as
-                "saw little activity", "still in progress", "no related commits found", or restate the feature name.
-                A summary must earn its place by naming something that was actually built or finished.
-                Write every summary in %s.
-
-                Output ONLY a JSON array of strings whose length equals the number of features; the i-th string
-                is the summary for feature i. No prose, no code fences, no keys — just the array.
-                """.formatted(langName);
+                You reorganize leftover git commits for %s.
+                You are given EXISTING CLUSTERS (feature groups the system already formed) and ORPHAN COMMITS
+                that the system could not confidently place. For EACH orphan commit choose exactly one:
+                - Join an existing cluster — ONLY when the commit clearly belongs to that feature. Use its index.
+                - Otherwise group orphans that belong together under a short shared "group" label (2-4 words),
+                  so related leftovers form a NEW group instead of standing alone.
+                Decide ONLY from the commit subjects and cluster labels shown. Never invent features or work.
+                Prefer joining or grouping over leaving a commit by itself; use the group "기타" only when a commit
+                is genuinely unrelated to everything else.
+                Write group labels in %s. Output ONLY a JSON array; the i-th element corresponds to ORPHAN COMMIT i
+                and is {"commit": i, "cluster": <existing cluster index> or null, "group": <label> or null}.
+                When "cluster" is a number, "group" must be null. When "cluster" is null, "group" must be a label.
+                No prose, no code fences.
+                """.formatted(productContextEn, langName);
 
         String model = getStandupModel();
         try {
-            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_FEATURE_SUMMARY);
-            logAiUsage("REPORT_FEATURE_SUMMARY", model, boardId, null, aiResult);
-            return parseSummaries(aiResult.content(), featureBriefs.size());
+            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_RESIDUE, REPORT_TEMPERATURE);
+            logAiUsage("REPORT_RESIDUE_PLACE", model, boardId, null, aiResult);
+            return parseResiduePlacements(aiResult.content(), orphanSubjects.size());
         } catch (Exception e) {
-            log.warn("기능 요약 AI 호출 실패: {}", e.getMessage());
+            log.warn("잔여 커밋 배치 AI 호출 실패: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<ResiduePlacement> parseResiduePlacements(String raw, int count) {
+        if (raw == null) {
+            return List.of();
+        }
+        int start = raw.indexOf('[');
+        int end = raw.lastIndexOf(']');
+        if (start < 0 || end <= start) {
+            return List.of();
+        }
+        try {
+            JsonNode arr = objectMapper.readTree(raw.substring(start, end + 1));
+            if (!arr.isArray()) {
+                return List.of();
+            }
+            List<ResiduePlacement> result = new java.util.ArrayList<>();
+            for (JsonNode o : arr) {
+                if (o == null || !o.isObject()) {
+                    continue;
+                }
+                int commit = o.hasNonNull("commit") ? o.get("commit").asInt(-1) : -1;
+                if (commit < 0 || commit >= count) {
+                    continue;
+                }
+                Integer cluster = o.hasNonNull("cluster") && o.get("cluster").isInt() ? o.get("cluster").asInt() : null;
+                String group = o.hasNonNull("group") ? o.get("group").asText().trim() : null;
+                result.add(new ResiduePlacement(commit, cluster != null ? cluster : -1,
+                        group != null && !group.isBlank() ? group : null));
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("잔여 커밋 배치 응답 파싱 실패: {}", e.getMessage());
             return List.of();
         }
     }
@@ -350,7 +340,7 @@ public class ReportAIService {
 
         String model = getStandupModel();
         try {
-            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_OVERVIEW);
+            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_OVERVIEW, REPORT_TEMPERATURE);
             logAiUsage("REPORT_OVERVIEW", model, boardId, null, aiResult);
             String text = aiResult.content();
             return text != null && !text.isBlank() ? text.trim() : null;
@@ -358,47 +348,6 @@ public class ReportAIService {
             log.warn("보고서 리드 종합 AI 호출 실패: {}", e.getMessage());
             return null;
         }
-    }
-
-    private List<String> parseSummaries(String raw, int featureCount) {
-        if (raw == null) {
-            return List.of();
-        }
-        int start = raw.indexOf('[');
-        int end = raw.lastIndexOf(']');
-        if (start < 0 || end <= start) {
-            return List.of();
-        }
-        try {
-            String[] parsed = objectMapper.readValue(raw.substring(start, end + 1), String[].class);
-            List<String> result = new java.util.ArrayList<>(featureCount);
-            for (int i = 0; i < featureCount; i++) {
-                result.add(i < parsed.length && parsed[i] != null ? parsed[i] : "");
-            }
-            return result;
-        } catch (Exception e) {
-            log.warn("기능 요약 응답 파싱 실패: {}", e.getMessage());
-            return List.of();
-        }
-    }
-
-    private int[] parseAssignments(String raw, int commitCount, int featureCount) {
-        int[] result = new int[commitCount];
-        Arrays.fill(result, -1);
-        if (raw == null) return result;
-        int start = raw.indexOf('[');
-        int end = raw.lastIndexOf(']');
-        if (start < 0 || end <= start) return result;
-        try {
-            int[] parsed = objectMapper.readValue(raw.substring(start, end + 1), int[].class);
-            for (int i = 0; i < commitCount && i < parsed.length; i++) {
-                int fi = parsed[i];
-                result[i] = (fi >= 0 && fi < featureCount) ? fi : -1;
-            }
-        } catch (Exception e) {
-            log.warn("커밋 분류 응답 파싱 실패: {}", e.getMessage());
-        }
-        return result;
     }
 
     private String getTeamModel() {
@@ -431,7 +380,7 @@ public class ReportAIService {
         String model = reportType == ReportType.TEAM ? getTeamModel() : getPersonalModel();
 
         log.info("Generating {} report via AI provider (language: {})", reportType, language);
-        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, maxTokens);
+        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, maxTokens, REPORT_TEMPERATURE);
 
         logAiUsage(featureType, model, boardId, userId, aiResult);
         return aiResult.content();
@@ -455,7 +404,7 @@ public class ReportAIService {
 
         String model = getStandupModel();
         log.info("Generating standup summary via AI provider (language: {})", lang);
-        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, MAX_TOKENS_STANDUP);
+        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, MAX_TOKENS_STANDUP, REPORT_TEMPERATURE);
 
         logAiUsage("STANDUP", model, boardId, userId, aiResult);
         return aiResult.content();
@@ -484,28 +433,22 @@ public class ReportAIService {
         int maxTokens = weekly ? MAX_TOKENS_AUTO_WEEKLY : MAX_TOKENS_AUTO_DAILY;
 
         log.info("Generating {} auto report JSON (board: {}, language: {})", reportType, boardId, lang);
-        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, maxTokens);
+        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, maxTokens, REPORT_TEMPERATURE);
 
         logAiUsage(featureType, model, boardId, null, aiResult);
         return aiResult.content();
     }
 
     private String buildAutoReportSystemPrompt(boolean weekly, String lang) {
+        // 커밋-우선 개편: 서술(sections)·리스크(risks)는 스키마에서 제거했다. 기능별 서술은 클러스터 요약이
+        // 대체하고, 리스크는 노이즈만 컸다. AI#1은 headline·lede·highlights만 만든다(폐기될 필드 생성 토큰 절감).
         String schema = """
                 {
                   "headline": "한 줄 요약 (60자 이내)",
                   "lede": "1~2문장 리드(임시 — 기능 근거가 모이면 뒤 단계에서 종합 리드로 대체될 수 있으니 짧게)",
-                  "highlights": ["가장 중요한 것 (중요도 순, 최대 10개)", "...", "..."],
-                  "sections": [
-                    {"title": "섹션 제목", "body": "본문", "sources": ["GITHUB"]}
-                  ],
-                  "risks": ["확인이 필요한 것", "..."]
+                  "highlights": ["가장 중요한 것 (중요도 순, 최대 10개)", "...", "..."]
                 }
                 """;
-
-        String sectionRule = weekly
-                ? "sections는 반드시 4개: 성과 / 진행 중 / 리스크 / 다음 주 계획."
-                : "sections는 1~2개. 어제 무엇이 바뀌었는지에 집중한다.";
 
         String digestRuleKo = weekly
                 ? "- daily_digests는 이번 주에 이미 나간 일일 보고서 요약(날짜별 headline·highlights)입니다. "
@@ -533,37 +476,24 @@ public class ReportAIService {
                     </output>
 
                     <rules>
-                    - %s
                     %s
                     - 숫자를 지어내지 마세요. 지표는 시스템이 계산해 붙이므로 metrics 필드는 출력하지 않습니다.
                     - 커밋 메시지를 그대로 나열하지 마세요. 무엇이 왜 바뀌었는지로 묶어 서술하세요.
-                    - 커밋·태스크·논의를 게임 요소 단위로 묶어 "무엇이 만들어지고 있는지"를 서술하세요. 예:
+                    - highlights는 커밋·태스크·논의를 게임 요소 단위로 묶어 "무엇이 만들어지고 있는지"를 짚으세요. 예:
                       수집 유닛/캐릭터, 팀 조합·시너지, 전투·오토배틀 로직, 스킬·효과, 밸런스, 몹·보스, 맵·스테이지,
                       뽑기·수집 시스템, UI/UX, 인프라/툴. 커밋 type·scope(feat, fix, mob, map, skill 등)와 태스크·
-                      체크리스트를 근거로 그 작업이 어떤 콘텐츠의 어느 단계인지 연결하세요. 게임 용어는 근거가
-                      있을 때만 쓰고 지어내지 마세요.
+                      체크리스트를 근거로 삼되, 게임 용어는 근거가 있을 때만 쓰고 지어내지 마세요.
                     - 태스크의 checklist(항목 title·done)는 그 태스크가 실제로 어떤 하위 작업인지 보여줍니다.
-                      이걸 근거로 태스크의 실체를 파악하고, 커밋 subject를 해당 태스크·항목과 대조해
-                      "어떤 커밋이 어떤 태스크의 어떤 작업인지"를 연결해 서술하세요.
-                    - sources에는 그 섹션의 근거가 된 소스만 적으세요: GITHUB, KANBAN, CONFLUENCE, SLACK.
-                    - Confluence 원문은 요약하지 말고 인용이 필요하면 그대로 두세요. 사람이 쓴 문장과
-                      당신이 쓴 문장이 섞이면 보고서를 신뢰할 수 없게 됩니다.
-                    - Confluence가 changelogs(문서 변경 내역)로 오면 added(추가)·modified(수정)·deleted(삭제)를
-                      구분해 서술하세요. 어떤 문서가 새로 생기고 어떻게 바뀌었는지가 핵심이며, 삭제된 문서는 제목만 남습니다.
+                      커밋 subject를 해당 태스크·항목과 대조해 무엇이 진전됐는지 파악하세요.
                     - 슬랙 채널 대화는 커밋·태스크에 안 남는 결정·막힌 지점의 근거로만 쓰세요. 잡담을 옮기지 말고,
-                      결정된 것·논의 중인 것·차단된 것만 골라 SLACK을 근거로 서술하세요. 리액션(예: white_check_mark)은
-                      합의·완료 신호이고, 결론은 스레드 답글(replies)에 있는 경우가 많으니 함께 보세요.
+                      결정된 것·논의 중인 것만 골라 반영하세요. 리액션(예: white_check_mark)은 합의·완료 신호이고,
+                      결론은 스레드 답글(replies)에 있는 경우가 많으니 함께 보세요.
                     - members는 같은 사람의 여러 계정(이름·GitHub 로그인·슬랙 ID)을 잇는 명단입니다. 이걸로 한 사람의
                       활동을 소스 넘어 연결하세요 — GitHub author, 태스크 담당자, 슬랙 발화자가 같은 사람일 수 있습니다.
-                    - risks에는 정말 확인이 필요한 것만 적으세요: 막힌 지점(블로커), 팀의 결정이 필요한 사안,
-                      설정을 바꿨다 되돌리는 등 방향이 오락가락한 흔적. 이미지·GIF·스프라이트·맵 등 리소스/에셋이
-                      자주 바뀌거나 교체되는 것은 게임 개발의 정상 과정이므로 리스크로 적지 마세요. 적을 게 없으면
-                      risks는 비워 두세요.
-                    - 수집 실패한 소스가 있으면 risks 첫 줄에 그 사실을 적으세요.
                     - highlights는 중요도 순으로 최대 10개까지 쓰세요. 그날 정리할 게 적으면 적게 쓰고 억지로 채우지 마세요.
                       각 60자 이내로, 슬랙 메시지에 그대로 나갑니다.
                     </rules>
-                    """.formatted(productContext, schema, sectionRule, digestRuleKo);
+                    """.formatted(productContext, schema, digestRuleKo);
         }
         return """
                 You are the report writer for %s.
@@ -578,39 +508,26 @@ public class ReportAIService {
                 </output>
 
                 <rules>
-                - %s
                 %s
                 - Never invent numbers. Metrics are computed by the system, so do not output a metrics field.
                 - Do not list commit messages verbatim. Group them by what changed and why.
-                - Group commits, tasks, and discussion by game element and describe "what is being built." e.g.
-                  collectible units/characters, team comps & synergies, combat/auto-battle logic, skills/effects,
-                  balance, mobs/bosses, maps/stages, gacha/collection systems, UI/UX, infra/tooling. Use commit
-                  type/scope (feat, fix, mob, map, skill, ...) and tasks/checklists to connect each piece of work
-                  to which content it belongs to and what stage it's at. Use game terms only when the data
-                  supports them; don't invent.
-                - A task's checklist (item title · done) shows what the task actually consists of. Use it to
-                  understand what each task really is, and match commit subjects against the task and its items to
-                  connect "which commit belongs to which task and which piece of work."
-                - In sources, name only the sources that back that section: GITHUB, KANBAN, CONFLUENCE, SLACK.
-                - Keep Confluence prose as written when quoting. Mixing human-written and AI-written sentences
-                  makes the report untrustworthy.
-                - When Confluence arrives as changelogs, distinguish added / modified / deleted documents: what
-                  was newly created and how things changed is the point; deleted docs keep only their title.
+                - highlights should group commits, tasks, and discussion by game element and describe "what is being
+                  built." e.g. collectible units/characters, team comps & synergies, combat/auto-battle logic,
+                  skills/effects, balance, mobs/bosses, maps/stages, gacha/collection systems, UI/UX, infra/tooling.
+                  Ground them in commit type/scope (feat, fix, mob, map, skill, ...) and tasks/checklists; use game
+                  terms only when the data supports them; don't invent.
+                - A task's checklist (item title · done) shows what the task actually consists of. Match commit
+                  subjects against the task and its items to see what progressed.
                 - Use Slack channel discussion only as evidence for decisions or blockers that commits/tasks don't
-                  capture. Don't transcribe chatter; surface only what was decided, is being discussed, or is blocked,
-                  and cite SLACK. Reactions (e.g. white_check_mark) signal agreement/done, and the conclusion often
-                  lives in the thread replies, so read those too.
+                  capture. Don't transcribe chatter; surface only what was decided or is being discussed. Reactions
+                  (e.g. white_check_mark) signal agreement/done, and the conclusion often lives in the thread
+                  replies, so read those too.
                 - members is a roster linking one person's identities (name · GitHub login · Slack ID). Use it to
                   connect a person's activity across sources — the GitHub author, task assignee, and Slack speaker may
                   be the same person.
-                - Put in risks only what genuinely needs attention: blockers, decisions the team must make, or
-                  signs of flip-flopping direction (a setting changed then rolled back). Frequently changing or
-                  swapping resource/asset files (images, GIFs, sprites, maps) is a normal part of game
-                  development, so do NOT flag it as a risk. Leave risks empty when there is nothing to raise.
-                - If a source failed to collect, say so in the first risks entry.
                 - highlights: up to 10 items ordered by importance. Write fewer when there's little to report; don't pad. Each under 60 characters. They go straight into Slack.
                 </rules>
-                """.formatted(productContextEn, schema, sectionRule, digestRuleEn);
+                """.formatted(productContextEn, schema, digestRuleEn);
     }
 
     private void logAiUsage(String featureType, String model, String boardId, String userId, AIResponse aiResult) {

@@ -61,6 +61,17 @@ public class CommitClusterCollector {
             "packages", "package", "lib", "libs", "main", "java", "com", "kanban",
             "backend", "frontend", "client", "server", "unity", "project", "projects");
 
+    /**
+     * 키워드 군집 키·신호로 쓰기엔 무의미한 커밋 메시지 불용어(동사·타입 접두어). 이런 토큰으로 군집을
+     * 이름 지으면("추가", "wip") 의미가 없고, 서로 다른 작업이 같은 흔한 동사로 잘못 뭉친다.
+     */
+    private static final Set<String> KEYWORD_STOPWORDS = Set.of(
+            "추가", "수정", "변경", "삭제", "제거", "개선", "반영", "적용", "구현", "처리",
+            "작업", "정리", "보완", "설정", "생성", "업데이트", "리팩터", "리팩토링", "버그", "이슈",
+            "add", "fix", "update", "change", "remove", "delete", "refactor", "chore", "feat",
+            "wip", "misc", "bug", "issue", "merge", "revert", "test", "tests", "docs", "doc",
+            "style", "perf", "build", "init", "temp", "tmp", "and", "the", "for", "with");
+
     private final TaskRepository taskRepository;
     private final ChecklistItemRepository checklistItemRepository;
 
@@ -104,20 +115,31 @@ public class CommitClusterCollector {
             b.tokens.addAll(commitTokens(c));
         }
 
+        // 1.5) 2차 병합 — scope 군집과, 그 scope명을 경로/토큰에 담은 경로·키워드 군집을 합친다.
+        // (예: scope:battle ← path:battle/camera). 컨벤셔널 커밋을 일관되게 안 쓰는 저장소에서 한 기능이
+        // scope 군집과 경로 군집으로 쪼개지던 파편화를 없앤다.
+        mergeIntoScopes(buckets);
+
         // 2) 약한 군집(키워드 기반 소형)을 "기타"로 병합해 노이즈를 줄인다.
         List<Bucket> ranked = new ArrayList<>(buckets.values());
         ranked.sort(Comparator.comparingInt((Bucket b) -> b.commits.size()).reversed());
         Bucket misc = new Bucket("misc");
         List<Bucket> kept = new ArrayList<>();
+        int mergedToMisc = 0;
         for (Bucket b : ranked) {
             boolean weak = b.scopes.isEmpty() && b.pathKeys.isEmpty()
                     && b.commits.size() < WEAK_CLUSTER_MIN_COMMITS;
             if (weak || kept.size() >= MAX_CLUSTERS) {
                 misc.commits.addAll(b.commits);
                 misc.tokens.addAll(b.tokens);
+                mergedToMisc++;
             } else {
                 kept.add(b);
             }
+        }
+        // 조용한 절단 금지 — 몇 개 군집이 "기타"로 합쳐졌는지 남긴다.
+        if (mergedToMisc > 0) {
+            log.debug("클러스터 집계 board={}: 약하거나 상한 초과한 군집 {}개를 기타로 병합", boardId, mergedToMisc);
         }
 
         // 3) 태스크·체크리스트 후보를 한 번 로드해 키워드 부착에 재사용.
@@ -135,6 +157,59 @@ public class CommitClusterCollector {
             result.add(toInfraCluster(infra));
         }
         return new ClusterResult(result);
+    }
+
+    /**
+     * scope 군집을 앵커로, 그 scope명을 경로 세그먼트나 토큰에 담은 경로·키워드 군집을 합친다.
+     * scope 군집이 없으면 아무것도 하지 않는다(경로·키워드 군집끼리는 병합하지 않는다 — 근거가 약하다).
+     */
+    private void mergeIntoScopes(Map<String, Bucket> buckets) {
+        List<Bucket> scopeBuckets = new ArrayList<>();
+        for (Bucket b : buckets.values()) {
+            if (b.key.startsWith("scope:")) {
+                scopeBuckets.add(b);
+            }
+        }
+        if (scopeBuckets.isEmpty()) {
+            return;
+        }
+        List<String> removeKeys = new ArrayList<>();
+        for (Bucket b : buckets.values()) {
+            if (b.key.startsWith("scope:")) {
+                continue;
+            }
+            Bucket target = findScopeMatch(b, scopeBuckets);
+            if (target != null) {
+                target.commits.addAll(b.commits);
+                target.scopes.addAll(b.scopes);
+                target.pathKeys.addAll(b.pathKeys);
+                target.tokens.addAll(b.tokens);
+                removeKeys.add(b.key);
+            }
+        }
+        removeKeys.forEach(buckets::remove);
+    }
+
+    /** 경로·키워드 군집 b가 어떤 scope 군집에 속하는지 — scope명이 b의 경로 세그먼트나 토큰에 있으면 그 군집. */
+    private Bucket findScopeMatch(Bucket b, List<Bucket> scopeBuckets) {
+        for (Bucket s : scopeBuckets) {
+            for (String scope : s.scopes) {
+                if (scope.length() < 3) {
+                    continue; // 너무 짧은 scope는 우연 일치 위험이 커 앵커로 안 쓴다
+                }
+                for (String pk : b.pathKeys) {
+                    for (String seg : pk.split("/")) {
+                        if (seg.equals(scope)) {
+                            return s;
+                        }
+                    }
+                }
+                if (b.tokens.contains(scope)) {
+                    return s;
+                }
+            }
+        }
+        return null;
     }
 
     /** 인프라·빌드·잡무 커밋인지. 기능 군집에서 빼 "미분류·인프라"로 모은다. */
@@ -235,10 +310,12 @@ public class CommitClusterCollector {
         return out;
     }
 
-    /** 제목의 첫 유의미 도메인 토큰(길이 ≥ 3). scope·경로가 전혀 없을 때의 최후 키. 없으면 null. */
+    /** 제목의 첫 유의미 도메인 토큰(길이 ≥ 3, 불용어 제외). scope·경로가 전혀 없을 때의 최후 키. 없으면 null. */
     private String primaryKeyword(CommitInfo c) {
         for (String t : tokenize(c.subject())) {
-            if (t.length() >= 3) return t;
+            if (t.length() >= 3 && !KEYWORD_STOPWORDS.contains(t)) {
+                return t;
+            }
         }
         return null;
     }
@@ -274,10 +351,13 @@ public class CommitClusterCollector {
         for (String p : b.pathKeys) {
             signals.add(ReportContent.ClusterSignal.builder().kind("path").value(p).build());
         }
-        // 키워드 신호: 여러 커밋에 공통으로 나타난 상위 토큰 몇 개(신호가 빈약할 때 보강).
+        // 키워드 신호: 여러 커밋에 공통으로 나타난 상위 토큰 몇 개(신호가 빈약할 때 보강). 불용어는 제외.
         if (signals.isEmpty()) {
             int added = 0;
             for (String tok : b.tokens) {
+                if (tok.length() < 3 || KEYWORD_STOPWORDS.contains(tok)) {
+                    continue;
+                }
                 signals.add(ReportContent.ClusterSignal.builder().kind("keyword").value(tok).build());
                 if (++added >= 3) break;
             }
@@ -287,22 +367,22 @@ public class CommitClusterCollector {
         boolean strong = !b.scopes.isEmpty() || b.pathKeys.size() == 1;
         String confidence = strong ? "HIGH" : "MID";
 
-        // Confluence 부착 — 문서 제목 토큰이 군집 토큰과 겹치면.
+        // Confluence 부착 — 제목이 군집 토큰과 유의미하게 겹칠 때만(단일 흔한 단어 매칭 방지).
         List<ReportContent.ConfluenceDoc> confluenceDocs = new ArrayList<>();
         for (ConfluenceDocInfo d : docs) {
             if (confluenceDocs.size() >= MAX_CONFLUENCE_PER_CLUSTER) break;
-            if (overlaps(b.tokens, tokenize(d.title()))) {
+            if (attaches(b.tokens, tokenize(d.title()))) {
                 confluenceDocs.add(toConfluenceDoc(d));
             }
         }
 
-        // 태스크 부착 — 태스크/체크리스트 토큰이 군집 토큰과 겹치면.
+        // 태스크 부착 — 태스크/체크리스트 토큰이 군집 토큰과 유의미하게 겹칠 때만.
         List<ReportContent.FeatureTask> tasks = new ArrayList<>();
         int taskDone = 0;
         int taskTotal = 0;
         for (TaskTokens t : taskPool) {
             if (tasks.size() >= MAX_TASKS_PER_CLUSTER) break;
-            if (overlaps(b.tokens, t.tokens)) {
+            if (attaches(b.tokens, t.tokens)) {
                 tasks.add(t.dto);
                 taskDone += t.done;
                 taskTotal += t.total;
@@ -360,10 +440,26 @@ public class CommitClusterCollector {
         return b.key.startsWith("kw:") ? b.key.substring(3) : b.key;
     }
 
-    private boolean overlaps(Set<String> a, List<String> b) {
-        if (a.isEmpty() || b.isEmpty()) return false;
-        for (String t : b) {
-            if (a.contains(t)) return true;
+    /**
+     * 후보(태스크·문서) 토큰이 군집 토큰과 <b>유의미하게</b> 겹치는지. 단일 흔한 단어("버튼"·"수정") 하나로
+     * 무관한 태스크가 끌려오는 오부착을 막는다. 규칙: 특정성 높은 단일 토큰(길이 ≥ 5) 매칭이면 즉시 성립,
+     * 아니면 불용어·짧은 토큰을 뺀 유의미 겹침이 2개 이상이어야 성립.
+     */
+    private boolean attaches(Set<String> clusterTokens, List<String> candidate) {
+        if (clusterTokens.isEmpty() || candidate == null || candidate.isEmpty()) {
+            return false;
+        }
+        int significant = 0;
+        for (String t : candidate) {
+            if (t.length() < 3 || KEYWORD_STOPWORDS.contains(t) || !clusterTokens.contains(t)) {
+                continue;
+            }
+            if (t.length() >= 5) {
+                return true;
+            }
+            if (++significant >= 2) {
+                return true;
+            }
         }
         return false;
     }

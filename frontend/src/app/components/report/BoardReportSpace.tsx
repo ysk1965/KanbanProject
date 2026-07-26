@@ -29,7 +29,7 @@ interface BoardReportSpaceProps {
 }
 
 /**
- * 스토리지 '보고서' 탭의 최상위 화면. 갤러리를 기본으로 보여주고,
+ * 상단 '보고서' 탭의 최상위 화면. 갤러리를 기본으로 보여주고,
  * 데이터 소스·발송·보관 설정은 ⚙ 설정 모달로 분리한다.
  */
 export function BoardReportSpace({

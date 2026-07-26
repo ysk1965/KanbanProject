@@ -93,6 +93,26 @@ class CommitClusterCollectorTest {
     }
 
     @Test
+    void scope군집과_같은_이름의_경로군집은_2차_병합으로_합쳐진다() {
+        lenient().when(taskRepository.findByBoardIdOrderByPositionAsc("b")).thenReturn(List.of());
+
+        List<CommitInfo> commits = List.of(
+                // scope 있는 커밋 → scope:battle
+                commit("s1", "fix(battle): 카메라 클리핑 수정", null),
+                // scope 없이 Battle/ 경로만 → path:battle/camera, 병합되어야 함
+                commit("s2", "시야 유지 로직 추가",
+                        List.of("Assets/Scripts/Battle/Camera/Rig.cs")));
+
+        List<ReportContent.Cluster> clusters = collector.compute("b", commits, List.of()).clusters();
+
+        // 두 군집으로 쪼개지지 않고 scope:battle 하나로 합쳐진다(파편화 해소).
+        assertNull(find(clusters, "path:battle/camera"), "경로 군집이 scope로 흡수돼야 한다");
+        ReportContent.Cluster battle = find(clusters, "scope:battle");
+        assertNotNull(battle);
+        assertEquals(2, battle.getCommits().size());
+    }
+
+    @Test
     void scope가_없으면_파일경로로_묶고_일반루트는_건너뛴다() {
         lenient().when(taskRepository.findByBoardIdOrderByPositionAsc("b")).thenReturn(List.of());
 

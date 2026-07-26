@@ -40,6 +40,7 @@ type ViewMode =
   | "meeting"
   | "notes"
   | "storage"
+  | "report"
   | "statistics"
   | "ai_report"
   | "list"
@@ -149,6 +150,13 @@ const StorageView = lazyWithRetry(
       default: m.StorageView,
     })),
   "StorageView",
+);
+const BoardReportSpace = lazyWithRetry(
+  () =>
+    import("../components/report/BoardReportSpace").then((m) => ({
+      default: m.BoardReportSpace,
+    })),
+  "BoardReportSpace",
 );
 const MilestoneView = lazyWithRetry(
   () =>
@@ -318,6 +326,8 @@ export function KanbanBoardPage() {
           "milestone",
           "meeting",
           "notes",
+          "storage",
+          "report",
           "statistics",
           "ai_report",
           "list",
@@ -3224,11 +3234,25 @@ export function KanbanBoardPage() {
                 </div>
               }
             >
-              <StorageView
-                boardId={boardId || ""}
-                canManage={isAdminOrOwner}
-                boardName={board?.name}
-              />
+              <StorageView boardId={boardId || ""} />
+            </Suspense>
+          </main>
+        ) : viewMode === "report" ? (
+          <main className="flex-1 overflow-hidden">
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-64">
+                  <div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" />
+                </div>
+              }
+            >
+              <div className="h-full flex flex-col p-3 md:p-5">
+                <BoardReportSpace
+                  boardId={boardId || ""}
+                  canManage={isAdminOrOwner}
+                  boardName={board?.name}
+                />
+              </div>
             </Suspense>
           </main>
         ) : viewMode === "statistics" ? (

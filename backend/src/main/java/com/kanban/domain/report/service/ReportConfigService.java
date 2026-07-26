@@ -33,6 +33,10 @@ public class ReportConfigService {
     private final BoardRepository boardRepository;
     private final BoardReportConfigRepository configRepository;
     private final ReportDispatchService dispatchService;
+    private final ReportSlackPublisher slackPublisher;
+
+    /** 발송 테스트 결과. success=true면 channelId로 실제 게시에 성공해 자동 예약 잠금이 풀린다. */
+    public record TestDispatchResult(boolean success, String channelId, String channelName, String message) {}
 
     @Transactional
     public ReportConfigDto.Detail get(String boardId, String userId) {
@@ -99,7 +103,29 @@ public class ReportConfigService {
             throw new BusinessException(ErrorCode.AI_REPORT_GENERATION_FAILED,
                     result.message() != null ? result.message() : "보고서를 만들지 못했습니다");
         }
+        // 실제로 게시됐다면 그 채널을 "테스트 통과"로 기록한다 — 즉시 발송도 게이트를 만족시킨다.
+        if (result.isSent()) {
+            config.markTestPassed(slackPublisher.resolveChannelId(board, config));
+        }
         return result;
+    }
+
+    /**
+     * 자동 예약을 켜기 전 채널·권한을 검증하는 발송 테스트. 확인 메시지 한 장만 채널에 게시하고,
+     * 성공하면 그 채널을 "테스트 통과"로 기록한다. 발송 채널을 바꾸면 다시 테스트해야 예약을 켤 수 있다.
+     */
+    @Transactional
+    public TestDispatchResult sendTest(String boardId, String userId) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        BoardReportConfig config = getOrCreate(boardId);
+        Board board = config.getBoard();
+
+        ReportSlackPublisher.TestOutcome outcome = slackPublisher.sendTestMessage(board, config);
+        if (outcome.sent()) {
+            config.markTestPassed(outcome.channelId());
+        }
+        return new TestDispatchResult(outcome.sent(), outcome.channelId(),
+                outcome.channelName(), outcome.error());
     }
 
     /**

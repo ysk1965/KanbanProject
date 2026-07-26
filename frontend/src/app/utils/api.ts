@@ -9794,11 +9794,17 @@ export interface AutoReportMemberSlackMessage {
   media: AutoReportAttachment[] | null;
 }
 
-/** 구성원 뷰의 칸반 체크리스트 변경 한 건 */
+/** 구성원 뷰의 칸반 체크리스트 항목 한 건 (지연/진행중/오늘 완료) */
 export interface AutoReportMemberChecklistChange {
   title: string;
   done: boolean;
   context: string | null;
+  /** "late"(지연) · "progress"(진행중) · "done"(오늘 완료) */
+  status?: string | null;
+  /** 마감일 ISO(yyyy-MM-dd). 없으면 null */
+  due_date?: string | null;
+  /** 지연 경과 일수(오늘 − 마감). 지연이 아니면 0 */
+  overdue_days?: number;
 }
 
 /** 구성원 한 명의 활동 묶음 (커밋·슬랙·문서·체크리스트) */
@@ -9808,7 +9814,16 @@ export interface AutoReportMember {
   commit_count: number;
   slack_count: number;
   doc_count: number;
+  /** 표시되는 체크리스트 수 = 지연 + 진행중 + 오늘 완료 */
   checklist_count: number;
+  /** 지연(마감 지난 미완료) 건수 */
+  late_count?: number;
+  /** 진행중(곧 마감 예정) 건수 */
+  progress_count?: number;
+  /** 오늘(직전 24시간) 완료 건수 */
+  done_today_count?: number;
+  /** 오늘 이전에 완료해 숨긴 건수 */
+  hidden_completed_count?: number;
   activity: number;
   commits: AutoReportMemberCommit[] | null;
   slack_messages: AutoReportMemberSlackMessage[] | null;
@@ -9905,6 +9920,8 @@ export interface ReportConfig {
   source_slack_channel_id: string | null;
   source_slack_channel_name: string | null;
   share_link_enabled: boolean;
+  /** 마지막으로 발송 테스트에 성공한 채널 id — 현재 발송 채널과 같으면 자동 예약 잠금이 풀린다 */
+  test_passed_channel_id: string | null;
 }
 
 export const autoReportAPI = {
@@ -9983,6 +10000,19 @@ export const autoReportAPI = {
       report_id: string | null;
       message: string | null;
     }>(`/boards/${boardId}/reports/dispatch?type=${type}`, {});
+  },
+
+  /**
+   * 발송 테스트 — 자동 예약을 켜기 전 채널·권한만 검증한다. 보고서를 만들지 않고
+   * 확인 메시지 한 장을 발송 채널에 게시하며, 성공하면 그 채널이 "테스트 통과"로 기록된다.
+   */
+  sendTest: async (boardId: string) => {
+    return apiClient.post<{
+      success: boolean;
+      channel_id: string | null;
+      channel_name: string | null;
+      message: string | null;
+    }>(`/boards/${boardId}/reports/test-dispatch`, {});
   },
 };
 
