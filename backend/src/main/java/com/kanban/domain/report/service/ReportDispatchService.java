@@ -83,7 +83,7 @@ public class ReportDispatchService {
         ReportComposer.Composed composed;
         try {
             composed = composer.compose(board.getId(), reportType, config.getLanguage(), period,
-                    chunks, collected.digests());
+                    chunks, collected.digests(), config.getAiModel());
         } catch (Exception e) {
             log.error("보고서 작성 실패 board={} type={}: {}", board.getId(), reportType, e.getMessage(), e);
             persistence.recordLog(board, null, reportType, ReportDeliveryStatus.FAILED,
@@ -132,7 +132,7 @@ public class ReportDispatchService {
         }
 
         ReportComposer.Composed composed = composer.compose(board.getId(), reportType,
-                config.getLanguage(), period, chunks, collected.digests());
+                config.getLanguage(), period, chunks, collected.digests(), config.getAiModel());
         return new RenderResult(composed.content(), chunks, composed.mergedInput(), period, true);
     }
 

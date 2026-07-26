@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Cpu,
   ExternalLink,
   FileText,
   Github,
@@ -1578,6 +1579,42 @@ export function AutoReportSettingsPanel({
                 자동 예약을 켤 수 있습니다.
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── ③ AI 모델 — 잠금과 무관하게 항상 고를 수 있다 ── */}
+      {step === 3 && config && (
+        <div className="rounded-2xl border border-foreground/[0.08] overflow-hidden">
+          <div className="px-3 md:px-5 py-2 md:py-3 bg-foreground/[0.06] border-b border-foreground/[0.06] flex items-center gap-2">
+            <Cpu className="w-4 h-4 text-slate-400" />
+            <span className="text-xs md:text-sm font-bold text-foreground flex-1">
+              AI 모델
+            </span>
+            {saving && (
+              <Loader2 className="w-4 h-4 animate-spin text-bridge-accent" />
+            )}
+          </div>
+          <div className="bg-bridge-dark p-3 md:p-5 flex flex-col gap-3">
+            <p className="text-xs text-slate-500">
+              보고서 본문을 작성할 모델입니다. 상위 모델은 품질이 오르지만 비용도
+              함께 오릅니다. 지정하지 않으면 기본 모델을 사용합니다.
+            </p>
+            <select
+              value={config.ai_model ?? ""}
+              disabled={!canManage}
+              onChange={(e) => void patchConfig({ ai_model: e.target.value })}
+              className="w-full sm:max-w-xs bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all disabled:opacity-50"
+            >
+              <option value="">
+                기본{config.ai_model_default ? ` · ${config.ai_model_default}` : ""}
+              </option>
+              {(config.available_models ?? []).map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       )}

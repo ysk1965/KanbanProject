@@ -485,9 +485,13 @@ public class SlackChannelSource implements ReportSource {
         return title != null ? title : str(file.get("name"));
     }
 
-    /** 영상 포스터로 쓸 JPEG 썸네일 URL을 큰 것부터 고른다. 없으면 null(포스터 없이 링크만). */
+    /**
+     * 영상 포스터로 쓸 JPEG 썸네일 URL을 고른다. 없으면 null(포스터 없이 링크만).
+     * {@code thumb_video}가 슬랙 영상 파일의 전용 포스터 필드라 우선하고,
+     * 이미지형 썸네일({@code thumb_1024}…)은 그것이 없는 영상만 큰 것부터 대체한다.
+     */
     private String videoThumbUrl(Map<String, Object> file) {
-        for (String k : new String[]{"thumb_1024", "thumb_960", "thumb_800", "thumb_720", "thumb_480", "thumb_360"}) {
+        for (String k : new String[]{"thumb_video", "thumb_1024", "thumb_960", "thumb_800", "thumb_720", "thumb_480", "thumb_360"}) {
             String url = str(file.get(k));
             if (url != null) {
                 return url;

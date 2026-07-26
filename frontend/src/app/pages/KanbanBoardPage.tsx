@@ -18,8 +18,9 @@ import {
   Calendar,
   Users,
   LayoutGrid,
-  FileText,
+  FolderOpen,
   BarChart3,
+  FileBarChart2,
   Lock,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
@@ -38,8 +39,7 @@ type ViewMode =
   | "calendar"
   | "milestone"
   | "meeting"
-  | "notes"
-  | "storage"
+  | "library"
   | "report"
   | "statistics"
   | "ai_report"
@@ -137,19 +137,12 @@ const AIReportPanel = lazyWithRetry(
     })),
   "AIReportPanel",
 );
-const NotesView = lazyWithRetry(
+const LibraryView = lazyWithRetry(
   () =>
-    import("../components/notes/NotesView").then((m) => ({
-      default: m.NotesView,
+    import("../components/library/LibraryView").then((m) => ({
+      default: m.LibraryView,
     })),
-  "NotesView",
-);
-const StorageView = lazyWithRetry(
-  () =>
-    import("../components/storage/StorageView").then((m) => ({
-      default: m.StorageView,
-    })),
-  "StorageView",
+  "LibraryView",
 );
 const BoardReportSpace = lazyWithRetry(
   () =>
@@ -314,9 +307,16 @@ export function KanbanBoardPage() {
 
   // 뷰 모드 상태 (URL 파라미터 우선, 없으면 localStorage)
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    // 하위호환: weekly→gantt, notes·storage→library(자료실로 통합)
+    const remap = (value: string): string =>
+      value === "weekly"
+        ? "gantt"
+        : value === "notes" || value === "storage"
+          ? "library"
+          : value;
+
     if (urlView) {
-      // URL ?view=weekly → gantt 하위호환 매핑
-      const mappedView = urlView === "weekly" ? "gantt" : urlView;
+      const mappedView = remap(urlView);
       if (
         [
           "kanban",
@@ -325,8 +325,7 @@ export function KanbanBoardPage() {
           "calendar",
           "milestone",
           "meeting",
-          "notes",
-          "storage",
+          "library",
           "report",
           "statistics",
           "ai_report",
@@ -337,9 +336,8 @@ export function KanbanBoardPage() {
       }
     }
     const saved = localStorage.getItem(`viewMode_${boardId}`);
-    // 기존 weekly 값도 gantt로 변환
-    if (saved === "weekly") return "gantt";
-    return (saved as ViewMode) || "kanban";
+    if (!saved) return "kanban";
+    return remap(saved) as ViewMode;
   });
 
   // 보드 서브뷰 모드 기억 헬퍼 (칸반/간트/캘린더/리스트/마일스톤)
@@ -3210,7 +3208,7 @@ export function KanbanBoardPage() {
               navigateToDate={meetingNavigateDate}
             />
           </main>
-        ) : viewMode === "notes" ? (
+        ) : viewMode === "library" ? (
           <main className="flex-1 overflow-hidden">
             <Suspense
               fallback={
@@ -3219,22 +3217,10 @@ export function KanbanBoardPage() {
                 </div>
               }
             >
-              <NotesView
+              <LibraryView
                 boardId={boardId || ""}
                 currentUserRole={currentUserRole}
               />
-            </Suspense>
-          </main>
-        ) : viewMode === "storage" ? (
-          <main className="flex-1 overflow-hidden">
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center h-64">
-                  <div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" />
-                </div>
-              }
-            >
-              <StorageView boardId={boardId || ""} />
             </Suspense>
           </main>
         ) : viewMode === "report" ? (
@@ -3447,7 +3433,7 @@ export function KanbanBoardPage() {
           className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-foreground/10"
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         >
-          <div className="flex items-center justify-around px-1 pt-2 pb-1.5">
+          <div className="flex items-center gap-0.5 px-1 pt-2 pb-1.5">
             <MobileTabButton
               active={BOARD_SUB_MODES.includes(viewMode)}
               onClick={() => {
@@ -3472,10 +3458,16 @@ export function KanbanBoardPage() {
               icon="meeting"
             />
             <MobileTabButton
-              active={viewMode === "notes"}
-              onClick={() => handleViewModeChange("notes")}
-              label={t("kanban.viewNotes", "노트")}
-              icon="notes"
+              active={viewMode === "library"}
+              onClick={() => handleViewModeChange("library")}
+              label={t("kanban.viewLibrary", "자료실")}
+              icon="library"
+            />
+            <MobileTabButton
+              active={viewMode === "report"}
+              onClick={() => handleViewModeChange("report")}
+              label={t("kanban.viewReport", "보고서")}
+              icon="report"
             />
             {!isRestricted && (isAdminOrOwner || (!isViewer && !isTester)) && (
               <MobileTabButton
@@ -3848,21 +3840,22 @@ function MobileTabButton({
   active: boolean;
   onClick: () => void;
   label: string;
-  icon: "kanban" | "schedule" | "meeting" | "notes" | "ai";
+  icon: "kanban" | "schedule" | "meeting" | "library" | "report" | "ai";
   locked?: boolean;
 }) {
   const iconMap = {
     kanban: <LayoutGrid size={20} />,
     schedule: <Calendar size={20} />,
     meeting: <Users size={20} />,
-    notes: <FileText size={20} />,
+    library: <FolderOpen size={20} />,
+    report: <FileBarChart2 size={20} />,
     ai: <BarChart3 size={20} />,
   };
 
   return (
     <button
       onClick={onClick}
-      className={`relative flex flex-col items-center gap-0.5 min-w-[3rem] min-h-[44px] px-2 py-1 rounded-lg transition-colors ${
+      className={`relative flex flex-1 min-w-0 flex-col items-center gap-0.5 min-h-[44px] px-0.5 py-1 rounded-lg transition-colors ${
         active
           ? "text-bridge-secondary"
           : locked
@@ -3878,7 +3871,9 @@ function MobileTabButton({
         />
       )}
       {iconMap[icon]}
-      <span className="text-xs font-medium">{label}</span>
+      <span className="text-xs font-medium w-full text-center truncate">
+        {label}
+      </span>
       {locked && (
         <Lock size={8} className="absolute top-0.5 right-1 text-zinc-600" />
       )}

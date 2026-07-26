@@ -11,8 +11,7 @@ import {
   Lock,
   BarChart3,
   MessageSquare,
-  FileText,
-  HardDrive,
+  FolderOpen,
   FileBarChart2,
   Building2,
   Keyboard,
@@ -50,8 +49,7 @@ type ViewMode =
   | "calendar"
   | "milestone"
   | "meeting"
-  | "notes"
-  | "storage"
+  | "library"
   | "report"
   | "statistics"
   | "ai_report"
@@ -203,8 +201,7 @@ export function KanbanBoardHeader({
       { key: "schedule", action: () => onViewModeChange("schedule") },
       { key: "meeting", action: () => onViewModeChange("meeting") },
     ];
-    tabs.push({ key: "notes", action: () => onViewModeChange("notes") });
-    tabs.push({ key: "storage", action: () => onViewModeChange("storage") });
+    tabs.push({ key: "library", action: () => onViewModeChange("library") });
     tabs.push({ key: "report", action: () => onViewModeChange("report") });
     if (!isRestricted && (isAdminOrOwner || (!isViewer && !isTester))) {
       tabs.push({
@@ -237,9 +234,8 @@ export function KanbanBoardHeader({
     if (BOARD_SUB_MODES.includes(viewMode)) return 0;
     if (viewMode === "schedule") return 1;
     if (viewMode === "meeting") return 2;
-    if (viewMode === "notes") return 3;
-    if (viewMode === "storage") return 4;
-    if (viewMode === "report") return 5;
+    if (viewMode === "library") return 3;
+    if (viewMode === "report") return 4;
     if (viewMode === "statistics" || viewMode === "ai_report") {
       const tabs = getAvailableTabs();
       return tabs.findIndex((t) => t.key === "ai");
@@ -423,30 +419,16 @@ export function KanbanBoardHeader({
             </button>
 
             <button
-              onClick={() => onViewModeChange("notes")}
+              onClick={() => onViewModeChange("library")}
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                viewMode === "notes"
+                viewMode === "library"
                   ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
                   : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
               }`}
             >
-              <FileText size={14} />
+              <FolderOpen size={14} />
               <span className="hidden md:inline">
-                {t("kanban.viewNotes", "노트")}
-              </span>
-            </button>
-
-            <button
-              onClick={() => onViewModeChange("storage")}
-              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                viewMode === "storage"
-                  ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-                  : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
-              }`}
-            >
-              <HardDrive size={14} />
-              <span className="hidden md:inline">
-                {t("kanban.viewStorage", "스토리지")}
+                {t("kanban.viewLibrary", "자료실")}
               </span>
             </button>
 

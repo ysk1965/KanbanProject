@@ -12,6 +12,9 @@ import java.time.ZonedDateTime;
 
 public class ReportConfigDto {
 
+    /** 화면 드롭다운에 그릴 선택 가능한 모델 한 개. */
+    public record ModelOption(String id, String label) {}
+
     /**
      * 보드 설정 화면이 주고받는 형태.
      *
@@ -38,6 +41,13 @@ public class ReportConfigDto {
         private String language;
         private String slackChannelId;
         private String slackChannelName;
+
+        /** 선택된 리포트 AI 모델 id. null이면 기본(서버 티어 설정값) 사용. */
+        private String aiModel;
+        /** aiModel이 null일 때 실제로 쓰이는 기본 모델 id — "기본 (…)" 표시용. 서비스가 채운다. */
+        private String aiModelDefault;
+        /** 활성 프로바이더에서 고를 수 있는 모델 목록. 서비스가 채운다. */
+        private java.util.List<ModelOption> availableModels;
 
         private boolean sourceGithubEnabled;
         private boolean sourceKanbanEnabled;
@@ -68,6 +78,7 @@ public class ReportConfigDto {
                     .weeklyDayOfWeek(weekly.getDayOfWeek().getValue())
                     .timezone(config.getTimezone())
                     .language(config.getLanguage())
+                    .aiModel(config.getAiModel())
                     .slackChannelId(config.getSlackChannelId())
                     .slackChannelName(config.getSlackChannelName())
                     .sourceGithubEnabled(Boolean.TRUE.equals(config.getSourceGithubEnabled()))
@@ -113,6 +124,8 @@ public class ReportConfigDto {
         private String language;
         private String slackChannelId;
         private String slackChannelName;
+        /** 리포트 AI 모델 id. null=유지, 빈 문자열=기본으로 초기화, 값=지정(활성 프로바이더 목록에 있어야 함). */
+        private String aiModel;
 
         private Boolean sourceGithubEnabled;
         private Boolean sourceKanbanEnabled;
