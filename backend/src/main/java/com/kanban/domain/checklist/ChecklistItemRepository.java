@@ -319,4 +319,18 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
             @Param("boardId") String boardId,
             @Param("startDateTime") LocalDateTime startDateTime,
             @Param("endDateTime") LocalDateTime endDateTime);
+
+    /**
+     * 보드 내 <b>미완료</b> 체크리스트 중 마감일(due_date)이 지정된 항목을 담당자와 함께 조회 — 팀 주간 리포트 담당자 뷰용.
+     * 지연(마감 지남)·진행중(곧 마감) 버킷팅은 서비스가 due_date를 오늘과 비교해 판정한다.
+     */
+    @Query("SELECT ci FROM ChecklistItem ci " +
+           "JOIN FETCH ci.task t " +
+           "LEFT JOIN FETCH ci.assignee a " +
+           "WHERE t.board.id = :boardId " +
+           "AND ci.isCompleted = false " +
+           "AND ci.dueDate IS NOT NULL " +
+           "AND ci.assignee IS NOT NULL " +
+           "ORDER BY a.id ASC, ci.dueDate ASC")
+    List<ChecklistItem> findIncompleteWithDueByBoardId(@Param("boardId") String boardId);
 }

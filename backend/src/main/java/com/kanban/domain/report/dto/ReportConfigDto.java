@@ -47,6 +47,8 @@ public class ReportConfigDto {
         private String sourceSlackChannelId;
         private String sourceSlackChannelName;
         private boolean shareLinkEnabled;
+        /** 마지막으로 발송 테스트에 성공한 채널 id — 현재 발송 채널과 같으면 자동 예약 잠금이 풀린다. */
+        private String testPassedChannelId;
 
         public static Detail from(BoardReportConfig config) {
             ZoneId zone = ZoneId.of(config.getTimezone());
@@ -75,6 +77,7 @@ public class ReportConfigDto {
                     .sourceSlackChannelId(config.getSourceSlackChannelId())
                     .sourceSlackChannelName(config.getSourceSlackChannelName())
                     .shareLinkEnabled(Boolean.TRUE.equals(config.getShareLinkEnabled()))
+                    .testPassedChannelId(config.getTestPassedChannelId())
                     .build();
         }
 

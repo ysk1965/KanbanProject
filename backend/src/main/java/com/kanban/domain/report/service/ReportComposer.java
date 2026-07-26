@@ -66,6 +66,9 @@ public class ReportComposer {
         // 둘 다 AI가 아니라 규칙으로 정한다 — 소속 결정을 AI에 맡기면 기존 미스매칭이 재발한다.
         List<BoardProgressCollector.CommitInfo> commits = parseCommits(chunks);
         List<ReportContent.Cluster> clusters = computeClusters(boardId, commits, chunks);
+        // 규칙이 "기타"로 남긴 잔여 커밋만 AI가 재배치한다(합류 또는 잔여들끼리 새 군집). 확정 군집은 안 건드린다.
+        // members가 커밋의 소속 클러스터 태그를 쓰므로 반드시 집계 전에 재배치를 끝낸다.
+        clusters = placeResidueCommits(clusters, language, boardId);
         List<ReportContent.Member> members = computeMembers(boardId, period, commits, clusters, chunks);
 
         String raw;
@@ -106,6 +109,148 @@ public class ReportComposer {
             log.warn("커밋 클러스터 집계 실패 board={}: {}", boardId, e.getMessage());
             return List.of();
         }
+    }
+
+    /** AI 잔여 배치에 넘길 잔여 커밋 상한 — 토큰을 묶는다. 초과분은 "기타"에 그대로 남긴다. */
+    private static final int MAX_RESIDUE_COMMITS = 40;
+
+    /**
+     * AI 잔여 배치를 <b>호출할 최소 잔여 개수</b>. 이 미만이면 커밋 1~2건 배치하려 통째 AI 호출을 하는 게
+     * 비용 대비 무의미하고, 작은 "기타" 군집은 그대로 두는 편이 낫다. 잔여가 이 값 이상일 때만 개입한다.
+     */
+    private static final int MIN_RESIDUE_COMMITS = 3;
+
+    /**
+     * 규칙이 "기타(misc)" 군집으로 남긴 잔여 커밋을 AI가 재배치한다: 확신 있게 기존 기능 군집에 합류시키거나,
+     * 서로 묶어 새 군집으로 만든다. 확정 군집(scope/경로)과 인프라 군집은 입력에서 빼 <b>건드리지 않는다</b> —
+     * 규칙이 이미 약하다고 판정한 잔여물에만 개입해 고아를 줄인다. AI가 옮긴 커밋은 {@code estimated=true}로,
+     * 새 군집은 {@code signals}에 {@code ai} 신호로 근거를 남겨 사람이 검증할 수 있게 한다.
+     *
+     * <p>AI 호출이라 DB 트랜잭션 밖(compose)에서 부른다. 잔여 없음·AI 실패 시 입력을 그대로 돌려준다(현행 유지).
+     */
+    private List<ReportContent.Cluster> placeResidueCommits(List<ReportContent.Cluster> clusters,
+                                                            String language, String boardId) {
+        try {
+            if (clusters == null || clusters.size() < 2) {
+                return clusters;
+            }
+            ReportContent.Cluster misc = null;
+            for (ReportContent.Cluster c : clusters) {
+                if ("misc".equals(c.getKey())) {
+                    misc = c;
+                    break;
+                }
+            }
+            if (misc == null || misc.getCommits() == null || misc.getCommits().size() < MIN_RESIDUE_COMMITS) {
+                return clusters; // 잔여가 없거나 너무 적으면 AI 호출 없이 "기타"로 둔다
+            }
+
+            // 배치 대상 = 기존 기능 군집(인프라·기타 제외). 이 목록의 인덱스가 AI의 clusterIndex와 일치한다.
+            List<ReportContent.Cluster> targets = new ArrayList<>();
+            for (ReportContent.Cluster c : clusters) {
+                if (!"infra".equals(c.getKind()) && !"misc".equals(c.getKey())) {
+                    targets.add(c);
+                }
+            }
+
+            List<ReportContent.FeatureCommit> all = misc.getCommits();
+            List<ReportContent.FeatureCommit> orphans = all.size() > MAX_RESIDUE_COMMITS
+                    ? new ArrayList<>(all.subList(0, MAX_RESIDUE_COMMITS)) : all;
+            List<String> clusterLabels = targets.stream().map(this::clusterLabelLine).toList();
+            List<String> orphanSubjects = orphans.stream()
+                    .map(fc -> fc.getSubject() != null ? fc.getSubject() : "").toList();
+
+            List<ReportAIService.ResiduePlacement> placements =
+                    reportAIService.placeResidueCommits(clusterLabels, orphanSubjects, language, boardId);
+            if (placements.isEmpty()) {
+                return clusters; // 폴백: 잔여물을 기타로 그대로 둔다
+            }
+
+            Set<Integer> handled = new HashSet<>();
+            Map<String, List<ReportContent.FeatureCommit>> newGroups = new LinkedHashMap<>();
+            for (ReportAIService.ResiduePlacement p : placements) {
+                int i = p.commitIndex();
+                if (i < 0 || i >= orphans.size() || handled.contains(i)) {
+                    continue;
+                }
+                ReportContent.FeatureCommit fc = orphans.get(i);
+                if (p.clusterIndex() >= 0 && p.clusterIndex() < targets.size()) {
+                    fc.setEstimated(true); // 규칙 매치가 아니라 AI 추정 배치임을 표시
+                    targets.get(p.clusterIndex()).getCommits().add(fc);
+                    handled.add(i);
+                } else if (p.group() != null && !p.group().isBlank()) {
+                    fc.setEstimated(true);
+                    newGroups.computeIfAbsent(p.group().trim(), k -> new ArrayList<>()).add(fc);
+                    handled.add(i);
+                }
+            }
+
+            // 미처리 잔여 + 상한 초과분은 기타에 남긴다.
+            List<ReportContent.FeatureCommit> leftover = new ArrayList<>();
+            for (int i = 0; i < all.size(); i++) {
+                if (i >= orphans.size() || !handled.contains(i)) {
+                    leftover.add(all.get(i));
+                }
+            }
+
+            // 재조립: 기능 군집(합류분 반영) → 새 AI 군집 → 남은 기타 → 인프라(맨 뒤).
+            List<ReportContent.Cluster> result = new ArrayList<>(targets);
+            int n = 0;
+            for (Map.Entry<String, List<ReportContent.FeatureCommit>> e : newGroups.entrySet()) {
+                result.add(newAiCluster("ai:" + (n++), e.getKey(), e.getValue()));
+            }
+            if (!leftover.isEmpty()) {
+                misc.setCommits(leftover);
+                result.add(misc);
+            }
+            for (ReportContent.Cluster c : clusters) {
+                if ("infra".equals(c.getKind())) {
+                    result.add(c);
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("잔여 커밋 AI 재배치 실패 — 기타 유지 board={}: {}", boardId, e.getMessage());
+            return clusters;
+        }
+    }
+
+    /** 잔여 배치 프롬프트에 넣을 기존 군집 한 줄 라벨: "제목 :: 대표 커밋 | 대표 커밋". */
+    private String clusterLabelLine(ReportContent.Cluster c) {
+        StringBuilder sb = new StringBuilder(c.getTitle() != null ? c.getTitle() : c.getKey());
+        if (c.getCommits() != null && !c.getCommits().isEmpty()) {
+            List<String> subs = new ArrayList<>();
+            for (ReportContent.FeatureCommit fc : c.getCommits()) {
+                if (fc.getSubject() != null) {
+                    subs.add(fc.getSubject());
+                }
+                if (subs.size() >= 3) {
+                    break;
+                }
+            }
+            if (!subs.isEmpty()) {
+                sb.append(" :: ").append(String.join(" | ", subs));
+            }
+        }
+        return sb.toString();
+    }
+
+    /** AI가 잔여물을 묶어 만든 새 군집. 규칙 신호가 없으므로 ai 신호로 근거를 남기고 신뢰도는 MID. */
+    private ReportContent.Cluster newAiCluster(String key, String label,
+                                               List<ReportContent.FeatureCommit> commits) {
+        return ReportContent.Cluster.builder()
+                .key(key)
+                .title(label)
+                .summary(null)
+                .confidence("MID")
+                .kind(null)
+                .signals(List.of(ReportContent.ClusterSignal.builder().kind("ai").value(label).build()))
+                .commits(commits)
+                .confluenceDocs(List.of())
+                .tasks(List.of())
+                .taskDone(0)
+                .taskTotal(0)
+                .build();
     }
 
     /** 구성원별 활동을 집계한다. 각 커밋에 소속 클러스터 태그를 달아 사람↔기능을 잇는다. 실패 시 빈 목록. */

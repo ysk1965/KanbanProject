@@ -73,6 +73,12 @@ public class ReportAIService {
     @Value("${report.product-context-en:a game team building an auto-battler team-battle collection RPG}")
     private String productContextEn;
 
+    /**
+     * 보고서 계열 AI 호출의 temperature. 0으로 고정해 <b>재현성</b>을 확보한다 — 같은 수집 데이터를
+     * 재생성(미리보기·재발송)해도 헤드라인·리드·클러스터 소속(잔여 배치 포함)이 실행마다 흔들리지 않는다.
+     */
+    private static final double REPORT_TEMPERATURE = 0.0;
+
     private static final int MAX_TOKENS_TEAM = 4096;
     private static final int MAX_TOKENS_PERSONAL = 2048;
     private static final int MAX_TOKENS_STANDUP = 1024;
@@ -91,6 +97,13 @@ public class ReportAIService {
 
     /** 클러스터 한 개의 AI 라벨 — 사람이 읽을 제목과 그 기간 무엇이 만들어졌는지 요약. */
     public record ClusterLabel(String title, String summary) {
+    }
+
+    /**
+     * 잔여(미분류) 커밋 1건의 배치 결정.
+     * clusterIndex &ge; 0이면 기존 군집 index에 합류, &lt; 0이면 group 라벨로 잔여들끼리 새 군집.
+     */
+    public record ResiduePlacement(int commitIndex, int clusterIndex, String group) {
     }
 
     /**
@@ -138,7 +151,7 @@ public class ReportAIService {
 
         String model = getStandupModel();
         try {
-            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_CLUSTER_LABEL);
+            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_CLUSTER_LABEL, REPORT_TEMPERATURE);
             logAiUsage("REPORT_CLUSTER_LABEL", model, boardId, null, aiResult);
             return parseClusterLabels(aiResult.content(), clusterBriefs.size());
         } catch (Exception e) {
@@ -175,6 +188,103 @@ public class ReportAIService {
             return result;
         } catch (Exception e) {
             log.warn("클러스터 라벨 응답 파싱 실패: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private static final int MAX_TOKENS_RESIDUE = 2048;
+
+    /**
+     * 규칙이 확신 있게 배치하지 못해 "기타"로 남긴 잔여 커밋을, 기존 군집에 합류시키거나 서로 묶어 새 군집으로
+     * 만들도록 AI에 <b>배치만</b> 위임한다. 소속을 처음부터 AI에 맡기는 게 아니라, 규칙이 <b>이미 약하다고 판정한</b>
+     * 잔여물에 대해서만 개입한다 — 확정 군집(scope/경로)·인프라는 이 입력에 넣지 않아 건드리지 않는다.
+     * 잔여물이 홀로 떠도는(고아) 것을 줄이는 게 목적이다.
+     *
+     * <p>시스템 호출이라 크레딧은 차감하지 않고 사용량 로그만 남긴다. 실패하면 빈 목록을 돌려 호출부가
+     * 잔여물을 지금처럼 "기타"로 두게 한다.
+     *
+     * @param clusterLabels  기존 군집 라벨(제목 :: 대표 커밋). 인덱스가 {@code clusterIndex}와 일치.
+     * @param orphanSubjects 잔여 커밋 제목. 인덱스가 {@code commitIndex}와 일치.
+     * @return 잔여 커밋별 배치 결정. 실패·빈 입력 시 빈 목록.
+     */
+    public List<ResiduePlacement> placeResidueCommits(List<String> clusterLabels, List<String> orphanSubjects,
+                                                      String language, String boardId) {
+        if (orphanSubjects == null || orphanSubjects.isEmpty()) {
+            return List.of();
+        }
+        String langName = getLanguageName(language);
+
+        StringBuilder sb = new StringBuilder("EXISTING CLUSTERS:\n");
+        if (clusterLabels == null || clusterLabels.isEmpty()) {
+            sb.append("(none)\n");
+        } else {
+            for (int i = 0; i < clusterLabels.size(); i++) {
+                sb.append("[").append(i).append("] ").append(clusterLabels.get(i)).append("\n");
+            }
+        }
+        sb.append("\nORPHAN COMMITS:\n");
+        for (int i = 0; i < orphanSubjects.size(); i++) {
+            sb.append("[").append(i).append("] ").append(orphanSubjects.get(i)).append("\n");
+        }
+
+        String systemPrompt = """
+                You reorganize leftover git commits for %s.
+                You are given EXISTING CLUSTERS (feature groups the system already formed) and ORPHAN COMMITS
+                that the system could not confidently place. For EACH orphan commit choose exactly one:
+                - Join an existing cluster — ONLY when the commit clearly belongs to that feature. Use its index.
+                - Otherwise group orphans that belong together under a short shared "group" label (2-4 words),
+                  so related leftovers form a NEW group instead of standing alone.
+                Decide ONLY from the commit subjects and cluster labels shown. Never invent features or work.
+                Prefer joining or grouping over leaving a commit by itself; use the group "기타" only when a commit
+                is genuinely unrelated to everything else.
+                Write group labels in %s. Output ONLY a JSON array; the i-th element corresponds to ORPHAN COMMIT i
+                and is {"commit": i, "cluster": <existing cluster index> or null, "group": <label> or null}.
+                When "cluster" is a number, "group" must be null. When "cluster" is null, "group" must be a label.
+                No prose, no code fences.
+                """.formatted(productContextEn, langName);
+
+        String model = getStandupModel();
+        try {
+            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_RESIDUE, REPORT_TEMPERATURE);
+            logAiUsage("REPORT_RESIDUE_PLACE", model, boardId, null, aiResult);
+            return parseResiduePlacements(aiResult.content(), orphanSubjects.size());
+        } catch (Exception e) {
+            log.warn("잔여 커밋 배치 AI 호출 실패: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<ResiduePlacement> parseResiduePlacements(String raw, int count) {
+        if (raw == null) {
+            return List.of();
+        }
+        int start = raw.indexOf('[');
+        int end = raw.lastIndexOf(']');
+        if (start < 0 || end <= start) {
+            return List.of();
+        }
+        try {
+            JsonNode arr = objectMapper.readTree(raw.substring(start, end + 1));
+            if (!arr.isArray()) {
+                return List.of();
+            }
+            List<ResiduePlacement> result = new java.util.ArrayList<>();
+            for (JsonNode o : arr) {
+                if (o == null || !o.isObject()) {
+                    continue;
+                }
+                int commit = o.hasNonNull("commit") ? o.get("commit").asInt(-1) : -1;
+                if (commit < 0 || commit >= count) {
+                    continue;
+                }
+                Integer cluster = o.hasNonNull("cluster") && o.get("cluster").isInt() ? o.get("cluster").asInt() : null;
+                String group = o.hasNonNull("group") ? o.get("group").asText().trim() : null;
+                result.add(new ResiduePlacement(commit, cluster != null ? cluster : -1,
+                        group != null && !group.isBlank() ? group : null));
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("잔여 커밋 배치 응답 파싱 실패: {}", e.getMessage());
             return List.of();
         }
     }
@@ -230,7 +340,7 @@ public class ReportAIService {
 
         String model = getStandupModel();
         try {
-            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_OVERVIEW);
+            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model, MAX_TOKENS_OVERVIEW, REPORT_TEMPERATURE);
             logAiUsage("REPORT_OVERVIEW", model, boardId, null, aiResult);
             String text = aiResult.content();
             return text != null && !text.isBlank() ? text.trim() : null;
@@ -270,7 +380,7 @@ public class ReportAIService {
         String model = reportType == ReportType.TEAM ? getTeamModel() : getPersonalModel();
 
         log.info("Generating {} report via AI provider (language: {})", reportType, language);
-        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, maxTokens);
+        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, maxTokens, REPORT_TEMPERATURE);
 
         logAiUsage(featureType, model, boardId, userId, aiResult);
         return aiResult.content();
@@ -294,7 +404,7 @@ public class ReportAIService {
 
         String model = getStandupModel();
         log.info("Generating standup summary via AI provider (language: {})", lang);
-        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, MAX_TOKENS_STANDUP);
+        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, MAX_TOKENS_STANDUP, REPORT_TEMPERATURE);
 
         logAiUsage("STANDUP", model, boardId, userId, aiResult);
         return aiResult.content();
@@ -323,7 +433,7 @@ public class ReportAIService {
         int maxTokens = weekly ? MAX_TOKENS_AUTO_WEEKLY : MAX_TOKENS_AUTO_DAILY;
 
         log.info("Generating {} auto report JSON (board: {}, language: {})", reportType, boardId, lang);
-        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, maxTokens);
+        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, maxTokens, REPORT_TEMPERATURE);
 
         logAiUsage(featureType, model, boardId, null, aiResult);
         return aiResult.content();

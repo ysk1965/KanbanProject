@@ -63,6 +63,25 @@ public class ReportPreviewController {
     }
 
     /**
+     * 발송 테스트 — 자동 예약을 켜기 전에 채널·권한만 검증한다. 보고서를 만들지 않고
+     * 확인 메시지 한 장을 발송 채널에 게시하며, 성공하면 그 채널이 "테스트 통과"로 기록돼
+     * 생성(예약) 단계 잠금이 풀린다.
+     */
+    @PostMapping("/test-dispatch")
+    public ResponseEntity<Map<String, Object>> testDispatch(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        ReportConfigService.TestDispatchResult result =
+                configService.sendTest(boardId, principal.getUserId());
+        Map<String, Object> body = new HashMap<>();
+        body.put("success", result.success());
+        body.put("channel_id", result.channelId());
+        body.put("channel_name", result.channelName());
+        body.put("message", result.message());
+        return ResponseEntity.ok(body);
+    }
+
+    /**
      * 소스 수집만 실행한다 (AI 미호출, 크레딧 미차감).
      *
      * @param type DAILY_DEV | WEEKLY_INTEGRATED

@@ -117,6 +117,14 @@ public class BoardReportConfig extends BaseTimeEntity {
     @Column(name = "share_link_enabled", nullable = false)
     private Boolean shareLinkEnabled = true;
 
+    /**
+     * 마지막으로 <b>발송 테스트에 성공한 채널 id</b>. 자동 예약을 켜기 전에 이 채널로 한 번
+     * 실제 게시가 됐는지 확인하는 게이트로 쓴다. 발송 채널을 바꾸면 이 값과 달라져
+     * 다시 테스트해야 예약을 켤 수 있다 — 잘못된 채널로 매일 자동 발송되는 사고를 막는다.
+     */
+    @Column(name = "test_passed_channel_id", length = 40)
+    private String testPassedChannelId;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -190,6 +198,11 @@ public class BoardReportConfig extends BaseTimeEntity {
 
     public void updateShareLink(Boolean enabled) {
         if (enabled != null) this.shareLinkEnabled = enabled;
+    }
+
+    /** 발송 테스트가 성공한 채널을 기록한다. 이후 이 채널과 발송 채널이 같을 때만 자동 예약을 켤 수 있다. */
+    public void markTestPassed(String channelId) {
+        this.testPassedChannelId = (channelId == null || channelId.isBlank()) ? null : channelId;
     }
 
     public void markDailySent(LocalDateTime sentAtUtc) {

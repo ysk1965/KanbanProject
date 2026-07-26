@@ -7,13 +7,16 @@ import com.kanban.domain.report.dto.ReportContent;
 import com.kanban.domain.report.service.BoardProgressCollector.CommitInfo;
 import com.kanban.domain.report.service.ReportMemberDirectory.MemberIdentity;
 import com.kanban.domain.report.source.ReportPeriod;
+import com.kanban.domain.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -61,7 +64,11 @@ public class MemberActivityCollector {
         String login;
         final List<ReportContent.MemberCommit> commits = new ArrayList<>();
         final List<ReportContent.MemberSlackMessage> slack = new ArrayList<>();
-        final List<ReportContent.MemberChecklistChange> checklist = new ArrayList<>();
+        // 체크리스트 — 지연 / 진행중 / 오늘 완료 3버킷. 이전 완료분은 개수만(숨김).
+        final List<ReportContent.MemberChecklistChange> checklistLate = new ArrayList<>();
+        final List<ReportContent.MemberChecklistChange> checklistProgress = new ArrayList<>();
+        final List<ReportContent.MemberChecklistChange> checklistDoneToday = new ArrayList<>();
+        int hiddenCompleted = 0;
 
         Acc(String name, String login) {
             this.name = name;
@@ -140,9 +147,47 @@ public class MemberActivityCollector {
             }
         }
 
-        // 3) 칸반 체크리스트 — 그 기간에 완료된 항목만 담당자 기준으로. 보드 전체를 한 번에 로드(N+1 제거).
+        // 3) 칸반 체크리스트 — "지금 챙겨야 할 일" 중심으로 담당자별 재구성(보드 전체를 한 번에 로드, N+1 제거).
+        //    · 지연:   미완료 & 마감 지남(dueDate < 오늘)              — 전부 노출
+        //    · 진행중: 미완료 & 곧 마감(오늘 ≤ dueDate ≤ 오늘+기간길이) — 전부 노출
+        //    · 오늘완료: 발송 직전 24시간 내 완료분만                    — 노출
+        //    · 그 이전 완료분: 지난 소식이라 숨기고 개수만 집계.
+        // 기준일(오늘)·기간 길이는 발송 시각(endExclusive) 기준. 일일이면 기간=1일, 주간이면 7일.
+        LocalDate today = period.endExclusive().toLocalDate();
+        long periodDays = Math.max(1, ChronoUnit.DAYS.between(period.startInclusive(), period.endExclusive()));
+        LocalDate lookaheadEnd = today.plusDays(periodDays);
         LocalDateTime startUtc = period.startInclusive().withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
         LocalDateTime endUtc = period.endExclusive().withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
+        LocalDateTime todayStartUtc = period.endExclusive().minusDays(1).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
+
+        // 3-a) 미완료(마감 지정) → 지연/진행중
+        List<ChecklistItem> incomplete;
+        try {
+            incomplete = checklistItemRepository.findIncompleteWithDueByBoardId(boardId);
+        } catch (Exception e) {
+            incomplete = List.of();
+        }
+        for (ChecklistItem item : incomplete) {
+            User assignee = item.getAssignee();
+            LocalDate due = item.getDueDate();
+            if (assignee == null || due == null) {
+                continue;
+            }
+            boolean late = due.isBefore(today);
+            boolean progress = !late && !due.isAfter(lookaheadEnd);
+            if (!late && !progress) {
+                continue; // 마감이 아직 먼 항목은 이번 보고 대상 아님
+            }
+            Acc acc = accForUser(assignee, accs, byUserId);
+            if (late && acc.checklistLate.size() < MAX_CHECKLIST_PER_MEMBER) {
+                acc.checklistLate.add(change(item, "late", due,
+                        (int) ChronoUnit.DAYS.between(due, today)));
+            } else if (progress && acc.checklistProgress.size() < MAX_CHECKLIST_PER_MEMBER) {
+                acc.checklistProgress.add(change(item, "progress", due, 0));
+            }
+        }
+
+        // 3-b) 기간 내 완료분 → 오늘(직전 24h) 완료는 노출, 그 이전 완료는 숨김 카운트
         List<ChecklistItem> completed;
         try {
             completed = checklistItemRepository.findCompletedByBoardIdAndDateRange(boardId, startUtc, endUtc);
@@ -153,43 +198,51 @@ public class MemberActivityCollector {
             if (item.getAssignee() == null) {
                 continue;
             }
-            String userId = item.getAssignee().getId();
-            Acc acc = accs.get(userId);
-            if (acc == null) {
-                MemberIdentity id = byUserId.get(userId);
-                String name = id != null ? id.name() : item.getAssignee().getName();
-                acc = new Acc(name, id != null ? id.githubLogin() : null);
-                accs.put(userId, acc);
+            Acc acc = accForUser(item.getAssignee(), accs, byUserId);
+            boolean completedToday = item.getCompletedAt() != null
+                    && !item.getCompletedAt().isBefore(todayStartUtc);
+            if (completedToday) {
+                if (acc.checklistDoneToday.size() < MAX_CHECKLIST_PER_MEMBER) {
+                    acc.checklistDoneToday.add(change(item, "done", item.getDueDate(), 0));
+                }
+            } else {
+                acc.hiddenCompleted++;
             }
-            if (acc.checklist.size() >= MAX_CHECKLIST_PER_MEMBER) {
-                continue;
-            }
-            acc.checklist.add(ReportContent.MemberChecklistChange.builder()
-                    .title(item.getTitle())
-                    .done(true)
-                    .context(item.getTask() != null ? item.getTask().getTitle() : null)
-                    .build());
         }
 
         // 4) DTO 변환 + 활동량 내림차순 정렬 + 상한.
         List<ReportContent.Member> members = new ArrayList<>();
         for (Acc acc : accs.values()) {
-            int activity = acc.commits.size() + acc.slack.size() + acc.checklist.size();
+            int lateCount = acc.checklistLate.size();
+            int progressCount = acc.checklistProgress.size();
+            int doneCount = acc.checklistDoneToday.size();
+            int visibleChecklist = lateCount + progressCount + doneCount;
+            int activity = acc.commits.size() + acc.slack.size() + visibleChecklist;
+            // 숨긴 완료분만 있는 사람(새 소식 없음)은 제외.
             if (activity == 0) {
                 continue;
             }
+            // 지연 → 진행중 → 오늘 완료 순으로 이어붙인다.
+            List<ReportContent.MemberChecklistChange> changes = new ArrayList<>(visibleChecklist);
+            changes.addAll(acc.checklistLate);
+            changes.addAll(acc.checklistProgress);
+            changes.addAll(acc.checklistDoneToday);
             members.add(ReportContent.Member.builder()
                     .name(acc.name)
                     .login(acc.login)
                     .commitCount(acc.commits.size())
                     .slackCount(acc.slack.size())
                     .docCount(0)
-                    .checklistCount(acc.checklist.size())
+                    .checklistCount(visibleChecklist)
+                    .lateCount(lateCount)
+                    .progressCount(progressCount)
+                    .doneTodayCount(doneCount)
+                    .hiddenCompletedCount(acc.hiddenCompleted)
                     .activity(activity)
                     .commits(acc.commits)
                     .slackMessages(acc.slack)
                     .confluenceDocs(List.of())
-                    .checklistChanges(acc.checklist)
+                    .checklistChanges(changes)
                     .build());
         }
         members.sort(Comparator.comparingInt(ReportContent.Member::getActivity).reversed());
@@ -197,6 +250,32 @@ public class MemberActivityCollector {
             members = new ArrayList<>(members.subList(0, MAX_MEMBERS));
         }
         return new MemberResult(members);
+    }
+
+    /** 담당자(User) 기준 누적기를 가져오거나 없으면 만든다 — 커밋·슬랙에 안 잡힌 담당자도 새로 등록. */
+    private Acc accForUser(User user, Map<String, Acc> accs, Map<String, MemberIdentity> byUserId) {
+        String userId = user.getId();
+        Acc acc = accs.get(userId);
+        if (acc == null) {
+            MemberIdentity id = byUserId.get(userId);
+            String name = id != null ? id.name() : user.getName();
+            acc = new Acc(name, id != null ? id.githubLogin() : null);
+            accs.put(userId, acc);
+        }
+        return acc;
+    }
+
+    /** 체크리스트 항목 하나를 표시용 DTO로. status="late|progress|done", overdueDays는 지연에만 유효. */
+    private ReportContent.MemberChecklistChange change(ChecklistItem item, String status,
+                                                       LocalDate due, int overdueDays) {
+        return ReportContent.MemberChecklistChange.builder()
+                .title(item.getTitle())
+                .done("done".equals(status))
+                .status(status)
+                .context(item.getTask() != null ? item.getTask().getTitle() : null)
+                .dueDate(due != null ? due.toString() : null)
+                .overdueDays(overdueDays)
+                .build();
     }
 
     /** 슬랙 발화(상위 메시지 또는 답글) 하나를 발화자 기준으로 귀속한다. 빈 발화(텍스트·미디어 모두 없음)는 건너뛴다. */

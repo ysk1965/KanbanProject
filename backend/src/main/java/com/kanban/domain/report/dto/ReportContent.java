@@ -304,7 +304,16 @@ public class ReportContent {
         private int commitCount;
         private int slackCount;
         private int docCount;
+        /** 담당자 뷰에 표시되는 체크리스트 수 = 지연 + 진행중 + 오늘 완료. */
         private int checklistCount;
+        /** 지연(마감 지난 미완료) 건수. */
+        private int lateCount;
+        /** 진행중(곧 마감 예정인 미완료) 건수. */
+        private int progressCount;
+        /** 오늘(발송 직전 24시간) 완료 건수. */
+        private int doneTodayCount;
+        /** 오늘 이전에 이미 완료해 숨긴 건수 — "이전에 완료한 N건" 안내용. */
+        private int hiddenCompletedCount;
         /** 네 소스 합계 — 활동량 내림차순 정렬 기준. */
         private int activity;
         private List<MemberCommit> commits;
@@ -354,5 +363,11 @@ public class ReportContent {
         private boolean done;
         /** 이 항목이 속한 태스크/기능 이름(맥락 표시용). 없으면 null. */
         private String context;
+        /** 버킷 구분: "late"(지연) · "progress"(진행중) · "done"(오늘 완료). */
+        private String status;
+        /** 마감일(ISO yyyy-MM-dd). 없으면 null. */
+        private String dueDate;
+        /** 지연 항목의 경과 일수(오늘 − 마감). 지연이 아니면 0. */
+        private int overdueDays;
     }
 }

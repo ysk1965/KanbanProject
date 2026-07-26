@@ -67,6 +67,56 @@ public class ReportSlackPublisher {
         }
     }
 
+    /** 발송 테스트 결과. sent=true면 channelId로 실제 게시에 성공한 것이다. */
+    public record TestOutcome(boolean sent, String channelId, String channelName, String error) {}
+
+    /** 발송에 실제로 쓰일 채널 id (config 지정이 없으면 설치 기본 채널). 연결·채널이 없으면 null. */
+    public String resolveChannelId(Board board, BoardReportConfig config) {
+        return resolveInstallation(board)
+                .map(inst -> {
+                    String c = config.getSlackChannelId();
+                    return (c != null && !c.isBlank()) ? c : inst.getDefaultChannelId();
+                })
+                .filter(c -> c != null && !c.isBlank())
+                .orElse(null);
+    }
+
+    /**
+     * 자동 예약을 켜기 전에 채널·권한을 검증하는 가벼운 테스트 게시. 보고서 수집·AI를 태우지 않고
+     * 확인 메시지 한 장만 보낸다 — 활동이 없는 날에도 "이 채널로 게시가 되는지"를 확실히 가른다.
+     */
+    public TestOutcome sendTestMessage(Board board, BoardReportConfig config) {
+        Optional<SlackInstallation> installationOpt = resolveInstallation(board);
+        if (installationOpt.isEmpty()) {
+            return new TestOutcome(false, null, null, "이 보드에 슬랙이 연결되어 있지 않습니다.");
+        }
+        SlackInstallation installation = installationOpt.get();
+
+        String channelId = config.getSlackChannelId() != null && !config.getSlackChannelId().isBlank()
+                ? config.getSlackChannelId()
+                : installation.getDefaultChannelId();
+        if (channelId == null || channelId.isBlank()) {
+            return new TestOutcome(false, null, null,
+                    "게시할 채널이 지정되지 않았습니다. 발송 채널을 먼저 선택하세요.");
+        }
+        String channelName = config.getSlackChannelName() != null && !config.getSlackChannelName().isBlank()
+                ? config.getSlackChannelName()
+                : installation.getDefaultChannelName();
+
+        List<Map<String, Object>> blocks = List.of(section(
+                "✅ *BRIDGE 보고서 발송 테스트*\n"
+                + "이 채널로 자동 개발 보고서가 게시됩니다. 이 메시지가 보이면 채널·권한 설정이 정상입니다."));
+        try {
+            String botToken = slackOAuthService.decryptBotToken(installation);
+            slackApiClient.postMessage(botToken, channelId, blocks);
+            return new TestOutcome(true, channelId, channelName, null);
+        } catch (Exception e) {
+            log.warn("발송 테스트 실패 board={} channel={}: {}", board.getId(), channelId, e.getMessage());
+            return new TestOutcome(false, channelId, channelName,
+                    "채널에 게시하지 못했습니다. 채널에 MILKYWAY(봇)를 초대했는지 확인하세요.");
+        }
+    }
+
     private Optional<SlackInstallation> resolveInstallation(Board board) {
         Optional<SlackInstallation> boardLevel = installationRepository.findActiveByBoardId(board.getId());
         if (boardLevel.isPresent()) {
