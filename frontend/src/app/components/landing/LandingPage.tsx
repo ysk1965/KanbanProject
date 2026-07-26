@@ -135,7 +135,7 @@ const AnimatedTitle = ({ text }: { text: string }) => {
       variants={container}
       initial="hidden"
       animate="visible"
-      className="font-jakarta text-6xl md:text-8xl lg:text-[11rem] font-extrabold leading-none mb-12 tracking-tighter"
+      className="font-jakarta text-5xl sm:text-6xl md:text-8xl lg:text-[11rem] font-extrabold leading-none mb-12 tracking-tighter"
     >
       {letters.map((letter, index) => {
         // "Bridge" is 6 letters (0-5), "Spots" starts at index 6
@@ -283,7 +283,7 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <button
-            className="md:hidden text-white p-2"
+            className="md:hidden text-white p-2 w-11 h-11 flex items-center justify-center"
             onClick={() => setMenuOpen(!menuOpen)}
           >
             {menuOpen ? <X /> : <Menu />}
@@ -417,7 +417,7 @@ export const LandingPage: React.FC = () => {
               <div className="inline-block mb-10 text-[11px] font-bold tracking-[0.6em] text-bridge-secondary uppercase font-jakarta">
                 {t("landing.core.label")}
               </div>
-              <h2 className="font-jakarta text-6xl md:text-9xl mb-12 leading-none text-white tracking-tighter font-extrabold">
+              <h2 className="font-jakarta text-4xl sm:text-6xl md:text-9xl mb-12 leading-none text-white tracking-tighter font-extrabold">
                 {t("landing.core.titleLine1")}
                 <br />
                 {t("landing.core.titleLine2")}
@@ -914,7 +914,7 @@ export const LandingPage: React.FC = () => {
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 1.2 }}
-              className="font-jakarta text-7xl md:text-[13rem] mb-20 leading-none text-white tracking-tighter font-extrabold"
+              className="font-jakarta text-5xl sm:text-7xl md:text-[13rem] mb-20 leading-none text-white tracking-tighter font-extrabold"
             >
               {t("landing.cta.titleLine1")}
               <br />
@@ -928,7 +928,7 @@ export const LandingPage: React.FC = () => {
             </p>
             <button
               onClick={handleGetStarted}
-              className="px-24 py-10 bg-white text-bridge-dark rounded-full font-black uppercase tracking-[0.7em] text-[13px] shadow-[0_0_120px_rgba(255,255,255,0.25)] hover:scale-110 transition-all duration-700 font-jakarta"
+              className="px-10 sm:px-24 py-6 sm:py-10 bg-white text-bridge-dark rounded-full font-black uppercase tracking-[0.3em] sm:tracking-[0.7em] text-[13px] shadow-[0_0_120px_rgba(255,255,255,0.25)] hover:scale-110 transition-all duration-700 font-jakarta"
             >
               {t("landing.cta.button")}
             </button>

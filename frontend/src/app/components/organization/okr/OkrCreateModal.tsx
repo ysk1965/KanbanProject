@@ -328,9 +328,7 @@ export function OkrCreateModal({
         {mode === "cycle" && (
           <>
             <div>
-              <label className={labelClass}>
-                {t("okr.title", "Title")}
-              </label>
+              <label className={labelClass}>{t("okr.title", "Title")}</label>
               <input
                 type="text"
                 value={cycleName}
@@ -378,9 +376,7 @@ export function OkrCreateModal({
         {mode === "objective" && (
           <>
             <div>
-              <label className={labelClass}>
-                {t("okr.title", "Title")}
-              </label>
+              <label className={labelClass}>{t("okr.title", "Title")}</label>
               <input
                 type="text"
                 value={title}
@@ -445,9 +441,7 @@ export function OkrCreateModal({
 
             {/* Owner select */}
             <div>
-              <label className={labelClass}>
-                {t("okr.owner", "Owner")}
-              </label>
+              <label className={labelClass}>{t("okr.owner", "Owner")}</label>
               <select
                 value={ownerId}
                 onChange={(e) => setOwnerId(e.target.value)}
@@ -493,9 +487,7 @@ export function OkrCreateModal({
         {mode === "keyResult" && (
           <>
             <div>
-              <label className={labelClass}>
-                {t("okr.title", "Title")}
-              </label>
+              <label className={labelClass}>{t("okr.title", "Title")}</label>
               <input
                 type="text"
                 value={krTitle}
@@ -532,7 +524,7 @@ export function OkrCreateModal({
                 <option value="MILESTONE">Milestone</option>
               </select>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className={labelClass}>
                   {t("okr.startValue", "Start")}
@@ -563,9 +555,7 @@ export function OkrCreateModal({
                   <input
                     type="number"
                     value={currentValue}
-                    onChange={(e) =>
-                      setCurrentValue(Number(e.target.value))
-                    }
+                    onChange={(e) => setCurrentValue(Number(e.target.value))}
                     className={inputClass}
                   />
                 </div>
@@ -573,9 +563,7 @@ export function OkrCreateModal({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelClass}>
-                  {t("okr.unit", "Unit")}
-                </label>
+                <label className={labelClass}>{t("okr.unit", "Unit")}</label>
                 <input
                   type="text"
                   value={unit}
@@ -600,9 +588,7 @@ export function OkrCreateModal({
             </div>
             {/* Owner select */}
             <div>
-              <label className={labelClass}>
-                {t("okr.owner", "Owner")}
-              </label>
+              <label className={labelClass}>{t("okr.owner", "Owner")}</label>
               <select
                 value={krOwnerId}
                 onChange={(e) => setKrOwnerId(e.target.value)}

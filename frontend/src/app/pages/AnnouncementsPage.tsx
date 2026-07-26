@@ -1,17 +1,25 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Megaphone, Info, AlertCircle, ChevronRight, Calendar } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { systemService } from '../utils/services';
-import type { AnnouncementDetail } from '../utils/api';
-import { formatDate } from '../utils/dateUtils';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  Megaphone,
+  Info,
+  AlertCircle,
+  ChevronRight,
+  Calendar,
+} from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { systemService } from "../utils/services";
+import type { AnnouncementDetail } from "../utils/api";
+import { formatDate } from "../utils/dateUtils";
 
 export function AnnouncementsPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [announcements, setAnnouncements] = useState<AnnouncementDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedAnnouncement, setSelectedAnnouncement] = useState<AnnouncementDetail | null>(null);
+  const [selectedAnnouncement, setSelectedAnnouncement] =
+    useState<AnnouncementDetail | null>(null);
 
   useEffect(() => {
     loadAnnouncements();
@@ -23,12 +31,15 @@ export function AnnouncementsPage() {
       const data = await systemService.getActiveAnnouncements();
       // 우선순위 높은 순, 최신순 정렬
       const sorted = data.sort((a, b) => {
-        if (a.priority !== b.priority) return (b.priority || 0) - (a.priority || 0);
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        if (a.priority !== b.priority)
+          return (b.priority || 0) - (a.priority || 0);
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
       });
       setAnnouncements(sorted);
     } catch (err) {
-      console.error('Failed to load announcements:', err);
+      console.error("Failed to load announcements:", err);
     } finally {
       setIsLoading(false);
     }
@@ -36,9 +47,9 @@ export function AnnouncementsPage() {
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'BANNER':
+      case "BANNER":
         return <Megaphone className="h-5 w-5" />;
-      case 'POPUP':
+      case "POPUP":
         return <AlertCircle className="h-5 w-5" />;
       default:
         return <Info className="h-5 w-5" />;
@@ -47,15 +58,23 @@ export function AnnouncementsPage() {
 
   const getTypeBadge = (type: string) => {
     switch (type) {
-      case 'BANNER':
-        return { label: t('announcements.banner'), color: 'bg-orange-500/20 text-orange-400' };
-      case 'POPUP':
-        return { label: t('announcements.popup'), color: 'bg-red-500/20 text-red-400' };
+      case "BANNER":
+        return {
+          label: t("announcements.banner"),
+          color: "bg-orange-500/20 text-orange-400",
+        };
+      case "POPUP":
+        return {
+          label: t("announcements.popup"),
+          color: "bg-red-500/20 text-red-400",
+        };
       default:
-        return { label: t('announcements.notice'), color: 'bg-bridge-accent/20 text-bridge-accent' };
+        return {
+          label: t("announcements.notice"),
+          color: "bg-bridge-accent/20 text-bridge-accent",
+        };
     }
   };
-
 
   return (
     <div className="min-h-screen bg-bridge-dark">
@@ -64,13 +83,17 @@ export function AnnouncementsPage() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
           <button
             onClick={() => navigate(-1)}
-            className="p-2 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-xl transition-colors"
+            className="p-2.5 min-w-11 min-h-11 flex items-center justify-center text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-xl transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-foreground">{t('announcements.title')}</h1>
-            <p className="text-sm text-slate-400">{t('announcements.subtitle')}</p>
+            <h1 className="text-xl font-bold text-foreground">
+              {t("announcements.title")}
+            </h1>
+            <p className="text-sm text-slate-400">
+              {t("announcements.subtitle")}
+            </p>
           </div>
         </div>
       </header>
@@ -86,7 +109,9 @@ export function AnnouncementsPage() {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-foreground/5 mb-4">
               <Megaphone className="h-8 w-8 text-slate-500" />
             </div>
-            <p className="text-slate-400">{t('announcements.noAnnouncements')}</p>
+            <p className="text-slate-400">
+              {t("announcements.noAnnouncements")}
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -99,17 +124,21 @@ export function AnnouncementsPage() {
                   className="w-full bg-bridge-obsidian rounded-2xl border border-foreground/5 p-5 text-left hover:border-foreground/10 hover:bg-white/[0.02] transition-all group"
                 >
                   <div className="flex items-start gap-4">
-                    <div className={`p-2.5 rounded-xl ${badge.color.split(' ')[0]}`}>
+                    <div
+                      className={`p-2.5 rounded-xl ${badge.color.split(" ")[0]}`}
+                    >
                       {getTypeIcon(announcement.type)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${badge.color}`}>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${badge.color}`}
+                        >
                           {badge.label}
                         </span>
                         {announcement.priority && announcement.priority > 0 && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">
-                            {t('announcements.important')}
+                            {t("announcements.important")}
                           </span>
                         )}
                       </div>
@@ -148,14 +177,18 @@ export function AnnouncementsPage() {
             {/* Modal Header */}
             <div className="p-6 border-b border-foreground/5">
               <div className="flex items-center gap-2 mb-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${getTypeBadge(selectedAnnouncement.type).color}`}>
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-full ${getTypeBadge(selectedAnnouncement.type).color}`}
+                >
                   {getTypeBadge(selectedAnnouncement.type).label}
                 </span>
                 <span className="text-xs text-slate-500">
                   {formatDate(selectedAnnouncement.created_at)}
                 </span>
               </div>
-              <h2 className="text-xl font-bold text-foreground">{selectedAnnouncement.title}</h2>
+              <h2 className="text-xl font-bold text-foreground">
+                {selectedAnnouncement.title}
+              </h2>
             </div>
 
             {/* Modal Content */}
@@ -165,7 +198,9 @@ export function AnnouncementsPage() {
                   {selectedAnnouncement.content}
                 </div>
               ) : (
-                <p className="text-slate-500 italic">{t('announcements.noContent')}</p>
+                <p className="text-slate-500 italic">
+                  {t("announcements.noContent")}
+                </p>
               )}
             </div>
 
@@ -175,7 +210,7 @@ export function AnnouncementsPage() {
                 onClick={() => setSelectedAnnouncement(null)}
                 className="w-full py-3 bg-bridge-accent text-white rounded-xl font-medium hover:bg-bridge-accent/90 transition-colors"
               >
-                {t('common.confirm')}
+                {t("common.confirm")}
               </button>
             </div>
           </div>

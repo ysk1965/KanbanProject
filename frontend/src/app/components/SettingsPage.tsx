@@ -560,7 +560,7 @@ export function SettingsPage() {
 
             {/* Holiday Source Selector (native only: device / library / off) */}
             {isNative() && (
-              <div className="grid grid-cols-3 gap-2.5 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4">
                 <button
                   onClick={() => handleHolidaySourceChange("device")}
                   className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
@@ -680,7 +680,7 @@ export function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-foreground transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-slate-400 hover:text-foreground transition-colors"
                   >
                     {showCurrentPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -706,7 +706,7 @@ export function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-foreground transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-slate-400 hover:text-foreground transition-colors"
                   >
                     {showNewPassword ? (
                       <EyeOff className="w-5 h-5" />

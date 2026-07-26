@@ -1,11 +1,11 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
-import { Upload, ImagePlus, X, Loader2, Plus, Check } from 'lucide-react';
-import { toast } from 'sonner';
-import { MotionModal } from '../../ui/MotionModal';
-import { orgPhotoService } from '../../../utils/services';
-import type { OrgPhotoTab } from '../../../types';
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { motion } from "framer-motion";
+import { Upload, ImagePlus, X, Loader2, Plus, Check } from "lucide-react";
+import { toast } from "sonner";
+import { MotionModal } from "../../ui/MotionModal";
+import { orgPhotoService } from "../../../utils/services";
+import type { OrgPhotoTab } from "../../../types";
 
 interface PhotoUploadModalProps {
   open: boolean;
@@ -21,7 +21,7 @@ interface PreviewFile {
   previewUrl: string;
 }
 
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_FILES = 1000;
 const CHUNK_SIZE = 20; // Backend limit per request
 
@@ -35,7 +35,7 @@ export function PhotoUploadModal({
 }: PhotoUploadModalProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedAlbumId, setSelectedAlbumId] = useState<string>('');
+  const [selectedAlbumId, setSelectedAlbumId] = useState<string>("");
   const [previews, setPreviews] = useState<PreviewFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -44,14 +44,15 @@ export function PhotoUploadModal({
   const [currentBatch, setCurrentBatch] = useState(0);
   const [totalBatches, setTotalBatches] = useState(0);
   const [creatingAlbum, setCreatingAlbum] = useState(false);
-  const [newAlbumName, setNewAlbumName] = useState('');
+  const [newAlbumName, setNewAlbumName] = useState("");
   const [savingAlbum, setSavingAlbum] = useState(false);
   const newAlbumInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize selected album when modal opens
   useEffect(() => {
     if (open) {
-      const defaultId = activeAlbumId || (albums.length > 0 ? albums[0].id : '');
+      const defaultId =
+        activeAlbumId || (albums.length > 0 ? albums[0].id : "");
       setSelectedAlbumId(defaultId);
       setPreviews([]);
       setUploading(false);
@@ -60,7 +61,7 @@ export function PhotoUploadModal({
       setCurrentBatch(0);
       setTotalBatches(0);
       setCreatingAlbum(albums.length === 0);
-      setNewAlbumName('');
+      setNewAlbumName("");
     }
   }, [open, activeAlbumId, albums]);
 
@@ -77,17 +78,17 @@ export function PhotoUploadModal({
     try {
       setSavingAlbum(true);
       const created = await orgPhotoService.createTab(orgId, { name: trimmed });
-      toast.success(t('photoGallery.albumCreated', 'Album created'));
+      toast.success(t("photoGallery.albumCreated", "Album created"));
       setCreatingAlbum(false);
-      setNewAlbumName('');
+      setNewAlbumName("");
       // Select the newly created album
       if (created?.id) {
         setSelectedAlbumId(created.id);
       }
       onUploadComplete(); // refresh album list
     } catch (error) {
-      console.warn('Failed to create album:', error);
-      toast.error(t('photoGallery.albumCreateError', 'Failed to create album'));
+      console.warn("Failed to create album:", error);
+      toast.error(t("photoGallery.albumCreateError", "Failed to create album"));
     } finally {
       setSavingAlbum(false);
     }
@@ -99,7 +100,7 @@ export function PhotoUploadModal({
         ACCEPTED_TYPES.includes(f.type),
       );
       if (validFiles.length === 0) {
-        toast.error(t('photoGallery.invalidFormat', 'Unsupported file format'));
+        toast.error(t("photoGallery.invalidFormat", "Unsupported file format"));
         return;
       }
 
@@ -107,7 +108,9 @@ export function PhotoUploadModal({
         const remaining = MAX_FILES - prev.length;
         if (remaining <= 0) {
           toast.error(
-            t('photoGallery.maxFiles', 'Maximum {{max}} files', { max: MAX_FILES }),
+            t("photoGallery.maxFiles", "Maximum {{max}} files", {
+              max: MAX_FILES,
+            }),
           );
           return prev;
         }
@@ -118,7 +121,9 @@ export function PhotoUploadModal({
         }));
         if (validFiles.length > remaining) {
           toast.error(
-            t('photoGallery.maxFiles', 'Maximum {{max}} files', { max: MAX_FILES }),
+            t("photoGallery.maxFiles", "Maximum {{max}} files", {
+              max: MAX_FILES,
+            }),
           );
         }
         return [...prev, ...newPreviews];
@@ -160,7 +165,7 @@ export function PhotoUploadModal({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files.length > 0) {
         addFiles(e.target.files);
-        e.target.value = '';
+        e.target.value = "";
       }
     },
     [addFiles],
@@ -176,16 +181,20 @@ export function PhotoUploadModal({
       try {
         setUploading(true);
         setProgress(5);
-        const created = await orgPhotoService.createTab(orgId, { name: newAlbumName.trim() });
-        if (!created?.id) throw new Error('No album ID returned');
+        const created = await orgPhotoService.createTab(orgId, {
+          name: newAlbumName.trim(),
+        });
+        if (!created?.id) throw new Error("No album ID returned");
         targetAlbumId = created.id;
         setSelectedAlbumId(created.id);
         setCreatingAlbum(false);
-        setNewAlbumName('');
+        setNewAlbumName("");
         onUploadComplete();
       } catch (error) {
-        console.warn('Failed to auto-create album:', error);
-        toast.error(t('photoGallery.albumCreateError', 'Failed to create album'));
+        console.warn("Failed to auto-create album:", error);
+        toast.error(
+          t("photoGallery.albumCreateError", "Failed to create album"),
+        );
         setUploading(false);
         return;
       }
@@ -214,24 +223,38 @@ export function PhotoUploadModal({
 
       setProgress(100);
       toast.success(
-        t('photoGallery.uploadSuccess', '{{count}} photos uploaded', {
+        t("photoGallery.uploadSuccess", "{{count}} photos uploaded", {
           count: files.length,
         }),
       );
       onUploadComplete();
       onClose();
     } catch (error) {
-      console.warn('Failed to upload photos:', error);
+      console.warn("Failed to upload photos:", error);
       const failedAt = uploadedCount;
       toast.error(
         failedAt > 0
-          ? t('photoGallery.uploadPartialError', 'Upload failed after {{count}} photos. Retry to continue.', { count: failedAt })
-          : t('photoGallery.uploadError', 'Failed to upload photos'),
+          ? t(
+              "photoGallery.uploadPartialError",
+              "Upload failed after {{count}} photos. Retry to continue.",
+              { count: failedAt },
+            )
+          : t("photoGallery.uploadError", "Failed to upload photos"),
       );
     } finally {
       setUploading(false);
     }
-  }, [previews, selectedAlbumId, uploading, orgId, t, onUploadComplete, onClose, creatingAlbum, newAlbumName]);
+  }, [
+    previews,
+    selectedAlbumId,
+    uploading,
+    orgId,
+    t,
+    onUploadComplete,
+    onClose,
+    creatingAlbum,
+    newAlbumName,
+  ]);
 
   return (
     <MotionModal open={open} onClose={onClose}>
@@ -245,10 +268,10 @@ export function PhotoUploadModal({
         </div>
         <div>
           <h3 className="text-base font-bold text-foreground">
-            {t('photoGallery.uploadTitle', 'Upload Photos')}
+            {t("photoGallery.uploadTitle", "Upload Photos")}
           </h3>
           <p className="text-xs text-slate-500">
-            {t('photoGallery.uploadHint', 'JPG, PNG, WebP, GIF supported')}
+            {t("photoGallery.uploadHint", "JPG, PNG, WebP, GIF supported")}
           </p>
         </div>
       </div>
@@ -258,7 +281,7 @@ export function PhotoUploadModal({
         {/* Album selector */}
         <div>
           <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-            {t('photoGallery.album', 'Album')}
+            {t("photoGallery.album", "Album")}
           </label>
           {creatingAlbum || albums.length === 0 ? (
             <div className="flex gap-2">
@@ -268,10 +291,17 @@ export function PhotoUploadModal({
                 value={newAlbumName}
                 onChange={(e) => setNewAlbumName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && newAlbumName.trim()) handleCreateAlbum();
-                  if (e.key === 'Escape' && albums.length > 0) { setCreatingAlbum(false); setNewAlbumName(''); }
+                  if (e.key === "Enter" && newAlbumName.trim())
+                    handleCreateAlbum();
+                  if (e.key === "Escape" && albums.length > 0) {
+                    setCreatingAlbum(false);
+                    setNewAlbumName("");
+                  }
                 }}
-                placeholder={t('photoGallery.albumNamePlaceholder', 'e.g. Team Workshop 2026')}
+                placeholder={t(
+                  "photoGallery.albumNamePlaceholder",
+                  "e.g. Team Workshop 2026",
+                )}
                 maxLength={50}
                 autoFocus
                 className="flex-1 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
@@ -281,11 +311,18 @@ export function PhotoUploadModal({
                 disabled={!newAlbumName.trim() || savingAlbum}
                 className="px-3 py-2 rounded-xl bg-bridge-accent text-white text-xs font-bold disabled:opacity-50 hover:bg-bridge-accent/90 transition-all shrink-0"
               >
-                {savingAlbum ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                {savingAlbum ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Check size={14} />
+                )}
               </button>
               {albums.length > 0 && (
                 <button
-                  onClick={() => { setCreatingAlbum(false); setNewAlbumName(''); }}
+                  onClick={() => {
+                    setCreatingAlbum(false);
+                    setNewAlbumName("");
+                  }}
                   className="p-2 rounded-xl bg-foreground/5 text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all shrink-0"
                 >
                   <X size={14} />
@@ -307,11 +344,13 @@ export function PhotoUploadModal({
               </select>
               <button
                 onClick={() => setCreatingAlbum(true)}
-                title={t('photoGallery.createAlbumTitle', 'Create Album')}
+                title={t("photoGallery.createAlbumTitle", "Create Album")}
                 className="px-3 py-2 rounded-xl bg-foreground/5 border border-foreground/10 text-slate-400 hover:text-bridge-accent hover:border-bridge-accent/30 hover:bg-bridge-accent/5 transition-all shrink-0 flex items-center gap-1.5"
               >
                 <Plus size={14} />
-                <span className="text-xs font-bold">{t('common.new', 'New')}</span>
+                <span className="text-xs font-bold">
+                  {t("common.new", "New")}
+                </span>
               </button>
             </div>
           )}
@@ -325,30 +364,34 @@ export function PhotoUploadModal({
           onClick={() => fileInputRef.current?.click()}
           className={`border-2 border-dashed rounded-2xl p-8 text-center transition-colors cursor-pointer ${
             isDragging
-              ? 'border-bridge-accent/50 bg-bridge-accent/5'
-              : 'border-foreground/10 hover:border-foreground/20'
+              ? "border-bridge-accent/50 bg-bridge-accent/5"
+              : "border-foreground/10 hover:border-foreground/20"
           }`}
         >
           <ImagePlus size={32} className="mx-auto mb-3 text-slate-500" />
           <p className="text-sm text-slate-400">
-            {t('photoGallery.uploadDropzone', 'Drag & drop or click to browse')}
+            {t("photoGallery.uploadDropzone", "Drag & drop or click to browse")}
           </p>
           <p className="text-xs text-slate-600 mt-1">
-            {t('photoGallery.uploadFormats', 'JPG, PNG, WebP, GIF - max {{max}} files', { max: MAX_FILES })}
+            {t(
+              "photoGallery.uploadFormats",
+              "JPG, PNG, WebP, GIF - max {{max}} files",
+              { max: MAX_FILES },
+            )}
           </p>
         </div>
         <input
           ref={fileInputRef}
           type="file"
           multiple
-          accept={ACCEPTED_TYPES.join(',')}
+          accept={ACCEPTED_TYPES.join(",")}
           onChange={handleFileInput}
           className="hidden"
         />
 
         {/* Preview grid */}
         {previews.length > 0 && (
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {previews.map((p, i) => (
               <div
                 key={i}
@@ -385,15 +428,23 @@ export function PhotoUploadModal({
             </div>
             <p className="text-xs text-slate-500 text-center">
               {totalBatches > 1
-                ? t('photoGallery.uploadBatchProgress', 'Batch {{current}}/{{total}} — {{uploaded}}/{{count}} photos', {
-                    current: currentBatch,
-                    total: totalBatches,
-                    uploaded: uploadedCount,
-                    count: previews.length,
-                  })
-                : t('photoGallery.uploadProgress', 'Uploading {{count}} photos...', {
-                    count: previews.length,
-                  })}
+                ? t(
+                    "photoGallery.uploadBatchProgress",
+                    "Batch {{current}}/{{total}} — {{uploaded}}/{{count}} photos",
+                    {
+                      current: currentBatch,
+                      total: totalBatches,
+                      uploaded: uploadedCount,
+                      count: previews.length,
+                    },
+                  )
+                : t(
+                    "photoGallery.uploadProgress",
+                    "Uploading {{count}} photos...",
+                    {
+                      count: previews.length,
+                    },
+                  )}
             </p>
           </div>
         )}
@@ -403,7 +454,7 @@ export function PhotoUploadModal({
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
         <div className="flex flex-col gap-0.5">
           <span className="text-xs text-slate-600">
-            Esc {t('common.close', 'Close')}
+            Esc {t("common.close", "Close")}
           </span>
           {previews.length > 0 && !selectedAlbumId && !creatingAlbum && (
             <motion.span
@@ -412,27 +463,35 @@ export function PhotoUploadModal({
               className="text-xs text-amber-600 dark:text-amber-400"
             >
               {albums.length === 0
-                ? t('photoGallery.hintCreateAlbum', 'Create an album first')
-                : t('photoGallery.hintSelectAlbum', 'Select an album')}
+                ? t("photoGallery.hintCreateAlbum", "Create an album first")
+                : t("photoGallery.hintSelectAlbum", "Select an album")}
             </motion.span>
           )}
         </div>
         <button
           onClick={handleUpload}
-          disabled={previews.length === 0 || (!selectedAlbumId && !(creatingAlbum && newAlbumName.trim())) || uploading}
+          disabled={
+            previews.length === 0 ||
+            (!selectedAlbumId && !(creatingAlbum && newAlbumName.trim())) ||
+            uploading
+          }
           className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent disabled:opacity-50 hover:bg-bridge-accent/90 transition-all"
         >
           {uploading ? (
             <span className="flex items-center gap-1.5">
               <Loader2 size={12} className="animate-spin" />
-              {t('photoGallery.uploading', 'Uploading...')}
+              {t("photoGallery.uploading", "Uploading...")}
             </span>
           ) : creatingAlbum && newAlbumName.trim() && !selectedAlbumId ? (
-            t('photoGallery.createAndUpload', 'Create Album & Upload {{count}}', {
-              count: previews.length,
-            })
+            t(
+              "photoGallery.createAndUpload",
+              "Create Album & Upload {{count}}",
+              {
+                count: previews.length,
+              },
+            )
           ) : (
-            t('photoGallery.uploadCount', 'Upload {{count}} photos', {
+            t("photoGallery.uploadCount", "Upload {{count}} photos", {
               count: previews.length,
             })
           )}

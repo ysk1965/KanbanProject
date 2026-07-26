@@ -1,5 +1,5 @@
-import { Download, ExternalLink } from 'lucide-react';
-import { resolveFileUrl } from '../../utils/api';
+import { Download, ExternalLink } from "lucide-react";
+import { resolveFileUrl } from "../../utils/api";
 
 interface IconResult {
   name: string;
@@ -14,18 +14,22 @@ interface ResultGalleryProps {
   icons: IconResult[];
 }
 
-export function ResultGallery({ jobId, spriteSheetUrl, icons }: ResultGalleryProps) {
+export function ResultGallery({
+  jobId,
+  spriteSheetUrl,
+  icons,
+}: ResultGalleryProps) {
   const handleDownload = async (url: string, filename: string) => {
     try {
       const response = await fetch(resolveFileUrl(url));
       const blob = await response.blob();
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = filename;
       link.click();
       URL.revokeObjectURL(link.href);
     } catch (error) {
-      console.error('Download failed:', error);
+      console.error("Download failed:", error);
     }
   };
 
@@ -56,9 +60,11 @@ export function ResultGallery({ jobId, spriteSheetUrl, icons }: ResultGalleryPro
       {/* Sprite Sheet Preview */}
       <div className="p-3 bg-white/5 rounded-xl border border-white/10">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-slate-500 uppercase tracking-wider">Sprite Sheet</span>
+          <span className="text-xs text-slate-500 uppercase tracking-wider">
+            Sprite Sheet
+          </span>
           <button
-            onClick={() => handleDownload(spriteSheetUrl, 'sprite-sheet.png')}
+            onClick={() => handleDownload(spriteSheetUrl, "sprite-sheet.png")}
             className="text-slate-500 hover:text-white transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
@@ -72,7 +78,7 @@ export function ResultGallery({ jobId, spriteSheetUrl, icons }: ResultGalleryPro
       </div>
 
       {/* Individual Icons Grid */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {icons.map((icon) => (
           <div
             key={icon.index}

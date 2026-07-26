@@ -3838,7 +3838,7 @@ function MobileTabButton({
   return (
     <button
       onClick={onClick}
-      className={`relative flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-colors ${
+      className={`relative flex flex-col items-center gap-0.5 min-w-[3rem] min-h-[44px] px-2 py-1 rounded-lg transition-colors ${
         active
           ? "text-bridge-secondary"
           : locked
