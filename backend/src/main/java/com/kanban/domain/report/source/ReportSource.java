@@ -20,6 +20,17 @@ public interface ReportSource {
     SourceChunk collect(String boardId, ReportPeriod period);
 
     /**
+     * 미리보기용 수집. 발송과 같은 재료를 모으되 <b>부수효과는 남기지 않는다</b>.
+     *
+     * <p>슬랙처럼 첨부 파일을 우리 스토리지(자료실)에 등록하는 소스가 있어서, 미리보기가
+     * {@link #collect}를 그대로 부르면 발송하지도 않은 회차의 파일이 자료실에 쌓인다.
+     * 기본 구현은 그대로 위임하고, 등록을 하는 소스만 재정의해 등록을 건너뛴다.
+     */
+    default SourceChunk collectForPreview(String boardId, ReportPeriod period) {
+        return collect(boardId, period);
+    }
+
+    /**
      * 주간 보고서를 만들 때 원본 API를 7일치 다시 긁는 대신, 그 주에 이미 발행된 일일 보고서의
      * 수집분({@code data_snapshot})을 재활용할 수 있는가.
      *

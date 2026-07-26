@@ -77,7 +77,8 @@ public class ReportSourcePreviewService {
                         .summary("연결되지 않음")
                         .build();
             }
-            SourceChunk chunk = source.collect(boardId, period);
+            // 미리보기는 자료실에 파일을 등록하지 않는다 — 발송하지 않은 회차의 이미지가 쌓이지 않게.
+            SourceChunk chunk = source.collectForPreview(boardId, period);
             return ReportPreviewResponse.SourceResult.builder()
                     .kind(source.kind().name())
                     .configured(true)

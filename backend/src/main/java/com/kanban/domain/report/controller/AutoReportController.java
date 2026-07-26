@@ -2,6 +2,7 @@ package com.kanban.domain.report.controller;
 
 import com.kanban.domain.report.dto.AutoReportResponse;
 import com.kanban.domain.report.service.AutoReportQueryService;
+import com.kanban.domain.report.service.ReportFileBackfillService;
 import com.kanban.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -21,6 +22,7 @@ import java.util.List;
 public class AutoReportController {
 
     private final AutoReportQueryService queryService;
+    private final ReportFileBackfillService backfillService;
 
     /** 자동 보고서 이력 — 과거 주차 되짚기 */
     @GetMapping("/api/v1/boards/{boardId}/reports/auto")
@@ -68,5 +70,17 @@ public class AutoReportController {
             @AuthenticationPrincipal UserPrincipal principal) {
         queryService.deleteReport(boardId, reportId, principal.getUserId());
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 폴더화 이전에 자료실 루트에 쌓인 수집 파일을 보고서 폴더로 정리한다 — 관리자 이상, 1회성.
+     * {@code dry_run=true}(기본)면 옮기지 않고 건수만 돌려준다.
+     */
+    @PostMapping("/api/v1/boards/{boardId}/reports/auto/organize-files")
+    public ResponseEntity<ReportFileBackfillService.Result> organizeFiles(
+            @PathVariable String boardId,
+            @RequestParam(value = "dry_run", defaultValue = "true") boolean dryRun,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(backfillService.organize(boardId, principal.getUserId(), dryRun));
     }
 }

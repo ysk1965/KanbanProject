@@ -26,6 +26,7 @@ import {
   Link2,
   Image as ImageIcon,
   Film,
+  FolderClock,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -714,7 +715,13 @@ function TreeItemComponent({
 
         {/* Icon */}
         {isFolder ? (
-          expanded ? (
+          // 보고서가 자동으로 만든 폴더는 사용자가 만든 폴더와 구분해 보여준다.
+          item.system_key ? (
+            <FolderClock
+              size={18}
+              className="flex-shrink-0 text-bridge-secondary"
+            />
+          ) : expanded ? (
             <FolderOpen
               size={18}
               className="flex-shrink-0 text-bridge-accent"
@@ -1089,7 +1096,12 @@ function ReadOnlyTreeItem({
 
         {/* Icon */}
         {isFolder ? (
-          expanded ? (
+          item.system_key ? (
+            <FolderClock
+              size={16}
+              className="flex-shrink-0 text-bridge-secondary"
+            />
+          ) : expanded ? (
             <FolderOpen
               size={16}
               className="flex-shrink-0 text-bridge-accent"

@@ -9,6 +9,7 @@ import com.kanban.domain.report.WeeklyReport;
 import com.kanban.domain.report.ReportRepository;
 import com.kanban.domain.report.dto.AutoReportResponse;
 import com.kanban.domain.report.dto.ReportContent;
+import com.kanban.domain.storage.service.ReportFileFiler;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class AutoReportQueryService {
     private final ReportRepository reportRepository;
     private final ReportDeliveryLogRepository deliveryLogRepository;
     private final BoardService boardService;
+    private final ReportFileFiler reportFileFiler;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -104,6 +106,13 @@ public class AutoReportQueryService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND));
         if (!report.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND);
+        }
+        // 이 보고서가 수집한 이미지/썸네일 폴더도 함께 휴지통으로. 자료실 휴지통에서 되살릴 수 있고,
+        // S3 객체는 남아 같은 이미지를 쓰는 다른 회차 보고서 본문은 깨지지 않는다. best-effort.
+        try {
+            reportFileFiler.discardReportFolder(boardId, reportId);
+        } catch (Exception e) {
+            log.warn("보고서 자료 폴더 정리 실패 board={} report={}: {}", boardId, reportId, e.getMessage());
         }
         deliveryLogRepository.detachReport(reportId);
         reportRepository.delete(report);

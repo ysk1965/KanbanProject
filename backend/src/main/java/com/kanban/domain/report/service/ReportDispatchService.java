@@ -9,6 +9,7 @@ import com.kanban.domain.report.dto.ReportContent;
 import com.kanban.domain.report.source.ReportPeriod;
 import com.kanban.domain.report.source.ReportSource;
 import com.kanban.domain.report.source.SourceChunk;
+import com.kanban.domain.storage.service.ReportFileFiler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,7 +19,9 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -40,6 +43,7 @@ public class ReportDispatchService {
     private final ReportSlackPublisher slackPublisher;
     private final ReportPersistenceService persistence;
     private final WeeklyRollupCollector weeklyRollupCollector;
+    private final ReportFileFiler reportFileFiler;
 
     public record DispatchResult(ReportDeliveryStatus status, String reportId, String message) {
         public boolean isSent() {
@@ -98,6 +102,10 @@ public class ReportDispatchService {
         ReportContent content = composed.content();
         WeeklyReport report = persistence.save(board, reportType, period, content,
                 composed.contentJson(), composed.mergedInput(), chunks, shareToken);
+
+        // 3-1. 수집 파일 정리 — 이 회차가 옮긴 이미지/썸네일을 이 보고서 폴더로 모은다.
+        //      보고서 id가 여기서야 생기므로 저장 직후가 가장 이른 시점이다. best-effort.
+        fileCollectedMedia(board, report, reportType, period, chunks);
 
         // 4. 게시 — 1회 재시도
         boolean published = publishWithRetry(board, config, reportType, content, period, shareToken);
@@ -165,11 +173,33 @@ public class ReportDispatchService {
             try {
                 chunks.add(source.collect(boardId, period));
             } catch (Exception e) {
-                log.warn("소스 수집 중 예외 board={} source={}: {}", boardId, source.kind(), e.getMessage());
-                chunks.add(SourceChunk.failed(source.kind(), e.getMessage()));
+                log.warn("소스 수집 중 예외 board={} source={}: {}", boardId, source.kind(), e.toString(), e);
+                chunks.add(SourceChunk.failed(source.kind(), e.toString()));
             }
         }
         return chunks;
+    }
+
+    /**
+     * 이 회차가 우리 스토리지로 옮긴 이미지·영상 썸네일을 보고서 폴더("보고서 자료/2026-07/…")로 모은다.
+     * 정리에 실패해도 보고서는 이미 저장·발송되어야 하므로 예외를 삼킨다.
+     */
+    private void fileCollectedMedia(Board board, WeeklyReport report, ReportType reportType,
+                                    ReportPeriod period, List<SourceChunk> chunks) {
+        Set<String> keys = new LinkedHashSet<>();
+        chunks.forEach(chunk -> keys.addAll(chunk.collectedFileKeys()));
+        if (keys.isEmpty()) {
+            return;
+        }
+        try {
+            reportFileFiler.fileReportFiles(board.getId(), report.getId(),
+                    ReportFolderNaming.monthKey(period.endDate()),
+                    ReportFolderNaming.folderName(reportType, period.startDate(), period.endDate()),
+                    keys);
+        } catch (Exception e) {
+            log.warn("보고서 수집 파일 정리 실패 board={} report={}: {}",
+                    board.getId(), report.getId(), e.getMessage());
+        }
     }
 
     private boolean isEnabled(ReportSource source, BoardReportConfig config) {

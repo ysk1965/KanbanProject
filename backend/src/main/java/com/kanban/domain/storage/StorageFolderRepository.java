@@ -44,4 +44,19 @@ public interface StorageFolderRepository extends JpaRepository<StorageFolder, St
     List<StorageFolder> findTrashByScope(@Param("type") String type, @Param("sid") String sid);
 
     Optional<StorageFolder> findByShareCodeAndIsSharedTrue(String shareCode);
+
+    /**
+     * 보드의 시스템 폴더(보고서 자료 루트·월 폴더 등). 이름이 아니라 키로 찾으므로 사용자가
+     * 폴더 이름을 바꿔도 같은 폴더를 다시 쓴다. 동시 생성으로 중복이 생겨도 터지지 않도록
+     * 목록으로 받아 가장 먼저 만들어진 것을 쓴다.
+     */
+    @Query("SELECT f FROM StorageFolder f WHERE f.boardId = :boardId AND f.systemKey = :systemKey " +
+            "AND f.isDeleted = false ORDER BY f.createdAt ASC")
+    List<StorageFolder> findActiveByBoardIdAndSystemKey(@Param("boardId") String boardId,
+                                                        @Param("systemKey") String systemKey);
+
+    @Query("SELECT f FROM StorageFolder f WHERE f.boardId = :boardId AND f.reportId = :reportId " +
+            "AND f.isDeleted = false ORDER BY f.createdAt ASC")
+    List<StorageFolder> findActiveByBoardIdAndReportId(@Param("boardId") String boardId,
+                                                       @Param("reportId") String reportId);
 }

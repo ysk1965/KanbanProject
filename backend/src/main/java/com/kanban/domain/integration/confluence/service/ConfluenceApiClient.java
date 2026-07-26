@@ -31,7 +31,10 @@ import java.util.List;
 public class ConfluenceApiClient {
 
     private static final String API_BASE = "https://api.atlassian.com";
-    private static final int SEARCH_LIMIT = 25;
+    /** 검색 페이지당 결과 수 */
+    private static final int SEARCH_LIMIT = 100;
+    /** 검색 페이지네이션 상한 (100개/페이지 × 5 = 500개) — 변경 많은 주에 25개에서 잘리는 것을 막는다 */
+    private static final int SEARCH_PAGE_GUARD = 5;
     /** 스페이스 목록 페이지네이션 상한 (100개/페이지 × 10 = 1000개) */
     private static final int SPACE_PAGE_GUARD = 10;
     /** 하위 트리 조회 페이지네이션 상한 (250개/페이지 × 8 = 2000개) */
@@ -63,29 +66,57 @@ public class ConfluenceApiClient {
 
     /**
      * CQL로 페이지를 찾는다. 기간은 호출부가 만든 CQL 조각에 이미 들어 있다.
+     *
+     * <p>{@code start} 커서로 끝까지 따라가되 {@link #SEARCH_PAGE_GUARD}로 막는다(최대 500건).
+     * 단일 호출·25개 컷이던 옛 동작은 변경이 많은 주에 오래된 변경분을 소리 없이 잘라냈다.
+     * 2페이지 이후 조회가 실패하면 그때까지 모은 것을 반환한다(전량 손실 방지).
      */
     public List<ConfluenceResponse.PageRef> searchPages(String cloudId, String token, String cql) {
-        String url = UriComponentsBuilder.fromUriString(base(cloudId) + "/wiki/rest/api/search")
-                .queryParam("cql", cql)
-                .queryParam("limit", SEARCH_LIMIT)
-                .build()
-                .encode()
-                .toUriString();
-
-        JsonNode body = get(url, token);
         List<ConfluenceResponse.PageRef> pages = new ArrayList<>();
-        for (JsonNode node : body.path("results")) {
-            JsonNode content = node.path("content");
-            String id = content.path("id").asText(null);
-            if (id == null) {
-                continue;
+        int start = 0;
+        for (int page = 0; page < SEARCH_PAGE_GUARD; page++) {
+            String url = UriComponentsBuilder.fromUriString(base(cloudId) + "/wiki/rest/api/search")
+                    .queryParam("cql", cql)
+                    .queryParam("limit", SEARCH_LIMIT)
+                    .queryParam("start", start)
+                    .build()
+                    .encode()
+                    .toUriString();
+
+            JsonNode body;
+            try {
+                body = get(url, token);
+            } catch (RuntimeException e) {
+                if (page == 0) {
+                    throw e; // 첫 페이지 실패는 실제 조회 실패 — 위로 전파
+                }
+                log.warn("Confluence 검색 페이지네이션 중단 start={}: {}", start, e.getMessage());
+                break;
             }
-            pages.add(ConfluenceResponse.PageRef.builder()
-                    .id(id)
-                    .title(content.path("title").asText(node.path("title").asText("")))
-                    .url(node.path("url").asText(null))
-                    .lastUpdated(node.path("lastModified").asText(null))
-                    .build());
+
+            JsonNode results = body.path("results");
+            for (JsonNode node : results) {
+                JsonNode content = node.path("content");
+                String id = content.path("id").asText(null);
+                if (id == null) {
+                    continue;
+                }
+                pages.add(ConfluenceResponse.PageRef.builder()
+                        .id(id)
+                        .title(content.path("title").asText(node.path("title").asText("")))
+                        .url(node.path("url").asText(null))
+                        .lastUpdated(node.path("lastModified").asText(null))
+                        .build());
+            }
+
+            // 서버가 limit을 낮춰 잡을 수 있어 요청값이 아니라 실제 반환 수로 다음 start를 잡고,
+            // 더 있는지는 응답의 _links.next 유무로 판단한다(빈 페이지도 종료).
+            int pageSize = results.size();
+            boolean hasNext = !body.path("_links").path("next").asText("").isBlank();
+            if (pageSize == 0 || !hasNext) {
+                break;
+            }
+            start += pageSize;
         }
         return pages;
     }

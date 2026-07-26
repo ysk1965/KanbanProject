@@ -217,7 +217,10 @@ module "elastic_beanstalk" {
   mail_password         = local.secret.mail_password
   google_client_id      = var.google_client_id
   google_client_secret  = local.secret.google_client_secret
-  frontend_url          = var.domain_name != "" ? "https://${var.domain_name}" : module.s3_cloudfront.cloudfront_url
+  # domain_name(bridgespots.com)은 인증서/DNS/CloudFront alias 용도로 유지하고,
+  # 백엔드가 생성하는 프론트 링크(리포트 /r/, 이메일, 슬랙·디스코드 알림, OAuth 리다이렉트 등)는
+  # milkyway.pe.kr로 통일한다. 두 도메인 모두 같은 CloudFront/S3에서 서빙되므로 링크는 정상 동작한다.
+  frontend_url          = "https://milkyway.pe.kr"
   testprod_frontend_url = var.testprod_frontend_url
 
   # App config / observability
