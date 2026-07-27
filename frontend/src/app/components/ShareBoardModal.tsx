@@ -13,7 +13,7 @@ import {
 import { Badge } from './ui/badge';
 import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Loader2, Pipette, Users, Settings, GripVertical, Sparkles, Building2, Search, ArrowRightLeft, Briefcase } from 'lucide-react';
 import { ColorPickerPopover } from './ui/ColorPickerPopover';
-import { InviteLink, slackWebhookAPI, SlackWebhookMemberStatus, discordAPI, DiscordMemberStatus } from '../utils/api';
+import { InviteLink, slackWebhookAPI, SlackWebhookMemberStatus, discordAPI, DiscordMemberStatus, githubAPI, GithubUserCheck } from '../utils/api';
 import { AiCredits, JobRole, JobRoleInfo, OrgBoardCandidate } from '../types';
 import { FEATURE_COLORS } from '../constants';
 import { ASSIGNEE_COLOR_NAMES, getAssigneeClasses, getAssigneeHex, getInitials } from '../utils/assigneeColor';
@@ -139,26 +139,67 @@ interface SortableMemberRowProps {
   onUpdateMemberJobRole?: (memberId: string, jobRoleId: string | null) => void;
   canEditGithub?: boolean;
   onUpdateMemberGithubLogin?: (memberId: string, githubLogin: string | null) => void;
+  boardId?: string;
   t: (key: string, options?: Record<string, unknown>) => string;
   isCurrentUserOwner?: boolean;
   onTransferClick?: () => void;
 }
 
+/** GitHub username 형식(영숫자·하이픈, 최대 39자, 하이픈 시작/끝·연속 불가) */
+const GITHUB_LOGIN_RE = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
+
+type GithubCheckState =
+  | { status: 'idle' | 'checking' | 'invalid' | 'error' }
+  | { status: 'valid'; user: GithubUserCheck };
+
 function SortableMemberRow({
   member, canDrag, isCurrentMember, isOnline, canEdit, canChangeColor, webhookStatus, discordStatus,
   onUpdateMemberRole, onRemoveMember, onUpdateMemberColor,
   jobRoles, canChangeJobRole, onUpdateMemberJobRole,
-  canEditGithub, onUpdateMemberGithubLogin,
+  canEditGithub, onUpdateMemberGithubLogin, boardId,
   t, isCurrentUserOwner, onTransferClick,
 }: SortableMemberRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: member.id, disabled: !canDrag });
   const [editingGithub, setEditingGithub] = useState(false);
   const [githubDraft, setGithubDraft] = useState(member.githubLogin ?? '');
+  const [githubCheck, setGithubCheck] = useState<GithubCheckState>({ status: 'idle' });
   const commitGithub = () => {
-    const val = githubDraft.trim();
+    const val = githubDraft.trim().replace(/^@/, '');
     onUpdateMemberGithubLogin?.(member.id, val || null);
     setEditingGithub(false);
   };
+
+  // 입력값을 디바운스해서 실제 GitHub 계정인지 조회한다. 존재 여부만 보므로 저장을 막지는 않는다.
+  useEffect(() => {
+    if (!editingGithub || !boardId) {
+      setGithubCheck({ status: 'idle' });
+      return;
+    }
+    const val = githubDraft.trim().replace(/^@/, '');
+    if (!val) {
+      setGithubCheck({ status: 'idle' });
+      return;
+    }
+    if (!GITHUB_LOGIN_RE.test(val)) {
+      setGithubCheck({ status: 'invalid' });
+      return;
+    }
+    let cancelled = false;
+    setGithubCheck({ status: 'checking' });
+    const timer = setTimeout(async () => {
+      try {
+        const res = await githubAPI.validateUser(boardId, val);
+        if (cancelled) return;
+        setGithubCheck(res.exists ? { status: 'valid', user: res } : { status: 'invalid' });
+      } catch {
+        if (!cancelled) setGithubCheck({ status: 'error' });
+      }
+    }, 450);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [githubDraft, editingGithub, boardId]);
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -304,6 +345,36 @@ function SortableMemberRow({
                       }}
                     />
                   </div>
+                  {githubCheck.status !== 'idle' && (
+                    <div className="flex items-center gap-1.5 mt-1.5 min-h-[16px]">
+                      {githubCheck.status === 'checking' && (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
+                          <span className="text-xs text-slate-400">확인 중…</span>
+                        </>
+                      )}
+                      {githubCheck.status === 'valid' && (
+                        <>
+                          {githubCheck.user.avatar_url && (
+                            <img src={githubCheck.user.avatar_url} alt="" className="w-4 h-4 rounded-full" />
+                          )}
+                          <Check className="w-3 h-3 text-emerald-500 shrink-0" />
+                          <span className="text-xs text-emerald-500 truncate">
+                            {githubCheck.user.name || githubCheck.user.login}
+                          </span>
+                        </>
+                      )}
+                      {githubCheck.status === 'invalid' && (
+                        <>
+                          <X className="w-3 h-3 text-rose-500 shrink-0" />
+                          <span className="text-xs text-rose-400">존재하지 않는 계정</span>
+                        </>
+                      )}
+                      {githubCheck.status === 'error' && (
+                        <span className="text-xs text-slate-500">확인할 수 없음 (저장은 가능)</span>
+                      )}
+                    </div>
+                  )}
                   <div className="flex items-center justify-end gap-1.5 mt-2">
                     <button
                       type="button"
@@ -982,6 +1053,7 @@ export function ShareBoardModal({
                         onUpdateMemberJobRole={onUpdateMemberJobRole}
                         canEditGithub={canEditGithub}
                         onUpdateMemberGithubLogin={onUpdateMemberGithubLogin}
+                        boardId={boardId}
                         t={t}
                         isCurrentUserOwner={isCurrentUserOwner}
                         onTransferClick={onTransferOwnership ? () => setShowTransferSection(true) : undefined}

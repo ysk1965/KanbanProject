@@ -79,6 +79,16 @@ public class GithubController {
                 connectionService.selectRepos(boardId, principal.getUserId(), request));
     }
 
+    /** username이 실제 GitHub 계정인지 확인 — 멤버 GitHub 연결 입력의 실시간 검증용 */
+    @GetMapping("/users/{login}")
+    public ResponseEntity<GithubResponse.GithubUser> validateUser(
+            @PathVariable String boardId,
+            @PathVariable String login,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(
+                connectionService.validateGithubUser(boardId, principal.getUserId(), login));
+    }
+
     @DeleteMapping
     public ResponseEntity<Void> disconnect(
             @PathVariable String boardId,
