@@ -22,16 +22,14 @@ import java.util.List;
  * ({@code DailyStandupScheduler}와 같은 방식). 설정은 UTC 시·분으로 저장돼 있어
  * 현재 UTC 시각과 일치하는 것만 집어간다.
  *
- * <p>중복 발송은 두 겹으로 막는다 — Redis 분산 락(인스턴스 간)과
- * {@code lastSentAt} 시각 비교(같은 인스턴스 내).
+ * <p>재발송 제한(날짜 단위·12시간 가드)은 두지 않는다 — 예약 시각과 일치하면 같은 날
+ * 몇 번이든 발송한다. 다만 인스턴스가 여러 대일 때 <b>같은 분</b>에 동시에 통과해 두 번
+ * 나가는 것만 Redis 분산 락(분 단위)으로 막는다.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class ReportDispatchScheduler {
-
-    /** 같은 보고서를 다시 보내지 않기 위한 최소 간격 */
-    private static final Duration MIN_RESEND_INTERVAL = Duration.ofHours(12);
 
     private final BoardReportConfigRepository configRepository;
     private final ReportDispatchService dispatchService;
@@ -80,7 +78,7 @@ public class ReportDispatchScheduler {
             processOne(config, reportType, nowUtc);
         } catch (Exception e) {
             log.error("보고서 발송 실패 board={} type={}: {}", boardId, reportType, e.getMessage(), e);
-            dispatchLock.release(boardId, reportType.name(), nowUtc.toLocalDate());
+            dispatchLock.release(boardId, reportType.name(), nowUtc);
         }
     }
 
@@ -92,11 +90,9 @@ public class ReportDispatchScheduler {
         Board board = config.getBoard();
         String boardId = board.getId();
 
-        if (isRecentlySent(config, reportType, nowUtc)) {
-            return;
-        }
-        // 인스턴스가 여러 대여도 하루 1회만 통과한다.
-        if (!dispatchLock.acquire(boardId, reportType.name(), nowUtc.toLocalDate())) {
+        // 인스턴스가 여러 대여도 같은 분에는 한 번만 통과한다(분 단위 락).
+        // 날짜 단위 재발송 제한·12시간 가드는 없앴다 — 예약 시각마다 그대로 발송한다.
+        if (!dispatchLock.acquire(boardId, reportType.name(), nowUtc)) {
             log.debug("다른 인스턴스가 이미 발송 중 board={} type={}", boardId, reportType);
             return;
         }
@@ -109,19 +105,10 @@ public class ReportDispatchScheduler {
             persistence.markSent(boardId, reportType, nowUtc);
             log.info("보고서 발송 완료 board={} type={} status={}", boardId, reportType, result.status());
         } else {
-            // 실패했으면 락을 풀어 다음 기회에 다시 시도할 수 있게 한다.
-            dispatchLock.release(boardId, reportType.name(), nowUtc.toLocalDate());
+            // 실패했으면 락을 풀어 다음 분에 다시 시도할 수 있게 한다.
+            dispatchLock.release(boardId, reportType.name(), nowUtc);
             log.info("보고서 미발송 board={} type={} status={} reason={}",
                     boardId, reportType, result.status(), result.message());
         }
-    }
-
-    private boolean isRecentlySent(BoardReportConfig config, ReportType reportType, LocalDateTime nowUtc) {
-        LocalDateTime lastSent = reportType == ReportType.WEEKLY_INTEGRATED
-                ? config.getWeeklyLastSentAt() : config.getDailyLastSentAt();
-        if (lastSent == null) {
-            return false;
-        }
-        return Duration.between(lastSent, nowUtc).compareTo(MIN_RESEND_INTERVAL) < 0;
     }
 }
