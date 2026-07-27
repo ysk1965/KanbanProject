@@ -30,6 +30,7 @@ import {
   folderTitlePath,
   isFileNodeId,
   isStorageFolderNodeId,
+  storageFolderIdFromNodeId,
 } from "../library/libraryTree";
 import { StorageUsageDetailModal } from "../storage/StorageUsageDetailModal";
 import { formatBytes, publicFileLink } from "../storage/storageUtils";
@@ -568,6 +569,9 @@ export function NotesView({
   const [selectedFileNodeId, setSelectedFileNodeId] = useState<string | null>(
     null,
   );
+  // 자료실 다중 선택 — 체크한 파일·노트 노드 id 집합
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [uploads, setUploads] = useState<Record<string, number>>({});
   const [usageDetailOpen, setUsageDetailOpen] = useState(false);
   const [dragOverMain, setDragOverMain] = useState(false);
@@ -748,6 +752,86 @@ export function NotesView({
     [storageApi, loadStorage, t],
   );
 
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const treeSelection = useMemo(
+    () => ({ selectedIds, toggle: toggleSelect }),
+    [selectedIds, toggleSelect],
+  );
+
+  const handleBulkDelete = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (
+      !window.confirm(
+        t("library.bulkDeleteConfirm", "선택한 {{count}}개 항목을 휴지통으로 옮길까요?", {
+          count: ids.length,
+        }),
+      )
+    )
+      return;
+
+    setBulkDeleting(true);
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        if (isFileNodeId(id)) {
+          await storageApi.deleteFile(fileIdFromNodeId(id));
+        } else if (isStorageFolderNodeId(id)) {
+          await storageApi.deleteFolder(storageFolderIdFromNodeId(id));
+        } else {
+          await svc.delete(scopeId, id);
+        }
+      } catch (err) {
+        failed += 1;
+        console.error("Failed to bulk-delete node:", id, err);
+      }
+    }
+
+    // 삭제된 항목이 현재 열려 있으면 상세 패널을 닫는다.
+    setSelectedFileNodeId((prev) => (prev && selectedIds.has(prev) ? null : prev));
+    if (selectedNoteId && selectedIds.has(selectedNoteId)) {
+      setSelectedNoteId(null);
+      setSelectedNote(null);
+    }
+    clearSelection();
+    await Promise.all([loadTree(), loadStorage()]);
+    setBulkDeleting(false);
+
+    if (failed > 0) {
+      toast.error(
+        t("library.bulkDeletePartial", "{{count}}개 항목을 삭제하지 못했습니다", {
+          count: failed,
+        }),
+      );
+    } else {
+      toast.success(
+        t("library.bulkDeleteDone", "{{count}}개 항목을 휴지통으로 옮겼습니다", {
+          count: ids.length,
+        }),
+      );
+    }
+  }, [
+    selectedIds,
+    storageApi,
+    svc,
+    scopeId,
+    selectedNoteId,
+    loadTree,
+    loadStorage,
+    clearSelection,
+    t,
+  ]);
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -862,6 +946,37 @@ export function NotesView({
         )}
       </div>
 
+      {/* 다중 선택 액션바 — 선택 항목이 있을 때만 노출 */}
+      {withFiles && canEdit && selectedIds.size > 0 && (
+        <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-foreground/5 bg-bridge-accent/5 flex-shrink-0">
+          <span className="text-xs font-bold text-foreground">
+            {t("library.selectedCount", "{{count}}개 선택됨", {
+              count: selectedIds.size,
+            })}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={clearSelection}
+              className="px-2.5 py-1 text-xs font-medium text-slate-400 hover:text-foreground rounded-lg hover:bg-foreground/5 transition-colors"
+            >
+              {t("common.cancel", "취소")}
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-white bg-rose-500 rounded-lg hover:bg-rose-600 transition-colors disabled:opacity-50"
+            >
+              {bulkDeleting ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <Trash2 size={13} />
+              )}
+              {t("common.delete", "삭제")}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tree or List Content */}
       <div className="flex-1 overflow-y-auto p-3">
         {viewType === "tree" ? (
@@ -881,6 +996,7 @@ export function NotesView({
             boardNoteSections={orgId ? boardNoteSections : undefined}
             onSelectBoardNote={orgId ? handleSelectBoardNote : undefined}
             fileActions={withFiles ? fileActions : undefined}
+            selection={withFiles && canEdit ? treeSelection : undefined}
           />
         ) : (
           <NoteListView

@@ -197,7 +197,12 @@ public class GithubCommitSource implements ReportSource {
 
         collected.sort(Comparator.comparing(GithubCommit::committedAt,
                 Comparator.nullsLast(Comparator.reverseOrder())));
-        enrichStats(plan.installationId(), collected);
+        // 상세 지표는 부가 정보다 — 여기서 어떤 예외가 나도 이미 모은 커밋 목록을 날리지 않는다.
+        try {
+            enrichStats(plan.installationId(), collected);
+        } catch (Exception e) {
+            log.warn("커밋 상세 지표 보강 실패 board={}: {}", boardId, e.getMessage());
+        }
 
         Map<String, Object> metrics = buildMetrics(collected);
         String summary = "커밋 " + collected.size() + "건 · 기여자 " + metrics.get("contributors") + "명"
@@ -227,19 +232,29 @@ public class GithubCommitSource implements ReportSource {
      */
     private void enrichStats(String installationId, List<GithubCommit> commits) {
         int limit = Math.min(properties.getCommitDetailLimit(), commits.size());
+        long deadline = System.nanoTime() + properties.getCommitDetailBudgetMillis() * 1_000_000L;
+
+        int[] order;
         if (limit >= commits.size()) {
-            for (int i = 0; i < commits.size(); i++) {
-                commits.set(i, apiClient.enrichWithStats(installationId, commits.get(i)));
-            }
-            return;
+            order = IntStream.range(0, commits.size()).toArray();
+        } else {
+            order = IntStream.range(0, commits.size()).boxed()
+                    .sorted(Comparator.comparingInt(i -> textSignalStrength(commits.get(i))))
+                    .limit(limit)
+                    .mapToInt(Integer::intValue)
+                    .toArray();
         }
-        int[] order = IntStream.range(0, commits.size()).boxed()
-                .sorted(Comparator.comparingInt(i -> textSignalStrength(commits.get(i))))
-                .limit(limit)
-                .mapToInt(Integer::intValue)
-                .toArray();
+
+        int done = 0;
         for (int idx : order) {
+            // 상세 조회는 커밋당 1회 순차 호출이라, GitHub가 느려지면 전체가 오래 매달린다.
+            // 예산을 넘기면 남은 커밋은 상세 없이 둔다 — 상세는 부가 지표라 보고서를 막지 않는다.
+            if (System.nanoTime() > deadline) {
+                log.warn("커밋 상세 보강 예산 초과 — {}/{}건만 보강", done, order.length);
+                break;
+            }
             commits.set(idx, apiClient.enrichWithStats(installationId, commits.get(idx)));
+            done++;
         }
     }
 

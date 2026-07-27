@@ -21,6 +21,7 @@ import {
   FileDiff,
   FileText,
   GitCommit,
+  Images,
   ListChecks,
   type LucideIcon,
   MessagesSquare,
@@ -611,7 +612,7 @@ function TaskMark({ status }: { status: string }) {
   );
 }
 
-/* ── 커밋 레포 그룹 (드롭다운, 기본 접힘) ── */
+/* ── 커밋 레포 그룹 (드롭다운, 기본 펼침) ── */
 function CommitRepoGroup({
   repo,
   list,
@@ -619,7 +620,7 @@ function CommitRepoGroup({
   repo: string;
   list: AutoReportFeatureCommit[];
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const latest = list[0]?.subject ?? ""; // 헤더 요약 = 최근 커밋 제목
   return (
     <div className="border-t border-foreground/[0.06] first:border-t-0">
@@ -1410,9 +1411,8 @@ function MemberCommitRow({ commit }: { commit: AutoReportMemberCommit }) {
   );
 }
 
-/* ── 구성원 뷰: 슬랙 메시지 한 줄 (+미디어 썸네일) ── */
+/* ── 구성원 뷰: 슬랙 메시지 한 줄 (미디어는 상단 "리소스"로 일괄 노출) ── */
 function MemberSlackRow({ msg }: { msg: AutoReportMemberSlackMessage }) {
-  const media = msg.media ?? [];
   return (
     <div className="py-2.5 border-t border-foreground/[0.06] first:border-t-0 flex flex-col gap-2">
       <div className="text-sm text-foreground">
@@ -1423,13 +1423,6 @@ function MemberSlackRow({ msg }: { msg: AutoReportMemberSlackMessage }) {
         )}
         {msg.text}
       </div>
-      {media.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {media.map((m, i) => (
-            <MemberMediaThumb key={i} media={m} />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -1563,6 +1556,8 @@ function MemberDetail({ member }: { member: AutoReportMember }) {
   const docs = member.confluence_docs ?? [];
   const checklist = member.checklist_changes ?? [];
   const hex = getAssigneeHex(member.name);
+  // 슬랙에 올린 이미지·영상을 한곳에 모아 상단 "리소스"로 일괄 노출한다.
+  const resources = slack.flatMap((m) => m.media ?? []);
 
   return (
     <div className="flex flex-col gap-3">
@@ -1615,6 +1610,22 @@ function MemberDetail({ member }: { member: AutoReportMember }) {
           )}
         </div>
       </EvidenceSection>
+
+      {/* 리소스 — 슬랙에 올린 이미지·영상 일괄 노출 */}
+      {resources.length > 0 && (
+        <EvidenceSection
+          icon={<Images className="w-3.5 h-3.5 text-bridge-secondary" />}
+          label="리소스"
+          count={resources.length}
+          countClass="bg-bridge-secondary/15 text-bridge-secondary"
+        >
+          <div className="px-4 py-3 flex flex-wrap gap-2">
+            {resources.map((m, i) => (
+              <MemberMediaThumb key={i} media={m} />
+            ))}
+          </div>
+        </EvidenceSection>
+      )}
 
       {/* 슬랙 */}
       {slack.length > 0 && (

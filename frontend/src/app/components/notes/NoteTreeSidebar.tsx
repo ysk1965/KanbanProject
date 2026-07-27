@@ -27,6 +27,7 @@ import {
   Image as ImageIcon,
   Film,
   FolderClock,
+  Check,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -72,6 +73,8 @@ interface NoteTreeSidebarProps {
   onSelectBoardNote?: (noteId: string, boardId: string) => void;
   /** 자료실 탭에서만 전달 — 트리에 섞인 스토리지 파일 노드의 동작 */
   fileActions?: FileActions;
+  /** 다중 선택 — 넘기면 각 행에 체크박스가 나타나고 일괄 삭제를 켠다 */
+  selection?: TreeSelection;
 }
 
 /** type === "FILE" 합성 노드에서 쓰는 동작. 컨텍스트로 내려 프롭 드릴링을 피한다. */
@@ -82,6 +85,14 @@ export interface FileActions {
 }
 
 const FileActionsContext = createContext<FileActions | null>(null);
+
+/** 자료실 다중 선택. 파일·노트 노드를 체크해 일괄 삭제한다. 컨텍스트로 내려 프롭 드릴링을 피한다. */
+export interface TreeSelection {
+  selectedIds: Set<string>;
+  toggle: (id: string) => void;
+}
+
+const SelectionContext = createContext<TreeSelection | null>(null);
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -141,6 +152,7 @@ export function NoteTreeSidebar({
   boardNoteSections,
   onSelectBoardNote,
   fileActions,
+  selection,
 }: NoteTreeSidebarProps) {
   const [activeItem, setActiveItem] = useState<NoteTreeItem | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTargetInfo | null>(null);
@@ -391,6 +403,7 @@ export function NoteTreeSidebar({
   };
 
   return (
+    <SelectionContext.Provider value={selection ?? null}>
     <FileActionsContext.Provider value={fileActions ?? null}>
       <DndContext
         sensors={sensors}
@@ -461,6 +474,7 @@ export function NoteTreeSidebar({
           ))}
       </DndContext>
     </FileActionsContext.Provider>
+    </SelectionContext.Provider>
   );
 }
 
@@ -594,6 +608,8 @@ function TreeItemComponent({
   const [renameValue, setRenameValue] = useState(item.title);
 
   const fileActions = useContext(FileActionsContext);
+  const selection = useContext(SelectionContext);
+  const isChecked = selection?.selectedIds.has(item.id) ?? false;
 
   const expanded = !collapsedIds.has(item.id);
   const isFolder = item.type === "FOLDER";
@@ -677,7 +693,7 @@ function TreeItemComponent({
               : isFolder
                 ? "bg-foreground/[0.03] text-foreground hover:bg-foreground/[0.06]"
                 : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-        }`}
+        } ${isChecked ? "ring-1 ring-inset ring-bridge-accent/40" : ""}`}
         style={{
           paddingLeft: `${indentPx}px`,
           ...(isInsideTarget
@@ -691,6 +707,28 @@ function TreeItemComponent({
         {...listeners}
         onClick={handleClick}
       >
+        {/* 다중 선택 체크박스 — 선택 항목은 항상, 그 외엔 호버 시 노출 */}
+        {selection && (
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={isChecked}
+            aria-label={t("common.select", "선택")}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              selection.toggle(item.id);
+            }}
+            className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-all ${
+              isChecked
+                ? "bg-bridge-accent border-bridge-accent text-white"
+                : "border-foreground/25 text-transparent opacity-0 group-hover:opacity-100"
+            }`}
+          >
+            <Check size={12} strokeWidth={3} />
+          </button>
+        )}
+
         {/* Drag handle — 평소 은은히 노출, 호버 시 또렷하게 */}
         {canEdit && !renaming && !isFile && (
           <span className="flex-shrink-0 opacity-20 group-hover:opacity-90 transition-opacity cursor-grab active:cursor-grabbing text-slate-400">
