@@ -86,4 +86,16 @@ public class ReportDeliveryLog {
         this.errorMessage = errorMessage;
         this.attemptCount = attemptCount != null ? attemptCount : 1;
     }
+
+    /**
+     * 발송이 끝나 RUNNING 행을 최종 상태로 갱신한다. 생성된 보고서·소스별 결과·실패 사유를 채운다.
+     * ({@code report}는 별도 트랜잭션에서 이미 커밋된 프록시로 넘어온다.)
+     */
+    public void complete(WeeklyReport report, ReportDeliveryStatus status,
+                         String sourceStatusJson, String errorMessage) {
+        this.report = report;
+        this.status = status;
+        this.sourceStatusJson = sourceStatusJson;
+        this.errorMessage = errorMessage;
+    }
 }

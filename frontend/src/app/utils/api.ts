@@ -9901,6 +9901,31 @@ export interface AutoReport {
   shared?: boolean;
 }
 
+/** 발송 이력 한 줄 — 크론이 언제 돌아 어떤 상태로 끝났는지(또는 진행 중인지) */
+export interface ReportDeliveryLog {
+  id: string;
+  /** 발송 성공 시 저장된 보고서 id. 실패·건너뜀·진행 중이면 null */
+  report_id: string | null;
+  report_type: string; // DAILY_DEV | WEEKLY_INTEGRATED
+  status: string; // RUNNING | SUCCESS | PARTIAL | FAILED | SKIPPED
+  error_message: string | null;
+  slack_channel_id: string | null;
+  attempt_count: number;
+  created_at: string | null;
+  source_status: AutoReportSourceStatus[] | null;
+}
+
+export interface ReportDeliveryLogPage {
+  items: ReportDeliveryLog[];
+  page: number;
+  size: number;
+  total_elements: number;
+  total_pages: number;
+  has_next: boolean;
+  /** 진행 중(RUNNING) 항목이 있으면 true — 프론트가 폴링 지속 여부를 판단 */
+  has_running: boolean;
+}
+
 export interface ReportPreviewSource {
   kind: string;
   configured: boolean;
@@ -9966,6 +9991,13 @@ export const autoReportAPI = {
   getForMember: async (boardId: string, reportId: string) => {
     return apiClient.get<AutoReport>(
       `/boards/${boardId}/reports/auto/${reportId}`,
+    );
+  },
+
+  /** 발송 이력 — 크론 실행/실패/진행 상황. 관리자 이상만 조회 가능. */
+  listDeliveryLogs: async (boardId: string, page = 0, size = 5) => {
+    return apiClient.get<ReportDeliveryLogPage>(
+      `/boards/${boardId}/reports/auto/delivery-logs?page=${page}&size=${size}`,
     );
   },
 
