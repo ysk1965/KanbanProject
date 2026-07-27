@@ -39,6 +39,10 @@ public class ConfluenceApiClient {
     private static final int SPACE_PAGE_GUARD = 10;
     /** 하위 트리 조회 페이지네이션 상한 (250개/페이지 × 8 = 2000개) */
     private static final int DESCENDANT_PAGE_GUARD = 8;
+    /** 사용자 검색 결과 상한 — 사내 도메인 이메일이면 1건이면 충분하나, 동명 확인용 여유를 둔다 */
+    private static final int USER_SEARCH_LIMIT = 5;
+    /** 사용자 벌크 조회 1회 상한 (Atlassian 제한과 동일) */
+    private static final int USER_BULK_LIMIT = 200;
 
     private final RestTemplate restTemplate;
 
@@ -121,14 +125,6 @@ public class ConfluenceApiClient {
         return pages;
     }
 
-    /** 페이지 본문(storage 포맷 HTML). 변환은 {@link ConfluenceStorageConverter}가 맡는다. */
-    public String getPageStorageBody(String cloudId, String token, String pageId) {
-        // v2 pages. body-format=storage 를 빼면 body가 {}로 와서 본문이 사라지므로 필수.
-        String url = base(cloudId) + "/wiki/api/v2/pages/" + pageId + "?body-format=storage";
-        JsonNode body = get(url, token);
-        return body.path("body").path("storage").path("value").asText(null);
-    }
-
     /**
      * 부모 페이지 하위 <b>트리 전체</b>의 현재 페이지 목록(id·title). 삭제 감지의 기준선이 되므로
      * 변경 여부와 무관하게 전부 모은다. 커서로 끝까지 따라가되 {@link #DESCENDANT_PAGE_GUARD}로 막는다.
@@ -181,6 +177,158 @@ public class ConfluenceApiClient {
                 .storageBody(body.path("body").path("storage").path("value").asText(null))
                 .webUrl(body.path("_links").path("webui").asText(null))
                 .build();
+    }
+
+    // ── 사용자 조회 ──────────────────────────────────────────
+    //
+    // 문서 작성자는 accountId로만 오므로 사람 이름으로 바꿔야 한다. 방향이 중요하다:
+    // accountId → 이메일은 Atlassian 프라이버시 정책에 막혀 대개 빈 값이 오지만,
+    // 이메일 → accountId(검색)는 열려 있다. 그래서 멤버 이메일을 질의로 넣어 계정을 찾는다.
+
+    /**
+     * 이메일(또는 이름)로 사용자를 찾는다. 사내 도메인 이메일이면 보통 정확히 1건이 나온다.
+     *
+     * <p>실패해도 예외를 올리지 않고 빈 목록을 준다 — 작성자 이름을 못 붙이는 건 보고서 전체를
+     * 실패시킬 이유가 아니다. 스코프가 모자라면 여기서 401/403이 나므로 경고 로그로 남긴다.
+     */
+    public List<ConfluenceResponse.UserRef> searchUsers(String cloudId, String token, String query) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        String cql = "user~\"" + query.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+        String url = UriComponentsBuilder.fromUriString(base(cloudId) + "/wiki/rest/api/search/user")
+                .queryParam("cql", cql)
+                .queryParam("limit", USER_SEARCH_LIMIT)
+                .build()
+                .encode()
+                .toUriString();
+
+        JsonNode body;
+        try {
+            body = get(url, token);
+        } catch (RuntimeException e) {
+            rethrowIfAuthFailure(e); // 스코프 부족이면 남은 계정도 어차피 실패한다 — 즉시 중단시킨다
+            log.warn("Confluence 사용자 검색 실패 query={}: {} — 작성자 이름 매칭을 건너뛴다",
+                    query, e.getMessage());
+            return List.of();
+        }
+
+        List<ConfluenceResponse.UserRef> users = new ArrayList<>();
+        for (JsonNode node : body.path("results")) {
+            // 검색 응답은 results[].user 에 사용자를 싣는다. 형태가 바뀌어도 최상위를 한 번 더 본다.
+            JsonNode user = node.has("user") ? node.path("user") : node;
+            String accountId = user.path("accountId").asText(null);
+            if (accountId == null || accountId.isBlank()) {
+                continue;
+            }
+            users.add(ConfluenceResponse.UserRef.builder()
+                    .accountId(accountId)
+                    .displayName(firstNonBlank(user.path("displayName").asText(null),
+                                               user.path("publicName").asText(null)))
+                    .email(blankToNull(user.path("email").asText(null)))
+                    .build());
+        }
+        return users;
+    }
+
+    /**
+     * accountId 여러 개의 표시 이름을 한 번에 가져온다. 이메일로 못 이은 계정(외부 편집자 등)도
+     * 최소한 이름은 보이게 하는 마지막 수단이다.
+     *
+     * <p>bulk 엔드포인트가 막혀 있으면 계정별 단건 조회로 물러난다. 그마저 실패하면 그 계정만 건너뛴다.
+     */
+    public List<ConfluenceResponse.UserRef> fetchUsers(String cloudId, String token,
+                                                       List<String> accountIds) {
+        if (accountIds == null || accountIds.isEmpty()) {
+            return List.of();
+        }
+        List<String> distinct = accountIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .limit(USER_BULK_LIMIT)
+                .toList();
+        if (distinct.isEmpty()) {
+            return List.of();
+        }
+
+        UriComponentsBuilder builder =
+                UriComponentsBuilder.fromUriString(base(cloudId) + "/wiki/rest/api/user/bulk");
+        distinct.forEach(id -> builder.queryParam("accountId", id));
+        try {
+            JsonNode body = get(builder.build().encode().toUriString(), token);
+            List<ConfluenceResponse.UserRef> users = new ArrayList<>();
+            for (JsonNode node : body.path("results")) {
+                ConfluenceResponse.UserRef ref = toUserRef(node);
+                if (ref != null) {
+                    users.add(ref);
+                }
+            }
+            if (!users.isEmpty()) {
+                return users;
+            }
+        } catch (RuntimeException e) {
+            rethrowIfAuthFailure(e);
+            log.warn("Confluence 사용자 벌크 조회 실패({}건) — 단건 조회로 물러난다: {}",
+                    distinct.size(), e.getMessage());
+        }
+        return fetchUsersOneByOne(cloudId, token, distinct);
+    }
+
+    private List<ConfluenceResponse.UserRef> fetchUsersOneByOne(String cloudId, String token,
+                                                                List<String> accountIds) {
+        List<ConfluenceResponse.UserRef> users = new ArrayList<>();
+        for (String accountId : accountIds) {
+            String url = UriComponentsBuilder.fromUriString(base(cloudId) + "/wiki/rest/api/user")
+                    .queryParam("accountId", accountId)
+                    .build()
+                    .encode()
+                    .toUriString();
+            try {
+                ConfluenceResponse.UserRef ref = toUserRef(get(url, token));
+                if (ref != null) {
+                    users.add(ref);
+                }
+            } catch (RuntimeException e) {
+                rethrowIfAuthFailure(e);
+                log.warn("Confluence 사용자 조회 실패 accountId={}: {}", accountId, e.getMessage());
+            }
+        }
+        return users;
+    }
+
+    private ConfluenceResponse.UserRef toUserRef(JsonNode node) {
+        String accountId = node.path("accountId").asText(null);
+        if (accountId == null || accountId.isBlank()) {
+            return null;
+        }
+        return ConfluenceResponse.UserRef.builder()
+                .accountId(accountId)
+                .displayName(firstNonBlank(node.path("displayName").asText(null),
+                                           node.path("publicName").asText(null)))
+                .email(blankToNull(node.path("email").asText(null)))
+                .build();
+    }
+
+    /**
+     * 인증·권한 실패는 삼키지 않고 올린다.
+     *
+     * <p>사용자 조회 스코프는 나중에 추가돼서, 그 전에 연결한 보드의 토큰에는 없다. 이때 계정마다
+     * 조용히 재시도하면 한 번의 수집에서 수십 번 헛호출이 나간다. 첫 실패에서 끊어 호출부가
+     * 사람 이름 매칭 자체를 건너뛰게 한다.
+     */
+    private void rethrowIfAuthFailure(RuntimeException e) {
+        if (e instanceof BusinessException be && be.getErrorCode() == ErrorCode.CONFLUENCE_AUTH_FAILED) {
+            throw be;
+        }
+    }
+
+    private String firstNonBlank(String a, String b) {
+        if (a != null && !a.isBlank()) return a;
+        return (b != null && !b.isBlank()) ? b : null;
+    }
+
+    private String blankToNull(String value) {
+        return (value != null && !value.isBlank()) ? value : null;
     }
 
     private String base(String cloudId) {

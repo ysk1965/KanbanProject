@@ -85,6 +85,8 @@ interface ConfluencePage {
   title: string;
   space?: string | null;
   url?: string | null;
+  /** 작성/수정자 이름. 변경내역 문서와 같은 방식으로 해석해 넣는다. 못 풀면 아예 없다. */
+  author?: string | null;
   last_updated?: string | null;
   body?: string | null;
 }
@@ -94,7 +96,8 @@ interface ConfluenceDoc {
   id?: string | null;
   title: string;
   url?: string | null;
-  author_id?: string | null;
+  /** 작성/수정자 이름. 수집 단계에서 Atlassian 계정을 사람으로 해석해 넣는다. 못 풀면 아예 없다. */
+  author?: string | null;
   updated_at?: string | null;
   body?: string | null;
   version?: number | null;
@@ -173,9 +176,9 @@ function ConfluenceDocCard({
           {doc.title}
         </h3>
       </div>
-      {!deleted && (doc.author_id || doc.updated_at) && (
+      {!deleted && (doc.author || doc.updated_at) && (
         <div className="text-xs text-slate-500">
-          {[doc.author_id, doc.updated_at ? formatDate(doc.updated_at) : null]
+          {[doc.author, doc.updated_at ? formatDate(doc.updated_at) : null]
             .filter(Boolean)
             .join(" · ")}
         </div>
@@ -1987,10 +1990,11 @@ function ConfluenceSourcePanel({ confluence }: { confluence: ConfluenceData }) {
                   {page.title}
                 </h4>
               </div>
-              {(page.space || page.last_updated) && (
+              {(page.space || page.author || page.last_updated) && (
                 <div className="text-xs text-slate-500">
                   {[
                     page.space,
+                    page.author,
                     page.last_updated ? formatDate(page.last_updated) : null,
                   ]
                     .filter(Boolean)

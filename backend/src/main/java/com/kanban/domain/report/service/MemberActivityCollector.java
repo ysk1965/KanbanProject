@@ -35,8 +35,9 @@ import java.util.Map;
  * <p>연동 정보가 없는 외부 기여자(로그인만 있는 커밋 author, 채널의 외부 슬랙 참여자)도 그대로 노출한다 —
  * 그들도 그 기간에 실제로 활동했기 때문이다. 활동량 내림차순으로 정렬한다.
  *
- * <p>Confluence 작성 내역은 문서 author_id를 보드 멤버로 신뢰성 있게 잇는 매핑이 아직 없어, 이 버전에서는
- * 구성원 카드에 붙이지 않는다(클러스터 단위에는 그대로 붙는다). 매핑이 생기면 확장한다.
+ * <p>Confluence 문서도 사람에 붙는다. 작성자는 수집 단계에서 Atlassian accountId를 멤버로 해석해
+ * 오므로({@code author_user_id}), 커밋·슬랙과 같은 카드에 합쳐진다. 멤버로 이어지지 않은 외부
+ * 편집자는 표시 이름으로 자기 카드를 갖는다 — 커밋·슬랙의 외부 기여자와 같은 취급이다.
  */
 @Slf4j
 @Component
@@ -47,6 +48,13 @@ public class MemberActivityCollector {
     private static final int MAX_COMMITS_PER_MEMBER = 30;
     private static final int MAX_SLACK_PER_MEMBER = 20;
     private static final int MAX_CHECKLIST_PER_MEMBER = 20;
+    private static final int MAX_DOCS_PER_MEMBER = 20;
+
+    // 활동량 가중치 — 단순 합이면 메시지 수가 순위를 흔든다. 산출물(커밋)과 약속(체크리스트)을 위에 둔다.
+    private static final int W_COMMIT = 3;
+    private static final int W_DOC = 2;
+    private static final int W_CHECKLIST = 2;
+    private static final int W_SLACK = 1;
 
     private final ReportMemberDirectory memberDirectory;
     private final ChecklistItemRepository checklistItemRepository;
@@ -58,16 +66,29 @@ public class MemberActivityCollector {
     public record MemberResult(List<ReportContent.Member> members) {
     }
 
-    /** 집계용 누적기 — 안정적 memberKey로 소스별 활동을 모은다. */
+    /**
+     * 집계용 누적기 — 안정적 memberKey로 소스별 활동을 모은다.
+     *
+     * <p>리스트는 표시용이라 상한에서 잘리지만 {@code *Total}은 <b>자르기 전 실제 건수</b>다.
+     * 카운트를 리스트 길이로 계산하면 상한을 넘긴 사람이 전원 같은 숫자("커밋 30")로 표시되고
+     * 정렬 기준까지 포화된다.
+     */
     private static class Acc {
         String name;
         String login;
         final List<ReportContent.MemberCommit> commits = new ArrayList<>();
         final List<ReportContent.MemberSlackMessage> slack = new ArrayList<>();
-        // 체크리스트 — 지연 / 진행중 / 오늘 완료 3버킷. 이전 완료분은 개수만(숨김).
+        final List<ReportContent.ConfluenceDoc> docs = new ArrayList<>();
+        // 체크리스트 — 지연 / 진행중 / 완료 3버킷. 노출 범위 밖 완료분은 개수만(숨김).
         final List<ReportContent.MemberChecklistChange> checklistLate = new ArrayList<>();
         final List<ReportContent.MemberChecklistChange> checklistProgress = new ArrayList<>();
         final List<ReportContent.MemberChecklistChange> checklistDoneToday = new ArrayList<>();
+        int commitTotal = 0;
+        int slackTotal = 0;
+        int docTotal = 0;
+        int lateTotal = 0;
+        int progressTotal = 0;
+        int doneTotal = 0;
         int hiddenCompleted = 0;
 
         Acc(String name, String login) {
@@ -80,10 +101,12 @@ public class MemberActivityCollector {
      * @param period        보고 기간 — 칸반 체크리스트를 그 기간 완료분으로 스코프하는 데 쓴다.
      * @param clusterBySha 각 커밋 sha → 소속 클러스터. 미분류·미매칭이면 값이 없거나 kind=infra일 수 있다.
      * @param slackMessages 슬랙 수집 결과의 messages 배열(JsonNode). 없으면 null.
+     * @param confluenceDocs Confluence 수집 결과의 문서들. 작성자는 이미 사람으로 해석돼 있다. 없으면 null.
      */
     @Transactional(readOnly = true)
     public MemberResult compute(String boardId, ReportPeriod period, List<CommitInfo> commits,
-                                Map<String, ClusterTag> clusterBySha, JsonNode slackMessages) {
+                                Map<String, ClusterTag> clusterBySha, JsonNode slackMessages,
+                                List<BoardProgressCollector.ConfluenceDocInfo> confluenceDocs) {
         List<MemberIdentity> identities = memberDirectory.identities(boardId);
 
         // 정체성 매핑: github 로그인 / 슬랙 ID → memberKey(userId). 대소문자 무시.
@@ -118,8 +141,9 @@ public class MemberActivityCollector {
             String key = userId != null ? userId : "gh:" + author.toLowerCase(Locale.ROOT);
             String name = userId != null ? byUserId.get(userId).name() : author;
             Acc acc = accs.computeIfAbsent(key, k -> new Acc(name, author));
+            acc.commitTotal++;
             if (acc.commits.size() >= MAX_COMMITS_PER_MEMBER) {
-                continue;
+                continue; // 표시 목록만 자른다 — 카운트는 위에서 이미 셌다.
             }
             ClusterTag tag = c.sha() != null ? tags.get(c.sha()) : null;
             acc.commits.add(ReportContent.MemberCommit.builder()
@@ -147,18 +171,51 @@ public class MemberActivityCollector {
             }
         }
 
+        // 2-b) Confluence 문서 — 수집 단계가 붙여 준 author_user_id로 사람에 귀속한다.
+        //      멤버로 못 이은 문서는 표시 이름으로 자기 카드를 갖는다(외부 편집자). 이름조차 없으면 버린다 —
+        //      주인 없는 문서를 아무 카드에나 붙일 수는 없다.
+        for (BoardProgressCollector.ConfluenceDocInfo doc :
+                confluenceDocs != null ? confluenceDocs : List.<BoardProgressCollector.ConfluenceDocInfo>of()) {
+            String userId = doc.authorUserId();
+            String authorName = doc.author();
+            if (userId == null && (authorName == null || authorName.isBlank())) {
+                continue;
+            }
+            String key = userId != null ? userId : "cf:" + authorName;
+            String name = userId != null && byUserId.containsKey(userId)
+                    ? byUserId.get(userId).name()
+                    : authorName;
+            Acc acc = accs.computeIfAbsent(key, k -> new Acc(name, null));
+            acc.docTotal++;
+            if (acc.docs.size() >= MAX_DOCS_PER_MEMBER) {
+                continue;
+            }
+            acc.docs.add(ReportContent.ConfluenceDoc.builder()
+                    .title(doc.title())
+                    .url(doc.url())
+                    .changeType(doc.changeType())
+                    .author(authorName)
+                    .updatedAt(doc.updatedAt())
+                    .build());
+        }
+
         // 3) 칸반 체크리스트 — "지금 챙겨야 할 일" 중심으로 담당자별 재구성(보드 전체를 한 번에 로드, N+1 제거).
         //    · 지연:   미완료 & 마감 지남(dueDate < 오늘)              — 전부 노출
         //    · 진행중: 미완료 & 곧 마감(오늘 ≤ dueDate ≤ 오늘+기간길이) — 전부 노출
-        //    · 오늘완료: 발송 직전 24시간 내 완료분만                    — 노출
-        //    · 그 이전 완료분: 지난 소식이라 숨기고 개수만 집계.
+        //    · 완료:   노출 범위 안에 완료된 것                        — 노출
+        //    · 그보다 이전 완료분: 지난 소식이라 숨기고 개수만 집계.
         // 기준일(오늘)·기간 길이는 발송 시각(endExclusive) 기준. 일일이면 기간=1일, 주간이면 7일.
         LocalDate today = period.endExclusive().toLocalDate();
         long periodDays = Math.max(1, ChronoUnit.DAYS.between(period.startInclusive(), period.endExclusive()));
         LocalDate lookaheadEnd = today.plusDays(periodDays);
         LocalDateTime startUtc = period.startInclusive().withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
         LocalDateTime endUtc = period.endExclusive().withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
-        LocalDateTime todayStartUtc = period.endExclusive().minusDays(1).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
+        // 완료분 노출 범위는 <b>보고 주기를 따른다</b>. 일간(기간 1일)은 직전 24시간이 곧 그 기간이고,
+        // 주간은 그 주 전체다. 주기와 무관하게 24시간으로 고정하면 주간 보고서가 6일치 완료분을
+        // "이전에 완료"로 접어 한 주의 성과를 구조적으로 과소 표시한다.
+        LocalDateTime doneVisibleFromUtc = periodDays <= 1
+                ? period.endExclusive().minusDays(1).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime()
+                : startUtc;
 
         // 3-a) 미완료(마감 지정) → 지연/진행중
         List<ChecklistItem> incomplete;
@@ -179,15 +236,21 @@ public class MemberActivityCollector {
                 continue; // 마감이 아직 먼 항목은 이번 보고 대상 아님
             }
             Acc acc = accForUser(assignee, accs, byUserId);
-            if (late && acc.checklistLate.size() < MAX_CHECKLIST_PER_MEMBER) {
-                acc.checklistLate.add(change(item, "late", due,
-                        (int) ChronoUnit.DAYS.between(due, today)));
-            } else if (progress && acc.checklistProgress.size() < MAX_CHECKLIST_PER_MEMBER) {
-                acc.checklistProgress.add(change(item, "progress", due, 0));
+            if (late) {
+                acc.lateTotal++;
+                if (acc.checklistLate.size() < MAX_CHECKLIST_PER_MEMBER) {
+                    acc.checklistLate.add(change(item, "late", due,
+                            (int) ChronoUnit.DAYS.between(due, today)));
+                }
+            } else {
+                acc.progressTotal++;
+                if (acc.checklistProgress.size() < MAX_CHECKLIST_PER_MEMBER) {
+                    acc.checklistProgress.add(change(item, "progress", due, 0));
+                }
             }
         }
 
-        // 3-b) 기간 내 완료분 → 오늘(직전 24h) 완료는 노출, 그 이전 완료는 숨김 카운트
+        // 3-b) 기간 내 완료분 → 노출 범위(일간=직전 24h, 주간=기간 전체) 안이면 노출, 밖이면 숨김 카운트
         List<ChecklistItem> completed;
         try {
             completed = checklistItemRepository.findCompletedByBoardIdAndDateRange(boardId, startUtc, endUtc);
@@ -199,9 +262,10 @@ public class MemberActivityCollector {
                 continue;
             }
             Acc acc = accForUser(item.getAssignee(), accs, byUserId);
-            boolean completedToday = item.getCompletedAt() != null
-                    && !item.getCompletedAt().isBefore(todayStartUtc);
-            if (completedToday) {
+            boolean visible = item.getCompletedAt() != null
+                    && !item.getCompletedAt().isBefore(doneVisibleFromUtc);
+            if (visible) {
+                acc.doneTotal++;
                 if (acc.checklistDoneToday.size() < MAX_CHECKLIST_PER_MEMBER) {
                     acc.checklistDoneToday.add(change(item, "done", item.getDueDate(), 0));
                 }
@@ -211,37 +275,40 @@ public class MemberActivityCollector {
         }
 
         // 4) DTO 변환 + 활동량 내림차순 정렬 + 상한.
+        //    카운트는 자르기 전 총계(*Total)를, 리스트는 상한까지만 담는다. 프론트는 둘을 비교해
+        //    "47건 중 최근 30건 표시"처럼 잘렸음을 드러낸다.
         List<ReportContent.Member> members = new ArrayList<>();
         for (Acc acc : accs.values()) {
-            int lateCount = acc.checklistLate.size();
-            int progressCount = acc.checklistProgress.size();
-            int doneCount = acc.checklistDoneToday.size();
-            int visibleChecklist = lateCount + progressCount + doneCount;
-            int activity = acc.commits.size() + acc.slack.size() + visibleChecklist;
+            int checklistTotal = acc.lateTotal + acc.progressTotal + acc.doneTotal;
+            int activity = acc.commitTotal * W_COMMIT
+                    + acc.docTotal * W_DOC
+                    + checklistTotal * W_CHECKLIST
+                    + acc.slackTotal * W_SLACK;
             // 숨긴 완료분만 있는 사람(새 소식 없음)은 제외.
             if (activity == 0) {
                 continue;
             }
-            // 지연 → 진행중 → 오늘 완료 순으로 이어붙인다.
-            List<ReportContent.MemberChecklistChange> changes = new ArrayList<>(visibleChecklist);
+            // 지연 → 진행중 → 완료 순으로 이어붙인다.
+            List<ReportContent.MemberChecklistChange> changes = new ArrayList<>(
+                    acc.checklistLate.size() + acc.checklistProgress.size() + acc.checklistDoneToday.size());
             changes.addAll(acc.checklistLate);
             changes.addAll(acc.checklistProgress);
             changes.addAll(acc.checklistDoneToday);
             members.add(ReportContent.Member.builder()
                     .name(acc.name)
                     .login(acc.login)
-                    .commitCount(acc.commits.size())
-                    .slackCount(acc.slack.size())
-                    .docCount(0)
-                    .checklistCount(visibleChecklist)
-                    .lateCount(lateCount)
-                    .progressCount(progressCount)
-                    .doneTodayCount(doneCount)
+                    .commitCount(acc.commitTotal)
+                    .slackCount(acc.slackTotal)
+                    .docCount(acc.docTotal)
+                    .checklistCount(checklistTotal)
+                    .lateCount(acc.lateTotal)
+                    .progressCount(acc.progressTotal)
+                    .doneTodayCount(acc.doneTotal)
                     .hiddenCompletedCount(acc.hiddenCompleted)
                     .activity(activity)
                     .commits(acc.commits)
                     .slackMessages(acc.slack)
-                    .confluenceDocs(List.of())
+                    .confluenceDocs(acc.docs)
                     .checklistChanges(changes)
                     .build());
         }
@@ -297,6 +364,7 @@ public class MemberActivityCollector {
         String name = userId != null ? byUserId.get(userId).name()
                 : (authorName != null ? authorName : slackId);
         Acc acc = accs.computeIfAbsent(key, k -> new Acc(name, null));
+        acc.slackTotal++;
         if (acc.slack.size() >= MAX_SLACK_PER_MEMBER) {
             return;
         }

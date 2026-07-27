@@ -63,11 +63,18 @@ public class ConfluenceOAuthService {
      *   read:hierarchical-content:confluence → GET /wiki/api/v2/pages/{id}/descendants
      *                                          (부모 트리 변경 수집. 이 스코프가 없으면 401
      *                                           "scope does not match" 로 트리 조회가 통째 실패한다.)
+     *   read:user:confluence                → GET /wiki/rest/api/user/bulk  (작성자 표시 이름)
+     *   search:confluence                   → GET /wiki/rest/api/search/user (이메일→계정 검색)
      * </pre>
+     *
+     * <p><b>사용자 조회 두 스코프는 나중에 추가됐다.</b> 그 전에 연결한 보드의 토큰에는 없으므로
+     * 문서 작성자 이름 매칭만 조용히 건너뛴다(보고서 수집 자체는 그대로 된다).
+     * 작성자 이름을 붙이려면 해당 보드에서 Confluence를 <b>다시 연결</b>해 동의를 갱신해야 한다.
      */
     private static final String SCOPES =
             "read:space:confluence read:page:confluence "
             + "read:content-details:confluence read:hierarchical-content:confluence "
+            + "read:user:confluence search:confluence "
             + "offline_access";
 
     private static final long STATE_EXPIRY_SECONDS = 600;

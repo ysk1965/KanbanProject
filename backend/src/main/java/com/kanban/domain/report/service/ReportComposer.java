@@ -77,7 +77,6 @@ public class ReportComposer {
         // 규칙이 "기타"로 남긴 잔여 커밋만 AI가 재배치한다(합류 또는 잔여들끼리 새 군집). 확정 군집은 안 건드린다.
         // members가 커밋의 소속 클러스터 태그를 쓰므로 반드시 집계 전에 재배치를 끝낸다.
         clusters = placeResidueCommits(clusters, language, boardId, modelOverride);
-        List<ReportContent.Member> members = computeMembers(boardId, period, commits, clusters, chunks);
 
         String raw;
         try {
@@ -99,10 +98,14 @@ public class ReportComposer {
             content.setSprint(progress.sprint());
         }
         content.setClusters(clusters);
-        content.setMembers(members);
 
         // 클러스터별 제목·요약(AI 배치 1회)을 채우고, 그 요약을 종합해 상단 리드를 다시 쓴다.
         labelAndSynthesize(content, clusters, language, boardId, modelOverride);
+
+        // 구성원 집계는 클러스터 라벨링이 <b>끝난 뒤</b>에 돌린다. ClusterTag는 그 시점의 제목을 값으로
+        // 복사하므로, 라벨링 전에 집계하면 사람 뷰의 기능 태그가 폴백 키("art")로 굳어 기능 탭의 최종
+        // 제목("로비 및 행성 아트 리소스")과 어긋난다.
+        content.setMembers(computeMembers(boardId, period, commits, clusters, chunks));
 
         return new Composed(content, serialize(content, raw), mergedInput);
     }
@@ -269,7 +272,8 @@ public class ReportComposer {
                                                       List<SourceChunk> chunks) {
         try {
             Map<String, MemberActivityCollector.ClusterTag> tagBySha = buildClusterTagBySha(clusters);
-            return memberCollector.compute(boardId, period, commits, tagBySha, parseSlackMessages(chunks)).members();
+            return memberCollector.compute(boardId, period, commits, tagBySha,
+                    parseSlackMessages(chunks), parseMemberConfluenceDocs(chunks)).members();
         } catch (Exception e) {
             log.warn("구성원 활동 집계 실패 board={}: {}", boardId, e.getMessage());
             return List.of();
@@ -570,6 +574,51 @@ public class ReportComposer {
     }
 
     /**
+     * 구성원 집계용 Confluence 문서 — 트리 변경분에 <b>단일 문서(pages)까지</b> 더한다.
+     *
+     * <p>{@link #parseConfluenceDocs}가 pages를 빼는 것은 기능(클러스터) 매핑 대상이 아니기 때문이지,
+     * 사람의 활동이 아니어서가 아니다. 주간보고 한 장을 쓴 것도 그 사람이 그 기간에 한 일이므로
+     * 구성원 카드에는 넣는다. 삭제 문서는 작성자를 알 수 없어 어느 쪽에도 넣지 않는다.
+     */
+    private List<BoardProgressCollector.ConfluenceDocInfo> parseMemberConfluenceDocs(List<SourceChunk> chunks) {
+        for (SourceChunk chunk : chunks) {
+            if (chunk.kind() != SourceKind.CONFLUENCE || !chunk.success() || !chunk.hasData()) {
+                continue;
+            }
+            try {
+                JsonNode root = objectMapper.readTree(chunk.dataJson());
+                List<BoardProgressCollector.ConfluenceDocInfo> docs = new ArrayList<>();
+
+                JsonNode changelogs = root.get("changelogs");
+                if (changelogs != null && changelogs.isArray()) {
+                    for (JsonNode cl : changelogs) {
+                        addConfluenceDocs(cl.get("added"), "added", docs);
+                        addConfluenceDocs(cl.get("modified"), "modified", docs);
+                    }
+                }
+
+                JsonNode pages = root.get("pages");
+                if (pages != null && pages.isArray()) {
+                    for (JsonNode p : pages) {
+                        String title = text(p, "title");
+                        if (title == null || title.isBlank()) {
+                            continue;
+                        }
+                        docs.add(new BoardProgressCollector.ConfluenceDocInfo(
+                                title, text(p, "url"), "page",
+                                text(p, "author"), text(p, "author_user_id"), text(p, "last_updated")));
+                    }
+                }
+                return docs;
+            } catch (Exception e) {
+                log.warn("Confluence 문서 파싱 실패 — 구성원 문서 집계 생략: {}", e.getMessage());
+                return List.of();
+            }
+        }
+        return List.of();
+    }
+
+    /**
      * SLACK 소스의 messages 배열을 그대로 꺼낸다. 구성원별 활동 집계가 user·text·files를 사람 기준으로 묶는다.
      * 미연결·수집 실패·파싱 실패면 null(구성원 슬랙 집계 생략).
      */
@@ -599,8 +648,11 @@ public class ReportComposer {
             if (title == null || title.isBlank()) {
                 continue;
             }
+            // author는 수집 단계에서 accountId를 해석해 넣은 사람 이름이다. 못 푼 문서는 이름 없이 온다
+            // (accountId를 이름 자리에 노출하지 않는다).
             into.add(new BoardProgressCollector.ConfluenceDocInfo(
-                    title, text(d, "url"), changeType, text(d, "author_id"), text(d, "updated_at")));
+                    title, text(d, "url"), changeType,
+                    text(d, "author"), text(d, "author_user_id"), text(d, "updated_at")));
         }
     }
 
