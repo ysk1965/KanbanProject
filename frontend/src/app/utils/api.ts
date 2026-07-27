@@ -10069,9 +10069,24 @@ export interface GithubAvailableRepo {
   selected: boolean;
 }
 
+export interface GithubUserCheck {
+  exists: boolean;
+  login: string | null;
+  name: string | null;
+  avatar_url: string | null;
+  html_url: string | null;
+  type: string | null;
+}
+
 export const githubAPI = {
   getStatus: async (boardId: string) =>
     apiClient.get<GithubStatus>(`/boards/${boardId}/github/status`),
+
+  /** username이 실제 GitHub 계정인지 확인 (멤버 GitHub 연결 입력 검증용) */
+  validateUser: async (boardId: string, login: string) =>
+    apiClient.get<GithubUserCheck>(
+      `/boards/${boardId}/github/users/${encodeURIComponent(login)}`,
+    ),
 
   getInstallUrl: async (boardId: string) =>
     apiClient.get<{ url: string }>(`/boards/${boardId}/github/install-url`),

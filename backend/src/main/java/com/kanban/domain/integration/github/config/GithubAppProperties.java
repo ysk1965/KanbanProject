@@ -47,6 +47,16 @@ public class GithubAppProperties {
     /** 한 저장소에서 가져올 최대 커밋 수 */
     private int maxCommitsPerRepo = 300;
 
+    /**
+     * 커밋 목록 조회가 일시적 타임아웃/IO로 끊겼을 때 추가로 시도할 횟수.
+     * GitHub 타임아웃은 대부분 일시적이라, 한 번의 순간적 지연으로 저장소 전체를
+     * "조회 실패"로 떨구지 않도록 짧게 재시도한다(레이트 리밋·4xx는 재시도하지 않는다).
+     */
+    private int apiRetryCount = 1;
+
+    /** 재시도 사이 대기(ms). 시도마다 이 값 × 시도횟수만큼 선형 백오프한다. */
+    private long apiRetryBackoffMillis = 500;
+
     public boolean isConfigured() {
         return appId != null && !appId.isBlank()
             && (hasInlineKey() || hasSsmKey());

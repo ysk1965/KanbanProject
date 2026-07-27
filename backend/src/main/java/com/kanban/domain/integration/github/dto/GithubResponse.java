@@ -60,4 +60,20 @@ public class GithubResponse {
     public static class InstallUrl {
         private String url;
     }
+
+    /** 멤버 GitHub 연결 입력의 실시간 검증 결과 */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class GithubUser {
+        /** username이 실제 GitHub 계정인지 */
+        private boolean exists;
+        private String login;
+        private String name;
+        private String avatarUrl;
+        private String htmlUrl;
+        /** User | Organization | Bot */
+        private String type;
+    }
 }

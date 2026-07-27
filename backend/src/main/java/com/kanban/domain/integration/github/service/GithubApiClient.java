@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -50,6 +51,62 @@ public class GithubApiClient {
     public JsonNode getInstallation(String installationId) {
         String url = properties.getApiBaseUrl() + "/app/installations/" + installationId;
         return get(url, tokenService.createAppJwt());
+    }
+
+    /** username 존재 확인용 요약 — 보드 공유 모달에서 멤버에 붙일 GitHub 로그인이 실재하는지 볼 때 쓴다. */
+    public record GithubUserRef(String login, String name, String avatarUrl, String htmlUrl, String type) {
+    }
+
+    /**
+     * GitHub username 조회. 설치가 있으면 그 토큰으로(레이트 리밋 5000/h), 없으면 비인증으로(60/h) 부른다 —
+     * 존재 여부만 볼 거라 둘 다 동작한다.
+     *
+     * @return 존재하면 사용자 요약, 없으면(404) {@code null}
+     */
+    public GithubUserRef findUser(String installationId, String login) {
+        String token = installationId != null ? tokenService.getInstallationToken(installationId) : null;
+        String url = properties.getApiBaseUrl() + "/users/" + login;
+
+        HttpHeaders headers = new HttpHeaders();
+        if (token != null) {
+            headers.setBearerAuth(token);
+        }
+        headers.setAccept(List.of(MediaType.valueOf("application/vnd.github+json")));
+        headers.set("X-GitHub-Api-Version", "2022-11-28");
+
+        try {
+            ResponseEntity<JsonNode> response = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class);
+            JsonNode body = response.getBody();
+            if (body == null) {
+                return null;
+            }
+            return new GithubUserRef(
+                    text(body, "login"),
+                    text(body, "name"),
+                    text(body, "avatar_url"),
+                    text(body, "html_url"),
+                    text(body, "type"));
+        } catch (HttpStatusCodeException e) {
+            int status = e.getStatusCode().value();
+            if (status == 404) {
+                return null; // 없는 계정 — 오류가 아니라 정상적인 "미존재" 응답이다.
+            }
+            if (status == 403 || status == 429) {
+                String remaining = e.getResponseHeaders() != null
+                        ? e.getResponseHeaders().getFirst("x-ratelimit-remaining") : null;
+                if ("0".equals(remaining) || status == 429) {
+                    throw new BusinessException(ErrorCode.GITHUB_RATE_LIMITED);
+                }
+            }
+            log.warn("GitHub 사용자 조회 실패 login={} status={}", login, status);
+            throw new BusinessException(ErrorCode.GITHUB_API_ERROR);
+        }
+    }
+
+    /** JSON null("name": null)을 문자열 "null"로 오독하지 않도록 hasNonNull로 감싼다. */
+    private static String text(JsonNode node, String field) {
+        return node.hasNonNull(field) ? node.get(field).asText() : null;
     }
 
     /** 설치에 포함된 저장소 — 보드 설정에서 체크박스로 고를 목록 */
@@ -137,7 +194,9 @@ public class GithubApiClient {
                 builder.queryParam("sha", branch);
             }
 
-            JsonNode body = get(builder.toUriString(), token);
+            // 목록 조회만 일시적 타임아웃에 재시도한다 — 저장소 1개짜리 보드에서
+            // 순간적 지연 한 번으로 소스 전체가 실패하는 것을 막는다.
+            JsonNode body = get(builder.toUriString(), token, properties.getApiRetryCount());
             if (!body.isArray() || body.isEmpty()) {
                 break;
             }
@@ -223,42 +282,80 @@ public class GithubApiClient {
     }
 
     private JsonNode get(String url, String token) {
+        return get(url, token, 0);
+    }
+
+    /**
+     * GitHub GET. {@code retriesOnTimeout}만큼 <b>일시적 타임아웃/IO</b>({@link ResourceAccessException})에만
+     * 짧은 백오프로 재시도한다. 4xx·레이트 리밋(403/429)은 상태 응답이라 재시도 없이 그대로 매핑한다.
+     */
+    private JsonNode get(String url, String token, int retriesOnTimeout) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
         headers.setAccept(List.of(MediaType.valueOf("application/vnd.github+json")));
         headers.set("X-GitHub-Api-Version", "2022-11-28");
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
 
-        try {
-            ResponseEntity<JsonNode> response = restTemplate.exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class);
-            JsonNode body = response.getBody();
-            if (body == null) {
-                throw new BusinessException(ErrorCode.GITHUB_API_ERROR, "응답이 비어 있습니다");
-            }
-            return body;
-        } catch (HttpStatusCodeException e) {
-            int status = e.getStatusCode().value();
-            log.warn("GitHub API 실패 url={} status={} body={}", url, status, e.getResponseBodyAsString());
-            if (status == 401) {
-                throw new BusinessException(ErrorCode.GITHUB_AUTH_FAILED);
-            }
-            if (status == 403 || status == 429) {
-                // 403은 레이트 리밋일 수도, 권한 부족일 수도 있다 — 헤더로 구분한다.
-                String remaining = e.getResponseHeaders() != null
-                        ? e.getResponseHeaders().getFirst("x-ratelimit-remaining") : null;
-                if ("0".equals(remaining) || status == 429) {
-                    throw new BusinessException(ErrorCode.GITHUB_RATE_LIMITED);
+        int attempt = 0;
+        while (true) {
+            try {
+                ResponseEntity<JsonNode> response = restTemplate.exchange(
+                        url, HttpMethod.GET, entity, JsonNode.class);
+                JsonNode body = response.getBody();
+                if (body == null) {
+                    throw new BusinessException(ErrorCode.GITHUB_API_ERROR, "응답이 비어 있습니다");
                 }
-                throw new BusinessException(ErrorCode.GITHUB_AUTH_FAILED);
+                return body;
+            } catch (ResourceAccessException e) {
+                // 연결/read 타임아웃·IO — GitHub가 순간적으로 느릴 때 잦다. 상한까지만 재시도.
+                if (attempt++ >= retriesOnTimeout) {
+                    throw e;
+                }
+                log.debug("GitHub 타임아웃 재시도 {}/{} url={}: {}",
+                        attempt, retriesOnTimeout, url, e.getMessage());
+                backoff(properties.getApiRetryBackoffMillis() * attempt);
+            } catch (HttpStatusCodeException e) {
+                // 상태 응답(4xx/5xx)은 재시도 대상이 아니다 — 바로 도메인 예외로 매핑한다.
+                throw mapStatusError(url, e);
             }
-            if (status == 404) {
-                throw new BusinessException(ErrorCode.GITHUB_REPO_NOT_FOUND);
-            }
-            if (status == 409) {
-                // 빈 저장소 — 커밋이 하나도 없다. 실패로 다루지 않는다.
-                throw new BusinessException(ErrorCode.GITHUB_API_ERROR, "저장소가 비어 있습니다");
-            }
-            throw new BusinessException(ErrorCode.GITHUB_API_ERROR);
         }
+    }
+
+    /** 재시도 사이 대기. 인터럽트되면 플래그를 복원하고 재시도를 중단한다. */
+    private void backoff(long millis) {
+        if (millis <= 0) {
+            return;
+        }
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new BusinessException(ErrorCode.GITHUB_API_ERROR, "재시도 대기 중 중단됨");
+        }
+    }
+
+    private BusinessException mapStatusError(String url, HttpStatusCodeException e) {
+        int status = e.getStatusCode().value();
+        log.warn("GitHub API 실패 url={} status={} body={}", url, status, e.getResponseBodyAsString());
+        if (status == 401) {
+            return new BusinessException(ErrorCode.GITHUB_AUTH_FAILED);
+        }
+        if (status == 403 || status == 429) {
+            // 403은 레이트 리밋일 수도, 권한 부족일 수도 있다 — 헤더로 구분한다.
+            String remaining = e.getResponseHeaders() != null
+                    ? e.getResponseHeaders().getFirst("x-ratelimit-remaining") : null;
+            if ("0".equals(remaining) || status == 429) {
+                return new BusinessException(ErrorCode.GITHUB_RATE_LIMITED);
+            }
+            return new BusinessException(ErrorCode.GITHUB_AUTH_FAILED);
+        }
+        if (status == 404) {
+            return new BusinessException(ErrorCode.GITHUB_REPO_NOT_FOUND);
+        }
+        if (status == 409) {
+            // 빈 저장소 — 커밋이 하나도 없다. 실패로 다루지 않는다.
+            return new BusinessException(ErrorCode.GITHUB_API_ERROR, "저장소가 비어 있습니다");
+        }
+        return new BusinessException(ErrorCode.GITHUB_API_ERROR);
     }
 }

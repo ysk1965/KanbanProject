@@ -245,6 +245,47 @@ public class GithubConnectionService {
         return buildStatus(boardId, Optional.of(installation));
     }
 
+    // ── 사용자 검증 ─────────────────────────────
+
+    /** GitHub username 규칙: 영숫자·하이픈, 최대 39자, 하이픈으로 시작/끝나거나 연속 하이픈 불가 */
+    private static final java.util.regex.Pattern GITHUB_LOGIN =
+            java.util.regex.Pattern.compile("^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$");
+
+    /**
+     * 보드 공유 모달에서 멤버에 붙일 GitHub username이 실재하는지 확인한다.
+     * 보드에 App이 연결돼 있으면 그 설치 토큰으로(레이트 리밋 여유), 없으면 비인증으로 조회한다.
+     */
+    @Transactional(readOnly = true)
+    public GithubResponse.GithubUser validateGithubUser(String boardId, String userId, String login) {
+        boardService.checkViewerOrAbove(boardId, userId);
+
+        String normalized = login == null ? "" : login.trim();
+        if (normalized.startsWith("@")) {
+            normalized = normalized.substring(1);
+        }
+        if (!GITHUB_LOGIN.matcher(normalized).matches()) {
+            // 형식이 GitHub username 규칙에 안 맞으면 조회할 것도 없이 미존재로 본다.
+            return GithubResponse.GithubUser.builder().exists(false).build();
+        }
+
+        String installationId = targetResolver.resolveInstallation(boardId)
+                .map(GithubInstallation::getInstallationId)
+                .orElse(null);
+
+        GithubApiClient.GithubUserRef user = apiClient.findUser(installationId, normalized);
+        if (user == null) {
+            return GithubResponse.GithubUser.builder().exists(false).build();
+        }
+        return GithubResponse.GithubUser.builder()
+                .exists(true)
+                .login(user.login())
+                .name(user.name())
+                .avatarUrl(user.avatarUrl())
+                .htmlUrl(user.htmlUrl())
+                .type(user.type())
+                .build();
+    }
+
     // ── 상태 ────────────────────────────────────
 
     @Transactional(readOnly = true)

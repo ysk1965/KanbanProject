@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Loader2,
@@ -101,16 +101,23 @@ export function JiraSettingsPanel({
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [showTokenForm, setShowTokenForm] = useState(false);
 
+  // 콜백은 ref로만 참조 — 호출부가 인라인 함수를 넘겨도 fetchStatus 아이덴티티가
+  // 흔들리지 않게 한다. (부모 리렌더 → 새 콜백 → 재조회 → 부모 setState 무한루프 방지)
+  const onJiraStatusChangeRef = useRef(onJiraStatusChange);
+  useEffect(() => {
+    onJiraStatusChangeRef.current = onJiraStatusChange;
+  }, [onJiraStatusChange]);
+
   const fetchStatus = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await jiraAPI.getStatus(boardId).catch(() => null);
       setStatus(data);
-      onJiraStatusChange?.(!!data?.connected);
+      onJiraStatusChangeRef.current?.(!!data?.connected);
     } finally {
       setIsLoading(false);
     }
-  }, [boardId, onJiraStatusChange]);
+  }, [boardId]);
 
   useEffect(() => {
     fetchStatus();

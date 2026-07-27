@@ -539,6 +539,14 @@ export function SprintBoard({
     [boardId, milestoneId, run],
   );
 
+  // JiraSettingsPanel에 넘기는 콜백은 아이덴티티가 고정돼야 한다.
+  // 인라인 화살표를 넘기면 패널의 상태 재조회 이펙트가 매 리렌더마다 다시 돌아
+  // getStatus → setJiraStatus → 리렌더 무한루프가 된다.
+  const handleJiraStatusChange = useCallback(
+    () => refreshJiraState(false),
+    [refreshJiraState],
+  );
+
   // ── 통합 필터(칸반 탭 필터바) — 담당자·피쳐·라벨·상태·검색을 스프린트 뷰 전반에 적용 ──
   // 항목(SprintItemCard) 단위 매칭 함수: Feature/구성원 뷰·백로그·게이지·트리·미리보기 공용.
   // SprintItemCard에는 태그가 없어 부모가 준 featureTagsMap/taskTagsMap로 라벨을 판정한다.
@@ -4036,7 +4044,7 @@ export function SprintBoard({
         <div className="px-4 pb-5 pt-4">
           <JiraSettingsPanel
             boardId={boardId}
-            onJiraStatusChange={() => refreshJiraState(false)}
+            onJiraStatusChange={handleJiraStatusChange}
           />
         </div>
       </MotionModal>
