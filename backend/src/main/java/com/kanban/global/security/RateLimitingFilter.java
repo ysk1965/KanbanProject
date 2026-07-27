@@ -43,6 +43,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     // 초대 링크 공개 엔드포인트용 버킷 (IP 기반, 브루트포스 방지)
     private final Map<String, Bucket> inviteBuckets = new ConcurrentHashMap<>();
 
+    // AI 프록시 엔드포인트용 버킷 — 호출당 Anthropic 비용이 발생하므로 가장 엄격하게 제한한다.
+    // 일반 버킷(분당 600회)으로는 비용 DoS를 막을 수 없다.
+    private final Map<String, Bucket> aiProxyBuckets = new ConcurrentHashMap<>();
+
     // 연속 rate limit 위반 카운터 — 과도한 요청 시 Connection: close로 빠르게 차단
     private final Map<String, Integer> violationCounts = new ConcurrentHashMap<>();
     private static final int VIOLATION_THRESHOLD = 50; // 50회 연속 위반 시 강화 차단
@@ -120,6 +124,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             return loginBuckets.computeIfAbsent(bucketKey, this::createLoginBucket);
         } else if (requestUri.contains("/org-invites/")) {
             return inviteBuckets.computeIfAbsent(bucketKey, this::createInviteBucket);
+        } else if (requestUri.startsWith("/api/v1/ai/")) {
+            return aiProxyBuckets.computeIfAbsent(bucketKey, this::createAiProxyBucket);
         } else {
             return buckets.computeIfAbsent(bucketKey, this::createStandardBucket);
         }
@@ -161,6 +167,20 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         return Bucket.builder()
                 .addLimit(Bandwidth.classic(30, Refill.greedy(30, Duration.ofMinutes(1))))
                 .addLimit(Bandwidth.classic(100, Refill.greedy(100, Duration.ofHours(1))))
+                .build();
+    }
+
+    /**
+     * AI 프록시용 버킷: 분당 10회, 시간당 60회, 일 300회.
+     *
+     * <p>호출 1회가 Anthropic 비용으로 직결되므로 일반 버킷(분당 600회)과 분리한다.
+     * 커밋 플랜은 사람이 커밋할 때만 호출하는 성격이라 분당 10회로 충분하다.
+     */
+    private Bucket createAiProxyBucket(String key) {
+        return Bucket.builder()
+                .addLimit(Bandwidth.classic(10, Refill.greedy(10, Duration.ofMinutes(1))))
+                .addLimit(Bandwidth.classic(60, Refill.greedy(60, Duration.ofHours(1))))
+                .addLimit(Bandwidth.classic(300, Refill.greedy(300, Duration.ofDays(1))))
                 .build();
     }
 
