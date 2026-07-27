@@ -69,6 +69,10 @@ public class SlackApiClient {
         Map<String, Object> body = new java.util.HashMap<>();
         body.put("channel", channelId);
         body.put("blocks", blocks);
+        // 블록 안의 딥링크(보고서·태스크 링크)를 슬랙이 카드로 펼치지 않게 한다.
+        // 끄지 않으면 메시지 하단에 서비스 OG 미리보기가 링크 수만큼 붙는다.
+        body.put("unfurl_links", false);
+        body.put("unfurl_media", false);
         if (metadata != null) {
             body.put("metadata", metadata);
         }
