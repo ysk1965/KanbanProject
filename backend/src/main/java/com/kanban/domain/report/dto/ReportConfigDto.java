@@ -16,6 +16,24 @@ public class ReportConfigDto {
     public record ModelOption(String id, String label) {}
 
     /**
+     * 발송 대상 채널 한 줄 (응답용).
+     *
+     * @param isDefault  사용자가 채널을 하나도 지정하지 않아 슬랙 설치 기본 채널로 나가는 줄
+     * @param testPassed 이 채널로 테스트 게시가 성공했는지. 전부 true여야 자동 예약을 켤 수 있다.
+     */
+    public record ChannelEntry(String channelId, String channelName,
+                               boolean isDefault, boolean testPassed) {}
+
+    /** 발송 채널 지정 한 줄 (요청용). */
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ChannelInput {
+        private String channelId;
+        private String channelName;
+    }
+
+    /**
      * 보드 설정 화면이 주고받는 형태.
      *
      * <p>화면은 <b>보드 타임존의 시각</b>으로 다루고(09:00), 저장은 UTC로 한다.
@@ -39,8 +57,16 @@ public class ReportConfigDto {
 
         private String timezone;
         private String language;
+        /** 대표 채널 미러 — 실제 대상은 {@link #deliveryChannels}다. 구버전 화면 호환용으로 남긴다. */
         private String slackChannelId;
         private String slackChannelName;
+        /**
+         * 실제 발송 대상 채널 목록. 사용자가 하나도 지정하지 않았으면 설치 기본 채널 한 줄이
+         * {@code isDefault=true}로 채워진다. 서비스가 채운다.
+         */
+        private java.util.List<ChannelEntry> deliveryChannels;
+        /** 한 보드가 둘 수 있는 발송 채널 수 상한 — 화면의 "추가" 버튼 비활성 기준. */
+        private int maxDeliveryChannels;
 
         /** 선택된 리포트 AI 모델 id. null이면 기본(서버 티어 설정값) 사용. */
         private String aiModel;
@@ -89,6 +115,7 @@ public class ReportConfigDto {
                     .sourceSlackChannelName(config.getSourceSlackChannelName())
                     .shareLinkEnabled(Boolean.TRUE.equals(config.getShareLinkEnabled()))
                     .testPassedChannelId(config.getTestPassedChannelId())
+                    .maxDeliveryChannels(BoardReportConfig.MAX_DELIVERY_CHANNELS)
                     .build();
         }
 
@@ -122,8 +149,14 @@ public class ReportConfigDto {
 
         private String timezone;
         private String language;
+        /** 구버전 단일 채널 지정. 값이 오면 "목록 = 이 채널 하나"로, 빈 문자열이면 "기본 채널로 초기화"로 본다. */
         private String slackChannelId;
         private String slackChannelName;
+        /**
+         * 발송 채널 목록 전체 교체. null이면 유지, 빈 배열이면 "기본 채널로 초기화"다.
+         * 이미 있던 채널의 테스트 통과 기록은 그대로 유지된다.
+         */
+        private java.util.List<ChannelInput> deliveryChannels;
         /** 리포트 AI 모델 id. null=유지, 빈 문자열=기본으로 초기화, 값=지정(활성 프로바이더 목록에 있어야 함). */
         private String aiModel;
 

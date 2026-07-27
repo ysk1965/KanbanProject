@@ -7,6 +7,7 @@ import com.kanban.domain.report.dto.ReportContent;
 import com.kanban.domain.report.service.BoardProgressCollector.CommitInfo;
 import com.kanban.domain.report.service.ReportMemberDirectory.MemberIdentity;
 import com.kanban.domain.report.source.ReportPeriod;
+import com.kanban.domain.task.Task;
 import com.kanban.domain.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -365,14 +366,23 @@ public class MemberActivityCollector {
         return acc;
     }
 
-    /** 체크리스트 항목 하나를 표시용 DTO로. status="late|progress|done", overdueDays는 지연에만 유효. */
+    /**
+     * 체크리스트 항목 하나를 표시용 DTO로. status="late|progress|done", overdueDays는 지연에만 유효.
+     * <p>식별자(itemId·taskId·taskKey)를 같이 실어야 보고서에서 실물 카드로 건너뛸 수 있다 —
+     * 지연을 읽고 고치러 가는 동선이 곧 이 보고서의 목적이다. 두 조회 모두 task를 fetch join하므로
+     * 여기서 추가 쿼리는 나가지 않는다.
+     */
     private ReportContent.MemberChecklistChange change(ChecklistItem item, String status,
                                                        LocalDate due, int overdueDays) {
+        Task task = item.getTask();
         return ReportContent.MemberChecklistChange.builder()
                 .title(item.getTitle())
                 .done("done".equals(status))
                 .status(status)
-                .context(item.getTask() != null ? item.getTask().getTitle() : null)
+                .itemId(item.getId())
+                .taskId(task != null ? task.getId() : null)
+                .taskKey(task != null ? task.getTaskKey() : null)
+                .context(task != null ? task.getTitle() : null)
                 .dueDate(due != null ? due.toString() : null)
                 .overdueDays(overdueDays)
                 .build();

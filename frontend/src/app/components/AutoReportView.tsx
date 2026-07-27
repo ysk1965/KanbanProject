@@ -1636,16 +1636,57 @@ function bucketOf(item: AutoReportMemberChecklistChange): ChecklistBucket {
   return item.done ? "done" : "progress";
 }
 
+/**
+ * 체크리스트 항목 → 실물 카드로 가는 딥링크. 지연을 읽고 <b>바로 고치러 가는</b> 동선이라
+ * 보고서에서 가장 행동가능한 링크다.
+ *
+ * <p>태스크 키가 있으면 보드 id 없이도 해석되는 {@code /t/{key}}를 쓰고, 키 백필 전 태스크는
+ * 보드 딥링크로 폴백한다. 식별자가 아예 없는 구버전 보고서는 null이라 링크 없이 텍스트로 남는다.
+ */
+function checklistItemHref(
+  item: AutoReportMemberChecklistChange,
+  boardId?: string | null,
+): string | null {
+  const highlight = item.item_id
+    ? `checklist=${encodeURIComponent(item.item_id)}`
+    : "";
+  if (item.task_key) {
+    return `/t/${encodeURIComponent(item.task_key)}${highlight ? `?${highlight}` : ""}`;
+  }
+  if (boardId && item.task_id) {
+    return `/boards/${encodeURIComponent(boardId)}?task=${encodeURIComponent(
+      item.task_id,
+    )}${highlight ? `&${highlight}` : ""}`;
+  }
+  return null;
+}
+
+/**
+ * 보고서 → 보드 진입점. 담당자 필터를 걸고, 지연이 있으면 마감 지난 카드만 남긴 상태로 연다.
+ * 항목 단위 딥링크가 못 주는 "이 사람 앞에 쌓인 것 전체"를 한 화면에 세우는 용도다.
+ */
+function boardMemberHref(
+  boardId: string,
+  memberName: string,
+  overdueOnly: boolean,
+): string {
+  const base = `/boards/${encodeURIComponent(boardId)}?member=${encodeURIComponent(memberName)}`;
+  return overdueOnly ? `${base}&overdue=1` : base;
+}
+
 function ChecklistBucketRow({
   item,
   bucket,
+  boardId,
 }: {
   item: AutoReportMemberChecklistChange;
   bucket: ChecklistBucket;
+  boardId?: string | null;
 }) {
   const done = bucket === "done";
-  return (
-    <li className="flex items-start gap-2 text-sm">
+  const href = checklistItemHref(item, boardId);
+  const body = (
+    <>
       {done ? (
         <span className="mt-0.5 shrink-0 w-4 h-4 rounded flex items-center justify-center bg-emerald-500 border border-emerald-500">
           <Check className="w-2.5 h-2.5 text-white" strokeWidth={3.5} />
@@ -1657,9 +1698,14 @@ function ChecklistBucketRow({
       )}
       <div className="min-w-0 flex-1">
         <div
-          className={done ? "text-slate-400 line-through" : "text-foreground"}
+          className={`${done ? "text-slate-400 line-through" : "text-foreground"} ${
+            href ? "group-hover/item:text-bridge-accent transition-colors" : ""
+          }`}
         >
           {item.title}
+          {href && (
+            <ArrowUpRight className="inline-block w-3.5 h-3.5 ml-1 -mt-0.5 text-slate-500 opacity-0 group-hover/item:opacity-100 transition-opacity" />
+          )}
         </div>
         <div className="flex items-center gap-2 flex-wrap mt-0.5">
           {item.context && (
@@ -1685,6 +1731,25 @@ function ChecklistBucketRow({
           )}
         </div>
       </div>
+    </>
+  );
+
+  // 링크는 새 탭으로 연다 — 보고서는 훑는 문서라 원위치를 잃으면 안 된다.
+  return (
+    <li>
+      {href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer noopener"
+          title="보드에서 이 항목 열기"
+          className="group/item flex items-start gap-2 text-sm -mx-1.5 px-1.5 py-1 rounded-lg hover:bg-foreground/5 transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+        >
+          {body}
+        </a>
+      ) : (
+        <div className="flex items-start gap-2 text-sm">{body}</div>
+      )}
     </li>
   );
 }
@@ -1694,10 +1759,13 @@ function MemberDetail({
   member,
   isWeekly,
   onOpenFocus,
+  boardId,
 }: {
   member: AutoReportMember;
   isWeekly: boolean;
   onOpenFocus?: (clusterKey: string) => void;
+  /** 체크리스트 딥링크의 보드 폴백 경로용. 미리보기 응답에도 들어 있다. */
+  boardId?: string | null;
 }) {
   const commits = member.commits ?? [];
   const slack = member.slack_messages ?? [];
@@ -1747,6 +1815,31 @@ function MemberDetail({
             ))}
           </div>
         </div>
+
+        {/* 보드로 나가는 통로 — 항목 단위 딥링크가 커버 못 하는 "이 사람 전체 맥락"을 연다.
+            지연이 있으면 색으로 급함을 드러낸다. */}
+        {boardId && (
+          <a
+            href={boardMemberHref(
+              boardId,
+              member.name,
+              (member.late_count ?? 0) > 0,
+            )}
+            target="_blank"
+            rel="noreferrer noopener"
+            className={`inline-flex items-center gap-1.5 self-start text-xs font-bold px-2.5 py-1.5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+              (member.late_count ?? 0) > 0
+                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25"
+                : "bg-foreground/5 text-slate-400 hover:bg-foreground/10 hover:text-foreground"
+            }`}
+          >
+            <Columns3 className="w-3.5 h-3.5" />
+            {(member.late_count ?? 0) > 0
+              ? `보드에서 지연 ${member.late_count}건 보기`
+              : `보드에서 ${member.name} 카드 보기`}
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </a>
+        )}
 
         {/* 요약 — 이 사람이 그 기간에 무엇을 만들었나 (AI 생성, 없으면 생략) */}
         {member.summary && (
@@ -1910,7 +2003,12 @@ function MemberDetail({
                   </div>
                   <ul className="flex flex-col gap-1">
                     {items.map((item, i) => (
-                      <ChecklistBucketRow key={i} item={item} bucket={bucket} />
+                      <ChecklistBucketRow
+                        key={i}
+                        item={item}
+                        bucket={bucket}
+                        boardId={boardId}
+                      />
                     ))}
                   </ul>
                 </div>
@@ -2427,9 +2525,11 @@ function ClusterCards({
 function LateRollup({
   members,
   onOpen,
+  boardId,
 }: {
   members: AutoReportMember[];
   onOpen: (m: AutoReportMember) => void;
+  boardId?: string | null;
 }) {
   const holders = members.filter((m) => (m.late_count ?? 0) > 0);
   if (holders.length === 0) return null;
@@ -2442,6 +2542,18 @@ function LateRollup({
         <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">
           지연 {total}건 · 담당 {holders.length}명
         </span>
+        {/* 보고서를 덮고 바로 처리하러 갈 수 있게 — 보드를 지연만 남긴 상태로 연다. */}
+        {boardId && (
+          <a
+            href={`/boards/${encodeURIComponent(boardId)}?overdue=1`}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 rounded"
+          >
+            보드에서 보기
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </a>
+        )}
       </div>
       <div className="flex flex-wrap gap-1.5">
         {holders.map((m, i) => (
@@ -2814,7 +2926,12 @@ export function AutoReportView({
     setDrawer({
       title: m.name,
       body: (
-        <MemberDetail member={m} isWeekly={isWeekly} onOpenFocus={openFocus} />
+        <MemberDetail
+          member={m}
+          isWeekly={isWeekly}
+          onOpenFocus={openFocus}
+          boardId={report.board_id}
+        />
       ),
     });
 
@@ -2875,7 +2992,11 @@ export function AutoReportView({
 
         {/* 일간 지연 롤업 — 하루치 보고서에서 가장 먼저 봐야 할 신호 */}
         {!isWeekly && members.length > 0 && (
-          <LateRollup members={members} onOpen={openMember} />
+          <LateRollup
+            members={members}
+            onOpen={openMember}
+            boardId={report.board_id}
+          />
         )}
 
         {/* 스프린트 진행 현황 — 진짜 분모가 있는 유일한 진행률 게이지 */}

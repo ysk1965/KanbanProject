@@ -63,21 +63,57 @@ public class ReportPreviewController {
     }
 
     /**
+     * 발송 채널 추가. 목록 전체를 다시 보내지 않아도 되도록 별도 창구를 둔다.
+     * 최대 {@code MAX_DELIVERY_CHANNELS}개까지.
+     */
+    @PostMapping("/config/channels")
+    public ResponseEntity<ReportConfigDto.Detail> addChannel(
+            @PathVariable String boardId,
+            @RequestBody ReportConfigDto.ChannelInput request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(configService.addChannel(boardId, principal.getUserId(),
+                request.getChannelId(), request.getChannelName()));
+    }
+
+    /** 발송 채널 제거. 마지막 채널을 지우면 슬랙 설치 기본 채널로 되돌아간다. */
+    @DeleteMapping("/config/channels/{channelId}")
+    public ResponseEntity<ReportConfigDto.Detail> removeChannel(
+            @PathVariable String boardId,
+            @PathVariable String channelId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(
+                configService.removeChannel(boardId, principal.getUserId(), channelId));
+    }
+
+    /**
      * 발송 테스트 — 자동 예약을 켜기 전에 채널·권한만 검증한다. 보고서를 만들지 않고
-     * 확인 메시지 한 장을 발송 채널에 게시하며, 성공하면 그 채널이 "테스트 통과"로 기록돼
-     * 생성(예약) 단계 잠금이 풀린다.
+     * 확인 메시지 한 장을 발송 채널마다 게시하며, 성공한 채널이 "테스트 통과"로 기록된다.
+     * 모든 대상 채널이 통과하면 생성(예약) 단계 잠금이 풀린다.
+     *
+     * @param channel 지정하면 그 채널만 다시 테스트한다. 없으면 전체.
      */
     @PostMapping("/test-dispatch")
     public ResponseEntity<Map<String, Object>> testDispatch(
             @PathVariable String boardId,
+            @RequestParam(value = "channel", required = false) String channel,
             @AuthenticationPrincipal UserPrincipal principal) {
         ReportConfigService.TestDispatchResult result =
-                configService.sendTest(boardId, principal.getUserId());
+                configService.sendTest(boardId, principal.getUserId(), channel);
         Map<String, Object> body = new HashMap<>();
         body.put("success", result.success());
         body.put("channel_id", result.channelId());
         body.put("channel_name", result.channelName());
         body.put("message", result.message());
+        body.put("results", result.results().stream()
+                .map(r -> {
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("channel_id", r.channelId());
+                    row.put("channel_name", r.channelName());
+                    row.put("sent", r.sent());
+                    row.put("message", r.error());
+                    return row;
+                })
+                .toList());
         return ResponseEntity.ok(body);
     }
 

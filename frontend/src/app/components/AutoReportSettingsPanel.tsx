@@ -15,6 +15,7 @@ import {
   Lock,
   MessageSquare,
   Play,
+  Plus,
   RefreshCw,
   Send,
   Trello,
@@ -328,6 +329,9 @@ export function AutoReportSettingsPanel({
   const [channelQuery, setChannelQuery] = useState("");
   const [manualChannel, setManualChannel] = useState("");
   const [resolvingChannel, setResolvingChannel] = useState(false);
+  const [removingChannel, setRemovingChannel] = useState<string | null>(null);
+  /** 한 채널만 다시 테스트하는 중일 때 그 채널 id. 전체 테스트는 testing 플래그를 쓴다. */
+  const [testingChannel, setTestingChannel] = useState<string | null>(null);
 
   // 수집 채널(슬랙): 발송과 별개로, 봇이 대화를 "읽어올" 채널을 지정한다.
   const [collectChannel, setCollectChannel] = useState("");
@@ -468,19 +472,55 @@ export function AutoReportSettingsPanel({
     }
   };
 
-  /** 채널 선택. null이면 지정 해제(설치 기본 채널로 발송). */
-  const selectChannel = (ch: SlackChannel | null) => {
-    setShowChannelPicker(false);
-    setChannelQuery("");
-    void patchConfig({
-      slack_channel_id: ch ? ch.id : "",
-      slack_channel_name: ch ? ch.name : "",
-    });
+  /** 발송 채널 추가. 이미 있는 채널이면 서버가 이름만 갱신한다(테스트 통과 기록 유지). */
+  const addChannel = async (channelId: string, channelName: string | null) => {
+    if (!canManage) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await autoReportAPI.addChannel(
+        boardId,
+        channelId,
+        channelName,
+      );
+      setConfig(updated);
+      setChannelQuery("");
+      setTestResult(null);
+      // 여러 개를 연달아 고를 수 있게 목록은 열어 두되, 상한에 닿으면 닫는다.
+      const explicit = (updated.delivery_channels ?? []).filter(
+        (c) => !c.is_default,
+      );
+      if (explicit.length >= (updated.max_delivery_channels ?? 5)) {
+        setShowChannelPicker(false);
+      }
+    } catch (e) {
+      setError(
+        (e as { message?: string })?.message ?? "채널을 추가하지 못했습니다.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** 발송 채널 제거. 마지막 채널을 지우면 슬랙 설치 기본 채널로 되돌아간다. */
+  const removeChannel = async (channelId: string) => {
+    if (!canManage) return;
+    setRemovingChannel(channelId);
+    setError(null);
+    try {
+      setConfig(await autoReportAPI.removeChannel(boardId, channelId));
+    } catch (e) {
+      setError(
+        (e as { message?: string })?.message ?? "채널을 제거하지 못했습니다.",
+      );
+    } finally {
+      setRemovingChannel(null);
+    }
   };
 
   /**
-   * 채널 ID·링크 직접 지정. 워크스페이스 채널이 많아 목록/검색에 안 잡히는 채널을
-   * ID(C…)나 슬랙 링크(.../archives/C…)로 붙여넣어 conversations.info로 검증 후 저장.
+   * 채널 ID·링크 직접 추가. 워크스페이스 채널이 많아 목록/검색에 안 잡히는 채널을
+   * ID(C…)나 슬랙 링크(.../archives/C…)로 붙여넣어 conversations.info로 검증 후 추가.
    */
   const applyManualChannel = async () => {
     const raw = manualChannel.trim();
@@ -496,10 +536,7 @@ export function AutoReportSettingsPanel({
     try {
       const ch = await slackAppAPI.getChannelInfo(boardId, channelId);
       setManualChannel("");
-      await patchConfig({
-        slack_channel_id: ch.id,
-        slack_channel_name: ch.name,
-      });
+      await addChannel(ch.id, ch.name);
     } catch (e) {
       setError(
         (e as { message?: string })?.message ??
@@ -784,7 +821,8 @@ export function AutoReportSettingsPanel({
       } else if (report_id) {
         setNotice(
           status === "PARTIAL"
-            ? `보고서를 발송했습니다 — 일부 소스는 수집에 실패했습니다. (${report_id.slice(0, 8)})`
+            ? // 일부 채널 게시 실패는 서버가 message로 알려준다. 없으면 소스 수집 실패다.
+              `보고서를 발송했습니다 — ${message ?? "일부 소스는 수집에 실패했습니다."} (${report_id.slice(0, 8)})`
             : `보고서를 발송했습니다. (${report_id.slice(0, 8)})`,
         );
       } else {
@@ -798,28 +836,36 @@ export function AutoReportSettingsPanel({
   };
 
   /**
-   * 발송 테스트 — 자동 예약을 켜기 전에 채널·권한만 검증한다. 확인 메시지 한 장을 발송 채널에
-   * 게시하고, 성공하면 백엔드가 그 채널을 "테스트 통과"로 기록한다. config를 다시 받아 잠금을 푼다.
+   * 발송 테스트 — 자동 예약을 켜기 전에 채널·권한만 검증한다. 확인 메시지 한 장을 대상 채널마다
+   * 게시하고, 백엔드가 성공한 채널을 "테스트 통과"로 기록한다. config를 다시 받아 잠금을 푼다.
+   *
+   * @param channelId 주면 그 채널만 다시 테스트한다. 없으면 전체.
    */
-  const runTest = async () => {
-    setTesting(true);
+  const runTest = async (channelId?: string) => {
+    if (channelId) setTestingChannel(channelId);
+    else setTesting(true);
     setTestResult(null);
     setError(null);
     try {
-      const res = await autoReportAPI.sendTest(boardId);
+      const res = await autoReportAPI.sendTest(boardId, channelId);
+      const sentLabels = (res.results ?? [])
+        .filter((r) => r.sent)
+        .map((r) => `#${r.channel_name ?? r.channel_id}`);
       if (res.success) {
         setTestResult({
           ok: true,
-          message: `#${res.channel_name ?? res.channel_id} 에 테스트 메시지를 보냈습니다. 이제 자동 예약을 켤 수 있어요.`,
+          message: `${sentLabels.join(", ")} 에 테스트 메시지를 보냈습니다.${
+            channelId ? "" : " 이제 자동 예약을 켤 수 있어요."
+          }`,
         });
-        // test_passed_channel_id가 채워져 생성 단계 잠금이 풀린다.
-        setConfig(await autoReportAPI.getConfig(boardId));
       } else {
         setTestResult({
           ok: false,
           message: res.message ?? "발송 테스트에 실패했습니다.",
         });
       }
+      // 채널별 test_passed가 갱신돼 생성 단계 잠금이 풀린다(일부 성공도 반영).
+      setConfig(await autoReportAPI.getConfig(boardId));
     } catch (e) {
       setTestResult({
         ok: false,
@@ -828,18 +874,18 @@ export function AutoReportSettingsPanel({
       });
     } finally {
       setTesting(false);
+      setTestingChannel(null);
     }
   };
 
   // ── 발송 테스트 게이팅 ────────────────────────────
-  // 발송에 실제로 쓰일 채널(지정 없으면 슬랙 설치 기본 채널)과, 마지막으로 테스트에 성공한
-  // 채널이 같아야 자동 예약을 켤 수 있다. 채널을 바꾸면 값이 어긋나 다시 잠긴다.
-  const effectiveChannelId =
-    config?.slack_channel_id || slackApp?.default_channel_id || null;
+  // 발송 대상 채널(지정이 없으면 슬랙 설치 기본 채널) 전부가 테스트를 통과해야 자동 예약을 켤 수 있다.
+  // 채널을 새로 추가하면 그 줄이 미통과라 다시 잠긴다 — 확인되지 않은 채널로 매일 발송되는 사고를 막는다.
+  const deliveryChannels = config?.delivery_channels ?? [];
+  const explicitChannels = deliveryChannels.filter((c) => !c.is_default);
+  const untestedChannels = deliveryChannels.filter((c) => !c.test_passed);
   const dispatchTested =
-    !!config?.test_passed_channel_id &&
-    !!effectiveChannelId &&
-    config.test_passed_channel_id === effectiveChannelId;
+    deliveryChannels.length > 0 && untestedChannels.length === 0;
   // 이미 예약이 켜져 있던 기존 설정은 잠그지 않는다(회귀 방지).
   const scheduleUnlocked =
     dispatchTested || !!config?.daily_enabled || !!config?.weekly_enabled;
@@ -901,10 +947,16 @@ export function AutoReportSettingsPanel({
                 <p className="text-xs text-slate-500 truncate">{next.detail}</p>
               )}
             </div>
-            {config.slack_channel_name && (
-              <span className="hidden sm:inline-flex items-center gap-1 text-xs text-slate-400">
+            {deliveryChannels.length > 0 && (
+              <span className="hidden sm:inline-flex items-center gap-1 text-xs text-slate-400 shrink-0">
                 <Hash className="w-3 h-3 text-bridge-accent" />
-                {config.slack_channel_name}
+                {deliveryChannels[0].channel_name ??
+                  deliveryChannels[0].channel_id}
+                {deliveryChannels.length > 1 && (
+                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+                    +{deliveryChannels.length - 1}
+                  </span>
+                )}
               </span>
             )}
           </div>
@@ -1354,11 +1406,11 @@ export function AutoReportSettingsPanel({
       {/* ── ② 발송 채널 + 테스트 ─────────────────── */}
       {step === 2 && (
         <p className="text-xs text-slate-500 leading-relaxed">
-          자동 예약을 켜기 전에{" "}
+          보고서를 보낼 채널을 원하는 만큼 지정하고, 자동 예약을 켜기 전에{" "}
           <b className="text-foreground font-medium">
-            이 채널로 한 번 테스트 발송
+            각 채널로 한 번씩 테스트 발송
           </b>
-          해 채널·권한이 맞는지 확인합니다. 테스트가 성공해야 다음 단계(자동
+          해 채널·권한이 맞는지 확인합니다. 모든 채널이 통과해야 다음 단계(자동
           예약)가 열립니다.
         </p>
       )}
@@ -1372,51 +1424,113 @@ export function AutoReportSettingsPanel({
             {saving && (
               <Loader2 className="w-4 h-4 animate-spin text-bridge-accent" />
             )}
+            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/[0.06] text-slate-400">
+              {explicitChannels.length}/{config.max_delivery_channels ?? 5}
+            </span>
           </div>
           <div className="bg-bridge-dark p-3 md:p-5 flex flex-col gap-3">
             <p className="text-xs text-slate-500">
-              보고서를 게시할 슬랙 채널입니다. 지정하지 않으면 슬랙 설치의 기본
-              채널로 발송됩니다.
+              보고서를 게시할 슬랙 채널입니다.{" "}
+              <b className="text-foreground font-medium">
+                여러 채널을 지정하면 같은 보고서가 각 채널에 함께 게시
+              </b>
+              됩니다. 하나도 지정하지 않으면 슬랙 설치의 기본 채널로 발송됩니다.
             </p>
 
             {slackApp ? (
               <>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-foreground/[0.03] border border-foreground/10">
-                    <Hash className="w-3.5 h-3.5 text-bridge-accent" />
-                    <span className="text-xs font-bold text-foreground">
-                      {config.slack_channel_name
-                        ? config.slack_channel_name
-                        : slackApp.default_channel_name
-                          ? `${slackApp.default_channel_name} (기본)`
-                          : "미지정 (기본 채널)"}
-                    </span>
-                  </div>
-                  {canManage && (
+                {/* 대상 채널 목록 — 채널마다 테스트 상태를 따로 보여준다 */}
+                <div className="flex flex-col gap-1.5">
+                  {deliveryChannels.length === 0 && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      발송할 채널이 없습니다. 아래에서 채널을 추가하세요.
+                    </p>
+                  )}
+                  {deliveryChannels.map((ch) => (
+                    <div
+                      key={ch.channel_id}
+                      className="flex items-center gap-2 flex-wrap px-3 py-2 rounded-xl bg-foreground/[0.03] border border-foreground/10"
+                    >
+                      <Hash className="w-3.5 h-3.5 text-bridge-accent shrink-0" />
+                      <span className="text-xs font-bold text-foreground truncate min-w-0">
+                        {ch.channel_name ?? ch.channel_id}
+                      </span>
+                      {ch.is_default && (
+                        <span className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/[0.06] text-slate-400">
+                          기본
+                        </span>
+                      )}
+                      <span
+                        className={`shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                          ch.test_passed
+                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                            : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                        }`}
+                      >
+                        {ch.test_passed ? "테스트 통과" : "테스트 필요"}
+                      </span>
+                      <span className="flex-1" />
+                      {canManage && (
+                        <button
+                          type="button"
+                          onClick={() => void runTest(ch.channel_id)}
+                          disabled={testing || testingChannel === ch.channel_id}
+                          className="shrink-0 text-xs font-bold text-bridge-accent hover:underline disabled:opacity-50 flex items-center gap-1"
+                        >
+                          {testingChannel === ch.channel_id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Send className="w-3.5 h-3.5" />
+                          )}
+                          테스트
+                        </button>
+                      )}
+                      {canManage && !ch.is_default && (
+                        <button
+                          type="button"
+                          aria-label={`${ch.channel_name ?? ch.channel_id} 채널 제거`}
+                          onClick={() => void removeChannel(ch.channel_id)}
+                          disabled={removingChannel === ch.channel_id}
+                          className="shrink-0 text-slate-500 hover:text-rose-500 transition-colors disabled:opacity-50"
+                        >
+                          {removingChannel === ch.channel_id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <X className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {canManage &&
+                  explicitChannels.length >=
+                    (config.max_delivery_channels ?? 5) && (
+                    <p className="text-xs text-slate-600">
+                      발송 채널은 최대 {config.max_delivery_channels ?? 5}
+                      개까지 지정할 수 있습니다. 추가하려면 기존 채널을 먼저
+                      제거하세요.
+                    </p>
+                  )}
+
+                {canManage &&
+                  explicitChannels.length <
+                    (config.max_delivery_channels ?? 5) && (
                     <button
                       type="button"
                       onClick={loadChannels}
                       disabled={loadingChannels}
-                      className="text-xs font-bold text-bridge-accent hover:underline disabled:opacity-50 flex items-center gap-1"
+                      className="self-start px-3 py-1.5 rounded-xl bg-foreground/5 border border-foreground/10 text-xs font-bold text-foreground hover:bg-foreground/10 transition-all disabled:opacity-50 flex items-center gap-1.5"
                     >
                       {loadingChannels ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
-                        <RefreshCw className="w-3.5 h-3.5" />
+                        <Plus className="w-3.5 h-3.5" />
                       )}
-                      {config.slack_channel_id ? "변경" : "채널 선택"}
+                      채널 추가
                     </button>
                   )}
-                  {canManage && config.slack_channel_id && (
-                    <button
-                      type="button"
-                      onClick={() => selectChannel(null)}
-                      className="text-xs text-slate-500 hover:text-foreground"
-                    >
-                      기본 채널로 초기화
-                    </button>
-                  )}
-                </div>
 
                 {showChannelPicker &&
                   channels &&
@@ -1437,14 +1551,18 @@ export function AutoReportSettingsPanel({
                               ch.name.toLowerCase().includes(q),
                             )
                           : channels;
+                        const added = new Set(
+                          explicitChannels.map((c) => c.channel_id),
+                        );
                         return filtered.length > 0 ? (
                           <div className="max-h-40 overflow-y-auto custom-scrollbar bg-bridge-dark rounded-lg border border-foreground/10">
                             {filtered.map((ch) => (
                               <button
                                 key={ch.id}
                                 type="button"
-                                onClick={() => selectChannel(ch)}
-                                className="w-full flex items-center gap-1.5 px-3 py-1.5 text-left hover:bg-foreground/5 transition-colors"
+                                onClick={() => void addChannel(ch.id, ch.name)}
+                                disabled={added.has(ch.id)}
+                                className="w-full flex items-center gap-1.5 px-3 py-1.5 text-left hover:bg-foreground/5 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
                               >
                                 <Hash className="w-3 h-3 text-slate-400 shrink-0" />
                                 <span className="text-xs text-foreground truncate">
@@ -1452,6 +1570,12 @@ export function AutoReportSettingsPanel({
                                 </span>
                                 {ch.is_private && (
                                   <span className="text-xs">🔒</span>
+                                )}
+                                {added.has(ch.id) && (
+                                  <>
+                                    <span className="flex-1" />
+                                    <Check className="w-3 h-3 text-emerald-500 shrink-0" />
+                                  </>
                                 )}
                               </button>
                             ))}
@@ -1491,7 +1615,7 @@ export function AutoReportSettingsPanel({
                         {resolvingChannel ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
-                          "지정"
+                          "추가"
                         )}
                       </button>
                     </div>
@@ -1528,19 +1652,25 @@ export function AutoReportSettingsPanel({
                   : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
               }`}
             >
-              {dispatchTested ? "테스트 통과" : "테스트 필요"}
+              {dispatchTested
+                ? "테스트 통과"
+                : deliveryChannels.length > 1
+                  ? `${deliveryChannels.length - untestedChannels.length}/${deliveryChannels.length} 통과`
+                  : "테스트 필요"}
             </span>
           </div>
           <div className="bg-bridge-dark p-3 md:p-5 flex flex-col gap-3">
             <p className="text-xs text-slate-500">
-              확인 메시지 한 장을 발송 채널에 보내 채널·권한이 정상인지
+              확인 메시지 한 장을 발송 채널마다 보내 채널·권한이 정상인지
               검사합니다. 보고서를 만들지는 않습니다.
+              {deliveryChannels.length > 1 &&
+                " 모든 채널이 통과해야 자동 예약을 켤 수 있습니다."}
             </p>
             {canManage ? (
               <div>
                 <button
-                  onClick={runTest}
-                  disabled={testing}
+                  onClick={() => void runTest()}
+                  disabled={testing || !!testingChannel}
                   className="px-4 py-2 bg-bridge-accent text-white rounded-xl text-xs font-bold hover:bg-bridge-accent/90 transition-all inline-flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {testing ? (
@@ -1548,7 +1678,11 @@ export function AutoReportSettingsPanel({
                   ) : (
                     <Send className="w-3.5 h-3.5" />
                   )}
-                  {dispatchTested ? "다시 테스트" : "테스트 발송"}
+                  {deliveryChannels.length > 1
+                    ? `${deliveryChannels.length}개 채널 전체 테스트`
+                    : dispatchTested
+                      ? "다시 테스트"
+                      : "테스트 발송"}
                 </button>
               </div>
             ) : (
@@ -1574,9 +1708,22 @@ export function AutoReportSettingsPanel({
             )}
             {!dispatchTested && (
               <p className="text-xs text-slate-600">
-                테스트가 성공하면{" "}
-                <b className="text-foreground font-medium">생성</b> 단계에서
-                자동 예약을 켤 수 있습니다.
+                {untestedChannels.length > 0 && deliveryChannels.length > 1 ? (
+                  <>
+                    {untestedChannels
+                      .map((c) => `#${c.channel_name ?? c.channel_id}`)
+                      .join(", ")}{" "}
+                    채널이 아직 확인되지 않았습니다. 전부 통과하면{" "}
+                    <b className="text-foreground font-medium">생성</b> 단계에서
+                    자동 예약을 켤 수 있습니다.
+                  </>
+                ) : (
+                  <>
+                    테스트가 성공하면{" "}
+                    <b className="text-foreground font-medium">생성</b> 단계에서
+                    자동 예약을 켤 수 있습니다.
+                  </>
+                )}
               </p>
             )}
           </div>
@@ -1597,8 +1744,8 @@ export function AutoReportSettingsPanel({
           </div>
           <div className="bg-bridge-dark p-3 md:p-5 flex flex-col gap-3">
             <p className="text-xs text-slate-500">
-              보고서 본문을 작성할 모델입니다. 상위 모델은 품질이 오르지만 비용도
-              함께 오릅니다. 지정하지 않으면 기본 모델을 사용합니다.
+              보고서 본문을 작성할 모델입니다. 상위 모델은 품질이 오르지만
+              비용도 함께 오릅니다. 지정하지 않으면 기본 모델을 사용합니다.
             </p>
             <select
               value={config.ai_model ?? ""}
@@ -1607,7 +1754,8 @@ export function AutoReportSettingsPanel({
               className="w-full sm:max-w-xs bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all disabled:opacity-50"
             >
               <option value="">
-                기본{config.ai_model_default ? ` · ${config.ai_model_default}` : ""}
+                기본
+                {config.ai_model_default ? ` · ${config.ai_model_default}` : ""}
               </option>
               {(config.available_models ?? []).map((m) => (
                 <option key={m.id} value={m.id}>
