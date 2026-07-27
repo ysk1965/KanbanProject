@@ -2367,6 +2367,10 @@ import {
   AnnouncementDetail,
   MaintenanceStatus,
   BulkCreateResult,
+  AiKeyProvider,
+  AiKeyList,
+  AiKeyStatus,
+  AiKeyLogList,
 } from "./api";
 
 export const adminService = {
@@ -2776,6 +2780,28 @@ export const adminService = {
     estimated_end_at?: string | null;
   }): Promise<MaintenanceStatus> => {
     return await adminAPI.setMaintenanceMode(data);
+  },
+
+  // AI API 키 관리
+  getAiKeys: async (): Promise<AiKeyList> => {
+    return await adminAPI.getAiKeys();
+  },
+
+  rotateAiKey: async (
+    provider: AiKeyProvider,
+    apiKey: string,
+  ): Promise<AiKeyStatus> => {
+    return await adminAPI.rotateAiKey(provider, apiKey);
+  },
+
+  verifyAiKey: async (provider: AiKeyProvider): Promise<AiKeyStatus> => {
+    return await adminAPI.verifyAiKey(provider);
+  },
+
+  getAiKeyLogs: async (
+    params: { page?: number; size?: number } = {},
+  ): Promise<AiKeyLogList> => {
+    return await adminAPI.getAiKeyLogs(params);
   },
 
   // 문의 관리

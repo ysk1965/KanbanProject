@@ -239,6 +239,14 @@ public enum ErrorCode {
     SYSTEM_UNDER_MAINTENANCE(HttpStatus.SERVICE_UNAVAILABLE, "SY002", "시스템 점검 중입니다"),
     SYSTEM_CONFIG_NOT_FOUND(HttpStatus.NOT_FOUND, "SY003", "시스템 설정을 찾을 수 없습니다"),
 
+    // AI API Key 관리 (관리자)
+    AI_KEY_UNKNOWN_PROVIDER(HttpStatus.BAD_REQUEST, "AK001", "지원하지 않는 AI 프로바이더입니다"),
+    AI_KEY_INVALID_FORMAT(HttpStatus.BAD_REQUEST, "AK002", "API 키 형식이 올바르지 않습니다"),
+    AI_KEY_REJECTED(HttpStatus.BAD_REQUEST, "AK003", "제공한 API 키가 프로바이더에서 거부되었습니다"),
+    AI_KEY_VERIFICATION_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "AK004", "AI 프로바이더에 연결할 수 없어 키를 검증하지 못했습니다"),
+    AI_KEY_ENCRYPTION_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "AK005", "CONFIG_ENCRYPTION_KEY가 설정되지 않아 키를 저장할 수 없습니다"),
+    AI_KEY_NOT_CONFIGURED(HttpStatus.NOT_FOUND, "AK006", "설정된 API 키가 없습니다"),
+
     // AI Note Organize
     AI_NOTE_CONTENT_EMPTY(HttpStatus.BAD_REQUEST, "AN001", "노트 내용이 비어있습니다"),
     AI_NOTE_PARSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AN002", "AI 응답 파싱에 실패했습니다"),

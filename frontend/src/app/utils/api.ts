@@ -4710,6 +4710,49 @@ export interface MaintenanceStatus {
   started_at: string | null;
 }
 
+// ==================== AI API Key (Admin) ====================
+// 서버는 키 원문을 절대 응답하지 않는다. masked_key만 내려온다.
+
+export type AiKeyProvider = "claude" | "openai";
+export type AiKeySource = "DATABASE" | "ENVIRONMENT" | "NONE";
+
+export interface AiKeyStatus {
+  provider: AiKeyProvider;
+  display_name: string;
+  configured: boolean;
+  /** 예: sk-ant-api03…a4f2 — 원문 아님 */
+  masked_key: string | null;
+  source: AiKeySource;
+  updated_at: string | null;
+  updated_by: string | null;
+  last_verified_at: string | null;
+  is_active_provider: boolean;
+}
+
+export interface AiKeyList {
+  keys: AiKeyStatus[];
+  active_provider: string;
+  encryption_configured: boolean;
+}
+
+export interface AiKeyLogEntry {
+  id: string;
+  provider: AiKeyProvider;
+  action: "ROTATE" | "VERIFY";
+  actor_email: string | null;
+  masked_key: string | null;
+  success: boolean;
+  detail: string | null;
+  created_at: string;
+}
+
+export interface AiKeyLogList {
+  logs: AiKeyLogEntry[];
+  total: number;
+  page: number;
+  size: number;
+}
+
 export interface BulkCreateResult {
   created: number;
   failed: number;
@@ -5324,6 +5367,32 @@ export const adminAPI = {
     estimated_end_at?: string | null;
   }) => {
     return apiClient.post<MaintenanceStatus>("/admin/system/maintenance", data);
+  },
+
+  // AI API 키 (원문 조회 엔드포인트는 존재하지 않는다 — 마스킹 조회 + 쓰기 전용 교체)
+  getAiKeys: async () => {
+    return apiClient.get<AiKeyList>("/admin/ai/keys");
+  },
+
+  rotateAiKey: async (provider: AiKeyProvider, apiKey: string) => {
+    return apiClient.put<AiKeyStatus>(`/admin/ai/keys/${provider}`, {
+      api_key: apiKey,
+    });
+  },
+
+  verifyAiKey: async (provider: AiKeyProvider) => {
+    return apiClient.post<AiKeyStatus>(`/admin/ai/keys/${provider}/verify`, {});
+  },
+
+  getAiKeyLogs: async (params: { page?: number; size?: number } = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.page !== undefined)
+      searchParams.append("page", params.page.toString());
+    if (params.size !== undefined)
+      searchParams.append("size", params.size.toString());
+    return apiClient.get<AiKeyLogList>(
+      `/admin/ai/keys/logs?${searchParams.toString()}`,
+    );
   },
 
   // 문의 관리

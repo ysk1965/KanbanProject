@@ -200,6 +200,9 @@ firebase:
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
   testprod-frontend-url: ${TESTPROD_FRONTEND_URL:}
+  # system_config 에 저장하는 민감 설정값(AI API 키 등)의 AES-GCM 마스터 키.
+  # base64 32바이트 권장. 미설정 시 관리자 대시보드에서의 키 저장이 비활성화된다.
+  config-encryption-key: ${CONFIG_ENCRYPTION_KEY:}
   websocket:
     broker-type: ${WS_BROKER_TYPE:simple}
   monitoring:

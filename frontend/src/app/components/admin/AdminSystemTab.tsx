@@ -5,6 +5,7 @@ import { adminService } from '../../utils/services';
 import type { MaintenanceStatus } from '../../utils/api';
 import { formatDateTime, toDateTimeLocalValue, fromDateTimeLocalValue } from '../../utils/dateUtils';
 import { ConfirmModal, Toast } from './AdminConfirmModal';
+import { AdminAiKeysCard } from './AdminAiKeysCard';
 
 export function AdminSystemTab() {
   const { t } = useTranslation();
@@ -442,6 +443,11 @@ export function AdminSystemTab() {
           </div>
         )}
       </div>
+
+      {/* AI API 키 관리 */}
+      <AdminAiKeysCard
+        onToast={(message, type) => setToast({ message, type })}
+      />
 
       <ConfirmModal
         isOpen={showStopConfirm}

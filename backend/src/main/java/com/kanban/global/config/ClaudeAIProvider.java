@@ -4,7 +4,6 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
@@ -22,12 +21,12 @@ public class ClaudeAIProvider implements AIProvider {
     private static final String CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
 
     private final RestTemplate aiRestTemplate;
+    private final AiApiKeyResolver apiKeyResolver;
 
-    @Value("${ai.claude.api-key:}")
-    private String apiKey;
-
-    public ClaudeAIProvider(@Qualifier("aiRestTemplate") RestTemplate aiRestTemplate) {
+    public ClaudeAIProvider(@Qualifier("aiRestTemplate") RestTemplate aiRestTemplate,
+                            AiApiKeyResolver apiKeyResolver) {
         this.aiRestTemplate = aiRestTemplate;
+        this.apiKeyResolver = apiKeyResolver;
     }
 
     @Override
@@ -43,6 +42,8 @@ public class ClaudeAIProvider implements AIProvider {
     @Override
     public AIResponse chatWithUsage(String systemPrompt, String userPrompt, String model, int maxTokens,
                                     Double temperature) {
+        // 매 호출마다 해석한다 — 관리자가 키를 교체하면 재배포 없이 반영돼야 한다.
+        String apiKey = apiKeyResolver.resolveKey(AiProviderType.CLAUDE);
         if (apiKey == null || apiKey.isBlank()) {
             throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
         }
