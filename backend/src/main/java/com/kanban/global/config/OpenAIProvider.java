@@ -5,6 +5,7 @@ import com.kanban.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -13,8 +14,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * OpenAI 호출 프로바이더.
+ *
+ * <p>{@code ai.provider=openai}일 때만 등록되며, 그 경우 {@code @Primary}로서 범용
+ * {@link AIProvider} 주입 지점 전부를 차지한다. {@link ClaudeAIProvider}가 항상 빈으로
+ * 존재하기 때문에 {@code @Primary} 없이는 주입이 모호해져 부팅이 깨진다.
+ */
 @Slf4j
 @Component
+@Primary
 @ConditionalOnProperty(name = "ai.provider", havingValue = "openai")
 public class OpenAIProvider implements AIProvider {
 
