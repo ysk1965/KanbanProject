@@ -76,6 +76,19 @@ public class SlackApiClient {
     }
 
     /**
+     * 봇이 게시한 메시지를 회수한다({@code chat.delete}). 채널 + 메시지 ts로 특정한다.
+     * 봇 자기 메시지 삭제는 {@code chat:write}로 되며 별도 스코프가 필요 없다.
+     * 이미 지워졌거나 없는 메시지면 Slack이 {@code message_not_found}를 돌려주고
+     * {@link #callSlackApi}가 예외를 던지므로, 호출부에서 best-effort로 감싼다.
+     */
+    public Map<String, Object> chatDelete(String botToken, String channelId, String ts) {
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("channel", channelId);
+        body.put("ts", ts);
+        return callSlackApi(botToken, "/chat.delete", body);
+    }
+
+    /**
      * List conversations (channels) the bot can see
      */
     @SuppressWarnings("unchecked")

@@ -2072,7 +2072,7 @@ export function AutoReportSettingsPanel({
       <MotionModal
         open={renderOpen}
         onClose={() => setRenderOpen(false)}
-        className="sm:max-w-3xl"
+        className="sm:max-w-4xl"
         accentColor
         aria-label="보고서 미리보기"
       >

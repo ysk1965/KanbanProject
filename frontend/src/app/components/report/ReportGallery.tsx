@@ -255,7 +255,7 @@ export function ReportGallery({
       <MotionModal
         open={selected !== null}
         onClose={() => setSelected(null)}
-        className="sm:max-w-3xl"
+        className="sm:max-w-4xl"
         accentColor
         aria-label="보고서 자세히 보기"
       >
@@ -316,6 +316,10 @@ export function ReportGallery({
           <p className="text-xs text-slate-500 leading-relaxed">
             이 보고서가 모아 온 이미지·썸네일 폴더도 자료실 휴지통으로
             이동합니다. 필요하면 휴지통에서 되살릴 수 있어요.
+          </p>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            슬랙 채널에 발송된 이 보고서 메시지도 함께 회수됩니다. (이 기능
+            적용 전에 발송된 보고서는 슬랙에서 직접 삭제해야 해요.)
           </p>
           {deleteError && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20">

@@ -143,6 +143,10 @@ public class ReportDispatchService {
 
         persistence.finishLog(logId, board, report, reportType, status,
                 config.getSlackChannelId(), chunks, outcome.error());
+
+        // 게시된 메시지의 채널·ts를 남긴다 — 나중에 보고서를 지울 때 슬랙 메시지도 함께 회수하기 위함.
+        persistence.saveDispatchMessages(board, report.getId(), outcome.sentMessages());
+
         return new DispatchResult(status, report.getId(), outcome.error(),
                 outcome.sent().stream().map(ReportSlackPublisher.Target::channelId).toList());
     }

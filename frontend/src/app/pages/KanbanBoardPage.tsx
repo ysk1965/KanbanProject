@@ -174,6 +174,7 @@ const MiniKanbanView = lazyWithRetry(
 );
 import { EmptyBoardGuide } from "../components/EmptyBoardGuide";
 import { QuickAddTaskModal } from "../components/QuickAddTaskModal";
+import { OverdueChecklistModal } from "../components/OverdueChecklistModal";
 import { BoardTrashView } from "../components/trash/BoardTrashView";
 import {
   boardService,
@@ -650,6 +651,8 @@ export function KanbanBoardPage() {
   const [highlightChecklistItemId, setHighlightChecklistItemId] = useState<
     string | null
   >(urlChecklistItemId);
+  // ?overdue=1(보고서·슬랙의 "지연 N건")로 들어오면 지연 목록 모달을 띄운다.
+  const [isOverdueModalOpen, setIsOverdueModalOpen] = useState(urlOverdueOnly);
   const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
   const [meetingRefreshKey, setMeetingRefreshKey] = useState(0);
   const [meetingNavigateDate, setMeetingNavigateDate] = useState<Date | null>(
@@ -2155,6 +2158,44 @@ export function KanbanBoardPage() {
     [handleViewTaskById],
   );
 
+  /**
+   * 한 태스크의 체크리스트가 통째로 바뀌었을 때 보드 상태를 맞춘다.
+   * TaskDetailModal과 지연 목록 모달이 같은 계약을 공유한다 — 어디서 고치든 카드·일정이 같이 따라온다.
+   */
+  const handleChecklistSync = useCallback(
+    (taskId: string, items: ChecklistItem[]) => {
+      setChecklistDataMap((prev) => {
+        const prevItems = prev[taskId] || [];
+        // 완료 상태 변경된 항목 → DailyScheduleView에 synthetic 이벤트 전달
+        for (const item of items) {
+          const prevItem = prevItems.find((p) => p.id === item.id);
+          if (prevItem && prevItem.completed !== item.completed) {
+            queueMicrotask(() => {
+              setWsChecklistEvent({
+                type: "CHECKLIST_TOGGLED",
+                board_id: boardId || "",
+                user_id: currentUser?.id || "",
+                user_name: currentUser?.name || "",
+                timestamp: new Date().toISOString(),
+                data: { item, task_id: taskId },
+              });
+            });
+            break;
+          }
+        }
+        return { ...prev, [taskId]: items };
+      });
+      notifyScheduleRefresh();
+    },
+    [
+      boardId,
+      currentUser,
+      setChecklistDataMap,
+      setWsChecklistEvent,
+      notifyScheduleRefresh,
+    ],
+  );
+
   // 활동로그 항목 클릭 → 대상(피처/태스크) 모달로 이동
   const handleActivityNavigate = useCallback(
     (target: ActivityNavTarget) => {
@@ -3526,6 +3567,22 @@ export function KanbanBoardPage() {
           isSubmitting={isQuickAddSubmitting}
         />
 
+        {/* 지연 목록 — 보고서·슬랙의 "지연 N건"이 착지하는 곳. 항목을 누르면 그 카드가 열린다. */}
+        <OverdueChecklistModal
+          open={isOverdueModalOpen}
+          onClose={() => setIsOverdueModalOpen(false)}
+          boardId={boardId || ""}
+          tasks={tasks}
+          checklistDataMap={checklistDataMap}
+          canEdit={canEdit}
+          isLoading={isLoading}
+          onItemsChanged={handleChecklistSync}
+          onSelect={(taskId, checklistItemId) => {
+            setIsOverdueModalOpen(false);
+            handleViewTaskWithChecklist(taskId, checklistItemId);
+          }}
+        />
+
         {/* 휴지통 */}
         {boardId && (
           <BoardTrashView
@@ -3621,30 +3678,7 @@ export function KanbanBoardPage() {
               setIsFeatureModalOpen(true);
             }
           }}
-          onChecklistSync={(taskId, items) => {
-            setChecklistDataMap((prev) => {
-              const prevItems = prev[taskId] || [];
-              // 완료 상태 변경된 항목 → DailyScheduleView에 synthetic 이벤트 전달
-              for (const item of items) {
-                const prevItem = prevItems.find((p) => p.id === item.id);
-                if (prevItem && prevItem.completed !== item.completed) {
-                  queueMicrotask(() => {
-                    setWsChecklistEvent({
-                      type: "CHECKLIST_TOGGLED",
-                      board_id: boardId || "",
-                      user_id: currentUser?.id || "",
-                      user_name: currentUser?.name || "",
-                      timestamp: new Date().toISOString(),
-                      data: { item, task_id: taskId },
-                    });
-                  });
-                  break;
-                }
-              }
-              return { ...prev, [taskId]: items };
-            });
-            notifyScheduleRefresh();
-          }}
+          onChecklistSync={handleChecklistSync}
           // Tag
           tags={tags}
           onCreateTag={handleCreateTag}

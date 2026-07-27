@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.report.ReportDeliveryLog;
 import com.kanban.domain.report.ReportDeliveryLogRepository;
+import com.kanban.domain.report.ReportDispatchMessage;
+import com.kanban.domain.report.ReportDispatchMessageRepository;
 import com.kanban.domain.report.ReportDeliveryStatus;
 import com.kanban.domain.report.ReportType;
 import com.kanban.domain.report.WeeklyReport;
@@ -39,6 +41,8 @@ public class AutoReportQueryService {
 
     private final ReportRepository reportRepository;
     private final ReportDeliveryLogRepository deliveryLogRepository;
+    private final ReportDispatchMessageRepository dispatchMessageRepository;
+    private final ReportSlackPublisher slackPublisher;
     private final BoardService boardService;
     private final ReportFileFiler reportFileFiler;
     private final ObjectMapper objectMapper;
@@ -166,6 +170,21 @@ public class AutoReportQueryService {
         if (!report.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND);
         }
+        // 슬랙에 게시됐던 메시지를 먼저 회수한다 — detach/삭제로 발송 기록을 잃기 전에.
+        // 회수 실패(이미 지워짐·권한·토큰 등)가 보고서 삭제를 막지 않도록 best-effort.
+        try {
+            List<ReportDispatchMessage> dispatched = dispatchMessageRepository.findByReportId(reportId);
+            if (!dispatched.isEmpty()) {
+                List<ReportSlackPublisher.Recallable> recallables = dispatched.stream()
+                        .map(m -> new ReportSlackPublisher.Recallable(m.getChannelId(), m.getMessageTs()))
+                        .toList();
+                slackPublisher.recall(report.getBoard(), recallables);
+                dispatchMessageRepository.deleteByReportId(reportId);
+            }
+        } catch (Exception e) {
+            log.warn("슬랙 메시지 회수 실패 board={} report={}: {}", boardId, reportId, e.getMessage());
+        }
+
         // 이 보고서가 수집한 이미지/썸네일 폴더도 함께 휴지통으로. 자료실 휴지통에서 되살릴 수 있고,
         // S3 객체는 남아 같은 이미지를 쓰는 다른 회차 보고서 본문은 깨지지 않는다. best-effort.
         try {
