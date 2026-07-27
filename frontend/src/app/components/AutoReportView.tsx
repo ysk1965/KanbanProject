@@ -2244,18 +2244,18 @@ function MemberCard({
         {getInitials(member.name)}
       </span>
       <div className="flex-1 min-w-0 flex flex-col gap-3">
-        <div className="flex items-start gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-foreground truncate">
+        <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0 flex items-baseline gap-2">
+            <span className="text-sm font-bold text-foreground truncate shrink-0 max-w-[50%]">
               {member.name}
-            </div>
+            </span>
             {topCluster && (
-              <div className="text-xs text-slate-400 mt-0.5 truncate">
+              <span className="text-xs text-slate-400 truncate min-w-0">
                 주력: {topCluster}
-              </div>
+              </span>
             )}
           </div>
-          <ChevronRight className="w-4 h-4 text-slate-500 shrink-0 mt-0.5 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+          <ChevronRight className="w-4 h-4 text-slate-500 shrink-0 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {late > 0 && (
