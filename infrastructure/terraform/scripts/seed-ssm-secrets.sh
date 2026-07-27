@@ -27,6 +27,7 @@ KEYS=(
   discord_client_secret discord_bot_token
   slack_client_secret slack_signing_secret slack_token_encryption_key
   google_client_secret sentry_dsn
+  config_encryption_key
 )
 
 echo "Seeding ${#KEYS[@]} parameters under ${PREFIX} ..."

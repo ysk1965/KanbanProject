@@ -41,3 +41,7 @@ infrastructure/terraform/scripts/seed-ssm-secrets.sh dev            # or: prod [
 
 - Non-secret IDs (client IDs, product IDs, redirect URIs) stay as plain vars on purpose.
 - Rotate `jwt_secret` / `db_password` at cutover by updating the SSM param + re-apply.
+- ⚠️ **`config_encryption_key` must never be rotated.** It is the AES-256-GCM key for
+  `system_config` values written by the admin AI-key rotation UI (`enc:v1:` prefix). Changing
+  it makes already-stored keys undecryptable and silently kills every AI feature. If it ever
+  has to change, re-enter every AI key through `/admin/system` right after the apply.

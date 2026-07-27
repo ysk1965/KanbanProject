@@ -388,6 +388,13 @@ variable "slack_token_encryption_key" {
   default     = ""
 }
 
+variable "config_encryption_key" {
+  description = "AES-256-GCM key (base64, 32 bytes) for sensitive system_config values such as rotated AI API keys. WARNING: changing this makes already-stored values undecryptable."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "slack_redirect_uri" {
   description = "Slack OAuth redirect URI"
   type        = string

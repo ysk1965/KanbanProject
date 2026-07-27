@@ -197,6 +197,7 @@ locals {
     slack_client_secret        = lookup(local.ssm_map, "slack_client_secret", var.slack_client_secret)
     slack_signing_secret       = lookup(local.ssm_map, "slack_signing_secret", var.slack_signing_secret)
     slack_token_encryption_key = lookup(local.ssm_map, "slack_token_encryption_key", var.slack_token_encryption_key)
+    config_encryption_key      = lookup(local.ssm_map, "config_encryption_key", var.config_encryption_key)
   }
 }
 
@@ -276,6 +277,9 @@ module "elastic_beanstalk" {
   slack_token_encryption_key = local.secret.slack_token_encryption_key
   slack_redirect_uri         = var.slack_redirect_uri
   slack_user_redirect_uri    = var.slack_user_redirect_uri
+
+  # Sensitive system_config encryption (admin AI key rotation)
+  config_encryption_key = local.secret.config_encryption_key
 
   depends_on = [module.rds, module.elasticache, module.acm_certificate_alb]
 }

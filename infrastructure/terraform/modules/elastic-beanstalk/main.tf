@@ -741,6 +741,13 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.slack_user_redirect_uri
   }
 
+  # Sensitive system_config encryption (admin AI key rotation)
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "CONFIG_ENCRYPTION_KEY"
+    value     = var.config_encryption_key
+  }
+
   tags = {
     Name        = "${var.project_name}-${var.environment}-env"
     Environment = var.environment
