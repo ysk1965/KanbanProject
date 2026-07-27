@@ -193,7 +193,12 @@ jobs:
           set -uo pipefail
           APP="${{ env.EB_APPLICATION_NAME }}"
           ENV_NAME="${{ env.EB_ENVIRONMENT_NAME }}"
-          SHA="${{ github.sha }}"
+          # NOT github.sha: on a workflow_run event that resolves to the default
+          # branch head, which is constant across deploys — every run would reuse
+          # one application version label and overwrite its bundle, leaving no
+          # version history to roll back to. Read the sha we actually checked out.
+          SHA=$(git rev-parse HEAD)
+          echo "Version label: ${SHA}"
           BUCKET=$(aws elasticbeanstalk create-storage-location --query S3Bucket --output text) || exit 1
           KEY="${APP}/${SHA}.zip"
 
@@ -383,7 +388,9 @@ jobs:
           fi
 
           COMMIT_MSG=$(echo '${{ github.event.workflow_run.head_commit.message || github.event.head_commit.message }}' | head -1 | sed 's/"/\\"/g' | cut -c1-100)
-          SHA="${{ github.sha }}"
+          # This job has no checkout, so take the triggering commit from the event
+          # (github.sha would be the default branch head, not what was deployed).
+          SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
           SHORT_SHA="${SHA:0:7}"
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
