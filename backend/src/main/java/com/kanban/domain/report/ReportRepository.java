@@ -38,6 +38,19 @@ public interface ReportRepository extends JpaRepository<WeeklyReport, String> {
             @Param("from") LocalDate from,
             @Param("to") LocalDate to);
 
+    /**
+     * 직전 일일 보고서 — "전일 대비 새로 등장한 기능"을 가리는 데 쓴다. 같은 날 재생성본이 여러 개면
+     * 최신이 앞에 오고, 호출부가 첫 건만 집는다.
+     */
+    @Query("SELECT r FROM WeeklyReport r WHERE r.board.id = :boardId "
+            + "AND r.reportType = com.kanban.domain.report.ReportType.DAILY_DEV "
+            + "AND r.periodStart < :before "
+            + "ORDER BY r.periodStart DESC, r.createdAt DESC")
+    List<WeeklyReport> findPreviousDailyReports(
+            @Param("boardId") String boardId,
+            @Param("before") LocalDate before,
+            org.springframework.data.domain.Pageable pageable);
+
     Optional<WeeklyReport> findByBoardIdAndTargetUserIdAndReportTypeAndPeriodStartAndPeriodEnd(
             String boardId, String targetUserId, ReportType reportType,
             LocalDate periodStart, LocalDate periodEnd);

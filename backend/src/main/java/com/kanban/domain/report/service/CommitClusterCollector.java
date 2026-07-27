@@ -46,7 +46,12 @@ public class CommitClusterCollector {
 
     /** 최종 노출 클러스터 상한(미분류 제외). 넘치면 커밋 적은 군집을 "기타"로 합친다. */
     private static final int MAX_CLUSTERS = 12;
-    private static final int MAX_COMMITS_PER_CLUSTER = 40;
+    /**
+     * 군집당 커밋 표시 상한. 레포별 그룹을 5건씩 페이징하므로 전부 담아도 화면이 무너지지 않는다.
+     * 표시를 자르려는 값이 아니라 본문 JSON이 비정상적으로 커지는 것을 막는 안전장치다.
+     * AI 라벨링 프롬프트에 들어가는 커밋 수는 {@code ReportComposer.MAX_BRIEF_CLUSTER_COMMITS}가 따로 제한한다.
+     */
+    private static final int MAX_COMMITS_PER_CLUSTER = 500;
     private static final int MAX_TASKS_PER_CLUSTER = 8;
     private static final int MAX_CHECKLIST_PER_TASK = 15;
     private static final int MAX_CONFLUENCE_PER_CLUSTER = 8;

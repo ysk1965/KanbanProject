@@ -9850,6 +9850,8 @@ export interface AutoReportCluster {
   summary: string | null;
   confidence: string | null; // "HIGH" | "MID"
   kind: string | null; // "infra"면 미분류·인프라 군집
+  /** 직전 일일 보고서에 없던 군집인지. 일간에서만 채워지고, 판별 불가면 없음 */
+  is_new?: boolean | null;
   signals: AutoReportClusterSignal[] | null;
   commits: AutoReportFeatureCommit[] | null;
   confluence_docs: AutoReportConfluenceDoc[] | null;
@@ -9890,22 +9892,35 @@ export interface AutoReportMemberChecklistChange {
   overdue_days?: number;
 }
 
+/** 구성원이 주로 붙어 있던 클러스터 한 건 ("주력" 칩) */
+export interface AutoReportMemberFocus {
+  cluster_key: string | null;
+  title: string | null;
+  commit_count: number;
+}
+
 /** 구성원 한 명의 활동 묶음 (커밋·슬랙·문서·체크리스트) */
 export interface AutoReportMember {
   name: string;
   login: string | null;
+  /** 이 사람이 그 기간에 무엇을 만들었는지 AI 요약. 생성 실패 시 없음 */
+  summary?: string | null;
+  /** 주력 클러스터 상위 3개 (표시 상한과 무관한 전체 커밋 기준) */
+  focus?: AutoReportMemberFocus[] | null;
+  /** 실제 커밋 건수 — commits 목록은 30건에서 잘릴 수 있다 */
   commit_count: number;
+  /** 실제 슬랙 발화 건수 — slack_messages 목록은 20건에서 잘릴 수 있다 */
   slack_count: number;
   doc_count: number;
-  /** 표시되는 체크리스트 수 = 지연 + 진행중 + 오늘 완료 */
+  /** 체크리스트 수 = 지연 + 진행중 + 완료 */
   checklist_count: number;
   /** 지연(마감 지난 미완료) 건수 */
   late_count?: number;
   /** 진행중(곧 마감 예정) 건수 */
   progress_count?: number;
-  /** 오늘(직전 24시간) 완료 건수 */
+  /** 완료 건수 — 일간은 직전 24시간, 주간은 그 주 전체 */
   done_today_count?: number;
-  /** 오늘 이전에 완료해 숨긴 건수 */
+  /** 노출 범위보다 앞서 완료해 숨긴 건수 */
   hidden_completed_count?: number;
   activity: number;
   commits: AutoReportMemberCommit[] | null;
