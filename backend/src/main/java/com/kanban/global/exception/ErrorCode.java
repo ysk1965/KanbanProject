@@ -247,6 +247,16 @@ public enum ErrorCode {
     AI_KEY_ENCRYPTION_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "AK005", "CONFIG_ENCRYPTION_KEY가 설정되지 않아 키를 저장할 수 없습니다"),
     AI_KEY_NOT_CONFIGURED(HttpStatus.NOT_FOUND, "AK006", "설정된 API 키가 없습니다"),
 
+    // AI 프로바이더 호출 (상태별 구분이 필요한 경로에서 사용)
+    AI_PROVIDER_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "AP001", "AI 프로바이더 호출 한도를 초과했습니다. 잠시 후 다시 시도해주세요"),
+    AI_PROVIDER_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "AP002", "AI 프로바이더 호출에 실패했습니다"),
+
+    // 커밋 플랜 (MILKYWAY Unity 에디터 툴)
+    COMMIT_PLAN_GROUPS_REQUIRED(HttpStatus.BAD_REQUEST, "CP001", "변경 파일 그룹(groups)이 필요합니다"),
+    COMMIT_PLAN_REFUSED(HttpStatus.UNPROCESSABLE_ENTITY, "CP002", "모델이 요청 처리를 거절했습니다 — 로컬 분할로 진행해주세요"),
+    COMMIT_PLAN_TRUNCATED(HttpStatus.BAD_GATEWAY, "CP003", "플랜이 출력 한도를 넘었습니다 — 변경을 나눠서 시도해주세요"),
+    COMMIT_PLAN_MALFORMED(HttpStatus.BAD_GATEWAY, "CP004", "AI 응답을 해석할 수 없습니다 — 다시 시도해주세요"),
+
     // AI Note Organize
     AI_NOTE_CONTENT_EMPTY(HttpStatus.BAD_REQUEST, "AN001", "노트 내용이 비어있습니다"),
     AI_NOTE_PARSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AN002", "AI 응답 파싱에 실패했습니다"),
