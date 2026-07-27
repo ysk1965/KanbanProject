@@ -3,13 +3,16 @@ package com.kanban.domain.report.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.kanban.domain.report.ReportRepository;
 import com.kanban.domain.report.ReportType;
+import com.kanban.domain.report.WeeklyReport;
 import com.kanban.domain.report.dto.ReportContent;
 import com.kanban.domain.report.source.ReportPeriod;
 import com.kanban.domain.report.source.SourceChunk;
 import com.kanban.domain.report.source.SourceKind;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -26,11 +29,21 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class ReportComposer {
 
+    /**
+     * AI 브리프에 담을 근거 상한 — <b>화면 표시 상한과 별개다</b>. 페이지는 커밋을 전부 보여주지만
+     * 프롬프트까지 전부 넣으면 군집 수 × 커밋 수로 토큰이 폭증한다. 라벨·요약을 뽑는 데는 대표 몇 건이면 된다.
+     */
+    private static final int MAX_BRIEF_CLUSTER_COMMITS = 40;
+    private static final int MAX_BRIEF_COMMITS = 12;
+    private static final int MAX_BRIEF_DOCS = 5;
+    private static final int MAX_BRIEF_LATE = 5;
+
     private final ReportAIService reportAIService;
     private final BoardProgressCollector progressCollector;
     private final CommitClusterCollector clusterCollector;
     private final MemberActivityCollector memberCollector;
     private final ReportMemberDirectory memberDirectory;
+    private final ReportRepository reportRepository;
     private final ObjectMapper objectMapper;
 
     /**
@@ -99,13 +112,21 @@ public class ReportComposer {
         }
         content.setClusters(clusters);
 
+        // 일간만 — 직전 일일 보고서에 없던 군집에 "새로 등장" 표시를 단다. 하루치 보고서는 어제와의
+        // 차이가 곧 소식이다. 주간은 일일 다이제스트가 그 역할을 이미 한다.
+        if (reportType == ReportType.DAILY_DEV) {
+            markNewClusters(boardId, period, clusters);
+        }
+
         // 클러스터별 제목·요약(AI 배치 1회)을 채우고, 그 요약을 종합해 상단 리드를 다시 쓴다.
         labelAndSynthesize(content, clusters, language, boardId, modelOverride);
 
         // 구성원 집계는 클러스터 라벨링이 <b>끝난 뒤</b>에 돌린다. ClusterTag는 그 시점의 제목을 값으로
         // 복사하므로, 라벨링 전에 집계하면 사람 뷰의 기능 태그가 폴백 키("art")로 굳어 기능 탭의 최종
         // 제목("로비 및 행성 아트 리소스")과 어긋난다.
-        content.setMembers(computeMembers(boardId, period, commits, clusters, chunks));
+        List<ReportContent.Member> members = computeMembers(boardId, period, commits, clusters, chunks);
+        summarizeMembers(members, reportType, language, boardId, modelOverride);
+        content.setMembers(members);
 
         return new Composed(content, serialize(content, raw), mergedInput);
     }
@@ -280,6 +301,138 @@ public class ReportComposer {
         }
     }
 
+    /**
+     * 직전 일일 보고서의 군집 키와 대조해 새로 등장한 군집을 표시한다. 규칙으로 만든 키(scope/경로)만
+     * 판별 대상이다 — AI 잔여 군집({@code ai:N})은 키가 위치 기반이라 어제의 {@code ai:0}과 오늘의
+     * {@code ai:0}이 같은 주제라는 보장이 없다. 직전 보고서가 없거나 읽기에 실패하면 아무것도 표시하지
+     * 않는다(모두 null) — 첫 보고서에서 전 항목이 "새 기능"으로 보이는 게 더 나쁘다.
+     */
+    private void markNewClusters(String boardId, ReportPeriod period, List<ReportContent.Cluster> clusters) {
+        if (clusters == null || clusters.isEmpty()) {
+            return;
+        }
+        try {
+            List<WeeklyReport> previous = reportRepository.findPreviousDailyReports(
+                    boardId, period.startInclusive().toLocalDate(), PageRequest.of(0, 1));
+            if (previous.isEmpty()) {
+                return;
+            }
+            Set<String> seen = clusterKeysOf(previous.get(0).getContentJson());
+            if (seen.isEmpty()) {
+                return;
+            }
+            for (ReportContent.Cluster c : clusters) {
+                String key = c.getKey();
+                if (key == null || key.startsWith("ai:") || "infra".equals(c.getKind())) {
+                    continue;
+                }
+                c.setIsNew(!seen.contains(key));
+            }
+        } catch (Exception e) {
+            log.warn("직전 일일 보고서 대조 실패 board={}: {}", boardId, e.getMessage());
+        }
+    }
+
+    /** 저장된 본문 JSON에서 군집 키만 뽑는다. 형식이 다르거나 깨졌으면 빈 집합. */
+    private Set<String> clusterKeysOf(String contentJson) {
+        if (contentJson == null || contentJson.isBlank()) {
+            return Set.of();
+        }
+        try {
+            JsonNode clusters = objectMapper.readTree(contentJson).path("clusters");
+            if (!clusters.isArray()) {
+                return Set.of();
+            }
+            Set<String> keys = new HashSet<>();
+            for (JsonNode c : clusters) {
+                JsonNode key = c.get("key");
+                if (key != null && !key.isNull()) {
+                    keys.add(key.asText());
+                }
+            }
+            return keys;
+        } catch (Exception e) {
+            log.warn("직전 보고서 본문 파싱 실패: {}", e.getMessage());
+            return Set.of();
+        }
+    }
+
+    /**
+     * 구성원별 요약을 AI 배치 1회로 채운다. 클러스터 요약과 같은 원칙 — 숫자·소속은 시스템이 정하고
+     * 서술만 AI가 붙인다. 실패하면 summary를 비워 두고(카드 생략) 보고서는 그대로 진행한다.
+     */
+    private void summarizeMembers(List<ReportContent.Member> members, ReportType reportType,
+                                  String language, String boardId, String modelOverride) {
+        if (members == null || members.isEmpty()) {
+            return;
+        }
+        try {
+            List<String> briefs = members.stream().map(this::memberBrief).toList();
+            List<String> summaries = reportAIService.summarizeMembers(
+                    briefs, reportType == ReportType.WEEKLY_INTEGRATED, language, boardId, modelOverride);
+            for (int i = 0; i < members.size() && i < summaries.size(); i++) {
+                String s = summaries.get(i);
+                if (s != null && !s.isBlank()) {
+                    members.get(i).setSummary(s.trim());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("구성원 요약 생성 실패 board={}: {}", boardId, e.getMessage());
+        }
+    }
+
+    /** 사람 한 명의 요약 근거를 한 덩어리 텍스트로. 주력 기능·커밋·문서·체크리스트 상태를 담는다. */
+    private String memberBrief(ReportContent.Member m) {
+        StringBuilder sb = new StringBuilder("MEMBER: ").append(m.getName()).append('\n');
+
+        if (m.getFocus() != null && !m.getFocus().isEmpty()) {
+            List<String> focus = m.getFocus().stream()
+                    .map(f -> f.getTitle() + " (" + f.getCommitCount() + ")")
+                    .toList();
+            sb.append("FOCUS: ").append(String.join(" · ", focus)).append('\n');
+        }
+
+        if (m.getCommits() != null && !m.getCommits().isEmpty()) {
+            List<String> subs = m.getCommits().stream()
+                    .map(ReportContent.MemberCommit::getSubject)
+                    .filter(Objects::nonNull)
+                    .limit(MAX_BRIEF_COMMITS)
+                    .toList();
+            if (!subs.isEmpty()) {
+                sb.append("COMMITS (").append(m.getCommitCount()).append(" total): ")
+                        .append(String.join(" | ", subs)).append('\n');
+            }
+        }
+
+        if (m.getConfluenceDocs() != null && !m.getConfluenceDocs().isEmpty()) {
+            List<String> docs = m.getConfluenceDocs().stream()
+                    .map(ReportContent.ConfluenceDoc::getTitle)
+                    .filter(Objects::nonNull)
+                    .limit(MAX_BRIEF_DOCS)
+                    .toList();
+            if (!docs.isEmpty()) {
+                sb.append("DOCS: ").append(String.join(" | ", docs)).append('\n');
+            }
+        }
+
+        sb.append("KANBAN: late ").append(m.getLateCount())
+                .append(" · in progress ").append(m.getProgressCount())
+                .append(" · completed ").append(m.getDoneTodayCount()).append('\n');
+
+        // 지연 항목은 제목까지 넣는다 — 요약의 마지막 문장("무엇이 막혔나")이 구체적이어야 한다.
+        if (m.getChecklistChanges() != null) {
+            List<String> late = m.getChecklistChanges().stream()
+                    .filter(c -> "late".equals(c.getStatus()))
+                    .map(c -> c.getTitle() + " (" + c.getOverdueDays() + "d overdue)")
+                    .limit(MAX_BRIEF_LATE)
+                    .toList();
+            if (!late.isEmpty()) {
+                sb.append("LATE: ").append(String.join(" | ", late)).append('\n');
+            }
+        }
+        return sb.toString();
+    }
+
     /** sha → 소속 클러스터 태그. 구성원 뷰가 커밋에 기능 태그를 다는 데 쓴다. 인프라 군집은 태그하지 않는다. */
     private Map<String, MemberActivityCollector.ClusterTag> buildClusterTagBySha(List<ReportContent.Cluster> clusters) {
         Map<String, MemberActivityCollector.ClusterTag> map = new HashMap<>();
@@ -356,7 +509,11 @@ public class ReportComposer {
         }
         if (c.getCommits() != null && !c.getCommits().isEmpty()) {
             sb.append("\nCOMMITS:");
+            int n = 0;
             for (ReportContent.FeatureCommit fc : c.getCommits()) {
+                if (n++ >= MAX_BRIEF_CLUSTER_COMMITS) {
+                    break;
+                }
                 sb.append("\n  - ").append(fc.getSubject());
             }
         }

@@ -209,6 +209,99 @@ public class ReportAIService {
         }
     }
 
+    private static final int MAX_TOKENS_MEMBER_SUMMARY = 3072;
+
+    /**
+     * 구성원별 활동 요약을 배치 1회로 생성한다. 클러스터 요약이 "기능이 어디까지 왔나"를 말한다면 이쪽은
+     * "이 사람이 무엇을 만들었나"를 말한다 — 같은 데이터를 사람 축으로 자른 서술이다.
+     *
+     * <p><b>클러스터 라벨링이 끝난 뒤에 부른다.</b> 브리프의 주력 기능명이 폴백 키가 아니라 확정 제목이어야
+     * 요약 문장이 사람 말이 된다.
+     *
+     * <p>이 요약은 인사 평가가 아니라 산출물 서술이다. 프롬프트에서 평가·비교·추측 어조를 명시적으로 막는다.
+     * 시스템 호출이라 크레딧은 차감하지 않고 사용량 로그만 남긴다. 실패하면 빈 목록을 돌려 호출부가
+     * 요약 없이(카드 생략) 진행하게 한다.
+     *
+     * @param memberBriefs 사람별 근거 묶음(주력 기능·커밋 제목·문서·체크리스트 상태). 순서가 결과 순서와 일치.
+     * @param weekly       주간이면 2~4문장, 일간이면 1~2문장으로 분량을 맞춘다.
+     * @return memberBriefs 길이의 요약 목록. 근거가 얄팍하면 해당 원소가 빈 문자열. 실패 시 빈 목록.
+     */
+    public List<String> summarizeMembers(List<String> memberBriefs, boolean weekly, String language,
+                                         String boardId, String modelOverride) {
+        if (memberBriefs == null || memberBriefs.isEmpty()) {
+            return List.of();
+        }
+        String langName = getLanguageName(language);
+
+        StringBuilder sb = new StringBuilder("MEMBERS:\n");
+        for (int i = 0; i < memberBriefs.size(); i++) {
+            sb.append("=== MEMBER ").append(i).append(" ===\n")
+                    .append(memberBriefs.get(i)).append("\n\n");
+        }
+
+        String systemPrompt = """
+                You summarize what each team member actually shipped for %s during one reporting period.
+                Each MEMBER block lists that person's FOCUS (the feature clusters they committed to most),
+                their COMMITS, any DOCS they wrote, and their KANBAN checklist state (late / in progress /
+                completed), including the titles of overdue items.
+
+                For each member, produce a "summary" of %s in this order:
+                1. What they built or fixed, named by the feature clusters in FOCUS — not by raw commit text.
+                2. Where that work currently stands.
+                3. What is blocked or overdue, but ONLY if the member has late items; name them concretely.
+
+                Hard rules:
+                - Describe output only. This is a work log, NOT a performance review. Never praise, criticize,
+                  rank, or compare members. Never speculate about effort, intent, capability, or attitude.
+                - Ground every clause in the data shown. Never invent work, numbers, or feature names.
+                - If a member's data is too thin to say anything concrete, use an empty string "".
+
+                Write in %s. Output ONLY a JSON array whose length equals the number of members; the i-th
+                element is {"summary": "..."} for member i. No prose, no code fences, no other keys.
+                """.formatted(productContextEn, weekly ? "2-4 sentences" : "1-2 sentences", langName);
+
+        String model = resolveAutoModel(modelOverride, getStandupModel());
+        try {
+            AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, sb.toString(), model,
+                    MAX_TOKENS_MEMBER_SUMMARY, REPORT_TEMPERATURE);
+            logAiUsage("REPORT_MEMBER_SUMMARY", model, boardId, null, aiResult);
+            return parseMemberSummaries(aiResult.content(), memberBriefs.size());
+        } catch (Exception e) {
+            log.warn("구성원 요약 AI 호출 실패: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<String> parseMemberSummaries(String raw, int count) {
+        if (raw == null) {
+            return List.of();
+        }
+        int start = raw.indexOf('[');
+        int end = raw.lastIndexOf(']');
+        if (start < 0 || end <= start) {
+            return List.of();
+        }
+        try {
+            JsonNode arr = objectMapper.readTree(raw.substring(start, end + 1));
+            if (!arr.isArray()) {
+                return List.of();
+            }
+            List<String> result = new java.util.ArrayList<>(count);
+            for (int i = 0; i < count; i++) {
+                JsonNode o = i < arr.size() ? arr.get(i) : null;
+                if (o != null && o.isObject() && o.hasNonNull("summary")) {
+                    result.add(o.get("summary").asText().trim());
+                } else {
+                    result.add("");
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("구성원 요약 응답 파싱 실패: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
     private static final int MAX_TOKENS_RESIDUE = 2048;
 
     /**

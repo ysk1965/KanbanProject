@@ -15,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -135,7 +136,7 @@ class MemberActivityCollectorTest {
                 collector.compute("b", period(), commits, Map.of(), null, null).members().get(0);
 
         assertEquals(47, m.getCommitCount(), "카운트는 자르기 전 실제 건수");
-        assertEquals(30, m.getCommits().size(), "표시 목록만 상한에서 잘린다");
+        assertEquals(47, m.getCommits().size(), "커밋은 페이징하므로 그 기간 전부를 담는다");
         assertEquals(47 * 3, m.getActivity(), "정렬 기준도 포화되지 않는다");
     }
 
@@ -201,6 +202,77 @@ class MemberActivityCollectorTest {
                 collector.compute("b", daily, List.of(), Map.of(), null, null).members().get(0);
         assertEquals(1, d.getDoneTodayCount(), "일간은 직전 24시간만 노출");
         assertEquals(1, d.getHiddenCompletedCount());
+    }
+
+    private ChecklistItem overdueItem(String title, User assignee, LocalDate due) {
+        return ChecklistItem.builder()
+                .title(title)
+                .assignee(assignee)
+                .isCompleted(false)
+                .dueDate(due)
+                .build();
+    }
+
+    @Test
+    void 일간은_지연_보유자를_먼저_올리고_주간은_활동량_순이다() {
+        User late = User.builder().id("u1").name("정소연").build();
+        ZonedDateTime end = ZonedDateTime.of(2026, 7, 27, 0, 0, 0, 0, ZoneOffset.UTC);
+
+        when(memberDirectory.identities("b")).thenReturn(List.of(
+                new MemberIdentity("u1", "정소연", "sy-jeongg", null),
+                new MemberIdentity("u2", "민준태", "mtmin", null)));
+        lenient().when(checklistItemRepository.findCompletedByBoardIdAndDateRange(eq("b"), any(), any()))
+                .thenReturn(List.of());
+        // 정소연은 커밋 1건 + 지연 1건 / 민준태는 커밋 5건, 지연 없음
+        lenient().when(checklistItemRepository.findIncompleteWithDueByBoardId("b"))
+                .thenReturn(List.of(overdueItem("행성 텍스처 리터치", late, end.toLocalDate().minusDays(6))));
+
+        List<CommitInfo> commits = new ArrayList<>();
+        commits.add(commit("s0", "feat(art): 행성", "sy-jeongg"));
+        for (int i = 0; i < 5; i++) {
+            commits.add(commit("m" + i, "feat(ui): 작업 " + i, "mtmin"));
+        }
+
+        List<ReportContent.Member> daily = collector.compute(
+                "b", new ReportPeriod(end.minusDays(1), end, ZoneOffset.UTC),
+                commits, Map.of(), null, null).members();
+        assertEquals("정소연", daily.get(0).getName(), "일간은 지연 보유자가 위");
+
+        List<ReportContent.Member> weekly = collector.compute(
+                "b", new ReportPeriod(end.minusDays(7), end, ZoneOffset.UTC),
+                commits, Map.of(), null, null).members();
+        assertEquals("민준태", weekly.get(0).getName(), "주간은 활동량 순");
+    }
+
+    @Test
+    void 주력은_표시_상한을_넘긴_커밋까지_세어_상위_순으로_나온다() {
+        when(memberDirectory.identities("b")).thenReturn(List.of(
+                new MemberIdentity("u1", "정소연", "sy-jeongg", null)));
+        lenient().when(checklistItemRepository.findCompletedByBoardIdAndDateRange(eq("b"), any(), any()))
+                .thenReturn(List.of());
+
+        ClusterTag art = new ClusterTag("scope:art", "로비 및 행성 아트 리소스");
+        ClusterTag ui = new ClusterTag("scope:ui", "인게임 HP바 최적화");
+        List<CommitInfo> commits = new ArrayList<>();
+        Map<String, ClusterTag> tags = new java.util.HashMap<>();
+        for (int i = 0; i < 40; i++) {
+            String sha = "a" + i;
+            commits.add(commit(sha, "[art] 작업 " + i, "sy-jeongg"));
+            tags.put(sha, art);
+        }
+        for (int i = 0; i < 3; i++) {
+            String sha = "u" + i;
+            commits.add(commit(sha, "[ui] 작업 " + i, "sy-jeongg"));
+            tags.put(sha, ui);
+        }
+
+        ReportContent.Member m =
+                collector.compute("b", period(), commits, tags, null, null).members().get(0);
+
+        assertEquals(2, m.getFocus().size());
+        assertEquals("로비 및 행성 아트 리소스", m.getFocus().get(0).getTitle());
+        assertEquals(40, m.getFocus().get(0).getCommitCount());
+        assertEquals("인게임 HP바 최적화", m.getFocus().get(1).getTitle());
     }
 
     private BoardProgressCollector.ConfluenceDocInfo doc(String title, String author, String authorUserId) {

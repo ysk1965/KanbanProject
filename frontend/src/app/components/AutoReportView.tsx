@@ -14,6 +14,7 @@ import {
   CalendarDays,
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Clock,
   Columns3,
@@ -660,6 +661,80 @@ function TaskMark({ status }: { status: string }) {
   );
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   목록 페이징 — 커밋처럼 수십 건이 한 번에 쏟아지는 목록을 5건씩 끊어 보여준다.
+   드로어 안에서 스크롤만 길어지면 정작 아래의 태스크·문서 근거가 묻힌다.
+   ══════════════════════════════════════════════════════════════════════ */
+
+const PAGE_SIZE = 5;
+
+function usePaged<T>(items: T[], size: number = PAGE_SIZE) {
+  const [page, setPage] = useState(0);
+  const pageCount = Math.max(1, Math.ceil(items.length / size));
+  // 목록이 줄어 현재 페이지가 사라졌으면 마지막 페이지로 접는다.
+  const current = Math.min(page, pageCount - 1);
+  const slice = useMemo(
+    () => items.slice(current * size, current * size + size),
+    [items, current, size],
+  );
+  return { page: current, pageCount, slice, setPage, total: items.length, size };
+}
+
+/** 페이지가 하나뿐이면 아무것도 그리지 않는다 — 5건 이하 목록에 컨트롤을 붙일 이유가 없다. */
+function Pager({
+  page,
+  pageCount,
+  total,
+  size,
+  onChange,
+  label,
+}: {
+  page: number;
+  pageCount: number;
+  total: number;
+  size: number;
+  onChange: (next: number) => void;
+  label: string;
+}) {
+  if (pageCount <= 1) return null;
+  const from = page * size + 1;
+  const to = Math.min(total, (page + 1) * size);
+  const btn =
+    "w-7 h-7 grid place-items-center rounded-lg text-slate-400 transition-colors " +
+    "hover:bg-foreground/5 hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent " +
+    "disabled:hover:text-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50";
+  return (
+    <div className="flex items-center justify-between gap-2 pt-2 mt-1 border-t border-foreground/[0.06]">
+      <span className="text-xs text-slate-500 tabular-nums">
+        {from}–{to} / {total}
+      </span>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          aria-label={`${label} 이전 페이지`}
+          disabled={page === 0}
+          onClick={() => onChange(page - 1)}
+          className={btn}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <span className="text-xs text-slate-500 tabular-nums px-1">
+          {page + 1} / {pageCount}
+        </span>
+        <button
+          type="button"
+          aria-label={`${label} 다음 페이지`}
+          disabled={page >= pageCount - 1}
+          onClick={() => onChange(page + 1)}
+          className={btn}
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ── 커밋 레포 그룹 (드롭다운, 기본 펼침) ── */
 function CommitRepoGroup({
   repo,
@@ -669,6 +744,7 @@ function CommitRepoGroup({
   list: AutoReportFeatureCommit[];
 }) {
   const [open, setOpen] = useState(true);
+  const paged = usePaged(list);
   const latest = list[0]?.subject ?? ""; // 헤더 요약 = 최근 커밋 제목
   return (
     <div className="border-t border-foreground/[0.06] first:border-t-0">
@@ -695,7 +771,7 @@ function CommitRepoGroup({
       </button>
       {open && (
         <div className="flex flex-col pb-1">
-          {list.map((c, i) => (
+          {paged.slice.map((c, i) => (
             <div
               key={`${c.sha}-${i}`}
               className="flex flex-col gap-0.5 py-2 border-t border-foreground/[0.06]"
@@ -739,6 +815,14 @@ function CommitRepoGroup({
               </div>
             </div>
           ))}
+          <Pager
+            page={paged.page}
+            pageCount={paged.pageCount}
+            total={paged.total}
+            size={paged.size}
+            onChange={paged.setPage}
+            label={`${repo} 커밋`}
+          />
         </div>
       )}
     </div>
@@ -1532,11 +1616,19 @@ const CHECKLIST_BUCKET_META: Record<
     box: "border-amber-500/60",
   },
   done: {
-    label: "오늘 완료",
+    label: "완료",
     text: "text-emerald-600 dark:text-emerald-400",
     box: "border-emerald-500",
   },
 };
+
+/**
+ * 완료 버킷 라벨은 <b>보고 주기를 따른다</b> — 백엔드가 일간은 직전 24시간, 주간은 그 주 전체를
+ * 완료로 노출하기 때문이다. 라벨을 "오늘 완료"로 고정하면 주간에서 사실과 어긋난다.
+ */
+function doneBucketLabel(isWeekly: boolean): string {
+  return isWeekly ? "이번 주 완료" : "오늘 완료";
+}
 
 function bucketOf(item: AutoReportMemberChecklistChange): ChecklistBucket {
   const s = item.status;
@@ -1597,64 +1689,141 @@ function ChecklistBucketRow({
   );
 }
 
-/* ── 구성원 상세 (헤더 + 소스별 활동) ── */
-function MemberDetail({ member }: { member: AutoReportMember }) {
+/* ── 구성원 상세 (헤더 + 요약 + 주력 + 소스별 활동) ── */
+function MemberDetail({
+  member,
+  isWeekly,
+  onOpenFocus,
+}: {
+  member: AutoReportMember;
+  isWeekly: boolean;
+  onOpenFocus?: (clusterKey: string) => void;
+}) {
   const commits = member.commits ?? [];
   const slack = member.slack_messages ?? [];
   const docs = member.confluence_docs ?? [];
   const checklist = member.checklist_changes ?? [];
+  const focus = (member.focus ?? []).filter((f) => f.title);
   const hex = getAssigneeHex(member.name);
   // 슬랙에 올린 이미지·영상을 한곳에 모아 상단 "리소스"로 일괄 노출한다.
   const resources = slack.flatMap((m) => m.media ?? []);
+  const pagedCommits = usePaged(commits);
+  // 커밋·슬랙 카운트는 실제 건수라, 표시 목록이 상한에서 잘렸으면 그 사실을 드러낸다.
+  const commitTruncated = member.commit_count > commits.length;
 
   return (
     <div className="flex flex-col gap-3">
-      {/* 헤더 */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex items-center gap-3">
-        <span
-          className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
-          style={{ backgroundColor: `${hex}33`, color: hex }}
-        >
-          {getInitials(member.name)}
-        </span>
-        <div className="flex flex-col min-w-0 flex-1">
-          <span className="text-base font-bold text-foreground truncate">
-            {member.name}
+      {/* 헤더 + 요약 + 주력 */}
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <span
+            className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
+            style={{ backgroundColor: `${hex}33`, color: hex }}
+          >
+            {getInitials(member.name)}
           </span>
-          {member.login && (
-            <span className="text-xs text-slate-500 font-mono">
-              @{member.login}
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-base font-bold text-foreground truncate">
+              {member.name}
             </span>
-          )}
-        </div>
-        <div className="flex gap-3 shrink-0">
-          {[
-            { n: member.commit_count, c: "커밋" },
-            { n: member.slack_count, c: "슬랙" },
-            { n: member.checklist_count, c: "체크리스트" },
-          ].map((t) => (
-            <div key={t.c} className="text-center">
-              <div className="text-base font-bold text-foreground tabular-nums">
-                {t.n}
+            {member.login && (
+              <span className="text-xs text-slate-500 font-mono">
+                @{member.login}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-3 shrink-0">
+            {[
+              { n: member.commit_count, c: "커밋" },
+              { n: member.slack_count, c: "슬랙" },
+              { n: member.checklist_count, c: "체크리스트" },
+            ].map((t) => (
+              <div key={t.c} className="text-center">
+                <div className="text-base font-bold text-foreground tabular-nums">
+                  {t.n}
+                </div>
+                <div className="text-xs text-slate-500">{t.c}</div>
               </div>
-              <div className="text-[10px] text-slate-500">{t.c}</div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
+
+        {/* 요약 — 이 사람이 그 기간에 무엇을 만들었나 (AI 생성, 없으면 생략) */}
+        {member.summary && (
+          <div className="rounded-xl bg-bridge-accent/[0.06] border border-bridge-accent/20 p-4 flex flex-col gap-1.5">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-bridge-accent">
+              <Sparkles className="w-3.5 h-3.5" />
+              요약
+            </span>
+            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+              {member.summary}
+            </p>
+          </div>
+        )}
+
+        {/* 주력 — 가장 많이 커밋한 기능. 누르면 그 기능 상세로 넘어간다. */}
+        {focus.length > 0 && (
+          <div className="pt-1 border-t border-foreground/[0.06] flex flex-wrap gap-1.5">
+            {focus.map((f, i) => {
+              const clickable = Boolean(f.cluster_key && onOpenFocus);
+              const body = (
+                <>
+                  <span className="truncate max-w-[220px]">{f.title}</span>
+                  <span className="text-xs text-bridge-secondary/70 tabular-nums">
+                    {f.commit_count}
+                  </span>
+                </>
+              );
+              const cls =
+                "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-bridge-secondary/15 text-bridge-secondary";
+              return clickable ? (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => onOpenFocus!(f.cluster_key!)}
+                  className={`${cls} hover:bg-bridge-secondary/25 transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50`}
+                >
+                  {body}
+                </button>
+              ) : (
+                <span key={i} className={cls}>
+                  {body}
+                </span>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* GitHub 커밋 */}
+      {/* GitHub 커밋 — 5건씩 페이징 */}
       <EvidenceSection
         icon={<GitCommit className="w-3.5 h-3.5 text-slate-400" />}
         label="GitHub 커밋"
-        count={commits.length}
+        count={member.commit_count}
         countClass="bg-slate-500/15 text-slate-400"
       >
         <div className="px-4 pb-2 pt-1">
           {commits.length === 0 ? (
             <p className="text-xs text-slate-500 py-3">커밋이 없습니다.</p>
           ) : (
-            commits.map((c, i) => <MemberCommitRow key={i} commit={c} />)
+            <>
+              {commitTruncated && (
+                <p className="text-xs text-slate-500 pb-1">
+                  {member.commit_count}건 중 최근 {commits.length}건
+                </p>
+              )}
+              {pagedCommits.slice.map((c, i) => (
+                <MemberCommitRow key={i} commit={c} />
+              ))}
+              <Pager
+                page={pagedCommits.page}
+                pageCount={pagedCommits.pageCount}
+                total={pagedCommits.total}
+                size={pagedCommits.size}
+                onChange={pagedCommits.setPage}
+                label="GitHub 커밋"
+              />
+            </>
           )}
         </div>
       </EvidenceSection>
@@ -1732,7 +1901,9 @@ function MemberDetail({ member }: { member: AutoReportMember }) {
                     {bucket === "done" && (
                       <Check className="w-3 h-3" strokeWidth={3} />
                     )}
-                    <span>{meta.label}</span>
+                    <span>
+                      {bucket === "done" ? doneBucketLabel(isWeekly) : meta.label}
+                    </span>
                     <span className="text-slate-500 tabular-nums">
                       {items.length}
                     </span>
@@ -2138,13 +2309,19 @@ function SignalChip({ label, value }: { label: string; value: number }) {
 }
 
 /* ── 기능별 진행 현황: 활동 강도 순 카드 목록 ── */
+/** 일간에서 접지 않고 바로 보여줄 기능 수 — 하루치 보고서에 23개 카드를 세우면 우선순위가 사라진다. */
+const DAILY_CLUSTER_LIMIT = 5;
+
 function ClusterCards({
   clusters,
   onOpen,
+  isWeekly,
 }: {
   clusters: AutoReportCluster[];
   onOpen: (c: AutoReportCluster) => void;
+  isWeekly: boolean;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const ordered = useMemo(() => {
     const feature = clusters
       .filter((c) => c.kind !== "infra")
@@ -2153,6 +2330,9 @@ function ClusterCards({
     return [...feature, ...infra];
   }, [clusters]);
   const maxCommits = Math.max(1, ...ordered.map((c) => c.commits?.length ?? 0));
+  // 주간은 전체를 펼친다 — 한 주를 훑는 문서라 목록 자체가 결과물이다.
+  const folded = !isWeekly && !expanded && ordered.length > DAILY_CLUSTER_LIMIT;
+  const visible = folded ? ordered.slice(0, DAILY_CLUSTER_LIMIT) : ordered;
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -2165,7 +2345,7 @@ function ClusterCards({
         </span>
       </div>
       <div className="flex flex-col gap-2">
-        {ordered.map((cluster, i) => {
+        {visible.map((cluster, i) => {
           const commits = cluster.commits ?? [];
           const tasks = cluster.tasks ?? [];
           const docs = cluster.confluence_docs ?? [];
@@ -2185,8 +2365,16 @@ function ClusterCards({
               <div className="flex-1 min-w-0 flex flex-col gap-3">
                 <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-foreground">
-                      {cluster.title}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-sm font-bold text-foreground">
+                        {cluster.title}
+                      </span>
+                      {/* 전일 대비 새로 등장 — 하루치 보고서에서 어제와의 차이가 곧 소식이다 */}
+                      {cluster.is_new && (
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+                          NEW
+                        </span>
+                      )}
                     </div>
                     {cluster.summary && (
                       <div className="text-xs text-slate-400 mt-0.5 line-clamp-2 leading-relaxed">
@@ -2217,6 +2405,56 @@ function ClusterCards({
             </button>
           );
         })}
+        {folded && (
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold text-slate-400 bg-foreground/[0.03] border border-foreground/[0.08] hover:bg-foreground/5 hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+          >
+            나머지 {ordered.length - DAILY_CLUSTER_LIMIT}개 기능 더 보기
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 일간 상단 지연 롤업. 일간 보고서의 질문은 "오늘 누가 막혔나"라, 스크롤해서 사람 카드를 훑기 전에
+ * 지연 총량과 담당자를 먼저 보여준다. 지연이 없으면 그리지 않는다 — 없는 게 곧 좋은 소식이다.
+ */
+function LateRollup({
+  members,
+  onOpen,
+}: {
+  members: AutoReportMember[];
+  onOpen: (m: AutoReportMember) => void;
+}) {
+  const holders = members.filter((m) => (m.late_count ?? 0) > 0);
+  if (holders.length === 0) return null;
+  const total = holders.reduce((sum, m) => sum + (m.late_count ?? 0), 0);
+
+  return (
+    <div className="bg-bridge-obsidian rounded-2xl border border-amber-500/30 p-4 flex flex-col gap-2.5">
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+        <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">
+          지연 {total}건 · 담당 {holders.length}명
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {holders.map((m, i) => (
+          <button
+            key={memberKey(m, i)}
+            type="button"
+            onClick={() => onOpen(m)}
+            className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25 transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+          >
+            {m.name}
+            <span className="tabular-nums opacity-70">{m.late_count}</span>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -2252,15 +2490,12 @@ function StatusChip({
 function MemberCards({
   members,
   onOpen,
+  isWeekly,
 }: {
   members: AutoReportMember[];
   onOpen: (m: AutoReportMember) => void;
+  isWeekly: boolean;
 }) {
-  const ordered = useMemo(
-    () => [...members].sort((a, b) => b.activity - a.activity),
-    [members],
-  );
-
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex items-baseline gap-2 flex-wrap">
@@ -2268,11 +2503,13 @@ function MemberCards({
           구성원별 활동
         </h2>
         <span className="text-xs text-slate-500">
-          깃 · 슬랙 · 칸반을 사람 기준으로 · 활동량 순
+          깃 · 슬랙 · 칸반을 사람 기준으로 ·{" "}
+          {isWeekly ? "활동량 순" : "지연 우선"}
         </span>
       </div>
       <div className="flex flex-col gap-2">
-        {ordered.map((member, i) => (
+        {/* 순서는 백엔드가 정한다 — 일간은 지연 보유자 우선, 주간은 활동량 순. */}
+        {members.map((member, i) => (
           <MemberCard
             key={memberKey(member, i)}
             member={member}
@@ -2296,7 +2533,11 @@ function MemberCard({
   const progress = member.progress_count ?? 0;
   const late = member.late_count ?? 0;
   const hasStatus = doneToday > 0 || progress > 0 || late > 0;
+  // 주력은 백엔드가 전체 커밋으로 집계한 focus를 쓴다. focus가 없는 과거 보고서는 표시된
+  // 커밋의 클러스터 태그로 폴백한다(표시 상한 안에서만 세므로 근사값).
   const topCluster = useMemo(() => {
+    const fromFocus = member.focus?.find((f) => f.title)?.title;
+    if (fromFocus) return fromFocus;
     const freq = new Map<string, number>();
     for (const c of member.commits ?? []) {
       if (c.cluster_title)
@@ -2335,6 +2576,12 @@ function MemberCard({
           </div>
           <ChevronRight className="w-4 h-4 text-slate-500 shrink-0 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
         </div>
+        {/* 요약 — 기능 카드가 요약을 보여주는 것과 같은 대칭. 없으면 생략. */}
+        {member.summary && (
+          <p className="text-xs text-slate-400 leading-relaxed line-clamp-2 text-left">
+            {member.summary}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-1.5">
           {/* 상태 — 이 사람이 지금 어디 서 있나(가장 행동가능한 신호) */}
           {hasStatus ? (
@@ -2558,8 +2805,18 @@ export function AutoReportView({
 
   const openCluster = (c: AutoReportCluster) =>
     setDrawer({ title: c.title, body: <ClusterDetail cluster={c} /> });
+  // 주력칩 → 그 기능 상세로 갈아탄다. 사람 축에서 기능 축으로 넘어가는 유일한 통로다.
+  const openFocus = (clusterKey: string) => {
+    const target = (content?.clusters ?? []).find((c) => c.key === clusterKey);
+    if (target) openCluster(target);
+  };
   const openMember = (m: AutoReportMember) =>
-    setDrawer({ title: m.name, body: <MemberDetail member={m} /> });
+    setDrawer({
+      title: m.name,
+      body: (
+        <MemberDetail member={m} isWeekly={isWeekly} onOpenFocus={openFocus} />
+      ),
+    });
 
   const fade = reduceMotion
     ? {}
@@ -2614,6 +2871,11 @@ export function AutoReportView({
               ))}
             </div>
           </div>
+        )}
+
+        {/* 일간 지연 롤업 — 하루치 보고서에서 가장 먼저 봐야 할 신호 */}
+        {!isWeekly && members.length > 0 && (
+          <LateRollup members={members} onOpen={openMember} />
         )}
 
         {/* 스프린트 진행 현황 — 진짜 분모가 있는 유일한 진행률 게이지 */}
@@ -2711,7 +2973,11 @@ export function AutoReportView({
       {activeTab === "features" && hasFeatures && (
         <motion.div key="features" {...fade}>
           {clusters.length > 0 ? (
-            <ClusterCards clusters={clusters} onOpen={openCluster} />
+            <ClusterCards
+              clusters={clusters}
+              onOpen={openCluster}
+              isWeekly={isWeekly}
+            />
           ) : (
             <FeatureProgressTabs
               features={features}
@@ -2724,7 +2990,11 @@ export function AutoReportView({
       {/* 탭 내용 — 구성원별 */}
       {activeTab === "members" && hasMembers && (
         <motion.div key="members" {...fade}>
-          <MemberCards members={members} onOpen={openMember} />
+          <MemberCards
+            members={members}
+            onOpen={openMember}
+            isWeekly={isWeekly}
+          />
         </motion.div>
       )}
 

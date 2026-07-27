@@ -45,10 +45,16 @@ import java.util.Map;
 public class MemberActivityCollector {
 
     private static final int MAX_MEMBERS = 20;
-    private static final int MAX_COMMITS_PER_MEMBER = 30;
+    /**
+     * 커밋 표시 상한. 목록을 5건씩 페이징하므로 한 화면에 쏟아질 걱정이 없어, 사실상 그 기간 전부를 담는다.
+     * 이 값은 표시를 자르려는 게 아니라 비정상 입력(대량 머지·자동 커밋)이 본문 JSON을 부풀리는 것을 막는
+     * 안전장치다. AI 프롬프트에 들어가는 커밋 수는 이것과 무관하게 {@code ReportComposer}가 따로 제한한다.
+     */
+    private static final int MAX_COMMITS_PER_MEMBER = 500;
     private static final int MAX_SLACK_PER_MEMBER = 20;
     private static final int MAX_CHECKLIST_PER_MEMBER = 20;
     private static final int MAX_DOCS_PER_MEMBER = 20;
+    private static final int MAX_FOCUS_PER_MEMBER = 3;
 
     // 활동량 가중치 — 단순 합이면 메시지 수가 순위를 흔든다. 산출물(커밋)과 약속(체크리스트)을 위에 둔다.
     private static final int W_COMMIT = 3;
@@ -83,6 +89,8 @@ public class MemberActivityCollector {
         final List<ReportContent.MemberChecklistChange> checklistLate = new ArrayList<>();
         final List<ReportContent.MemberChecklistChange> checklistProgress = new ArrayList<>();
         final List<ReportContent.MemberChecklistChange> checklistDoneToday = new ArrayList<>();
+        /** 클러스터별 커밋 수 — "주력" 산출용. 표시 상한과 무관하게 전체 커밋을 센다. */
+        final Map<ClusterTag, Integer> focus = new LinkedHashMap<>();
         int commitTotal = 0;
         int slackTotal = 0;
         int docTotal = 0;
@@ -142,10 +150,13 @@ public class MemberActivityCollector {
             String name = userId != null ? byUserId.get(userId).name() : author;
             Acc acc = accs.computeIfAbsent(key, k -> new Acc(name, author));
             acc.commitTotal++;
-            if (acc.commits.size() >= MAX_COMMITS_PER_MEMBER) {
-                continue; // 표시 목록만 자른다 — 카운트는 위에서 이미 셌다.
-            }
             ClusterTag tag = c.sha() != null ? tags.get(c.sha()) : null;
+            if (tag != null) {
+                acc.focus.merge(tag, 1, Integer::sum);
+            }
+            if (acc.commits.size() >= MAX_COMMITS_PER_MEMBER) {
+                continue; // 표시 목록만 자른다 — 카운트·주력은 위에서 이미 셌다.
+            }
             acc.commits.add(ReportContent.MemberCommit.builder()
                     .subject(c.subject())
                     .sha(c.sha())
@@ -304,6 +315,7 @@ public class MemberActivityCollector {
                     .lateCount(acc.lateTotal)
                     .progressCount(acc.progressTotal)
                     .doneTodayCount(acc.doneTotal)
+                    .focus(topFocus(acc))
                     .hiddenCompletedCount(acc.hiddenCompleted)
                     .activity(activity)
                     .commits(acc.commits)
@@ -312,11 +324,32 @@ public class MemberActivityCollector {
                     .checklistChanges(changes)
                     .build());
         }
-        members.sort(Comparator.comparingInt(ReportContent.Member::getActivity).reversed());
+        // 정렬은 보고 주기가 던지는 질문을 따른다. 일간의 질문은 "오늘 누가 막혔나"라 지연 보유자를
+        // 먼저 올리고, 주간의 질문은 "이번 주 무엇이 진전됐나"라 활동량 순으로 둔다.
+        Comparator<ReportContent.Member> byActivity =
+                Comparator.comparingInt(ReportContent.Member::getActivity).reversed();
+        members.sort(periodDays <= 1
+                ? Comparator.comparing((ReportContent.Member m) -> m.getLateCount() > 0).reversed()
+                        .thenComparing(Comparator.comparingInt(ReportContent.Member::getLateCount).reversed())
+                        .thenComparing(byActivity)
+                : byActivity);
         if (members.size() > MAX_MEMBERS) {
             members = new ArrayList<>(members.subList(0, MAX_MEMBERS));
         }
         return new MemberResult(members);
+    }
+
+    /** 커밋 수가 많은 순으로 주력 클러스터 상위 {@value #MAX_FOCUS_PER_MEMBER}개. 태그 없는 커밋만 있으면 빈 목록. */
+    private List<ReportContent.MemberFocus> topFocus(Acc acc) {
+        return acc.focus.entrySet().stream()
+                .sorted(Map.Entry.<ClusterTag, Integer>comparingByValue().reversed())
+                .limit(MAX_FOCUS_PER_MEMBER)
+                .map(e -> ReportContent.MemberFocus.builder()
+                        .clusterKey(e.getKey().key())
+                        .title(e.getKey().title())
+                        .commitCount(e.getValue())
+                        .build())
+                .toList();
     }
 
     /** 담당자(User) 기준 누적기를 가져오거나 없으면 만든다 — 커밋·슬랙에 안 잡힌 담당자도 새로 등록. */

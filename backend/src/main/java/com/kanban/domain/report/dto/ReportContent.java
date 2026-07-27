@@ -266,6 +266,12 @@ public class ReportContent {
         private String confidence;
         /** "infra"면 미분류·인프라 군집(기능 아님). 그 외 null. */
         private String kind;
+        /**
+         * 직전 일일 보고서에는 없던 군집인지. 일간 보고서에서만 채우며, 판별할 수 없으면 null이다.
+         * AI가 잔여 커밋을 묶어 만든 군집({@code ai:N})은 키가 위치 기반이라 보고서 간 비교가 성립하지
+         * 않으므로 항상 null로 둔다 — 모르는 것을 "새 기능"이라 단정하지 않는다.
+         */
+        private Boolean isNew;
         /** 무엇으로 묶였는지 — scope/path/keyword 신호. 검증용. */
         private List<ClusterSignal> signals;
         private List<FeatureCommit> commits;
@@ -293,9 +299,9 @@ public class ReportContent {
      * 구성원 한 명의 활동 묶음. 커밋·슬랙·문서·체크리스트를 사람 기준으로 모은다.
      * {@link #activity}는 정렬용 가중 합계다.
      *
-     * <p><b>카운트와 리스트는 다르다.</b> {@code *Count}는 자르기 전 실제 건수이고, 아래 리스트들은
-     * 표시 상한(커밋 30 · 슬랙 20 · 문서 20 · 체크리스트 버킷별 20)에서 잘린다. 프론트는 둘을 비교해
-     * 잘렸음을 드러낸다.
+     * <p><b>카운트와 리스트는 다르다.</b> {@code *Count}는 자르기 전 실제 건수다. 커밋은 페이지가
+     * 5건씩 페이징하므로 그 기간 전부를 담고(상한 500은 안전장치), 슬랙·문서·체크리스트는 아직
+     * 표시 상한(각 20)에서 잘린다. 프론트는 카운트와 목록 길이를 비교해 잘렸음을 드러낸다.
      */
     @Data
     @Builder
@@ -305,7 +311,17 @@ public class ReportContent {
         private String name;
         /** GitHub 로그인(없으면 슬랙 표시명 등 대체 식별자). */
         private String login;
-        /** 실제 커밋 건수(표시 목록은 30건에서 잘릴 수 있다). */
+        /**
+         * 이 사람이 그 기간에 무엇을 만들었는지 요약. 클러스터 제목이 확정된 뒤 AI가 배치로 생성한다.
+         * 실패하면 null이고, 그때는 페이지가 요약 카드를 그리지 않는다.
+         */
+        private String summary;
+        /**
+         * 이 사람이 가장 많이 기여한 클러스터 상위 3개. 커밋 표시 상한과 무관하게 전체 커밋으로 집계한다.
+         * 사람↔기능을 잇는 진입점이라 프론트가 칩으로 그리고 클릭 시 해당 클러스터를 연다.
+         */
+        private List<MemberFocus> focus;
+        /** 실제 커밋 건수. {@link #commits}가 그 기간 전부를 담으므로 보통 목록 길이와 같다. */
         private int commitCount;
         /** 실제 슬랙 발화 건수(표시 목록은 20건에서 잘릴 수 있다). */
         private int slackCount;
@@ -330,6 +346,18 @@ public class ReportContent {
         private List<MemberSlackMessage> slackMessages;
         private List<ConfluenceDoc> confluenceDocs;
         private List<MemberChecklistChange> checklistChanges;
+    }
+
+    /** 구성원이 주로 붙어 있던 클러스터 한 건 — "주력" 칩. */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class MemberFocus {
+        private String clusterKey;
+        private String title;
+        /** 이 사람이 그 클러스터에 넣은 커밋 수(표시 상한과 무관한 실제 수). */
+        private int commitCount;
     }
 
     /** 구성원 뷰의 커밋 한 건. 소속 클러스터 태그로 사람↔기능을 잇는다. */
