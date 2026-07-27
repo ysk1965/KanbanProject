@@ -537,42 +537,85 @@ function AssigneeAvatars({ names }: { names: string[] }) {
 }
 
 /* ── 스프린트 진행바 ── */
+/* 스프린트 상태 → 라벨·색·펄스 여부 */
+function sprintStatusMeta(status: string): {
+  label: string;
+  cls: string;
+  pulse: boolean;
+} {
+  switch (status) {
+    case "DONE":
+    case "COMPLETED":
+      return {
+        label: "완료",
+        cls: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/15",
+        pulse: false,
+      };
+    case "PLANNED":
+    case "NOT_STARTED":
+      return {
+        label: "예정",
+        cls: "text-slate-400 bg-foreground/[0.06]",
+        pulse: false,
+      };
+    case "IN_PROGRESS":
+    default:
+      return {
+        label: "진행중",
+        cls: "text-bridge-secondary bg-bridge-secondary/15",
+        pulse: true,
+      };
+  }
+}
+
 function SprintBar({ sprint }: { sprint: AutoReportSprint }) {
   const { done, total, in_progress, delayed } = sprint;
   const remaining = Math.max(0, total - done - in_progress - delayed);
+  const status = sprintStatusMeta(sprint.status);
   const segments = [
     { key: "done", value: done, cls: "bg-bridge-accent" },
     { key: "prog", value: in_progress, cls: "bg-bridge-secondary" },
     { key: "delayed", value: delayed, cls: "bg-amber-500" },
+    { key: "rem", value: remaining, cls: "bg-foreground/15" },
   ];
   return (
-    <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
-      <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1">
-        <span className="text-sm font-bold text-foreground">{sprint.name}</span>
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-bridge-secondary">
-          <span className="w-1.5 h-1.5 rounded-full bg-bridge-secondary" />
-          진행중
-        </span>
-        <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
-          {sprint.percentage}
-          <span className="text-sm ml-0.5">%</span>
-        </span>
-        <span className="text-xs text-slate-500 tabular-nums">
-          {done} / {total} 항목
-        </span>
+    <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3.5">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2.5">
+          <span className="text-sm font-bold text-foreground">
+            {sprint.name}
+          </span>
+          <span
+            className={`inline-flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full ${status.cls}`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full bg-current ${status.pulse ? "animate-pulse" : ""}`}
+            />
+            {status.label}
+          </span>
+        </div>
+        <div className="flex items-baseline gap-2">
+          <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
+            {sprint.percentage}
+            <span className="text-sm ml-0.5 text-slate-500">%</span>
+          </span>
+          <span className="text-xs text-slate-500 tabular-nums">
+            {done} / {total} 항목
+          </span>
+        </div>
       </div>
-      <div className="h-2 rounded-full bg-foreground/10 overflow-hidden flex">
+      <div className="flex h-2.5 gap-0.5">
         {segments.map((s) =>
           s.value > 0 ? (
             <span
               key={s.key}
-              className={`${s.cls} h-full`}
+              className={`${s.cls} h-full first:rounded-l-full last:rounded-r-full`}
               style={{ width: `${pct(s.value, total)}%` }}
             />
           ) : null,
         )}
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-slate-400">
+      <div className="flex flex-wrap gap-1.5">
         <Legend cls="bg-bridge-accent" label="완료" n={done} />
         <Legend cls="bg-bridge-secondary" label="진행 중" n={in_progress} />
         <Legend cls="bg-amber-500" label="지연" n={delayed} />
@@ -582,11 +625,13 @@ function SprintBar({ sprint }: { sprint: AutoReportSprint }) {
   );
 }
 
+/* 스프린트 범례 — 값을 품은 카운트 칩(카드 하단 시그널 칩과 동일 언어) */
 function Legend({ cls, label, n }: { cls: string; label: string; n: number }) {
   return (
-    <span className="inline-flex items-center gap-1.5 tabular-nums">
-      <span className={`w-2.5 h-2.5 rounded-sm ${cls}`} />
-      {label} {n}
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 bg-foreground/[0.04] border border-foreground/10 rounded-lg px-2 py-1 tabular-nums">
+      <span className={`w-2 h-2 rounded-sm ${cls}`} />
+      {label}
+      <b className="text-foreground font-bold">{n}</b>
     </span>
   );
 }
@@ -2174,6 +2219,32 @@ function ClusterCards({
 }
 
 /* ── 구성원별 활동: 활동량 순 카드 목록 ── */
+/* 구성원 상태 칩 — 완료/진행/지연을 색으로 인코딩(지연=주의). 커밋 시각 분포보다 훨씬 행동가능한 신호 */
+function StatusChip({
+  tone,
+  label,
+  n,
+}: {
+  tone: "done" | "progress" | "late";
+  label: string;
+  n: number;
+}) {
+  const cls =
+    tone === "done"
+      ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/15"
+      : tone === "progress"
+        ? "text-bridge-secondary bg-bridge-secondary/15"
+        : "text-amber-600 dark:text-amber-400 bg-amber-500/15";
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full tabular-nums ${cls}`}
+    >
+      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+      {label} {n}
+    </span>
+  );
+}
+
 function MemberCards({
   members,
   onOpen,
@@ -2217,6 +2288,10 @@ function MemberCard({
   onOpen: () => void;
 }) {
   const hex = getAssigneeHex(member.name);
+  const doneToday = member.done_today_count ?? 0;
+  const progress = member.progress_count ?? 0;
+  const late = member.late_count ?? 0;
+  const hasStatus = doneToday > 0 || progress > 0 || late > 0;
   const topCluster = useMemo(() => {
     const freq = new Map<string, number>();
     for (const c of member.commits ?? []) {
@@ -2233,7 +2308,6 @@ function MemberCard({
     }
     return best;
   }, [member]);
-  const late = member.late_count ?? 0;
 
   return (
     <button type="button" onClick={onOpen} className={ENTRY_CARD_CLASS}>
@@ -2258,22 +2332,23 @@ function MemberCard({
           <ChevronRight className="w-4 h-4 text-slate-500 shrink-0 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          {late > 0 && (
+          {/* 상태 — 이 사람이 지금 어디 서 있나(가장 행동가능한 신호) */}
+          {hasStatus ? (
             <>
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                지연 {late}
-              </span>
+              {doneToday > 0 && (
+                <StatusChip tone="done" label="완료" n={doneToday} />
+              )}
+              {progress > 0 && (
+                <StatusChip tone="progress" label="진행" n={progress} />
+              )}
+              {late > 0 && <StatusChip tone="late" label="지연" n={late} />}
               <span className="w-px h-3 bg-foreground/10 mx-0.5" />
             </>
-          )}
+          ) : null}
           <SignalChip label="커밋" value={member.commit_count} />
           <SignalChip label="슬랙" value={member.slack_count} />
           {member.doc_count > 0 && (
             <SignalChip label="문서" value={member.doc_count} />
-          )}
-          {member.checklist_count > 0 && (
-            <SignalChip label="체크리스트" value={member.checklist_count} />
           )}
         </div>
       </div>
@@ -2281,7 +2356,7 @@ function MemberCard({
   );
 }
 
-type TabKey = "features" | "members";
+type TabKey = "changes" | "features" | "members";
 
 /**
  * 자동 보고서 본문 렌더러. 발행된 공유 페이지({@link AutoReportPage})와 설정 화면의
@@ -2300,7 +2375,7 @@ export function AutoReportView({
   className?: string;
 }) {
   const reduceMotion = useReducedMotion();
-  const [tab, setTab] = useState<TabKey>("features");
+  const [tab, setTab] = useState<TabKey>("changes");
   const [drawer, setDrawer] = useState<{
     title: string;
     body: ReactNode;
@@ -2366,11 +2441,20 @@ export function AutoReportView({
   const clusters = content?.clusters ?? [];
   const features = content?.features ?? [];
   const members = content?.members ?? [];
+  const highlights = content?.highlights ?? [];
+  const risks = content?.risks ?? [];
   const hasFeatures = clusters.length > 0 || features.length > 0;
   const hasMembers = members.length > 0;
+  const hasChanges = highlights.length > 0 || risks.length > 0;
 
   const tabs = useMemo(() => {
     const list: Array<{ key: TabKey; label: string; count: number }> = [];
+    if (hasChanges)
+      list.push({
+        key: "changes",
+        label: "주요 변화",
+        count: highlights.length || risks.length,
+      });
     if (hasFeatures)
       list.push({
         key: "features",
@@ -2385,8 +2469,11 @@ export function AutoReportView({
       });
     return list;
   }, [
+    hasChanges,
     hasFeatures,
     hasMembers,
+    highlights.length,
+    risks.length,
     clusters.length,
     features.length,
     members.length,
@@ -2534,40 +2621,6 @@ export function AutoReportView({
             {content.lede}
           </p>
         )}
-
-        {/* 주요 변화 */}
-        {content?.highlights && content.highlights.length > 0 && (
-          <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
-            <h2 className="text-xs md:text-sm font-bold text-foreground">
-              주요 변화
-            </h2>
-            <ul className="flex flex-col gap-2">
-              {content.highlights.map((item, index) => (
-                <li key={index} className="flex gap-2 text-sm text-foreground">
-                  <span className="text-bridge-accent">•</span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {/* 확인 필요 */}
-        {content?.risks && content.risks.length > 0 && (
-          <section className="bg-bridge-obsidian rounded-2xl border border-amber-500/25 p-5 flex flex-col gap-3">
-            <h2 className="text-xs md:text-sm font-bold text-amber-500 uppercase tracking-widest">
-              확인 필요
-            </h2>
-            <ul className="flex flex-col gap-2">
-              {content.risks.map((risk, index) => (
-                <li key={index} className="flex gap-2 text-sm text-slate-400">
-                  <span className="text-amber-500">•</span>
-                  <span>{risk}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
       </div>
 
       {/* 탭 바 (기능별 / 구성원별) */}
@@ -2608,6 +2661,46 @@ export function AutoReportView({
             );
           })}
         </div>
+      )}
+
+      {/* 탭 내용 — 주요 변화 */}
+      {activeTab === "changes" && hasChanges && (
+        <motion.div key="changes" {...fade} className="flex flex-col gap-6">
+          {highlights.length > 0 && (
+            <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
+              <h2 className="text-xs md:text-sm font-bold text-foreground">
+                주요 변화
+              </h2>
+              <ul className="flex flex-col gap-2">
+                {highlights.map((item, index) => (
+                  <li
+                    key={index}
+                    className="flex gap-2 text-sm text-foreground"
+                  >
+                    <span className="text-bridge-accent">•</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {risks.length > 0 && (
+            <section className="bg-bridge-obsidian rounded-2xl border border-amber-500/25 p-5 flex flex-col gap-3">
+              <h2 className="text-xs md:text-sm font-bold text-amber-500 uppercase tracking-widest">
+                확인 필요
+              </h2>
+              <ul className="flex flex-col gap-2">
+                {risks.map((risk, index) => (
+                  <li key={index} className="flex gap-2 text-sm text-slate-400">
+                    <span className="text-amber-500">•</span>
+                    <span>{risk}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </motion.div>
       )}
 
       {/* 탭 내용 — 기능별 */}
