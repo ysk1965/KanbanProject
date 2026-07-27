@@ -36,7 +36,7 @@ variable "ec2_security_group_id" {
 variable "solution_stack_name" {
   description = "Elastic Beanstalk solution stack name"
   type        = string
-  default     = "64bit Amazon Linux 2023 v4.12.1 running Corretto 21"
+  default     = "64bit Amazon Linux 2023 v4.12.4 running Corretto 21"
 }
 
 variable "instance_type" {
@@ -383,6 +383,13 @@ variable "slack_signing_secret" {
 
 variable "slack_token_encryption_key" {
   description = "AES-256-GCM encryption key for Slack bot tokens"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "config_encryption_key" {
+  description = "AES-256-GCM key (base64, 32 bytes) for sensitive system_config values such as rotated AI API keys. WARNING: changing this makes already-stored values undecryptable."
   type        = string
   sensitive   = true
   default     = ""
