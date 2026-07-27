@@ -38,11 +38,20 @@ public class ReportDispatchScheduler {
     private final ReportPersistenceService persistence;
     private final ReportDispatchLock dispatchLock;
 
+    /** 프로세스가 죽어 RUNNING인 채로 남은 발송 로그를 FAILED로 보는 기준(분) */
+    private static final int STALE_RUNNING_MINUTES = 15;
+
     @Scheduled(cron = "0 * * * * *")
     public void dispatchReports() {
         LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
         int hour = nowUtc.getHour();
         int minute = nowUtc.getMinute();
+
+        // 방치된 RUNNING 행을 먼저 정리 — 화면의 "발송 중" 스피너가 영원히 돌지 않게.
+        int cleaned = persistence.failStaleRunning(STALE_RUNNING_MINUTES);
+        if (cleaned > 0) {
+            log.warn("방치된 RUNNING 발송 로그 {}건을 FAILED로 정리했습니다", cleaned);
+        }
 
         List<BoardReportConfig> daily = configRepository.findEnabledDailyByUtcTime(hour, minute);
         List<BoardReportConfig> weekly = configRepository.findEnabledWeeklyByUtcTime(

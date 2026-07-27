@@ -41,10 +41,10 @@ public class ReportPersistenceService {
      *
      * <p>수동 발송(dispatchNow)은 바깥이 {@code @Transactional}이라, 여기서 REQUIRED로
      * 저장하면 보고서가 바깥 트랜잭션에 묶인 채 커밋 전 상태로 남는다. 그러면 뒤이어
-     * REQUIRES_NEW로 도는 {@link #recordLog}가 아직 저장 안 된(=transient) 보고서를 참조해
+     * REQUIRES_NEW로 도는 {@link #finishLog}가 아직 저장 안 된(=transient) 보고서를 참조해
      * {@code TransientObjectException}으로 터지고, 그 여파로 바깥 트랜잭션이 통째로 롤백돼
      * 슬랙에는 공유 버튼이 나갔는데 정작 보고서는 사라지는 사고가 난다.
-     * 여기서 먼저 커밋해 두면 recordLog는 실제 행을 참조하고, 슬랙 게시 전에 보고서가
+     * 여기서 먼저 커밋해 두면 finishLog는 실제 행을 참조하고, 슬랙 게시 전에 보고서가
      * 확정되어 공유 링크가 항상 유효하다.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -63,11 +63,34 @@ public class ReportPersistenceService {
     }
 
     /**
-     * 발송 결과 기록. 보고서 생성이 실패해 롤백되는 상황에서도 <b>기록만은 남아야</b> 하므로
-     * 독립 트랜잭션으로 커밋한다.
+     * 발송 시작 기록. RUNNING 행을 <b>즉시 커밋(REQUIRES_NEW)</b>해, 수집·AI·게시가 도는 수십 초 동안
+     * 발송 이력 화면이 "발송 중…"을 보여줄 수 있게 한다. 반환한 id로 {@link #finishLog}에서 갱신한다.
+     * 로그 기록 실패가 발송 자체를 막지 않도록 예외를 삼키고 null을 돌려준다.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void recordLog(Board board, WeeklyReport report, ReportType reportType,
+    public String startLog(Board board, ReportType reportType, String channelId) {
+        try {
+            ReportDeliveryLog row = deliveryLogRepository.save(ReportDeliveryLog.builder()
+                    .board(board)
+                    .reportType(reportType)
+                    .status(ReportDeliveryStatus.RUNNING)
+                    .slackChannelId(channelId)
+                    .attemptCount(1)
+                    .build());
+            return row.getId();
+        } catch (Exception e) {
+            log.warn("발송 시작 로그 기록 실패 board={}: {}", board.getId(), e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 발송 결과 기록. {@code logId}가 가리키는 RUNNING 행을 최종 상태로 갱신한다. 보고서 생성이
+     * 실패해 롤백되는 상황에서도 <b>기록만은 남아야</b> 하므로 독립 트랜잭션으로 커밋한다.
+     * 시작 로그가 없었으면(안전장치) 새 행을 남긴다.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void finishLog(String logId, Board board, WeeklyReport report, ReportType reportType,
                           ReportDeliveryStatus status, String channelId,
                           List<SourceChunk> chunks, String error) {
         try {
@@ -78,19 +101,36 @@ public class ReportPersistenceService {
             WeeklyReport reportRef = (report != null && report.getId() != null)
                     ? reportRepository.getReferenceById(report.getId())
                     : null;
-            deliveryLogRepository.save(ReportDeliveryLog.builder()
-                    .board(board)
-                    .report(reportRef)
-                    .reportType(reportType)
-                    .status(status)
-                    .slackChannelId(channelId)
-                    .sourceStatusJson(writeSourceStatus(chunks))
-                    .errorMessage(error)
-                    .attemptCount(1)
-                    .build());
+            ReportDeliveryLog row = logId != null
+                    ? deliveryLogRepository.findById(logId).orElse(null)
+                    : null;
+            if (row != null) {
+                row.complete(reportRef, status, writeSourceStatus(chunks), error);
+            } else {
+                deliveryLogRepository.save(ReportDeliveryLog.builder()
+                        .board(board)
+                        .report(reportRef)
+                        .reportType(reportType)
+                        .status(status)
+                        .slackChannelId(channelId)
+                        .sourceStatusJson(writeSourceStatus(chunks))
+                        .errorMessage(error)
+                        .attemptCount(1)
+                        .build());
+            }
         } catch (Exception e) {
-            log.warn("발송 로그 기록 실패 board={}: {}", board.getId(), e.getMessage());
+            log.warn("발송 종료 로그 기록 실패 board={}: {}", board.getId(), e.getMessage());
         }
+    }
+
+    /**
+     * 프로세스가 죽어 RUNNING인 채로 방치된 오래된 행을 FAILED로 정리한다.
+     * 스케줄러가 매 주기 시작할 때 호출해 스피너가 영원히 돌지 않게 한다.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public int failStaleRunning(int olderThanMinutes) {
+        return deliveryLogRepository.failStaleRunning(
+                LocalDateTime.now(ZoneOffset.UTC).minusMinutes(olderThanMinutes));
     }
 
     @Transactional

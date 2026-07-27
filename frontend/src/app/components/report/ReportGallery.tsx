@@ -20,6 +20,7 @@ import { formatDate, formatRelativeTime } from "../../utils/dateUtils";
 import { AutoReportView } from "../AutoReportView";
 import { IconButton } from "../ui/IconButton";
 import { MotionModal } from "../ui/MotionModal";
+import { DeliveryHistoryPanel } from "./DeliveryHistoryPanel";
 import { ReportThumbnail, fetchReportBody } from "./ReportThumbnail";
 
 type Filter = "all" | "daily" | "weekly";
@@ -160,6 +161,9 @@ export function ReportGallery({
           onOpenSettings={onOpenSettings}
         />
       )}
+
+      {/* 발송 이력 — 크론 실행/실패/진행 상황. 관리자에게만. */}
+      {canManage && <DeliveryHistoryPanel boardId={boardId} />}
 
       {reports === null && (
         <div className="flex items-center justify-center min-h-[240px]">

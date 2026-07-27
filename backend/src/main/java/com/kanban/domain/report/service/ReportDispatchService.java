@@ -64,6 +64,22 @@ public class ReportDispatchService {
 
     public DispatchResult dispatch(Board board, BoardReportConfig config, ReportType reportType,
                                    ZonedDateTime sendAt) {
+        // 발송 시작을 먼저 남긴다 — 수집·AI·게시가 도는 수십 초 동안 화면에서 "발송 중"을 볼 수 있게.
+        String logId = persistence.startLog(board, reportType, config.getSlackChannelId());
+        try {
+            return doDispatch(logId, board, config, reportType, sendAt);
+        } catch (Exception e) {
+            // 여기까지 온 예외는 어느 단계에서도 못 잡은 것 — RUNNING 행이 남지 않도록 FAILED로 마감한다.
+            log.error("보고서 발송 중 예기치 못한 오류 board={} type={}: {}",
+                    board.getId(), reportType, e.getMessage(), e);
+            persistence.finishLog(logId, board, null, reportType, ReportDeliveryStatus.FAILED,
+                    config.getSlackChannelId(), List.of(), "예기치 못한 오류: " + e.getMessage());
+            return new DispatchResult(ReportDeliveryStatus.FAILED, null, e.getMessage());
+        }
+    }
+
+    private DispatchResult doDispatch(String logId, Board board, BoardReportConfig config,
+                                      ReportType reportType, ZonedDateTime sendAt) {
         ReportPeriod period = reportType == ReportType.WEEKLY_INTEGRATED
                 ? ReportPeriod.weekly(sendAt)
                 : ReportPeriod.daily(sendAt);
@@ -78,7 +94,7 @@ public class ReportDispatchService {
             ReportDeliveryStatus status = anyFailure
                     ? ReportDeliveryStatus.FAILED : ReportDeliveryStatus.SKIPPED;
             String message = anyFailure ? "모든 소스 수집 실패" : "기간 내 활동 없음";
-            persistence.recordLog(board, null, reportType, status,
+            persistence.finishLog(logId, board, null, reportType, status,
                     config.getSlackChannelId(), chunks, message);
             return new DispatchResult(status, null, message);
         }
@@ -90,7 +106,7 @@ public class ReportDispatchService {
                     chunks, collected.digests(), config.getAiModel());
         } catch (Exception e) {
             log.error("보고서 작성 실패 board={} type={}: {}", board.getId(), reportType, e.getMessage(), e);
-            persistence.recordLog(board, null, reportType, ReportDeliveryStatus.FAILED,
+            persistence.finishLog(logId, board, null, reportType, ReportDeliveryStatus.FAILED,
                     config.getSlackChannelId(), chunks, "AI 작성 실패: " + e.getMessage());
             return new DispatchResult(ReportDeliveryStatus.FAILED, null, e.getMessage());
         }
@@ -115,7 +131,7 @@ public class ReportDispatchService {
                 ? ReportDeliveryStatus.FAILED
                 : (partial ? ReportDeliveryStatus.PARTIAL : ReportDeliveryStatus.SUCCESS);
 
-        persistence.recordLog(board, report, reportType, status,
+        persistence.finishLog(logId, board, report, reportType, status,
                 config.getSlackChannelId(), chunks, published ? null : "슬랙 게시 실패");
         return new DispatchResult(status, report.getId(), null);
     }

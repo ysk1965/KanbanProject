@@ -3,17 +3,23 @@ package com.kanban.domain.report.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.report.ReportDeliveryLog;
 import com.kanban.domain.report.ReportDeliveryLogRepository;
+import com.kanban.domain.report.ReportDeliveryStatus;
 import com.kanban.domain.report.ReportType;
 import com.kanban.domain.report.WeeklyReport;
 import com.kanban.domain.report.ReportRepository;
 import com.kanban.domain.report.dto.AutoReportResponse;
 import com.kanban.domain.report.dto.ReportContent;
+import com.kanban.domain.report.dto.ReportDeliveryLogResponse;
 import com.kanban.domain.storage.service.ReportFileFiler;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -81,6 +87,59 @@ public class AutoReportQueryService {
                         .shared(r.getShareToken() != null)
                         .build())
                 .toList();
+    }
+
+    /**
+     * 발송 이력 — 크론이 언제 돌아 성공·실패·건너뜀·진행 중 어느 상태로 끝났는지. 운영 정보라
+     * <b>관리자 이상만</b> 볼 수 있다. 최근순 페이지네이션.
+     */
+    @Transactional(readOnly = true)
+    public ReportDeliveryLogResponse.Page listDeliveryLogs(String boardId, String userId, int page, int size) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 50));
+        Pageable pageable = PageRequest.of(safePage, safeSize);
+        Page<ReportDeliveryLog> result =
+                deliveryLogRepository.findByBoardIdOrderByCreatedAtDesc(boardId, pageable);
+
+        List<ReportDeliveryLogResponse> items = result.getContent().stream()
+                .map(this::toLogResponse)
+                .toList();
+        boolean hasRunning = result.getContent().stream()
+                .anyMatch(l -> l.getStatus() == ReportDeliveryStatus.RUNNING);
+
+        return ReportDeliveryLogResponse.Page.builder()
+                .items(items)
+                .page(safePage)
+                .size(safeSize)
+                .totalElements(result.getTotalElements())
+                .totalPages(result.getTotalPages())
+                .hasNext(result.hasNext())
+                .hasRunning(hasRunning)
+                .build();
+    }
+
+    private ReportDeliveryLogResponse toLogResponse(ReportDeliveryLog log) {
+        // report는 지연 로딩 프록시 — id만 읽으면 초기화 없이 얻는다. 실패·건너뜀·진행 중이면 null.
+        String reportId = null;
+        try {
+            if (log.getReport() != null) {
+                reportId = log.getReport().getId();
+            }
+        } catch (Exception ignored) {
+            // 참조가 끊긴(삭제된 보고서) 경우 — id 없이 이력만 보여 준다.
+        }
+        return ReportDeliveryLogResponse.builder()
+                .id(log.getId())
+                .reportId(reportId)
+                .reportType(log.getReportType().name())
+                .status(log.getStatus().name())
+                .errorMessage(log.getErrorMessage())
+                .slackChannelId(log.getSlackChannelId())
+                .attemptCount(log.getAttemptCount())
+                .createdAt(log.getCreatedAt() != null ? log.getCreatedAt().toString() : null)
+                .sourceStatus(parseSourceStatus(log.getSourceStatusJson()))
+                .build();
     }
 
     /** 공유 링크 무효화 — 유출됐을 때 즉시 막는 수단 */

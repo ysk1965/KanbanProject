@@ -1,6 +1,7 @@
 package com.kanban.domain.report.controller;
 
 import com.kanban.domain.report.dto.AutoReportResponse;
+import com.kanban.domain.report.dto.ReportDeliveryLogResponse;
 import com.kanban.domain.report.service.AutoReportQueryService;
 import com.kanban.domain.report.service.ReportFileBackfillService;
 import com.kanban.global.security.UserPrincipal;
@@ -31,6 +32,16 @@ public class AutoReportController {
             @RequestParam(value = "limit", defaultValue = "20") int limit,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(queryService.listAuto(boardId, principal.getUserId(), limit));
+    }
+
+    /** 발송 이력 — 크론 실행/실패/진행 상황. 운영 정보라 관리자 이상만. 최근순 페이지네이션. */
+    @GetMapping("/api/v1/boards/{boardId}/reports/auto/delivery-logs")
+    public ResponseEntity<ReportDeliveryLogResponse.Page> deliveryLogs(
+            @PathVariable String boardId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "5") int size,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(queryService.listDeliveryLogs(boardId, principal.getUserId(), page, size));
     }
 
     @GetMapping("/api/v1/boards/{boardId}/reports/auto/{reportId}")

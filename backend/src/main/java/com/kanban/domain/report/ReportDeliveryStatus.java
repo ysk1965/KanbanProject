@@ -1,6 +1,8 @@
 package com.kanban.domain.report;
 
 public enum ReportDeliveryStatus {
+    /** 수집·작성·게시가 진행 중 — 발송 시작 시 먼저 남기고 끝나면 최종 상태로 갱신한다 */
+    RUNNING,
     /** 생성·발송 모두 성공 */
     SUCCESS,
     /** 일부 소스 수집에 실패했지만 나머지로 발송은 마침 */
