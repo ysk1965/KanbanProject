@@ -677,7 +677,14 @@ function usePaged<T>(items: T[], size: number = PAGE_SIZE) {
     () => items.slice(current * size, current * size + size),
     [items, current, size],
   );
-  return { page: current, pageCount, slice, setPage, total: items.length, size };
+  return {
+    page: current,
+    pageCount,
+    slice,
+    setPage,
+    total: items.length,
+    size,
+  };
 }
 
 /** 페이지가 하나뿐이면 아무것도 그리지 않는다 — 5건 이하 목록에 컨트롤을 붙일 이유가 없다. */
@@ -1647,16 +1654,18 @@ function checklistItemHref(
   item: AutoReportMemberChecklistChange,
   boardId?: string | null,
 ): string | null {
+  // view=kanban을 반드시 실어야 한다 — 보드는 마지막으로 보던 탭을 localStorage에서 복원하므로,
+  // 이게 없으면 보고서 탭 위에 모달만 뜨거나 엉뚱한 화면에 착지한다.
   const highlight = item.item_id
-    ? `checklist=${encodeURIComponent(item.item_id)}`
+    ? `&checklist=${encodeURIComponent(item.item_id)}`
     : "";
   if (item.task_key) {
-    return `/t/${encodeURIComponent(item.task_key)}${highlight ? `?${highlight}` : ""}`;
+    return `/t/${encodeURIComponent(item.task_key)}?view=kanban${highlight}`;
   }
   if (boardId && item.task_id) {
-    return `/boards/${encodeURIComponent(boardId)}?task=${encodeURIComponent(
+    return `/boards/${encodeURIComponent(boardId)}?view=kanban&task=${encodeURIComponent(
       item.task_id,
-    )}${highlight ? `&${highlight}` : ""}`;
+    )}${highlight}`;
   }
   return null;
 }
@@ -1670,7 +1679,7 @@ function boardMemberHref(
   memberName: string,
   overdueOnly: boolean,
 ): string {
-  const base = `/boards/${encodeURIComponent(boardId)}?member=${encodeURIComponent(memberName)}`;
+  const base = `/boards/${encodeURIComponent(boardId)}?view=kanban&member=${encodeURIComponent(memberName)}`;
   return overdueOnly ? `${base}&overdue=1` : base;
 }
 
@@ -1995,7 +2004,9 @@ function MemberDetail({
                       <Check className="w-3 h-3" strokeWidth={3} />
                     )}
                     <span>
-                      {bucket === "done" ? doneBucketLabel(isWeekly) : meta.label}
+                      {bucket === "done"
+                        ? doneBucketLabel(isWeekly)
+                        : meta.label}
                     </span>
                     <span className="text-slate-500 tabular-nums">
                       {items.length}
@@ -2545,7 +2556,7 @@ function LateRollup({
         {/* 보고서를 덮고 바로 처리하러 갈 수 있게 — 보드를 지연만 남긴 상태로 연다. */}
         {boardId && (
           <a
-            href={`/boards/${encodeURIComponent(boardId)}?overdue=1`}
+            href={`/boards/${encodeURIComponent(boardId)}?view=kanban&overdue=1`}
             target="_blank"
             rel="noreferrer noopener"
             className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 rounded"
@@ -2942,7 +2953,7 @@ export function AutoReportView({
   return (
     <div
       className={
-        className ?? "max-w-3xl mx-auto px-5 py-8 md:py-12 flex flex-col gap-6"
+        className ?? "max-w-4xl mx-auto px-5 py-8 md:py-12 flex flex-col gap-6"
       }
     >
       {/* 헤더 (탭 위 고정) */}

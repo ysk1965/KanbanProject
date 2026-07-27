@@ -33,6 +33,7 @@ public class ReportPersistenceService {
 
     private final ReportRepository reportRepository;
     private final ReportDeliveryLogRepository deliveryLogRepository;
+    private final ReportDispatchMessageRepository dispatchMessageRepository;
     private final BoardReportConfigRepository configRepository;
     private final ObjectMapper objectMapper;
 
@@ -120,6 +121,32 @@ public class ReportPersistenceService {
             }
         } catch (Exception e) {
             log.warn("발송 종료 로그 기록 실패 board={}: {}", board.getId(), e.getMessage());
+        }
+    }
+
+    /**
+     * 게시된 슬랙 메시지(채널·ts)를 기록한다. 보고서 삭제 시 이 기록으로 메시지를 회수한다.
+     * 기록 실패가 발송 자체를 되돌리지 않도록 예외를 삼킨다 — 이미 슬랙에는 나갔다.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveDispatchMessages(Board board, String reportId,
+                                     List<ReportSlackPublisher.SentMessage> messages) {
+        if (reportId == null || messages == null || messages.isEmpty()) {
+            return;
+        }
+        try {
+            List<ReportDispatchMessage> rows = messages.stream()
+                    .map(m -> ReportDispatchMessage.builder()
+                            .board(board)
+                            .reportId(reportId)
+                            .channelId(m.channelId())
+                            .channelName(m.channelName())
+                            .messageTs(m.messageTs())
+                            .build())
+                    .toList();
+            dispatchMessageRepository.saveAll(rows);
+        } catch (Exception e) {
+            log.warn("발송 메시지 기록 실패 board={} report={}: {}", board.getId(), reportId, e.getMessage());
         }
     }
 

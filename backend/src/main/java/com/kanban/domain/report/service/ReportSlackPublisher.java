@@ -43,11 +43,26 @@ public class ReportSlackPublisher {
      */
     public record Target(String channelId, String channelName, boolean isDefault) {}
 
+    /** 실제로 게시된 메시지 하나 — 나중에 회수(chat.delete)하려면 채널 + ts가 필요하다. */
+    public record SentMessage(String channelId, String channelName, String messageTs) {}
+
+    /** 회수 대상 한 건. 저장된 발송 기록에서 채널·ts만 뽑아 넘긴다. */
+    public record Recallable(String channelId, String messageTs) {}
+
     /**
      * 게시 결과. 채널 하나가 실패해도 나머지는 그대로 나간다 — 한 채널의 권한 문제로
      * 팀 전체가 보고서를 못 받는 일이 없게 한다.
+     *
+     * @param sentMessages 게시 성공 메시지의 채널·ts. 삭제 시 슬랙 메시지를 회수하기 위해 저장한다.
+     *                     ts를 못 받은(구버전 응답 등) 성공 건은 {@code sent}에는 있어도 여기엔 빠진다.
      */
-    public record PublishOutcome(List<Target> sent, List<Target> failed, String error) {
+    public record PublishOutcome(List<Target> sent, List<SentMessage> sentMessages,
+                                 List<Target> failed, String error) {
+        /** 발송 실패·건너뜀 등 게시가 아예 없던 경우용(성공 메시지 없음). */
+        public PublishOutcome(List<Target> sent, List<Target> failed, String error) {
+            this(sent, List.of(), failed, error);
+        }
+
         public boolean anySent() {
             return !sent.isEmpty();
         }
@@ -86,32 +101,81 @@ public class ReportSlackPublisher {
         }
 
         List<Target> sent = new ArrayList<>();
+        List<SentMessage> sentMessages = new ArrayList<>();
         List<Target> failed = new ArrayList<>();
         for (Target target : targets) {
-            if (postWithRetry(botToken, target, blocks, board)) {
+            String ts = postWithRetry(botToken, target, blocks, board);
+            if (ts != null) {
                 sent.add(target);
+                // ts가 비면(응답에 없던 드문 경우) 게시는 됐지만 회수 대상으로는 못 남긴다.
+                if (!ts.isBlank()) {
+                    sentMessages.add(new SentMessage(target.channelId(), target.channelName(), ts));
+                }
             } else {
                 failed.add(target);
             }
         }
         String error = failed.isEmpty() ? null
                 : "슬랙 게시 실패: " + failed.stream().map(this::label).collect(Collectors.joining(", "));
-        return new PublishOutcome(sent, failed, error);
+        return new PublishOutcome(sent, sentMessages, failed, error);
     }
 
-    /** 채널 하나에 게시. 첫 시도가 실패하면 한 번만 더 시도한다(그 채널만). */
-    private boolean postWithRetry(String botToken, Target target,
-                                  List<Map<String, Object>> blocks, Board board) {
+    /**
+     * 채널 하나에 게시. 첫 시도가 실패하면 한 번만 더 시도한다(그 채널만).
+     *
+     * @return 게시 성공 시 메시지 ts(응답에 없으면 빈 문자열), 실패 시 {@code null}
+     */
+    private String postWithRetry(String botToken, Target target,
+                                 List<Map<String, Object>> blocks, Board board) {
         for (int attempt = 1; attempt <= 2; attempt++) {
             try {
-                slackApiClient.postMessage(botToken, target.channelId(), blocks);
-                return true;
+                Map<String, Object> resp = slackApiClient.postMessage(botToken, target.channelId(), blocks);
+                Object ts = resp != null ? resp.get("ts") : null;
+                return ts != null ? String.valueOf(ts) : "";
             } catch (Exception e) {
                 log.warn("슬랙 보고서 게시 실패({}차) board={} channel={}: {}",
                         attempt, board.getId(), target.channelId(), e.getMessage());
             }
         }
-        return false;
+        return null;
+    }
+
+    /**
+     * 게시된 보고서 메시지들을 슬랙에서 회수한다({@code chat.delete}). 보고서 삭제 시 호출한다.
+     * 채널 하나가 실패해도(이미 지워짐·권한 등) 나머지는 계속 지운다 — best-effort.
+     *
+     * @return 실제로 삭제된 메시지 수
+     */
+    public int recall(Board board, List<Recallable> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return 0;
+        }
+        Optional<SlackInstallation> installationOpt = resolveInstallation(board);
+        if (installationOpt.isEmpty()) {
+            log.info("슬랙 연결이 없어 메시지 회수를 건너뜁니다 board={}", board.getId());
+            return 0;
+        }
+        String botToken;
+        try {
+            botToken = slackOAuthService.decryptBotToken(installationOpt.get());
+        } catch (Exception e) {
+            log.warn("슬랙 토큰 복호화 실패로 메시지 회수 불가 board={}: {}", board.getId(), e.getMessage());
+            return 0;
+        }
+        int deleted = 0;
+        for (Recallable m : messages) {
+            if (m.channelId() == null || m.messageTs() == null) {
+                continue;
+            }
+            try {
+                slackApiClient.chatDelete(botToken, m.channelId(), m.messageTs());
+                deleted++;
+            } catch (Exception e) {
+                log.warn("슬랙 메시지 회수 실패 board={} channel={} ts={}: {}",
+                        board.getId(), m.channelId(), m.messageTs(), e.getMessage());
+            }
+        }
+        return deleted;
     }
 
     /** 채널 하나의 테스트 결과. */
@@ -251,7 +315,7 @@ public class ReportSlackPublisher {
             actions.add(Map.of(
                     "type", "button",
                     "text", Map.of("type", "plain_text", "text", "지연만 보드에서 보기"),
-                    "url", frontendUrl + "/boards/" + boardId + "?overdue=1"));
+                    "url", frontendUrl + "/boards/" + boardId + "?view=kanban&overdue=1"));
         }
         blocks.add(Map.of("type", "actions", "elements", actions));
 
@@ -342,9 +406,16 @@ public class ReportSlackPublisher {
                 .sum();
     }
 
+    /** 슬랙 목록에 세우는 지연 항목 수 상한. 넘는 만큼은 "외 N건"으로 접고 보고서로 넘긴다. */
+    private static final int MAX_LATE_LINES = 5;
+
     /**
-     * 지연 롤업 — 슬랙에서 "누가 막혔나"를 보고서를 열지 않고도 알게 한다. 담당자는 지연이 많은
-     * 순으로 최대 5명까지 세우고, 나머지는 "외 N명"으로 접는다(모바일 한 줄 유지).
+     * 지연 롤업 — 슬랙에서 "누가 막혔나"를 보고서를 열지 않고도 알게 하고, <b>각 항목을 실물 카드로
+     * 바로 열게 한다</b>. 지연 목록에서 가장 흔한 다음 행동이 "그거 지금 고치기"라, 링크가 태스크
+     * 모달(+체크리스트 하이라이트)로 곧장 떨어지지 않으면 보고서를 한 번 더 거쳐야 한다.
+     *
+     * <p>오래 지난 것부터 {@value #MAX_LATE_LINES}건까지 세운다. 식별자가 없는(구버전 보고서)
+     * 항목은 링크 없이 텍스트로만 남는다.
      */
     private void appendLateRollup(List<Map<String, Object>> blocks, ReportContent content, String boardId) {
         int total = lateTotal(content);
@@ -356,13 +427,69 @@ public class ReportSlackPublisher {
                 .sorted(Comparator.comparingInt(ReportContent.Member::getLateCount).reversed())
                 .toList();
         String names = holders.stream()
-                .limit(5)
                 .map(m -> m.getName() + " " + m.getLateCount())
                 .collect(Collectors.joining(" · "));
-        if (holders.size() > 5) {
-            names += " 외 " + (holders.size() - 5) + "명";
+
+        StringBuilder body = new StringBuilder("⏰ *지연 " + total + "건* · 담당 " + holders.size() + "명\n")
+                .append(names);
+
+        // 담당자별 지연 항목을 한 줄씩 — 오래 지난 것이 위로.
+        record LateLine(String title, String owner, int days, String url) {}
+        List<LateLine> lines = new ArrayList<>();
+        for (ReportContent.Member m : holders) {
+            if (m.getChecklistChanges() == null) {
+                continue;
+            }
+            for (ReportContent.MemberChecklistChange c : m.getChecklistChanges()) {
+                if (!"late".equals(c.getStatus())) {
+                    continue;
+                }
+                lines.add(new LateLine(c.getTitle(), m.getName(), c.getOverdueDays(),
+                        checklistItemUrl(c, boardId)));
+            }
         }
-        blocks.add(section("⏰ *지연 " + total + "건* · 담당 " + holders.size() + "명\n" + names));
+        lines.sort(Comparator.comparingInt(LateLine::days).reversed());
+
+        if (!lines.isEmpty()) {
+            body.append("\n");
+            for (LateLine line : lines.stream().limit(MAX_LATE_LINES).toList()) {
+                String title = escape(line.title());
+                body.append("\n• ")
+                        .append(line.url() != null ? "<" + line.url() + "|" + title + ">" : title)
+                        .append(" · ").append(escape(line.owner()));
+                if (line.days() > 0) {
+                    body.append(" · ").append(line.days()).append("일 지남");
+                }
+            }
+            if (lines.size() > MAX_LATE_LINES) {
+                body.append("\n_외 ").append(lines.size() - MAX_LATE_LINES).append("건은 전체 보고서에서_");
+            }
+        }
+        blocks.add(section(body.toString()));
+    }
+
+    /**
+     * 체크리스트 항목을 여는 주소. 태스크 키가 있으면 사람이 읽는 링크를, 없으면 보드 딥링크를 쓴다.
+     * <p>{@code view=kanban}이 꼭 붙어야 한다 — 보드는 그 사람이 마지막으로 보던 탭을 복원하므로,
+     * 이게 없으면 보고서 탭 같은 엉뚱한 화면에 착지한다.
+     */
+    private String checklistItemUrl(ReportContent.MemberChecklistChange change, String boardId) {
+        String highlight = change.getItemId() != null ? "&checklist=" + change.getItemId() : "";
+        if (change.getTaskKey() != null && !change.getTaskKey().isBlank()) {
+            return frontendUrl + "/t/" + change.getTaskKey() + "?view=kanban" + highlight;
+        }
+        if (change.getTaskId() != null) {
+            return frontendUrl + "/boards/" + boardId + "?view=kanban&task=" + change.getTaskId() + highlight;
+        }
+        return null;
+    }
+
+    /** 슬랙 mrkdwn 예약문자 이스케이프 — 제목에 &lt;, &gt;가 들어오면 링크 문법이 깨진다. */
+    private String escape(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return raw.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     /** 확인이 필요한 것들 — ⚠️로 묶어 버튼 위에 붙인다. 소스 수집 실패 사실도 여기로 들어온다. */

@@ -16,6 +16,8 @@ export function TaskKeyRedirect() {
   const [notFound, setNotFound] = useState(false);
   // 자동 보고서의 체크리스트 딥링크(/t/{key}?checklist=)는 항목 하이라이트까지 이어져야 한다.
   const checklistItemId = searchParams.get("checklist");
+  // 보드는 마지막으로 보던 탭을 복원하므로, 어떤 화면 위에 모달을 띄울지 지정한 링크는 그대로 넘긴다.
+  const view = searchParams.get("view");
 
   useEffect(() => {
     let cancelled = false;
@@ -31,7 +33,8 @@ export function TaskKeyRedirect() {
         const highlight = checklistItemId
           ? `&checklist=${encodeURIComponent(checklistItemId)}`
           : "";
-        navigate(`/boards/${board_id}?task=${task_id}${highlight}`, {
+        const viewParam = view ? `&view=${encodeURIComponent(view)}` : "";
+        navigate(`/boards/${board_id}?task=${task_id}${highlight}${viewParam}`, {
           replace: true,
         });
       } catch {
@@ -43,7 +46,7 @@ export function TaskKeyRedirect() {
     return () => {
       cancelled = true;
     };
-  }, [taskKey, checklistItemId, navigate]);
+  }, [taskKey, checklistItemId, view, navigate]);
 
   if (notFound) {
     return (
