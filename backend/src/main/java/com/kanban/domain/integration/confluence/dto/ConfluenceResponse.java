@@ -107,4 +107,22 @@ public class ConfluenceResponse {
         /** 웹 UI 경로 (baseUrl 상대) */
         private String webUrl;
     }
+
+    /**
+     * Atlassian 사용자 한 명. 문서 작성자를 사람 이름으로 바꾸는 데 쓴다.
+     *
+     * <p>{@link #email}은 <b>없을 수 있다</b> — Atlassian 프라이버시 설정에 따라 응답에서
+     * 빠지는 게 정상이다. 그래서 매칭은 이메일을 <i>질의</i>로 넣어 찾는 방향으로만 하고,
+     * 응답의 email에 의존하지 않는다.
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UserRef {
+        private String accountId;
+        private String displayName;
+        /** 응답에 실렸을 때만 채워진다. null이 흔하다. */
+        private String email;
+    }
 }

@@ -97,9 +97,15 @@ public class BoardProgressCollector {
         }
     }
 
-    /** 파싱된 Confluence 문서 하나. ReportComposer가 CONFLUENCE 변경내역에서 만들어 넘긴다. */
+    /**
+     * 파싱된 Confluence 문서 하나. ReportComposer가 CONFLUENCE 변경내역에서 만들어 넘긴다.
+     *
+     * @param author       작성/수정자 표시 이름. 수집 단계에서 accountId를 해석해 넣는다. 못 풀면 null.
+     * @param authorUserId 이어진 BRIDGE 멤버 userId. 구성원별 활동 집계가 문서를 사람에 붙이는 데 쓴다.
+     *                     보드 멤버가 아닌 외부 편집자면 null.
+     */
     public record ConfluenceDocInfo(String title, String url, String changeType,
-                                    String author, String updatedAt) {
+                                    String author, String authorUserId, String updatedAt) {
     }
 
     private record FeatureResult(List<ReportContent.Feature> features,

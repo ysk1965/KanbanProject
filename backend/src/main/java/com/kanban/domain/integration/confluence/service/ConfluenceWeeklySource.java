@@ -2,6 +2,7 @@ package com.kanban.domain.integration.confluence.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kanban.domain.integration.atlassian.service.AtlassianUserResolver;
 import com.kanban.domain.integration.confluence.ConfluenceMatchRule;
 import com.kanban.domain.integration.confluence.dto.ConfluenceResponse;
 import com.kanban.domain.report.source.ReportPeriod;
@@ -46,10 +47,18 @@ public class ConfluenceWeeklySource implements ReportSource {
     /** 변경 후보 상세 조회 호출 상한 — 검색이 수백 건이어도 API 호출 폭주를 막는다(넘으면 truncated) */
     private static final int MAX_DETAIL_FETCHES = 60;
 
+    /** 해석 전 임시로 다는 키 — 수집이 끝나면 사람 이름으로 바꾸고 이 키는 지운다. */
+    private static final String RAW_AUTHOR_KEY = "author_id";
+    /** 보고서에 노출되는 작성자 이름 */
+    private static final String AUTHOR_KEY = "author";
+    /** 이어진 BRIDGE 멤버 — 구성원별 활동 집계가 문서를 사람에 붙이는 데 쓴다 */
+    private static final String AUTHOR_USER_KEY = "author_user_id";
+
     private final ConfluenceTargetResolver targetResolver;
     private final ConfluenceApiClient apiClient;
     private final ConfluenceStorageConverter converter;
     private final ConfluenceSnapshotService snapshotService;
+    private final AtlassianUserResolver userResolver;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -213,6 +222,9 @@ public class ConfluenceWeeklySource implements ReportSource {
                     "스페이스 " + failedSpaces.size() + "곳 모두 조회 실패 — 연결 확인 필요");
         }
 
+        // 작성자를 사람 이름으로 바꾼다. 수집이 다 끝난 뒤 한 번에 해서 계정 해석을 1회로 묶는다.
+        resolveAuthors(boardId, plan, pages, changelogs);
+
         int changeCount = changelogs.stream().mapToInt(ConfluenceWeeklySource::changeCount).sum();
         if (pages.isEmpty() && changeCount == 0) {
             // 그 기간에 아무 변경이 없을 수 있다. 실패가 아니라 사실이다.
@@ -316,7 +328,8 @@ public class ConfluenceWeeklySource implements ReportSource {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("title", detail.getTitle() != null ? detail.getTitle() : ref.getTitle());
             item.put("url", webUrl(plan.baseUrl(), detail.getWebUrl()));
-            item.put("author_id", detail.getAuthorId());
+            item.put(AUTHOR_KEY, null); // 자리만 잡아 둔다 — resolveAuthors가 이름을 채운다
+            item.put(RAW_AUTHOR_KEY, detail.getAuthorId());
             item.put("updated_at", detail.getVersionCreatedAt());
             item.put("body", text);
 
@@ -381,8 +394,10 @@ public class ConfluenceWeeklySource implements ReportSource {
             if (results.size() >= MAX_PAGES) {
                 break;
             }
-            String storage = apiClient.getPageStorageBody(plan.cloudId(), plan.token(), page.getId());
-            String text = converter.toPlainText(storage);
+            // 상세 조회는 본문과 함께 마지막 편집자까지 준다 — 본문만 받던 옛 호출과 비용이 같다.
+            ConfluenceResponse.PageDetail detail =
+                    apiClient.getPageDetail(plan.cloudId(), plan.token(), page.getId());
+            String text = converter.toPlainText(detail.getStorageBody());
             if (text.isBlank()) {
                 continue;
             }
@@ -390,6 +405,8 @@ public class ConfluenceWeeklySource implements ReportSource {
             item.put("title", page.getTitle());
             item.put("space", target.spaceKey());
             item.put("url", pageUrl(plan.baseUrl(), page));
+            item.put(AUTHOR_KEY, null); // 자리만 잡아 둔다 — resolveAuthors가 이름을 채운다
+            item.put(RAW_AUTHOR_KEY, detail.getAuthorId());
             item.put("last_updated", page.getLastUpdated());
             item.put("body", text);
             results.add(item);
@@ -435,6 +452,80 @@ public class ConfluenceWeeklySource implements ReportSource {
            .append('"');
         cql.append(" order by lastModified desc");
         return cql.toString();
+    }
+
+    // ── 작성자 해석 ─────────────────────────────────────────
+
+    /**
+     * 문서에 달린 {@code accountId}를 사람 이름으로 바꾼다.
+     *
+     * <p>Confluence는 작성자를 {@code 70121:24b5829d-...} 같은 계정 식별자로만 준다. 그대로 두면
+     * 보고서의 사람 이름 자리에 그 문자열이 박히므로, 수집 끝에 한 번에 해석해 이름(과 이어진
+     * BRIDGE 멤버)으로 바꾸고 원본 계정 키는 지운다.
+     *
+     * <p>못 푼 계정은 <b>이름 필드를 아예 빼 버린다</b>. 알 수 없는 식별자를 사람 이름인 척
+     * 노출하느니 작성자 없이 보여주는 편이 정확하다.
+     */
+    private void resolveAuthors(String boardId, ConfluenceTargetResolver.CollectionPlan plan,
+                                List<Map<String, Object>> pages,
+                                List<Map<String, Object>> changelogs) {
+        List<Map<String, Object>> items = collectAuthoredItems(pages, changelogs);
+        if (items.isEmpty()) {
+            return;
+        }
+
+        Set<String> accountIds = new LinkedHashSet<>();
+        for (Map<String, Object> item : items) {
+            Object raw = item.get(RAW_AUTHOR_KEY);
+            if (raw instanceof String s && !s.isBlank()) {
+                accountIds.add(s);
+            }
+        }
+        Map<String, AtlassianUserResolver.ResolvedUser> resolved = accountIds.isEmpty()
+                ? Map.of()
+                : userResolver.resolve(boardId, plan.cloudId(), plan.token(), accountIds);
+
+        int unresolved = 0;
+        for (Map<String, Object> item : items) {
+            Object raw = item.remove(RAW_AUTHOR_KEY);
+            AtlassianUserResolver.ResolvedUser user =
+                    raw instanceof String s ? resolved.get(s) : null;
+            if (user == null) {
+                item.remove(AUTHOR_KEY);
+                if (raw != null) {
+                    unresolved++;
+                }
+                continue;
+            }
+            item.put(AUTHOR_KEY, user.name());
+            if (user.userId() != null) {
+                item.put(AUTHOR_USER_KEY, user.userId());
+            }
+        }
+        if (unresolved > 0) {
+            log.info("Confluence 작성자 미해결 {}건 board={} — 이름 없이 표시한다", unresolved, boardId);
+        }
+    }
+
+    /** 작성자가 붙을 수 있는 문서만 모은다. 삭제 문서는 제목만 남아 작성자를 알 수 없다. */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> collectAuthoredItems(List<Map<String, Object>> pages,
+                                                           List<Map<String, Object>> changelogs) {
+        List<Map<String, Object>> items = new ArrayList<>(pages);
+        for (Map<String, Object> changelog : changelogs) {
+            for (String bucket : List.of("added", "modified")) {
+                Object value = changelog.get(bucket);
+                if (!(value instanceof List<?> list)) {
+                    continue;
+                }
+                for (Object entry : list) {
+                    if (entry instanceof Map<?, ?> map) {
+                        items.add((Map<String, Object>) map);
+                    }
+                }
+            }
+        }
+        return items;
     }
 
     // ── 공통 ────────────────────────────────────────────────

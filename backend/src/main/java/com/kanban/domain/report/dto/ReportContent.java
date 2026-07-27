@@ -291,7 +291,11 @@ public class ReportContent {
 
     /**
      * 구성원 한 명의 활동 묶음. 커밋·슬랙·문서·체크리스트를 사람 기준으로 모은다.
-     * {@link #activity}는 정렬용 합계다.
+     * {@link #activity}는 정렬용 가중 합계다.
+     *
+     * <p><b>카운트와 리스트는 다르다.</b> {@code *Count}는 자르기 전 실제 건수이고, 아래 리스트들은
+     * 표시 상한(커밋 30 · 슬랙 20 · 문서 20 · 체크리스트 버킷별 20)에서 잘린다. 프론트는 둘을 비교해
+     * 잘렸음을 드러낸다.
      */
     @Data
     @Builder
@@ -301,20 +305,26 @@ public class ReportContent {
         private String name;
         /** GitHub 로그인(없으면 슬랙 표시명 등 대체 식별자). */
         private String login;
+        /** 실제 커밋 건수(표시 목록은 30건에서 잘릴 수 있다). */
         private int commitCount;
+        /** 실제 슬랙 발화 건수(표시 목록은 20건에서 잘릴 수 있다). */
         private int slackCount;
+        /** 실제 문서 건수(표시 목록은 20건에서 잘릴 수 있다). */
         private int docCount;
-        /** 담당자 뷰에 표시되는 체크리스트 수 = 지연 + 진행중 + 오늘 완료. */
+        /** 담당자 뷰의 체크리스트 수 = 지연 + 진행중 + 완료. */
         private int checklistCount;
         /** 지연(마감 지난 미완료) 건수. */
         private int lateCount;
         /** 진행중(곧 마감 예정인 미완료) 건수. */
         private int progressCount;
-        /** 오늘(발송 직전 24시간) 완료 건수. */
+        /**
+         * 노출 범위 안에서 완료한 건수. 범위는 <b>보고 주기를 따른다</b> — 일간은 발송 직전 24시간,
+         * 주간은 그 주 전체. (필드명은 기존 보고서 JSON 호환을 위해 유지한다.)
+         */
         private int doneTodayCount;
-        /** 오늘 이전에 이미 완료해 숨긴 건수 — "이전에 완료한 N건" 안내용. */
+        /** 노출 범위보다 앞서 완료해 숨긴 건수 — "이전에 완료한 N건" 안내용. */
         private int hiddenCompletedCount;
-        /** 네 소스 합계 — 활동량 내림차순 정렬 기준. */
+        /** 정렬 기준 — 커밋×3 + 문서×2 + 체크리스트×2 + 슬랙×1. 단순 합이면 메시지 수가 순위를 흔든다. */
         private int activity;
         private List<MemberCommit> commits;
         private List<MemberSlackMessage> slackMessages;
