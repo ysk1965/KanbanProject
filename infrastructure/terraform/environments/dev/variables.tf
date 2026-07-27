@@ -128,7 +128,7 @@ variable "dns_account_role_arn" {
 variable "rds_engine_version" {
   description = "PostgreSQL engine version for RDS. Pin to the SOURCE instance's actual version during migration (check: aws rds describe-db-instances)."
   type        = string
-  default     = "15.10"
+  default     = "15.17" # 운영 중인 kanban-dev-db의 실제 버전. 낮추면 apply가 다운그레이드로 실패한다.
 }
 
 variable "rds_kms_key_id" {

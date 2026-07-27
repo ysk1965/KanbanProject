@@ -176,6 +176,14 @@ resource "aws_elastic_beanstalk_environment" "main" {
   application         = aws_elastic_beanstalk_application.main.name
   solution_stack_name = var.solution_stack_name
 
+  lifecycle {
+    # 관리형 플랫폼 업데이트(ManagedActionsEnabled=true, UpdateLevel=minor)가 켜져 있어
+    # AWS가 일요일마다 플랫폼 버전을 올린다. 이 필드를 terraform이 관리하면 매 apply마다
+    # 최신 플랫폼을 변수에 박힌 옛 버전으로 되돌려 버린다(= 보안 패치 롤백 + 인스턴스 교체).
+    # 버전의 소유권은 관리형 업데이트에 두고, 변수는 신규 생성 시 시작점으로만 쓴다.
+    ignore_changes = [solution_stack_name]
+  }
+
   # VPC Configuration
   setting {
     namespace = "aws:ec2:vpc"

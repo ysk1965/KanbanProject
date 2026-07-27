@@ -36,7 +36,7 @@ variable "ec2_security_group_id" {
 variable "solution_stack_name" {
   description = "Elastic Beanstalk solution stack name"
   type        = string
-  default     = "64bit Amazon Linux 2023 v4.12.1 running Corretto 21"
+  default     = "64bit Amazon Linux 2023 v4.12.4 running Corretto 21"
 }
 
 variable "instance_type" {
