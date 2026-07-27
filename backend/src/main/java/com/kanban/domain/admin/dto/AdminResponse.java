@@ -757,4 +757,77 @@ public class AdminResponse {
         private LocalDateTime estimatedEndAt;
         private LocalDateTime startedAt;
     }
+
+    // ==================== AI API Key ====================
+
+    /**
+     * AI API 키 상태. <b>키 원문은 절대 담기지 않는다</b> — {@code maskedKey}만 나간다.
+     */
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class AiKeyStatus {
+        /** "claude" | "openai" */
+        private String provider;
+        private String displayName;
+        /** 키가 설정돼 있는지 */
+        private boolean configured;
+        /** 예: {@code sk-ant-api03…a4f2}. 미설정이면 null */
+        private String maskedKey;
+        /** DATABASE(관리자 설정) | ENVIRONMENT(배포 환경변수) | NONE */
+        private String source;
+        private LocalDateTime updatedAt;
+        private String updatedBy;
+        private LocalDateTime lastVerifiedAt;
+        /** 현재 ai.provider 설정으로 실제 사용 중인 프로바이더인지 */
+        private boolean isActiveProvider;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class AiKeyList {
+        private List<AiKeyStatus> keys;
+        private String activeProvider;
+        /** CONFIG_ENCRYPTION_KEY가 설정돼 키 저장이 가능한지 */
+        private boolean encryptionConfigured;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class AiKeyLogEntry {
+        private String id;
+        private String provider;
+        /** ROTATE | VERIFY */
+        private String action;
+        private String actorEmail;
+        private String maskedKey;
+        private boolean success;
+        private String detail;
+        private LocalDateTime createdAt;
+
+        public static AiKeyLogEntry of(com.kanban.domain.system.AiKeyAuditLog log) {
+            return AiKeyLogEntry.builder()
+                    .id(log.getId())
+                    .provider(log.getProvider().getCode())
+                    .action(log.getAction().name())
+                    .actorEmail(log.getActorEmail())
+                    .maskedKey(log.getMaskedKey())
+                    .success(log.isSuccess())
+                    .detail(log.getDetail())
+                    .createdAt(log.getCreatedAt())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class AiKeyLogList {
+        private List<AiKeyLogEntry> logs;
+        private long total;
+        private int page;
+        private int size;
+    }
 }

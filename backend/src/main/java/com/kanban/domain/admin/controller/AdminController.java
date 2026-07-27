@@ -3,6 +3,7 @@ package com.kanban.domain.admin.controller;
 import com.kanban.domain.admin.dto.AdminRequest;
 import com.kanban.domain.admin.dto.AdminResponse;
 import com.kanban.domain.admin.service.AdminService;
+import com.kanban.domain.admin.service.AiKeyAdminService;
 import com.kanban.domain.announcement.AnnouncementType;
 import com.kanban.domain.board.BoardTier;
 import com.kanban.domain.board.BoardType;
@@ -33,6 +34,7 @@ public class AdminController {
     private final AdminService adminService;
     private final InquiryService inquiryService;
     private final MonetizationService monetizationService;
+    private final AiKeyAdminService aiKeyAdminService;
 
     /**
      * Admin 권한 검증
@@ -588,5 +590,47 @@ public class AdminController {
             @Valid @RequestBody InquiryRequest.UpdateStatus request) {
         verifyAdminAccess(principal);
         return ResponseEntity.ok(inquiryService.updateInquiryStatus(inquiryId, request));
+    }
+
+    // ==================== AI API Key ====================
+    //
+    // 키 원문을 반환하는 엔드포인트는 의도적으로 존재하지 않는다.
+    // 조회는 마스킹된 표기만, 교체는 쓰기 전용이다.
+
+    /** 프로바이더별 키 상태 조회 (마스킹). */
+    @GetMapping("/ai/keys")
+    public ResponseEntity<AdminResponse.AiKeyList> getAiKeys(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(aiKeyAdminService.getKeys());
+    }
+
+    /** 키 교체. 프로바이더에 실제 호출해 유효성을 확인한 뒤에만 저장한다. */
+    @PutMapping("/ai/keys/{provider}")
+    public ResponseEntity<AdminResponse.AiKeyStatus> rotateAiKey(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String provider,
+            @Valid @RequestBody AdminRequest.RotateAiKey request) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(aiKeyAdminService.rotate(provider, request.getApiKey(), principal));
+    }
+
+    /** 현재 설정된 키가 살아있는지 확인. */
+    @PostMapping("/ai/keys/{provider}/verify")
+    public ResponseEntity<AdminResponse.AiKeyStatus> verifyAiKey(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String provider) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(aiKeyAdminService.verify(provider, principal));
+    }
+
+    /** 키 교체·검증 이력 (최신순). */
+    @GetMapping("/ai/keys/logs")
+    public ResponseEntity<AdminResponse.AiKeyLogList> getAiKeyLogs(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(aiKeyAdminService.getLogs(page, size));
     }
 }

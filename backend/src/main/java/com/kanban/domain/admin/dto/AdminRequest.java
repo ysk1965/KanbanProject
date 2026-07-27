@@ -166,4 +166,15 @@ public class AdminRequest {
         private Boolean resetUsedCredits;
         private Integer addBonusCredits;
     }
+
+    /**
+     * AI API 키 교체 요청. 쓰기 전용 — 이 값은 어떤 응답에도 되돌아 나가지 않는다.
+     */
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RotateAiKey {
+        @NotBlank(message = "API 키는 필수입니다")
+        private String apiKey;
+    }
 }
