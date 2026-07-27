@@ -6,11 +6,12 @@ import com.kanban.domain.integration.github.dto.GithubCommit;
 import com.kanban.domain.integration.github.dto.GithubRepoRef;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -23,7 +24,6 @@ import java.util.List;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class GithubApiClient {
 
     private static final int PAGE_SIZE = 100;
@@ -34,6 +34,14 @@ public class GithubApiClient {
     private final GithubAppProperties properties;
     private final GithubAppTokenService tokenService;
     private final RestTemplate restTemplate;
+
+    public GithubApiClient(GithubAppProperties properties,
+                           GithubAppTokenService tokenService,
+                           @Qualifier("githubRestTemplate") RestTemplate restTemplate) {
+        this.properties = properties;
+        this.tokenService = tokenService;
+        this.restTemplate = restTemplate;
+    }
 
     /**
      * 설치 메타데이터. 사용자가 보낸 installation_id가 실제로 우리 App의 설치인지 확인하는 용도라,
@@ -179,8 +187,9 @@ public class GithubApiClient {
                     stats.path("additions").asInt(0),
                     stats.path("deletions").asInt(0),
                     files);
-        } catch (BusinessException e) {
+        } catch (BusinessException | RestClientException e) {
             // 상세 조회 실패는 보고서를 막을 만한 일이 아니다 — 지표만 비워 둔다.
+            // 타임아웃/IO(ResourceAccessException)도 RestClientException 하위라 여기서 함께 삼킨다.
             log.debug("커밋 상세 조회 실패 {} {}: {}", commit.repoFullName(), commit.sha(), e.getMessage());
             return commit;
         }
