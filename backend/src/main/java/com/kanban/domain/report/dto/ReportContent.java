@@ -399,6 +399,18 @@ public class ReportContent {
     public static class MemberChecklistChange {
         private String title;
         private boolean done;
+        /**
+         * 체크리스트 항목 id — 보고서에서 실물로 건너뛰는 딥링크의 하이라이트 대상이다.
+         * 이 필드가 없던 시절의 보고서도 그대로 열려야 하므로 프론트는 null을 견뎌야 한다.
+         */
+        private String itemId;
+        /** 이 항목이 달린 태스크 id. 보드 딥링크(/boards/{boardId}?task=)의 폴백 경로에 쓴다. */
+        private String taskId;
+        /**
+         * 사람이 읽는 태스크 키(전역 유니크). 있으면 {@code /t/{taskKey}}로 링크해
+         * 보드 id 없이도 열리게 한다. 키 백필 전 태스크는 null일 수 있어 taskId 폴백이 필요하다.
+         */
+        private String taskKey;
         /** 이 항목이 속한 태스크/기능 이름(맥락 표시용). 없으면 null. */
         private String context;
         /** 버킷 구분: "late"(지연) · "progress"(진행중) · "done"(오늘 완료). */

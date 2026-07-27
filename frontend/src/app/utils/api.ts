@@ -9890,6 +9890,12 @@ export interface AutoReportMemberChecklistChange {
   due_date?: string | null;
   /** 지연 경과 일수(오늘 − 마감). 지연이 아니면 0 */
   overdue_days?: number;
+  /** 체크리스트 항목 id — 딥링크로 열었을 때 하이라이트 대상. 구버전 보고서는 없다 */
+  item_id?: string | null;
+  /** 이 항목이 달린 태스크 id — 보드 딥링크 폴백용. 구버전 보고서는 없다 */
+  task_id?: string | null;
+  /** 사람이 읽는 태스크 키 — 있으면 /t/{key}로 연다. 키 백필 전 태스크는 없다 */
+  task_key?: string | null;
 }
 
 /** 구성원이 주로 붙어 있던 클러스터 한 건 ("주력" 칩) */
@@ -10023,6 +10029,16 @@ export interface ReportPreview {
   sources: ReportPreviewSource[];
 }
 
+/** 보고서를 게시할 슬랙 채널 한 줄 */
+export interface ReportDeliveryChannel {
+  channel_id: string;
+  channel_name: string | null;
+  /** 채널을 지정하지 않아 슬랙 설치 기본 채널로 나가는 줄 — 삭제할 수 없다 */
+  is_default: boolean;
+  /** 이 채널로 테스트 게시가 성공했는지 */
+  test_passed: boolean;
+}
+
 export interface ReportConfig {
   daily_enabled: boolean;
   daily_hour: number;
@@ -10039,8 +10055,16 @@ export interface ReportConfig {
   ai_model_default: string | null;
   /** 활성 프로바이더에서 고를 수 있는 모델 목록 */
   available_models: { id: string; label: string }[];
+  /** 대표 채널 미러 — 실제 발송 대상은 delivery_channels다 */
   slack_channel_id: string | null;
   slack_channel_name: string | null;
+  /**
+   * 실제 발송 대상 채널 목록. 지정한 채널이 하나도 없으면 슬랙 설치 기본 채널 한 줄이
+   * is_default=true로 채워진다. 전부 test_passed여야 자동 예약을 켤 수 있다.
+   */
+  delivery_channels: ReportDeliveryChannel[];
+  /** 발송 채널 수 상한 — "채널 추가" 비활성 기준 */
+  max_delivery_channels: number;
   source_github_enabled: boolean;
   source_kanban_enabled: boolean;
   source_confluence_enabled: boolean;
@@ -10140,17 +10164,46 @@ export const autoReportAPI = {
     }>(`/boards/${boardId}/reports/dispatch?type=${type}`, {});
   },
 
+  /** 발송 채널 추가 — 최대 max_delivery_channels개. 갱신된 설정을 돌려준다. */
+  addChannel: async (
+    boardId: string,
+    channelId: string,
+    channelName: string | null,
+  ) => {
+    return apiClient.post<ReportConfig>(
+      `/boards/${boardId}/reports/config/channels`,
+      { channel_id: channelId, channel_name: channelName },
+    );
+  },
+
+  /** 발송 채널 제거 — 마지막 채널을 지우면 슬랙 설치 기본 채널로 되돌아간다 */
+  removeChannel: async (boardId: string, channelId: string) => {
+    return apiClient.delete<ReportConfig>(
+      `/boards/${boardId}/reports/config/channels/${channelId}`,
+    );
+  },
+
   /**
    * 발송 테스트 — 자동 예약을 켜기 전 채널·권한만 검증한다. 보고서를 만들지 않고
-   * 확인 메시지 한 장을 발송 채널에 게시하며, 성공하면 그 채널이 "테스트 통과"로 기록된다.
+   * 확인 메시지 한 장을 대상 채널마다 게시하며, 성공한 채널이 "테스트 통과"로 기록된다.
+   * channelId를 주면 그 채널만 다시 테스트한다.
    */
-  sendTest: async (boardId: string) => {
+  sendTest: async (boardId: string, channelId?: string) => {
     return apiClient.post<{
       success: boolean;
       channel_id: string | null;
       channel_name: string | null;
       message: string | null;
-    }>(`/boards/${boardId}/reports/test-dispatch`, {});
+      results: {
+        channel_id: string;
+        channel_name: string | null;
+        sent: boolean;
+        message: string | null;
+      }[];
+    }>(
+      `/boards/${boardId}/reports/test-dispatch${channelId ? `?channel=${encodeURIComponent(channelId)}` : ""}`,
+      {},
+    );
   },
 };
 

@@ -8,6 +8,7 @@ import com.kanban.domain.report.service.BoardProgressCollector.CommitInfo;
 import com.kanban.domain.report.service.MemberActivityCollector.ClusterTag;
 import com.kanban.domain.report.service.ReportMemberDirectory.MemberIdentity;
 import com.kanban.domain.report.source.ReportPeriod;
+import com.kanban.domain.task.Task;
 import com.kanban.domain.user.User;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -242,6 +243,59 @@ class MemberActivityCollectorTest {
                 "b", new ReportPeriod(end.minusDays(7), end, ZoneOffset.UTC),
                 commits, Map.of(), null, null).members();
         assertEquals("민준태", weekly.get(0).getName(), "주간은 활동량 순");
+    }
+
+    @Test
+    void 체크리스트_항목은_보드로_건너뛸_식별자를_함께_싣는다() {
+        User user = User.builder().id("u1").name("정소연").build();
+        ZonedDateTime end = ZonedDateTime.of(2026, 7, 27, 0, 0, 0, 0, ZoneOffset.UTC);
+        Task task = Task.builder().id("t1").taskKey("STORY-42").title("행성 리소스 정리").build();
+        ChecklistItem item = ChecklistItem.builder()
+                .id("c1")
+                .task(task)
+                .title("행성 텍스처 리터치")
+                .assignee(user)
+                .isCompleted(false)
+                .dueDate(end.toLocalDate().minusDays(6))
+                .build();
+
+        when(memberDirectory.identities("b")).thenReturn(List.of(
+                new MemberIdentity("u1", "정소연", "sy-jeongg", null)));
+        lenient().when(checklistItemRepository.findCompletedByBoardIdAndDateRange(eq("b"), any(), any()))
+                .thenReturn(List.of());
+        lenient().when(checklistItemRepository.findIncompleteWithDueByBoardId("b"))
+                .thenReturn(List.of(item));
+
+        ReportContent.MemberChecklistChange change = collector.compute(
+                "b", new ReportPeriod(end.minusDays(1), end, ZoneOffset.UTC),
+                List.of(), Map.of(), null, null).members().get(0).getChecklistChanges().get(0);
+
+        assertEquals("late", change.getStatus());
+        assertEquals("c1", change.getItemId(), "항목 id가 있어야 딥링크가 그 줄을 하이라이트한다");
+        assertEquals("t1", change.getTaskId());
+        assertEquals("STORY-42", change.getTaskKey());
+        assertEquals("행성 리소스 정리", change.getContext());
+    }
+
+    @Test
+    void 태스크가_없는_항목도_식별자만_비운_채_그려진다() {
+        User user = User.builder().id("u1").name("정소연").build();
+        ZonedDateTime end = ZonedDateTime.of(2026, 7, 27, 0, 0, 0, 0, ZoneOffset.UTC);
+
+        when(memberDirectory.identities("b")).thenReturn(List.of(
+                new MemberIdentity("u1", "정소연", "sy-jeongg", null)));
+        lenient().when(checklistItemRepository.findCompletedByBoardIdAndDateRange(eq("b"), any(), any()))
+                .thenReturn(List.of());
+        lenient().when(checklistItemRepository.findIncompleteWithDueByBoardId("b"))
+                .thenReturn(List.of(overdueItem("행성 텍스처 리터치", user, end.toLocalDate().minusDays(6))));
+
+        ReportContent.MemberChecklistChange change = collector.compute(
+                "b", new ReportPeriod(end.minusDays(1), end, ZoneOffset.UTC),
+                List.of(), Map.of(), null, null).members().get(0).getChecklistChanges().get(0);
+
+        assertNull(change.getTaskId(), "태스크가 없으면 링크를 만들지 않도록 비워둔다");
+        assertNull(change.getTaskKey());
+        assertNull(change.getContext());
     }
 
     @Test

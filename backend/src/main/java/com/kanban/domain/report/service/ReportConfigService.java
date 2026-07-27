@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.*;
+import java.util.List;
 
 /**
  * 보드별 발송 설정 조회·수정.
@@ -36,20 +37,44 @@ public class ReportConfigService {
     private final ReportSlackPublisher slackPublisher;
     private final ReportModelCatalog modelCatalog;
 
-    /** 발송 테스트 결과. success=true면 channelId로 실제 게시에 성공해 자동 예약 잠금이 풀린다. */
-    public record TestDispatchResult(boolean success, String channelId, String channelName, String message) {}
+    /**
+     * 발송 테스트 결과. success=true면 <b>모든</b> 대상 채널에 게시가 성공해 자동 예약 잠금이 풀린다.
+     * 채널별 성패는 {@code results}에 담긴다.
+     */
+    public record TestDispatchResult(boolean success, String channelId, String channelName,
+                                     String message,
+                                     List<ReportSlackPublisher.ChannelTestResult> results) {}
 
     @Transactional
     public ReportConfigDto.Detail get(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
-        return withModelCatalog(ReportConfigDto.Detail.from(getOrCreate(boardId)));
+        return toDetail(getOrCreate(boardId));
     }
 
-    /** 선택된 모델 값(config에서 온다) 외에, 화면이 드롭다운을 그리는 데 필요한 목록·기본값을 채운다. */
-    private ReportConfigDto.Detail withModelCatalog(ReportConfigDto.Detail detail) {
+    /** 응답 조립 — 저장된 값 위에 화면이 필요로 하는 목록(모델·발송 채널)을 얹는다. */
+    private ReportConfigDto.Detail toDetail(BoardReportConfig config) {
+        ReportConfigDto.Detail detail = ReportConfigDto.Detail.from(config);
         detail.setAvailableModels(modelCatalog.available());
         detail.setAiModelDefault(modelCatalog.defaultModelId());
+        detail.setDeliveryChannels(resolveChannelEntries(config));
         return detail;
+    }
+
+    /**
+     * 실제 발송 대상과 각 채널의 테스트 통과 여부. 지정된 채널이 없으면 설치 기본 채널 한 줄을
+     * {@code isDefault=true}로 돌려준다 — 화면이 "미지정 = 기본 채널"을 그대로 보여줄 수 있게.
+     */
+    private List<ReportConfigDto.ChannelEntry> resolveChannelEntries(BoardReportConfig config) {
+        return slackPublisher.resolveTargets(config.getBoard(), config).stream()
+                .map(target -> new ReportConfigDto.ChannelEntry(
+                        target.channelId(),
+                        target.channelName(),
+                        target.isDefault(),
+                        target.isDefault()
+                                ? target.channelId().equals(config.getTestPassedChannelId())
+                                : config.findChannel(target.channelId())
+                                        .map(ch -> ch.isTestPassed()).orElse(false)))
+                .toList();
     }
 
     @Transactional
@@ -63,6 +88,13 @@ public class ReportConfigService {
 
         config.updateCommon(timezone, request.getLanguage(),
                 request.getSlackChannelId(), request.getSlackChannelName());
+
+        // 목록이 함께 오면 그쪽이 이긴다 — 단일 채널 필드는 구버전 호환 경로다.
+        if (request.getDeliveryChannels() != null) {
+            config.replaceDeliveryChannels(request.getDeliveryChannels().stream()
+                    .map(in -> new BoardReportConfig.ChannelRef(in.getChannelId(), in.getChannelName()))
+                    .toList());
+        }
 
         if (request.getDailyHour() != null || request.getDailyMinute() != null
                 || request.getDailyEnabled() != null) {
@@ -85,7 +117,37 @@ public class ReportConfigService {
         config.updateShareLink(request.getShareLinkEnabled());
         config.updateAiModel(validateAiModel(request.getAiModel()));
 
-        return withModelCatalog(ReportConfigDto.Detail.from(config));
+        return toDetail(config);
+    }
+
+    /**
+     * 발송 채널 한 개 추가. 목록 전체를 다시 보내지 않아도 되게 별도 창구를 둔다 —
+     * 화면에서 채널을 고르는 즉시 저장되고, 기존 채널의 테스트 통과 기록은 건드리지 않는다.
+     */
+    @Transactional
+    public ReportConfigDto.Detail addChannel(String boardId, String userId,
+                                             String channelId, String channelName) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        if (channelId == null || channelId.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "채널 id가 필요합니다");
+        }
+        BoardReportConfig config = getOrCreate(boardId);
+        if (config.findChannel(channelId).isEmpty()
+                && config.getDeliveryChannels().size() >= BoardReportConfig.MAX_DELIVERY_CHANNELS) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE,
+                    "발송 채널은 최대 " + BoardReportConfig.MAX_DELIVERY_CHANNELS + "개까지 지정할 수 있습니다");
+        }
+        config.addDeliveryChannel(channelId.trim(), channelName);
+        return toDetail(config);
+    }
+
+    /** 발송 채널 한 개 제거. 마지막 채널을 지우면 설치 기본 채널로 되돌아간다. */
+    @Transactional
+    public ReportConfigDto.Detail removeChannel(String boardId, String userId, String channelId) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        BoardReportConfig config = getOrCreate(boardId);
+        config.removeDeliveryChannel(channelId);
+        return toDetail(config);
     }
 
     /**
@@ -127,29 +189,36 @@ public class ReportConfigService {
             throw new BusinessException(ErrorCode.AI_REPORT_GENERATION_FAILED,
                     result.message() != null ? result.message() : "보고서를 만들지 못했습니다");
         }
-        // 실제로 게시됐다면 그 채널을 "테스트 통과"로 기록한다 — 즉시 발송도 게이트를 만족시킨다.
-        if (result.isSent()) {
-            config.markTestPassed(slackPublisher.resolveChannelId(board, config));
-        }
+        // 실제로 게시된 채널만 "테스트 통과"로 기록한다 — 즉시 발송도 게이트를 만족시킨다.
+        // 게시에 실패한 채널은 미통과로 남아 다시 테스트해야 예약이 열린다.
+        result.sentChannelIds().forEach(config::markTestPassed);
         return result;
     }
 
     /**
-     * 자동 예약을 켜기 전 채널·권한을 검증하는 발송 테스트. 확인 메시지 한 장만 채널에 게시하고,
-     * 성공하면 그 채널을 "테스트 통과"로 기록한다. 발송 채널을 바꾸면 다시 테스트해야 예약을 켤 수 있다.
+     * 자동 예약을 켜기 전 채널·권한을 검증하는 발송 테스트. 확인 메시지 한 장을 대상 채널마다 게시하고,
+     * 성공한 채널만 "테스트 통과"로 기록한다. 채널을 새로 추가하면 그 채널이 미통과 상태라 예약이 다시 잠긴다.
+     *
+     * @param channelId 지정하면 그 채널만 다시 테스트한다. null이면 전체.
      */
     @Transactional
-    public TestDispatchResult sendTest(String boardId, String userId) {
+    public TestDispatchResult sendTest(String boardId, String userId, String channelId) {
         boardService.checkAdminOrAbove(boardId, userId);
         BoardReportConfig config = getOrCreate(boardId);
         Board board = config.getBoard();
 
-        ReportSlackPublisher.TestOutcome outcome = slackPublisher.sendTestMessage(board, config);
-        if (outcome.sent()) {
-            config.markTestPassed(outcome.channelId());
-        }
-        return new TestDispatchResult(outcome.sent(), outcome.channelId(),
-                outcome.channelName(), outcome.error());
+        ReportSlackPublisher.TestOutcome outcome =
+                slackPublisher.sendTestMessage(board, config, channelId);
+        outcome.results().stream()
+                .filter(ReportSlackPublisher.ChannelTestResult::sent)
+                .forEach(r -> config.markTestPassed(r.channelId()));
+
+        ReportSlackPublisher.ChannelTestResult first =
+                outcome.results().isEmpty() ? null : outcome.results().get(0);
+        return new TestDispatchResult(outcome.sent(),
+                first != null ? first.channelId() : null,
+                first != null ? first.channelName() : null,
+                outcome.error(), outcome.results());
     }
 
     /**

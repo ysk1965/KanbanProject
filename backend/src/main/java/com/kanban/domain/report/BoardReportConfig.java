@@ -10,6 +10,11 @@ import lombok.NoArgsConstructor;
 
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -86,12 +91,24 @@ public class BoardReportConfig extends BaseTimeEntity {
     @Column(name = "ai_model", length = 60)
     private String aiModel;
 
-    /** 봇이 게시할 공용 채널. 멤버 개인 웹훅 발송은 지원하지 않는다. */
+    /**
+     * 대표 발송 채널 <b>미러</b>. 실제 발송 대상은 {@link #deliveryChannels}가 결정한다 —
+     * 이 값은 발송 이력 표시와 구버전 클라이언트 호환을 위해 0번 채널을 따라간다.
+     * 직접 쓰지 말고 {@link #replaceDeliveryChannels}로 목록을 바꿔라.
+     */
     @Column(name = "slack_channel_id", length = 40)
     private String slackChannelId;
 
     @Column(name = "slack_channel_name", length = 100)
     private String slackChannelName;
+
+    /**
+     * 봇이 게시할 공용 채널들. 비어 있으면 슬랙 설치의 기본 채널로 발송한다(기존 동작).
+     * 멤버 개인 웹훅 발송은 지원하지 않는다.
+     */
+    @OneToMany(mappedBy = "config", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sortOrder ASC")
+    private List<ReportDeliveryChannel> deliveryChannels = new ArrayList<>();
 
     // ── 소스 on/off ─────────────────────────────
     @Column(name = "source_github_enabled", nullable = false)
@@ -125,9 +142,9 @@ public class BoardReportConfig extends BaseTimeEntity {
     private Boolean shareLinkEnabled = true;
 
     /**
-     * 마지막으로 <b>발송 테스트에 성공한 채널 id</b>. 자동 예약을 켜기 전에 이 채널로 한 번
-     * 실제 게시가 됐는지 확인하는 게이트로 쓴다. 발송 채널을 바꾸면 이 값과 달라져
-     * 다시 테스트해야 예약을 켤 수 있다 — 잘못된 채널로 매일 자동 발송되는 사고를 막는다.
+     * 채널을 하나도 지정하지 않아 <b>설치 기본 채널</b>로 나가는 경우의 테스트 통과 기록.
+     * 명시적으로 지정한 채널들의 통과 여부는 {@link ReportDeliveryChannel#getTestPassedAt()}에
+     * 채널별로 남는다 — 기본 채널은 설치 설정에 따라 바뀔 수 있어 표의 행으로 둘 수 없다.
      */
     @Column(name = "test_passed_channel_id", length = 40)
     private String testPassedChannelId;
@@ -177,11 +194,89 @@ public class BoardReportConfig extends BaseTimeEntity {
         if (language != null) this.language = language;
         // 부분 업데이트 보호: null이면 기존 채널을 유지한다(발송 시각만 바꿔도 채널이 지워지던 문제).
         // 빈 문자열이 오면 "기본 채널로 초기화" 의도로 보고 지운다.
+        // 단일 채널을 보내는 구버전 요청은 "목록 = 이 채널 하나"로 해석한다.
         if (slackChannelId != null) {
-            this.slackChannelId = slackChannelId.isBlank() ? null : slackChannelId;
-            this.slackChannelName = (slackChannelName == null || slackChannelName.isBlank())
-                    ? null : slackChannelName;
+            replaceDeliveryChannels(slackChannelId.isBlank()
+                    ? List.of()
+                    : List.of(new ChannelRef(slackChannelId, slackChannelName)));
         }
+    }
+
+    // ── 발송 채널 목록 ───────────────────────────
+
+    /** 한 보드가 둘 수 있는 발송 채널 수 상한. 슬랙 rate limit과 화면 가독성을 함께 고려한 값. */
+    public static final int MAX_DELIVERY_CHANNELS = 5;
+
+    /** 목록 갱신 요청 한 줄. 이름은 표시용이라 없어도 된다. */
+    public record ChannelRef(String channelId, String channelName) {}
+
+    /**
+     * 발송 채널 목록을 통째로 교체한다. 이미 있던 채널은 <b>행을 유지</b>해 테스트 통과 기록을
+     * 잃지 않게 하고, 빠진 채널만 삭제한다. 빈 목록이면 설치 기본 채널로 되돌아간다.
+     *
+     * <p>중복 id는 앞선 것만 남기고, 상한({@link #MAX_DELIVERY_CHANNELS})을 넘는 뒤쪽은 잘라낸다.
+     */
+    public void replaceDeliveryChannels(List<ChannelRef> refs) {
+        Map<String, String> wanted = new LinkedHashMap<>();
+        for (ChannelRef ref : refs == null ? List.<ChannelRef>of() : refs) {
+            if (ref == null || ref.channelId() == null || ref.channelId().isBlank()) continue;
+            if (wanted.size() >= MAX_DELIVERY_CHANNELS) break;
+            wanted.putIfAbsent(ref.channelId().trim(), ref.channelName());
+        }
+
+        this.deliveryChannels.removeIf(ch -> !wanted.containsKey(ch.getSlackChannelId()));
+
+        int order = 0;
+        for (Map.Entry<String, String> entry : wanted.entrySet()) {
+            ReportDeliveryChannel existing = findChannel(entry.getKey()).orElse(null);
+            if (existing != null) {
+                existing.updateName(entry.getValue());
+                existing.updateSortOrder(order);
+            } else {
+                this.deliveryChannels.add(
+                        new ReportDeliveryChannel(this, entry.getKey(), entry.getValue(), order));
+            }
+            order++;
+        }
+        this.deliveryChannels.sort(java.util.Comparator.comparingInt(ReportDeliveryChannel::getSortOrder));
+        syncPrimaryChannelMirror();
+    }
+
+    /** 채널 한 개 추가. 이미 있으면 이름만 갱신한다(테스트 통과 기록 유지). */
+    public void addDeliveryChannel(String channelId, String channelName) {
+        List<ChannelRef> next = new ArrayList<>(currentChannelRefs());
+        next.add(new ChannelRef(channelId, channelName));
+        replaceDeliveryChannels(next);
+    }
+
+    /** 채널 한 개 제거. 목록이 비면 설치 기본 채널로 되돌아간다. */
+    public void removeDeliveryChannel(String channelId) {
+        replaceDeliveryChannels(currentChannelRefs().stream()
+                .filter(ref -> !ref.channelId().equals(channelId))
+                .toList());
+    }
+
+    private List<ChannelRef> currentChannelRefs() {
+        return this.deliveryChannels.stream()
+                .map(ch -> new ChannelRef(ch.getSlackChannelId(), ch.getSlackChannelName()))
+                .toList();
+    }
+
+    public Optional<ReportDeliveryChannel> findChannel(String channelId) {
+        return this.deliveryChannels.stream()
+                .filter(ch -> ch.getSlackChannelId().equals(channelId))
+                .findFirst();
+    }
+
+    /**
+     * 대표 채널 미러를 0번 채널에 맞춘다. 발송 이력의 채널 표기와 구버전 응답이 이 값을 본다.
+     * 목록이 비면 미러도 비워 "기본 채널로 발송" 상태를 그대로 나타낸다.
+     */
+    private void syncPrimaryChannelMirror() {
+        ReportDeliveryChannel primary = this.deliveryChannels.isEmpty()
+                ? null : this.deliveryChannels.get(0);
+        this.slackChannelId = primary != null ? primary.getSlackChannelId() : null;
+        this.slackChannelName = primary != null ? primary.getSlackChannelName() : null;
     }
 
     public void updateSources(Boolean github, Boolean kanban, Boolean confluence, Boolean slack) {
@@ -217,9 +312,18 @@ public class BoardReportConfig extends BaseTimeEntity {
         }
     }
 
-    /** 발송 테스트가 성공한 채널을 기록한다. 이후 이 채널과 발송 채널이 같을 때만 자동 예약을 켤 수 있다. */
+    /**
+     * 발송 테스트가 성공한 채널을 기록한다. 목록에 있는 채널이면 그 행에, 지정 채널이 없어
+     * 기본 채널로 나간 경우면 {@link #testPassedChannelId}에 남긴다.
+     * 모든 발송 대상이 통과해야 자동 예약을 켤 수 있다.
+     */
     public void markTestPassed(String channelId) {
-        this.testPassedChannelId = (channelId == null || channelId.isBlank()) ? null : channelId;
+        if (channelId == null || channelId.isBlank()) {
+            return;
+        }
+        findChannel(channelId).ifPresentOrElse(
+                ReportDeliveryChannel::markTestPassed,
+                () -> this.testPassedChannelId = channelId);
     }
 
     public void markDailySent(LocalDateTime sentAtUtc) {

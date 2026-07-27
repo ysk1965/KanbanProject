@@ -67,10 +67,21 @@ import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { Toaster } from "./components/ui/sonner";
 import { MobileBottomNav } from "./components/ui/MobileBottomNav";
 
+/**
+ * 로그인 후 돌아갈 경로. 외부 사이트로 튕기지 않도록 <b>같은 출처의 절대 경로</b>만 허용한다
+ * ("//evil.com"은 프로토콜 상대 URL이라 반드시 막아야 한다).
+ */
+export function safeReturnTo(raw: string | null): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
+
 // 인증이 필요한 라우트 래퍼
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isEmailVerified, isLoading } = useAuth();
   const { t } = useTranslation();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -81,7 +92,10 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    // 목적지를 들고 간다 — 공유 보고서의 딥링크는 로그아웃 상태로 열리는 일이 잦아
+    // 여기서 경로를 버리면 로그인 후 "무엇을 보러 왔는지"가 통째로 증발한다.
+    const returnTo = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?returnTo=${returnTo}`} replace />;
   }
 
   // 이메일 미인증 시 인증 대기 페이지로 리다이렉트
@@ -111,10 +125,15 @@ function LoginRoute() {
     isTester,
   } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
   const [isProcessingInvite, setIsProcessingInvite] = useState(false);
   const [justLoggedIn, setJustLoggedIn] = useState(false);
   const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
+  // PrivateRoute가 붙여 보낸 원래 목적지(?returnTo=). 초대 수락보다는 뒤, 기본 이동보다는 앞.
+  const returnTo = safeReturnTo(
+    new URLSearchParams(location.search).get("returnTo"),
+  );
 
   // 초대 정보 로드
   useEffect(() => {
@@ -220,15 +239,23 @@ function LoginRoute() {
             "pending_invite_code",
           );
           if (!hasPendingOrgInvite && !hasPendingBoardInvite) {
-            // 보드 목록으로 이동 (TESTER 자동 리다이렉트는 BoardsRoute에서 처리)
-            navigate("/boards");
+            // 원래 가려던 곳이 있으면 그리로, 없으면 보드 목록으로
+            // (TESTER 자동 리다이렉트는 BoardsRoute에서 처리)
+            navigate(returnTo ?? "/boards", { replace: true });
           }
         }
       }
     };
 
     handlePostLogin();
-  }, [isAuthenticated, isLoading, navigate, isProcessingInvite, justLoggedIn]);
+  }, [
+    isAuthenticated,
+    isLoading,
+    navigate,
+    isProcessingInvite,
+    justLoggedIn,
+    returnTo,
+  ]);
 
   if (isLoading || isProcessingInvite) {
     return (

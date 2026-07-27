@@ -45,7 +45,16 @@ public class ReportDispatchService {
     private final WeeklyRollupCollector weeklyRollupCollector;
     private final ReportFileFiler reportFileFiler;
 
-    public record DispatchResult(ReportDeliveryStatus status, String reportId, String message) {
+    /**
+     * @param sentChannelIds 실제로 게시가 성공한 채널들. 즉시 발송이 "테스트 통과"를 대신 채워줄 때
+     *                       실패한 채널까지 통과 처리하지 않도록 성공한 것만 담는다.
+     */
+    public record DispatchResult(ReportDeliveryStatus status, String reportId, String message,
+                                 List<String> sentChannelIds) {
+        public DispatchResult(ReportDeliveryStatus status, String reportId, String message) {
+            this(status, reportId, message, List.of());
+        }
+
         public boolean isSent() {
             return status == ReportDeliveryStatus.SUCCESS || status == ReportDeliveryStatus.PARTIAL;
         }
@@ -123,17 +132,19 @@ public class ReportDispatchService {
         //      보고서 id가 여기서야 생기므로 저장 직후가 가장 이른 시점이다. best-effort.
         fileCollectedMedia(board, report, reportType, period, chunks);
 
-        // 4. 게시 — 1회 재시도
-        boolean published = publishWithRetry(board, config, reportType, content, period, shareToken);
+        // 4. 게시 — 채널마다 1회 재시도. 일부 채널만 실패하면 PARTIAL로 남긴다.
+        ReportSlackPublisher.PublishOutcome outcome =
+                slackPublisher.publish(board, config, reportType, content, period, shareToken);
 
         boolean partial = chunks.stream().anyMatch(c -> !c.success());
-        ReportDeliveryStatus status = !published
+        ReportDeliveryStatus status = !outcome.anySent()
                 ? ReportDeliveryStatus.FAILED
-                : (partial ? ReportDeliveryStatus.PARTIAL : ReportDeliveryStatus.SUCCESS);
+                : (partial || !outcome.allSent() ? ReportDeliveryStatus.PARTIAL : ReportDeliveryStatus.SUCCESS);
 
         persistence.finishLog(logId, board, report, reportType, status,
-                config.getSlackChannelId(), chunks, published ? null : "슬랙 게시 실패");
-        return new DispatchResult(status, report.getId(), null);
+                config.getSlackChannelId(), chunks, outcome.error());
+        return new DispatchResult(status, report.getId(), outcome.error(),
+                outcome.sent().stream().map(ReportSlackPublisher.Target::channelId).toList());
     }
 
     /**
@@ -225,15 +236,6 @@ public class ReportDispatchService {
             case CONFLUENCE -> Boolean.TRUE.equals(config.getSourceConfluenceEnabled());
             case SLACK -> Boolean.TRUE.equals(config.getSourceSlackEnabled());
         };
-    }
-
-    private boolean publishWithRetry(Board board, BoardReportConfig config, ReportType reportType,
-                                     ReportContent content, ReportPeriod period, String shareToken) {
-        if (slackPublisher.publish(board, config, reportType, content, period, shareToken)) {
-            return true;
-        }
-        log.info("슬랙 게시 1차 실패 — 재시도합니다 board={}", board.getId());
-        return slackPublisher.publish(board, config, reportType, content, period, shareToken);
     }
 
     /** 보드 타임존에서 본 발송 시각 */

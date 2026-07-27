@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { taskService } from "../utils/services";
@@ -11,8 +11,11 @@ import { taskService } from "../utils/services";
 export function TaskKeyRedirect() {
   const { taskKey } = useParams<{ taskKey: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t } = useTranslation();
   const [notFound, setNotFound] = useState(false);
+  // 자동 보고서의 체크리스트 딥링크(/t/{key}?checklist=)는 항목 하이라이트까지 이어져야 한다.
+  const checklistItemId = searchParams.get("checklist");
 
   useEffect(() => {
     let cancelled = false;
@@ -25,7 +28,12 @@ export function TaskKeyRedirect() {
       try {
         const { board_id, task_id } = await taskService.resolveKey(taskKey);
         if (cancelled) return;
-        navigate(`/boards/${board_id}?task=${task_id}`, { replace: true });
+        const highlight = checklistItemId
+          ? `&checklist=${encodeURIComponent(checklistItemId)}`
+          : "";
+        navigate(`/boards/${board_id}?task=${task_id}${highlight}`, {
+          replace: true,
+        });
       } catch {
         if (!cancelled) setNotFound(true);
       }
@@ -35,7 +43,7 @@ export function TaskKeyRedirect() {
     return () => {
       cancelled = true;
     };
-  }, [taskKey, navigate]);
+  }, [taskKey, checklistItemId, navigate]);
 
   if (notFound) {
     return (

@@ -37,84 +37,161 @@ public class ReportSlackPublisher {
     private String frontendUrl;
 
     /**
-     * @return 실제로 게시했으면 true. 연결이 없거나 채널이 지정되지 않았으면 false.
+     * 발송 대상 채널 하나.
+     *
+     * @param isDefault 사용자가 채널을 하나도 지정하지 않아 설치 <b>기본 채널</b>로 나가는 경우
      */
-    public boolean publish(Board board, BoardReportConfig config, ReportType reportType,
-                           ReportContent content, ReportPeriod period, String shareToken) {
-        Optional<SlackInstallation> installationOpt = resolveInstallation(board);
-        if (installationOpt.isEmpty()) {
-            log.info("슬랙 연결이 없어 발송을 건너뜁니다 board={}", board.getId());
-            return false;
-        }
-        SlackInstallation installation = installationOpt.get();
+    public record Target(String channelId, String channelName, boolean isDefault) {}
 
-        String channelId = config.getSlackChannelId() != null && !config.getSlackChannelId().isBlank()
-                ? config.getSlackChannelId()
-                : installation.getDefaultChannelId();
-        if (channelId == null || channelId.isBlank()) {
-            log.info("게시할 채널이 지정되지 않았습니다 board={}", board.getId());
-            return false;
+    /**
+     * 게시 결과. 채널 하나가 실패해도 나머지는 그대로 나간다 — 한 채널의 권한 문제로
+     * 팀 전체가 보고서를 못 받는 일이 없게 한다.
+     */
+    public record PublishOutcome(List<Target> sent, List<Target> failed, String error) {
+        public boolean anySent() {
+            return !sent.isEmpty();
         }
 
-        List<Map<String, Object>> blocks = buildBlocks(reportType, content, period, shareToken, board.getId());
-        try {
-            String botToken = slackOAuthService.decryptBotToken(installation);
-            slackApiClient.postMessage(botToken, channelId, blocks);
-            return true;
-        } catch (Exception e) {
-            log.warn("슬랙 보고서 게시 실패 board={} channel={}: {}", board.getId(), channelId, e.getMessage());
-            return false;
+        public boolean allSent() {
+            return failed.isEmpty() && !sent.isEmpty();
         }
     }
 
-    /** 발송 테스트 결과. sent=true면 channelId로 실제 게시에 성공한 것이다. */
-    public record TestOutcome(boolean sent, String channelId, String channelName, String error) {}
+    /**
+     * 켜져 있는 모든 발송 채널에 게시한다. 채널마다 1회 재시도하므로 성공한 채널에 같은 글이
+     * 두 번 올라가지 않는다.
+     */
+    public PublishOutcome publish(Board board, BoardReportConfig config, ReportType reportType,
+                                  ReportContent content, ReportPeriod period, String shareToken) {
+        Optional<SlackInstallation> installationOpt = resolveInstallation(board);
+        if (installationOpt.isEmpty()) {
+            log.info("슬랙 연결이 없어 발송을 건너뜁니다 board={}", board.getId());
+            return new PublishOutcome(List.of(), List.of(), "이 보드에 슬랙이 연결되어 있지 않습니다.");
+        }
+        SlackInstallation installation = installationOpt.get();
 
-    /** 발송에 실제로 쓰일 채널 id (config 지정이 없으면 설치 기본 채널). 연결·채널이 없으면 null. */
-    public String resolveChannelId(Board board, BoardReportConfig config) {
+        List<Target> targets = resolveTargets(board, config);
+        if (targets.isEmpty()) {
+            log.info("게시할 채널이 지정되지 않았습니다 board={}", board.getId());
+            return new PublishOutcome(List.of(), List.of(), "게시할 슬랙 채널이 지정되지 않았습니다.");
+        }
+
+        List<Map<String, Object>> blocks = buildBlocks(reportType, content, period, shareToken, board.getId());
+        String botToken;
+        try {
+            botToken = slackOAuthService.decryptBotToken(installation);
+        } catch (Exception e) {
+            log.warn("슬랙 토큰 복호화 실패 board={}: {}", board.getId(), e.getMessage());
+            return new PublishOutcome(List.of(), targets, "슬랙 인증 정보를 읽지 못했습니다.");
+        }
+
+        List<Target> sent = new ArrayList<>();
+        List<Target> failed = new ArrayList<>();
+        for (Target target : targets) {
+            if (postWithRetry(botToken, target, blocks, board)) {
+                sent.add(target);
+            } else {
+                failed.add(target);
+            }
+        }
+        String error = failed.isEmpty() ? null
+                : "슬랙 게시 실패: " + failed.stream().map(this::label).collect(Collectors.joining(", "));
+        return new PublishOutcome(sent, failed, error);
+    }
+
+    /** 채널 하나에 게시. 첫 시도가 실패하면 한 번만 더 시도한다(그 채널만). */
+    private boolean postWithRetry(String botToken, Target target,
+                                  List<Map<String, Object>> blocks, Board board) {
+        for (int attempt = 1; attempt <= 2; attempt++) {
+            try {
+                slackApiClient.postMessage(botToken, target.channelId(), blocks);
+                return true;
+            } catch (Exception e) {
+                log.warn("슬랙 보고서 게시 실패({}차) board={} channel={}: {}",
+                        attempt, board.getId(), target.channelId(), e.getMessage());
+            }
+        }
+        return false;
+    }
+
+    /** 채널 하나의 테스트 결과. */
+    public record ChannelTestResult(String channelId, String channelName, boolean sent, String error) {}
+
+    /** 발송 테스트 결과 묶음. sent=true면 <b>모든</b> 대상 채널에 게시가 성공한 것이다. */
+    public record TestOutcome(boolean sent, List<ChannelTestResult> results, String error) {}
+
+    /**
+     * 실제 발송에 쓰일 채널 목록. 지정된 채널이 있으면 그대로, 하나도 없으면 설치 기본 채널 하나.
+     * 슬랙 연결이 없거나 기본 채널조차 없으면 빈 목록이다.
+     */
+    public List<Target> resolveTargets(Board board, BoardReportConfig config) {
+        List<Target> explicit = config.getDeliveryChannels().stream()
+                .filter(ch -> ch.getSlackChannelId() != null && !ch.getSlackChannelId().isBlank())
+                .map(ch -> new Target(ch.getSlackChannelId(), ch.getSlackChannelName(), false))
+                .toList();
+        if (!explicit.isEmpty()) {
+            return explicit;
+        }
         return resolveInstallation(board)
-                .map(inst -> {
-                    String c = config.getSlackChannelId();
-                    return (c != null && !c.isBlank()) ? c : inst.getDefaultChannelId();
-                })
-                .filter(c -> c != null && !c.isBlank())
-                .orElse(null);
+                .filter(inst -> inst.getDefaultChannelId() != null && !inst.getDefaultChannelId().isBlank())
+                .map(inst -> List.of(new Target(inst.getDefaultChannelId(), inst.getDefaultChannelName(), true)))
+                .orElseGet(List::of);
     }
 
     /**
      * 자동 예약을 켜기 전에 채널·권한을 검증하는 가벼운 테스트 게시. 보고서 수집·AI를 태우지 않고
      * 확인 메시지 한 장만 보낸다 — 활동이 없는 날에도 "이 채널로 게시가 되는지"를 확실히 가른다.
+     *
+     * @param onlyChannelId 지정하면 그 채널만 테스트한다(목록에서 한 줄만 다시 확인할 때). null이면 전부.
      */
-    public TestOutcome sendTestMessage(Board board, BoardReportConfig config) {
+    public TestOutcome sendTestMessage(Board board, BoardReportConfig config, String onlyChannelId) {
         Optional<SlackInstallation> installationOpt = resolveInstallation(board);
         if (installationOpt.isEmpty()) {
-            return new TestOutcome(false, null, null, "이 보드에 슬랙이 연결되어 있지 않습니다.");
+            return new TestOutcome(false, List.of(), "이 보드에 슬랙이 연결되어 있지 않습니다.");
         }
         SlackInstallation installation = installationOpt.get();
 
-        String channelId = config.getSlackChannelId() != null && !config.getSlackChannelId().isBlank()
-                ? config.getSlackChannelId()
-                : installation.getDefaultChannelId();
-        if (channelId == null || channelId.isBlank()) {
-            return new TestOutcome(false, null, null,
+        List<Target> targets = resolveTargets(board, config).stream()
+                .filter(t -> onlyChannelId == null || onlyChannelId.equals(t.channelId()))
+                .toList();
+        if (targets.isEmpty()) {
+            return new TestOutcome(false, List.of(),
                     "게시할 채널이 지정되지 않았습니다. 발송 채널을 먼저 선택하세요.");
         }
-        String channelName = config.getSlackChannelName() != null && !config.getSlackChannelName().isBlank()
-                ? config.getSlackChannelName()
-                : installation.getDefaultChannelName();
 
         List<Map<String, Object>> blocks = List.of(section(
                 "✅ *BRIDGE 보고서 발송 테스트*\n"
                 + "이 채널로 자동 개발 보고서가 게시됩니다. 이 메시지가 보이면 채널·권한 설정이 정상입니다."));
+        String botToken;
         try {
-            String botToken = slackOAuthService.decryptBotToken(installation);
-            slackApiClient.postMessage(botToken, channelId, blocks);
-            return new TestOutcome(true, channelId, channelName, null);
+            botToken = slackOAuthService.decryptBotToken(installation);
         } catch (Exception e) {
-            log.warn("발송 테스트 실패 board={} channel={}: {}", board.getId(), channelId, e.getMessage());
-            return new TestOutcome(false, channelId, channelName,
-                    "채널에 게시하지 못했습니다. 채널에 MILKYWAY(봇)를 초대했는지 확인하세요.");
+            return new TestOutcome(false, List.of(), "슬랙 인증 정보를 읽지 못했습니다.");
         }
+
+        List<ChannelTestResult> results = new ArrayList<>();
+        for (Target target : targets) {
+            try {
+                slackApiClient.postMessage(botToken, target.channelId(), blocks);
+                results.add(new ChannelTestResult(target.channelId(), target.channelName(), true, null));
+            } catch (Exception e) {
+                log.warn("발송 테스트 실패 board={} channel={}: {}",
+                        board.getId(), target.channelId(), e.getMessage());
+                results.add(new ChannelTestResult(target.channelId(), target.channelName(), false,
+                        "게시하지 못했습니다. 채널에 MILKYWAY(봇)를 초대했는지 확인하세요."));
+            }
+        }
+        boolean allSent = results.stream().allMatch(ChannelTestResult::sent);
+        String error = allSent ? null
+                : results.stream().filter(r -> !r.sent())
+                        .map(r -> "#" + (r.channelName() != null ? r.channelName() : r.channelId()))
+                        .collect(Collectors.joining(", ")) + " 게시에 실패했습니다. 채널에 MILKYWAY(봇)를 초대했는지 확인하세요.";
+        return new TestOutcome(allSent, results, error);
+    }
+
+    private String label(Target target) {
+        return "#" + (target.channelName() != null && !target.channelName().isBlank()
+                ? target.channelName() : target.channelId());
     }
 
     private Optional<SlackInstallation> resolveInstallation(Board board) {
@@ -160,14 +237,23 @@ public class ReportSlackPublisher {
         }
 
         appendSections(blocks, content);
+        appendLateRollup(blocks, content, boardId);
         appendRisks(blocks, content);
 
-        blocks.add(Map.of("type", "actions",
-                "elements", List.of(Map.of(
-                        "type", "button",
-                        "text", Map.of("type", "plain_text", "text", "전체 보고서 보기"),
-                        "url", buildReportUrl(shareToken, boardId),
-                        "style", "primary"))));
+        List<Map<String, Object>> actions = new ArrayList<>();
+        actions.add(Map.of(
+                "type", "button",
+                "text", Map.of("type", "plain_text", "text", "전체 보고서 보기"),
+                "url", buildReportUrl(shareToken, boardId),
+                "style", "primary"));
+        // 지연이 있으면 보고서를 거치지 않고 곧장 처리 화면으로 갈 수 있게 두 번째 버튼을 붙인다.
+        if (lateTotal(content) > 0) {
+            actions.add(Map.of(
+                    "type", "button",
+                    "text", Map.of("type", "plain_text", "text", "지연만 보드에서 보기"),
+                    "url", frontendUrl + "/boards/" + boardId + "?overdue=1"));
+        }
+        blocks.add(Map.of("type", "actions", "elements", actions));
 
         blocks.add(Map.of("type", "context",
                 "elements", List.of(Map.of("type", "mrkdwn",
@@ -244,6 +330,39 @@ public class ReportSlackPublisher {
                     : "";
             blocks.add(section(title + s.getBody()));
         }
+    }
+
+    /** 지연 총량. 담당자별 지연 건수의 합이며, 0이면 지연 관련 블록을 아예 그리지 않는다. */
+    private int lateTotal(ReportContent content) {
+        if (content.getMembers() == null) {
+            return 0;
+        }
+        return content.getMembers().stream()
+                .mapToInt(m -> Math.max(0, m.getLateCount()))
+                .sum();
+    }
+
+    /**
+     * 지연 롤업 — 슬랙에서 "누가 막혔나"를 보고서를 열지 않고도 알게 한다. 담당자는 지연이 많은
+     * 순으로 최대 5명까지 세우고, 나머지는 "외 N명"으로 접는다(모바일 한 줄 유지).
+     */
+    private void appendLateRollup(List<Map<String, Object>> blocks, ReportContent content, String boardId) {
+        int total = lateTotal(content);
+        if (total == 0) {
+            return;
+        }
+        List<ReportContent.Member> holders = content.getMembers().stream()
+                .filter(m -> m.getLateCount() > 0)
+                .sorted(Comparator.comparingInt(ReportContent.Member::getLateCount).reversed())
+                .toList();
+        String names = holders.stream()
+                .limit(5)
+                .map(m -> m.getName() + " " + m.getLateCount())
+                .collect(Collectors.joining(" · "));
+        if (holders.size() > 5) {
+            names += " 외 " + (holders.size() - 5) + "명";
+        }
+        blocks.add(section("⏰ *지연 " + total + "건* · 담당 " + holders.size() + "명\n" + names));
     }
 
     /** 확인이 필요한 것들 — ⚠️로 묶어 버튼 위에 붙인다. 소스 수집 실패 사실도 여기로 들어온다. */

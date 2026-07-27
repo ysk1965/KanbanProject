@@ -24,7 +24,8 @@ import java.util.List;
  *
  * <p>재발송 제한(날짜 단위·12시간 가드)은 두지 않는다 — 예약 시각과 일치하면 같은 날
  * 몇 번이든 발송한다. 다만 인스턴스가 여러 대일 때 <b>같은 분</b>에 동시에 통과해 두 번
- * 나가는 것만 Redis 분산 락(분 단위)으로 막는다.
+ * 나가는 것만 DB 슬롯 클레임(분 단위, {@link ReportDispatchLock})으로 막는다 —
+ * Redis가 꺼진 환경에서도 동작하도록 DB 원자적 INSERT에 기댄다.
  */
 @Slf4j
 @Component
@@ -49,6 +50,12 @@ public class ReportDispatchScheduler {
         int cleaned = persistence.failStaleRunning(STALE_RUNNING_MINUTES);
         if (cleaned > 0) {
             log.warn("방치된 RUNNING 발송 로그 {}건을 FAILED로 정리했습니다", cleaned);
+        }
+
+        // 성공 발송이 남긴 오래된 슬롯 행을 걷어낸다 — 발송 자체엔 영향 없는 청소.
+        int cleanedSlots = dispatchLock.cleanupStale();
+        if (cleanedSlots > 0) {
+            log.debug("오래된 발송 슬롯 {}건을 정리했습니다", cleanedSlots);
         }
 
         List<BoardReportConfig> daily = configRepository.findEnabledDailyByUtcTime(hour, minute);

@@ -248,6 +248,12 @@ export function KanbanBoardPage() {
   const urlView = searchParams.get("view") as ViewMode | null;
   const urlTab = searchParams.get("tab");
   const urlTaskId = searchParams.get("task");
+  // 자동 보고서의 체크리스트 딥링크(?task=&checklist=) — 태스크를 열면서 그 항목을 하이라이트한다.
+  const urlChecklistItemId = searchParams.get("checklist");
+  // 보고서 구성원 상세의 "보드에서 보기" — 담당자 이름으로 보드를 필터한 상태로 연다.
+  const urlMemberName = searchParams.get("member");
+  // 보고서의 지연 진입점(?overdue=1) — 마감 지난 카드만 남긴 상태로 연다.
+  const urlOverdueOnly = searchParams.get("overdue") === "1";
   const pendingDeepLinkTaskId = useRef<string | null>(urlTaskId);
   const milestoneIdRef = useRef<string>("");
   // WebSocket 핸들러(useCallback [])에서 최신 tasks 접근용 (stale closure 방지)
@@ -422,10 +428,20 @@ export function KanbanBoardPage() {
 
   // URL 쿼리 파라미터 소비 후 제거 (뒤로가기 시 다시 트리거 방지)
   useEffect(() => {
-    if (urlView || urlTab || urlTaskId) {
+    if (
+      urlView ||
+      urlTab ||
+      urlTaskId ||
+      urlChecklistItemId ||
+      urlMemberName ||
+      urlOverdueOnly
+    ) {
       searchParams.delete("view");
       searchParams.delete("tab");
       searchParams.delete("task");
+      searchParams.delete("checklist");
+      searchParams.delete("member");
+      searchParams.delete("overdue");
       setSearchParams(searchParams, { replace: true });
     }
   }, []);
@@ -629,9 +645,11 @@ export function KanbanBoardPage() {
   // 모달에 표시되는 도메인 데이터 상태 (모달 wiring 외부에서도 사용 → 페이지에 유지)
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  // 초기값은 ?checklist= 딥링크. 모달이 열리는 순간 그 항목으로 스크롤·하이라이트되고,
+  // 모달을 닫을 때 비워진다(onCloseTask). 딥링크가 없으면 평소처럼 null.
   const [highlightChecklistItemId, setHighlightChecklistItemId] = useState<
     string | null
-  >(null);
+  >(urlChecklistItemId);
   const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
   const [meetingRefreshKey, setMeetingRefreshKey] = useState(0);
   const [meetingNavigateDate, setMeetingNavigateDate] = useState<Date | null>(
@@ -651,11 +669,12 @@ export function KanbanBoardPage() {
   );
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     keyword: "",
-    members: [],
+    // ?member= 딥링크(보고서 → 보드)면 그 담당자로 필터한 상태에서 시작한다.
+    members: urlMemberName ? [urlMemberName] : [],
     features: [],
     tags: [],
     cardStatus: [],
-    dueDate: [],
+    dueDate: urlOverdueOnly ? ["overdue"] : [],
   });
 
   // Feature 칩 선택 상태 (null = 전체, [] = 없음, [ids] = 개별 선택)
