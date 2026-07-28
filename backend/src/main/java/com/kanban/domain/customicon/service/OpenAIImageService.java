@@ -3,6 +3,8 @@ package com.kanban.domain.customicon.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.customicon.dto.CustomIconResponse;
+import com.kanban.global.config.AiApiKeyResolver;
+import com.kanban.global.config.AiProviderType;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
@@ -28,9 +30,18 @@ public class OpenAIImageService {
 
     private final RestTemplate aiRestTemplate;
     private final ObjectMapper objectMapper;
+    private final AiApiKeyResolver apiKeyResolver;
 
-    @Value("${ai.openai.api-key:}")
-    private String apiKey;
+    /**
+     * 이미지 생성·편집은 Claude에 대응 API가 없어 {@code ai.provider} 값과 무관하게 항상 OpenAI로 간다.
+     * (판독에 쓰는 Vision은 Claude로 옮길 수 있지만, 같은 파이프라인 안이라 함께 둔다.)
+     *
+     * <p>부팅 시 {@code @Value}로 한 번 바인딩하지 않고 호출 시점에 해석한다 — 그래야 관리자가
+     * 대시보드에서 키를 교체했을 때 재배포 없이 반영된다.
+     */
+    private String apiKey() {
+        return apiKeyResolver.resolveKey(AiProviderType.OPENAI);
+    }
 
     @Value("${app.customicon.vision-model:gpt-4o}")
     private String visionModel;
@@ -42,9 +53,11 @@ public class OpenAIImageService {
     private String imageSize;
 
     public OpenAIImageService(@Qualifier("aiRestTemplate") RestTemplate aiRestTemplate,
-                              ObjectMapper objectMapper) {
+                              ObjectMapper objectMapper,
+                              AiApiKeyResolver apiKeyResolver) {
         this.aiRestTemplate = aiRestTemplate;
         this.objectMapper = objectMapper;
+        this.apiKeyResolver = apiKeyResolver;
     }
 
     /**
@@ -85,7 +98,7 @@ public class OpenAIImageService {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(apiKey);
+            headers.setBearerAuth(apiKey());
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             log.info("OpenAI Vision API 스타일 분석 호출, 모델: {}", visionModel);
@@ -132,7 +145,7 @@ public class OpenAIImageService {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(apiKey);
+            headers.setBearerAuth(apiKey());
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             log.info("OpenAI Images API 스프라이트 시트 생성 호출, 모델: {}", imageModel);
@@ -187,7 +200,7 @@ public class OpenAIImageService {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-            headers.setBearerAuth(apiKey);
+            headers.setBearerAuth(apiKey());
 
             HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
             log.info("OpenAI Images Edit API 스프라이트 시트 생성 호출 (레퍼런스 이미지 포함), 모델: {}", imageModel);
@@ -212,7 +225,8 @@ public class OpenAIImageService {
     }
 
     private void validateApiKey() {
-        if (apiKey == null || apiKey.isBlank()) {
+        String key = apiKey();
+        if (key == null || key.isBlank()) {
             throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
         }
     }

@@ -94,8 +94,12 @@ spring.servlet.multipart:
   location: ${MULTIPART_LOCATION:/var/tmp/spring-multipart}
 
 # AI Provider ("claude" or "openai")
+#
+# 텍스트·추론 계열 전부가 이 값 하나로 갈린다. 음성(Whisper STT / TTS)과 이미지 생성은
+# Claude에 대응 API가 없어 이 값과 무관하게 항상 OpenAI로 가므로, provider=claude여도
+# OPENAI_API_KEY는 계속 필요하다.
 ai:
-  provider: ${AI_PROVIDER:openai}
+  provider: ${AI_PROVIDER:claude}
   claude:
     api-key: ${CLAUDE_API_KEY:}
     model:

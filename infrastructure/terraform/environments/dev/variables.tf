@@ -83,9 +83,9 @@ variable "google_client_secret" {
 }
 
 variable "ai_provider" {
-  description = "AI provider selection (claude | openai)"
+  description = "AI provider selection (claude | openai). 텍스트·추론 계열만 갈린다 — 음성/이미지는 항상 OpenAI."
   type        = string
-  default     = "openai"
+  default     = "claude"
 }
 
 variable "sentry_dsn" {

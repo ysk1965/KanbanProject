@@ -7,11 +7,12 @@ import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
 import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
+import com.kanban.global.config.AiApiKeyResolver;
+import com.kanban.global.config.AiProviderType;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
@@ -38,9 +39,17 @@ public class DiaryVoiceService {
     private final DiaryAIService diaryAIService;
     private final AiCreditService aiCreditService;
     private final AiUsageLogRepository aiUsageLogRepository;
+    private final AiApiKeyResolver apiKeyResolver;
 
-    @Value("${ai.openai.api-key:}")
-    private String openaiApiKey;
+    /**
+     * STT(Whisper)와 TTS 모두 Claude에 대응 API가 없어 {@code ai.provider} 값과 무관하게 항상 OpenAI로 간다.
+     *
+     * <p>부팅 시 {@code @Value}로 한 번 바인딩하지 않고 호출 시점에 해석한다 — 그래야 관리자가
+     * 대시보드에서 키를 교체했을 때 재배포 없이 반영된다.
+     */
+    private String openaiApiKey() {
+        return apiKeyResolver.resolveKey(AiProviderType.OPENAI);
+    }
 
     private static final String WHISPER_API_URL = "https://api.openai.com/v1/audio/transcriptions";
     private static final String TTS_API_URL = "https://api.openai.com/v1/audio/speech";
@@ -61,7 +70,7 @@ public class DiaryVoiceService {
         if (!entry.isOwner(userId)) {
             throw new BusinessException(ErrorCode.DIARY_ACCESS_DENIED);
         }
-        if (openaiApiKey == null || openaiApiKey.isBlank()) {
+        if (openaiApiKey() == null || openaiApiKey().isBlank()) {
             throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
         }
         if (audioFile.isEmpty()) {
@@ -133,7 +142,7 @@ public class DiaryVoiceService {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-            headers.setBearerAuth(openaiApiKey);
+            headers.setBearerAuth(openaiApiKey());
 
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("file", new ByteArrayResource(audioBytes) {
@@ -181,7 +190,7 @@ public class DiaryVoiceService {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(openaiApiKey);
+            headers.setBearerAuth(openaiApiKey());
 
             Map<String, Object> requestBody = Map.of(
                     "model", TTS_MODEL,
