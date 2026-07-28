@@ -9,17 +9,20 @@ import java.util.List;
 /**
  * 보드별로 <b>선택 가능한 리포트 AI 모델</b> 목록.
  *
- * <p>{@code AIProvider} bean이 시작 시 {@code ai.provider} 값으로 하나만 선택되고(openai 또는 claude),
- * 그 프로바이더의 API 키만 설정돼 있다. 그래서 모델 선택은 <b>활성 프로바이더 계열 안에서만</b> 허용한다 —
- * 예컨대 provider=openai인데 claude 모델 id를 보내면 OpenAI API가 거절한다.
+ * <p>{@code ClaudeAIProvider}는 항상 빈으로 등록되고 {@code OpenAIProvider}는 {@code ai.provider=openai}
+ * 일 때만 등록된다. 범용 {@code AIProvider} 주입 지점이 실제로 어느 쪽으로 해석되는지가 {@code ai.provider}로
+ * 갈리므로, 모델 선택도 <b>활성 프로바이더 계열 안에서만</b> 허용한다 — 예컨대 provider=claude인데
+ * gpt 모델 id를 보내면 Anthropic API가 거절한다.
  *
  * <p>보드 설정의 {@code aiModel}이 {@code null}이면 서버 기본(티어별 {@code @Value})을 그대로 쓰고,
- * 목록에 있는 id를 고르면 그 모델로 리포트 생성 호출 전체를 덮어쓴다.
+ * 목록에 있는 id를 고르면 그 모델로 리포트 생성 호출 전체를 덮어쓴다. 프로바이더를 바꾼 뒤 남아있는
+ * 옛 모델 id는 {@link #isAllowed}에서 걸러져 호출부가 티어 기본으로 폴백한다.
  */
 @Component
 public class ReportModelCatalog {
 
-    @Value("${ai.provider:openai}")
+    /** 기본값은 {@code application.yml}의 {@code ai.provider}와 반드시 같아야 한다 — 어긋나면 화면 드롭다운과 실제 호출 프로바이더가 갈린다. */
+    @Value("${ai.provider:claude}")
     private String provider;
 
     /** "기본"이 실제로 쓰는 모델을 표시용으로 보여주기 위해 티어 기본값을 읽어둔다(주간=team 티어 대표). */

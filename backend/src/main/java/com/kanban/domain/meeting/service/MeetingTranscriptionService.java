@@ -12,6 +12,8 @@ import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
 import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.global.config.AIProvider;
 import com.kanban.global.config.AIResponse;
+import com.kanban.global.config.AiApiKeyResolver;
+import com.kanban.global.config.AiProviderType;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
@@ -48,6 +50,7 @@ public class MeetingTranscriptionService {
     private final ObjectMapper objectMapper;
     private final AiUsageLogRepository aiUsageLogRepository;
     private final MeetingTranscriptionAsyncService asyncService;
+    private final AiApiKeyResolver apiKeyResolver;
 
     public MeetingTranscriptionService(
             MeetingRepository meetingRepository,
@@ -57,7 +60,8 @@ public class MeetingTranscriptionService {
             AIProvider aiProvider,
             ObjectMapper objectMapper,
             AiUsageLogRepository aiUsageLogRepository,
-            @Lazy MeetingTranscriptionAsyncService asyncService) {
+            @Lazy MeetingTranscriptionAsyncService asyncService,
+            AiApiKeyResolver apiKeyResolver) {
         this.meetingRepository = meetingRepository;
         this.boardService = boardService;
         this.aiCreditService = aiCreditService;
@@ -66,10 +70,19 @@ public class MeetingTranscriptionService {
         this.objectMapper = objectMapper;
         this.aiUsageLogRepository = aiUsageLogRepository;
         this.asyncService = asyncService;
+        this.apiKeyResolver = apiKeyResolver;
     }
 
-    @Value("${ai.openai.api-key:}")
-    private String openaiApiKey;
+    /**
+     * 전사(Whisper)는 Claude에 대응 API가 없어 {@code ai.provider} 값과 무관하게 항상 OpenAI로 간다.
+     *
+     * <p>부팅 시 {@code @Value}로 한 번 바인딩하지 않고 호출 시점에 해석한다 — 그래야 관리자가
+     * 대시보드에서 키를 교체했을 때 요약/화자분리와 마찬가지로 재배포 없이 반영된다. 재시도 루프
+     * 안에서도 매번 해석하므로 교체 직후 진행 중이던 전사도 새 키로 이어진다.
+     */
+    private String openaiApiKey() {
+        return apiKeyResolver.resolveKey(AiProviderType.OPENAI);
+    }
 
     @Value("${app.file.video.ffmpeg-path:/usr/bin/ffmpeg}")
     private String ffmpegPath;
@@ -134,7 +147,7 @@ public class MeetingTranscriptionService {
         // --- Validation (synchronous, within HTTP request) ---
         boardService.checkMemberOrAbove(boardId, userId);
 
-        if (openaiApiKey == null || openaiApiKey.isBlank()) {
+        if (openaiApiKey() == null || openaiApiKey().isBlank()) {
             throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
         }
         if (audioFile.isEmpty()) {
@@ -482,7 +495,7 @@ public class MeetingTranscriptionService {
             try {
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-                headers.setBearerAuth(openaiApiKey);
+                headers.setBearerAuth(openaiApiKey());
 
                 MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
                 body.add("file", new ByteArrayResource(audioBytes) {

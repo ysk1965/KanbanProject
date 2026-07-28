@@ -73,7 +73,7 @@ public class AiUsageLog {
     private static final java.util.Map<String, double[]> MODEL_PRICING = java.util.Map.of(
             "gpt-4o-mini", new double[]{0.15, 0.60},
             "gpt-4o", new double[]{2.50, 10.00},
-            "claude-haiku-4-5-20251001", new double[]{0.80, 4.00},
+            "claude-haiku-4-5-20251001", new double[]{1.00, 5.00},
             "claude-sonnet-4-5-20250929", new double[]{3.00, 15.00},
             "claude-opus-4-8", new double[]{5.00, 25.00},
             "claude-haiku-4-5", new double[]{1.00, 5.00}
