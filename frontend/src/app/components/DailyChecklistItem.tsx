@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { DailyChecklistItem as DailyChecklistItemType } from "../types";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { DailyChecklistBadge } from "./DailyChecklistBadge";
 
 interface DailyChecklistItemProps {
   item: DailyChecklistItemType;
@@ -24,6 +25,7 @@ export function DailyChecklistItem({
   compact = false,
   canRemove = true,
 }: DailyChecklistItemProps) {
+  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
@@ -133,15 +135,23 @@ export function DailyChecklistItem({
 
         {/* 내용 */}
         <div className="flex-1 min-w-0">
-          <p
-            className={`${compact ? "text-xs" : "text-sm"} font-medium ${
-              optimisticCompleted
-                ? "text-slate-400 line-through"
-                : "text-foreground"
-            } truncate`}
-          >
-            {item.title}
-          </p>
+          <div className="flex items-start gap-1.5">
+            <p
+              className={`flex-1 ${compact ? "text-xs" : "text-sm"} font-medium ${
+                optimisticCompleted
+                  ? "text-slate-400 line-through"
+                  : "text-foreground"
+              } truncate`}
+            >
+              {item.title}
+            </p>
+            {/* 이 항목이 왜 이 날짜에 있는지 (D-Day / 지연 / 당겨옴 / 기간) */}
+            <DailyChecklistBadge
+              item={{ ...item, completed: optimisticCompleted }}
+              referenceDate={item.assigned_date}
+              compact={compact}
+            />
+          </div>
 
           {/* Task 정보 */}
           {item.task && (
@@ -172,7 +182,8 @@ export function DailyChecklistItem({
             onClick={handleRemove}
             disabled={isRemoving}
             className={`flex-shrink-0 ${compact ? "p-0.5" : "p-1.5"} rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors`}
-            aria-label="삭제"
+            aria-label={t("dailySchedule.removeFromToday")}
+            title={t("dailySchedule.removeFromToday")}
           >
             <X className={compact ? "h-3 w-3" : "h-4 w-4"} />
           </button>

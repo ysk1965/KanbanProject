@@ -48,6 +48,23 @@ public class DailyChecklistRequest {
     }
 
     /**
+     * 오늘의 체크리스트에서 항목 빼기.
+     * 원본 체크리스트는 건드리지 않고 해당 날짜에만 제외한다.
+     */
+    @Getter
+    @NoArgsConstructor
+    public static class Exclude {
+        @NotBlank(message = "체크리스트 아이템 ID는 필수입니다")
+        private String checklistItemId;
+
+        @NotNull(message = "제외할 날짜는 필수입니다")
+        private LocalDate assignedDate;
+
+        /** 생략하면 체크리스트 항목의 담당자를 사용한다 */
+        private String assigneeId;
+    }
+
+    /**
      * 데일리 체크리스트 아이템 순서 변경
      */
     @Getter

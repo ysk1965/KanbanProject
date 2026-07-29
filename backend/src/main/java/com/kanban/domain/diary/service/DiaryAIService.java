@@ -2,8 +2,7 @@ package com.kanban.domain.diary.service;
 
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.dailychecklist.DailyChecklist;
-import com.kanban.domain.dailychecklist.DailyChecklistRepository;
+import com.kanban.domain.dailychecklist.service.DailyChecklistResolver;
 import com.kanban.domain.diary.DiaryEntry;
 import com.kanban.domain.diary.DiaryMessage;
 import com.kanban.domain.diary.DiaryMessageRepository;
@@ -47,7 +46,7 @@ public class DiaryAIService {
     private final TaskRepository taskRepository;
     private final MeetingRepository meetingRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
-    private final DailyChecklistRepository dailyChecklistRepository;
+    private final DailyChecklistResolver dailyChecklistResolver;
     private final AiUsageLogRepository aiUsageLogRepository;
     private final AiCreditService aiCreditService;
 
@@ -398,20 +397,18 @@ public class DiaryAIService {
             context.append("\n");
         }
 
-        // 2-4. 보드 데일리 체크리스트
-        List<DailyChecklist> allChecklists = new ArrayList<>();
+        // 2-4. 보드 오늘의 체크리스트 (항목 기간에서 파생된 것 + 핀 - 제외)
+        List<DailyChecklistResolver.ResolvedItem> allChecklists = new ArrayList<>();
         for (Board board : boards) {
-            allChecklists.addAll(dailyChecklistRepository
-                    .findByBoardIdAndAssignedDateAndAssigneeIdWithDetailsOrderByPositionAsc(board.getId(), date, userId));
+            allChecklists.addAll(dailyChecklistResolver.resolveForAssignee(board.getId(), date, userId));
         }
         if (!allChecklists.isEmpty()) {
             context.append(ko ? "[협업 보드 - 오늘 체크리스트]\n" : "[Board - Today's Checklist]\n");
-            for (DailyChecklist dc : allChecklists) {
-                boolean completed = dc.getChecklistItem() != null && Boolean.TRUE.equals(dc.getChecklistItem().getIsCompleted());
-                context.append(completed ? (ko ? "- [완료] " : "- [Done] ") : (ko ? "- [미완료] " : "- [Pending] "));
-                context.append(dc.getTitle());
-                if (dc.getChecklistItem() != null && dc.getChecklistItem().getTask() != null) {
-                    context.append(" (").append(dc.getChecklistItem().getTask().getTitle()).append(")");
+            for (DailyChecklistResolver.ResolvedItem item : allChecklists) {
+                context.append(item.completed() ? (ko ? "- [완료] " : "- [Done] ") : (ko ? "- [미완료] " : "- [Pending] "));
+                context.append(item.title());
+                if (item.item() != null && item.item().getTask() != null) {
+                    context.append(" (").append(item.item().getTask().getTitle()).append(")");
                 }
                 context.append("\n");
             }

@@ -2,6 +2,8 @@ package com.kanban.domain.schedule.dto;
 
 import com.kanban.domain.board.Board;
 import com.kanban.domain.checklist.ChecklistItem;
+import com.kanban.domain.dailychecklist.DailySource;
+import com.kanban.domain.dailychecklist.service.DailyChecklistResolver;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.meeting.dto.MeetingResponse;
@@ -85,6 +87,38 @@ public class ScheduleResponse {
         private Boolean completed;
         private TaskInfo task;
         private FeatureInfo feature;
+
+        /** 항목의 기간 — 뱃지(기간/D-Day/지연) 표시용 */
+        private LocalDate startDate;
+        private LocalDate dueDate;
+
+        /** 이 항목이 오늘 목록에 있는 이유 */
+        private DailySource source;
+
+        /** 사용자가 명시적으로 이 날짜로 당겨온 항목인지 (순서 변경·핀 해제 가능 여부) */
+        private Boolean pinned;
+
+        public static DailyChecklistItemInfo of(DailyChecklistResolver.ResolvedItem resolved) {
+            ChecklistItem checklistItem = resolved.item();
+            Task task = checklistItem != null ? checklistItem.getTask() : null;
+            Feature feature = task != null ? task.getFeature() : null;
+
+            return DailyChecklistItemInfo.builder()
+                    .id(resolved.id())
+                    .checklistItemId(resolved.checklistItemId())
+                    .title(resolved.title())
+                    .assignee(UserInfo.of(resolved.assignee()))
+                    .assignedDate(resolved.assignedDate())
+                    .position(resolved.position())
+                    .completed(resolved.completed())
+                    .task(task != null ? TaskInfo.of(task) : null)
+                    .feature(feature != null ? FeatureInfo.of(feature) : null)
+                    .startDate(resolved.startDate())
+                    .dueDate(resolved.dueDate())
+                    .source(resolved.source())
+                    .pinned(resolved.pinned())
+                    .build();
+        }
     }
 
     @Getter

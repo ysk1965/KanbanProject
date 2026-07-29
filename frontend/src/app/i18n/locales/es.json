@@ -781,7 +781,16 @@
     "presetMeal": "Comida",
     "customLabel": "Personalizado",
     "customPlaceholder": "Ingrese nombre del horario",
-    "customColor": "Color"
+    "customColor": "Color",
+    "badgeDDay": "Hoy vence",
+    "badgeOverdue": "{{count}} d de retraso",
+    "badgePinned": "Adelantado",
+    "removeFromToday": "Quitar de hoy",
+    "addToToday": "Traer a hoy",
+    "segmentToday": "{{date}}",
+    "segmentOverdue": "Atrasado",
+    "segmentOthers": "Otros",
+    "noOverdueItems": "No hay elementos atrasados"
   },
   "schedule": {
     "subTab": {

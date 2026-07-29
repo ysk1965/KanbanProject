@@ -11,9 +11,10 @@ import {
   CheckSquare,
   Layers,
   Plus,
-  ClipboardList,
   Coffee,
   Flag,
+  Pin,
+  AlertTriangle,
 } from "lucide-react";
 import { format, parseISO, isToday as isDateToday } from "date-fns";
 import { getDDay } from "../utils/dateUtils";
@@ -52,6 +53,8 @@ interface TimeblockItemRowProps {
   milestoneColor?: string | null;
   hideMilestone?: boolean;
   dueDate?: string | null;
+  /** 사용자가 이 날짜로 직접 당겨온 항목 (기간과 무관하게 오늘 목록에 있음) */
+  pinned?: boolean;
   onClick: () => void;
 }
 
@@ -71,6 +74,7 @@ function TimeblockItemRow({
   milestoneColor,
   hideMilestone,
   dueDate,
+  pinned,
   onClick,
 }: TimeblockItemRowProps) {
   const { t } = useTranslation();
@@ -104,6 +108,15 @@ function TimeblockItemRow({
           <span className="flex-1 min-w-0 truncate text-sm text-foreground">
             {title}
           </span>
+          {pinned && (
+            <span
+              className="flex-shrink-0 inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-md bg-slate-500/15 text-slate-400 whitespace-nowrap"
+              title={t("dailySchedule.badgePinned")}
+            >
+              <Pin className="w-3 h-3" />
+              {t("dailySchedule.badgePinned")}
+            </span>
+          )}
           <span
             className={`flex-shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-md tabular-nums whitespace-nowrap ${dateTone}`}
           >
@@ -221,11 +234,19 @@ export function ChecklistCreateModal({
   >([]);
   const [isLoadingToday, setIsLoadingToday] = useState(true);
 
-  // 보드 체크리스트 항목 (기존 항목)
+  // 보드 체크리스트 항목 (오늘 목록에 없는 나머지)
   const [boardItems, setBoardItems] = useState<BoardChecklistItemResponse[]>(
     [],
   );
   const [isLoadingBoardItems, setIsLoadingBoardItems] = useState(true);
+
+  // 목록 세그먼트 — 오늘 / 지연 / 다른 항목.
+  // 예전에는 "오늘의 체크리스트"와 "기존 항목"이 별도 섹션이라, 오늘 마감인 항목이
+  // 아래쪽 "기존 항목"에 떠 있는 모순이 보였다. 이제 하나의 목록을 필터로 나눈다.
+  const [segment, setSegment] = useState<"today" | "overdue" | "others">(
+    "today",
+  );
+  const didAutoSelectSegment = useRef(false);
 
   // 기존 항목: 마일스톤 그룹 (C2)
   const [milestones, setMilestones] = useState<MilestoneSimpleResponse[]>([]);
@@ -292,6 +313,7 @@ export function ChecklistCreateModal({
     loadTimeblockData();
   }, [boardId, assigneeId, targetDate]);
 
+
   // 마일스톤 진행률/기간 로드 (기존 항목 그룹 헤더용)
   useEffect(() => {
     const loadMilestones = async () => {
@@ -311,6 +333,27 @@ export function ChecklistCreateModal({
     milestones.forEach((m) => map.set(m.id, m));
     return map;
   }, [milestones]);
+
+  // 오늘의 체크리스트를 "오늘 할 것"과 "지연"으로 나눈다.
+  // 서버가 이미 파생 + 핀 - 제외를 병합해줬으므로 여기서는 표시용 분류만 한다.
+  const todayItems = useMemo(
+    () => todayChecklists.filter((item) => item.source !== "OVERDUE"),
+    [todayChecklists],
+  );
+  const overdueItems = useMemo(
+    () => todayChecklists.filter((item) => item.source === "OVERDUE"),
+    [todayChecklists],
+  );
+
+  // 오늘/지연이 모두 비어 있으면 곧바로 "다른 항목"을 펼쳐준다.
+  // (빈 목록만 보여주고 사용자가 탭을 찾아 누르게 만들지 않는다)
+  useEffect(() => {
+    if (isLoadingToday || didAutoSelectSegment.current) return;
+    didAutoSelectSegment.current = true;
+    if (todayItems.length === 0) {
+      setSegment(overdueItems.length > 0 ? "overdue" : "others");
+    }
+  }, [isLoadingToday, todayItems.length, overdueItems.length]);
 
   // 기존 항목 필터링: 완료 항목 제외, 오늘의 체크리스트에 이미 있는 항목 제외
   // 정렬: 마감일(due_date) 오름차순, 일정 없는 항목은 맨 아래
@@ -608,64 +651,118 @@ export function ChecklistCreateModal({
         {/* Checklist Tab */}
         {activeTab === "checklist" && (
           <>
-            {/* 오늘의 체크리스트 (먼저 표시) */}
+            {/* 오늘의 체크리스트 = 내 체크리스트를 이 날짜로 거른 결과.
+                예전처럼 "오늘 목록"과 "기존 항목"을 따로 두지 않고,
+                하나의 목록을 세그먼트로 나눠 보여준다. */}
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                <CheckSquare className="inline h-4 w-4 mr-1 text-bridge-accent" />
-                {t("dailySchedule.selectFromToday", { date: dateLabel })}
-              </label>
-              <div className="border border-foreground/10 rounded-xl max-h-[180px] overflow-y-auto bg-bridge-surface">
-                {isLoadingToday ? (
-                  <div className="px-4 py-6 text-slate-400 flex items-center justify-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {t("common.loading")}
-                  </div>
-                ) : todayChecklists.length === 0 ? (
-                  <div className="px-4 py-6 text-slate-400 text-sm text-center">
-                    {t("dailySchedule.noTodayChecklist", { date: dateLabel })}
-                  </div>
-                ) : (
-                  <div className="divide-y divide-white/5">
-                    {todayChecklists.map((item) => (
-                      <TimeblockItemRow
-                        key={item.id}
-                        title={item.title}
-                        featureTitle={item.feature?.title}
-                        featureColor={item.feature?.color}
-                        taskTitle={item.task?.title}
-                        blockName={item.block?.name}
-                        blockColor={item.block?.color}
-                        milestoneTitle={item.milestone?.title}
-                        milestoneColor={
-                          resolveMilestoneColor(
-                            item.milestone?.id,
-                            milestoneColorMap,
-                          ).hex
-                        }
-                        dueDate={item.due_date}
-                        onClick={() => onSelectExisting(item.checklist_item_id)}
-                      />
-                    ))}
-                  </div>
-                )}
+              <div className="flex gap-1.5 mb-2">
+                {[
+                  {
+                    id: "today" as const,
+                    label: t("dailySchedule.segmentToday", { date: dateLabel }),
+                    count: todayItems.length,
+                  },
+                  {
+                    id: "overdue" as const,
+                    label: t("dailySchedule.segmentOverdue"),
+                    count: overdueItems.length,
+                  },
+                  {
+                    id: "others" as const,
+                    label: t("dailySchedule.segmentOthers"),
+                    count: filteredBoardItems.length,
+                  },
+                ].map((seg) => (
+                  <button
+                    key={seg.id}
+                    type="button"
+                    onClick={() => setSegment(seg.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border ${
+                      segment === seg.id
+                        ? "bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30"
+                        : "bg-foreground/[0.03] text-slate-400 border-transparent hover:bg-foreground/5"
+                    }`}
+                  >
+                    {seg.id === "overdue" && seg.count > 0 && (
+                      <AlertTriangle className="w-3 h-3 text-rose-400" />
+                    )}
+                    {seg.label}
+                    <span className="tabular-nums opacity-70">{seg.count}</span>
+                  </button>
+                ))}
               </div>
-            </div>
 
-            {/* 기존 항목에서 선택 — 시점 범위 + 마일스톤 그룹 (C2) */}
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                <ClipboardList className="inline h-4 w-4 mr-1 text-bridge-secondary" />
-                {t("dailySchedule.selectFromBoard")}
-              </label>
-
-              <div className="border border-foreground/10 rounded-xl max-h-[360px] overflow-y-auto bg-bridge-surface">
-                {isLoadingBoardItems ? (
+              <div className="border border-foreground/10 rounded-xl max-h-[420px] overflow-y-auto bg-bridge-surface">
+                {(segment === "others" ? isLoadingBoardItems : isLoadingToday) ? (
                   <div className="px-4 py-6 text-slate-400 flex items-center justify-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin text-bridge-accent" />
                     {t("common.loading")}
                   </div>
+                ) : segment === "today" ? (
+                  todayItems.length === 0 ? (
+                    <div className="px-4 py-6 text-slate-500 text-xs text-center">
+                      {t("dailySchedule.noTodayChecklist", { date: dateLabel })}
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-white/5">
+                      {todayItems.map((item) => (
+                        <TimeblockItemRow
+                          key={item.id}
+                          title={item.title}
+                          featureTitle={item.feature?.title}
+                          featureColor={item.feature?.color}
+                          taskTitle={item.task?.title}
+                          blockName={item.block?.name}
+                          blockColor={item.block?.color}
+                          milestoneTitle={item.milestone?.title}
+                          milestoneColor={
+                            resolveMilestoneColor(
+                              item.milestone?.id,
+                              milestoneColorMap,
+                            ).hex
+                          }
+                          dueDate={item.due_date}
+                          pinned={item.source === "PINNED"}
+                          onClick={() =>
+                            onSelectExisting(item.checklist_item_id)
+                          }
+                        />
+                      ))}
+                    </div>
+                  )
+                ) : segment === "overdue" ? (
+                  overdueItems.length === 0 ? (
+                    <div className="px-4 py-6 text-slate-500 text-xs text-center">
+                      {t("dailySchedule.noOverdueItems")}
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-white/5">
+                      {overdueItems.map((item) => (
+                        <TimeblockItemRow
+                          key={item.id}
+                          title={item.title}
+                          featureTitle={item.feature?.title}
+                          featureColor={item.feature?.color}
+                          taskTitle={item.task?.title}
+                          blockName={item.block?.name}
+                          blockColor={item.block?.color}
+                          milestoneTitle={item.milestone?.title}
+                          milestoneColor={
+                            resolveMilestoneColor(
+                              item.milestone?.id,
+                              milestoneColorMap,
+                            ).hex
+                          }
+                          dueDate={item.due_date}
+                          onClick={() =>
+                            onSelectExisting(item.checklist_item_id)
+                          }
+                        />
+                      ))}
+                    </div>
+                  )
                 ) : filteredBoardItems.length === 0 ? (
-                  <div className="px-4 py-6 text-slate-400 text-sm text-center">
+                  <div className="px-4 py-6 text-slate-500 text-xs text-center">
                     {t("dailySchedule.noBoardItems")}
                   </div>
                 ) : (

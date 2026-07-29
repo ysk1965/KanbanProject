@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>워크로드 새 업무 추가 — 개선안</title>
+<style>
+  :root {
+    --bridge-dark: #191f2d;
+    --bridge-obsidian: #151B28;
+    --bridge-accent: #6366F1;
+    --bridge-secondary: #2DD4BF;
+    --bridge-surface: #1e2a42;
+    --bridge-border: #384d6e;
+    --fg: rgba(248, 250, 252, 0.98);
+    --slate-400: #94a3b8;
+    --slate-500: #64748b;
+    --slate-600: #475569;
+    --amber: #f59e0b;
+    --rose: #f43f5e;
+    --emerald: #10b981;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d1117;
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Noto Sans KR", sans-serif;
+    padding: 40px 20px 120px;
+    display: flex; flex-direction: column; align-items: center; gap: 28px;
+    line-height: 1.6;
+  }
+  .wrap { width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 28px; }
+
+  h1.doc-title { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+  .doc-sub { font-size: 13px; color: var(--slate-500); }
+
+  section {
+    background: var(--bridge-obsidian);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .accent-line { height: 2px; background: linear-gradient(90deg, rgba(99,102,241,0.6), rgba(45,212,191,0.4), transparent); }
+  .sec-head {
+    padding: 18px 24px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  }
+  .sec-head h2 { font-size: 16px; font-weight: 700; }
+  .sec-head .num {
+    font-size: 12px; font-weight: 700; color: var(--bridge-accent);
+    background: rgba(99,102,241,0.15); padding: 2px 8px; border-radius: 999px;
+  }
+  .sec-head .hint { font-size: 12px; color: var(--slate-500); }
+  .sec-body { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+  p, li { font-size: 13.5px; color: var(--slate-400); }
+  p b, li b, td b { color: var(--fg); font-weight: 700; }
+  ul, ol { margin-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; background: rgba(255,255,255,0.06);
+    padding: 1px 6px; border-radius: 6px; color: #c7d2fe;
+  }
+  h3 { font-size: 13px; font-weight: 700; color: var(--fg); margin-top: 4px; }
+  .label { font-size: 11.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--slate-500); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); vertical-align: top; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--slate-500); font-weight: 700; }
+  td { color: var(--slate-400); }
+  tr:last-child td { border-bottom: none; }
+
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+
+  .card {
+    background: var(--bridge-dark);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px; padding: 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .card.bad { border-color: rgba(244,63,94,0.35); }
+  .card.good { border-color: rgba(16,185,129,0.35); }
+  .card h4 { font-size: 13px; font-weight: 700; }
+  .card .k { font-size: 12px; color: var(--slate-500); }
+
+  .badge { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; display: inline-block; }
+  .b-accent { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+  .b-teal { background: rgba(45,212,191,0.15); color: #5eead4; }
+  .b-rose { background: rgba(244,63,94,0.15); color: #fda4af; }
+  .b-amber { background: rgba(245,158,11,0.15); color: #fcd34d; }
+  .b-emerald { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+  .b-slate { background: rgba(148,163,184,0.14); color: var(--slate-400); }
+
+  /* ── 모달 목업 ── */
+  .mock {
+    width: 100%; max-width: 420px;
+    background: var(--bridge-obsidian);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  }
+  .mock .m-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px 12px; border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .mock .m-head .t { font-size: 13px; font-weight: 700; flex: 1; }
+  .mock .m-head .x { color: var(--slate-500); font-size: 14px; }
+  .mock .m-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .mock .m-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 18px; border-top: 1px solid rgba(255,255,255,0.08);
+    font-size: 11.5px; color: var(--slate-500);
+  }
+  .mock .btn-primary {
+    padding: 8px 18px; border-radius: 12px; font-size: 11.5px; font-weight: 700;
+    color: #fff; background: var(--bridge-accent);
+  }
+  .mock .btn-ghost {
+    padding: 7px 12px; border-radius: 10px; font-size: 11.5px; font-weight: 700;
+    color: var(--slate-400); background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.10);
+  }
+  .fld-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--slate-500); margin-bottom: 6px; }
+  .input {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 12px; padding: 11px 14px; font-size: 13px; color: var(--slate-500);
+  }
+  .input.focus { border-color: transparent; box-shadow: 0 0 0 2px rgba(99,102,241,0.5); color: var(--fg); }
+  .input.big { padding: 13px 14px; font-size: 14px; }
+  .select {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 12px; padding: 9px 12px; font-size: 12px; color: var(--fg);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .select .chev { margin-left: auto; color: var(--slate-500); font-size: 10px; }
+  .hint-line { font-size: 11.5px; color: var(--slate-500); margin-top: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 999px; flex: none; }
+
+  /* 배치 추천 칩 */
+  .sugg {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 12px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  }
+  .sugg.sel { border-color: rgba(99,102,241,0.6); background: rgba(99,102,241,0.12); }
+  .sugg .txt { flex: 1; min-width: 0; }
+  .sugg .p1 { font-size: 12.5px; font-weight: 700; color: var(--fg); }
+  .sugg .p2 { font-size: 11px; color: var(--slate-500); }
+  .sugg .why { font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; flex: none; }
+
+  /* breadcrumb 경로 프리뷰 */
+  .crumb {
+    display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+    padding: 9px 12px; border-radius: 12px;
+    background: rgba(99,102,241,0.10); border: 1px solid rgba(99,102,241,0.30);
+    font-size: 11.5px;
+  }
+  .crumb .seg { color: var(--slate-400); }
+  .crumb .seg.cur { color: var(--fg); font-weight: 700; }
+  .crumb .sep { color: var(--slate-600); }
+  .crumb .edit { margin-left: auto; font-size: 11px; font-weight: 700; color: #a5b4fc; }
+
+  /* 인라인 간트 목업 */
+  .gantt {
+    background: var(--bridge-dark); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .g-row { display: flex; align-items: center; gap: 10px; height: 34px; }
+  .g-name { width: 88px; flex: none; font-size: 11.5px; color: var(--slate-400); }
+  .g-track { flex: 1; position: relative; height: 26px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); }
+  .g-bar {
+    position: absolute; top: 3px; height: 20px; border-radius: 7px;
+    font-size: 10.5px; font-weight: 700; color: #fff;
+    display: flex; align-items: center; padding: 0 8px; overflow: hidden; white-space: nowrap;
+  }
+  .g-bar.ghost { background: rgba(99,102,241,0.22); border: 1px dashed rgba(99,102,241,0.8); color: #c7d2fe; }
+  .g-bar.inline-input { background: rgba(21,27,40,0.95); border: 1px solid var(--bridge-accent); color: var(--slate-500); box-shadow: 0 0 0 2px rgba(99,102,241,0.35); }
+
+  .toast {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bridge-obsidian); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px; padding: 10px 14px; font-size: 12px; color: var(--slate-400);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+  }
+  .toast b { color: var(--fg); }
+  .toast .act { margin-left: auto; font-size: 11.5px; font-weight: 700; color: #a5b4fc; }
+
+  .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+  .flow .step { padding: 5px 11px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); color: var(--slate-400); }
+  .flow .step.hl { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.4); color: #c7d2fe; font-weight: 700; }
+  .flow .arw { color: var(--slate-600); }
+
+  .callout {
+    border-left: 3px solid var(--bridge-accent);
+    background: rgba(99,102,241,0.07);
+    padding: 12px 16px; border-radius: 0 12px 12px 0; font-size: 13px; color: var(--slate-400);
+  }
+  .callout.warn { border-left-color: var(--amber); background: rgba(245,158,11,0.07); }
+  .callout.ok { border-left-color: var(--emerald); background: rgba(16,185,129,0.07); }
+
+  .mock-cap { font-size: 11.5px; color: var(--slate-500); text-align: center; margin-top: 8px; }
+  .mock-col { display: flex; flex-direction: column; align-items: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1 class="doc-title">워크로드 「새 업무 추가」 개선안</h1>
+    <p class="doc-sub">
+      대상: <code>ScheduleResourceView</code> 드래그 → <code>WorkloadCreateModal</code> ·
+      2026-07-29 · 문제: 피쳐/태스크/체크리스트 중 어디에 넣어야 하는지 판단 부담
+    </p>
+  </header>
+
+  <!-- ─────────────────────────── 1. 문제 진단 ─────────────────────────── -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">01</span><h2>지금 무엇이 어려운가</h2>
+      <span class="hint">현재 모달은 "무엇을 할지"보다 "어디에 넣을지"를 먼저 묻는다</span>
+    </div>
+    <div class="sec-body">
+
+      <div class="flow">
+        <span class="step">간트 드래그</span><span class="arw">→</span>
+        <span class="step hl">마일스톤?</span><span class="arw">→</span>
+        <span class="step hl">Feature?</span><span class="arw">→</span>
+        <span class="step hl">Task?</span><span class="arw">→</span>
+        <span class="step">제목 입력</span><span class="arw">→</span>
+        <span class="step">추가</span>
+      </div>
+      <p>
+        사용자가 아는 것은 <b>"○○ 작업을 이 기간에 넣고 싶다"</b> 하나뿐인데, 모달은 그걸 적기 전에
+        <b>계층 3개를 먼저 결정</b>하라고 요구한다. 게다가 실제로 만들어지는 것은
+        <b>체크리스트 항목</b>인데, 모달 어디에도 그 단어가 없어서 자신이 무엇을 만드는지조차 알 수 없다.
+      </p>
+
+      <div class="grid2">
+        <div class="card bad">
+          <h4><span class="badge b-rose">P1</span> 순서가 거꾸로다</h4>
+          <p class="k">제목 입력창이 맨 아래에 있다. 자동 포커스는 제목에 가 있는데 시선은 위 드롭다운 3개에 붙잡힌다.
+          "미분류로 그냥 넣을까?"를 매번 고민하게 만든다.</p>
+        </div>
+        <div class="card bad">
+          <h4><span class="badge b-rose">P2</span> 용어가 4겹인데 설명이 없다</h4>
+          <p class="k">마일스톤 · Feature · Task · (숨겨진) 체크리스트. 계층 관계를 모르는 멤버는
+          Feature와 Task 차이를 모달 안에서 배울 방법이 없다.</p>
+        </div>
+        <div class="card bad">
+          <h4><span class="badge b-rose">P3</span> 전부 "(선택사항)" = 아무 안내도 아니다</h4>
+          <p class="k">세 필드 모두 선택사항이라 <b>무엇이 권장인지</b> 알 수 없다. 선택지는 많고 기본값은 없는,
+          전형적인 결정 피로 구조.</p>
+        </div>
+        <div class="card bad">
+          <h4><span class="badge b-rose">P4</span> "미분류에 추가됩니다"의 결과를 모른다</h4>
+          <p class="k">인박스에 쌓이면 나중에 누가 정리하는지, 스프린트/리포트에 잡히는지 알 수 없어
+          불안해서 오히려 아무거나 고르게 된다.</p>
+        </div>
+        <div class="card bad">
+          <h4><span class="badge b-rose">P5</span> 검색이 없다</h4>
+          <p class="k">Feature/Task 드롭다운이 단순 목록이다. 보드가 커지면 스크롤로 찾아야 하고,
+          Task 목록은 Feature를 고른 뒤에야 네트워크 요청으로 나타나 폼이 튄다.</p>
+        </div>
+        <div class="card bad">
+          <h4><span class="badge b-rose">P6</span> 맥락을 하나도 안 쓴다</h4>
+          <p class="k">"누구의 행에서 · 어떤 기간을" 드래그했는지 이미 알고 있다. 그 사람이 지금 진행 중인 Task,
+          최근에 넣던 Feature — 서버가 답을 알고 있는데 사용자에게 되묻는다.</p>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <b>핵심 진단</b> — 이건 "드롭다운을 예쁘게 만드는" 문제가 아니라
+        <b>결정 시점을 뒤로 미룰 수 있느냐</b>의 문제다. 배치(placement)는 생성 시점에 반드시 필요한 정보가 아니다.
+        서버는 이미 <code>feature_id</code>/<code>task_id</code>가 없으면 인박스로 보내고, Feature만 있으면 Task를 자동 생성한다
+        (<code>ChecklistService.resolveTargetTask</code>). <b>기술적으로는 이미 "나중에 정해도 되는" 구조</b>인데 UI만 그걸 숨기고 있다.
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── 2. 설계 원칙 ─────────────────────────── -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">02</span><h2>설계 원칙 5</h2>
+    </div>
+    <div class="sec-body">
+      <table>
+        <tr><th style="width:180px">원칙</th><th>내용</th></tr>
+        <tr><td><b>① 내용 우선</b></td><td>제목을 먼저 받는다. 배치는 제목 아래에서 <b>추천</b>으로 제시한다. 사용자가 첫 화면에서 결정해야 할 것은 0개.</td></tr>
+        <tr><td><b>② 결정 대신 확인</b></td><td>드래그 맥락(담당자·기간·마일스톤)으로 배치 후보를 서버가 랭킹해서 준다. 사용자는 <b>고르는</b> 게 아니라 <b>맞는지 확인</b>만 한다.</td></tr>
+        <tr><td><b>③ 계층은 결과로 보여준다</b></td><td>선택 UI를 3개 두는 대신, <b>최종 경로 한 줄</b>(마일스톤 › Feature › Task › 내 업무)을 항상 보여준다. 계층 학습이 부수 효과로 일어난다.</td></tr>
+        <tr><td><b>④ 인박스는 실패가 아니라 정식 경로</b></td><td>"미분류에 추가됩니다"(불안) → "인박스에 담아두고 나중에 정리"(의도적 선택). 되돌릴 수 있음을 명시.</td></tr>
+        <tr><td><b>⑤ 고급 경로는 접어둔다</b></td><td>마일스톤/Feature/Task 직접 선택은 <b>[경로 변경]</b> 안에서만. 통합 검색 하나로 3계층을 동시에 찾는다.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── 3. 개선안 비교 ─────────────────────────── -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">03</span><h2>개선안 3종 비교</h2>
+      <span class="hint">A는 즉시 적용 · B는 A의 하위 구성요소 · C는 대량 편집용</span>
+    </div>
+    <div class="sec-body">
+      <div class="grid3">
+        <div class="card good">
+          <h4>A. 스마트 배치 <span class="badge b-emerald">추천</span></h4>
+          <p class="k">제목 먼저 + 배치 추천 칩 3개 + 경로 프리뷰 한 줄. 상세 선택기는 [변경] 뒤로.</p>
+          <p class="k"><b>결정 수</b> 3 → <b>0~1</b><br/><b>공수</b> FE 中 · BE 小(추천 API 1개)</p>
+        </div>
+        <div class="card">
+          <h4>B. 통합 검색 (Command Palette)</h4>
+          <p class="k">필드 하나에서 Feature·Task를 함께 검색. 결과가 계층으로 표시되고, 없으면 "새로 만들기"가 같은 리스트에 뜬다.</p>
+          <p class="k"><b>결정 수</b> 3 → 1<br/><b>공수</b> FE 中 · BE 小(검색 API 1개)<br/>→ <b>A의 [경로 변경] 화면으로 채택</b></p>
+        </div>
+        <div class="card">
+          <h4>C. 3열 컬럼 브라우저</h4>
+          <p class="k">마일스톤 | Feature | Task 를 좌→우 3열로. 계층은 가장 명확하지만 모달이 커지고 모바일에서 무너진다.</p>
+          <p class="k"><b>결정 수</b> 3 → 3(단, 시각적)<br/><b>공수</b> FE 大<br/>→ <b>보류</b> (대량 정리용 별도 화면에 적합)</p>
+        </div>
+      </div>
+
+      <div class="callout ok">
+        <b>결론</b> — <b>A를 본 플로우로 채택하고, A의 [경로 변경] 내부를 B로 구현</b>한다.
+        여기에 <b>0-클릭 경로</b>(§5 인라인 퀵애드)를 더해 "그냥 빨리 넣고 싶다"는 케이스를 모달 없이 처리한다.
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── 4. 추천안 UI ─────────────────────────── -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">04</span><h2>추천안 A — 화면 상세</h2>
+      <span class="hint">기본 상태 → 추천 선택 → 경로 변경(통합 검색)</span>
+    </div>
+    <div class="sec-body">
+
+      <div class="grid3" style="align-items:start">
+
+        <!-- 4-1 기본 상태 -->
+        <div class="mock-col">
+          <div class="mock">
+            <div class="accent-line"></div>
+            <div class="m-head">
+              <span style="color:var(--bridge-accent)">＋</span>
+              <span class="t">새 업무 · 유성근 · 7/29–8/2</span>
+              <span class="x">✕</span>
+            </div>
+            <div class="m-body">
+              <div>
+                <div class="fld-label">무슨 일인가요?</div>
+                <div class="input big focus">결제 실패 로그 수집 스크립트</div>
+              </div>
+
+              <div>
+                <div class="fld-label">어디에 넣을까요</div>
+                <div style="display:flex;flex-direction:column;gap:7px">
+                  <div class="sugg sel">
+                    <span class="dot" style="background:#6366F1"></span>
+                    <span class="txt">
+                      <span class="p1">결제 QA</span>
+                      <span class="p2">4.테스트런칭 › 결제 개편</span>
+                    </span>
+                    <span class="why b-emerald">진행 중</span>
+                  </div>
+                  <div class="sugg">
+                    <span class="dot" style="background:#2DD4BF"></span>
+                    <span class="txt">
+                      <span class="p1">로그 파이프라인</span>
+                      <span class="p2">4.테스트런칭 › 데이터 인프라</span>
+                    </span>
+                    <span class="why b-accent">최근 사용</span>
+                  </div>
+                  <div class="sugg">
+                    <span class="dot" style="background:#f59e0b"></span>
+                    <span class="txt">
+                      <span class="p1">결제 개편</span>
+                      <span class="p2">4.테스트런칭 · Task 자동 생성</span>
+                    </span>
+                    <span class="why b-amber">이번 마일스톤</span>
+                  </div>
+                  <div class="sugg">
+                    <span class="dot" style="background:#475569"></span>
+                    <span class="txt">
+                      <span class="p1">인박스에 담아두기</span>
+                      <span class="p2">나중에 아무 때나 옮길 수 있어요</span>
+                    </span>
+                    <span class="why b-slate">기본</span>
+                  </div>
+                </div>
+                <div class="hint-line">＋ 직접 고르기 / 새로 만들기</div>
+              </div>
+            </div>
+            <div class="m-foot">
+              <span>Esc 취소 · ⏎ 추가</span>
+              <span class="btn-primary">추가</span>
+            </div>
+          </div>
+          <p class="mock-cap">① 기본 — 제목 하나만 쓰면 끝. 배치는 이미 골라져 있다</p>
+        </div>
+
+        <!-- 4-2 선택 후 -->
+        <div class="mock-col">
+          <div class="mock">
+            <div class="accent-line"></div>
+            <div class="m-head">
+              <span style="color:var(--bridge-accent)">＋</span>
+              <span class="t">새 업무 · 유성근 · 7/29–8/2</span>
+              <span class="x">✕</span>
+            </div>
+            <div class="m-body">
+              <div>
+                <div class="fld-label">무슨 일인가요?</div>
+                <div class="input big focus">결제 실패 로그 수집 스크립트</div>
+              </div>
+
+              <div>
+                <div class="fld-label">저장 위치</div>
+                <div class="crumb">
+                  <span class="seg">4.테스트런칭</span><span class="sep">›</span>
+                  <span class="seg">결제 개편</span><span class="sep">›</span>
+                  <span class="seg">결제 QA</span><span class="sep">›</span>
+                  <span class="seg cur">이 업무</span>
+                  <span class="edit">변경</span>
+                </div>
+                <div class="hint-line">체크리스트 항목으로 <b>결제 QA</b> 아래에 들어갑니다</div>
+              </div>
+
+              <div>
+                <div class="fld-label">기간</div>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <div class="select" style="flex:1">2026-07-29</div>
+                  <span style="color:var(--slate-500);font-size:12px">~</span>
+                  <div class="select" style="flex:1">2026-08-02</div>
+                </div>
+              </div>
+            </div>
+            <div class="m-foot">
+              <span>Esc 취소 · ⏎ 추가</span>
+              <span class="btn-primary">추가</span>
+            </div>
+          </div>
+          <p class="mock-cap">② 확정 — 경로가 <b>한 줄</b>로 보인다. 계층을 자연스럽게 학습</p>
+        </div>
+
+        <!-- 4-3 경로 변경 -->
+        <div class="mock-col">
+          <div class="mock">
+            <div class="accent-line"></div>
+            <div class="m-head">
+              <span style="color:var(--bridge-accent)">🔍</span>
+              <span class="t">저장 위치 고르기</span>
+              <span class="x">✕</span>
+            </div>
+            <div class="m-body">
+              <div class="input focus" style="padding:10px 12px;font-size:12.5px">결제</div>
+
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div class="label" style="font-size:10px">Feature</div>
+                <div class="sugg">
+                  <span class="dot" style="background:#6366F1"></span>
+                  <span class="txt"><span class="p1">결제 개편</span><span class="p2">4.테스트런칭 · Task 6개</span></span>
+                </div>
+                <div class="label" style="font-size:10px;margin-top:6px">Task</div>
+                <div class="sugg sel">
+                  <span class="dot" style="background:#6366F1"></span>
+                  <span class="txt"><span class="p1">결제 QA</span><span class="p2">결제 개편 · 진행 중 · 담당 유성근</span></span>
+                </div>
+                <div class="sugg">
+                  <span class="dot" style="background:#6366F1"></span>
+                  <span class="txt"><span class="p1">결제 실패 케이스 정리</span><span class="p2">결제 개편 · 대기</span></span>
+                </div>
+                <div class="sugg" style="border-style:dashed">
+                  <span style="color:var(--bridge-secondary);font-size:13px">＋</span>
+                  <span class="txt"><span class="p1" style="color:var(--bridge-secondary)">"결제" 새 Feature 만들기</span></span>
+                </div>
+              </div>
+            </div>
+            <div class="m-foot">
+              <span>↑↓ 이동 · ⏎ 선택</span>
+              <span class="btn-ghost">뒤로</span>
+            </div>
+          </div>
+          <p class="mock-cap">③ 변경 — 3계층을 <b>검색 한 칸</b>으로. 신규 생성도 같은 목록에서</p>
+        </div>
+      </div>
+
+      <h3>바뀌는 것 — 요약</h3>
+      <table>
+        <tr><th style="width:26%">항목</th><th style="width:37%">현재</th><th>개선</th></tr>
+        <tr><td>필드 순서</td><td>마일스톤 → Feature → Task → 제목</td><td><b>제목 → 배치 추천</b> (기간은 접힘/보조)</td></tr>
+        <tr><td>필수 결정</td><td>사실상 3개 (전부 "선택사항"이라 더 헷갈림)</td><td><b>0개</b> — 추천 1번이 미리 선택됨</td></tr>
+        <tr><td>계층 표현</td><td>드롭다운 3개 (관계 안 보임)</td><td><b>경로 한 줄</b> 마일스톤 › Feature › Task › 이 업무</td></tr>
+        <tr><td>탐색</td><td>스크롤 목록, Task는 Feature 선택 후 로딩</td><td><b>통합 검색</b> 1칸, Feature/Task 동시 검색 + 인라인 생성</td></tr>
+        <tr><td>인박스</td><td>"미분류에 추가됩니다"</td><td><b>"인박스에 담아두기 — 나중에 옮길 수 있어요"</b> + 정식 선택지로 승격</td></tr>
+        <tr><td>모달 높이</td><td>필드 4개 + 조건부 확장(폼이 튐)</td><td>고정 높이. 조건부 확장 제거</td></tr>
+        <tr><td>담당자/기간</td><td>본문에 없음(드래그 값 암묵 사용)</td><td>헤더에 <b>유성근 · 7/29–8/2</b> 로 명시(수정 가능)</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── 5. 0-클릭 경로 ─────────────────────────── -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">05</span><h2>0-클릭 경로 — 인라인 퀵애드</h2>
+      <span class="hint">"빨리 하나 꽂아두고 싶다"를 모달 없이</span>
+    </div>
+    <div class="sec-body">
+      <p>
+        드래그를 놓으면 <b>모달이 아니라 그 자리 바(bar)에서 바로 입력</b>이 시작된다.
+        제목을 치고 <code>⏎</code> 하면 생성 완료 — 배치는 인박스. 배치를 지금 정하고 싶으면 <code>⇥ Tab</code>으로 §4 모달을 연다.
+      </p>
+
+      <div class="grid2" style="align-items:start">
+        <div class="gantt">
+          <div class="g-row">
+            <span class="g-name">유성근</span>
+            <span class="g-track">
+              <span class="g-bar" style="left:4%;width:26%;background:#6366F1">결제 QA</span>
+              <span class="g-bar inline-input" style="left:38%;width:44%">업무 제목 입력… <span style="color:var(--slate-600)">⏎ 추가 · ⇥ 위치 지정</span></span>
+            </span>
+          </div>
+          <div class="g-row">
+            <span class="g-name">김민지</span>
+            <span class="g-track">
+              <span class="g-bar" style="left:14%;width:38%;background:#2DD4BF">로그 파이프라인</span>
+            </span>
+          </div>
+          <div class="g-row">
+            <span class="g-name">미배정</span>
+            <span class="g-track">
+              <span class="g-bar ghost" style="left:52%;width:24%">＋ 드래그해서 추가</span>
+            </span>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="toast">
+            <span style="color:var(--emerald)">✓</span>
+            <span><b>인박스</b>에 추가됨 — 결제 실패 로그 수집 스크립트</span>
+            <span class="act">위치 지정</span>
+          </div>
+          <p class="k" style="font-size:12.5px;color:var(--slate-500)">
+            생성 직후 토스트에서 <b>[위치 지정]</b>을 누르면 §4-③ 통합 검색이 바로 열린다.
+            → <b>결정을 생성 이후로 미루는</b> 구조. 인박스가 쌓여도 워크로드 하단
+            <b>미배치 레일</b>(이미 구현됨)에서 드래그로 정리할 수 있다.
+          </p>
+          <div class="callout">
+            <b>두 경로 요약</b><br/>
+            빠른 등록 → <b>드래그 · 타이핑 · ⏎</b> (결정 0개)<br/>
+            제대로 등록 → <b>드래그 · 타이핑 · ⇥ · 추천 확인 · ⏎</b> (결정 0~1개)
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── 6. 추천 로직 ─────────────────────────── -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">06</span><h2>배치 추천 로직</h2>
+      <span class="hint">신규 API 1개 — 상위 3건 + 인박스</span>
+    </div>
+    <div class="sec-body">
+      <p><code>GET /api/v1/boards/{boardId}/workload/placement-suggestions?assignee_id&contractor_id&start_date&due_date</code></p>
+
+      <table>
+        <tr><th style="width:52px">순위</th><th style="width:150px">신호</th><th>규칙</th><th style="width:110px">뱃지</th></tr>
+        <tr><td><b>1</b></td><td>진행 중 Task</td><td>같은 담당자에게 배정된 Task 중 상태 <code>IN_PROGRESS</code> 이고 기간이 드래그 구간과 겹치는 것 (겹침 일수 내림차순)</td><td><span class="badge b-emerald">진행 중</span></td></tr>
+        <tr><td><b>2</b></td><td>최근 사용</td><td>같은 담당자가 최근 14일 내 체크리스트를 추가한 Task (최신순, 최대 2건)</td><td><span class="badge b-accent">최근 사용</span></td></tr>
+        <tr><td><b>3</b></td><td>이번 마일스톤</td><td>드래그 시작일을 포함하는 마일스톤(최단 구간 우선)의 Feature 중 해당 담당자 Task 보유 수 상위 → Task는 자동 생성</td><td><span class="badge b-amber">이번 마일스톤</span></td></tr>
+        <tr><td><b>4</b></td><td>보드 최근</td><td>위로 3건이 안 차면 보드 전체에서 최근 활동한 Feature로 채움</td><td><span class="badge b-slate">최근 활동</span></td></tr>
+        <tr><td><b>—</b></td><td>인박스</td><td>항상 마지막 고정. 후보가 0건이면 <b>인박스가 기본 선택</b></td><td><span class="badge b-slate">기본</span></td></tr>
+      </table>
+
+      <div class="callout">
+        <b>기본 선택 규칙</b> — 1순위 후보가 있으면 그것을 미리 선택(pre-select)한다.
+        없으면 <b>인박스</b>를 선택한 상태로 연다. <b>어떤 경우에도 "선택 안 됨" 상태로 열리지 않는다.</b>
+      </div>
+
+      <h3>응답 형태 (snake_case)</h3>
+      <table>
+        <tr><th style="width:190px">필드</th><th>설명</th></tr>
+        <tr><td><code>suggestions[].kind</code></td><td><code>TASK</code> | <code>FEATURE</code> | <code>INBOX</code> — FEATURE면 서버가 Task 자동 생성</td></tr>
+        <tr><td><code>suggestions[].task_id / feature_id</code></td><td>그대로 <code>POST /checklist-items/from-workload</code> 에 전달</td></tr>
+        <tr><td><code>suggestions[].path</code></td><td><code>{milestone_title, feature_title, feature_color, task_title}</code> — 경로 한 줄 렌더용</td></tr>
+        <tr><td><code>suggestions[].reason</code></td><td><code>IN_PROGRESS</code> | <code>RECENT</code> | <code>CURRENT_MILESTONE</code> | <code>BOARD_RECENT</code> — FE가 뱃지 문구로 매핑</td></tr>
+      </table>
+
+      <div class="callout ok">
+        <b>기존 생성 API는 그대로 쓴다.</b> <code>ChecklistService.resolveTargetTask</code> 가 이미
+        task_id → feature_id → new_feature_title → 인박스 순으로 처리하므로 <b>백엔드 생성 로직 변경 없음</b>.
+        추가되는 것은 <b>조회용 추천 API 1개</b>와 <b>Feature/Task 통합 검색 API 1개</b>뿐이다.
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── 7. 마이크로카피 ─────────────────────────── -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">07</span><h2>마이크로카피 정비</h2>
+      <span class="hint">사용자에게 내부 개념(체크리스트/미분류)을 강요하지 않는다</span>
+    </div>
+    <div class="sec-body">
+      <table>
+        <tr><th style="width:34%">현재</th><th style="width:34%">개선</th><th>이유</th></tr>
+        <tr><td>새 업무 추가</td><td><b>새 업무 · 유성근 · 7/29–8/2</b></td><td>맥락(누구·언제)을 제목에 노출 → 잘못된 행에 만드는 실수 방지</td></tr>
+        <tr><td>항목 제목</td><td><b>무슨 일인가요?</b></td><td>"항목"은 내부 용어. 질문형이 입력을 유도</td></tr>
+        <tr><td>마일스톤 (선택사항)</td><td>— 제거 (경로 변경 안으로)</td><td>마일스톤은 Feature를 통해 자동 결정됨. 별도 선택 불필요</td></tr>
+        <tr><td>FEATURE (선택사항)</td><td><b>어디에 넣을까요</b> (추천 목록)</td><td>영문 도메인 용어 대신 행동을 묻는다</td></tr>
+        <tr><td>Task (선택사항) / 자동 생성</td><td>추천 칩 부제로 흡수 · 필요 시 검색</td><td>"자동 생성"은 무슨 일이 일어나는지 불명확</td></tr>
+        <tr><td>미분류에 추가됩니다</td><td><b>인박스에 담아두기 — 나중에 아무 때나 옮길 수 있어요</b></td><td>되돌릴 수 있음을 알려야 미루기를 선택할 수 있다</td></tr>
+        <tr><td>(없음)</td><td><b>체크리스트 항목으로 「결제 QA」 아래에 들어갑니다</b></td><td>결과를 한 문장으로 예고 → 계층 학습</td></tr>
+        <tr><td>Esc 취소</td><td><b>Esc 취소 · ⏎ 추가</b></td><td>키보드만으로 끝낼 수 있음을 알림</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── 8. 구현 계획 ─────────────────────────── -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">08</span><h2>구현 계획</h2>
+      <span class="hint">3단계 — 각 단계가 독립적으로 배포 가능</span>
+    </div>
+    <div class="sec-body">
+
+      <h3>Step 1 — 모달 재배열 (BE 변경 없음) <span class="badge b-emerald">즉시</span></h3>
+      <ul>
+        <li>제목 입력을 최상단으로 이동, 자동 포커스 유지</li>
+        <li>마일스톤·Feature·Task 드롭다운 3개를 <b>경로 한 줄 + [변경]</b>으로 접기</li>
+        <li>마이크로카피 §7 전면 반영 (<code>i18n/locales/*.json</code> — <code>schedule.workloadCreate.*</code>)</li>
+        <li>헤더에 담당자·기간 표기</li>
+        <li>대상: <code>frontend/src/app/components/schedule/WorkloadCreateModal.tsx</code></li>
+      </ul>
+
+      <h3>Step 2 — 통합 검색 + 추천 <span class="badge b-accent">본편</span></h3>
+      <ul>
+        <li>BE: <code>GET /boards/{id}/workload/placement-suggestions</code> (§6)</li>
+        <li>BE: <code>GET /boards/{id}/placement-search?q=</code> — Feature/Task 동시 검색</li>
+        <li>FE: 추천 칩 목록 + [변경] → 검색 팔레트(↑↓/⏎ 키보드 내비게이션)</li>
+        <li>FE: <code>utils/api.ts</code> · <code>utils/services.ts</code> 에 API 추가</li>
+      </ul>
+
+      <h3>Step 3 — 인라인 퀵애드 <span class="badge b-teal">확장</span></h3>
+      <ul>
+        <li><code>ScheduleResourceView</code>: <code>pendingCreate</code> 시 모달 대신 <b>바 내부 인라인 인풋</b> 렌더</li>
+        <li><code>⏎</code> = 인박스로 즉시 생성 / <code>⇥</code> = 모달 승격 / <code>Esc</code> = 취소</li>
+        <li>생성 후 토스트 + [위치 지정] 액션</li>
+      </ul>
+
+      <table style="margin-top:6px">
+        <tr><th style="width:60px">Step</th><th style="width:120px">범위</th><th>주요 파일</th></tr>
+        <tr><td><b>1</b></td><td>FE only</td><td><code>WorkloadCreateModal.tsx</code>, <code>i18n/locales/*.json</code></td></tr>
+        <tr><td><b>2</b></td><td>FE + BE</td><td><code>WorkloadCreateModal.tsx</code>, <code>utils/api.ts</code> / BE <code>BoardChecklistController</code>·<code>ChecklistService</code>(조회 메서드 추가), <code>TaskRepository</code>·<code>FeatureRepository</code> 쿼리</td></tr>
+        <tr><td><b>3</b></td><td>FE only</td><td><code>ScheduleResourceView.tsx</code></td></tr>
+      </table>
+
+      <h3>검증 지표</h3>
+      <ul>
+        <li><b>드래그 → 생성 완료까지 걸리는 시간</b> (목표: 중앙값 절반)</li>
+        <li><b>모달 이탈률</b> — 열고 나서 추가하지 않고 닫은 비율</li>
+        <li><b>인박스 유입 비율</b> — 줄어들면 추천이 잘 맞는 것. 늘어나되 정리율이 높으면 그것도 성공</li>
+        <li><b>[변경] 클릭률</b> — 20% 미만이면 추천 랭킹이 충분히 정확</li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="doc-sub" style="text-align:center">
+    BRIDGE 디자인 시스템 v2.0.0 토큰 기준 · 목업은 실제 컴포넌트가 아닌 정적 재현입니다
+  </p>
+</div>
+</body>
+</html>

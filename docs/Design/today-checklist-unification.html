@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>오늘의 체크리스트 개념 통합 — 개선안</title>
+<style>
+  :root {
+    --bridge-dark: #191f2d;
+    --bridge-obsidian: #151B28;
+    --bridge-accent: #6366F1;
+    --bridge-secondary: #2DD4BF;
+    --bridge-surface: #1e2a42;
+    --bridge-border: #384d6e;
+    --fg: rgba(248, 250, 252, 0.98);
+    --slate-400: #94a3b8;
+    --slate-500: #64748b;
+    --slate-600: #475569;
+    --amber: #f59e0b;
+    --rose: #f43f5e;
+    --emerald: #10b981;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d1117;
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Noto Sans KR", sans-serif;
+    padding: 40px 20px 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+    line-height: 1.6;
+  }
+  .wrap { width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 28px; }
+
+  h1.doc-title { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+  .doc-sub { font-size: 13px; color: var(--slate-500); }
+
+  section {
+    background: var(--bridge-obsidian);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .accent-line { height: 2px; background: linear-gradient(90deg, rgba(99,102,241,0.6), rgba(45,212,191,0.4), transparent); }
+  .sec-head {
+    padding: 18px 24px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  }
+  .sec-head h2 { font-size: 16px; font-weight: 700; }
+  .sec-head .num {
+    font-size: 12px; font-weight: 700; color: var(--bridge-accent);
+    background: rgba(99,102,241,0.15); padding: 2px 8px; border-radius: 999px;
+  }
+  .sec-head .hint { font-size: 12px; color: var(--slate-500); }
+  .sec-body { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+  p, li { font-size: 13.5px; color: var(--slate-400); }
+  p b, li b, td b { color: var(--fg); font-weight: 700; }
+  ul, ol { margin-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; background: rgba(255,255,255,0.06);
+    padding: 1px 6px; border-radius: 6px; color: #c7d2fe;
+  }
+  h3 { font-size: 13px; font-weight: 700; color: var(--fg); margin-top: 4px; }
+  .label { font-size: 11.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--slate-500); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); vertical-align: top; }
+  th { font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--slate-500); font-weight: 700; }
+  td { color: var(--slate-400); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
+
+  .card { background: var(--bridge-dark); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 16px 18px; }
+  .card.bad { border-color: rgba(244,63,94,0.3); background: rgba(244,63,94,0.05); }
+  .card.good { border-color: rgba(45,212,191,0.3); background: rgba(45,212,191,0.05); }
+  .card h4 { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+  .card.bad h4 { color: #fda4af; }
+  .card.good h4 { color: #5eead4; }
+
+  .callout { background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.25); border-radius: 14px; padding: 14px 18px; }
+  .callout.warn { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.28); }
+  .callout .label { color: var(--bridge-accent); margin-bottom: 6px; display: block; }
+  .callout.warn .label { color: var(--amber); }
+
+  .formula {
+    background: #0b0f17; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+    padding: 18px 20px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px; color: #c7d2fe; line-height: 1.9; overflow-x: auto;
+  }
+  .formula .op { color: var(--slate-500); }
+  .formula .plus { color: var(--emerald); }
+  .formula .minus { color: var(--rose); }
+
+  pre {
+    background: #0b0f17; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+    padding: 16px 18px; overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+    color: #cbd5e1; line-height: 1.7;
+  }
+  pre .c { color: var(--slate-600); }
+  pre .k { color: #c084fc; }
+  pre .s { color: #6ee7b7; }
+
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .b-accent { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+  .b-teal { background: rgba(45,212,191,0.15); color: #5eead4; }
+  .b-amber { background: rgba(245,158,11,0.15); color: #fcd34d; }
+  .b-rose { background: rgba(244,63,94,0.15); color: #fda4af; }
+  .b-slate { background: rgba(148,163,184,0.15); color: var(--slate-400); }
+
+  /* ── 목업 ── */
+  .mock { background: var(--bridge-obsidian); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; overflow: hidden; }
+  .mock-cap { font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--slate-500); margin-bottom: 8px; }
+  .mock-head { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+  .mock-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; background: var(--bridge-dark); }
+  .seg { display: flex; gap: 6px; }
+  .seg span { font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 10px; background: rgba(255,255,255,0.04); color: var(--slate-400); border: 1px solid transparent; }
+  .seg span.on { background: rgba(99,102,241,0.18); color: #a5b4fc; border-color: rgba(99,102,241,0.35); }
+  .grp { font-size: 11.5px; font-weight: 700; color: var(--slate-500); letter-spacing: 0.06em; padding: 6px 2px 2px; display: flex; align-items: center; gap: 6px; }
+  .row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 11px; border-radius: 12px; background: var(--bridge-surface); border: 1px solid rgba(255,255,255,0.05); }
+  .row.dim { opacity: 0.5; }
+  .cb { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--slate-500); flex-shrink: 0; margin-top: 2px; }
+  .cb.on { background: var(--bridge-accent); border-color: var(--bridge-accent); }
+  .row .main { flex: 1; min-width: 0; }
+  .row .t { font-size: 12.5px; font-weight: 700; color: var(--fg); }
+  .row .t.done { text-decoration: line-through; color: var(--slate-500); }
+  .row .m { font-size: 11.5px; color: var(--slate-500); margin-top: 2px; }
+  .row .r { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .divider { height: 1px; background: rgba(255,255,255,0.06); margin: 4px 0; }
+  .empty { font-size: 12.5px; color: var(--slate-500); text-align: center; padding: 22px; border: 1px dashed rgba(255,255,255,0.1); border-radius: 12px; }
+  .more { font-size: 12.5px; color: var(--slate-400); text-align: center; padding: 9px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
+
+  .steps { display: flex; flex-direction: column; gap: 10px; }
+  .step { display: flex; gap: 14px; align-items: flex-start; background: var(--bridge-dark); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px 16px; }
+  .step .n { width: 26px; height: 26px; border-radius: 999px; background: rgba(99,102,241,0.18); color: #a5b4fc; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .step .c h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .step .c p { font-size: 12.5px; }
+
+  .qa { border-left: 2px solid rgba(99,102,241,0.4); padding-left: 14px; display: flex; flex-direction: column; gap: 4px; }
+  .qa .q { font-size: 13px; font-weight: 700; color: var(--fg); }
+  .qa .a { font-size: 12.5px; color: var(--slate-400); }
+  .file { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; color: #93c5fd; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div>
+    <h1 class="doc-title">오늘의 체크리스트 개념 통합 <span style="color:var(--bridge-accent)">개선안</span></h1>
+    <p class="doc-sub">BRIDGE · 2026-07-29 · 대상: 데일리 스케줄 뷰 / 타임블록 추가 모달 / 데일리 체크리스트 도메인</p>
+  </div>
+
+  <div class="callout">
+    <span class="label">한 줄 요약</span>
+    <p style="color:var(--fg); font-size:14px;">
+      “오늘의 체크리스트”는 <b>따로 담는 목록이 아니라, 내 체크리스트를 오늘 기준으로 거른 뷰</b>여야 한다.
+      별도 테이블(<code>daily_checklists</code>)은 목록의 주인이 아니라 <b>예외 지정(핀 / 제외)</b> 용도로 축소한다.
+    </p>
+  </div>
+
+  <!-- ═══════════ 1. 문제 ═══════════ -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">01</span><h2>지금 무엇이 어긋나 있나</h2>
+      <span class="hint">두 개의 "오늘"이 서로를 모른 채 공존</span>
+    </div>
+    <div class="sec-body">
+      <p>현재 “오늘 할 체크리스트”를 결정하는 근거가 <b>두 개</b> 존재하고, 둘은 서로 동기화되지 않는다.</p>
+
+      <table>
+        <thead>
+          <tr><th style="width:20%">근거</th><th style="width:30%">저장 위치</th><th>결정 방식</th><th style="width:26%">이걸 쓰는 곳</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>A. 수동 담기</b></td>
+            <td><code>daily_checklists</code><br><span class="file">domain/dailychecklist/DailyChecklist.java</span></td>
+            <td>사용자가 모달에서 항목을 골라 <code>(board, item, assigned_date)</code> 행을 만든다</td>
+            <td>데일리 뷰 좌측 레일, 타임블록 모달 상단</td>
+          </tr>
+          <tr>
+            <td><b>B. 항목의 일정</b></td>
+            <td><code>checklist_items.start_date / due_date</code><br><span class="file">domain/checklist/ChecklistItem.java</span></td>
+            <td>항목 자체에 기간이 있으면 그 기간 동안 “오늘 할 일”</td>
+            <td>워크로드/간트, D-Day 뱃지, 리포트, 마이스페이스</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <span class="label">이미 반쯤 섞여 있다</span>
+        <p><span class="file">DailyScheduleView.tsx:311-352</span> 는 B(기간 기반)로 조회한 항목을 <code>isVirtual: true</code> 로 만들어
+        A의 목록에 <b>합쳐서 그리고 있다</b>. 즉 데일리 뷰는 이미 “파생 + 수동” 혼합 목록이다.
+        그런데 <span class="file">ChecklistCreateModal.tsx:315-328</span> 의 필터는 A만 보고 있어, 같은 항목이 모달에선 “기존 항목”으로 분류된다.</p>
+      </div>
+
+      <div class="cols">
+        <div class="card bad">
+          <h4>증상 1 — 화면이 스스로 모순된다</h4>
+          <p>스크린샷: “<b>오늘의 체크리스트가 없습니다</b>” 바로 아래 “기존 항목”에
+          <span class="badge b-amber">~7/29 · D-Day</span> 항목이 떠 있다. 오늘 마감인 항목이 오늘의 체크리스트가 아니다.</p>
+        </div>
+        <div class="card bad">
+          <h4>증상 2 — 같은 의도를 두 번 입력</h4>
+          <p>체크리스트에 마감일을 오늘로 잡아도 오늘의 체크리스트에는 안 들어간다.
+          “오늘 하겠다”를 <b>일정으로 한 번, 담기로 또 한 번</b> 표현해야 한다.</p>
+        </div>
+        <div class="card bad">
+          <h4>증상 3 — 두 목록 중 뭘 봐야 할지 모호</h4>
+          <p>레일에는 가상 항목(순서변경·삭제 불가)과 실제 항목이 시각적 구분 없이 섞인다.
+          <span class="file">EmbeddedDailyChecklist.tsx:55-56,163-166</span></p>
+        </div>
+        <div class="card bad">
+          <h4>증상 4 — “제거”의 의미가 불명확</h4>
+          <p>레일의 × 는 항목 삭제가 아니라 “오늘 목록에서 빼기”인데 안내가 없다.
+          게다가 가상 항목은 아예 뺄 수 없다(<code>onRemove</code> no-op).</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 2. 재정의 ═══════════ -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">02</span><h2>개념 재정의 — 목록이 아니라 필터</h2>
+      <span class="hint">단일 소스 + 예외 지정</span>
+    </div>
+    <div class="sec-body">
+      <p>“내 체크리스트 중 오늘이 포함된 것”을 기본값으로 삼고, 사람이 손대는 부분만 예외로 저장한다.</p>
+
+      <div class="formula">
+오늘의 체크리스트(나, D)<br>
+&nbsp;&nbsp;<span class="op">=</span> { 내 체크리스트 항목 <span class="op">|</span> 기간이 D를 포함 }&nbsp;&nbsp;<span class="op">← 자동 (파생)</span><br>
+&nbsp;&nbsp;<span class="plus">+</span> { D에 <b>핀</b>한 항목 }&nbsp;&nbsp;<span class="op">← 기간 밖인데 오늘 하기로 한 것</span><br>
+&nbsp;&nbsp;<span class="minus">−</span> { D에서 <b>제외</b>한 항목 }&nbsp;&nbsp;<span class="op">← 기간에 걸리지만 오늘 안 할 것</span>
+      </div>
+
+      <h3>포함 규칙</h3>
+      <table>
+        <thead>
+          <tr><th style="width:30%">항목 상태 (담당자 = 나)</th><th style="width:14%">오늘 포함</th><th style="width:18%">그룹</th><th>표시</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>start ≤ 오늘 ≤ due</code></td><td>✅ 자동</td><td>오늘</td><td><span class="badge b-accent">진행중</span> 기간 <code>7/27–7/31</code></td></tr>
+          <tr><td><code>due = 오늘</code> (start 없음)</td><td>✅ 자동</td><td>오늘</td><td><span class="badge b-amber">D-Day</span></td></tr>
+          <tr><td><code>start = 오늘</code> (due 없음)</td><td>✅ 자동</td><td>오늘</td><td><span class="badge b-teal">시작</span></td></tr>
+          <tr><td><code>due &lt; 오늘</code> · 미완료</td><td>⚠️ 자동(접힘)</td><td>지연</td><td><span class="badge b-rose">3일 지남</span> + [오늘로 옮기기]</td></tr>
+          <tr><td>기간 없음 (미배정)</td><td>❌</td><td>—</td><td>“다른 항목 추가”에서 핀으로만 진입</td></tr>
+          <tr><td>기간이 오늘을 안 덮음 (미래/과거)</td><td>❌ (핀하면 포함)</td><td>오늘</td><td><span class="badge b-slate">📌 핀</span> 원래 기간 함께 표기</td></tr>
+          <tr><td>완료됨</td><td>△</td><td>완료</td><td>오늘 완료한 것만 하단 접힌 섹션</td></tr>
+        </tbody>
+      </table>
+
+      <div class="cols">
+        <div class="card good">
+          <h4>핀 (PIN)</h4>
+          <p>“일정은 그대로 두고 오늘만 당겨 온다.” 기존 <code>daily_checklists</code> 행이 곧 핀이다 —
+          <b>데이터 마이그레이션 없이 의미만 재정의</b>된다. 제목만 있는 임시 항목(<code>checklist_item_id = NULL</code>)도 핀으로 유지.</p>
+        </div>
+        <div class="card good">
+          <h4>제외 (EXCLUDE)</h4>
+          <p>“기간엔 걸리는데 오늘은 안 한다.” 지금은 표현할 방법이 없어서 가상 항목을 못 지우는 문제의 해법.
+          <code>kind='EXCLUDE'</code> 행 하나로 해결된다.</p>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <span class="label">대안 검토 — 핀 대신 due_date를 오늘로 밀기</span>
+        <p>테이블을 아예 없앨 수 있어 가장 단순하지만, <b>원래 마감일 정보가 사라지고</b> 간트/워크로드/리포트의 일정 신뢰도가 깨진다.
+        “오늘 좀 봐야지”가 곧 “마감일 변경”이 되어버려 부작용이 크다. → <b>비추천.</b> 다만 핀 항목의 액션 메뉴에
+        “일정도 오늘로 변경” 을 명시적 선택지로 제공한다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 3. UI ═══════════ -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">03</span><h2>UI 개선 — 타임블록 추가 모달</h2>
+      <span class="hint">두 섹션 → 하나의 목록</span>
+    </div>
+    <div class="sec-body">
+      <div class="cols">
+        <div>
+          <div class="mock-cap">Before — 현재</div>
+          <div class="mock">
+            <div class="mock-head"><span>타임블록 추가</span><span style="color:var(--slate-500);font-weight:400">7/29</span></div>
+            <div class="mock-body">
+              <div class="grp">☑ 오늘의 체크리스트에서 선택</div>
+              <div class="empty">오늘의 체크리스트가 없습니다</div>
+              <div class="grp">📋 기존 항목에서 선택</div>
+              <div class="row">
+                <div class="cb"></div>
+                <div class="main">
+                  <div class="t">다운로드 영상 한국어 버전 적용</div>
+                  <div class="m">Task · 기타 작업 › 공용 UI/연출 작업</div>
+                </div>
+                <div class="r"><span class="badge b-amber">~7/29 · D-Day</span></div>
+              </div>
+              <div class="row dim">
+                <div class="cb"></div>
+                <div class="main"><div class="t">패배창 효과음 안 뜨는 문제</div><div class="m">Task · 테스트 빌드 이슈 정리</div></div>
+                <div class="r"><span class="badge b-slate">~8/4</span></div>
+              </div>
+            </div>
+          </div>
+          <p style="font-size:12px;margin-top:8px;color:var(--rose)">오늘 마감 항목이 “오늘 아님” 영역에 있다. 두 목록을 눈으로 대조해야 한다.</p>
+        </div>
+
+        <div>
+          <div class="mock-cap">After — 개선안</div>
+          <div class="mock">
+            <div class="mock-head"><span>타임블록 추가</span><span style="color:var(--slate-500);font-weight:400">7/29</span></div>
+            <div class="mock-body">
+              <div class="seg">
+                <span class="on">오늘 3</span><span>지연 2</span><span>전체</span>
+              </div>
+              <div class="grp">오늘 <span class="badge b-slate">3</span></div>
+              <div class="row">
+                <div class="cb"></div>
+                <div class="main">
+                  <div class="t">다운로드 영상 한국어 버전 적용</div>
+                  <div class="m">기타 작업 › 공용 UI/연출 작업</div>
+                </div>
+                <div class="r"><span class="badge b-amber">D-Day</span></div>
+              </div>
+              <div class="row">
+                <div class="cb"></div>
+                <div class="main">
+                  <div class="t">로비 망원경 캐릭터 반응 (상호작용)</div>
+                  <div class="m">기타 작업 › 공용 UI/연출 작업</div>
+                </div>
+                <div class="r"><span class="badge b-accent">7/27–8/4</span></div>
+              </div>
+              <div class="row">
+                <div class="cb"></div>
+                <div class="main">
+                  <div class="t">[개발] iOS Live CI/CD</div>
+                  <div class="m">공용 개발 작업 · 원래 8/5</div>
+                </div>
+                <div class="r"><span class="badge b-slate">📌 핀</span></div>
+              </div>
+              <div class="divider"></div>
+              <div class="grp" style="color:#fda4af">지연 2 <span style="font-weight:400;color:var(--slate-600)">— 접힘</span></div>
+              <div class="more">＋ 다른 항목에서 찾기 (검색 · 마일스톤별)</div>
+            </div>
+          </div>
+          <p style="font-size:12px;margin-top:8px;color:var(--emerald)">하나의 목록. 왜 오늘인지가 뱃지로 드러나고, 나머지는 접힌 “더 찾기”로 내려간다.</p>
+        </div>
+      </div>
+
+      <h3>바뀌는 점</h3>
+      <ul>
+        <li><b>섹션 두 개 → 목록 하나.</b> <code>오늘 / 지연 / 전체</code> 세그먼트 필터 + 검색창 하나로 통합. “오늘의 체크리스트가 없습니다” 빈 상태는 사라진다.</li>
+        <li><b>출처 뱃지 도입.</b> <span class="badge b-amber">D-Day</span> <span class="badge b-accent">기간</span> <span class="badge b-slate">📌 핀</span> <span class="badge b-rose">지연</span> — 왜 이 항목이 오늘 보이는지 한 눈에.</li>
+        <li><b>“다른 항목에서 찾기”는 기본 접힘.</b> 현재의 마일스톤 그룹 UI(<span class="file">ChecklistCreateModal.tsx:331-360</span>)를 그대로 재사용.</li>
+        <li><b><span class="file">AddDailyChecklistModal.tsx</span>(1,424줄) 통합 검토.</b> 두 모달이 사실상 같은 “항목 고르기” UI를 중복 구현 중 — 공통 <code>ChecklistPicker</code> 로 추출.</li>
+      </ul>
+
+      <h3>데일리 뷰 좌측 레일</h3>
+      <ul>
+        <li>가상/실제 구분 제거 — 전부 동일하게 렌더, <b>순서 변경도 모두 허용</b>(파생 항목은 첫 이동 시 position override 행 생성).</li>
+        <li>× 버튼 라벨을 <b>“오늘에서 빼기”</b> 로 명시(툴팁 + aria-label). 파생 항목이면 EXCLUDE, 핀이면 행 삭제.</li>
+        <li>추가 버튼 라벨을 <b>“오늘로 가져오기”</b> 로. “추가”는 새 항목 생성으로 오해된다.</li>
+        <li>항목 액션 메뉴: <code>오늘에서 빼기</code> / <code>일정 오늘로 변경</code> / <code>내일로 미루기</code>.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ═══════════ 4. 데이터/API ═══════════ -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">04</span><h2>데이터 모델 · API 변경</h2>
+      <span class="hint">테이블 유지, 의미만 재정의</span>
+    </div>
+    <div class="sec-body">
+      <h3>스키마 (멱등 마이그레이션)</h3>
+      <pre><span class="c">-- V20260729_HHMMSS__add_kind_to_daily_checklists.sql
+-- 파일명 타임스탬프는 `date -u +%Y%m%d_%H%M%S` 로 생성</span>
+
+<span class="k">DO</span> $$ <span class="k">BEGIN</span>
+    <span class="k">ALTER TABLE</span> daily_checklists <span class="k">ADD COLUMN</span> kind <span class="k">VARCHAR</span>(16) <span class="k">NOT NULL DEFAULT</span> <span class="s">'PIN'</span>;
+<span class="k">EXCEPTION WHEN</span> duplicate_column <span class="k">THEN NULL</span>; <span class="k">END</span> $$;
+
+<span class="k">DO</span> $$ <span class="k">BEGIN</span>
+    <span class="k">IF NOT EXISTS</span> (<span class="k">SELECT</span> 1 <span class="k">FROM</span> pg_constraint <span class="k">WHERE</span> conname = <span class="s">'ck_daily_checklist_kind'</span>) <span class="k">THEN</span>
+        <span class="k">ALTER TABLE</span> daily_checklists <span class="k">ADD CONSTRAINT</span> ck_daily_checklist_kind
+            <span class="k">CHECK</span> (kind <span class="k">IN</span> (<span class="s">'PIN'</span>, <span class="s">'EXCLUDE'</span>));
+    <span class="k">END IF</span>; <span class="k">END</span> $$;
+
+<span class="k">CREATE INDEX IF NOT EXISTS</span> idx_daily_checklist_assignee_date
+    <span class="k">ON</span> daily_checklists(assignee_id, assigned_date);</pre>
+      <p>기존 행은 전부 <code>PIN</code> 으로 자연 이관된다. 유니크 제약
+      <code>(board_id, checklist_item_id, assigned_date)</code> 는 그대로 유지 — 같은 날 같은 항목에 핀과 제외가 동시에 존재할 수 없다.</p>
+
+      <h3>API</h3>
+      <table>
+        <thead><tr><th style="width:34%">엔드포인트</th><th style="width:14%">변경</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>GET /boards/{id}/daily-checklists</code></td>
+            <td><span class="badge b-accent">동작 변경</span></td>
+            <td>파생(기간 기반) + 핀 − 제외를 <b>서버에서 병합해</b> 반환. 프론트의 가상 항목 병합 로직 제거.</td>
+          </tr>
+          <tr>
+            <td>응답 <code>ItemResponse</code></td>
+            <td><span class="badge b-teal">필드 추가</span></td>
+            <td><code>source</code>: <code>DERIVED</code> / <code>PINNED</code> / <code>OVERDUE</code> / <code>ADHOC</code>, <code>start_date</code>, <code>due_date</code>, <code>is_pinned</code></td>
+          </tr>
+          <tr>
+            <td><code>DELETE /daily-checklists/{itemId}</code></td>
+            <td><span class="badge b-amber">의미 확장</span></td>
+            <td>핀이면 행 삭제, 파생이면 <code>EXCLUDE</code> 행 생성. 프론트는 동일하게 호출.</td>
+          </tr>
+          <tr>
+            <td><code>GET /daily-checklists/timeblock-data</code></td>
+            <td><span class="badge b-accent">통합</span></td>
+            <td>오늘 목록 + 후보 항목을 한 번에 반환해 모달의 2회 요청을 1회로.</td>
+          </tr>
+          <tr>
+            <td><code>GET /boards/{id}/checklists/by-assignee</code></td>
+            <td><span class="badge b-slate">유지</span></td>
+            <td>워크로드 전용으로 유지. 데일리 뷰에서의 직접 호출은 제거.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>영향 범위</h3>
+      <div class="cols">
+        <div class="card">
+          <h4>Frontend</h4>
+          <ul style="margin-left:16px">
+            <li><span class="file">DailyScheduleView.tsx:311-352</span> — 가상 항목 생성/병합 제거</li>
+            <li><span class="file">EmbeddedDailyChecklist.tsx</span> — <code>isVirtual</code> 분기 제거, 뱃지·액션 추가</li>
+            <li><span class="file">ChecklistCreateModal.tsx:224-360</span> — 단일 목록 + 세그먼트</li>
+            <li><span class="file">AddDailyChecklistModal.tsx</span> — 공통 Picker로 통합</li>
+            <li><span class="file">schedule/MyWorkloadStrip.tsx</span> — 동일 규칙 반영</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Backend</h4>
+          <ul style="margin-left:16px">
+            <li><span class="file">dailychecklist/service/DailyChecklistService</span> — 병합 로직의 중심</li>
+            <li><span class="file">schedule/service/ScheduleFacadeService</span> — <code>getDailyFull</code></li>
+            <li><span class="file">board/service/BoardTodayService</span></li>
+            <li><span class="file">personal/service/PersonalDashboardService</span></li>
+            <li><span class="file">diary/service/DiaryAIService</span> — 하루 요약 입력 변화</li>
+            <li><span class="file">checklist/service/ChecklistService</span> — 항목 삭제 시 override 정리</li>
+          </ul>
+        </div>
+      </div>
+      <p style="font-size:12.5px">체크리스트 완료율·리포트 지표는 항목 기준으로 계산되므로 수치는 변하지 않는다. 다만 “오늘 목록 크기”가 커지므로
+      스탠드업/다이어리 AI 프롬프트의 항목 수 상한은 점검이 필요하다.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ 5. 롤아웃 ═══════════ -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">05</span><h2>구현 결과</h2>
+      <span class="hint">2026-07-29 적용 완료</span>
+    </div>
+    <div class="sec-body">
+      <div class="steps">
+        <div class="step">
+          <div class="n">1</div>
+          <div class="c">
+            <h4>서버에서 병합 <span class="badge b-teal">완료</span></h4>
+            <p><span class="file">DailyChecklistResolver</span> 를 추가해 <code>파생 + 핀 − 제외</code>를 한 곳에서 병합한다.
+            데일리 뷰(<code>getDailyFull</code>) · 타임블록 모달(<code>timeblock-data</code>) · 보드 Today · 다이어리 AI 컨텍스트가 모두 이 리졸버를 통해 같은 목록을 본다.
+            응답에 <code>source</code> / <code>pinned</code> / <code>start_date</code> / <code>due_date</code> 추가.
+            프론트의 가상 항목 조회·병합 로직은 삭제됐다(데일리 뷰 API 호출 1회 감소).</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="n">2</div>
+          <div class="c">
+            <h4>모달·레일 단일 목록화 <span class="badge b-teal">완료</span></h4>
+            <p>타임블록 모달의 두 섹션을 <code>오늘 / 지연 / 다른 항목</code> 세그먼트 하나로 합쳤다.
+            오늘·지연이 모두 비면 “다른 항목”이 자동으로 선택된다.
+            레일과 모달이 <span class="file">DailyChecklistBadge</span> 를 공유해 D-Day · 지연 · 당겨옴 뱃지를 같은 모양으로 표시하고,
+            버튼 라벨은 “오늘로 가져오기 / 오늘에서 빼기”로 바뀌었다.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="n">3</div>
+          <div class="c">
+            <h4>EXCLUDE 도입 <span class="badge b-teal">완료</span></h4>
+            <p><code>kind</code> 컬럼 마이그레이션(기존 행 → 모두 <code>PIN</code>), <code>POST /daily-checklists/exclude</code> 추가.
+            파생 항목도 이제 오늘에서 뺄 수 있고, 다시 가져오면 EXCLUDE가 PIN으로 되돌아간다.
+            <code>DELETE</code> 도 원본이 연결된 행이면 삭제 대신 EXCLUDE로 전환해, 어느 경로로 빼도 항목이 되살아나지 않는다.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <span class="label">이번 범위에서 제외한 것</span>
+        <ul style="margin-left:18px">
+          <li><b>파생 항목 드래그 정렬</b> — 순서를 저장할 행이 없어 레일에서는 핀 항목만 정렬 가능하다(기존 동작과 동일).
+          파생 항목은 오늘 → 지연 → 완료 순으로 자동 정렬된다. 정렬까지 허용하려면 드래그 시점에 PIN 행을 만들어주는 처리가 필요하다.</li>
+          <li><b><span class="file">AddDailyChecklistModal</span> 통합</b> — 두 모달의 Picker 공통화는 별도 작업으로 남겼다.</li>
+          <li><b>마이스페이스 대시보드</b> — 이미 담당 체크리스트 전체를 따로 보여주고 있어 핀 목록만 사용하도록 그대로 두었다(중복 방지).</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 6. 결정 필요 ═══════════ -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">06</span><h2>결정이 필요한 지점</h2>
+      <span class="hint">기본값은 제안해 두었음</span>
+    </div>
+    <div class="sec-body">
+      <div class="qa">
+        <div class="q">지연 항목을 오늘 목록에 자동으로 넣을까?</div>
+        <div class="a">제안: <b>넣되 “지연” 그룹으로 분리하고 기본 접힘.</b> 안 넣으면 놓친 일이 영원히 안 보이고, 그냥 섞으면 오늘 목록이 부풀어 무의미해진다.</div>
+      </div>
+      <div class="qa">
+        <div class="q">기간이 아예 없는 항목은?</div>
+        <div class="a">제안: <b>자동 포함하지 않는다.</b> 기간 없는 항목이 전부 매일 뜨면 필터가 무의미해진다. “다른 항목에서 찾기”를 통해 핀으로만 진입.</div>
+      </div>
+      <div class="qa">
+        <div class="q">핀은 언제까지 유효한가?</div>
+        <div class="a">제안: <b>그 날짜에만 유효</b>(현행과 동일, <code>assigned_date</code> 기준). 다음 날 자동 이월은 하지 않는다 — 이월이 필요하면 일정을 바꾸는 게 맞다.</div>
+      </div>
+      <div class="qa">
+        <div class="q">데일리 뷰는 보드 전원을 보여준다. 팀원 행에도 같은 규칙?</div>
+        <div class="a">제안: <b>동일 규칙 적용.</b> 이미 워크로드가 기간 기준으로 전원을 그리고 있으므로 규칙이 갈리면 같은 화면에서 또 어긋난다.</div>
+      </div>
+      <div class="qa">
+        <div class="q">완료 항목 처리</div>
+        <div class="a">제안: <b>오늘 완료한 것만</b> 하단 “완료 N” 접힌 섹션에. 과거에 완료된 항목은 기간에 걸려도 노출하지 않는다.</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

@@ -7,11 +7,46 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface DailyChecklistRepository extends JpaRepository<DailyChecklist, String> {
 
     /**
-     * 특정 보드의 특정 날짜 데일리 체크리스트 조회 (position 순)
+     * 특정 보드의 특정 날짜 예외 지정(PIN + EXCLUDE) 전체 조회.
+     * 파생 목록과 병합하기 위한 원본 데이터이므로 kind로 거르지 않는다.
+     *
+     * @see com.kanban.domain.dailychecklist.service.DailyChecklistResolver
+     */
+    @Query("SELECT dc FROM DailyChecklist dc " +
+           "LEFT JOIN FETCH dc.checklistItem ci " +
+           "LEFT JOIN FETCH ci.task t " +
+           "LEFT JOIN FETCH t.feature " +
+           "LEFT JOIN FETCH t.block " +
+           "LEFT JOIN FETCH t.milestone " +
+           "JOIN FETCH dc.assignee " +
+           "WHERE dc.board.id = :boardId AND dc.assignedDate = :assignedDate " +
+           "ORDER BY dc.position ASC")
+    List<DailyChecklist> findOverridesByBoardIdAndAssignedDate(
+            @Param("boardId") String boardId,
+            @Param("assignedDate") LocalDate assignedDate);
+
+    /**
+     * 특정 보드/체크리스트/날짜의 예외 행 조회 (PIN ↔ EXCLUDE 전환용).
+     * 유니크 제약 (board_id, checklist_item_id, assigned_date) 덕분에 최대 1건이다.
+     */
+    @Query("SELECT dc FROM DailyChecklist dc " +
+           "LEFT JOIN FETCH dc.checklistItem ci " +
+           "LEFT JOIN FETCH ci.task t " +
+           "LEFT JOIN FETCH t.feature " +
+           "JOIN FETCH dc.assignee " +
+           "WHERE dc.board.id = :boardId AND dc.checklistItem.id = :checklistItemId AND dc.assignedDate = :assignedDate")
+    Optional<DailyChecklist> findOverride(
+            @Param("boardId") String boardId,
+            @Param("checklistItemId") String checklistItemId,
+            @Param("assignedDate") LocalDate assignedDate);
+
+    /**
+     * 특정 보드의 특정 날짜 데일리 체크리스트 조회 (position 순, PIN만)
      * ChecklistItem을 JOIN FETCH하여 최신 완료 상태를 가져옴
      */
     @Query("SELECT dc FROM DailyChecklist dc " +
@@ -20,18 +55,20 @@ public interface DailyChecklistRepository extends JpaRepository<DailyChecklist, 
            "LEFT JOIN FETCH t.feature " +
            "JOIN FETCH dc.assignee " +
            "WHERE dc.board.id = :boardId AND dc.assignedDate = :assignedDate " +
+           "AND dc.kind = com.kanban.domain.dailychecklist.DailyChecklistKind.PIN " +
            "ORDER BY dc.position ASC")
     List<DailyChecklist> findByBoardIdAndAssignedDateOrderByPositionAsc(
             @Param("boardId") String boardId,
             @Param("assignedDate") LocalDate assignedDate);
 
     /**
-     * 특정 보드의 특정 날짜, 특정 담당자의 데일리 체크리스트 조회 (position 순)
+     * 특정 보드의 특정 날짜, 특정 담당자의 데일리 체크리스트 조회 (position 순, PIN만)
      */
     @Query("SELECT dc FROM DailyChecklist dc " +
            "LEFT JOIN FETCH dc.checklistItem ci " +
            "JOIN FETCH dc.assignee " +
            "WHERE dc.board.id = :boardId AND dc.assignedDate = :assignedDate AND dc.assignee.id = :assigneeId " +
+           "AND dc.kind = com.kanban.domain.dailychecklist.DailyChecklistKind.PIN " +
            "ORDER BY dc.position ASC")
     List<DailyChecklist> findByBoardIdAndAssignedDateAndAssigneeIdOrderByPositionAsc(
             @Param("boardId") String boardId,
@@ -39,7 +76,7 @@ public interface DailyChecklistRepository extends JpaRepository<DailyChecklist, 
             @Param("assigneeId") String assigneeId);
 
     /**
-     * 특정 보드의 특정 날짜, 특정 담당자의 데일리 체크리스트 조회 (task/feature 포함)
+     * 특정 보드의 특정 날짜, 특정 담당자의 데일리 체크리스트 조회 (task/feature 포함, PIN만)
      */
     @Query("SELECT dc FROM DailyChecklist dc " +
            "LEFT JOIN FETCH dc.checklistItem ci " +
@@ -47,6 +84,7 @@ public interface DailyChecklistRepository extends JpaRepository<DailyChecklist, 
            "LEFT JOIN FETCH t.feature " +
            "JOIN FETCH dc.assignee " +
            "WHERE dc.board.id = :boardId AND dc.assignedDate = :assignedDate AND dc.assignee.id = :assigneeId " +
+           "AND dc.kind = com.kanban.domain.dailychecklist.DailyChecklistKind.PIN " +
            "ORDER BY dc.position ASC")
     List<DailyChecklist> findByBoardIdAndAssignedDateAndAssigneeIdWithDetailsOrderByPositionAsc(
             @Param("boardId") String boardId,
@@ -56,7 +94,8 @@ public interface DailyChecklistRepository extends JpaRepository<DailyChecklist, 
     /**
      * 특정 보드, 날짜, 담당자의 최대 position 값 조회
      */
-    @Query("SELECT MAX(dc.position) FROM DailyChecklist dc WHERE dc.board.id = :boardId AND dc.assignedDate = :assignedDate AND dc.assignee.id = :assigneeId")
+    @Query("SELECT MAX(dc.position) FROM DailyChecklist dc WHERE dc.board.id = :boardId AND dc.assignedDate = :assignedDate AND dc.assignee.id = :assigneeId " +
+           "AND dc.kind = com.kanban.domain.dailychecklist.DailyChecklistKind.PIN")
     Integer findMaxPositionByBoardIdAndAssignedDateAndAssigneeId(
             @Param("boardId") String boardId,
             @Param("assignedDate") LocalDate assignedDate,
@@ -73,6 +112,7 @@ public interface DailyChecklistRepository extends JpaRepository<DailyChecklist, 
            "WHERE dc.board.id = :boardId " +
            "AND dc.assignedDate BETWEEN :startDate AND :endDate " +
            "AND dc.assignee.id = :assigneeId " +
+           "AND dc.kind = com.kanban.domain.dailychecklist.DailyChecklistKind.PIN " +
            "ORDER BY dc.assignedDate ASC, dc.position ASC")
     List<DailyChecklist> findByBoardIdAndAssignedDateBetweenAndAssigneeId(
             @Param("boardId") String boardId,
@@ -128,6 +168,7 @@ public interface DailyChecklistRepository extends JpaRepository<DailyChecklist, 
            "LEFT JOIN FETCH t.feature " +
            "JOIN FETCH dc.assignee " +
            "WHERE dc.assignee.id = :assigneeId AND dc.board.id IN :boardIds AND dc.assignedDate = :date " +
+           "AND dc.kind = com.kanban.domain.dailychecklist.DailyChecklistKind.PIN " +
            "ORDER BY dc.board.id, dc.position ASC")
     List<DailyChecklist> findByAssigneeIdAndBoardIdInAndAssignedDate(
             @Param("assigneeId") String assigneeId,

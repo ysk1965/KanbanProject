@@ -781,7 +781,16 @@
     "presetMeal": "มื้ออาหาร",
     "customLabel": "กำหนดเอง",
     "customPlaceholder": "ใส่ชื่อตาราง",
-    "customColor": "สี"
+    "customColor": "สี",
+    "badgeDDay": "ครบกำหนด",
+    "badgeOverdue": "เลย {{count}} วัน",
+    "badgePinned": "ดึงเข้ามา",
+    "removeFromToday": "นำออกจากวันนี้",
+    "addToToday": "ดึงเข้าวันนี้",
+    "segmentToday": "{{date}}",
+    "segmentOverdue": "เลยกำหนด",
+    "segmentOthers": "รายการอื่น",
+    "noOverdueItems": "ไม่มีรายการที่เลยกำหนด"
   },
   "schedule": {
     "subTab": {

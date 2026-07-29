@@ -4,10 +4,7 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
-import com.kanban.domain.checklist.ChecklistItem;
-import com.kanban.domain.dailychecklist.DailyChecklist;
-import com.kanban.domain.dailychecklist.DailyChecklistRepository;
-import com.kanban.domain.feature.Feature;
+import com.kanban.domain.dailychecklist.service.DailyChecklistResolver;
 import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.meeting.MeetingRepository;
 import com.kanban.domain.meeting.dto.MeetingResponse;
@@ -42,7 +39,7 @@ import java.util.stream.Collectors;
 public class ScheduleFacadeService {
 
     private final ScheduleBlockRepository scheduleBlockRepository;
-    private final DailyChecklistRepository dailyChecklistRepository;
+    private final DailyChecklistResolver dailyChecklistResolver;
     private final MeetingRepository meetingRepository;
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
@@ -145,22 +142,21 @@ public class ScheduleFacadeService {
             }
         }
 
-        // 2. 데일리 체크리스트 조회
-        List<DailyChecklist> dailyChecklists = dailyChecklistRepository
-                .findByBoardIdAndAssignedDateOrderByPositionAsc(boardId, date);
-
-        Map<String, List<DailyChecklist>> checklistsByAssignee = dailyChecklists.stream()
-                .collect(Collectors.groupingBy(dc -> dc.getAssignee().getId()));
+        // 2. 오늘의 체크리스트 조회
+        //    항목 기간에서 파생된 목록 + 핀 - 제외를 리졸버가 병합해준다.
+        //    (예전에는 daily_checklists 행만 내려주고, 기간 기반 항목은 프론트가 따로 조회해 합쳤다)
+        Map<String, List<DailyChecklistResolver.ResolvedItem>> resolvedByAssignee =
+                dailyChecklistResolver.resolveByAssignee(boardId, date);
 
         List<ScheduleResponse.DailyChecklistColumnInfo> checklistColumns = new ArrayList<>();
         for (String assigneeId : targetAssigneeIds) {
             User user = userCache.get(assigneeId);
             if (user == null) continue;
 
-            List<DailyChecklist> userChecklists = checklistsByAssignee.getOrDefault(assigneeId, new ArrayList<>());
-            List<ScheduleResponse.DailyChecklistItemInfo> itemInfos = userChecklists.stream()
-                    .map(this::toDailyChecklistItemInfo)
-                    .collect(Collectors.toList());
+            List<ScheduleResponse.DailyChecklistItemInfo> itemInfos =
+                    resolvedByAssignee.getOrDefault(assigneeId, List.of()).stream()
+                            .map(ScheduleResponse.DailyChecklistItemInfo::of)
+                            .collect(Collectors.toList());
 
             checklistColumns.add(ScheduleResponse.DailyChecklistColumnInfo.builder()
                     .user(ScheduleResponse.UserInfo.of(user))
@@ -182,24 +178,6 @@ public class ScheduleFacadeService {
                 .columns(scheduleColumns)
                 .dailyChecklists(checklistColumns)
                 .meetings(meetingSummaries)
-                .build();
-    }
-
-    private ScheduleResponse.DailyChecklistItemInfo toDailyChecklistItemInfo(DailyChecklist dc) {
-        ChecklistItem checklistItem = dc.getChecklistItem();
-        Task task = checklistItem != null ? checklistItem.getTask() : null;
-        Feature feature = task != null ? task.getFeature() : null;
-
-        return ScheduleResponse.DailyChecklistItemInfo.builder()
-                .id(dc.getId())
-                .checklistItemId(checklistItem != null ? checklistItem.getId() : null)
-                .title(dc.getTitle())
-                .assignee(ScheduleResponse.UserInfo.of(dc.getAssignee()))
-                .assignedDate(dc.getAssignedDate())
-                .position(dc.getPosition())
-                .completed(checklistItem != null ? checklistItem.getIsCompleted() : false)
-                .task(task != null ? ScheduleResponse.TaskInfo.of(task) : null)
-                .feature(feature != null ? ScheduleResponse.FeatureInfo.of(feature) : null)
                 .build();
     }
 
