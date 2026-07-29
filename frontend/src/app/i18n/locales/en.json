@@ -1608,7 +1608,12 @@
     },
     "checklistFilter": {
       "unassigned": "Unassigned",
-      "showingCount": "Showing {{visible}} / {{total}}"
+      "showingCount": "Showing {{visible}} / {{total}}",
+      "all": "All",
+      "groupLabel": "Assignee filter",
+      "railAll": "{{total}} items",
+      "railSelected": "{{count}} selected · {{visible}} items",
+      "empty": "No checklist items for the selected assignees."
     },
     "tags": "Tags",
     "tagName": "Tag name",

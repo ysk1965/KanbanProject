@@ -1609,7 +1609,12 @@
     },
     "checklistFilter": {
       "unassigned": "미할당",
-      "showingCount": "{{visible}} / {{total}} 표시 중"
+      "showingCount": "{{visible}} / {{total}} 표시 중",
+      "all": "전체",
+      "groupLabel": "담당자 필터",
+      "railAll": "전체 {{total}}개 항목",
+      "railSelected": "{{count}}명 선택 · {{visible}}개 항목",
+      "empty": "선택한 담당자의 체크리스트 항목이 없습니다."
     },
     "tags": "태그",
     "tagName": "태그 이름",

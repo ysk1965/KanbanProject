@@ -1390,7 +1390,12 @@
     },
     "checklistFilter": {
       "unassigned": "Não atribuído",
-      "showingCount": "Mostrando {{visible}} / {{total}}"
+      "showingCount": "Mostrando {{visible}} / {{total}}",
+      "all": "Todos",
+      "groupLabel": "Filtro de responsáveis",
+      "railAll": "{{total}} itens",
+      "railSelected": "{{count}} selecionados · {{visible}} itens",
+      "empty": "Nenhum item para os responsáveis selecionados."
     },
     "tags": "Tags",
     "tagName": "Nome da tag",

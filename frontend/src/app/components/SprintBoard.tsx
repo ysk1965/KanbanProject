@@ -130,30 +130,6 @@ function errMessage(e: unknown, fallback: string): string {
   return e instanceof Error ? e.message : fallback;
 }
 
-/**
- * 태스크 소그룹 색상 — 태스크 ID 해시 기반 고정 팔레트.
- * 피쳐 색(feature_color)과 독립적으로, 같은 피쳐 안의 여러 태스크를 시각적으로 분리한다.
- * 미분류(__none__)는 중립 회색.
- */
-const TASK_COLORS = [
-  "#3b82f6",
-  "#a855f7",
-  "#ec4899",
-  "#f59e0b",
-  "#10b981",
-  "#06b6d4",
-  "#8b5cf6",
-  "#f43f5e",
-];
-function taskColorHex(taskId: string): string {
-  if (!taskId || taskId === "__none__") return "#64748b";
-  let hash = 0;
-  for (let i = 0; i < taskId.length; i++) {
-    hash = taskId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return TASK_COLORS[Math.abs(hash) % TASK_COLORS.length];
-}
-
 /** D-day 긴급도 → 배지 색상. 지남/오늘=빨강, 임박(D-3이내)=앰버, 그 외=여유(틸). */
 const DDAY_BADGE: Record<string, string> = {
   overdue: "bg-rose-500/15 text-rose-500",
@@ -3207,104 +3183,148 @@ export function SprintBoard({
                             <span className="flex-1 h-px bg-foreground/[0.06]" />
                           </div>
                         )}
+                        {/* 그룹 카드 — 피쳐가 카드고 태스크가 내용물이다.
+                            overflow-hidden을 주면 안쪽 sticky 헤더가 죽으므로
+                            라운드는 헤더(rounded-t)와 마지막 자식(rounded-b)이 각자 처리한다. */}
                         <div
-                          className={`transition-opacity ${
+                          style={{
+                            borderLeftWidth: 3,
+                            borderLeftColor: allCleared ? "#94a3b8" : featColor,
+                          }}
+                          className={`rounded-2xl border border-foreground/10 bg-bridge-obsidian shadow-[0_2px_8px_-4px_rgba(0,0,0,0.5)] transition-opacity ${
                             allCleared ? "opacity-70" : ""
                           }`}
                         >
-                          {/* Feature 섹션 헤더(납작): 카드 프레임 없이 컬러 점 + 제목 + % + 열기.
-                              계층은 레일 대신 컬러 점과 featColor 헤어라인으로 표현한다. */}
-                          <div className="flex items-center">
+                          {/* 헤더 — 본문 클릭은 "피쳐 상세", 펼치기는 우측 셰브런. 두 경로는 형제다.
+                              (버튼 중첩은 HTML 위반이고 히트 영역이 합쳐져 오작동한다) */}
+                          <div
+                            className="sticky top-0 z-10 flex items-start gap-1 p-1.5 rounded-t-[14px] bg-bridge-obsidian"
+                            style={
+                              allCleared
+                                ? undefined
+                                : {
+                                    backgroundImage: `linear-gradient(0deg, ${featColor}1A, ${featColor}1A)`,
+                                  }
+                            }
+                          >
                             <button
+                              type="button"
+                              onClick={() => onOpenFeature?.(feat.featureId)}
+                              disabled={!onOpenFeature}
+                              title="피쳐 상세 열기"
+                              aria-label={`${feat.featureTitle} 피쳐 상세 열기`}
+                              className="group/hd flex-1 min-w-0 flex flex-col gap-1.5 px-1.5 py-1 rounded-lg text-left hover:bg-foreground/[0.06] disabled:hover:bg-transparent disabled:cursor-default transition-colors"
+                            >
+                              <span className="flex items-center gap-1.5">
+                                <span
+                                  className={`text-sm font-bold truncate flex-1 min-w-0 ${
+                                    allCleared
+                                      ? "text-slate-400"
+                                      : "text-foreground"
+                                  }`}
+                                  title={feat.featureTitle}
+                                >
+                                  {feat.featureTitle}
+                                </span>
+                                {/* 상태 배지: 정리됨(중립) vs 완료(초록). 담김을 완료로 표시하지 않는다. */}
+                                {allCleared &&
+                                  (isComplete ? (
+                                    <span className="inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+                                      <Check
+                                        className="w-2.5 h-2.5"
+                                        strokeWidth={3}
+                                      />
+                                      완료
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/[0.08] text-slate-400 border border-foreground/10 shrink-0">
+                                      정리됨
+                                    </span>
+                                  ))}
+                                {/* 열린다는 신호 — 호버 시에만 뜨는 표식(버튼 아님) */}
+                                {onOpenFeature && (
+                                  <ExternalLink
+                                    className="w-3 h-3 shrink-0 opacity-0 group-hover/hd:opacity-100 transition-opacity"
+                                    style={{
+                                      color: allCleared ? "#94a3b8" : featColor,
+                                    }}
+                                    aria-hidden="true"
+                                  />
+                                )}
+                                <span
+                                  className="text-[15px] font-bold tabular-nums shrink-0"
+                                  style={{
+                                    color: allCleared ? "#94a3b8" : featColor,
+                                  }}
+                                >
+                                  {pct}%
+                                </span>
+                              </span>
+                              {/* 진척 게이지 + 완료·담김 수 — 피쳐 진척이 헤더의 본문이다 */}
+                              <span className="flex items-center gap-2">
+                                <span className="flex-1 h-[5px] rounded-full bg-foreground/10 overflow-hidden">
+                                  <span
+                                    className="block h-full rounded-full transition-all motion-reduce:transition-none"
+                                    style={{
+                                      width: `${pct}%`,
+                                      background: allCleared
+                                        ? "#94a3b8"
+                                        : featColor,
+                                    }}
+                                  />
+                                </span>
+                                <span className="shrink-0 text-xs tabular-nums text-slate-400">
+                                  <span className="font-bold text-foreground">
+                                    {feat.completed}
+                                  </span>
+                                  /{feat.total} 완료 · 담김 {feat.taken}
+                                </span>
+                              </span>
+                            </button>
+                            {/* 펼치기/접기 — 이 버튼만 한다. 히트 영역은 after로 44px까지 넓힌다. */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (allCleared)
+                                  toggleClearedFeature(feat.featureId);
+                                else toggleFeature(feat.featureId);
+                              }}
+                              aria-expanded={bodyOpen}
+                              aria-label={`${feat.featureTitle} ${bodyOpen ? "접기" : "펼치기"}`}
+                              title={bodyOpen ? "접기" : "펼치기"}
+                              className="relative shrink-0 w-8 h-8 grid place-items-center rounded-lg border border-foreground/10 bg-foreground/[0.06] text-slate-400 hover:bg-bridge-accent hover:border-bridge-accent hover:text-white transition-colors after:absolute after:-inset-1.5 after:content-['']"
+                            >
+                              <ChevronDown
+                                className={`w-4 h-4 transition-transform motion-reduce:transition-none ${
+                                  bodyOpen ? "" : "-rotate-90"
+                                }`}
+                              />
+                            </button>
+                          </div>
+
+                          {/* 접힘 — 펼치기 바(개수 안내 겸 두 번째 토글 경로) */}
+                          {!bodyOpen && (
+                            <button
+                              type="button"
                               onClick={() =>
                                 allCleared
                                   ? toggleClearedFeature(feat.featureId)
                                   : toggleFeature(feat.featureId)
                               }
-                              className="flex-1 min-w-0 flex items-center gap-2 px-1.5 py-1.5 rounded-lg text-left hover:bg-foreground/[0.03] transition-colors"
-                              title={
-                                allCleared
-                                  ? "정리된 항목 · 클릭하면 펼쳐서 볼 수 있어요"
-                                  : undefined
-                              }
+                              aria-expanded={false}
+                              aria-label={`${feat.featureTitle} 펼치기`}
+                              className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-b-[14px] bg-bridge-dark border-t border-foreground/[0.06] text-xs text-slate-500 hover:bg-foreground/[0.06] hover:text-foreground transition-colors"
                             >
-                              {bodyOpen ? (
-                                <ChevronDown className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                              ) : (
-                                <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                              )}
-                              <span
-                                className="w-2 h-2 rounded-[3px] shrink-0"
-                                style={{
-                                  background: allCleared
-                                    ? "#94a3b8"
-                                    : featColor,
-                                }}
-                              />
-                              <span
-                                className={`text-xs font-bold truncate flex-1 ${
-                                  allCleared
-                                    ? "text-slate-400"
-                                    : "text-foreground"
-                                }`}
-                                title={feat.featureTitle}
-                              >
-                                {feat.featureTitle}
-                              </span>
-                              {/* C-1: 진행 신호는 % 하나로 통일(강조) + 완료수(보조). 미니 게이지·중복 제거 */}
-                              <span
-                                className="text-sm font-bold tabular-nums shrink-0"
-                                style={{
-                                  color: allCleared ? "#94a3b8" : featColor,
-                                }}
-                              >
-                                {pct}%
-                              </span>
-                              <span className="text-xs text-slate-500 tabular-nums shrink-0">
-                                {feat.completed}/{feat.total}
-                              </span>
-                              {/* 상태 배지: 정리됨(중립) vs 완료(초록). 담김을 완료로 표시하지 않는다. */}
-                              {allCleared &&
-                                (isComplete ? (
-                                  <span className="inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
-                                    <Check
-                                      className="w-2.5 h-2.5"
-                                      strokeWidth={3}
-                                    />
-                                    완료
-                                  </span>
-                                ) : (
-                                  <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-foreground/[0.08] text-slate-400 border border-foreground/10 shrink-0">
-                                    정리됨
-                                  </span>
-                                ))}
+                              <ChevronDown className="w-3 h-3" />
+                              {allCleared
+                                ? `정리된 태스크 ${feat.total}개 보기`
+                                : `태스크 ${feat.total}개 · 남은 ${feat.total - feat.completed}개 펼치기`}
                             </button>
-                            {onOpenFeature && (
-                              <button
-                                type="button"
-                                onClick={() => onOpenFeature(feat.featureId)}
-                                title="피쳐 열기"
-                                aria-label="피쳐 열기"
-                                className="shrink-0 w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-bridge-accent hover:bg-bridge-accent/[0.08] transition-colors"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-
-                          {/* featColor 헤어라인 — 카드 레일을 대체하는 섹션 구분선(펼친 경우). */}
-                          {bodyOpen && (
-                            <div
-                              className="h-px mx-1 mt-0.5 mb-1"
-                              style={{
-                                background: `linear-gradient(90deg, ${featColor}59, transparent)`,
-                              }}
-                              title={`완료 ${feat.completed}/${feat.total} · 담김 ${feat.taken}/${feat.total} · ${pct}%`}
-                            />
                           )}
 
                           {bodyOpen && (
-                            <div className="space-y-1 pl-2 pr-0.5 pb-2 pt-0.5">
+                            <div className="bg-bridge-dark p-2 space-y-1.5 rounded-b-[14px] shadow-[inset_0_1px_3px_-1px_rgba(0,0,0,0.4)]">
                               {bodyTasks.map((it) => {
                                 const tid = it.task_id ?? it.id;
                                 const hasTask =
@@ -3313,89 +3333,68 @@ export function SprintBoard({
                                 const col = it.sprint_column_id
                                   ? columnById.get(it.sprint_column_id)
                                   : undefined;
-                                // 체크리스트는 별도 레벨이 아니라 이 한 줄의 진척 표시로 접힌다.
+                                // 체크리스트는 별도 레벨이 아니라 카드 하단 게이지로 접힌다.
                                 const cTotal = it.checklist_total ?? 0;
                                 const cDone = it.checklist_done ?? 0;
-                                const cPct =
-                                  cTotal > 0
-                                    ? Math.round((cDone / cTotal) * 100)
-                                    : 0;
-                                const tColor = taskColorHex(tid);
                                 const showAdd =
                                   canEdit &&
                                   !!activeSprint &&
                                   tid !== "__none__" &&
                                   !taken;
+                                // 세그먼트 게이지 — 보드 카드와 같은 읽기법(칸 수 = 무게)
+                                const segTotal = Math.min(cTotal, 12);
+                                const segDone =
+                                  cTotal > 0
+                                    ? Math.round((cDone / cTotal) * segTotal)
+                                    : 0;
+                                const dday =
+                                  !it.completed && it.due_date
+                                    ? getDDay(it.due_date)
+                                    : null;
+                                const overdue = dday?.urgency === "overdue";
+                                // 좌측 3px은 피쳐 색이 아니라 "상태" — 피쳐 색은 그룹 카드가 독점한다.
+                                const stateColor = overdue
+                                  ? "#f43f5e"
+                                  : taken
+                                    ? "#2dd4bf"
+                                    : "transparent";
                                 return (
                                   <div
                                     key={it.id}
-                                    className={`group relative flex items-center gap-1.5 pl-1.5 pr-2 py-1.5 rounded-lg border transition-colors ${
-                                      taken
-                                        ? "bg-bridge-secondary/[0.06] border-bridge-secondary/20 hover:border-bridge-secondary/40"
-                                        : "bg-bridge-dark border-foreground/[0.08] hover:border-bridge-border"
+                                    role={hasTask ? "button" : undefined}
+                                    tabIndex={hasTask ? 0 : undefined}
+                                    onClick={() => hasTask && openItem(it)}
+                                    onKeyDown={(e) => {
+                                      if (
+                                        hasTask &&
+                                        (e.key === "Enter" || e.key === " ")
+                                      ) {
+                                        e.preventDefault();
+                                        openItem(it);
+                                      }
+                                    }}
+                                    title={it.title}
+                                    style={{
+                                      borderLeftWidth: 3,
+                                      borderLeftColor: stateColor,
+                                    }}
+                                    className={`group relative rounded-lg border border-foreground/10 px-2.5 py-2 space-y-1.5 transition-colors ${
+                                      overdue
+                                        ? "bg-rose-500/[0.07] hover:bg-rose-500/[0.12]"
+                                        : "bg-foreground/[0.03] hover:bg-foreground/[0.08]"
+                                    } ${it.completed ? "opacity-60" : ""} ${
+                                      hasTask ? "cursor-pointer" : ""
                                     }`}
                                   >
-                                    <span
-                                      className="w-1 h-4 rounded-full shrink-0"
-                                      style={{ background: tColor }}
-                                    />
-                                    {/* 본문 — 클릭하면 태스크 상세 */}
-                                    <button
-                                      type="button"
-                                      onClick={() => openItem(it)}
-                                      disabled={!hasTask}
-                                      className={`flex-1 min-w-0 text-left ${
-                                        hasTask
-                                          ? "cursor-pointer"
-                                          : "cursor-default"
-                                      }`}
-                                      title={it.title}
-                                    >
-                                      <span
-                                        className={`block text-xs truncate ${
-                                          it.completed
-                                            ? "line-through text-slate-500"
-                                            : "text-foreground"
-                                        }`}
-                                      >
-                                        {it.title}
-                                      </span>
-                                    </button>
-
-                                    {/* 체크리스트 진척 — 담기 전에도 무게를 가늠할 수 있게 항상 노출 */}
-                                    {cTotal > 0 && (
-                                      <span
-                                        className="flex items-center gap-1 shrink-0"
-                                        title={`체크리스트 ${cDone}/${cTotal}`}
-                                      >
-                                        <span className="w-7 h-1 rounded-full bg-foreground/10 overflow-hidden">
-                                          <span
-                                            className="block h-full rounded-full bg-bridge-secondary transition-all motion-reduce:transition-none"
-                                            style={{ width: `${cPct}%` }}
-                                          />
-                                        </span>
-                                        <span className="text-xs text-slate-500 tabular-nums">
-                                          {cDone}/{cTotal}
-                                        </span>
-                                      </span>
-                                    )}
-
-                                    {/* 이월 배지 — 몇 스프린트째 밀리는 중인지 */}
-                                    {(it.carry_over_count ?? 0) > 0 && (
-                                      <span
-                                        className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                                        title={`${(it.carry_over_count ?? 0) + 1}번째 스프린트째 진행 중`}
-                                      >
-                                        이월 {it.carry_over_count}
-                                      </span>
-                                    )}
-
-                                    {/* 담기 / 담김 — 이 행이 담기의 단위다 */}
-                                    {showAdd ? (
+                                    {/* 담기 — 호버 시에만. stopPropagation이 빠지면 담기 직후 상세까지 열린다. */}
+                                    {showAdd && (
                                       <button
                                         type="button"
-                                        onClick={() => addTaskToSprint(it)}
-                                        className="shrink-0 inline-flex items-center gap-0.5 text-xs font-bold rounded-full pl-1 pr-1.5 py-0.5 border bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30 hover:bg-bridge-accent hover:text-white transition-all"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          addTaskToSprint(it);
+                                        }}
+                                        className="absolute top-1.5 right-2 z-10 inline-flex items-center gap-0.5 text-xs font-bold rounded-lg pl-1 pr-1.5 py-0.5 bg-bridge-accent/15 text-bridge-accent border border-bridge-accent/30 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-bridge-accent hover:text-white transition-all"
                                         title="이 태스크를 스프린트에 담기 (체크리스트도 함께)"
                                         aria-label="태스크를 스프린트에 담기"
                                       >
@@ -3405,26 +3404,112 @@ export function SprintBoard({
                                         />
                                         담기
                                       </button>
-                                    ) : taken && col ? (
+                                    )}
+
+                                    <div className="flex items-start gap-1.5">
                                       <span
-                                        className="shrink-0 inline-flex items-center gap-1 text-xs font-bold rounded-full px-1.5 py-0.5 max-w-[84px]"
-                                        style={{
-                                          background: `${columnAccent(col)}26`,
-                                          color: columnAccent(col),
-                                        }}
-                                        title={`담김 · ${col.name}`}
+                                        className={`flex-1 min-w-0 text-xs font-medium leading-snug line-clamp-2 ${
+                                          it.completed
+                                            ? "line-through text-slate-500"
+                                            : "text-foreground"
+                                        }`}
+                                      >
+                                        {it.title}
+                                      </span>
+                                      {/* 우측 그룹 — "언제·누가". 호버 시 담기 버튼에 자리를 내준다. */}
+                                      <span
+                                        className={`shrink-0 flex items-center gap-1 ${
+                                          showAdd
+                                            ? "group-hover:opacity-0 transition-opacity"
+                                            : ""
+                                        }`}
+                                      >
+                                        {(it.carry_over_count ?? 0) > 0 && (
+                                          <span
+                                            className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                            title={`${(it.carry_over_count ?? 0) + 1}번째 스프린트째 진행 중`}
+                                          >
+                                            이월 {it.carry_over_count}
+                                          </span>
+                                        )}
+                                        {dday && dday.urgency !== "normal" && (
+                                          <span
+                                            className={`px-1.5 py-0.5 rounded-md text-xs font-bold tabular-nums ${DDAY_BADGE[dday.urgency]}`}
+                                            title={formatDate(it.due_date)}
+                                          >
+                                            {dday.text}
+                                          </span>
+                                        )}
+                                        {taken && col && (
+                                          <span
+                                            className="inline-flex items-center gap-1 text-xs font-bold rounded-full px-1.5 py-0.5 max-w-[72px]"
+                                            style={{
+                                              background: `${columnAccent(col)}26`,
+                                              color: columnAccent(col),
+                                            }}
+                                            title={`담김 · ${col.name}`}
+                                          >
+                                            <span className="truncate">
+                                              {col.name}
+                                            </span>
+                                          </span>
+                                        )}
+                                        {/* 담당 모노그램 — 비슷한 제목을 실제로 가르는 신호 */}
+                                        {it.assignee ? (
+                                          <span
+                                            className="w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold text-white"
+                                            style={{
+                                              background: getAssigneeHex(
+                                                it.assignee.name,
+                                              ),
+                                            }}
+                                            title={it.assignee.name}
+                                          >
+                                            {getInitials(it.assignee.name)}
+                                          </span>
+                                        ) : it.contractor ? (
+                                          <span
+                                            className="w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold bg-amber-500 text-amber-950"
+                                            title={`외주 · ${it.contractor.name}`}
+                                          >
+                                            {getInitials(it.contractor.name)}
+                                          </span>
+                                        ) : null}
+                                      </span>
+                                    </div>
+
+                                    {/* 체크리스트 롤업 — 담기 전에도 무게를 가늠할 수 있게 항상 노출 */}
+                                    {cTotal > 0 && (
+                                      <div
+                                        className="flex items-center gap-2 pt-1.5 border-t border-foreground/[0.08]"
+                                        title={`체크리스트 ${cDone}/${cTotal}`}
                                       >
                                         <span
-                                          className="w-1 h-1 rounded-full shrink-0"
-                                          style={{
-                                            background: columnAccent(col),
-                                          }}
-                                        />
-                                        <span className="truncate">
-                                          {col.name}
+                                          className="flex-1 flex gap-[2px]"
+                                          aria-hidden="true"
+                                        >
+                                          {Array.from(
+                                            { length: segTotal },
+                                            (_, i) => (
+                                              <span
+                                                key={i}
+                                                className={`flex-1 h-1 rounded-[2px] ${
+                                                  i < segDone
+                                                    ? "bg-bridge-secondary"
+                                                    : "bg-foreground/10"
+                                                }`}
+                                              />
+                                            ),
+                                          )}
                                         </span>
-                                      </span>
-                                    ) : null}
+                                        <span className="shrink-0 text-xs tabular-nums text-slate-500">
+                                          <span className="font-bold text-slate-400">
+                                            {cDone}
+                                          </span>
+                                          /{cTotal}
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })}

@@ -1390,7 +1390,12 @@
     },
     "checklistFilter": {
       "unassigned": "अनसाइन्ड",
-      "showingCount": "{{visible}} / {{total}} दिखा रहा है"
+      "showingCount": "{{visible}} / {{total}} दिखा रहा है",
+      "all": "सभी",
+      "groupLabel": "असाइनी फ़िल्टर",
+      "railAll": "{{total}} आइटम",
+      "railSelected": "{{count}} चयनित · {{visible}} आइटम",
+      "empty": "चयनित असाइनी के लिए कोई चेकलिस्ट आइटम नहीं है।"
     },
     "tags": "टैग",
     "tagName": "टैग का नाम",

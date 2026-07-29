@@ -534,6 +534,42 @@ export function TaskDetailModal({
 
   const isChecklistFilterActive = filterAssigneeIds.length > 0;
 
+  // 담당자 칩 레일용 집계 — 담당 건수 내림차순, 동수는 이름순
+  const checklistAssigneeStats = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        profile_image: string | null;
+        count: number;
+      }
+    >();
+    let unassignedCount = 0;
+    checklistItems.forEach((item) => {
+      if (!item.assignee) {
+        unassignedCount += 1;
+        return;
+      }
+      const existing = map.get(item.assignee.id);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        map.set(item.assignee.id, { ...item.assignee, count: 1 });
+      }
+    });
+    const assignees = [...map.values()].sort(
+      (a, b) => b.count - a.count || a.name.localeCompare(b.name, "ko"),
+    );
+    return { assignees, unassignedCount };
+  }, [checklistItems]);
+
+  const toggleAssigneeFilter = useCallback((id: string) => {
+    setFilterAssigneeIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }, []);
+
   const handleCopyTaskLink = useCallback(async () => {
     if (!boardId || !task) return;
     // 사람이 읽는 키가 있으면 짧은 키 링크(/t/STORY-42), 없으면 기존 딥링크로 폴백
@@ -1678,210 +1714,16 @@ export function TaskDetailModal({
                   );
                 })()}
 
-                {/* 담당자 칩 (체크리스트 담당자 집계 + 필터) — Personal Board에서는 숨김 */}
-                {!isPersonal &&
-                  (() => {
-                    // 체크리스트에서 중복 제거된 담당자 목록
-                    const uniqueAssignees = checklistItems
-                      .filter((item) => item.assignee)
-                      .reduce(
-                        (acc, item) => {
-                          if (
-                            item.assignee &&
-                            !acc.find((a) => a.id === item.assignee!.id)
-                          ) {
-                            acc.push(item.assignee);
-                          }
-                          return acc;
-                        },
-                        [] as Array<{
-                          id: string;
-                          name: string;
-                          profile_image: string | null;
-                        }>,
-                      );
-
-                    const hasUnassigned = checklistItems.some(
-                      (item) => !item.assignee,
-                    );
-
-                    // 담당자도 미할당도 없으면: 비활성 안내 칩
-                    if (uniqueAssignees.length === 0 && !hasUnassigned) {
-                      return (
-                        <div
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-foreground/[0.04] border border-foreground/10 text-slate-400 cursor-default"
-                          title={t("task.addAssigneeToChecklist")}
-                        >
-                          <Users className="h-3.5 w-3.5 text-slate-400" />
-                          <span>{t("task.assignee")}</span>
-                        </div>
-                      );
-                    }
-
-                    const filterActive = filterAssigneeIds.length > 0;
-                    const toggleFilter = (id: string) => {
-                      setFilterAssigneeIds((prev) =>
-                        prev.includes(id)
-                          ? prev.filter((x) => x !== id)
-                          : [...prev, id],
-                      );
-                    };
-
-                    return (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs border transition-colors ${
-                              filterActive
-                                ? "bg-bridge-accent/[0.12] border-bridge-accent/35 text-foreground hover:bg-bridge-accent/20"
-                                : "bg-foreground/[0.04] border-foreground/10 text-foreground hover:bg-foreground/10"
-                            }`}
-                          >
-                            {uniqueAssignees.length > 0 && (
-                              <div className="flex items-center">
-                                {uniqueAssignees.slice(0, 4).map((a, i) => {
-                                  const memberData = boardMembers.find(
-                                    (m) => m.userId === a.id,
-                                  );
-                                  const color = getAssigneeClasses(
-                                    a.name,
-                                    memberData?.assigneeColor,
-                                  );
-                                  return (
-                                    <div
-                                      key={a.id}
-                                      className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white border-2 border-bridge-obsidian whitespace-nowrap overflow-hidden leading-none ${i > 0 ? "-ml-2" : ""}`}
-                                      style={
-                                        !color.bg
-                                          ? { backgroundColor: color.hex }
-                                          : undefined
-                                      }
-                                    >
-                                      {getInitials(a.name)}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                            <span
-                              className={
-                                filterActive
-                                  ? "text-bridge-accent font-bold"
-                                  : "text-slate-400"
-                              }
-                            >
-                              {filterActive
-                                ? t("task.assigneeFilterActive", {
-                                    count: filterAssigneeIds.length,
-                                    defaultValue: "필터 {{count}}",
-                                  })
-                                : t("task.assigneeCount", {
-                                    count: uniqueAssignees.length,
-                                    defaultValue: "담당 {{count}}명",
-                                  })}
-                            </span>
-                            <ChevronDown className="w-3 h-3 opacity-60" />
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          align="start"
-                          className="w-64 p-2 bg-bridge-obsidian border-foreground/10"
-                        >
-                          <div className="flex items-center justify-between px-1 pb-2">
-                            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                              {t("task.assignee")}
-                            </span>
-                            {filterActive && (
-                              <button
-                                type="button"
-                                onClick={() => setFilterAssigneeIds([])}
-                                className="text-xs text-bridge-accent hover:underline"
-                              >
-                                {t("task.clearFilter", "필터 해제")}
-                              </button>
-                            )}
-                          </div>
-                          <div className="flex flex-col gap-1 max-h-64 overflow-y-auto custom-scrollbar">
-                            {uniqueAssignees.map((assignee) => {
-                              const memberData = boardMembers.find(
-                                (m) => m.userId === assignee.id,
-                              );
-                              const color = getAssigneeClasses(
-                                assignee.name,
-                                memberData?.assigneeColor,
-                              );
-                              const isActive = filterAssigneeIds.includes(
-                                assignee.id,
-                              );
-                              return (
-                                <button
-                                  key={assignee.id}
-                                  type="button"
-                                  onClick={() => toggleFilter(assignee.id)}
-                                  aria-pressed={isActive}
-                                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-colors ${
-                                    isActive
-                                      ? "border-bridge-accent bg-bridge-accent/10"
-                                      : "border-transparent hover:bg-foreground/5"
-                                  }`}
-                                >
-                                  <div
-                                    className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white`}
-                                    style={
-                                      !color.bg
-                                        ? { backgroundColor: color.hex }
-                                        : undefined
-                                    }
-                                  >
-                                    {getInitials(assignee.name)}
-                                  </div>
-                                  <span className="text-sm text-foreground flex-1 text-left truncate">
-                                    {assignee.name}
-                                  </span>
-                                  {isActive && (
-                                    <Check className="h-3.5 w-3.5 text-bridge-accent flex-shrink-0" />
-                                  )}
-                                </button>
-                              );
-                            })}
-                            {hasUnassigned &&
-                              (() => {
-                                const isActive =
-                                  filterAssigneeIds.includes("__no_assignee__");
-                                return (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      toggleFilter("__no_assignee__")
-                                    }
-                                    aria-pressed={isActive}
-                                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-colors ${
-                                      isActive
-                                        ? "border-bridge-accent bg-bridge-accent/10"
-                                        : "border-transparent hover:bg-foreground/5"
-                                    }`}
-                                  >
-                                    <div className="w-6 h-6 rounded-full bg-foreground/10 flex items-center justify-center text-xs text-slate-400">
-                                      ?
-                                    </div>
-                                    <span className="text-sm text-slate-400 flex-1 text-left">
-                                      {t(
-                                        "task.checklistFilter.unassigned",
-                                        "미할당",
-                                      )}
-                                    </span>
-                                    {isActive && (
-                                      <Check className="h-3.5 w-3.5 text-bridge-accent flex-shrink-0" />
-                                    )}
-                                  </button>
-                                );
-                              })()}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    );
-                  })()}
+                {/* 담당자 안내 칩 — 체크리스트 담당자가 없을 때만 노출 */}
+                {!isPersonal && checklistAssigneeStats.assignees.length === 0 && (
+                  <div
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-foreground/[0.04] border border-foreground/10 text-slate-400 cursor-default"
+                    title={t("task.addAssigneeToChecklist")}
+                  >
+                    <Users className="h-3.5 w-3.5 text-slate-400" />
+                    <span>{t("task.assignee")}</span>
+                  </div>
+                )}
 
                 {/* 태그 칩 */}
                 {taskTags.map((tag) => (
@@ -1916,6 +1758,169 @@ export function TaskDetailModal({
                   />
                 )}
               </div>
+
+              {/* 담당자 칩 레일 (체크리스트 담당자 집계 + 필터) — Personal Board에서는 숨김 */}
+              {!isPersonal && checklistAssigneeStats.assignees.length > 0 && (
+                <div className="-mx-8 md:-mx-10 pt-1">
+                  <div className="flex items-baseline justify-between gap-3 px-8 md:px-10 pb-2">
+                    <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                      {t("task.assignee")}
+                    </span>
+                    <span className="text-xs text-slate-500 tabular-nums">
+                      {isChecklistFilterActive
+                        ? t("task.checklistFilter.railSelected", {
+                            count: filterAssigneeIds.length,
+                            visible: visibleChecklistItems.length,
+                            defaultValue:
+                              "{{count}}명 선택 · {{visible}}개 항목",
+                          })
+                        : t("task.checklistFilter.railAll", {
+                            total: checklistItems.length,
+                            defaultValue: "전체 {{total}}개 항목",
+                          })}
+                    </span>
+                  </div>
+                  <div
+                    role="group"
+                    aria-label={t("task.checklistFilter.groupLabel", {
+                      defaultValue: "담당자 필터",
+                    })}
+                    className="flex items-center gap-2 overflow-x-auto custom-scrollbar px-8 md:px-10 pb-2"
+                    style={{
+                      maskImage:
+                        "linear-gradient(90deg, transparent 0px, #000 24px, #000 calc(100% - 24px), transparent 100%)",
+                      WebkitMaskImage:
+                        "linear-gradient(90deg, transparent 0px, #000 24px, #000 calc(100% - 24px), transparent 100%)",
+                    }}
+                  >
+                    {/* 전체 칩 — 필터 초기화 겸 현재 상태 표시 */}
+                    <button
+                      type="button"
+                      onClick={() => setFilterAssigneeIds([])}
+                      aria-pressed={!isChecklistFilterActive}
+                      className={`flex-shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-full border text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                        !isChecklistFilterActive
+                          ? "bg-foreground/10 border-foreground/15 text-foreground font-bold"
+                          : "bg-foreground/[0.04] border-foreground/10 text-slate-400 hover:bg-foreground/10"
+                      }`}
+                    >
+                      <span>
+                        {t("task.checklistFilter.all", {
+                          defaultValue: "전체",
+                        })}
+                      </span>
+                      <span className="tabular-nums text-slate-500">
+                        {checklistItems.length}
+                      </span>
+                    </button>
+
+                    {checklistAssigneeStats.assignees.map((assignee) => {
+                      const memberData = boardMembers.find(
+                        (m) => m.userId === assignee.id,
+                      );
+                      const color = getAssigneeClasses(
+                        assignee.name,
+                        memberData?.assigneeColor,
+                      );
+                      const isActive = filterAssigneeIds.includes(assignee.id);
+                      return (
+                        <button
+                          key={assignee.id}
+                          type="button"
+                          onClick={() => toggleAssigneeFilter(assignee.id)}
+                          aria-pressed={isActive}
+                          className={`flex-shrink-0 flex items-center gap-1.5 h-8 pl-1 pr-3 rounded-full border text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                            isActive
+                              ? "bg-bridge-accent/15 border-bridge-accent/45"
+                              : "bg-foreground/[0.04] border-foreground/10 hover:bg-foreground/10"
+                          }`}
+                        >
+                          <span
+                            className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white leading-none overflow-hidden whitespace-nowrap`}
+                            style={
+                              !color.bg
+                                ? { backgroundColor: color.hex }
+                                : undefined
+                            }
+                          >
+                            {getInitials(assignee.name)}
+                          </span>
+                          <span
+                            className={`whitespace-nowrap ${
+                              isActive
+                                ? "text-bridge-accent font-bold"
+                                : "text-foreground"
+                            }`}
+                          >
+                            {assignee.name}
+                          </span>
+                          <span
+                            className={`tabular-nums ${
+                              isActive
+                                ? "text-bridge-accent/70"
+                                : "text-slate-500"
+                            }`}
+                          >
+                            {assignee.count}
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                    {checklistAssigneeStats.unassignedCount > 0 && (
+                      <>
+                        <span
+                          aria-hidden="true"
+                          className="flex-shrink-0 w-px h-5 bg-foreground/10"
+                        />
+                        {(() => {
+                          const isActive =
+                            filterAssigneeIds.includes("__no_assignee__");
+                          return (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                toggleAssigneeFilter("__no_assignee__")
+                              }
+                              aria-pressed={isActive}
+                              className={`flex-shrink-0 flex items-center gap-1.5 h-8 pl-1 pr-3 rounded-full border text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                                isActive
+                                  ? "bg-bridge-accent/15 border-bridge-accent/45"
+                                  : "bg-foreground/[0.04] border-foreground/10 hover:bg-foreground/10"
+                              }`}
+                            >
+                              <span className="w-6 h-6 rounded-full border border-dashed border-foreground/20 flex items-center justify-center text-xs text-slate-500 leading-none">
+                                ?
+                              </span>
+                              <span
+                                className={`whitespace-nowrap ${
+                                  isActive
+                                    ? "text-bridge-accent font-bold"
+                                    : "text-slate-400"
+                                }`}
+                              >
+                                {t(
+                                  "task.checklistFilter.unassigned",
+                                  "미할당",
+                                )}
+                              </span>
+                              <span
+                                className={`tabular-nums ${
+                                  isActive
+                                    ? "text-bridge-accent/70"
+                                    : "text-slate-500"
+                                }`}
+                              >
+                                {checklistAssigneeStats.unassignedCount}
+                              </span>
+                            </button>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* 설명 섹션 */}
               <div className="space-y-2">
@@ -2071,7 +2076,24 @@ export function TaskDetailModal({
                       </div>
                     </div>
                   )}
-                  {checklistViewMode === "board" ? (
+                  {isChecklistFilterActive &&
+                  visibleChecklistItems.length === 0 ? (
+                    <div className="py-10 text-center">
+                      <p className="text-xs text-slate-500">
+                        {t("task.checklistFilter.empty", {
+                          defaultValue:
+                            "선택한 담당자의 체크리스트 항목이 없습니다.",
+                        })}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setFilterAssigneeIds([])}
+                        className="mt-2 text-xs font-bold text-bridge-accent hover:underline"
+                      >
+                        {t("task.clearFilter", "필터 해제")}
+                      </button>
+                    </div>
+                  ) : checklistViewMode === "board" ? (
                     <ChecklistStatusBoard
                       items={visibleChecklistItems}
                       canEdit={canEdit}
