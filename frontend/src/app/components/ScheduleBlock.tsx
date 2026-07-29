@@ -43,7 +43,13 @@ const isOverlapping = (start1: number, end1: number, start2: number, end2: numbe
 // 스냅 단위 (분) - 리사이즈/드래그 시 이 단위로 정렬
 const SNAP_MINUTES = 10;
 
-const MIN_BLOCK_VIS = 28; // 블록 최소 가시 높이 (px)
+const MIN_BLOCK_VIS = 32; // 블록 최소 가시 높이 (px) — text-sm 제목 한 줄 + py-1.5가 잘리지 않는 높이
+
+// 부제(태스크명 / 피처명)를 꺼내는 최소 블록 높이.
+// 제목이 text-xs → text-sm으로 커진 만큼 임계도 같이 올렸다.
+// 낮게 두면 제목 한 줄에 부제가 눌려 들어가 둘 다 잘린다.
+const TASK_TITLE_MIN_H = 36;
+const FEATURE_TITLE_MIN_H = 58;
 
 export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, otherBlocks = [], breakStartTime, breakEndTime, minutesToPx: minutesToPxProp, pxToMinutes: pxToMinutesProp, onClick, onResize, onMove, onSplitResize, isOrgOverlay }: ScheduleBlockProps) {
   // 가변 슬롯 높이 지원: prop이 있으면 사용, 없으면 선형 매핑 fallback
@@ -458,21 +464,21 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
   if (isOrgOverlay) {
     return (
       <div
-        className={`absolute left-1 right-1 rounded-md border-l-4 border-dashed px-2 py-1
+        className={`absolute left-1 right-1 rounded-lg border-l-4 border-dashed px-2.5 py-1.5
           overflow-hidden opacity-60 pointer-events-none cursor-default ${getBackgroundColor()}`}
         style={{ top: `${displayTop}px`, height: `${Math.max(displayHeight, MIN_BLOCK_VIS)}px`, ...getInlineStyle() }}
       >
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden gap-0.5">
           {block.board_name && (
             <span className="text-xs font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent truncate max-w-[80%] self-start mb-0.5">
               {t('scheduleBlock.orgScheduleLabel', { boardName: block.board_name })}
             </span>
           )}
-          <span className={`text-xs font-medium truncate ${displayInfo.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+          <span className={`text-sm font-medium truncate ${displayInfo.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
             {displayInfo.title}
             {isOvernight && <span className="text-bridge-accent ml-1 text-xs">({t('scheduleBlock.nextDay')})</span>}
           </span>
-          {displayHeight > 30 && displayInfo.taskTitle && (
+          {displayHeight > TASK_TITLE_MIN_H && displayInfo.taskTitle && (
             <span className="text-xs text-muted-foreground truncate">
               {displayInfo.taskTitle}
             </span>
@@ -485,7 +491,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
   return (
     <div
       ref={blockRef}
-      className={`absolute left-1 right-1 rounded-md border-l-4 px-2 py-1 pointer-events-auto
+      className={`absolute left-1 right-1 rounded-lg border-l-4 px-2.5 py-1.5 pointer-events-auto
         overflow-hidden ${getBackgroundColor()} ${isResizing || isDragging ? 'z-20' : ''}
         ${(isDragging || isResizing) && overlapType === 'block' ? 'cursor-not-allowed shadow-2xl ring-2 ring-red-500 bg-red-500/30' : (isDragging || isResizing) && overlapType === 'split' ? 'cursor-grab shadow-2xl ring-2 ring-amber-400 bg-amber-500/20' : isDragging ? 'cursor-grabbing shadow-2xl ring-2 ring-white/50' : isResizing ? 'cursor-ns-resize shadow-lg' : 'cursor-pointer hover:shadow-lg'}
         ${isDragging || isResizing ? '' : 'transition-shadow'}`}
@@ -508,17 +514,17 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
         onMouseDown={(e) => handleResizeStart(e, 'top')}
       />
 
-      <div className="flex flex-col h-full overflow-hidden">
-        <span className={`text-xs font-medium truncate ${displayInfo.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+      <div className="flex flex-col h-full overflow-hidden gap-0.5">
+        <span className={`text-sm font-medium truncate ${displayInfo.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
           {displayInfo.title}
           {isOvernight && <span className="text-bridge-accent ml-1 text-xs">({t('scheduleBlock.nextDay')})</span>}
         </span>
-        {displayHeight > 30 && displayInfo.taskTitle && (
+        {displayHeight > TASK_TITLE_MIN_H && displayInfo.taskTitle && (
           <span className="text-xs text-muted-foreground truncate">
             {displayInfo.taskTitle}
           </span>
         )}
-        {displayHeight > 50 && displayInfo.featureTitle && (
+        {displayHeight > FEATURE_TITLE_MIN_H && displayInfo.featureTitle && (
           <div className="flex items-center gap-1 mt-auto">
             <div
               className="w-2 h-2 rounded-full flex-shrink-0"

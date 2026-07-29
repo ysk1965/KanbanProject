@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>스프린트 미분류 레일 — 구현 문서</title>
+<style>
+  :root {
+    --bridge-dark: #191f2d;
+    --bridge-obsidian: #151B28;
+    --bridge-accent: #6366F1;
+    --bridge-secondary: #2DD4BF;
+    --fg: rgba(248, 250, 252, 0.98);
+    --slate-400: #94a3b8;
+    --slate-500: #64748b;
+    --slate-600: #475569;
+    --amber: #f59e0b;
+    --rose: #f43f5e;
+    --emerald: #10b981;
+    --col-bg: #161d2b;
+    --col-border: rgba(255,255,255,0.08);
+    --card-bg: #1c2434;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d1117; color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Noto Sans KR", sans-serif;
+    padding: 40px 20px 120px;
+    display: flex; flex-direction: column; align-items: center; gap: 28px; line-height: 1.6;
+  }
+  .wrap { width: 100%; max-width: 1240px; display: flex; flex-direction: column; gap: 28px; }
+  h1.doc-title { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+  .doc-sub { font-size: 13px; color: var(--slate-500); }
+
+  section { background: var(--bridge-obsidian); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; }
+  .accent-line { height: 2px; background: linear-gradient(90deg, rgba(99,102,241,0.6), rgba(45,212,191,0.4), transparent); }
+  .sec-head { padding: 18px 24px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .sec-head h2 { font-size: 16px; font-weight: 700; }
+  .sec-head .num { font-size: 12px; font-weight: 700; color: var(--bridge-accent); background: rgba(99,102,241,0.15); padding: 2px 8px; border-radius: 999px; }
+  .sec-head .hint { font-size: 12px; color: var(--slate-500); }
+  .sec-body { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+  p, li { font-size: 13.5px; color: var(--slate-400); }
+  p b, li b, td b { color: var(--fg); font-weight: 700; }
+  ul { margin-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 6px; color: #c7d2fe; }
+  .label { font-size: 11.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--slate-500); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); vertical-align: top; }
+  th { font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--slate-500); font-weight: 700; }
+  td { color: var(--slate-400); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .callout { background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.25); border-radius: 14px; padding: 14px 18px; }
+  .callout.warn { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.28); }
+  .callout.good { background: rgba(45,212,191,0.08); border-color: rgba(45,212,191,0.28); }
+  .callout .label { color: var(--bridge-accent); margin-bottom: 6px; display: block; }
+  .callout.warn .label { color: var(--amber); }
+  .callout.good .label { color: var(--bridge-secondary); }
+
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .b-accent { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+  .b-teal { background: rgba(45,212,191,0.15); color: #5eead4; }
+  .b-amber { background: rgba(245,158,11,0.15); color: #fcd34d; }
+  .b-rose { background: rgba(244,63,94,0.15); color: #fda4af; }
+  .b-slate { background: rgba(148,163,184,0.15); color: var(--slate-400); }
+
+  .mock-cap { font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--slate-500); margin-bottom: 10px; }
+
+  .screen { background: var(--bridge-dark); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 12px; }
+  .strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+  .col { width: 196px; flex: 0 0 auto; display: flex; flex-direction: column; background: var(--col-bg); border: 1px solid var(--col-border); border-radius: 14px; overflow: hidden; }
+  .rail3 { height: 3px; }
+  .col-head { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.06); position: relative; }
+  .col-head-row { display: flex; align-items: center; gap: 6px; }
+  .av { width: 18px; height: 18px; border-radius: 999px; display: grid; place-items: center; font-size: 9px; font-weight: 700; color: #fff; flex: 0 0 auto; }
+  .col-name { font-size: 12px; font-weight: 700; color: var(--fg); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .col-num { font-size: 11.5px; color: var(--slate-500); font-variant-numeric: tabular-nums; }
+  .col-num b { color: var(--fg); }
+  .col-underbar { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: rgba(255,255,255,0.1); }
+  .col-underbar i { display: block; height: 100%; }
+  .col-body { padding: 8px; display: flex; flex-direction: column; gap: 7px; min-height: 140px; }
+  .col-body.empty { align-items: center; justify-content: center; font-size: 11.5px; color: var(--slate-600); }
+
+  .c { background: var(--card-bg); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 7px 8px; display: flex; flex-direction: column; gap: 5px; }
+  .chip { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; align-self: flex-start; }
+  .c-title { font-size: 11.5px; font-weight: 500; color: var(--fg); line-height: 1.35; }
+  .bar { height: 3px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--bridge-secondary); }
+
+  .urail { margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); border-radius: 0 0 12px 12px; }
+  .urail-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; flex-wrap: wrap; }
+  .urail-title { font-size: 12px; font-weight: 700; color: var(--fg); display: flex; align-items: center; gap: 6px; }
+  .caret { width: 18px; height: 18px; display: grid; place-items: center; color: var(--slate-500); font-size: 10px; background: none; border: none; cursor: pointer; font-family: inherit; }
+  .seg { display: flex; gap: 4px; }
+  .seg button { font-family: inherit; cursor: pointer; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: var(--slate-400); transition: all .15s; }
+  .seg button:hover { background: rgba(255,255,255,0.08); color: var(--fg); }
+  .seg button.on { background: rgba(99,102,241,0.18); border-color: rgba(99,102,241,0.45); color: #a5b4fc; }
+  .urail-hint { margin-left: auto; font-size: 11px; color: var(--slate-600); }
+  .urail-body { padding: 0 12px 12px; display: flex; gap: 8px; overflow-x: auto; }
+  .urail-body.collapsed { display: none; }
+
+  .uc { width: 200px; flex: 0 0 auto; background: var(--card-bg); border: 1px dashed rgba(148,163,184,0.4); border-radius: 10px; padding: 9px; display: flex; flex-direction: column; gap: 7px; cursor: grab; transition: border-color .15s, transform .15s; }
+  .uc:hover { border-color: rgba(99,102,241,0.6); transform: translateY(-2px); }
+  .uc-top { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .cause { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; }
+  .cause-asg { background: rgba(148,163,184,0.18); color: #cbd5e1; }
+  .cause-feat { background: rgba(245,158,11,0.15); color: #fcd34d; }
+  .uc-title { font-size: 11.5px; font-weight: 500; color: var(--fg); line-height: 1.35; }
+  .uc-foot { display: flex; align-items: center; gap: 6px; }
+  .acts { display: flex; gap: 4px; }
+  .acts button { flex: 1; font-family: inherit; cursor: pointer; font-size: 10px; font-weight: 700; padding: 3px 6px; border-radius: 8px; background: rgba(255,255,255,0.06); border: none; color: var(--slate-400); transition: all .15s; }
+  .acts button:hover { background: var(--bridge-accent); color: #fff; }
+  .uc.hidden { display: none; }
+  .urail-empty { width: 100%; font-size: 12px; color: var(--slate-600); padding: 12px 0; }
+
+  .col.droptarget { border-color: rgba(99,102,241,0.6); box-shadow: 0 0 0 3px rgba(99,102,241,0.14); }
+  .ghost-card { background: rgba(99,102,241,0.1); border: 1px dashed rgba(99,102,241,0.55); border-radius: 10px; padding: 7px 8px; font-size: 11.5px; color: #a5b4fc; font-weight: 700; }
+
+  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 900px) { .cols2 { grid-template-columns: 1fr; } }
+  .mini { background: var(--bridge-dark); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px 16px; }
+  .mini h4 { font-size: 12.5px; font-weight: 700; margin-bottom: 7px; }
+  .mini.pro { border-color: rgba(45,212,191,0.28); }
+  .mini.con { border-color: rgba(244,63,94,0.26); }
+  .mini.pro h4 { color: #5eead4; }
+  .mini.con h4 { color: #fda4af; }
+  .mini ul { margin-left: 16px; }
+  .mini li { font-size: 12.5px; }
+
+  .anat { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+  .anat-note { flex: 1; min-width: 260px; }
+  .anat-note ol { margin-left: 18px; display: flex; flex-direction: column; gap: 8px; }
+  .anat-note li { font-size: 13px; }
+  .no { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 999px; background: rgba(99,102,241,0.2); color: #a5b4fc; font-size: 10px; font-weight: 700; margin-right: 5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div>
+    <h1 class="doc-title">스프린트 미분류 레일 — 구현 문서</h1>
+    <p class="doc-sub">
+      <code>frontend/src/app/components/SprintBoard.tsx</code> · 구성원 뷰 하단 ·
+      아래 목업의 필터 칩과 접기 버튼은 실제 동작과 동일하게 눌러볼 수 있습니다
+    </p>
+  </div>
+
+  <!-- 0. 결정 -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">0</span>
+      <h2>확정된 범위</h2>
+    </div>
+    <div class="sec-body">
+      <table>
+        <thead><tr><th>항목</th><th>결정</th><th>이유</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>레일에 담는 사유</td>
+            <td><b>담당 없음 · 피쳐 없음</b> 2종</td>
+            <td>“미담김”(백로그)은 좌측 업무 리스트가 이미 맡고 있어 역할이 겹친다. 레일 성격을 <b>“담겼는데 정보가 빈 카드”</b>로 좁혀 두 영역의 경계를 분명히 했다.</td>
+          </tr>
+          <tr>
+            <td>기본 상태</td>
+            <td><b>접힘</b></td>
+            <td>평소엔 보드 세로 공간을 돌려주고, 접힌 헤더에 사유별 건수를 남겨 누락이 숨지 않게 한다. <code>localStorage</code>에 유지.</td>
+          </tr>
+          <tr>
+            <td>기존 “미배정” 컬럼</td>
+            <td><b>제거</b></td>
+            <td>같은 카드가 컬럼과 레일에 중복으로 서는 걸 막는다. 늘 비어 있던 컬럼이 가로 폭만 먹던 문제도 함께 해소.</td>
+          </tr>
+          <tr>
+            <td>노출 뷰</td>
+            <td>구성원 뷰 전용</td>
+            <td>컬럼이 담당자 단위일 때만 “컬럼에 못 서는 카드”가 생긴다. Feature·JIRA 뷰와 과거 스프린트 미리보기에선 숨김.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 1. 적용 후 -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">1</span>
+      <h2>펼친 모습 — 구성원 뷰 전체</h2>
+      <span class="hint">미배정 카드가 컬럼에서 빠지고 레일로 모인다</span>
+    </div>
+    <div class="sec-body">
+      <div class="screen">
+        <div class="strip">
+          <div class="col">
+            <div class="rail3" style="background:#6366F1"></div>
+            <div class="col-head">
+              <div class="col-head-row">
+                <span class="av" style="background:#6366F1">정소</span>
+                <span class="col-name">정소연</span>
+                <span class="col-num"><b>18</b>/22</span>
+              </div>
+              <div class="col-underbar"><i style="width:82%;background:#6366F1"></i></div>
+            </div>
+            <div class="col-body">
+              <div class="c">
+                <span class="chip" style="background:rgba(244,114,182,0.16);color:#f9a8d4">프롤로그 작업</span>
+                <div class="c-title">프롤로그_프리팹/라이팅</div>
+                <div class="bar"><i style="width:33%"></i></div>
+              </div>
+              <div class="c">
+                <span class="chip" style="background:rgba(45,212,191,0.16);color:#5eead4">로비 작업</span>
+                <div class="c-title">로비 환경 작업</div>
+                <div class="bar"><i style="width:75%"></i></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="rail3" style="background:#2DD4BF"></div>
+            <div class="col-head">
+              <div class="col-head-row">
+                <span class="av" style="background:#2DD4BF">민준</span>
+                <span class="col-name">민준태</span>
+                <span class="col-num"><b>32</b>/47</span>
+              </div>
+              <div class="col-underbar"><i style="width:68%;background:#2DD4BF"></i></div>
+            </div>
+            <div class="col-body">
+              <div class="c">
+                <span class="chip" style="background:rgba(99,102,241,0.16);color:#a5b4fc">게임 플로우 작업</span>
+                <div class="c-title">튜토리얼 작업 (Sprint3)</div>
+                <div class="bar"><i style="width:28%"></i></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="rail3" style="background:#a855f7"></div>
+            <div class="col-head">
+              <div class="col-head-row">
+                <span class="av" style="background:#a855f7">백다</span>
+                <span class="col-name">백다빈</span>
+                <span class="col-num"><b>6</b>/12</span>
+              </div>
+              <div class="col-underbar"><i style="width:50%;background:#a855f7"></i></div>
+            </div>
+            <div class="col-body">
+              <div class="c">
+                <span class="chip" style="background:rgba(99,102,241,0.16);color:#a5b4fc">게임 플로우 작업</span>
+                <div class="c-title">가이드 미션 작업</div>
+                <div class="bar"><i style="width:12%"></i></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="rail3" style="background:#f59e0b"></div>
+            <div class="col-head"><div class="col-head-row"><span class="col-name">In Review</span><span class="col-num">0</span></div></div>
+            <div class="col-body empty">비어 있음</div>
+          </div>
+
+          <div class="col">
+            <div class="rail3" style="background:#34d399"></div>
+            <div class="col-head"><div class="col-head-row"><span class="col-name">Done</span><span class="col-num">4</span></div></div>
+            <div class="col-body">
+              <div class="c">
+                <span class="chip" style="background:rgba(52,211,153,0.16);color:#6ee7b7">볼 챕터 작업</span>
+                <div class="c-title">볼 챕터 배경</div>
+                <div class="bar"><i style="width:100%"></i></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="urail" id="urail">
+          <div class="urail-head">
+            <button class="caret" id="caretBtn" aria-label="미분류 레일 접기">▼</button>
+            <span class="urail-title">✉ 미분류 <span class="badge b-slate">7</span></span>
+            <div class="seg" id="seg">
+              <button class="on" data-f="all">전체 7</button>
+              <button data-f="asg">담당 없음 4</button>
+              <button data-f="feat">피쳐 없음 3</button>
+            </div>
+            <span class="urail-hint">카드를 구성원 컬럼으로 끌어다 놓으면 담당이 지정됩니다</span>
+          </div>
+          <div class="urail-body" id="urailBody">
+            <div class="uc" data-c="asg">
+              <div class="uc-top"><span class="cause cause-asg">담당 없음</span><span class="chip" style="background:rgba(99,102,241,0.16);color:#a5b4fc">눈 챕터 작업</span></div>
+              <div class="uc-title">눈 챕터 배경</div>
+              <div class="uc-foot"><span class="col-num"><b>0</b>/5</span></div>
+              <div class="acts"><button>＋ 담당 지정</button></div>
+            </div>
+            <div class="uc" data-c="asg">
+              <div class="uc-top"><span class="cause cause-asg">담당 없음</span><span class="chip" style="background:rgba(244,114,182,0.16);color:#f9a8d4">[QA] 스텔라나이츠</span></div>
+              <div class="uc-title">[테스트] 테스트용 버그2</div>
+              <div class="uc-foot"><span class="col-num"><b>0</b>/1</span></div>
+              <div class="acts"><button>＋ 담당 지정</button></div>
+            </div>
+            <div class="uc" data-c="asg">
+              <div class="uc-top"><span class="cause cause-asg">담당 없음</span><span class="chip" style="background:rgba(244,114,182,0.16);color:#f9a8d4">[QA] 스텔라나이츠</span></div>
+              <div class="uc-title">[테스트] 테스트용 버그1</div>
+              <div class="uc-foot"><span class="col-num"><b>0</b>/1</span></div>
+              <div class="acts"><button>＋ 담당 지정</button></div>
+            </div>
+            <div class="uc" data-c="asg">
+              <div class="uc-top"><span class="cause cause-asg">담당 없음</span><span class="cause cause-feat">피쳐 없음</span></div>
+              <div class="uc-title">스펙 미정 작업</div>
+              <div class="uc-foot"><span class="col-num"><b>0</b>/1</span></div>
+              <div class="acts"><button>＋ 담당</button><button>◇ 피쳐</button></div>
+            </div>
+            <div class="uc" data-c="feat">
+              <div class="uc-top"><span class="cause cause-feat">피쳐 없음</span></div>
+              <div class="uc-title">임시 확인 건</div>
+              <div class="uc-foot"><span class="col-num"><b>0</b>/2</span><span class="av" style="background:#2DD4BF;width:16px;height:16px;font-size:8px;margin-left:auto">민</span></div>
+              <div class="acts"><button>◇ 피쳐 지정</button></div>
+            </div>
+            <div class="uc" data-c="feat">
+              <div class="uc-top"><span class="cause cause-feat">피쳐 없음</span></div>
+              <div class="uc-title">리소스 정리 · 레거시 삭제</div>
+              <div class="uc-foot"><span class="col-num"><b>1</b>/3</span><span class="av" style="background:#6366F1;width:16px;height:16px;font-size:8px;margin-left:auto">정</span></div>
+              <div class="acts"><button>◇ 피쳐 지정</button></div>
+            </div>
+            <div class="uc" data-c="feat">
+              <div class="uc-top"><span class="cause cause-feat">피쳐 없음</span></div>
+              <div class="uc-title">가차 확률 테이블 검수</div>
+              <div class="uc-foot"><span class="col-num"><b>0</b>/4</span><span class="av" style="background:#a855f7;width:16px;height:16px;font-size:8px;margin-left:auto">백</span></div>
+              <div class="acts"><button>◇ 피쳐 지정</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">직접 눌러보세요</span>
+        <p>필터 칩(전체 / 담당 없음 / 피쳐 없음)과 ▼ 접기 버튼이 동작합니다. 사유가 둘인 카드는 칩이 두 개 붙고 두 필터 모두에서 잡힙니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. 해부 -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">2</span>
+      <h2>레일 카드 해부</h2>
+      <span class="hint">한 카드가 왜 여기 있는지를 카드 스스로 설명한다</span>
+    </div>
+    <div class="sec-body">
+      <div class="anat">
+        <div style="flex:0 0 auto;background:var(--bridge-dark);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px">
+          <div class="uc" style="cursor:default;width:216px">
+            <div class="uc-top">
+              <span class="cause cause-feat">피쳐 없음</span>
+            </div>
+            <div class="uc-title">리소스 정리 · 레거시 삭제</div>
+            <div class="uc-foot"><span class="col-num"><b>1</b>/3</span><span class="av" style="background:#6366F1;width:16px;height:16px;font-size:8px;margin-left:auto">정</span></div>
+            <div class="acts"><button>◇ 피쳐 지정</button></div>
+          </div>
+        </div>
+        <div class="anat-note">
+          <ol>
+            <li><span class="no">1</span><b>사유 칩</b> — <span class="cause cause-asg">담당 없음</span> <span class="cause cause-feat">피쳐 없음</span>. 두 조건에 걸리면 둘 다 붙는다.</li>
+            <li><span class="no">2</span><b>피쳐 칩</b> — 피쳐가 있으면 그 색으로 표시. 피쳐 없음 카드는 이 자리가 비어 결손이 눈에 보인다.</li>
+            <li><span class="no">3</span><b>진척</b> — 체크리스트 롤업(<code>checklist_done / checklist_total</code>).</li>
+            <li><span class="no">4</span><b>담당 아바타</b> — 있으면 이 카드가 <b>구성원 컬럼에도 함께 서 있다</b>는 신호. 담당 없음 카드엔 아바타가 없고, 그게 “레일 말고는 보이는 곳이 없다”는 뜻이다.</li>
+            <li><span class="no">5</span><b>해소 버튼</b> — 사유별로 붙는다. 둘 다면 버튼도 둘.</li>
+            <li><span class="no">6</span><b>점선 테두리</b> — 컬럼 카드(실선)와 구분되는 “아직 자리 못 잡음” 신호.</li>
+          </ol>
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th>사유</th><th>판정</th><th>해소 경로</th><th>해소 후</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="cause cause-asg">담당 없음</span></td>
+            <td>담당자·외주 관리담당이 모두 없음 (구성원 컬럼 라우팅 <code>keysOf</code>의 <code>__none__</code>와 동일 규칙)</td>
+            <td>구성원 컬럼으로 <b>드롭</b> · “담당 지정” 버튼 → 태스크 상세</td>
+            <td>레일에서 빠지고 해당 구성원 컬럼에 선다</td>
+          </tr>
+          <tr>
+            <td><span class="cause cause-feat">피쳐 없음</span></td>
+            <td><code>feature_id == null</code></td>
+            <td>“피쳐 지정” 버튼 → 피쳐 선택 모달</td>
+            <td><code>taskAPI.moveTaskToFeature</code> 후 레일에서 빠진다</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <span class="label">담당 지정이 상세 모달로 가는 이유</span>
+        <p>v7.0부터 담당자는 태스크가 아니라 <b>체크리스트 줄</b>에 붙는다(<code>taskAPI</code>에 <code>assignee_id</code>가 없다). 그래서 버튼은 태스크 상세를 열어 줄 단위로 지정하게 하고, <b>드래그 드롭</b>이 “담당이 빈 줄을 한 번에 그 사람으로 채우는” 일괄 경로다. 이미 누군가 잡고 있는 줄은 건드리지 않는다 — 드롭 한 번이 남의 담당을 덮어쓰면 안 되기 때문. 체크리스트가 하나도 없는 태스크는 담당을 붙일 자리가 없어, 안내 토스트와 함께 상세로 보낸다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 상태 -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">3</span>
+      <h2>상태별 모습</h2>
+    </div>
+    <div class="sec-body">
+
+      <div>
+        <div class="mock-cap">기본값 — 접힘. 사유별 건수는 헤더에 남는다</div>
+        <div class="screen" style="padding:10px">
+          <div class="urail" style="margin-top:0;border-top:none">
+            <div class="urail-head">
+              <span class="caret">▶</span>
+              <span class="urail-title">✉ 미분류 <span class="badge b-slate">7</span></span>
+              <span class="badge b-slate">담당 없음 4</span>
+              <span class="badge b-amber">피쳐 없음 3</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="mock-cap">드래그 중 — 구성원 컬럼이 드롭 타겟으로 하이라이트</div>
+        <div class="screen">
+          <div class="strip">
+            <div class="col droptarget">
+              <div class="rail3" style="background:#2DD4BF"></div>
+              <div class="col-head"><div class="col-head-row"><span class="av" style="background:#2DD4BF">민준</span><span class="col-name">민준태</span><span class="col-num"><b>32</b>/47</span></div></div>
+              <div class="col-body">
+                <div class="ghost-card">여기에 놓기 → 민준태 담당으로 배정</div>
+                <div class="c" style="opacity:.5">
+                  <span class="chip" style="background:rgba(99,102,241,0.16);color:#a5b4fc">게임 플로우 작업</span>
+                  <div class="c-title">튜토리얼 작업 (Sprint3)</div>
+                  <div class="bar"><i style="width:28%"></i></div>
+                </div>
+              </div>
+            </div>
+            <div class="col" style="opacity:.45">
+              <div class="rail3" style="background:#a855f7"></div>
+              <div class="col-head"><div class="col-head-row"><span class="av" style="background:#a855f7">백다</span><span class="col-name">백다빈</span><span class="col-num"><b>6</b>/12</span></div></div>
+              <div class="col-body empty">비어 있음</div>
+            </div>
+          </div>
+          <div class="urail">
+            <div class="urail-head">
+              <span class="caret">▼</span>
+              <span class="urail-title">✉ 미분류 <span class="badge b-slate">7</span></span>
+              <span class="urail-hint">드래그 중…</span>
+            </div>
+            <div class="urail-body">
+              <div class="uc" style="border-color:rgba(99,102,241,0.6);opacity:.4;transform:rotate(-2deg)">
+                <div class="uc-top"><span class="cause cause-asg">담당 없음</span></div>
+                <div class="uc-title">눈 챕터 배경</div>
+              </div>
+              <div class="uc"><div class="uc-top"><span class="cause cause-feat">피쳐 없음</span></div><div class="uc-title">임시 확인 건</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="mock-cap">0건 — 한 줄로 축소</div>
+        <div class="screen" style="padding:10px">
+          <div class="urail" style="margin-top:0;border-top:none">
+            <div class="urail-head">
+              <span class="caret" style="color:#5eead4">✓</span>
+              <span class="urail-title" style="color:#5eead4">미분류 없음</span>
+              <span class="urail-hint" style="margin-left:0">담긴 카드의 담당·피쳐가 모두 채워졌습니다</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. 구현 -->
+  <section>
+    <div class="accent-line"></div>
+    <div class="sec-head">
+      <span class="num">4</span>
+      <h2>구현</h2>
+      <span class="hint">전부 프론트 — 백엔드·마이그레이션 변경 없음</span>
+    </div>
+    <div class="sec-body">
+      <table>
+        <thead><tr><th>요소</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>uncategorized</code></td>
+            <td>담긴 카드(<code>sprint_column_id</code>) 중 <b>미완료</b>만 훑어 사유 배열을 붙인다. END 컬럼·<code>completed</code> 카드는 제외 — 레일은 지금 해결할 것만 담는다. 상단 필터바의 피쳐 필터를 그대로 반영. 정렬은 <b>담당 없음 우선</b> → 긴급도.</td>
+          </tr>
+          <tr>
+            <td><code>memberColumns</code></td>
+            <td><code>__none__</code> 키를 컬럼 목록에서 제외. 미배정 컬럼과 그 <code>isNone</code> 분기 전부 제거.</td>
+          </tr>
+          <tr>
+            <td>레이아웃</td>
+            <td>보드 영역을 <code>flex flex-col</code>로 바꾸고 컬럼 스트립(<code>flex-1 min-h-0 overflow-x-auto</code>) 아래에 레일을 붙였다. 미리보기·JIRA·Feature 뷰에선 렌더하지 않는다.</td>
+          </tr>
+          <tr>
+            <td>드롭 분기</td>
+            <td><code>uncatDragRef</code>로 “레일에서 시작된 드래그”를 표시하고, 구성원 컬럼 <code>onDrop</code>이 컬럼 이동 대신 담당 배정을 태운다. 카드는 이미 스프린트에 담겨 있어 소속 컬럼은 건드리지 않는다.</td>
+          </tr>
+          <tr>
+            <td>담당 배정</td>
+            <td><code>checklistAPI.patchItem</code>을 담당 없는 줄에 순차 적용 후 보드 재조회. <code>run()</code>은 중복 호출·실패를 삼켜 성공 토스트와 어긋나므로 직접 <code>busyRef</code>/<code>try-catch</code>로 돌린다.</td>
+          </tr>
+          <tr>
+            <td>피쳐 지정</td>
+            <td><code>MotionModal</code> 기반 선택 모달 + <code>taskAPI.moveTaskToFeature</code>. 레일이 <code>overflow-x-auto</code> 컨테이너라 인라인 드롭다운은 잘린다 — 모달이 유일하게 안전한 표면이다.</td>
+          </tr>
+          <tr>
+            <td>상태 유지</td>
+            <td>접힘은 <code>bridge:sprint-uncategorized:collapsed</code>에 저장(기본 접힘). 고른 사유가 0건이 되면 필터를 자동으로 “전체”로 되돌린다.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout good">
+        <span class="label">확장 여지</span>
+        <p>사유는 <code>UncatCause</code> 유니온 하나로 모여 있어, 나중에 “미담김”이나 “마감 없음” 같은 칩을 붙이려면 판정 한 줄과 칩 하나만 추가하면 된다.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  const seg = document.getElementById('seg');
+  const body = document.getElementById('urailBody');
+  if (seg) {
+    seg.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
+      const f = btn.dataset.f;
+      let shown = 0;
+      body.querySelectorAll('.uc').forEach(card => {
+        // 사유가 둘인 카드는 두 필터 모두에서 잡힌다 (실제 구현의 causes.includes와 동일)
+        const causes = card.querySelectorAll('.cause-asg').length ? ['asg'] : [];
+        if (card.querySelectorAll('.cause-feat').length) causes.push('feat');
+        const hit = f === 'all' || causes.includes(f);
+        card.classList.toggle('hidden', !hit);
+        if (hit) shown++;
+      });
+      let empty = body.querySelector('.urail-empty');
+      if (shown === 0) {
+        if (!empty) {
+          empty = document.createElement('div');
+          empty.className = 'urail-empty';
+          empty.textContent = '해당 항목 없음';
+          body.appendChild(empty);
+        }
+      } else if (empty) empty.remove();
+    });
+  }
+
+  const caretBtn = document.getElementById('caretBtn');
+  if (caretBtn) {
+    caretBtn.addEventListener('click', () => {
+      const collapsed = body.classList.toggle('collapsed');
+      caretBtn.textContent = collapsed ? '▶' : '▼';
+    });
+  }
+</script>
+</body>
+</html>
