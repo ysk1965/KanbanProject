@@ -717,6 +717,7 @@ export interface SprintJiraTask {
   assignees: { id: string; name: string; profile_image: string | null }[]; // 체크리스트 담당자(중복 제거)
   done: number; // 완료 체크리스트 수
   total: number; // 전체 체크리스트 수
+  linked_at: string | null; // 이 이슈가 BRIDGE 보드에 링크된 시각 — 신규 뱃지 판정 기준
 }
 
 export interface SprintBoard {
@@ -728,6 +729,9 @@ export interface SprintBoard {
   backlog: SprintItemCard[];
   // JIRA 미연동 보드면 없음/빈 배열. JIRA 뷰는 스프린트 컬럼이 아니라 이 보드 전체 목록을 집계한다.
   jira_tasks?: SprintJiraTask[];
+  // 이 사용자가 JIRA 뷰를 마지막으로 확인한 시각. 이보다 나중에 linked_at된 이슈 = 신규.
+  // null이면 판정 불가(멤버십 없음 등) → 신규 0건으로 취급한다.
+  jira_last_seen_at?: string | null;
 }
 
 // ========================================

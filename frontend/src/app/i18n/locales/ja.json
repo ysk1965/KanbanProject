@@ -2365,7 +2365,8 @@
     "blockColor": "色",
     "editCustom": "ブロック編集",
     "titlePlaceholder": "スケジュール名を入力してください",
-    "viewMeeting": "ミーティング詳細"
+    "viewMeeting": "ミーティング詳細",
+    "escClose": "Escで閉じる"
   },
   "emptyBoard": {
     "heading": "ボードを始めましょう",

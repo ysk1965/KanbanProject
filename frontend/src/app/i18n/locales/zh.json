@@ -2365,7 +2365,8 @@
     "blockColor": "颜色",
     "editCustom": "编辑块",
     "titlePlaceholder": "请输入日程名称",
-    "viewMeeting": "查看会议详情"
+    "viewMeeting": "查看会议详情",
+    "escClose": "Esc 关闭"
   },
   "emptyBoard": {
     "heading": "开始使用您的看板",

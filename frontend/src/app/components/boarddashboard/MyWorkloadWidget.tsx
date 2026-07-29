@@ -15,6 +15,7 @@ import { formatDate } from "../../utils/dateUtils";
 import { parseDate } from "../../utils/workloadBar";
 import type { BoardMember as ShareBoardMember } from "../ShareBoardModal";
 import { DashboardEmpty } from "./DashboardCard";
+import { DASHBOARD_ROW_HEIGHT } from "./dashboardUtils";
 import { PlacementRail } from "./PlacementRail";
 
 const ScheduleResourceView = lazyWithRetry(
@@ -24,12 +25,6 @@ const ScheduleResourceView = lazyWithRetry(
     })),
   "ScheduleResourceView",
 );
-
-/**
- * 헤더 + 마일스톤·이벤트 밴드 + 내 행 + 하단 배치 레일이 들어가는 높이.
- * 같은 그리드 행의 타임블록 위젯(840)보다 낮아 페이지 높이는 늘지 않는다.
- */
-const WIDGET_HEIGHT = 720;
 
 /** 배치 안내를 띄워 두는 시간 (ms) */
 const NOTICE_TTL = 8000;
@@ -270,7 +265,7 @@ export function MyWorkloadWidget({
   return (
     <section
       className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden flex flex-col"
-      style={{ height: WIDGET_HEIGHT }}
+      style={{ height: DASHBOARD_ROW_HEIGHT }}
     >
       <header className="flex items-center gap-2 px-4 py-3 border-b border-foreground/[0.08] flex-none">
         <h2 className="text-xs md:text-sm font-bold text-foreground">

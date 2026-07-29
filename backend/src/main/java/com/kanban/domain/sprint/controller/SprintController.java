@@ -29,6 +29,19 @@ public class SprintController {
         return ResponseEntity.ok(sprintService.getSprintBoard(boardId, milestoneId, userPrincipal.getUserId()));
     }
 
+    /**
+     * JIRA 뷰 확인 처리 — 신규 뱃지 기준선(board_members.jira_last_seen_at)을 now로 민다.
+     * JIRA 탭을 벗어날 때 프론트가 호출한다. 응답 본문 없음(204).
+     */
+    @PostMapping("/jira/seen")
+    public ResponseEntity<Void> markJiraSeen(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        sprintService.markJiraSeen(boardId, userPrincipal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
     /** 마일스톤 관리 콘솔 — 마일스톤 전체 태스크(스프린트 무관) Feature ▸ Task 트리 소스 */
     @GetMapping("/milestones/{milestoneId}/console")
     public ResponseEntity<List<SprintResponse.ItemCard>> getMilestoneConsole(

@@ -35,6 +35,7 @@ public class SprintResponse {
         private List<Column> columns;          // 동적 컬럼 (START..MIDDLE..END), 각 컬럼에 담긴 카드 포함
         private List<ItemCard> backlog;        // 담기 후보 (아직 미담긴 마일스톤 항목)
         private List<JiraTask> jiraTasks;      // JIRA 뷰용 — 보드 전체 JIRA 연동 Task (스프린트 담김 무관). 미연동이면 빈 목록.
+        private LocalDateTime jiraLastSeenAt;  // 이 사용자가 JIRA 뷰를 마지막으로 확인한 시각. 이보다 나중 linkedAt = 신규.
     }
 
     /**
@@ -56,6 +57,12 @@ public class SprintResponse {
         private List<AssigneeInfo> assignees; // 체크리스트 담당자(중복 제거)
         private int done;                 // 완료 체크리스트 수
         private int total;                // 전체 체크리스트 수
+        /**
+         * 이 이슈가 <b>BRIDGE 보드에 링크된</b> 시각(jira_issue_links.created_at).
+         * JIRA 원본 생성일이 아니라 "우리 보드에 들어온 시각" — 신규 뱃지 판정 기준.
+         * (last_imported_at은 재동기화마다 갱신, jira_updated_at은 코멘트에도 반응해 부적합)
+         */
+        private LocalDateTime linkedAt;
     }
 
     /** 스프린트 보드 컬럼 (마일스톤 단위). kind: START | MIDDLE | END */

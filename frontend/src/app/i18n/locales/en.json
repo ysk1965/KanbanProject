@@ -2133,7 +2133,8 @@
     "blockColor": "Color",
     "editCustom": "Edit Block",
     "titlePlaceholder": "Enter schedule name",
-    "viewMeeting": "View meeting"
+    "viewMeeting": "View meeting",
+    "escClose": "Esc to close"
   },
   "emptyBoard": {
     "heading": "Get started with your board",

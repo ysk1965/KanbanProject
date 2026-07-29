@@ -2135,7 +2135,8 @@
     "blockColor": "색상",
     "editCustom": "블록 편집",
     "titlePlaceholder": "일정 이름을 입력하세요",
-    "viewMeeting": "회의 상세보기"
+    "viewMeeting": "회의 상세보기",
+    "escClose": "Esc 닫기"
   },
   "emptyBoard": {
     "heading": "보드를 시작해보세요",

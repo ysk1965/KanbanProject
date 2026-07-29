@@ -2323,7 +2323,8 @@
     "blockColor": "顏色",
     "editCustom": "編輯區塊",
     "titlePlaceholder": "請輸入行程名稱",
-    "viewMeeting": "查看會議詳情"
+    "viewMeeting": "查看會議詳情",
+    "escClose": "Esc 關閉"
   },
   "emptyBoard": {
     "heading": "開始使用您的看板",

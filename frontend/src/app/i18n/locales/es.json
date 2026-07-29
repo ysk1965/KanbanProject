@@ -2365,7 +2365,8 @@
     "blockColor": "Color",
     "editCustom": "Editar bloque",
     "titlePlaceholder": "Ingrese el nombre del horario",
-    "viewMeeting": "Ver detalle de reunión"
+    "viewMeeting": "Ver detalle de reunión",
+    "escClose": "Esc para cerrar"
   },
   "emptyBoard": {
     "heading": "Comienza con tu tablero",

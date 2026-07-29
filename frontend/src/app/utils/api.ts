@@ -6111,6 +6111,14 @@ export const jiraAPI = {
     return apiClient.get<JiraMeta>(`/boards/${boardId}/jira/meta`);
   },
 
+  /**
+   * JIRA 뷰 확인 처리 — 신규 뱃지 기준선을 서버에서 now로 민다.
+   * JIRA 탭을 벗어날 때 호출한다. 실패해도 조용히 넘긴다(다음 진입 때 다시 시도됨).
+   */
+  markSeen: async (boardId: string) => {
+    return apiClient.post<void>(`/boards/${boardId}/jira/seen`);
+  },
+
   updateWriteBack: async (
     boardId: string,
     data: { enabled: boolean; targetStatusId?: string | null },

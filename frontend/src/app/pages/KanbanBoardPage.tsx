@@ -414,15 +414,18 @@ export function KanbanBoardPage() {
 
   const [scheduleRefreshPanel, setScheduleRefreshPanel] = useState(0);
 
-  // 일정 뷰 갱신 신호 게이팅: 소비자(refreshTrigger/key)는 schedule 뷰에서만 마운트되므로
-  // 다른 뷰에서는 카운터를 올리지 않는다 (WS 이벤트마다 페이지 전체 재렌더 방지).
-  // schedule 뷰 진입 시 컴포넌트가 새로 마운트되며 최신 데이터를 로드하므로 pending 처리 불필요.
+  // 일정 뷰 갱신 신호 게이팅: 소비자(refreshTrigger/key)는 schedule·dashboard 뷰에서만
+  // 마운트되므로 다른 뷰에서는 카운터를 올리지 않는다 (WS 이벤트마다 페이지 전체 재렌더 방지).
+  // dashboard는 내 워크로드(ScheduleResourceView)가 이 신호로 간트를 다시 그린다 —
+  // 빼면 체크리스트 토글이 타임블록에만 반영되고 워크로드는 그대로 남는다.
+  // 뷰 진입 시 컴포넌트가 새로 마운트되며 최신 데이터를 로드하므로 pending 처리 불필요.
   const viewModeRef = useRef<ViewMode>(viewMode);
   useEffect(() => {
     viewModeRef.current = viewMode;
   }, [viewMode]);
   const notifyScheduleRefresh = useCallback(() => {
-    if (viewModeRef.current === "schedule") {
+    const mode = viewModeRef.current;
+    if (mode === "schedule" || mode === "dashboard") {
       setScheduleRefreshPanel((prev) => prev + 1);
     }
   }, []);
@@ -3144,7 +3147,6 @@ export function KanbanBoardPage() {
             boardId={boardId || ""}
             organizationId={board?.organization_id}
             userId={currentUser?.id}
-            tasks={tasks}
             milestones={milestones}
             boardMembersData={boardMembersData}
             memberColorMap={memberColorMap}
@@ -3155,7 +3157,6 @@ export function KanbanBoardPage() {
             scheduleRefreshPanel={scheduleRefreshPanel}
             wsChecklistEvent={wsChecklistEvent}
             currentUserRole={currentUserRole}
-            onTaskClick={handleTaskClick}
             onViewFeatureById={handleViewFeatureById}
             onViewTaskWithChecklist={handleViewTaskWithChecklist}
             onNavigateToMeeting={handleNavigateToMeeting}
