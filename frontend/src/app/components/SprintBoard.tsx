@@ -1593,17 +1593,10 @@ export function SprintBoard({
     // 시작 D-day(양수 diff = 아직 시작 전). start_date/due_date/completed만으로 진행 상태 파생.
     const startDday =
       !isDoneItem && it.start_date ? getDDay(it.start_date) : null;
-    // 예정 = 시작일이 아직 안 옴. 진행 중 = 기간 안(시작 지남·마감 안 지남), 날짜 정보가 있을 때만 배지.
+    // 예정 = 시작일이 아직 안 옴 → 기간 칩을 마감이 아니라 시작 D-day로 바꾼다.
+    // "진행 중"은 기간 칩·스트라이프와 겹치는 기본 상태라 별도 배지를 두지 않는다.
     const upcoming =
       !isDoneItem && !overdue && !!startDday && startDday.diff > 0;
-    const inProgress =
-      !isDoneItem && !overdue && !upcoming && (!!startDday || !!dday);
-    // 마감 임박(D-3 이내·D-Day)이면 진행 중 배지를 앰버로 승격.
-    const soon = dday?.urgency === "soon" || dday?.urgency === "today";
-    const liveBadge = soon
-      ? "bg-amber-500/15 text-amber-500"
-      : "bg-bridge-secondary/15 text-bridge-secondary";
-    const liveDot = soon ? "bg-amber-500" : "bg-bridge-secondary";
     // 리뷰 = 첫 MIDDLE(기본 "In Review")로 이동. 이미 그 컬럼이거나 완료면 숨김.
     const showReview =
       canEdit &&
@@ -1622,23 +1615,50 @@ export function SprintBoard({
     const lines = it.checklist_items ?? [];
     const cTotal = it.checklist_total ?? lines.length;
     const cDone = it.checklist_done ?? 0;
-    const cPct = cTotal > 0 ? Math.round((cDone / cTotal) * 100) : 0;
-    const previewLines = lines.slice(0, 3);
+    // 세그먼트 게이지 — 칸 수를 항목 수(최대 12)에 맞춰 비율과 규모를 한 번에 읽게 한다.
+    // 7칸짜리와 24칸짜리가 칸 굵기로 구분되고, 반올림으로 "24/25가 100%처럼" 보이는 것도 막는다.
+    const segTotal = Math.min(cTotal, 12);
+    let segDone = cTotal > 0 ? Math.round((cDone / cTotal) * segTotal) : 0;
+    if (cDone < cTotal) segDone = Math.min(segDone, segTotal - 1);
+    if (cDone > 0) segDone = Math.max(segDone, 1);
+    // 미리보기 2줄 — "남은 것 하나 + 끝낸 것 하나"가 진행 상태를 가장 정확히 요약한다.
+    // 한쪽만 있으면 그 종류로 채우고, 노출 순서는 원본 순서를 유지한다.
+    const previewLines = (() => {
+      const picked: typeof lines = [];
+      const firstOpen = lines.find((l) => !l.completed);
+      const firstDone = lines.find((l) => l.completed);
+      if (firstOpen) picked.push(firstOpen);
+      if (firstDone) picked.push(firstDone);
+      for (const l of lines) {
+        if (picked.length >= 2) break;
+        if (!picked.includes(l)) picked.push(l);
+      }
+      return picked.sort((a, b) => lines.indexOf(a) - lines.indexOf(b));
+    })();
     return (
       <div
         key={it.id}
         draggable={canEdit && !readOnly}
         onDragStart={(e) => !readOnly && onDragStartItem(e, it, "sprint")}
         onDragEnd={onDragEndItem}
-        style={
-          overdue
-            ? { borderLeftColor: "#f43f5e", borderLeftWidth: 3 }
-            : undefined
-        }
-        className={`group relative rounded-xl border border-sprint-border bg-sprint-card p-2.5 space-y-2 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.45)] transition-colors ${
+        // 좌측 3px 스트라이프 — 평시엔 피처 색(컬럼을 훑으면 피처 분포가 보인다),
+        // 지연이면 로즈로 덮어써 배경 워시와 함께 "위험한 카드"를 먼저 눈에 걸리게 한다.
+        style={{
+          borderLeftWidth: 3,
+          borderLeftColor: overdue
+            ? "#f43f5e"
+            : (it.feature_color ?? "#6366F1"),
+        }}
+        className={`group relative rounded-xl border border-sprint-border p-2.5 space-y-2 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.45)] transition-colors ${
+          overdue ? "bg-rose-500/[0.07]" : "bg-sprint-card"
+        } ${
           readOnly
             ? "cursor-default"
-            : "hover:border-sprint-border-hover hover:bg-sprint-card-hover cursor-grab"
+            : `hover:border-sprint-border-hover cursor-grab ${
+                overdue
+                  ? "hover:bg-rose-500/[0.12]"
+                  : "hover:bg-sprint-card-hover"
+              }`
         }`}
       >
         {/* 호버 액션 — 리뷰/완료 원클릭 이동 + 상세 열기. 호버 시 힌트와 교체 노출. */}
@@ -1651,7 +1671,7 @@ export function SprintBoard({
                   e.stopPropagation();
                   moveItemToColumn(it, firstMiddleColumn);
                 }}
-                className="inline-flex items-center gap-0.5 px-1.5 py-1 rounded-lg text-[10px] font-bold bg-amber-500/15 text-amber-500 hover:bg-amber-500 hover:text-amber-950 transition-colors"
+                className="inline-flex items-center gap-0.5 px-1.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-500 hover:bg-amber-500 hover:text-amber-950 transition-colors"
                 aria-label="In Review로 이동"
               >
                 <Eye className="w-3 h-3" />
@@ -1665,7 +1685,7 @@ export function SprintBoard({
                   e.stopPropagation();
                   moveItemToColumn(it, endColumn);
                 }}
-                className="inline-flex items-center gap-0.5 px-1.5 py-1 rounded-lg text-[10px] font-bold bg-bridge-secondary/15 text-bridge-secondary hover:bg-bridge-secondary hover:text-teal-950 transition-colors"
+                className="inline-flex items-center gap-0.5 px-1.5 py-1 rounded-lg text-xs font-bold bg-bridge-secondary/15 text-bridge-secondary hover:bg-bridge-secondary hover:text-teal-950 transition-colors"
                 aria-label="완료(Done)로 이동"
               >
                 <Check className="w-3 h-3" />
@@ -1702,91 +1722,66 @@ export function SprintBoard({
             )}
           </div>
         )}
-        <div className="flex items-start gap-1.5">
+        {/* 메타 줄 — 좌측은 "무슨 일"(피처·외주), 우측은 "언제·누가"(기간·담당).
+            읽는 방향이 카드마다 고정돼 시선이 지그재그로 돌지 않는다.
+            상태 칩(지연/진행 중/예정)은 좌측 스트라이프·기간 칩과 중복이라 걷어냈다.
+            우측 그룹은 호버 시 액션 버튼에 자리를 내준다. */}
+        <div className="flex items-center gap-1.5">
           <span
-            className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
+            className="text-xs font-bold px-1.5 py-0.5 rounded-md shrink-0 truncate max-w-[104px]"
             style={{
-              background: `${it.feature_color ?? "#6366F1"}22`,
+              background: `${it.feature_color ?? "#6366F1"}26`,
               color: it.feature_color ?? "#93c5fd",
             }}
+            title={it.feature_title ?? "기타"}
           >
             {it.feature_title ?? "기타"}
           </span>
           {/* 외주 표식 — 담당 주체가 외부임을 라벨 옆에서 알린다(앰버 전용 컬러, 상태 뱃지와 구분). */}
           {it.contractor && (
             <span
-              className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 bg-amber-500/15 text-amber-500 border border-amber-500/30"
+              className="inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-md shrink-0 bg-amber-500/15 text-amber-500"
               title={
                 it.contractor.manager_name
                   ? `외주 · 관리 ${it.contractor.manager_name}`
                   : "외주"
               }
             >
-              <UserCheck className="w-2.5 h-2.5" />
+              <UserCheck className="w-3 h-3" />
               외주
             </span>
           )}
-          {/* 이월 배지 — 이번이 몇 번째 스프린트인지. 호버 시 액션 버튼에 자리를 내준다. */}
-          {(it.carry_over_count ?? 0) > 0 && (
-            <span
-              className="ml-auto shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 group-hover:opacity-0 transition-opacity"
-              title={`${(it.carry_over_count ?? 0) + 1}번째 스프린트째 진행 중`}
-            >
-              이월 {it.carry_over_count}
-            </span>
-          )}
-        </div>
-        <div
-          className={`text-xs font-medium leading-snug ${
-            it.completed ? "line-through text-slate-500" : "text-foreground"
-          }`}
-        >
-          {it.title}
-        </div>
-        <div className="flex items-center gap-2 text-[10px] text-slate-500">
-          {/* 진행 상태 칩 — 지연(종료일 지남) / 진행 중(기간 안) / 예정(시작 전). 완료 카드엔 표시 안 함. */}
-          {overdue && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold shrink-0 bg-rose-500/15 text-rose-500">
-              <span className="inline-flex rounded-full w-1.5 h-1.5 bg-rose-500" />
-              지연
-            </span>
-          )}
-          {inProgress && (
-            <span
-              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${liveBadge}`}
-            >
-              <span className="relative inline-flex w-1.5 h-1.5">
-                <span
-                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${liveDot}`}
-                />
-                <span
-                  className={`relative inline-flex rounded-full w-1.5 h-1.5 ${liveDot}`}
-                />
+          <div
+            className={`ml-auto flex items-center gap-1.5 shrink-0 text-xs text-slate-500 ${
+              showActions ? "group-hover:opacity-0 transition-opacity" : ""
+            }`}
+          >
+            {/* 이월 배지 — 이번이 몇 번째 스프린트인지. */}
+            {(it.carry_over_count ?? 0) > 0 && (
+              <span
+                className="font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                title={`${(it.carry_over_count ?? 0) + 1}번째 스프린트째 진행 중`}
+              >
+                이월 {it.carry_over_count}
               </span>
-              진행 중
-            </span>
-          )}
-          {upcoming && (
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold shrink-0 bg-foreground/[0.06] text-slate-400">
-              <Clock className="w-2.5 h-2.5" />
-              예정
-            </span>
-          )}
-          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+            )}
+            {/* 기간 칩 — 시작 전이면 시작 D-day, 아니면 마감 D-day.
+                지연은 스트라이프·배경 워시로도 신호하지만 D+n 텍스트를 함께 남겨
+                색 하나에만 의존하지 않게 한다. */}
             {upcoming ? (
               <span
-                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold tabular-nums bg-foreground/[0.06] text-slate-400"
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md font-bold tabular-nums bg-foreground/[0.06] text-slate-400"
                 title={`${formatDate(it.start_date, "M/d")} 시작`}
               >
-                <Calendar className="w-2.5 h-2.5" />
+                <Calendar className="w-3 h-3" />
                 {startDday!.text}
               </span>
             ) : dday ? (
               <span
-                className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold tabular-nums ${DDAY_BADGE[dday.urgency]}`}
+                className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md font-bold tabular-nums ${DDAY_BADGE[dday.urgency]}`}
                 title={formatDate(it.due_date)}
               >
-                <Calendar className="w-2.5 h-2.5" />
+                <Calendar className="w-3 h-3" />
                 {dday.text}
               </span>
             ) : it.due_date && !it.completed ? (
@@ -1797,9 +1792,11 @@ export function SprintBoard({
                 <Check className="w-3 h-3" /> 완료
               </span>
             ) : it.assignee ? (
+              // 담당 모노그램 — 읽는 텍스트가 아니라 색으로 구분하는 그래픽이라 9px 유지.
               <span
-                className="w-4 h-4 rounded-full grid place-items-center text-[8px] font-bold text-white"
+                className="w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold text-white"
                 style={{ background: getAssigneeHex(it.assignee.name) }}
+                title={it.assignee.name}
               >
                 {getInitials(it.assignee.name)}
               </span>
@@ -1809,10 +1806,10 @@ export function SprintBoard({
                 className="inline-flex items-center gap-1 min-w-0"
                 title={`외주 · ${it.contractor.name}`}
               >
-                <span className="w-4 h-4 rounded-full grid place-items-center text-[8px] font-bold shrink-0 bg-amber-500 text-amber-950">
+                <span className="w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold shrink-0 bg-amber-500 text-amber-950">
                   {getInitials(it.contractor.name)}
                 </span>
-                <span className="truncate max-w-[72px] text-amber-500 font-bold">
+                <span className="truncate max-w-[64px] text-amber-500 font-bold">
                   {it.contractor.name}
                 </span>
               </span>
@@ -1820,20 +1817,33 @@ export function SprintBoard({
           </div>
         </div>
 
+        <div
+          className={`text-xs font-medium leading-snug ${
+            it.completed ? "line-through text-slate-500" : "text-foreground"
+          }`}
+        >
+          {it.title}
+        </div>
+
         {/* 체크리스트 롤업 — 카드가 태스크라 여기가 "안에 뭐가 남았는지"를 보여주는 자리다.
             태스크가 담긴 뒤 항목이 추가돼도 담기 조작 없이 이 집계에 그대로 반영된다. */}
         {cTotal > 0 && (
-          <div className="pt-2 border-t border-dashed border-foreground/[0.10] space-y-1.5">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span className="shrink-0">체크리스트</span>
-              <span className="flex-1 max-w-[76px] h-[3px] rounded-full bg-foreground/10 overflow-hidden">
-                <span
-                  className="block h-full rounded-full bg-bridge-secondary transition-all motion-reduce:transition-none"
-                  style={{ width: `${cPct}%` }}
-                />
+          <div className="pt-2 border-t border-foreground/[0.08] space-y-1.5">
+            {/* 세그먼트 게이지 — "체크리스트" 라벨은 게이지·개수만으로 뜻이 통해 걷어냈다. */}
+            <div className="flex items-center gap-2">
+              <span className="flex-1 flex gap-[2px]" aria-hidden="true">
+                {Array.from({ length: segTotal }, (_, i) => (
+                  <span
+                    key={i}
+                    className={`flex-1 h-1 rounded-[2px] ${
+                      i < segDone ? "bg-bridge-secondary" : "bg-foreground/10"
+                    }`}
+                  />
+                ))}
               </span>
-              <span className="ml-auto tabular-nums text-slate-500">
-                {cDone}/{cTotal}
+              <span className="shrink-0 text-xs tabular-nums text-slate-500">
+                <span className="font-bold text-slate-400">{cDone}</span>/
+                {cTotal}
               </span>
             </div>
             <ul className="space-y-1">
@@ -1847,25 +1857,26 @@ export function SprintBoard({
                       toggleChecklistLine(it.task_id, line.id);
                     }}
                     aria-label={line.completed ? "완료 해제" : "완료 표시"}
-                    className={`mt-[3px] w-3 h-3 rounded-[3px] shrink-0 border grid place-items-center transition-colors ${
+                    className={`mt-[2px] w-[13px] h-[13px] rounded shrink-0 border grid place-items-center transition-colors ${
                       line.completed
                         ? "bg-bridge-secondary border-bridge-secondary"
-                        : "border-slate-500 hover:border-bridge-secondary"
+                        : "border-slate-600 hover:border-bridge-secondary"
                     } ${
                       readOnly || !canEdit ? "cursor-default" : "cursor-pointer"
                     }`}
                   >
                     {line.completed && (
                       <Check
-                        className="w-2 h-2 text-bridge-dark"
+                        className="w-2.5 h-2.5 text-bridge-dark"
                         strokeWidth={4}
                       />
                     )}
                   </button>
+                  {/* 완료 항목도 "무엇을 끝냈는지"라는 정보다 — 후퇴시키되 읽히는 선까지만. */}
                   <span
                     className={`text-xs leading-snug ${
                       line.completed
-                        ? "line-through text-slate-600"
+                        ? "line-through decoration-1 text-slate-500"
                         : "text-slate-400"
                     }`}
                     title={line.title}
@@ -1883,11 +1894,11 @@ export function SprintBoard({
                   e.stopPropagation();
                   openItem(it);
                 }}
-                className={`text-xs text-slate-500 ${
+                className={`text-xs font-medium text-slate-500 ${
                   showDetail ? "hover:text-bridge-accent" : "cursor-default"
                 } transition-colors`}
               >
-                +{cTotal - previewLines.length}개 더
+                남은 {cTotal - previewLines.length}개 보기 →
               </button>
             )}
           </div>
@@ -1978,6 +1989,14 @@ export function SprintBoard({
     const isNone = mc.memberId === "__none__";
     const accent = isNone ? "#64748b" : getAssigneeHex(mc.memberName);
     const pct = mc.total > 0 ? Math.round((mc.doneTotal / mc.total) * 100) : 0;
+    // 지연 건수 — 담당자 컬럼에서 실제로 궁금한 건 퍼센트가 아니라 "막힌 게 몇 개냐"다.
+    const overdueCount = mc.items.filter((it) => {
+      const kind = it.sprint_column_id
+        ? columnById.get(it.sprint_column_id)?.kind
+        : undefined;
+      if (it.completed || kind === "END") return false;
+      return !!it.due_date && getDDay(it.due_date).urgency === "overdue";
+    }).length;
     return (
       <div
         key={key}
@@ -1999,8 +2018,10 @@ export function SprintBoard({
       >
         {/* 컬럼 상단 담당자 색 레일 */}
         <div className="h-[3px] shrink-0" style={{ background: accent }} />
-        {/* 담당자 컬럼 헤더 + 진척 바 — 아이콘 클릭 시 개인 간트 모달 오픈(미배정 제외) */}
-        <div className="px-3 pt-2.5 pb-2 border-b border-foreground/[0.06]">
+        {/* 담당자 컬럼 헤더 — "담당" 라벨은 컬럼 자체가 담당자라 중복이라 걷어내고,
+            그 자리를 지연 건수에 내줬다. 진척은 헤더 경계선과 겹치는 2px 언더바로.
+            아이콘 클릭 시 개인 간트 모달 오픈(미배정 제외) */}
+        <div className="relative px-3 py-2.5 border-b border-foreground/[0.06]">
           <div className="flex items-center gap-2">
             <span
               className="w-5 h-5 rounded-full grid place-items-center text-[9px] font-bold shrink-0"
@@ -2017,11 +2038,17 @@ export function SprintBoard({
             >
               {mc.memberName}
             </span>
-            <span className="text-[9px] font-bold text-slate-500 tracking-wide shrink-0">
-              담당
-            </span>
-            <span className="text-[10px] font-bold text-slate-500 tabular-nums bg-bridge-dark rounded-full px-1.5 shrink-0">
-              {mc.doneTotal}/{mc.total}
+            {overdueCount > 0 && (
+              <span
+                className="text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 bg-rose-500/15 text-rose-600 dark:text-rose-400 tabular-nums"
+                title={`마감이 지난 태스크 ${overdueCount}건`}
+              >
+                지연 {overdueCount}
+              </span>
+            )}
+            <span className="text-xs text-slate-500 tabular-nums shrink-0">
+              <span className="font-bold text-foreground">{mc.doneTotal}</span>/
+              {mc.total}
             </span>
             {!isNone && (
               <button
@@ -2035,9 +2062,9 @@ export function SprintBoard({
               </button>
             )}
           </div>
-          <div className="mt-2 h-1 rounded-full bg-foreground/10 overflow-hidden">
+          <div className="absolute left-0 right-0 -bottom-px h-[2px] bg-foreground/10">
             <div
-              className="h-full rounded-full transition-all"
+              className="h-full transition-all motion-reduce:transition-none"
               style={{ width: `${pct}%`, background: accent }}
             />
           </div>
@@ -3234,20 +3261,6 @@ export function SprintBoard({
                                         title={`${(it.carry_over_count ?? 0) + 1}번째 스프린트째 진행 중`}
                                       >
                                         이월 {it.carry_over_count}
-                                      </span>
-                                    )}
-
-                                    {it.assignee && (
-                                      <span
-                                        className="w-4 h-4 rounded-full grid place-items-center text-xs font-bold text-white shrink-0"
-                                        style={{
-                                          background: getAssigneeHex(
-                                            it.assignee.name,
-                                          ),
-                                        }}
-                                        title={it.assignee.name}
-                                      >
-                                        {getInitials(it.assignee.name)}
                                       </span>
                                     )}
 
