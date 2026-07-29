@@ -28,7 +28,6 @@ import {
   Layers,
   Filter,
   Users,
-  UserCheck,
   Diamond,
   PanelLeftClose,
   PanelLeftOpen,
@@ -45,6 +44,7 @@ import type {
   SprintColumn,
   SprintInfo,
   SprintItemCard,
+  SprintChecklistLine,
   SprintJiraTask,
 } from "../types";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
@@ -214,6 +214,12 @@ export function SprintBoard({
   const [expandedCleared, setExpandedCleared] = useState<Set<string>>(
     new Set(),
   );
+  // 카드 안 체크리스트 펼침 집합. 키는 "스코프:카드id" —
+  // 구성원 뷰는 같은 태스크가 여러 컬럼에 서기 때문에 컬럼 주인별로 따로 기억한다.
+  // (태스크 모달로 나가지 않고 카드 자리에서 전체 항목을 보고 체크하기 위한 상태)
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  // 구성원 뷰 전용 — 컬럼 주인 몫만(기본) ↔ 담당 외 항목까지 함께.
+  const [scopeAllCards, setScopeAllCards] = useState<Set<string>>(new Set());
   // 업무 리스트 헤더 "+" → 인라인 새 피쳐 입력. 제목만 받고 생성 후 상세 모달로 이어 작성한다.
   const [addingFeature, setAddingFeature] = useState(false);
   const [newFeatureTitle, setNewFeatureTitle] = useState("");
@@ -767,6 +773,34 @@ export function SprintBoard({
       const next = new Set(prev);
       if (next.has(fid)) next.delete(fid);
       else next.add(fid);
+      return next;
+    });
+  };
+  // 카드 체크리스트 펼치기/접기. 접을 때 "담당 외 보기"도 함께 내려 상태가 어긋나지 않게 한다.
+  const toggleCardExpand = (key: string) => {
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+        setScopeAllCards((s) => {
+          if (!s.has(key)) return s;
+          const n = new Set(s);
+          n.delete(key);
+          return n;
+        });
+      } else next.add(key);
+      return next;
+    });
+  };
+  // 구성원 뷰 "담당 외 N개 보기" — 켜면 펼침도 함께 켠다(접힌 채로는 볼 자리가 없다).
+  const toggleCardScopeAll = (key: string) => {
+    setScopeAllCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else {
+        next.add(key);
+        setExpandedCards((e) => (e.has(key) ? e : new Set(e).add(key)));
+      }
       return next;
     });
   };
@@ -1582,7 +1616,12 @@ export function SprintBoard({
   }
 
   // 스프린트 카드 (Task 컬럼 · In Review · Done 공통). readOnly 시 드래그·액션 비활성(미리보기).
-  const renderCard = (it: SprintItemCard, readOnly = false) => {
+  // memberScope가 있으면 구성원 뷰 카드 — 체크리스트를 그 컬럼 주인 몫으로 좁혀 보여준다.
+  const renderCard = (
+    it: SprintItemCard,
+    readOnly = false,
+    memberScope?: { id: string; name: string },
+  ) => {
     const curCol = it.sprint_column_id
       ? columnById.get(it.sprint_column_id)
       : undefined;
@@ -1613,8 +1652,34 @@ export function SprintBoard({
     const showActions = showReview || showDone || showDetail || showEject;
     // 카드 안쪽 체크리스트 — 담긴 뒤 항목이 추가돼도 여기 그대로 반영된다.
     const lines = it.checklist_items ?? [];
-    const cTotal = it.checklist_total ?? lines.length;
-    const cDone = it.checklist_done ?? 0;
+    // 구성원 뷰: 컬럼 주인 몫만 남긴다. 같은 태스크가 여러 컬럼에 서므로
+    // 컬럼마다 보이는 줄이 달라야 "여기서 내가 할 일"이 바로 읽힌다.
+    // 외주 줄은 관리 담당(manager)의 컬럼으로 귀속 — 컬럼 라우팅(keysOf) 규칙과 같다.
+    const ownedBy = (line: SprintChecklistLine, memberId: string) =>
+      memberId === "__none__"
+        ? !line.assignee && !line.contractor?.manager_user_id
+        : line.assignee?.id === memberId ||
+          line.contractor?.manager_user_id === memberId;
+    const myLines = memberScope
+      ? lines.filter((l) => ownedBy(l, memberScope.id))
+      : lines;
+    // 스코프 결과가 비면(줄 담당 정보가 없는 옛 데이터 등) 전체로 폴백해 빈 카드가 되지 않게 한다.
+    const scoped = !!memberScope && myLines.length > 0;
+    const otherCount = scoped ? lines.length - myLines.length : 0;
+    // 펼침 키 — 구성원 뷰는 컬럼 주인별로, Feature 뷰는 카드별로 기억한다.
+    const cardKey = `${memberScope?.id ?? "feat"}:${it.id}`;
+    const expanded = expandedCards.has(cardKey);
+    const showOthers = scoped && scopeAllCards.has(cardKey);
+    // 진척의 분모: 구성원 뷰는 "내 몫", Feature 뷰는 태스크 전체(서버 롤업).
+    const baseLines = scoped ? myLines : lines;
+    const cTotal = scoped
+      ? myLines.length
+      : (it.checklist_total ?? lines.length);
+    const cDone = scoped
+      ? myLines.filter((l) => l.completed).length
+      : (it.checklist_done ?? 0);
+    const taskTotal = it.checklist_total ?? lines.length;
+    const taskDone = it.checklist_done ?? 0;
     // 세그먼트 게이지 — 칸 수를 항목 수(최대 12)에 맞춰 비율과 규모를 한 번에 읽게 한다.
     // 7칸짜리와 24칸짜리가 칸 굵기로 구분되고, 반올림으로 "24/25가 100%처럼" 보이는 것도 막는다.
     const segTotal = Math.min(cTotal, 12);
@@ -1624,17 +1689,26 @@ export function SprintBoard({
     // 미리보기 2줄 — "남은 것 하나 + 끝낸 것 하나"가 진행 상태를 가장 정확히 요약한다.
     // 한쪽만 있으면 그 종류로 채우고, 노출 순서는 원본 순서를 유지한다.
     const previewLines = (() => {
-      const picked: typeof lines = [];
-      const firstOpen = lines.find((l) => !l.completed);
-      const firstDone = lines.find((l) => l.completed);
+      const picked: typeof baseLines = [];
+      const firstOpen = baseLines.find((l) => !l.completed);
+      const firstDone = baseLines.find((l) => l.completed);
       if (firstOpen) picked.push(firstOpen);
       if (firstDone) picked.push(firstDone);
-      for (const l of lines) {
+      for (const l of baseLines) {
         if (picked.length >= 2) break;
         if (!picked.includes(l)) picked.push(l);
       }
-      return picked.sort((a, b) => lines.indexOf(a) - lines.indexOf(b));
+      return picked.sort((a, b) => baseLines.indexOf(a) - baseLines.indexOf(b));
     })();
+    // 실제로 그릴 줄 — 접힘이면 미리보기 2줄, 펼침이면 전체(구성원 뷰는 내 몫, 담당 외 보기면 전부).
+    const shownLines = expanded
+      ? showOthers
+        ? lines
+        : baseLines
+      : previewLines;
+    const hiddenCount = cTotal - previewLines.length;
+    // 줄 담당 아이콘은 "누구 것인지 섞여 있을 때"만 의미가 있다.
+    const showLineOwner = expanded && (!scoped || showOthers);
     return (
       <div
         key={it.id}
@@ -1737,20 +1811,7 @@ export function SprintBoard({
           >
             {it.feature_title ?? "기타"}
           </span>
-          {/* 외주 표식 — 담당 주체가 외부임을 라벨 옆에서 알린다(앰버 전용 컬러, 상태 뱃지와 구분). */}
-          {it.contractor && (
-            <span
-              className="inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-md shrink-0 bg-amber-500/15 text-amber-500"
-              title={
-                it.contractor.manager_name
-                  ? `외주 · 관리 ${it.contractor.manager_name}`
-                  : "외주"
-              }
-            >
-              <UserCheck className="w-3 h-3" />
-              외주
-            </span>
-          )}
+          {/* 외주 표식은 우측 담당 칩(외주사명·앰버)만으로 충분해 라벨 옆 배지는 두지 않는다. */}
           <div
             className={`ml-auto flex items-center gap-1.5 shrink-0 text-xs text-slate-500 ${
               showActions ? "group-hover:opacity-0 transition-opacity" : ""
@@ -1844,11 +1905,25 @@ export function SprintBoard({
               <span className="shrink-0 text-xs tabular-nums text-slate-500">
                 <span className="font-bold text-slate-400">{cDone}</span>/
                 {cTotal}
+                {/* 구성원 뷰 — 분모가 "내 몫"이라 태스크 전체를 흐리게 병기해 맥락을 잃지 않게 한다. */}
+                {scoped && taskTotal !== cTotal && (
+                  <span className="text-slate-600">
+                    {" "}
+                    · 전체 {taskDone}/{taskTotal}
+                  </span>
+                )}
               </span>
             </div>
             <ul className="space-y-1">
-              {previewLines.map((line) => (
-                <li key={line.id} className="flex items-start gap-1.5">
+              {shownLines.map((line) => (
+                <li
+                  key={line.id}
+                  className={`flex items-start gap-1.5 ${
+                    scoped && !ownedBy(line, memberScope!.id)
+                      ? "opacity-60"
+                      : ""
+                  }`}
+                >
                   <button
                     type="button"
                     disabled={readOnly || !canEdit || !it.task_id}
@@ -1874,7 +1949,7 @@ export function SprintBoard({
                   </button>
                   {/* 완료 항목도 "무엇을 끝냈는지"라는 정보다 — 후퇴시키되 읽히는 선까지만. */}
                   <span
-                    className={`text-xs leading-snug ${
+                    className={`flex-1 min-w-0 text-xs leading-snug ${
                       line.completed
                         ? "line-through decoration-1 text-slate-500"
                         : "text-slate-400"
@@ -1883,23 +1958,69 @@ export function SprintBoard({
                   >
                     {line.title}
                   </span>
+                  {/* 줄 담당 모노그램 — 원 밖으로 이름이 흐르지 않게 한 줄 고정(nowrap)하고 넘치면 자른다. */}
+                  {showLineOwner && (line.assignee || line.contractor) && (
+                    <span
+                      className="shrink-0 w-[18px] h-[18px] rounded-full grid place-items-center overflow-hidden text-[9px] font-bold leading-none tracking-[-0.03em] whitespace-nowrap"
+                      style={
+                        line.assignee
+                          ? {
+                              background: getAssigneeHex(line.assignee.name),
+                              color: "#fff",
+                            }
+                          : { background: "#f59e0b", color: "#451a03" }
+                      }
+                      title={
+                        line.assignee
+                          ? line.assignee.name
+                          : `외주 · ${line.contractor!.name}`
+                      }
+                    >
+                      {getInitials(
+                        line.assignee?.name ?? line.contractor!.name,
+                      )}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
-            {cTotal > previewLines.length && (
-              <button
-                type="button"
-                disabled={!showDetail}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openItem(it);
-                }}
-                className={`text-xs font-medium text-slate-500 ${
-                  showDetail ? "hover:text-bridge-accent" : "cursor-default"
-                } transition-colors`}
-              >
-                남은 {cTotal - previewLines.length}개 보기 →
-              </button>
+            {/* 펼치기 — 태스크 모달로 나가지 않고 카드 자리에서 전체 항목을 보고 체크한다.
+                상세는 호버 액션(↗)에 그대로 남아 있다. */}
+            {(hiddenCount > 0 || expanded || otherCount > 0) && (
+              <div className="flex items-center gap-2.5 flex-wrap">
+                {(hiddenCount > 0 || expanded) && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleCardExpand(cardKey);
+                    }}
+                    aria-expanded={expanded}
+                    className="inline-flex items-center gap-0.5 text-xs font-medium text-slate-500 hover:text-bridge-accent focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 rounded transition-colors"
+                  >
+                    <ChevronDown
+                      className={`w-3 h-3 transition-transform motion-reduce:transition-none ${
+                        expanded ? "rotate-180" : ""
+                      }`}
+                    />
+                    {expanded ? "접기" : `남은 ${hiddenCount}개 펼치기`}
+                  </button>
+                )}
+                {otherCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleCardScopeAll(cardKey);
+                    }}
+                    aria-pressed={showOthers}
+                    title={`${memberScope?.name ?? ""} 담당이 아닌 체크리스트 ${otherCount}개`}
+                    className="text-xs font-medium text-slate-600 hover:text-bridge-accent focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 rounded transition-colors"
+                  >
+                    {showOthers ? "담당 외 숨기기" : `담당 외 ${otherCount}개`}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -2077,7 +2198,12 @@ export function SprintBoard({
               비어 있음
             </div>
           ) : (
-            mc.items.map((it) => renderCard(it))
+            mc.items.map((it) =>
+              renderCard(it, false, {
+                id: mc.memberId,
+                name: mc.memberName,
+              }),
+            )
           )}
         </div>
       </div>

@@ -14,7 +14,6 @@ import { getTodayDateString, formatDate } from "../utils/dateUtils";
 import { addDaysToDate, parseDate } from "../utils/workloadBar";
 import { KpiStrip, KpiItem } from "../components/boarddashboard/KpiStrip";
 import { MyWorkloadWidget } from "../components/boarddashboard/MyWorkloadWidget";
-import { MyTaskBoardWidget } from "../components/boarddashboard/MyTaskBoardWidget";
 import { TodayTimeblockWidget } from "../components/boarddashboard/TodayTimeblockWidget";
 import { DependencyWidget } from "../components/boarddashboard/DependencyWidget";
 import { UpcomingWidget } from "../components/boarddashboard/UpcomingWidget";
@@ -75,7 +74,7 @@ function mondayOf(dateStr: string): string {
  *
  * 레이아웃
  *  A 인사 + KPI 5칸
- *  B 왼쪽 = 오늘의 타임블록 / 오른쪽 = 내 워크로드 + 내 태스크 보드
+ *  B 왼쪽 = 오늘의 타임블록 / 오른쪽 = 내 워크로드(간트 + 배치 인박스)
  *  C 의존성 · 다가오는 일정 · 나를 부른 것들
  */
 export function DashboardView({
@@ -286,16 +285,12 @@ export function DashboardView({
               jobRoles={jobRoles}
               features={allFeatures}
               refreshTrigger={scheduleRefreshPanel}
+              currentUserRole={currentUserRole}
               onViewTask={onViewTaskWithChecklist}
               onMilestoneClick={onMilestoneClick}
               onUpdateMilestoneDates={onUpdateMilestoneDates}
               onOpenContractorManager={onOpenContractorManager}
               onOpenResourceView={onOpenResourceView}
-            />
-            <MyTaskBoardWidget
-              tasks={tasks}
-              userId={userId}
-              onTaskClick={onTaskClick}
               onOpenKanban={onOpenKanban}
             />
           </div>
