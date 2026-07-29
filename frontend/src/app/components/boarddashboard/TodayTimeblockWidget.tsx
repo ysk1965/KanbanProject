@@ -7,8 +7,8 @@ import { DailyScheduleView } from "../DailyScheduleView";
 import type { BoardMember as ShareBoardMember } from "../ShareBoardModal";
 import { DashboardEmpty } from "./DashboardCard";
 
-/** 카드 안에서 타임블록이 차지할 높이. 08–20시가 한 화면에 들어오는 값. */
-const WIDGET_HEIGHT = 680;
+/** 카드 높이. 임베드 모드 슬롯(30분 = 28px)로 하루가 스크롤 없이 들어오는 값. */
+const WIDGET_HEIGHT = 840;
 
 interface TodayTimeblockWidgetProps {
   boardId: string;
@@ -98,6 +98,7 @@ export function TodayTimeblockWidget({
             wsChecklistEvent={wsChecklistEvent}
             currentUserRole={currentUserRole}
             initialSubTab="timeblock"
+            embedded
           />
         )}
       </div>

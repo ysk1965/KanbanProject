@@ -68,9 +68,16 @@ interface DailyScheduleViewProps {
   wsChecklistEvent?: BoardWebSocketEvent | null;
   currentUserRole?: string;
   initialSubTab?: string;
+  /**
+   * 대시보드 위젯 등 좁은 컨테이너에 끼워 넣을 때 true.
+   * 전체 화면 전제의 상단 크롬(일/주 토글·설정·멤버 헤더)을 감추고 슬롯 높이를 줄인다.
+   * 블록 생성·이동·시간 조절 등 실제 동작은 그대로다.
+   */
+  embedded?: boolean;
 }
 
 const SLOT_HEIGHT = 40; // 30분 슬롯의 기본 높이 (px)
+const EMBED_SLOT_HEIGHT = 28; // 임베드 모드 — 하루가 스크롤 없이 들어오도록 낮춘 높이
 const MIN_BLOCK_HEIGHT = 28; // 블록 최소 가시 높이 (px) - 제목 텍스트가 보이는 최소 크기
 
 // 시간 문자열 → 분 단위 (예: "14:30" → 870)
@@ -120,6 +127,7 @@ export function DailyScheduleView({
   wsChecklistEvent,
   currentUserRole,
   initialSubTab,
+  embedded = false,
 }: DailyScheduleViewProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -129,6 +137,12 @@ export function DailyScheduleView({
     () => boardMembers.filter((m) => m.role !== "viewer"),
     [boardMembers],
   );
+  // 임베드 모드: 슬롯을 낮추고, 멤버 열은 고정폭 대신 남는 폭을 채운다
+  const slotH: number = embedded ? EMBED_SLOT_HEIGHT : SLOT_HEIGHT;
+  const memberColClass = embedded
+    ? "flex-1 min-w-0"
+    : "w-36 md:w-48 flex-shrink-0";
+  const dayWrapClass = embedded ? "min-w-full" : "min-w-max";
   // 회의 오버레이 데이터
   const [overlayMeetings, setOverlayMeetings] = useState<MeetingSummary[]>([]);
   // 체크리스트 펼침 상태 (멤버별)
@@ -595,7 +609,7 @@ export function DailyScheduleView({
 
   // 슬롯별 가변 높이 계산: 짧은 블록이 있는 슬롯을 확장
   const slotHeightData = useMemo(() => {
-    const heights = timeSlots.map(() => SLOT_HEIGHT);
+    const heights = timeSlots.map(() => slotH);
     const workStartMin = workStartHour * 60;
 
     for (const col of columns) {
@@ -605,7 +619,7 @@ export function DailyScheduleView({
         let bEnd = timeToMin(block.end_time);
         if (bEnd <= bStart) bEnd = workEndHour * 60; // overnight
         const bDuration = bEnd - bStart;
-        const naturalHeight = (bDuration / 30) * SLOT_HEIGHT;
+        const naturalHeight = (bDuration / 30) * slotH;
 
         if (naturalHeight >= MIN_BLOCK_HEIGHT) continue;
 
@@ -619,7 +633,7 @@ export function DailyScheduleView({
           i <= Math.min(endSlotIdx, heights.length - 1);
           i++
         ) {
-          heights[i] = Math.max(heights[i], SLOT_HEIGHT * scaleFactor);
+          heights[i] = Math.max(heights[i], slotH * scaleFactor);
         }
       }
     }
@@ -631,7 +645,7 @@ export function DailyScheduleView({
     }
 
     return { heights, offsets, totalHeight: offsets[offsets.length - 1] };
-  }, [timeSlots, columns, workStartHour, workEndHour]);
+  }, [timeSlots, columns, workStartHour, workEndHour, slotH]);
 
   // 분(minutes) → 픽셀 위치 변환 (가변 슬롯 높이 반영)
   const minutesToPx = useCallback(
@@ -1240,32 +1254,46 @@ export function DailyScheduleView({
       }}
     >
       {/* 상단 날짜 네비게이션 */}
-      <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 bg-bridge-surface border-b border-bridge-border gap-2">
-        <div className="flex items-center gap-2 md:gap-4 flex-wrap min-w-0">
-          {/* 일/주 토글 */}
-          <div
-            className="flex bg-bridge-dark rounded-lg p-1 cursor-pointer"
-            onClick={() => setViewMode(viewMode === "day" ? "week" : "day")}
-          >
-            <span
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                viewMode === "day"
-                  ? "bg-bridge-surface-hover text-foreground"
-                  : "text-zinc-400"
-              }`}
+      <div
+        className={
+          embedded
+            ? "flex items-center justify-between px-3 py-1.5 border-b border-foreground/[0.08] gap-2"
+            : "flex items-center justify-between px-3 md:px-6 py-2 md:py-3 bg-bridge-surface border-b border-bridge-border gap-2"
+        }
+      >
+        <div
+          className={
+            embedded
+              ? "flex items-center gap-1 min-w-0 w-full"
+              : "flex items-center gap-2 md:gap-4 flex-wrap min-w-0"
+          }
+        >
+          {/* 일/주 토글 — 임베드 모드에선 "오늘" 하루만 다루므로 감춘다 */}
+          {!embedded && (
+            <div
+              className="flex bg-bridge-dark rounded-lg p-1 cursor-pointer"
+              onClick={() => setViewMode(viewMode === "day" ? "week" : "day")}
             >
-              {t("dailySchedule.day")}
-            </span>
-            <span
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                viewMode === "week"
-                  ? "bg-bridge-surface-hover text-foreground"
-                  : "text-zinc-400"
-              }`}
-            >
-              {t("dailySchedule.week")}
-            </span>
-          </div>
+              <span
+                className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                  viewMode === "day"
+                    ? "bg-bridge-surface-hover text-foreground"
+                    : "text-zinc-400"
+                }`}
+              >
+                {t("dailySchedule.day")}
+              </span>
+              <span
+                className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                  viewMode === "week"
+                    ? "bg-bridge-surface-hover text-foreground"
+                    : "text-zinc-400"
+                }`}
+              >
+                {t("dailySchedule.week")}
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center gap-1">
             <Button
@@ -1276,10 +1304,18 @@ export function DailyScheduleView({
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm md:text-lg font-bold text-foreground min-w-0 sm:min-w-[280px] text-center whitespace-nowrap">
-              {viewMode === "day"
-                ? `${formatDate(selectedDate, t("dailySchedule.dateFormatDay"))} (${dayOfWeek})`
-                : `${formatDate(weekDays[0], t("dailySchedule.dateFormatWeek"))} - ${formatDate(weekDays[6], t("dailySchedule.dateFormatWeek"))}`}
+            <span
+              className={
+                embedded
+                  ? "text-xs font-bold text-foreground text-center whitespace-nowrap"
+                  : "text-sm md:text-lg font-bold text-foreground min-w-0 sm:min-w-[280px] text-center whitespace-nowrap"
+              }
+            >
+              {embedded
+                ? `${formatDate(selectedDate, "M/d")} (${dayOfWeek})`
+                : viewMode === "day"
+                  ? `${formatDate(selectedDate, t("dailySchedule.dateFormatDay"))} (${dayOfWeek})`
+                  : `${formatDate(weekDays[0], t("dailySchedule.dateFormatWeek"))} - ${formatDate(weekDays[6], t("dailySchedule.dateFormatWeek"))}`}
             </span>
             <Button
               variant="ghost"
@@ -1298,11 +1334,11 @@ export function DailyScheduleView({
             }
             size="sm"
             onClick={handleToday}
-            className={
+            className={`${
               (viewMode === "day" ? isToday : isTodayInWeek)
                 ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white"
                 : "border-bridge-border text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-            }
+            } ${embedded ? "ml-auto h-6 px-2.5 text-xs" : ""}`}
           >
             {t("dailySchedule.today")}
           </Button>
@@ -1310,19 +1346,20 @@ export function DailyScheduleView({
             <Loader2 className="h-4 w-4 text-zinc-400 animate-spin" />
           )}
         </div>
-        {(currentUserRole === "owner" || currentUserRole === "admin") && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowSettingsModal(true)}
-            className="border-bridge-border text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-          >
-            <Settings className="h-4 w-4 md:mr-2" />
-            <span className="hidden md:inline">
-              {t("dailySchedule.settings")}
-            </span>
-          </Button>
-        )}
+        {!embedded &&
+          (currentUserRole === "owner" || currentUserRole === "admin") && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSettingsModal(true)}
+              className="border-bridge-border text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+            >
+              <Settings className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">
+                {t("dailySchedule.settings")}
+              </span>
+            </Button>
+          )}
       </div>
 
       {/* 타임블록 스케줄 그리드 + 상세 패널 */}
@@ -1330,9 +1367,11 @@ export function DailyScheduleView({
         <div className="flex-1 overflow-auto custom-scrollbar min-w-0">
           {viewMode === "day" ? (
             /* 일 단위 뷰 */
-            <div className="min-w-max">
-              {/* 헤더: 시간/블록 + 멤버 컬럼 */}
-              <div className="flex sticky top-0 bg-bridge-surface z-10 border-b border-bridge-border">
+            <div className={dayWrapClass}>
+              {/* 헤더: 시간/블록 + 멤버 컬럼 — 임베드 모드는 내 열 하나뿐이라 감춘다 */}
+              <div
+                className={`flex sticky top-0 bg-bridge-surface z-10 border-b border-bridge-border ${embedded ? "hidden" : ""}`}
+              >
                 <div className="w-14 md:w-20 flex-shrink-0 p-2 md:p-3 text-xs md:text-sm font-medium text-zinc-400 border-r border-bridge-border">
                   {displayMode === "block"
                     ? t("dailySchedule.block")
@@ -1588,7 +1627,7 @@ export function DailyScheduleView({
                           <div
                             key={`${member.userId}-${time}`}
                             data-slotinfo={`${member.userId}:${slotIndex}`}
-                            className={`w-36 md:w-48 flex-shrink-0 border-r border-bridge-border transition-colors group relative h-full ${
+                            className={`${memberColClass} border-r border-bridge-border transition-colors group relative h-full ${
                               isBreak
                                 ? isDragging
                                   ? "cursor-pointer"
@@ -1678,14 +1717,14 @@ export function DailyScheduleView({
                       return (
                         <div
                           key={member.userId}
-                          className="w-36 md:w-48 flex-shrink-0 relative"
+                          className={`${memberColClass} relative`}
                           style={{ height: `${slotHeightData.totalHeight}px` }}
                         >
                           {blocks.map((block) => (
                             <ScheduleBlock
                               key={block.id}
                               block={block}
-                              slotHeight={SLOT_HEIGHT}
+                              slotHeight={slotH}
                               workStartHour={workStartHour}
                               workEndHour={workEndHour}
                               otherBlocks={blocks}
@@ -1704,7 +1743,7 @@ export function DailyScheduleView({
                             <ScheduleBlock
                               key={`org-${block.id}`}
                               block={block}
-                              slotHeight={SLOT_HEIGHT}
+                              slotHeight={slotH}
                               workStartHour={workStartHour}
                               workEndHour={workEndHour}
                               otherBlocks={blocks}
@@ -1738,7 +1777,7 @@ export function DailyScheduleView({
                       const top = minutesToPx(startMinutes);
                       const height = Math.max(
                         minutesToPx(endMinutes) - top,
-                        SLOT_HEIGHT,
+                        slotH,
                       );
 
                       if (top < 0) return null;

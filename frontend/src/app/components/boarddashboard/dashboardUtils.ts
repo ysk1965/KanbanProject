@@ -9,7 +9,7 @@ import type { Task } from "../../types";
 // D-day 계산은 dateUtils.getDDay()를 쓴다 — 여기서 다시 만들지 않는다.
 
 /**
- * 내 태스크 보드의 5개 열.
+ * 태스크의 진행 상태 구분. KPI(지연 건수)와 필터에서 쓴다.
  * 앞 2개는 마감일 파생, 그다음은 진행 상태, 마지막은 "날짜가 아직 없는 것".
  */
 export type TaskBucket =
@@ -19,16 +19,8 @@ export type TaskBucket =
   | "upcoming"
   | "unscheduled";
 
-export const TASK_BUCKETS: TaskBucket[] = [
-  "overdue",
-  "today",
-  "doing",
-  "upcoming",
-  "unscheduled",
-];
-
 /**
- * 태스크가 속할 열을 파생한다. 완료된 태스크는 어느 열에도 담기지 않는다(null).
+ * 태스크가 속할 구간을 파생한다. 완료된 태스크는 어디에도 담기지 않는다(null).
  *
  * 우선순위: 지연 > 오늘 > 진행 중 > 예정 > 일정 미정
  * - overdue    : 마감일이 오늘보다 이전
@@ -39,9 +31,6 @@ export const TASK_BUCKETS: TaskBucket[] = [
  *
  * 날짜를 안 채우는 팀도 있어서 시작일만으로는 "진행 중"이 늘 비어 버린다.
  * 체크리스트가 일부라도 완료됐으면 착수한 것으로 본다.
- *
- * 날짜 없는 태스크를 "예정"에 섞으면 계획해야 할 일이 계획된 일처럼 보인다.
- * 그래서 마지막 열로 따로 뺀다.
  */
 export function resolveTaskBucket(
   task: Task,

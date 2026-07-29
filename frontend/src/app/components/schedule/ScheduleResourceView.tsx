@@ -105,7 +105,17 @@ interface ScheduleResourceViewProps {
   onOpenContractorManager?: () => void;
   onViewTask?: (taskId: string, checklistItemId?: string) => void;
   onDropChecklist?: (
-    item: { id: string; task_id: string },
+    /**
+     * start_date/due_date/title은 드래그 소스가 실어 보낸 배치 전 값(있을 때만).
+     * 리스케줄 시 기존 기간을 살리거나 되돌리기 안내에 쓴다.
+     */
+    item: {
+      id: string;
+      task_id: string;
+      start_date?: string | null;
+      due_date?: string | null;
+      title?: string;
+    },
     targetDate: string,
     targetAssigneeId: string,
   ) => void;
@@ -128,6 +138,12 @@ interface ScheduleResourceViewProps {
     start_date: string,
     end_date: string,
   ) => void | Promise<void>;
+  /**
+   * 대시보드 위젯 등 1인 행만 보여주는 컨테이너에 끼워 넣을 때 true.
+   * 그룹 기준·외주 관리처럼 여러 명을 전제로 한 조작을 감춘다.
+   * 바 이동·기간 조절·특별일 등록·줌은 그대로 쓴다.
+   */
+  embedded?: boolean;
 }
 
 /** 빈 행을 드래그해 업무 생성 바를 그리는 중의 상태 */
@@ -271,6 +287,7 @@ export function ScheduleResourceView({
   highlightedTaskId = null,
   onToggleHighlight,
   onUpdateMilestoneDates,
+  embedded = false,
 }: ScheduleResourceViewProps) {
   const { t, i18n } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -1699,8 +1716,15 @@ export function ScheduleResourceView({
         if (parsed.id && parsed.task_id) {
           const targetDate = formatDateStr(timelineDays[dayIndex]);
           if (onDropChecklist) {
+            // 배치 전 날짜·제목은 드래그 소스가 실어 보낸 경우에만 넘어간다
             onDropChecklist(
-              { id: parsed.id, task_id: parsed.task_id },
+              {
+                id: parsed.id,
+                task_id: parsed.task_id,
+                start_date: parsed.start_date ?? null,
+                due_date: parsed.due_date ?? null,
+                title: parsed.title,
+              },
               targetDate,
               rowId,
             );
@@ -2019,11 +2043,13 @@ export function ScheduleResourceView({
               className="shrink-0 sticky left-0 z-30 bg-bridge-obsidian border-r border-foreground/[0.08] flex items-center justify-between gap-1 px-3"
               style={{ width: LEFT_COL_WIDTH, height: HEADER_HEIGHT }}
             >
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-400 truncate">
-                {groupByJobRole
-                  ? t("schedule.resource.groupByJobRole", "직군별")
-                  : t("schedule.resource.groupByMember", "멤버별")}
-              </span>
+              {!embedded && (
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-400 truncate">
+                  {groupByJobRole
+                    ? t("schedule.resource.groupByJobRole", "직군별")
+                    : t("schedule.resource.groupByMember", "멤버별")}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => openEventModal()}
@@ -2054,8 +2080,8 @@ export function ScheduleResourceView({
                   <div className="absolute left-0 top-full mt-1.5 z-50 w-60 bg-bridge-obsidian rounded-xl border border-foreground/10 shadow-2xl overflow-hidden">
                     <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
                     <div className="p-3 space-y-3">
-                      {/* 그룹 기준 */}
-                      {jobRoles.length > 0 && (
+                      {/* 그룹 기준 — 임베드 모드는 행이 하나라 감춘다 */}
+                      {!embedded && jobRoles.length > 0 && (
                         <div>
                           <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
                             {t("schedule.resource.groupBy", "그룹 기준")}
@@ -2119,8 +2145,8 @@ export function ScheduleResourceView({
                         </div>
                       </div>
 
-                      {/* 외주 관리 */}
-                      {onOpenContractorManager && (
+                      {/* 외주 관리 — 임베드 모드는 대상이 없어 감춘다 */}
+                      {!embedded && onOpenContractorManager && (
                         <button
                           type="button"
                           onClick={() => {
