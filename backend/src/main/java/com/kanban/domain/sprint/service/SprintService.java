@@ -5,7 +5,6 @@ import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
-import com.kanban.domain.checklist.dto.ChecklistResponse;
 import com.kanban.domain.integration.jira.JiraIntegrationConfigRepository;
 import com.kanban.domain.integration.jira.JiraIssueLink;
 import com.kanban.domain.integration.jira.JiraIssueLinkRepository;
@@ -20,6 +19,7 @@ import com.kanban.domain.sprint.SprintRepository;
 import com.kanban.domain.sprint.SprintStatus;
 import com.kanban.domain.sprint.dto.SprintResponse;
 import com.kanban.domain.task.Task;
+import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
@@ -38,6 +38,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 스프린트 보드 서비스.
+ *
+ * <p>담기 단위는 <b>태스크</b>다. 체크리스트는 태스크에 딸린 내용물이라 따로 담지 않으며,
+ * 태스크가 스프린트에 들어가 있으면 그 뒤에 추가된 체크리스트도 자동으로 같은 스프린트 안에 있게 된다.
+ *
+ * <p>완료 판정은 <b>END(Done) 컬럼 도달</b>이다. 체크리스트 진척은 카드에 표시되는 참고 값일 뿐
+ * 완료를 좌우하지 않으며, 칸반 블록 기준 완료(task.isCompleted)와도 별개로 움직인다.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -46,6 +55,7 @@ public class SprintService {
 
     private final SprintRepository sprintRepository;
     private final SprintColumnRepository sprintColumnRepository;
+    private final TaskRepository taskRepository;
     private final ChecklistItemRepository checklistItemRepository;
     private final MilestoneRepository milestoneRepository;
     private final BoardRepository boardRepository;
@@ -54,7 +64,6 @@ public class SprintService {
     private final WebSocketEventService webSocketEventService;
     private final JiraIssueLinkRepository jiraIssueLinkRepository;
     private final JiraIntegrationConfigRepository jiraIntegrationConfigRepository;
-    private final com.kanban.domain.task.TaskRepository taskRepository;
 
     // 기본 컬럼 시드 (앞뒤 고정 + 기본 중간 1개)
     private static final String COL_SPRINT = "Sprint";
@@ -87,9 +96,8 @@ public class SprintService {
             ensureColumns(milestone);
             ensureActiveSprint(milestone);
         } else {
-            // 병합: 담긴 카드를 모두 백로그로 되돌리고 스프린트 삭제 (완료 여부는 유지, 컬럼 구성은 보존)
-            List<ChecklistItem> inSprint = checklistItemRepository.findInSprintByMilestoneId(milestoneId);
-            inSprint.forEach(ChecklistItem::removeFromSprint);
+            // 병합: 담긴 태스크를 모두 백로그로 되돌리고 스프린트 삭제 (컬럼 구성은 보존)
+            taskRepository.findInSprintByMilestoneId(milestoneId).forEach(Task::removeFromSprint);
             sprintRepository.deleteByMilestoneId(milestoneId);
         }
         broadcastSprintChanged(boardId, userId);
@@ -98,49 +106,47 @@ public class SprintService {
 
     // ==================== 담기 / 빼기 / 이동 (멤버+) ====================
 
+    /** 태스크 담기. 담는 순간 그 태스크의 체크리스트 전체가 함께 스프린트 스코프에 들어온다. */
     @Transactional
-    public SprintResponse.Board addItem(String boardId, String sprintId, String checklistItemId, String userId) {
+    public SprintResponse.Board addTask(String boardId, String sprintId, String taskId, String userId) {
         boardService.checkMemberOrAbove(boardId, userId);
         Sprint sprint = loadSprint(boardId, sprintId);
-        ChecklistItem item = checklistItemRepository.findById(checklistItemId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
-        // 항목이 스프린트와 같은 마일스톤에 속하는지 검증
-        Milestone itemMilestone = item.getTask() != null ? item.getTask().getMilestone() : null;
-        if (itemMilestone == null || !itemMilestone.getId().equals(sprint.getMilestone().getId())) {
-            throw new BusinessException(ErrorCode.SPRINT_ITEM_NOT_IN_MILESTONE);
+        // 태스크가 스프린트와 같은 마일스톤에 속하는지 검증
+        Milestone taskMilestone = task.getMilestone();
+        if (taskMilestone == null || !taskMilestone.getId().equals(sprint.getMilestone().getId())) {
+            throw new BusinessException(ErrorCode.SPRINT_TASK_NOT_IN_MILESTONE);
         }
         Milestone milestone = sprint.getMilestone();
         ensureColumns(milestone);
-        // 완료 상태면 바로 Done(END), 아니면 Sprint(START)
-        SprintColumn target = Boolean.TRUE.equals(item.getIsCompleted())
-                ? requireColumn(milestone, SprintColumnKind.END)
-                : requireColumn(milestone, SprintColumnKind.START);
-        item.assignToSprint(sprint, target);
+        task.assignToSprint(sprint, requireColumn(milestone, SprintColumnKind.START));
         broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone);
     }
 
+    /** 태스크 빼기 (백로그로 복귀). 체크리스트는 태스크를 따라 함께 빠진다. */
     @Transactional
-    public SprintResponse.Board removeItem(String boardId, String sprintId, String itemId, String userId) {
+    public SprintResponse.Board removeTask(String boardId, String sprintId, String taskId, String userId) {
         boardService.checkMemberOrAbove(boardId, userId);
         Sprint sprint = loadSprint(boardId, sprintId);
-        ChecklistItem item = checklistItemRepository.findById(itemId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
-        item.removeFromSprint();
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        task.removeFromSprint();
         broadcastSprintChanged(boardId, userId);
         return buildBoard(sprint.getMilestone());
     }
 
-    /** 카드 컬럼 이동 (드래그). END 컬럼 도달 시 완료 동기화, 벗어나면 미완료로. */
+    /** 카드 컬럼 이동 (드래그). END 컬럼 도달 = 스프린트 상의 완료. */
     @Transactional
-    public SprintResponse.Board moveToColumn(String boardId, String itemId, String columnId, String userId) {
+    public SprintResponse.Board moveToColumn(String boardId, String taskId, String columnId, String userId) {
         boardService.checkMemberOrAbove(boardId, userId);
-        ChecklistItem item = checklistItemRepository.findById(itemId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
-        Sprint sprint = item.getSprint();
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Sprint sprint = task.getSprint();
         if (sprint == null) {
-            throw new BusinessException(ErrorCode.SPRINT_ITEM_NOT_IN_MILESTONE);
+            throw new BusinessException(ErrorCode.SPRINT_TASK_NOT_IN_MILESTONE);
         }
         if (!sprint.getMilestone().getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.SPRINT_NOT_FOUND);
@@ -151,12 +157,7 @@ public class SprintService {
         if (!column.getMilestone().getId().equals(sprint.getMilestone().getId())) {
             throw new BusinessException(ErrorCode.SPRINT_COLUMN_NOT_FOUND);
         }
-        boolean completionChanged = applyColumnMove(item, column, userId);
-        // 완료 플래그가 바뀌었으면 일반 체크리스트 토글과 동일한 이벤트를 쏴서
-        // 블록 보드·태스크 모달 등 다른 화면의 체크박스가 실시간 동기화되도록 한다.
-        if (completionChanged) {
-            broadcastChecklistToggle(boardId, item, userId);
-        }
+        task.moveToSprintColumn(column);
         broadcastSprintChanged(boardId, userId);
         return buildBoard(sprint.getMilestone());
     }
@@ -220,11 +221,11 @@ public class SprintService {
                 .filter(c -> c.getPosition() < col.getPosition())
                 .reduce((a, b) -> a.getPosition() >= b.getPosition() ? a : b)
                 .orElse(cols.isEmpty() ? null : cols.get(0));
-        List<ChecklistItem> items = checklistItemRepository.findBySprintColumnId(columnId);
+        List<Task> tasks = taskRepository.findBySprintColumnId(columnId);
         if (prev != null) {
-            items.forEach(item -> item.moveToSprintColumn(prev));
+            tasks.forEach(t -> t.moveToSprintColumn(prev));
         } else {
-            items.forEach(ChecklistItem::removeFromSprint);
+            tasks.forEach(Task::removeFromSprint);
         }
         sprintColumnRepository.delete(col);
         broadcastSprintChanged(boardId, userId);
@@ -257,6 +258,11 @@ public class SprintService {
 
     // ==================== 라이프사이클: 종료 / 재활성화 (관리자) ====================
 
+    /**
+     * 스프린트 종료. 기간이 끝나면 닫을 수 있어야 하므로 "전부 Done" 게이트는 두지 않는다.
+     * 종료 시점의 완료/전체 수를 동결하고, 아직 Done에 닿지 못한 태스크는 다음 스프린트로 이월한다.
+     * 이월된 태스크는 carryOverCount가 1 올라가 몇 스프린트째 밀리는 중인지 드러난다.
+     */
     @Transactional
     public SprintResponse.Board closeSprint(String boardId, String sprintId, String userId) {
         boardService.checkAdminOrAbove(boardId, userId);
@@ -265,24 +271,36 @@ public class SprintService {
             throw new BusinessException(ErrorCode.SPRINT_NOT_ACTIVE);
         }
 
-        int total = checklistItemRepository.countBySprintId(sprintId);
-        int done = checklistItemRepository.countBySprintIdAndColumnKind(sprintId, SprintColumnKind.END);
-        if (total == 0 || done != total) {
-            throw new BusinessException(ErrorCode.SPRINT_NOT_ALL_DONE);
-        }
-
         Milestone milestone = sprint.getMilestone();
         String milestoneId = milestone.getId();
+        ensureColumns(milestone);
+
+        // 동결 수치는 이월 전에 센다 — "24/39 완료, 15개 이월"이 그대로 기록에 남는다.
+        int total = taskRepository.countBySprintId(sprintId);
+        int done = taskRepository.countBySprintIdAndColumnKind(sprintId, SprintColumnKind.END);
         sprint.archive(done, total, LocalDateTime.now(ZoneOffset.UTC));
 
+        // 다음 스프린트 확보 — 최신 스프린트를 닫았으면 새로 만들고, 재활성화 중이었으면 최신으로 복귀.
         Sprint latest = sprintRepository.findFirstByMilestoneIdOrderBySequenceNoDesc(milestoneId)
                 .orElse(sprint);
+        Sprint next;
         if (latest.getId().equals(sprint.getId())) {
             int nextSeq = sprintRepository.findMaxSequenceNo(milestoneId) + 1;
-            createSprint(milestone, nextSeq);
+            next = createSprint(milestone, nextSeq);
         } else {
             latest.reactivate();
+            next = latest;
         }
+
+        // 미완료 태스크 이월 — Sprint(START) 컬럼부터 다시 시작한다.
+        List<Task> carried = taskRepository.findNotDoneBySprintId(sprintId, SprintColumnKind.END);
+        if (!carried.isEmpty()) {
+            SprintColumn start = requireColumn(milestone, SprintColumnKind.START);
+            carried.forEach(t -> t.carryOverTo(next, start));
+            log.info("Sprint {} closed — {} tasks carried over to {}",
+                    sprint.getName(), carried.size(), next.getName());
+        }
+
         broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone);
     }
@@ -305,8 +323,8 @@ public class SprintService {
             if (active.getSequenceNo() != maxSeq) {
                 throw new BusinessException(ErrorCode.SPRINT_REACTIVATION_BLOCKED);
             }
-            int total = checklistItemRepository.countBySprintId(active.getId());
-            int done = checklistItemRepository.countBySprintIdAndColumnKind(active.getId(), SprintColumnKind.END);
+            int total = taskRepository.countBySprintId(active.getId());
+            int done = taskRepository.countBySprintIdAndColumnKind(active.getId(), SprintColumnKind.END);
             active.archive(done, total, LocalDateTime.now(ZoneOffset.UTC));
         }
 
@@ -336,15 +354,15 @@ public class SprintService {
         return buildBoard(milestone);
     }
 
-    /** 항목 재개 — 아카이브(또는 다른) 스프린트의 항목을 현재 활성 스프린트로 다시 담는다 (Sprint 컬럼, 미완료로). */
+    /** 태스크 재개 — 아카이브(또는 다른) 스프린트의 태스크를 현재 활성 스프린트로 다시 담는다 (Sprint 컬럼). */
     @Transactional
-    public SprintResponse.Board resumeItem(String boardId, String itemId, String userId) {
+    public SprintResponse.Board resumeTask(String boardId, String taskId, String userId) {
         boardService.checkMemberOrAbove(boardId, userId);
-        ChecklistItem item = checklistItemRepository.findById(itemId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
-        Sprint from = item.getSprint();
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Sprint from = task.getSprint();
         if (from == null) {
-            throw new BusinessException(ErrorCode.SPRINT_ITEM_NOT_IN_MILESTONE);
+            throw new BusinessException(ErrorCode.SPRINT_TASK_NOT_IN_MILESTONE);
         }
         if (!from.getMilestone().getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.SPRINT_NOT_FOUND);
@@ -355,167 +373,53 @@ public class SprintService {
                 .findFirstByMilestoneIdAndStatusOrderBySequenceNoDesc(milestone.getId(), SprintStatus.ACTIVE)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SPRINT_NOT_FOUND));
         ensureColumns(milestone);
-        item.assignToSprint(active, requireColumn(milestone, SprintColumnKind.START));
-        item.uncomplete();
+        task.assignToSprint(active, requireColumn(milestone, SprintColumnKind.START));
         broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone);
     }
 
-    /** 특정 스프린트의 담긴 카드 목록 (아카이브 열람 / 항목 재개 UI용) */
-    public List<SprintResponse.ItemCard> getSprintItems(String boardId, String sprintId, String userId) {
+    /** 특정 스프린트에 담긴 태스크 카드 목록 (아카이브 열람 / 재개 UI용) */
+    public List<SprintResponse.ItemCard> getSprintTasks(String boardId, String sprintId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
         loadSprint(boardId, sprintId);
-        return checklistItemRepository.findBySprintId(sprintId).stream()
-                .map(SprintResponse.ItemCard::of)
+        Map<String, List<ChecklistItem>> byTask = groupByTask(checklistItemRepository.findByTaskSprintId(sprintId));
+        return taskRepository.findBySprintId(sprintId).stream()
+                .map(t -> SprintResponse.ItemCard.of(t, byTask.getOrDefault(t.getId(), List.of())))
                 .toList();
     }
 
     /**
-     * 마일스톤 관리 콘솔용 — 마일스톤에 속한 전체 체크리스트를 스프린트 담김 여부와 무관하게 반환한다.
-     * FE에서 Feature ▸ Task ▸ 체크리스트 트리로 재구성해 피쳐 칩/태스크 칸반을 렌더한다.
+     * 마일스톤 관리 콘솔용 — 마일스톤에 속한 전체 태스크를 스프린트 담김 여부와 무관하게 반환한다.
+     * FE에서 Feature ▸ Task 트리로 재구성해 피쳐 칩/태스크 칸반을 렌더한다.
      */
     public List<SprintResponse.ItemCard> getMilestoneConsole(String boardId, String milestoneId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
         loadMilestone(boardId, milestoneId);
-        return checklistItemRepository.findAllByMilestoneId(milestoneId).stream()
-                .map(SprintResponse.ItemCard::of)
+        Map<String, List<ChecklistItem>> byTask =
+                groupByTask(checklistItemRepository.findByTaskMilestoneId(milestoneId));
+        return taskRepository.findAllByMilestoneIdWithSprint(milestoneId).stream()
+                .map(t -> SprintResponse.ItemCard.of(t, byTask.getOrDefault(t.getId(), List.of())))
                 .toList();
-    }
-
-    // ==================== 완료 토글 동기화 (ChecklistService에서 호출) ====================
-
-    /**
-     * 일반 체크리스트 완료 토글 후, 스프린트에 담긴 항목이면 컬럼을 동기화한다.
-     * 완료 → END 컬럼 이동(+완료자 기록), 미완료 → END에서 직전 컬럼으로 되돌림.
-     * (item 은 이미 toggle 반영된 managed 엔티티. 별도 save 불필요.)
-     */
-    @Transactional
-    public void syncColumnOnToggle(ChecklistItem item, String userId) {
-        if (!item.isInSprint()) {
-            return;
-        }
-        String milestoneId = item.getSprint().getMilestone().getId();
-        if (Boolean.TRUE.equals(item.getIsCompleted())) {
-            sprintColumnRepository.findFirstByMilestoneIdAndKind(milestoneId, SprintColumnKind.END)
-                    .ifPresent(end -> {
-                        item.moveToSprintColumn(end);
-                        item.recordCompleter(userRepository.getReferenceById(userId));
-                    });
-        } else {
-            SprintColumn cur = item.getSprintColumn();
-            if (cur != null && cur.isEnd()) {
-                List<SprintColumn> cols = sprintColumnRepository.findByMilestoneIdOrderByPositionAsc(milestoneId);
-                cols.stream().filter(c -> !c.isEnd()).reduce((a, b) -> b)
-                        .ifPresent(item::moveToSprintColumn);
-            }
-        }
-    }
-
-    // ==================== 태스크 단위 스프린트 편입 (체크리스트 생성/이동 훅) ====================
-
-    /**
-     * 신규 체크리스트가 부모 태스크의 활성 스프린트에 자동 편입되도록 한다.
-     * 스프린트 멤버십은 "태스크 단위" — 태스크가 이미 활성 스프린트에 담겨 있으면
-     * 새로 추가된 체크리스트도 같은 스프린트의 Sprint(START) 컬럼에 자동으로 담는다.
-     * (item 은 이미 저장된 managed 엔티티 — 별도 save 불필요.)
-     */
-    @Transactional
-    public void inheritSprintForNewItem(ChecklistItem item) {
-        Task task = item.getTask();
-        if (task == null || task.getMilestone() == null) {
-            return;
-        }
-        Milestone milestone = task.getMilestone();
-        if (!Boolean.TRUE.equals(milestone.getSprintEnabled())) {
-            return;
-        }
-        Sprint active = sprintRepository
-                .findFirstByMilestoneIdAndStatusOrderBySequenceNoDesc(milestone.getId(), SprintStatus.ACTIVE)
-                .orElse(null);
-        if (active == null) {
-            return;
-        }
-        // 부모 태스크가 이미 활성 스프린트에 담겨 있을 때만 새 항목을 편입한다.
-        if (!checklistItemRepository.existsByTaskIdAndSprintId(task.getId(), active.getId())) {
-            return;
-        }
-        ensureColumns(milestone);
-        // 신규 항목은 미완료 상태 → Sprint(START) 컬럼
-        item.assignToSprint(active, requireColumn(milestone, SprintColumnKind.START));
-    }
-
-    /**
-     * 체크리스트를 다른 태스크로 옮긴 뒤 스프린트 멤버십을 대상 태스크 기준으로 재정합한다.
-     *  - 대상 태스크가 활성 스프린트에 담겨 있으면 → 옮긴 항목도 같은 스프린트로 편입(완료면 END, 아니면 START).
-     *  - 담겨 있지 않으면(백로그 태스크) → 스프린트에서 빼서 유령 카드/마일스톤 불일치를 방지한다.
-     * (item 은 이미 대상 태스크로 이동된 managed 엔티티.)
-     */
-    @Transactional
-    public void reconcileSprintAfterMove(ChecklistItem item) {
-        Task task = item.getTask(); // 이미 대상 태스크로 이동된 상태
-        Milestone milestone = task != null ? task.getMilestone() : null;
-        Sprint active = (milestone != null && Boolean.TRUE.equals(milestone.getSprintEnabled()))
-                ? sprintRepository.findFirstByMilestoneIdAndStatusOrderBySequenceNoDesc(milestone.getId(), SprintStatus.ACTIVE).orElse(null)
-                : null;
-
-        // 대상 태스크에 (옮긴 항목 외에) 활성 스프린트로 담긴 형제가 있는가?
-        boolean targetInSprint = active != null
-                && checklistItemRepository.existsByTaskIdAndSprintIdAndIdNot(task.getId(), active.getId(), item.getId());
-
-        if (targetInSprint) {
-            String curSprintId = item.getSprint() != null ? item.getSprint().getId() : null;
-            // 이미 같은 활성 스프린트에 올바른 컬럼으로 담겨 있으면 그대로 둔다.
-            if (active.getId().equals(curSprintId) && item.getSprintColumn() != null) {
-                return;
-            }
-            ensureColumns(milestone);
-            SprintColumn target = Boolean.TRUE.equals(item.getIsCompleted())
-                    ? requireColumn(milestone, SprintColumnKind.END)
-                    : requireColumn(milestone, SprintColumnKind.START);
-            item.assignToSprint(active, target);
-        } else if (item.isInSprint()) {
-            // 대상 태스크가 스프린트에 없으면 옮긴 항목도 스프린트에서 제외한다.
-            item.removeFromSprint();
-        }
     }
 
     // ==================== Helpers ====================
 
-    /** 컬럼 이동 + 완료 동기화. 완료 플래그가 실제로 바뀌었으면 true를 반환한다. */
-    private boolean applyColumnMove(ChecklistItem item, SprintColumn column, String userId) {
-        boolean before = Boolean.TRUE.equals(item.getIsCompleted());
-        item.moveToSprintColumn(column);
-        if (column.isEnd()) {
-            item.complete();
-            item.recordCompleter(userRepository.getReferenceById(userId));
-        } else if (Boolean.TRUE.equals(item.getIsCompleted())) {
-            item.uncomplete();
+    /** 체크리스트를 부모 태스크 id로 묶는다 (카드 진척 집계용). */
+    private Map<String, List<ChecklistItem>> groupByTask(List<ChecklistItem> items) {
+        Map<String, List<ChecklistItem>> byTask = new HashMap<>();
+        for (ChecklistItem c : items) {
+            if (c.getTask() == null) {
+                continue;
+            }
+            byTask.computeIfAbsent(c.getTask().getId(), k -> new ArrayList<>()).add(c);
         }
-        return before != Boolean.TRUE.equals(item.getIsCompleted());
+        return byTask;
     }
 
     /**
-     * 스프린트 컬럼 이동으로 완료 상태가 바뀌면, 일반 체크리스트 토글(ChecklistService)과
-     * 동일한 CHECKLIST_TOGGLED 이벤트를 브로드캐스트한다. 이벤트 payload({task_id, item})도 동일하게 맞춰
-     * 블록 보드·태스크 모달·일정 뷰의 체크박스가 새로고침 없이 즉시 동기화되도록 한다.
-     */
-    private void broadcastChecklistToggle(String boardId, ChecklistItem item, String userId) {
-        String taskId = item.getTask() != null ? item.getTask().getId() : null;
-        if (taskId == null) {
-            return;
-        }
-        ChecklistResponse.Detail detail = ChecklistResponse.Detail.of(item);
-        String userName = userRepository.findById(userId).map(u -> u.getName()).orElse(null);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_TOGGLED, userId, userName,
-                Map.of("task_id", taskId, "item", detail));
-    }
-
-    /**
-     * 스프린트 네이티브 뮤테이션(담기/빼기/컬럼 이동·CRUD/스프린트 on-off·라이프사이클) 후,
+     * 스프린트 뮤테이션(담기/빼기/컬럼 이동·CRUD/스프린트 on-off/라이프사이클) 후,
      * 스프린트 보드를 보고 있는 다른 클라이언트가 재조회하도록 SPRINT_UPDATED를 브로드캐스트한다.
      * 페이로드가 필요 없는 "재조회 신호" — useSprintRealtime 훅이 받아 디바운스 재조회한다.
-     * 완료 플래그가 바뀌는 이동은 broadcastChecklistToggle로 CHECKLIST_TOGGLED도 함께 쏴서
-     * 블록 보드·태스크 모달의 체크박스까지 동기화한다(둘 다 와도 프론트에서 재조회 1회로 합쳐짐).
      */
     private void broadcastSprintChanged(String boardId, String userId) {
         String userName = userRepository.findById(userId).map(u -> u.getName()).orElse(null);
@@ -596,19 +500,14 @@ public class SprintService {
     }
 
     /**
-     * 스프린트 항목들의 부모 Task 중 JIRA에 연동된 링크를 배치 조회(taskId → 링크).
+     * 태스크 중 JIRA에 연동된 링크를 배치 조회(taskId → 링크).
      * JIRA 미연동 보드면 빈 맵(추가 쿼리 없음). 링크에서 이슈 키 + 실제 JIRA 상태 id를 얻는다.
      */
-    private Map<String, JiraIssueLink> resolveJiraLinks(String boardId, List<ChecklistItem> items) {
+    private Map<String, JiraIssueLink> resolveJiraLinks(String boardId, List<Task> tasks) {
         if (jiraIntegrationConfigRepository.findActiveByBoardId(boardId).isEmpty()) {
             return Map.of();
         }
-        List<String> taskIds = items.stream()
-                .map(ChecklistItem::getTask)
-                .filter(java.util.Objects::nonNull)
-                .map(com.kanban.domain.task.Task::getId)
-                .distinct()
-                .toList();
+        List<String> taskIds = tasks.stream().map(Task::getId).distinct().toList();
         if (taskIds.isEmpty()) {
             return Map.of();
         }
@@ -633,13 +532,17 @@ public class SprintService {
             }
         }
 
+        // 마일스톤 전체 체크리스트를 한 번만 읽어 태스크별 진척 집계에 재사용한다 (담긴 카드 + 백로그 공통).
+        Map<String, List<ChecklistItem>> checklistsByTask =
+                groupByTask(checklistItemRepository.findByTaskMilestoneId(milestoneId));
+
         // 타임라인: 활성=라이브 집계, 아카이브=동결 수치
         List<SprintResponse.SprintInfo> timeline = new ArrayList<>();
         for (Sprint s : sprints) {
             int pct;
             if (s.isActive()) {
-                int total = checklistItemRepository.countBySprintId(s.getId());
-                int done = checklistItemRepository.countBySprintIdAndColumnKind(s.getId(), SprintColumnKind.END);
+                int total = taskRepository.countBySprintId(s.getId());
+                int done = taskRepository.countBySprintIdAndColumnKind(s.getId(), SprintColumnKind.END);
                 pct = total > 0 ? Math.round(done * 100f / total) : 0;
             } else {
                 pct = s.getTotalCount() > 0 ? Math.round(s.getCompletedCount() * 100f / s.getTotalCount()) : 0;
@@ -652,26 +555,26 @@ public class SprintService {
         SprintResponse.Gauge gauge;
 
         if (active != null) {
-            List<ChecklistItem> items = checklistItemRepository.findBySprintId(active.getId());
-            // JIRA 뷰(컬럼=JIRA 상태)용 — 연동 보드일 때만 부모 Task의 JIRA 링크를 배치 조회(N+1 방지)
-            Map<String, JiraIssueLink> jiraLinkByTaskId = resolveJiraLinks(milestone.getBoard().getId(), items);
+            List<Task> tasks = taskRepository.findBySprintId(active.getId());
+            // JIRA 뷰(컬럼=JIRA 상태)용 — 연동 보드일 때만 JIRA 링크를 배치 조회(N+1 방지)
+            Map<String, JiraIssueLink> jiraLinkByTaskId = resolveJiraLinks(milestone.getBoard().getId(), tasks);
             Map<String, List<SprintResponse.ItemCard>> byCol = new LinkedHashMap<>();
             for (SprintColumn c : cols) {
                 byCol.put(c.getId(), new ArrayList<>());
             }
             String fallbackColId = cols.isEmpty() ? null : cols.get(0).getId();
             int done = 0;
-            for (ChecklistItem c : items) {
-                String taskId = c.getTask() != null ? c.getTask().getId() : null;
-                JiraIssueLink jiraLink = taskId != null ? jiraLinkByTaskId.get(taskId) : null;
+            for (Task t : tasks) {
+                JiraIssueLink jiraLink = jiraLinkByTaskId.get(t.getId());
                 SprintResponse.ItemCard card = SprintResponse.ItemCard.of(
-                        c,
+                        t,
+                        checklistsByTask.getOrDefault(t.getId(), List.of()),
                         jiraLink != null ? jiraLink.getJiraIssueKey() : null,
                         jiraLink != null ? jiraLink.getLastJiraStatusId() : null);
-                SprintColumn ic = c.getSprintColumn();
-                if (ic != null && byCol.containsKey(ic.getId())) {
-                    byCol.get(ic.getId()).add(card);
-                    if (ic.isEnd()) {
+                SprintColumn tc = t.getSprintColumn();
+                if (tc != null && byCol.containsKey(tc.getId())) {
+                    byCol.get(tc.getId()).add(card);
+                    if (tc.isEnd()) {
                         done++;
                     }
                 } else if (fallbackColId != null) {
@@ -681,7 +584,7 @@ public class SprintService {
             columnDtos = cols.stream()
                     .map(c -> SprintResponse.Column.of(c, byCol.get(c.getId())))
                     .toList();
-            gauge = SprintResponse.Gauge.of(done, items.size());
+            gauge = SprintResponse.Gauge.of(done, tasks.size());
             activeInfo = SprintResponse.SprintInfo.of(active, gauge.getPercentage());
         } else {
             columnDtos = cols.stream()
@@ -690,8 +593,10 @@ public class SprintService {
             gauge = SprintResponse.Gauge.of(0, 0);
         }
 
-        List<SprintResponse.ItemCard> backlog = checklistItemRepository.findBacklogByMilestoneId(milestoneId)
-                .stream().map(SprintResponse.ItemCard::of).toList();
+        List<SprintResponse.ItemCard> backlog = taskRepository.findSprintBacklogByMilestoneId(milestoneId)
+                .stream()
+                .map(t -> SprintResponse.ItemCard.of(t, checklistsByTask.getOrDefault(t.getId(), List.of())))
+                .toList();
 
         // JIRA 뷰(컬럼=JIRA 상태)용 — 스프린트 담김과 무관한 보드 전체 JIRA 연동 Task.
         List<SprintResponse.JiraTask> jiraTasks = buildJiraTasks(milestone.getBoard().getId());
@@ -709,7 +614,7 @@ public class SprintService {
 
     /**
      * JIRA 뷰(보드 스코프) 카드 목록. 보드의 모든 JIRA 연동 Task를 스프린트 담김 여부와 무관하게
-     * 태스크 단위로 내려준다 — 재동기화로 import된 이슈가 스프린트에 담기지 않아도 JIRA 컬럼에 바로 보이도록.
+     * 내려준다 — 재동기화로 import된 이슈가 스프린트에 담기지 않아도 JIRA 컬럼에 바로 보이도록.
      * 미연동 보드면 빈 목록(추가 쿼리 없음).
      */
     private List<SprintResponse.JiraTask> buildJiraTasks(String boardId) {
@@ -725,19 +630,16 @@ public class SprintService {
                 .map(JiraIssueLink::getTargetId).distinct().toList();
 
         // Task(제목/블록/피쳐/QA) + 체크리스트(진행도·담당자) 배치 조회(N+1 방지).
-        Map<String, com.kanban.domain.task.Task> taskById = new HashMap<>();
-        for (com.kanban.domain.task.Task t : taskRepository.findByIdInWithBlockAndFeature(taskIds)) {
+        Map<String, Task> taskById = new HashMap<>();
+        for (Task t : taskRepository.findByIdInWithBlockAndFeature(taskIds)) {
             taskById.put(t.getId(), t);
         }
-        Map<String, List<ChecklistItem>> checklistsByTask = new HashMap<>();
-        for (ChecklistItem c : checklistItemRepository.findByTaskIdInWithAssignee(taskIds)) {
-            if (c.getTask() == null) continue;
-            checklistsByTask.computeIfAbsent(c.getTask().getId(), k -> new ArrayList<>()).add(c);
-        }
+        Map<String, List<ChecklistItem>> checklistsByTask =
+                groupByTask(checklistItemRepository.findByTaskIdInWithAssignee(taskIds));
 
         List<SprintResponse.JiraTask> out = new ArrayList<>();
         for (JiraIssueLink link : links) {
-            com.kanban.domain.task.Task task = taskById.get(link.getTargetId());
+            Task task = taskById.get(link.getTargetId());
             if (task == null) continue; // 고아 링크(Task 삭제됨) 방어
             List<ChecklistItem> cls = checklistsByTask.getOrDefault(task.getId(), List.of());
             int total = cls.size();

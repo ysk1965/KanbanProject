@@ -16,12 +16,12 @@ public class SprintRequest {
         private Boolean enabled;
     }
 
-    /** 체크리스트 항목 담기 */
+    /** 태스크 담기 (담기 단위는 태스크 — 체크리스트는 태스크를 따라 함께 들어온다) */
     @Getter
     @NoArgsConstructor
-    public static class AddItem {
+    public static class AddTask {
         @NotNull
-        private String checklistItemId;
+        private String taskId;
     }
 
     /** 카드 컬럼 이동 (대상 컬럼 id) */

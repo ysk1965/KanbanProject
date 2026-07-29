@@ -125,7 +125,33 @@ export function MilestoneConsoleModal({
     setLoading(true);
     try {
       const data = await sprintAPI.getMilestoneConsole(boardId, milestoneId);
-      setItems(data ?? []);
+      // 콘솔은 체크리스트 한 줄이 조작 단위(담당자·마감·태스크 간 이동)라,
+      // 태스크 카드로 내려온 응답을 체크리스트 행으로 펼쳐서 쓴다.
+      // 스프린트 담김 여부(sprint_column_id)는 부모 태스크 것을 그대로 물려받는다.
+      const rows: SprintItemCard[] = (data ?? []).flatMap((card) =>
+        (card.checklist_items ?? []).map((line) => ({
+          id: line.id,
+          title: line.title,
+          completed: line.completed,
+          sprint_column_id: card.sprint_column_id,
+          position: line.position,
+          due_date: line.due_date,
+          start_date: null,
+          done_date: null,
+          completed_at: null,
+          feature_id: card.feature_id,
+          feature_title: card.feature_title,
+          feature_color: card.feature_color,
+          feature_created_at: card.feature_created_at,
+          task_id: card.task_id,
+          task_title: card.task_title,
+          checklist_done: 0,
+          checklist_total: 0,
+          assignee: line.assignee ?? null,
+          contractor: line.contractor ?? null,
+        })),
+      );
+      setItems(rows);
     } catch {
       showToast("콘솔 데이터를 불러오지 못했습니다");
     } finally {

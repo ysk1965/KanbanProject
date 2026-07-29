@@ -29,7 +29,7 @@ public class SprintController {
         return ResponseEntity.ok(sprintService.getSprintBoard(boardId, milestoneId, userPrincipal.getUserId()));
     }
 
-    /** 마일스톤 관리 콘솔 — 마일스톤 전체 체크리스트(스프린트 무관) Feature ▸ Task ▸ 체크리스트 소스 */
+    /** 마일스톤 관리 콘솔 — 마일스톤 전체 태스크(스프린트 무관) Feature ▸ Task 트리 소스 */
     @GetMapping("/milestones/{milestoneId}/console")
     public ResponseEntity<List<SprintResponse.ItemCard>> getMilestoneConsole(
             @PathVariable String boardId,
@@ -52,40 +52,40 @@ public class SprintController {
                 sprintService.toggleSprintMode(boardId, milestoneId, request.getEnabled(), userPrincipal.getUserId()));
     }
 
-    /** 체크리스트 항목 담기 (Sprint 컬럼으로) */
-    @PostMapping("/sprints/{sprintId}/items")
-    public ResponseEntity<SprintResponse.Board> addItem(
+    /** 태스크 담기 (Sprint 컬럼으로). 그 태스크의 체크리스트는 함께 딸려 들어온다. */
+    @PostMapping("/sprints/{sprintId}/tasks")
+    public ResponseEntity<SprintResponse.Board> addTask(
             @PathVariable String boardId,
             @PathVariable String sprintId,
-            @Valid @RequestBody SprintRequest.AddItem request,
+            @Valid @RequestBody SprintRequest.AddTask request,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         return ResponseEntity.ok(
-                sprintService.addItem(boardId, sprintId, request.getChecklistItemId(), userPrincipal.getUserId()));
+                sprintService.addTask(boardId, sprintId, request.getTaskId(), userPrincipal.getUserId()));
     }
 
-    /** 항목 빼기 (Task 백로그로 복귀) */
-    @DeleteMapping("/sprints/{sprintId}/items/{itemId}")
-    public ResponseEntity<SprintResponse.Board> removeItem(
+    /** 태스크 빼기 (백로그로 복귀) */
+    @DeleteMapping("/sprints/{sprintId}/tasks/{taskId}")
+    public ResponseEntity<SprintResponse.Board> removeTask(
             @PathVariable String boardId,
             @PathVariable String sprintId,
-            @PathVariable String itemId,
+            @PathVariable String taskId,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         return ResponseEntity.ok(
-                sprintService.removeItem(boardId, sprintId, itemId, userPrincipal.getUserId()));
+                sprintService.removeTask(boardId, sprintId, taskId, userPrincipal.getUserId()));
     }
 
-    /** 카드 컬럼 이동 (드래그) — END 컬럼 도달 시 완료 동기화 */
-    @PatchMapping("/checklist-items/{itemId}/sprint-column")
+    /** 카드 컬럼 이동 (드래그) — END 컬럼 도달 = 스프린트 상의 완료 */
+    @PatchMapping("/tasks/{taskId}/sprint-column")
     public ResponseEntity<SprintResponse.Board> moveToColumn(
             @PathVariable String boardId,
-            @PathVariable String itemId,
+            @PathVariable String taskId,
             @Valid @RequestBody SprintRequest.MoveColumn request,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         return ResponseEntity.ok(
-                sprintService.moveToColumn(boardId, itemId, request.getColumnId(), userPrincipal.getUserId()));
+                sprintService.moveToColumn(boardId, taskId, request.getColumnId(), userPrincipal.getUserId()));
     }
 
     // ==================== 컬럼 CRUD (관리자) ====================
@@ -136,7 +136,7 @@ public class SprintController {
                 boardId, milestoneId, request.getColumnIds(), userPrincipal.getUserId()));
     }
 
-    /** 스프린트 종료 (100% 완료 시 동결 + 다음 스프린트 생성/복귀) — 관리자 */
+    /** 스프린트 종료 (완료율 동결 + 미완료 태스크 이월 + 다음 스프린트 생성/복귀) — 관리자 */
     @PostMapping("/sprints/{sprintId}/close")
     public ResponseEntity<SprintResponse.Board> closeSprint(
             @PathVariable String boardId,
@@ -166,23 +166,23 @@ public class SprintController {
         return ResponseEntity.ok(sprintService.cancelReactivation(boardId, sprintId, userPrincipal.getUserId()));
     }
 
-    /** 특정 스프린트의 담긴 카드 목록 (아카이브 열람용) */
-    @GetMapping("/sprints/{sprintId}/items")
-    public ResponseEntity<List<SprintResponse.ItemCard>> getSprintItems(
+    /** 특정 스프린트에 담긴 태스크 카드 목록 (아카이브 열람용) */
+    @GetMapping("/sprints/{sprintId}/tasks")
+    public ResponseEntity<List<SprintResponse.ItemCard>> getSprintTasks(
             @PathVariable String boardId,
             @PathVariable String sprintId,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
-        return ResponseEntity.ok(sprintService.getSprintItems(boardId, sprintId, userPrincipal.getUserId()));
+        return ResponseEntity.ok(sprintService.getSprintTasks(boardId, sprintId, userPrincipal.getUserId()));
     }
 
-    /** 아카이브 항목을 현재 스프린트로 재개 */
-    @PostMapping("/checklist-items/{itemId}/resume")
-    public ResponseEntity<SprintResponse.Board> resumeItem(
+    /** 아카이브 태스크를 현재 스프린트로 재개 */
+    @PostMapping("/tasks/{taskId}/sprint-resume")
+    public ResponseEntity<SprintResponse.Board> resumeTask(
             @PathVariable String boardId,
-            @PathVariable String itemId,
+            @PathVariable String taskId,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
-        return ResponseEntity.ok(sprintService.resumeItem(boardId, itemId, userPrincipal.getUserId()));
+        return ResponseEntity.ok(sprintService.resumeTask(boardId, taskId, userPrincipal.getUserId()));
     }
 }

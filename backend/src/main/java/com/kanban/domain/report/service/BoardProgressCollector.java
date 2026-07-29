@@ -480,27 +480,26 @@ public class BoardProgressCollector {
             return null;
         }
         Sprint sprint = active.get(0); // 최신 시퀀스 우선
-        List<ChecklistItem> items = checklistItemRepository.findBySprintId(sprint.getId());
+        // 스프린트 스코프의 단위는 태스크다 (체크리스트는 태스크 카드 안쪽 진척일 뿐).
+        List<Task> tasks = taskRepository.findBySprintId(sprint.getId());
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
 
-        int total = items.size();
+        int total = tasks.size();
         int done = 0;
         int delayed = 0;
         int inProgress = 0;
-        for (ChecklistItem it : items) {
-            boolean isDone = Boolean.TRUE.equals(it.getIsCompleted())
-                    || (it.getSprintColumn() != null && it.getSprintColumn().getKind() == SprintColumnKind.END);
-            if (isDone) {
+        for (Task t : tasks) {
+            if (t.isSprintDone()) {
                 done++;
                 continue;
             }
-            if (it.getDueDate() != null && it.getDueDate().isBefore(today)) {
+            if (t.getDueDate() != null && t.getDueDate().isBefore(today)) {
                 delayed++;
                 continue;
             }
-            boolean inMiddle = it.getSprintColumn() != null
-                    && it.getSprintColumn().getKind() == SprintColumnKind.MIDDLE;
-            boolean started = it.getStartDate() != null && !it.getStartDate().isAfter(today);
+            boolean inMiddle = t.getSprintColumn() != null
+                    && t.getSprintColumn().getKind() == SprintColumnKind.MIDDLE;
+            boolean started = t.getStartDate() != null && !t.getStartDate().isAfter(today);
             if (inMiddle || started) {
                 inProgress++;
             }

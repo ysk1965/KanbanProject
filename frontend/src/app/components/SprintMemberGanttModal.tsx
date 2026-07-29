@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, LayoutGrid, Rows3, CornerUpLeft, X } from "lucide-react";
 import { MotionModal } from "./ui/MotionModal";
-import { checklistAPI } from "../utils/api";
+import { taskAPI } from "../utils/api";
 import type { SprintItemCard } from "../types";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
 import { getTodayDateString } from "../utils/dateUtils";
@@ -9,9 +9,9 @@ import { getTodayDateString } from "../utils/dateUtils";
 /**
  * 스프린트 구성원 개인 간트 · 업무 배치 모달
  *
- * 스프린트 카드 = 체크리스트 항목이고, 항목은 이미 start_date/due_date를 갖는다.
+ * 스프린트 카드 = 태스크이고, 태스크는 이미 start_date/due_date를 갖는다.
  * 이 모달은 새 데이터 모델 없이 그 두 날짜를 간트 바로 시각화하고, 드래그로
- * 조정한 뒤 기존 PATCH(/checklist/{itemId})로 즉시 저장한다.
+ * 조정한 뒤 태스크 수정 API로 즉시 저장한다.
  *
  * - 배치됨(바) = start_date && due_date 둘 다 존재. 하나라도 null이면 미배치(백로그).
  * - 저장은 놓는 즉시(낙관적) + 실패 시 롤백. 별도 저장 버튼 없음.
@@ -207,7 +207,8 @@ export function SprintMemberGanttModal({
         [card.id]: { start: startDate, due: dueDate },
       }));
       try {
-        await checklistAPI.patchItem(boardId, card.task_id, card.id, {
+        // 스프린트 카드는 태스크라 기간도 태스크에 저장한다.
+        await taskAPI.updateTask(boardId, card.task_id, {
           start_date: startDate,
           due_date: dueDate,
         });

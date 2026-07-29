@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
-import { LayoutGrid, Flag, Network, Lock } from "lucide-react";
+import { LayoutGrid, Flag, Network, Lock, LayoutDashboard } from "lucide-react";
 
 type ViewMode =
+  | "dashboard"
   | "kanban"
   | "gantt"
   | "schedule"
@@ -34,6 +35,14 @@ interface TabItem {
 }
 
 const TABS: TabItem[] = [
+  {
+    mode: "dashboard",
+    icon: LayoutDashboard,
+    labelKey: "kanban.viewBoardDashboard",
+    labelFallback: "대시보드",
+    isPremium: false,
+    checkAccess: () => true,
+  },
   {
     mode: "kanban",
     icon: LayoutGrid,
@@ -89,10 +98,12 @@ export function BoardSubTabs({
             checkAccess,
           }) => {
             // 칸반 탭은 보드 표현 뷰(리스트/간트/캘린더/미니 칸반 포함) 전체에서 활성 유지.
-            // 마일스톤·마인드맵 탭은 각 뷰일 때만 활성.
+            // 대시보드·마일스톤·마인드맵 탭은 각 뷰일 때만 활성.
             const isActive =
               mode === "kanban"
-                ? viewMode !== "milestone" && viewMode !== "mindmap"
+                ? viewMode !== "dashboard" &&
+                  viewMode !== "milestone" &&
+                  viewMode !== "mindmap"
                 : viewMode === mode;
             const hasAccess = checkAccess(canAccessMilestone);
             const label = t(labelKey, labelFallback);
