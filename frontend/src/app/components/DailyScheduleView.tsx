@@ -74,6 +74,11 @@ interface DailyScheduleViewProps {
    * 블록 생성·이동·시간 조절 등 실제 동작은 그대로다.
    */
   embedded?: boolean;
+  /**
+   * 시간대만 보여줄 때 true — 멤버 헤더 아래 "오늘의 체크리스트" 행을 뺀다.
+   * embedded와 별개 축이다(좁은 컨테이너여도 체크리스트를 볼 수 있어야 하므로).
+   */
+  hideDailyChecklist?: boolean;
 }
 
 const SLOT_HEIGHT = 40; // 30분 슬롯의 기본 높이 (px)
@@ -128,6 +133,7 @@ export function DailyScheduleView({
   currentUserRole,
   initialSubTab,
   embedded = false,
+  hideDailyChecklist = false,
 }: DailyScheduleViewProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -313,8 +319,11 @@ export function DailyScheduleView({
         );
 
         // 워크로드(리소스 뷰)와 동일 기준: start_date~due_date 범위가 해당 날짜에
-        // 걸치는 체크리스트 항목을 담당자별 "오늘의 체크리스트"에 가상 표시
-        try {
+        // 걸치는 체크리스트 항목을 담당자별 "오늘의 체크리스트"에 가상 표시.
+        // 체크리스트 행을 안 그리면 쓰는 곳이 없으므로 요청 자체를 건너뛴다.
+        if (hideDailyChecklist) {
+          setVirtualChecklists(new Map());
+        } else try {
           const byAssignee = await boardChecklistAPI.getItemsByAssignee(
             boardId,
             { start_date: dateStr, end_date: dateStr },
@@ -372,7 +381,14 @@ export function DailyScheduleView({
     } finally {
       setIsLoading(false);
     }
-  }, [boardId, selectedDate, viewMode, weekDays, organizationId]);
+  }, [
+    boardId,
+    selectedDate,
+    viewMode,
+    weekDays,
+    organizationId,
+    hideDailyChecklist,
+  ]);
 
   useEffect(() => {
     loadSchedule();
@@ -1439,117 +1455,68 @@ export function DailyScheduleView({
               </div>
 
               {/* 데일리 체크리스트 영역 */}
-              <div className="flex border-b border-bridge-border bg-foreground/[0.02]">
-                <div className="w-14 md:w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-bridge-border flex items-center justify-center">
-                  <CheckSquare className="h-3.5 w-3.5" />
-                </div>
-                {activeMembers.map((member) => {
-                  const memberChecklist = dailyChecklists.find(
-                    (c) => c.user.id === member.userId,
-                  );
-                  const realItems = memberChecklist?.items || [];
-                  // 이미 오늘의 체크리스트에 담긴 항목은 가상 항목에서 제외 (중복 방지)
-                  const realChecklistItemIds = new Set(
-                    realItems
-                      .map((i) => i.checklist_item_id)
-                      .filter(Boolean) as string[],
-                  );
-                  const memberVirtual = (
-                    virtualChecklists.get(member.userId) || []
-                  ).filter(
-                    (v) =>
-                      !v.checklist_item_id ||
-                      !realChecklistItemIds.has(v.checklist_item_id),
-                  );
-                  const items = [...realItems, ...memberVirtual];
+              {!hideDailyChecklist && (
+                <div className="flex border-b border-bridge-border bg-foreground/[0.02]">
+                  <div className="w-14 md:w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-bridge-border flex items-center justify-center">
+                    <CheckSquare className="h-3.5 w-3.5" />
+                  </div>
+                  {activeMembers.map((member) => {
+                    const memberChecklist = dailyChecklists.find(
+                      (c) => c.user.id === member.userId,
+                    );
+                    const realItems = memberChecklist?.items || [];
+                    // 이미 오늘의 체크리스트에 담긴 항목은 가상 항목에서 제외 (중복 방지)
+                    const realChecklistItemIds = new Set(
+                      realItems
+                        .map((i) => i.checklist_item_id)
+                        .filter(Boolean) as string[],
+                    );
+                    const memberVirtual = (
+                      virtualChecklists.get(member.userId) || []
+                    ).filter(
+                      (v) =>
+                        !v.checklist_item_id ||
+                        !realChecklistItemIds.has(v.checklist_item_id),
+                    );
+                    const items = [...realItems, ...memberVirtual];
 
-                  return (
-                    <div
-                      key={`checklist-${member.userId}`}
-                      className="w-36 md:w-48 flex-shrink-0 p-2 border-r border-bridge-border"
-                    >
-                      <EmbeddedDailyChecklist
-                        boardId={boardId}
-                        items={items}
-                        isViewer={isViewer}
-                        isExpanded={expandedChecklists.has(member.userId)}
-                        onToggleExpand={() => {
-                          setExpandedChecklists((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(member.userId))
-                              next.delete(member.userId);
-                            else next.add(member.userId);
-                            return next;
-                          });
-                        }}
-                        onToggle={async (
-                          itemId,
-                          checklistItemId,
-                          taskId,
-                          newCompleted,
-                        ) => {
-                          // 낙관적 업데이트 - 체크리스트
-                          setDailyChecklists((prev) =>
-                            prev.map((col) => ({
-                              ...col,
-                              items: col.items.map((i) =>
-                                i.id === itemId
-                                  ? { ...i, completed: newCompleted }
-                                  : i,
-                              ),
-                            })),
-                          );
-                          // 낙관적 업데이트 - 가상 체크리스트(워크로드 파생)
-                          setVirtualChecklists((prev) => {
-                            const next = new Map(prev);
-                            next.forEach((list, uid) => {
-                              next.set(
-                                uid,
-                                list.map((i) =>
-                                  i.checklist_item_id === checklistItemId
-                                    ? { ...i, completed: newCompleted }
-                                    : i,
-                                ),
-                              );
+                    return (
+                      <div
+                        key={`checklist-${member.userId}`}
+                        className="w-36 md:w-48 flex-shrink-0 p-2 border-r border-bridge-border"
+                      >
+                        <EmbeddedDailyChecklist
+                          boardId={boardId}
+                          items={items}
+                          isViewer={isViewer}
+                          isExpanded={expandedChecklists.has(member.userId)}
+                          onToggleExpand={() => {
+                            setExpandedChecklists((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(member.userId))
+                                next.delete(member.userId);
+                              else next.add(member.userId);
+                              return next;
                             });
-                            return next;
-                          });
-                          // 낙관적 업데이트 - 스케줄 블록
-                          setColumns((prev) =>
-                            prev.map((col) => ({
-                              ...col,
-                              blocks: col.blocks.map((b) =>
-                                b.checklist_item &&
-                                b.checklist_item.id === checklistItemId
-                                  ? {
-                                      ...b,
-                                      checklist_item: {
-                                        ...b.checklist_item,
-                                        completed: newCompleted,
-                                      },
-                                    }
-                                  : b,
-                              ),
-                            })),
-                          );
-                          try {
-                            await checklistAPI.toggleItem(
-                              boardId,
-                              taskId,
-                              checklistItemId,
-                            );
-                          } catch {
-                            // 실패 시 원복
+                          }}
+                          onToggle={async (
+                            itemId,
+                            checklistItemId,
+                            taskId,
+                            newCompleted,
+                          ) => {
+                            // 낙관적 업데이트 - 체크리스트
                             setDailyChecklists((prev) =>
                               prev.map((col) => ({
                                 ...col,
                                 items: col.items.map((i) =>
                                   i.id === itemId
-                                    ? { ...i, completed: !newCompleted }
+                                    ? { ...i, completed: newCompleted }
                                     : i,
                                 ),
                               })),
                             );
+                            // 낙관적 업데이트 - 가상 체크리스트(워크로드 파생)
                             setVirtualChecklists((prev) => {
                               const next = new Map(prev);
                               next.forEach((list, uid) => {
@@ -1557,13 +1524,14 @@ export function DailyScheduleView({
                                   uid,
                                   list.map((i) =>
                                     i.checklist_item_id === checklistItemId
-                                      ? { ...i, completed: !newCompleted }
+                                      ? { ...i, completed: newCompleted }
                                       : i,
                                   ),
                                 );
                               });
                               return next;
                             });
+                            // 낙관적 업데이트 - 스케줄 블록
                             setColumns((prev) =>
                               prev.map((col) => ({
                                 ...col,
@@ -1574,26 +1542,76 @@ export function DailyScheduleView({
                                         ...b,
                                         checklist_item: {
                                           ...b.checklist_item,
-                                          completed: !newCompleted,
+                                          completed: newCompleted,
                                         },
                                       }
                                     : b,
                                 ),
                               })),
                             );
-                            throw new Error("Toggle failed");
-                          }
-                        }}
-                        onRefresh={loadSchedule}
-                        onAddClick={() => {
-                          setAddChecklistAssigneeId(member.userId);
-                          setShowAddChecklistModal(true);
-                        }}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+                            try {
+                              await checklistAPI.toggleItem(
+                                boardId,
+                                taskId,
+                                checklistItemId,
+                              );
+                            } catch {
+                              // 실패 시 원복
+                              setDailyChecklists((prev) =>
+                                prev.map((col) => ({
+                                  ...col,
+                                  items: col.items.map((i) =>
+                                    i.id === itemId
+                                      ? { ...i, completed: !newCompleted }
+                                      : i,
+                                  ),
+                                })),
+                              );
+                              setVirtualChecklists((prev) => {
+                                const next = new Map(prev);
+                                next.forEach((list, uid) => {
+                                  next.set(
+                                    uid,
+                                    list.map((i) =>
+                                      i.checklist_item_id === checklistItemId
+                                        ? { ...i, completed: !newCompleted }
+                                        : i,
+                                    ),
+                                  );
+                                });
+                                return next;
+                              });
+                              setColumns((prev) =>
+                                prev.map((col) => ({
+                                  ...col,
+                                  blocks: col.blocks.map((b) =>
+                                    b.checklist_item &&
+                                    b.checklist_item.id === checklistItemId
+                                      ? {
+                                          ...b,
+                                          checklist_item: {
+                                            ...b.checklist_item,
+                                            completed: !newCompleted,
+                                          },
+                                        }
+                                      : b,
+                                  ),
+                                })),
+                              );
+                              throw new Error("Toggle failed");
+                            }
+                          }}
+                          onRefresh={loadSchedule}
+                          onAddClick={() => {
+                            setAddChecklistAssigneeId(member.userId);
+                            setShowAddChecklistModal(true);
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* 시간 그리드 */}
               <div ref={timeGridRef} className="relative select-none">

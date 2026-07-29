@@ -99,6 +99,7 @@ export function TodayTimeblockWidget({
             currentUserRole={currentUserRole}
             initialSubTab="timeblock"
             embedded
+            hideDailyChecklist
           />
         )}
       </div>

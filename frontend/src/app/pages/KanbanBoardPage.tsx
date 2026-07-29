@@ -3144,7 +3144,6 @@ export function KanbanBoardPage() {
             boardId={boardId || ""}
             organizationId={board?.organization_id}
             userId={currentUser?.id}
-            userName={currentUser?.name || ""}
             tasks={tasks}
             milestones={milestones}
             boardMembersData={boardMembersData}
@@ -3165,7 +3164,6 @@ export function KanbanBoardPage() {
               canEdit ? handleUpdateMilestoneDates : undefined
             }
             onOpenContractorManager={handleOpenContractorManager}
-            onOpenKanban={() => handleViewModeChange("kanban")}
             onOpenSchedule={() => {
               handleScheduleSubTabChange("timeblock");
               handleViewModeChange("schedule");
