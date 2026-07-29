@@ -781,7 +781,16 @@
     "presetMeal": "Bữa ăn",
     "customLabel": "Tùy chỉnh",
     "customPlaceholder": "Nhập tên lịch",
-    "customColor": "Màu sắc"
+    "customColor": "Màu sắc",
+    "badgeDDay": "Đến hạn",
+    "badgeOverdue": "Trễ {{count}} ngày",
+    "badgePinned": "Đã kéo vào",
+    "removeFromToday": "Bỏ khỏi hôm nay",
+    "addToToday": "Kéo vào hôm nay",
+    "segmentToday": "{{date}}",
+    "segmentOverdue": "Quá hạn",
+    "segmentOthers": "Mục khác",
+    "noOverdueItems": "Không có mục quá hạn"
   },
   "schedule": {
     "subTab": {

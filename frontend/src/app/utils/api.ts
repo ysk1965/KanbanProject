@@ -3917,8 +3917,20 @@ export interface DailyChecklistItemResponse {
   start_date?: string | null;
   due_date?: string | null;
   created_at: string;
-  isVirtual?: boolean; // 워크로드 날짜 범위 기반 가상 항목 (DB 미저장)
+  /** 이 항목이 오늘 목록에 있는 이유 (서버 병합 결과) */
+  source?: DailyChecklistSource;
+  /** 사용자가 명시적으로 이 날짜로 당겨온 항목인지 — 순서 변경/핀 해제 가능 */
+  pinned?: boolean;
 }
+
+/**
+ * 오늘의 체크리스트에 항목이 들어온 경로.
+ * - DERIVED: 항목 기간(start_date~due_date)이 그 날짜를 덮어서 자동 포함
+ * - OVERDUE: 마감이 지난 미완료 항목 (지연)
+ * - PINNED : 기간과 무관하게 사용자가 그 날로 당겨온 항목
+ * - ADHOC  : 원본 체크리스트 없이 그 날만 존재하는 임시 항목
+ */
+export type DailyChecklistSource = "DERIVED" | "OVERDUE" | "PINNED" | "ADHOC";
 
 export interface DailyChecklistColumnResponse {
   user: {
@@ -4014,10 +4026,26 @@ export const dailyChecklistAPI = {
     );
   },
 
-  // 데일리 체크리스트에서 제거 (원본 체크리스트는 유지)
+  // 임시 항목 제거 (원본 체크리스트가 없는 항목 전용)
   removeItem: async (boardId: string, itemId: string) => {
     return apiClient.delete<{ message: string }>(
       `/boards/${boardId}/daily-checklists/${itemId}`,
+    );
+  },
+
+  // 오늘의 체크리스트에서 빼기 (원본 체크리스트는 유지)
+  // 기간 때문에 자동으로 들어온 항목은 행을 지워도 다시 나타나므로 이 경로를 쓴다.
+  excludeItem: async (
+    boardId: string,
+    data: {
+      checklist_item_id: string;
+      assigned_date: string;
+      assignee_id?: string;
+    },
+  ) => {
+    return apiClient.post<{ message: string }>(
+      `/boards/${boardId}/daily-checklists/exclude`,
+      data,
     );
   },
 };

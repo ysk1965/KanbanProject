@@ -781,7 +781,16 @@
     "presetMeal": "भोजन",
     "customLabel": "कस्टम",
     "customPlaceholder": "शेड्यूल नाम दर्ज करें",
-    "customColor": "रंग"
+    "customColor": "रंग",
+    "badgeDDay": "आज नियत",
+    "badgeOverdue": "{{count}} दिन देरी",
+    "badgePinned": "आगे लाया",
+    "removeFromToday": "आज से हटाएँ",
+    "addToToday": "आज में लाएँ",
+    "segmentToday": "{{date}}",
+    "segmentOverdue": "विलंबित",
+    "segmentOthers": "अन्य आइटम",
+    "noOverdueItems": "कोई विलंबित आइटम नहीं"
   },
   "schedule": {
     "subTab": {

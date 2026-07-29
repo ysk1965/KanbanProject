@@ -772,7 +772,16 @@
     "presetMeal": "用餐",
     "customLabel": "自訂",
     "customPlaceholder": "請輸入日程名稱",
-    "customColor": "顏色"
+    "customColor": "顏色",
+    "badgeDDay": "當天",
+    "badgeOverdue": "逾期{{count}}天",
+    "badgePinned": "已提前",
+    "removeFromToday": "從今天移除",
+    "addToToday": "加入今天",
+    "segmentToday": "{{date}}",
+    "segmentOverdue": "逾期",
+    "segmentOthers": "其他項目",
+    "noOverdueItems": "沒有逾期項目"
   },
   "schedule": {
     "subTab": {

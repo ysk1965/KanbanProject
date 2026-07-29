@@ -887,7 +887,16 @@
     "presetMeal": "Meal",
     "customLabel": "Custom Label",
     "customPlaceholder": "Enter schedule name",
-    "customColor": "Color"
+    "customColor": "Color",
+    "badgeDDay": "D-Day",
+    "badgeOverdue": "{{count}}d late",
+    "badgePinned": "Pulled in",
+    "removeFromToday": "Remove from today",
+    "addToToday": "Pull into today",
+    "segmentToday": "{{date}}",
+    "segmentOverdue": "Overdue",
+    "segmentOthers": "Other items",
+    "noOverdueItems": "No overdue items"
   },
   "schedule": {
     "subTab": {

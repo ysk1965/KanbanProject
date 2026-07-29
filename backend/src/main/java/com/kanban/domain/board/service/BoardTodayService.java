@@ -3,9 +3,8 @@ package com.kanban.domain.board.service;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.dto.TodayResponse;
-import com.kanban.domain.dailychecklist.DailyChecklist;
-import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.dailychecklist.dto.DailyChecklistResponse;
+import com.kanban.domain.dailychecklist.service.DailyChecklistResolver;
 import com.kanban.domain.personal.PersonalEventRepository;
 import com.kanban.domain.personal.dto.PersonalEventResponse;
 import com.kanban.domain.task.dto.TaskResponse;
@@ -29,7 +28,7 @@ public class BoardTodayService {
 
     private final BoardRepository boardRepository;
     private final PersonalEventRepository personalEventRepository;
-    private final DailyChecklistRepository dailyChecklistRepository;
+    private final DailyChecklistResolver dailyChecklistResolver;
     private final BoardService boardService;
     private final TaskService taskService;
 
@@ -61,12 +60,11 @@ public class BoardTodayService {
                 .map(PersonalEventResponse.Detail::of)
                 .toList();
 
-        // 오늘 DailyChecklist
-        List<DailyChecklist> dailyChecklists = dailyChecklistRepository
-                .findByBoardIdAndAssignedDateAndAssigneeIdOrderByPositionAsc(boardId, today, userId);
-        List<DailyChecklistResponse.ItemResponse> dailyChecklistResponses = dailyChecklists.stream()
-                .map(DailyChecklistResponse.ItemResponse::of)
-                .toList();
+        // 오늘의 체크리스트 (항목 기간에서 파생 + 핀 - 제외)
+        List<DailyChecklistResponse.ItemResponse> dailyChecklistResponses =
+                dailyChecklistResolver.resolveForAssignee(boardId, today, userId).stream()
+                        .map(DailyChecklistResponse.ItemResponse::of)
+                        .toList();
 
         // 완료율
         long totalTasks = allTasks.getTasks().size();

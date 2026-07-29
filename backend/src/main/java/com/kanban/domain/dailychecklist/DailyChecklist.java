@@ -43,6 +43,15 @@ public class DailyChecklist {
     @Column(name = "assigned_date", nullable = false)
     private LocalDate assignedDate;
 
+    /**
+     * 행의 성격 (PIN: 오늘로 당겨옴 / EXCLUDE: 오늘에서 뺌).
+     * 파생 규칙만으로 표현할 수 없는 예외만 이 테이블에 남는다.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "kind", nullable = false, length = 16)
+    @Builder.Default
+    private DailyChecklistKind kind = DailyChecklistKind.PIN;
+
     @Column(name = "position", nullable = false)
     @Builder.Default
     private Integer position = 0;
@@ -65,6 +74,18 @@ public class DailyChecklist {
 
     public void updatePosition(Integer position) {
         this.position = position;
+    }
+
+    public void changeKind(DailyChecklistKind kind) {
+        this.kind = kind;
+    }
+
+    public boolean isPin() {
+        return this.kind == DailyChecklistKind.PIN;
+    }
+
+    public boolean isExclude() {
+        return this.kind == DailyChecklistKind.EXCLUDE;
     }
 
     /**

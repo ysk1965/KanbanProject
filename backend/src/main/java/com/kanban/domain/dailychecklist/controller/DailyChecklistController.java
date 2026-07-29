@@ -112,7 +112,23 @@ public class DailyChecklistController {
     }
 
     /**
-     * 데일리 체크리스트 아이템 삭제
+     * 오늘의 체크리스트에서 항목 빼기 (원본 체크리스트는 유지)
+     * POST /api/v1/boards/{boardId}/daily-checklists/exclude
+     *
+     * <p>기간 때문에 자동으로 들어온 항목은 행을 지워도 다시 나타나므로 이 엔드포인트를 쓴다.
+     * 원본 체크리스트가 연결된 항목이라면 항상 이 경로로 제거한다.</p>
+     */
+    @PostMapping("/exclude")
+    public ResponseEntity<Map<String, String>> excludeItem(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody DailyChecklistRequest.Exclude request) {
+        dailyChecklistService.excludeItem(boardId, request, principal.getUserId());
+        return ResponseEntity.ok(Map.of("message", "오늘의 체크리스트에서 제외되었습니다"));
+    }
+
+    /**
+     * 데일리 체크리스트 아이템 삭제 (임시 항목) / 제외 (원본 연결 항목)
      * DELETE /api/v1/boards/{boardId}/daily-checklists/{itemId}
      */
     @DeleteMapping("/{itemId}")

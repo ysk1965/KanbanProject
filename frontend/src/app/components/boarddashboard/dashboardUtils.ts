@@ -9,7 +9,7 @@ import type { Task } from "../../types";
  *
  * 값의 근거: 타임블록 임베드 슬롯(30분 = 28px)로 하루가 스크롤 없이 들어오는 높이.
  */
-export const DASHBOARD_ROW_HEIGHT = 840;
+export const DASHBOARD_ROW_HEIGHT = 1000;
 
 // ────────────────────────────────────────────────────────────
 // 보드 대시보드 파생 규칙
@@ -24,11 +24,7 @@ export const DASHBOARD_ROW_HEIGHT = 840;
  * 앞 2개는 마감일 파생, 그다음은 진행 상태, 마지막은 "날짜가 아직 없는 것".
  */
 export type TaskBucket =
-  | "overdue"
-  | "today"
-  | "doing"
-  | "upcoming"
-  | "unscheduled";
+  "overdue" | "today" | "doing" | "upcoming" | "unscheduled";
 
 /**
  * 태스크가 속할 구간을 파생한다. 완료된 태스크는 어디에도 담기지 않는다(null).

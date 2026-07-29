@@ -781,7 +781,16 @@
     "presetMeal": "食事",
     "customLabel": "直接入力",
     "customPlaceholder": "予定名を入力してください",
-    "customColor": "色"
+    "customColor": "色",
+    "badgeDDay": "当日",
+    "badgeOverdue": "{{count}}日超過",
+    "badgePinned": "前倒し",
+    "removeFromToday": "今日から外す",
+    "addToToday": "今日に入れる",
+    "segmentToday": "{{date}}",
+    "segmentOverdue": "遅延",
+    "segmentOthers": "その他",
+    "noOverdueItems": "遅延した項目はありません"
   },
   "schedule": {
     "subTab": {

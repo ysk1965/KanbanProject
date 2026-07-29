@@ -888,7 +888,16 @@
     "presetMeal": "식사",
     "customLabel": "직접 입력",
     "customPlaceholder": "일정 이름을 입력하세요",
-    "customColor": "색상"
+    "customColor": "색상",
+    "badgeDDay": "D-Day",
+    "badgeOverdue": "{{count}}일 지남",
+    "badgePinned": "당겨옴",
+    "removeFromToday": "오늘에서 빼기",
+    "addToToday": "오늘로 가져오기",
+    "segmentToday": "{{date}}",
+    "segmentOverdue": "지연",
+    "segmentOthers": "다른 항목",
+    "noOverdueItems": "지연된 항목이 없습니다"
   },
   "schedule": {
     "subTab": {

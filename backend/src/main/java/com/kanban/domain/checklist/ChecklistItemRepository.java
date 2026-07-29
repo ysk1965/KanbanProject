@@ -229,6 +229,37 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
+    /**
+     * "오늘의 체크리스트" 파생 대상 조회 (데일리 뷰 / 타임블록 모달용).
+     *
+     * <p>담당자가 지정된 항목 중 아래 조건에 해당하는 것을 가져온다.</p>
+     * <ul>
+     *   <li>기간이 해당 날짜를 덮는 항목 — {@code start <= date <= due}</li>
+     *   <li>시작일만 있고 그 날짜인 항목 / 마감일만 있고 그 날짜인 항목</li>
+     *   <li>마감이 지난 미완료 항목 (지연) — {@code due < date AND is_completed = false}</li>
+     * </ul>
+     *
+     * <p>기간이 아예 없는 항목은 포함하지 않는다. 매일 노출되면 목록이 무의미해지므로
+     * 핀(PIN)을 통해서만 오늘 목록에 들어온다.</p>
+     */
+    @Query("SELECT c FROM ChecklistItem c " +
+           "JOIN FETCH c.task t " +
+           "JOIN FETCH t.feature f " +
+           "JOIN FETCH t.block b " +
+           "LEFT JOIN FETCH t.milestone m " +
+           "JOIN FETCH c.assignee a " +
+           "WHERE t.board.id = :boardId " +
+           "AND (" +
+           "  (c.startDate IS NOT NULL AND c.dueDate IS NOT NULL AND c.startDate <= :date AND c.dueDate >= :date) " +
+           "  OR (c.startDate IS NULL AND c.dueDate = :date) " +
+           "  OR (c.dueDate IS NULL AND c.startDate = :date) " +
+           "  OR (c.dueDate IS NOT NULL AND c.dueDate < :date AND c.isCompleted = false) " +
+           ") " +
+           "ORDER BY c.dueDate ASC NULLS LAST, c.position ASC")
+    List<ChecklistItem> findDailyDerivedByBoardIdAndDate(
+            @Param("boardId") String boardId,
+            @Param("date") LocalDate date);
+
     // ==================== Organization Insights Queries ====================
 
     /**

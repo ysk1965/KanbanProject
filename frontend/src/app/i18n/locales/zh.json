@@ -781,7 +781,16 @@
     "presetMeal": "用餐",
     "customLabel": "自定义",
     "customPlaceholder": "请输入日程名称",
-    "customColor": "颜色"
+    "customColor": "颜色",
+    "badgeDDay": "当天",
+    "badgeOverdue": "逾期{{count}}天",
+    "badgePinned": "已提前",
+    "removeFromToday": "从今天移除",
+    "addToToday": "加入今天",
+    "segmentToday": "{{date}}",
+    "segmentOverdue": "逾期",
+    "segmentOthers": "其他项目",
+    "noOverdueItems": "没有逾期项目"
   },
   "schedule": {
     "subTab": {

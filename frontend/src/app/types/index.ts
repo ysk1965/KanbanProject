@@ -1479,8 +1479,19 @@ export interface WeeklyReportListItem {
 // ========================================
 
 /**
- * 데일리 체크리스트 항목
- * 특정 날짜에 특정 멤버에게 할당된 체크리스트
+ * 오늘의 체크리스트에 항목이 들어온 경로.
+ * - DERIVED: 항목 기간(start_date~due_date)이 그 날짜를 덮어서 자동 포함
+ * - OVERDUE: 마감이 지난 미완료 항목 (지연)
+ * - PINNED : 기간과 무관하게 사용자가 그 날로 당겨온 항목
+ * - ADHOC  : 원본 체크리스트 없이 그 날만 존재하는 임시 항목
+ */
+export type DailyChecklistSource = "DERIVED" | "OVERDUE" | "PINNED" | "ADHOC";
+
+/**
+ * 오늘의 체크리스트 항목
+ *
+ * 별도로 담아둔 목록이 아니라 "내 체크리스트를 그 날짜로 거른 결과"다.
+ * 서버가 `기간 파생 + 핀 - 제외`를 병합해서 내려준다.
  */
 export interface DailyChecklistItem {
   id: string;
@@ -1504,7 +1515,10 @@ export interface DailyChecklistItem {
     color: string;
   } | null;
   created_at: string;
-  isVirtual?: boolean; // 워크로드 날짜 범위 기반 가상 항목 (DB 미저장, 순서변경/삭제 불가)
+  start_date?: string | null; // 항목 기간 시작 (뱃지 표시용)
+  due_date?: string | null; // 항목 마감 (뱃지 표시용)
+  source?: DailyChecklistSource; // 이 항목이 오늘 목록에 있는 이유
+  pinned?: boolean; // 사용자가 이 날짜로 직접 당겨온 항목인지 (순서 변경 가능 여부)
 }
 
 /**

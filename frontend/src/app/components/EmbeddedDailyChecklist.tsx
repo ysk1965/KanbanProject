@@ -51,11 +51,17 @@ export function EmbeddedDailyChecklist({
   onAddClick,
 }: EmbeddedDailyChecklistProps) {
   const { t } = useTranslation();
-  // 워크로드 날짜 범위 기반 가상 항목은 DnD/삭제 대상에서 분리
-  const realItems = items.filter((i) => !i.isVirtual);
-  const virtualItems = items.filter((i) => i.isVirtual);
+  // 사용자가 이 날짜로 직접 당겨온(핀) 항목만 순서를 저장할 수 있다.
+  // 기간에서 파생된 항목은 그 뒤에 붙이되, 오늘 할 것 → 지연 → 완료 순으로 내린다.
+  // (마감일 오름차순 그대로 두면 지연 항목이 맨 위로 올라와 오늘 할 일을 가린다)
+  const pinnedItems = items.filter((i) => i.pinned);
+  const derivedRank = (i: DailyChecklistItemType) =>
+    i.completed ? 2 : i.source === "OVERDUE" ? 1 : 0;
+  const derivedItems = items
+    .filter((i) => !i.pinned)
+    .sort((a, b) => derivedRank(a) - derivedRank(b));
   const [localItems, setLocalItems] =
-    useState<DailyChecklistItemType[]>(realItems);
+    useState<DailyChecklistItemType[]>(pinnedItems);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollTopRef = useRef<number>(0);
 
@@ -73,9 +79,9 @@ export function EmbeddedDailyChecklist({
     }
   });
 
-  // Sync with parent prop (실제 항목만 로컬 DnD 상태에 반영)
-  if (JSON.stringify(realItems) !== JSON.stringify(localItems)) {
-    setLocalItems(realItems);
+  // Sync with parent prop (핀 항목만 로컬 DnD 상태에 반영)
+  if (JSON.stringify(pinnedItems) !== JSON.stringify(localItems)) {
+    setLocalItems(pinnedItems);
   }
 
   const sensors = useSensors(
@@ -87,7 +93,7 @@ export function EmbeddedDailyChecklist({
     }),
   );
 
-  const combinedItems = [...localItems, ...virtualItems];
+  const combinedItems = [...localItems, ...derivedItems];
   const completedCount = combinedItems.filter((i) => i.completed).length;
   const totalCount = combinedItems.length;
 
@@ -115,13 +121,26 @@ export function EmbeddedDailyChecklist({
     [boardId, localItems, onRefresh],
   );
 
+  /**
+   * 오늘 목록에서 빼기 — 원본 체크리스트는 그대로 둔다.
+   * 기간 때문에 자동으로 들어온 항목은 행을 지워도 다시 나타나므로 제외 API를 쓴다.
+   */
   const handleRemoveItem = useCallback(
-    async (itemId: string) => {
+    async (item: DailyChecklistItemType) => {
       try {
-        await dailyChecklistAPI.removeItem(boardId, itemId);
+        if (item.checklist_item_id) {
+          await dailyChecklistAPI.excludeItem(boardId, {
+            checklist_item_id: item.checklist_item_id,
+            assigned_date: item.assigned_date,
+            assignee_id: item.assignee.id,
+          });
+        } else {
+          // 원본이 없는 임시 항목만 실제로 삭제된다
+          await dailyChecklistAPI.removeItem(boardId, item.id);
+        }
         onRefresh();
       } catch (error) {
-        console.error("Failed to remove item:", error);
+        console.error("Failed to remove item from today:", error);
       }
     },
     [boardId, onRefresh],
@@ -160,10 +179,10 @@ export function EmbeddedDailyChecklist({
       key={item.id}
       item={item}
       isReadOnly={isViewer}
-      isDraggable={draggable && !item.isVirtual}
-      canRemove={!item.isVirtual}
+      isDraggable={draggable && !!item.pinned}
+      canRemove
       compact
-      onRemove={item.isVirtual ? () => {} : () => handleRemoveItem(item.id)}
+      onRemove={() => handleRemoveItem(item)}
       onToggle={
         item.checklist_item_id && item.task?.id
           ? () => handleToggleItem(item)
@@ -200,7 +219,8 @@ export function EmbeddedDailyChecklist({
           <button
             onClick={onAddClick}
             className="w-4 h-4 flex items-center justify-center rounded hover:bg-foreground/10 text-slate-400 hover:text-foreground transition-colors"
-            aria-label="추가"
+            aria-label={t("dailySchedule.addToToday")}
+            title={t("dailySchedule.addToToday")}
           >
             <Plus className="h-3 w-3" />
           </button>
@@ -257,8 +277,8 @@ export function EmbeddedDailyChecklist({
             {localItems.map((item) => renderItem(item, !isViewer))}
           </SortableContext>
         </DndContext>
-        {/* 워크로드 날짜 범위 기반 가상 항목 (순서변경/삭제 불가) */}
-        {virtualItems.map((item) => renderItem(item, false))}
+        {/* 기간에서 파생된 항목 — 순서는 마감일 기준이라 직접 정렬하지 않는다 */}
+        {derivedItems.map((item) => renderItem(item, false))}
       </div>
     </div>
   );
