@@ -5021,7 +5021,7 @@
     "myTasksTitle": "내 태스크",
     "myTasksLink": "칸반에서 보기",
     "myTasksEmpty": "나에게 배정된 진행 중인 태스크가 없습니다.",
-    "myTasksHint": "지연 · 오늘은 마감일 기준으로 자동 분류됩니다. 카드를 누르면 태스크 상세가 열립니다.",
+    "myTasksHint": "지연 · 오늘은 마감일 기준으로 자동 분류됩니다. 일정 미정은 날짜가 아직 없는 태스크로, 카드를 눌러 시작·마감일을 정하면 다른 열로 옮겨집니다.",
     "bucketOverdue": "지연",
     "bucketOverdueRule": "마감일이 지난 미완료",
     "bucketToday": "오늘",
@@ -5029,7 +5029,7 @@
     "bucketDoing": "진행 중",
     "bucketDoingRule": "시작일이 지난 진행 건",
     "bucketUpcoming": "예정",
-    "bucketUpcomingRule": "마감 이전 · 미착수",
+    "bucketUpcomingRule": "일정 잡힘 · 미착수",
     "columnEmpty": "없음",
     "showMore": "＋{{count}}개 더",
     "showLess": "접기",
@@ -5061,6 +5061,9 @@
     "monthShort": "{{month}}월",
     "mentionsTitle": "나를 부른 것들",
     "mentionsEmpty": "새로운 알림이 없습니다.",
-    "markAllRead": "모두 읽음"
+    "markAllRead": "모두 읽음",
+    "notBoardMember": "이 보드의 멤버로 등록되어 있지 않습니다.",
+    "bucketUnscheduled": "일정 미정",
+    "bucketUnscheduledRule": "시작·마감일 없음"
   }
 }

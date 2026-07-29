@@ -3142,11 +3142,29 @@ export function KanbanBoardPage() {
         {viewMode === "dashboard" ? (
           <DashboardView
             boardId={boardId || ""}
+            organizationId={board?.organization_id}
             userId={currentUser?.id}
             userName={currentUser?.name || ""}
             tasks={tasks}
             milestones={milestones}
+            boardMembersData={boardMembersData}
+            memberColorMap={memberColorMap}
+            taskMilestoneMap={taskMilestoneMap}
+            jobRoles={jobRoles}
+            allFeatures={allFeatures}
+            scheduleRefreshKey={scheduleRefreshKey}
+            scheduleRefreshPanel={scheduleRefreshPanel}
+            wsChecklistEvent={wsChecklistEvent}
+            currentUserRole={currentUserRole}
             onTaskClick={handleTaskClick}
+            onViewFeatureById={handleViewFeatureById}
+            onViewTaskWithChecklist={handleViewTaskWithChecklist}
+            onNavigateToMeeting={handleNavigateToMeeting}
+            onMilestoneClick={handleOpenMilestoneWithCheck}
+            onUpdateMilestoneDates={
+              canEdit ? handleUpdateMilestoneDates : undefined
+            }
+            onOpenContractorManager={handleOpenContractorManager}
             onOpenKanban={() => handleViewModeChange("kanban")}
             onOpenSchedule={() => {
               handleScheduleSubTabChange("timeblock");

@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Milestone, Task } from "../types";
+import type {
+  BoardWebSocketEvent,
+  Feature,
+  JobRole,
+  Milestone,
+  Task,
+} from "../types";
+import type { BoardMember as ShareBoardMember } from "../components/ShareBoardModal";
+import { buildMilestoneColorMap } from "../utils/milestoneColor";
 import { scheduleAPI } from "../utils/api";
 import { getTodayDateString, formatDate } from "../utils/dateUtils";
 import { addDaysToDate, parseDate } from "../utils/workloadBar";
@@ -19,13 +27,34 @@ import {
 
 interface DashboardViewProps {
   boardId: string;
+  organizationId?: string;
   userId: string | undefined;
   userName: string;
   tasks: Task[];
   milestones: Milestone[];
+  /** 임베드된 타임블록·워크로드에 그대로 넘기는 보드 컨텍스트 */
+  boardMembersData: ShareBoardMember[];
+  memberColorMap: Record<string, string | null>;
+  taskMilestoneMap: Record<string, string | null>;
+  jobRoles: JobRole[];
+  allFeatures: Feature[];
+  scheduleRefreshKey: number;
+  scheduleRefreshPanel: number;
+  wsChecklistEvent: BoardWebSocketEvent | null;
+  currentUserRole?: string;
   /** 하루 근무시간 — 주간 목표 시간 계산용 (기본 8h × 5일) */
   workHoursPerDay?: number;
   onTaskClick: (task: Task) => void;
+  onViewFeatureById: (featureId: string) => void;
+  onViewTaskWithChecklist: (taskId: string, checklistItemId?: string) => void;
+  onNavigateToMeeting: (date?: Date) => void;
+  onMilestoneClick: (milestone?: Milestone) => void;
+  onUpdateMilestoneDates?: (
+    id: string,
+    start_date: string,
+    end_date: string,
+  ) => void | Promise<void>;
+  onOpenContractorManager: () => void;
   /** 칸반 뷰로 전환 */
   onOpenKanban: () => void;
   /** 일정 탭(타임블록)으로 전환 */
@@ -51,18 +80,40 @@ function mondayOf(dateStr: string): string {
  */
 export function DashboardView({
   boardId,
+  organizationId,
   userId,
   userName,
   tasks,
   milestones,
+  boardMembersData,
+  memberColorMap,
+  taskMilestoneMap,
+  jobRoles,
+  allFeatures,
+  scheduleRefreshKey,
+  scheduleRefreshPanel,
+  wsChecklistEvent,
+  currentUserRole,
   workHoursPerDay = 8,
   onTaskClick,
+  onViewFeatureById,
+  onViewTaskWithChecklist,
+  onNavigateToMeeting,
+  onMilestoneClick,
+  onUpdateMilestoneDates,
+  onOpenContractorManager,
   onOpenKanban,
   onOpenSchedule,
   onOpenResourceView,
 }: DashboardViewProps) {
   const { t } = useTranslation();
   const today = getTodayDateString();
+
+  // 마일스톤 id → 색 (일정 탭과 같은 규칙으로 만들어 색 일관성 유지)
+  const milestoneColorMap = useMemo(
+    () => buildMilestoneColorMap(milestones),
+    [milestones],
+  );
 
   const weekStart = useMemo(() => mondayOf(today), [today]);
   const weekEnd = useMemo(() => addDaysToDate(weekStart, 6), [weekStart]);
@@ -207,19 +258,39 @@ export function DashboardView({
         />
 
         {/* B. 타임블록 │ 워크로드 + 내 태스크 */}
-        <div className="grid grid-cols-1 xl:grid-cols-[306px_minmax(0,1fr)] gap-3 items-start">
+        <div className="grid grid-cols-1 xl:grid-cols-[380px_minmax(0,1fr)] gap-3 items-start">
           <TodayTimeblockWidget
             boardId={boardId}
+            organizationId={organizationId}
+            boardMembers={boardMembersData}
             userId={userId}
+            memberColorMap={memberColorMap}
+            milestoneColorMap={milestoneColorMap}
+            currentUserRole={currentUserRole}
+            refreshTrigger={scheduleRefreshKey}
+            wsChecklistEvent={wsChecklistEvent}
+            onViewFeature={onViewFeatureById}
+            onViewTask={onViewTaskWithChecklist}
+            onViewMeeting={(_meetingId, date) => onNavigateToMeeting(date)}
             onOpenSchedule={onOpenSchedule}
           />
 
           <div className="flex flex-col gap-3 min-w-0">
             <MyWorkloadWidget
               boardId={boardId}
+              boardMembers={boardMembersData}
               userId={userId}
+              milestones={milestones}
+              taskMilestoneMap={taskMilestoneMap}
+              memberColorMap={memberColorMap}
+              jobRoles={jobRoles}
+              features={allFeatures}
+              refreshTrigger={scheduleRefreshPanel}
+              onViewTask={onViewTaskWithChecklist}
+              onMilestoneClick={onMilestoneClick}
+              onUpdateMilestoneDates={onUpdateMilestoneDates}
+              onOpenContractorManager={onOpenContractorManager}
               onOpenResourceView={onOpenResourceView}
-              onOpenTask={handleOpenTaskById}
             />
             <MyTaskBoardWidget
               tasks={tasks}

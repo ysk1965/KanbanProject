@@ -52,7 +52,15 @@ const COLUMN_META: Record<TaskBucket, ColumnMeta> = {
     labelKey: "boardDashboard.bucketUpcoming",
     labelFallback: "예정",
     ruleKey: "boardDashboard.bucketUpcomingRule",
-    ruleFallback: "마감 이전 · 미착수",
+    ruleFallback: "일정 잡힘 · 미착수",
+  },
+  unscheduled: {
+    dotClass: "bg-bridge-secondary",
+    lineClass: "bg-bridge-secondary",
+    labelKey: "boardDashboard.bucketUnscheduled",
+    labelFallback: "일정 미정",
+    ruleKey: "boardDashboard.bucketUnscheduledRule",
+    ruleFallback: "시작·마감일 없음",
   },
 };
 
@@ -61,6 +69,7 @@ const CARD_STRIPE: Record<TaskBucket, string> = {
   today: "bg-amber-500",
   doing: "bg-bridge-accent",
   upcoming: "bg-foreground/20",
+  unscheduled: "bg-bridge-secondary",
 };
 
 interface MyTaskBoardWidgetProps {
@@ -90,6 +99,7 @@ export function MyTaskBoardWidget({
       today: [],
       doing: [],
       upcoming: [],
+      unscheduled: [],
     };
     let assigned = 0;
     let done = 0;
@@ -150,7 +160,7 @@ export function MyTaskBoardWidget({
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5 p-4 items-start">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5 p-4 items-start">
             {TASK_BUCKETS.map((bucket) => {
               const meta = COLUMN_META[bucket];
               const list = columns[bucket];
@@ -233,17 +243,18 @@ export function MyTaskBoardWidget({
                     </p>
                   )}
 
-                  {(hidden > 0 || isOpen) && list.length > VISIBLE_PER_COLUMN && (
-                    <button
-                      type="button"
-                      onClick={() => toggleExpand(bucket)}
-                      className="text-xs text-slate-400 hover:text-foreground transition-colors py-1"
-                    >
-                      {isOpen
-                        ? t("boardDashboard.showLess", "접기")
-                        : t("boardDashboard.showMore", { count: hidden })}
-                    </button>
-                  )}
+                  {(hidden > 0 || isOpen) &&
+                    list.length > VISIBLE_PER_COLUMN && (
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(bucket)}
+                        className="text-xs text-slate-400 hover:text-foreground transition-colors py-1"
+                      >
+                        {isOpen
+                          ? t("boardDashboard.showLess", "접기")
+                          : t("boardDashboard.showMore", { count: hidden })}
+                      </button>
+                    )}
                 </div>
               );
             })}
@@ -252,7 +263,7 @@ export function MyTaskBoardWidget({
           <p className="px-4 pb-3 text-xs text-slate-600">
             {t(
               "boardDashboard.myTasksHint",
-              "지연 · 오늘은 마감일 기준으로 자동 분류됩니다. 카드를 누르면 태스크 상세가 열립니다.",
+              "지연 · 오늘은 마감일 기준으로 자동 분류됩니다. 일정 미정은 날짜가 아직 없는 태스크로, 카드를 눌러 시작·마감일을 정하면 다른 열로 옮겨집니다.",
             )}
           </p>
         </>

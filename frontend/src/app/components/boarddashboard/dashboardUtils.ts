@@ -8,24 +8,40 @@ import type { Task } from "../../types";
 
 // D-day 계산은 dateUtils.getDDay()를 쓴다 — 여기서 다시 만들지 않는다.
 
-/** 내 태스크 보드의 4개 열. 앞 2개는 마감일 파생, 뒤 2개는 진행 상태 파생. */
-export type TaskBucket = "overdue" | "today" | "doing" | "upcoming";
+/**
+ * 내 태스크 보드의 5개 열.
+ * 앞 2개는 마감일 파생, 그다음은 진행 상태, 마지막은 "날짜가 아직 없는 것".
+ */
+export type TaskBucket =
+  | "overdue"
+  | "today"
+  | "doing"
+  | "upcoming"
+  | "unscheduled";
 
 export const TASK_BUCKETS: TaskBucket[] = [
   "overdue",
   "today",
   "doing",
   "upcoming",
+  "unscheduled",
 ];
 
 /**
  * 태스크가 속할 열을 파생한다. 완료된 태스크는 어느 열에도 담기지 않는다(null).
  *
- * 우선순위: 지연 > 오늘 > 진행 중 > 예정
- * - overdue : 마감일이 오늘보다 이전
- * - today   : 마감일이 오늘
- * - doing   : 시작일이 오늘 이하 (아직 마감 전)
- * - upcoming: 그 외
+ * 우선순위: 지연 > 오늘 > 진행 중 > 예정 > 일정 미정
+ * - overdue    : 마감일이 오늘보다 이전
+ * - today      : 마감일이 오늘
+ * - doing      : 시작일이 지났거나, 체크리스트를 일부 처리한 상태
+ * - upcoming   : 시작일이나 마감일이 잡혀 있고 아직 착수 전
+ * - unscheduled: 시작일·마감일이 둘 다 없음 — 언제 할지 아직 안 정한 것
+ *
+ * 날짜를 안 채우는 팀도 있어서 시작일만으로는 "진행 중"이 늘 비어 버린다.
+ * 체크리스트가 일부라도 완료됐으면 착수한 것으로 본다.
+ *
+ * 날짜 없는 태스크를 "예정"에 섞으면 계획해야 할 일이 계획된 일처럼 보인다.
+ * 그래서 마지막 열로 따로 뺀다.
  */
 export function resolveTaskBucket(
   task: Task,
@@ -37,7 +53,9 @@ export function resolveTaskBucket(
     if (task.due_date === today) return "today";
   }
   if (task.start_date && task.start_date <= today) return "doing";
-  return "upcoming";
+  if ((task.checklist_completed ?? 0) > 0) return "doing";
+  if (task.start_date || task.due_date) return "upcoming";
+  return "unscheduled";
 }
 
 /** 로그인 사용자가 담당(체크리스트 담당자)으로 걸린 태스크인지. */

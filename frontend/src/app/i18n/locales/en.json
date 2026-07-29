@@ -4999,7 +4999,7 @@
     "myTasksTitle": "My tasks",
     "myTasksLink": "Open in Kanban",
     "myTasksEmpty": "No open tasks assigned to you.",
-    "myTasksHint": "Overdue and Today are derived from due dates. Select a card to open task details.",
+    "myTasksHint": "Overdue and Today are derived from due dates. Cards with no dates sit in “No dates yet” — open one and set a start or due date to move it.",
     "bucketOverdue": "Overdue",
     "bucketOverdueRule": "Past due, not done",
     "bucketToday": "Today",
@@ -5007,7 +5007,7 @@
     "bucketDoing": "In progress",
     "bucketDoingRule": "Started, not yet due",
     "bucketUpcoming": "Upcoming",
-    "bucketUpcomingRule": "Not started yet",
+    "bucketUpcomingRule": "Scheduled, not started",
     "columnEmpty": "None",
     "showMore": "+{{count}} more",
     "showLess": "Show less",
@@ -5039,6 +5039,9 @@
     "monthShort": "{{month}}",
     "mentionsTitle": "Mentions & alerts",
     "mentionsEmpty": "No new notifications.",
-    "markAllRead": "Mark all read"
+    "markAllRead": "Mark all read",
+    "notBoardMember": "You are not a member of this board.",
+    "bucketUnscheduled": "No dates yet",
+    "bucketUnscheduledRule": "No start or due date"
   }
 }
