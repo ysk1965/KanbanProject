@@ -77,6 +77,10 @@ const BAND_BAR_GAP = 4;
 /** 클릭과 "그리기"를 구분하기 위한 최소 드래그 픽셀 거리 */
 const DRAW_DRAG_THRESHOLD = 6;
 
+/** 외부 카드를 끌 때 타임라인을 자동으로 밀어 주는 가장자리 폭(px)과 한 번에 미는 양 */
+const EDGE_SCROLL_ZONE = 48;
+const EDGE_SCROLL_STEP = 18;
+
 /** 주말/공휴일/부재 빗금(hatching) 오버레이 배경 패턴 */
 const HATCH_WEEKEND_BG = `url("data:image/svg+xml,%3Csvg width='8' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-1 5L5-1M3 9L9 3' stroke='rgba(255,255,255,0.10)' stroke-width='1'/%3E%3C/svg%3E"), rgba(255,255,255,0.03)`;
 const HATCH_HOLIDAY_BG = `url("data:image/svg+xml,%3Csvg width='8' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-1 5L5-1M3 9L9 3' stroke='rgba(239,68,68,0.18)' stroke-width='1'/%3E%3C/svg%3E"), rgba(239,68,68,0.06)`;
@@ -1742,6 +1746,19 @@ export function ScheduleResourceView({
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
       setDropHighlight({ rowIndex, dayIndex });
+
+      // 목표 날짜 칸이 화면 밖일 수 있다 — 가장자리에 오면 타임라인을 밀어 준다.
+      // HTML5 드래그 중에는 스크롤이 멈추므로 이 처리가 없으면 손이 닿지 않는다.
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const leftEdge = rect.left + LEFT_COL_WIDTH + EDGE_SCROLL_ZONE;
+      const rightEdge = rect.right - EDGE_SCROLL_ZONE;
+      if (e.clientX < leftEdge) {
+        container.scrollLeft -= EDGE_SCROLL_STEP;
+      } else if (e.clientX > rightEdge) {
+        container.scrollLeft += EDGE_SCROLL_STEP;
+      }
     },
     [],
   );
