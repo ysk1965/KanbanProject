@@ -301,7 +301,7 @@ public class ReportSlackPublisher {
         }
 
         appendSections(blocks, content);
-        appendLateRollup(blocks, content, boardId);
+        appendLateRollup(blocks, content);
         appendRisks(blocks, content);
 
         List<Map<String, Object>> actions = new ArrayList<>();
@@ -336,7 +336,7 @@ public class ReportSlackPublisher {
      * <pre>
      * 🎯 2분기 로드맵 › *Sprint 3* · 진행중
      * ████████▓▓▒▒░░░░░░░░ *40%*  (65/164)
-     * └ 완료 *65* · 진행 *10* · 지연 *10* · 남은 *79*
+     * └ 전체 *164* · 완료 *65* · 진행 *10* · 지연 *10* · 남은 *79*
      * </pre>
      *
      * 슬랙 mrkdwn은 색을 못 넣으므로 구간은 음영 문자(█ 완료 / ▓ 진행 / ▒ 지연 / ░ 남은)로 구분한다.
@@ -360,7 +360,7 @@ public class ReportSlackPublisher {
 
         return "🎯 " + prefix + "*" + name + "* · 진행중"
                 + "\n" + bar + "  *" + sprint.getPercentage() + "%*  (" + done + "/" + total + ")"
-                + "\n└ 완료 *" + done + "* · 진행 *" + inProgress
+                + "\n└ 전체 *" + total + "* · 완료 *" + done + "* · 진행 *" + inProgress
                 + "* · 지연 *" + delayed + "* · 남은 *" + remaining + "*";
     }
 
@@ -406,18 +406,13 @@ public class ReportSlackPublisher {
                 .sum();
     }
 
-    /** 슬랙 목록에 세우는 지연 항목 수 상한. 넘는 만큼은 "외 N건"으로 접고 보고서로 넘긴다. */
-    private static final int MAX_LATE_LINES = 5;
-
     /**
-     * 지연 롤업 — 슬랙에서 "누가 막혔나"를 보고서를 열지 않고도 알게 하고, <b>각 항목을 실물 카드로
-     * 바로 열게 한다</b>. 지연 목록에서 가장 흔한 다음 행동이 "그거 지금 고치기"라, 링크가 태스크
-     * 모달(+체크리스트 하이라이트)로 곧장 떨어지지 않으면 보고서를 한 번 더 거쳐야 한다.
+     * 지연 롤업 — 슬랙에서 "누가 막혔나"를 보고서를 열지 않고도 알게 한다.
      *
-     * <p>오래 지난 것부터 {@value #MAX_LATE_LINES}건까지 세운다. 식별자가 없는(구버전 보고서)
-     * 항목은 링크 없이 텍스트로만 남는다.
+     * <p>총량과 담당자별 건수까지만 세운다. 개별 항목 목록은 슬랙 메시지를 길게 만들기만 하므로
+     * 아래 "지연만 보드에서 보기" 버튼으로 넘긴다.
      */
-    private void appendLateRollup(List<Map<String, Object>> blocks, ReportContent content, String boardId) {
+    private void appendLateRollup(List<Map<String, Object>> blocks, ReportContent content) {
         int total = lateTotal(content);
         if (total == 0) {
             return;
@@ -427,61 +422,10 @@ public class ReportSlackPublisher {
                 .sorted(Comparator.comparingInt(ReportContent.Member::getLateCount).reversed())
                 .toList();
         String names = holders.stream()
-                .map(m -> m.getName() + " " + m.getLateCount())
+                .map(m -> escape(m.getName()) + " " + m.getLateCount())
                 .collect(Collectors.joining(" · "));
 
-        StringBuilder body = new StringBuilder("⏰ *지연 " + total + "건* · 담당 " + holders.size() + "명\n")
-                .append(names);
-
-        // 담당자별 지연 항목을 한 줄씩 — 오래 지난 것이 위로.
-        record LateLine(String title, String owner, int days, String url) {}
-        List<LateLine> lines = new ArrayList<>();
-        for (ReportContent.Member m : holders) {
-            if (m.getChecklistChanges() == null) {
-                continue;
-            }
-            for (ReportContent.MemberChecklistChange c : m.getChecklistChanges()) {
-                if (!"late".equals(c.getStatus())) {
-                    continue;
-                }
-                lines.add(new LateLine(c.getTitle(), m.getName(), c.getOverdueDays(),
-                        checklistItemUrl(c, boardId)));
-            }
-        }
-        lines.sort(Comparator.comparingInt(LateLine::days).reversed());
-
-        if (!lines.isEmpty()) {
-            body.append("\n");
-            for (LateLine line : lines.stream().limit(MAX_LATE_LINES).toList()) {
-                String title = escape(line.title());
-                body.append("\n• ")
-                        .append(line.url() != null ? "<" + line.url() + "|" + title + ">" : title)
-                        .append(" · ").append(escape(line.owner()));
-                if (line.days() > 0) {
-                    body.append(" · ").append(line.days()).append("일 지남");
-                }
-            }
-            if (lines.size() > MAX_LATE_LINES) {
-                body.append("\n_외 ").append(lines.size() - MAX_LATE_LINES).append("건은 전체 보고서에서_");
-            }
-        }
-        blocks.add(section(body.toString()));
-    }
-
-    /**
-     * 체크리스트 항목을 여는 주소. 태스크 키가 있으면 사람이 읽는 링크를, 없으면 보드 딥링크를 쓴다.
-     * <p>{@code view=kanban}이 꼭 붙어야 한다 — 보드는 그 사람이 마지막으로 보던 탭을 복원하므로,
-     * 이게 없으면 보고서 탭 같은 엉뚱한 화면에 착지한다.
-     */
-    private String checklistItemUrl(ReportContent.MemberChecklistChange change, String boardId) {
-        String highlight = change.getItemId() != null ? "&checklist=" + change.getItemId() : "";
-        if (change.getTaskKey() != null && !change.getTaskKey().isBlank()) {
-            return frontendUrl + "/t/" + change.getTaskKey() + "?view=kanban" + highlight;
-        }
-        if (change.getTaskId() != null) {
-            return frontendUrl + "/boards/" + boardId + "?view=kanban&task=" + change.getTaskId() + highlight;
-        }
-        return null;
+        blocks.add(section("⏰ *지연 " + total + "건* · 담당 " + holders.size() + "명\n" + names));
     }
 
     /** 슬랙 mrkdwn 예약문자 이스케이프 — 제목에 &lt;, &gt;가 들어오면 링크 문법이 깨진다. */

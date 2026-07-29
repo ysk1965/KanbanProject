@@ -77,7 +77,11 @@ interface DailyScheduleViewProps {
 }
 
 const SLOT_HEIGHT = 40; // 30분 슬롯의 기본 높이 (px)
-const EMBED_SLOT_HEIGHT = 28; // 임베드 모드 — 하루가 스크롤 없이 들어오도록 낮춘 높이
+// 임베드 모드 슬롯 높이.
+// 28px일 때 하루가 스크롤 없이 들어왔지만 블록 내용이 워크로드 위젯보다 작아 보였다.
+// 34px로 올려 제목(text-sm)·부제가 제 크기로 읽히게 하고, 넘치는 만큼은 세로 스크롤로 넘긴다
+// (대시보드 행 높이 DASHBOARD_ROW_HEIGHT는 워크로드와 바닥선을 맞춰야 하므로 건드리지 않는다).
+const EMBED_SLOT_HEIGHT = 34;
 const MIN_BLOCK_HEIGHT = 28; // 블록 최소 가시 높이 (px) - 제목 텍스트가 보이는 최소 크기
 
 // 시간 문자열 → 분 단위 (예: "14:30" → 870)
@@ -929,6 +933,7 @@ export function DailyScheduleView({
 
   // 현재 시간 표시선이 보이도록 자동 스크롤
   const timeIndicatorRef = useRef<HTMLDivElement>(null);
+  const gridScrollRef = useRef<HTMLDivElement>(null);
   const hasScrolledRef = useRef(false);
   useEffect(() => {
     if (
@@ -936,13 +941,23 @@ export function DailyScheduleView({
       timeIndicatorRef.current &&
       !hasScrolledRef.current
     ) {
-      timeIndicatorRef.current.scrollIntoView({
-        block: "center",
-        behavior: "smooth",
-      });
+      if (embedded && gridScrollRef.current) {
+        // 임베드(대시보드 위젯)에서는 scrollIntoView를 쓰면 상위 페이지까지 끌려 올라간다.
+        // 그리드 컨테이너의 scrollTop만 직접 옮겨 위젯 안에서만 스크롤되게 한다.
+        const el = gridScrollRef.current;
+        el.scrollTo({
+          top: Math.max(0, currentTimeTop - el.clientHeight / 2),
+          behavior: "smooth",
+        });
+      } else {
+        timeIndicatorRef.current.scrollIntoView({
+          block: "center",
+          behavior: "smooth",
+        });
+      }
       hasScrolledRef.current = true;
     }
-  }, [currentTimeTop]);
+  }, [currentTimeTop, embedded]);
   // 날짜가 바뀌면 스크롤 플래그 리셋
   useEffect(() => {
     hasScrolledRef.current = false;
@@ -1318,7 +1333,10 @@ export function DailyScheduleView({
 
       {/* 타임블록 스케줄 그리드 + 상세 패널 */}
       <div className="flex-1 flex min-h-0">
-        <div className="flex-1 overflow-auto custom-scrollbar min-w-0">
+        <div
+          ref={gridScrollRef}
+          className="flex-1 overflow-auto custom-scrollbar min-w-0"
+        >
           {viewMode === "day" ? (
             /* 일 단위 뷰 */
             <div className={dayWrapClass}>
@@ -1522,7 +1540,7 @@ export function DailyScheduleView({
                     >
                       {/* 시간/블록 라벨 */}
                       <div
-                        className={`w-14 md:w-20 flex-shrink-0 p-2 text-xs border-r border-bridge-border bg-bridge-dark ${isBreak ? "text-amber-500/50" : "text-zinc-400"}`}
+                        className={`w-14 md:w-20 flex-shrink-0 p-2 text-[13px] font-medium border-r border-bridge-border bg-bridge-dark ${isBreak ? "text-amber-500/50" : "text-slate-400"}`}
                       >
                         {displayMode === "block"
                           ? `${slotIndex + 1}`
