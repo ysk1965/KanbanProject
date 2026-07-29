@@ -3164,6 +3164,7 @@ export function KanbanBoardPage() {
               canEdit ? handleUpdateMilestoneDates : undefined
             }
             onOpenContractorManager={handleOpenContractorManager}
+            onOpenKanban={() => handleViewModeChange("kanban")}
             onOpenSchedule={() => {
               handleScheduleSubTabChange("timeblock");
               handleViewModeChange("schedule");
