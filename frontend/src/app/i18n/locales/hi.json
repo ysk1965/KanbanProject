@@ -2365,7 +2365,8 @@
     "blockColor": "रंग",
     "editCustom": "ब्लॉक संपादित करें",
     "titlePlaceholder": "शेड्यूल नाम दर्ज करें",
-    "viewMeeting": "मीटिंग विवरण देखें"
+    "viewMeeting": "मीटिंग विवरण देखें",
+    "escClose": "Esc से बंद करें"
   },
   "emptyBoard": {
     "heading": "अपने बोर्ड के साथ शुरू करें",

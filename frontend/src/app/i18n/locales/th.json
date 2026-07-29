@@ -2365,7 +2365,8 @@
     "blockColor": "สี",
     "editCustom": "แก้ไขบล็อก",
     "titlePlaceholder": "ป้อนชื่อตารางเวลา",
-    "viewMeeting": "ดูรายละเอียดการประชุม"
+    "viewMeeting": "ดูรายละเอียดการประชุม",
+    "escClose": "Esc ปิด"
   },
   "emptyBoard": {
     "heading": "เริ่มต้นกับบอร์ดของคุณ",

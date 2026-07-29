@@ -6,9 +6,7 @@ import type { MilestoneColorMap } from "../../utils/milestoneColor";
 import { DailyScheduleView } from "../DailyScheduleView";
 import type { BoardMember as ShareBoardMember } from "../ShareBoardModal";
 import { DashboardEmpty } from "./DashboardCard";
-
-/** 카드 높이. 임베드 모드 슬롯(30분 = 28px)로 하루가 스크롤 없이 들어오는 값. */
-const WIDGET_HEIGHT = 840;
+import { DASHBOARD_ROW_HEIGHT } from "./dashboardUtils";
 
 interface TodayTimeblockWidgetProps {
   boardId: string;
@@ -60,7 +58,7 @@ export function TodayTimeblockWidget({
   return (
     <section
       className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden flex flex-col"
-      style={{ height: WIDGET_HEIGHT }}
+      style={{ height: DASHBOARD_ROW_HEIGHT }}
     >
       <header className="flex items-center gap-2 px-4 py-3 border-b border-foreground/[0.08] flex-none">
         <h2 className="text-xs md:text-sm font-bold text-foreground">

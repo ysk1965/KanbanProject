@@ -4,21 +4,16 @@ import type {
   Feature,
   JobRole,
   Milestone,
-  Task,
 } from "../types";
 import type { BoardMember as ShareBoardMember } from "../components/ShareBoardModal";
 import { buildMilestoneColorMap } from "../utils/milestoneColor";
 import { MyWorkloadWidget } from "../components/boarddashboard/MyWorkloadWidget";
 import { TodayTimeblockWidget } from "../components/boarddashboard/TodayTimeblockWidget";
-import { DependencyWidget } from "../components/boarddashboard/DependencyWidget";
-import { UpcomingWidget } from "../components/boarddashboard/UpcomingWidget";
-import { MentionsWidget } from "../components/boarddashboard/MentionsWidget";
 
 interface DashboardViewProps {
   boardId: string;
   organizationId?: string;
   userId: string | undefined;
-  tasks: Task[];
   milestones: Milestone[];
   /** 임베드된 타임블록·워크로드에 그대로 넘기는 보드 컨텍스트 */
   boardMembersData: ShareBoardMember[];
@@ -30,7 +25,6 @@ interface DashboardViewProps {
   scheduleRefreshPanel: number;
   wsChecklistEvent: BoardWebSocketEvent | null;
   currentUserRole?: string;
-  onTaskClick: (task: Task) => void;
   onViewFeatureById: (featureId: string) => void;
   onViewTaskWithChecklist: (taskId: string, checklistItemId?: string) => void;
   onNavigateToMeeting: (date?: Date) => void;
@@ -53,14 +47,12 @@ interface DashboardViewProps {
  * 보드 > 대시보드 — 개인 관점의 진입 화면.
  *
  * 레이아웃
- *  A 왼쪽 = 오늘의 타임블록 / 오른쪽 = 내 워크로드(간트 + 배치 레일)
- *  B 의존성 · 다가오는 일정 · 나를 부른 것들
+ *  왼쪽 = 오늘의 타임블록 / 오른쪽 = 내 워크로드(간트 + 배치 레일)
  */
 export function DashboardView({
   boardId,
   organizationId,
   userId,
-  tasks,
   milestones,
   boardMembersData,
   memberColorMap,
@@ -71,7 +63,6 @@ export function DashboardView({
   scheduleRefreshPanel,
   wsChecklistEvent,
   currentUserRole,
-  onTaskClick,
   onViewFeatureById,
   onViewTaskWithChecklist,
   onNavigateToMeeting,
@@ -88,18 +79,10 @@ export function DashboardView({
     [milestones],
   );
 
-  const handleOpenTaskById = useMemo(
-    () => (taskId: string) => {
-      const task = tasks.find((item) => item.id === taskId);
-      if (task) onTaskClick(task);
-    },
-    [tasks, onTaskClick],
-  );
-
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar bg-bridge-dark">
       <div className="p-3 md:p-5 flex flex-col gap-3">
-        {/* A. 타임블록 │ 워크로드 + 내 태스크 */}
+        {/* 타임블록 │ 워크로드 + 내 태스크 */}
         <div className="grid grid-cols-1 xl:grid-cols-[380px_minmax(0,1fr)] gap-3 items-start">
           <TodayTimeblockWidget
             boardId={boardId}
@@ -137,24 +120,6 @@ export function DashboardView({
               onOpenKanban={onOpenKanban}
             />
           </div>
-        </div>
-
-        {/* B. 의존성 · 다가오는 일정 · 나를 부른 것들 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-[1.6fr_1fr_1fr] gap-3 items-start">
-          <DependencyWidget
-            boardId={boardId}
-            tasks={tasks}
-            userId={userId}
-            onTaskClick={onTaskClick}
-          />
-          <UpcomingWidget
-            boardId={boardId}
-            milestones={milestones}
-            tasks={tasks}
-            userId={userId}
-            onOpenSchedule={onOpenSchedule}
-          />
-          <MentionsWidget boardId={boardId} onOpenTask={handleOpenTaskById} />
         </div>
       </div>
     </div>

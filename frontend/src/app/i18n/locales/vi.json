@@ -2365,7 +2365,8 @@
     "blockColor": "Màu sắc",
     "editCustom": "Chỉnh sửa khối",
     "titlePlaceholder": "Nhập tên lịch trình",
-    "viewMeeting": "Xem chi tiết cuộc họp"
+    "viewMeeting": "Xem chi tiết cuộc họp",
+    "escClose": "Esc để đóng"
   },
   "emptyBoard": {
     "heading": "Bat dau voi bang cua ban",

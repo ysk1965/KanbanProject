@@ -56,6 +56,14 @@ public class BoardMember {
     @Column(name = "github_login", length = 100)
     private String githubLogin;
 
+    /**
+     * 스프린트 JIRA 뷰에서 이슈 목록을 마지막으로 확인한 시각(UTC).
+     * 이 값보다 나중에 링크된 JIRA 이슈가 "신규"로 집계된다.
+     * null = 아직 미확인 → 최초 조회 시 now로 초기화한다(전체가 신규로 잡히는 것 방지).
+     */
+    @Column(name = "jira_last_seen_at")
+    private LocalDateTime jiraLastSeenAt;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -84,6 +92,20 @@ public class BoardMember {
 
     public void updateGithubLogin(String githubLogin) {
         this.githubLogin = githubLogin;
+    }
+
+    /** JIRA 뷰 확인 시각을 현재로 갱신 — 이후 링크된 이슈만 신규로 잡힌다. */
+    public void markJiraSeen() {
+        this.jiraLastSeenAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    /** 최초 진입(null) 시 기준선을 now로 세운다. 이미 값이 있으면 건드리지 않는다. */
+    public boolean initJiraSeenIfAbsent() {
+        if (this.jiraLastSeenAt != null) {
+            return false;
+        }
+        this.jiraLastSeenAt = LocalDateTime.now(ZoneOffset.UTC);
+        return true;
     }
 
     public boolean isOwner() {

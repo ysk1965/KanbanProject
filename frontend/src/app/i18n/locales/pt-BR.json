@@ -2365,7 +2365,8 @@
     "blockColor": "Cor",
     "editCustom": "Editar bloco",
     "titlePlaceholder": "Digite o nome da agenda",
-    "viewMeeting": "Ver detalhes da reunião"
+    "viewMeeting": "Ver detalhes da reunião",
+    "escClose": "Esc para fechar"
   },
   "emptyBoard": {
     "heading": "Comece com seu board",

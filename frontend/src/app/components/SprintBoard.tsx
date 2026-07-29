@@ -100,6 +100,31 @@ interface TreeFeature {
   total: number; // 태스크 수
   taken: number; // 스프린트에 담긴 태스크 수
   completed: number; // Done 컬럼에 도달한 태스크 수
+  unitDone: number; // 완료 체크리스트 줄 수(게이지 분자)
+  unitTotal: number; // 전체 체크리스트 줄 수(게이지 분모)
+}
+
+/**
+ * 진척 단위 = 체크리스트 한 줄. 스프린트의 모든 게이지·%는 "태스크 몇 개 끝냈나"가 아니라
+ * "그 안의 체크리스트가 몇 줄 끝났나"로 잰다 — 태스크 단위로 세면 28줄짜리와 1줄짜리가
+ * 같은 무게가 되어 실제 진척이 게이지에 드러나지 않는다.
+ *  · 체크리스트가 없는 태스크는 1줄로 환산한다(태스크 자체가 하나의 할 일).
+ *  · Done(END) 도달 태스크는 남은 줄과 무관하게 전부 완료로 센다 — 그래야 100%에 닿는다.
+ *  · lines를 넘기면 그 줄만 센다(구성원 컬럼처럼 "내 몫"만 재는 스코프용).
+ */
+function progressUnits(
+  it: SprintItemCard,
+  isDone: boolean,
+  lines?: SprintChecklistLine[],
+): { done: number; total: number } {
+  const scoped = lines ?? it.checklist_items;
+  const total = scoped ? scoped.length : (it.checklist_total ?? 0);
+  if (total <= 0) return { done: isDone ? 1 : 0, total: 1 };
+  if (isDone) return { done: total, total };
+  const done = scoped
+    ? scoped.filter((l) => l.completed).length
+    : Math.min(it.checklist_done ?? 0, total);
+  return { done, total };
 }
 
 const DRAG_ITEM = "application/bridge-sprint-item";
@@ -290,6 +315,72 @@ export function SprintBoard({
   const [jiraDragAllowed, setJiraDragAllowed] = useState<Set<string> | null>(
     null,
   );
+  // silentReload는 아래에서 정의되므로 ref로 우회 참조한다(확인 처리 후 무음 재조회용).
+  const silentReloadRef = useRef<(() => Promise<void>) | null>(null);
+
+  // ── JIRA 신규 이슈 판정 ──────────────────────────
+  // 기준선 = board_members.jira_last_seen_at(서버). 이보다 나중에 보드에 링크된 이슈가 "신규"다.
+  // 기준으로 jira_issue_links.created_at(= linked_at)을 쓰는 이유: JIRA 원본 생성일이 아니라
+  // "우리 보드에 들어온 시각"이 사용자 체감과 맞기 때문. (last_imported_at은 재동기화마다,
+  // jira_updated_at은 코멘트에도 갱신돼 둘 다 신규 판정엔 부적합)
+  const serverJiraSeenAt = board?.jira_last_seen_at ?? null;
+  // JIRA 탭에 머무는 동안엔 기준선을 얼려둔다 — 진입 즉시 서버 값을 따라가면 NEW 표시가
+  // 눈앞에서 사라져 "뭐가 새 거였는지" 확인할 수 없다. 탭을 벗어날 때 markSeen으로 민다.
+  const [jiraSeenBaseline, setJiraSeenBaseline] = useState<string | null>(null);
+  useEffect(() => {
+    // 탭 밖일 때만 서버 값을 추종. 단 최초 1회는 탭과 무관하게 채운다(저장된 탭이 jira인 경우).
+    if (groupBy !== "jira" || jiraSeenBaseline === null) {
+      setJiraSeenBaseline(serverJiraSeenAt);
+    }
+  }, [groupBy, serverJiraSeenAt, jiraSeenBaseline]);
+
+  // 기준선이 없으면(멤버십 없음 등 판정 불가) 신규 0건으로 둔다 — 전체가 신규로 뜨는 것보다 안전.
+  const isNewJiraLink = useCallback(
+    (linkedAt: string | null | undefined) => {
+      if (!jiraSeenBaseline || !linkedAt) return false;
+      const base = parseUTCDate(jiraSeenBaseline);
+      const at = parseUTCDate(linkedAt);
+      return !!base && !!at && at.getTime() > base.getTime();
+    },
+    [jiraSeenBaseline],
+  );
+
+  // 탭 뱃지 집계 — jiraColumns는 groupBy==='jira'일 때만 계산되므로 별도로 보드 전체를 센다.
+  const jiraBadge = useMemo(() => {
+    const list = board?.jira_tasks ?? [];
+    let fresh = 0;
+    for (const t of list) {
+      if (isNewJiraLink(t.linked_at)) fresh++;
+    }
+    return { total: list.length, fresh };
+  }, [board, isNewJiraLink]);
+
+  // JIRA 탭을 벗어나면 확인 처리 → 서버 기준선을 민 뒤 무음 재조회로 뱃지를 즉시 정리한다.
+  const wasOnJiraRef = useRef(false);
+  useEffect(() => {
+    const onJira = groupBy === "jira" && jiraConnected;
+    if (wasOnJiraRef.current && !onJira) {
+      jiraAPI
+        .markSeen(boardId)
+        .then(() => silentReloadRef.current?.())
+        .catch(() => {
+          /* 확인 처리 실패는 조용히 무시 — 다음 이탈 때 다시 시도된다 */
+        });
+    }
+    wasOnJiraRef.current = onJira;
+  }, [groupBy, jiraConnected, boardId]);
+
+  // 보드/마일스톤 이탈(언마운트) 시에도 확인 처리. 이 경우 재조회는 불필요.
+  useEffect(
+    () => () => {
+      if (wasOnJiraRef.current) {
+        wasOnJiraRef.current = false;
+        jiraAPI.markSeen(boardId).catch(() => {});
+      }
+    },
+    [boardId],
+  );
+
   // 블록↔JIRA 상태 매핑이 하나라도 있는지 — 빈 상태 분기 기준은 "카드 유무"가 아니라 "매핑 유무".
   // 매핑이 됐으면 카드가 0건이어도 JIRA 상태 그대로 컬럼 골격을 보여준다.
   const hasBlockMapping = useMemo(() => {
@@ -432,6 +523,9 @@ export function SprintBoard({
       /* 무음 재조회 실패는 조용히 무시(다음 이벤트/수동 조작 시 복구) */
     }
   }, [boardId, milestoneId]);
+  useEffect(() => {
+    silentReloadRef.current = silentReload;
+  }, [silentReload]);
 
   // 실시간 동기화 — 체크리스트 완료/담당자 변경(모달 포함)·태스크·피쳐 이벤트가
   // 도착하면 디바운스 후 스프린트 보드를 재조회한다. 본인 변경도 반영된다(훅 주석 참고).
@@ -595,7 +689,7 @@ export function SprintBoard({
       ...c,
       items: c.items.filter(itemMatchesFilter),
     }));
-    // 게이지 재계산: 담긴 항목(sprint_column_id) 중 완료/Done 컬럼 도달분
+    // 게이지 재계산: 담긴 항목(sprint_column_id)의 체크리스트 줄 기준(progressUnits)
     const endColIds = new Set(
       board.columns.filter((c) => c.kind === "END").map((c) => c.id),
     );
@@ -604,8 +698,12 @@ export function SprintBoard({
     for (const c of filteredColumns) {
       for (const it of c.items) {
         if (!it.sprint_column_id) continue;
-        total += 1;
-        if (it.completed || endColIds.has(it.sprint_column_id)) done += 1;
+        const u = progressUnits(
+          it,
+          it.completed || endColIds.has(it.sprint_column_id),
+        );
+        done += u.done;
+        total += u.total;
       }
     }
     return {
@@ -681,6 +779,9 @@ export function SprintBoard({
       ...filteredBoard.backlog,
       ...filteredBoard.columns.flatMap((c) => c.items),
     ];
+    const endColIds = new Set(
+      filteredBoard.columns.filter((c) => c.kind === "END").map((c) => c.id),
+    );
     const featMap = new Map<string, TreeFeature>();
     for (const it of all) {
       const fid = it.feature_id ?? "__none__";
@@ -695,13 +796,22 @@ export function SprintBoard({
           total: 0,
           taken: 0,
           completed: 0,
+          unitDone: 0,
+          unitTotal: 0,
         };
         featMap.set(fid, feat);
       }
+      const isDone =
+        it.completed ||
+        (!!it.sprint_column_id && endColIds.has(it.sprint_column_id));
       feat.tasks.push(it);
       feat.total += 1;
       if (it.sprint_column_id) feat.taken += 1;
       if (it.completed) feat.completed += 1;
+      // 피쳐 게이지도 체크리스트 줄 기준 — 백로그 포함 그 피쳐의 전체 할 일이 분모다.
+      const u = progressUnits(it, isDone);
+      feat.unitDone += u.done;
+      feat.unitTotal += u.total;
     }
     // Feature 생성 순서(created_at 오름차순)로 컬럼/트리 정렬.
     // 생성일 동률이거나 없으면 안정 정렬로 첫 등장 순서를 유지하고, "기타"(피쳐 없음)는 항상 맨 뒤로.
@@ -864,19 +974,23 @@ export function SprintBoard({
       featureTitle: string;
       featureColor: string | null;
       items: SprintItemCard[]; // START 단계에 남은 태스크 카드
-      doneTotal: number; // 담긴 태스크 중 Done 도달 수
-      total: number; // 담긴 태스크 전체 수
+      doneTotal: number; // 담긴 태스크의 완료 체크리스트 줄 수
+      total: number; // 담긴 태스크의 전체 체크리스트 줄 수
     }[] = [];
     for (const feat of tree) {
       const taken = feat.tasks.filter((it) => it.sprint_column_id);
       if (taken.length === 0) continue;
 
+      // 컬럼 헤더 진척도 체크리스트 줄 기준(progressUnits)
       let doneTotal = 0;
+      let unitTotal = 0;
       for (const it of taken) {
         const kind = it.sprint_column_id
           ? columnById.get(it.sprint_column_id)?.kind
           : undefined;
-        if (it.completed || kind === "END") doneTotal += 1;
+        const u = progressUnits(it, it.completed || kind === "END");
+        doneTotal += u.done;
+        unitTotal += u.total;
       }
       const startItems = taken
         .filter((it) => it.sprint_column_id === startColumn.id)
@@ -889,7 +1003,7 @@ export function SprintBoard({
         featureColor: feat.featureColor,
         items: startItems,
         doneTotal,
-        total: taken.length,
+        total: unitTotal,
       });
     }
     return result;
@@ -906,11 +1020,17 @@ export function SprintBoard({
         let overdue = 0;
         for (const it of feat.tasks) {
           if (!it.sprint_column_id) continue; // 스프린트에 담긴 태스크만
-          total += 1;
           const kind = columnById.get(it.sprint_column_id)?.kind;
           const isDone = it.completed || kind === "END";
-          if (isDone) done += 1;
-          else if (it.due_date && getDDay(it.due_date)?.urgency === "overdue")
+          const u = progressUnits(it, isDone); // 진척은 체크리스트 줄 기준
+          total += u.total;
+          done += u.done;
+          // 지연은 "몇 건 밀렸나"라 태스크 단위 그대로 센다.
+          if (
+            !isDone &&
+            it.due_date &&
+            getDDay(it.due_date)?.urgency === "overdue"
+          )
             overdue += 1;
         }
         return {
@@ -941,8 +1061,8 @@ export function SprintBoard({
     memberId: string; // assignee.id | "__none__"(미배정)
     memberName: string;
     items: SprintItemCard[]; // START 단계에 남은 카드(컬럼에 노출)
-    doneTotal: number; // 담당자가 담은 항목 중 완료/Done 수
-    total: number; // 담당자가 담은 전체 항목 수
+    doneTotal: number; // 담당자 몫 체크리스트 중 완료 줄 수
+    total: number; // 담당자 몫 체크리스트 전체 줄 수
   }
   const memberColumns = useMemo<MemberColumn[]>(() => {
     if (!startColumn) return [];
@@ -983,14 +1103,27 @@ export function SprintBoard({
           continue;
         const kind = columnById.get(it.sprint_column_id)?.kind;
         const isDone = it.completed || kind === "END";
+        const lines = it.checklist_items ?? [];
         for (const k of keysOf(it)) {
           let s = stat.get(k.id);
           if (!s) {
             s = { name: k.name, done: 0, total: 0 };
             stat.set(k.id, s);
           }
-          s.total += 1;
-          if (isDone) s.done += 1;
+          // 진척은 체크리스트 줄 기준. 카드가 여러 컬럼에 서므로 "그 사람 몫 줄"만 센다
+          // (renderCard의 memberScope와 같은 귀속 규칙 — 외주는 관리 담당의 몫).
+          const myLines = lines.filter(
+            (l) =>
+              l.assignee?.id === k.id || l.contractor?.manager_user_id === k.id,
+          );
+          // 담당 줄이 없으면(줄 담당 미지정·체크리스트 없음) 태스크 1건을 그 사람 몫으로 환산
+          const u = progressUnits(
+            it,
+            isDone,
+            myLines.length > 0 ? myLines : undefined,
+          );
+          s.total += u.total;
+          s.done += u.done;
         }
       }
     }
@@ -1076,6 +1209,7 @@ export function SprintBoard({
     assignees: { id: string; name: string }[];
     done: number; // 스프린트에 담긴 체크리스트 중 완료 수
     total: number; // 스프린트에 담긴 체크리스트 수
+    isNew: boolean; // 마지막 확인 이후 링크된 이슈 — 카드 NEW 표시용
   }
   interface JiraColumnDef {
     statusId: string; // 대표 JIRA 상태 id ("__unmapped__" = 상태 미상 leftover)
@@ -1142,6 +1276,7 @@ export function SprintBoard({
         })),
         done: jt.done,
         total: jt.total,
+        isNew: isNewJiraLink(jt.linked_at),
       });
     }
 
@@ -1238,6 +1373,7 @@ export function SprintBoard({
     board,
     featureFilter,
     taskMatchesFilter,
+    isNewJiraLink,
   ]);
 
   // JIRA 게이지/헤더용 집계 — 검증완료 + 검토중 2색 세그먼트
@@ -1415,13 +1551,22 @@ export function SprintBoard({
   };
 
   // ==================== 라이프사이클 ====================
-  const gauge = filteredBoard?.gauge; // 표시용(담당자 필터 반영)
-  // 남은 개수는 전체 진척 기준(필터로 100%처럼 보여도 실제 잔량을 표시)
-  const fullGauge = board?.gauge;
-  const remainingTasks = Math.max(
-    0,
-    (fullGauge?.total ?? 0) - (fullGauge?.done ?? 0),
-  );
+  const gauge = filteredBoard?.gauge; // 표시용(담당자 필터 반영) — 체크리스트 줄 기준
+  // 이월 안내는 "다음 스프린트로 넘어갈 태스크 수"라 게이지(체크리스트 줄)가 아니라
+  // Done에 닿지 못한 태스크 건수를 센다. 필터로 100%처럼 보여도 실제 잔량을 그대로 표시.
+  const remainingTasks = useMemo(() => {
+    const endColIds = new Set(
+      (board?.columns ?? []).filter((c) => c.kind === "END").map((c) => c.id),
+    );
+    let n = 0;
+    for (const c of board?.columns ?? []) {
+      for (const it of c.items) {
+        if (!it.sprint_column_id) continue;
+        if (!it.completed && !endColIds.has(it.sprint_column_id)) n += 1;
+      }
+    }
+    return n;
+  }, [board]);
   // 기간이 끝나면 닫을 수 있어야 하므로 "전부 Done" 게이트는 두지 않는다.
   // 미완료 태스크는 다음 스프린트로 이월되며, 종료 시점의 완료율은 그대로 동결된다.
   const canClose = isAdminOrOwner && !!activeSprint;
@@ -1447,6 +1592,10 @@ export function SprintBoard({
   //  · 기존 완료: 완료 && 그 이전
   //  · 진행 중  : 미완료 && (MIDDLE 컬럼에 있음 || 기간이 오늘과 겹침)
   //  · 미완료   : 나머지 (START 대기 등)
+  //
+  // 목록·개수(buckets/counts)는 태스크 단위지만, %와 막대 길이는 체크리스트 줄 단위다.
+  // 미완료 태스크 안에서 이미 끝낸 줄은 "기존 완료" 구간에 합산된다 — 태스크가 Done에
+  // 닿지 않았다고 해서 그 안에서 진행한 20줄이 게이지에서 사라지면 안 되기 때문이다.
   const sprintProgress = useMemo(() => {
     const cols = filteredBoard?.columns ?? [];
     const endColIds = new Set(
@@ -1469,15 +1618,25 @@ export function SprintBoard({
     const earlierDone: SprintItemCard[] = [];
     const inProgress: SprintItemCard[] = [];
     const notStarted: SprintItemCard[] = [];
+    // 체크리스트 줄 단위 구간(막대·%의 실제 소스)
+    let uToday = 0; // 오늘 완료한 태스크의 줄
+    let uEarlier = 0; // 그 이전 완료 태스크의 줄 + 미완료 태스크에서 이미 끝낸 줄
+    let uProg = 0; // 진행 중 태스크의 남은 줄
+    let uNot = 0; // 미착수 태스크의 남은 줄
 
     for (const c of cols) {
       for (const it of c.items) {
         if (!it.sprint_column_id) continue; // 담긴 항목만 게이지 스코프
         const isDone = it.completed || endColIds.has(it.sprint_column_id);
+        const u = progressUnits(it, isDone);
         if (isDone) {
-          if ((it.completed_at || it.done_date) && doneTs(it) >= startToday)
+          if ((it.completed_at || it.done_date) && doneTs(it) >= startToday) {
             todayDone.push(it);
-          else earlierDone.push(it);
+            uToday += u.total;
+          } else {
+            earlierDone.push(it);
+            uEarlier += u.total;
+          }
         } else {
           const inMidCol = it.sprint_column_id
             ? midColIds.has(it.sprint_column_id)
@@ -1488,8 +1647,14 @@ export function SprintBoard({
           const afterStart = !s || s <= todayStr;
           const beforeDue = !d || todayStr <= d;
           const dateActive = hasDate && afterStart && beforeDue;
-          if (inMidCol || dateActive) inProgress.push(it);
-          else notStarted.push(it);
+          uEarlier += u.done; // 미완료 태스크라도 끝낸 줄은 완료분
+          if (inMidCol || dateActive) {
+            inProgress.push(it);
+            uProg += u.total - u.done;
+          } else {
+            notStarted.push(it);
+            uNot += u.total - u.done;
+          }
         }
       }
     }
@@ -1505,8 +1670,8 @@ export function SprintBoard({
     const nEarlier = earlierDone.length;
     const nProg = inProgress.length;
     const nNot = notStarted.length;
-    const total = nToday + nEarlier + nProg + nNot;
-    const done = nToday + nEarlier;
+    const total = uToday + uEarlier + uProg + uNot; // 체크리스트 줄 총량
+    const done = uToday + uEarlier;
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
     const denom = total || 1;
     return {
@@ -1524,9 +1689,9 @@ export function SprintBoard({
       total,
       done,
       pct,
-      segEarlier: (nEarlier / denom) * 100,
-      segToday: (nToday / denom) * 100,
-      segProg: (nProg / denom) * 100,
+      segEarlier: (uEarlier / denom) * 100,
+      segToday: (uToday / denom) * 100,
+      segProg: (uProg / denom) * 100,
     };
   }, [filteredBoard]);
 
@@ -2237,6 +2402,15 @@ export function SprintBoard({
             <Diamond className="w-2.5 h-2.5" />
             {card.jiraKey}
           </span>
+          {/* 마지막 확인 이후 들어온 이슈 — 탭을 벗어날 때까지 유지된다 */}
+          {card.isNew && (
+            <span
+              className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent shrink-0"
+              title="마지막 확인 이후 새로 들어온 이슈"
+            >
+              NEW
+            </span>
+          )}
           {card.qaState && renderQaBadge(card.qaState)}
         </div>
         <div className="text-xs font-medium text-foreground leading-snug line-clamp-2">
@@ -2525,10 +2699,7 @@ export function SprintBoard({
               expandedActive && gauge ? gauge.done : s.completed_count;
             const totalN =
               expandedActive && gauge ? gauge.total : s.total_count;
-            const remaining = Math.max(
-              0,
-              (fullGauge?.total ?? 0) - (fullGauge?.done ?? 0),
-            );
+            const remaining = remainingTasks; // 이월 대상 = Done에 닿지 못한 태스크 수
 
             return (
               <div
@@ -2636,12 +2807,15 @@ export function SprintBoard({
                           </>
                         ) : (
                           <>
-                            {doneN} / {totalN} 항목
+                            체크리스트 {doneN} / {totalN}
                           </>
                         )}
                       </span>
                       {sprintProgress.nToday > 0 && (
-                        <span className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0 tabular-nums">
+                        <span
+                          className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0 tabular-nums"
+                          title={`오늘 Done에 도달한 태스크 ${sprintProgress.nToday}건`}
+                        >
                           ▲ {sprintProgress.nToday}
                         </span>
                       )}
@@ -2795,10 +2969,26 @@ export function SprintBoard({
                                 ? "bg-bridge-accent text-white"
                                 : "text-slate-400 hover:text-foreground"
                             }`}
-                            title="JIRA 상태 단위로 컬럼 보기 (연동 항목만)"
+                            title={
+                              jiraBadge.fresh > 0
+                                ? `새로 들어온 JIRA 이슈 ${jiraBadge.fresh}건 (연동 ${jiraBadge.total}건)`
+                                : "JIRA 상태 단위로 컬럼 보기 (연동 항목만)"
+                            }
                           >
                             <Diamond className="w-3 h-3" />
                             JIRA
+                            {jiraBadge.fresh > 0 && (
+                              <span
+                                className={`ml-0.5 min-w-[1.15rem] px-1 py-[1px] rounded-full text-[11px] font-bold tabular-nums text-center ${
+                                  groupBy === "jira"
+                                    ? "bg-white/20 text-white"
+                                    : "bg-bridge-accent/15 text-bridge-accent"
+                                }`}
+                                aria-label={`새 이슈 ${jiraBadge.fresh}건`}
+                              >
+                                {jiraBadge.fresh > 99 ? "99+" : jiraBadge.fresh}
+                              </span>
+                            )}
                           </button>
                         )}
                       </div>
@@ -3168,9 +3358,10 @@ export function SprintBoard({
                     const collapsed = collapsedFeatures.has(feat.featureId);
                     // 본문 펼침 여부: 진행중 피쳐는 collapsedFeatures, 정리된 피쳐는 expandedCleared로 제어
                     const bodyOpen = allCleared ? clearedExpanded : !collapsed;
+                    // 게이지는 체크리스트 줄 기준(태스크 개수가 아니라 그 안의 할 일)
                     const pct =
-                      feat.total > 0
-                        ? Math.round((feat.completed / feat.total) * 100)
+                      feat.unitTotal > 0
+                        ? Math.round((feat.unitDone / feat.unitTotal) * 100)
                         : 0;
                     const featColor = feat.featureColor ?? "#6366F1";
                     return (
@@ -3273,11 +3464,14 @@ export function SprintBoard({
                                     }}
                                   />
                                 </span>
-                                <span className="shrink-0 text-xs tabular-nums text-slate-400">
+                                <span
+                                  className="shrink-0 text-xs tabular-nums text-slate-400"
+                                  title={`체크리스트 ${feat.unitDone}/${feat.unitTotal} 완료 · 태스크 ${feat.completed}/${feat.total} 완료`}
+                                >
                                   <span className="font-bold text-foreground">
-                                    {feat.completed}
+                                    {feat.unitDone}
                                   </span>
-                                  /{feat.total} 완료 · 담김 {feat.taken}
+                                  /{feat.unitTotal} 체크 · 담김 {feat.taken}
                                 </span>
                               </span>
                             </button>
@@ -3853,7 +4047,7 @@ export function SprintBoard({
               {sprintProgress.pct}%
             </span>
             <span className="text-sm text-slate-400 tabular-nums">
-              {sprintProgress.done} / {sprintProgress.total}
+              체크리스트 {sprintProgress.done} / {sprintProgress.total}
             </span>
             {sprintProgress.nToday > 0 && (
               <span className="ml-auto text-xs font-bold px-2.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary tabular-nums">
@@ -3861,8 +4055,12 @@ export function SprintBoard({
               </span>
             )}
           </div>
-          {/* 4색 스택 바: 기존완료 / 오늘완료 / 진행중 / 미완료(트랙) */}
-          <div className="h-2 bg-slate-600 rounded-full overflow-hidden relative">
+          {/* 4색 스택 바: 기존완료 / 오늘완료 / 진행중 / 미완료(트랙).
+              길이는 체크리스트 줄 비율, 아래 범례·탭의 숫자는 태스크 건수다. */}
+          <div
+            className="h-2 bg-slate-600 rounded-full overflow-hidden relative"
+            title="막대 길이는 체크리스트 줄 기준, 아래 숫자는 태스크 건수"
+          >
             <div
               className="absolute left-0 top-0 h-full bg-bridge-accent"
               style={{ width: `${sprintProgress.segEarlier}%` }}

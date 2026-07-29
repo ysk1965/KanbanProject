@@ -1,6 +1,8 @@
 package com.kanban.domain.sprint.service;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardMember;
+import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItem;
@@ -59,6 +61,7 @@ public class SprintService {
     private final ChecklistItemRepository checklistItemRepository;
     private final MilestoneRepository milestoneRepository;
     private final BoardRepository boardRepository;
+    private final BoardMemberRepository boardMemberRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final WebSocketEventService webSocketEventService;
@@ -81,7 +84,7 @@ public class SprintService {
             ensureColumns(milestone);
             ensureActiveSprint(milestone);
         }
-        return buildBoard(milestone);
+        return buildBoard(milestone, userId);
     }
 
     // ==================== Toggle (관리자) ====================
@@ -101,7 +104,7 @@ public class SprintService {
             sprintRepository.deleteByMilestoneId(milestoneId);
         }
         broadcastSprintChanged(boardId, userId);
-        return buildBoard(milestone);
+        return buildBoard(milestone, userId);
     }
 
     // ==================== 담기 / 빼기 / 이동 (멤버+) ====================
@@ -123,7 +126,7 @@ public class SprintService {
         ensureColumns(milestone);
         task.assignToSprint(sprint, requireColumn(milestone, SprintColumnKind.START));
         broadcastSprintChanged(boardId, userId);
-        return buildBoard(milestone);
+        return buildBoard(milestone, userId);
     }
 
     /** 태스크 빼기 (백로그로 복귀). 체크리스트는 태스크를 따라 함께 빠진다. */
@@ -135,7 +138,7 @@ public class SprintService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
         task.removeFromSprint();
         broadcastSprintChanged(boardId, userId);
-        return buildBoard(sprint.getMilestone());
+        return buildBoard(sprint.getMilestone(), userId);
     }
 
     /** 카드 컬럼 이동 (드래그). END 컬럼 도달 = 스프린트 상의 완료. */
@@ -159,7 +162,7 @@ public class SprintService {
         }
         task.moveToSprintColumn(column);
         broadcastSprintChanged(boardId, userId);
-        return buildBoard(sprint.getMilestone());
+        return buildBoard(sprint.getMilestone(), userId);
     }
 
     // ==================== 컬럼 CRUD (관리자) ====================
@@ -185,7 +188,7 @@ public class SprintService {
                 .build();
         sprintColumnRepository.save(col);
         broadcastSprintChanged(boardId, userId);
-        return buildBoard(milestone);
+        return buildBoard(milestone, userId);
     }
 
     /** 컬럼 이름/색 변경 (앵커는 불가) */
@@ -203,7 +206,7 @@ public class SprintService {
             col.updateColor(color.isBlank() ? null : color);
         }
         broadcastSprintChanged(boardId, userId);
-        return buildBoard(col.getMilestone());
+        return buildBoard(col.getMilestone(), userId);
     }
 
     /** 중간 컬럼 삭제 — 담긴 카드는 직전(앞) 컬럼으로 이동 (앵커는 불가) */
@@ -229,7 +232,7 @@ public class SprintService {
         }
         sprintColumnRepository.delete(col);
         broadcastSprintChanged(boardId, userId);
-        return buildBoard(milestone);
+        return buildBoard(milestone, userId);
     }
 
     /** 중간 컬럼 순서 재정렬 (START=0 고정, 넘어온 순서대로 1..n, END는 맨 뒤) */
@@ -253,7 +256,7 @@ public class SprintService {
         requireColumn(milestone, SprintColumnKind.START).updatePosition(0);
         requireColumn(milestone, SprintColumnKind.END).updatePosition(pos);
         broadcastSprintChanged(boardId, userId);
-        return buildBoard(milestone);
+        return buildBoard(milestone, userId);
     }
 
     // ==================== 라이프사이클: 종료 / 재활성화 (관리자) ====================
@@ -275,10 +278,10 @@ public class SprintService {
         String milestoneId = milestone.getId();
         ensureColumns(milestone);
 
-        // 동결 수치는 이월 전에 센다 — "24/39 완료, 15개 이월"이 그대로 기록에 남는다.
-        int total = taskRepository.countBySprintId(sprintId);
-        int done = taskRepository.countBySprintIdAndColumnKind(sprintId, SprintColumnKind.END);
-        sprint.archive(done, total, LocalDateTime.now(ZoneOffset.UTC));
+        // 동결 수치는 이월 전에 센다 — 라이브 게이지와 같은 체크리스트 줄 기준이라
+        // 종료 직전 화면의 %가 그대로 기록에 남는다.
+        int[] units = sprintProgressUnits(sprintId);
+        sprint.archive(units[0], units[1], LocalDateTime.now(ZoneOffset.UTC));
 
         // 다음 스프린트 확보 — 최신 스프린트를 닫았으면 새로 만들고, 재활성화 중이었으면 최신으로 복귀.
         Sprint latest = sprintRepository.findFirstByMilestoneIdOrderBySequenceNoDesc(milestoneId)
@@ -302,7 +305,7 @@ public class SprintService {
         }
 
         broadcastSprintChanged(boardId, userId);
-        return buildBoard(milestone);
+        return buildBoard(milestone, userId);
     }
 
     @Transactional
@@ -323,14 +326,13 @@ public class SprintService {
             if (active.getSequenceNo() != maxSeq) {
                 throw new BusinessException(ErrorCode.SPRINT_REACTIVATION_BLOCKED);
             }
-            int total = taskRepository.countBySprintId(active.getId());
-            int done = taskRepository.countBySprintIdAndColumnKind(active.getId(), SprintColumnKind.END);
-            active.archive(done, total, LocalDateTime.now(ZoneOffset.UTC));
+            int[] units = sprintProgressUnits(active.getId());
+            active.archive(units[0], units[1], LocalDateTime.now(ZoneOffset.UTC));
         }
 
         target.reactivate();
         broadcastSprintChanged(boardId, userId);
-        return buildBoard(milestone);
+        return buildBoard(milestone, userId);
     }
 
     @Transactional
@@ -351,7 +353,7 @@ public class SprintService {
                 .orElse(reactivated);
         latest.reactivate();
         broadcastSprintChanged(boardId, userId);
-        return buildBoard(milestone);
+        return buildBoard(milestone, userId);
     }
 
     /** 태스크 재개 — 아카이브(또는 다른) 스프린트의 태스크를 현재 활성 스프린트로 다시 담는다 (Sprint 컬럼). */
@@ -375,7 +377,7 @@ public class SprintService {
         ensureColumns(milestone);
         task.assignToSprint(active, requireColumn(milestone, SprintColumnKind.START));
         broadcastSprintChanged(boardId, userId);
-        return buildBoard(milestone);
+        return buildBoard(milestone, userId);
     }
 
     /** 특정 스프린트에 담긴 태스크 카드 목록 (아카이브 열람 / 재개 UI용) */
@@ -519,7 +521,44 @@ public class SprintService {
         return map;
     }
 
-    private SprintResponse.Board buildBoard(Milestone milestone) {
+    /**
+     * 진척 단위 = 체크리스트 한 줄. 스프린트 게이지는 "태스크 몇 개 끝냈나"가 아니라
+     * "그 안의 체크리스트가 몇 줄 끝났나"로 잰다 — 태스크로 세면 28줄짜리와 1줄짜리가
+     * 같은 무게가 되어 실제 진척이 게이지에 드러나지 않는다.
+     *  · 체크리스트가 없는 태스크는 1줄로 환산한다(태스크 자체가 하나의 할 일).
+     *  · Done(END) 도달 태스크는 남은 줄과 무관하게 전부 완료로 센다 — 그래야 100%에 닿는다.
+     * @return [done, total]
+     */
+    private int[] progressUnits(List<ChecklistItem> checklists, boolean done) {
+        int total = Math.max(checklists.size(), 1);
+        if (done) {
+            return new int[] {total, total};
+        }
+        int d = 0;
+        for (ChecklistItem c : checklists) {
+            if (Boolean.TRUE.equals(c.getIsCompleted())) {
+                d++;
+            }
+        }
+        return new int[] {d, total};
+    }
+
+    /** 스프린트 전체의 체크리스트 줄 진척([done, total]) — 종료/재활성화 시 동결 수치 계산용. */
+    private int[] sprintProgressUnits(String sprintId) {
+        Map<String, List<ChecklistItem>> byTask =
+                groupByTask(checklistItemRepository.findByTaskSprintId(sprintId));
+        int done = 0;
+        int total = 0;
+        for (Task t : taskRepository.findBySprintId(sprintId)) {
+            SprintColumn col = t.getSprintColumn();
+            int[] u = progressUnits(byTask.getOrDefault(t.getId(), List.of()), col != null && col.isEnd());
+            done += u[0];
+            total += u[1];
+        }
+        return new int[] {done, total};
+    }
+
+    private SprintResponse.Board buildBoard(Milestone milestone, String userId) {
         String milestoneId = milestone.getId();
         List<Sprint> sprints = sprintRepository.findByMilestoneIdOrderBySequenceNoAsc(milestoneId);
         List<SprintColumn> cols = sprintColumnRepository.findByMilestoneIdOrderByPositionAsc(milestoneId);
@@ -536,20 +575,6 @@ public class SprintService {
         Map<String, List<ChecklistItem>> checklistsByTask =
                 groupByTask(checklistItemRepository.findByTaskMilestoneId(milestoneId));
 
-        // 타임라인: 활성=라이브 집계, 아카이브=동결 수치
-        List<SprintResponse.SprintInfo> timeline = new ArrayList<>();
-        for (Sprint s : sprints) {
-            int pct;
-            if (s.isActive()) {
-                int total = taskRepository.countBySprintId(s.getId());
-                int done = taskRepository.countBySprintIdAndColumnKind(s.getId(), SprintColumnKind.END);
-                pct = total > 0 ? Math.round(done * 100f / total) : 0;
-            } else {
-                pct = s.getTotalCount() > 0 ? Math.round(s.getCompletedCount() * 100f / s.getTotalCount()) : 0;
-            }
-            timeline.add(SprintResponse.SprintInfo.of(s, pct));
-        }
-
         SprintResponse.SprintInfo activeInfo = null;
         List<SprintResponse.Column> columnDtos;
         SprintResponse.Gauge gauge;
@@ -563,28 +588,30 @@ public class SprintService {
                 byCol.put(c.getId(), new ArrayList<>());
             }
             String fallbackColId = cols.isEmpty() ? null : cols.get(0).getId();
-            int done = 0;
+            int unitDone = 0;
+            int unitTotal = 0;
             for (Task t : tasks) {
+                List<ChecklistItem> cls = checklistsByTask.getOrDefault(t.getId(), List.of());
                 JiraIssueLink jiraLink = jiraLinkByTaskId.get(t.getId());
                 SprintResponse.ItemCard card = SprintResponse.ItemCard.of(
                         t,
-                        checklistsByTask.getOrDefault(t.getId(), List.of()),
+                        cls,
                         jiraLink != null ? jiraLink.getJiraIssueKey() : null,
                         jiraLink != null ? jiraLink.getLastJiraStatusId() : null);
                 SprintColumn tc = t.getSprintColumn();
                 if (tc != null && byCol.containsKey(tc.getId())) {
                     byCol.get(tc.getId()).add(card);
-                    if (tc.isEnd()) {
-                        done++;
-                    }
                 } else if (fallbackColId != null) {
                     byCol.get(fallbackColId).add(card);
                 }
+                int[] u = progressUnits(cls, tc != null && tc.isEnd());
+                unitDone += u[0];
+                unitTotal += u[1];
             }
             columnDtos = cols.stream()
                     .map(c -> SprintResponse.Column.of(c, byCol.get(c.getId())))
                     .toList();
-            gauge = SprintResponse.Gauge.of(done, tasks.size());
+            gauge = SprintResponse.Gauge.of(unitDone, unitTotal);
             activeInfo = SprintResponse.SprintInfo.of(active, gauge.getPercentage());
         } else {
             columnDtos = cols.stream()
@@ -593,13 +620,25 @@ public class SprintService {
             gauge = SprintResponse.Gauge.of(0, 0);
         }
 
+        // 타임라인: 활성=위에서 잰 라이브 게이지(체크리스트 줄 기준), 아카이브=종료 시점 동결 수치
+        List<SprintResponse.SprintInfo> timeline = new ArrayList<>();
+        for (Sprint s : sprints) {
+            int pct = s.isActive()
+                    ? gauge.getPercentage()
+                    : (s.getTotalCount() > 0
+                            ? Math.round(s.getCompletedCount() * 100f / s.getTotalCount())
+                            : 0);
+            timeline.add(SprintResponse.SprintInfo.of(s, pct));
+        }
+
         List<SprintResponse.ItemCard> backlog = taskRepository.findSprintBacklogByMilestoneId(milestoneId)
                 .stream()
                 .map(t -> SprintResponse.ItemCard.of(t, checklistsByTask.getOrDefault(t.getId(), List.of())))
                 .toList();
 
         // JIRA 뷰(컬럼=JIRA 상태)용 — 스프린트 담김과 무관한 보드 전체 JIRA 연동 Task.
-        List<SprintResponse.JiraTask> jiraTasks = buildJiraTasks(milestone.getBoard().getId());
+        String boardId = milestone.getBoard().getId();
+        List<SprintResponse.JiraTask> jiraTasks = buildJiraTasks(boardId);
 
         return SprintResponse.Board.builder()
                 .sprintEnabled(Boolean.TRUE.equals(milestone.getSprintEnabled()))
@@ -609,7 +648,37 @@ public class SprintService {
                 .columns(columnDtos)
                 .backlog(backlog)
                 .jiraTasks(jiraTasks)
+                .jiraLastSeenAt(resolveJiraLastSeenAt(boardId, userId, jiraTasks.isEmpty()))
                 .build();
+    }
+
+    /**
+     * JIRA 신규 뱃지의 기준선. 값이 없는 멤버(=연동 후 첫 진입)는 <b>now로 초기화</b>해서
+     * 기존 이슈 전체가 한꺼번에 신규로 잡히는 것을 막는다.
+     *
+     * <p>초기화는 실제로 볼 이슈가 있을 때만 한다. 미연동 보드에서 기준선을 미리 박아두면
+     * 나중에 연동했을 때 그 사이 import된 이슈가 통째로 "이미 본 것"이 되기 때문이다.
+     */
+    private LocalDateTime resolveJiraLastSeenAt(String boardId, String userId, boolean noJiraTasks) {
+        if (userId == null) {
+            return null;
+        }
+        return boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
+                .map(member -> {
+                    if (!noJiraTasks) {
+                        member.initJiraSeenIfAbsent(); // 더티 체킹으로 반영 (호출부는 모두 쓰기 트랜잭션)
+                    }
+                    return member.getJiraLastSeenAt();
+                })
+                .orElse(null);
+    }
+
+    /** JIRA 뷰를 확인 처리 — 기준선을 now로 밀어 신규 카운트를 0으로 만든다. */
+    @Transactional
+    public void markJiraSeen(String boardId, String userId) {
+        boardService.checkViewerOrAbove(boardId, userId);
+        boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
+                .ifPresent(BoardMember::markJiraSeen);
     }
 
     /**
@@ -663,6 +732,7 @@ public class SprintService {
                     .assignees(new ArrayList<>(assignees.values()))
                     .done(done)
                     .total(total)
+                    .linkedAt(link.getCreatedAt())
                     .build());
         }
         return out;
