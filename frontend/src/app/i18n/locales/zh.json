@@ -1390,7 +1390,12 @@
     },
     "checklistFilter": {
       "unassigned": "未分配",
-      "showingCount": "显示 {{visible}} / {{total}}"
+      "showingCount": "显示 {{visible}} / {{total}}",
+      "all": "全部",
+      "groupLabel": "负责人筛选",
+      "railAll": "共 {{total}} 项",
+      "railSelected": "已选 {{count}} 人 · {{visible}} 项",
+      "empty": "所选负责人没有清单项。"
     },
     "tags": "标签",
     "tagName": "标签名称",

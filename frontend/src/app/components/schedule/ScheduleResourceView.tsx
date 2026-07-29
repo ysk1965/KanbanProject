@@ -312,8 +312,18 @@ export function ScheduleResourceView({
   const [dropHighlight, setDropHighlight] = useState<DropHighlight | null>(
     null,
   );
-  /** Track which member rows are expanded (showing all lanes) */
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  /**
+   * 행 펼침 기본값 — 임베드(대시보드 "내 워크로드")는 항상 펼친 상태로 시작한다.
+   * 일정 탭 리소스 뷰는 기존대로 접힌 상태에서 시작.
+   */
+  const rowsDefaultExpanded = embedded;
+  /** 기본값에서 토글된 행만 담는다 (기본 접힘이면 "펼친 행", 기본 펼침이면 "접은 행") */
+  const [toggledRows, setToggledRows] = useState<Set<string>>(new Set());
+  const isRowExpanded = useCallback(
+    (rowId: string) =>
+      rowsDefaultExpanded ? !toggledRows.has(rowId) : toggledRows.has(rowId),
+    [rowsDefaultExpanded, toggledRows],
+  );
   /**
    * 현재 가로 스크롤로 보이는 day-index 범위.
    * `+N 더 보기`(collapse) 판정·카운트·행 높이를 가시 영역 기준으로 계산하기 위함.
@@ -1062,14 +1072,23 @@ export function ScheduleResourceView({
         }
       }
 
-      setExpandedRows((prev) =>
-        prev.size > 0 ? new Set() : new Set(rows.map((r) => r.id)),
-      );
+      setToggledRows((prev) => {
+        const allIds = rows.map((r) => r.id);
+        const anyExpanded = allIds.some((id) =>
+          rowsDefaultExpanded ? !prev.has(id) : prev.has(id),
+        );
+        // 하나라도 펼쳐져 있으면 전부 접고, 아니면 전부 펼친다
+        const collapseAll = anyExpanded;
+        return rowsDefaultExpanded === collapseAll
+          ? new Set(allIds)
+          : new Set<string>();
+      });
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [
     rows,
+    rowsDefaultExpanded,
     groupByJobRole,
     roleGroupSegments,
     collapsedRoleGroups,
@@ -2714,7 +2733,7 @@ export function ScheduleResourceView({
               })),
             );
 
-            const isExpanded = expandedRows.has(row.id);
+            const isExpanded = isRowExpanded(row.id);
             // collapse 판정·카운트·행 높이는 "현재 가시 날짜 범위"에 걸치는 바 기준.
             // 레인(barLanes)은 전역 유지 → 스크롤 시 바 세로 위치가 튀지 않음.
             // visibleDayRange가 아직 없으면(측정 전) 전체 바 기준으로 폴백.
@@ -2872,7 +2891,7 @@ export function ScheduleResourceView({
                       <button
                         className="flex items-center gap-1 mt-1.5 text-xs text-slate-400 hover:text-foreground transition-colors"
                         onClick={() => {
-                          setExpandedRows((prev) => {
+                          setToggledRows((prev) => {
                             const next = new Set(prev);
                             if (next.has(row.id)) {
                               next.delete(row.id);

@@ -1390,7 +1390,12 @@
     },
     "checklistFilter": {
       "unassigned": "未割り当て",
-      "showingCount": "{{visible}} / {{total}} 件表示中"
+      "showingCount": "{{visible}} / {{total}} 件表示中",
+      "all": "すべて",
+      "groupLabel": "担当者フィルター",
+      "railAll": "全 {{total}} 件",
+      "railSelected": "{{count}}名選択 · {{visible}} 件",
+      "empty": "選択した担当者のチェックリスト項目がありません。"
     },
     "tags": "タグ",
     "tagName": "タグ名",

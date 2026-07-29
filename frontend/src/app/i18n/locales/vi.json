@@ -1390,7 +1390,12 @@
     },
     "checklistFilter": {
       "unassigned": "Chưa phân công",
-      "showingCount": "Đang hiển thị {{visible}} / {{total}}"
+      "showingCount": "Đang hiển thị {{visible}} / {{total}}",
+      "all": "Tất cả",
+      "groupLabel": "Bộ lọc người phụ trách",
+      "railAll": "{{total}} mục",
+      "railSelected": "Đã chọn {{count}} · {{visible}} mục",
+      "empty": "Không có mục nào cho người phụ trách đã chọn."
     },
     "tags": "The",
     "tagName": "Ten the",

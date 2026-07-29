@@ -41,6 +41,8 @@ interface DashboardViewProps {
     end_date: string,
   ) => void | Promise<void>;
   onOpenContractorManager: () => void;
+  /** 칸반 뷰로 전환 — 워크로드 배치 레일의 링크 */
+  onOpenKanban: () => void;
   /** 일정 탭(타임블록)으로 전환 */
   onOpenSchedule: () => void;
   /** 일정 탭 리소스 뷰로 전환 */
@@ -51,7 +53,7 @@ interface DashboardViewProps {
  * 보드 > 대시보드 — 개인 관점의 진입 화면.
  *
  * 레이아웃
- *  A 왼쪽 = 오늘의 타임블록 / 오른쪽 = 내 워크로드(간트)
+ *  A 왼쪽 = 오늘의 타임블록 / 오른쪽 = 내 워크로드(간트 + 배치 레일)
  *  B 의존성 · 다가오는 일정 · 나를 부른 것들
  */
 export function DashboardView({
@@ -76,6 +78,7 @@ export function DashboardView({
   onMilestoneClick,
   onUpdateMilestoneDates,
   onOpenContractorManager,
+  onOpenKanban,
   onOpenSchedule,
   onOpenResourceView,
 }: DashboardViewProps) {
@@ -125,11 +128,13 @@ export function DashboardView({
               jobRoles={jobRoles}
               features={allFeatures}
               refreshTrigger={scheduleRefreshPanel}
+              currentUserRole={currentUserRole}
               onViewTask={onViewTaskWithChecklist}
               onMilestoneClick={onMilestoneClick}
               onUpdateMilestoneDates={onUpdateMilestoneDates}
               onOpenContractorManager={onOpenContractorManager}
               onOpenResourceView={onOpenResourceView}
+              onOpenKanban={onOpenKanban}
             />
           </div>
         </div>

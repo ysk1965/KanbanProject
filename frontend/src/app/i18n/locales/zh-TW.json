@@ -1375,7 +1375,12 @@
     },
     "checklistFilter": {
       "unassigned": "未指派",
-      "showingCount": "顯示 {{visible}} / {{total}}"
+      "showingCount": "顯示 {{visible}} / {{total}}",
+      "all": "全部",
+      "groupLabel": "負責人篩選",
+      "railAll": "共 {{total}} 項",
+      "railSelected": "已選 {{count}} 人 · {{visible}} 項",
+      "empty": "所選負責人沒有清單項目。"
     },
     "tags": "標籤",
     "tagName": "標籤名稱",

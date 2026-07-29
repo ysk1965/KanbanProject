@@ -1390,7 +1390,12 @@
     },
     "checklistFilter": {
       "unassigned": "ไม่ได้มอบหมาย",
-      "showingCount": "แสดง {{visible}} / {{total}}"
+      "showingCount": "แสดง {{visible}} / {{total}}",
+      "all": "ทั้งหมด",
+      "groupLabel": "ตัวกรองผู้รับผิดชอบ",
+      "railAll": "{{total}} รายการ",
+      "railSelected": "เลือก {{count}} คน · {{visible}} รายการ",
+      "empty": "ไม่มีรายการเช็กลิสต์สำหรับผู้รับผิดชอบที่เลือก"
     },
     "tags": "แท็ก",
     "tagName": "ชื่อแท็ก",
