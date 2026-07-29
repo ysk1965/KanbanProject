@@ -33,6 +33,7 @@ import {
 
 // 뷰 모드 타입
 type ViewMode =
+  | "dashboard"
   | "kanban"
   | "gantt"
   | "schedule"
@@ -49,6 +50,7 @@ type ViewMode =
 
 // 보드 서브뷰 그룹 (보드 탭에 속하는 ViewMode 집합)
 const BOARD_SUB_MODES: ViewMode[] = [
+  "dashboard",
   "kanban",
   "gantt",
   "calendar",
@@ -104,6 +106,7 @@ import { MilestoneTabBar } from "../components/MilestoneTabBar";
 import { ScheduleSubTabBar } from "../components/ScheduleSubTabBar";
 import { GanttView } from "../views/GanttView";
 import { KanbanView } from "../views/KanbanView";
+import { DashboardView } from "../views/DashboardView";
 import { ScheduleView } from "../views/ScheduleView";
 import { FeatureCard } from "../components/FeatureCard";
 import { FeatureChipSelector } from "../components/FeatureChipSelector";
@@ -326,6 +329,7 @@ export function KanbanBoardPage() {
       const mappedView = remap(urlView);
       if (
         [
+          "dashboard",
           "kanban",
           "gantt",
           "schedule",
@@ -343,7 +347,8 @@ export function KanbanBoardPage() {
       }
     }
     const saved = localStorage.getItem(`viewMode_${boardId}`);
-    if (!saved) return "kanban";
+    // 기본 진입 탭은 대시보드. 다른 탭을 고르면 localStorage에 남아 다음 방문에도 유지된다.
+    if (!saved) return "dashboard";
     return remap(saved) as ViewMode;
   });
 
@@ -3071,16 +3076,18 @@ export function KanbanBoardPage() {
           />
         )}
 
-        {/* 서브뷰 ↔ 마일스톤 구분선 (마인드맵은 통합 뷰라 마일스톤 필터 제외) */}
+        {/* 서브뷰 ↔ 마일스톤 구분선 (대시보드·마인드맵은 마일스톤 필터 제외) */}
         {BOARD_SUB_MODES.includes(viewMode) &&
+          viewMode !== "dashboard" &&
           viewMode !== "milestone" &&
           viewMode !== "mindmap" &&
           milestones.length > 0 && (
             <div className="border-b border-foreground/[0.08]" />
           )}
 
-        {/* 마일스톤 탭 바 (보드 서브뷰에서 표시, milestone·mindmap 뷰 제외) */}
+        {/* 마일스톤 탭 바 (보드 서브뷰에서 표시, dashboard·milestone·mindmap 뷰 제외) */}
         {BOARD_SUB_MODES.includes(viewMode) &&
+          viewMode !== "dashboard" &&
           viewMode !== "milestone" &&
           viewMode !== "mindmap" &&
           milestones.length > 0 && (
@@ -3132,7 +3139,25 @@ export function KanbanBoardPage() {
           )}
 
         {/* 뷰 모드에 따른 컨텐츠 렌더링 */}
-        {viewMode === "gantt" ? (
+        {viewMode === "dashboard" ? (
+          <DashboardView
+            boardId={boardId || ""}
+            userId={currentUser?.id}
+            userName={currentUser?.name || ""}
+            tasks={tasks}
+            milestones={milestones}
+            onTaskClick={handleTaskClick}
+            onOpenKanban={() => handleViewModeChange("kanban")}
+            onOpenSchedule={() => {
+              handleScheduleSubTabChange("timeblock");
+              handleViewModeChange("schedule");
+            }}
+            onOpenResourceView={() => {
+              handleScheduleSubTabChange("resource");
+              handleViewModeChange("schedule");
+            }}
+          />
+        ) : viewMode === "gantt" ? (
           <GanttView
             boardId={boardId || ""}
             searchInputRef={searchInputRef}
@@ -3849,8 +3874,9 @@ export function KanbanBoardPage() {
           {beCommit && <> · BE: {beCommit}</>}
         </div>
 
-        {/* 우하단 플로팅 뷰 전환 버튼 (보드 표현 뷰에서만 표시, 마일스톤·마인드맵 제외) */}
+        {/* 우하단 플로팅 뷰 전환 버튼 (보드 표현 뷰에서만 표시, 대시보드·마일스톤·마인드맵 제외) */}
         {BOARD_SUB_MODES.includes(viewMode) &&
+          viewMode !== "dashboard" &&
           viewMode !== "milestone" &&
           viewMode !== "mindmap" && (
             <FloatingViewSwitcher

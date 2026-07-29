@@ -60,6 +60,61 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "WHERE t.feature.id = :featureId ORDER BY t.position ASC")
     List<Task> findByFeatureIdWithFetch(@Param("featureId") String featureId);
 
+    // ==================== Sprint Queries (멤버십은 태스크 단위) ====================
+
+    /** 스프린트에 담긴 태스크 (프레임 컬럼용) — feature/sprintColumn fetch */
+    @Query("SELECT t FROM Task t " +
+           "JOIN FETCH t.feature " +
+           "LEFT JOIN FETCH t.block " +
+           "LEFT JOIN FETCH t.sprintColumn sc " +
+           "WHERE t.sprint.id = :sprintId " +
+           "ORDER BY sc.position, t.featurePosition, t.position")
+    List<Task> findBySprintId(@Param("sprintId") String sprintId);
+
+    /** 마일스톤 백로그 (아직 어떤 스프린트에도 안 담긴 태스크) — 담기 후보 */
+    @Query("SELECT t FROM Task t " +
+           "JOIN FETCH t.feature " +
+           "LEFT JOIN FETCH t.block " +
+           "WHERE t.milestone.id = :milestoneId AND t.sprint IS NULL " +
+           "ORDER BY t.featurePosition, t.position")
+    List<Task> findSprintBacklogByMilestoneId(@Param("milestoneId") String milestoneId);
+
+    /** 마일스톤 관리 콘솔 / 좌측 트리: 마일스톤 내 전체 태스크 (스프린트 담김 무관) */
+    @Query("SELECT t FROM Task t " +
+           "JOIN FETCH t.feature " +
+           "LEFT JOIN FETCH t.block " +
+           "LEFT JOIN FETCH t.sprintColumn " +
+           "WHERE t.milestone.id = :milestoneId " +
+           "ORDER BY t.featurePosition, t.position")
+    List<Task> findAllByMilestoneIdWithSprint(@Param("milestoneId") String milestoneId);
+
+    /** 스코프 게이지 분모: 스프린트에 담긴 전체 태스크 수 */
+    @Query("SELECT COUNT(t) FROM Task t WHERE t.sprint.id = :sprintId")
+    int countBySprintId(@Param("sprintId") String sprintId);
+
+    /** 스코프 게이지 분자: 스프린트 내 특정 컬럼 종류(END=Done)의 태스크 수 */
+    @Query("SELECT COUNT(t) FROM Task t WHERE t.sprint.id = :sprintId AND t.sprintColumn.kind = :kind")
+    int countBySprintIdAndColumnKind(@Param("sprintId") String sprintId,
+                                     @Param("kind") com.kanban.domain.sprint.SprintColumnKind kind);
+
+    /**
+     * 스프린트 종료 이월 대상: 아직 END(Done) 컬럼에 도달하지 않은 태스크.
+     * 컬럼이 비어 있는(유실된) 태스크도 이월 대상이므로 LEFT JOIN으로 명시한다 —
+     * t.sprintColumn.kind 형태로 쓰면 암묵 INNER JOIN이 되어 컬럼 없는 태스크가 통째로 빠진다.
+     */
+    @Query("SELECT t FROM Task t LEFT JOIN t.sprintColumn sc " +
+           "WHERE t.sprint.id = :sprintId AND (sc IS NULL OR sc.kind <> :endKind)")
+    List<Task> findNotDoneBySprintId(@Param("sprintId") String sprintId,
+                                     @Param("endKind") com.kanban.domain.sprint.SprintColumnKind endKind);
+
+    /** 스프린트 모드 off 병합용: 마일스톤 내 담긴 태스크 전체 */
+    @Query("SELECT t FROM Task t WHERE t.sprint.milestone.id = :milestoneId AND t.sprint IS NOT NULL")
+    List<Task> findInSprintByMilestoneId(@Param("milestoneId") String milestoneId);
+
+    /** 특정 컬럼에 담긴 태스크 (컬럼 삭제 시 재배치용) */
+    @Query("SELECT t FROM Task t WHERE t.sprintColumn.id = :columnId")
+    List<Task> findBySprintColumnId(@Param("columnId") String columnId);
+
     @Query("SELECT t FROM Task t WHERE t.board.id = :boardId AND t.isCompleted = :isCompleted ORDER BY t.position ASC")
     List<Task> findByBoardIdAndIsCompleted(@Param("boardId") String boardId, @Param("isCompleted") Boolean isCompleted);
 

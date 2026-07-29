@@ -16,7 +16,6 @@ import com.kanban.domain.checklist.dto.ChecklistAIResponse;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.monitoring.entity.AiUsageLog;
 import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
-import com.kanban.domain.sprint.service.SprintService;
 import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
@@ -54,7 +53,6 @@ public class ChecklistAIService {
     private final AiUsageLogRepository aiUsageLogRepository;
     private final AiCreditService aiCreditService;
     private final WebSocketEventService webSocketEventService;
-    private final SprintService sprintService;
 
     @Value("${ai.provider:claude}")
     private String provider;
@@ -161,8 +159,7 @@ public class ChecklistAIService {
                     .position(newPos)
                     .build();
             checklistItemRepository.save(checklistItem);
-            // 태스크 단위 스프린트 편입: 부모 태스크가 이미 활성 스프린트에 담겨 있으면 새 항목도 자동으로 담는다.
-            sprintService.inheritSprintForNewItem(checklistItem);
+            // 스프린트 편입은 부모 태스크가 들고 있어 별도 처리가 필요 없다.
             itemsCreated++;
         }
 

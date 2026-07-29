@@ -87,21 +87,19 @@ interface SprintBoardProps {
   memberOrder?: string[];
 }
 
-/** Feature ▸ Task ▸ 체크리스트 소스 트리 노드 */
-interface TreeTask {
-  taskId: string;
-  taskTitle: string;
-  items: SprintItemCard[];
-}
+/**
+ * Feature ▸ Task 소스 트리 노드. 담기 단위가 태스크라 트리도 2단이다 —
+ * 체크리스트는 태스크 행의 진척(3/5)으로 접혀 들어가고 별도 레벨을 만들지 않는다.
+ */
 interface TreeFeature {
   featureId: string;
   featureTitle: string;
   featureColor: string | null;
   featureCreatedAt: string | null; // Feature 생성 순서 정렬 키
-  tasks: TreeTask[];
-  total: number;
-  taken: number;
-  completed: number;
+  tasks: SprintItemCard[]; // 카드 1건 = 태스크 1건
+  total: number; // 태스크 수
+  taken: number; // 스프린트에 담긴 태스크 수
+  completed: number; // Done 컬럼에 도달한 태스크 수
 }
 
 const DRAG_ITEM = "application/bridge-sprint-item";
@@ -211,8 +209,6 @@ export function SprintBoard({
   const [collapsedFeatures, setCollapsedFeatures] = useState<Set<string>>(
     new Set(),
   );
-  // 보드: Feature 컬럼 안 Task 소그룹 접기 상태 (key = `${featureId}:${taskId}`)
-  const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
   // 업무 리스트: 항목이 전부 정리(담김·완료)된 Feature는 한 줄 스트립으로 남기고,
   // 펼친 스트립(정리된 항목 미리보기)만 이 집합에 담는다. 기본은 접힘.
   const [expandedCleared, setExpandedCleared] = useState<Set<string>>(
@@ -482,7 +478,7 @@ export function SprintBoard({
     setPreviewLoading(true);
     setPreviewItems(null);
     sprintAPI
-      .getSprintItems(boardId, previewSprintId)
+      .getSprintTasks(boardId, previewSprintId)
       .then((items) => {
         if (!cancelled) setPreviewItems(items);
       })
@@ -696,7 +692,7 @@ export function SprintBoard({
     [filteredBoard],
   );
 
-  // 소스 트리: backlog + 모든 컬럼 아이템을 합쳐 Feature ▸ Task ▸ 체크리스트로 재구성
+  // 소스 트리: backlog + 모든 컬럼 카드를 합쳐 Feature ▸ Task로 재구성 (카드 1건 = 태스크 1건)
   const tree = useMemo<TreeFeature[]>(() => {
     if (!filteredBoard) return [];
     const all: SprintItemCard[] = [
@@ -720,13 +716,7 @@ export function SprintBoard({
         };
         featMap.set(fid, feat);
       }
-      const tid = it.task_id ?? "__none__";
-      let task = feat.tasks.find((t) => t.taskId === tid);
-      if (!task) {
-        task = { taskId: tid, taskTitle: it.task_title ?? "기타", items: [] };
-        feat.tasks.push(task);
-      }
-      task.items.push(it);
+      feat.tasks.push(it);
       feat.total += 1;
       if (it.sprint_column_id) feat.taken += 1;
       if (it.completed) feat.completed += 1;
@@ -754,9 +744,7 @@ export function SprintBoard({
   const orderedTree = useMemo<TreeFeature[]>(() => {
     if (showTakenInTree) return tree;
     const hasRemaining = (feat: TreeFeature) =>
-      feat.tasks.some((t) =>
-        t.items.some((it) => !it.sprint_column_id && !it.completed),
-      );
+      feat.tasks.some((it) => !it.sprint_column_id && !it.completed);
     return tree
       .map((feat, idx) => ({ feat, idx, remaining: hasRemaining(feat) }))
       .sort((a, b) => {
@@ -771,14 +759,6 @@ export function SprintBoard({
       const next = new Set(prev);
       if (next.has(fid)) next.delete(fid);
       else next.add(fid);
-      return next;
-    });
-  };
-  const toggleTask = (key: string) => {
-    setCollapsedTasks((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
       return next;
     });
   };
@@ -864,70 +844,42 @@ export function SprintBoard({
     [columns],
   );
 
-  // 스프린트에 담긴 각 Feature = 하나의 컬럼. 컬럼 안은 Task 소그룹으로 나뉜다.
-  // 존재 조건(컬럼·소그룹 공통): "아직 Done이 아닌 담긴 항목"이 1개 이상 →
-  //   In Review로 옮겨도 유지되고, 전부 Done에 도달하면(= Done 컬럼에 모임) 사라진다.
-  // 소그룹 안 카드로 표시되는 건 START(Sprint) 단계에 남은 항목뿐. 순서는 좌측 트리와 일치.
-  interface TaskGroup {
-    taskId: string;
-    taskTitle: string;
-    items: SprintItemCard[]; // START 단계에 남은 카드
-    doneTotal: number; // 담긴 항목 중 완료 수
-    total: number; // 담긴 항목 전체 수
-  }
+  // 스프린트에 담긴 각 Feature = 하나의 컬럼. 카드는 태스크 1건이라 소그룹 없이 바로 나열된다.
+  // 컬럼 존재 조건: START(Sprint) 단계에 남은 태스크가 1개 이상 →
+  //   In Review·Done으로 옮겨간 태스크는 각자의 컬럼에서 보이므로 여기서 빠진다.
   const featureColumns = useMemo(() => {
     if (!startColumn) return [];
     const result: {
       featureId: string;
       featureTitle: string;
       featureColor: string | null;
-      tasks: TaskGroup[];
-      doneTotal: number;
-      total: number;
+      items: SprintItemCard[]; // START 단계에 남은 태스크 카드
+      doneTotal: number; // 담긴 태스크 중 Done 도달 수
+      total: number; // 담긴 태스크 전체 수
     }[] = [];
     for (const feat of tree) {
-      const taskGroups: TaskGroup[] = [];
-      let fDone = 0;
-      let fTotal = 0;
-      for (const task of feat.tasks) {
-        const taken = task.items.filter((it) => it.sprint_column_id);
-        if (taken.length === 0) continue;
+      const taken = feat.tasks.filter((it) => it.sprint_column_id);
+      if (taken.length === 0) continue;
 
-        let doneTotal = 0;
-        let notInDoneColumn = 0;
-        for (const it of taken) {
-          const kind = it.sprint_column_id
-            ? columnById.get(it.sprint_column_id)?.kind
-            : undefined;
-          if (it.completed || kind === "END") doneTotal += 1;
-          if (kind !== "END") notInDoneColumn += 1;
-        }
-        // Feature 진척도에는 완료된 Task도 포함
-        fDone += doneTotal;
-        fTotal += taken.length;
-        // 전부 Done인 Task 소그룹은 숨김(Done 컬럼에 모임)
-        if (notInDoneColumn === 0) continue;
-
-        const startItems = taken
-          .filter((it) => it.sprint_column_id === startColumn.id)
-          .sort(sprintUrgencyCmp);
-        taskGroups.push({
-          taskId: task.taskId,
-          taskTitle: task.taskTitle,
-          items: startItems,
-          doneTotal,
-          total: taken.length,
-        });
+      let doneTotal = 0;
+      for (const it of taken) {
+        const kind = it.sprint_column_id
+          ? columnById.get(it.sprint_column_id)?.kind
+          : undefined;
+        if (it.completed || kind === "END") doneTotal += 1;
       }
-      // 활성 Task 소그룹이 없으면(전부 Done/미담김) Feature 컬럼 숨김
-      if (taskGroups.length === 0) continue;
+      const startItems = taken
+        .filter((it) => it.sprint_column_id === startColumn.id)
+        .sort(sprintUrgencyCmp);
+      // START에 남은 게 없으면(전부 리뷰·Done으로 이동) Feature 컬럼 숨김
+      if (startItems.length === 0) continue;
       result.push({
         featureId: feat.featureId,
         featureTitle: feat.featureTitle,
         featureColor: feat.featureColor,
-        tasks: taskGroups,
-        doneTotal: fDone,
-        total: fTotal,
+        items: startItems,
+        doneTotal,
+        total: taken.length,
       });
     }
     return result;
@@ -942,16 +894,14 @@ export function SprintBoard({
         let total = 0;
         let done = 0;
         let overdue = 0;
-        for (const task of feat.tasks) {
-          for (const it of task.items) {
-            if (!it.sprint_column_id) continue; // 스프린트에 담긴 항목만
-            total += 1;
-            const kind = columnById.get(it.sprint_column_id)?.kind;
-            const isDone = it.completed || kind === "END";
-            if (isDone) done += 1;
-            else if (it.due_date && getDDay(it.due_date)?.urgency === "overdue")
-              overdue += 1;
-          }
+        for (const it of feat.tasks) {
+          if (!it.sprint_column_id) continue; // 스프린트에 담긴 태스크만
+          total += 1;
+          const kind = columnById.get(it.sprint_column_id)?.kind;
+          const isDone = it.completed || kind === "END";
+          if (isDone) done += 1;
+          else if (it.due_date && getDDay(it.due_date)?.urgency === "overdue")
+            overdue += 1;
         }
         return {
           featureId: feat.featureId,
@@ -988,11 +938,27 @@ export function SprintBoard({
     if (!startColumn) return [];
     // 컬럼 라우팅 키/이름 — 내부 담당자는 그 담당자, 외주는 "관리 담당(manager)"의 컬럼으로 귀속시킨다.
     // 관리자 미지정 외주(manager_user_id 없음)는 미배정으로 폴백해 진짜 미배정과 섞이되 배지로 구분된다.
-    const keyOf = (it: SprintItemCard) =>
-      it.assignee?.id ?? it.contractor?.manager_user_id ?? "__none__";
-    const nameOf = (it: SprintItemCard) =>
-      it.assignee?.name ?? it.contractor?.manager_name ?? "미배정";
-    // 담긴 항목 전체를 담당자별 진척으로 집계
+    //
+    // 카드가 태스크라 담당자가 여럿일 수 있다(체크리스트 담당자 합집합). 이때 카드는 관련된
+    // 모든 구성원 컬럼에 나타난다 — 한 사람의 컬럼만 보면 그가 맡은 일이 빠지기 때문이다.
+    const keysOf = (it: SprintItemCard): { id: string; name: string }[] => {
+      const out: { id: string; name: string }[] = [];
+      const seen = new Set<string>();
+      for (const a of it.assignees ?? (it.assignee ? [it.assignee] : [])) {
+        if (seen.has(a.id)) continue;
+        seen.add(a.id);
+        out.push({ id: a.id, name: a.name });
+      }
+      for (const c of it.contractors ??
+        (it.contractor ? [it.contractor] : [])) {
+        const id = c.manager_user_id;
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        out.push({ id, name: c.manager_name ?? "미배정" });
+      }
+      return out.length > 0 ? out : [{ id: "__none__", name: "미배정" }];
+    };
+    // 담긴 태스크 전체를 담당자별 진척으로 집계
     const stat = new Map<
       string,
       { name: string; done: number; total: number }
@@ -1005,18 +971,20 @@ export function SprintBoard({
           !featureFilter.has(it.feature_id ?? "__none__")
         )
           continue;
-        const id = keyOf(it);
-        let s = stat.get(id);
-        if (!s) {
-          s = { name: nameOf(it), done: 0, total: 0 };
-          stat.set(id, s);
-        }
-        s.total += 1;
         const kind = columnById.get(it.sprint_column_id)?.kind;
-        if (it.completed || kind === "END") s.done += 1;
+        const isDone = it.completed || kind === "END";
+        for (const k of keysOf(it)) {
+          let s = stat.get(k.id);
+          if (!s) {
+            s = { name: k.name, done: 0, total: 0 };
+            stat.set(k.id, s);
+          }
+          s.total += 1;
+          if (isDone) s.done += 1;
+        }
       }
     }
-    // 컬럼에 노출할 카드는 START 단계 항목뿐(순서 유지)
+    // 컬럼에 노출할 카드는 START 단계 태스크뿐(순서 유지)
     const startByMember = new Map<string, SprintItemCard[]>();
     for (const it of startColumn.items) {
       if (
@@ -1024,10 +992,11 @@ export function SprintBoard({
         !featureFilter.has(it.feature_id ?? "__none__")
       )
         continue;
-      const id = keyOf(it);
-      const arr = startByMember.get(id);
-      if (arr) arr.push(it);
-      else startByMember.set(id, [it]);
+      for (const k of keysOf(it)) {
+        const arr = startByMember.get(k.id);
+        if (arr) arr.push(it);
+        else startByMember.set(k.id, [it]);
+      }
     }
     // START 카드가 있는 담당자만 컬럼화 · 미배정은 맨 뒤로
     // 정렬 기준: memberOrder(보드 멤버 관리 순서)가 있으면 그 순서, 없으면 카드 수 내림차순.
@@ -1331,50 +1300,33 @@ export function SprintBoard({
     });
   };
 
-  // 좌측 행: 체크박스 → 완료 토글(체크리스트 API 재사용 후 보드 갱신)
-  const toggleDone = (it: SprintItemCard) => {
-    if (!canEdit || !it.task_id) return;
+  // 카드 안쪽 체크리스트 한 줄 토글 — 카드 진척(3/5)만 바뀌고 컬럼은 움직이지 않는다.
+  const toggleChecklistLine = (taskId: string | null, lineId: string) => {
+    if (!canEdit || !taskId) return;
     void run(async () => {
-      await checklistAPI.toggleItem(boardId, it.task_id!, it.id);
+      await checklistAPI.toggleItem(boardId, taskId, lineId);
       return sprintAPI.getSprintBoard(boardId, milestoneId);
     });
   };
-  // 본문 클릭 → 태스크 모달 + 해당 체크리스트 하이라이트
+  // 카드/행 클릭 → 태스크 모달
   const openItem = (it: SprintItemCard) => {
-    if (it.task_id) onOpenChecklistItem?.(it.task_id, it.id);
+    if (it.task_id) onOpenChecklistItem?.(it.task_id);
   };
   const openTask = (taskId: string) => {
     if (taskId !== "__none__") onOpenChecklistItem?.(taskId);
   };
-  // Task 단위 담기 — 태스크의 미담김 항목을 한 번에 스프린트로 올린다.
-  // 데이터 모델은 그대로(항목별 sprint_column_id)이며, 기존 addItem을 순차 호출해
-  // 백엔드 위치 배정 경쟁을 피하고 마지막에 1회만 보드를 갱신한다.
-  const addTaskToSprint = (taskItems: SprintItemCard[]) => {
-    if (!canEdit || !activeSprint) return;
-    const targets = taskItems.filter((i) => !i.sprint_column_id);
-    if (targets.length === 0) return;
-    void run(async () => {
-      for (const it of targets) {
-        await sprintAPI.addItem(boardId, activeSprint.id, it.id);
-      }
-      return sprintAPI.getSprintBoard(boardId, milestoneId);
-    });
+  // 담기 — 태스크 1건을 스프린트로 올린다. 체크리스트는 태스크를 따라 함께 들어오고,
+  // 담긴 뒤 추가되는 항목도 별도 조작 없이 이 카드 안에 붙는다.
+  const addTaskToSprint = (it: SprintItemCard) => {
+    const taskId = it.task_id ?? it.id;
+    if (!canEdit || !activeSprint || !taskId || taskId === "__none__") return;
+    if (it.sprint_column_id) return;
+    void run(() => sprintAPI.addTask(boardId, activeSprint.id, taskId));
   };
-  // Task 단위 빼기 — 태스크의 담긴 항목을 한 번에 스프린트에서 뺀다.
-  // taskId로 전 컬럼(In Review·Done 포함)의 담긴 항목을 모아 순차 제거하므로,
-  // 소그룹에 보이는 START 카드뿐 아니라 태스크 전체가 통째로 빠진다.
+  // 빼기 — 태스크를 통째로 스프린트에서 뺀다(어느 컬럼에 있든).
   const removeTaskFromSprint = (taskId: string) => {
     if (!canEdit || !activeSprint || !taskId || taskId === "__none__") return;
-    const targets = columns
-      .flatMap((c) => c.items)
-      .filter((i) => i.task_id === taskId && i.sprint_column_id);
-    if (targets.length === 0) return;
-    void run(async () => {
-      for (const it of targets) {
-        await sprintAPI.removeItem(boardId, activeSprint.id, it.id);
-      }
-      return sprintAPI.getSprintBoard(boardId, milestoneId);
-    });
+    void run(() => sprintAPI.removeTask(boardId, activeSprint.id, taskId));
   };
   // 카드 호버 액션(리뷰·완료) — 드래그 없이 원클릭으로 목표 컬럼(In Review/Done)에 이동.
   const moveItemToColumn = (it: SprintItemCard, col: SprintColumn | null) => {
@@ -1453,25 +1405,31 @@ export function SprintBoard({
   };
 
   // ==================== 라이프사이클 ====================
+  const gauge = filteredBoard?.gauge; // 표시용(담당자 필터 반영)
+  // 남은 개수는 전체 진척 기준(필터로 100%처럼 보여도 실제 잔량을 표시)
+  const fullGauge = board?.gauge;
+  const remainingTasks = Math.max(
+    0,
+    (fullGauge?.total ?? 0) - (fullGauge?.done ?? 0),
+  );
+  // 기간이 끝나면 닫을 수 있어야 하므로 "전부 Done" 게이트는 두지 않는다.
+  // 미완료 태스크는 다음 스프린트로 이월되며, 종료 시점의 완료율은 그대로 동결된다.
+  const canClose = isAdminOrOwner && !!activeSprint;
+
   const closeSprint = () => {
     if (!activeSprint) return;
+    const carry =
+      remainingTasks > 0
+        ? `\n\n아직 Done이 아닌 태스크 ${remainingTasks}개는 다음 스프린트로 이월됩니다.`
+        : "";
     if (
       !window.confirm(
-        `${activeSprint.name}을(를) 종료하고 다음 스프린트를 시작할까요?`,
+        `${activeSprint.name}을(를) 종료하고 다음 스프린트를 시작할까요?${carry}`,
       )
     )
       return;
     void run(() => sprintAPI.closeSprint(boardId, activeSprint.id));
   };
-
-  const gauge = filteredBoard?.gauge; // 표시용(담당자 필터 반영)
-  // 스프린트 종료는 전체 진척 기준(필터로 100%처럼 보여도 조기 종료 방지)
-  const fullGauge = board?.gauge;
-  const canClose =
-    isAdminOrOwner &&
-    !!fullGauge &&
-    fullGauge.total > 0 &&
-    fullGauge.percentage === 100;
 
   // 진행 현황 4구간 분류 (KanbanBlock 진행 현황과 동일 규약).
   // 대상: 담긴 항목(sprint_column_id != null)만 — 게이지 %와 정확히 일치.
@@ -1655,9 +1613,17 @@ export function SprintBoard({
       it.sprint_column_id !== firstMiddleColumn.id;
     // 완료 = END(Done)로 이동. 이미 완료면 숨김.
     const showDone = canEdit && !readOnly && !!endColumn && !isDoneItem;
-    // 상세 = Task 모달 열기(+ 해당 체크리스트 하이라이트). 미리보기 제외.
+    // 상세 = Task 모달 열기. 미리보기 제외.
     const showDetail = !readOnly && !!it.task_id;
-    const showActions = showReview || showDone || showDetail;
+    // 빼기 = 이 태스크를 스프린트에서 통째로 뺀다. 드래그가 아니라 이 버튼이 빼기의 유일한 주체다.
+    const showEject = canEdit && !readOnly && !!activeSprint && !!it.task_id;
+    const showActions = showReview || showDone || showDetail || showEject;
+    // 카드 안쪽 체크리스트 — 담긴 뒤 항목이 추가돼도 여기 그대로 반영된다.
+    const lines = it.checklist_items ?? [];
+    const cTotal = it.checklist_total ?? lines.length;
+    const cDone = it.checklist_done ?? 0;
+    const cPct = cTotal > 0 ? Math.round((cDone / cTotal) * 100) : 0;
+    const previewLines = lines.slice(0, 3);
     return (
       <div
         key={it.id}
@@ -1706,6 +1672,20 @@ export function SprintBoard({
                 완료
               </button>
             )}
+            {showEject && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeTaskFromSprint(it.task_id ?? it.id);
+                }}
+                className="inline-grid place-items-center w-[26px] h-[26px] rounded-lg bg-amber-500/15 text-amber-500 hover:bg-amber-500 hover:text-amber-950 transition-colors"
+                aria-label="스프린트에서 빼기"
+                title="이 태스크를 스프린트에서 빼기"
+              >
+                <CornerUpLeft className="w-3 h-3" />
+              </button>
+            )}
             {showDetail && (
               <button
                 type="button"
@@ -1746,16 +1726,13 @@ export function SprintBoard({
               외주
             </span>
           )}
-          {/* 빼기 = 왼쪽 업무 리스트로 드래그. 담기가 Task 단위이므로 이 카드를 끌면
-              같은 태스크가 통째로 빠진다. 호버 시 액션 버튼에 자리를 내준다. */}
-          {canEdit && !readOnly && (
+          {/* 이월 배지 — 이번이 몇 번째 스프린트인지. 호버 시 액션 버튼에 자리를 내준다. */}
+          {(it.carry_over_count ?? 0) > 0 && (
             <span
-              className="ml-auto inline-flex items-center gap-0.5 text-[9px] font-bold text-slate-600 opacity-100 group-hover:opacity-0 transition-opacity shrink-0"
-              aria-hidden="true"
-              title="리스트로 끌면 이 태스크가 통째로 스프린트에서 빠집니다"
+              className="ml-auto shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 group-hover:opacity-0 transition-opacity"
+              title={`${(it.carry_over_count ?? 0) + 1}번째 스프린트째 진행 중`}
             >
-              <CornerUpLeft className="w-3 h-3" />
-              태스크 빼기
+              이월 {it.carry_over_count}
             </span>
           )}
         </div>
@@ -1795,7 +1772,6 @@ export function SprintBoard({
               예정
             </span>
           )}
-          {it.task_title && <span className="truncate">{it.task_title}</span>}
           <div className="ml-auto flex items-center gap-1.5 shrink-0">
             {upcoming ? (
               <span
@@ -1843,12 +1819,85 @@ export function SprintBoard({
             ) : null}
           </div>
         </div>
+
+        {/* 체크리스트 롤업 — 카드가 태스크라 여기가 "안에 뭐가 남았는지"를 보여주는 자리다.
+            태스크가 담긴 뒤 항목이 추가돼도 담기 조작 없이 이 집계에 그대로 반영된다. */}
+        {cTotal > 0 && (
+          <div className="pt-2 border-t border-dashed border-foreground/[0.10] space-y-1.5">
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <span className="shrink-0">체크리스트</span>
+              <span className="flex-1 max-w-[76px] h-[3px] rounded-full bg-foreground/10 overflow-hidden">
+                <span
+                  className="block h-full rounded-full bg-bridge-secondary transition-all motion-reduce:transition-none"
+                  style={{ width: `${cPct}%` }}
+                />
+              </span>
+              <span className="ml-auto tabular-nums text-slate-500">
+                {cDone}/{cTotal}
+              </span>
+            </div>
+            <ul className="space-y-1">
+              {previewLines.map((line) => (
+                <li key={line.id} className="flex items-start gap-1.5">
+                  <button
+                    type="button"
+                    disabled={readOnly || !canEdit || !it.task_id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleChecklistLine(it.task_id, line.id);
+                    }}
+                    aria-label={line.completed ? "완료 해제" : "완료 표시"}
+                    className={`mt-[3px] w-3 h-3 rounded-[3px] shrink-0 border grid place-items-center transition-colors ${
+                      line.completed
+                        ? "bg-bridge-secondary border-bridge-secondary"
+                        : "border-slate-500 hover:border-bridge-secondary"
+                    } ${
+                      readOnly || !canEdit ? "cursor-default" : "cursor-pointer"
+                    }`}
+                  >
+                    {line.completed && (
+                      <Check
+                        className="w-2 h-2 text-bridge-dark"
+                        strokeWidth={4}
+                      />
+                    )}
+                  </button>
+                  <span
+                    className={`text-xs leading-snug ${
+                      line.completed
+                        ? "line-through text-slate-600"
+                        : "text-slate-400"
+                    }`}
+                    title={line.title}
+                  >
+                    {line.title}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {cTotal > previewLines.length && (
+              <button
+                type="button"
+                disabled={!showDetail}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openItem(it);
+                }}
+                className={`text-xs text-slate-500 ${
+                  showDetail ? "hover:text-bridge-accent" : "cursor-default"
+                } transition-colors`}
+              >
+                +{cTotal - previewLines.length}개 더
+              </button>
+            )}
+          </div>
+        )}
       </div>
     );
   };
 
   // Feature 단위 컬럼 (기존 "Sprint" 컬럼을 Feature별로 쪼갠 것).
-  // 컬럼 안은 Task 소그룹으로 나뉘고, 소그룹은 접기/펼치기 가능.
+  // 카드가 태스크 1건이라 소그룹 없이 평면 나열한다.
   // 보드 안 카드를 여기로 드롭하면 START 컬럼으로 이동한다(보드 내부 이동만 허용).
   const renderFeatureColumn = (fc: (typeof featureColumns)[number]) => {
     const accent = fc.featureColor ?? "#6366F1";
@@ -1914,112 +1963,9 @@ export function SprintBoard({
           </div>
         </div>
 
-        {/* Task 소그룹 스택 */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2 min-h-[120px]">
-          {fc.tasks.map((task) => {
-            const tkey = `${fc.featureId}:${task.taskId}`;
-            const collapsed = collapsedTasks.has(tkey);
-            const clickable =
-              task.taskId !== "__none__" && !!onOpenChecklistItem;
-            // 태스크 고유 색 + 진행률 — 같은 피쳐 안 태스크 묶음을 시각적으로 분리.
-            const tColor = taskColorHex(task.taskId);
-            const tPct =
-              task.total > 0
-                ? Math.round((task.doneTotal / task.total) * 100)
-                : 0;
-            return (
-              // Task 소그룹 = 색 스파인 프레임 + 헤더 (카드를 담는 하나의 묶음).
-              // 좌측 3px 스파인 + 은은한 틴트로 "한 태스크"라는 소속감을 부여.
-              // 카드는 개별 draggable 유지, 프레임은 소속감만 부여.
-              <div
-                key={task.taskId}
-                className="rounded-xl border border-foreground/[0.08] overflow-hidden"
-                style={{
-                  borderLeft: `3px solid ${tColor}`,
-                  background: `${tColor}0d`,
-                }}
-              >
-                {/* Task 소그룹 헤더 바 (클릭 = 접기/펼치기, 호버 시 열기) */}
-                <div
-                  className={`group/task flex items-center gap-1.5 px-2 py-1.5 ${
-                    collapsed ? "" : "border-b border-foreground/[0.06]"
-                  }`}
-                  style={{ background: `${tColor}14` }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => toggleTask(tkey)}
-                    className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
-                    aria-label={collapsed ? "펼치기" : "접기"}
-                  >
-                    {collapsed ? (
-                      <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    )}
-                    <span
-                      className="w-1.5 h-1.5 rounded-sm shrink-0"
-                      style={{ background: tColor }}
-                    />
-                    <span
-                      className="text-[11px] font-bold uppercase tracking-wide text-slate-300 truncate"
-                      title={task.taskTitle}
-                    >
-                      {task.taskTitle}
-                    </span>
-                  </button>
-                  {clickable && (
-                    <button
-                      type="button"
-                      onClick={() => openTask(task.taskId)}
-                      className="shrink-0 w-6 h-6 grid place-items-center rounded text-slate-500 opacity-0 group-hover/task:opacity-100 hover:text-bridge-accent hover:bg-bridge-accent/10 transition-all"
-                      title="태스크 열기"
-                      aria-label="태스크 열기"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                    </button>
-                  )}
-                  {/* Task 단위 빼기 — 담기와 대칭. 이 태스크 전체를 스프린트에서 뺀다.
-                      카드 드래그가 아니라 헤더 버튼이 빼기의 유일한 주체다. */}
-                  {canEdit && task.taskId !== "__none__" && (
-                    <button
-                      type="button"
-                      onClick={() => removeTaskFromSprint(task.taskId)}
-                      className="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-bold rounded-full pl-1 pr-1.5 py-0.5 border border-amber-500/30 bg-amber-500/10 text-amber-500 opacity-0 group-hover/task:opacity-100 hover:bg-amber-500 hover:text-white transition-all"
-                      title="이 태스크를 스프린트에서 빼기"
-                      aria-label="태스크를 스프린트에서 빼기"
-                    >
-                      <CornerUpLeft className="w-3 h-3" strokeWidth={2.5} />
-                      빼기
-                    </button>
-                  )}
-                  {/* 태스크별 진행률 미니바 — 밀린 태스크를 스캔 한 번에 파악 */}
-                  <span className="w-8 h-1 rounded-full bg-foreground/10 overflow-hidden shrink-0">
-                    <span
-                      className="block h-full rounded-full transition-all"
-                      style={{ width: `${tPct}%`, background: tColor }}
-                    />
-                  </span>
-                  <span className="text-[10px] font-bold text-slate-500 tabular-nums shrink-0">
-                    {task.doneTotal}/{task.total}
-                  </span>
-                </div>
-
-                {/* 카드 (펼침 시) — 프레임 안쪽 살짝 리세스, 카드는 떠 있는 개별 요소 */}
-                {!collapsed && (
-                  <div className="p-2 space-y-1.5 bg-black/[0.12]">
-                    {task.items.length === 0 ? (
-                      <div className="py-2 px-1 text-[10px] text-slate-600">
-                        In Review로 이동됨 · 끌어와 되돌리기
-                      </div>
-                    ) : (
-                      task.items.map((it) => renderCard(it))
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        {/* 태스크 카드 스택 — 카드 1건이 태스크 1건이라 소그룹 없이 평면 나열한다. */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1.5 min-h-[120px]">
+          {fc.items.map((it) => renderCard(it))}
         </div>
       </div>
     );
@@ -2764,7 +2710,9 @@ export function SprintBoard({
                       {isAdminOrOwner && groupBy !== "jira" && (
                         <>
                           <span className="hidden text-[11px] text-slate-500 tabular-nums whitespace-nowrap lg:inline">
-                            {canClose ? "종료 가능" : `남은 ${remaining}개`}
+                            {remaining > 0
+                              ? `남은 ${remaining}개 · 이월`
+                              : "전부 완료"}
                           </span>
                           {inReactivation && (
                             <button
@@ -2790,9 +2738,9 @@ export function SprintBoard({
                                 : "bg-foreground/[0.05] text-slate-500 cursor-not-allowed"
                             }`}
                             title={
-                              canClose
-                                ? "스프린트 종료"
-                                : "모든 카드가 Done이어야 종료할 수 있습니다"
+                              remaining > 0
+                                ? `스프린트 종료 · 미완료 ${remaining}개는 다음 스프린트로 이월됩니다`
+                                : "스프린트 종료"
                             }
                           >
                             {inReactivation ? "재동결" : "스프린트 종료"}
@@ -3065,44 +3013,29 @@ export function SprintBoard({
                 {(() => {
                   // "정리됨 · N" 구분선 위치 계산 — 숨김 모드에선 정리된 피쳐가 하단에 모이므로
                   // 첫 정리 피쳐 바로 앞에 구분선을 1회 삽입한다. (보임 모드에선 정리됨이 거의 없어 미출력)
+                  const visibleOf = (f: TreeFeature) =>
+                    showTakenInTree
+                      ? f.tasks
+                      : f.tasks.filter(
+                          (it) => !it.sprint_column_id && !it.completed,
+                        );
                   const featCleared = (f: TreeFeature) =>
-                    f.tasks
-                      .map((task) =>
-                        showTakenInTree
-                          ? task.items
-                          : task.items.filter(
-                              (it) => !it.sprint_column_id && !it.completed,
-                            ),
-                      )
-                      .filter((items) => items.length > 0).length === 0;
+                    visibleOf(f).length === 0;
                   const clearedFlags = orderedTree.map(featCleared);
                   const clearedCount = clearedFlags.filter(Boolean).length;
                   const firstClearedIdx = clearedFlags.indexOf(true);
                   return orderedTree.map((feat, idx) => {
-                    // 보임 필터: 정리된 항목 숨김 시, 표시할 항목이 남은 Task만 유지
-                    // (담김·완료 모두 숨김 — 스프린트 미담김이라도 완료 처리된 항목 포함)
-                    const visibleTasks = feat.tasks
-                      .map((task) => ({
-                        task,
-                        items: showTakenInTree
-                          ? task.items
-                          : task.items.filter(
-                              (it) => !it.sprint_column_id && !it.completed,
-                            ),
-                      }))
-                      .filter((t) => t.items.length > 0);
-                    // 항목이 전부 정리(담김·완료)되면 피쳐를 숨기지 않고 "정리됨 스트립"으로 남긴다.
+                    // 보임 필터: 정리된 항목 숨김 시, 아직 담기지 않은 태스크만 남긴다
+                    // (담김·완료 모두 숨김 — 스프린트 미담김이라도 완료된 태스크 포함)
+                    const visibleTasks = visibleOf(feat);
+                    // 태스크가 전부 정리(담김·완료)되면 피쳐를 숨기지 않고 "정리됨 스트립"으로 남긴다.
                     // 정리됨 ≠ 완료 — 게이지는 실제 완료율을 그대로 두고, 배지로만 상태를 구분한다.
                     const allCleared = visibleTasks.length === 0;
                     const clearedExpanded = expandedCleared.has(feat.featureId);
                     const isComplete =
                       feat.total > 0 && feat.completed === feat.total;
-                    // 정리된 피쳐를 펼치면 전체 항목(정리된 것 포함)을 미리보기로 노출
-                    const bodyTasks = allCleared
-                      ? feat.tasks
-                          .map((task) => ({ task, items: task.items }))
-                          .filter((t) => t.items.length > 0)
-                      : visibleTasks;
+                    // 정리된 피쳐를 펼치면 전체 태스크(정리된 것 포함)를 미리보기로 노출
+                    const bodyTasks = allCleared ? feat.tasks : visibleTasks;
                     const collapsed = collapsedFeatures.has(feat.featureId);
                     // 본문 펼침 여부: 진행중 피쳐는 collapsedFeatures, 정리된 피쳐는 expandedCleared로 제어
                     const bodyOpen = allCleared ? clearedExpanded : !collapsed;
@@ -3218,263 +3151,141 @@ export function SprintBoard({
                           )}
 
                           {bodyOpen && (
-                            <div className="space-y-2 pl-2 pr-0.5 pb-2 pt-0.5">
-                              {bodyTasks.map(({ task, items }) => {
+                            <div className="space-y-1 pl-2 pr-0.5 pb-2 pt-0.5">
+                              {bodyTasks.map((it) => {
+                                const tid = it.task_id ?? it.id;
                                 const hasTask =
-                                  task.taskId !== "__none__" &&
-                                  !!onOpenChecklistItem;
-                                // Task 색 스파인 프레임: 체크리스트를 "한 태스크"로 묶는다
-                                // (우측 스프린트 보드의 Task 소그룹과 동일 시각 언어).
-                                const tkey = `${feat.featureId}:${task.taskId}`;
-                                const tCollapsed = collapsedTasks.has(tkey);
-                                const tColor = taskColorHex(task.taskId);
-                                // 진행률은 담김/보임 필터와 무관하게 태스크 전체 기준.
-                                const tDone = task.items.filter(
-                                  (i) => i.completed,
-                                ).length;
-                                const tTotal = task.items.length;
-                                const tPct =
-                                  tTotal > 0
-                                    ? Math.round((tDone / tTotal) * 100)
+                                  tid !== "__none__" && !!onOpenChecklistItem;
+                                const taken = !!it.sprint_column_id;
+                                const col = it.sprint_column_id
+                                  ? columnById.get(it.sprint_column_id)
+                                  : undefined;
+                                // 체크리스트는 별도 레벨이 아니라 이 한 줄의 진척 표시로 접힌다.
+                                const cTotal = it.checklist_total ?? 0;
+                                const cDone = it.checklist_done ?? 0;
+                                const cPct =
+                                  cTotal > 0
+                                    ? Math.round((cDone / cTotal) * 100)
                                     : 0;
-                                // 스프린트 담김 상태 — 담기/빼기가 Task 단위로 원자화돼 "부분" 상태는
-                                // 새 플로우에선 발생하지 않는다. 완료율과 독립적으로 태스크 전체 기준 판정.
-                                const tTaken = task.items.filter(
-                                  (i) => i.sprint_column_id,
-                                ).length;
-                                const tRemaining = tTotal - tTaken;
-                                // 전체 담김(모든 항목이 컬럼에 있음). 그 외엔 "담기" 하나로 흡수 —
-                                // 레거시 부분 담김도 한 번 누르면 전체 담김으로 완성된다.
-                                const taskInSprint =
-                                  tTotal > 0 && tTaken >= tTotal;
-                                // Task 담기 버튼 노출: 활성 스프린트 · 편집권한 · 실제 태스크 · 미담김 항목 존재.
-                                // (담기 동작은 태스크 열기 핸들러와 무관하므로 hasTask가 아닌 taskId로 판정)
-                                const showTaskAdd =
+                                const tColor = taskColorHex(tid);
+                                const showAdd =
                                   canEdit &&
                                   !!activeSprint &&
-                                  task.taskId !== "__none__" &&
-                                  !taskInSprint &&
-                                  tRemaining > 0;
+                                  tid !== "__none__" &&
+                                  !taken;
                                 return (
                                   <div
-                                    key={task.taskId}
-                                    className="rounded-xl border border-foreground/[0.08] overflow-hidden"
-                                    style={{
-                                      borderLeft: `3px solid ${tColor}`,
-                                      background: `${tColor}0d`,
-                                    }}
+                                    key={it.id}
+                                    className={`group relative flex items-center gap-1.5 pl-1.5 pr-2 py-1.5 rounded-lg border transition-colors ${
+                                      taken
+                                        ? "bg-bridge-secondary/[0.06] border-bridge-secondary/20 hover:border-bridge-secondary/40"
+                                        : "bg-bridge-dark border-foreground/[0.08] hover:border-bridge-border"
+                                    }`}
                                   >
-                                    {/* Task 헤더 — 접기/펼치기 · 진행률 · 태스크 열기 */}
-                                    <div
-                                      className={`group/task flex items-center gap-1.5 px-2 py-1.5 ${
-                                        tCollapsed
-                                          ? ""
-                                          : "border-b border-foreground/[0.06]"
+                                    <span
+                                      className="w-1 h-4 rounded-full shrink-0"
+                                      style={{ background: tColor }}
+                                    />
+                                    {/* 본문 — 클릭하면 태스크 상세 */}
+                                    <button
+                                      type="button"
+                                      onClick={() => openItem(it)}
+                                      disabled={!hasTask}
+                                      className={`flex-1 min-w-0 text-left ${
+                                        hasTask
+                                          ? "cursor-pointer"
+                                          : "cursor-default"
                                       }`}
-                                      style={{ background: `${tColor}14` }}
+                                      title={it.title}
                                     >
+                                      <span
+                                        className={`block text-xs truncate ${
+                                          it.completed
+                                            ? "line-through text-slate-500"
+                                            : "text-foreground"
+                                        }`}
+                                      >
+                                        {it.title}
+                                      </span>
+                                    </button>
+
+                                    {/* 체크리스트 진척 — 담기 전에도 무게를 가늠할 수 있게 항상 노출 */}
+                                    {cTotal > 0 && (
+                                      <span
+                                        className="flex items-center gap-1 shrink-0"
+                                        title={`체크리스트 ${cDone}/${cTotal}`}
+                                      >
+                                        <span className="w-7 h-1 rounded-full bg-foreground/10 overflow-hidden">
+                                          <span
+                                            className="block h-full rounded-full bg-bridge-secondary transition-all motion-reduce:transition-none"
+                                            style={{ width: `${cPct}%` }}
+                                          />
+                                        </span>
+                                        <span className="text-xs text-slate-500 tabular-nums">
+                                          {cDone}/{cTotal}
+                                        </span>
+                                      </span>
+                                    )}
+
+                                    {/* 이월 배지 — 몇 스프린트째 밀리는 중인지 */}
+                                    {(it.carry_over_count ?? 0) > 0 && (
+                                      <span
+                                        className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                        title={`${(it.carry_over_count ?? 0) + 1}번째 스프린트째 진행 중`}
+                                      >
+                                        이월 {it.carry_over_count}
+                                      </span>
+                                    )}
+
+                                    {it.assignee && (
+                                      <span
+                                        className="w-4 h-4 rounded-full grid place-items-center text-xs font-bold text-white shrink-0"
+                                        style={{
+                                          background: getAssigneeHex(
+                                            it.assignee.name,
+                                          ),
+                                        }}
+                                        title={it.assignee.name}
+                                      >
+                                        {getInitials(it.assignee.name)}
+                                      </span>
+                                    )}
+
+                                    {/* 담기 / 담김 — 이 행이 담기의 단위다 */}
+                                    {showAdd ? (
                                       <button
                                         type="button"
-                                        onClick={() => toggleTask(tkey)}
-                                        className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
-                                        aria-label={
-                                          tCollapsed ? "펼치기" : "접기"
-                                        }
-                                        title={task.taskTitle}
+                                        onClick={() => addTaskToSprint(it)}
+                                        className="shrink-0 inline-flex items-center gap-0.5 text-xs font-bold rounded-full pl-1 pr-1.5 py-0.5 border bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30 hover:bg-bridge-accent hover:text-white transition-all"
+                                        title="이 태스크를 스프린트에 담기 (체크리스트도 함께)"
+                                        aria-label="태스크를 스프린트에 담기"
                                       >
-                                        {tCollapsed ? (
-                                          <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                                        ) : (
-                                          <ChevronDown className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                                        )}
-                                        <span
-                                          className="w-1.5 h-1.5 rounded-sm shrink-0"
-                                          style={{ background: tColor }}
+                                        <Plus
+                                          className="w-3 h-3"
+                                          strokeWidth={2.5}
                                         />
-                                        <span className="text-xs font-bold uppercase tracking-wide text-slate-300 truncate">
-                                          {task.taskTitle}
-                                        </span>
+                                        담기
                                       </button>
-                                      {hasTask && (
-                                        <button
-                                          type="button"
-                                          onClick={() => openTask(task.taskId)}
-                                          className="shrink-0 w-6 h-6 grid place-items-center rounded text-slate-500 opacity-0 group-hover/task:opacity-100 hover:text-bridge-accent hover:bg-bridge-accent/10 transition-all"
-                                          title="태스크 열기"
-                                          aria-label="태스크 열기"
-                                        >
-                                          <ExternalLink className="w-3 h-3" />
-                                        </button>
-                                      )}
-                                      <span className="w-8 h-1 rounded-full bg-foreground/10 overflow-hidden shrink-0">
+                                    ) : taken && col ? (
+                                      <span
+                                        className="shrink-0 inline-flex items-center gap-1 text-xs font-bold rounded-full px-1.5 py-0.5 max-w-[84px]"
+                                        style={{
+                                          background: `${columnAccent(col)}26`,
+                                          color: columnAccent(col),
+                                        }}
+                                        title={`담김 · ${col.name}`}
+                                      >
                                         <span
-                                          className="block h-full rounded-full transition-all motion-reduce:transition-none"
+                                          className="w-1 h-1 rounded-full shrink-0"
                                           style={{
-                                            width: `${tPct}%`,
-                                            background: tColor,
+                                            background: columnAccent(col),
                                           }}
                                         />
-                                      </span>
-                                      <span className="text-[11px] font-bold text-slate-500 tabular-nums shrink-0">
-                                        {tDone}/{tTotal}
-                                      </span>
-
-                                      {/* Task 단위 담기 — 담기(미담김/레거시 부분) / 담김(전체). 이분법. */}
-                                      {showTaskAdd ? (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            addTaskToSprint(task.items)
-                                          }
-                                          className="shrink-0 inline-flex items-center gap-0.5 text-[11px] font-bold rounded-full pl-1 pr-1.5 py-0.5 border bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30 hover:bg-bridge-accent hover:text-white transition-all"
-                                          title="태스크 전체를 스프린트에 담기"
-                                          aria-label="태스크 전체 스프린트에 담기"
-                                        >
-                                          <Plus
-                                            className="w-3 h-3"
-                                            strokeWidth={2.5}
-                                          />
-                                          담기
-                                        </button>
-                                      ) : taskInSprint ? (
-                                        <span
-                                          className="shrink-0 inline-flex items-center gap-0.5 text-[11px] font-bold rounded-full px-1.5 py-0.5 bg-bridge-secondary/15 text-bridge-secondary"
-                                          title="태스크 전체가 스프린트에 담김"
-                                        >
-                                          <Check
-                                            className="w-2.5 h-2.5"
-                                            strokeWidth={3}
-                                          />
-                                          담김
+                                        <span className="truncate">
+                                          {col.name}
                                         </span>
-                                      ) : null}
-                                    </div>
-
-                                    {/* 체크리스트 카드 (펼침 시) */}
-                                    {!tCollapsed && (
-                                      <div className="p-1.5 space-y-1 bg-black/[0.12]">
-                                        {items.map((it) => {
-                                          const taken = !!it.sprint_column_id;
-                                          const col = it.sprint_column_id
-                                            ? columnById.get(
-                                                it.sprint_column_id,
-                                              )
-                                            : undefined;
-                                          // 담기 단위는 Task로 통일됐다. 체크리스트 개별 담기(원클릭
-                                          // 버튼·드래그)는 제거 — 이 행은 완료 토글·상태 표시·진입만 담당.
-                                          const clickable =
-                                            !!it.task_id &&
-                                            !!onOpenChecklistItem;
-                                          return (
-                                            <div
-                                              key={it.id}
-                                              className={`group relative flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-colors ${
-                                                taken
-                                                  ? "bg-bridge-secondary/[0.06] border-bridge-secondary/20 hover:border-bridge-secondary/40"
-                                                  : "bg-bridge-dark border-foreground/[0.08] hover:border-bridge-border"
-                                              }`}
-                                            >
-                                              {/* B. 체크박스 — 완료 토글 */}
-                                              <button
-                                                type="button"
-                                                onClick={() => toggleDone(it)}
-                                                disabled={
-                                                  !canEdit || !it.task_id
-                                                }
-                                                aria-label={
-                                                  it.completed
-                                                    ? "완료 해제"
-                                                    : "완료 표시"
-                                                }
-                                                className={`w-4 h-4 rounded-[5px] shrink-0 border grid place-items-center transition-colors ${
-                                                  it.completed
-                                                    ? "bg-bridge-secondary border-bridge-secondary"
-                                                    : "border-slate-500 hover:border-bridge-secondary"
-                                                } ${
-                                                  canEdit && it.task_id
-                                                    ? "cursor-pointer"
-                                                    : "cursor-default"
-                                                }`}
-                                              >
-                                                {it.completed && (
-                                                  <Check
-                                                    className="w-2.5 h-2.5 text-bridge-dark"
-                                                    strokeWidth={3.5}
-                                                  />
-                                                )}
-                                              </button>
-
-                                              {/* C. 본문 — 클릭 진입 */}
-                                              <button
-                                                type="button"
-                                                onClick={() => openItem(it)}
-                                                disabled={!clickable}
-                                                className={`flex-1 min-w-0 text-left ${
-                                                  clickable
-                                                    ? "cursor-pointer"
-                                                    : "cursor-default"
-                                                }`}
-                                                title={it.title}
-                                              >
-                                                <span
-                                                  className={`block text-xs truncate ${
-                                                    it.completed
-                                                      ? "line-through text-slate-500"
-                                                      : "text-foreground"
-                                                  }`}
-                                                >
-                                                  {it.title}
-                                                </span>
-                                              </button>
-
-                                              {/* D. 메타 — 담긴 컬럼 칩 · 담당자 · 진입 힌트 */}
-                                              <span className="flex items-center gap-1 shrink-0">
-                                                {taken && col && (
-                                                  <span
-                                                    className="inline-flex items-center gap-1 text-[11px] font-bold rounded px-1.5 py-0.5 max-w-[76px]"
-                                                    style={{
-                                                      background: `${columnAccent(col)}26`,
-                                                      color: columnAccent(col),
-                                                    }}
-                                                    title={`담김 · ${col.name}`}
-                                                  >
-                                                    <span
-                                                      className="w-1 h-1 rounded-full shrink-0"
-                                                      style={{
-                                                        background:
-                                                          columnAccent(col),
-                                                      }}
-                                                    />
-                                                    <span className="truncate">
-                                                      {col.name}
-                                                    </span>
-                                                  </span>
-                                                )}
-                                                {it.assignee && (
-                                                  <span
-                                                    className="w-4 h-4 rounded-full grid place-items-center text-[9px] font-bold text-white shrink-0"
-                                                    style={{
-                                                      background:
-                                                        getAssigneeHex(
-                                                          it.assignee.name,
-                                                        ),
-                                                    }}
-                                                    title={it.assignee.name}
-                                                  >
-                                                    {getInitials(
-                                                      it.assignee.name,
-                                                    )}
-                                                  </span>
-                                                )}
-                                                {clickable && (
-                                                  <ChevronRight className="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                )}
-                                              </span>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
+                                      </span>
+                                    ) : null}
                                   </div>
                                 );
                               })}

@@ -13,7 +13,10 @@ import lombok.Getter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 스프린트 보드 응답. Jackson SNAKE_CASE 전략으로 camelCase 필드는 snake_case JSON으로 직렬화된다.
@@ -125,67 +128,134 @@ public class SprintResponse {
         }
     }
 
-    /** 항목-카드 (= checklist_item). 브레드크럼용 feature/task 정보 포함. */
+    /**
+     * 스프린트 카드 = <b>태스크</b> 1건. 담기/컬럼 이동의 단위이자 게이지의 분모다.
+     *
+     * <p>체크리스트는 카드 안쪽에 진척(done/total)과 항목 목록으로 붙는다. 태스크가 스프린트에
+     * 담긴 뒤 체크리스트가 추가돼도 별도 조작 없이 여기 집계에 자연스럽게 반영된다.
+     *
+     * <p>DTO 이름은 프론트 호환을 위해 ItemCard를 유지한다(JSON 필드 구조는 동일 스키마).
+     */
     @Getter
     @AllArgsConstructor
     @Builder
     public static class ItemCard {
-        private String id;
-        private String title;
-        private boolean completed;
-        private String sprintColumnId;   // null이면 백로그
+        private String id;                // = taskId
+        private String title;             // = taskTitle
+        private boolean completed;        // 스프린트 상의 완료 = END(Done) 컬럼 도달
+        private String sprintColumnId;    // null이면 백로그(미담김)
         private Integer position;
         private LocalDate dueDate;
         private LocalDate startDate;      // 진행 현황 4구간 분류용(진행 중 판정)
-        private LocalDate doneDate;       // 완료일(과거 데이터 폴백, day 단위)
-        private LocalDateTime completedAt; // 완료 시각(오늘 완료 판정 소스)
+        private LocalDate doneDate;       // 완료일(day 단위)
+        private LocalDateTime completedAt; // END 컬럼 도달 시각(오늘 완료 판정 소스)
+        private Integer carryOverCount;   // 이월 횟수 — 0이면 이번 스프린트에서 처음 잡힌 태스크
         private String featureId;
         private String featureTitle;
         private String featureColor;
         private LocalDateTime featureCreatedAt; // Feature 생성 순서 정렬용
         private String taskId;
         private String taskTitle;
-        private AssigneeInfo assignee;
-        private ContractorInfo contractor; // 외주 담당(있으면). 내부 assignee와 배타적으로 채워진다.
-        private AssigneeInfo completedBy; // B안: 완료자 (담당자와 다르면 "대신 완료")
+        private String taskKey;           // 사람이 읽는 키 (STORY-42)
+        private AssigneeInfo assignee;    // 대표 담당자 (체크리스트 담당자 중 첫 번째)
+        private ContractorInfo contractor; // 대표 외주 담당(있으면)
+        private List<AssigneeInfo> assignees;   // 체크리스트 담당자 전체(중복 제거) — 구성원 뷰 라우팅 키
+        private List<ContractorInfo> contractors; // 체크리스트 외주 담당 전체(중복 제거)
+        // ── 체크리스트 롤업 (카드 안쪽 표시용) ──
+        private int checklistDone;
+        private int checklistTotal;
+        private List<ChecklistLine> checklistItems;
         // ── JIRA 뷰 전용 (컬럼=JIRA 상태 그루핑용) ──
-        private String blockId;           // 부모 Task의 현재 칸반 블록 = 매핑된 JIRA 상태(push 시 최신)
+        private String blockId;           // 현재 칸반 블록 = 매핑된 JIRA 상태(push 시 최신)
         private String qaState;           // JIRA pull QA 상태 (REVIEW/VERIFIED/REJECTED), 없으면 null
         private String jiraIssueKey;      // 연동된 JIRA 이슈 키(QASA-123), 미연동이면 null
         private String jiraStatusId;      // 마지막 pull 시점의 실제 JIRA 상태 id (미러링 컬럼 배치용)
 
-        public static ItemCard of(ChecklistItem c) {
-            return of(c, null, null);
+        public static ItemCard of(Task task, List<ChecklistItem> checklists) {
+            return of(task, checklists, null, null);
         }
 
-        /** JIRA 뷰용 — 부모 Task의 JIRA 이슈 키 + 실제 JIRA 상태 id를 함께 주입. */
-        public static ItemCard of(ChecklistItem c, String jiraIssueKey, String jiraStatusId) {
-            Task task = c.getTask();
-            Feature feature = task != null ? task.getFeature() : null;
-            SprintColumn col = c.getSprintColumn();
+        /** JIRA 뷰용 — JIRA 이슈 키 + 실제 JIRA 상태 id를 함께 주입. */
+        public static ItemCard of(Task task, List<ChecklistItem> checklists,
+                                  String jiraIssueKey, String jiraStatusId) {
+            Feature feature = task.getFeature();
+            SprintColumn col = task.getSprintColumn();
+
+            List<ChecklistLine> lines = new ArrayList<>();
+            Map<String, AssigneeInfo> assignees = new LinkedHashMap<>();
+            Map<String, ContractorInfo> contractors = new LinkedHashMap<>();
+            int done = 0;
+            for (ChecklistItem c : checklists) {
+                if (Boolean.TRUE.equals(c.getIsCompleted())) {
+                    done++;
+                }
+                lines.add(ChecklistLine.of(c));
+                if (c.getAssignee() != null) {
+                    assignees.putIfAbsent(c.getAssignee().getId(), AssigneeInfo.of(c.getAssignee()));
+                }
+                if (c.getContractor() != null) {
+                    contractors.putIfAbsent(c.getContractor().getId(), ContractorInfo.of(c.getContractor()));
+                }
+            }
+            List<AssigneeInfo> assigneeList = new ArrayList<>(assignees.values());
+            List<ContractorInfo> contractorList = new ArrayList<>(contractors.values());
+            LocalDateTime sprintDoneAt = task.getSprintDoneAt();
+
             return ItemCard.builder()
-                    .id(c.getId())
-                    .title(c.getTitle())
-                    .completed(Boolean.TRUE.equals(c.getIsCompleted()))
+                    .id(task.getId())
+                    .title(task.getTitle())
+                    .completed(task.isSprintDone())
                     .sprintColumnId(col != null ? col.getId() : null)
-                    .position(c.getPosition())
-                    .dueDate(c.getDueDate())
-                    .startDate(c.getStartDate())
-                    .doneDate(c.getDoneDate())
-                    .completedAt(c.getCompletedAt())
+                    .position(task.getPosition())
+                    .dueDate(task.getDueDate())
+                    .startDate(task.getStartDate())
+                    .doneDate(sprintDoneAt != null ? sprintDoneAt.toLocalDate() : null)
+                    .completedAt(sprintDoneAt)
+                    .carryOverCount(task.getCarryOverCount())
                     .featureId(feature != null ? feature.getId() : null)
                     .featureTitle(feature != null ? feature.getTitle() : null)
                     .featureColor(feature != null ? feature.getColor() : null)
                     .featureCreatedAt(feature != null ? feature.getCreatedAt() : null)
-                    .taskId(task != null ? task.getId() : null)
-                    .taskTitle(task != null ? task.getTitle() : null)
-                    .assignee(c.getAssignee() != null ? AssigneeInfo.of(c.getAssignee()) : null)
-                    .contractor(c.getContractor() != null ? ContractorInfo.of(c.getContractor()) : null)
-                    .completedBy(c.getCompletedBy() != null ? AssigneeInfo.of(c.getCompletedBy()) : null)
-                    .blockId(task != null && task.getBlock() != null ? task.getBlock().getId() : null)
-                    .qaState(task != null && task.getQaState() != null ? task.getQaState().name() : null)
+                    .taskId(task.getId())
+                    .taskTitle(task.getTitle())
+                    .taskKey(task.getTaskKey())
+                    .assignee(assigneeList.isEmpty() ? null : assigneeList.get(0))
+                    .contractor(contractorList.isEmpty() ? null : contractorList.get(0))
+                    .assignees(assigneeList)
+                    .contractors(contractorList)
+                    .checklistDone(done)
+                    .checklistTotal(checklists.size())
+                    .checklistItems(lines)
+                    .blockId(task.getBlock() != null ? task.getBlock().getId() : null)
+                    .qaState(task.getQaState() != null ? task.getQaState().name() : null)
                     .jiraIssueKey(jiraIssueKey)
                     .jiraStatusId(jiraStatusId)
+                    .build();
+        }
+    }
+
+    /** 카드 안쪽에 나열되는 체크리스트 한 줄. 담기 대상이 아니라 표시·토글 대상이다. */
+    @Getter
+    @AllArgsConstructor
+    @Builder
+    public static class ChecklistLine {
+        private String id;
+        private String title;
+        private boolean completed;
+        private Integer position;
+        private LocalDate dueDate;
+        private AssigneeInfo assignee;
+        private ContractorInfo contractor;
+
+        public static ChecklistLine of(ChecklistItem c) {
+            return ChecklistLine.builder()
+                    .id(c.getId())
+                    .title(c.getTitle())
+                    .completed(Boolean.TRUE.equals(c.getIsCompleted()))
+                    .position(c.getPosition())
+                    .dueDate(c.getDueDate())
+                    .assignee(c.getAssignee() != null ? AssigneeInfo.of(c.getAssignee()) : null)
+                    .contractor(c.getContractor() != null ? ContractorInfo.of(c.getContractor()) : null)
                     .build();
         }
     }

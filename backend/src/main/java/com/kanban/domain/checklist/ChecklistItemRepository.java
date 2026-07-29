@@ -19,10 +19,15 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     @Query("SELECT c FROM ChecklistItem c WHERE c.task.id = :taskId ORDER BY c.position ASC")
     List<ChecklistItem> findByTaskIdOrderByPositionAsc(@Param("taskId") String taskId);
 
-    /** JIRA 뷰(보드 스코프) — 여러 Task의 체크리스트를 담당자와 함께 조회(진행도·담당자 집계, N+1 방지). */
+    /**
+     * 여러 Task의 체크리스트를 담당자·외주와 함께 조회(진행도/담당자 집계, N+1 방지).
+     * 스프린트 보드의 태스크 카드와 JIRA 뷰가 공통으로 쓰는 집계 소스다.
+     */
     @Query("SELECT c FROM ChecklistItem c " +
            "LEFT JOIN FETCH c.assignee " +
-           "WHERE c.task.id IN :taskIds")
+           "LEFT JOIN FETCH c.contractor " +
+           "WHERE c.task.id IN :taskIds " +
+           "ORDER BY c.position ASC")
     List<ChecklistItem> findByTaskIdInWithAssignee(@Param("taskIds") List<String> taskIds);
 
     @Query("SELECT MAX(c.position) FROM ChecklistItem c WHERE c.task.id = :taskId")
@@ -128,60 +133,26 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     List<String> findDistinctAssigneeIdsByTaskId(@Param("taskId") String taskId);
 
     // ==================== Sprint Queries ====================
+    // 스프린트 멤버십은 태스크 단위이므로 담기/컬럼 이동 관련 조회는 TaskRepository로 옮겼다.
+    // 여기 남은 것은 태스크 카드에 붙일 "체크리스트 진척" 집계 소스뿐이다.
 
-    /** 스프린트에 담긴 카드 (프레임 컬럼용) — task/feature/assignee/completedBy/sprintColumn fetch */
+    /** 스프린트에 담긴 태스크들의 체크리스트 (카드 진척·담당자 집계용) */
     @Query("SELECT c FROM ChecklistItem c " +
-           "JOIN FETCH c.task t " +
-           "JOIN FETCH t.feature " +
-           "LEFT JOIN FETCH c.assignee " +
-           "LEFT JOIN FETCH c.completedBy " +
-           "LEFT JOIN FETCH c.sprintColumn sc " +
-           "WHERE c.sprint.id = :sprintId " +
-           "ORDER BY sc.position, c.position")
-    List<ChecklistItem> findBySprintId(@Param("sprintId") String sprintId);
-
-    /** 마일스톤 백로그 (아직 어떤 스프린트에도 안 담긴 항목) — 담기 후보 */
-    @Query("SELECT c FROM ChecklistItem c " +
-           "JOIN FETCH c.task t " +
-           "JOIN FETCH t.feature " +
-           "LEFT JOIN FETCH c.assignee " +
-           "WHERE t.milestone.id = :milestoneId AND c.sprint IS NULL " +
-           "ORDER BY t.id, c.position")
-    List<ChecklistItem> findBacklogByMilestoneId(@Param("milestoneId") String milestoneId);
-
-    /** 스코프 게이지 분모: 스프린트에 담긴 전체 카드 수 */
-    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.sprint.id = :sprintId")
-    int countBySprintId(@Param("sprintId") String sprintId);
-
-    /** 스코프 게이지 분자: 스프린트 내 특정 컬럼 종류(END=Done)의 카드 수 */
-    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.sprint.id = :sprintId AND c.sprintColumn.kind = :kind")
-    int countBySprintIdAndColumnKind(@Param("sprintId") String sprintId,
-                                     @Param("kind") com.kanban.domain.sprint.SprintColumnKind kind);
-
-    /** 태스크 단위 스프린트 편입 판정: 해당 태스크에 이 스프린트로 담긴 항목이 하나라도 있는지 */
-    boolean existsByTaskIdAndSprintId(String taskId, String sprintId);
-
-    /** 위와 동일하되 특정 항목(방금 옮긴 항목) 제외 — 이동 후 재정합용 */
-    boolean existsByTaskIdAndSprintIdAndIdNot(String taskId, String sprintId, String id);
-
-    /** 스프린트 모드 off 병합용: 마일스톤 내 담긴 카드 전체 조회 */
-    @Query("SELECT c FROM ChecklistItem c WHERE c.sprint.milestone.id = :milestoneId AND c.sprint IS NOT NULL")
-    List<ChecklistItem> findInSprintByMilestoneId(@Param("milestoneId") String milestoneId);
-
-    /** 마일스톤 관리 콘솔: 마일스톤 내 전체 체크리스트(스프린트 담김 여부 무관) — Feature ▸ Task ▸ 체크리스트 트리 소스 */
-    @Query("SELECT c FROM ChecklistItem c " +
-           "JOIN FETCH c.task t " +
-           "JOIN FETCH t.feature " +
            "LEFT JOIN FETCH c.assignee " +
            "LEFT JOIN FETCH c.contractor " +
-           "LEFT JOIN FETCH c.sprintColumn " +
-           "WHERE t.milestone.id = :milestoneId " +
-           "ORDER BY t.id, c.position")
-    List<ChecklistItem> findAllByMilestoneId(@Param("milestoneId") String milestoneId);
+           "LEFT JOIN FETCH c.completedBy " +
+           "WHERE c.task.sprint.id = :sprintId " +
+           "ORDER BY c.position ASC")
+    List<ChecklistItem> findByTaskSprintId(@Param("sprintId") String sprintId);
 
-    /** 특정 컬럼에 담긴 카드 (컬럼 삭제 시 재배치용) */
-    @Query("SELECT c FROM ChecklistItem c WHERE c.sprintColumn.id = :columnId")
-    List<ChecklistItem> findBySprintColumnId(@Param("columnId") String columnId);
+    /** 마일스톤 내 전체 체크리스트 (좌측 트리·백로그 카드 진척 집계용) */
+    @Query("SELECT c FROM ChecklistItem c " +
+           "LEFT JOIN FETCH c.assignee " +
+           "LEFT JOIN FETCH c.contractor " +
+           "LEFT JOIN FETCH c.completedBy " +
+           "WHERE c.task.milestone.id = :milestoneId " +
+           "ORDER BY c.position ASC")
+    List<ChecklistItem> findByTaskMilestoneId(@Param("milestoneId") String milestoneId);
 
     @Modifying
     @Query("UPDATE ChecklistItem ci SET ci.assignee = null WHERE ci.assignee.id = :userId")

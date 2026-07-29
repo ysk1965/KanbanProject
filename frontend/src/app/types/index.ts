@@ -596,33 +596,67 @@ export interface Checklist {
 export type SprintColumnKind = "START" | "MIDDLE" | "END";
 export type SprintStatus = "ACTIVE" | "ARCHIVED";
 
-export interface SprintItemCard {
+// 카드 안쪽에 나열되는 체크리스트 한 줄. 담기 대상이 아니라 표시·토글 대상이다.
+export interface SprintChecklistLine {
   id: string;
   title: string;
   completed: boolean;
+  position: number;
+  due_date: string | null;
+  assignee?: {
+    id: string;
+    name: string;
+    profile_image: string | null;
+  } | null;
+  contractor?: {
+    id: string;
+    name: string;
+    color: string | null;
+    manager_user_id: string | null;
+    manager_name: string | null;
+  } | null;
+}
+
+/**
+ * 스프린트 카드 = 태스크 1건. 담기/컬럼 이동의 단위이자 게이지의 분모다.
+ * 체크리스트는 카드 안쪽에 진척(checklist_done/checklist_total)과 목록으로 붙는다 —
+ * 태스크가 담긴 뒤 항목이 추가돼도 담기 조작 없이 이 집계에 자동 반영된다.
+ * (타입명은 기존 호출부 호환을 위해 SprintItemCard를 유지)
+ */
+export interface SprintItemCard {
+  id: string; // = task_id
+  title: string; // = task_title
+  completed: boolean; // 스프린트 상의 완료 = END(Done) 컬럼 도달
   sprint_column_id: string | null; // null이면 백로그(미담김)
   position: number;
   due_date: string | null;
   start_date: string | null; // 진행 현황 4구간 분류용(진행 중 판정)
-  done_date: string | null; // 완료일(과거 데이터 폴백)
-  completed_at: string | null; // 완료 시각(오늘 완료 판정 소스)
+  done_date: string | null; // Done 컬럼 도달일
+  completed_at: string | null; // Done 컬럼 도달 시각(오늘 완료 판정 소스)
+  carry_over_count?: number; // 이월 횟수 — 0이면 이번 스프린트에서 처음 잡힌 태스크
   feature_id: string | null;
   feature_title: string | null;
   feature_color: string | null;
   feature_created_at: string | null; // Feature 생성 순서 정렬용
   task_id: string | null;
   task_title: string | null;
+  task_key?: string | null; // 사람이 읽는 키 (STORY-42)
+  // ── 체크리스트 롤업 (카드 안쪽 표시용) ──
+  checklist_done: number;
+  checklist_total: number;
+  checklist_items?: SprintChecklistLine[];
   // ── JIRA 뷰 전용 (컬럼=JIRA 상태 그루핑용) ──
   block_id?: string | null; // 부모 Task의 현재 칸반 블록 = 매핑된 JIRA 상태(push 시 최신)
   qa_state?: "REVIEW" | "VERIFIED" | "REJECTED" | null; // JIRA pull QA 상태 (읽기전용)
   jira_issue_key?: string | null; // 연동된 JIRA 이슈 키(QASA-123), 미연동이면 null
   jira_status_id?: string | null; // 마지막 pull 시점의 실제 JIRA 상태 id (미러링 컬럼 배치용)
+  // 대표 담당자 = 체크리스트 담당자 중 첫 번째. 담당자가 여럿이면 assignees를 쓴다.
   assignee?: {
     id: string;
     name: string;
     profile_image: string | null;
   } | null;
-  // 외주 담당(있으면). 내부 assignee와 배타적. 구성원 뷰에서 manager_user_id 컬럼으로 라우팅한다.
+  // 대표 외주 담당(있으면). 구성원 뷰에서 manager_user_id 컬럼으로 라우팅한다.
   contractor?: {
     id: string;
     name: string;
@@ -630,11 +664,16 @@ export interface SprintItemCard {
     manager_user_id: string | null; // 관리 담당 내부 멤버의 user id (컬럼 라우팅 키)
     manager_name: string | null;
   } | null;
-  completed_by?: {
+  // 태스크 카드에는 담당자가 여럿 붙을 수 있다(체크리스트 담당자 합집합).
+  // 구성원 뷰에서는 이 목록의 각 멤버 컬럼에 카드가 나타난다.
+  assignees?: { id: string; name: string; profile_image: string | null }[];
+  contractors?: {
     id: string;
     name: string;
-    profile_image: string | null;
-  } | null;
+    color: string | null;
+    manager_user_id: string | null;
+    manager_name: string | null;
+  }[];
 }
 
 export interface SprintInfo {

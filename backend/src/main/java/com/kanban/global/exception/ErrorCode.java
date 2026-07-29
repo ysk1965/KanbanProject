@@ -153,10 +153,11 @@ public enum ErrorCode {
     // Sprint
     SPRINT_NOT_FOUND(HttpStatus.NOT_FOUND, "SP001", "스프린트를 찾을 수 없습니다"),
     SPRINT_NOT_ENABLED(HttpStatus.BAD_REQUEST, "SP002", "이 마일스톤은 스프린트가 활성화되어 있지 않습니다"),
-    SPRINT_ITEM_NOT_IN_MILESTONE(HttpStatus.BAD_REQUEST, "SP003", "해당 마일스톤에 속한 체크리스트 항목이 아닙니다"),
+    SPRINT_TASK_NOT_IN_MILESTONE(HttpStatus.BAD_REQUEST, "SP003", "해당 마일스톤에 속한 태스크가 아닙니다"),
     SPRINT_INVALID_STAGE(HttpStatus.BAD_REQUEST, "SP004", "유효하지 않은 스프린트 단계입니다"),
     SPRINT_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "SP005", "이미 종료된 스프린트입니다"),
-    SPRINT_NOT_ALL_DONE(HttpStatus.BAD_REQUEST, "SP006", "모든 카드가 Done이어야 종료할 수 있습니다"),
+    // SP006은 "모든 카드가 Done이어야 종료" 게이트에 쓰이던 코드. 미완료 태스크를 다음 스프린트로
+    // 이월하는 방식으로 바뀌면서 종료를 막을 이유가 없어져 회수했다. (번호는 재사용하지 않는다)
     SPRINT_REACTIVATION_BLOCKED(HttpStatus.CONFLICT, "SP007", "먼저 재활성화된 스프린트를 종료해 주세요"),
     SPRINT_ALREADY_ACTIVE(HttpStatus.BAD_REQUEST, "SP008", "이미 진행 중인 스프린트입니다"),
     SPRINT_NOT_IN_REACTIVATION(HttpStatus.BAD_REQUEST, "SP009", "재활성화 중인 스프린트가 아닙니다"),

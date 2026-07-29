@@ -29,7 +29,6 @@ import com.kanban.domain.integration.slack.service.SlackNotificationService;
 import com.kanban.domain.notification.service.NotificationService;
 import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
-import com.kanban.domain.sprint.service.SprintService;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
@@ -59,7 +58,6 @@ import java.util.UUID;
 public class ChecklistService {
 
     private final ChecklistItemRepository checklistItemRepository;
-    private final SprintService sprintService;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
@@ -129,8 +127,7 @@ public class ChecklistService {
 
         checklistItemRepository.save(item);
 
-        // 태스크 단위 스프린트 편입: 부모 태스크가 이미 활성 스프린트에 담겨 있으면 새 항목도 자동으로 담는다.
-        sprintService.inheritSprintForNewItem(item);
+        // 스프린트 편입은 부모 태스크가 들고 있으므로 여기서 할 일이 없다 — 태스크가 담겨 있으면 이 항목도 자동으로 그 안이다.
 
         // 활동 로그 기록
         User creator = userRepository.findById(userId)
@@ -478,8 +475,7 @@ public class ChecklistService {
         }
 
         item.toggle();
-        // 스프린트에 담긴 항목이면 완료 상태에 맞춰 컬럼 동기화 (완료→Done, 미완료→직전 컬럼)
-        sprintService.syncColumnOnToggle(item, userId);
+        // 스프린트 컬럼은 태스크 단위로만 움직인다 — 체크리스트 토글은 카드 진척(3/5)만 바꾼다.
         checklistItemRepository.save(item);
 
         log.info("Checklist item toggled: {} to {} by user: {}", itemId, item.getIsCompleted(), userId);
@@ -535,8 +531,7 @@ public class ChecklistService {
 
         checklistItemRepository.save(item);
 
-        // 태스크 단위 스프린트 편입: 대상 태스크가 이미 활성 스프린트에 담겨 있으면 새 항목도 자동으로 담는다.
-        sprintService.inheritSprintForNewItem(item);
+        // 스프린트 편입은 부모 태스크가 들고 있으므로 여기서 할 일이 없다.
 
         User creator = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -696,8 +691,7 @@ public class ChecklistService {
 
         item.moveToTask(targetTask, newPosition);
 
-        // 태스크 단위 스프린트 재정합: 대상 태스크의 스프린트 편입 여부에 맞춰 항목의 스프린트를 조정한다.
-        sprintService.reconcileSprintAfterMove(item);
+        // 항목이 다른 태스크로 옮겨가면 스프린트 소속도 대상 태스크의 것을 그대로 따른다(재정합 불필요).
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));

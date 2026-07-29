@@ -43,6 +43,7 @@ import {
 } from "./ContractorManageModal";
 
 type ViewMode =
+  | "dashboard"
   | "kanban"
   | "gantt"
   | "schedule"
@@ -59,6 +60,7 @@ type ViewMode =
 
 // 보드 서브뷰 그룹 (보드 탭에 속하는 ViewMode 집합)
 const BOARD_SUB_MODES: ViewMode[] = [
+  "dashboard",
   "kanban",
   "gantt",
   "calendar",

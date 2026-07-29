@@ -5,9 +5,12 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.common.BaseTimeEntity;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.milestone.Milestone;
+import com.kanban.domain.sprint.Sprint;
+import com.kanban.domain.sprint.SprintColumn;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDate;
@@ -22,7 +25,8 @@ import java.util.UUID;
     @Index(name = "idx_task_feature_id", columnList = "feature_id"),
     @Index(name = "idx_task_block_id", columnList = "block_id"),
     @Index(name = "idx_task_board_completed", columnList = "board_id, is_completed"),
-    @Index(name = "idx_task_board_position", columnList = "board_id, position")
+    @Index(name = "idx_task_board_position", columnList = "board_id, position"),
+    @Index(name = "idx_tasks_sprint", columnList = "sprint_id")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -112,6 +116,32 @@ public class Task extends BaseTimeEntity {
      * JIRA에서 pull된 QA 상태 (읽기전용). null이면 QA 흐름 밖(개발 소유).
      * JIRA 연동 카드에서만 세팅되며, 카드에 QA 뱃지/반려 배너로 표시된다.
      */
+    // ==================== Sprint (담긴 스프린트 + 컬럼 위치) ====================
+    /**
+     * 스프린트 멤버십은 태스크 단위다. 체크리스트는 태스크에 딸린 내용물이므로,
+     * 태스크가 스프린트에 담겨 있으면 나중에 추가된 체크리스트도 자동으로 같은 스프린트에 포함된다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sprint_id")
+    private Sprint sprint;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sprint_column_id")
+    private SprintColumn sprintColumn;
+
+    /**
+     * 스프린트 종료 시 다음 스프린트로 이월된 횟수. 몇 번째 스프린트째 밀리고 있는지 보여주는 값.
+     * 기존 행과 컬럼을 나열하지 않는 시드 INSERT를 위해 DDL 기본값을 함께 내보낸다.
+     */
+    @Column(name = "carry_over_count", nullable = false)
+    @ColumnDefault("0")
+    @Builder.Default
+    private Integer carryOverCount = 0;
+
+    /** END(Done) 컬럼 도달 시각. 칸반 블록 완료(completedAt)와 별개인 "스프린트 상의 완료" 시점. */
+    @Column(name = "sprint_done_at")
+    private LocalDateTime sprintDoneAt;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "qa_state", length = 20)
     private QaState qaState;
@@ -244,6 +274,49 @@ public class Task extends BaseTimeEntity {
             this.isCompleted = false;
             this.completedAt = null;
         }
+    }
+
+    // ==================== Sprint helpers ====================
+
+    /** 백로그 태스크를 스프린트에 담는다 (지정 컬럼으로). */
+    public void assignToSprint(Sprint sprint, SprintColumn column) {
+        this.sprint = sprint;
+        moveToSprintColumn(column);
+    }
+
+    /** 프레임 내 카드 이동 (컬럼 변경). END 도달/이탈에 맞춰 스프린트 완료 시각을 갱신한다. */
+    public void moveToSprintColumn(SprintColumn column) {
+        this.sprintColumn = column;
+        if (column != null && column.isEnd()) {
+            if (this.sprintDoneAt == null) {
+                this.sprintDoneAt = LocalDateTime.now(ZoneOffset.UTC);
+            }
+        } else {
+            this.sprintDoneAt = null;
+        }
+    }
+
+    /** 스프린트에서 빼서 백로그로 되돌린다. */
+    public void removeFromSprint() {
+        this.sprint = null;
+        this.sprintColumn = null;
+        this.sprintDoneAt = null;
+    }
+
+    public boolean isInSprint() {
+        return this.sprint != null;
+    }
+
+    /** 스프린트 종료 시 다음 스프린트로 이월 (Sprint 컬럼부터 다시 시작). */
+    public void carryOverTo(Sprint next, SprintColumn startColumn) {
+        this.sprint = next;
+        moveToSprintColumn(startColumn);
+        this.carryOverCount = (this.carryOverCount == null ? 0 : this.carryOverCount) + 1;
+    }
+
+    /** 스프린트 상의 완료 = END 컬럼 도달. 칸반 블록 기준 완료(isCompleted)와는 별개다. */
+    public boolean isSprintDone() {
+        return this.sprintColumn != null && this.sprintColumn.isEnd();
     }
 
     public void saveBaseline() {

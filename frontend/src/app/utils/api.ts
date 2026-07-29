@@ -3652,7 +3652,7 @@ export const sprintAPI = {
     );
   },
 
-  /** 마일스톤 관리 콘솔 — 마일스톤 전체 체크리스트(스프린트 무관) */
+  /** 마일스톤 관리 콘솔 — 마일스톤 전체 태스크(스프린트 무관) */
   getMilestoneConsole: async (boardId: string, milestoneId: string) => {
     return apiClient.get<SprintItemCard[]>(
       `/boards/${boardId}/milestones/${milestoneId}/console`,
@@ -3684,29 +3684,25 @@ export const sprintAPI = {
     );
   },
 
-  /** 체크리스트 항목 담기 */
-  addItem: async (
-    boardId: string,
-    sprintId: string,
-    checklistItemId: string,
-  ) => {
+  /** 태스크 담기 — 그 태스크의 체크리스트는 함께 딸려 들어온다 */
+  addTask: async (boardId: string, sprintId: string, taskId: string) => {
     return apiClient.post<SprintBoard>(
-      `/boards/${boardId}/sprints/${sprintId}/items`,
-      { checklist_item_id: checklistItemId },
+      `/boards/${boardId}/sprints/${sprintId}/tasks`,
+      { task_id: taskId },
     );
   },
 
-  /** 항목 빼기 (Task 백로그로 복귀) */
-  removeItem: async (boardId: string, sprintId: string, itemId: string) => {
+  /** 태스크 빼기 (백로그로 복귀) */
+  removeTask: async (boardId: string, sprintId: string, taskId: string) => {
     return apiClient.delete<SprintBoard>(
-      `/boards/${boardId}/sprints/${sprintId}/items/${itemId}`,
+      `/boards/${boardId}/sprints/${sprintId}/tasks/${taskId}`,
     );
   },
 
-  /** 카드 컬럼 이동 (드래그) — END 컬럼 도달 시 완료 동기화 */
-  moveToColumn: async (boardId: string, itemId: string, columnId: string) => {
+  /** 카드 컬럼 이동 (드래그) — END 컬럼 도달 = 스프린트 상의 완료 */
+  moveToColumn: async (boardId: string, taskId: string, columnId: string) => {
     return apiClient.patch<SprintBoard>(
-      `/boards/${boardId}/checklist-items/${itemId}/sprint-column`,
+      `/boards/${boardId}/tasks/${taskId}/sprint-column`,
       { column_id: columnId },
     );
   },
@@ -3755,7 +3751,7 @@ export const sprintAPI = {
     );
   },
 
-  /** 스프린트 종료 (100% 완료 시 동결 + 다음 스프린트 생성/복귀) */
+  /** 스프린트 종료 (완료율 동결 + 미완료 태스크 이월 + 다음 스프린트 생성/복귀) */
   closeSprint: async (boardId: string, sprintId: string) => {
     return apiClient.post<SprintBoard>(
       `/boards/${boardId}/sprints/${sprintId}/close`,
@@ -3776,17 +3772,17 @@ export const sprintAPI = {
     );
   },
 
-  /** 특정 스프린트의 담긴 카드 목록 (아카이브 열람용) */
-  getSprintItems: async (boardId: string, sprintId: string) => {
+  /** 특정 스프린트에 담긴 태스크 카드 목록 (아카이브 열람용) */
+  getSprintTasks: async (boardId: string, sprintId: string) => {
     return apiClient.get<SprintItemCard[]>(
-      `/boards/${boardId}/sprints/${sprintId}/items`,
+      `/boards/${boardId}/sprints/${sprintId}/tasks`,
     );
   },
 
-  /** 아카이브 항목을 현재 스프린트로 재개 */
-  resumeItem: async (boardId: string, itemId: string) => {
+  /** 아카이브 태스크를 현재 스프린트로 재개 */
+  resumeTask: async (boardId: string, taskId: string) => {
     return apiClient.post<SprintBoard>(
-      `/boards/${boardId}/checklist-items/${itemId}/resume`,
+      `/boards/${boardId}/tasks/${taskId}/sprint-resume`,
     );
   },
 };
