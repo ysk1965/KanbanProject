@@ -335,11 +335,12 @@ public class ReportSlackPublisher {
      *
      * <pre>
      * 🎯 2분기 로드맵 › *Sprint 3* · 진행중
-     * ████████▓▓▒▒░░░░░░░░ *40%*  (65/164)
-     * └ 전체 *164* · 완료 *65* · 진행 *10* · 지연 *10* · 남은 *79*
+     * ████████▓▓▒▒░░░░░░░░ *40%*  (체크리스트 65/164)
+     * └ 완료 *65* · 진행 *10* · 지연 *10* · 남은 *79*  ·  태스크 *4/26*
      * </pre>
      *
      * 슬랙 mrkdwn은 색을 못 넣으므로 구간은 음영 문자(█ 완료 / ▓ 진행 / ▒ 지연 / ░ 남은)로 구분한다.
+     * 게이지 단위는 태스크 건수가 아니라 <b>체크리스트 줄</b>이다(스프린트 보드와 동일). 태스크 건수는 꼬리표로만 붙인다.
      */
     private String buildSprintLine(ReportContent.Sprint sprint) {
         if (sprint == null || sprint.getTotal() <= 0) {
@@ -358,10 +359,15 @@ public class ReportSlackPublisher {
                 ? sprint.getMilestone() + " › " : "";
         String bar = buildSprintBar(done, inProgress, delayed, total);
 
+        // 옛 보고서(태스크 건수 없음)는 태스크 꼬리표를 생략한다.
+        String taskTail = sprint.getTaskTotal() > 0
+                ? "  ·  태스크 *" + Math.max(0, sprint.getTaskDone()) + "/" + sprint.getTaskTotal() + "*"
+                : "";
+
         return "🎯 " + prefix + "*" + name + "* · 진행중"
-                + "\n" + bar + "  *" + sprint.getPercentage() + "%*  (" + done + "/" + total + ")"
-                + "\n└ 전체 *" + total + "* · 완료 *" + done + "* · 진행 *" + inProgress
-                + "* · 지연 *" + delayed + "* · 남은 *" + remaining + "*";
+                + "\n" + bar + "  *" + sprint.getPercentage() + "%*  (체크리스트 " + done + "/" + total + ")"
+                + "\n└ 완료 *" + done + "* · 진행 *" + inProgress
+                + "* · 지연 *" + delayed + "* · 남은 *" + remaining + "*" + taskTail;
     }
 
     /**

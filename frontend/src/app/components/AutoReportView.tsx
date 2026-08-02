@@ -604,8 +604,13 @@ function SprintBar({ sprint }: { sprint: AutoReportSprint }) {
             <span className="text-sm ml-0.5 text-slate-500">%</span>
           </span>
           <span className="text-xs text-slate-500 tabular-nums">
-            {done} / {total} 항목
+            체크리스트 {done} / {total}
           </span>
+          {(sprint.task_total ?? 0) > 0 && (
+            <span className="text-xs text-slate-500 tabular-nums">
+              · 태스크 {sprint.task_done ?? 0} / {sprint.task_total}
+            </span>
+          )}
         </div>
       </div>
       <div className="flex h-2.5 gap-0.5">

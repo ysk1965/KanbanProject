@@ -9809,14 +9809,21 @@ export interface AutoReportSection {
   sources: string[] | null;
 }
 
+/**
+ * 스프린트 게이지. 단위는 체크리스트 한 줄 — 스프린트 보드 게이지와 같은 규약이다
+ * (체크리스트 없는 태스크는 1줄로 환산, Done 컬럼 태스크는 전 줄 완료).
+ * task_done/task_total은 참고용 태스크 건수이며 옛 보고서엔 없어 0일 수 있다.
+ */
 export interface AutoReportSprint {
   name: string;
   status: string; // "IN_PROGRESS"
-  done: number;
-  total: number;
-  in_progress: number;
-  delayed: number;
+  done: number; // 완료 체크리스트 줄 수
+  total: number; // 전체 체크리스트 줄 수
+  in_progress: number; // 진행 중 태스크의 남은 줄 수
+  delayed: number; // 마감 지난 태스크의 남은 줄 수
   percentage: number;
+  task_done?: number;
+  task_total?: number;
 }
 
 export interface AutoReportChecklistLine {

@@ -473,35 +473,73 @@ public class BoardProgressCollector {
         return "TODO";
     }
 
-    /** 보드의 활성 스프린트 게이지(done/total/inProgress/delayed). 활성 스프린트 없으면 null. */
+    /**
+     * 보드의 활성 스프린트 게이지(done/total/inProgress/delayed). 활성 스프린트 없으면 null.
+     *
+     * <p>진척 단위는 <b>체크리스트 한 줄</b>이다 — 스프린트 보드 게이지({@code SprintService.progressUnits})와
+     * 동일한 규약을 쓴다. 태스크 건수로 세면 28줄짜리와 1줄짜리가 같은 무게가 되어 보드에 보이는 %와
+     * 보고서 %가 어긋난다.
+     * <ul>
+     *   <li>체크리스트가 없는 태스크는 1줄로 환산한다(태스크 자체가 하나의 할 일).</li>
+     *   <li>Done(END) 컬럼에 도달한 태스크는 남은 줄과 무관하게 전부 완료로 센다.</li>
+     *   <li>미완료 태스크라도 이미 끝낸 줄은 완료분에 들어간다 — 그 진척이 게이지에서 사라지면 안 된다.</li>
+     *   <li>남은 줄은 그 태스크의 상태(지연/진행 중/미착수)로 분류해 막대 구간이 total과 정확히 맞는다.</li>
+     * </ul>
+     * 태스크 건수는 참고용으로 taskDone/taskTotal에 따로 담는다.
+     */
     private ReportContent.Sprint computeSprint(String boardId) {
         List<Sprint> active = sprintRepository.findByBoardIdAndStatus(boardId, SprintStatus.ACTIVE);
         if (active.isEmpty()) {
             return null;
         }
         Sprint sprint = active.get(0); // 최신 시퀀스 우선
-        // 스프린트 스코프의 단위는 태스크다 (체크리스트는 태스크 카드 안쪽 진척일 뿐).
         List<Task> tasks = taskRepository.findBySprintId(sprint.getId());
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
 
-        int total = tasks.size();
+        // 스프린트에 담긴 태스크의 체크리스트를 한 번에 읽어 태스크별로 묶는다.
+        Map<String, List<ChecklistItem>> checklistByTask = new HashMap<>();
+        for (ChecklistItem item : checklistItemRepository.findByTaskSprintId(sprint.getId())) {
+            checklistByTask.computeIfAbsent(item.getTask().getId(), k -> new ArrayList<>()).add(item);
+        }
+
+        int taskTotal = tasks.size();
+        int taskDone = 0;
+        int total = 0;
         int done = 0;
         int delayed = 0;
         int inProgress = 0;
         for (Task t : tasks) {
+            List<ChecklistItem> items = checklistByTask.getOrDefault(t.getId(), List.of());
+            int unit = Math.max(items.size(), 1);
+            total += unit;
+
             if (t.isSprintDone()) {
-                done++;
+                taskDone++;
+                done += unit;
                 continue;
             }
+
+            int completed = 0;
+            for (ChecklistItem c : items) {
+                if (Boolean.TRUE.equals(c.getIsCompleted())) {
+                    completed++;
+                }
+            }
+            done += completed;
+
+            int remaining = unit - completed;
+            if (remaining <= 0) {
+                continue; // 줄은 다 끝냈지만 Done 컬럼엔 못 간 태스크 — 분류할 잔량이 없다
+            }
             if (t.getDueDate() != null && t.getDueDate().isBefore(today)) {
-                delayed++;
+                delayed += remaining;
                 continue;
             }
             boolean inMiddle = t.getSprintColumn() != null
                     && t.getSprintColumn().getKind() == SprintColumnKind.MIDDLE;
             boolean started = t.getStartDate() != null && !t.getStartDate().isAfter(today);
             if (inMiddle || started) {
-                inProgress++;
+                inProgress += remaining;
             }
             // 그 외는 미착수 — 별도 버킷 없이 total에만 포함
         }
@@ -516,6 +554,8 @@ public class BoardProgressCollector {
                 .inProgress(inProgress)
                 .delayed(delayed)
                 .percentage(percentage)
+                .taskDone(taskDone)
+                .taskTotal(taskTotal)
                 .build();
     }
 }

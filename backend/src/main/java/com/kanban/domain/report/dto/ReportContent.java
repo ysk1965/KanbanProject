@@ -111,11 +111,22 @@ public class ReportContent {
         private String milestone;
         /** 스프린트 상태 — 활성은 "IN_PROGRESS" */
         private String status;
+        // ── 진척 단위 = 체크리스트 한 줄 (스프린트 보드 게이지와 동일 규약) ──
+        /** 완료된 체크리스트 줄 수. Done 컬럼 태스크는 남은 줄까지 전부 완료로 센다. */
         private int done;
+        /** 전체 체크리스트 줄 수. 체크리스트가 없는 태스크는 1줄로 환산. */
         private int total;
+        /** 진행 중 태스크의 남은 줄 수 */
         private int inProgress;
+        /** 마감이 지난 태스크의 남은 줄 수 */
         private int delayed;
+        /** done / total (%) */
         private int percentage;
+        // ── 참고용 태스크 건수(게이지 분모는 아니다) ──
+        /** Done 컬럼에 도달한 태스크 수. 옛 보고서엔 없어 0일 수 있다. */
+        private int taskDone;
+        /** 스프린트에 담긴 태스크 수. 옛 보고서엔 없어 0일 수 있다. */
+        private int taskTotal;
     }
 
     /** 기능 하나의 진행 현황. 진행률·담당자·태스크는 feature/task 도메인에서 그대로 가져온다. */
