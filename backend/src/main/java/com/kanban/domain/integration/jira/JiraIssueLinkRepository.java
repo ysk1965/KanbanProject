@@ -35,8 +35,9 @@ public interface JiraIssueLinkRepository extends JpaRepository<JiraIssueLink, St
             @Param("boardId") String boardId,
             @Param("type") JiraLinkTargetType type);
 
-    /** 완료 역동기화 후보 — 아직 JIRA로 넘기지 않은 Task 링크. */
-    @Query("SELECT l FROM JiraIssueLink l WHERE l.board.id = :boardId AND l.targetType = :type AND l.writeBackDoneAt IS NULL")
+    /** 완료 역동기화 후보 — 아직 JIRA로 넘기지 않은 Task 링크. JIRA에서 삭제된 이슈는 제외. */
+    @Query("SELECT l FROM JiraIssueLink l WHERE l.board.id = :boardId AND l.targetType = :type "
+        + "AND l.writeBackDoneAt IS NULL AND l.jiraDeletedAt IS NULL")
     List<JiraIssueLink> findWriteBackCandidates(@Param("boardId") String boardId, @Param("type") JiraLinkTargetType type);
 
     @Modifying

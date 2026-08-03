@@ -48,6 +48,17 @@ public class JiraWebhookService {
                 log.debug("JIRA webhook: no issue key in payload (board {})", boardId);
                 return;
             }
+            // 삭제 이벤트는 pull 대상이 아니다(단건 조회하면 404). 링크만 끊고 카드를 갱신한다.
+            if (isDeletionEvent(payload)) {
+                String taskId = importService.markIssueDeleted(boardId, issueKey);
+                if (taskId == null) return;   // 미연동/이미 처리됨
+                Map<String, Object> data = new HashMap<>();
+                data.put("id", taskId);
+                data.put("jira_deleted", true);
+                webSocketEventService.sendBoardEvent(boardId, BoardEventType.TASK_UPDATED, "jira-sync", "JIRA", data);
+                return;
+            }
+
             String actorUserId = configRepository.findActiveByBoardId(boardId)
                 .map(c -> c.getConnectedBy() != null ? c.getConnectedBy().getId() : null)
                 .orElse(null);
@@ -68,6 +79,19 @@ public class JiraWebhookService {
         } catch (Exception e) {
             log.warn("JIRA webhook processing failed for board {}: {}", boardId, e.getMessage());
         }
+    }
+
+    /**
+     * 이슈 삭제 이벤트 판정. 표준 웹훅은 {@code webhookEvent: "jira:issue_deleted"},
+     * Automation 커스텀 바디는 {@code event: "deleted"} 처럼 보내는 경우가 있어 둘 다 받는다.
+     */
+    private boolean isDeletionEvent(JsonNode payload) {
+        for (String field : new String[]{"webhookEvent", "webhook_event", "event", "issue_event_type_name"}) {
+            if (payload.hasNonNull(field) && payload.get(field).asText().toLowerCase().contains("delet")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String extractIssueKey(JsonNode payload) {

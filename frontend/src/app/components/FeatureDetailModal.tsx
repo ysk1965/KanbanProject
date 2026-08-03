@@ -410,7 +410,8 @@ export function FeatureDetailModal({
   const getBlockName = (blockId: string) => {
     // 마일스톤 필터로 blocks가 축소되어도 타 마일스톤 태스크의 블록명을 해석하려면 전체 블록(allBlocks)을 우선 조회
     const blockPool = allBlocks && allBlocks.length > 0 ? allBlocks : blocks;
-    return blockPool.find((b) => b.id === blockId)?.name || blockId;
+    // 못 찾으면 "—" — id를 그대로 노출하면 36자 UUID가 행을 차지해 제목을 밀어낸다
+    return blockPool.find((b) => b.id === blockId)?.name || "—";
   };
 
   const getTaskMilestoneTitle = (milestoneId?: string | null) =>
