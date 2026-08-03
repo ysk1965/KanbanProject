@@ -225,7 +225,8 @@ export function DashboardScopeRow({
           hover:bg-foreground/10 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-colors"
       >
         <span
-          className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
+          className="w-6 h-6 flex-none rounded-full flex items-center justify-center
+            text-xs font-bold text-white leading-none whitespace-nowrap overflow-hidden"
           style={{
             backgroundColor: getAssigneeHex(label, current?.assigneeColor),
           }}
@@ -324,7 +325,8 @@ export function DashboardScopeRow({
                         }`}
                       >
                         <span
-                          className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white flex-none"
+                          className="w-6 h-6 flex-none rounded-full flex items-center justify-center
+                            text-xs font-bold text-white leading-none whitespace-nowrap overflow-hidden"
                           style={{
                             backgroundColor: getAssigneeHex(
                               m.name,
