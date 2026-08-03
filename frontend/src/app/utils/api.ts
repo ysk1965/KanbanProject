@@ -5971,6 +5971,8 @@ export interface JiraStatus {
   milestone_auto_assign: boolean;
   write_back_enabled: boolean;
   write_back_target_status_id: string | null;
+  /** 댓글 양방향 동기화(생성/삭제) 사용 여부. */
+  comment_sync_enabled: boolean;
   /** 블록↔JIRA status 양방향 매핑 (key=blockId/__rejected). */
   block_status_map: Record<string, JiraBlockStatusEntry> | null;
   /** 웹훅 수신 토큰(Phase 4). 근실시간 pull URL 조립용. */
@@ -6156,6 +6158,12 @@ export const jiraAPI = {
     return apiClient.put<JiraStatus>(`/boards/${boardId}/jira/write-back`, {
       enabled: data.enabled,
       target_status_id: data.targetStatusId || undefined,
+    });
+  },
+
+  updateCommentSync: async (boardId: string, enabled: boolean) => {
+    return apiClient.put<JiraStatus>(`/boards/${boardId}/jira/comment-sync`, {
+      enabled,
     });
   },
 

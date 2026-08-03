@@ -85,6 +85,34 @@ public class JiraApiClient {
         return exchange(ctx, HttpMethod.GET, path, null);
     }
 
+    // ── 코멘트 (양방향 댓글 동기화) ────────────────
+
+    /**
+     * 코멘트 목록. 폴링 백업(재조정)에서 "JIRA에 남아있는 코멘트 전체"를 확인하는 데 쓴다.
+     * 응답의 {@code total/maxResults}로 목록이 잘렸는지 판정해야 한다 —
+     * 잘린 목록으로 삭제 재조정을 돌리면 멀쩡한 댓글을 지운다.
+     */
+    public JsonNode getComments(JiraAuthContext ctx, String issueKey) {
+        return exchange(ctx, HttpMethod.GET,
+            "/issue/" + issueKey + "/comment?startAt=0&maxResults=100&orderBy=created", null);
+    }
+
+    /** 코멘트 작성. 반환 JSON의 {@code id}가 JIRA 코멘트 id(원장에 저장). */
+    public JsonNode addComment(JiraAuthContext ctx, String issueKey, JsonNode adfBody) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.set("body", adfBody);
+        return exchange(ctx, HttpMethod.POST, "/issue/" + issueKey + "/comment", body);
+    }
+
+    /**
+     * 코멘트 삭제. 권한이 없으면 403 → {@link ErrorCode#JIRA_AUTH_FAILED}.
+     * (본인 글은 "Delete own comments", 남의 글은 "Delete all comments" 프로젝트 권한 필요)
+     * 이미 지워졌으면 404 → {@link ErrorCode#JIRA_ISSUE_NOT_FOUND} — 호출 측에서 성공으로 간주한다.
+     */
+    public void deleteComment(JiraAuthContext ctx, String issueKey, String commentId) {
+        exchange(ctx, HttpMethod.DELETE, "/issue/" + issueKey + "/comment/" + commentId, null);
+    }
+
     // ── 전환 (완료 역동기화) ───────────────────────
 
     public JsonNode getTransitions(JiraAuthContext ctx, String issueKey) {

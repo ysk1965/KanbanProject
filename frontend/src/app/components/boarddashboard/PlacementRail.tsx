@@ -11,11 +11,17 @@ import {
   boardChecklistAPI,
   type BoardChecklistItemResponse,
 } from "../../utils/api";
+import type { Milestone } from "../../types";
 import {
   getTodayDateString,
   getDDay,
   toDateInputValue,
 } from "../../utils/dateUtils";
+import {
+  buildMilestoneColorMap,
+  resolveMilestoneColor,
+  withAlpha,
+} from "../../utils/milestoneColor";
 import { addDaysToDate } from "../../utils/workloadBar";
 
 /** 드래그 페이로드 MIME — ScheduleResourceView.handleDrop이 읽는 키와 같아야 한다 */
@@ -26,6 +32,8 @@ type RailTab = "unplaced" | "overdue";
 interface PlacementRailProps {
   boardId: string;
   userId: string | undefined;
+  /** 보드 마일스톤 — 배열 순서(시작일 오름차순)가 칩 색과 정렬 순서의 기준이다 */
+  milestones: Milestone[];
   /** 증가 시 목록 재조회 — 배치 직후 부모가 올린다 */
   refreshTrigger: number;
   /** 뷰어는 드래그·빠른 배치 불가 */
@@ -71,6 +79,7 @@ function isCreatedToday(
 export function PlacementRail({
   boardId,
   userId,
+  milestones,
   refreshTrigger,
   canEdit,
   onPlace,
@@ -95,6 +104,32 @@ export function PlacementRail({
     return window.localStorage.getItem(storageKey) !== "false";
   });
   const trackRef = useRef<HTMLDivElement | null>(null);
+
+  // 마일스톤 id → 색 (배열 순서 기준 — 간트·마인드맵과 같은 색이 나온다)
+  const milestoneColorMap = useMemo(
+    () => buildMilestoneColorMap(milestones),
+    [milestones],
+  );
+
+  /**
+   * 마일스톤 id → 정렬 순위. milestones는 시작일 오름차순이라 순위가 곧 시간 순이다.
+   * 마일스톤이 없는 항목은 맨 뒤로 보낸다 (보드에서 사라진 마일스톤 참조는 그 바로 앞).
+   */
+  const milestoneRank = useMemo(() => {
+    const map: Record<string, number> = {};
+    milestones.forEach((m, i) => {
+      map[m.id] = i;
+    });
+    return map;
+  }, [milestones]);
+
+  const rankOf = useCallback(
+    (item: BoardChecklistItemResponse) => {
+      if (!item.milestone) return Number.MAX_SAFE_INTEGER;
+      return milestoneRank[item.milestone.id] ?? Number.MAX_SAFE_INTEGER - 1;
+    },
+    [milestoneRank],
+  );
 
   const toggleOpen = useCallback(() => {
     setOpen((prev) => {
@@ -143,16 +178,21 @@ export function PlacementRail({
       (i) => !i.completed && !hiddenIds.has(i.id),
     );
 
-    const unplacedList = openItems
-      .filter(isUnplaced)
-      .sort((a, b) => (a.task?.title ?? "").localeCompare(b.task?.title ?? ""));
+    // 마일스톤 순(가까운 것 먼저) → 같은 마일스톤 안에서는 기존대로 태스크 제목순.
+    // 먼 마일스톤에 미리 등록된 항목이 레일 앞을 차지하지 않게 하는 것이 목적이다.
+    const unplacedList = openItems.filter(isUnplaced).sort((a, b) => {
+      const diff = rankOf(a) - rankOf(b);
+      if (diff !== 0) return diff;
+      return (a.task?.title ?? "").localeCompare(b.task?.title ?? "");
+    });
 
+    // 지연 탭은 마일스톤보다 마감이 급하므로 날짜순을 유지한다
     const overdueList = openItems
       .filter((i) => i.due_date && i.due_date < today)
       .sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""));
 
     return { unplaced: unplacedList, overdue: overdueList };
-  }, [items, hiddenIds, today]);
+  }, [items, hiddenIds, today, rankOf]);
 
   useEffect(() => {
     onPendingChange?.(unplaced.length);
@@ -338,6 +378,10 @@ export function PlacementRail({
               const draggable = canEdit && !!taskId;
               const dday = getDDay(item.due_date);
               const isNew = isCreatedToday(item, today);
+              const milestone = item.milestone;
+              const milestoneHex = milestone
+                ? resolveMilestoneColor(milestone.id, milestoneColorMap).hex
+                : null;
 
               return (
                 <div
@@ -374,16 +418,44 @@ export function PlacementRail({
                       onClick={() => taskId && onOpenTask(taskId, item.id)}
                       className="flex-1 min-w-0 text-left"
                     >
+                      {/* 마일스톤이 1순위 단서 — 색은 간트·마인드맵과 같은 팔레트를 쓴다 */}
+                      <div className="flex items-center gap-1 mb-1 min-w-0">
+                        {milestone && milestoneHex ? (
+                          <span
+                            className="flex items-center gap-1 min-w-0 text-xs font-bold pl-1.5 pr-2 py-0.5 rounded-full"
+                            style={{
+                              backgroundColor: withAlpha(milestoneHex, 0.15),
+                              color: milestoneHex,
+                            }}
+                            title={milestone.title}
+                          >
+                            <span
+                              className="flex-none w-1.5 h-1.5 rounded-[1px]"
+                              style={{ backgroundColor: milestoneHex }}
+                              aria-hidden="true"
+                            />
+                            <span className="truncate">{milestone.title}</span>
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 min-w-0 text-xs font-bold pl-1.5 pr-2 py-0.5 rounded-full bg-foreground/[0.06] text-slate-500">
+                            <span
+                              className="flex-none w-1.5 h-1.5 rounded-[1px] bg-slate-600"
+                              aria-hidden="true"
+                            />
+                            <span className="truncate">
+                              {t(
+                                "boardDashboard.railNoMilestone",
+                                "마일스톤 없음",
+                              )}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+
                       {(item.feature || isNew) && (
                         <div className="flex items-center gap-1 mb-1 min-w-0">
                           {item.feature && (
-                            <span
-                              className="text-xs font-bold px-1.5 py-0.5 rounded-full truncate"
-                              style={{
-                                backgroundColor: `${item.feature.color || "#6366F1"}26`,
-                                color: item.feature.color || "#6366F1",
-                              }}
-                            >
+                            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full truncate bg-foreground/[0.06] text-slate-400">
                               {item.feature.title}
                             </span>
                           )}

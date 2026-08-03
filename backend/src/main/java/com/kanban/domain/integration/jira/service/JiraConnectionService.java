@@ -9,6 +9,7 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.integration.jira.JiraAuthType;
+import com.kanban.domain.integration.jira.JiraCommentLinkRepository;
 import com.kanban.domain.integration.jira.JiraIntegrationConfig;
 import com.kanban.domain.integration.jira.JiraIntegrationConfigRepository;
 import com.kanban.domain.integration.jira.JiraIssueLink;
@@ -51,6 +52,7 @@ public class JiraConnectionService {
     private final JiraOAuthService oauthService;
     private final JiraIntegrationConfigRepository configRepository;
     private final JiraIssueLinkRepository issueLinkRepository;
+    private final JiraCommentLinkRepository commentLinkRepository;
     private final JiraUserMappingRepository userMappingRepository;
     private final BoardService boardService;
     private final BoardRepository boardRepository;
@@ -534,6 +536,21 @@ public class JiraConnectionService {
         return toStatus(config);
     }
 
+    /**
+     * 댓글 양방향 동기화 on/off.
+     *
+     * <p>켠 뒤 JIRA→BRIDGE를 실시간으로 받으려면 JIRA 웹훅/Automation에 코멘트 이벤트
+     * ({@code comment_created}, {@code comment_deleted})를 추가해야 한다. 없으면 폴링 백업으로만 들어와
+     * 최대 2분 지연되고, 삭제는 대조 시점까지 반영되지 않는다.
+     */
+    @Transactional
+    public JiraResponse.Status updateCommentSync(String boardId, String userId, JiraRequest.CommentSync request) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        JiraIntegrationConfig config = getActiveConfigOrThrow(boardId);
+        config.updateCommentSync(request.isEnabled());
+        return toStatus(config);
+    }
+
     // ── 상태 조회 / 해제 ──────────────────────────
 
     public JiraResponse.Status getStatus(String boardId, String userId) {
@@ -560,6 +577,7 @@ public class JiraConnectionService {
         }
         blockRepository.flush();
         issueLinkRepository.deleteByBoardId(boardId);
+        commentLinkRepository.deleteByBoardId(boardId);
         userMappingRepository.deleteByBoardId(boardId);
         configRepository.deleteByBoardId(boardId);
         log.info("JIRA disconnected from board {} by user {}", boardId, userId);
@@ -619,6 +637,7 @@ public class JiraConnectionService {
             .milestoneAutoAssign(Boolean.TRUE.equals(c.getMilestoneAutoAssign()))
             .writeBackEnabled(Boolean.TRUE.equals(c.getWriteBackEnabled()))
             .writeBackTargetStatusId(c.getWriteBackTargetStatusId())
+            .commentSyncEnabled(c.isCommentSyncEnabled())
             .blockStatusMap(readNested(c.getBlockStatusMapJson()))
             .webhookToken(c.getWebhookToken())
             .connectedByName(c.getConnectedBy() != null ? c.getConnectedBy().getId() : null)

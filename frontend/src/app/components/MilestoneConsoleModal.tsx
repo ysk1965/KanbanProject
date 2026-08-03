@@ -250,6 +250,16 @@ export function MilestoneConsoleModal({
     return Array.from(s).sort((a, b) => a.localeCompare(b, "ko"));
   }, [items]);
 
+  /**
+   * 이름 → 지정 색(assignee_color). 콘솔의 담당자 표시는 이름만 들고 다니므로
+   * 보드 멤버 색을 이름으로 되짚어 칸반·태스크 모달과 같은 색을 쓴다.
+   */
+  const memberColorByName = useMemo(() => {
+    const map: Record<string, string | null> = {};
+    for (const m of members) map[m.name] = m.color;
+    return map;
+  }, [members]);
+
   // 담당자 드롭다운 바깥 클릭 시 닫기
   useEffect(() => {
     if (!memberMenuOpen) return;
@@ -604,7 +614,12 @@ export function MilestoneConsoleModal({
               <>
                 <span
                   className="inline-grid place-items-center w-4 h-4 rounded-full text-[9px] font-bold text-white"
-                  style={{ background: getAssigneeHex(memberFilter) }}
+                  style={{
+                    background: getAssigneeHex(
+                      memberFilter,
+                      memberColorByName[memberFilter],
+                    ),
+                  }}
                 >
                   {getInitials(memberFilter)}
                 </span>
@@ -663,7 +678,12 @@ export function MilestoneConsoleModal({
                       </span>
                       <span
                         className="inline-grid place-items-center w-4 h-4 rounded-full text-[9px] font-bold text-white shrink-0"
-                        style={{ background: getAssigneeHex(name) }}
+                        style={{
+                          background: getAssigneeHex(
+                            name,
+                            memberColorByName[name],
+                          ),
+                        }}
                       >
                         {getInitials(name)}
                       </span>
@@ -923,7 +943,7 @@ export function MilestoneConsoleModal({
                                       background: isContractor
                                         ? "#f59e0b"
                                         : who
-                                          ? getAssigneeHex(who)
+                                          ? getAssigneeHex(who, memberColorByName[who])
                                           : "#94a3b8",
                                     }}
                                   >

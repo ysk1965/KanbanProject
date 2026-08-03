@@ -374,6 +374,7 @@ export function MyWorkloadWidget({
             <PlacementRail
               boardId={boardId}
               userId={userId}
+              milestones={milestones}
               refreshTrigger={childRefreshTrigger}
               canEdit={canEdit}
               onPlace={handleQuickPlace}

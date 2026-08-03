@@ -52,6 +52,8 @@ interface Props {
   boardId: string;
   canEdit: boolean;
   member: { id: string; name: string } | null;
+  /** 구성원 지정 색(board_members.assignee_color). 미지정이면 이름 해시 폴백 */
+  memberColor?: string | null;
   /** 이 구성원에게 배정된 스프린트 항목 전체(모든 컬럼) */
   items: SprintItemCard[];
   sprintName?: string | null;
@@ -75,6 +77,7 @@ export function SprintMemberGanttModal({
   boardId,
   canEdit,
   member,
+  memberColor,
   items,
   sprintName,
   sprintStart,
@@ -336,7 +339,9 @@ export function SprintMemberGanttModal({
   const todayIdx = dateToIdx(todayIso);
   const showToday = todayIdx >= 0 && todayIdx < range.total;
 
-  const accent = member ? getAssigneeHex(member.name) : DEFAULT_FEATURE_COLOR;
+  const accent = member
+    ? getAssigneeHex(member.name, memberColor)
+    : DEFAULT_FEATURE_COLOR;
 
   // 범례용 Feature 목록(배치된 카드 기준)
   const legendFeatures = useMemo(() => {
